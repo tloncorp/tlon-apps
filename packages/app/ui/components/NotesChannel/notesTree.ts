@@ -13,8 +13,6 @@ export type NotesTreeRow =
       type: 'folder';
       folder: db.NotesFolder;
       depth: number;
-      expanded: boolean;
-      hasChildren: boolean;
       noteCount: number;
       path: string;
     }
@@ -241,89 +239,6 @@ export function buildFolderDestinationRows({
     });
 }
 
-export function buildNotesTreeRows({
-  expandedFolderIds,
-  folderNoteCounts,
-  folders,
-  notes,
-  rootFolderId,
-}: {
-  expandedFolderIds: Set<number>;
-  folderNoteCounts: Map<number, number>;
-  folders: db.NotesFolder[];
-  notes: db.NotesNote[];
-  rootFolderId: number | null;
-}): NotesTreeRow[] {
-  const { byId, byParent } = indexFolders(folders, { sorted: true });
-  const notesByFolder = new Map<number, db.NotesNote[]>();
-  const renderedNoteIds = new Set<string>();
-
-  notes.forEach((note) => {
-    const folderNotes = notesByFolder.get(note.folderId) ?? [];
-    folderNotes.push(note);
-    notesByFolder.set(note.folderId, folderNotes);
-  });
-  notesByFolder.forEach((folderNotes) => {
-    folderNotes.sort(compareNotes);
-  });
-
-  const rows: NotesTreeRow[] = [];
-  const visitedFolderIds = new Set<number>();
-  const root = findRootFolder(folders, rootFolderId);
-
-  const appendNotes = (folderId: number, depth: number) => {
-    const folderNotes = notesByFolder.get(folderId) ?? [];
-    folderNotes.forEach((note) => {
-      rows.push({ type: 'note', note, depth });
-      renderedNoteIds.add(note.id);
-    });
-  };
-
-  const visit = (folder: db.NotesFolder, depth: number, parentPath = '') => {
-    if (visitedFolderIds.has(folder.folderId)) return;
-
-    visitedFolderIds.add(folder.folderId);
-    const label = getFolderLabel(folder);
-    const path = parentPath ? `${parentPath} / ${label}` : label;
-    const isRoot = root ? folder.folderId === root.folderId : false;
-    const childFolders = byParent.get(folder.folderId) ?? [];
-    const folderNotes = notesByFolder.get(folder.folderId) ?? [];
-    const hasChildren = childFolders.length > 0 || folderNotes.length > 0;
-    const expanded = isRoot || expandedFolderIds.has(folder.folderId);
-
-    if (!isRoot) {
-      rows.push({
-        type: 'folder',
-        folder,
-        depth,
-        expanded,
-        hasChildren,
-        noteCount: folderNoteCounts.get(folder.folderId) ?? 0,
-        path,
-      });
-    }
-
-    if (!expanded) return;
-
-    const childDepth = isRoot ? depth : depth + 1;
-    childFolders.forEach((child) => visit(child, childDepth, path));
-    appendNotes(folder.folderId, childDepth);
-  };
-
-  if (root) {
-    visit(root, 0);
-  }
-
-  visitOrphans(folders, byId, visitedFolderIds, visit);
-
-  notes
-    .filter((note) => !renderedNoteIds.has(note.id) && !byId.has(note.folderId))
-    .sort(compareNotes)
-    .forEach((note) => rows.push({ type: 'note', note, depth: 0 }));
-
-  return rows;
-}
-
 export function buildFolderContentsRows({
   folderId,
   folderNoteCounts,
@@ -355,16 +270,10 @@ export function buildFolderContentsRows({
 
   return [
     ...childFolders.map((folder): NotesTreeRow => {
-      const childNotes = notes.filter(
-        (note) => note.folderId === folder.folderId
-      );
-      const childFolders = byParent.get(folder.folderId) ?? [];
       return {
         type: 'folder',
         folder,
         depth: 0,
-        expanded: false,
-        hasChildren: childFolders.length > 0 || childNotes.length > 0,
         noteCount: folderNoteCounts.get(folder.folderId) ?? 0,
         path: pathByFolderId.get(folder.folderId) ?? getFolderLabel(folder),
       };

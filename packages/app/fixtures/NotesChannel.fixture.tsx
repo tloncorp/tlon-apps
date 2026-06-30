@@ -56,13 +56,13 @@ const notes = [
     2,
     2,
     'Roadmap sketch for native notebooks',
-    'This nested note should stay hidden while Projects is collapsed.'
+    'This nested note appears when the Projects folder screen is open.'
   ),
   makeNote(
     3,
     3,
     'Loose backlog ideas',
-    'This grandchild note should also stay hidden while Projects is collapsed.'
+    'This grandchild note appears when the Backlog folder screen is open.'
   ),
   makeNote(
     4,
