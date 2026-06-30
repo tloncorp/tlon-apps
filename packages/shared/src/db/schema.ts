@@ -1232,7 +1232,7 @@ export const notesMembers = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({
-      columns: [table.notebookFlag, table.contactId],
+      columns: [table.notebookFlag, table.contactId, table.role],
     }),
     contactIdIndex: index('notes_members_contact_id_index').on(table.contactId),
   })

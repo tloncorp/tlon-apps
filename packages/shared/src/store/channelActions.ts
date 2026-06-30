@@ -779,7 +779,11 @@ export async function leaveGroupChannel(channelId: string) {
   await db.updateChannel({ id: channelId, currentUserIsMember: false });
 
   try {
-    await api.leaveChannel(channelId);
+    if (api.parseNotesChannelId(channelId)) {
+      await api.leaveNotesChannel(channelId);
+    } else {
+      await api.leaveChannel(channelId);
+    }
   } catch (e) {
     console.error('Failed to leave channel', e);
     // Only rollback on actual errors (not TimeoutError)
@@ -811,7 +815,11 @@ export async function joinGroupChannel({
   });
 
   try {
-    await api.joinChannel(channelId, groupId);
+    if (api.parseNotesChannelId(channelId)) {
+      await api.joinNotesChannel(channelId);
+    } else {
+      await api.joinChannel(channelId, groupId);
+    }
   } catch (e) {
     // rollback on failure
     logger.error('Failed to join group channel');

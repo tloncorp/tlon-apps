@@ -338,7 +338,7 @@ CREATE TABLE `notes_members` (
 	`contact_id` text NOT NULL,
 	`role` text NOT NULL,
 	`synced_at` integer,
-	PRIMARY KEY(`notebook_flag`, `contact_id`),
+	PRIMARY KEY(`notebook_flag`, `contact_id`, `role`),
 	FOREIGN KEY (`notebook_flag`) REFERENCES `notes_notebooks`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
