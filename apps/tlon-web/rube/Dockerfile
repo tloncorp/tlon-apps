@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install --no-cache-dir --break-system-packages peru
 
 # Install pnpm
-RUN npm install -g pnpm@9.0.5
+RUN npm install -g pnpm@9.15.9
 
 # Set working directory
 WORKDIR /workspace
