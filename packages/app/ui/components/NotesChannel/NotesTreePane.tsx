@@ -27,7 +27,7 @@ export function NotesTreePane({
   onPublishNote,
   onRenameFolder,
   onRenameNote,
-  onToggleFolder,
+  onOpenFolder,
   onUnpublishNote,
   onViewPublishedNote,
 }: {
@@ -51,7 +51,7 @@ export function NotesTreePane({
   onPublishNote: (note: db.NotesNote) => void;
   onRenameFolder: (folder: db.NotesFolder) => void;
   onRenameNote: (note: db.NotesNote) => void;
-  onToggleFolder: (folderId: number, hasChildren: boolean) => void;
+  onOpenFolder: (folder: db.NotesFolder) => void;
   onUnpublishNote: (note: db.NotesNote) => void;
   onViewPublishedNote?: (note: db.NotesNote) => void;
 }) {
@@ -90,7 +90,7 @@ export function NotesTreePane({
       onPublishNote={onPublishNote}
       onRenameFolder={onRenameFolder}
       onRenameNote={onRenameNote}
-      onToggleFolder={onToggleFolder}
+      onOpenFolder={onOpenFolder}
       onUnpublishNote={onUnpublishNote}
       onViewPublishedNote={onViewPublishedNote}
     />
@@ -145,7 +145,7 @@ function NotesTreeRowsList({
   onPublishNote,
   onRenameFolder,
   onRenameNote,
-  onToggleFolder,
+  onOpenFolder,
   onUnpublishNote,
   onViewPublishedNote,
 }: {
@@ -168,7 +168,7 @@ function NotesTreeRowsList({
   onPublishNote: (note: db.NotesNote) => void;
   onRenameFolder: (folder: db.NotesFolder) => void;
   onRenameNote: (note: db.NotesNote) => void;
-  onToggleFolder: (folderId: number, hasChildren: boolean) => void;
+  onOpenFolder: (folder: db.NotesFolder) => void;
   onUnpublishNote: (note: db.NotesNote) => void;
   onViewPublishedNote?: (note: db.NotesNote) => void;
 }) {
@@ -180,9 +180,7 @@ function NotesTreeRowsList({
             key={row.folder.id}
             canEdit={canEdit}
             depth={row.depth}
-            expanded={row.expanded}
             folder={row.folder}
-            hasChildren={row.hasChildren}
             isDeleting={isDeletingFolder}
             label={getFolderLabel(row.folder)}
             noteCount={row.noteCount}
@@ -191,7 +189,7 @@ function NotesTreeRowsList({
             onCreateFolder={onCreateFolderInFolder}
             onCreateNote={onCreateNoteInFolder}
             onMove={onMoveFolder}
-            onPress={() => onToggleFolder(row.folder.folderId, row.hasChildren)}
+            onPress={() => onOpenFolder(row.folder)}
             onRename={onRenameFolder}
           />
         ) : (

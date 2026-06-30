@@ -15,8 +15,8 @@ import { NotesHeaderActions } from '../ui/components/NotesChannel/NotesHeaderAct
 import { NotesNoteDetail } from '../ui/components/NotesChannel/NotesNoteDetail';
 import { NotesTreePane } from '../ui/components/NotesChannel/NotesTreePane';
 import {
+  buildFolderContentsRows,
   buildFolderNoteCounts,
-  buildNotesTreeRows,
 } from '../ui/components/NotesChannel/notesTree';
 import { FixtureWrapper } from './FixtureWrapper';
 
@@ -164,7 +164,6 @@ function seedNotesQueries() {
 
 type ContentsState = 'Populated' | 'Empty' | 'Read only';
 type ContentsViewport = 'Phone channel' | 'Desktop sidebar';
-type ExpandedPreset = 'All folders' | 'Projects collapsed' | 'Root only';
 type SelectedItem =
   | 'Inbox capture'
   | 'Projects folder'
@@ -180,10 +179,6 @@ function NotebookContentsListFixture() {
     defaultValue: 'Phone channel',
     options: ['Phone channel', 'Desktop sidebar'],
   });
-  const [expandedPreset] = useSelect<ExpandedPreset>('Expanded', {
-    defaultValue: 'All folders',
-    options: ['All folders', 'Projects collapsed', 'Root only'],
-  });
   const [selectedItem] = useSelect<SelectedItem>('Selected item', {
     defaultValue: 'Inbox capture',
     options: [
@@ -198,34 +193,23 @@ function NotebookContentsListFixture() {
   const fixtureNotes = contentsState === 'Empty' ? emptyNotes : notes;
   const canEdit = contentsState !== 'Read only';
   const usePhoneViewport = viewport === 'Phone channel';
-  const initialExpandedFolderIds = useMemo(() => {
-    if (expandedPreset === 'All folders') {
-      return new Set(fixtureFolders.map((folder) => folder.folderId));
-    }
-
-    if (expandedPreset === 'Projects collapsed') {
-      return new Set([1, 4, 6]);
-    }
-
-    return new Set([1]);
-  }, [expandedPreset, fixtureFolders]);
   const initialSelection = useMemo(() => {
     if (contentsState === 'Empty' || selectedItem === 'No selection') {
-      return { folderId: null, noteId: null };
+      return { activeFolderId: 1, folderId: null, noteId: null };
     }
 
     if (selectedItem === 'Projects folder') {
-      return { folderId: 2, noteId: null };
+      return { activeFolderId: 1, folderId: 2, noteId: null };
     }
 
     if (selectedItem === 'Release checklist') {
-      return { folderId: 4, noteId: 4 };
+      return { activeFolderId: 4, folderId: 4, noteId: 4 };
     }
 
-    return { folderId: 1, noteId: 1 };
+    return { activeFolderId: 1, folderId: 1, noteId: 1 };
   }, [contentsState, selectedItem]);
-  const [expandedFolderIds, setExpandedFolderIds] = useState(
-    () => initialExpandedFolderIds
+  const [activeFolderId, setActiveFolderId] = useState<number>(
+    initialSelection.activeFolderId
   );
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(
     initialSelection.folderId
@@ -236,42 +220,27 @@ function NotebookContentsListFixture() {
   const publishedNoteIds = useMemo(() => new Set([4, 5]), []);
 
   useEffect(() => {
-    setExpandedFolderIds(initialExpandedFolderIds);
-  }, [initialExpandedFolderIds]);
-
-  useEffect(() => {
+    setActiveFolderId(initialSelection.activeFolderId);
     setSelectedFolderId(initialSelection.folderId);
     setSelectedNoteId(initialSelection.noteId);
   }, [initialSelection]);
 
   const treeRows = useMemo(
     () =>
-      buildNotesTreeRows({
-        expandedFolderIds,
+      buildFolderContentsRows({
+        folderId: activeFolderId,
         folderNoteCounts: buildFolderNoteCounts(fixtureFolders, fixtureNotes),
         folders: fixtureFolders,
         notes: fixtureNotes,
         rootFolderId: 1,
       }),
-    [expandedFolderIds, fixtureFolders, fixtureNotes]
+    [activeFolderId, fixtureFolders, fixtureNotes]
   );
 
-  const toggleFolder = (folderId: number, hasChildren: boolean) => {
+  const openFolder = (folder: db.NotesFolder) => {
     setSelectedNoteId(null);
-    setSelectedFolderId((currentFolderId) =>
-      currentFolderId === folderId ? null : folderId
-    );
-
-    if (!hasChildren) return;
-    setExpandedFolderIds((currentIds) => {
-      const nextIds = new Set(currentIds);
-      if (nextIds.has(folderId)) {
-        nextIds.delete(folderId);
-      } else {
-        nextIds.add(folderId);
-      }
-      return nextIds;
-    });
+    setSelectedFolderId(folder.folderId);
+    setActiveFolderId(folder.folderId);
   };
 
   const openNote = (note: db.NotesNote) => {
@@ -324,10 +293,10 @@ function NotebookContentsListFixture() {
             onMoveFolder={() => {}}
             onMoveNote={() => {}}
             onOpenNote={openNote}
+            onOpenFolder={openFolder}
             onPublishNote={() => {}}
             onRenameFolder={() => {}}
             onRenameNote={() => {}}
-            onToggleFolder={toggleFolder}
             onUnpublishNote={() => {}}
             onViewPublishedNote={() => {}}
           />
@@ -353,19 +322,17 @@ function FixtureNotesHeaderActions({ canEdit }: { canEdit: boolean }) {
 }
 
 function NotesTreeFixture() {
-  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(
-    () => new Set()
-  );
+  const [activeFolderId, setActiveFolderId] = useState<number>(1);
   const treeRows = useMemo(
     () =>
-      buildNotesTreeRows({
-        expandedFolderIds,
+      buildFolderContentsRows({
+        folderId: activeFolderId,
         folderNoteCounts: buildFolderNoteCounts(folders, notes),
         folders,
         notes,
         rootFolderId: 1,
       }),
-    [expandedFolderIds]
+    [activeFolderId]
   );
 
   return (
@@ -394,21 +361,10 @@ function NotesTreeFixture() {
             onMoveFolder={() => {}}
             onMoveNote={() => {}}
             onOpenNote={() => {}}
+            onOpenFolder={(folder) => setActiveFolderId(folder.folderId)}
             onPublishNote={() => {}}
             onRenameFolder={() => {}}
             onRenameNote={() => {}}
-            onToggleFolder={(folderId, hasChildren) => {
-              if (!hasChildren) return;
-              setExpandedFolderIds((currentIds) => {
-                const nextIds = new Set(currentIds);
-                if (nextIds.has(folderId)) {
-                  nextIds.delete(folderId);
-                } else {
-                  nextIds.add(folderId);
-                }
-                return nextIds;
-              });
-            }}
             onUnpublishNote={() => {}}
           />
         </YStack>
@@ -447,7 +403,7 @@ function NotesEditorFixture({ saving = false }: { saving?: boolean }) {
 
 export default {
   'Contents List': <NotebookContentsListFixture />,
-  'Collapsed Tree': <NotesTreeFixture />,
+  'Folder Contents': <NotesTreeFixture />,
   'Editor Header': <NotesEditorFixture />,
   'Saving Header': <NotesEditorFixture saving />,
 };

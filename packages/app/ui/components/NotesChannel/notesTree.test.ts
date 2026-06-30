@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import { describe, expect, test } from 'vitest';
 
 import {
+  buildFolderContentsRows,
   buildFolderDestinationRows,
   buildFolderNoteCounts,
   buildFolderRows,
@@ -118,6 +119,59 @@ describe('notes tree helpers', () => {
         [row.isRoot ? 'root' : 'folder', row.displayPath].join(':')
       )
     ).toEqual(['root:Root', 'folder:Archive', 'folder:Projects / Backlog']);
+  });
+
+  test('builds immediate folder contents without descendants', () => {
+    const folders = [projects, root, backlog, archive];
+    const notes = [
+      makeNote(1, 1, 'Root note'),
+      makeNote(2, 2, 'Beta'),
+      makeNote(3, 4, 'Nested'),
+      makeNote(4, 2, 'Alpha'),
+    ];
+    const rows = buildFolderContentsRows({
+      folderId: 2,
+      folderNoteCounts: buildFolderNoteCounts(folders, notes),
+      folders,
+      notes,
+      rootFolderId: 1,
+    });
+
+    expect(
+      rows.map((row) =>
+        row.type === 'folder'
+          ? `folder:${row.folder.name}:${row.depth}:${row.noteCount}`
+          : `note:${row.note.title}:${row.depth}`
+      )
+    ).toEqual(['folder:Backlog:0:1', 'note:Alpha:0', 'note:Beta:0']);
+  });
+
+  test('builds root contents without nested descendants', () => {
+    const folders = [projects, root, backlog, archive];
+    const notes = [
+      makeNote(1, 1, 'Root note'),
+      makeNote(2, 2, 'Nested project note'),
+      makeNote(3, 4, 'Deep nested note'),
+    ];
+    const rows = buildFolderContentsRows({
+      folderId: 1,
+      folderNoteCounts: buildFolderNoteCounts(folders, notes),
+      folders,
+      notes,
+      rootFolderId: 1,
+    });
+
+    expect(
+      rows.map((row) =>
+        row.type === 'folder'
+          ? `folder:${row.folder.name}:${row.depth}:${row.noteCount}`
+          : `note:${row.note.title}:${row.depth}`
+      )
+    ).toEqual([
+      'folder:Archive:0:0',
+      'folder:Projects:0:2',
+      'note:Root note:0',
+    ]);
   });
 
   test('searching a folder includes ancestors, descendants, and descendant notes', () => {
