@@ -11,6 +11,13 @@ When adding a patch, document:
 
 ## @gorhom/bottom-sheet@5.2.14
 
+Local patch:
+`patches/@gorhom__bottom-sheet@5.2.14.patch`
+
+This patch carries two independent fixes.
+
+### 1. First-open layout of flex:1 sheet content
+
 Why:
 On the first open of a bottom sheet whose content is a `flex:1` ScrollView/View
 with content larger than the eventual viewport (a long scrollable list with a
@@ -33,9 +40,6 @@ fix (enabling Yoga's `WebFlexBasis` flag) requires building React Native
 from source, which we currently don't do; the writeup is in the closed
 draft PR linked below.
 
-Local patch:
-`patches/@gorhom__bottom-sheet@5.2.14.patch`
-
 Background and reproduction details: PR #5790 (closed, kept for reference).
 
 Validation:
@@ -44,10 +48,39 @@ than the viewport plus a footer (e.g. CreateChatSheet). The footer should be
 visible at the bottom of the sheet on first open.
 
 Removal:
-Drop this patch once we either move to building React Native from source
+Drop this hunk once we either move to building React Native from source
 (so we can flip the Yoga `WebFlexBasis` flag and fix the bug at the
 layout-engine level), or once `@gorhom/bottom-sheet` ships an equivalent
 workaround upstream.
+
+### 2. Modal dismiss() bricks the modal when already dismissed
+
+Why:
+`BottomSheetModal.dismiss()` called while the modal's status is `INITIAL`
+(never presented, or already fully dismissed and reset) falls through the
+already-closed early-exit, permanently sets the internal status to
+`DISMISSING`, and every later `present()` silently no-ops. Our
+`BottomSheetWrapper` calls `dismiss()` whenever `open` flips false — which
+is always the case right after a user-initiated close (backdrop tap / swipe
+down) has already dismissed the modal internally — so modal sheets (e.g. the
+personal invite sheet) could only be opened once per mount.
+
+What it does:
+Adds `MODAL_STATUS.INITIAL` to the already-closed early-exit in
+`handleDismiss` (`src/components/bottomSheetModal/BottomSheetModal.tsx`),
+making `dismiss()` idempotent.
+
+Upstream:
+- issue: `gorhom/react-native-bottom-sheet#2669`
+- fix submitted: `gorhom/react-native-bottom-sheet#2711`
+
+Validation:
+- Home header → AddPerson opens the invite sheet; close it via the backdrop;
+  tap AddPerson again — the sheet must open again (repeat a few times).
+
+Removal:
+Drop this hunk once `gorhom/react-native-bottom-sheet#2711` (or an
+equivalent fix) ships in a release we use.
 
 ## react-native@0.85.3
 
