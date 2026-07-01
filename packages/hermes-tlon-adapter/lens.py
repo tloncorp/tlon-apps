@@ -31,6 +31,7 @@ import logging
 import os
 import time
 import uuid
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Optional
 
@@ -43,6 +44,11 @@ logger = logging.getLogger(__name__)
 PAYLOAD_SCHEMA_VERSION = 1
 MAX_SUMMARY_CHARS = 4_096
 MAX_PAYLOAD_CHARS = 50 * 1_024
+# Retry seed caps mirror context-lens.ts (capRetrySeed): the reply text is
+# clamped, and an oversized blob is dropped rather than truncated (a truncated
+# blob would be unparseable JSON on replay).
+MAX_RETRY_SEED_TEXT_CHARS = 16_384
+MAX_RETRY_SEED_BLOB_CHARS = 8_192
 # The steward lens module has no time-based expiry (count-capped instead), but
 # the client ContextLens carries expiresAt; mirror the gateway's DEFAULT_TTL_MS
 # (context-lens.ts) so both backends age entries out identically.
@@ -53,6 +59,11 @@ RUN_TTL_SECONDS = 30 * 60
 
 TERMINAL_STATUSES: frozenset[str] = frozenset(
     {"completed", "no_reply", "timed_out", "aborted", "error"}
+)
+# A finished run in one of these states can be re-dispatched on owner request
+# (context-lens.ts RETRYABLE_STATUSES). "completed" is deliberately excluded.
+RETRYABLE_STATUSES: frozenset[str] = frozenset(
+    {"no_reply", "timed_out", "aborted", "error"}
 )
 
 _STEWARD_APP = "steward"
@@ -207,6 +218,9 @@ class LensRun:
     received_at: Optional[int] = None
     preview: Optional[str] = None
     retry_of: Optional[str] = None
+    # ContextLensRetrySeed (camelCase keys) captured at run start so the run can
+    # be re-dispatched later; capped when serialized (see _cap_retry_seed).
+    retry_seed: Optional[dict[str, Any]] = None
 
     model: Optional[str] = None
     provider: Optional[str] = None
@@ -439,6 +453,8 @@ class LensRun:
         }
         if self.retry_of is not None:
             lens["retryOf"] = self.retry_of
+        if self.retry_seed is not None:
+            lens["retrySeed"] = _cap_retry_seed(self.retry_seed)
         return lens
 
 
@@ -463,6 +479,113 @@ def build_lens_payload(lens: dict[str, Any]) -> dict[str, Any]:
         "lens": skeleton,
         "truncated": True,
     }
+
+
+def _cap_retry_seed(seed: Mapping[str, Any]) -> dict[str, Any]:
+    """Clamp a retry seed to the shared caps (context-lens.ts capRetrySeed)."""
+    capped = dict(seed)
+    text = capped.get("messageText")
+    if isinstance(text, str):
+        capped["messageText"] = text[:MAX_RETRY_SEED_TEXT_CHARS]
+    blob = capped.get("blobField")
+    if isinstance(blob, str) and len(blob) > MAX_RETRY_SEED_BLOB_CHARS:
+        # A truncated blob would be unparseable JSON — drop it instead.
+        capped.pop("blobField", None)
+    return capped
+
+
+@dataclass
+class RetryDispatch:
+    """Reconstructed processMessage params from a finalized lens.
+
+    Mirrors ``RetryDispatch`` (context-lens.ts). ``degraded`` is True when the
+    run predates ``retrySeed`` and we fall back to the truncated preview text.
+    """
+
+    message_id: str
+    sender_ship: str
+    message_text: str
+    is_group: bool
+    degraded: bool
+    blob_field: Optional[str] = None
+    message_content: Any = None
+    channel_nest: Optional[str] = None
+    parent_id: Optional[str] = None
+    is_thread_reply: bool = False
+    reply_parent_id: Optional[str] = None
+    caches_history: bool = True
+
+
+@dataclass
+class RetryDispatchResult:
+    ok: bool
+    dispatch: Optional[RetryDispatch] = None
+    reason: Optional[str] = None
+
+
+def build_retry_dispatch(lens: Mapping[str, Any]) -> RetryDispatchResult:
+    """Reconstruct dispatch params from a finalized ContextLens dict.
+
+    Pure eligibility + mapping (mirrors buildRetryDispatch in context-lens.ts);
+    the caller owns owner-verification, dedup, block checks, and dispatch.
+    """
+    status = str(lens.get("status") or "")
+    if status not in RETRYABLE_STATUSES:
+        return RetryDispatchResult(ok=False, reason=f"status {status} is not retryable")
+
+    details = lens.get("triggerDetails")
+    details = details if isinstance(details, Mapping) else {}
+    conversation_kind = details.get("conversationKind")
+    if conversation_kind == "internal" or lens.get("runKind") == "internal":
+        return RetryDispatchResult(ok=False, reason="internal runs cannot be retried")
+
+    sender_ship = details.get("authorShip")
+    if not sender_ship:
+        return RetryDispatchResult(ok=False, reason="original run has no author ship")
+
+    is_group = conversation_kind == "channel"
+    conversation_id = details.get("conversationId")
+    if is_group and not conversation_id:
+        return RetryDispatchResult(ok=False, reason="channel run has no conversation id")
+
+    seed = lens.get("retrySeed")
+    seed = seed if isinstance(seed, Mapping) else None
+    # Nullish (not truthy) semantics: an explicit empty string in the seed must
+    # win over the preview fallback, matching context-lens.ts ?? behavior.
+    message_text = (seed.get("messageText") if seed else None)
+    if message_text is None:
+        message_text = details.get("preview")
+    if message_text is None:
+        message_text = ""
+    blob_field = seed.get("blobField") if seed else None
+    message_content = seed.get("messageContent") if seed else None
+
+    # A run with no text is still dispatchable when it carries media (a blob
+    # attachment or image blocks in the content). Only reject when there's
+    # nothing — no text, blob, or content — to replay.
+    if not str(message_text).strip() and not blob_field and message_content is None:
+        return RetryDispatchResult(
+            ok=False,
+            reason="no message text, blob, or content available to retry",
+        )
+
+    return RetryDispatchResult(
+        ok=True,
+        dispatch=RetryDispatch(
+            message_id=str(lens.get("messageId") or ""),
+            sender_ship=str(sender_ship),
+            message_text=str(message_text),
+            is_group=is_group,
+            degraded=seed is None,
+            blob_field=blob_field,
+            message_content=message_content,
+            channel_nest=str(conversation_id) if (is_group and conversation_id) else None,
+            parent_id=(seed.get("parentId") if seed else None),
+            is_thread_reply=bool(seed.get("isThreadReply")) if seed else False,
+            reply_parent_id=(seed.get("replyParentId") if seed else None),
+            caches_history=bool(seed.get("cachesHistory", True)) if seed else True,
+        ),
+    )
 
 
 class TlonLensSync:
@@ -572,13 +695,30 @@ class TlonLensRecorder:
     def __init__(self, sync: TlonLensSync) -> None:
         self._sync = sync
         self._runs: dict[str, LensRun] = {}
+        # Finalized runs kept briefly (keyed by lensId) so an owner retry can
+        # look them up without a ship round-trip. Bounded like the live map.
+        self._recent: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
 
     @property
     def enabled(self) -> bool:
         return self._sync.enabled
 
+    @property
+    def owner(self) -> str:
+        return self._sync.owner
+
     def get(self, conversation_id: str) -> Optional[LensRun]:
         return self._runs.get(conversation_id)
+
+    def find_recent_lens(self, lens_id: str) -> Optional[dict[str, Any]]:
+        """The finalized ContextLens dict for a lensId, if still retained."""
+        return self._recent.get(lens_id)
+
+    def _remember(self, run: LensRun) -> None:
+        self._recent[run.lens_id] = run.to_context_lens()
+        self._recent.move_to_end(run.lens_id)
+        while len(self._recent) > MAX_TRACKED_RUNS:
+            self._recent.popitem(last=False)
 
     def _prune(self) -> None:
         if len(self._runs) <= MAX_TRACKED_RUNS:
@@ -650,6 +790,7 @@ class TlonLensRecorder:
             run.set_status(status)
         elif run.status not in TERMINAL_STATUSES:
             run.set_status("no_reply")
+        self._remember(run)
         await self._sync.push(run, final=True)
 
 

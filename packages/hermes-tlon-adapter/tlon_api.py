@@ -790,6 +790,10 @@ class TlonSSEClient:
         self._session: Any = None
         self._action_counter = 0
         self._subscriptions: dict[int, tuple[str, str]] = {}
+        # Optional subscriptions may be unavailable (e.g. an agent that isn't
+        # installed). Their nacks/quits are logged and skipped rather than
+        # raised, so one dead optional sub can't tear down the whole stream.
+        self._optional_subscriptions: set[int] = set()
         self._last_acked_event_id = -1
         self._ack_threshold = 20
 
@@ -841,11 +845,13 @@ class TlonSSEClient:
             ]
         )
 
-    async def subscribe(self, app: str, path: str) -> int:
+    async def subscribe(self, app: str, path: str, *, optional: bool = False) -> int:
         if self.channel_url is None:
             await self.open()
         sub_id = self._next_action_id()
         self._subscriptions[sub_id] = (app, path)
+        if optional:
+            self._optional_subscriptions.add(sub_id)
         await self._send_actions(
             [
                 {
@@ -1014,6 +1020,16 @@ class TlonSSEClient:
         if response == "subscribe":
             if sub_id in self._subscriptions and "err" in raw:
                 app, path = self._subscriptions[sub_id]
+                if sub_id in self._optional_subscriptions:
+                    logger.warning(
+                        "[tlon] optional subscription unavailable for %s %s: %s",
+                        app,
+                        path,
+                        str(raw.get("err"))[:200],
+                    )
+                    self._subscriptions.pop(sub_id, None)
+                    self._optional_subscriptions.discard(sub_id)
+                    return None
                 raise ConnectionError(
                     f"Tlon subscription failed for {app} {path}: {str(raw.get('err'))[:200]}"
                 )
@@ -1022,6 +1038,13 @@ class TlonSSEClient:
         if response == "quit":
             if sub_id in self._subscriptions:
                 app, path = self._subscriptions[sub_id]
+                if sub_id in self._optional_subscriptions:
+                    logger.warning(
+                        "[tlon] optional subscription quit for %s %s", app, path
+                    )
+                    self._subscriptions.pop(sub_id, None)
+                    self._optional_subscriptions.discard(sub_id)
+                    return None
                 raise ConnectionError(f"Tlon subscription quit for {app} {path}")
             return None
 
