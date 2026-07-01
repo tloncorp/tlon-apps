@@ -14,6 +14,7 @@ import {
   noteIsPublished,
   publishNotebookNote,
   publishedNotePath,
+  publishedNoteUrl,
   renameNotebookFolder,
   unpublishNotebookNote,
   useMutableCallback,
@@ -201,29 +202,20 @@ export function NotesNativeChannel({
   );
   const getPublishedNoteUrl = useMemo(
     () => (note: db.NotesNote) => {
-      if (
-        Platform.OS !== 'web' ||
-        !notebookFlag ||
-        typeof window === 'undefined'
-      ) {
+      if (!notebookFlag) {
         return null;
       }
 
-      return new URL(
+      return publishedNoteUrl(
         publishedNotePath(notebookFlag, note.noteId),
-        window.location.origin
-      ).toString();
+        shipUrl
+      );
     },
-    [notebookFlag]
+    [notebookFlag, shipUrl]
   );
   const getPublishedNoteShareUrl = useMemo(
     () => (publishedPath: string) => {
-      const origin =
-        Platform.OS === 'web' && typeof window !== 'undefined'
-          ? window.location.origin
-          : shipUrl;
-
-      return origin ? new URL(publishedPath, origin).toString() : null;
+      return publishedNoteUrl(publishedPath, shipUrl);
     },
     [shipUrl]
   );

@@ -12,6 +12,10 @@ export function publishedNotePath(notebookFlag: string, noteId: number) {
   return `/notes/pub/${notebookFlag}/${noteId}`;
 }
 
+export function publishedNoteUrl(path: string, shipUrl?: string | null) {
+  return shipUrl ? new URL(path, shipUrl).toString() : null;
+}
+
 const publishedNoteCss = `body{margin:0;padding:48px 24px;background:#111;color:#f4f4f4;font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:720px;margin:0 auto}h1,h2,h3,h4,h5,h6{line-height:1.2;color:#fff;margin:1.4em 0 .45em}main>h1:first-child{margin-top:0}p,blockquote,pre,ul,ol,table{margin:1em 0}a{color:#8f84ff}code,pre{font-family:"SFMono-Regular","JetBrains Mono",monospace;background:#1d1d1d}code{padding:2px 5px;border-radius:4px}pre{padding:16px;border:1px solid #333;border-radius:8px;overflow:auto}pre code{padding:0;background:transparent}blockquote{border-left:3px solid #8f84ff;padding-left:16px;color:#c2c2c2}hr{border:0;border-top:1px solid #333;margin:2em 0}img,video{max-width:100%;border-radius:8px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #333;padding:8px 10px}th{background:#1d1d1d}.tlon-published-footer{margin-top:48px;padding-top:16px;border-top:1px solid #333;color:#8a8a8a;font-size:12px}`;
 const inlineStyleTags = {
   bold: 'strong',

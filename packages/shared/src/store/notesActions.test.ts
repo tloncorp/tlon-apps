@@ -2,7 +2,7 @@ import * as api from '@tloncorp/api';
 import { afterEach, expect, test, vi } from 'vitest';
 
 import * as db from '../db';
-import { publishedNotePath } from '../logic';
+import { publishedNotePath, publishedNoteUrl } from '../logic';
 import { setupDatabaseTestSuite } from '../test/helpers';
 import {
   makeApiNotesFolder,
@@ -264,6 +264,15 @@ test('publishNotebookNote renders current markdown and marks note published', as
   expect(publishNotesNote.mock.calls[0]?.[0].html).toContain(
     '<title>Public &amp; safe</title>'
   );
+});
+
+test('publishedNoteUrl builds links from the ship URL', () => {
+  expect(
+    publishedNoteUrl(
+      publishedNotePath(notebookFlag, 3),
+      'https://zod.tlon.network'
+    )
+  ).toBe('https://zod.tlon.network/notes/pub/~zod/native-notes/3');
 });
 
 test('unpublishNotebookNote waits for the note to leave published records', async () => {
