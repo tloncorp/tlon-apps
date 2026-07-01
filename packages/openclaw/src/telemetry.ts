@@ -431,6 +431,7 @@ export type TlonPluginErrorSource =
   | 'contacts_subscription'
   | 'groups_ui_subscription'
   | 'foreigns_subscription'
+  | 'vouched_dm'
   | 'settings_refresh';
 
 export type TlonPluginErrorEvent = {

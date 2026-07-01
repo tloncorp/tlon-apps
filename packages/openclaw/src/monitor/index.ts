@@ -4020,6 +4020,79 @@ export async function monitorTlonProvider(
       }
     };
 
+    // Incoming vouched (virtual-identity) DMs: the host streams them on
+    // /vouched-dm. On inbound the writ's author is the human sender, so we
+    // treat it as a DM and dispatch to the agent; the reply routes back via
+    // the vouched send path (sendText -> sendVouchedDm, since a moon is set).
+    const handleVouchedDm = async (event: {
+      as?: string;
+      diff?: { id?: string; delta?: { add?: { essay?: any } } };
+    }) => {
+      // Only our moon's DMs; the host may run sibling bots on the same stream.
+      if (!event?.as || normalizeShip(event.as) !== botShipName) {
+        return;
+      }
+      const essay = event.diff?.delta?.add?.essay;
+      if (!essay) {
+        return; // only new messages (adds)
+      }
+      const senderShip = normalizeShip(extractAuthorShip(essay.author));
+      if (!senderShip || senderShip === botShipName) {
+        return; // ignore malformed / our own echoes
+      }
+      const messageId = event.diff?.id ?? '';
+      const citedContent = await resolveAllCites(essay.content);
+      const messageText = citedContent + extractMessageText(essay.content);
+      const hasBlob = Boolean(essay.blob);
+      if (!messageText.trim() && !hasBlob) {
+        return;
+      }
+
+      const dispatch = () =>
+        processMessage({
+          messageId,
+          senderShip,
+          messageText,
+          trigger: 'dm',
+          messageContent: essay.content,
+          blobField: essay.blob ?? null,
+          isGroup: false,
+          timestamp: essay.sent || Date.now(),
+        });
+
+      if (isOwner(senderShip)) {
+        runtime.log?.(`[tlon] Processing vouched DM from owner ${senderShip}`);
+        await dispatch();
+        return;
+      }
+      if (!isDmAllowed(senderShip, effectiveDmAllowlist)) {
+        if (effectiveOwnerShip) {
+          const approval = createPendingApproval(
+            {
+              type: 'dm',
+              requestingShip: senderShip,
+              messagePreview: messageText.substring(0, 100),
+              originalMessage: {
+                messageId,
+                messageText,
+                messageContent: essay.content,
+                timestamp: essay.sent || Date.now(),
+                blob: essay.blob ?? undefined,
+              },
+            },
+            pendingApprovals.map((a) => a.id)
+          );
+          await queueApprovalRequest(approval);
+        } else {
+          runtime.log?.(
+            `[tlon] Blocked vouched DM from ${senderShip}: not in allowlist`
+          );
+        }
+        return;
+      }
+      await dispatch();
+    };
+
     try {
       runtime.log?.('[tlon] Subscribing to firehose updates...');
 
@@ -4056,6 +4129,26 @@ export async function monitorTlonProvider(
         },
       });
       runtime.log?.('[tlon] Subscribed to chat firehose (/v4)');
+
+      // When acting as a moon, also listen for incoming vouched DMs the host
+      // streams on our behalf.
+      if (account.moon) {
+        await api.subscribe({
+          app: 'chat',
+          path: '/vouched-dm',
+          event: (data) => handleVouchedDm(data as Parameters<typeof handleVouchedDm>[0]),
+          err: (error) => {
+            capturePluginError('vouched_dm', error);
+            runtime.error?.(`[tlon] Vouched DM subscription error: ${String(error)}`);
+          },
+          quit: () => {
+            runtime.log?.(
+              '[tlon] Vouched DM subscription quit, SSE client will resubscribe'
+            );
+          },
+        });
+        runtime.log?.('[tlon] Subscribed to vouched DMs (/vouched-dm)');
+      }
 
       // Subscribe to contacts updates to track nickname changes
       await api.subscribe({
