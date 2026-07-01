@@ -20,8 +20,6 @@ const logger = createDevLogger('urbit', false);
 
 const DEFAULT_SCRY_TIMEOUT = 60 * 1000; // 1 minute
 const DEFAULT_THREAD_TIMEOUT = 90 * 1000; // 90 seconds
-const NOTES_V1_REQUEST_PREFIX = '/notes/~/v1';
-const MAX_REQUEST_JSON_ERROR_MESSAGE_LENGTH = 500;
 
 interface Config
   extends Pick<
@@ -677,8 +675,7 @@ export async function scry<T>({
   }
 }
 
-// Authenticated JSON request to an arbitrary ship path (first-class agent
-// HTTP APIs, e.g. the %notes /notes/~/v1 REST surface). Reauths once on 403.
+// Authenticated JSON request to an arbitrary ship path. Reauths once on 403.
 export async function requestJson<T = any>(
   path: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
@@ -690,34 +687,16 @@ export async function requestJson<T = any>(
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
-  const trackDuration = shouldTrackRequestJson(path)
-    ? createDurationTracker(AnalyticsEvent.NotesRequest, {
-        method,
-        path: redactRequestJsonPath(path),
-      })
-    : null;
-  const requestWithTracking = async (reauthenticated = false) => {
-    const result = await config.client!.requestJson<T>(path, method, body);
-    trackDuration?.('success', {
-      reauthenticated,
-      responseType: requestJsonResponseType(result),
-    });
-    return result;
-  };
 
   try {
-    return await requestWithTracking();
+    return await config.client.requestJson<T>(path, method, body);
   } catch (res) {
     if (res?.status === 403) {
       await reauth();
-      return await requestWithTracking(true);
+      return await config.client.requestJson<T>(path, method, body);
     }
-    const body = await responseErrorBody(res);
-    trackDuration?.('error', {
-      errorMessage: sanitizeRequestJsonErrorBody(body),
-      responseStatus: res?.status ?? 0,
-    });
-    throw new BadResponseError(res?.status ?? 0, body);
+    const errorBody = await responseErrorBody(res);
+    throw new BadResponseError(res?.status ?? 0, errorBody);
   }
 }
 
@@ -733,47 +712,6 @@ async function responseErrorBody(res: any): Promise<string> {
   if (typeof res?.message === 'string') return res.message;
   const text = String(res);
   return text === '[object Response]' ? '' : text;
-}
-
-function shouldTrackRequestJson(path: string) {
-  return path.startsWith(NOTES_V1_REQUEST_PREFIX);
-}
-
-function requestJsonResponseType(result: unknown) {
-  if (!result || typeof result !== 'object') {
-    return undefined;
-  }
-
-  const body = 'body' in result ? result.body : undefined;
-  if (!body || typeof body !== 'object' || !('type' in body)) {
-    return undefined;
-  }
-
-  return typeof body.type === 'string' ? body.type : undefined;
-}
-
-function redactRequestJsonPath(path: string) {
-  if (!shouldTrackRequestJson(path)) {
-    return redactPath(path);
-  }
-
-  return path
-    .replace(
-      /^\/notes\/~\/v1\/notebooks\/~[^/?#]+\/[^/?#]+/,
-      '/notes/~/v1/notebooks/[notebook]'
-    )
-    .replace(
-      /^\/notes\/~\/v1\/request\/[^/?#]+/,
-      '/notes/~/v1/request/[request-id]'
-    );
-}
-
-function sanitizeRequestJsonErrorBody(body: string) {
-  const redacted = body.replace(/\b0v[0-9a-z.-]+\b/gi, '[request-id]');
-  if (redacted.length <= MAX_REQUEST_JSON_ERROR_MESSAGE_LENGTH) {
-    return redacted;
-  }
-  return `${redacted.slice(0, MAX_REQUEST_JSON_ERROR_MESSAGE_LENGTH)}...`;
 }
 
 export async function scryNoun({

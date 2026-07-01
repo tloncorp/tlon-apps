@@ -7,28 +7,17 @@ const logger = createDevLogger('notesApi', false);
 // Channel compatibility exports (TLON-6042 / #5997)
 //
 // Notes-backed group channels are addressed as nests `notes/<host>/<name>`.
-// Join/leave/delete go through %notes (not %channels, which would reject the
+// Join/leave go through %notes (not %channels, which would reject the
 // unknown nest). These keep their existing channel-id signatures and behavior
 // for the app and skill consumers already calling them.
 // ===========================================================================
-
-// Notes channel ids are nests of the form `notes/<host>/<name>`.
-function notesNestParts(
-  channelId: string
-): { host: string; name: string } | null {
-  const [, host, name] = channelId.split('/');
-  if (!host || !name) {
-    return null;
-  }
-  return { host, name };
-}
 
 // Join a notes-backed channel by subscribing on %notes, which reports the join
 // to %groups so it tracks our membership. (%channels' join would reject the
 // unknown nest.) Errors propagate so the caller can roll back its optimistic
 // update.
 export const joinNotesChannel = async (channelId: string) => {
-  const parts = notesNestParts(channelId);
+  const parts = parseNotesChannelId(channelId);
   if (!parts) {
     return;
   }
@@ -42,7 +31,7 @@ export const joinNotesChannel = async (channelId: string) => {
 // Leave a notes-backed channel via %notes (which unsubscribes and reports the
 // leave to %groups) instead of %channels, which would reject the unknown nest.
 export const leaveNotesChannel = async (channelId: string) => {
-  const parts = notesNestParts(channelId);
+  const parts = parseNotesChannelId(channelId);
   if (!parts) {
     return;
   }
@@ -51,42 +40,6 @@ export const leaveNotesChannel = async (channelId: string) => {
     mark: 'notes-action',
     json: { type: 'leave', ship: parts.host, name: parts.name },
   });
-};
-
-// Exact `notes/<host>/<name>` channel-id parse for the legacy wrapper. Unlike
-// the lenient v0 `parseNotesChannelId` (which ignores extra segments), this
-// rejects extra/missing segments, empty parts, and bare flags — returning null
-// so the wrapper no-ops rather than mis-deleting a notebook from a note/cite
-// path like `notes/~zod/blog/12`.
-function parseExactNotesChannelId(channelId: string): NotesFlag | null {
-  const segments = channelId.split('/');
-  if (
-    segments.length !== 3 ||
-    segments[0] !== 'notes' ||
-    !segments[1] ||
-    !segments[2]
-  ) {
-    return null;
-  }
-  return { host: segments[1], name: segments[2] };
-}
-
-// Legacy best-effort delete compatibility export. Channel-id wrapper ONLY:
-// accepts an exact `notes/<host>/<name>` nest, swallows/logs failures, and is a
-// no-op for anything else (a bare `~host/name` flag, or an over-long note/cite
-// path) — so a stray flag or path can never silently get best-effort semantics
-// here. New TLON-6042 callers use the explicit deleteNotesNotebookStrict /
-// deleteNotesNotebookBestEffort helpers.
-export const deleteNotesNotebook = async (channelId: string) => {
-  const flag = parseExactNotesChannelId(channelId);
-  if (!flag) {
-    return;
-  }
-  try {
-    await pokeNotebookDelete(flag);
-  } catch (e) {
-    logger.error('Failed to delete notebook in %notes', e);
-  }
 };
 
 // ===========================================================================
@@ -221,8 +174,10 @@ export function parseNotesChannelId(
   channelId: string | null | undefined
 ): NotesFlag | null {
   if (!channelId) return null;
-  const [app, host, name] = channelId.split('/');
-  return app === 'notes' && host && name ? { host, name } : null;
+  const [app, host, name, ...extra] = channelId.split('/');
+  return app === 'notes' && host && name && extra.length === 0
+    ? { host, name }
+    : null;
 }
 
 export function notesChannelId(flag: NotesFlag | string): string {

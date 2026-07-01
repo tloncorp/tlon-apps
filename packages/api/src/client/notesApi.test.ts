@@ -11,7 +11,6 @@ import {
 import {
   NotesV1PendingWriteError,
   createNotesNote,
-  deleteNotesNotebook,
   deleteNotesNotebookBestEffort,
   deleteNotesNotebookStrict,
   formatNotesFlag,
@@ -101,6 +100,7 @@ describe('flag parsing and formatting', () => {
       name: 'blog',
     });
     expect(parseNotesChannelId('chat/~zod/blog')).toBeNull();
+    expect(parseNotesChannelId('notes/~zod/blog/extra')).toBeNull();
   });
 
   test('notesChannelId', () => {
@@ -703,46 +703,6 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
 });
 
 describe('notebook delete helpers', () => {
-  test('legacy deleteNotesNotebook(channelId) is best-effort and swallows failures', async () => {
-    pokeMock.mockRejectedValue(new Error('not host'));
-    await expect(
-      deleteNotesNotebook('notes/~zod/blog')
-    ).resolves.toBeUndefined();
-    // pokes a %notes notebook-delete action with the ~host/name flag (never a
-    // raw flag with host "notes").
-    expect(pokeMock).toHaveBeenCalledWith({
-      app: 'notes',
-      mark: 'notes-action',
-      json: {
-        type: 'notebook',
-        flag: '~zod/blog',
-        action: { type: 'delete' },
-      },
-    });
-  });
-
-  test('legacy deleteNotesNotebook only acts on an exact notes/<host>/<name> nest', async () => {
-    // Bare flag, malformed nest, and over-long note/cite paths all no-op.
-    for (const id of [
-      '~zod/blog',
-      'notes/~zod',
-      'notes/~zod/blog/12',
-      'notes/~zod/blog/note/12',
-      'notes//blog',
-    ]) {
-      await deleteNotesNotebook(id);
-    }
-    expect(pokeMock).not.toHaveBeenCalled();
-
-    // The exact nest still deletes.
-    await deleteNotesNotebook('notes/~zod/blog');
-    expect(pokeMock).toHaveBeenCalledWith({
-      app: 'notes',
-      mark: 'notes-action',
-      json: { type: 'notebook', flag: '~zod/blog', action: { type: 'delete' } },
-    });
-  });
-
   test('deleteNotesNotebookStrict propagates failures and normalizes targets', async () => {
     pokeMock.mockRejectedValue(new Error('boom'));
     await expect(deleteNotesNotebookStrict('notes/~zod/blog')).rejects.toThrow(
