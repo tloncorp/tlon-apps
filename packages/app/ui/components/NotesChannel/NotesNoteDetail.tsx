@@ -247,6 +247,23 @@ export function NotesNoteDetail({
     };
   }, []);
 
+  const flushPendingBodyDraft = useCallback(() => {
+    if (bodyDraftUpdateTimeoutRef.current !== null) {
+      clearTimeout(bodyDraftUpdateTimeoutRef.current);
+      bodyDraftUpdateTimeoutRef.current = null;
+    }
+
+    const pendingBody = pendingBodyDraftRef.current;
+    pendingBodyDraftRef.current = null;
+    if (pendingBody === null || bodyDraftRef.current === pendingBody) {
+      return bodyDraftRef.current;
+    }
+
+    bodyDraftRef.current = pendingBody;
+    setBodyDraft(pendingBody);
+    return pendingBody;
+  }, []);
+
   const preserveScrollOffset = useCallback(() => {
     if (isPreviewing) return;
     pendingScrollRestoreYRef.current = Math.max(
@@ -323,7 +340,11 @@ export function NotesNoteDetail({
 
   const saveSelectedNote = useCallback(async () => {
     if (!notebookFlag || !draftBase || !canEdit) return false;
-    if (!isDirty) return true;
+    const bodyToSave = flushPendingBodyDraft();
+    const dirty =
+      normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
+      bodyToSave !== draftBase.bodyMd;
+    if (!dirty) return true;
     preserveScrollOffset();
     setSaveState('saving');
     setError(null);
@@ -332,7 +353,7 @@ export function NotesNoteDetail({
         notebookFlag,
         draftBase,
         titleDraft,
-        bodyDraft
+        bodyToSave
       );
       // Rebase onto the saved revision; keystrokes typed during the save
       // leave the drafts dirty against it, so the next cycle saves them.
@@ -341,7 +362,7 @@ export function NotesNoteDetail({
       }
       clearDraftStash(notebookFlag, draftBase.noteId, {
         title: titleDraft,
-        body: bodyDraft,
+        body: bodyToSave,
       });
       setSaveState('saved');
       return true;
@@ -355,10 +376,9 @@ export function NotesNoteDetail({
       return false;
     }
   }, [
-    bodyDraft,
     canEdit,
     draftBase,
-    isDirty,
+    flushPendingBodyDraft,
     notebookFlag,
     preserveScrollOffset,
     runSave,
@@ -396,17 +416,18 @@ export function NotesNoteDetail({
   });
 
   const flushPendingSave = useCallback(() => {
+    const bodyToSave = flushPendingBodyDraft();
     const ctx = flushCtxRef.current;
     if (!ctx || !ctx.flag || !ctx.base || !ctx.canEdit) return;
     const dirty =
       normalizeNotebookNoteTitle(ctx.title) !== ctx.base.title ||
-      ctx.body !== ctx.base.bodyMd;
+      bodyToSave !== ctx.base.bodyMd;
     if (!dirty) return;
-    const { flag, base, title, body } = ctx;
+    const { flag, base, title } = ctx;
     preserveScrollOffset();
-    runSave(flag, base, title, body)
+    runSave(flag, base, title, bodyToSave)
       .then((updated) => {
-        clearDraftStash(flag, base.noteId, { title, body });
+        clearDraftStash(flag, base.noteId, { title, body: bodyToSave });
         // No-ops after unmount; while mounted (background flush) rebase so
         // the next cycle doesn't re-send a stale revision.
         if (updated) {
@@ -415,7 +436,7 @@ export function NotesNoteDetail({
         setSaveState('saved');
       })
       .catch(() => {});
-  }, [preserveScrollOffset, runSave]);
+  }, [flushPendingBodyDraft, preserveScrollOffset, runSave]);
 
   // Flush unsaved work when switching notes or unmounting — the poke
   // outlives the component.
@@ -523,17 +544,10 @@ export function NotesNoteDetail({
       if (bodyDraftUpdateTimeoutRef.current !== null) return;
 
       bodyDraftUpdateTimeoutRef.current = setTimeout(() => {
-        bodyDraftUpdateTimeoutRef.current = null;
-        const pendingBody = pendingBodyDraftRef.current;
-        pendingBodyDraftRef.current = null;
-        if (pendingBody === null || bodyDraftRef.current === pendingBody) {
-          return;
-        }
-        bodyDraftRef.current = pendingBody;
-        setBodyDraft(pendingBody);
+        flushPendingBodyDraft();
       }, 0);
     },
-    [preserveScrollOffset]
+    [flushPendingBodyDraft, preserveScrollOffset]
   );
 
   const handleBodyInputFocus = useCallback(() => {
