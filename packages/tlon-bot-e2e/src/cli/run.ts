@@ -26,7 +26,7 @@ import {
   allocatePort,
   allocateRuntimeEndpoints,
   assertRequestedPortsAvailable,
-  requestedRuntimePorts,
+  requestedRuntimeEndpointPorts,
 } from '../runtime/ports.js';
 import { waitForHttpOk, waitForShipLogin } from '../runtime/waiters.js';
 import { commonScenarios } from '../scenarios/shared/common.js';
@@ -128,9 +128,11 @@ async function runDriverRuntime(args: {
   }
 
   try {
-    await args.driver.beforeComposeBuild?.(ctx);
     await compose.down();
-    await assertRequestedPortsAvailable(requestedRuntimePorts(fixedPorts));
+    await assertRequestedPortsAvailable(
+      requestedRuntimeEndpointPorts(ctx.endpoints)
+    );
+    await args.driver.beforeComposeBuild?.(ctx);
     await compose.build([ctx.services.bot]);
     await args.driver.beforeComposeUp?.(ctx, compose);
     await compose.up();

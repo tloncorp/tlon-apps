@@ -141,12 +141,16 @@ export interface ModelScriptExpectations {
     exact?: string[];
   };
   expectedCallCount?: number;
+  allowedAuxiliaryCalls?: ModelAuxiliaryCallKind[];
   expectedCallSequence?: Array<{
     kind: 'model_request' | 'tool_call' | 'final_model_text';
     toolName?: string;
   }>;
+  toolLoopResult?: boolean;
   streamedToolLoop?: boolean;
 }
+
+export type ModelAuxiliaryCallKind = 'hermes_title_generation';
 
 export interface ModelScriptAdapter {
   replyText(text: string): ModelScript;

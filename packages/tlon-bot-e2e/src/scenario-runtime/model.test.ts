@@ -97,6 +97,55 @@ describe('shared model script helpers', () => {
     ).resolves.toHaveLength(2);
   });
 
+  test('allows declared Hermes title-generation auxiliary calls', async () => {
+    const script: ModelScript = {
+      steps: [{ kind: 'text', content: 'ok' }],
+      options: { allowExtraCalls: 1 },
+      expectations: {
+        expectedCallCount: 1,
+        allowedAuxiliaryCalls: ['hermes_title_generation'],
+      },
+    };
+    const tag = await registerModelScript(fakeModel, 'hermes-title', script);
+
+    await postChat(server.baseUrl, tag);
+    await postChat(server.baseUrl, tag, {
+      messages: hermesTitleMessages(tag, 'ok'),
+    });
+
+    await expect(
+      expectModelExpectations(fakeModel, 'hermes-title', script)
+    ).resolves.toHaveLength(2);
+  });
+
+  test('rejects unexpected extra calls when auxiliary calls are narrowed', async () => {
+    const script: ModelScript = {
+      steps: [{ kind: 'text', content: 'ok' }],
+      options: { allowExtraCalls: 1 },
+      expectations: {
+        expectedCallCount: 1,
+        allowedAuxiliaryCalls: ['hermes_title_generation'],
+      },
+    };
+    const tag = await registerModelScript(
+      fakeModel,
+      'unexpected-auxiliary',
+      script
+    );
+
+    await postChat(server.baseUrl, tag);
+    await postChat(server.baseUrl, tag, {
+      messages: [
+        { role: 'system', content: 'Normal assistant request.' },
+        { role: 'user', content: `${tag} Duplicate dispatch.` },
+      ],
+    });
+
+    await expect(
+      expectModelExpectations(fakeModel, 'unexpected-auxiliary', script)
+    ).rejects.toThrow(/Unexpected auxiliary model call/);
+  });
+
   test('fails when a required model call omits advertised tools', async () => {
     const script: ModelScript = {
       steps: [{ kind: 'text', content: 'ok' }],
@@ -161,6 +210,106 @@ describe('shared model script helpers', () => {
     ).rejects.toThrow(/Advertised tools mismatch/);
   });
 
+  test('asserts follow-up tool result matches emitted tool call id and name', async () => {
+    const script: ModelScript = {
+      steps: [
+        { kind: 'tool_call', name: 'tlon', args: { command: 'version' } },
+        { kind: 'text', content: 'done' },
+      ],
+      expectations: {
+        advertisedTools: { exact: ['tlon'] },
+        expectedCallCount: 2,
+        toolLoopResult: true,
+      },
+    };
+    const tag = await registerModelScript(fakeModel, 'tool-loop-ok', script);
+
+    const toolCall = await postChatForToolCall(server.baseUrl, tag, {
+      tools: [{ type: 'function', function: { name: 'tlon' } }],
+    });
+    await postChat(server.baseUrl, tag, {
+      tools: [{ type: 'function', function: { name: 'tlon' } }],
+      messages: [
+        { role: 'user', content: tag },
+        { role: 'assistant', content: null, tool_calls: [toolCall] },
+        {
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: '{"ok":true}',
+        },
+      ],
+    });
+
+    await expect(
+      expectModelExpectations(fakeModel, 'tool-loop-ok', script)
+    ).resolves.toHaveLength(2);
+  });
+
+  test('accepts tool-result follow-up without assistant echo when ids match', async () => {
+    const script: ModelScript = {
+      steps: [
+        { kind: 'tool_call', name: 'tlon', args: { command: 'version' } },
+        { kind: 'text', content: 'done' },
+      ],
+      expectations: {
+        expectedCallCount: 2,
+        toolLoopResult: true,
+      },
+    };
+    const tag = await registerModelScript(
+      fakeModel,
+      'tool-loop-no-assistant-echo',
+      script
+    );
+
+    const toolCall = await postChatForToolCall(server.baseUrl, tag);
+    await postChat(server.baseUrl, tag, {
+      messages: [
+        { role: 'user', content: tag },
+        {
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: '{"ok":true}',
+        },
+      ],
+    });
+
+    await expect(
+      expectModelExpectations(fakeModel, 'tool-loop-no-assistant-echo', script)
+    ).resolves.toHaveLength(2);
+  });
+
+  test('fails tool-loop expectations when the tool result id does not match', async () => {
+    const script: ModelScript = {
+      steps: [
+        { kind: 'tool_call', name: 'tlon', args: { command: 'version' } },
+        { kind: 'text', content: 'done' },
+      ],
+      expectations: {
+        expectedCallCount: 2,
+        toolLoopResult: true,
+      },
+    };
+    const tag = await registerModelScript(fakeModel, 'tool-loop-mismatch', script);
+
+    const toolCall = await postChatForToolCall(server.baseUrl, tag);
+    await postChat(server.baseUrl, tag, {
+      messages: [
+        { role: 'user', content: tag },
+        { role: 'assistant', content: null, tool_calls: [toolCall] },
+        {
+          role: 'tool',
+          tool_call_id: 'call_wrong',
+          content: '{"ok":true}',
+        },
+      ],
+    });
+
+    await expect(
+      expectModelExpectations(fakeModel, 'tool-loop-mismatch', script)
+    ).rejects.toThrow(/tool-result message with tool_call_id/);
+  });
+
   test('asserts no model calls for negative scenarios', async () => {
     await expect(expectNoModelCalls(fakeModel, 'no-calls')).resolves.toBeUndefined();
   });
@@ -195,6 +344,45 @@ async function postChat(
   }
 }
 
+async function postChatForToolCall(
+  baseUrl: string,
+  prompt: string,
+  overrides: Record<string, unknown> = {}
+): Promise<{
+  id: string;
+  type: string;
+  function: { name: string; arguments: string };
+}> {
+  const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: 'tlon-test-scripted',
+      messages: [{ role: 'user', content: prompt }],
+      ...overrides,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`fake chat request failed: ${response.status}`);
+  }
+  const body = (await response.json()) as {
+    choices: Array<{
+      message: {
+        tool_calls?: Array<{
+          id: string;
+          type: string;
+          function: { name: string; arguments: string };
+        }>;
+      };
+    }>;
+  };
+  const toolCall = body.choices[0]?.message.tool_calls?.[0];
+  if (!toolCall) {
+    throw new Error('Expected fake model to return a tool call.');
+  }
+  return toolCall;
+}
+
 async function postChatAllowFailure(
   baseUrl: string,
   prompt: string,
@@ -209,4 +397,22 @@ async function postChatAllowFailure(
       ...overrides,
     }),
   });
+}
+
+function hermesTitleMessages(
+  tag: string,
+  reply: string
+): Array<{ role: string; content: string }> {
+  return [
+    {
+      role: 'system',
+      content:
+        'Generate a short, descriptive title (3-7 words) for a conversation ' +
+        'that starts with the following exchange. Return ONLY the title text.',
+    },
+    {
+      role: 'user',
+      content: `User: ${tag} Hello.\n\nAssistant: ${reply}`,
+    },
+  ];
 }

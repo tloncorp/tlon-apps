@@ -6,6 +6,7 @@ import {
   allocatePort,
   allocateRuntimeEndpoints,
   assertRequestedPortsAvailable,
+  requestedRuntimeEndpointPorts,
   requestedRuntimePorts,
 } from './ports.js';
 
@@ -70,6 +71,24 @@ describe('runtime endpoint allocation', () => {
     ]);
   });
 
+  test('maps final runtime endpoints to env-var-labelled port requests', async () => {
+    const endpoints = await allocateRuntimeEndpoints({
+      fakeModel: 4100,
+      zod: 4101,
+      ten: 4102,
+      mug: 4103,
+      gateway: 4104,
+    });
+
+    expect(requestedRuntimeEndpointPorts(endpoints)).toEqual([
+      { envVar: 'FAKE_MODEL_PORT', port: 4100 },
+      { envVar: 'ZOD_PORT', port: 4101 },
+      { envVar: 'TEN_PORT', port: 4102 },
+      { envVar: 'MUG_PORT', port: 4103 },
+      { envVar: 'OPENCLAW_GATEWAY_PORT', port: 4104 },
+    ]);
+  });
+
   test('accepts requested fixed ports that are available', async () => {
     const port = await allocatePort();
 
@@ -93,6 +112,33 @@ describe('runtime endpoint allocation', () => {
         { envVar: 'TEN_PORT', port: 4101 },
       ])
     ).rejects.toThrow('TEN_PORT=4101 conflicts with ZOD_PORT=4101');
+  });
+
+  test('fails early when two final endpoints request the same host port', async () => {
+    const endpoints = await allocateRuntimeEndpoints({
+      fakeModel: 4100,
+      zod: 4101,
+      ten: 4101,
+      mug: 4103,
+    });
+
+    await expect(
+      assertRequestedPortsAvailable(requestedRuntimeEndpointPorts(endpoints))
+    ).rejects.toThrow('TEN_PORT=4101 conflicts with ZOD_PORT=4101');
+  });
+
+  test('fails with the env var name when a final endpoint port is occupied', async () => {
+    const port = await occupyLocalhostPort();
+    const endpoints = await allocateRuntimeEndpoints({
+      fakeModel: port,
+      zod: 4101,
+      ten: 4102,
+      mug: 4103,
+    });
+
+    await expect(
+      assertRequestedPortsAvailable(requestedRuntimeEndpointPorts(endpoints))
+    ).rejects.toThrow(`FAKE_MODEL_PORT=${port} is already in use`);
   });
 
   async function occupyLocalhostPort(): Promise<number> {

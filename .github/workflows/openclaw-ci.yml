@@ -73,6 +73,12 @@ jobs:
             - recursive: true
               args: [--frozen-lockfile]
 
+      - name: Typecheck shared E2E harness
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' tsc
+
+      - name: Run shared E2E unit tests
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:unit
+
       - name: Build OpenClaw
         run: pnpm --filter '@tloncorp/openclaw' build
 

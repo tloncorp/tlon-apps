@@ -62,9 +62,11 @@ describe('Hermes driver runtime spec', () => {
   test('model adapter returns script objects with baseline tool expectations', () => {
     expect(hermesDriver.model.replyText('hello')).toMatchObject({
       steps: [{ kind: 'text', content: 'hello' }],
+      options: { allowExtraCalls: 1 },
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 1,
+        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     });
 
@@ -77,6 +79,7 @@ describe('Hermes driver runtime spec', () => {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 2,
         streamedToolLoop: true,
+        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     });
 
@@ -87,6 +90,7 @@ describe('Hermes driver runtime spec', () => {
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 1,
+        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     });
   });

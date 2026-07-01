@@ -1,5 +1,8 @@
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
-import type { ModelScript } from '../../drivers/types.js';
+import type {
+  ModelAuxiliaryCallKind,
+  ModelScript,
+} from '../../drivers/types.js';
 
 export async function registerModelScript(
   fakeModel: FakeModelClient,
@@ -38,8 +41,12 @@ export async function expectModelExpectations(
     assertAllAdvertisedTools(calls, script, key);
   }
 
+  assertAllowedAuxiliaryCalls(calls, script, key);
+
   if (expectations.streamedToolLoop) {
-    assertStreamedToolLoop(calls, key);
+    assertStreamedToolLoop(calls, script, key);
+  } else if (expectations.toolLoopResult) {
+    assertToolLoopResult(calls, script, key);
   }
 
   if (expectations.expectedCallSequence) {
@@ -126,6 +133,69 @@ function assertAllAdvertisedTools(
   });
 }
 
+function assertAllowedAuxiliaryCalls(
+  calls: ReceivedCall[],
+  script: ModelScript,
+  key: string
+): void {
+  const expectedCallCount = script.expectations?.expectedCallCount;
+  if (expectedCallCount === undefined || calls.length <= expectedCallCount) {
+    return;
+  }
+
+  const allowed = script.expectations?.allowedAuxiliaryCalls ?? [];
+  if (allowed.length === 0) {
+    return;
+  }
+
+  for (const [offset, call] of calls.slice(expectedCallCount).entries()) {
+    if (allowed.some((kind) => auxiliaryCallMatches(call, kind))) {
+      continue;
+    }
+    throw new Error(
+      `Unexpected auxiliary model call for ${key} ` +
+        `#${expectedCallCount + offset + 1}: ` +
+        `${summarizeCallForError(call)}.`
+    );
+  }
+}
+
+function auxiliaryCallMatches(
+  call: ReceivedCall,
+  kind: ModelAuxiliaryCallKind
+): boolean {
+  if (kind === 'hermes_title_generation') {
+    return isHermesTitleGenerationCall(call);
+  }
+  return false;
+}
+
+function isHermesTitleGenerationCall(call: ReceivedCall): boolean {
+  if ((call.toolNames ?? []).length > 0) {
+    return false;
+  }
+  const systemText = call.messages.find((message) => message.role === 'system')
+    ?.content?.text;
+  return (
+    typeof systemText === 'string' &&
+    systemText.startsWith('Generate a short, descriptive title') &&
+    call.userText.includes('User:') &&
+    call.userText.includes('Assistant:')
+  );
+}
+
+function summarizeCallForError(call: ReceivedCall): string {
+  const roles = call.messages.map((message) => message.role).join(',');
+  const firstText = call.messages
+    .map((message) => message.content?.text)
+    .find((text): text is string => typeof text === 'string');
+  return (
+    `tools=${JSON.stringify(call.toolNames ?? [])}, ` +
+    `roles=[${roles}], ` +
+    `firstText=${JSON.stringify(firstText?.slice(0, 120) ?? '')}`
+  );
+}
+
 function assertAdvertisedTools(
   call: ReceivedCall | undefined,
   expected: NonNullable<ModelScript['expectations']>['advertisedTools'],
@@ -158,7 +228,11 @@ function assertAdvertisedTools(
   }
 }
 
-function assertStreamedToolLoop(calls: ReceivedCall[], key: string): void {
+function assertStreamedToolLoop(
+  calls: ReceivedCall[],
+  script: ModelScript,
+  key: string
+): void {
   if (calls.length < 2) {
     throw new Error(`Expected streamed tool loop for ${key}, got ${calls.length} call(s).`);
   }
@@ -168,6 +242,60 @@ function assertStreamedToolLoop(calls: ReceivedCall[], key: string): void {
   if (calls[1].messageCount <= calls[0].messageCount) {
     throw new Error(
       `Expected second model request for ${key} to include tool-result history.`
+    );
+  }
+  assertToolLoopResult(calls, script, key);
+}
+
+function assertToolLoopResult(
+  calls: ReceivedCall[],
+  script: ModelScript,
+  key: string
+): void {
+  if (calls.length < 2) {
+    throw new Error(`Expected tool loop for ${key}, got ${calls.length} call(s).`);
+  }
+  const expectedTool = script.steps.find((step) => step.kind === 'tool_call');
+  if (!expectedTool) {
+    throw new Error(`Cannot assert tool loop for ${key}: script has no tool call.`);
+  }
+  const emittedToolCall = calls[0].responseToolCalls.find(
+    (toolCall) => toolCall.function.name === expectedTool.name
+  );
+  if (!emittedToolCall?.id) {
+    throw new Error(
+      `Expected first model response for ${key} to emit tool ${expectedTool.name}.`
+    );
+  }
+
+  const followupMessages = calls[1].messages ?? [];
+  const assistantEcho = followupMessages
+    .flatMap((message) =>
+      message.role === 'assistant' ? message.tool_calls ?? [] : []
+    )
+    .find((toolCall) => toolCall.id === emittedToolCall.id);
+  if (assistantEcho && assistantEcho.function.name !== expectedTool.name) {
+    throw new Error(
+      `Expected assistant tool call ${emittedToolCall.id} for ${key} to be ` +
+        `${expectedTool.name}, got ${assistantEcho.function.name ?? '<missing>'}.`
+    );
+  }
+
+  const toolResult = followupMessages.find(
+    (message) =>
+      (message.role === 'tool' || message.role === 'function') &&
+      message.tool_call_id === emittedToolCall.id
+  );
+  if (!toolResult) {
+    throw new Error(
+      `Expected second model request for ${key} to include a tool-result message ` +
+        `with tool_call_id ${emittedToolCall.id}.`
+    );
+  }
+  if (!toolResult.content) {
+    throw new Error(
+      `Expected tool-result message ${emittedToolCall.id} for ${key} to include ` +
+        `sanitized content summary.`
     );
   }
 }

@@ -19,6 +19,9 @@ import {
 } from './model.js';
 
 const NEGATIVE_SETTLE_MS = 12_000;
+const MODEL_CALL_WAIT_MS = 90_000;
+const BOT_REPLY_WAIT_MS = 90_000;
+const LOOP_TIMEOUT_MARGIN_MS = 60_000;
 
 export const commonScenarios: readonly SharedScenario[] = [
   testScenario('connectivity', {}, async ({ ctx, actors }) => {
@@ -41,7 +44,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       throw new Error('Expected bot settings bucket to be readable.');
     }
 
-    await expectNoModelCalls(ctx.fakeModel);
+    await expectNoModelCallsAfterSettle(ctx.fakeModel);
   }),
 
   testScenario('owner-dm-text-reply', {}, async ({ ctx, driver, actors }) => {
@@ -60,16 +63,29 @@ export const commonScenarios: readonly SharedScenario[] = [
 
   testScenario('owner-dm-tlon-tool-final-reply', {}, async ({ ctx, driver, actors }) => {
     const key = scenarioKey('owner-tlon');
+    const nicknameToken = `shared-tool-${key}`;
     const finalReply = `Common tlon command final reply ${key}`;
-    const script = driver.model.readOrAdmin('version', finalReply);
+    const previousNickname = await botNickname(actors.bot);
+    actors.bot.teardown(async () => {
+      await setBotNickname(actors.bot, previousNickname);
+      await waitForBotNickname(actors.bot, previousNickname);
+    });
+
+    const script = driver.model.readOrAdmin(
+      `contacts update-profile --nickname ${JSON.stringify(nicknameToken)}`,
+      finalReply
+    );
     const tag = await registerModelScript(ctx.fakeModel, key, script);
 
     const result = await actors.owner.prompt(
-      `${tag} Run a harmless Tlon version command, then reply with the scripted result.`,
+      `${tag} Update your profile nickname to ${JSON.stringify(
+        nicknameToken
+      )} via the Tlon tool, then reply with the scripted result.`,
       { timeoutMs: 120_000 }
     );
 
     expectPromptSuccess(result, finalReply);
+    await waitForBotNickname(actors.bot, nicknameToken);
     await expectModelExpectations(ctx.fakeModel, key, script);
   }),
 
@@ -309,48 +325,110 @@ export const commonScenarios: readonly SharedScenario[] = [
     await expectNoModelCallsAfterSettle(ctx.fakeModel);
   }),
 
-  testScenario('known-bot-loop-protection-resets-on-human-dispatch', {}, async ({
-    ctx,
-    driver,
-    actors,
-  }) => {
-    const fixture = await createOwnerHostedChannelFixture(actors);
-    await openChannelAccess(actors, fixture.channelId);
+  testScenario(
+    'known-bot-loop-protection-resets-on-human-dispatch',
+    { timeoutMs: knownBotLoopScenarioTimeoutMs },
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await openChannelAccess(actors, fixture.channelId);
 
-    const loopLimit = knownBotLoopLimit(ctx);
-    const allowedTurns = Array.from({ length: loopLimit }, (_, index) => {
-      const key = scenarioKey(`loop-bot-${index + 1}`);
-      return {
-        key,
-        reply: `Known bot response ${index + 1} ${key}`,
-      };
-    });
-    const droppedKey = scenarioKey('loop-bot-dropped');
-    const humanKey = scenarioKey('loop-human-reset');
-    const afterResetKey = scenarioKey('loop-bot-after-reset');
-    const humanReply = `Human reset response ${humanKey}`;
-    const afterResetReply = `Known bot after reset response ${afterResetKey}`;
+      const loopLimit = knownBotLoopLimit(ctx);
+      const allowedTurns = Array.from({ length: loopLimit }, (_, index) => {
+        const key = scenarioKey(`loop-bot-${index + 1}`);
+        const reply = `Known bot response ${index + 1} ${key}`;
+        return {
+          key,
+          reply,
+          script: driver.model.replyText(reply),
+        };
+      });
+      const droppedKey = scenarioKey('loop-bot-dropped');
+      const humanKey = scenarioKey('loop-human-reset');
+      const afterResetKey = scenarioKey('loop-bot-after-reset');
+      const humanReply = `Human reset response ${humanKey}`;
+      const afterResetReply = `Known bot after reset response ${afterResetKey}`;
 
-    for (const turn of allowedTurns) {
-      await registerModelScript(
-        ctx.fakeModel,
-        turn.key,
-        driver.model.replyText(turn.reply)
+      for (const turn of allowedTurns) {
+        await registerModelScript(ctx.fakeModel, turn.key, turn.script);
+      }
+      const humanScript = driver.model.replyText(humanReply);
+      const afterResetScript = driver.model.replyText(afterResetReply);
+      await registerModelScript(ctx.fakeModel, humanKey, humanScript);
+      await registerModelScript(ctx.fakeModel, afterResetKey, afterResetScript);
+
+      for (const [index, turn] of allowedTurns.entries()) {
+        const baseline = await botChannelBaseline(
+          actors.owner,
+          fixture.channelId,
+          actors.bot.ship
+        );
+        await actors.thirdParty.sendChannelPost({
+          channelId: fixture.channelId,
+          content: storyWithMention(
+            actors.bot.ship,
+            `[tlon-test:${turn.key}] Known bot mention ${index + 1}.`
+          ),
+          botProfile: botProfileFor(actors.thirdParty.ship),
+        });
+        await waitForModelCalls(ctx.fakeModel, turn.key);
+        await waitForBotChannelReply(
+          actors.owner,
+          fixture.channelId,
+          actors.bot.ship,
+          turn.reply,
+          baseline
+        );
+        await expectModelExpectations(ctx.fakeModel, turn.key, turn.script);
+      }
+
+      const droppedBaseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
       );
-    }
-    await registerModelScript(
-      ctx.fakeModel,
-      humanKey,
-      driver.model.replyText(humanReply)
-    );
-    await registerModelScript(
-      ctx.fakeModel,
-      afterResetKey,
-      driver.model.replyText(afterResetReply)
-    );
+      const droppedModelBaseline = await modelCallCount(ctx.fakeModel);
+      await actors.thirdParty.sendChannelPost({
+        channelId: fixture.channelId,
+        content: storyWithMention(
+          actors.bot.ship,
+          `[tlon-test:${droppedKey}] Known bot mention should be dropped.`
+        ),
+        botProfile: botProfileFor(actors.thirdParty.ship),
+      });
+      await expectNoNewModelCallsAfterSettle(
+        ctx.fakeModel,
+        droppedModelBaseline
+      );
+      await expectNoBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        droppedBaseline
+      );
 
-    for (const [index, turn] of allowedTurns.entries()) {
-      const baseline = await botChannelBaseline(
+      const humanBaseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+      await actors.owner.sendChannelPost({
+        channelId: fixture.channelId,
+        content: storyWithMention(
+          actors.bot.ship,
+          `[tlon-test:${humanKey}] Human mention resets the loop counter.`
+        ),
+      });
+      await waitForModelCalls(ctx.fakeModel, humanKey);
+      await waitForBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        humanReply,
+        humanBaseline
+      );
+      await expectModelExpectations(ctx.fakeModel, humanKey, humanScript);
+
+      const afterResetBaseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
         actors.bot.ship
@@ -359,90 +437,37 @@ export const commonScenarios: readonly SharedScenario[] = [
         channelId: fixture.channelId,
         content: storyWithMention(
           actors.bot.ship,
-          `[tlon-test:${turn.key}] Known bot mention ${index + 1}.`
+          `[tlon-test:${afterResetKey}] Known bot mention after reset.`
         ),
         botProfile: botProfileFor(actors.thirdParty.ship),
       });
-      await waitForModelCalls(ctx.fakeModel, turn.key);
+      await waitForModelCalls(ctx.fakeModel, afterResetKey);
       await waitForBotChannelReply(
         actors.owner,
         fixture.channelId,
         actors.bot.ship,
-        turn.reply,
-        baseline
+        afterResetReply,
+        afterResetBaseline
       );
+      await expectModelExpectations(
+        ctx.fakeModel,
+        afterResetKey,
+        afterResetScript
+      );
+
+      await sleep(NEGATIVE_SETTLE_MS);
+      for (const turn of allowedTurns) {
+        await expectModelExpectations(ctx.fakeModel, turn.key, turn.script);
+      }
+      await expectModelExpectations(ctx.fakeModel, humanKey, humanScript);
+      await expectModelExpectations(
+        ctx.fakeModel,
+        afterResetKey,
+        afterResetScript
+      );
+      await expectNoModelCalls(ctx.fakeModel, droppedKey);
     }
-
-    const droppedBaseline = await botChannelBaseline(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship
-    );
-    const droppedModelBaseline = await modelCallCount(ctx.fakeModel);
-    await actors.thirdParty.sendChannelPost({
-      channelId: fixture.channelId,
-      content: storyWithMention(
-        actors.bot.ship,
-        `[tlon-test:${droppedKey}] Known bot mention should be dropped.`
-      ),
-      botProfile: botProfileFor(actors.thirdParty.ship),
-    });
-    await expectNoNewModelCallsAfterSettle(
-      ctx.fakeModel,
-      droppedModelBaseline
-    );
-    await expectNoBotChannelReply(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship,
-      droppedBaseline
-    );
-
-    const humanBaseline = await botChannelBaseline(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship
-    );
-    await actors.owner.sendChannelPost({
-      channelId: fixture.channelId,
-      content: storyWithMention(
-        actors.bot.ship,
-        `[tlon-test:${humanKey}] Human mention resets the loop counter.`
-      ),
-    });
-    await waitForModelCalls(ctx.fakeModel, humanKey);
-    await waitForBotChannelReply(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship,
-      humanReply,
-      humanBaseline
-    );
-
-    const afterResetBaseline = await botChannelBaseline(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship
-    );
-    await actors.thirdParty.sendChannelPost({
-      channelId: fixture.channelId,
-      content: storyWithMention(
-        actors.bot.ship,
-        `[tlon-test:${afterResetKey}] Known bot mention after reset.`
-      ),
-      botProfile: botProfileFor(actors.thirdParty.ship),
-    });
-    await waitForModelCalls(ctx.fakeModel, afterResetKey);
-    await waitForBotChannelReply(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship,
-      afterResetReply,
-      afterResetBaseline
-    );
-
-    await expectNoModelCalls(ctx.fakeModel, droppedKey);
-  }),
+  ),
 ];
 
 function scenarioKey(prefix: string): string {
@@ -500,7 +525,7 @@ async function waitForModelCalls(
       return calls.length >= minCalls ? calls : undefined;
     },
     {
-      timeoutMs: 90_000,
+      timeoutMs: MODEL_CALL_WAIT_MS,
       intervalMs: 500,
       description: `model call(s) for ${key}`,
     }
@@ -539,6 +564,60 @@ async function expectNoModelCallsAfterSettle(
 ): Promise<void> {
   await sleep(settleMs);
   await expectNoModelCalls(fakeModel);
+}
+
+async function botNickname(actor: ScenarioActor): Promise<string> {
+  const profile = await actor.state.scry<Record<string, unknown>>(
+    'contacts',
+    '/v1/self'
+  );
+  return extractNickname(profile);
+}
+
+async function setBotNickname(
+  actor: ScenarioActor,
+  nickname: string
+): Promise<void> {
+  await actor.state.poke({
+    app: 'contacts',
+    mark: 'contact-action',
+    json: {
+      edit: [{ nickname }],
+    },
+  });
+}
+
+async function waitForBotNickname(
+  actor: ScenarioActor,
+  expectedNickname: string
+): Promise<void> {
+  await waitFor(
+    async () => {
+      const current = await botNickname(actor);
+      return current === expectedNickname ? true : undefined;
+    },
+    {
+      timeoutMs: 45_000,
+      intervalMs: 1_000,
+      description: `bot nickname ${JSON.stringify(expectedNickname)}`,
+    }
+  );
+}
+
+function extractNickname(profile: Record<string, unknown> | undefined): string {
+  const p = (profile ?? {}) as {
+    nickname?: string | { value?: string | null } | null;
+    nickName?: string | { value?: string | null } | null;
+  };
+  const fromNickname =
+    typeof p.nickname === 'string'
+      ? p.nickname
+      : (p.nickname as { value?: string | null } | null | undefined)?.value;
+  const fromNickName =
+    typeof p.nickName === 'string'
+      ? p.nickName
+      : (p.nickName as { value?: string | null } | null | undefined)?.value;
+  return fromNickname ?? fromNickName ?? '';
 }
 
 async function createOwnerHostedChannelFixture(
@@ -609,6 +688,18 @@ function knownBotLoopLimit(ctx: RuntimeContext): number {
   return value;
 }
 
+function knownBotLoopScenarioTimeoutMs(ctx: RuntimeContext): number {
+  const allowedBotTurns = knownBotLoopLimit(ctx);
+  const dispatchWaitBudget =
+    (allowedBotTurns + 2) * (MODEL_CALL_WAIT_MS + BOT_REPLY_WAIT_MS);
+  const settleBudget = NEGATIVE_SETTLE_MS * 3;
+  return (
+    dispatchWaitBudget +
+    settleBudget +
+    LOOP_TIMEOUT_MARGIN_MS
+  );
+}
+
 async function waitForBotChannelReply(
   actor: ScenarioActor,
   channelId: string,
@@ -626,7 +717,7 @@ async function waitForBotChannelReply(
       );
     },
     {
-      timeoutMs: 90_000,
+      timeoutMs: BOT_REPLY_WAIT_MS,
       intervalMs: 500,
       description: `bot channel reply containing ${JSON.stringify(expectedText)}`,
     }

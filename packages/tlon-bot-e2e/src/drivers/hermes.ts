@@ -126,6 +126,7 @@ export const hermesDriver: BotDriver = {
         expectations: {
           advertisedTools: { exact: ['tlon'] },
           expectedCallCount: 1,
+          allowedAuxiliaryCalls: ['hermes_title_generation'],
         },
       };
     },
@@ -145,6 +146,7 @@ export const hermesDriver: BotDriver = {
         expectations: {
           advertisedTools: { exact: ['tlon'] },
           expectedCallCount: 1,
+          allowedAuxiliaryCalls: ['hermes_title_generation'],
         },
       };
     },
@@ -164,7 +166,9 @@ export const hermesDriver: BotDriver = {
             { kind: 'tool_call', toolName: 'tlon' },
             { kind: 'final_model_text' },
           ],
+          toolLoopResult: true,
           streamedToolLoop: true,
+          allowedAuxiliaryCalls: ['hermes_title_generation'],
         },
       };
     },

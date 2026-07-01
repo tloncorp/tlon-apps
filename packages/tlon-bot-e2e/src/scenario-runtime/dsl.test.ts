@@ -3,10 +3,12 @@ import { describe, expect, test } from 'vitest';
 import {
   partitionKey,
   partitionScenarios,
+  scenarioTimeoutMs,
   scenariosForPartition,
   selectScenarioPartitions,
   testScenario,
 } from '../scenarios/shared/dsl.js';
+import type { RuntimeContext } from '../drivers/types.js';
 
 describe('shared scenario DSL partitions', () => {
   const baseline = testScenario('baseline-case', {}, async () => {});
@@ -96,5 +98,29 @@ describe('shared scenario DSL partitions', () => {
         driverName: 'hermes',
       })
     ).toThrow(/No scenarios selected for driver=hermes/);
+  });
+
+  test('preserves static and runtime-aware timeout metadata', () => {
+    const ctx = {
+      composeEnv: { TLON_MAX_CONSECUTIVE_BOT_RESPONSES: '3' },
+    } as unknown as RuntimeContext;
+    const staticTimeout = testScenario(
+      'static-timeout',
+      { timeoutMs: 12_000 },
+      async () => {}
+    );
+    const runtimeTimeout = testScenario(
+      'runtime-timeout',
+      {
+        timeoutMs: (runtimeCtx) =>
+          Number(runtimeCtx.composeEnv.TLON_MAX_CONSECUTIVE_BOT_RESPONSES) *
+          1_000,
+      },
+      async () => {}
+    );
+
+    expect(scenarioTimeoutMs(staticTimeout, ctx, 1_000)).toBe(12_000);
+    expect(scenarioTimeoutMs(runtimeTimeout, ctx, 1_000)).toBe(3_000);
+    expect(scenarioTimeoutMs(baseline, ctx, 1_000)).toBe(1_000);
   });
 });

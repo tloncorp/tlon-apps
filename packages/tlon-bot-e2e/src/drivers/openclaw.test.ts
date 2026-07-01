@@ -160,12 +160,11 @@ describe('OpenClaw driver runtime spec', () => {
   });
 
   test('model adapter returns script objects with options and expectations', () => {
-    expect(
-      openclawDriver.model.sendMessage({
-        target: '~ten',
-        message: 'hello',
-      })
-    ).toMatchObject({
+    const sendMessage = openclawDriver.model.sendMessage({
+      target: '~ten',
+      message: 'hello',
+    });
+    expect(sendMessage).toMatchObject({
       steps: [
         {
           kind: 'tool_call',
@@ -180,8 +179,10 @@ describe('OpenClaw driver runtime spec', () => {
         expectedCallCount: 2,
       },
     });
+    expect(sendMessage.expectations).not.toHaveProperty('toolLoopResult');
 
-    expect(openclawDriver.model.readOrAdmin('version', 'done')).toMatchObject({
+    const readOrAdmin = openclawDriver.model.readOrAdmin('version', 'done');
+    expect(readOrAdmin).toMatchObject({
       steps: [
         { kind: 'tool_call', name: 'tlon', args: { command: 'version' } },
         { kind: 'text', content: 'done' },
@@ -192,6 +193,7 @@ describe('OpenClaw driver runtime spec', () => {
         expectedCallCount: 2,
       },
     });
+    expect(readOrAdmin.expectations).not.toHaveProperty('toolLoopResult');
 
     expect(openclawDriver.model.imageSearch('cats')).toMatchObject({
       expectations: {

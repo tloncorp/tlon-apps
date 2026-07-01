@@ -84,7 +84,9 @@ export async function runScenarioTeardowns(actors: ScenarioActors): Promise<void
     try {
       await teardown();
     } catch (error) {
-      errors.push(error);
+      if (!isBenignTeardownError(error)) {
+        errors.push(error);
+      }
     }
   }
   if (errors.length > 0) {
@@ -135,7 +137,7 @@ function createScenarioActor(
         try {
           await client.state.deleteGroup(group.groupId);
         } catch (error) {
-          if (!isBenignGroupDeleteError(error)) {
+          if (!isBenignTeardownError(error)) {
             throw error;
           }
         }
@@ -153,7 +155,7 @@ function createScenarioActor(
   };
 }
 
-function isBenignGroupDeleteError(error: unknown): boolean {
+function isBenignTeardownError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /TimeoutError:\s*active/i.test(message);
+  return /TimeoutError:\s*(active|reconnected)/i.test(message);
 }

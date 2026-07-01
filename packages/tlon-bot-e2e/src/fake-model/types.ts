@@ -23,6 +23,8 @@ export interface ReceivedCall {
   messageCount: number;
   /** Concatenated user-role text from the request. */
   userText: string;
+  /** Sanitized request message summaries, bounded for assertions/debugging. */
+  messages: FakeModelMessageSummary[];
   /** Advertised tool names, de-duplicated in request order. */
   toolNames?: string[];
   /** Count of extracted advertised tool names. */
@@ -37,10 +39,35 @@ export interface ReceivedCall {
   stale: boolean;
   /** How the request key was selected. */
   provenance: 'latest-user' | 'history-active' | 'history-inactive' | 'none';
+  /** Assistant tool calls emitted by the fake-model response for this request. */
+  responseToolCalls: FakeModelToolCallSummary[];
 }
 
 export interface FakeModelReceivedResponse {
   calls: ReceivedCall[];
   count: number;
   epoch: number;
+}
+
+export interface FakeModelMessageSummary {
+  role: string;
+  content?: FakeModelContentSummary;
+  tool_calls?: FakeModelToolCallSummary[];
+  tool_call_id?: string;
+  name?: string;
+}
+
+export interface FakeModelContentSummary {
+  kind: string;
+  text?: string;
+  partCount?: number;
+}
+
+export interface FakeModelToolCallSummary {
+  id?: string;
+  type?: string;
+  function: {
+    name?: string;
+    arguments?: string;
+  };
 }

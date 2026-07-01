@@ -194,6 +194,71 @@ describe('fake model server', () => {
     expect(call.toolCount).toBe(1);
     expect(call.toolChoice).toEqual(toolChoice);
   });
+
+  test('records sanitized request messages and emitted response tool calls', async () => {
+    const key = 'tool-loop-record';
+    await fakeModel.script(key, [
+      { kind: 'tool_call', name: 'tlon', args: { command: 'version' } },
+      { kind: 'text', content: 'done' },
+    ]);
+
+    const firstResponse = await postChat(server.baseUrl, key);
+    expect(firstResponse.ok).toBe(true);
+    const firstBody = (await firstResponse.json()) as ChatCompletionResponse;
+    const toolCall = firstBody.choices[0].message.tool_calls?.[0];
+    if (!toolCall) {
+      throw new Error('Expected first response to include a tool call.');
+    }
+    expect(toolCall?.id).toMatch(/^call_/);
+
+    const secondResponse = await postChat(server.baseUrl, key, {
+      messages: [
+        {
+          role: 'user',
+          content: `[tlon-test:${key}] Please run version`,
+        },
+        {
+          role: 'assistant',
+          content: null,
+          tool_calls: [toolCall],
+        },
+        {
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: '{"apiKey":"secret-value","ok":true}',
+        },
+      ],
+    });
+    expect(secondResponse.ok).toBe(true);
+
+    const calls = await fakeModel.received(key);
+    expect(calls[0].responseToolCalls).toEqual([
+      {
+        id: toolCall.id,
+        type: 'function',
+        function: {
+          name: 'tlon',
+          arguments: '{"command":"version"}',
+        },
+      },
+    ]);
+    expect(calls[1].messages).toMatchObject([
+      { role: 'user', content: { kind: 'text' } },
+      {
+        role: 'assistant',
+        content: { kind: 'empty' },
+        tool_calls: [{ id: toolCall.id, function: { name: 'tlon' } }],
+      },
+      {
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: {
+          kind: 'text',
+          text: '{"apiKey":"<redacted>","ok":true}',
+        },
+      },
+    ]);
+  });
 });
 
 async function postChat(

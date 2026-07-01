@@ -40,6 +40,12 @@ jobs:
       - name: Prepare fake ship cache
         run: mkdir -p .cache/tlon-bot-e2e/fake-ships
 
+      - name: Typecheck shared E2E harness
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' tsc
+
+      - name: Run shared E2E unit tests
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:unit
+
       - name: Run Hermes shared E2E
         env:
           FAKE_SHIP_CACHE_DIR:

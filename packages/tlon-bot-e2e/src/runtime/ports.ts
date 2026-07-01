@@ -73,6 +73,27 @@ export function requestedRuntimePorts(
   return requested;
 }
 
+export function requestedRuntimeEndpointPorts(
+  endpoints: RuntimeEndpoints
+): RequestedRuntimePort[] {
+  const requested: RequestedRuntimePort[] = [
+    {
+      envVar: RUNTIME_PORT_ENV_VARS.fakeModel,
+      port: endpoints.fakeModel.hostPort,
+    },
+    { envVar: RUNTIME_PORT_ENV_VARS.zod, port: endpoints.ships.zod.hostPort },
+    { envVar: RUNTIME_PORT_ENV_VARS.ten, port: endpoints.ships.ten.hostPort },
+    { envVar: RUNTIME_PORT_ENV_VARS.mug, port: endpoints.ships.mug.hostPort },
+  ];
+  if (endpoints.gateway) {
+    requested.push({
+      envVar: RUNTIME_PORT_ENV_VARS.gateway,
+      port: endpoints.gateway.hostPort,
+    });
+  }
+  return requested;
+}
+
 export async function assertRequestedPortsAvailable(
   requestedPorts: readonly RequestedRuntimePort[]
 ): Promise<void> {

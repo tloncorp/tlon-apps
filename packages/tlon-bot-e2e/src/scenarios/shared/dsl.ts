@@ -11,6 +11,7 @@ export interface ScenarioMetadata {
   capabilities?: readonly ScenarioCapability[];
   orderDependent?: boolean;
   drivers?: readonly BotDriver['name'][];
+  timeoutMs?: number | ((ctx: RuntimeContext) => number);
 }
 
 export interface ScenarioRunContext {
@@ -25,6 +26,7 @@ export interface SharedScenario {
   capabilities: readonly ScenarioCapability[];
   orderDependent: boolean;
   drivers?: readonly BotDriver['name'][];
+  timeoutMs?: number | ((ctx: RuntimeContext) => number);
   run(runCtx: ScenarioRunContext): Promise<void>;
 }
 
@@ -53,8 +55,20 @@ export function testScenario(
     capabilities: normalizeCapabilities(metadata.capabilities ?? []),
     orderDependent: metadata.orderDependent ?? false,
     drivers: metadata.drivers,
+    timeoutMs: metadata.timeoutMs,
     run,
   };
+}
+
+export function scenarioTimeoutMs(
+  scenario: SharedScenario,
+  ctx: RuntimeContext,
+  defaultTimeoutMs: number
+): number {
+  if (typeof scenario.timeoutMs === 'function') {
+    return scenario.timeoutMs(ctx);
+  }
+  return scenario.timeoutMs ?? defaultTimeoutMs;
 }
 
 export function partitionScenarios(
