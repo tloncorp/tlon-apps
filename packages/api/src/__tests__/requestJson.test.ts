@@ -13,7 +13,7 @@ describe('Urbit.requestJson', () => {
     const fetch = vi.fn(async () => new Response('{"ok":true}'));
     const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
 
-    await expect(urbit.requestJson('/notes/~/v1/notebooks')).resolves.toEqual({
+    await expect(urbit.requestJson('/api/items')).resolves.toEqual({
       ok: true,
     });
   });
@@ -23,7 +23,7 @@ describe('Urbit.requestJson', () => {
     const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
 
     await expect(
-      urbit.requestJson('/notes/~/v1/notebooks/~zod/blog/notes/12', 'DELETE')
+      urbit.requestJson('/api/items/12', 'DELETE')
     ).resolves.toBeUndefined();
   });
 

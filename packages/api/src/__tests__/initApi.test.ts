@@ -60,6 +60,21 @@ describe('toInitData', () => {
       expect(channel).toHaveProperty('channelId');
     });
 
+    test('extracts joined notes channels from active group channels', () => {
+      const response = structuredClone(groupsInit6);
+      const group = response.groups['~test-ship/test-group'];
+      group['active-channels'] = [
+        ...(group['active-channels'] ?? []),
+        'notes/~test-ship/native-notes',
+      ];
+
+      const result = toInitData(response);
+
+      expect(result.joinedGroupChannels).toContain(
+        'notes/~test-ship/native-notes'
+      );
+    });
+
     test('filters valid invites from foreigns', () => {
       const result = toInitData(groupsInit6);
 

@@ -10,15 +10,14 @@ import {
 
 import {
   NotesV1PendingWriteError,
-  createNotesNote,
-  deleteNotesNotebook,
   deleteNotesNotebookBestEffort,
   deleteNotesNotebookStrict,
   formatNotesFlag,
   joinNotesChannel,
+  joinNotesNotebook,
   leaveNotesChannel,
-  listNotesNotebooks,
   normalizeNotesTarget,
+  notes,
   notesChannelId,
   notesV1,
   parseNotesChannelId,
@@ -30,7 +29,6 @@ import {
   BadResponseError,
   poke,
   requestJson,
-  scry,
   subscribe,
   unsubscribe,
 } from './urbit';
@@ -41,7 +39,6 @@ vi.mock('./urbit', async () => {
   return {
     ...actual,
     poke: vi.fn(),
-    scry: vi.fn(),
     requestJson: vi.fn(),
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
@@ -49,7 +46,6 @@ vi.mock('./urbit', async () => {
 });
 
 const pokeMock = poke as unknown as Mock;
-const scryMock = scry as unknown as Mock;
 const requestJsonMock = requestJson as unknown as Mock;
 const subscribeMock = subscribe as unknown as Mock;
 const unsubscribeMock = unsubscribe as unknown as Mock;
@@ -76,7 +72,6 @@ function pendingErrorStrings(error: NotesV1PendingWriteError): string {
 beforeEach(() => {
   requestJsonMock.mockResolvedValue(undefined);
   pokeMock.mockResolvedValue(undefined);
-  scryMock.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -101,6 +96,7 @@ describe('flag parsing and formatting', () => {
       name: 'blog',
     });
     expect(parseNotesChannelId('chat/~zod/blog')).toBeNull();
+    expect(parseNotesChannelId('notes/~zod/blog/extra')).toBeNull();
   });
 
   test('notesChannelId', () => {
@@ -150,32 +146,17 @@ describe('normalizeNotesTarget', () => {
   });
 });
 
-describe('v0 surface preserves #5990 scry/poke semantics', () => {
-  test('listNotesNotebooks scries /v0/notebooks', async () => {
-    scryMock.mockResolvedValue([{ host: '~zod' }]);
-    const result = await listNotesNotebooks();
-    expect(scryMock).toHaveBeenCalledWith({
-      app: 'notes',
-      path: '/v0/notebooks',
-    });
-    expect(result).toEqual([{ host: '~zod' }]);
-  });
-
-  test('createNotesNote pokes a %notes notebook action (not %channels, not v1)', async () => {
-    await createNotesNote({
-      flag: '~zod/blog',
-      folder: 3,
-      title: 'T',
-      body: 'B',
-    });
+describe('%notes transport helpers', () => {
+  test('joinNotesNotebook pokes %notes directly and does not call v1 HTTP', async () => {
+    await joinNotesNotebook('notes/~zod/blog');
     expect(requestJsonMock).not.toHaveBeenCalled();
     expect(pokeMock).toHaveBeenCalledWith({
       app: 'notes',
       mark: 'notes-action',
       json: {
-        type: 'notebook',
-        flag: '~zod/blog',
-        action: { type: 'create-note', folder: 3, title: 'T', body: 'B' },
+        type: 'join',
+        ship: '~zod',
+        name: 'blog',
       },
     });
   });
@@ -395,6 +376,62 @@ describe('notesV1 normalization variants', () => {
       { ship: '~zod', roles: ['owner'] },
       { ship: '~bus', roles: ['editor'] },
       { ship: '~nec', roles: [] },
+    ]);
+  });
+});
+
+describe('notes app facade', () => {
+  test('getNotebook returns the flat client model used by shared', async () => {
+    requestJsonMock.mockResolvedValue({
+      host: '~zod',
+      flagName: 'blog',
+      visibility: 'private',
+      notebook: {
+        id: 2,
+        title: 'Blog',
+        rootFolderId: 3,
+        createdBy: '~zod',
+      },
+    });
+
+    await expect(notes.getNotebook('notes/~zod/blog')).resolves.toMatchObject({
+      id: '~zod/blog',
+      host: '~zod',
+      flagName: 'blog',
+      notebookId: 2,
+      title: 'Blog',
+      visibility: 'private',
+      rootFolderId: 3,
+      createdBy: '~zod',
+    });
+  });
+
+  test('listNotes returns client ids while preserving omitted detail fields', async () => {
+    requestJsonMock.mockResolvedValue([{ id: 12, title: 'First' }]);
+
+    const [note] = await notes.listNotes('notes/~zod/blog');
+
+    expect(note).toMatchObject({
+      id: '~zod/blog/note/12',
+      notebookFlag: '~zod/blog',
+      noteId: 12,
+      title: 'First',
+    });
+    expect(note.folderId).toBeUndefined();
+    expect(note.bodyMd).toBeUndefined();
+    expect(note.revision).toBeUndefined();
+  });
+
+  test('listMembers flattens roles and preserves role-less members', async () => {
+    requestJsonMock.mockResolvedValue([
+      { ship: '~zod', roles: ['owner', 'editor'] },
+      { ship: '~nec' },
+    ]);
+
+    await expect(notes.listMembers('notes/~zod/blog')).resolves.toEqual([
+      { notebookFlag: '~zod/blog', contactId: '~zod', role: 'owner' },
+      { notebookFlag: '~zod/blog', contactId: '~zod', role: 'editor' },
+      { notebookFlag: '~zod/blog', contactId: '~nec', role: null },
     ]);
   });
 });
@@ -703,46 +740,6 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
 });
 
 describe('notebook delete helpers', () => {
-  test('legacy deleteNotesNotebook(channelId) is best-effort and swallows failures', async () => {
-    pokeMock.mockRejectedValue(new Error('not host'));
-    await expect(
-      deleteNotesNotebook('notes/~zod/blog')
-    ).resolves.toBeUndefined();
-    // pokes a %notes notebook-delete action with the ~host/name flag (never a
-    // raw flag with host "notes").
-    expect(pokeMock).toHaveBeenCalledWith({
-      app: 'notes',
-      mark: 'notes-action',
-      json: {
-        type: 'notebook',
-        flag: '~zod/blog',
-        action: { type: 'delete' },
-      },
-    });
-  });
-
-  test('legacy deleteNotesNotebook only acts on an exact notes/<host>/<name> nest', async () => {
-    // Bare flag, malformed nest, and over-long note/cite paths all no-op.
-    for (const id of [
-      '~zod/blog',
-      'notes/~zod',
-      'notes/~zod/blog/12',
-      'notes/~zod/blog/note/12',
-      'notes//blog',
-    ]) {
-      await deleteNotesNotebook(id);
-    }
-    expect(pokeMock).not.toHaveBeenCalled();
-
-    // The exact nest still deletes.
-    await deleteNotesNotebook('notes/~zod/blog');
-    expect(pokeMock).toHaveBeenCalledWith({
-      app: 'notes',
-      mark: 'notes-action',
-      json: { type: 'notebook', flag: '~zod/blog', action: { type: 'delete' } },
-    });
-  });
-
   test('deleteNotesNotebookStrict propagates failures and normalizes targets', async () => {
     pokeMock.mockRejectedValue(new Error('boom'));
     await expect(deleteNotesNotebookStrict('notes/~zod/blog')).rejects.toThrow(

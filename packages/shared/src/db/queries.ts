@@ -77,6 +77,10 @@ import {
   groupRoles as $groupRoles,
   groupUnreads as $groupUnreads,
   groups as $groups,
+  notesFolders as $notesFolders,
+  notesMembers as $notesMembers,
+  notesNotebooks as $notesNotebooks,
+  notesNotes as $notesNotes,
   pins as $pins,
   postReactions as $postReactions,
   posts as $posts,
@@ -107,6 +111,10 @@ import {
   GroupNavSection,
   GroupRole,
   GroupUnread,
+  NotesFolder,
+  NotesMember,
+  NotesNote,
+  NotesNotebook,
   PendingMemberDismissals,
   Pin,
   PinType,
@@ -405,13 +413,242 @@ export const getAnalyticsDigest = createReadQuery(
   []
 );
 
+export const getNotesNotebook = createReadQuery(
+  'getNotesNotebook',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotebooks
+      .findFirst({
+        where: eq($notesNotebooks.id, notebookFlag),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotebooks']
+);
+
+export const getNotesNotebookWithRelations = createReadQuery(
+  'getNotesNotebookWithRelations',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotebooks
+      .findFirst({
+        where: eq($notesNotebooks.id, notebookFlag),
+        with: {
+          folders: true,
+          notes: true,
+          members: true,
+        },
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+export const getNotesFolders = createReadQuery(
+  'getNotesFolders',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesFolders.findMany({
+      where: eq($notesFolders.notebookFlag, notebookFlag),
+      orderBy: [asc($notesFolders.name)],
+    });
+  },
+  ['notesFolders']
+);
+
+export const getNotesNotes = createReadQuery(
+  'getNotesNotes',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotes.findMany({
+      where: eq($notesNotes.notebookFlag, notebookFlag),
+      orderBy: [desc($notesNotes.updatedAt), asc($notesNotes.title)],
+    });
+  },
+  ['notesNotes']
+);
+
+export const getNotesNote = createReadQuery(
+  'getNotesNote',
+  async (
+    { notebookFlag, noteId }: { notebookFlag: string; noteId: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.notesNotes
+      .findFirst({
+        where: and(
+          eq($notesNotes.notebookFlag, notebookFlag),
+          eq($notesNotes.noteId, noteId)
+        ),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotes']
+);
+
+export const getNotesMembers = createReadQuery(
+  'getNotesMembers',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesMembers.findMany({
+      where: eq($notesMembers.notebookFlag, notebookFlag),
+      orderBy: [asc($notesMembers.contactId), asc($notesMembers.role)],
+    });
+  },
+  ['notesMembers']
+);
+
+export const saveNotesNotebookSnapshot = createWriteQuery(
+  'saveNotesNotebookSnapshot',
+  async (
+    {
+      notebook,
+      folders,
+      notes,
+      members,
+    }: {
+      notebook: NotesNotebook;
+      folders: NotesFolder[];
+      notes: NotesNote[];
+      members: NotesMember[];
+    },
+    ctx: QueryCtx
+  ) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($notesNotebooks)
+        .values(notebook)
+        .onConflictDoUpdate({
+          target: $notesNotebooks.id,
+          set: conflictUpdateSetAll($notesNotebooks, ['lastOpenedAt']),
+        });
+
+      await txCtx.db
+        .delete($notesFolders)
+        .where(eq($notesFolders.notebookFlag, notebook.id));
+      await batchAction(
+        folders,
+        async (batch) => {
+          await txCtx.db.insert($notesFolders).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+
+      await txCtx.db
+        .delete($notesNotes)
+        .where(eq($notesNotes.notebookFlag, notebook.id));
+      await batchAction(
+        notes,
+        async (batch) => {
+          await txCtx.db.insert($notesNotes).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+
+      await txCtx.db
+        .delete($notesMembers)
+        .where(eq($notesMembers.notebookFlag, notebook.id));
+      await batchAction(
+        members,
+        async (batch) => {
+          await txCtx.db.insert($notesMembers).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+    });
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+export const deleteNotesNote = createWriteQuery(
+  'deleteNotesNote',
+  async (
+    { notebookFlag, noteId }: { notebookFlag: string; noteId: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($notesNotes)
+      .where(
+        and(
+          eq($notesNotes.notebookFlag, notebookFlag),
+          eq($notesNotes.noteId, noteId)
+        )
+      );
+  },
+  ['notesNotes']
+);
+
+export const deleteNotesFolders = createWriteQuery(
+  'deleteNotesFolders',
+  async (
+    { notebookFlag, folderIds }: { notebookFlag: string; folderIds: number[] },
+    ctx: QueryCtx
+  ) => {
+    if (folderIds.length === 0) {
+      return;
+    }
+
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($notesNotes)
+        .where(
+          and(
+            eq($notesNotes.notebookFlag, notebookFlag),
+            inArray($notesNotes.folderId, folderIds)
+          )
+        );
+      await txCtx.db
+        .delete($notesFolders)
+        .where(
+          and(
+            eq($notesFolders.notebookFlag, notebookFlag),
+            inArray($notesFolders.folderId, folderIds)
+          )
+        );
+    });
+  },
+  ['notesFolders', 'notesNotes']
+);
+
+export const setNotesNotebookLastOpened = createWriteQuery(
+  'setNotesNotebookLastOpened',
+  async (
+    { notebookFlag, openedAt }: { notebookFlag: string; openedAt: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($notesNotebooks)
+      .set({ lastOpenedAt: openedAt })
+      .where(eq($notesNotebooks.id, notebookFlag));
+  },
+  ['notesNotebooks']
+);
+
+export const deleteNotesNotebook = createWriteQuery(
+  'deleteNotesNotebook',
+  async (notebookFlag: string, ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($notesNotes)
+        .where(eq($notesNotes.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesFolders)
+        .where(eq($notesFolders.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesMembers)
+        .where(eq($notesMembers.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesNotebooks)
+        .where(eq($notesNotebooks.id, notebookFlag));
+    });
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+const NOTES_SNAPSHOT_BATCH_SIZE = 50;
 const BATCH_SIZE = 200;
 async function batchAction<T>(
   items: T[],
-  handler: (subset: T[]) => Promise<void>
+  handler: (subset: T[]) => Promise<void>,
+  batchSize = BATCH_SIZE
 ) {
-  for (let i = 0; i < items.length; i += BATCH_SIZE) {
-    const batch = items.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
     await handler(batch);
   }
 }
