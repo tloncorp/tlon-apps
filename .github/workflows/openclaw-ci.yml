@@ -109,5 +109,4 @@ jobs:
           TLON_BOT_E2E_RUN_ID:
             ${{ github.run_id }}-${{ github.run_attempt }}-openclaw
         run: |
-          pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:openclaw
-          pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:openclaw:package
+          pnpm --filter '@tloncorp/openclaw' test:integration:shared

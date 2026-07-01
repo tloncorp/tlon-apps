@@ -105,6 +105,19 @@ pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:openclaw:package
 OpenClaw package-specific runs still execute package Vitest files one process at
 a time. Additional OpenClaw file paths can be passed after `--`.
 
+OpenClaw's shared-runtime replacement for the package integration suite runs
+both the common shared scenarios and the package-specific OpenClaw files:
+
+```bash
+pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:openclaw:all
+```
+
+From `packages/openclaw`, this is exposed as:
+
+```bash
+pnpm test:integration:shared
+```
+
 ## Hermes Runtime Details
 
 The Hermes E2E compose path does not load `packages/hermes-tlon-adapter/.env`.
