@@ -156,10 +156,15 @@ export function NotesActionGroupList({
 const EMPTY_FOLDERS: db.NotesFolder[] = [];
 const EMPTY_NOTES: db.NotesNote[] = [];
 const MOVE_DESTINATION_SHEET_SNAP_POINTS = [85];
-const NOTES_PENDING_WRITE_MESSAGE = '%notes write request is still pending';
+export const NOTES_PENDING_WRITE_MESSAGE =
+  '%notes write request is still pending';
 
 export function errorMessage(e: unknown, fallback: string) {
   return e instanceof Error ? e.message : fallback;
+}
+
+export function isNotesPendingWriteError(e: unknown) {
+  return errorMessage(e, '').includes(NOTES_PENDING_WRITE_MESSAGE);
 }
 
 function formatNotesBannerMessage(message: string) {
