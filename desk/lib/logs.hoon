@@ -1,6 +1,6 @@
 /-  *logs
 =<
-  |_  [our=ship =wire]
+  |_  [our=ship dap=term =wire]
   ::
   ++  fail
     |=  [vol=volume =echo =tang =log-data]
@@ -15,6 +15,11 @@
     =/  event=$>(%tell log-event)
       [%tell vol echo]
     (pass event log-data)
+  ::
+  ++  on-fail
+    |=  [=term =tang]
+    ^-  card:agent:gall
+    (fail %error ~[(cat 3 dap ' failed')] [leaf+"{<term>}" tang] ~)
   ::
   ++  pass
     |=  [event=log-event data=log-data]
@@ -71,7 +76,7 @@
       :~  type/s+event-type
           message/(tang echo.e)
           volume/s+vol.e
-          stacktrace/(tang trace.e)
+          stacktrace/(tang tang.e)
       ==
     ::
         %tell

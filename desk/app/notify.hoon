@@ -170,16 +170,16 @@
 ::  +log: specialized wrapper for logging library
 ::
 ++  log
-  |_  our=@p
+  |_  [our=@p dap=term]
   ++  fail
     |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our /logs) vol echo tang ~)
+    (~(fail logs our dap /logs) vol echo tang ~)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
     %-  link
-    (~(tell logs our /logs) volume echo ~)
+    (~(tell logs our dap /logs) volume echo ~)
   ::
   ++  link  ::  construct accumulator
     |=  cad=card
@@ -198,7 +198,7 @@
 =<
   |_  =bowl:gall
   +*  this  .
-      l     ~(. log our.bowl)
+      l     ~(. log our.bowl dap.bowl)
       def   ~(. (default-agent this %|) bowl)
       do    ~(. +> bowl)
       io    ~(. agentio bowl)
@@ -723,7 +723,8 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
-    ((fail:l %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang]) `this)
+    :_  this
+    [(~(on-fail logs our.bowl dap.bowl /logs) term tang)]~
   --
 |_  bowl=bowl:gall
 ::

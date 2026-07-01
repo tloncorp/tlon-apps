@@ -250,7 +250,7 @@
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
-    log   ~(. logs [our.bowl /logs])
+    log   ~(. logs [our.bowl dap.bowl /logs])
 ++  on-init
   ^-  (quip card _this)
   :_  this
@@ -584,8 +584,8 @@
   |=  [=term =tang]
   ^-  (quip card _this)
   ::TODO  want to ~(del in want) if ?=(%fact term) but don't know the wire...
-  %.  [~ this]
-  (slog (rap 3 dap.bowl ': +on-fail: ' term ~) tang)
+  :_  this
+  [(~(on-fail logs our.bowl dap.bowl /logs) term tang)]~
 ::
 ++  on-peek
   |=  =path

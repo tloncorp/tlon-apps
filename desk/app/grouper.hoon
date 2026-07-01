@@ -19,17 +19,17 @@
 ::  |l: logging core
 ::
 ++  l
-  |_  [our=ship flow=(unit @t) details=(list (pair @t json))]
+  |_  [our=ship dap=term flow=(unit @t) details=(list (pair @t json))]
   ++  fail
     |=  [vol=volume:logs =echo:logs =tang]
     =/  =card
-      (~(fail logs our /logs) vol echo tang deez)
+      (~(fail logs our dap /logs) vol echo tang deez)
     (link card)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
     =/  =card
-      (~(tell logs our /logs) vol echo (weld log-data deez))
+      (~(tell logs our dap /logs) vol echo (weld log-data deez))
     (link card)
   ::  +deez: log message details
   ::
@@ -55,7 +55,7 @@
 |_  =bowl:gall
 +*  this  .
     def   ~(. (default-agent this %.n) bowl)
-    log   ~(. l [our.bowl ~ ~])
+    log   ~(. l [our.bowl dap.bowl ~ ~])
 ::
 ++  on-init
   :_  this
@@ -188,7 +188,7 @@
       :~  'lure-id'^s+token.bite
           'lure-joiner'^s+(scot %p joiner.bite)
       ==
-    =+  log=~(. l our.bowl `'lure' details)
+    =+  log=~(. l our.bowl dap.bowl `'lure' details)
     =>
       |%
       ++  tell
@@ -262,8 +262,8 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:log %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang])
-  `this
+  :_  this
+  [(~(on-fail logs our.bowl dap.bowl /logs) term tang)]~
 ::
 ++  on-leave
   |=  =path

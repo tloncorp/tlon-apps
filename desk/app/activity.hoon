@@ -75,7 +75,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
-      log   ~(. logs [our.bowl /logs])
+      log   ~(. logs [our.bowl dap.bowl /logs])
       cor   ~(. +> [bowl ~])
   ::
   ++  on-init
@@ -114,10 +114,10 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     :_  this
-    [(fail:log %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang] ~)]~
+    [(~(on-fail logs our.bowl dap.bowl /logs) term tang)]~
   --
 |_  [=bowl:gall cards=(list card)]
-+*  log   ~(. logs [our.bowl /logs])
++*  log   ~(. logs [our.bowl dap.bowl /logs])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))

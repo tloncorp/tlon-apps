@@ -153,7 +153,7 @@
     ?-  -.event
         %fail
       :-  leaf+"[{<our.bowl>}/{<dap.bowl>}] crashed"
-      (weld echo.event trace.event)
+      (weld echo.event tang.event)
     ::
         %tell  
       [leaf+"[{<our.bowl>}/{<dap.bowl>}]" echo.event]

@@ -191,16 +191,16 @@
   --
 ::
 ++  lo
-  |_  [our=@p host=(unit @p) kind=(unit @t)]
+  |_  [our=@p dap=term host=(unit @p) kind=(unit @t)]
   ++  fail
     |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our /logs) vol echo tang deez)
+    (~(fail logs our dap /logs) vol echo tang deez)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
     %-  link
-    (~(tell logs our /logs) volume echo deez)
+    (~(tell logs our dap /logs) volume echo deez)
   ::
   ++  deez
     ^-  (list [@t json])
@@ -231,7 +231,7 @@
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
-    lo    log(our our.bowl)
+    lo    log(our our.bowl, dap dap.bowl)
 ::
 ++  on-save  !>(state)
 ++  on-init
@@ -764,6 +764,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:lo %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang])
-  [~ this]
+  :_  this
+  [(~(on-fail logs our.bowl dap.bowl /logs) term tang)]~
 --
