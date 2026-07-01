@@ -13,6 +13,7 @@ import {
 type AnyFn = (...args: unknown[]) => Promise<unknown>;
 
 const NOTES_V1_OPS = [
+  'getRequest',
   'listNotebooks',
   'getNotebook',
   'createNotebook',
@@ -153,6 +154,7 @@ describe('notes help and shell', () => {
   it('prints per-subcommand help for a help token after the subcommand', async () => {
     const cases: Array<[string, string]> = [
       ['status', NOTES_COMMAND_HELP.status],
+      ['request', NOTES_COMMAND_HELP.request],
       ['show', NOTES_COMMAND_HELP.show],
       ['note-create', NOTES_COMMAND_HELP['note-create']],
       ['note-update', NOTES_COMMAND_HELP['note-update']],
@@ -201,6 +203,21 @@ describe('notes nest parsing', () => {
       expect(exitCode).toBe(1);
       expect(context.stdout()).toBe('');
       expect(context.stderr()).toContain(`Invalid notes nest: ${nest}`);
+      expectNoAuthOrIo(context);
+    }
+  });
+
+  it('rejects a malformed request id locally before auth', async () => {
+    for (const requestId of ['notes/~zod/blog', '']) {
+      const args = requestId ? ['request', requestId] : ['request'];
+      const context = makeDeps();
+      const exitCode = await run(args, context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toContain(
+        requestId ? 'Invalid request id' : NOTES_COMMAND_HELP.request
+      );
       expectNoAuthOrIo(context);
     }
   });
@@ -376,6 +393,68 @@ describe('notes status', () => {
 
     expect(exitCode).toBe(1);
     expect(context.stdout()).toContain('%notes v1 API: unreachable');
+  });
+});
+
+describe('notes request status', () => {
+  it('prints pending request status and exits nonzero', async () => {
+    const context = makeDeps({
+      notesV1: {
+        getRequest: async () => ({
+          requestId: '0vabc',
+          body: { type: 'pending', status: 'acked' },
+        }),
+      },
+    });
+
+    const exitCode = await run(['request', '0vabc'], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.notesV1).toEqual([
+      { op: 'getRequest', args: ['0vabc'] },
+    ]);
+    expect(context.stdout()).toContain('Request: 0vabc');
+    expect(context.stdout()).toContain('Status: pending (acked)');
+    expect(context.stdout()).toContain('Do not issue the write again');
+  });
+
+  it('prints successful and failed terminal request statuses', async () => {
+    const ok = makeDeps({
+      notesV1: {
+        getRequest: async () => ({ requestId: '0vok', body: { type: 'ok' } }),
+      },
+    });
+    expect(await run(['request', '0vok'], ok.deps)).toBe(0);
+    expect(ok.stdout()).toContain('Status: ok');
+
+    const failed = makeDeps({
+      notesV1: {
+        getRequest: async () => ({
+          requestId: '0verr',
+          body: { type: 'error', message: 'target unavailable' },
+        }),
+      },
+    });
+    expect(await run(['request', '0verr'], failed.deps)).toBe(1);
+    expect(failed.stdout()).toContain('Status: error');
+    expect(failed.stdout()).toContain('Message: target unavailable');
+  });
+
+  it('prints notebook request results', async () => {
+    const context = makeDeps({
+      notesV1: {
+        getRequest: async () => ({
+          requestId: '0vbook',
+          body: { type: 'notebook', notebook: NOTEBOOK_SUMMARY },
+        }),
+      },
+    });
+
+    const exitCode = await run(['request', '0vbook'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toContain('Status: notebook');
+    expect(context.stdout()).toContain('Nest: notes/~zod/blog');
   });
 });
 

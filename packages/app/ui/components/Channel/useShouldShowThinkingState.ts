@@ -9,7 +9,7 @@ export function useShouldShowThinkingState(channel: db.Channel) {
   const canRead = useCanRead(channel, currentUserId);
 
   const shouldShowThinkingState = useMemo(
-    () => canRead && channel.type === 'dm',
+    () => canRead && (channel.type === 'dm' || channel.type === 'chat'),
     [canRead, channel.type]
   );
 

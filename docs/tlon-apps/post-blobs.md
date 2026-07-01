@@ -68,6 +68,19 @@ Video upload metadata.
 | `duration`  | `number` (optional) |
 | `posterUri` | `string` (optional) |
 
+### `tlon-context-lens` v1
+
+Pointer to a bot run record ("context lens"). Written by the OpenClaw Tlon gateway when it stamps a bot reply; the client uses it to look up the full run record (trigger, tool calls, timings, output). The blob carries only the public-safe pointer — run data itself stays on the gateway (and later the owner's ship) with owner-only visibility.
+
+| field     | type                  |
+| --------- | --------------------- |
+| `type`    | `'tlon-context-lens'` |
+| `version` | `1`                   |
+| `lensId`  | `string`              |
+| `botShip` | `string` (optional)   |
+
+`botShip` identifies which ship hosts the bot that produced the run, so clients can resolve the run record when the gateway is unreachable.
+
 ### `a2ui` v1
 
 A2UI presentation metadata. This lets a post carry a small validated A2UI v0.9 component tree alongside normal text content.

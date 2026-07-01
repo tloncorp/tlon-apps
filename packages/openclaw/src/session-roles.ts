@@ -32,7 +32,7 @@ export function setSessionRole(sessionKey: string, role: SenderRole): void {
   sessionRoles.set(sessionKey, { role, timestamp: now });
 }
 
-export function getSessionRole(sessionKey: string): SenderRole | undefined {
+function lookupSessionRole(sessionKey: string): SenderRole | undefined {
   const entry = sessionRoles.get(sessionKey);
   if (!entry) {
     return undefined;
@@ -45,6 +45,20 @@ export function getSessionRole(sessionKey: string): SenderRole | undefined {
   }
 
   return entry.role;
+}
+
+export function getSessionRole(sessionKey: string): SenderRole | undefined {
+  const direct = lookupSessionRole(sessionKey);
+  if (direct) {
+    return direct;
+  }
+  // Thread sessions append `:thread:<id>` to the parent key; the role was
+  // stored under the parent.
+  const threadIndex = sessionKey.indexOf(':thread:');
+  if (threadIndex > 0) {
+    return lookupSessionRole(sessionKey.slice(0, threadIndex));
+  }
+  return undefined;
 }
 
 // Exported for testing - allows time manipulation

@@ -30,9 +30,23 @@ export async function fetchGroupChanges(
 export interface InitData {
   channels: string[];
   channelToGroup: Map<string, string>;
+  /** Map from channel nest to human-readable channel title */
+  channelNames: Map<string, string>;
   /** Map from group flag to human-readable group title */
   groupNames: Map<string, string>;
   foreigns: Foreigns | null;
+}
+
+function extractTitle(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+  const metadata = value as {
+    meta?: { title?: unknown };
+    title?: unknown;
+  };
+  const title = metadata.meta?.title ?? metadata.title;
+  return typeof title === 'string' && title.trim() ? title.trim() : undefined;
 }
 
 /**
@@ -49,6 +63,7 @@ export async function fetchInitData(
 
     const channels: string[] = [];
     const channelToGroup = new Map<string, string>();
+    const channelNames = new Map<string, string>();
     const groupNames = new Map<string, string>();
     if (initData?.groups) {
       for (const [groupFlag, groupData] of Object.entries(
@@ -56,12 +71,14 @@ export async function fetchInitData(
       )) {
         if (groupData && typeof groupData === 'object') {
           // Extract group title from metadata
-          const title = groupData.meta?.title;
-          if (title && typeof title === 'string') {
+          const title = extractTitle(groupData);
+          if (title) {
             groupNames.set(groupFlag, title);
           }
           if (groupData.channels) {
-            for (const channelNest of Object.keys(groupData.channels)) {
+            for (const [channelNest, channelData] of Object.entries(
+              groupData.channels
+            )) {
               if (
                 channelNest.startsWith('chat/') ||
                 channelNest.startsWith('heap/') ||
@@ -69,6 +86,10 @@ export async function fetchInitData(
               ) {
                 channels.push(channelNest);
                 channelToGroup.set(channelNest, groupFlag);
+                const channelTitle = extractTitle(channelData);
+                if (channelTitle) {
+                  channelNames.set(channelNest, channelTitle);
+                }
               }
             }
           }
@@ -92,7 +113,7 @@ export async function fetchInitData(
       }
     }
 
-    return { channels, channelToGroup, groupNames, foreigns };
+    return { channels, channelToGroup, channelNames, groupNames, foreigns };
   } catch (error: any) {
     runtime.log?.(
       `[tlon] Init data fetch failed: ${error?.message ?? String(error)}`
@@ -100,6 +121,7 @@ export async function fetchInitData(
     return {
       channels: [],
       channelToGroup: new Map(),
+      channelNames: new Map(),
       groupNames: new Map(),
       foreigns: null,
     };
