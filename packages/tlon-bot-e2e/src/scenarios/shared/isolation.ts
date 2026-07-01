@@ -47,6 +47,16 @@ export async function resetBaselineIsolation(
   });
   await actors.bot.setSettingsEntry({
     bucket: SETTINGS_BUCKET,
+    key: 'channelRules',
+    value: '{}',
+  });
+  await actors.bot.setSettingsEntry({
+    bucket: SETTINGS_BUCKET,
+    key: 'defaultAuthorizedShips',
+    value: [],
+  });
+  await actors.bot.setSettingsEntry({
+    bucket: SETTINGS_BUCKET,
     key: 'pendingApprovals',
     value: '[]',
   });
@@ -58,6 +68,8 @@ export async function resetBaselineIsolation(
     ownerListenDefault: 'owned',
     groupChannels: [...(opts.groupChannels ?? [])],
     dmAllowlist: [...dmAllowlist],
+    channelRules: '{}',
+    defaultAuthorizedShips: [],
     pendingApprovals: '[]',
   });
   await sleep(750);
@@ -203,6 +215,10 @@ function defaultSettingValue(key: string): unknown {
       return 'owned';
     case 'pendingApprovals':
       return '[]';
+    case 'channelRules':
+      return '{}';
+    case 'defaultAuthorizedShips':
+      return [];
     default:
       return null;
   }

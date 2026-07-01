@@ -38,6 +38,8 @@ export const hermesDriver: BotDriver = {
     const packageDir = this.packageDir(seed);
     const sharedPackageDir = path.join(seed.repoRoot, 'packages/tlon-bot-e2e');
     const homeChannel = seed.endpoints.ships.ten.ship;
+    const knownBotUsers = knownBotUsersForSharedLoop(seed);
+    const maxConsecutiveBotResponses = sharedLoopLimitEnv();
 
     return {
       packageDir,
@@ -76,6 +78,8 @@ export const hermesDriver: BotDriver = {
         TLON_TELEMETRY: 'false',
         TLON_CONTEXT_MESSAGES: '4',
         TLON_SSE_READ_TIMEOUT_SECONDS: '15',
+        TLON_KNOWN_BOT_USERS: knownBotUsers,
+        TLON_MAX_CONSECUTIVE_BOT_RESPONSES: maxConsecutiveBotResponses,
         HERMES_MODEL_PROVIDER: 'custom',
         HERMES_MODEL: 'tlon-test-scripted',
         HERMES_MODEL_BASE_URL: seed.endpoints.fakeModel.containerOpenAiBaseUrl,
@@ -206,6 +210,13 @@ async function assertHermesConfig(
   const model = objectAt(config, 'model');
   const platformToolsets = objectAt(config, 'platform_toolsets');
   const agent = objectAt(config, 'agent');
+  const tlon = objectAt(config, 'tlon');
+  const expectedKnownBots = String(
+    ctx.composeEnv.TLON_KNOWN_BOT_USERS ?? ''
+  ).split(',');
+  const expectedLoopLimit = Number(
+    ctx.composeEnv.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '2'
+  );
 
   expectConfig(model.provider === 'custom', 'model.provider must be custom');
   expectConfig(
@@ -245,6 +256,18 @@ async function assertHermesConfig(
     Array.isArray(agent.disabled_toolsets) &&
       agent.disabled_toolsets.includes('cronjob'),
     'agent.disabled_toolsets must include cronjob'
+  );
+  expectConfig(
+    expectedKnownBots.includes(ctx.endpoints.ships.mug.ship),
+    `TLON_KNOWN_BOT_USERS must include ${ctx.endpoints.ships.mug.ship}`
+  );
+  expectConfig(
+    tlon.known_bot_users === ctx.composeEnv.TLON_KNOWN_BOT_USERS,
+    'tlon.known_bot_users must match composed TLON_KNOWN_BOT_USERS'
+  );
+  expectConfig(
+    tlon.max_consecutive_bot_responses === expectedLoopLimit,
+    `tlon.max_consecutive_bot_responses must be ${expectedLoopLimit}`
   );
 
   if (failures.length > 0) {
@@ -417,6 +440,36 @@ function assertExecOk(
       `${label} failed with exit ${result.exitCode}: ${result.stderr}`
     );
   }
+}
+
+function knownBotUsersForSharedLoop(seed: RuntimeSeed): string {
+  const ships = new Set([
+    seed.endpoints.ships.mug.ship,
+    ...shipCsv(process.env.TLON_KNOWN_BOT_USERS),
+  ]);
+  return [...ships].join(',');
+}
+
+function shipCsv(value: string | undefined): string[] {
+  return String(value ?? '')
+    .split(',')
+    .map((ship) => normalizeShip(ship.trim()))
+    .filter(Boolean);
+}
+
+function normalizeShip(ship: string): string {
+  return ship ? (ship.startsWith('~') ? ship : `~${ship}`) : '';
+}
+
+function sharedLoopLimitEnv(): string {
+  const raw = process.env.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '2';
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(
+      `TLON_MAX_CONSECUTIVE_BOT_RESPONSES must be a positive integer for shared loop coverage, got ${JSON.stringify(raw)}.`
+    );
+  }
+  return String(value);
 }
 
 function maskConfig(value: unknown): unknown {

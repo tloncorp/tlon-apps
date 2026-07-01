@@ -15,7 +15,10 @@ file, so CI and one-off command overrides continue to work normally.
 
 Use `packages/tlon-bot-e2e/.env.example` as the template for local values such
 as `TLON_BOT_E2E_DRIVER`, `TLONBOT_DIR`, `TLONBOT_TOKEN`, `BRAVE_API_KEY`, and
-the `TEST_STORAGE_*` settings used by media/blob scenarios.
+the `TEST_STORAGE_*` settings used by media/blob scenarios. The shared loop
+scenario also accepts `TLON_KNOWN_BOT_USERS` and
+`TLON_MAX_CONSECUTIVE_BOT_RESPONSES`; defaults are chosen by the drivers so the
+baseline suite works without local overrides.
 
 The loader only accepts the explicit harness allowlist in `src/runtime/env.ts`.
 Unknown keys fail the run instead of being passed through implicitly. Docker
@@ -67,11 +70,15 @@ the driver.
 
 Current common baseline scenarios are:
 
+- no-model connectivity checks across bot, owner, and third-party ships
 - owner DM text reply
 - owner DM `tlon` tool call followed by final assistant text
 - unauthorized third-party DM produces no fake-model call and no direct reply
 - allowlisted third-party DM receives a reply
 - owner DM still works when channel owner-listen is disabled
+- owner-listen channel dispatch for owner plain posts, global disable, per-channel mute, and mention overrides
+- `/owner-listen all off` and `/owner-listen all on` settings persistence
+- practical known-bot loop protection with a BotProfile-shaped `~mug` sender and human reset
 
 Common scenarios default to the `baseline` partition. Future media, image, and
 storage scenarios should declare capabilities and run only through matching

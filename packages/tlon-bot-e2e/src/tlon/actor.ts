@@ -41,6 +41,11 @@ export interface PromptResult {
 
 export type StoryInput = Story | string;
 
+export interface BotProfileInput {
+  nickname: string;
+  avatar: string;
+}
+
 export interface ChannelPost {
   id?: string;
   authorId?: string;
@@ -211,6 +216,7 @@ export class TlonActorClient {
     channelId: string;
     content: StoryInput;
     blob?: string;
+    botProfile?: BotProfileInput;
   }): Promise<PostRef> {
     const sentAt = Date.now();
     const content = storyFromInput(params.content);
@@ -221,6 +227,7 @@ export class TlonActorClient {
         sentAt,
         content,
         blob: params.blob,
+        botProfile: params.botProfile,
       });
     });
 
@@ -241,6 +248,7 @@ export class TlonActorClient {
     parentAuthor: string;
     content: StoryInput;
     blob?: string;
+    botProfile?: BotProfileInput;
   }): Promise<PostRef> {
     const sentAt = Date.now();
     const content = storyFromInput(params.content);
@@ -253,6 +261,7 @@ export class TlonActorClient {
         sentAt,
         content,
         blob: params.blob,
+        botProfile: params.botProfile,
       });
     });
 

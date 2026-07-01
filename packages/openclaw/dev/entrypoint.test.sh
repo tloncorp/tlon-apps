@@ -60,9 +60,14 @@ TLON_CONFIG_DM_ALLOWLIST="${TLON_DM_ALLOWLIST:-~ten}"
 TLON_CONFIG_DM_ALLOWLIST_JSON="$(printf '%s' "$TLON_CONFIG_DM_ALLOWLIST" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
 DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON='["web_fetch","web_search","image_search","read","cron","tlon","message"]'
 OPENCLAW_CONFIG_TOOLS_ALLOW_JSON="${OPENCLAW_TEST_TOOLS_ALLOW_JSON:-$DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON}"
+TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES="${TLON_MAX_CONSECUTIVE_BOT_RESPONSES:-2}"
 
 if ! printf '%s' "$OPENCLAW_CONFIG_TOOLS_ALLOW_JSON" | jq -e 'type == "array" and all(.[]; type == "string")' >/dev/null; then
   echo "FATAL: OPENCLAW_TEST_TOOLS_ALLOW_JSON must be a JSON array of strings"
+  exit 1
+fi
+if ! printf '%s' "$TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES" | jq -e 'tonumber >= 0 and (tonumber | floor) == tonumber' >/dev/null; then
+  echo "FATAL: TLON_MAX_CONSECUTIVE_BOT_RESPONSES must be a non-negative integer"
   exit 1
 fi
 
@@ -165,6 +170,7 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "ownerShip": "$TLON_CONFIG_OWNER",
       "dmAllowlist": $TLON_CONFIG_DM_ALLOWLIST_JSON,
       "allowPrivateNetwork": true,
+      "maxConsecutiveBotResponses": $TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES,
       "reengagement": {
         "enabled": true
       },

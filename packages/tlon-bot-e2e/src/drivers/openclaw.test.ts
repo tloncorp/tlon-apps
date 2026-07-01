@@ -70,6 +70,7 @@ describe('OpenClaw driver runtime spec', () => {
         'tlon',
         'message',
       ]),
+      TLON_MAX_CONSECUTIVE_BOT_RESPONSES: '2',
       TLON_NUDGE_TICK_INTERVAL_MS: '5000',
     });
     expect(ctx.composeEnv.BRAVE_API_KEY).toBeUndefined();

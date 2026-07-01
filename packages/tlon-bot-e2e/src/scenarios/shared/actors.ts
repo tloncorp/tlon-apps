@@ -1,6 +1,7 @@
 import type { RuntimeContext, ShipEndpoint } from '../../drivers/types.js';
 import {
   TlonActorClient,
+  type BotProfileInput,
   type PostRef,
   type PromptResult,
   type StateReader,
@@ -29,6 +30,7 @@ export interface ScenarioActor {
     channelId: string;
     content: StoryInput;
     blob?: string;
+    botProfile?: BotProfileInput;
   }): Promise<PostRef>;
   replyToPost(params: {
     channelId: string;
@@ -36,6 +38,7 @@ export interface ScenarioActor {
     parentAuthor: string;
     content: StoryInput;
     blob?: string;
+    botProfile?: BotProfileInput;
   }): Promise<PostRef>;
   createGroupWithChannel(params: {
     title: string;
@@ -129,7 +132,13 @@ function createScenarioActor(
     async createGroupWithChannel(params) {
       const group = await client.createGroupWithChannel(params);
       teardowns.push(async () => {
-        await client.state.deleteGroup(group.groupId);
+        try {
+          await client.state.deleteGroup(group.groupId);
+        } catch (error) {
+          if (!isBenignGroupDeleteError(error)) {
+            throw error;
+          }
+        }
       });
       return group;
     },
@@ -142,4 +151,9 @@ function createScenarioActor(
       teardowns.push(fn);
     },
   };
+}
+
+function isBenignGroupDeleteError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /TimeoutError:\s*active/i.test(message);
 }

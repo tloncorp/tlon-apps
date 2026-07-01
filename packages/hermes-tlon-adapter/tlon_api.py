@@ -1292,6 +1292,13 @@ def _extract_block_text(block: dict[str, Any]) -> str:
     return ""
 
 
+def extract_author_ship(author: Any) -> str:
+    """Extract a normalized ship from a string or BotProfile-shaped author."""
+    if isinstance(author, Mapping):
+        return normalize_ship(str(author.get("ship") or ""))
+    return normalize_ship(str(author or ""))
+
+
 def parse_channel_message(
     event: Any,
     *,
@@ -1332,7 +1339,7 @@ def parse_channel_message(
     if not isinstance(content, dict):
         return None
 
-    sender = normalize_ship(str(content.get("author") or ""))
+    sender = extract_author_ship(content.get("author"))
     if not sender or sender == normalize_ship(self_ship):
         return None
 
@@ -1401,7 +1408,7 @@ def parse_dm_message(
     if not isinstance(content, dict):
         return None
 
-    sender = normalize_ship(str(content.get("author") or ""))
+    sender = extract_author_ship(content.get("author"))
     if not sender or sender == normalize_ship(self_ship):
         return None
 

@@ -34,6 +34,8 @@ class HermesE2EConfigTests(unittest.TestCase):
                     "HERMES_MODEL_BASE_URL": "http://fake-model:4000/v1",
                     "HERMES_MODEL_API_KEY": "no-key-required",
                     "HERMES_MODEL_API_MODE": "chat_completions",
+                    "TLON_KNOWN_BOT_USERS": "~mug",
+                    "TLON_MAX_CONSECUTIVE_BOT_RESPONSES": "2",
                 },
             )
 
@@ -53,4 +55,6 @@ class HermesE2EConfigTests(unittest.TestCase):
         self.assertEqual(config["platform_toolsets"]["tlon"], ["tlon", "no_mcp"])
         self.assertEqual(config["mcp_servers"], {})
         self.assertIn("cronjob", config["agent"]["disabled_toolsets"])
+        self.assertEqual(config["tlon"]["known_bot_users"], "~mug")
+        self.assertEqual(config["tlon"]["max_consecutive_bot_responses"], 2)
         self.assertEqual(config["platforms"]["tlon"]["home_channel"]["chat_id"], "~ten")

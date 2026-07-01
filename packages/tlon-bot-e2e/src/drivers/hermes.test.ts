@@ -48,6 +48,8 @@ describe('Hermes driver runtime spec', () => {
       HERMES_MODEL_API_MODE: 'chat_completions',
       TLON_GATEWAY_STATUS: 'false',
       TLON_TELEMETRY: 'false',
+      TLON_KNOWN_BOT_USERS: '~mug',
+      TLON_MAX_CONSECUTIVE_BOT_RESPONSES: '2',
     });
     expect(ctx.testEnv).toMatchObject({
       TLON_URL: 'http://127.0.0.1:4101',

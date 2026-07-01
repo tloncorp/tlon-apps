@@ -65,6 +65,7 @@ export const openclawDriver: BotDriver = {
       'TEST_LIVE_TOOL_TRACE_CONTENTS',
       'CI_LIVE_TOOL_TRACE_CONTENTS'
     );
+    const maxConsecutiveBotResponses = sharedLoopLimitEnv();
     const localTlonbot = localTlonbotMount(seed.repoRoot, packageDir);
     const composeFiles = [
       path.join(sharedPackageDir, 'docker/docker-compose.base.yml'),
@@ -104,6 +105,7 @@ export const openclawDriver: BotDriver = {
         OPENCLAW_TEST_TOOLS_ALLOW_JSON: JSON.stringify(
           openClawToolsForPartition(seed)
         ),
+        TLON_MAX_CONSECUTIVE_BOT_RESPONSES: maxConsecutiveBotResponses,
         TLON_NUDGE_TICK_INTERVAL_MS: '5000',
         TEST_LIVE_TOOL_TRACE: liveToolTrace ?? '0',
         TEST_LIVE_TOOL_TRACE_CONTENTS: liveToolTraceContents ?? '0',
@@ -293,6 +295,7 @@ async function assertOpenClawConfig(
         ownerShip?: string;
         dmAllowlist?: string[];
         reengagement?: { enabled?: boolean };
+        maxConsecutiveBotResponses?: number;
       };
     };
     tools?: { allow?: string[] };
@@ -302,6 +305,9 @@ async function assertOpenClawConfig(
   const provider = config.models?.providers?.['custom-proxy'];
   const model = config.agents?.defaults?.model;
   const channel = config.channels?.tlon;
+  const expectedLoopLimit = Number(
+    ctx.composeEnv.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '2'
+  );
 
   expectConfig(
     provider?.baseUrl === ctx.endpoints.fakeModel.containerOpenAiBaseUrl,
@@ -335,6 +341,10 @@ async function assertOpenClawConfig(
   expectConfig(
     channel?.reengagement?.enabled === true,
     'reengagement must be enabled for heartbeat coverage'
+  );
+  expectConfig(
+    channel?.maxConsecutiveBotResponses === expectedLoopLimit,
+    `maxConsecutiveBotResponses must be ${expectedLoopLimit} for loop-protection coverage`
   );
   expectConfig(
     JSON.stringify(config.tools?.allow ?? []) ===
@@ -474,6 +484,17 @@ function firstEnv(...keys: string[]): string | undefined {
     }
   }
   return undefined;
+}
+
+function sharedLoopLimitEnv(): string {
+  const raw = process.env.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '2';
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(
+      `TLON_MAX_CONSECUTIVE_BOT_RESPONSES must be a positive integer for shared loop coverage, got ${JSON.stringify(raw)}.`
+    );
+  }
+  return String(value);
 }
 
 function pickNonEmptyEnv(keys: readonly string[]): Record<string, string> {
