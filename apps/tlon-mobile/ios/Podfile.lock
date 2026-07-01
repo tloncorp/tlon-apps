@@ -2,12 +2,12 @@ PODS:
   - BranchSDK (2.2.1)
   - EXApplication (56.0.3):
     - ExpoModulesCore
-  - EXConstants (56.0.16):
+  - EXConstants (56.0.18):
     - ExpoModulesCore
   - EXJSONUtils (56.0.0)
   - EXManifests (56.0.4):
     - ExpoModulesCore
-  - Expo (56.0.5):
+  - Expo (56.0.12):
     - ExpoModulesCore
     - ExpoModulesJSI
     - hermes-engine
@@ -33,15 +33,15 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - expo-dev-client (56.0.16):
+  - expo-dev-client (56.0.20):
     - EXManifests
     - expo-dev-launcher
     - expo-dev-menu
     - expo-dev-menu-interface
     - EXUpdatesInterface
-  - expo-dev-launcher (56.0.16):
+  - expo-dev-launcher (56.0.20):
     - EXManifests
-    - expo-dev-launcher/Main (= 56.0.16)
+    - expo-dev-launcher/Main (= 56.0.20)
     - expo-dev-menu
     - expo-dev-menu-interface
     - ExpoModulesCore
@@ -70,7 +70,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - expo-dev-launcher/Main (56.0.16):
+  - expo-dev-launcher/Main (56.0.20):
     - EXManifests
     - expo-dev-launcher/Unsafe
     - expo-dev-menu
@@ -101,7 +101,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - expo-dev-launcher/Unsafe (56.0.16):
+  - expo-dev-launcher/Unsafe (56.0.20):
     - EXManifests
     - expo-dev-menu
     - expo-dev-menu-interface
@@ -131,8 +131,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - expo-dev-menu (56.0.15):
-    - expo-dev-menu/Main (= 56.0.15)
+  - expo-dev-menu (56.0.17):
+    - expo-dev-menu/Main (= 56.0.17)
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -155,7 +155,7 @@ PODS:
     - ReactNativeDependencies
     - Yoga
   - expo-dev-menu-interface (56.0.1)
-  - expo-dev-menu/Main (56.0.15):
+  - expo-dev-menu/Main (56.0.17):
     - EXManifests
     - expo-dev-menu-interface
     - ExpoModulesCore
@@ -182,22 +182,22 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - ExpoAsset (56.0.15):
+  - ExpoAsset (56.0.17):
     - ExpoModulesCore
-  - ExpoAudio (56.0.11):
+  - ExpoAudio (56.0.12):
     - ExpoModulesCore
-  - ExpoBackgroundFetch (56.0.15):
+  - ExpoBackgroundFetch (56.0.19):
     - ExpoModulesCore
-  - ExpoBackgroundTask (56.0.15):
+  - ExpoBackgroundTask (56.0.19):
     - ExpoModulesCore
     - ExpoTaskManager
   - ExpoBattery (56.0.4):
     - ExpoModulesCore
   - ExpoBlur (56.0.3):
     - ExpoModulesCore
-  - ExpoClipboard (56.0.3):
+  - ExpoClipboard (56.0.4):
     - ExpoModulesCore
-  - ExpoContacts (56.0.7):
+  - ExpoContacts (56.0.9):
     - ExpoModulesCore
   - ExpoDevice (56.0.4):
     - ExpoModulesCore
@@ -205,40 +205,40 @@ PODS:
     - ExpoModulesCore
   - ExpoDomWebView (56.0.5):
     - ExpoModulesCore
-  - ExpoFileSystem (56.0.7):
+  - ExpoFileSystem (56.0.8):
     - ExpoModulesCore
-  - ExpoFont (56.0.5):
+  - ExpoFont (56.0.7):
     - ExpoModulesCore
   - ExpoHaptics (56.0.3):
     - ExpoModulesCore
-  - ExpoImage (56.0.9):
+  - ExpoImage (56.0.11):
     - ExpoModulesCore
     - libavif/libdav1d
     - SDWebImage (~> 5.21.0)
     - SDWebImageAVIFCoder (~> 0.11.0)
     - SDWebImageSVGCoder (~> 1.7.0)
     - SDWebImageWebPCoder (~> 0.14.6)
-  - ExpoImageManipulator (56.0.15):
+  - ExpoImageManipulator (56.0.19):
     - ExpoModulesCore
     - SDWebImageWebPCoder
-  - ExpoImagePicker (56.0.14):
+  - ExpoImagePicker (56.0.18):
     - ExpoModulesCore
   - ExpoKeepAwake (56.0.3):
     - ExpoModulesCore
   - ExpoLinearGradient (56.0.4):
     - ExpoModulesCore
-  - ExpoLinking (56.0.12):
+  - ExpoLinking (56.0.14):
     - ExpoModulesCore
   - ExpoLocalization (56.0.6):
     - ExpoModulesCore
-  - ExpoLogBox (56.0.12):
+  - ExpoLogBox (56.0.13):
     - React-Core
   - ExpoMailComposer (56.0.4):
     - ExpoModulesCore
-  - ExpoMediaLibrary (56.0.6):
+  - ExpoMediaLibrary (56.0.7):
     - ExpoModulesCore
     - React-Core
-  - ExpoModulesCore (56.0.13):
+  - ExpoModulesCore (56.0.17):
     - ExpoModulesJSI
     - hermes-engine
     - RCTRequired
@@ -262,35 +262,35 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - ExpoModulesJSI (56.0.7):
+  - ExpoModulesJSI (56.0.10):
     - React-Core
     - ReactCommon
-  - ExpoModulesWorklets (56.0.13):
+  - ExpoModulesWorklets (56.0.17):
     - ExpoModulesCore
     - ExpoModulesJSI
-  - ExpoModulesWorkletsAdapter (56.0.13):
+  - ExpoModulesWorkletsAdapter (56.0.17):
     - ExpoModulesCore
     - ExpoModulesJSI
     - ExpoModulesWorklets
     - RNWorklets
-  - ExpoNotifications (56.0.14):
+  - ExpoNotifications (56.0.18):
     - ExpoModulesCore
   - ExpoSecureStore (56.0.4):
     - ExpoModulesCore
-  - ExpoSensors (56.0.5):
+  - ExpoSensors (56.0.6):
     - ExpoModulesCore
   - ExpoShareIntentModule (5.1.1):
     - ExpoModulesCore
   - ExpoSMS (56.0.3):
     - ExpoModulesCore
-  - ExpoSpeechRecognition (56.0.0):
+  - ExpoSpeechRecognition (56.0.1):
     - ExpoModulesCore
   - ExpoSplashScreen (56.0.10):
     - ExpoModulesCore
-  - ExpoTaskManager (56.0.15):
+  - ExpoTaskManager (56.0.19):
     - ExpoModulesCore
     - UMAppLoader
-  - ExpoVideo (56.1.2):
+  - ExpoVideo (56.1.4):
     - ExpoModulesCore
   - EXUpdatesInterface (56.0.2):
     - ExpoModulesCore
@@ -2450,7 +2450,7 @@ PODS:
     - Yoga
   - RNDeviceInfo (10.12.0):
     - React-Core
-  - RNFBApp (24.0.0):
+  - RNFBApp (24.1.1):
     - Firebase/CoreOnly (= 12.10.0)
     - hermes-engine
     - RCTRequired
@@ -2473,7 +2473,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNFBCrashlytics (24.0.0):
+  - RNFBCrashlytics (24.1.1):
     - Firebase/Crashlytics (= 12.10.0)
     - FirebaseCoreExtension
     - hermes-engine
@@ -2498,7 +2498,7 @@ PODS:
     - ReactNativeDependencies
     - RNFBApp
     - Yoga
-  - RNFBPerf (24.0.0):
+  - RNFBPerf (24.1.1):
     - Firebase/Performance (= 12.10.0)
     - hermes-engine
     - RCTRequired
@@ -2714,6 +2714,28 @@ PODS:
     - RNSVG/common (= 15.15.4)
     - Yoga
   - RNSVG/common (15.15.4):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - RNTransformerTextInput (0.4.1):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2991,6 +3013,7 @@ DEPENDENCIES:
   - RNScreens (from `../../../node_modules/react-native-screens`)
   - "RNSentry (from `../../../node_modules/@sentry/react-native`)"
   - RNSVG (from `../../../node_modules/react-native-svg`)
+  - RNTransformerTextInput (from `../../../node_modules/react-native-transformer-text-input`)
   - RNWorklets (from `../../../node_modules/react-native-worklets`)
   - sqlite3 (~> 3.50.3)
   - "tentap (from `../../../node_modules/@10play/tentap-editor`)"
@@ -3317,6 +3340,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@sentry/react-native"
   RNSVG:
     :path: "../../../node_modules/react-native-svg"
+  RNTransformerTextInput:
+    :path: "../../../node_modules/react-native-transformer-text-input"
   RNWorklets:
     :path: "../../../node_modules/react-native-worklets"
   tentap:
@@ -3329,51 +3354,51 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   BranchSDK: cb046c2714b03e573484ce9e349e2ddbad7016e8
   EXApplication: e6040c92edc5522accd62852342e6b14742d42c0
-  EXConstants: 1c400bb9969f4c9e5ab324553138b74ae47b9efe
+  EXConstants: e836b478e4f5c835f3c77921d8162e1918e2c06e
   EXJSONUtils: dba2755f4e24009eaf87a876b2d615ea06c16e42
   EXManifests: 7e19be8df665a338493060a419847dae76ffcd43
-  Expo: 908c84912a79d1e582ae1d33ef8ec5814309faad
-  expo-dev-client: 47bd82ac19bbfce73d04f9140f4a607b8468dde7
-  expo-dev-launcher: 5634a6a61d3bc96faa6c5bfaec1ce22136a0b9dd
-  expo-dev-menu: ac0211a0c23f35634ae6d34ec83c9e1bda160baa
+  Expo: 57b3c2937eb9408ab6091fcfd1e7a888b4df5769
+  expo-dev-client: 75bdde127a9032ac60c3e4ca6231b552073bdf0c
+  expo-dev-launcher: cb0e77f1a461c733f8e492d97f17621724799b93
+  expo-dev-menu: c2fab1ddeea718b1a2e1ca496b2f9f67cac51f92
   expo-dev-menu-interface: 65402d4affb8b418aa6cec29b3abb0e313c8f443
-  ExpoAsset: c2e7b5ba1fe75be683282d6264e38fd7cd8defbb
-  ExpoAudio: 7774082d316ceecc2b26efeb10480bea2fa4d67e
-  ExpoBackgroundFetch: eff0b77ce55180ad479c5091616d6d2c3bf5ca58
-  ExpoBackgroundTask: d2ab6bf83921dc84ad3995fed08d56491ca8cba8
+  ExpoAsset: 1e436e9aee7015d5c6d203c1ddfe1adbb521a623
+  ExpoAudio: 8c4882515dee2f71d519ee64bb05c14945a5e1a2
+  ExpoBackgroundFetch: f93c0161871fb4ba49fa2db7718af76a2432fecb
+  ExpoBackgroundTask: 2b852c0a560bc84aee5d90c3b4fe6e6a376afc75
   ExpoBattery: a42e918404ceee07a957db4312918ec0c52bc0d6
   ExpoBlur: caddd80171e5f8f3581ff3d865e99c6465047240
-  ExpoClipboard: eee843698341fd26d571fd2807800f98abb6123c
-  ExpoContacts: cb6d1245197b0e59d12172b662ba461b558e8e45
+  ExpoClipboard: 342ae52697ff1cf89b8849bee624a9a320e77d3c
+  ExpoContacts: 0e1ad9b1731dfeb3107e1f203d42b2718741fc9c
   ExpoDevice: f527f8bbefa6efa12f8ef63e9038dd1d5d903697
   ExpoDocumentPicker: caa9c7c1071dc31262d86a8fe48f51929d291a43
   ExpoDomWebView: 27205be8754f9992913b8a9a08e65019f2207075
-  ExpoFileSystem: d730a1cb33f2c91dec01561f0d710054fda32ae9
-  ExpoFont: 6fe496f2be617ed4367f159f215dcc4ba27d37d6
+  ExpoFileSystem: 9dc04ec1e11bc3c7b965d7feb2de12c789755c7b
+  ExpoFont: 274487aa78f8c65d6551e2558eca3ec6ce3432ce
   ExpoHaptics: 89364cf3c3ca2cfd54cafed42f3be3169bab6d42
-  ExpoImage: 3f44073bf450afdb87333f9671ffe7b9bfa5f70e
-  ExpoImageManipulator: 441ca8a28fe700c5948863772578bab2ffd79e77
-  ExpoImagePicker: 30a39958c3c92b3cf33534489db0b63d9ca13da3
+  ExpoImage: 93cda9464c2c62a5244931b66edeb0b24ed204c2
+  ExpoImageManipulator: b3d9d626f99cc827d26a8f7eb7adcf7239223e9c
+  ExpoImagePicker: 080421aeaf3836250e5fb764123f1d7f7905ea04
   ExpoKeepAwake: 359c47a1d9ccc3a3c519bca6e39562cce230c5bb
   ExpoLinearGradient: 16c2b9c6105444883d34958d573725de1293b8d0
-  ExpoLinking: 82458b046854a5802092a37a5228a8a228f928a4
+  ExpoLinking: f3d1883179d784e3d74c0eaf6ae8b03ec3571da3
   ExpoLocalization: cf50efc436b2ec313510131c1ee0e778366d64b0
-  ExpoLogBox: 7aa03244fe5eeced5129e4ec7ad5bd9a3994378e
+  ExpoLogBox: 63977cf56b04547c713535d2d4e9bbf2f012e3c6
   ExpoMailComposer: ea650b89d3b93c7a277b11a8ab7010a7be6d595e
-  ExpoMediaLibrary: 5ab82b8ace3f9ab7ac4ca3b2060bd915a4f1568f
-  ExpoModulesCore: c1cf3354183914bff690789cd34cfa6415679b5e
-  ExpoModulesJSI: 31051e6e3d88a96cc48747eabad1d4a6a29c554e
-  ExpoModulesWorklets: c755176116ae553ede2268ca6837c31eb4081f8a
-  ExpoModulesWorkletsAdapter: 7b04a6ddc1bbcbd96c246884b79c1c78fc68ccbf
-  ExpoNotifications: 4f6324955cea640a65f40c67a8e42505a6a514b7
+  ExpoMediaLibrary: 8e280ce4497ce80036c9031b6404693d370cf234
+  ExpoModulesCore: cff3a92c3db2f3210e215852429bb578e9a3e9bc
+  ExpoModulesJSI: d3b992128160c749d9c1fd5c8d164286113832e5
+  ExpoModulesWorklets: 25d712f4e0a4eb37397d46c0ff5b450eca897fd1
+  ExpoModulesWorkletsAdapter: 30ad9d28bcc351db0074146b7b97fa2202474ec5
+  ExpoNotifications: 87875dae0faded5284004bc1204990947d3f64e0
   ExpoSecureStore: f1bd083c1b7b8d4142013ffcc0082d377d9f49f4
-  ExpoSensors: 1ab87635b3266711859bc2f991fa17131ced8904
+  ExpoSensors: d34558ddf1f1d61c7a22180d1d40d8bd89d67d7b
   ExpoShareIntentModule: 928ff229dd5e577561944786f0de08be339f640b
   ExpoSMS: 2cebfd889706da39a397d20c8a68abb0ce7f185d
-  ExpoSpeechRecognition: 255445556dbf20df46cc7585d0f5827e4825df8a
+  ExpoSpeechRecognition: 119acf84448579e53f841d040aad76982f945e2d
   ExpoSplashScreen: 3fe3a57d56d7242a9109d9714a6f9fa1e256538b
-  ExpoTaskManager: 806c27d7d9425bd65795e443cfdd216f3178203a
-  ExpoVideo: 8ebbbf65778c5f986d65fc17bb60b79e9d7624e6
+  ExpoTaskManager: bb9420854e7fb41d5753bcaae3428bd42d60d5bf
+  ExpoVideo: 292b8c6be12bacf0b2e5a697276788280cdccdfb
   EXUpdatesInterface: 25408a97d682355eb9fb37e5aa6e22caece1881f
   FBLazyVector: 24e62c765683b8d89006a88a2c8f5cf019f0074d
   Firebase: 99f203d3a114c6ba591f3b32263a9626e450af65
@@ -3390,7 +3415,7 @@ SPEC CHECKSUMS:
   FirebaseSharedSwift: 3d1e448b7202e36821a492941c84592d1308ea14
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
-  hermes-engine: 5a3f43e98cc1ba4e066932e8af269dec169571ea
+  hermes-engine: 316b96c28aff8ba5fc6165d99257077467899020
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
@@ -3407,7 +3432,7 @@ SPEC CHECKSUMS:
   React: e2dc35338068bbd299c66f043ae0d7f25de8499e
   React-callinvoker: 28b25d21b124c26cebaea713ba7d801b9351dc48
   React-Core: 02ed7d2ffb70437bdf2aba074a13078a7b0b9ff0
-  React-Core-prebuilt: ede6f6a78271f01ad48318e6d7ecd60b67af8e75
+  React-Core-prebuilt: 244ed0aecafa3149efb1e7e90601559203b2a378
   React-CoreModules: b3a5a42dadcde3b5d47b325bd912eb2ced89e146
   React-cxxreact: fe8f88dda044e5905e99a00f41b7a874c3908716
   React-debug: 9af1e96a6069c996e3d9f1e493603e74bc9f1593
@@ -3478,7 +3503,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 25c9c516839be2c5e3d3344f95dc7da5f7e63fc2
   ReactCodegen: 5b2b5c009cec17b5e848bde3bc067c339009390d
   ReactCommon: 7dfc3250793bf36cf221096ff59e1179e13eef7f
-  ReactNativeDependencies: 3561acaa3d149b0786233796beae6d70927c3dcc
+  ReactNativeDependencies: 6aaf17402887e556ce8197a4c9b6a9b8d9735f52
   recaptcha-enterprise-react-native: 15b27d8db2ccd8ebce5e11b5c41b66a29cb1d7bb
   RecaptchaEnterprise: 2d06f415c94253c3e92214a4d1472b5875442cdc
   RecaptchaEnterpriseSDK: 2fd06a12a27f943c24f643f8814404a27cc74288
@@ -3486,14 +3511,15 @@ SPEC CHECKSUMS:
   RNCAsyncStorage: d90e523830fa7705f8c61632479abde871bc792f
   RNCPicker: a3921be99ae291e420e3e8940e5b2b53e572c543
   RNDeviceInfo: addb9b427c2822a2d8e94c87a136a224e0af738c
-  RNFBApp: 3b942e786ca88524ba17df665a1a360fb3eee525
-  RNFBCrashlytics: 4b15ed59e869d06f8c181e63a3297548ed790d82
-  RNFBPerf: a1d142817d7a34b3e6878876636f9b9c3ed5e7aa
+  RNFBApp: ab502c911e5203f22a56998b7ed22e5ecf436da4
+  RNFBCrashlytics: cc24fabc492282a7021398eecda840ccc14b26ea
+  RNFBPerf: da252abab3ae760752d153e45c25187cc898e5a2
   RNGestureHandler: a97cc64efbfcb7a53969a38310a189a3d5246c65
   RNReanimated: 7a16183cabf799cf59e42ffeade5da8d689e3309
   RNScreens: 8d318eb8905fa1d3439a1ce5d567f82ae8245657
   RNSentry: 4f0cf7953e18b7ff30a6524107bfff730a1b0d8d
   RNSVG: 2d3af77f13e69994bb8957f69d46d8bcba1a6be8
+  RNTransformerTextInput: 02bdc63352cb1dce69e980e2f81950c0ec22c1b2
   RNWorklets: 2b1732dea513e38333481dc919029c1e14dc647d
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   SDWebImageAVIFCoder: afe194a084e851f70228e4be35ef651df0fc5c57
@@ -3505,6 +3531,6 @@ SPEC CHECKSUMS:
   UMAppLoader: b7d22886a244871c20b5a8f2fcea13c18534e677
   Yoga: e240fec777ff1f21ef42ccebbb44b6d262125855
 
-PODFILE CHECKSUM: f7d3252844ba6c8f9585d1f98c443455b624fc4f
+PODFILE CHECKSUM: 89e4d56351ed00eff9ae59789daefce09826d017
 
 COCOAPODS: 1.16.2
