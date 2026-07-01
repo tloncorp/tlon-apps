@@ -24,8 +24,8 @@ import * as db from '@tloncorp/shared/db';
 import { collectDescendantFolderIds } from '@tloncorp/shared/logic/notesTree';
 import { useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import * as Clipboard from 'expo-clipboard';
-import { useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Linking, Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
 import { useShip } from '../../../contexts/ship';
@@ -53,7 +53,10 @@ import {
   createNotesNewFolderAction,
   createNotesNewNoteAction,
 } from './NotesHeaderActions';
-import { NotesNoteDetail } from './NotesNoteDetail';
+import {
+  NotesNoteDetail,
+  type NotesNoteDraftSnapshot,
+} from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import { canSelectNotesImportSources } from './notesImport';
 import { trackNotesActionError } from './notesTelemetry';
@@ -161,6 +164,7 @@ export function NotesNativeChannel({
   } = useEntityDialog<db.NotesFolder>();
   const [focusTitleNoteId, setFocusTitleNoteId] = useState<number | null>(null);
   const [startEditNoteId, setStartEditNoteId] = useState<number | null>(null);
+  const activeNoteDraftRef = useRef<NotesNoteDraftSnapshot | null>(null);
 
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
     notebookFlag,
@@ -219,6 +223,25 @@ export function NotesNativeChannel({
     },
     [shipUrl]
   );
+  const handleNoteDraftChange = useMutableCallback(
+    (draft: NotesNoteDraftSnapshot | null) => {
+      activeNoteDraftRef.current = draft;
+    }
+  );
+  const getNotePublishContent = useMutableCallback((note: db.NotesNote) => {
+    const activeDraft = activeNoteDraftRef.current;
+    if (activeDraft?.noteId === note.noteId) {
+      return {
+        title: activeDraft.title,
+        body: activeDraft.body,
+      };
+    }
+
+    return {
+      title: note.title,
+      body: note.bodyMd,
+    };
+  });
   const selectNoteInPane = useMutableCallback((noteId: number | null) => {
     setSelectedNoteId(noteId);
     const note =
@@ -455,10 +478,23 @@ export function NotesNativeChannel({
     openNote(note, { focusTitle: true });
   });
 
+  const openPublishedUrl = useMutableCallback(async (url: string) => {
+    if (Platform.OS === 'web') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    await Linking.openURL(url);
+  });
+
   const handleViewPublishedNote = useMutableCallback((note: db.NotesNote) => {
     const publishedUrl = getPublishedNoteUrl(note);
     if (!publishedUrl) return;
-    window.open(publishedUrl, '_blank', 'noopener,noreferrer');
+    void openPublishedUrl(publishedUrl).catch((e) => {
+      const message = errorMessage(e, 'Failed to open published note');
+      trackNotesActionError('view published note', e, message);
+      setError(message);
+    });
   });
 
   const handlePublishNote = useMutableCallback(async (note: db.NotesNote) => {
@@ -468,11 +504,12 @@ export function NotesNativeChannel({
     try {
       let publishedUrl: string | null = null;
       await runAction('Failed to publish note', async () => {
+        const content = getNotePublishContent(note);
         const publishedPath = await publishNotebookNote({
           notebookFlag,
           noteId: note.noteId,
-          title: note.title,
-          body: note.bodyMd,
+          title: content.title,
+          body: content.body,
         });
         await refetchPublishedNotes();
         publishedUrl = getPublishedNoteShareUrl(publishedPath);
@@ -807,6 +844,7 @@ export function NotesNativeChannel({
           headerActionsPlacement="inline"
           noteId={selectedNoteId}
           notebookFlag={notebookFlag}
+          onDraftChange={handleNoteDraftChange}
           onTitleAutoFocused={handleTitleAutoFocused}
           startInEdit={startEditNoteId === selectedNoteId}
         />

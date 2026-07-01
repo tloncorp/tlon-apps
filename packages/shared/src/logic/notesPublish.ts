@@ -136,15 +136,25 @@ function renderInlineToHtml(inline: InlineData): string {
 }
 
 function renderListToHtml(list: ListData) {
-  const tag = list.type === 'ordered' ? 'ol' : 'ul';
-  return `<${tag}>${renderListItemToHtml(list)}</${tag}>`;
+  const tag = listTag(list);
+  const items = [
+    ...(list.content.length > 0
+      ? [`<li>${renderInlinesToHtml(list.content)}</li>`]
+      : []),
+    ...(list.children?.map(renderListItemToHtml) ?? []),
+  ];
+  return `<${tag}>${items.join('')}</${tag}>`;
 }
 
 function renderListItemToHtml(item: ListData): string {
   const children = item.children?.map(renderListItemToHtml).join('') ?? '';
   return `<li>${renderInlinesToHtml(item.content)}${
-    children ? `<ul>${children}</ul>` : ''
+    children ? `<${listTag(item)}>${children}</${listTag(item)}>` : ''
   }</li>`;
+}
+
+function listTag(list: ListData) {
+  return list.type === 'ordered' ? 'ol' : 'ul';
 }
 
 function renderTableToHtml(block: Extract<BlockData, { type: 'table' }>) {

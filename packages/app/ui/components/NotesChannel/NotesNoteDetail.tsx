@@ -49,6 +49,13 @@ const BODY_LINE_HEIGHT = 22;
 const BODY_MONO_CHAR_WIDTH = BODY_FONT_SIZE * 0.62;
 const SAVE_STATUS_SLOT_WIDTH = 88;
 
+export type NotesNoteDraftSnapshot = {
+  noteId: number;
+  title: string;
+  body: string;
+  isDirty: boolean;
+};
+
 const draftStashKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
 const notePreviewModes = new Map<string, boolean>();
@@ -151,6 +158,7 @@ export function NotesNoteDetail({
   headerActionsPlacement = 'channel-header',
   noteId,
   notebookFlag,
+  onDraftChange,
   onTitleAutoFocused,
   startInEdit = false,
   syncEnabled = true,
@@ -159,6 +167,7 @@ export function NotesNoteDetail({
   headerActionsPlacement?: 'channel-header' | 'inline' | 'none';
   noteId: number | null;
   notebookFlag: string | null | undefined;
+  onDraftChange?: (draft: NotesNoteDraftSnapshot | null) => void;
   onTitleAutoFocused?: () => void;
   startInEdit?: boolean;
   syncEnabled?: boolean;
@@ -238,6 +247,32 @@ export function NotesNoteDetail({
   useEffect(() => {
     bodyDraftRef.current = bodyDraft;
   }, [bodyDraft]);
+
+  useEffect(() => {
+    return () => onDraftChange?.(null);
+  }, [onDraftChange]);
+
+  useEffect(() => {
+    if (!onDraftChange) return;
+    if (!selectedNote || !draftsMatchSelectedNote) {
+      onDraftChange(null);
+      return;
+    }
+
+    onDraftChange({
+      noteId: selectedNote.noteId,
+      title: titleDraft,
+      body: bodyDraft,
+      isDirty,
+    });
+  }, [
+    bodyDraft,
+    draftsMatchSelectedNote,
+    isDirty,
+    onDraftChange,
+    selectedNote,
+    titleDraft,
+  ]);
 
   useEffect(() => {
     return () => {
