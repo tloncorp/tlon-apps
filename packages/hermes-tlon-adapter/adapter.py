@@ -111,10 +111,13 @@ from .telemetry import (
     set_active_telemetry,
 )
 from .lens import (
+    PAYLOAD_SCHEMA_VERSION,
     LensOutput,
     LensRun,
+    RetryDispatch,
     TlonLensRecorder,
     TlonLensSync,
+    build_retry_dispatch,
     clear_active_recorder,
     context_lens_reference_blob,
     handle_post_api_request_lens,
@@ -162,6 +165,9 @@ logger = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF_SECONDS = (2, 5, 10, 30, 60)
 RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000
+# Window in which a repeated retry request for the same lensId is a no-op
+# (mirrors RETRY_DEDUP_MS in the gateway monitor).
+RETRY_DEDUP_SECONDS = 60.0
 REQUIRED_ENV = [
     "TLON_NODE_URL",
     "TLON_NODE_ID",
@@ -499,6 +505,7 @@ _LENS_TRIGGER_MAP = {
     "mention": "mention",
     "owner-listen": "owner-listen",
     "participated-thread": "thread",
+    "retry": "retry",
     # A free (unprompted) channel response has no dedicated trigger in the
     # shared taxonomy; OpenClaw's channel path likewise falls through to
     # "unknown". Mapped explicitly so it reads as intentional, not an omission.
@@ -609,6 +616,9 @@ class TlonAdapter(BasePlatformAdapter):
             ),
         )
         self._lens = TlonLensRecorder(self._lens_sync)
+        # lensId -> monotonic timestamp of an in-flight/recent retry, so a
+        # repeated %retry-requested fact for the same run is ignored.
+        self._retry_dedup: dict[str, float] = {}
         self._computing_presence = TlonComputingPresenceTracker(
             reporter=TlonComputingPresenceReporter(self.tlon_config),
             on_error=lambda action, exc: self._telemetry.error(
@@ -930,6 +940,25 @@ class TlonAdapter(BasePlatformAdapter):
             payload["parentId"] = message.reply_to_message_id
             payload["isThreadReply"] = True
         return payload
+
+    @staticmethod
+    def _build_retry_seed(message: TlonIncomingMessage, clean_text: str) -> dict[str, Any]:
+        """ContextLensRetrySeed (camelCase) from the pre-enrichment message.
+
+        Stored on the lens so an owner-requested retry can rebuild the run.
+        ``clean_text`` is the inbound text BEFORE media/context enrichment, so a
+        retry re-runs _prepare_dispatch_payload / _with_group_context cleanly.
+        """
+        seed: dict[str, Any] = {"messageText": clean_text or ""}
+        if message.blob:
+            seed["blobField"] = message.blob
+        if message.content is not None:
+            seed["messageContent"] = message.content
+        if message.reply_to_message_id:
+            seed["parentId"] = message.reply_to_message_id
+            seed["isThreadReply"] = True
+        seed["cachesHistory"] = True
+        return seed
 
     @staticmethod
     def _message_preview_text(message: TlonIncomingMessage, text: str) -> str:
@@ -1267,6 +1296,7 @@ class TlonAdapter(BasePlatformAdapter):
             content=original.get("messageContent"),
             blob=blob,
         )
+        retry_seed = self._build_retry_seed(message, text)
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(message, text)
         if is_dm:
             await self._dispatch_message(
@@ -1274,6 +1304,7 @@ class TlonAdapter(BasePlatformAdapter):
                 is_dm=True,
                 dispatch_reason="approved",
                 prepared_media=prepared_media,
+                retry_seed=retry_seed,
             )
             return
         dispatch_text = await self._with_group_context(message, dispatch_text, "approved")
@@ -1282,6 +1313,7 @@ class TlonAdapter(BasePlatformAdapter):
             is_dm=False,
             dispatch_reason="approved",
             prepared_media=prepared_media,
+            retry_seed=retry_seed,
         )
 
     async def _execute_ban_ship(self, ship: str) -> str:
@@ -1659,6 +1691,10 @@ class TlonAdapter(BasePlatformAdapter):
         await self._sse.subscribe("chat", "/v3")
         await self._sse.subscribe("settings", f"/desk/{SETTINGS_DESK}")
         await self._sse.subscribe("groups", "/v1/foreigns")
+        # Owner-requested retries arrive as %steward /v1/lens facts. Optional:
+        # if %steward isn't installed the nack is skipped, not fatal.
+        if self._lens.enabled:
+            await self._sse.subscribe("steward", "/v1/lens", optional=True)
 
     async def _close_sse(self, *, graceful: bool = True) -> None:
         if self._sse is not None:
@@ -1709,6 +1745,8 @@ class TlonAdapter(BasePlatformAdapter):
                 self._handle_settings_event(event.json)
             elif event.app == "groups":
                 await self._handle_foreigns(event.json)
+            elif event.app == "steward":
+                await self._handle_steward_event(event.json)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -1789,6 +1827,7 @@ class TlonAdapter(BasePlatformAdapter):
             mark_seen=False,
             dispatch_reason=decision.reason,
             prepared_media=prepared_media,
+            retry_seed=self._build_retry_seed(message, clean_text),
         )
 
     async def _handle_dm_event(self, raw: Any) -> None:
@@ -1810,6 +1849,7 @@ class TlonAdapter(BasePlatformAdapter):
                     "[tlon] ignoring unauthorized message in %s", message.chat_id
                 )
             return
+        retry_seed = self._build_retry_seed(message, message.text)
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(
             message, message.text
         )
@@ -1817,6 +1857,7 @@ class TlonAdapter(BasePlatformAdapter):
             replace(message, text=dispatch_text),
             is_dm=True,
             prepared_media=prepared_media,
+            retry_seed=retry_seed,
         )
 
     async def _handle_dm_invites(self, ships: list) -> None:
@@ -2055,8 +2096,14 @@ class TlonAdapter(BasePlatformAdapter):
         mark_seen: bool = True,
         dispatch_reason: str = "dm",
         prepared_media: PreparedMedia | None = None,
+        retry_seed: dict[str, Any] | None = None,
+        retry_of: str | None = None,
+        skip_authorization: bool = False,
     ) -> None:
-        if not self._user_authorized(
+        # Owner-requested retries re-run a message from an already-authorized
+        # sender, so they skip the inbound authorization gate (the owner vetted
+        # the original) but the caller still enforces the native block check.
+        if not skip_authorization and not self._user_authorized(
             message.user_id,
             is_dm=is_dm,
             nest="" if is_dm else message.chat_id,
@@ -2073,7 +2120,13 @@ class TlonAdapter(BasePlatformAdapter):
             sender_role="owner" if self._is_owner(message.user_id) else "user",
             dispatch_reason=dispatch_reason,
         )
-        await self._begin_lens_run(message, is_dm=is_dm, dispatch_reason=dispatch_reason)
+        await self._begin_lens_run(
+            message,
+            is_dm=is_dm,
+            dispatch_reason=dispatch_reason,
+            retry_seed=retry_seed,
+            retry_of=retry_of,
+        )
         try:
             # Thread context flows for DMs too, so the bot replies inside a DM
             # thread instead of the main conversation.
@@ -2130,6 +2183,8 @@ class TlonAdapter(BasePlatformAdapter):
         *,
         is_dm: bool,
         dispatch_reason: str,
+        retry_seed: dict[str, Any] | None = None,
+        retry_of: str | None = None,
     ) -> None:
         if not self._lens.active:
             return
@@ -2151,6 +2206,8 @@ class TlonAdapter(BasePlatformAdapter):
                 preview=message.text or None,
                 thread_messages=1 if message.reply_to_message_id else 0,
                 emits_telemetry=self._telemetry.enabled,
+                retry_seed=retry_seed,
+                retry_of=retry_of,
             )
             run.set_status("dispatching")
             self._lens.begin(message.chat_id, run)
@@ -2178,6 +2235,156 @@ class TlonAdapter(BasePlatformAdapter):
             await self._lens.finish(conversation_id, status="error")
         except Exception as exc:
             logger.warning("[tlon] context-lens error-finish failed: %s", exc)
+
+    async def _handle_steward_event(self, raw: Any) -> None:
+        """Handle a %steward /v1/lens fact.
+
+        Only ``retry-requested`` is actionable here: an owner tapped Retry on a
+        finalized run's lens card, so the bot ship should re-dispatch it.
+        ``entry`` / ``recent`` facts are our own echoes and are ignored. This
+        runs inline on the (serial) SSE loop, so a retry can't race a live run
+        in the same conversation.
+        """
+        if not self._lens.enabled or not isinstance(raw, dict):
+            return
+        request = raw.get("retry-requested")
+        if not isinstance(request, dict):
+            # Compatibility: tolerate a nested {lens:{retry-requested}} shape.
+            nested = raw.get("lens")
+            if isinstance(nested, dict) and isinstance(
+                nested.get("retry-requested"), dict
+            ):
+                request = nested["retry-requested"]
+            else:
+                return
+        lens_id = str(request.get("id") or "").strip()
+        requester = normalize_ship(str(request.get("requester") or ""))
+        if not lens_id or not requester:
+            return
+        # Steward keys runs (and emits retry-requested) to the lens owner, which
+        # is context_lens_owner_ship() and may differ from owner_ship. Match the
+        # singular owner the agent stores, not the general adapter owner.
+        if requester != self._lens.owner:
+            logger.info("[tlon] ignoring lens retry from non-owner %s", requester)
+            return
+        if not self._reserve_retry(lens_id):
+            logger.debug("[tlon] duplicate lens retry for %s ignored", lens_id)
+            return
+        keep_reservation = False
+        try:
+            lens = self._lens.find_recent_lens(lens_id)
+            if lens is None:
+                lens = await self._scry_lens_run(lens_id)
+            if lens is None:
+                logger.info("[tlon] lens retry %s: run not found", lens_id)
+                return
+            result = build_retry_dispatch(lens)
+            if not result.ok or result.dispatch is None:
+                logger.info("[tlon] lens retry %s refused: %s", lens_id, result.reason)
+                return
+            dispatch = result.dispatch
+            if await self._is_ship_blocked(dispatch.sender_ship):
+                logger.info(
+                    "[tlon] lens retry %s: sender %s is blocked",
+                    lens_id,
+                    dispatch.sender_ship,
+                )
+                return
+            await self._dispatch_retry(dispatch, retry_of=lens_id)
+            # Keep the dedup slot so a repeat fact within the window is a no-op.
+            keep_reservation = True
+        finally:
+            if not keep_reservation:
+                self._retry_dedup.pop(lens_id, None)
+
+    def _reserve_retry(self, lens_id: str) -> bool:
+        """Reserve the dedup slot for a lensId before any await.
+
+        Returns False if a retry for this run is already in flight or was
+        handled within RETRY_DEDUP_SECONDS.
+        """
+        now = time.monotonic()
+        cutoff = now - RETRY_DEDUP_SECONDS
+        stale = [k for k, ts in self._retry_dedup.items() if ts < cutoff]
+        for key in stale:
+            self._retry_dedup.pop(key, None)
+        if lens_id in self._retry_dedup:
+            return False
+        self._retry_dedup[lens_id] = now
+        return True
+
+    async def _scry_lens_run(self, lens_id: str) -> Optional[dict[str, Any]]:
+        """Fetch a finalized run's ContextLens from the bot ship's %steward.
+
+        The scry returns a steward %entry wrapper; unwrap to the lens payload
+        and validate the schema version. Not-found / bad-shape -> None.
+        """
+        if self._sse is None:
+            return None
+        bot = normalize_ship(self.tlon_config.ship_name)
+        if not bot:
+            return None
+        try:
+            result = await self._sse.scry(f"/steward/v1/lens/run/{bot}/{lens_id}")
+        except Exception as exc:
+            logger.debug("[tlon] lens run scry failed for %s: %s", lens_id, exc)
+            return None
+        entry = result.get("entry") if isinstance(result, dict) else None
+        if not isinstance(entry, dict):
+            return None
+        payload = entry.get("payload")
+        if not isinstance(payload, dict):
+            return None
+        if payload.get("schemaVersion") != PAYLOAD_SCHEMA_VERSION:
+            logger.info(
+                "[tlon] lens retry %s: unexpected schemaVersion %s",
+                lens_id,
+                payload.get("schemaVersion"),
+            )
+            return None
+        lens = payload.get("lens")
+        return lens if isinstance(lens, dict) else None
+
+    async def _dispatch_retry(self, dispatch: RetryDispatch, *, retry_of: str) -> None:
+        is_dm = not dispatch.is_group
+        chat_id = dispatch.sender_ship if is_dm else (dispatch.channel_nest or "")
+        if not chat_id:
+            logger.info("[tlon] lens retry %s: no conversation to dispatch", retry_of)
+            return
+        message = TlonIncomingMessage(
+            chat_id=chat_id,
+            chat_name=chat_id,
+            chat_type="dm" if is_dm else "group",
+            user_id=dispatch.sender_ship,
+            user_name=dispatch.sender_ship,
+            text=dispatch.message_text,
+            message_id=dispatch.message_id,
+            # Hermes uses one parent for both context and delivery, so prefer the
+            # delivery override when a seed carries it (TS: replyParentId ?? parentId).
+            reply_to_message_id=dispatch.reply_parent_id or dispatch.parent_id,
+            sent_at=datetime.now(tz=timezone.utc),
+            raw={"lensRetry": retry_of},
+            content=dispatch.message_content,
+            blob=dispatch.blob_field,
+        )
+        # Re-run media/context prep exactly like a fresh inbound message; the
+        # seed carried clean (pre-enrichment) text so this doesn't double-wrap.
+        retry_seed = self._build_retry_seed(message, dispatch.message_text)
+        dispatch_text, prepared_media = await self._prepare_dispatch_payload(
+            message, dispatch.message_text
+        )
+        if not is_dm:
+            dispatch_text = await self._with_group_context(message, dispatch_text, "retry")
+        await self._dispatch_message(
+            replace(message, text=dispatch_text),
+            is_dm=is_dm,
+            mark_seen=False,
+            dispatch_reason="retry",
+            prepared_media=prepared_media,
+            retry_seed=retry_seed,
+            retry_of=retry_of,
+            skip_authorization=True,
+        )
 
     async def on_processing_complete(self, event: MessageEvent, outcome: Any) -> None:
         await self._computing_presence.stop_run(

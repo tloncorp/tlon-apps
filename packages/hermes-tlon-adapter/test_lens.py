@@ -502,5 +502,176 @@ class HookTests(unittest.TestCase):
         self.assertEqual(self.rec.get("~alice").tool_runs, [])
 
 
+class RetrySeedTests(unittest.TestCase):
+    def test_seed_emitted_and_text_capped(self):
+        big = "x" * (lens.MAX_RETRY_SEED_TEXT_CHARS + 100)
+        seed = make_run(retry_seed={"messageText": big}).to_context_lens()["retrySeed"]
+        self.assertEqual(len(seed["messageText"]), lens.MAX_RETRY_SEED_TEXT_CHARS)
+
+    def test_oversized_blob_dropped(self):
+        big = "b" * (lens.MAX_RETRY_SEED_BLOB_CHARS + 1)
+        seed = make_run(
+            retry_seed={"messageText": "hi", "blobField": big}
+        ).to_context_lens()["retrySeed"]
+        self.assertNotIn("blobField", seed)
+
+    def test_small_blob_kept(self):
+        seed = make_run(
+            retry_seed={"messageText": "hi", "blobField": "b" * 10}
+        ).to_context_lens()["retrySeed"]
+        self.assertEqual(seed["blobField"], "b" * 10)
+
+    def test_no_seed_no_key(self):
+        self.assertNotIn("retrySeed", make_run().to_context_lens())
+
+    def test_seed_survives_skeletonization(self):
+        r = make_run(retry_seed={"messageText": "keepme"})
+        for i in range(400):
+            r.start_tool(f"t{i}", tool_call_id=str(i))
+            r.complete_tool(f"t{i}", tool_call_id=str(i), result_summary="y" * 500)
+        r.set_status("error")
+        payload = lens.build_lens_payload(r.to_context_lens())
+        self.assertTrue(payload.get("truncated"))
+        self.assertEqual(payload["lens"]["retrySeed"]["messageText"], "keepme")
+
+
+class BuildRetryDispatchTests(unittest.TestCase):
+    def _lens(
+        self,
+        *,
+        status="error",
+        conversation_kind="dm",
+        author="~alice",
+        conversation_id="~alice",
+        run_kind="conversation",
+        preview=None,
+        seed=None,
+    ):
+        r = make_run(
+            conversation_kind=conversation_kind,
+            chat_type=conversation_kind,
+            author_ship=author,
+            conversation_id=conversation_id,
+            run_kind=run_kind,
+            preview=preview,
+            retry_seed=seed,
+        )
+        r.set_status(status)
+        return r.to_context_lens()
+
+    def test_completed_not_retryable(self):
+        res = lens.build_retry_dispatch(self._lens(status="completed"))
+        self.assertFalse(res.ok)
+
+    def test_error_status_dispatches(self):
+        res = lens.build_retry_dispatch(self._lens(seed={"messageText": "hi"}))
+        self.assertTrue(res.ok)
+        self.assertEqual(res.dispatch.message_text, "hi")
+        self.assertFalse(res.dispatch.degraded)
+        self.assertFalse(res.dispatch.is_group)
+
+    def test_internal_rejected(self):
+        res = lens.build_retry_dispatch(
+            self._lens(conversation_kind="internal", seed={"messageText": "hi"})
+        )
+        self.assertFalse(res.ok)
+
+    def test_internal_run_kind_rejected(self):
+        res = lens.build_retry_dispatch(
+            self._lens(run_kind="internal", seed={"messageText": "hi"})
+        )
+        self.assertFalse(res.ok)
+
+    def test_no_author_rejected(self):
+        res = lens.build_retry_dispatch(
+            self._lens(author=None, seed={"messageText": "hi"})
+        )
+        self.assertFalse(res.ok)
+
+    def test_channel_without_conversation_id_rejected(self):
+        res = lens.build_retry_dispatch(
+            self._lens(
+                conversation_kind="channel",
+                conversation_id=None,
+                seed={"messageText": "hi"},
+            )
+        )
+        self.assertFalse(res.ok)
+
+    def test_channel_sets_nest(self):
+        res = lens.build_retry_dispatch(
+            self._lens(
+                conversation_kind="channel",
+                conversation_id="chat/~pen/general",
+                seed={"messageText": "hi"},
+            )
+        )
+        self.assertTrue(res.ok)
+        self.assertTrue(res.dispatch.is_group)
+        self.assertEqual(res.dispatch.channel_nest, "chat/~pen/general")
+
+    def test_no_text_blob_or_content_rejected(self):
+        res = lens.build_retry_dispatch(self._lens(seed={"messageText": "   "}))
+        self.assertFalse(res.ok)
+
+    def test_blob_only_dispatchable(self):
+        res = lens.build_retry_dispatch(
+            self._lens(seed={"messageText": "", "blobField": "BLOB"})
+        )
+        self.assertTrue(res.ok)
+        self.assertEqual(res.dispatch.blob_field, "BLOB")
+
+    def test_degraded_falls_back_to_preview(self):
+        res = lens.build_retry_dispatch(self._lens(preview="orig text"))
+        self.assertTrue(res.ok)
+        self.assertTrue(res.dispatch.degraded)
+        self.assertEqual(res.dispatch.message_text, "orig text")
+
+    def test_nullish_empty_seed_text_wins_over_preview(self):
+        # An explicit empty seed text with a blob must NOT fall back to preview
+        # (nullish, not truthy, semantics — mirrors context-lens.ts ??).
+        res = lens.build_retry_dispatch(
+            self._lens(preview="PREVIEW", seed={"messageText": "", "blobField": "B"})
+        )
+        self.assertTrue(res.ok)
+        self.assertEqual(res.dispatch.message_text, "")
+        self.assertFalse(res.dispatch.degraded)
+
+    def test_seed_thread_fields_carried(self):
+        res = lens.build_retry_dispatch(
+            self._lens(
+                seed={
+                    "messageText": "hi",
+                    "parentId": "170.141",
+                    "isThreadReply": True,
+                    "cachesHistory": False,
+                }
+            )
+        )
+        self.assertEqual(res.dispatch.parent_id, "170.141")
+        self.assertTrue(res.dispatch.is_thread_reply)
+        self.assertFalse(res.dispatch.caches_history)
+
+
+class RecorderRecentTests(unittest.TestCase):
+    def setUp(self):
+        FakeClient.instances.clear()
+
+    def test_find_recent_after_finish(self):
+        cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
+        rec = lens.TlonLensRecorder(lens.TlonLensSync(cfg, client_factory=FakeClient))
+
+        async def scenario():
+            await rec._sync.start()
+            rec.begin("~alice", make_run(lens_id="LX"))
+            await rec.finish("~alice", status="error")
+
+        run(scenario())
+        found = rec.find_recent_lens("LX")
+        self.assertIsNotNone(found)
+        self.assertEqual(found["status"], "error")
+        self.assertIsNone(rec.find_recent_lens("missing"))
+
+
 if __name__ == "__main__":
     unittest.main()
