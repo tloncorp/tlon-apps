@@ -107,7 +107,11 @@ function mockCreateNotesNotebook() {
 
 function mockNotesChannelListing({
   channelId = 'notes/~solfer-magfed/native-notes',
-}: { channelId?: string } = {}) {
+  readerRoles = [],
+}: {
+  channelId?: string;
+  readerRoles?: { channelId: string; roleId: string }[];
+} = {}) {
   return vi.spyOn(api, 'getGroup').mockResolvedValue({
     id: groupId,
     channels: [
@@ -120,6 +124,7 @@ function mockNotesChannelListing({
         currentUserIsHost: true,
         contentConfiguration: { draftInput: 'disabled' },
         lastPostSequenceNum: 0,
+        readerRoles,
       },
     ],
   } as unknown as db.Group);
@@ -135,7 +140,14 @@ test('createChannel creates a notes channel via the %notes HTTP API, forwarding 
   await insertGroup();
 
   const createGroupNotebook = mockCreateNotesNotebook();
-  const getGroup = mockNotesChannelListing();
+  const getGroup = mockNotesChannelListing({
+    readerRoles: [
+      {
+        channelId: 'notes/~solfer-magfed/native-notes',
+        roleId: 'admin',
+      },
+    ],
+  });
   const addChannelListingToGroup = vi.spyOn(api, 'addChannelListingToGroup');
 
   const channel = await createChannel({
@@ -153,9 +165,17 @@ test('createChannel creates a notes channel via the %notes HTTP API, forwarding 
   expect(getGroup).toHaveBeenCalledWith(groupId);
   expect(addChannelListingToGroup).not.toHaveBeenCalled();
   expect(channel.id).toBe('notes/~solfer-magfed/native-notes');
-  await expect(db.getChannel({ id: channel.id })).resolves.toMatchObject({
+  await expect(
+    db.getChannelWithRelations({ id: channel.id })
+  ).resolves.toMatchObject({
     type: 'notes',
     groupId,
+    readerRoles: [
+      {
+        channelId: channel.id,
+        roleId: 'admin',
+      },
+    ],
   });
 });
 
