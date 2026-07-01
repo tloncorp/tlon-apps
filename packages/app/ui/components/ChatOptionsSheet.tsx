@@ -738,14 +738,15 @@ export function ChannelOptionsSheetContent({
             disabled: true,
           },
         ],
-        !currentUserIsChannelHost && [
-          'negative',
-          {
-            title: group ? `Leave channel` : 'Leave chat',
-            endIcon: 'LogOut',
-            action: wrappedAction.bind(null, leaveChannel),
-          },
-        ]
+        !currentUserIsChannelHost &&
+          channel.type !== 'notes' && [
+            'negative',
+            {
+              title: group ? `Leave channel` : 'Leave chat',
+              endIcon: 'LogOut',
+              action: wrappedAction.bind(null, leaveChannel),
+            },
+          ]
       ),
     [
       notificationTitle,
