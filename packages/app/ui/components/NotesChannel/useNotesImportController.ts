@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentProps, DragEvent } from 'react';
 import { YStack } from 'tamagui';
 
-import { errorMessage } from './NotesCommon';
+import { errorMessage, isNotesPendingWriteError } from './NotesFeedback';
 import {
   buildNotesImportItems,
   getNotesImportTargetFolderId,
@@ -116,6 +116,9 @@ export function useNotesImportController({
           });
           importedCount += 1;
         } catch (e) {
+          if (isNotesPendingWriteError(e)) {
+            throw e;
+          }
           console.error('Failed to import note', item.relativePath, e);
           failedCount += 1;
         }

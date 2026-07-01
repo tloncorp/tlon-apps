@@ -3,10 +3,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import { ScrollView, XStack, YStack } from 'tamagui';
 
-const NOTES_PENDING_WRITE_MESSAGE = '%notes write request is still pending';
+export const NOTES_PENDING_WRITE_MESSAGE =
+  '%notes write request is still pending';
 
 export function errorMessage(e: unknown, fallback: string) {
   return e instanceof Error ? e.message : fallback;
+}
+
+export function isNotesPendingWriteError(e: unknown) {
+  return errorMessage(e, '').includes(NOTES_PENDING_WRITE_MESSAGE);
 }
 
 function formatNotesBannerMessage(message: string) {
