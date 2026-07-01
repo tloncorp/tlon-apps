@@ -225,6 +225,42 @@ test('createChannel rolls back a notes notebook when local channel insert fails'
   });
 });
 
+test('createChannel removes the local notes channel when permission insert fails', async () => {
+  await insertGroup();
+
+  mockCreateNotesNotebook();
+  mockNotesChannelListing({
+    readerRoles: [
+      {
+        channelId: 'notes/~solfer-magfed/native-notes',
+        roleId: 'admin',
+      },
+    ],
+  });
+  const deleteNotesNotebookStrict = vi
+    .spyOn(api, 'deleteNotesNotebookStrict')
+    .mockResolvedValue(1);
+  vi.spyOn(db, 'insertChannelPerms').mockRejectedValue(
+    new Error('perms failed')
+  );
+
+  await expect(
+    createChannel({
+      groupId,
+      title: 'Native notes',
+      channelType: 'notes',
+    })
+  ).rejects.toThrow('Failed to add notes channel to group');
+
+  await expect(
+    db.getChannel({ id: 'notes/~solfer-magfed/native-notes' })
+  ).resolves.toBeNull();
+  expect(deleteNotesNotebookStrict).toHaveBeenCalledWith({
+    host: '~solfer-magfed',
+    name: 'native-notes',
+  });
+});
+
 test('createChannel rolls back a notes notebook when the listing never appears', async () => {
   vi.useFakeTimers();
   await insertGroup();

@@ -47,7 +47,6 @@ export async function createChannel({
     return createNotesChannel({
       groupId,
       title,
-      description: rawDescription,
       readers,
     });
   }
@@ -117,12 +116,10 @@ export async function createChannel({
 async function createNotesChannel({
   groupId,
   title,
-  description,
   readers = [],
 }: {
   groupId: string;
   title: string;
-  description?: string;
   readers?: string[];
 }): Promise<db.Channel> {
   // Create the notebook via the %notes HTTP API, which returns the
@@ -137,6 +134,7 @@ async function createNotesChannel({
   // notes channel open, defeating the group's can-read gate.
   const [groupHost, groupName] = groupId.split('/');
   let createdNotebookFlag: api.NotesFlag | null = null;
+  let insertedChannelId: string | null = null;
   try {
     const summary = await api.notes.createGroupNotebook({
       title,
@@ -156,6 +154,7 @@ async function createNotesChannel({
 
     const newChannel = await waitForNotesChannelListing(groupId, channelId);
     await db.insertChannels([newChannel]);
+    insertedChannelId = newChannel.id;
     await db.insertChannelPerms([
       {
         channelId: newChannel.id,
@@ -176,6 +175,16 @@ async function createNotesChannel({
 
     return newChannel;
   } catch (e) {
+    if (insertedChannelId) {
+      try {
+        await db.deleteChannels([insertedChannelId]);
+      } catch (rollbackError) {
+        logger.error(
+          'Failed to roll back local notes channel create',
+          rollbackError
+        );
+      }
+    }
     if (
       createdNotebookFlag &&
       !(e instanceof NotesChannelListingUnverifiedError)

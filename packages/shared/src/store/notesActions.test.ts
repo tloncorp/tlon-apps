@@ -378,3 +378,27 @@ test('deleteNotebookNote waits for the deleted note to disappear from sync', asy
     db.getNotesNote({ notebookFlag, noteId: note.noteId })
   ).resolves.toBeNull();
 });
+
+test('deleteNotebookNote keeps the local delete when sync stays stale', async () => {
+  const note = makeNote('Delete me eventually');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([makeApiNotesNote(note)]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'deleteNote').mockResolvedValue(undefined);
+
+  await deleteNotebookNote({ notebookFlag, noteId: note.noteId });
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toBeNull();
+});

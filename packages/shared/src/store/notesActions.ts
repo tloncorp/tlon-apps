@@ -19,6 +19,9 @@ type SyncNotesNotebookOptions = {
   requireHydratedNotes?: boolean;
 };
 
+type NotesNotebookSnapshot = Parameters<typeof db.saveNotesNotebookSnapshot>[0];
+type ReadyValue<T> = T | false | null | undefined;
+
 export function normalizeNotebookNoteTitle(title: string) {
   return title.trim();
 }
@@ -35,6 +38,18 @@ function requireNotesNotebookFlag(flagInput: api.NotesFlag | string) {
 }
 
 export async function syncNotesNotebook(
+  flagInput: api.NotesFlag | string,
+  options: SyncNotesNotebookOptions = {}
+) {
+  const { flag, snapshot } = await fetchNotesNotebookSnapshot(
+    flagInput,
+    options
+  );
+  await db.saveNotesNotebookSnapshot(snapshot);
+  return db.getNotesNotebookWithRelations({ notebookFlag: flag });
+}
+
+async function fetchNotesNotebookSnapshot(
   flagInput: api.NotesFlag | string,
   options: SyncNotesNotebookOptions = {}
 ) {
@@ -82,23 +97,29 @@ export async function syncNotesNotebook(
     dbMembers = existingMembers;
   }
 
-  await db.saveNotesNotebookSnapshot({
-    notebook: notebookForSnapshot(notebook, members, currentUserRole, syncedAt),
-    folders: folders.map((folder) =>
-      folderForSnapshot(folder, notebook.notebookId, syncedAt)
-    ),
-    notes: notesForSnapshot.map((note) =>
-      noteForSnapshot(
-        note,
+  return {
+    flag,
+    snapshot: {
+      notebook: notebookForSnapshot(
         notebook,
-        existingNotesById.get(note.noteId),
+        members,
+        currentUserRole,
         syncedAt
-      )
-    ),
-    members: dbMembers,
-  });
-
-  return db.getNotesNotebookWithRelations({ notebookFlag: flag });
+      ),
+      folders: folders.map((folder) =>
+        folderForSnapshot(folder, notebook.notebookId, syncedAt)
+      ),
+      notes: notesForSnapshot.map((note) =>
+        noteForSnapshot(
+          note,
+          notebook,
+          existingNotesById.get(note.noteId),
+          syncedAt
+        )
+      ),
+      members: dbMembers,
+    },
+  };
 }
 
 async function ensureNotesNotebookJoined(flagInput: api.NotesFlag | string) {
@@ -242,35 +263,30 @@ export const useNotesNotes = createNotebookQueryHook(
   db.getNotesNotes
 );
 
-/**
- * Syncs before snapshotting existing item ids, runs the create action, then
- * syncs until an item with an unseen id appears locally. Returns that item, or
- * null if it never showed up.
- */
 async function createAndFindNewItem<T>({
   notebookFlag,
-  list,
+  getItems,
   getId,
   create,
   findFallback,
 }: {
   notebookFlag: string;
-  list: () => Promise<T[]>;
+  getItems: (snapshot: NotesNotebookSnapshot) => readonly T[];
   getId: (item: T) => number;
   create: () => Promise<unknown>;
-  findFallback?: (items: T[]) => T | null | undefined;
+  findFallback?: (items: readonly T[]) => T | null | undefined;
 }): Promise<T | null> {
-  await syncNotesNotebook(notebookFlag);
-  const beforeIds = new Set((await list()).map(getId));
+  const { snapshot: baseline } = await fetchNotesNotebookSnapshot(notebookFlag);
+  await db.saveNotesNotebookSnapshot(baseline);
+
+  const beforeIds = new Set(getItems(baseline).map(getId));
   const isNew = (item: T) => !beforeIds.has(getId(item));
 
   await create();
-  await syncNotesNotebookWithRetry(notebookFlag, async () =>
-    (await list()).some(isNew)
-  );
-
-  const newItems = (await list()).filter(isNew);
-  return findFallback?.(newItems) ?? newItems[0] ?? null;
+  return syncNotesNotebookUntil(notebookFlag, (snapshot) => {
+    const newItems = getItems(snapshot).filter(isNew);
+    return findFallback?.(newItems) ?? newItems[0] ?? null;
+  });
 }
 
 export async function createNotebookNote({
@@ -286,7 +302,7 @@ export async function createNotebookNote({
 }) {
   const note = await createAndFindNewItem({
     notebookFlag,
-    list: () => db.getNotesNotes({ notebookFlag }),
+    getItems: (snapshot) => snapshot.notes,
     getId: (note) => note.noteId,
     create: () =>
       api.notes.createNote({
@@ -302,15 +318,10 @@ export async function createNotebookNote({
     return null;
   }
 
-  await syncNotesNotebookWithRetry(
+  await syncNotesNotebookUntil(
     notebookFlag,
-    async () => {
-      const hydrated = await db.getNotesNote({
-        notebookFlag,
-        noteId: note.noteId,
-      });
-      return Boolean(hydrated && hydrated.bodyMd === body);
-    },
+    (snapshot) =>
+      snapshotNoteMatches(snapshot, note.noteId, (n) => n.bodyMd === body),
     { hydrateNoteIds: [note.noteId], requireHydratedNotes: true }
   );
 
@@ -329,7 +340,7 @@ export async function createNotebookFolder({
   const parentId = parentFolderId ?? null;
   return createAndFindNewItem({
     notebookFlag,
-    list: () => db.getNotesFolders({ notebookFlag }),
+    getItems: (snapshot) => snapshot.folders,
     getId: (folder) => folder.folderId,
     create: () =>
       api.notes.createFolder({
@@ -383,13 +394,10 @@ export async function saveNotebookNote({
     });
   }
 
-  await syncNotesNotebookWithRetry(
+  await syncNotesNotebookUntil(
     notebookFlag,
-    async () => {
-      const updated = await db.getNotesNote({
-        notebookFlag,
-        noteId: note.noteId,
-      });
+    (snapshot) => {
+      const updated = findSnapshotNote(snapshot, note.noteId);
       return Boolean(
         updated &&
           (!shouldRename || updated.title === nextTitle) &&
@@ -417,10 +425,9 @@ export async function moveNotebookNote({
     noteId,
     folder: folderId,
   });
-  await syncNotesNotebookWithRetry(notebookFlag, async () => {
-    const updated = await db.getNotesNote({ notebookFlag, noteId });
-    return updated?.folderId === folderId;
-  });
+  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+    snapshotNoteMatches(snapshot, noteId, (note) => note.folderId === folderId)
+  );
 }
 
 export async function renameNotebookFolder({
@@ -442,8 +449,8 @@ export async function renameNotebookFolder({
     folderId: folder.folderId,
     name: nextName,
   });
-  await syncNotesNotebookWithRetry(notebookFlag, () =>
-    folderMatches(notebookFlag, folder.folderId, (f) => f.name === nextName)
+  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+    snapshotFolderMatches(snapshot, folder.folderId, (f) => f.name === nextName)
   );
 }
 
@@ -465,23 +472,36 @@ export async function moveNotebookFolder({
     folderId: folder.folderId,
     parent: parentFolderId,
   });
-  await syncNotesNotebookWithRetry(notebookFlag, () =>
-    folderMatches(
-      notebookFlag,
+  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+    snapshotFolderMatches(
+      snapshot,
       folder.folderId,
       (f) => f.parentFolderId === parentFolderId
     )
   );
 }
 
-async function folderMatches(
-  notebookFlag: string,
+function snapshotFolderMatches(
+  snapshot: NotesNotebookSnapshot,
   folderId: number,
   matches: (folder: db.NotesFolder) => boolean
 ) {
-  return (await db.getNotesFolders({ notebookFlag })).some(
-    (f) => f.folderId === folderId && matches(f)
+  return snapshot.folders.some(
+    (folder) => folder.folderId === folderId && matches(folder)
   );
+}
+
+function findSnapshotNote(snapshot: NotesNotebookSnapshot, noteId: number) {
+  return snapshot.notes.find((note) => note.noteId === noteId);
+}
+
+function snapshotNoteMatches(
+  snapshot: NotesNotebookSnapshot,
+  noteId: number,
+  matches: (note: db.NotesNote) => boolean
+) {
+  const note = findSnapshotNote(snapshot, noteId);
+  return Boolean(note && matches(note));
 }
 
 export async function deleteNotebookNote({
@@ -493,10 +513,10 @@ export async function deleteNotebookNote({
 }) {
   await api.notes.deleteNote({ flag: notebookFlag, noteId });
   await db.deleteNotesNote({ notebookFlag, noteId });
-  await syncNotesNotebookWithRetry(notebookFlag, async () => {
-    const deleted = await db.getNotesNote({ notebookFlag, noteId });
-    return deleted == null;
-  });
+  await syncNotesNotebookUntil(
+    notebookFlag,
+    (snapshot) => !findSnapshotNote(snapshot, noteId)
+  );
 }
 
 export async function deleteNotebookFolder({
@@ -517,13 +537,12 @@ export async function deleteNotebookFolder({
     recursive: true,
   });
   await db.deleteNotesFolders({ notebookFlag, folderIds });
-  await syncNotesNotebookWithRetry(notebookFlag, async () => {
-    const nextFolders = await db.getNotesFolders({ notebookFlag });
-    return folderIds.every(
+  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+    folderIds.every(
       (folderId) =>
-        !nextFolders.some((nextFolder) => nextFolder.folderId === folderId)
-    );
-  });
+        !snapshot.folders.some((nextFolder) => nextFolder.folderId === folderId)
+    )
+  );
 }
 
 export async function markNotesNotebookOpened(notebookFlag: string) {
@@ -548,34 +567,38 @@ const notesRetryOptions = {
   retry: (e: unknown) => e === notYetSynced,
 };
 
-/**
- * Syncs the notebook, repeating until `isReady` reports the expected change
- * has landed locally. Gives up quietly if the change never appears (the API
- * call already succeeded); sync failures themselves still propagate.
- */
-async function syncNotesNotebookWithRetry(
+async function syncNotesNotebookUntil<T>(
   notebookFlag: string,
-  isReady?: () => Promise<boolean>,
+  getReadyValue: (
+    snapshot: NotesNotebookSnapshot
+  ) => ReadyValue<T> | Promise<ReadyValue<T>>,
   options?: SyncNotesNotebookOptions
 ) {
-  await waitForNotesCondition(async () => {
-    await syncNotesNotebook(notebookFlag, options);
-    return isReady ? isReady() : true;
-  });
-}
-
-async function waitForNotesCondition(isReady: () => Promise<boolean>) {
+  let readySnapshot: NotesNotebookSnapshot | null = null;
+  let readyValue: T | null = null;
   try {
     await withRetry(async () => {
-      if (!(await isReady())) {
+      const { snapshot } = await fetchNotesNotebookSnapshot(
+        notebookFlag,
+        options
+      );
+      const value = await getReadyValue(snapshot);
+      if (!value) {
         throw notYetSynced;
       }
+      readySnapshot = snapshot;
+      readyValue = value;
     }, notesRetryOptions);
   } catch (e) {
     if (e !== notYetSynced) {
       throw e;
     }
   }
+
+  if (readySnapshot) {
+    await db.saveNotesNotebookSnapshot(readySnapshot);
+  }
+  return readyValue;
 }
 
 async function hydrateNotesForSnapshot(
