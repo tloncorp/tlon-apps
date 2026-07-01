@@ -11,6 +11,7 @@ import { YStack } from 'tamagui';
 import { errorMessage } from './NotesCommon';
 import {
   buildNotesImportItems,
+  getNotesImportTargetFolderId,
   makeUniqueNoteTitle,
   normalizeTitleKey,
   readNotesImportSourcesFromDataTransfer,
@@ -20,6 +21,7 @@ import type { NotesImportSource } from './notesImport';
 import { trackNotesActionError } from './notesTelemetry';
 
 export function useNotesImportController({
+  activeFolderId,
   canDropImportNotes,
   canEdit,
   folders,
@@ -29,6 +31,7 @@ export function useNotesImportController({
   selectedFolderId,
   setError,
 }: {
+  activeFolderId: number | null;
   canDropImportNotes: boolean;
   canEdit: boolean;
   folders: db.NotesFolder[];
@@ -130,7 +133,11 @@ export function useNotesImportController({
 
   const runImport = useMutableCallback(
     async (readSources: () => Promise<NotesImportSource[] | null>) => {
-      const targetRootFolderId = selectedFolderId ?? rootFolderId;
+      const targetRootFolderId = getNotesImportTargetFolderId({
+        activeFolderId,
+        rootFolderId,
+        selectedFolderId,
+      });
 
       if (
         !notebookFlag ||
