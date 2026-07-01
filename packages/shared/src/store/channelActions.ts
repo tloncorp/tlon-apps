@@ -156,6 +156,19 @@ async function createNotesChannel({
 
     const newChannel = await waitForNotesChannelListing(groupId, channelId);
     await db.insertChannels([newChannel]);
+    await db.insertChannelPerms([
+      {
+        channelId: newChannel.id,
+        readers:
+          newChannel.readerRoles?.map(
+            (role: { roleId: string }) => role.roleId
+          ) ?? [],
+        writers:
+          newChannel.writerRoles?.map(
+            (role: { roleId: string }) => role.roleId
+          ) ?? [],
+      },
+    ]);
 
     syncNotesNotebook(createdNotebookFlag).catch((e) => {
       logger.error('Failed to sync notes notebook after channel create', e);
