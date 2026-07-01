@@ -16,7 +16,7 @@ export function getNotesImportTargetFolderId({
   rootFolderId: number | null | undefined;
   selectedFolderId: number | null | undefined;
 }) {
-  return selectedFolderId ?? activeFolderId ?? rootFolderId ?? null;
+  return activeFolderId ?? selectedFolderId ?? rootFolderId ?? null;
 }
 
 type NotesImportItem = {
