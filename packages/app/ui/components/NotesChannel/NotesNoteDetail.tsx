@@ -47,17 +47,68 @@ const BODY_FONT_SIZE = 14;
 const BODY_LINE_HEIGHT = 22;
 const BODY_MONO_CHAR_WIDTH = BODY_FONT_SIZE * 0.62;
 const SAVE_STATUS_SLOT_WIDTH = 88;
+const DRAFT_SNAPSHOT_TTL_MS = 120_000;
 
 export type NotesNoteDraftSnapshot = {
+  notebookFlag: string;
   noteId: number;
   title: string;
   body: string;
   isDirty: boolean;
+  updatedAt: number;
 };
 
 const draftStashKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
+const draftSnapshotKey = (notebookFlag: string, noteId: number) =>
+  `${notebookFlag}/${noteId}`;
 const notePreviewModes = new Map<string, boolean>();
+const notesNoteDraftSnapshots = new Map<string, NotesNoteDraftSnapshot>();
+
+function rememberNotesNoteDraftSnapshot(snapshot: NotesNoteDraftSnapshot) {
+  notesNoteDraftSnapshots.set(
+    draftSnapshotKey(snapshot.notebookFlag, snapshot.noteId),
+    snapshot
+  );
+}
+
+function clearNotesNoteDraftSnapshot(notebookFlag: string, noteId: number) {
+  notesNoteDraftSnapshots.delete(draftSnapshotKey(notebookFlag, noteId));
+}
+
+function clearMatchingNotesNoteDraftSnapshot({
+  notebookFlag,
+  noteId,
+  title,
+  body,
+}: {
+  notebookFlag: string;
+  noteId: number;
+  title: string;
+  body: string;
+}) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  const snapshot = notesNoteDraftSnapshots.get(key);
+  if (!snapshot || snapshot.title !== title || snapshot.body !== body) {
+    return;
+  }
+
+  notesNoteDraftSnapshots.delete(key);
+}
+
+export function getNotesNoteDraftSnapshot(
+  notebookFlag: string,
+  noteId: number
+) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  const snapshot = notesNoteDraftSnapshots.get(key);
+  if (!snapshot) return null;
+  if (Date.now() - snapshot.updatedAt > DRAFT_SNAPSHOT_TTL_MS) {
+    notesNoteDraftSnapshots.delete(key);
+    return null;
+  }
+  return snapshot;
+}
 
 function getNotePreviewModeKey(
   notebookFlag: string | null | undefined,
@@ -260,26 +311,65 @@ export function NotesNoteDetail({
     return () => onDraftChange?.(null);
   }, [onDraftChange]);
 
+  const publishDraftSnapshot = useCallback(
+    (body: string) => {
+      if (
+        !notebookFlag ||
+        !selectedNote ||
+        !draftBase ||
+        !draftsMatchSelectedNote
+      ) {
+        if (notebookFlag && selectedNote) {
+          clearNotesNoteDraftSnapshot(notebookFlag, selectedNote.noteId);
+        }
+        onDraftChange?.(null);
+        return;
+      }
+
+      const dirty =
+        normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
+        body !== draftBase.bodyMd;
+      const snapshot: NotesNoteDraftSnapshot = {
+        notebookFlag,
+        noteId: selectedNote.noteId,
+        title: titleDraft,
+        body,
+        isDirty: dirty,
+        updatedAt: Date.now(),
+      };
+
+      if (dirty) {
+        rememberNotesNoteDraftSnapshot(snapshot);
+      } else {
+        clearNotesNoteDraftSnapshot(notebookFlag, selectedNote.noteId);
+      }
+      onDraftChange?.(snapshot);
+    },
+    [
+      draftBase,
+      draftsMatchSelectedNote,
+      notebookFlag,
+      onDraftChange,
+      selectedNote,
+      titleDraft,
+    ]
+  );
+
   useEffect(() => {
-    if (!onDraftChange) return;
+    if (!onDraftChange && !notebookFlag) return;
     if (!selectedNote || !draftsMatchSelectedNote) {
-      onDraftChange(null);
+      onDraftChange?.(null);
       return;
     }
 
-    onDraftChange({
-      noteId: selectedNote.noteId,
-      title: titleDraft,
-      body: bodyDraft,
-      isDirty,
-    });
+    publishDraftSnapshot(bodyDraft);
   }, [
     bodyDraft,
     draftsMatchSelectedNote,
-    isDirty,
+    notebookFlag,
     onDraftChange,
+    publishDraftSnapshot,
     selectedNote,
-    titleDraft,
   ]);
 
   useEffect(() => {
@@ -391,6 +481,14 @@ export function NotesNoteDetail({
     preserveScrollOffset();
     setSaveState('saving');
     setError(null);
+    rememberNotesNoteDraftSnapshot({
+      notebookFlag,
+      noteId: draftBase.noteId,
+      title: titleDraft,
+      body: bodyToSave,
+      isDirty: true,
+      updatedAt: Date.now(),
+    });
     try {
       const updated = await runSave(
         notebookFlag,
@@ -404,6 +502,12 @@ export function NotesNoteDetail({
         setDraftBase(updated);
       }
       clearDraftStash(notebookFlag, draftBase.noteId, {
+        title: titleDraft,
+        body: bodyToSave,
+      });
+      clearMatchingNotesNoteDraftSnapshot({
+        notebookFlag,
+        noteId: draftBase.noteId,
         title: titleDraft,
         body: bodyToSave,
       });
@@ -465,9 +569,23 @@ export function NotesNoteDetail({
     if (!dirty) return;
     const { flag, base } = ctx;
     preserveScrollOffset();
+    rememberNotesNoteDraftSnapshot({
+      notebookFlag: flag,
+      noteId: base.noteId,
+      title: titleToSave,
+      body: bodyToSave,
+      isDirty: true,
+      updatedAt: Date.now(),
+    });
     runSave(flag, base, titleToSave, bodyToSave)
       .then((updated) => {
         clearDraftStash(flag, base.noteId, {
+          title: titleToSave,
+          body: bodyToSave,
+        });
+        clearMatchingNotesNoteDraftSnapshot({
+          notebookFlag: flag,
+          noteId: base.noteId,
           title: titleToSave,
           body: bodyToSave,
         });
