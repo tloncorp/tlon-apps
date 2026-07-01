@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
+import { ActionSheet } from '../ActionSheet';
 import { TextInput } from '../Form';
 import {
   FolderDestinationSearch,
@@ -59,34 +60,36 @@ export function AddFolderDialog({
   targetFolderLabel: string;
 }) {
   return (
-    <NotesDialog
+    <ActionSheet
+      moveOnKeyboardChange
       open={open}
       onOpenChange={onOpenChange}
-      title="Add folder"
-      subtitle={`Create in ${targetFolderLabel}.`}
-      testID="NotesAddFolderDialog"
-      keyboardBehavior="interactive"
-      confirmButton={
-        <Button
-          size="small"
-          fill="solid"
-          type="primary"
-          leadingIcon="Add"
-          label="Add folder"
-          loading={isCreating}
-          disabled={!name.trim()}
-          onPress={onCreate}
-        />
-      }
+      unmountOnClose
     >
-      <YStack gap="$m">
-        <FolderNameField
-          name={name}
-          onNameChange={onNameChange}
-          onSubmit={onCreate}
-        />
-      </YStack>
-    </NotesDialog>
+      <ActionSheet.SimpleHeader
+        title="Add folder"
+        subtitle={`Create in ${targetFolderLabel}.`}
+      />
+      <ActionSheet.Content testID="NotesAddFolderDialog">
+        <ActionSheet.FormBlock>
+          <FolderNameField
+            name={name}
+            onNameChange={onNameChange}
+            onSubmit={onCreate}
+          />
+        </ActionSheet.FormBlock>
+        <ActionSheet.FormBlock>
+          <Button
+            preset="primary"
+            label="Add folder"
+            centered
+            loading={isCreating}
+            disabled={!name.trim()}
+            onPress={onCreate}
+          />
+        </ActionSheet.FormBlock>
+      </ActionSheet.Content>
+    </ActionSheet>
   );
 }
 
