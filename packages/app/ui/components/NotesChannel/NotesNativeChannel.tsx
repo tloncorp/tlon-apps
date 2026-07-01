@@ -258,7 +258,7 @@ export function NotesNativeChannel({
 
   const getCreateTargetFolderId = useMutableCallback(
     (folderId?: number | null) =>
-      folderId ?? selectedFolderId ?? activeFolderId ?? rootFolderId
+      folderId ?? activeFolderId ?? selectedFolderId ?? rootFolderId
   );
 
   const handleCreateNote = useMutableCallback(async (folderId?: number) => {
