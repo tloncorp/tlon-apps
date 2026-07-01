@@ -98,10 +98,12 @@ function makeThreadUnread(
 }
 
 function mockCreateNotesNotebook() {
-  return vi.spyOn(api.notesV1, 'createGroupNotebook').mockResolvedValue({
+  return vi.spyOn(api.notes, 'createGroupNotebook').mockResolvedValue({
+    id: '~solfer-magfed/native-notes',
     host: '~solfer-magfed',
     flagName: 'native-notes',
-    notebook: { id: 1, title: 'Native notes' },
+    notebookId: 1,
+    title: 'Native notes',
   });
 }
 
@@ -182,7 +184,7 @@ test('createChannel creates a notes channel via the %notes HTTP API, forwarding 
 test('createChannel does not insert a notes channel when the HTTP create fails', async () => {
   await insertGroup();
 
-  vi.spyOn(api.notesV1, 'createGroupNotebook').mockRejectedValue(
+  vi.spyOn(api.notes, 'createGroupNotebook').mockRejectedValue(
     new Error('create failed')
   );
 

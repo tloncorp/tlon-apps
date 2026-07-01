@@ -42,10 +42,10 @@ export async function syncNotesNotebook(
 
   const [notebook, folders, notes, membersResult, existingNotes] =
     await Promise.all([
-      api.notesV1.getNotebook(parsed),
-      api.notesV1.listFolders(parsed),
-      api.notesV1.listNotes(parsed),
-      api.notesV1.listMembers(parsed).then(
+      api.notes.getNotebook(parsed),
+      api.notes.listFolders(parsed),
+      api.notes.listNotes(parsed),
+      api.notes.listMembers(parsed).then(
         (members) => ({ ok: true as const, members }),
         (error) => ({ ok: false as const, error })
       ),
@@ -59,12 +59,17 @@ export async function syncNotesNotebook(
   const existingNotesById = new Map(
     existingNotes.map((note) => [note.noteId, note])
   );
-  let members: api.NotesV1MemberRecord[] = [];
+  const syncedAt = Date.now();
+  let members: api.NotesMember[] = [];
   let dbMembers: db.NotesMember[] = [];
   let currentUserRole: db.NotesRole | null | undefined;
   if (membersResult.ok) {
     members = membersResult.members;
-    dbMembers = members.flatMap((member) => toDbMembers(flag, member));
+    dbMembers = members.map((member) => ({
+      ...member,
+      role: member.role ?? null,
+      syncedAt,
+    }));
   } else {
     logger.error('Failed to fetch notes members', membersResult.error);
     const [existingNotebook, existingMembers] = await Promise.all([
@@ -78,17 +83,16 @@ export async function syncNotesNotebook(
   }
 
   await db.saveNotesNotebookSnapshot({
-    notebook: toDbNotebook(notebook, members, currentUserRole),
+    notebook: notebookForSnapshot(notebook, members, currentUserRole, syncedAt),
     folders: folders.map((folder) =>
-      toDbFolder(flag, folder, notebook.notebook.id)
+      folderForSnapshot(folder, notebook.notebookId, syncedAt)
     ),
     notes: notesForSnapshot.map((note) =>
-      toDbNote(
-        flag,
+      noteForSnapshot(
         note,
-        notebook.notebook.id,
-        notebook.notebook.rootFolderId,
-        existingNotesById.get(note.id)
+        notebook,
+        existingNotesById.get(note.noteId),
+        syncedAt
       )
     ),
     members: dbMembers,
@@ -285,7 +289,7 @@ export async function createNotebookNote({
     list: () => db.getNotesNotes({ notebookFlag }),
     getId: (note) => note.noteId,
     create: () =>
-      api.notesV1.createNote({
+      api.notes.createNote({
         flag: notebookFlag,
         folder: folderId,
         title,
@@ -328,7 +332,7 @@ export async function createNotebookFolder({
     list: () => db.getNotesFolders({ notebookFlag }),
     getId: (folder) => folder.folderId,
     create: () =>
-      api.notesV1.createFolder({
+      api.notes.createFolder({
         flag: notebookFlag,
         parent: parentFolderId ?? undefined,
         name,
@@ -363,7 +367,7 @@ export async function saveNotebookNote({
   // The body update must land before the rename: it asserts expectedRevision,
   // which any other mutation would invalidate. Don't parallelize these.
   if (shouldUpdateBody) {
-    await api.notesV1.updateNoteBody({
+    await api.notes.updateNoteBody({
       flag: notebookFlag,
       noteId: note.noteId,
       body,
@@ -372,7 +376,7 @@ export async function saveNotebookNote({
   }
 
   if (shouldRename) {
-    await api.notesV1.renameNote({
+    await api.notes.renameNote({
       flag: notebookFlag,
       noteId: note.noteId,
       title: nextTitle,
@@ -408,7 +412,7 @@ export async function moveNotebookNote({
   noteId: number;
   folderId: number;
 }) {
-  await api.notesV1.moveNote({
+  await api.notes.moveNote({
     flag: notebookFlag,
     noteId,
     folder: folderId,
@@ -433,7 +437,7 @@ export async function renameNotebookFolder({
     return folder;
   }
 
-  await api.notesV1.renameFolder({
+  await api.notes.renameFolder({
     flag: notebookFlag,
     folderId: folder.folderId,
     name: nextName,
@@ -456,7 +460,7 @@ export async function moveNotebookFolder({
     return folder;
   }
 
-  await api.notesV1.moveFolder({
+  await api.notes.moveFolder({
     flag: notebookFlag,
     folderId: folder.folderId,
     parent: parentFolderId,
@@ -487,7 +491,7 @@ export async function deleteNotebookNote({
   notebookFlag: string;
   noteId: number;
 }) {
-  await api.notesV1.deleteNote({ flag: notebookFlag, noteId });
+  await api.notes.deleteNote({ flag: notebookFlag, noteId });
   await db.deleteNotesNote({ notebookFlag, noteId });
   await syncNotesNotebookWithRetry(notebookFlag, async () => {
     const deleted = await db.getNotesNote({ notebookFlag, noteId });
@@ -507,7 +511,7 @@ export async function deleteNotebookFolder({
     collectDescendantFolderIds(folders, folder.folderId)
   );
 
-  await api.notesV1.deleteFolder({
+  await api.notes.deleteFolder({
     flag: notebookFlag,
     folderId: folder.folderId,
     recursive: true,
@@ -530,7 +534,7 @@ export async function markNotesNotebookOpened(notebookFlag: string) {
 }
 
 async function notesNotebookIsJoined(flag: api.NotesFlag) {
-  const notebooks = await api.notesV1.listNotebooks();
+  const notebooks = await api.notes.listNotebooks();
   return notebooks.some(
     (notebook) => notebook.host === flag.host && notebook.flagName === flag.name
   );
@@ -576,7 +580,7 @@ async function waitForNotesCondition(isReady: () => Promise<boolean>) {
 
 async function hydrateNotesForSnapshot(
   flag: api.NotesFlag,
-  notes: api.NotesV1Note[],
+  notes: api.NotesNote[],
   options: SyncNotesNotebookOptions
 ) {
   const hydrateNoteIds = new Set(options.hydrateNoteIds ?? []);
@@ -586,12 +590,12 @@ async function hydrateNotesForSnapshot(
 
   return Promise.all(
     notes.map(async (note) => {
-      if (!hydrateNoteIds.has(note.id)) {
+      if (!hydrateNoteIds.has(note.noteId)) {
         return note;
       }
 
       try {
-        return await api.notesV1.getNote({ flag, noteId: note.id });
+        return await api.notes.getNote({ flag, noteId: note.noteId });
       } catch (e) {
         logger.error('Failed to fetch notes note detail', e);
         if (options.requireHydratedNotes) {
@@ -603,71 +607,60 @@ async function hydrateNotesForSnapshot(
   );
 }
 
-function toDbNotebook(
-  summary: api.NotesV1NotebookDetailSummary,
-  members: api.NotesV1MemberRecord[],
-  preservedCurrentUserRole?: db.NotesRole | null
+function notebookForSnapshot(
+  notebook: api.NotesNotebookDetail,
+  members: api.NotesMember[],
+  preservedCurrentUserRole: db.NotesRole | null | undefined,
+  syncedAt: number
 ): db.NotesNotebook {
-  const flag = api.formatNotesFlag({
-    host: summary.host,
-    name: summary.flagName,
-  });
   const currentUserId = api.getCurrentUserId();
-  const currentMember = members.find((member) => member.ship === currentUserId);
+  const currentMember = members.find(
+    (member) => member.contactId === currentUserId && member.role != null
+  );
   return {
-    id: flag,
-    host: summary.host,
-    flagName: summary.flagName,
-    notebookId: summary.notebook.id,
-    title: summary.notebook.title,
-    visibility: summary.visibility ?? null,
-    rootFolderId: summary.notebook.rootFolderId,
-    createdBy: summary.notebook.createdBy ?? null,
-    createdAt: summary.notebook.createdAt ?? null,
-    updatedBy: summary.notebook.updatedBy ?? null,
-    updatedAt: summary.notebook.updatedAt ?? null,
-    syncedAt: Date.now(),
+    ...notebook,
+    visibility: notebook.visibility ?? null,
+    createdBy: notebook.createdBy ?? null,
+    createdAt: notebook.createdAt ?? null,
+    updatedBy: notebook.updatedBy ?? null,
+    updatedAt: notebook.updatedAt ?? null,
+    syncedAt,
     currentUserRole:
       preservedCurrentUserRole !== undefined
         ? preservedCurrentUserRole
-        : currentMember?.roles[0] ??
-          (summary.host === currentUserId ? ('owner' as const) : null),
+        : currentMember?.role ??
+          (notebook.host === currentUserId ? ('owner' as const) : null),
   };
 }
 
-function toDbFolder(
-  flag: string,
-  folder: api.NotesV1Folder,
-  notebookId: number
+function folderForSnapshot(
+  folder: api.NotesFolder,
+  notebookId: number,
+  syncedAt: number
 ): db.NotesFolder {
   return {
-    id: notesFolderDbId(flag, folder.id),
-    notebookFlag: flag,
-    folderId: folder.id,
+    ...folder,
     notebookId: folder.notebookId ?? notebookId,
-    name: folder.name,
-    parentFolderId: folder.parentFolderId,
+    parentFolderId: folder.parentFolderId ?? null,
     createdBy: folder.createdBy ?? null,
     createdAt: folder.createdAt ?? null,
     updatedBy: folder.updatedBy ?? null,
     updatedAt: folder.updatedAt ?? null,
-    syncedAt: Date.now(),
+    syncedAt,
   };
 }
 
-function toDbNote(
-  flag: string,
-  note: api.NotesV1Note,
-  notebookId: number,
-  rootFolderId: number,
-  existingNote?: db.NotesNote
+function noteForSnapshot(
+  note: api.NotesNote,
+  notebook: api.NotesNotebookDetail,
+  existingNote: db.NotesNote | undefined,
+  syncedAt: number
 ): db.NotesNote {
   return {
-    id: notesNoteDbId(flag, note.id),
-    notebookFlag: flag,
-    noteId: note.id,
-    notebookId: note.notebookId ?? existingNote?.notebookId ?? notebookId,
-    folderId: note.folderId ?? existingNote?.folderId ?? rootFolderId,
+    ...note,
+    notebookId:
+      note.notebookId ?? existingNote?.notebookId ?? notebook.notebookId,
+    folderId: note.folderId ?? existingNote?.folderId ?? notebook.rootFolderId,
     title: note.title,
     slug: note.slug === undefined ? existingNote?.slug ?? null : note.slug,
     bodyMd: note.bodyMd ?? existingNote?.bodyMd ?? '',
@@ -676,27 +669,6 @@ function toDbNote(
     updatedBy: note.updatedBy ?? existingNote?.updatedBy ?? null,
     updatedAt: note.updatedAt ?? existingNote?.updatedAt ?? null,
     revision: note.revision ?? existingNote?.revision ?? 0,
-    syncedAt: Date.now(),
+    syncedAt,
   };
-}
-
-function toDbMembers(
-  flag: string,
-  member: api.NotesV1MemberRecord
-): db.NotesMember[] {
-  const roles = member.roles.length > 0 ? member.roles : [null];
-  return roles.map((role) => ({
-    notebookFlag: flag,
-    contactId: member.ship,
-    role,
-    syncedAt: Date.now(),
-  }));
-}
-
-function notesFolderDbId(flag: string, folderId: number) {
-  return `${flag}/folder/${folderId}`;
-}
-
-function notesNoteDbId(flag: string, noteId: number) {
-  return `${flag}/note/${noteId}`;
 }

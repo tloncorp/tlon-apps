@@ -138,7 +138,7 @@ async function createNotesChannel({
   const [groupHost, groupName] = groupId.split('/');
   let createdNotebookFlag: api.NotesFlag | null = null;
   try {
-    const summary = await api.notesV1.createGroupNotebook({
+    const summary = await api.notes.createGroupNotebook({
       title,
       group: { host: groupHost, flagName: groupName },
       readers,

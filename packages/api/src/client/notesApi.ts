@@ -1,4 +1,5 @@
 import { createDevLogger } from '../lib/logger';
+import type * as models from '../types/models';
 import { poke, requestJson, subscribe, unsubscribe } from './urbit';
 
 const logger = createDevLogger('notesApi', false);
@@ -6,14 +7,20 @@ const logger = createDevLogger('notesApi', false);
 // ===========================================================================
 // Notes identifiers and %notes transport helpers
 //
-// `notesV1` below is the only notebook/folder/note/member data API. The helpers
-// in this section cover operations that are still exposed as %notes actions or
-// subscriptions rather than v1 HTTP routes: join/leave, notebook delete, and
-// notebook stream events.
+// `notes` below is the app-facing notebook/folder/note/member data API backed
+// by v1 HTTP routes. The helpers in this section cover operations that are
+// still exposed as %notes actions or subscriptions rather than v1 HTTP routes:
+// join/leave, notebook delete, and notebook stream events.
 // ===========================================================================
 
-export type NotesVisibility = 'public' | 'private';
-export type NotesRole = 'owner' | 'editor' | 'viewer';
+export type NotesVisibility = models.NotesVisibility;
+export type NotesRole = models.NotesRole;
+export type NotesNotebook = models.NotesNotebook;
+export type NotesNotebookDetail = models.NotesNotebookDetail;
+export type NotesFolder = models.NotesFolder;
+export type NotesNote = models.NotesNote;
+export type NotesMember = models.NotesMember;
+export type NotesNoteRevision = models.NotesNoteRevision;
 
 export interface NotesFlag {
   host: string;
@@ -185,9 +192,10 @@ export async function deleteNotesNotebookBestEffort(target: NotesTarget) {
 // ===========================================================================
 // v1 HTTP API surface (`notesV1`) — `/notes/~/v1/...` request/response
 //
-// Used by app/shared and tlon-skill. Centralizes path construction, request
-// payloads, canonical response shapes, and envelope handling so callers pass
-// typed operation arguments instead of string-built paths.
+// Protocol-facing v1 surface used by tlon-skill and wrapped by the app-facing
+// `notes` facade below. Centralizes path construction, request payloads,
+// canonical response shapes, and envelope handling so callers pass typed
+// operation arguments instead of string-built paths.
 // ===========================================================================
 
 export interface NotesV1NotebookListItem {
@@ -445,6 +453,114 @@ function normalizeMemberV1(raw: any): NotesV1MemberRecord {
       ? [raw.role]
       : [];
   return { ship: req(raw.ship, 'member.ship'), roles };
+}
+
+function maybe<T>(value: T | null | undefined): T | null {
+  return value ?? null;
+}
+
+function notesFolderId(flag: string, folderId: number) {
+  return `${flag}/folder/${folderId}`;
+}
+
+function notesNoteId(flag: string, noteId: number) {
+  return `${flag}/note/${noteId}`;
+}
+
+export function toClientNotesNotebook(
+  summary: NotesV1NotebookSummary
+): NotesNotebook {
+  const flag = formatNotesFlag({
+    host: summary.host,
+    name: summary.flagName,
+  });
+  return {
+    id: flag,
+    host: summary.host,
+    flagName: summary.flagName,
+    notebookId: summary.notebook.id,
+    title: summary.notebook.title,
+    visibility: maybe(summary.visibility),
+    rootFolderId: maybe(summary.notebook.rootFolderId),
+    createdBy: maybe(summary.notebook.createdBy),
+    createdAt: maybe(summary.notebook.createdAt),
+    updatedBy: maybe(summary.notebook.updatedBy),
+    updatedAt: maybe(summary.notebook.updatedAt),
+  };
+}
+
+export function toClientNotesNotebookDetail(
+  summary: NotesV1NotebookDetailSummary
+): NotesNotebookDetail {
+  return {
+    ...toClientNotesNotebook(summary),
+    rootFolderId: summary.notebook.rootFolderId,
+  };
+}
+
+export function toClientNotesFolder(
+  target: NotesTarget,
+  folder: NotesV1Folder
+): NotesFolder {
+  const flag = formatNotesFlag(normalizeNotesTarget(target));
+  return {
+    id: notesFolderId(flag, folder.id),
+    notebookFlag: flag,
+    folderId: folder.id,
+    notebookId: maybe(folder.notebookId),
+    name: folder.name,
+    parentFolderId: folder.parentFolderId,
+    createdBy: maybe(folder.createdBy),
+    createdAt: maybe(folder.createdAt),
+    updatedBy: maybe(folder.updatedBy),
+    updatedAt: maybe(folder.updatedAt),
+  };
+}
+
+export function toClientNotesNote(
+  target: NotesTarget,
+  note: NotesV1Note
+): NotesNote {
+  const flag = formatNotesFlag(normalizeNotesTarget(target));
+  return {
+    id: notesNoteId(flag, note.id),
+    notebookFlag: flag,
+    noteId: note.id,
+    notebookId: note.notebookId,
+    folderId: note.folderId,
+    title: note.title,
+    slug: note.slug,
+    bodyMd: note.bodyMd,
+    createdBy: note.createdBy,
+    createdAt: note.createdAt,
+    updatedBy: note.updatedBy,
+    updatedAt: note.updatedAt,
+    revision: note.revision,
+  };
+}
+
+export function toClientNotesMembers(
+  target: NotesTarget,
+  member: NotesV1MemberRecord
+): NotesMember[] {
+  const flag = formatNotesFlag(normalizeNotesTarget(target));
+  const roles = member.roles.length > 0 ? member.roles : [null];
+  return roles.map((role) => ({
+    notebookFlag: flag,
+    contactId: member.ship,
+    role,
+  }));
+}
+
+export function toClientNotesNoteRevision(
+  revision: NotesV1NoteRevision
+): NotesNoteRevision {
+  return {
+    revision: maybe(revision.revision),
+    editedAt: maybe(revision.editedAt),
+    author: maybe(revision.author),
+    bodyMd: maybe(revision.bodyMd),
+  };
 }
 
 function normalizeRequestBodyV1(raw: any): NotesV1RequestBody {
@@ -858,6 +974,77 @@ async function listMembersV1(
   return requireArray(res, normalizeMemberV1);
 }
 
+async function listNotebooks(): Promise<NotesNotebook[]> {
+  const summaries = await listNotebooksV1();
+  return summaries.map(toClientNotesNotebook);
+}
+
+async function getNotebook(target: NotesTarget): Promise<NotesNotebookDetail> {
+  const summary = await getNotebookV1(target);
+  return toClientNotesNotebookDetail(summary);
+}
+
+async function createNotebook(input: {
+  title: string;
+}): Promise<NotesNotebook> {
+  const summary = await createNotebookV1(input);
+  return toClientNotesNotebook(summary);
+}
+
+async function createGroupNotebook(input: {
+  title: string;
+  group: NotesV1GroupRef;
+  readers?: string[];
+}): Promise<NotesNotebook> {
+  const summary = await createGroupNotebookV1(input);
+  return toClientNotesNotebook(summary);
+}
+
+async function listNotes(target: NotesTarget): Promise<NotesNote[]> {
+  const rawNotes = await listNotesV1(target);
+  return rawNotes.map((note) => toClientNotesNote(target, note));
+}
+
+async function getNote({
+  flag,
+  noteId,
+}: {
+  flag: NotesTarget;
+  noteId: number;
+}): Promise<NotesNote> {
+  const rawNote = await getNoteV1({ flag, noteId });
+  return toClientNotesNote(flag, rawNote);
+}
+
+async function listNoteHistory(input: {
+  flag: NotesTarget;
+  noteId: number;
+}): Promise<NotesNoteRevision[]> {
+  const revisions = await listNoteHistoryV1(input);
+  return revisions.map(toClientNotesNoteRevision);
+}
+
+async function listFolders(target: NotesTarget): Promise<NotesFolder[]> {
+  const rawFolders = await listFoldersV1(target);
+  return rawFolders.map((folder) => toClientNotesFolder(target, folder));
+}
+
+async function getFolder({
+  flag,
+  folderId,
+}: {
+  flag: NotesTarget;
+  folderId: number;
+}): Promise<NotesFolder> {
+  const rawFolder = await getFolderV1({ flag, folderId });
+  return toClientNotesFolder(flag, rawFolder);
+}
+
+async function listMembers(target: NotesTarget): Promise<NotesMember[]> {
+  const rawMembers = await listMembersV1(target);
+  return rawMembers.flatMap((member) => toClientNotesMembers(target, member));
+}
+
 export type NotesV1Api = {
   getRequest: typeof getRequestV1;
   listNotebooks: typeof listNotebooksV1;
@@ -881,6 +1068,29 @@ export type NotesV1Api = {
   listMembers: typeof listMembersV1;
 };
 
+export type NotesApi = {
+  getRequest: typeof getRequestV1;
+  listNotebooks: typeof listNotebooks;
+  getNotebook: typeof getNotebook;
+  createNotebook: typeof createNotebook;
+  createGroupNotebook: typeof createGroupNotebook;
+  listNotes: typeof listNotes;
+  getNote: typeof getNote;
+  createNote: typeof createNoteV1;
+  updateNoteBody: typeof updateNoteBodyV1;
+  renameNote: typeof renameNoteV1;
+  moveNote: typeof moveNoteV1;
+  deleteNote: typeof deleteNoteV1;
+  listNoteHistory: typeof listNoteHistory;
+  listFolders: typeof listFolders;
+  getFolder: typeof getFolder;
+  createFolder: typeof createFolderV1;
+  renameFolder: typeof renameFolderV1;
+  moveFolder: typeof moveFolderV1;
+  deleteFolder: typeof deleteFolderV1;
+  listMembers: typeof listMembers;
+};
+
 export const notesV1: NotesV1Api = {
   getRequest: getRequestV1,
   listNotebooks: listNotebooksV1,
@@ -902,4 +1112,27 @@ export const notesV1: NotesV1Api = {
   moveFolder: moveFolderV1,
   deleteFolder: deleteFolderV1,
   listMembers: listMembersV1,
+};
+
+export const notes: NotesApi = {
+  getRequest: getRequestV1,
+  listNotebooks,
+  getNotebook,
+  createNotebook,
+  createGroupNotebook,
+  listNotes,
+  getNote,
+  createNote: createNoteV1,
+  updateNoteBody: updateNoteBodyV1,
+  renameNote: renameNoteV1,
+  moveNote: moveNoteV1,
+  deleteNote: deleteNoteV1,
+  listNoteHistory,
+  listFolders,
+  getFolder,
+  createFolder: createFolderV1,
+  renameFolder: renameFolderV1,
+  moveFolder: moveFolderV1,
+  deleteFolder: deleteFolderV1,
+  listMembers,
 };

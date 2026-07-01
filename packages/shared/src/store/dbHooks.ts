@@ -53,7 +53,7 @@ export const useNotesDeskAvailable = () => {
     queryKey: ['notesDeskAvailable'],
     queryFn: async () => {
       try {
-        await api.notesV1.listNotebooks();
+        await api.notes.listNotebooks();
         return true;
       } catch (e) {
         return false;

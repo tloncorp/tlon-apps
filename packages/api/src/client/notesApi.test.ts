@@ -17,6 +17,7 @@ import {
   joinNotesNotebook,
   leaveNotesChannel,
   normalizeNotesTarget,
+  notes,
   notesChannelId,
   notesV1,
   parseNotesChannelId,
@@ -375,6 +376,62 @@ describe('notesV1 normalization variants', () => {
       { ship: '~zod', roles: ['owner'] },
       { ship: '~bus', roles: ['editor'] },
       { ship: '~nec', roles: [] },
+    ]);
+  });
+});
+
+describe('notes app facade', () => {
+  test('getNotebook returns the flat client model used by shared', async () => {
+    requestJsonMock.mockResolvedValue({
+      host: '~zod',
+      flagName: 'blog',
+      visibility: 'private',
+      notebook: {
+        id: 2,
+        title: 'Blog',
+        rootFolderId: 3,
+        createdBy: '~zod',
+      },
+    });
+
+    await expect(notes.getNotebook('notes/~zod/blog')).resolves.toMatchObject({
+      id: '~zod/blog',
+      host: '~zod',
+      flagName: 'blog',
+      notebookId: 2,
+      title: 'Blog',
+      visibility: 'private',
+      rootFolderId: 3,
+      createdBy: '~zod',
+    });
+  });
+
+  test('listNotes returns client ids while preserving omitted detail fields', async () => {
+    requestJsonMock.mockResolvedValue([{ id: 12, title: 'First' }]);
+
+    const [note] = await notes.listNotes('notes/~zod/blog');
+
+    expect(note).toMatchObject({
+      id: '~zod/blog/note/12',
+      notebookFlag: '~zod/blog',
+      noteId: 12,
+      title: 'First',
+    });
+    expect(note.folderId).toBeUndefined();
+    expect(note.bodyMd).toBeUndefined();
+    expect(note.revision).toBeUndefined();
+  });
+
+  test('listMembers flattens roles and preserves role-less members', async () => {
+    requestJsonMock.mockResolvedValue([
+      { ship: '~zod', roles: ['owner', 'editor'] },
+      { ship: '~nec' },
+    ]);
+
+    await expect(notes.listMembers('notes/~zod/blog')).resolves.toEqual([
+      { notebookFlag: '~zod/blog', contactId: '~zod', role: 'owner' },
+      { notebookFlag: '~zod/blog', contactId: '~zod', role: 'editor' },
+      { notebookFlag: '~zod/blog', contactId: '~nec', role: null },
     ]);
   });
 });

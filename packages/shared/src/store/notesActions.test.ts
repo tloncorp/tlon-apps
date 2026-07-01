@@ -20,19 +20,18 @@ import {
 
 setupDatabaseTestSuite();
 
-const notebookSummary: api.NotesV1NotebookDetailSummary = {
+const notebookSummary: api.NotesNotebookDetail = {
+  id: notebookFlag,
   host: '~zod',
   flagName: 'native-notes',
+  notebookId: 1,
+  title: 'Native notes',
   visibility: 'private',
-  notebook: {
-    id: 1,
-    title: 'Native notes',
-    rootFolderId: 2,
-    createdBy: '~zod',
-    createdAt: 100,
-    updatedBy: '~zod',
-    updatedAt: 100,
-  },
+  rootFolderId: 2,
+  createdBy: '~zod',
+  createdAt: 100,
+  updatedBy: '~zod',
+  updatedAt: 100,
 };
 
 const rootFolder = makeNotesFolder(2, '/', null);
@@ -45,9 +44,11 @@ function makeNote(title: string): db.NotesNote {
   });
 }
 
-function makeApiNoteSummary(note: db.NotesNote): api.NotesV1Note {
+function makeApiNoteSummary(note: db.NotesNote): api.NotesNote {
   return {
-    id: note.noteId,
+    id: note.id,
+    notebookFlag,
+    noteId: note.noteId,
     title: note.title,
   };
 }
@@ -66,14 +67,14 @@ test('saveNotebookNote preserves an empty title', async () => {
   });
 
   const renamedNote = makeApiNotesNote(makeNote(''));
-  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
   ]);
-  vi.spyOn(api.notesV1, 'listNotes').mockResolvedValue([renamedNote]);
-  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([renamedNote]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
   const renameNote = vi
-    .spyOn(api.notesV1, 'renameNote')
+    .spyOn(api.notes, 'renameNote')
     .mockResolvedValue(undefined);
 
   const saved = await saveNotebookNote({
@@ -112,12 +113,12 @@ test('syncNotesNotebook preserves cached members when member sync fails', async 
     ],
   });
 
-  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
   ]);
-  vi.spyOn(api.notesV1, 'listNotes').mockResolvedValue([]);
-  vi.spyOn(api.notesV1, 'listMembers').mockRejectedValue(
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockRejectedValue(
     new Error('member sync failed')
   );
 
@@ -132,13 +133,13 @@ test('syncNotesNotebook preserves cached members when member sync fails', async 
 });
 
 test('syncNotesNotebook preserves members with no roles', async () => {
-  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
   ]);
-  vi.spyOn(api.notesV1, 'listNotes').mockResolvedValue([]);
-  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([
-    { ship: '~role-less', roles: [] },
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([
+    { notebookFlag, contactId: '~role-less', role: null },
   ]);
 
   await syncNotesNotebook(notebookFlag);
@@ -162,18 +163,15 @@ test('syncNotesNotebook preserves cached note details when list notes omit them'
     members: [],
   });
 
-  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
     makeApiNotesFolder(childFolder),
   ]);
-  vi.spyOn(api.notesV1, 'listNotes').mockResolvedValue([
-    {
-      id: cachedNote.noteId,
-      title: 'Remote title',
-    },
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
+    { ...makeApiNoteSummary(cachedNote), title: 'Remote title' },
   ]);
-  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
 
   await syncNotesNotebook(notebookFlag);
 
@@ -200,16 +198,16 @@ test('createNotebookNote uses a fresh baseline before finding the created note',
   });
 
   let created = false;
-  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
   ]);
-  vi.spyOn(api.notesV1, 'listNotes').mockImplementation(async () => [
+  vi.spyOn(api.notes, 'listNotes').mockImplementation(async () => [
     makeApiNotesNote(staleRemoteNote),
     ...(created ? [makeApiNotesNote(createdNote)] : []),
   ]);
-  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notesV1, 'createNote').mockImplementation(async () => {
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
     created = true;
   });
 
@@ -231,15 +229,15 @@ test('createNotebookNote does not return an existing note when create sync times
     members: [],
   });
 
-  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
   ]);
-  vi.spyOn(api.notesV1, 'listNotes').mockResolvedValue([
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
     makeApiNotesNote(existingNote),
   ]);
-  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notesV1, 'createNote').mockResolvedValue(undefined);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'createNote').mockResolvedValue(undefined);
 
   const note = await createNotebookNote({
     notebookFlag,
@@ -263,18 +261,18 @@ test('createNotebookNote hydrates created note details when list notes omit them
   });
 
   let created = false;
-  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
   ]);
-  vi.spyOn(api.notesV1, 'listNotes').mockImplementation(async () =>
+  vi.spyOn(api.notes, 'listNotes').mockImplementation(async () =>
     created ? [makeApiNoteSummary(createdNote)] : []
   );
-  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
   const getNote = vi
-    .spyOn(api.notesV1, 'getNote')
+    .spyOn(api.notes, 'getNote')
     .mockResolvedValue(makeApiNotesNote(createdNote));
-  vi.spyOn(api.notesV1, 'createNote').mockImplementation(async () => {
+  vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
     created = true;
   });
 
@@ -310,19 +308,19 @@ test('saveNotebookNote hydrates saved note details when list notes omit them', a
     members: [],
   });
 
-  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
   ]);
-  vi.spyOn(api.notesV1, 'listNotes').mockResolvedValue([
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
     makeApiNoteSummary(savedNote),
   ]);
-  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
   const getNote = vi
-    .spyOn(api.notesV1, 'getNote')
+    .spyOn(api.notes, 'getNote')
     .mockResolvedValue(makeApiNotesNote(savedNote));
   const updateNoteBody = vi
-    .spyOn(api.notesV1, 'updateNoteBody')
+    .spyOn(api.notes, 'updateNoteBody')
     .mockResolvedValue(undefined);
 
   const saved = await saveNotebookNote({
@@ -358,19 +356,19 @@ test('deleteNotebookNote waits for the deleted note to disappear from sync', asy
   });
 
   let readLagging = false;
-  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
   ]);
-  vi.spyOn(api.notesV1, 'listNotes').mockImplementation(async () => {
+  vi.spyOn(api.notes, 'listNotes').mockImplementation(async () => {
     if (readLagging) {
       readLagging = false;
       return [makeApiNotesNote(note)];
     }
     return [];
   });
-  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notesV1, 'deleteNote').mockImplementation(async () => {
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'deleteNote').mockImplementation(async () => {
     readLagging = true;
   });
 
