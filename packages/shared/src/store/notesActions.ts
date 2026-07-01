@@ -289,7 +289,7 @@ export function usePublishedNotesForNotebook({
 
 async function listPublishedNotesForNotebook(notebookFlag: string) {
   const { parsed } = requireNotesNotebookFlag(notebookFlag);
-  const published = await api.listPublishedNotes();
+  const published = await api.notes.listPublished();
   return published.filter(
     (record) => record.host === parsed.host && record.flagName === parsed.name
   );
@@ -463,7 +463,7 @@ export async function publishNotebookNote({
   title: string;
   body: string;
 }) {
-  await api.publishNotesNote({
+  await api.notes.publishNote({
     flag: notebookFlag,
     noteId,
     html: renderPublishedNoteHtml({ title, body }),
@@ -479,7 +479,7 @@ export async function unpublishNotebookNote({
   notebookFlag: string;
   noteId: number;
 }) {
-  await api.unpublishNotesNote({
+  await api.notes.unpublishNote({
     flag: notebookFlag,
     noteId,
   });

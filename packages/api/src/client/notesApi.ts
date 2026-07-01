@@ -1,6 +1,6 @@
 import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
-import { poke, requestJson, subscribe, unsubscribe } from './urbit';
+import { poke, requestJson, scry, subscribe, unsubscribe } from './urbit';
 
 const logger = createDevLogger('notesApi', false);
 
@@ -22,6 +22,12 @@ export type NotesNote = models.NotesNote;
 export type NotesMember = models.NotesMember;
 export type NotesNoteRevision = models.NotesNoteRevision;
 
+export interface NotesPublishedRecord {
+  host: string;
+  flagName: string;
+  noteId: number;
+}
+
 export interface NotesFlag {
   host: string;
   name: string;
@@ -40,7 +46,13 @@ export type NotesStreamEvent = {
   flagName: string;
 };
 
-type NotesNotebookAction = { type: 'delete' };
+type NotesNoteAction =
+  | { type: 'publish'; html: string }
+  | { type: 'unpublish' };
+
+type NotesNotebookAction =
+  | { type: 'delete' }
+  | { type: 'note'; id: number; action: NotesNoteAction };
 type NotesJoinAction = { type: 'join'; ship: string; name: string };
 type NotesLeaveAction = { type: 'leave'; ship: string; name: string };
 
@@ -120,6 +132,14 @@ async function notesAction(action: NotesAction) {
   });
 }
 
+function notebookAction(target: NotesTarget, action: NotesNotebookAction) {
+  return notesAction({
+    type: 'notebook',
+    flag: formatNotesFlag(normalizeNotesTarget(target)),
+    action,
+  });
+}
+
 export async function joinNotesNotebook(target: NotesTarget) {
   const flag = normalizeNotesTarget(target);
   return notesAction({
@@ -170,11 +190,7 @@ export async function unsubscribeFromNotesNotebook(subscriptionId: number) {
 }
 
 function deleteNotesNotebook(flag: NotesFlag) {
-  return notesAction({
-    type: 'notebook',
-    flag: formatNotesFlag(flag),
-    action: { type: 'delete' },
-  });
+  return notebookAction(flag, { type: 'delete' });
 }
 
 export async function deleteNotesNotebookStrict(target: NotesTarget) {
@@ -453,6 +469,18 @@ function normalizeMemberV1(raw: any): NotesV1MemberRecord {
       ? [raw.role]
       : [];
   return { ship: req(raw.ship, 'member.ship'), roles };
+}
+
+function normalizePublishedRecord(raw: any): NotesPublishedRecord {
+  const noteId = req(raw.noteId, 'published.noteId');
+  if (typeof noteId !== 'number') {
+    throw new Error('%notes published record is missing noteId');
+  }
+  return {
+    host: reqString(raw.host, 'published.host'),
+    flagName: reqString(raw.flagName, 'published.flagName'),
+    noteId,
+  };
 }
 
 function maybe<T>(value: T | null | undefined): T | null {
@@ -1045,6 +1073,44 @@ async function listMembers(target: NotesTarget): Promise<NotesMember[]> {
   return rawMembers.flatMap((member) => toClientNotesMembers(target, member));
 }
 
+async function listPublished(): Promise<NotesPublishedRecord[]> {
+  const rawPublished = await scry({
+    app: 'notes',
+    path: '/v0/published',
+  });
+  return requireArray(rawPublished, normalizePublishedRecord);
+}
+
+async function publishNote({
+  flag,
+  noteId,
+  html,
+}: {
+  flag: NotesTarget;
+  noteId: number;
+  html: string;
+}) {
+  return notebookAction(flag, {
+    type: 'note',
+    id: noteId,
+    action: { type: 'publish', html },
+  });
+}
+
+async function unpublishNote({
+  flag,
+  noteId,
+}: {
+  flag: NotesTarget;
+  noteId: number;
+}) {
+  return notebookAction(flag, {
+    type: 'note',
+    id: noteId,
+    action: { type: 'unpublish' },
+  });
+}
+
 export type NotesV1Api = {
   getRequest: typeof getRequestV1;
   listNotebooks: typeof listNotebooksV1;
@@ -1089,6 +1155,9 @@ export type NotesApi = {
   moveFolder: typeof moveFolderV1;
   deleteFolder: typeof deleteFolderV1;
   listMembers: typeof listMembers;
+  listPublished: typeof listPublished;
+  publishNote: typeof publishNote;
+  unpublishNote: typeof unpublishNote;
 };
 
 export const notesV1: NotesV1Api = {
@@ -1135,4 +1204,7 @@ export const notes: NotesApi = {
   moveFolder: moveFolderV1,
   deleteFolder: deleteFolderV1,
   listMembers,
+  listPublished,
+  publishNote,
+  unpublishNote,
 };

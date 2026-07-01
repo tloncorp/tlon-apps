@@ -409,9 +409,9 @@ test('deleteNotebookNote keeps the local delete when sync stays stale', async ()
 
 test('publishNotebookNote renders current markdown and marks note published', async () => {
   const publishNotesNote = vi
-    .spyOn(api, 'publishNotesNote')
+    .spyOn(api.notes, 'publishNote')
     .mockResolvedValue(1);
-  vi.spyOn(api, 'listPublishedNotes').mockResolvedValue([
+  vi.spyOn(api.notes, 'listPublished').mockResolvedValue([
     { host: '~zod', flagName: 'native-notes', noteId: 3 },
   ]);
 
@@ -444,9 +444,9 @@ test('publishedNoteUrl builds links from the ship URL', () => {
 
 test('unpublishNotebookNote waits for the note to leave published records', async () => {
   const unpublishNotesNote = vi
-    .spyOn(api, 'unpublishNotesNote')
+    .spyOn(api.notes, 'unpublishNote')
     .mockResolvedValue(1);
-  vi.spyOn(api, 'listPublishedNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listPublished').mockResolvedValue([]);
 
   await unpublishNotebookNote({ notebookFlag, noteId: 3 });
 
