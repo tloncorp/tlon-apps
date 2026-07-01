@@ -1,5 +1,5 @@
 diff --git a/src/components/bottomSheet/BottomSheetContent.tsx b/src/components/bottomSheet/BottomSheetContent.tsx
-index a615d7db599a0e4e675e68b547e1c37cd709eb4c..066566bf2ddf15cd7b75a86bd3acd5d6c63c7ca5 100644
+index 4a69a6892ff553836b72216b598451c56f6284cc..7cdacc259c532844f5ec378e111f2f1656327f18 100644
 --- a/src/components/bottomSheet/BottomSheetContent.tsx
 +++ b/src/components/bottomSheet/BottomSheetContent.tsx
 @@ -4,6 +4,7 @@ import Animated, {
@@ -10,7 +10,7 @@ index a615d7db599a0e4e675e68b547e1c37cd709eb4c..066566bf2ddf15cd7b75a86bd3acd5d6
  } from 'react-native-reanimated';
  import {
    INITIAL_LAYOUT_VALUE,
-@@ -179,6 +180,7 @@ function BottomSheetContentComponent({
+@@ -178,6 +179,7 @@ function BottomSheetContentComponent({
    ]);
    //#endregion
  
@@ -18,7 +18,7 @@ index a615d7db599a0e4e675e68b547e1c37cd709eb4c..066566bf2ddf15cd7b75a86bd3acd5d6
    //#region styles
    const contentMaskContainerAnimatedStyle = useAnimatedStyle(() => {
      const { containerHeight, contentHeight } = animatedLayoutState.get();
-@@ -186,7 +188,8 @@ function BottomSheetContentComponent({
+@@ -185,7 +187,8 @@ function BottomSheetContentComponent({
       * if container height is not yet calculated, then we exit the method
       */
      if (containerHeight === INITIAL_LAYOUT_VALUE) {
@@ -28,7 +28,7 @@ index a615d7db599a0e4e675e68b547e1c37cd709eb4c..066566bf2ddf15cd7b75a86bd3acd5d6
      }
  
      /**
-@@ -194,12 +197,23 @@ function BottomSheetContentComponent({
+@@ -193,12 +196,23 @@ function BottomSheetContentComponent({
       * is still not set, then we exit method.
       */
      if (enableDynamicSizing && contentHeight === INITIAL_LAYOUT_VALUE) {

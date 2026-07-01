@@ -1,5 +1,5 @@
 diff --git a/lib/module/ReanimatedModule/js-reanimated/index.js b/lib/module/ReanimatedModule/js-reanimated/index.js
-index 4ea519d..679b1e2 100644
+index 4b1425797710a6de3c91d75bfc5f054e7388238d..502ab4e9458f907b44f34c3997f922f85dac5abd 100644
 --- a/lib/module/ReanimatedModule/js-reanimated/index.js
 +++ b/lib/module/ReanimatedModule/js-reanimated/index.js
 @@ -6,8 +6,11 @@ export { createJSReanimatedModule } from './JSReanimated';
@@ -7,16 +7,16 @@ index 4ea519d..679b1e2 100644
  export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
    if (viewRef) {
 -    const component = viewRef.getAnimatableRef ? viewRef.getAnimatableRef() : viewRef;
--    const [rawStyles] = Object.keys(updates).reduce((acc, key) => {
+-    const [rawStyles] = Object.keys(updates).reduce(
 +    const component = getComponentFromRef(viewRef);
 +    if (!component) {
 +      return;
 +    }
-+    const [rawStyles] = Object.keys(updates ?? {}).reduce((acc, key) => {
++    const [rawStyles] = Object.keys(updates ?? {}).reduce(
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     (acc, key) => {
        const value = updates[key];
-       const index = typeof value === 'function' ? 1 : 0;
-       acc[index][key] = value;
-@@ -18,11 +21,11 @@ export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
+@@ -20,11 +23,11 @@ export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
        // Also, some components (e.g. from react-native-svg) don't have styles
        // and always provide setNativeProps function instead (even on React Native Web 0.19+).
        setNativeProps(component, rawStyles, isAnimatedProps);
@@ -30,7 +30,7 @@ index 4ea519d..679b1e2 100644
        Object.keys(component.props).forEach(key => {
          if (!rawStyles[key]) {
            return;
-@@ -36,6 +39,16 @@ export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
+@@ -38,6 +41,16 @@ export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
      }
    }
  };
@@ -47,7 +47,7 @@ index 4ea519d..679b1e2 100644
  const setNativeProps = (component, newProps, isAnimatedProps) => {
    if (isAnimatedProps) {
      // Only update UI props directly on the component,
-@@ -59,9 +72,9 @@ const updatePropsDOM = (component, style, isAnimatedProps) => {
+@@ -61,9 +74,9 @@ const updatePropsDOM = (component, style, isAnimatedProps) => {
      ...style
    };
    component.previousStyle = currentStyle;
@@ -60,7 +60,7 @@ index 4ea519d..679b1e2 100644
    }
    if (createTextShadowValue !== undefined && (domStyle.textShadowColor || domStyle.textShadowRadius || domStyle.textShadowOffset)) {
      domStyle.textShadow = createTextShadowValue({
-@@ -85,4 +98,24 @@ const updatePropsDOM = (component, style, isAnimatedProps) => {
+@@ -87,4 +100,24 @@ const updatePropsDOM = (component, style, isAnimatedProps) => {
      }
    }
  };
@@ -87,7 +87,7 @@ index 4ea519d..679b1e2 100644
  //# sourceMappingURL=index.js.map
 \ No newline at end of file
 diff --git a/lib/module/createAnimatedComponent/InlinePropManager.js b/lib/module/createAnimatedComponent/InlinePropManager.js
-index 5828da9..cc3052e 100644
+index 754661c656efec711df744c27161df1b57c52bba..301c4def16397506d8b2402b88772756acc76ec7 100644
 --- a/lib/module/createAnimatedComponent/InlinePropManager.js
 +++ b/lib/module/createAnimatedComponent/InlinePropManager.js
 @@ -12,11 +12,13 @@ function isInlineStyleTransform(transform) {
@@ -107,7 +107,7 @@ index 5828da9..cc3052e 100644
        return true;
      }
    }
-@@ -78,6 +80,9 @@ export function getInlineStyle(style, isFirstRender) {
+@@ -81,6 +83,9 @@ export function getInlineStyle(style, isFirstRender) {
      return getInlinePropsUpdate(style);
    }
    const newStyle = {};
@@ -118,7 +118,7 @@ index 5828da9..cc3052e 100644
      if (!isSharedValue(styleValue) && !(key === 'transform' && isInlineStyleTransform(styleValue))) {
        newStyle[key] = styleValue;
 diff --git a/lib/module/createAnimatedComponent/PropsFilter.js b/lib/module/createAnimatedComponent/PropsFilter.js
-index df36641..af397fc 100644
+index df366419fe50deada1015b53496aab46d413596d..af397fcd4555825acf051ba2c6a144950ac5349c 100644
 --- a/lib/module/createAnimatedComponent/PropsFilter.js
 +++ b/lib/module/createAnimatedComponent/PropsFilter.js
 @@ -42,7 +42,7 @@ export class PropsFilter {
@@ -131,7 +131,7 @@ index df36641..af397fc 100644
                props[initialValueKey] = animatedProps.initial?.value[initialValueKey];
              });
 diff --git a/src/ReanimatedModule/js-reanimated/index.ts b/src/ReanimatedModule/js-reanimated/index.ts
-index 5025db2..1ad34fc 100644
+index d90c2b3a5c9feb49f5c9c3036dc7ae9d2748c499..01b7480ca153de43eafb20f3e78ea6b2ae209ac1 100644
 --- a/src/ReanimatedModule/js-reanimated/index.ts
 +++ b/src/ReanimatedModule/js-reanimated/index.ts
 @@ -14,8 +14,8 @@ interface JSReanimatedComponent {
@@ -169,10 +169,10 @@ index 5025db2..1ad34fc 100644
 +      return;
 +    }
 +    const [rawStyles] = Object.keys(updates ?? {}).reduce(
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
        (acc: [StyleProps, AnimatedStyle<any>], key) => {
          const value = updates[key];
-         const index = typeof value === 'function' ? 1 : 0;
-@@ -59,20 +60,21 @@ export const _updatePropsJS = (
+@@ -60,20 +61,21 @@ export const _updatePropsJS = (
        // Also, some components (e.g. from react-native-svg) don't have styles
        // and always provide setNativeProps function instead (even on React Native Web 0.19+).
        setNativeProps(component, rawStyles, isAnimatedProps);
@@ -200,7 +200,7 @@ index 5025db2..1ad34fc 100644
        });
      } else {
        const componentName =
-@@ -84,6 +86,29 @@ export const _updatePropsJS = (
+@@ -85,6 +87,29 @@ export const _updatePropsJS = (
    }
  };
  
@@ -230,7 +230,7 @@ index 5025db2..1ad34fc 100644
  const setNativeProps = (
    component: JSReanimatedComponent | ReanimatedHTMLElement,
    newProps: StyleProps,
-@@ -113,9 +138,13 @@ const updatePropsDOM = (
+@@ -114,9 +139,13 @@ const updatePropsDOM = (
    const currentStyle = { ...previousStyle, ...style };
    (component as JSReanimatedComponent).previousStyle = currentStyle;
  
@@ -247,7 +247,7 @@ index 5025db2..1ad34fc 100644
    }
  
    if (
-@@ -146,3 +175,31 @@ const updatePropsDOM = (
+@@ -147,3 +176,31 @@ const updatePropsDOM = (
      }
    }
  };
@@ -280,7 +280,7 @@ index 5025db2..1ad34fc 100644
 +    .filter(Boolean)
 +    .join(' ');
 diff --git a/src/createAnimatedComponent/InlinePropManager.ts b/src/createAnimatedComponent/InlinePropManager.ts
-index 3f37da9..7594c57 100644
+index 3f698bfccafee8289ce2c17d8e09dedeb0053fa0..6ab2b9a152bc1c12a9e69cd33913efe8db06f450 100644
 --- a/src/createAnimatedComponent/InlinePropManager.ts
 +++ b/src/createAnimatedComponent/InlinePropManager.ts
 @@ -25,12 +25,14 @@ function inlinePropsHasChanged(
@@ -301,7 +301,7 @@ index 3f37da9..7594c57 100644
        return true;
      }
    }
-@@ -111,6 +113,9 @@ export function getInlineStyle(
+@@ -114,6 +116,9 @@ export function getInlineStyle(
      return getInlinePropsUpdate(style) as Record<string, unknown>;
    }
    const newStyle: StyleProps = {};
@@ -312,7 +312,7 @@ index 3f37da9..7594c57 100644
      if (
        !isSharedValue(styleValue) &&
 diff --git a/src/createAnimatedComponent/PropsFilter.tsx b/src/createAnimatedComponent/PropsFilter.tsx
-index 2002e4f..0a226d4 100644
+index 1daef1a62caaf8791fcbee576b812e391744067d..4b1d97f5dc68329d9c17d7ac6a49ccc020db41c3 100644
 --- a/src/createAnimatedComponent/PropsFilter.tsx
 +++ b/src/createAnimatedComponent/PropsFilter.tsx
 @@ -64,7 +64,11 @@ export class PropsFilter implements IPropsFilter {
