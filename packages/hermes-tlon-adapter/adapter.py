@@ -111,14 +111,15 @@ from .telemetry import (
     set_active_telemetry,
 )
 from .lens import (
-    PAYLOAD_SCHEMA_VERSION,
     LensOutput,
     LensRun,
+    LensRunStore,
     RetryDispatch,
     TlonLensRecorder,
     TlonLensSync,
     build_retry_dispatch,
     clear_active_recorder,
+    default_lens_store_path,
     handle_post_api_request_lens,
     handle_post_tool_call_lens,
     handle_pre_tool_call_lens,
@@ -597,7 +598,7 @@ class TlonAdapter(BasePlatformAdapter):
                 "context_lens", exc, operation=operation
             ),
         )
-        self._lens = TlonLensRecorder(self._lens_sync)
+        self._lens = TlonLensRecorder(self._lens_sync, store=self._open_lens_store())
         # lensId -> monotonic timestamp of an in-flight/recent retry, so a
         # repeated %retry-requested fact for the same run is ignored.
         self._retry_dedup: dict[str, float] = {}
@@ -624,6 +625,25 @@ class TlonAdapter(BasePlatformAdapter):
         self._channel_rules: dict[str, dict[str, Any]] = {}
         self._processed_dm_invites: set[str] = set()
         self._processed_group_invites: set[str] = set()
+
+    def _open_lens_store(self) -> Optional[LensRunStore]:
+        """Durable lens-run store backing owner retries across restarts.
+
+        Failure-tolerant like the gateway's initContextLensStore: a broken
+        disk store degrades retry to the in-memory recent cache, it never
+        blocks adapter startup.
+        """
+        if not self._lens_sync.enabled:
+            return None
+        path = self.tlon_config.context_lens_store_path or default_lens_store_path()
+        try:
+            return LensRunStore(path)
+        except Exception as exc:
+            logger.warning(
+                "[tlon] lens store unavailable, continuing without durable history: %s",
+                exc,
+            )
+            return None
 
     async def connect(self) -> bool:
         if not AIOHTTP_AVAILABLE:
@@ -2219,9 +2239,9 @@ class TlonAdapter(BasePlatformAdapter):
             return
         keep_reservation = False
         try:
+            # Memory-then-disk lookup, gateway-local like OpenClaw's chain; the
+            # bot ship's steward is empty with a remote owner so no ship scry.
             lens = self._lens.find_recent_lens(lens_id)
-            if lens is None:
-                lens = await self._scry_lens_run(lens_id)
             if lens is None:
                 logger.info("[tlon] lens retry %s: run not found", lens_id)
                 return
@@ -2259,38 +2279,6 @@ class TlonAdapter(BasePlatformAdapter):
             return False
         self._retry_dedup[lens_id] = now
         return True
-
-    async def _scry_lens_run(self, lens_id: str) -> Optional[dict[str, Any]]:
-        """Fetch a finalized run's ContextLens from the bot ship's %steward.
-
-        The scry returns a steward %entry wrapper; unwrap to the lens payload
-        and validate the schema version. Not-found / bad-shape -> None.
-        """
-        if self._sse is None:
-            return None
-        bot = normalize_ship(self.tlon_config.ship_name)
-        if not bot:
-            return None
-        try:
-            result = await self._sse.scry(f"/steward/v1/lens/run/{bot}/{lens_id}")
-        except Exception as exc:
-            logger.debug("[tlon] lens run scry failed for %s: %s", lens_id, exc)
-            return None
-        entry = result.get("entry") if isinstance(result, dict) else None
-        if not isinstance(entry, dict):
-            return None
-        payload = entry.get("payload")
-        if not isinstance(payload, dict):
-            return None
-        if payload.get("schemaVersion") != PAYLOAD_SCHEMA_VERSION:
-            logger.info(
-                "[tlon] lens retry %s: unexpected schemaVersion %s",
-                lens_id,
-                payload.get("schemaVersion"),
-            )
-            return None
-        lens = payload.get("lens")
-        return lens if isinstance(lens, dict) else None
 
     async def _dispatch_retry(self, dispatch: RetryDispatch, *, retry_of: str) -> None:
         is_dm = not dispatch.is_group

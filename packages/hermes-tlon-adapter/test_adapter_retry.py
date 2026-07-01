@@ -1,8 +1,10 @@
 import asyncio
 import importlib.util
 import sys
+import tempfile
 import types
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 
@@ -152,19 +154,12 @@ def retryable_lens(
     return run
 
 
-def scry_wrapper(run):
-    return {
-        "entry": {
-            "bot": "~pen",
-            "id": run.lens_id,
-            "complete": True,
-            "received": "~2024.1.1",
-            "payload": lens.build_lens_payload(run.to_context_lens()),
-        }
-    }
-
-
 class RetryHandlerTests(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.store_path = str(Path(tmp.name) / "context-lens-runs.jsonl")
+
     def make_adapter(self, extra=None, payloads=None):
         base = {
             "node_url": "https://pen.tlon.network",
@@ -173,6 +168,7 @@ class RetryHandlerTests(unittest.TestCase):
             "channels": ["chat/~pen/general"],
             "owner_ship": "~mug",
             "context_lens_enabled": True,
+            "context_lens_store_path": self.store_path,
         }
         base.update(extra or {})
         with patch.dict("os.environ", {}, clear=True):
@@ -212,8 +208,8 @@ class RetryHandlerTests(unittest.TestCase):
         new_run = adapter._lens.get("~alice")
         self.assertEqual(new_run.trigger, "retry")
         self.assertEqual(new_run.retry_of, "LX")
-        # No ship scry was needed — the run was still in the recent cache.
-        self.assertNotIn("/steward/v1/lens/run/~pen/LX", adapter._sse.scries)
+        # No steward scry involved — lens retry lookups are gateway-local.
+        self.assertFalse([p for p in adapter._sse.scries if "/steward/" in p])
 
     def test_retry_bypasses_authorization_for_unauthorized_sender(self):
         # ~alice is not the owner and not on any allowlist, so a *fresh* DM from
@@ -227,17 +223,23 @@ class RetryHandlerTests(unittest.TestCase):
         )
         self.assertEqual(len(events), 1)
 
-    def test_retry_falls_back_to_scry(self):
-        run = retryable_lens()
-        adapter = self.make_adapter(
-            payloads={"/steward/v1/lens/run/~pen/LX": scry_wrapper(run)}
-        )
+    def test_retry_falls_back_to_store_after_restart(self):
+        # Finalize a run (persisting it to the durable store), then simulate a
+        # restart with a fresh adapter on the same store path: the in-memory
+        # recent cache is empty, so the retry must resolve from disk. With a
+        # remote owner the bot ship's steward stores nothing, so this local
+        # store is the only durable retry source.
+        first = self.make_adapter()
+        self.seed_recent(first, retryable_lens())
+        adapter = self.make_adapter()
+        self.assertIsNone(adapter._lens.get("~alice"))
 
         events = self.handle(
             adapter, {"retry-requested": {"id": "LX", "requester": "~mug"}}
         )
         self.assertEqual(len(events), 1)
-        self.assertIn("/steward/v1/lens/run/~pen/LX", adapter._sse.scries)
+        self.assertEqual(events[0].text, "please retry")
+        self.assertFalse([p for p in adapter._sse.scries if "/steward/" in p])
 
     def test_retry_honors_lens_owner_distinct_from_owner_ship(self):
         # Steward keys runs (and %retry-requested) to the lens owner, which can
@@ -302,7 +304,7 @@ class RetryHandlerTests(unittest.TestCase):
         self.assertEqual(events, [])
 
     def test_unknown_run_refused(self):
-        adapter = self.make_adapter()  # nothing seeded, scry has no payload
+        adapter = self.make_adapter()  # nothing seeded in memory or on disk
         events = self.handle(
             adapter, {"retry-requested": {"id": "MISSING", "requester": "~mug"}}
         )

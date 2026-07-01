@@ -56,6 +56,10 @@ DEFAULT_TTL_MS = 30 * 60 * 1_000
 # Bound in-memory runs so a leaked/never-finalized run can't grow unbounded.
 MAX_TRACKED_RUNS = 256
 RUN_TTL_SECONDS = 30 * 60
+# Durable-store retention, mirroring context-lens-store.ts defaults.
+STORE_RETAIN_DAYS = 30
+STORE_MAX_STORED = 500
+_DAY_MS = 24 * 60 * 60 * 1_000
 
 TERMINAL_STATUSES: frozenset[str] = frozenset(
     {"completed", "no_reply", "timed_out", "aborted", "error"}
@@ -588,6 +592,142 @@ def build_retry_dispatch(lens: Mapping[str, Any]) -> RetryDispatchResult:
     )
 
 
+def default_lens_store_path() -> str:
+    return os.path.join(
+        os.path.expanduser("~"), ".hermes", "tlon", "context-lens-runs.jsonl"
+    )
+
+
+def _lens_finalized_at(lens: Mapping[str, Any]) -> int:
+    lifecycle = lens.get("lifecycle")
+    completed = (
+        lifecycle.get("completedAt") if isinstance(lifecycle, Mapping) else None
+    )
+    for value in (completed, lens.get("updatedAt"), lens.get("createdAt")):
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return int(value)
+    return 0
+
+
+class LensRunStore:
+    """Durable JSONL store for finalized lens runs.
+
+    Port of the gateway's ``context-lens-store.ts``: the recorder's recent
+    cache stays the hot tier, and this file is the restart backstop so an
+    owner Retry can resolve a lensId after the adapter restarts. (The owner
+    ship's %steward also holds the run, but with a remote owner the bot ship
+    stores nothing, so the bot cannot read it back — retry lookups must be
+    gateway-local, same as OpenClaw.)
+
+    Append-only with last-write-wins per lensId on load; compaction rewrites
+    the file when retention drops entries.
+    """
+
+    def __init__(
+        self,
+        file_path: str,
+        *,
+        retain_days: int = STORE_RETAIN_DAYS,
+        max_stored: int = STORE_MAX_STORED,
+    ) -> None:
+        self.file_path = file_path
+        self._retain_ms = retain_days * _DAY_MS
+        self._max_stored = max_stored
+        # Insertion-ordered oldest -> newest by finalization time.
+        self._runs: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
+        self._load()
+
+    def _is_retained(self, lens: Mapping[str, Any], now_ms: int) -> bool:
+        return _lens_finalized_at(lens) > now_ms - self._retain_ms
+
+    def _load(self) -> None:
+        os.makedirs(os.path.dirname(self.file_path) or ".", exist_ok=True)
+        if not os.path.exists(self.file_path):
+            return
+        with open(self.file_path, "r", encoding="utf-8") as fh:
+            raw = fh.read()
+        malformed = 0
+        for line in raw.split("\n"):
+            trimmed = line.strip()
+            if not trimmed:
+                continue
+            try:
+                lens = json.loads(trimmed)
+            except ValueError:
+                malformed += 1
+                continue
+            lens_id = lens.get("lensId") if isinstance(lens, dict) else None
+            if not isinstance(lens_id, str) or not lens_id:
+                malformed += 1
+                continue
+            # Re-insert so a later duplicate moves to the newest position.
+            self._runs.pop(lens_id, None)
+            self._runs[lens_id] = lens
+        if malformed:
+            logger.warning(
+                "[tlon] lens store skipped %d malformed line(s) in %s",
+                malformed,
+                self.file_path,
+            )
+        loaded = len(self._runs)
+        if self._prune(_now_ms()) or malformed:
+            self._compact()
+        logger.info(
+            "[tlon] lens store loaded %d/%d run(s) from %s",
+            len(self._runs),
+            loaded,
+            self.file_path,
+        )
+
+    def _prune(self, now_ms: int) -> bool:
+        dropped = False
+        stale = [
+            lens_id
+            for lens_id, lens in self._runs.items()
+            if not self._is_retained(lens, now_ms)
+        ]
+        for lens_id in stale:
+            self._runs.pop(lens_id, None)
+            dropped = True
+        while len(self._runs) > self._max_stored:
+            self._runs.popitem(last=False)
+            dropped = True
+        return dropped
+
+    def _compact(self) -> None:
+        lines = "".join(f"{json.dumps(lens)}\n" for lens in self._runs.values())
+        tmp_path = f"{self.file_path}.tmp"
+        fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(lines)
+        os.replace(tmp_path, self.file_path)
+
+    def save(self, lens: dict[str, Any]) -> None:
+        lens_id = lens.get("lensId")
+        if not isinstance(lens_id, str) or not lens_id:
+            return
+        now = _now_ms()
+        if not self._is_retained(lens, now):
+            return
+        self._runs.pop(lens_id, None)
+        self._runs[lens_id] = lens
+        if self._prune(now):
+            self._compact()
+            return
+        fd = os.open(self.file_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(f"{json.dumps(lens)}\n")
+
+    def get(self, lens_id: str) -> Optional[dict[str, Any]]:
+        lens = self._runs.get(lens_id)
+        if lens is None or not self._is_retained(lens, _now_ms()):
+            return None
+        return lens
+
+    def size(self) -> int:
+        return len(self._runs)
+
+
 class TlonLensSync:
     """Pokes lens run records to the bot ship's ``%steward`` agent.
 
@@ -692,11 +832,15 @@ class TlonLensRecorder:
     the sync tool/model hooks only mutate the in-memory run.
     """
 
-    def __init__(self, sync: TlonLensSync) -> None:
+    def __init__(
+        self, sync: TlonLensSync, store: Optional[LensRunStore] = None
+    ) -> None:
         self._sync = sync
+        self._store = store
         self._runs: dict[str, LensRun] = {}
         # Finalized runs kept briefly (keyed by lensId) so an owner retry can
-        # look them up without a ship round-trip. Bounded like the live map.
+        # look them up without disk I/O. Bounded like the live map; the store
+        # is the durable fallback across restarts.
         self._recent: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
 
     @property
@@ -711,8 +855,14 @@ class TlonLensRecorder:
         return self._runs.get(conversation_id)
 
     def find_recent_lens(self, lens_id: str) -> Optional[dict[str, Any]]:
-        """The finalized ContextLens dict for a lensId, if still retained."""
-        return self._recent.get(lens_id)
+        """The finalized ContextLens dict for a lensId, if still retained.
+
+        Memory first, then the durable store (survives adapter restarts).
+        """
+        lens = self._recent.get(lens_id)
+        if lens is None and self._store is not None:
+            lens = self._store.get(lens_id)
+        return lens
 
     def _remember(self, run: LensRun) -> None:
         self._recent[run.lens_id] = run.to_context_lens()
@@ -791,6 +941,13 @@ class TlonLensRecorder:
         elif run.status not in TERMINAL_STATUSES:
             run.set_status("no_reply")
         self._remember(run)
+        if self._store is not None:
+            try:
+                self._store.save(run.to_context_lens())
+            except Exception as exc:
+                logger.warning(
+                    "[tlon] lens store write failed for %s: %s", run.lens_id, exc
+                )
         await self._sync.push(run, final=True)
 
 

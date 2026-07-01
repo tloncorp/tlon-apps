@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import sys
+import tempfile
 import types
 import unittest
 from pathlib import Path
@@ -576,6 +577,98 @@ class RecorderRecentTests(unittest.TestCase):
         self.assertIsNotNone(found)
         self.assertEqual(found["status"], "error")
         self.assertIsNone(rec.find_recent_lens("missing"))
+
+
+class LensRunStoreTests(unittest.TestCase):
+    def setUp(self):
+        FakeClient.instances.clear()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        # Nested dir proves the store creates its parent directories.
+        self.path = str(Path(tmp.name) / "tlon" / "context-lens-runs.jsonl")
+
+    def make_lens(self, lens_id="L1", finalized_at=None, **extra):
+        now = lens._now_ms()
+        record = {
+            "lensId": lens_id,
+            "status": "error",
+            "createdAt": now,
+            "updatedAt": now,
+            "lifecycle": {"completedAt": finalized_at if finalized_at is not None else now},
+        }
+        record.update(extra)
+        return record
+
+    def test_save_get_and_restart_reload(self):
+        store = lens.LensRunStore(self.path)
+        store.save(self.make_lens("L1"))
+        self.assertEqual(store.get("L1")["lensId"], "L1")
+        reloaded = lens.LensRunStore(self.path)
+        self.assertEqual(reloaded.get("L1")["lensId"], "L1")
+        self.assertIsNone(reloaded.get("L2"))
+
+    def test_last_write_wins_per_lens_id(self):
+        store = lens.LensRunStore(self.path)
+        store.save(self.make_lens("L1", status="error"))
+        store.save(self.make_lens("L1", status="timed_out"))
+        reloaded = lens.LensRunStore(self.path)
+        self.assertEqual(reloaded.size(), 1)
+        self.assertEqual(reloaded.get("L1")["status"], "timed_out")
+
+    def test_malformed_lines_skipped_and_compacted(self):
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        with open(self.path, "w", encoding="utf-8") as fh:
+            fh.write("not json\n")
+            fh.write(json.dumps(self.make_lens("L1")) + "\n")
+            fh.write(json.dumps({"no": "lensId"}) + "\n")
+        store = lens.LensRunStore(self.path)
+        self.assertEqual(store.size(), 1)
+        self.assertIsNotNone(store.get("L1"))
+        with open(self.path, encoding="utf-8") as fh:
+            lines = [line for line in fh.read().split("\n") if line.strip()]
+        self.assertEqual(len(lines), 1)
+
+    def test_retention_drops_expired_runs(self):
+        store = lens.LensRunStore(self.path, retain_days=30)
+        expired = lens._now_ms() - 31 * lens._DAY_MS
+        store.save(self.make_lens("OLD", finalized_at=expired))
+        self.assertIsNone(store.get("OLD"))
+        self.assertEqual(store.size(), 0)
+
+    def test_max_stored_evicts_oldest(self):
+        store = lens.LensRunStore(self.path, max_stored=2)
+        store.save(self.make_lens("A"))
+        store.save(self.make_lens("B"))
+        store.save(self.make_lens("C"))
+        self.assertIsNone(store.get("A"))
+        self.assertIsNotNone(store.get("B"))
+        self.assertIsNotNone(store.get("C"))
+        reloaded = lens.LensRunStore(self.path, max_stored=2)
+        self.assertEqual(reloaded.size(), 2)
+
+    def test_recorder_persists_finish_and_reads_store_after_restart(self):
+        cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
+        store = lens.LensRunStore(self.path)
+        rec = lens.TlonLensRecorder(
+            lens.TlonLensSync(cfg, client_factory=FakeClient), store=store
+        )
+
+        async def scenario():
+            await rec._sync.start()
+            rec.begin("~alice", make_run(lens_id="LX"))
+            await rec.finish("~alice", status="error")
+
+        run(scenario())
+        self.assertIsNotNone(store.get("LX"))
+        # Fresh recorder + fresh store on the same path = adapter restart; the
+        # recent cache is gone, so the lookup must come from disk.
+        rec2 = lens.TlonLensRecorder(
+            lens.TlonLensSync(cfg, client_factory=FakeClient),
+            store=lens.LensRunStore(self.path),
+        )
+        found = rec2.find_recent_lens("LX")
+        self.assertIsNotNone(found)
+        self.assertEqual(found["status"], "error")
 
 
 if __name__ == "__main__":
