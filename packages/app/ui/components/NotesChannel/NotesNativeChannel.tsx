@@ -56,6 +56,7 @@ import {
 import {
   NotesNoteDetail,
   type NotesNoteDraftSnapshot,
+  getNotesNoteDraftSnapshot,
 } from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import { canSelectNotesImportSources } from './notesImport';
@@ -230,10 +231,18 @@ export function NotesNativeChannel({
   );
   const getNotePublishContent = useMutableCallback((note: db.NotesNote) => {
     const activeDraft = activeNoteDraftRef.current;
-    if (activeDraft?.noteId === note.noteId) {
+    const draft =
+      activeDraft &&
+      activeDraft.notebookFlag === notebookFlag &&
+      activeDraft.noteId === note.noteId
+        ? activeDraft
+        : notebookFlag
+          ? getNotesNoteDraftSnapshot(notebookFlag, note.noteId)
+          : null;
+    if (draft) {
       return {
-        title: activeDraft.title,
-        body: activeDraft.body,
+        title: draft.title,
+        body: draft.body,
       };
     }
 
