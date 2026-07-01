@@ -107,7 +107,6 @@ export function useNotesImportController({
       };
 
       let importedCount = 0;
-      let failedCount = 0;
       for (const item of importItems) {
         try {
           const folderId = await ensureFolderPath(item.folderSegments);
@@ -130,18 +129,14 @@ export function useNotesImportController({
           if (isNotesPendingWriteError(e)) {
             throw e;
           }
-          console.error('Failed to import note', item.relativePath, e);
-          failedCount += 1;
+          const message = errorMessage(e, 'Failed to import note');
+          throw new Error(
+            `${NOTES_PENDING_WRITE_MESSAGE}; the outcome of importing "${item.relativePath}" is unknown and it may still complete. Check whether it was imported before retrying. ${message}`
+          );
         }
       }
 
-      if (importedCount === 0 && failedCount > 0) {
-        throw new Error(
-          `Failed to import ${formatCount(failedCount, 'note')}.`
-        );
-      }
-
-      setImportNotice(formatImportNotice(importedCount, failedCount));
+      setImportNotice(formatImportNotice(importedCount));
     }
   );
 
@@ -271,13 +266,8 @@ function folderCacheKey(name: string, parentFolderId?: number | null) {
   return `${parentFolderId ?? 'root'}:${normalizeTitleKey(name)}`;
 }
 
-function formatImportNotice(importedCount: number, failedCount: number) {
-  return failedCount === 0
-    ? `Imported ${formatCount(importedCount, 'note')}.`
-    : `Imported ${formatCount(importedCount, 'note')}; ${formatCount(
-        failedCount,
-        'note'
-      )} failed.`;
+function formatImportNotice(importedCount: number) {
+  return `Imported ${formatCount(importedCount, 'note')}.`;
 }
 
 function formatCount(count: number, label: string) {
