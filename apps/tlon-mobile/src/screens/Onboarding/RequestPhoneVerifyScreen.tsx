@@ -1,23 +1,18 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import {
-  Field,
   OnboardingTextBlock,
   ScreenHeader,
   TlonText,
   View,
   YStack,
   useStore,
-  useTheme,
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
-import { isValidPhoneNumber } from 'libphonenumber-js';
-import { useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { CountryPicker } from 'react-native-country-codes-picker';
-import PhoneInput from 'react-native-phone-input';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 
+import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<
@@ -39,17 +34,8 @@ export const RequestPhoneVerifyScreen = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
 
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
-  const phoneInputRef = useRef<PhoneInput>(null);
-
-  const isDarkMode = useIsDarkMode();
-  const theme = useTheme();
-
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>();
+  const form = useForm<FormData>();
+  const { handleSubmit } = form;
 
   const onSubmit = handleSubmit(async ({ phoneNumber }) => {
     setIsSubmitting(true);
@@ -107,84 +93,9 @@ export const RequestPhoneVerifyScreen = ({
           gap="$m"
           paddingTop="$m"
         >
-          <Controller
-            name="phoneNumber"
-            control={control}
-            rules={{
-              required: 'Please enter a valid phone number.',
-              validate: (value) => isValidPhoneNumber(value),
-            }}
-            render={({ field: { onChange } }) => (
-              <Field
-                width={'100%'}
-                label="Phone Number"
-                error={errors.phoneNumber?.message}
-              >
-                <PhoneInput
-                  ref={phoneInputRef}
-                  onPressFlag={() => setShowCountryPicker(true)}
-                  onChangePhoneNumber={onChange}
-                  style={{
-                    padding: 16,
-                    borderWidth: 1,
-                    borderColor: theme.border?.val ?? '#ccc',
-                    borderRadius: 8,
-                    backgroundColor: theme.background?.val ?? '#fff',
-                  }}
-                  textStyle={{
-                    color: theme.primaryText?.val ?? '#000',
-                  }}
-                  initialCountry="us"
-                  autoFormat={true}
-                />
-              </Field>
-            )}
-          />
+          <PhoneNumberInput form={form} shouldFocus={false} />
         </View>
       </YStack>
-
-      <CountryPicker
-        lang="en"
-        show={showCountryPicker}
-        pickerButtonOnPress={(item) => {
-          phoneInputRef.current?.selectCountry(item.code.toLowerCase());
-          setShowCountryPicker(false);
-        }}
-        style={{
-          modal: {
-            flex: 0.8,
-            backgroundColor: isDarkMode
-              ? theme.background?.val ?? '#000'
-              : theme.background?.val ?? '#fff',
-          },
-          countryButtonStyles: {
-            backgroundColor: isDarkMode
-              ? theme.background?.val ?? '#000'
-              : theme.background?.val ?? '#fff',
-          },
-          dialCode: {
-            color: theme.primaryText?.val ?? '#000',
-          },
-          countryName: {
-            color: theme.primaryText?.val ?? '#000',
-          },
-          textInput: {
-            backgroundColor: isDarkMode
-              ? theme.background?.val ?? '#000'
-              : theme.background?.val ?? '#fff',
-            color: theme.primaryText?.val ?? '#000',
-            borderWidth: 1,
-            borderColor: theme.border?.val ?? '#ccc',
-            paddingHorizontal: 16,
-          },
-          line: {
-            backgroundColor: isDarkMode
-              ? theme.background?.val ?? '#000'
-              : theme.background?.val ?? '#fff',
-          },
-        }}
-        onBackdropPress={() => setShowCountryPicker(false)}
-      />
     </View>
   );
 };

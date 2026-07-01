@@ -13,7 +13,6 @@ import {
   ZStack,
 } from '@tloncorp/ui';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import type {
   PlayingChangeEventPayload,
@@ -39,6 +38,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spinner, View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
+import * as MediaLibrary from './mediaLibrary';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MediaViewer'>;
 

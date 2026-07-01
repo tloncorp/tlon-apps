@@ -9,7 +9,7 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
-## @gorhom/bottom-sheet@5.2.6
+## @gorhom/bottom-sheet@5.2.14
 
 Why:
 On the first open of a bottom sheet whose content is a `flex:1` ScrollView/View
@@ -34,7 +34,7 @@ from source, which we currently don't do; the writeup is in the closed
 draft PR linked below.
 
 Local patch:
-`patches/@gorhom__bottom-sheet@5.2.6.patch`
+`patches/@gorhom__bottom-sheet@5.2.14.patch`
 
 Background and reproduction details: PR #5790 (closed, kept for reference).
 
@@ -49,69 +49,40 @@ Drop this patch once we either move to building React Native from source
 layout-engine level), or once `@gorhom/bottom-sheet` ships an equivalent
 workaround upstream.
 
-## react-native-screens@4.4.0
-
-Why:
-iOS native-stack can double-pop when two back-swipe gestures happen in quick
-succession, causing a brief `Channel -> GroupChannels -> ChatList ->
-GroupChannels -> ChatList` bounce.
+## react-native@0.85.3
 
 Local patch:
-`patches/react-native-screens@4.4.0.patch`
-
-Upstream:
-- issue: `software-mansion/react-native-screens#2559`
-- fix: `software-mansion/react-native-screens#3584`
-- enabled by default: `software-mansion/react-native-screens#3652`
-
-Validation:
-Rebuild the iOS app and verify that fast successive swipe-backs no longer cause
-the screen bounce.
-
-Removal:
-Remove this patch once we upgrade to a compatible `react-native-screens`
-version that already includes the upstream fix. `4.24.0+` has the behavior
-enabled by default.
-
-## react-native@0.76.9
-
-Local patch:
-`patches/react-native@0.76.9.patch`
+`patches/react-native@0.85.3.patch`
 
 Why:
-On iOS Fabric, a single-line `TextInput` that sets custom `lineHeight` can
-poison later recycled inputs. In our onboarding flow, styling the bot-name
-field with `lineHeight: 30` caused later placeholders like "Paste your key
-here" and "Search models" to render misaligned until the app was restarted.
+An uncontrolled `TextInput` (no `value` prop, content driven by children) can
+measure to the wrong size when its text changes. On Fabric the shadow node
+measures from the cached native attributed string (`attributedStringBox`),
+which lags the React tree until the next native state update — so the input is
+laid out against stale text.
 
 What it does:
-In `Libraries/Text/TextInput/Singleline/RCTUITextField.mm`, this removes
-`NSParagraphStyleAttributeName` and `NSShadowAttributeName` from placeholder
-text attributes before building `attributedPlaceholder`.
-
-This stops single-line placeholders from inheriting paragraph-style and shadow
-attributes from the field's text styling. React Native stores iOS `lineHeight`
-in the paragraph style, so clearing that is the core part of the fix.
+In `ReactCommon/react/renderer/components/textinput/BaseTextInputShadowNode.h`,
+for inputs with no `text` prop it compares the current React-tree attributed
+string against the last state-synced one, and when they differ measures from
+the React-tree string (falling back to the placeholder when empty) instead of
+the possibly-stale native `attributedStringBox`.
 
 Upstream:
-- no exact upstream fix found for this placeholder/baseline bug on `0.76.x`
-- related issues:
-  `facebook/react-native#53050`
-  `facebook/react-native#37236`
-  `facebook/react-native#49933`
+- Upstream PR (open): `facebook/react-native#56291` — "Fix uncontrolled
+  multiline TextInput not resizing when children change". Same
+  `BaseTextInputShadowNode.h` change this patch carries.
 
 Validation:
 - Rebuild the iOS app so the native patch is compiled in.
-- In onboarding, keep the bot-name field on the risky style
-  (`fontSize: 24`, `lineHeight: 30`, `height: 72`).
-- Advance from bot name to API key and model search panes and confirm the
-  later placeholders no longer drift downward after the bot-name screen is
-  shown.
+- Exercise an uncontrolled `TextInput` whose content changes via children (no
+  `value` prop) and confirm it sizes to the new content rather than a stale
+  value.
 
 Removal:
-Remove this patch once we upgrade to a React Native version where the
-single-line placeholder path no longer picks up broken paragraph-style state,
-and we have verified the onboarding repro without the local patch.
+Remove once `facebook/react-native#56291` lands in a version we ship. Note:
+`BaseTextInputShadowNode` was refactored in 0.85, so this hunk must be
+re-ported when upgrading past 0.81 if the upstream fix hasn't shipped yet.
 
 ## @10play/tentap-editor@0.5.21
 
@@ -144,7 +115,7 @@ Remove this patch once we upgrade off the old `0.5.x` web bundle and confirm
 the replacement no longer vendors the legacy HTML link paste fallback or needs
 the local asset export stripping.
 
-## react-native-reanimated@4.1.6
+## react-native-reanimated@4.3.1
 
 Why:
 - Fixes production-only web crashes in Reanimated's JS web updater
@@ -166,7 +137,7 @@ Note: 4.x already fixed the older v3 `getInlinePropsUpdate` recursion bug
 needed.
 
 Local patch:
-`patches/react-native-reanimated@4.1.6.patch`
+`patches/react-native-reanimated@4.3.1.patch`
 
 Upstream:
 - repo: `software-mansion/react-native-reanimated`
@@ -188,7 +159,7 @@ Remove this patch once we upgrade to a Reanimated version that includes an
 upstream fix for the web JS updater path and confirm production web no longer
 needs the local guards or transform fallback.
 
-## react-native-gesture-handler@2.28.0
+## react-native-gesture-handler@2.31.2
 
 Why:
 On Android, `ReanimatedSwipeable` leaves both the left and right action
@@ -205,7 +176,7 @@ adds `pointerEvents: showLeftProgress.value === 0 ? 'none' : 'auto'` to
 the hidden side stops intercepting touches alongside its opacity going to 0.
 
 Local patch:
-`patches/react-native-gesture-handler@2.28.0.patch`
+`patches/react-native-gesture-handler@2.31.2.patch`
 
 Upstream:
 - no matching upstream fix found as of May 2026; `ReanimatedSwipeable` on
@@ -222,7 +193,7 @@ Remove this patch once `react-native-gesture-handler` ships a version of
 `ReanimatedSwipeable` that disables pointer events on the hidden action
 container, and we confirm the Android repro no longer needs the local fix.
 
-## expo-image-manipulator@14.0.8
+## expo-image-manipulator@56.0.19
 
 Why:
 Expo's iOS orientation transformer normalizes images by manually creating a
@@ -239,7 +210,7 @@ UIKit choose a supported backing context while still applying orientation and
 mirroring before the requested resize runs.
 
 Local patch:
-`patches/expo-image-manipulator@14.0.8.patch`
+`patches/expo-image-manipulator@56.0.19.patch`
 
 Upstream:
 - no matching Expo upstream fix found as of June 2026
@@ -257,3 +228,43 @@ Removal:
 Remove this patch once `expo-image-manipulator` ships an equivalent orientation
 normalization fix, or once we replace upload resizing with a lower-level ImageIO
 thumbnail path.
+
+## @tamagui/web@2.4.0
+
+Why:
+tamagui removed its undocumented `unset` style value in 2.x (upstream
+`86d0cfe95` — `chore: remove undocumented unset style value`). We use `"unset"`
+in ~56 places to mean "no value here" (e.g. `backgroundColor="unset"`,
+`aspectRatio="unset"`). On web `unset` is a valid CSS keyword and still renders,
+but on native `propMapper` now passes it straight to the React Native style and
+RN throws on strict props — `aspectRatio` redboxes with "aspectRatio must
+either be a number, a ratio string or `auto`. You passed: unset".
+
+What it does:
+Patches the two native `propMapper` variants
+(`dist/{cjs,esm}/helpers/propMapper.native.js`) to drop a prop whose value is
+`"unset"` (`if (value === "unset") return;`). The prop then falls back to the
+property's initial value (transparent / auto / 0) and overrides styled-component
+defaults the same way the value did before. The web bundles are intentionally
+left unpatched, since `unset` is a valid CSS keyword there.
+
+Local patch:
+`patches/@tamagui__web@2.4.0.patch`
+
+Upstream:
+- removed deliberately in `tamagui/tamagui@86d0cfe95`; the configurable `unset`
+  feature is not coming back
+- native parity fix proposed upstream ("drop `unset` on native instead of
+  crashing"): `tamagui/tamagui#4053`
+
+Validation:
+- Rebuild the mobile app so the patched bundle is picked up
+- Open a post with an image, the Activity feed, and a content reference and
+  confirm there's no `aspectRatio ... You passed: unset` redbox
+- Confirm `node_modules/@tamagui/web/dist/esm/helpers/propMapper.native.js`
+  contains `if (value === "unset") return;`
+
+Removal:
+Remove this patch once either the upstream native fix lands in a tamagui version
+we use, or we migrate all `"unset"` style usages to explicit values
+(`transparent` / `undefined` / `auto`) so nothing relies on the dropped value.

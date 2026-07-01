@@ -35,6 +35,7 @@ export function ChatMessageActions({
   onReply,
   onEdit,
   onViewReactions,
+  onViewBotRun,
   onShowEmojiPicker,
   trigger,
   onOpenChange,
@@ -176,6 +177,7 @@ export function ChatMessageActions({
                 onReply={onReply}
                 onEdit={onEdit}
                 onViewReactions={onViewReactions}
+                onViewBotRun={onViewBotRun}
               />
             </YStack>
           </Popover.Content>
@@ -208,6 +210,7 @@ export function ChatMessageActions({
                 onReply={onReply}
                 onEdit={onEdit}
                 onViewReactions={onViewReactions}
+                onViewBotRun={onViewBotRun}
               />
             </YStack>
           </View>

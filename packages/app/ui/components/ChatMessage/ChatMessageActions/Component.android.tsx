@@ -17,6 +17,7 @@ export function ChatMessageActions({
   onReply,
   onEdit,
   onViewReactions,
+  onViewBotRun,
   onShowEmojiPicker,
 }: ChatMessageActionsProps) {
   const [topOffset, setTopOffset] = useState(0);
@@ -71,6 +72,7 @@ export function ChatMessageActions({
             onReply={onReply}
             onEdit={onEdit}
             onViewReactions={onViewReactions}
+            onViewBotRun={onViewBotRun}
           />
         </YStack>
       </View>

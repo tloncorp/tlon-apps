@@ -105,6 +105,7 @@ export type AttestationStatus = schema.AttestationStatus;
 export type AttestationDiscoverability = schema.AttestationDiscoverability;
 export type AttestationType = schema.AttestationType;
 export type ContactAttestation = BaseModel<'contactAttestations'>;
+export type ContextLensRun = BaseModel<'contextLensRuns'>;
 
 export type Chat = {
   id: string;

@@ -77,7 +77,6 @@ export const syncInitData = async (
     await persistUnreads({
       unreads: initData.unreads,
       ctx: queryCtx,
-      includesAllUnreads: true,
     }).then(() => logger.crumb('persisted unreads'));
 
     await db
@@ -103,11 +102,11 @@ export const syncInitData = async (
       .insertChannelOrder(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel order'));
     await db
-      .setLeftGroupChannels(
-        { joinedChannelIds: initData.joinedChannels },
+      .reconcileJoinedGroupChannels(
+        { joinedChannelIds: initData.joinedGroupChannels },
         queryCtx
       )
-      .then(() => logger.crumb('set left channels'));
+      .then(() => logger.crumb('reconciled group channel membership'));
     updateLastActivityTime();
   };
 
@@ -791,10 +790,8 @@ export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {
   );
   checkForNewlyJoined(unreads);
   return queryCtx
-    ? persistUnreads({ unreads, ctx: queryCtx, includesAllUnreads: true })
-    : batchEffects('initialUnreads', (ctx) =>
-        persistUnreads({ unreads, ctx, includesAllUnreads: true })
-      );
+    ? persistUnreads({ unreads, ctx: queryCtx })
+    : batchEffects('initialUnreads', (ctx) => persistUnreads({ unreads, ctx }));
 };
 
 export const syncChannelThreadUnreads = async (
@@ -938,6 +935,28 @@ export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
     api.getPushNotificationsSetting()
   );
   await db.pushNotificationSettings.setValue(setting);
+};
+
+export async function handleLensUpdate(runs: api.LensRun[]) {
+  logger.log('received lens update', runs.length);
+  await db.insertContextLensRuns(runs);
+}
+
+export const syncLensRuns = async (ctx?: SyncCtx) => {
+  const runs = await syncQueue.add('lensRuns', ctx, async () => {
+    try {
+      return await api.getRecentLensRuns();
+    } catch (e) {
+      // older ships don't have the %steward agent
+      if (e instanceof api.BadResponseError && e.status === 404) {
+        return null;
+      }
+      throw e;
+    }
+  });
+  if (runs) {
+    await db.insertContextLensRuns(runs);
+  }
 };
 
 async function handleLanyardUpdate(update: api.LanyardUpdate) {
@@ -1177,7 +1196,17 @@ export async function handleGroupUpdate(
       break;
     }
     case 'updateChannel': {
-      await db.updateChannel(update.channel, ctx);
+      // A channel edit (metadata / readers) must not redefine the current
+      // user's membership. The r-group reducer builds this channel with no
+      // role context, so currentUserIsMember is computed from readers ∩ {} —
+      // which wrongly marks a now-restricted channel as "left". Membership is
+      // owned by the full group sync (which has the user's roles) and the
+      // active-channels join/leave path, so strip it from this update.
+      const channelUpdate: Partial<db.Channel> & { id: string } = {
+        ...update.channel,
+      };
+      delete channelUpdate.currentUserIsMember;
+      await db.updateChannel(channelUpdate, ctx);
       if (update.channel.groupId) {
         await syncGroup(update.channel.groupId, undefined, { force: true });
         await syncUnreads();
@@ -1596,12 +1625,6 @@ export const handleChannelsUpdate = async (
     }
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' }, ctx);
-      break;
-    case 'joinChannelSuccess':
-      await db.addJoinedGroupChannel({ channelId: update.channelId }, ctx);
-      break;
-    case 'leaveChannelSuccess':
-      await db.removeJoinedGroupChannel({ channelId: update.channelId }, ctx);
       break;
     case 'initialPostsOnChannelJoin':
       await db.insertChannelPosts(
@@ -2248,6 +2271,16 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         : setupLowPrioritySubscriptions({
             priority: syncStartPriority.low,
           }).then(() => logger.crumb('subscribed low priority')),
+      // On recovery the live subscription persists across the discontinuity,
+      // so setupLowPrioritySubscriptions (and its post-subscribe lens
+      // backfill) is skipped. Rescry /v1/lens directly to recover any events
+      // missed while the SSE connection was down. No-ops on ships without
+      // %steward (syncLensRuns swallows the 404).
+      alreadySubscribed
+        ? syncLensRuns({ priority: syncStartPriority.low + 1 }).then(() =>
+            logger.crumb('finished recovery lens backfill')
+          )
+        : Promise.resolve(),
       resetActivity({ priority: syncStartPriority.low + 1, retry: true }).then(
         () => logger.crumb(`finished resetting activity`)
       ),
@@ -2320,6 +2353,13 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeToStorageUpdates(createHandler(handleStorageUpdate)),
       api.subscribeToLanyardUpdates(handleLanyardUpdate),
       api.subscribeToSettings(createHandler(handleSettingsUpdate)),
+      // returns null (and skips backfill) when the ship lacks the %steward agent
+      api.subscribeToLensUpdates(handleLensUpdate).then((subscribed) => {
+        if (subscribed === null) {
+          return;
+        }
+        return syncLensRuns();
+      }),
     ]);
   });
 };
