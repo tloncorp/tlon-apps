@@ -28,8 +28,8 @@ import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {
   MoveNoteSheet,
   NotebookGateMessage,
-  NotesBanner,
   NotesActionGroupList,
+  NotesBanner,
   confirmNotesDestructiveAction,
   errorMessage,
   useEntityDialog,
