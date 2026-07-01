@@ -4,22 +4,33 @@
   ::
   ++  fail
     |=  [vol=volume =echo =tang =log-data]
+    ~>  %spin.['logs-fail']
     ^-  card:agent:gall
     =/  event=$>(%fail log-event)
       [%fail vol echo tang]
     (pass event log-data)
   ::
+  ++  on-fail
+    |=  [=term =tang]
+    ~>  %spin.['logs-on-fail']
+    ^-  card:agent:gall
+    (fail %error ~[(cat 3 dap ' failed')] [leaf+"{<term>}" tang] ~)
+  ::
   ++  tell
     |=  [vol=volume =echo =log-data]
+    ~>  %spin.['logs-tell']
     ^-  card:agent:gall
     =/  event=$>(%tell log-event)
       [%tell vol echo]
     (pass event log-data)
   ::
-  ++  on-fail
-    |=  [=term =tang]
+  ++  tell-lazy
+    |=  [vol=volume echo=$_(|.(*echo)) =log-data]
+    ~>  %spin.['logs-tell-lazy']
     ^-  card:agent:gall
-    (fail %error ~[(cat 3 dap ' failed')] [leaf+"{<term>}" tang] ~)
+    =/  event=$>(%tell log-event)
+      [%tell vol (echo)]
+    (pass event log-data)
   ::
   ++  pass
     |=  [event=log-event data=log-data]

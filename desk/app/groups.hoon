@@ -1,4 +1,4 @@
-::  groups: agent for ml:lanaging group membership, metadata and permissions
+::  groups: agent for managing group membership, metadata and permissions
 ::
 ::  groups agent can act both as a group server and
 ::  as a subscriber to remote groups. unlike channels, this agent is
@@ -268,17 +268,21 @@
   |_  flow=(unit @t)
   ++  fail
     |=  [vol=volume:logs =echo:logs =tang]
-    ~>  %spin.['fail']
     =/  =card
       (~(fail logs our.bowl dap.bowl /logs) vol echo tang deez)
     (emit card)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs]
-    ~>  %spin.['tell']
     =/  =card
       (~(tell logs our.bowl dap.bowl /logs) vol echo deez)
     (emit card)
+  ::
+  ::++  tell-lazy
+  ::  |=  [vol=volume:logs echo=$_(|.(*echo:logs))]
+  ::  =/  =card
+  ::    (~(tell logs our.bowl dap.bowl /logs) vol echo deez)
+  ::  (emit card)
   ::  +deez: log message details
   ::
   ++  deez
