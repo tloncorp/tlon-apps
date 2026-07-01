@@ -1227,7 +1227,7 @@ export const notesMembers = sqliteTable(
       .references(() => notesNotebooks.id, { onDelete: 'cascade' })
       .notNull(),
     contactId: text('contact_id').notNull(),
-    role: text('role').$type<NotesRole>().notNull(),
+    role: text('role').$type<NotesRole | null>(),
     syncedAt: timestamp('synced_at'),
   },
   (table) => ({

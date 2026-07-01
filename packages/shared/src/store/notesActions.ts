@@ -439,7 +439,10 @@ export async function deleteNotebookNote({
 }) {
   await api.notesV1.deleteNote({ flag: notebookFlag, noteId });
   await db.deleteNotesNote({ notebookFlag, noteId });
-  await syncNotesNotebookWithRetry(notebookFlag);
+  await syncNotesNotebookWithRetry(notebookFlag, async () => {
+    const deleted = await db.getNotesNote({ notebookFlag, noteId });
+    return deleted == null;
+  });
 }
 
 export async function deleteNotebookFolder({
@@ -599,7 +602,8 @@ function toDbMembers(
   flag: string,
   member: api.NotesV1MemberRecord
 ): db.NotesMember[] {
-  return member.roles.map((role) => ({
+  const roles = member.roles.length > 0 ? member.roles : [null];
+  return roles.map((role) => ({
     notebookFlag: flag,
     contactId: member.ship,
     role,

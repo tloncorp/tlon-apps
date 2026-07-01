@@ -2269,7 +2269,7 @@
           "name": "role",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "synced_at": {

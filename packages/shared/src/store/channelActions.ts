@@ -14,6 +14,10 @@ import { getRandomId } from '../logic';
 import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
+const NOTES_CHANNEL_LISTING_ATTEMPTS = 5;
+const NOTES_CHANNEL_LISTING_DELAY_MS = 250;
+
+class NotesChannelListingUnverifiedError extends Error {}
 
 export async function createChannel({
   groupId,
@@ -142,12 +146,6 @@ async function createNotesChannel({
 
     createdNotebookFlag = { host: summary.host, name: summary.flagName };
     const channelId = `notes/${summary.host}/${summary.flagName}`;
-    const group = await db.getGroup({ id: groupId });
-    const sectionId =
-      group?.navSections?.[0]?.sectionId ??
-      group?.navSections?.[0]?.id ??
-      'default';
-
     logger.trackEvent(
       AnalyticsEvent.ActionCreateChannel,
       logic.getModelAnalytics({
@@ -156,39 +154,8 @@ async function createNotesChannel({
       })
     );
 
-    const newChannel: db.Channel = {
-      id: channelId,
-      title,
-      description,
-      type: 'notes',
-      groupId,
-      addedToGroupAt: Date.now(),
-      currentUserIsMember: true,
-      currentUserIsHost: true,
-      contentConfiguration: channelContentConfigurationForChannelType('notes'),
-      lastPostSequenceNum: 0,
-    };
-
+    const newChannel = await waitForNotesChannelListing(groupId, channelId);
     await db.insertChannels([newChannel]);
-    try {
-      await api.addChannelListingToGroup({
-        channelId,
-        groupId,
-        sectionId,
-        meta: {
-          title,
-          description: description ?? '',
-          image: '',
-          cover: '',
-        },
-        readers,
-        join: true,
-      });
-    } catch (e) {
-      await db.deleteChannels([channelId]);
-      logger.error('addChannelListingToGroup failed for notes channel', e);
-      throw new Error(`Failed to add notes channel to group: ${channelId}`);
-    }
 
     syncNotesNotebook(createdNotebookFlag).catch((e) => {
       logger.error('Failed to sync notes notebook after channel create', e);
@@ -196,7 +163,10 @@ async function createNotesChannel({
 
     return newChannel;
   } catch (e) {
-    if (createdNotebookFlag) {
+    if (
+      createdNotebookFlag &&
+      !(e instanceof NotesChannelListingUnverifiedError)
+    ) {
       try {
         await api.deleteNotesNotebookStrict(createdNotebookFlag);
       } catch (rollbackError) {
@@ -209,6 +179,46 @@ async function createNotesChannel({
     logger.error('Failed to add notes channel', e);
     throw new Error(`Failed to add notes channel to group`);
   }
+}
+
+async function waitForNotesChannelListing(groupId: string, channelId: string) {
+  let lastGroupReadSucceeded = false;
+
+  for (
+    let attempt = 1;
+    attempt <= NOTES_CHANNEL_LISTING_ATTEMPTS;
+    attempt += 1
+  ) {
+    try {
+      const group = await api.getGroup(groupId);
+      const listedChannel = group.channels?.find(
+        (channel) => channel.id === channelId
+      );
+      if (listedChannel) {
+        return listedChannel;
+      }
+      lastGroupReadSucceeded = true;
+    } catch {
+      lastGroupReadSucceeded = false;
+    }
+
+    if (attempt < NOTES_CHANNEL_LISTING_ATTEMPTS) {
+      await wait(NOTES_CHANNEL_LISTING_DELAY_MS);
+    }
+  }
+
+  if (lastGroupReadSucceeded) {
+    throw new Error(`Notes channel listing did not appear: ${channelId}`);
+  }
+  throw new NotesChannelListingUnverifiedError(
+    `Could not verify notes channel listing: ${channelId}`
+  );
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 /**
