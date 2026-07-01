@@ -13,6 +13,7 @@ import {
 } from '../test/notesFixtures';
 import {
   createNotebookNote,
+  deleteNotebookNote,
   saveNotebookNote,
   syncNotesNotebook,
 } from './notesActions';
@@ -123,6 +124,23 @@ test('syncNotesNotebook preserves cached members when member sync fails', async 
   ]);
 });
 
+test('syncNotesNotebook preserves members with no roles', async () => {
+  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notesV1, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([
+    { ship: '~role-less', roles: [] },
+  ]);
+
+  await syncNotesNotebook(notebookFlag);
+
+  await expect(db.getNotesMembers({ notebookFlag })).resolves.toMatchObject([
+    expect.objectContaining({ contactId: '~role-less', role: null }),
+  ]);
+});
+
 test('createNotebookNote uses a fresh baseline before finding the created note', async () => {
   const cachedNote = makeNote('Cached note');
   const staleRemoteNote = makeNotesNote(4, rootFolder.folderId, 'Stale remote');
@@ -155,4 +173,37 @@ test('createNotebookNote uses a fresh baseline before finding the created note',
   });
 
   expect(note?.noteId).toBe(createdNote.noteId);
+});
+
+test('deleteNotebookNote waits for the deleted note to disappear from sync', async () => {
+  const note = makeNote('Delete me');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  let readLagging = false;
+  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notesV1, 'listNotes').mockImplementation(async () => {
+    if (readLagging) {
+      readLagging = false;
+      return [makeApiNotesNote(note)];
+    }
+    return [];
+  });
+  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notesV1, 'deleteNote').mockImplementation(async () => {
+    readLagging = true;
+  });
+
+  await deleteNotebookNote({ notebookFlag, noteId: note.noteId });
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toBeNull();
 });

@@ -110,6 +110,42 @@ test('saveNotesNotebookSnapshot stores multiple roles for one notes member', asy
   ]);
 });
 
+test('saveNotesNotebookSnapshot stores members with no role', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook(),
+    folders: [makeNotesFolder(1, '/', null)],
+    notes: [],
+    members: [
+      {
+        notebookFlag,
+        contactId: '~role-less',
+        role: null,
+        syncedAt: 100,
+      },
+    ],
+  });
+
+  await expect(db.getNotesMembers({ notebookFlag })).resolves.toMatchObject([
+    expect.objectContaining({ contactId: '~role-less', role: null }),
+  ]);
+});
+
+test('saveNotesNotebookSnapshot inserts large snapshots in bounded batches', async () => {
+  const folders = [makeNotesFolder(1, '/', null)];
+  const notes = Array.from({ length: 120 }, (_, i) =>
+    makeNotesNote(i + 1, 1, `Note ${i + 1}`)
+  );
+
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook(),
+    folders,
+    notes,
+    members: [],
+  });
+
+  await expect(db.getNotesNotes({ notebookFlag })).resolves.toHaveLength(120);
+});
+
 test('deleteNotesFolders removes folders and notes in those folders', async () => {
   await db.saveNotesNotebookSnapshot({
     notebook: makeNotesNotebook(),

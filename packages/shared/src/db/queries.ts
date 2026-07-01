@@ -521,23 +521,35 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
       await txCtx.db
         .delete($notesFolders)
         .where(eq($notesFolders.notebookFlag, notebook.id));
-      if (folders.length > 0) {
-        await txCtx.db.insert($notesFolders).values(folders);
-      }
+      await batchAction(
+        folders,
+        async (batch) => {
+          await txCtx.db.insert($notesFolders).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
 
       await txCtx.db
         .delete($notesNotes)
         .where(eq($notesNotes.notebookFlag, notebook.id));
-      if (notes.length > 0) {
-        await txCtx.db.insert($notesNotes).values(notes);
-      }
+      await batchAction(
+        notes,
+        async (batch) => {
+          await txCtx.db.insert($notesNotes).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
 
       await txCtx.db
         .delete($notesMembers)
         .where(eq($notesMembers.notebookFlag, notebook.id));
-      if (members.length > 0) {
-        await txCtx.db.insert($notesMembers).values(members);
-      }
+      await batchAction(
+        members,
+        async (batch) => {
+          await txCtx.db.insert($notesMembers).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
     });
   },
   ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
@@ -628,13 +640,15 @@ export const deleteNotesNotebook = createWriteQuery(
   ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
 );
 
+const NOTES_SNAPSHOT_BATCH_SIZE = 50;
 const BATCH_SIZE = 200;
 async function batchAction<T>(
   items: T[],
-  handler: (subset: T[]) => Promise<void>
+  handler: (subset: T[]) => Promise<void>,
+  batchSize = BATCH_SIZE
 ) {
-  for (let i = 0; i < items.length; i += BATCH_SIZE) {
-    const batch = items.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
     await handler(batch);
   }
 }
