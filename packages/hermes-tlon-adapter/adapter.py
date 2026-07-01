@@ -109,6 +109,17 @@ from .telemetry import (
     handle_post_tool_call_telemetry,
     set_active_telemetry,
 )
+from .lens import (
+    LensOutput,
+    LensRun,
+    TlonLensRecorder,
+    TlonLensSync,
+    clear_active_recorder,
+    handle_post_api_request_lens,
+    handle_post_tool_call_lens,
+    handle_pre_tool_call_lens,
+    set_active_recorder,
+)
 from .version import (
     content_fingerprint,
     format_version_reply,
@@ -478,6 +489,46 @@ def _processing_outcome_value(outcome: Any) -> Optional[str]:
     return None
 
 
+# Maps the adapter's dispatch_reason (attention.py / approval flow) onto the
+# ContextLensTrigger union the client renders (context-lens.ts).
+_LENS_TRIGGER_MAP = {
+    "dm": "dm",
+    "mention": "mention",
+    "owner-listen": "owner-listen",
+    "participated-thread": "thread",
+    "approved": "dm",
+}
+
+
+def _lens_trigger(dispatch_reason: str) -> str:
+    return _LENS_TRIGGER_MAP.get(dispatch_reason, "unknown")
+
+
+def _lens_run_kind(dispatch_reason: str) -> str:
+    return "owner_listen" if dispatch_reason == "owner-listen" else "conversation"
+
+
+def _lens_final_status(processing_outcome: Optional[str], *, delivered: bool) -> str:
+    """Map (outcome, delivery) onto the terminal ContextLensStatus."""
+    if delivered:
+        return "completed"
+    if processing_outcome == "failure":
+        return "error"
+    if processing_outcome == "cancelled":
+        return "aborted"
+    return "no_reply"
+
+
+def _epoch_ms(value: Any) -> Optional[int]:
+    ts = getattr(value, "timestamp", None)
+    if callable(ts):
+        try:
+            return int(value.timestamp() * 1000)
+        except Exception:
+            return None
+    return None
+
+
 def _cli_available(cli: str | None = None) -> bool:
     candidate = cli or os.getenv("TLON_CLI", "tlon")
     if not candidate:
@@ -532,6 +583,13 @@ class TlonAdapter(BasePlatformAdapter):
                 "gateway_status", exc, operation=operation
             ),
         )
+        self._lens_sync = TlonLensSync(
+            self.tlon_config,
+            on_error=lambda operation, exc: self._telemetry.error(
+                "context_lens", exc, operation=operation
+            ),
+        )
+        self._lens = TlonLensRecorder(self._lens_sync)
         self._computing_presence = TlonComputingPresenceTracker(
             reporter=TlonComputingPresenceReporter(self.tlon_config),
             on_error=lambda action, exc: self._telemetry.error(
@@ -592,6 +650,7 @@ class TlonAdapter(BasePlatformAdapter):
             await self._process_pending_dm_invites()
             await self._process_pending_group_invites()
             await self._start_gateway_status()
+            await self._start_lens()
             self._stream_task = asyncio.create_task(self._run_stream())
             self._computing_presence.bind_loop(asyncio.get_running_loop())
             set_active_computing_presence_tracker(self._computing_presence)
@@ -647,8 +706,10 @@ class TlonAdapter(BasePlatformAdapter):
             self._connected_at = 0.0
         clear_active_telemetry(self._telemetry)
         clear_active_computing_presence_tracker(self._computing_presence)
+        clear_active_recorder(self._lens)
         await self._computing_presence.close()
         await self._stop_gateway_status("shutdown")
+        await self._stop_lens()
         if self._stream_task is not None:
             self._stream_task.cancel()
             try:
@@ -1554,6 +1615,22 @@ class TlonAdapter(BasePlatformAdapter):
         except Exception as exc:
             logger.warning("[tlon] gateway-status shutdown failed: %s", exc)
 
+    async def _start_lens(self) -> None:
+        try:
+            started = await self._lens_sync.start()
+        except Exception as exc:
+            logger.warning("[tlon] context-lens activation failed: %s", exc)
+            self._telemetry.error("context_lens", exc, operation="start")
+            return
+        if started:
+            set_active_recorder(self._lens)
+
+    async def _stop_lens(self) -> None:
+        try:
+            await self._lens_sync.stop()
+        except Exception as exc:
+            logger.warning("[tlon] context-lens shutdown failed: %s", exc)
+
     async def _connect_sse(self) -> None:
         await self._close_sse()
         self._sse = TlonSSEClient(self.tlon_config)
@@ -1977,6 +2054,7 @@ class TlonAdapter(BasePlatformAdapter):
             sender_role="owner" if self._is_owner(message.user_id) else "user",
             dispatch_reason=dispatch_reason,
         )
+        await self._begin_lens_run(message, is_dm=is_dm, dispatch_reason=dispatch_reason)
         # Thread context flows for DMs too, so the bot replies inside a DM
         # thread instead of the main conversation.
         reply_context = message.reply_to_message_id
@@ -2019,14 +2097,49 @@ class TlonAdapter(BasePlatformAdapter):
             run_id=self._presence_run_id(event),
         )
 
+    async def _begin_lens_run(
+        self,
+        message: TlonIncomingMessage,
+        *,
+        is_dm: bool,
+        dispatch_reason: str,
+    ) -> None:
+        if not self._lens.enabled:
+            return
+        conversation_kind = "dm" if is_dm else "channel"
+        run = LensRun(
+            lens_id=str(uuid.uuid4()),
+            message_id=message.message_id,
+            chat_type=conversation_kind,
+            trigger=_lens_trigger(dispatch_reason),
+            conversation_kind=conversation_kind,
+            run_kind=_lens_run_kind(dispatch_reason),
+            author_ship=normalize_ship(message.user_id) or None,
+            conversation_id=message.chat_id,
+            received_at=_epoch_ms(message.sent_at),
+            preview=message.text or None,
+            thread_messages=1 if message.reply_to_message_id else 0,
+            emits_telemetry=self._telemetry.enabled,
+        )
+        run.set_status("dispatching")
+        self._lens.begin(message.chat_id, run)
+        await self._lens.push(message.chat_id)
+
     async def on_processing_complete(self, event: MessageEvent, outcome: Any) -> None:
         await self._computing_presence.stop_run(
             conversation_id=event.source.chat_id,
             run_id=self._presence_run_id(event),
         )
+        processing_outcome = _processing_outcome_value(outcome)
         self._telemetry.finish_reply(
             event.source.chat_id,
-            processing_outcome=_processing_outcome_value(outcome),
+            processing_outcome=processing_outcome,
+        )
+        existing = self._lens.get(event.source.chat_id)
+        delivered = bool(existing and existing.delivered_message_count > 0)
+        await self._lens.finish(
+            event.source.chat_id,
+            status=_lens_final_status(processing_outcome, delivered=delivered),
         )
 
     @staticmethod
@@ -2085,6 +2198,18 @@ class TlonAdapter(BasePlatformAdapter):
             else:
                 result = await self._cli.send_message(chat_id, content)
         self._telemetry.record_delivery(chat_id, content=content, success=result.success)
+        if result.success:
+            self._lens.record_output(
+                chat_id,
+                LensOutput(
+                    message_id=str(result.message_id or ""),
+                    conversation_id=chat_id,
+                    kind="dm" if normalize_ship(chat_id) == chat_id else "channel",
+                    sent_at=int(time.time() * 1000),
+                    preview=content or None,
+                    chunk_index=None,
+                ),
+            )
 
         raw_response = {
             "stdout": result.stdout,
@@ -2265,10 +2390,13 @@ async def _standalone_send(
 
 def register(ctx) -> None:
     ctx.register_hook("pre_tool_call", handle_pre_tool_call)
+    ctx.register_hook("pre_tool_call", handle_pre_tool_call_lens)
     ctx.register_hook("pre_tool_call", block_tlon_session_tool)
     ctx.register_hook("post_api_request", handle_post_api_request)
     ctx.register_hook("post_api_request", handle_post_api_request_telemetry)
+    ctx.register_hook("post_api_request", handle_post_api_request_lens)
     ctx.register_hook("post_tool_call", handle_post_tool_call_telemetry)
+    ctx.register_hook("post_tool_call", handle_post_tool_call_lens)
 
     ctx.register_tool(
         name="tlon",

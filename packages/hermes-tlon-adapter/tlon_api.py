@@ -191,6 +191,8 @@ class TlonConfig:
     gateway_status_lease_seconds: float = DEFAULT_GATEWAY_LEASE_SECONDS
     gateway_status_active_window_seconds: int = DEFAULT_GATEWAY_ACTIVE_WINDOW_SECONDS
     gateway_status_reply_cooldown_seconds: int = DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS
+    context_lens_enabled: bool = False
+    context_lens_owner: str = ""
     sse_read_timeout_seconds: float = DEFAULT_SSE_READ_TIMEOUT_SECONDS
     # Force the hosted (memex) image-upload path. Opt-in: only true when the
     # operator sets TLON_HOSTING. Read once where the env is reliably present
@@ -470,6 +472,22 @@ class TlonConfig:
             ),
             DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS,
         )
+        context_lens_enabled = parse_bool(
+            _env_or_extra(
+                env,
+                ("TLON_CONTEXT_LENS", "TLON_CONTEXT_LENS_ENABLED"),
+                extra,
+                ("context_lens", "context_lens_enabled"),
+            )
+        )
+        context_lens_owner = normalize_ship(
+            _env_first(
+                env,
+                ("TLON_CONTEXT_LENS_OWNER",),
+                extra,
+                ("context_lens_owner",),
+            )
+        )
         sse_read_timeout_seconds = _parse_float(
             _env_or_extra(
                 env,
@@ -530,6 +548,8 @@ class TlonConfig:
             gateway_status_lease_seconds=gateway_status_lease_seconds,
             gateway_status_active_window_seconds=gateway_status_active_window_seconds,
             gateway_status_reply_cooldown_seconds=gateway_status_reply_cooldown_seconds,
+            context_lens_enabled=context_lens_enabled,
+            context_lens_owner=context_lens_owner,
             sse_read_timeout_seconds=sse_read_timeout_seconds,
         )
 
@@ -594,6 +614,9 @@ class TlonConfig:
 
     def gateway_status_owner_ship(self) -> str:
         return self.gateway_status_owner or self.owner_ship
+
+    def context_lens_owner_ship(self) -> str:
+        return self.context_lens_owner or self.owner_ship
 
 
 @dataclass(frozen=True)
