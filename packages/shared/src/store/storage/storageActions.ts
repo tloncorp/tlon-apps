@@ -115,7 +115,12 @@ export async function uploadAsset(
     case 'fileUri': {
       await uploadAssetWithLifecycle(intent, isWeb, {
         async prepareAsset() {
-          return { uri: intent.localUri };
+          return {
+            uri: intent.localUri,
+            size: intent.size,
+            mimeType: intent.mimeType,
+            name: intent.name,
+          };
         },
       });
       break;
@@ -246,7 +251,11 @@ async function uploadImageAsset(
 
 export const performUpload = async (
   params:
-    | (Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string })
+    | (Pick<RNFile, 'uri' | 'height' | 'width'> & {
+        mimeType?: string;
+        size?: number;
+        name?: string;
+      })
     | File,
   isWeb = false
 ) => {
@@ -271,14 +280,25 @@ export const performUpload = async (
         sourceUri: URL.createObjectURL(params),
       };
     } else {
-      const fileInfo = await FileSystem.getInfoAsync(params.uri);
-      const size = fileInfo.exists ? fileInfo.size : 0;
-      const contentType = params.mimeType || 'application/octet-stream';
+      let size = params.size;
+      let fallbackType: string | undefined;
+      if (size == null) {
+        if (isWeb) {
+          // Web URIs are blob:/data:, which the browser's fetch resolves and
+          // expo-file-system's web shim cannot stat.
+          const blob = await (await fetch(params.uri)).blob();
+          size = blob.size;
+          fallbackType = blob.type || undefined;
+        } else {
+          const fileInfo = await FileSystem.getInfoAsync(params.uri);
+          size = fileInfo.exists ? fileInfo.size : 0;
+        }
+      }
+      const contentType =
+        params.mimeType || fallbackType || 'application/octet-stream';
       const baseFileName =
-        params.uri.split('/').pop()?.split('?')[0] || 'image';
-      const extension = getExtensionFromMimeType(
-        params.mimeType || contentType
-      );
+        params.name || params.uri.split('/').pop()?.split('?')[0] || 'image';
+      const extension = getExtensionFromMimeType(contentType);
       const fileName = baseFileName.includes('.')
         ? baseFileName
         : `${baseFileName}${extension}`;
