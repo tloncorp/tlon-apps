@@ -96,6 +96,7 @@
       "@tiptap/pm": "2.6.6",
       "react": "19.2.3",
       "react-dom": "19.2.3",
+      "react-test-renderer": "19.2.3",
       "react-native": "0.85.3",
       "@types/react": "~19.2.0",
       "react-native-reanimated": "4.3.1",
