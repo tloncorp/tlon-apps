@@ -42,14 +42,24 @@
 +$  state-0
   $:  %0
       =places
+      want=(set [ship context])
+      subs=(jug context ship)
+  ==
++$  state-1
+  $:  %1
+      =places
       :: ships=(jug ship context)
     ::
-      want=(set [ship context])  ::  desired outgoing subs
-      subs=(jug context ship)    ::  real incoming subs
-      ::TODO  wack=(set ship)    ::  waiting for acks (load prevention)
+      want=(set [ship context])   ::  desired outgoing subs
+      subs=(jug context ship)     ::  real incoming subs
+      tries=(map [ship context] @ud)  ::  consecutive sub nacks
+      ::TODO  wack=(set ship)     ::  waiting for acks (load prevention)
   ==
++$  versioned-state  $%(state-0 state-1)
 ::
 +$  card  card:agent:gall
+::
+++  max-tries  5
 ::
 ++  default-timeout
   |=  =topic
@@ -241,7 +251,7 @@
   ==
 --
 ::
-=|  state-0
+=|  state-1
 =*  state  -
 ::
 %-  agent:dbug
@@ -263,7 +273,13 @@
 ++  on-load
   |=  ole=vase
   ^-  (quip card _this)
-  :_  this(state !<(state-0 ole))
+  =/  old  !<(versioned-state ole)
+  =/  new=state-1
+    ?-  -.old
+      %0  [%1 places.old want.old subs.old ~]
+      %1  old
+    ==
+  :_  this(state new)
   :~  (tell:log %dbug ~['on-load: scheduling setup' >`@ud`~(wyt in want)< >`@ud`~(wyt by subs)<] ~)
       (await-setup now.bowl ~)
   ==
@@ -321,7 +337,11 @@
         %+  give-update
           (~(del ju subs) context.key.cmd src.bowl)
         [disclose.cmd %set +>.cmd]
-      ?.  (~(has in disclose.cmd) our.bowl)
+      ::  an empty disclose means public, which includes ourselves.
+      ::  without this, the host's own client never sees presence
+      ::  for contexts it hosts.
+      ::
+      ?.  |(=(~ disclose.cmd) (~(has in disclose.cmd) our.bowl))
         [fus this]
       ::TODO  send response too?
       :_  this(places (put-presence places +>.cmd))
@@ -438,6 +458,7 @@
             (watch-context our.bowl u.new)
         ==
       ?:  &(!add.u.news (~(has in want) u.new))
+        =.  tries  (~(del by tries) u.new)
         :_  this(want (~(del in want) u.new))
         :~  (tell:log %dbug ~['channels/all: removing context' >u.new<] ~)
             (leave-context u.new)
@@ -466,12 +487,34 @@
     ::
         %watch-ack
       ?~  p.sign
+        =.  tries  (~(del by tries) [src.bowl context])
         :_  this
         [(tell:log %dbug ~['context sub ack ok' >src.bowl< >context<] ~)]~
-      ::  nacked, can't do anything, drop desire
+      ::  nacked. nacks are commonly transient (host hasn't synced the
+      ::  group or channel yet), so retry with linear backoff. after
+      ::  +max-tries consecutive nacks, drop the desire so we don't
+      ::  retry forever; the next full setup starts a fresh cycle if
+      ::  the context is still relevant.
       ::
-      :_  this(want (~(del in want) src.bowl context))
-      [(fail:log %warn ~['context sub nacked, dropping desire' >[src=src.bowl context=context]<] u.p.sign ~)]~
+      =/  try=@ud  +((~(gut by tries) [src.bowl context] 0))
+      ?:  (gth try max-tries)
+        =.  want   (~(del in want) [src.bowl context])
+        =.  tries  (~(del by tries) [src.bowl context])
+        :_  this
+        =-  [(tell:log %warn - ~)]~
+        :*  'context sub nacked, giving up'
+            >[src=src.bowl context=context]<
+            u.p.sign
+        ==
+      =.  tries  (~(put by tries) [src.bowl context] try)
+      :_  this
+      :~  (await-setup (add now.bowl (mul try ~m5)) `[src.bowl context])
+          =-  (fail:log %warn - u.p.sign ~)
+          :*  'context sub nacked, will retry'
+              >[src=src.bowl context=context try=try]<
+              ~
+          ==
+      ==
     ::
         %fact
       ?.  ?=(%presence-update-1 p.cage.sign)
@@ -545,6 +588,13 @@
       =/  dms=(set [ship context])    (dm-contexts bowl)
       =/  chans=(set [ship context])  (channel-contexts bowl)
       =.  want  (~(uni in dms) chans)
+      ::  prune retry counts for contexts we no longer want
+      ::
+      =.  tries
+        %+  roll  ~(tap by tries)
+        |=  [[k=[ship context] n=@ud] acc=(map [ship context] @ud)]
+        ?.  (~(has in want) k)  acc
+        (~(put by acc) k n)
       =/  cards=(list card)  (inflate bowl want)
       :_  this
       %+  weld
@@ -561,6 +611,13 @@
     =/  =ship  (slav %p i.t.wire)
     ?<  =(ship our.bowl)  ::  don't subscribe to ourselves
     =*  context  t.t.wire
+    ::  the desire may have been dropped (context left) between the nack
+    ::  retry being scheduled and firing. don't resubscribe in that case.
+    ::
+    ?.  (~(has in want) [ship context])
+      =.  tries  (~(del by tries) [ship context])
+      :_  this
+      [(tell:log %dbug ~['setup(specific): no longer wanted, skipping' >ship< >context<] ~)]~
     ?:  (~(has by wex.bowl) [%context context] ship dap.bowl)
       :_  this
       [(tell:log %dbug ~['setup(specific): already subscribed, skipping' >ship< >context<] ~)]~

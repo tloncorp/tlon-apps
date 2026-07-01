@@ -13,6 +13,7 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
+import { activityVersionSupportsReactions } from '../../logic';
 import { perfMark, perfTime } from '../../perfLog';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -76,7 +77,6 @@ export const syncInitData = async (
     await persistUnreads({
       unreads: initData.unreads,
       ctx: queryCtx,
-      includesAllUnreads: true,
     }).then(() => logger.crumb('persisted unreads'));
 
     await db
@@ -102,11 +102,11 @@ export const syncInitData = async (
       .insertChannelOrder(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel order'));
     await db
-      .setLeftGroupChannels(
-        { joinedChannelIds: initData.joinedChannels },
+      .reconcileJoinedGroupChannels(
+        { joinedChannelIds: initData.joinedGroupChannels },
         queryCtx
       )
-      .then(() => logger.crumb('set left channels'));
+      .then(() => logger.crumb('reconciled group channel membership'));
     updateLastActivityTime();
   };
 
@@ -501,7 +501,20 @@ export const syncSettings = async (ctx?: SyncCtx) => {
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
   const appInfo = await syncQueue.add('appInfo', ctx, () => api.getAppInfo());
+  api.setActivitySupportsReactions(
+    activityVersionSupportsReactions(appInfo?.groupsVersion)
+  );
   return db.appInfo.setValue(appInfo);
+};
+
+// Resolves the backend's reaction capability from the last-known (persisted)
+// groups version and applies it to the activity client before it picks endpoint
+// versions. A fresh version is fetched by syncAppInfo, which also updates this.
+export const syncReactionSupport = async () => {
+  const appInfo = await db.appInfo.getValue();
+  api.setActivitySupportsReactions(
+    activityVersionSupportsReactions(appInfo?.groupsVersion)
+  );
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -777,10 +790,8 @@ export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {
   );
   checkForNewlyJoined(unreads);
   return queryCtx
-    ? persistUnreads({ unreads, ctx: queryCtx, includesAllUnreads: true })
-    : batchEffects('initialUnreads', (ctx) =>
-        persistUnreads({ unreads, ctx, includesAllUnreads: true })
-      );
+    ? persistUnreads({ unreads, ctx: queryCtx })
+    : batchEffects('initialUnreads', (ctx) => persistUnreads({ unreads, ctx }));
 };
 
 export const syncChannelThreadUnreads = async (
@@ -924,6 +935,28 @@ export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
     api.getPushNotificationsSetting()
   );
   await db.pushNotificationSettings.setValue(setting);
+};
+
+export async function handleLensUpdate(runs: api.LensRun[]) {
+  logger.log('received lens update', runs.length);
+  await db.insertContextLensRuns(runs);
+}
+
+export const syncLensRuns = async (ctx?: SyncCtx) => {
+  const runs = await syncQueue.add('lensRuns', ctx, async () => {
+    try {
+      return await api.getRecentLensRuns();
+    } catch (e) {
+      // older ships don't have the %steward agent
+      if (e instanceof api.BadResponseError && e.status === 404) {
+        return null;
+      }
+      throw e;
+    }
+  });
+  if (runs) {
+    await db.insertContextLensRuns(runs);
+  }
 };
 
 async function handleLanyardUpdate(update: api.LanyardUpdate) {
@@ -1163,7 +1196,17 @@ export async function handleGroupUpdate(
       break;
     }
     case 'updateChannel': {
-      await db.updateChannel(update.channel, ctx);
+      // A channel edit (metadata / readers) must not redefine the current
+      // user's membership. The r-group reducer builds this channel with no
+      // role context, so currentUserIsMember is computed from readers ∩ {} —
+      // which wrongly marks a now-restricted channel as "left". Membership is
+      // owned by the full group sync (which has the user's roles) and the
+      // active-channels join/leave path, so strip it from this update.
+      const channelUpdate: Partial<db.Channel> & { id: string } = {
+        ...update.channel,
+      };
+      delete channelUpdate.currentUserIsMember;
+      await db.updateChannel(channelUpdate, ctx);
       if (update.channel.groupId) {
         await syncGroup(update.channel.groupId, undefined, { force: true });
         await syncUnreads();
@@ -1545,7 +1588,7 @@ export const handleChannelsUpdate = async (
       break;
     case 'deletePost':
       await db.markPostAsDeleted(update.postId, ctx);
-      await db.updateChannel({ id: update.channelId, lastPostId: null }, ctx);
+      await db.recomputeChannelLastPost({ channelId: update.channelId }, ctx);
       break;
     case 'hidePost':
       await db.updatePost({ id: update.postId, hidden: true }, ctx);
@@ -1582,12 +1625,6 @@ export const handleChannelsUpdate = async (
     }
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' }, ctx);
-      break;
-    case 'joinChannelSuccess':
-      await db.addJoinedGroupChannel({ channelId: update.channelId }, ctx);
-      break;
-    case 'leaveChannelSuccess':
-      await db.removeJoinedGroupChannel({ channelId: update.channelId }, ctx);
       break;
     case 'initialPostsOnChannelJoin':
       await db.insertChannelPosts(
@@ -2214,12 +2251,36 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     }
 
     updateSession({ phase: 'low' });
+    // Resolve the backend's reaction capability from the *current* version
+    // before the activity feed and subscription below pick their endpoint
+    // versions, so reactions work on first launch and right after a ship
+    // upgrade rather than only after a restart. Fall back to the last-known
+    // (persisted) version if the fresh fetch fails.
+    await syncAppInfo({ priority: syncStartPriority.low + 1 })
+      .then(() => logger.crumb(`finished syncing app info`))
+      .catch((err) => {
+        logger.trackError(
+          'Failed to sync app info; falling back to persisted version for reaction capability',
+          { error: err instanceof Error ? err.message : String(err) }
+        );
+        return syncReactionSupport().catch(() => {});
+      });
     const lowPriorityPromises = [
       alreadySubscribed
         ? Promise.resolve()
         : setupLowPrioritySubscriptions({
             priority: syncStartPriority.low,
           }).then(() => logger.crumb('subscribed low priority')),
+      // On recovery the live subscription persists across the discontinuity,
+      // so setupLowPrioritySubscriptions (and its post-subscribe lens
+      // backfill) is skipped. Rescry /v1/lens directly to recover any events
+      // missed while the SSE connection was down. No-ops on ships without
+      // %steward (syncLensRuns swallows the 404).
+      alreadySubscribed
+        ? syncLensRuns({ priority: syncStartPriority.low + 1 }).then(() =>
+            logger.crumb('finished recovery lens backfill')
+          )
+        : Promise.resolve(),
       resetActivity({ priority: syncStartPriority.low + 1, retry: true }).then(
         () => logger.crumb(`finished resetting activity`)
       ),
@@ -2244,9 +2305,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       }).then(() =>
         logger.crumb(`finished syncing push notifications setting`)
       ),
-      syncAppInfo({ priority: syncStartPriority.low + 1 }).then(() => {
-        logger.crumb(`finished syncing app info`);
-      }),
       syncSystemContacts({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),
@@ -2295,6 +2353,13 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeToStorageUpdates(createHandler(handleStorageUpdate)),
       api.subscribeToLanyardUpdates(handleLanyardUpdate),
       api.subscribeToSettings(createHandler(handleSettingsUpdate)),
+      // returns null (and skips backfill) when the ship lacks the %steward agent
+      api.subscribeToLensUpdates(handleLensUpdate).then((subscribed) => {
+        if (subscribed === null) {
+          return;
+        }
+        return syncLensRuns();
+      }),
     ]);
   });
 };

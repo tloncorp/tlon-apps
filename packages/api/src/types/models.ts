@@ -255,6 +255,8 @@ export interface Settings {
   completedWayfindingTutorial?: boolean;
   disableTlonInfraEnhancement?: boolean;
   webAppSplashDismissed?: boolean;
+  mobileAppPromoDismissed?: boolean;
+  contextLensEnabled?: boolean;
 }
 
 export interface VolumeSettings {

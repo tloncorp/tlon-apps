@@ -8,6 +8,8 @@ import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
 import { AddContactsScreen } from '../features/contacts/AddContactsScreen';
 import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemContactsScreen';
+import { ContextLensRunScreen } from '../features/lens/ContextLensRunScreen';
+import { ContextLensRunsScreen } from '../features/lens/ContextLensRunsScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
@@ -32,7 +34,6 @@ import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../features/top/MediaViewerScreen';
 import PostScreen from '../features/top/PostScreen';
-import { PostUsingContentConfigurationScreen } from '../features/top/PostUsingContentConfigurationScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
@@ -97,6 +98,8 @@ export function RootStack() {
       <Root.Screen name="DM" component={ChannelScreen} />
       <Root.Screen name="GroupDM" component={ChannelScreen} />
       <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
+      <Root.Screen name="ContextLensRuns" component={ContextLensRunsScreen} />
+      <Root.Screen name="ContextLensRun" component={ContextLensRunScreen} />
       <Root.Screen name="Post" component={PostScreen} />
       <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
       <Root.Screen
@@ -141,10 +144,6 @@ export function RootStack() {
       <Root.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
       <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
       <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
-      <Root.Screen
-        name="PostUsingContentConfiguration"
-        component={PostUsingContentConfigurationScreen}
-      />
       <Root.Screen name="ChannelTemplate" component={ChannelTemplateScreen} />
       <Root.Screen
         name="InviteSystemContacts"

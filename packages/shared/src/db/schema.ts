@@ -77,6 +77,8 @@ export const settings = sqliteTable('settings', {
   completedWayfindingTutorial: boolean('completed_wayfinding_tutorial'),
   disableTlonInfraEnhancement: boolean('disable_tlon_infra_enhancement'),
   webAppSplashDismissed: boolean('web_app_splash_dismissed'),
+  mobileAppPromoDismissed: boolean('mobile_app_promo_dismissed'),
+  contextLensEnabled: boolean('context_lens_enabled'),
 });
 
 export const systemContacts = sqliteTable(
@@ -1265,3 +1267,23 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
     references: [contacts.id],
   }),
 }));
+
+// Per-run bot introspection records synced from the %steward agent's lens
+// module. Payload is the gateway's run record as structured JSON (inner
+// schemaVersion); see docs/steward.md.
+export const contextLensRuns = sqliteTable(
+  'context_lens_runs',
+  {
+    botShip: text('bot_ship').notNull(),
+    lensId: text('lens_id').notNull(),
+    complete: boolean('complete').notNull().default(false),
+    receivedAt: timestamp('received_at').notNull(),
+    payload: text('payload', { mode: 'json' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.botShip, table.lensId] }),
+    receivedAtIndex: index('context_lens_runs_received_at_index').on(
+      table.receivedAt
+    ),
+  })
+);

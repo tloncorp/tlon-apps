@@ -308,7 +308,8 @@
       ::
       %bait-update
     =+  !<([=token:reel update=metadata:reel] vase)
-    ?~  meta=(~(get by token-metadata) token)  `this
+    ?~  meta=(~(get by token-metadata) token)
+      `this
     ::  update the invite
     ::
     =.  token-metadata
@@ -330,7 +331,8 @@
     ::
     =+  id=(rap 3 (scot %p p.flag) '/' q.flag ~)
     ::  only the group host is allowed to update associated invites
-    ?.  =(p.flag src.bowl)  `this
+    ?.  =(p.flag src.bowl)
+      `this
     =.  token-metadata
       %+  roll  ~(tap in (~(get ju stable-id) id))
       |=  [=token:reel =_token-metadata]

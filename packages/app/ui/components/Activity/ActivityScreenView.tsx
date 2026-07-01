@@ -38,6 +38,7 @@ export function ActivityScreenView({
   loadingSubtitle,
   onNavigateToContacts,
   onInviteFriends,
+  scrollRef,
 }: {
   isFocused: boolean;
   goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
@@ -51,6 +52,7 @@ export function ActivityScreenView({
   loadingSubtitle?: string | null;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
+  scrollRef?: React.RefObject<FlatList | null>;
 }) {
   const store = useStore();
   const { data: activitySeenMarker } = store.useActivitySeenMarker();
@@ -123,6 +125,44 @@ export function ActivityScreenView({
             goToThread(parentPost);
           } else {
             console.warn('No parent found for reply', event);
+          }
+          break;
+        case 'react':
+          // navigate to the reacted-to content: the thread for a react on a
+          // reply, otherwise the channel focused on the reacted post
+          if (event.parent) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              type: 'reaction',
+            });
+            goToThread(event.parent);
+          } else if (event.parentId) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              type: 'reaction',
+            });
+            goToThread(db.assembleParentPostFromActivityEvent(event));
+          } else if (event.channel) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              ...logic.getModelAnalytics({ channel: event.channel }),
+              type: 'reaction',
+            });
+            if (event.postId) {
+              goToChannel(event.channel, event.postId);
+            } else {
+              goToChannel(event.channel);
+            }
+          } else if (event.channelId) {
+            const channel = await db.getChannel({ id: event.channelId });
+            if (channel) {
+              logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+                ...logic.getModelAnalytics({ channel }),
+                type: 'reaction',
+              });
+              goToChannel(channel, event.postId ?? undefined);
+            } else {
+              console.warn('No channel found for react', event);
+            }
+          } else {
+            console.warn('No target found for react', event);
           }
           break;
         case 'group-ask':
@@ -210,6 +250,7 @@ export function ActivityScreenView({
       loadingSubtitle={loadingSubtitle}
       onNavigateToContacts={onNavigateToContacts}
       onInviteFriends={onInviteFriends}
+      scrollRef={scrollRef}
     />
   );
 }
@@ -231,6 +272,7 @@ export function ActivityScreenContent({
   loadingSubtitle,
   onNavigateToContacts,
   onInviteFriends,
+  scrollRef,
 }: {
   activeTab: db.ActivityBucket;
   onPressTab: (tab: db.ActivityBucket) => void;
@@ -248,6 +290,7 @@ export function ActivityScreenContent({
   loadingSubtitle?: string | null;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
+  scrollRef?: React.RefObject<FlatList | null>;
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
@@ -326,6 +369,7 @@ export function ActivityScreenContent({
               </XStack>
             ) : (
               <FlatList
+                ref={scrollRef}
                 data={events}
                 renderItem={renderItem}
                 keyExtractor={keyExtractor}

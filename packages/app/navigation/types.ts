@@ -8,7 +8,9 @@ export type RootStackParamList = {
   VerifierStub: undefined;
   Contacts: undefined;
   Empty: undefined;
-  ChatList: { previewGroupId: string } | undefined;
+  ChatList:
+    | { previewGroupId: string; previewGroupFromInviteNotification?: boolean }
+    | undefined;
   Activity: undefined;
   Settings: undefined;
   DM: {
@@ -33,6 +35,14 @@ export type RootStackParamList = {
   ChannelSearch: {
     channelId: string;
     groupId: string;
+  };
+  ContextLensRuns: {
+    channelId?: string;
+  };
+  ContextLensRun: {
+    botShip: string;
+    lensId: string;
+    channelId?: string;
   };
   Post: {
     postId: string;
@@ -80,10 +90,6 @@ export type RootStackParamList = {
     channelId: string;
   };
   ChannelMeta: {
-    channelId: string;
-  };
-  PostUsingContentConfiguration: {
-    postId: string;
     channelId: string;
   };
   ChannelTemplate: {

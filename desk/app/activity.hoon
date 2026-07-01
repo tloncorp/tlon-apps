@@ -347,6 +347,7 @@
   |=  [=mark =vase]
   ~>  %spin.['poke']
   ^+  cor
+  ?>  from-self
   ?+  mark  ~|(bad-poke+mark !!)
       %noun
     ?+  q.vase  ~|(bad-poke+mark !!)
@@ -381,32 +382,29 @@
     $(+< activity-action-1+!>(`action:v9:av`action))
   ::
       %egg-any
-    =+  !<(=egg-any:gall vase)
-    ?-  -.egg-any
-        ?(%15 %16)
-      ?.  ?=(%live +<.egg-any)
-        ~&  [dap.bowl %egg-any-not-live]
-        cor
-      =/  bak
-        (load -:!>(*versioned-state:load) +>.old-state.egg-any)
-      ::  restore volume settings, but keep any we've explicitly set ourselves,
-      ::  and restore activity summaries & read/bump status
-      ::
-      =.  allowed          allowed:bak
-      =.  volume-settings  (~(uni by volume-settings:bak) volume-settings)
-      =.  activity         (~(uni by activity:bak) activity)
-      =.  indices
-        %.  indices
-        %~  uni  by
-        %-  ~(run by indices:bak)
-        |=  index:a
-        ^-  index:a
-        :_  [[floor.reads ~] bump]
-        ?~  hed=(ram:on-event:a stream)
-          *stream:a
-        (put:on-event:a *stream:a u.hed)
-      (emil (prod-next:imp [our dap]:bowl))
-    ==
+    =/  =egg:gall  (latest:egg-aid:gall !<(egg-any:gall vase))
+    ?.  ?=(%live -.egg)
+      ~&  [dap.bowl %egg-not-live]
+      cor
+    =/  bak
+      (load -:!>(*versioned-state:load) +>.old-state.egg)
+    ::  restore volume settings, but keep any we've explicitly set ourselves,
+    ::  and restore activity summaries & read/bump status
+    ::
+    =.  allowed          allowed:bak
+    =.  volume-settings  (~(uni by volume-settings:bak) volume-settings)
+    =.  activity         (~(uni by activity:bak) activity)
+    =.  indices
+      %.  indices
+      %~  uni  by
+      %-  ~(run by indices:bak)
+      |=  index:a
+      ^-  index:a
+      :_  [[floor.reads ~] bump]
+      ?~  hed=(ram:on-event:a stream)
+        *stream:a
+      (put:on-event:a *stream:a u.hed)
+    (emil (prod-next:imp [our dap]:bowl))
   ==
 ::
 ++  watch

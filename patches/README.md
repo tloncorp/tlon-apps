@@ -221,3 +221,79 @@ Removal:
 Remove this patch once `react-native-gesture-handler` ships a version of
 `ReanimatedSwipeable` that disables pointer events on the hidden action
 container, and we confirm the Android repro no longer needs the local fix.
+
+## expo-image-manipulator@14.0.8
+
+Why:
+Expo's iOS orientation transformer normalizes images by manually creating a
+`CGContext` with the source image's bit depth and color space, but with a
+hard-coded `premultipliedLast` bitmap layout. HDR/10-bit HEIC images can fail
+that context allocation with `Image context has been lost`, which prevents
+mobile image uploads from finishing.
+
+What it does:
+Skips orientation normalization when `UIImage.imageOrientation` is already
+`.up`. For non-upright images, uses Expo's `UIGraphicsImageRenderer` helper and
+`UIImage.draw(in:)` instead of constructing a raw bitmap context. This lets
+UIKit choose a supported backing context while still applying orientation and
+mirroring before the requested resize runs.
+
+Local patch:
+`patches/expo-image-manipulator@14.0.8.patch`
+
+Upstream:
+- no matching Expo upstream fix found as of June 2026
+- related public reports: `Expensify/App#81702`,
+  `SDWebImage/SDWebImage#3333`
+
+Validation:
+- Rebuild the iOS app so the native patch is compiled in
+- On iOS with Screen Capture set to HDR, upload an HDR HEIC screenshot that
+  previously failed with `Image context has been lost`
+- Confirm a rotated or mirrored HEIC/JPEG still exports upright
+- Confirm ordinary JPEG and HEIC uploads still resize and upload
+
+Removal:
+Remove this patch once `expo-image-manipulator` ships an equivalent orientation
+normalization fix, or once we replace upload resizing with a lower-level ImageIO
+thumbnail path.
+
+## @tamagui/web@2.4.0
+
+Why:
+tamagui removed its undocumented `unset` style value in 2.x (upstream
+`86d0cfe95` — `chore: remove undocumented unset style value`). We use `"unset"`
+in ~56 places to mean "no value here" (e.g. `backgroundColor="unset"`,
+`aspectRatio="unset"`). On web `unset` is a valid CSS keyword and still renders,
+but on native `propMapper` now passes it straight to the React Native style and
+RN throws on strict props — `aspectRatio` redboxes with "aspectRatio must
+either be a number, a ratio string or `auto`. You passed: unset".
+
+What it does:
+Patches the two native `propMapper` variants
+(`dist/{cjs,esm}/helpers/propMapper.native.js`) to drop a prop whose value is
+`"unset"` (`if (value === "unset") return;`). The prop then falls back to the
+property's initial value (transparent / auto / 0) and overrides styled-component
+defaults the same way the value did before. The web bundles are intentionally
+left unpatched, since `unset` is a valid CSS keyword there.
+
+Local patch:
+`patches/@tamagui__web@2.4.0.patch`
+
+Upstream:
+- removed deliberately in `tamagui/tamagui@86d0cfe95`; the configurable `unset`
+  feature is not coming back
+- native parity fix proposed upstream ("drop `unset` on native instead of
+  crashing"): `tamagui/tamagui#4053`
+
+Validation:
+- Rebuild the mobile app so the patched bundle is picked up
+- Open a post with an image, the Activity feed, and a content reference and
+  confirm there's no `aspectRatio ... You passed: unset` redbox
+- Confirm `node_modules/@tamagui/web/dist/esm/helpers/propMapper.native.js`
+  contains `if (value === "unset") return;`
+
+Removal:
+Remove this patch once either the upstream native fix lands in a tamagui version
+we use, or we migrate all `"unset"` style usages to explicit values
+(`transparent` / `undefined` / `auto`) so nothing relies on the dropped value.

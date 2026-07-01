@@ -2,12 +2,13 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
-import { Alert } from 'react-native';
+import { Alert, SectionList } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useInviteSystemContactHandler } from '../../hooks/useInviteSystemContactHandler';
 import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
+import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   AppDataContextProvider,
@@ -36,6 +37,8 @@ export default function ContactsScreen(props: Props) {
     inviteLink
   );
   const currentUser = useCurrentUserId();
+  const { scrollRef, onPressActiveTab } =
+    useScrollTabToTop<SectionList<db.Contact>>();
 
   const { data: userContacts } = store.useUserContacts();
   const { data: contacts } = store.useContacts();
@@ -128,6 +131,7 @@ export default function ContactsScreen(props: Props) {
             onAddContact={onAddContact}
             onContactLongPress={onContactLongPress}
             onInviteSystemContact={handleInviteSystemContact}
+            scrollRef={scrollRef}
           />
           <NavBarView
             navigateToContacts={() => {
@@ -139,6 +143,7 @@ export default function ContactsScreen(props: Props) {
             navigateToNotifications={() => {
               navigate('Activity', undefined, { pop: true });
             }}
+            onPressActiveTab={onPressActiveTab}
             currentRoute="Contacts"
             currentUserId={currentUser}
           />
