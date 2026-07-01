@@ -69,7 +69,7 @@ export function makeNotesNote(
   };
 }
 
-export function makeApiNotesFolder(folder: db.NotesFolder): api.NotesFolder {
+export function makeApiNotesFolder(folder: db.NotesFolder): api.NotesV1Folder {
   return {
     id: folder.folderId,
     notebookId: folder.notebookId,
@@ -81,7 +81,7 @@ export function makeApiNotesFolder(folder: db.NotesFolder): api.NotesFolder {
   };
 }
 
-export function makeApiNotesNote(note: db.NotesNote): api.NotesNote {
+export function makeApiNotesNote(note: db.NotesNote): api.NotesV1Note {
   return {
     id: note.noteId,
     notebookId: note.notebookId,

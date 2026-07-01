@@ -14,6 +14,11 @@ const logger = createDevLogger('notesActions', false);
 
 const NOTES_SYNC_STALE_TIME = 15_000;
 
+type SyncNotesNotebookOptions = {
+  hydrateNoteIds?: readonly number[];
+  requireHydratedNotes?: boolean;
+};
+
 export function normalizeNotebookNoteTitle(title: string) {
   return title.trim();
 }
@@ -29,18 +34,31 @@ function requireNotesNotebookFlag(flagInput: api.NotesFlag | string) {
   return { flag, parsed };
 }
 
-export async function syncNotesNotebook(flagInput: api.NotesFlag | string) {
+export async function syncNotesNotebook(
+  flagInput: api.NotesFlag | string,
+  options: SyncNotesNotebookOptions = {}
+) {
   const { flag, parsed } = requireNotesNotebookFlag(flagInput);
 
-  const [notebook, folders, notes, membersResult] = await Promise.all([
-    api.notesV1.getNotebook(parsed),
-    api.notesV1.listFolders(parsed),
-    api.notesV1.listNotes(parsed),
-    api.notesV1.listMembers(parsed).then(
-      (members) => ({ ok: true as const, members }),
-      (error) => ({ ok: false as const, error })
-    ),
-  ]);
+  const [notebook, folders, notes, membersResult, existingNotes] =
+    await Promise.all([
+      api.notesV1.getNotebook(parsed),
+      api.notesV1.listFolders(parsed),
+      api.notesV1.listNotes(parsed),
+      api.notesV1.listMembers(parsed).then(
+        (members) => ({ ok: true as const, members }),
+        (error) => ({ ok: false as const, error })
+      ),
+      db.getNotesNotes({ notebookFlag: flag }),
+    ]);
+  const notesForSnapshot = await hydrateNotesForSnapshot(
+    parsed,
+    notes,
+    options
+  );
+  const existingNotesById = new Map(
+    existingNotes.map((note) => [note.noteId, note])
+  );
   let members: api.NotesV1MemberRecord[] = [];
   let dbMembers: db.NotesMember[] = [];
   let currentUserRole: db.NotesRole | null | undefined;
@@ -48,7 +66,7 @@ export async function syncNotesNotebook(flagInput: api.NotesFlag | string) {
     members = membersResult.members;
     dbMembers = members.flatMap((member) => toDbMembers(flag, member));
   } else {
-    logger.error('Failed to scry notes members', membersResult.error);
+    logger.error('Failed to fetch notes members', membersResult.error);
     const [existingNotebook, existingMembers] = await Promise.all([
       db.getNotesNotebook({ notebookFlag: flag }),
       db.getNotesMembers({ notebookFlag: flag }),
@@ -64,7 +82,15 @@ export async function syncNotesNotebook(flagInput: api.NotesFlag | string) {
     folders: folders.map((folder) =>
       toDbFolder(flag, folder, notebook.notebook.id)
     ),
-    notes: notes.map((note) => toDbNote(flag, note, notebook.notebook.id)),
+    notes: notesForSnapshot.map((note) =>
+      toDbNote(
+        flag,
+        note,
+        notebook.notebook.id,
+        notebook.notebook.rootFolderId,
+        existingNotesById.get(note.id)
+      )
+    ),
     members: dbMembers,
   });
 
@@ -254,7 +280,7 @@ export async function createNotebookNote({
   title: string;
   body?: string;
 }) {
-  return createAndFindNewItem({
+  const note = await createAndFindNewItem({
     notebookFlag,
     list: () => db.getNotesNotes({ notebookFlag }),
     getId: (note) => note.noteId,
@@ -267,6 +293,24 @@ export async function createNotebookNote({
       }),
     findFallback: (notes) => notes.find((note) => note.title === title),
   });
+
+  if (!note) {
+    return null;
+  }
+
+  await syncNotesNotebookWithRetry(
+    notebookFlag,
+    async () => {
+      const hydrated = await db.getNotesNote({
+        notebookFlag,
+        noteId: note.noteId,
+      });
+      return Boolean(hydrated && hydrated.bodyMd === body);
+    },
+    { hydrateNoteIds: [note.noteId], requireHydratedNotes: true }
+  );
+
+  return db.getNotesNote({ notebookFlag, noteId: note.noteId });
 }
 
 export async function createNotebookFolder({
@@ -335,17 +379,23 @@ export async function saveNotebookNote({
     });
   }
 
-  await syncNotesNotebookWithRetry(notebookFlag, async () => {
-    const updated = await db.getNotesNote({
-      notebookFlag,
-      noteId: note.noteId,
-    });
-    return Boolean(
-      updated &&
-        (!shouldRename || updated.title === nextTitle) &&
-        (!shouldUpdateBody || updated.bodyMd === body)
-    );
-  });
+  await syncNotesNotebookWithRetry(
+    notebookFlag,
+    async () => {
+      const updated = await db.getNotesNote({
+        notebookFlag,
+        noteId: note.noteId,
+      });
+      return Boolean(
+        updated &&
+          (!shouldRename || updated.title === nextTitle) &&
+          (!shouldUpdateBody || updated.bodyMd === body)
+      );
+    },
+    shouldUpdateBody
+      ? { hydrateNoteIds: [note.noteId], requireHydratedNotes: true }
+      : undefined
+  );
   return db.getNotesNote({ notebookFlag, noteId: note.noteId });
 }
 
@@ -501,10 +551,11 @@ const notesRetryOptions = {
  */
 async function syncNotesNotebookWithRetry(
   notebookFlag: string,
-  isReady?: () => Promise<boolean>
+  isReady?: () => Promise<boolean>,
+  options?: SyncNotesNotebookOptions
 ) {
   await waitForNotesCondition(async () => {
-    await syncNotesNotebook(notebookFlag);
+    await syncNotesNotebook(notebookFlag, options);
     return isReady ? isReady() : true;
   });
 }
@@ -521,6 +572,35 @@ async function waitForNotesCondition(isReady: () => Promise<boolean>) {
       throw e;
     }
   }
+}
+
+async function hydrateNotesForSnapshot(
+  flag: api.NotesFlag,
+  notes: api.NotesV1Note[],
+  options: SyncNotesNotebookOptions
+) {
+  const hydrateNoteIds = new Set(options.hydrateNoteIds ?? []);
+  if (hydrateNoteIds.size === 0) {
+    return notes;
+  }
+
+  return Promise.all(
+    notes.map(async (note) => {
+      if (!hydrateNoteIds.has(note.id)) {
+        return note;
+      }
+
+      try {
+        return await api.notesV1.getNote({ flag, noteId: note.id });
+      } catch (e) {
+        logger.error('Failed to fetch notes note detail', e);
+        if (options.requireHydratedNotes) {
+          throw notYetSynced;
+        }
+        return note;
+      }
+    })
+  );
 }
 
 function toDbNotebook(
@@ -578,22 +658,24 @@ function toDbFolder(
 function toDbNote(
   flag: string,
   note: api.NotesV1Note,
-  notebookId: number
+  notebookId: number,
+  rootFolderId: number,
+  existingNote?: db.NotesNote
 ): db.NotesNote {
   return {
     id: notesNoteDbId(flag, note.id),
     notebookFlag: flag,
     noteId: note.id,
-    notebookId: note.notebookId ?? notebookId,
-    folderId: note.folderId ?? 0,
+    notebookId: note.notebookId ?? existingNote?.notebookId ?? notebookId,
+    folderId: note.folderId ?? existingNote?.folderId ?? rootFolderId,
     title: note.title,
-    slug: note.slug ?? null,
-    bodyMd: note.bodyMd ?? '',
-    createdBy: note.createdBy ?? null,
-    createdAt: note.createdAt ?? null,
-    updatedBy: note.updatedBy ?? null,
-    updatedAt: note.updatedAt ?? null,
-    revision: note.revision ?? 0,
+    slug: note.slug === undefined ? existingNote?.slug ?? null : note.slug,
+    bodyMd: note.bodyMd ?? existingNote?.bodyMd ?? '',
+    createdBy: note.createdBy ?? existingNote?.createdBy ?? null,
+    createdAt: note.createdAt ?? existingNote?.createdAt ?? null,
+    updatedBy: note.updatedBy ?? existingNote?.updatedBy ?? null,
+    updatedAt: note.updatedAt ?? existingNote?.updatedAt ?? null,
+    revision: note.revision ?? existingNote?.revision ?? 0,
     syncedAt: Date.now(),
   };
 }

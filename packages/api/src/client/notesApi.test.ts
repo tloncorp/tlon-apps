@@ -10,13 +10,12 @@ import {
 
 import {
   NotesV1PendingWriteError,
-  createNotesNote,
   deleteNotesNotebookBestEffort,
   deleteNotesNotebookStrict,
   formatNotesFlag,
   joinNotesChannel,
+  joinNotesNotebook,
   leaveNotesChannel,
-  listNotesNotebooks,
   normalizeNotesTarget,
   notesChannelId,
   notesV1,
@@ -29,7 +28,6 @@ import {
   BadResponseError,
   poke,
   requestJson,
-  scry,
   subscribe,
   unsubscribe,
 } from './urbit';
@@ -40,7 +38,6 @@ vi.mock('./urbit', async () => {
   return {
     ...actual,
     poke: vi.fn(),
-    scry: vi.fn(),
     requestJson: vi.fn(),
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
@@ -48,7 +45,6 @@ vi.mock('./urbit', async () => {
 });
 
 const pokeMock = poke as unknown as Mock;
-const scryMock = scry as unknown as Mock;
 const requestJsonMock = requestJson as unknown as Mock;
 const subscribeMock = subscribe as unknown as Mock;
 const unsubscribeMock = unsubscribe as unknown as Mock;
@@ -75,7 +71,6 @@ function pendingErrorStrings(error: NotesV1PendingWriteError): string {
 beforeEach(() => {
   requestJsonMock.mockResolvedValue(undefined);
   pokeMock.mockResolvedValue(undefined);
-  scryMock.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -150,32 +145,17 @@ describe('normalizeNotesTarget', () => {
   });
 });
 
-describe('v0 surface preserves #5990 scry/poke semantics', () => {
-  test('listNotesNotebooks scries /v0/notebooks', async () => {
-    scryMock.mockResolvedValue([{ host: '~zod' }]);
-    const result = await listNotesNotebooks();
-    expect(scryMock).toHaveBeenCalledWith({
-      app: 'notes',
-      path: '/v0/notebooks',
-    });
-    expect(result).toEqual([{ host: '~zod' }]);
-  });
-
-  test('createNotesNote pokes a %notes notebook action (not %channels, not v1)', async () => {
-    await createNotesNote({
-      flag: '~zod/blog',
-      folder: 3,
-      title: 'T',
-      body: 'B',
-    });
+describe('%notes transport helpers', () => {
+  test('joinNotesNotebook pokes %notes directly and does not call v1 HTTP', async () => {
+    await joinNotesNotebook('notes/~zod/blog');
     expect(requestJsonMock).not.toHaveBeenCalled();
     expect(pokeMock).toHaveBeenCalledWith({
       app: 'notes',
       mark: 'notes-action',
       json: {
-        type: 'notebook',
-        flag: '~zod/blog',
-        action: { type: 'create-note', folder: 3, title: 'T', body: 'B' },
+        type: 'join',
+        ship: '~zod',
+        name: 'blog',
       },
     });
   });

@@ -1,54 +1,15 @@
 import { createDevLogger } from '../lib/logger';
-import { poke, requestJson, scry, subscribe, unsubscribe } from './urbit';
+import { poke, requestJson, subscribe, unsubscribe } from './urbit';
 
 const logger = createDevLogger('notesApi', false);
 
 // ===========================================================================
-// Channel compatibility exports (TLON-6042 / #5997)
+// Notes identifiers and %notes transport helpers
 //
-// Notes-backed group channels are addressed as nests `notes/<host>/<name>`.
-// Join/leave go through %notes (not %channels, which would reject the
-// unknown nest). These keep their existing channel-id signatures and behavior
-// for the app and skill consumers already calling them.
-// ===========================================================================
-
-// Join a notes-backed channel by subscribing on %notes, which reports the join
-// to %groups so it tracks our membership. (%channels' join would reject the
-// unknown nest.) Errors propagate so the caller can roll back its optimistic
-// update.
-export const joinNotesChannel = async (channelId: string) => {
-  const parts = parseNotesChannelId(channelId);
-  if (!parts) {
-    return;
-  }
-  await poke({
-    app: 'notes',
-    mark: 'notes-action',
-    json: { type: 'join', ship: parts.host, name: parts.name },
-  });
-};
-
-// Leave a notes-backed channel via %notes (which unsubscribes and reports the
-// leave to %groups) instead of %channels, which would reject the unknown nest.
-export const leaveNotesChannel = async (channelId: string) => {
-  const parts = parseNotesChannelId(channelId);
-  if (!parts) {
-    return;
-  }
-  await poke({
-    app: 'notes',
-    mark: 'notes-action',
-    json: { type: 'leave', ship: parts.host, name: parts.name },
-  });
-};
-
-// ===========================================================================
-// v0 API surface (lifted from #5990 db/native-notes-foundation)
-//
-// App-sync oriented: `/v0/...` scries, `%notes` pokes, and `/stream`
-// subscriptions. These preserve #5990's names and semantics so the future
-// app/shared adoption is an additive merge. The skill does NOT use these — it
-// uses the `notesV1` HTTP surface further below.
+// `notesV1` below is the only notebook/folder/note/member data API. The helpers
+// in this section cover operations that are still exposed as %notes actions or
+// subscriptions rather than v1 HTTP routes: join/leave, notebook delete, and
+// notebook stream events.
 // ===========================================================================
 
 export type NotesVisibility = 'public' | 'private';
@@ -59,57 +20,7 @@ export interface NotesFlag {
   name: string;
 }
 
-export interface NotesNotebook {
-  id: number;
-  title: string;
-  createdBy: string;
-  createdAt: number;
-  updatedAt: number;
-  updatedBy: string;
-}
-
-export interface NotesNotebookSummary {
-  host: string;
-  flagName: string;
-  notebook: NotesNotebook;
-  visibility?: NotesVisibility;
-}
-
-export interface NotesFolder {
-  id: number;
-  notebookId: number;
-  name: string;
-  parentFolderId: number | null;
-  createdBy: string;
-  createdAt: number;
-  updatedAt: number;
-  updatedBy: string;
-}
-
-export interface NotesNote {
-  id: number;
-  notebookId: number;
-  folderId: number;
-  title: string;
-  slug: string | null;
-  bodyMd: string;
-  createdBy: string;
-  createdAt: number;
-  updatedBy: string;
-  updatedAt: number;
-  revision: number;
-}
-
-export interface NotesMemberRecord {
-  ship: string;
-  role: NotesRole;
-}
-
-export interface NotesPublishedRecord {
-  host: string;
-  flagName: string;
-  noteId: number;
-}
+export type NotesTarget = NotesFlag | string;
 
 /**
  * Stream events carry typed update payloads (see the %notes agent docs for
@@ -122,29 +33,9 @@ export type NotesStreamEvent = {
   flagName: string;
 };
 
-// Only the poke variants the client produces are modeled; the agent's full
-// action surface is documented with the %notes agent.
-type NotesFolderAction =
-  | { type: 'rename'; name: string }
-  | { type: 'move'; newParent: number }
-  | { type: 'delete'; recursive: boolean };
-
-type NotesNoteAction =
-  | { type: 'rename'; title: string }
-  | { type: 'move'; folder: number }
-  | { type: 'delete' }
-  | { type: 'update'; body: string; expectedRevision: number }
-  | { type: 'publish'; html: string }
-  | { type: 'unpublish' };
-
-type NotesNotebookAction =
-  | { type: 'delete' }
-  | { type: 'create-folder'; parent?: number | null; name: string }
-  | { type: 'folder'; id: number; action: NotesFolderAction }
-  | { type: 'create-note'; folder: number; title: string; body: string }
-  | { type: 'note'; id: number; action: NotesNoteAction };
-
+type NotesNotebookAction = { type: 'delete' };
 type NotesJoinAction = { type: 'join'; ship: string; name: string };
+type NotesLeaveAction = { type: 'leave'; ship: string; name: string };
 
 type NotesNotebookScopedAction = {
   type: 'notebook';
@@ -152,11 +43,10 @@ type NotesNotebookScopedAction = {
   action: NotesNotebookAction;
 };
 
-type NotesAction = NotesJoinAction | NotesNotebookScopedAction;
-
-type FlagArg = { flag: NotesFlag | string };
-type FolderIdArg = FlagArg & { folderId: number };
-type NoteIdArg = FlagArg & { noteId: number };
+type NotesAction =
+  | NotesJoinAction
+  | NotesLeaveAction
+  | NotesNotebookScopedAction;
 
 export function formatNotesFlag(flag: NotesFlag | string): string {
   return typeof flag === 'string' ? flag : `${flag.host}/${flag.name}`;
@@ -183,221 +73,6 @@ export function parseNotesChannelId(
 export function notesChannelId(flag: NotesFlag | string): string {
   return `notes/${formatNotesFlag(flag)}`;
 }
-
-async function notesAction(action: NotesAction) {
-  return poke({
-    app: 'notes',
-    mark: 'notes-action',
-    json: action,
-  });
-}
-
-export async function listNotesNotebooks(): Promise<NotesNotebookSummary[]> {
-  return scryNotesList('/v0/notebooks');
-}
-
-export async function getNotesNotebook(
-  flag: NotesFlag | string
-): Promise<NotesNotebookSummary | null> {
-  const normalized = requireNotesFlag(flag);
-  try {
-    const data = await scry<NotesNotebookSummary>({
-      app: 'notes',
-      path: `/v0/notebook/${normalized.host}/${normalized.name}`,
-    });
-    return data ?? null;
-  } catch (e) {
-    return null;
-  }
-}
-
-export async function listNotesFolders(
-  flag: NotesFlag | string
-): Promise<NotesFolder[]> {
-  const { host, name } = requireNotesFlag(flag);
-  return scryNotesList(`/v0/folders/${host}/${name}`);
-}
-
-export async function listNotes(
-  flag: NotesFlag | string
-): Promise<NotesNote[]> {
-  const { host, name } = requireNotesFlag(flag);
-  return scryNotesList(`/v0/notes/${host}/${name}`);
-}
-
-export async function listNotesMembers(
-  flag: NotesFlag | string
-): Promise<NotesMemberRecord[]> {
-  const { host, name } = requireNotesFlag(flag);
-  return scryNotesList(`/v0/members/${host}/${name}`);
-}
-
-export async function listPublishedNotes(): Promise<NotesPublishedRecord[]> {
-  return scryNotesList('/v0/published');
-}
-
-export async function joinNotesNotebook(flag: NotesFlag | string) {
-  const normalized = requireNotesFlag(flag);
-  return notesAction({
-    type: 'join',
-    ship: normalized.host,
-    name: normalized.name,
-  });
-}
-
-export async function createNotesFolder({
-  flag,
-  parent,
-  name,
-}: FlagArg & { parent?: number | null; name: string }) {
-  return notebookAction(flag, { type: 'create-folder', parent, name });
-}
-
-export async function renameNotesFolder({
-  flag,
-  folderId,
-  name,
-}: FolderIdArg & { name: string }) {
-  return folderAction(flag, folderId, { type: 'rename', name });
-}
-
-export async function moveNotesFolder({
-  flag,
-  folderId,
-  newParent,
-}: FolderIdArg & { newParent: number }) {
-  return folderAction(flag, folderId, { type: 'move', newParent });
-}
-
-export async function deleteNotesFolder({
-  flag,
-  folderId,
-  recursive = true,
-}: FolderIdArg & { recursive?: boolean }) {
-  return folderAction(flag, folderId, { type: 'delete', recursive });
-}
-
-export async function createNotesNote({
-  flag,
-  folder,
-  title,
-  body = '',
-}: FlagArg & { folder: number; title: string; body?: string }) {
-  return notebookAction(flag, { type: 'create-note', folder, title, body });
-}
-
-export async function renameNotesNote({
-  flag,
-  noteId,
-  title,
-}: NoteIdArg & { title: string }) {
-  return noteAction(flag, noteId, { type: 'rename', title });
-}
-
-export async function moveNotesNote({
-  flag,
-  noteId,
-  folder,
-}: NoteIdArg & { folder: number }) {
-  return noteAction(flag, noteId, { type: 'move', folder });
-}
-
-export async function updateNotesNoteBody({
-  flag,
-  noteId,
-  body,
-  expectedRevision,
-}: NoteIdArg & { body: string; expectedRevision: number }) {
-  return noteAction(flag, noteId, { type: 'update', body, expectedRevision });
-}
-
-export async function deleteNotesNote({ flag, noteId }: NoteIdArg) {
-  return noteAction(flag, noteId, { type: 'delete' });
-}
-
-export async function publishNotesNote({
-  flag,
-  noteId,
-  html,
-}: NoteIdArg & { html: string }) {
-  return noteAction(flag, noteId, { type: 'publish', html });
-}
-
-export async function unpublishNotesNote({ flag, noteId }: NoteIdArg) {
-  return noteAction(flag, noteId, { type: 'unpublish' });
-}
-
-export async function subscribeToNotesNotebook(
-  flag: NotesFlag | string,
-  handler: (event: NotesStreamEvent) => void
-) {
-  const normalized = requireNotesFlag(flag);
-  return subscribe<NotesStreamEvent>(
-    {
-      app: 'notes',
-      path: `/v0/notes/${normalized.host}/${normalized.name}/stream`,
-    },
-    handler
-  );
-}
-
-export async function unsubscribeFromNotesNotebook(subscriptionId: number) {
-  return unsubscribe(subscriptionId);
-}
-
-async function notebookAction(
-  flag: NotesFlag | string,
-  action: NotesNotebookAction
-) {
-  return notesAction({
-    type: 'notebook',
-    flag: formatNotesFlag(flag),
-    action,
-  });
-}
-
-function folderAction(
-  flag: NotesFlag | string,
-  id: number,
-  action: NotesFolderAction
-) {
-  return notebookAction(flag, { type: 'folder', id, action });
-}
-
-function noteAction(
-  flag: NotesFlag | string,
-  id: number,
-  action: NotesNoteAction
-) {
-  return notebookAction(flag, { type: 'note', id, action });
-}
-
-function requireNotesFlag(flag: NotesFlag | string): NotesFlag {
-  if (typeof flag !== 'string') {
-    return flag;
-  }
-  const parsed = parseNotesFlag(flag);
-  if (!parsed) {
-    throw new Error(`Invalid notes flag: ${flag}`);
-  }
-  return parsed;
-}
-
-async function scryNotesList<T>(path: string): Promise<T[]> {
-  const data = await scry<T[]>({ app: 'notes', path });
-  return Array.isArray(data) ? data : [];
-}
-
-// ===========================================================================
-// Shared notes target normalizer
-//
-// Accepts every notes notebook identifier TLON-6042 callers can produce and
-// returns a `{ host: '~host', name }` flag. A full `notes/...` nest is never
-// parsed as a raw flag with host `notes`; a missing `~` on the host is
-// normalized; malformed identifiers are rejected (not silently truncated).
-// ===========================================================================
-
-export type NotesTarget = NotesFlag | string;
 
 function ensureSig(host: string): string {
   return host.startsWith('~') ? host : `~${host}`;
@@ -430,21 +105,73 @@ export function normalizeNotesTarget(target: NotesTarget): NotesFlag {
   return { host: ensureSig(host), name };
 }
 
-// ===========================================================================
-// Explicit notebook delete helpers (TLON-6042)
-//
-// Routed through the known-working %notes action path (no confirmed v1 HTTP
-// delete route yet). `Strict` propagates failures; `BestEffort` swallows/logs.
-// ===========================================================================
+async function notesAction(action: NotesAction) {
+  return poke({
+    app: 'notes',
+    mark: 'notes-action',
+    json: action,
+  });
+}
 
-// Shared private delete internal used by both the strict helper and the legacy
-// channel-id wrapper above.
-function pokeNotebookDelete(flag: NotesFlag) {
-  return notebookAction(formatNotesFlag(flag), { type: 'delete' });
+export async function joinNotesNotebook(target: NotesTarget) {
+  const flag = normalizeNotesTarget(target);
+  return notesAction({
+    type: 'join',
+    ship: flag.host,
+    name: flag.name,
+  });
+}
+
+// Notes-backed group channels must join/leave through %notes, not %channels,
+// because %channels rejects the unknown `notes/...` nest.
+export const joinNotesChannel = async (channelId: string) => {
+  const flag = parseNotesChannelId(channelId);
+  if (!flag) {
+    return;
+  }
+  await joinNotesNotebook(flag);
+};
+
+export const leaveNotesChannel = async (channelId: string) => {
+  const flag = parseNotesChannelId(channelId);
+  if (!flag) {
+    return;
+  }
+  await notesAction({
+    type: 'leave',
+    ship: flag.host,
+    name: flag.name,
+  });
+};
+
+export async function subscribeToNotesNotebook(
+  target: NotesTarget,
+  handler: (event: NotesStreamEvent) => void
+) {
+  const flag = normalizeNotesTarget(target);
+  return subscribe<NotesStreamEvent>(
+    {
+      app: 'notes',
+      path: `/v0/notes/${flag.host}/${flag.name}/stream`,
+    },
+    handler
+  );
+}
+
+export async function unsubscribeFromNotesNotebook(subscriptionId: number) {
+  return unsubscribe(subscriptionId);
+}
+
+function deleteNotesNotebook(flag: NotesFlag) {
+  return notesAction({
+    type: 'notebook',
+    flag: formatNotesFlag(flag),
+    action: { type: 'delete' },
+  });
 }
 
 export async function deleteNotesNotebookStrict(target: NotesTarget) {
-  return pokeNotebookDelete(normalizeNotesTarget(target));
+  return deleteNotesNotebook(normalizeNotesTarget(target));
 }
 
 export async function deleteNotesNotebookBestEffort(target: NotesTarget) {
@@ -458,9 +185,9 @@ export async function deleteNotesNotebookBestEffort(target: NotesTarget) {
 // ===========================================================================
 // v1 HTTP API surface (`notesV1`) — `/notes/~/v1/...` request/response
 //
-// Used by the tlon-skill. Centralizes path construction, request payloads,
-// canonical response shapes, and envelope handling. The skill passes typed
-// operation arguments, never string-built paths.
+// Used by app/shared and tlon-skill. Centralizes path construction, request
+// payloads, canonical response shapes, and envelope handling so callers pass
+// typed operation arguments instead of string-built paths.
 // ===========================================================================
 
 export interface NotesV1NotebookListItem {

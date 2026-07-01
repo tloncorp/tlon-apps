@@ -45,6 +45,13 @@ function makeNote(title: string): db.NotesNote {
   });
 }
 
+function makeApiNoteSummary(note: db.NotesNote): api.NotesV1Note {
+  return {
+    id: note.noteId,
+    title: note.title,
+  };
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -141,6 +148,46 @@ test('syncNotesNotebook preserves members with no roles', async () => {
   ]);
 });
 
+test('syncNotesNotebook preserves cached note details when list notes omit them', async () => {
+  const childFolder = makeNotesFolder(4, 'Child folder', rootFolder.folderId);
+  const cachedNote = makeNotesNote(5, childFolder.folderId, 'Cached note', {
+    bodyMd: 'cached body',
+    revision: 7,
+    slug: 'cached-note',
+  });
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder, childFolder],
+    notes: [cachedNote],
+    members: [],
+  });
+
+  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+    makeApiNotesFolder(childFolder),
+  ]);
+  vi.spyOn(api.notesV1, 'listNotes').mockResolvedValue([
+    {
+      id: cachedNote.noteId,
+      title: 'Remote title',
+    },
+  ]);
+  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
+
+  await syncNotesNotebook(notebookFlag);
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: cachedNote.noteId })
+  ).resolves.toMatchObject({
+    title: 'Remote title',
+    folderId: childFolder.folderId,
+    bodyMd: 'cached body',
+    revision: 7,
+    slug: 'cached-note',
+  });
+});
+
 test('createNotebookNote uses a fresh baseline before finding the created note', async () => {
   const cachedNote = makeNote('Cached note');
   const staleRemoteNote = makeNotesNote(4, rootFolder.folderId, 'Stale remote');
@@ -201,6 +248,104 @@ test('createNotebookNote does not return an existing note when create sync times
   });
 
   expect(note).toBeNull();
+});
+
+test('createNotebookNote hydrates created note details when list notes omit them', async () => {
+  const createdNote = makeNotesNote(4, rootFolder.folderId, 'Created note', {
+    bodyMd: 'created body',
+    revision: 2,
+  });
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  let created = false;
+  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notesV1, 'listNotes').mockImplementation(async () =>
+    created ? [makeApiNoteSummary(createdNote)] : []
+  );
+  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
+  const getNote = vi
+    .spyOn(api.notesV1, 'getNote')
+    .mockResolvedValue(makeApiNotesNote(createdNote));
+  vi.spyOn(api.notesV1, 'createNote').mockImplementation(async () => {
+    created = true;
+  });
+
+  const note = await createNotebookNote({
+    notebookFlag,
+    folderId: rootFolder.folderId,
+    title: createdNote.title,
+    body: createdNote.bodyMd,
+  });
+
+  expect(getNote).toHaveBeenCalledWith({
+    flag: { host: '~zod', name: 'native-notes' },
+    noteId: createdNote.noteId,
+  });
+  expect(note).toMatchObject({
+    noteId: createdNote.noteId,
+    bodyMd: createdNote.bodyMd,
+    revision: createdNote.revision,
+  });
+});
+
+test('saveNotebookNote hydrates saved note details when list notes omit them', async () => {
+  const note = makeNote('Draft note');
+  const savedNote = {
+    ...note,
+    bodyMd: 'updated body',
+    revision: note.revision + 1,
+  };
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notesV1, 'listNotes').mockResolvedValue([
+    makeApiNoteSummary(savedNote),
+  ]);
+  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
+  const getNote = vi
+    .spyOn(api.notesV1, 'getNote')
+    .mockResolvedValue(makeApiNotesNote(savedNote));
+  const updateNoteBody = vi
+    .spyOn(api.notesV1, 'updateNoteBody')
+    .mockResolvedValue(undefined);
+
+  const saved = await saveNotebookNote({
+    notebookFlag,
+    note,
+    title: note.title,
+    body: savedNote.bodyMd,
+  });
+
+  expect(updateNoteBody).toHaveBeenCalledWith({
+    flag: notebookFlag,
+    noteId: note.noteId,
+    body: savedNote.bodyMd,
+    expectedRevision: note.revision,
+  });
+  expect(getNote).toHaveBeenCalledWith({
+    flag: { host: '~zod', name: 'native-notes' },
+    noteId: note.noteId,
+  });
+  expect(saved).toMatchObject({
+    bodyMd: savedNote.bodyMd,
+    revision: savedNote.revision,
+  });
 });
 
 test('deleteNotebookNote waits for the deleted note to disappear from sync', async () => {
