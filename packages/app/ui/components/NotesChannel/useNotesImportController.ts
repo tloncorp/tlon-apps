@@ -108,12 +108,15 @@ export function useNotesImportController({
           const existingTitles = noteTitlesByFolder.get(folderId) ?? new Set();
           noteTitlesByFolder.set(folderId, existingTitles);
           const title = makeUniqueNoteTitle(item.title, existingTitles);
-          await createNotebookNote({
+          const note = await createNotebookNote({
             notebookFlag: importNotebookFlag,
             folderId,
             title,
             body: item.body,
           });
+          if (!note) {
+            throw new Error(`Failed to create note ${item.relativePath}`);
+          }
           importedCount += 1;
         } catch (e) {
           if (isNotesPendingWriteError(e)) {
