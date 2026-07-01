@@ -246,7 +246,7 @@ test('addChannelToNavSection rolls back the dedup delete if the insert fails', a
   expect(rows[0]?.groupNavSectionId).toBe(sectionADbId);
 });
 
-test('auto-joins a readable notes channel added by old backend group update', async () => {
+test('does not auto-join a notes channel before reader roles are synced', async () => {
   const groupId = '~bus/test-group';
   const channelId = 'notes/~bus/private-notebook';
   const roleId = 'admin';
@@ -315,5 +315,5 @@ test('auto-joins a readable notes channel added by old backend group update', as
   const channel = await client.query.channels.findFirst({
     where: $.eq(schema.channels.id, channelId),
   });
-  expect(channel?.currentUserIsMember).toBe(true);
+  expect(channel?.currentUserIsMember).toBe(false);
 });
