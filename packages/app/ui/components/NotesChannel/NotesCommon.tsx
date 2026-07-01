@@ -207,7 +207,7 @@ export function useNotebookData(
   options: { syncEnabled?: boolean } = {}
 ) {
   const joinQuery = useEnsureNotesNotebookJoined({ notebookFlag });
-  const joined = joinQuery.data !== false;
+  const joined = joinQuery.data === true;
   const syncEnabled = options.syncEnabled ?? true;
   const syncQuery = useSyncNotesNotebook({
     notebookFlag,
@@ -219,7 +219,10 @@ export function useNotebookData(
   const notebook = notebookQuery.data ?? null;
   const folders = notebook?.folders ?? EMPTY_FOLDERS;
   const notes = notebook?.notes ?? EMPTY_NOTES;
-  const canEdit = notebook ? notebook.currentUserRole !== 'viewer' : false;
+  const canEdit = notebook
+    ? notebook.currentUserRole === 'owner' ||
+      notebook.currentUserRole === 'editor'
+    : false;
   const rootFolderId =
     notebook?.rootFolderId ??
     folders.find((folder) => folder.parentFolderId === null)?.folderId ??
@@ -235,7 +238,7 @@ export function useNotebookData(
     ? 'unavailable'
     : joinQuery.isLoading || (syncQuery.isLoading && !notebook)
       ? 'loading'
-      : joinQuery.data === false
+      : !joined
         ? 'unjoinable'
         : null;
 
