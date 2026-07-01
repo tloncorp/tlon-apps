@@ -1208,24 +1208,17 @@ export async function handleGroupUpdate(
     case 'addChannel': {
       await db.insertChannels([update.channel], ctx);
       if (update.channel.groupId) {
-        if (update.autoJoinIfReadable) {
-          await joinReadableAutoJoinChannel(
-            update.channel.id,
-            update.channel.groupId,
-            ctx
-          );
-        }
         try {
           await syncGroup(update.channel.groupId, undefined, { force: true });
+          if (update.autoJoinIfReadable) {
+            await joinReadableAutoJoinChannel(
+              update.channel.id,
+              update.channel.groupId,
+              ctx
+            );
+          }
         } catch (e) {
           logger.trackError('group sync after channel add failed', e);
-        }
-        if (update.autoJoinIfReadable) {
-          await joinReadableAutoJoinChannel(
-            update.channel.id,
-            update.channel.groupId,
-            ctx
-          );
         }
         await syncUnreads();
       }

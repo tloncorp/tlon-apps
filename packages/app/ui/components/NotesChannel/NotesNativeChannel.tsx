@@ -106,6 +106,7 @@ export function NotesNativeChannel({
   const isWindowNarrow = useIsWindowNarrow();
   const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
+  const notebookSidebarSourceId = `${channelId}/${folderId ?? 'root'}`;
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
@@ -589,7 +590,7 @@ export function NotesNativeChannel({
   );
 
   useNotebookSidebarRegistration(
-    useDesktopSplit && !gate
+    useDesktopSplit && isFocused && !gate
       ? {
           channelId,
           actions: headerActions,
@@ -598,7 +599,7 @@ export function NotesNativeChannel({
           title: channelTitle ?? 'Notebook',
         }
       : null,
-    channelId
+    notebookSidebarSourceId
   );
 
   if (gate) {
