@@ -8,7 +8,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentProps, DragEvent } from 'react';
 import { YStack } from 'tamagui';
 
-import { errorMessage, isNotesPendingWriteError } from './NotesCommon';
+import {
+  NOTES_PENDING_WRITE_MESSAGE,
+  errorMessage,
+  isNotesPendingWriteError,
+} from './NotesCommon';
 import {
   buildNotesImportItems,
   getNotesImportTargetFolderId,
@@ -91,7 +95,9 @@ export function useNotesImportController({
             name: segment,
           });
           if (!folder) {
-            throw new Error(`Failed to create folder ${segment}`);
+            throw new Error(
+              `${NOTES_PENDING_WRITE_MESSAGE}; the outcome is unknown and it may still complete. Check whether folder "${segment}" was created before retrying.`
+            );
           }
 
           foldersByParentAndName.set(key, folder);
