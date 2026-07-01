@@ -1,5 +1,6 @@
+import * as api from '@tloncorp/api';
 import * as $ from 'drizzle-orm';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 import { batchEffects } from '../../db/query';
 import * as schema from '../../db/schema';
@@ -243,4 +244,76 @@ test('addChannelToNavSection rolls back the dedup delete if the insert fails', a
   });
   expect(rows).toHaveLength(1);
   expect(rows[0]?.groupNavSectionId).toBe(sectionADbId);
+});
+
+test('does not auto-join a notes channel before reader roles are synced', async () => {
+  const groupId = '~bus/test-group';
+  const channelId = 'notes/~bus/private-notebook';
+  const roleId = 'admin';
+  const currentUserId = '~solfer-magfed';
+
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  vi.spyOn(api, 'getGroup').mockRejectedValue(
+    new Error('missing v2 group scry')
+  );
+  vi.spyOn(api, 'getGroupAndChannelUnreads').mockResolvedValue({
+    groupUnreads: [],
+    channelUnreads: [],
+    threadActivity: [],
+  });
+
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  });
+  await client.insert(schema.groupRoles).values({
+    id: roleId,
+    groupId,
+  });
+  await client.insert(schema.groupNavSections).values({
+    id: 'default',
+    sectionId: 'default',
+    groupId,
+  });
+  await client.insert(schema.chatMembers).values({
+    chatId: groupId,
+    contactId: currentUserId,
+    membershipType: 'group',
+  });
+  await client.insert(schema.chatMemberGroupRoles).values({
+    groupId,
+    contactId: currentUserId,
+    roleId,
+  });
+
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    await batchEffects('test:add-auto-join-notes-channel', async (ctx) => {
+      await handleGroupUpdate(
+        {
+          type: 'addChannel',
+          autoJoinIfReadable: true,
+          channel: {
+            id: channelId,
+            type: 'notes',
+            groupId,
+            currentUserIsMember: false,
+            readerRoles: [{ channelId, roleId }],
+          },
+        },
+        ctx
+      );
+    });
+  } finally {
+    consoleError.mockRestore();
+  }
+
+  const channel = await client.query.channels.findFirst({
+    where: $.eq(schema.channels.id, channelId),
+  });
+  expect(channel?.currentUserIsMember).toBe(false);
 });
