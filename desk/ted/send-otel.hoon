@@ -77,19 +77,28 @@
   ==
 =/  exception=(list json)
   ?:  ?=(%tell -.event.log-item)  ~
-  =/  message=@t
-    =/  lines=(list ^tape)
-      %-  zing
-      (turn echo.event.log-item (cury wash [0 80]))
-    (crip (zing (join "\0a" lines)))
+  =/  [message=json trace=tang]
+    =*  tang  tang.event.log-item
+    ?~  tang
+      [s+'failed in unknown' ~['missing']]
+    ?~  t.tang
+      [s+'failed in unknown' tang]
+    =*  head  i.tang
+    ?:  ?=(@ head)
+      :_  t.tang
+      s+(crip "failed in {<head>}")
+    ?:  ?=(%leaf -.head)
+      :_  t.tang
+      s+(crip "failed in {p.head}")
+    [s+'failed in unknown' tang]
   =/  stacktrace=@t
     =/  lines=(list ^tape)
       %-  zing
-      (turn trace.event.log-item (cury wash [0 80]))
+      (turn trace (cury wash [0 80]))
     (crip (zing (join "\0a" lines)))
   :~  %-  pairs
       :~  'key'^s+'exception.message'
-          'value'^(frond 'stringValue' s+message)
+          'value'^(frond 'stringValue' message)
       ==
     ::
       %-  pairs
