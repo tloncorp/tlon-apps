@@ -49,27 +49,6 @@ HERMES_AGENT_REPO=https://github.com/NousResearch/hermes-agent.git
 HERMES_AGENT_REF=v2026.6.19
 ```
 
-## Fake-Model Spike
-
-The dev profile can be pointed at an OpenAI Chat Completions-compatible fake model without live model credentials:
-
-```bash
-HERMES_MODEL_PROVIDER=custom
-HERMES_MODEL=tlon-test-scripted
-HERMES_MODEL_BASE_URL=http://host.docker.internal:4000/v1
-HERMES_MODEL_API_KEY=no-key-required
-HERMES_MODEL_API_MODE=chat_completions
-```
-
-For the narrow Milestone 0 spike, copy `.env.example` to `.env`, fill the `TLON_*` owner/bot credentials, then run:
-
-```bash
-cd packages/hermes-tlon-adapter
-./dev/run-fake-model-spike.sh
-```
-
-The script starts the fake model on the host, registers a two-step script (`tlon` tool call, then final assistant text), and starts Hermes with the fake model endpoint. Send the printed `[tlon-test:...]` prompt from the owner DM to the bot. After Hermes replies, inspect the fake-model received calls at `http://127.0.0.1:4000/v1/_received?key=<key>` and confirm the owner-visible reply appeared in Tlon.
-
 ## Managed Prompt Profile
 
 The dev container renders templates from `prompts/` into the disposable Hermes profile on every `pnpm dev` run:
