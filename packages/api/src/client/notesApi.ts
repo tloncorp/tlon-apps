@@ -591,6 +591,39 @@ export interface NotesV1RequestStatus {
   body: NotesV1RequestBody;
 }
 
+export type NotesV1PendingWriteCheck =
+  | { type: 'notebook-list' }
+  | { type: 'notebook-detail' }
+  | { type: 'note-list'; nest: string }
+  | { type: 'note-detail'; nest: string; noteId?: number }
+  | { type: 'folder-list'; nest: string }
+  | { type: 'folder-detail'; nest: string; folderId?: number };
+
+export interface NotesV1PendingWriteErrorOptions {
+  requestId?: string;
+  status?: string;
+  checks?: NotesV1PendingWriteCheck[];
+}
+
+export class NotesV1PendingWriteError extends Error {
+  readonly requestId?: string;
+  readonly status?: string;
+  readonly checks: NotesV1PendingWriteCheck[];
+
+  constructor({
+    requestId,
+    status,
+    checks = [],
+  }: NotesV1PendingWriteErrorOptions = {}) {
+    super('%notes write request is still pending');
+    this.name = 'NotesV1PendingWriteError';
+    this.requestId = requestId;
+    this.status = status;
+    this.checks = [...checks];
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 const NOTEBOOKS_V1_PATH = '/notes/~/v1/notebooks';
 const REQUESTS_V1_PATH = '/notes/~/v1/request';
 
@@ -791,48 +824,49 @@ function envelopeRequestId(res: any): string | undefined {
     : undefined;
 }
 
-function pendingWriteMessage(res: any, checkCommands: string[]): string {
-  const requestId = envelopeRequestId(res);
-  const lines = requestId
-    ? [
-        `%notes write request is still pending (request ${requestId}); the outcome is unknown and it may still complete.`,
-        'Do not retry automatically. Check the request before retrying:',
-        `  tlon notes request ${requestId}`,
-        'If the request is still pending, do not issue the write again.',
-        'If the request has completed, inspect whether the write landed:',
-      ]
-    : [
-        '%notes write request is still pending; the outcome is unknown and it may still complete.',
-        'Do not retry automatically. No request id was returned, so inspect whether the write landed:',
-      ];
-  lines.push(
-    ...checkCommands.map((command) => `  ${command}`),
-    'Only retry if the request failed or the requested change is not present.'
-  );
-  return lines.join('\n');
+function envelopePendingStatus(res: any): string | undefined {
+  const status = res?.body?.status;
+  return typeof status === 'string' ? status : undefined;
 }
 
-function notebookWriteChecks(): string[] {
-  return ['tlon notes list', 'tlon notes show <notes-nest-from-list>'];
+function pendingWriteError(
+  res: any,
+  checks: NotesV1PendingWriteCheck[]
+): NotesV1PendingWriteError {
+  return new NotesV1PendingWriteError({
+    requestId: envelopeRequestId(res),
+    status: envelopePendingStatus(res),
+    checks,
+  });
 }
 
-function noteCreateChecks(nest: string): string[] {
-  return [`tlon notes notes ${nest}`, `tlon notes note ${nest} <id-from-list>`];
+function notebookWriteChecks(): NotesV1PendingWriteCheck[] {
+  return [{ type: 'notebook-list' }, { type: 'notebook-detail' }];
 }
 
-function noteChecks(nest: string, noteId: number): string[] {
-  return [`tlon notes note ${nest} ${noteId}`];
-}
-
-function folderCreateChecks(nest: string): string[] {
+function noteCreateChecks(nest: string): NotesV1PendingWriteCheck[] {
   return [
-    `tlon notes folders ${nest}`,
-    `tlon notes folder ${nest} <id-from-list>`,
+    { type: 'note-list', nest },
+    { type: 'note-detail', nest },
   ];
 }
 
-function folderChecks(nest: string, folderId: number): string[] {
-  return [`tlon notes folder ${nest} ${folderId}`];
+function noteChecks(nest: string, noteId: number): NotesV1PendingWriteCheck[] {
+  return [{ type: 'note-detail', nest, noteId }];
+}
+
+function folderCreateChecks(nest: string): NotesV1PendingWriteCheck[] {
+  return [
+    { type: 'folder-list', nest },
+    { type: 'folder-detail', nest },
+  ];
+}
+
+function folderChecks(
+  nest: string,
+  folderId: number
+): NotesV1PendingWriteCheck[] {
+  return [{ type: 'folder-detail', nest, folderId }];
 }
 
 // A *present* envelope body uses the strict whitelist; error/pending/unexpected
@@ -840,7 +874,7 @@ function folderChecks(nest: string, folderId: number): string[] {
 // body and return its normalized summary.
 function unwrapNotebookEnvelope(
   res: any,
-  checkCommands: string[]
+  checks: NotesV1PendingWriteCheck[]
 ): NotesV1NotebookSummary {
   const body = res?.body;
   if (!body || typeof body.type !== 'string') {
@@ -852,7 +886,7 @@ function unwrapNotebookEnvelope(
     case 'error':
       throw new Error(notesEnvelopeErrorMessage(body));
     case 'pending':
-      throw new Error(pendingWriteMessage(res, checkCommands));
+      throw pendingWriteError(res, checks);
     default:
       throw new Error(`Unexpected %notes response type: ${body.type}`);
   }
@@ -862,7 +896,7 @@ function unwrapNotebookEnvelope(
 // error/pending/unexpected throw). A bare/empty non-envelope JSON body (e.g. a
 // folder object from a convenience route) is accepted and ignored —
 // `requestJson` already throws on HTTP failure.
-function assertWriteOk(res: any, checkCommands: string[]): void {
+function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
   const body = res?.body;
   if (!body || typeof body.type !== 'string') {
     return;
@@ -875,7 +909,7 @@ function assertWriteOk(res: any, checkCommands: string[]): void {
     case 'error':
       throw new Error(notesEnvelopeErrorMessage(body));
     case 'pending':
-      throw new Error(pendingWriteMessage(res, checkCommands));
+      throw pendingWriteError(res, checks);
     default:
       throw new Error(`Unexpected %notes response type: ${body.type}`);
   }

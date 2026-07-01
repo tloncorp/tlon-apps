@@ -5,6 +5,7 @@ import type {
   NotesV1Note,
   NotesV1NoteRevision,
   NotesV1NotebookSummary,
+  NotesV1PendingWriteCheck,
   NotesV1RequestStatus,
 } from '@tloncorp/api';
 
@@ -111,12 +112,19 @@ export const NOTES_COMMAND_HELP: Record<string, string> = {
 // The %notes v1 protocol (path construction, request payloads, canonical
 // response shapes, and envelope handling) lives in `@tloncorp/api`'s `notesV1`.
 // This module owns CLI parsing, pre-auth validation, content-source handling,
-// `root` resolution, and human-readable output — it passes typed operations,
-// never string-built paths. (Type-only API import keeps the command-source
-// contract green.)
+// `root` resolution, pending-write guidance, and human-readable output — it
+// passes typed operations, never string-built paths. Runtime deps identify API
+// error classes, keeping API imports type-only for the command-source contract.
+export interface NotesPendingWriteErrorLike {
+  requestId?: string;
+  status?: string;
+  checks: NotesV1PendingWriteCheck[];
+}
+
 export interface NotesDeps extends CommandDeps {
   authenticate: () => Promise<void>;
   notesV1: NotesV1Api;
+  isPendingWriteError: (error: unknown) => error is NotesPendingWriteErrorLike;
   joinNotesNotebook: (nest: string) => Promise<void>;
   leaveNotesNotebook: (nest: string) => Promise<void>;
   readFile: (path: string) => string;
@@ -663,6 +671,49 @@ function formatRequestStatus(status: NotesV1RequestStatus): string[] {
   return lines;
 }
 
+function assertNever(value: never): never {
+  throw new Error(`Unhandled pending-write check: ${JSON.stringify(value)}`);
+}
+
+function pendingCheckCommand(check: NotesV1PendingWriteCheck): string {
+  switch (check.type) {
+    case 'notebook-list':
+      return 'tlon notes list';
+    case 'notebook-detail':
+      return 'tlon notes show <notes-nest-from-list>';
+    case 'note-list':
+      return `tlon notes notes ${check.nest}`;
+    case 'note-detail':
+      return `tlon notes note ${check.nest} ${check.noteId ?? '<id-from-list>'}`;
+    case 'folder-list':
+      return `tlon notes folders ${check.nest}`;
+    case 'folder-detail':
+      return `tlon notes folder ${check.nest} ${check.folderId ?? '<id-from-list>'}`;
+  }
+  return assertNever(check);
+}
+
+function formatPendingWriteError(error: NotesPendingWriteErrorLike): string[] {
+  const lines = error.requestId
+    ? [
+        `%notes write request is still pending (request ${error.requestId}); the outcome is unknown and it may still complete.`,
+        'Do not retry automatically. Check the request before retrying:',
+        `  tlon notes request ${error.requestId}`,
+        'If the request is still pending, do not issue the write again.',
+        'If the request has completed, inspect whether the write landed:',
+      ]
+    : [
+        '%notes write request is still pending; the outcome is unknown and it may still complete.',
+        'Do not retry automatically. No request id was returned, so inspect whether the write landed:',
+      ];
+
+  lines.push(
+    ...error.checks.map((check) => `  ${pendingCheckCommand(check)}`),
+    'Only retry if the request failed or the requested change is not present.'
+  );
+  return lines;
+}
+
 // ---------------------------------------------------------------------------
 // Subcommand handlers
 // ---------------------------------------------------------------------------
@@ -1042,6 +1093,12 @@ export async function run(args: string[], deps: NotesDeps): Promise<number> {
         return await runLeave(parsed.target, deps);
     }
   } catch (error) {
+    if (deps.isPendingWriteError(error)) {
+      for (const line of formatPendingWriteError(error)) {
+        writeLine(deps.stderr, line);
+      }
+      return 1;
+    }
     const handled = handleExpectedCommandError(error, deps);
     if (handled !== null) return handled;
     throw error;
