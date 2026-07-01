@@ -74,35 +74,6 @@
   ?^  p.sign
     (strand-fail %poke-ack u.p.sign)
   (pure:m ~)
-::  +poke-app-cage: poke a gall agent on a virtual ship with a built cage
-::
-::  .dock: target virtual ship and agent
-::  .cage: poke payload, already paired with its built vase
-::
-::  unlike +poke-app, this passes a typed $cage rather than an untyped
-::  $page. use it for pokes whose mark has no /mar file to vale against
-::  (e.g. %spider-start, whose payload carries a vase). this is only
-::  sound because aqua ships share our process and kernel, so the vase's
-::  type is meaningful on the virtual ship.
-::
-++  poke-app-cage
-  |=  [=dock =cage]
-  =/  m  (strand ,~)
-  ^-  form:m
-  =/  =task:gall
-    [%deal [p.dock p.dock /aqua] q.dock %poke cage]
-  =/  =aqua-event
-    [%event p.dock /g/aqua/deal task]
-  ;<  ~  bind:m  (send-events ~[aqua-event])
-  ;<  =aqua-effect  bind:m  (take-effect /effect/unto)
-  ?>  =(p.dock who.aqua-effect)
-  =*  effect  q.ufs.aqua-effect
-  ?>  ?=(%unto -.effect)
-  ?>  ?=(%poke-ack -.p.effect)
-  =*  sign  p.effect
-  ?^  p.sign
-    (strand-fail %poke-ack u.p.sign)
-  (pure:m ~)
 ::  +watch-app: watch a gall subscription to a virtual ship
 ::
 ::  the resulting facts are received as aqua effects.
