@@ -271,11 +271,6 @@ export const performUpload = async (
         sourceUri: URL.createObjectURL(params),
       };
     } else {
-      // Stat the file for its size rather than buffering the whole thing into a
-      // Blob: uploadFile streams the bytes straight from `sourceUri`
-      // (FileSystem.uploadAsync), so size is all we need here. The upload
-      // Content-Type comes from the asset's mimeType — a local file:// read has
-      // no Content-Type header to recover a type from.
       const fileInfo = await FileSystem.getInfoAsync(params.uri);
       const size = fileInfo.exists ? fileInfo.size : 0;
       const contentType = params.mimeType || 'application/octet-stream';
