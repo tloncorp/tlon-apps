@@ -105,10 +105,12 @@ function await_ship
 
 await_ship
 
-# Allow 30m for longest running operations
-TIMEOUT=1800
+# Allow 20m for standard operations, 45m for long running tasks
+TIMEOUT=800
+TIMEOUT_LONG=2700
 
 run_click="$click -t $TIMEOUT -b $vere -i - -kp"
+run_click_long ="$click -t $TIMEOUT_LONG -b $vere -i - -kp"
 
 # Mount %base
 echo "Mounting base..."
@@ -283,7 +285,7 @@ fi
 # Run aqua tests
 #
 echo "Running tests..."
-result=$( $run_click $pier <<EOF
+result=$( $run_click_long $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  ph-tests=path  

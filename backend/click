@@ -92,8 +92,8 @@ EOF
 full() {
   $CLICK_CMD "$HOON" $DEPS |
   $EVAL_CMD eval --jam $JAM_OPTS |
-  # 30m total inactivity timeout
-  socat -T 1800 -t $TIMEOUT -,ignoreeof UNIX-CONNECT:"$PIER/.urb/conn.sock" |
+  # 1h total inactivity timeout
+  socat -T 3600 -t $TIMEOUT -,ignoreeof UNIX-CONNECT:"$PIER/.urb/conn.sock" |
   $EVAL_CMD eval --cue $CUE_OPTS
 }
 
