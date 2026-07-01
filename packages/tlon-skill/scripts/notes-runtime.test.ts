@@ -74,15 +74,25 @@ mock.module('@tloncorp/api', () => ({
   subscribe: async () => 0,
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
   notesV1: mockedNotesV1,
+  getGroup: async () => ({ channels: [] }),
+  deleteNotesNotebookStrict: async () => undefined,
   joinNotesChannel: async () => undefined,
   leaveNotesChannel: async () => undefined,
 }));
 
 let runtimeModule: Promise<typeof import('./notes-runtime')> | null = null;
+let channelRuntimeModule:
+  | Promise<typeof import('./notes-channel-runtime')>
+  | null = null;
 
 function loadRuntime() {
   runtimeModule ??= import('./notes-runtime');
   return runtimeModule;
+}
+
+function loadChannelRuntime() {
+  channelRuntimeModule ??= import('./notes-channel-runtime');
+  return channelRuntimeModule;
 }
 
 async function captureRejection(promise: Promise<unknown>): Promise<unknown> {
@@ -142,6 +152,73 @@ describe('notes runtime wrapper', () => {
       expect(deps.isPendingWriteError(error)).toBe(false);
     } finally {
       mockedNotesV1.getNotebook = original;
+    }
+  });
+});
+
+describe('notes channel runtime wrapper', () => {
+  it('formats pending createGroupNotebook errors with request guidance', async () => {
+    const pending = new MockNotesV1PendingWriteError({
+      requestId: '0vbook',
+      status: 'acked',
+      checks: [{ type: 'notebook-list' }, { type: 'notebook-detail' }],
+    });
+    const original = mockedNotesV1.createGroupNotebook;
+    mockedNotesV1.createGroupNotebook = async () => {
+      throw pending;
+    };
+
+    try {
+      const { createNotesChannelDeps } = await loadChannelRuntime();
+      const deps = createNotesChannelDeps();
+      const error = await captureRejection(
+        deps.createGroupNotesNotebook({
+          title: 'New',
+          group: { host: '~zod', flagName: 'group' },
+          readers: [],
+        })
+      );
+
+      expect(error).toBeInstanceOf(CommandError);
+      expect((error as CommandError).message).toContain(
+        '%notes write request is still pending (request 0vbook)'
+      );
+      expect((error as CommandError).message).toContain(
+        'Do not retry automatically'
+      );
+      expect((error as CommandError).message).toContain(
+        'tlon notes request 0vbook'
+      );
+      expect((error as CommandError).message).toContain('tlon notes list');
+      expect((error as CommandError).message).toContain(
+        'tlon notes show <notes-nest-from-list>'
+      );
+    } finally {
+      mockedNotesV1.createGroupNotebook = original;
+    }
+  });
+
+  it('continues to wrap ordinary createGroupNotebook errors', async () => {
+    const original = mockedNotesV1.createGroupNotebook;
+    mockedNotesV1.createGroupNotebook = async () => {
+      throw new Error('%notes error: denied');
+    };
+
+    try {
+      const { createNotesChannelDeps } = await loadChannelRuntime();
+      const deps = createNotesChannelDeps();
+      const error = await captureRejection(
+        deps.createGroupNotesNotebook({
+          title: 'New',
+          group: { host: '~zod', flagName: 'group' },
+          readers: [],
+        })
+      );
+
+      expect(error).toBeInstanceOf(CommandError);
+      expect((error as CommandError).message).toBe('%notes error: denied');
+    } finally {
+      mockedNotesV1.createGroupNotebook = original;
     }
   });
 });

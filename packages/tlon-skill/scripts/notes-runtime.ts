@@ -9,7 +9,8 @@ import * as fs from 'fs';
 
 import { ensureClient } from './api-client';
 import { commandError, errorMessage } from './commands/command';
-import type { NotesDeps, NotesPendingWriteErrorLike } from './commands/notes';
+import type { NotesDeps } from './commands/notes';
+import type { NotesPendingWriteErrorLike } from './notes-pending-write';
 
 const STDIN_TIMEOUT_MS = 30_000;
 

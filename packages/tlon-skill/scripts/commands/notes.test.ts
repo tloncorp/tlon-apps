@@ -6,10 +6,10 @@ import {
   NOTES_COMMAND_HELP,
   NOTES_HELP,
   type NotesDeps,
-  type NotesPendingWriteErrorLike,
   parseNotesNest,
   run,
 } from './notes';
+import type { NotesPendingWriteErrorLike } from '../notes-pending-write';
 
 type AnyFn = (...args: unknown[]) => Promise<unknown>;
 
