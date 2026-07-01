@@ -3,15 +3,15 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import { hermesDriver } from '../drivers/hermes.js';
 import { FakeModelClient } from '../fake-model/index.js';
 import {
-  expectModelExpectations,
-  registerModelScript,
-} from './shared/model.js';
-import {
   TlonActorClient,
   actorFromEnv,
   botCredentialsFromEnv,
   normalizeShip,
 } from '../tlon/index.js';
+import {
+  expectModelExpectations,
+  registerModelScript,
+} from './shared/model.js';
 
 describe('Hermes shared E2E smoke', () => {
   const fakeModel = new FakeModelClient(requireEnv('FAKE_MODEL_BASE_URL'));

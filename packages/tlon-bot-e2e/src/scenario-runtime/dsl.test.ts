@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
+import type { RuntimeContext } from '../drivers/types.js';
 import {
   partitionKey,
   partitionScenarios,
@@ -8,7 +9,6 @@ import {
   selectScenarioPartitions,
   testScenario,
 } from '../scenarios/shared/dsl.js';
-import type { RuntimeContext } from '../drivers/types.js';
 
 describe('shared scenario DSL partitions', () => {
   const baseline = testScenario('baseline-case', {}, async () => {});

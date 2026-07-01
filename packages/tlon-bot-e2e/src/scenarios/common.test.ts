@@ -2,10 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 import { driverForName } from '../drivers/index.js';
 import { runtimeContextFromEnv } from '../runtime/context.js';
-import {
-  createScenarioActors,
-  runScenarioTeardowns,
-} from './shared/actors.js';
+import { createScenarioActors, runScenarioTeardowns } from './shared/actors.js';
 import { commonScenarios } from './shared/common.js';
 import { scenarioTimeoutMs, scenariosForPartition } from './shared/dsl.js';
 import { resetBaselineIsolation } from './shared/isolation.js';
@@ -13,7 +10,11 @@ import { resetBaselineIsolation } from './shared/isolation.js';
 const ctx = runtimeContextFromEnv();
 const driver = driverForName(ctx.driverName);
 const partition = process.env.TLON_BOT_E2E_SCENARIO_PARTITION ?? 'baseline';
-const scenarios = scenariosForPartition(commonScenarios, partition, ctx.driverName);
+const scenarios = scenariosForPartition(
+  commonScenarios,
+  partition,
+  ctx.driverName
+);
 const DEFAULT_SCENARIO_TIMEOUT_MS = 180_000;
 let activeScenario:
   | {

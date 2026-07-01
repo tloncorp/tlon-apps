@@ -1,10 +1,14 @@
-import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import type { RuntimeContext } from '../../drivers/types.js';
+import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import { sleep, waitFor } from '../../runtime/waiters.js';
-import type { ChannelPost, PromptResult, StoryInput } from '../../tlon/index.js';
+import type {
+  ChannelPost,
+  PromptResult,
+  StoryInput,
+} from '../../tlon/index.js';
 import { normalizeShip } from '../../tlon/index.js';
-import type { ScenarioActors, ScenarioActor } from './actors.js';
-import { testScenario, type SharedScenario } from './dsl.js';
+import type { ScenarioActor, ScenarioActors } from './actors.js';
+import { type SharedScenario, testScenario } from './dsl.js';
 import {
   allowDmFrom,
   monitorGroupChannels,
@@ -62,272 +66,294 @@ export const commonScenarios: readonly SharedScenario[] = [
     await expectModelExpectations(ctx.fakeModel, key, script);
   }),
 
-  testScenario('owner-dm-tlon-tool-final-reply', {}, async ({ ctx, driver, actors }) => {
-    const key = scenarioKey('owner-tlon');
-    const nicknameToken = `shared-tool-${key}`;
-    const finalReply = `Common tlon command final reply ${key}`;
-    const previousNickname = await botNickname(actors.bot);
-    actors.bot.teardown(
-      async () => {
-        await setBotNickname(actors.bot, previousNickname);
-        await waitForBotNickname(actors.bot, previousNickname);
-      },
-      { kind: 'profile-rollback', label: 'restore bot nickname' }
-    );
+  testScenario(
+    'owner-dm-tlon-tool-final-reply',
+    {},
+    async ({ ctx, driver, actors }) => {
+      const key = scenarioKey('owner-tlon');
+      const nicknameToken = `shared-tool-${key}`;
+      const finalReply = `Common tlon command final reply ${key}`;
+      const previousNickname = await botNickname(actors.bot);
+      actors.bot.teardown(
+        async () => {
+          await setBotNickname(actors.bot, previousNickname);
+          await waitForBotNickname(actors.bot, previousNickname);
+        },
+        { kind: 'profile-rollback', label: 'restore bot nickname' }
+      );
 
-    const script = driver.model.readOrAdmin(
-      `contacts update-profile --nickname ${JSON.stringify(nicknameToken)}`,
-      finalReply
-    );
-    const tag = await registerModelScript(ctx.fakeModel, key, script);
+      const script = driver.model.readOrAdmin(
+        `contacts update-profile --nickname ${JSON.stringify(nicknameToken)}`,
+        finalReply
+      );
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
 
-    const result = await actors.owner.prompt(
-      `${tag} Update your profile nickname to ${JSON.stringify(
-        nicknameToken
-      )} via the Tlon tool, then reply with the scripted result.`,
-      { timeoutMs: 120_000 }
-    );
+      const result = await actors.owner.prompt(
+        `${tag} Update your profile nickname to ${JSON.stringify(
+          nicknameToken
+        )} via the Tlon tool, then reply with the scripted result.`,
+        { timeoutMs: 120_000 }
+      );
 
-    expectPromptSuccess(result, finalReply);
-    await waitForBotNickname(actors.bot, nicknameToken);
-    await expectModelExpectations(ctx.fakeModel, key, script);
-  }),
+      expectPromptSuccess(result, finalReply);
+      await waitForBotNickname(actors.bot, nicknameToken);
+      await expectModelExpectations(ctx.fakeModel, key, script);
+    }
+  ),
 
-  testScenario('unauthorized-third-party-dm-ignored', {}, async ({ ctx, actors }) => {
-    const key = scenarioKey('unauthorized');
-    const baseline = await actors.thirdParty.state.latestSequenceFrom(
-      actors.bot.ship,
-      actors.bot.ship
-    );
-
-    await actors.thirdParty.sendDm(
-      `[tlon-test:${key}] Unauthorized sender should not reach the model.`
-    );
-    await expectNoDirectReply(actors.thirdParty, actors.bot.ship, baseline);
-    await expectNoModelCalls(ctx.fakeModel);
-  }),
-
-  testScenario('allowlisted-third-party-dm-reply', {}, async ({ ctx, driver, actors }) => {
-    await allowDmFrom(actors, actors.thirdParty.ship);
-    const key = scenarioKey('allowlisted-third-party');
-    const reply = `Allowlisted third-party reply ${key}`;
-    const script = driver.model.replyText(reply);
-    const tag = await registerModelScript(ctx.fakeModel, key, script);
-
-    const result = await actors.thirdParty.prompt(
-      `${tag} Reply to this allowlisted sender.`
-    );
-
-    expectPromptSuccess(result, reply);
-    await expectModelExpectations(ctx.fakeModel, key, script);
-  }),
-
-  testScenario('owner-dm-works-when-owner-listen-off', {}, async ({
-    ctx,
-    driver,
-    actors,
-  }) => {
-    await withSettingsEntry(actors, 'ownerListenEnabled', false);
-    const key = scenarioKey('owner-dm-owner-listen-off');
-    const reply = `Owner DM while owner-listen is off ${key}`;
-    const script = driver.model.replyText(reply);
-    const tag = await registerModelScript(ctx.fakeModel, key, script);
-
-    const result = await actors.owner.prompt(
-      `${tag} Reply even though owner-listen is disabled for channels.`
-    );
-
-    expectPromptSuccess(result, reply);
-    await expectModelExpectations(ctx.fakeModel, key, script);
-  }),
-
-  testScenario('owner-listen-channel-plain-owner-post-engages', {}, async ({
-    ctx,
-    driver,
-    actors,
-  }) => {
-    const fixture = await createOwnerHostedChannelFixture(actors);
-    const key = scenarioKey('owner-listen-plain-on');
-    const reply = `Owner-listen heard plain owner post ${key}`;
-    const script = driver.model.replyText(reply);
-    const tag = await registerModelScript(ctx.fakeModel, key, script);
-    const baseline = await botChannelBaseline(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship
-    );
-
-    await actors.owner.sendChannelPost({
-      channelId: fixture.channelId,
-      content: `${tag} Plain owner post should wake the bot.`,
-    });
-
-    await waitForModelCalls(ctx.fakeModel, key);
-    await waitForBotChannelReply(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship,
-      reply,
-      baseline
-    );
-    await expectModelExpectations(ctx.fakeModel, key, script);
-  }),
-
-  testScenario('owner-listen-channel-plain-owner-post-skipped-when-off', {}, async ({
-    ctx,
-    actors,
-  }) => {
-    const fixture = await createOwnerHostedChannelFixture(actors);
-    await withSettingsEntry(actors, 'ownerListenEnabled', false);
-    const key = scenarioKey('owner-listen-plain-off');
-    const baseline = await botChannelBaseline(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship
-    );
-    const modelBaseline = await modelCallCount(ctx.fakeModel);
-
-    await actors.owner.sendChannelPost({
-      channelId: fixture.channelId,
-      content: `[tlon-test:${key}] Plain owner post should not wake the bot.`,
-    });
-
-    await expectNoNewModelCallsAfterSettle(ctx.fakeModel, modelBaseline);
-    await expectNoBotChannelReply(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship,
-      baseline
-    );
-  }),
-
-  testScenario('owner-listen-channel-mention-overrides-global-off', {}, async ({
-    ctx,
-    driver,
-    actors,
-  }) => {
-    const fixture = await createOwnerHostedChannelFixture(actors);
-    await withSettingsEntry(actors, 'ownerListenEnabled', false);
-    const key = scenarioKey('owner-listen-mention-off');
-    const reply = `Owner mention overrides owner-listen off ${key}`;
-    const script = driver.model.replyText(reply);
-    const tag = await registerModelScript(ctx.fakeModel, key, script);
-    const baseline = await botChannelBaseline(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship
-    );
-
-    await actors.owner.sendChannelPost({
-      channelId: fixture.channelId,
-      content: storyWithMention(
+  testScenario(
+    'unauthorized-third-party-dm-ignored',
+    {},
+    async ({ ctx, actors }) => {
+      const key = scenarioKey('unauthorized');
+      const baseline = await actors.thirdParty.state.latestSequenceFrom(
         actors.bot.ship,
-        `${tag} Mention should wake the bot.`
-      ),
-    });
+        actors.bot.ship
+      );
 
-    await waitForModelCalls(ctx.fakeModel, key);
-    await waitForBotChannelReply(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship,
-      reply,
-      baseline
-    );
-    await expectModelExpectations(ctx.fakeModel, key, script);
-  }),
+      await actors.thirdParty.sendDm(
+        `[tlon-test:${key}] Unauthorized sender should not reach the model.`
+      );
+      await expectNoDirectReply(actors.thirdParty, actors.bot.ship, baseline);
+      await expectNoModelCalls(ctx.fakeModel);
+    }
+  ),
 
-  testScenario('owner-listen-channel-plain-owner-post-skipped-when-muted', {}, async ({
-    ctx,
-    actors,
-  }) => {
-    const fixture = await createOwnerHostedChannelFixture(actors);
-    await withSettingsEntry(actors, 'ownerListenDisabledChannels', [
-      fixture.channelId,
-    ]);
-    const key = scenarioKey('owner-listen-muted-plain');
-    const baseline = await botChannelBaseline(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship
-    );
-    const modelBaseline = await modelCallCount(ctx.fakeModel);
+  testScenario(
+    'allowlisted-third-party-dm-reply',
+    {},
+    async ({ ctx, driver, actors }) => {
+      await allowDmFrom(actors, actors.thirdParty.ship);
+      const key = scenarioKey('allowlisted-third-party');
+      const reply = `Allowlisted third-party reply ${key}`;
+      const script = driver.model.replyText(reply);
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
 
-    await actors.owner.sendChannelPost({
-      channelId: fixture.channelId,
-      content: `[tlon-test:${key}] Plain owner post in muted channel should not wake the bot.`,
-    });
+      const result = await actors.thirdParty.prompt(
+        `${tag} Reply to this allowlisted sender.`
+      );
 
-    await expectNoNewModelCallsAfterSettle(ctx.fakeModel, modelBaseline);
-    await expectNoBotChannelReply(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship,
-      baseline
-    );
-  }),
+      expectPromptSuccess(result, reply);
+      await expectModelExpectations(ctx.fakeModel, key, script);
+    }
+  ),
 
-  testScenario('owner-listen-channel-mention-overrides-muted-channel', {}, async ({
-    ctx,
-    driver,
-    actors,
-  }) => {
-    const fixture = await createOwnerHostedChannelFixture(actors);
-    await withSettingsEntry(actors, 'ownerListenDisabledChannels', [
-      fixture.channelId,
-    ]);
-    const key = scenarioKey('owner-listen-muted-mention');
-    const reply = `Owner mention overrides channel mute ${key}`;
-    const script = driver.model.replyText(reply);
-    const tag = await registerModelScript(ctx.fakeModel, key, script);
-    const baseline = await botChannelBaseline(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship
-    );
+  testScenario(
+    'owner-dm-works-when-owner-listen-off',
+    {},
+    async ({ ctx, driver, actors }) => {
+      await withSettingsEntry(actors, 'ownerListenEnabled', false);
+      const key = scenarioKey('owner-dm-owner-listen-off');
+      const reply = `Owner DM while owner-listen is off ${key}`;
+      const script = driver.model.replyText(reply);
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
 
-    await actors.owner.sendChannelPost({
-      channelId: fixture.channelId,
-      content: storyWithMention(
+      const result = await actors.owner.prompt(
+        `${tag} Reply even though owner-listen is disabled for channels.`
+      );
+
+      expectPromptSuccess(result, reply);
+      await expectModelExpectations(ctx.fakeModel, key, script);
+    }
+  ),
+
+  testScenario(
+    'owner-listen-channel-plain-owner-post-engages',
+    {},
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      const key = scenarioKey('owner-listen-plain-on');
+      const reply = `Owner-listen heard plain owner post ${key}`;
+      const script = driver.model.replyText(reply);
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+      const baseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+
+      await actors.owner.sendChannelPost({
+        channelId: fixture.channelId,
+        content: `${tag} Plain owner post should wake the bot.`,
+      });
+
+      await waitForModelCalls(ctx.fakeModel, key);
+      await waitForBotChannelReply(
+        actors.owner,
+        fixture.channelId,
         actors.bot.ship,
-        `${tag} Mention should wake the bot in a muted channel.`
-      ),
-    });
+        reply,
+        baseline
+      );
+      await expectModelExpectations(ctx.fakeModel, key, script);
+    }
+  ),
 
-    await waitForModelCalls(ctx.fakeModel, key);
-    await waitForBotChannelReply(
-      actors.owner,
-      fixture.channelId,
-      actors.bot.ship,
-      reply,
-      baseline
-    );
-    await expectModelExpectations(ctx.fakeModel, key, script);
-  }),
+  testScenario(
+    'owner-listen-channel-plain-owner-post-skipped-when-off',
+    {},
+    async ({ ctx, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await withSettingsEntry(actors, 'ownerListenEnabled', false);
+      const key = scenarioKey('owner-listen-plain-off');
+      const baseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+      const modelBaseline = await modelCallCount(ctx.fakeModel);
 
-  testScenario('owner-listen-all-off-command-persists', {}, async ({ ctx, actors }) => {
-    await withSettingsEntry(actors, 'ownerListenEnabled', true);
+      await actors.owner.sendChannelPost({
+        channelId: fixture.channelId,
+        content: `[tlon-test:${key}] Plain owner post should not wake the bot.`,
+      });
 
-    const result = await actors.owner.prompt('/owner-listen all off', {
-      timeoutMs: 60_000,
-    });
+      await expectNoNewModelCallsAfterSettle(ctx.fakeModel, modelBaseline);
+      await expectNoBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        baseline
+      );
+    }
+  ),
 
-    expectPromptSuccess(result, 'Global owner-listen is now off');
-    await waitForSettingsEntries(actors, { ownerListenEnabled: false });
-    await expectNoModelCallsAfterSettle(ctx.fakeModel);
-  }),
+  testScenario(
+    'owner-listen-channel-mention-overrides-global-off',
+    {},
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await withSettingsEntry(actors, 'ownerListenEnabled', false);
+      const key = scenarioKey('owner-listen-mention-off');
+      const reply = `Owner mention overrides owner-listen off ${key}`;
+      const script = driver.model.replyText(reply);
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+      const baseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
 
-  testScenario('owner-listen-all-on-command-persists', {}, async ({ ctx, actors }) => {
-    await withSettingsEntry(actors, 'ownerListenEnabled', false);
+      await actors.owner.sendChannelPost({
+        channelId: fixture.channelId,
+        content: storyWithMention(
+          actors.bot.ship,
+          `${tag} Mention should wake the bot.`
+        ),
+      });
 
-    const result = await actors.owner.prompt('/owner-listen all on', {
-      timeoutMs: 60_000,
-    });
+      await waitForModelCalls(ctx.fakeModel, key);
+      await waitForBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        reply,
+        baseline
+      );
+      await expectModelExpectations(ctx.fakeModel, key, script);
+    }
+  ),
 
-    expectPromptSuccess(result, 'Global owner-listen is now on');
-    await waitForSettingsEntries(actors, { ownerListenEnabled: true });
-    await expectNoModelCallsAfterSettle(ctx.fakeModel);
-  }),
+  testScenario(
+    'owner-listen-channel-plain-owner-post-skipped-when-muted',
+    {},
+    async ({ ctx, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await withSettingsEntry(actors, 'ownerListenDisabledChannels', [
+        fixture.channelId,
+      ]);
+      const key = scenarioKey('owner-listen-muted-plain');
+      const baseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+      const modelBaseline = await modelCallCount(ctx.fakeModel);
+
+      await actors.owner.sendChannelPost({
+        channelId: fixture.channelId,
+        content: `[tlon-test:${key}] Plain owner post in muted channel should not wake the bot.`,
+      });
+
+      await expectNoNewModelCallsAfterSettle(ctx.fakeModel, modelBaseline);
+      await expectNoBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        baseline
+      );
+    }
+  ),
+
+  testScenario(
+    'owner-listen-channel-mention-overrides-muted-channel',
+    {},
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await withSettingsEntry(actors, 'ownerListenDisabledChannels', [
+        fixture.channelId,
+      ]);
+      const key = scenarioKey('owner-listen-muted-mention');
+      const reply = `Owner mention overrides channel mute ${key}`;
+      const script = driver.model.replyText(reply);
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+      const baseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+
+      await actors.owner.sendChannelPost({
+        channelId: fixture.channelId,
+        content: storyWithMention(
+          actors.bot.ship,
+          `${tag} Mention should wake the bot in a muted channel.`
+        ),
+      });
+
+      await waitForModelCalls(ctx.fakeModel, key);
+      await waitForBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        reply,
+        baseline
+      );
+      await expectModelExpectations(ctx.fakeModel, key, script);
+    }
+  ),
+
+  testScenario(
+    'owner-listen-all-off-command-persists',
+    {},
+    async ({ ctx, actors }) => {
+      await withSettingsEntry(actors, 'ownerListenEnabled', true);
+
+      const result = await actors.owner.prompt('/owner-listen all off', {
+        timeoutMs: 60_000,
+      });
+
+      expectPromptSuccess(result, 'Global owner-listen is now off');
+      await waitForSettingsEntries(actors, { ownerListenEnabled: false });
+      await expectNoModelCallsAfterSettle(ctx.fakeModel);
+    }
+  ),
+
+  testScenario(
+    'owner-listen-all-on-command-persists',
+    {},
+    async ({ ctx, actors }) => {
+      await withSettingsEntry(actors, 'ownerListenEnabled', false);
+
+      const result = await actors.owner.prompt('/owner-listen all on', {
+        timeoutMs: 60_000,
+      });
+
+      expectPromptSuccess(result, 'Global owner-listen is now on');
+      await waitForSettingsEntries(actors, { ownerListenEnabled: true });
+      await expectNoModelCallsAfterSettle(ctx.fakeModel);
+    }
+  ),
 
   testScenario(
     'known-bot-loop-protection-resets-on-human-dispatch',
@@ -493,7 +519,9 @@ function expectPromptSuccess(result: PromptResult, expectedText: string): void {
 }
 
 async function expectNoDirectReply(
-  actor: { state: { channelPosts(channelId: string, count?: number): Promise<any[]> } },
+  actor: {
+    state: { channelPosts(channelId: string, count?: number): Promise<any[]> };
+  },
   botShip: string,
   baselineSequence: number,
   settleMs = 12_000
@@ -675,7 +703,9 @@ async function openChannelAccess(
 }
 
 function storyWithMention(ship: string, text: string): StoryInput {
-  return [{ inline: [{ ship: normalizeShip(ship) }, ` ${text}`] }] as StoryInput;
+  return [
+    { inline: [{ ship: normalizeShip(ship) }, ` ${text}`] },
+  ] as StoryInput;
 }
 
 function botProfileFor(ship: string): { nickname: string; avatar: string } {
@@ -704,11 +734,7 @@ function knownBotLoopScenarioTimeoutMs(ctx: RuntimeContext): number {
   const dispatchWaitBudget =
     (allowedBotTurns + 2) * (MODEL_CALL_WAIT_MS + BOT_REPLY_WAIT_MS);
   const settleBudget = NEGATIVE_SETTLE_MS * 3;
-  return (
-    dispatchWaitBudget +
-    settleBudget +
-    LOOP_TIMEOUT_MARGIN_MS
-  );
+  return dispatchWaitBudget + settleBudget + LOOP_TIMEOUT_MARGIN_MS;
 }
 
 async function waitForBotChannelReply(
@@ -723,8 +749,7 @@ async function waitForBotChannelReply(
       const posts = await actor.state.channelPosts(channelId, 40);
       return channelPostsByBot(posts, botShip).find(
         (post) =>
-          post.text.includes(expectedText) &&
-          postAfterBaseline(post, baseline)
+          post.text.includes(expectedText) && postAfterBaseline(post, baseline)
       );
     },
     {
@@ -757,7 +782,10 @@ async function expectNoBotChannelReply(
   }
 }
 
-function channelPostsByBot(posts: ChannelPost[], botShip: string): ChannelPost[] {
+function channelPostsByBot(
+  posts: ChannelPost[],
+  botShip: string
+): ChannelPost[] {
   const normalized = normalizeShip(botShip);
   return posts
     .filter((post) => post.authorId === normalized)
@@ -790,7 +818,10 @@ async function botChannelBaseline(
   };
 }
 
-function postAfterBaseline(post: ChannelPost, baseline: ChannelBaseline): boolean {
+function postAfterBaseline(
+  post: ChannelPost,
+  baseline: ChannelBaseline
+): boolean {
   if (typeof post.sequenceNum === 'number' && baseline.sequence >= 0) {
     return post.sequenceNum > baseline.sequence;
   }

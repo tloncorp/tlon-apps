@@ -17,9 +17,7 @@ import {
   runtimeContextForJson,
 } from '../runtime/context.js';
 import { collectRuntimeDiagnostics } from '../runtime/diagnostics.js';
-import {
-  loadTlonBotE2eEnvFile,
-} from '../runtime/env.js';
+import { loadTlonBotE2eEnvFile } from '../runtime/env.js';
 import {
   type RuntimePortOverrides,
   allocatePort,

@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 
-import { FakeModelClient } from '../fake-model/index.js';
 import type {
   DriverRuntimeSpec,
   RuntimeContext,
   RuntimeSeed,
   RuntimeTestMetadata,
 } from '../drivers/types.js';
+import { FakeModelClient } from '../fake-model/index.js';
 
 export interface RuntimeContextJsonOptions {
   includeRuntimeEnv?: boolean;
@@ -29,12 +29,7 @@ export function runtimeContextForJson(
   ctx: RuntimeContext,
   options: RuntimeContextJsonOptions = {}
 ): unknown {
-  const {
-    fakeModel: _fakeModel,
-    composeEnv,
-    testEnv,
-    ...serializable
-  } = ctx;
+  const { fakeModel: _fakeModel, composeEnv, testEnv, ...serializable } = ctx;
   const output: Record<string, unknown> = {
     ...serializable,
     testMetadata: ctx.testMetadata ?? runtimeTestMetadata(composeEnv),
@@ -54,14 +49,15 @@ export function runtimeContextFromJson(value: unknown): RuntimeContext {
   }
   const raw = value as Omit<RuntimeContext, 'fakeModel'>;
   if (!raw.endpoints?.fakeModel?.hostBaseUrl) {
-    throw new Error('Runtime context JSON is missing fake-model endpoint data.');
+    throw new Error(
+      'Runtime context JSON is missing fake-model endpoint data.'
+    );
   }
   return deepFreeze({
     ...raw,
     composeEnv: raw.composeEnv ?? {},
     testEnv: raw.testEnv ?? {},
-    testMetadata:
-      raw.testMetadata ?? runtimeTestMetadata(raw.composeEnv ?? {}),
+    testMetadata: raw.testMetadata ?? runtimeTestMetadata(raw.composeEnv ?? {}),
     fakeModel: new FakeModelClient(raw.endpoints.fakeModel.hostBaseUrl),
   } as RuntimeContext);
 }

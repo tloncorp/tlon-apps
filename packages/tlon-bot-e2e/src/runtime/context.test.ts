@@ -1,14 +1,13 @@
 import path from 'node:path';
-
 import { describe, expect, test } from 'vitest';
 
 import type { DriverRuntimeSpec, RuntimeSeed } from '../drivers/types.js';
-import { allocateRuntimeEndpoints } from './ports.js';
 import {
   createRuntimeContext,
   runtimeContextForJson,
   runtimeContextFromJson,
 } from './context.js';
+import { allocateRuntimeEndpoints } from './ports.js';
 
 describe('runtime context serialization', () => {
   test('omits compose and test env secrets from JSON by default', async () => {

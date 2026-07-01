@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
+import type { ModelScript } from '../drivers/types.js';
 import { FakeModelClient, createFakeModelServer } from '../fake-model/index.js';
 import type { FakeModelServerListener } from '../fake-model/server-core.mjs';
-import type { ModelScript } from '../drivers/types.js';
 import {
   expectModelExpectations,
   expectNoModelCalls,
@@ -192,7 +192,11 @@ describe('shared model script helpers', () => {
         expectedCallCount: 2,
       },
     };
-    const tag = await registerModelScript(fakeModel, 'missing-required-tools', script);
+    const tag = await registerModelScript(
+      fakeModel,
+      'missing-required-tools',
+      script
+    );
 
     await postChat(server.baseUrl, tag);
     await postChat(server.baseUrl, tag, {
@@ -220,7 +224,11 @@ describe('shared model script helpers', () => {
         expectedCallCount: 2,
       },
     };
-    const tag = await registerModelScript(fakeModel, 'later-tool-mismatch', script);
+    const tag = await registerModelScript(
+      fakeModel,
+      'later-tool-mismatch',
+      script
+    );
 
     await postChat(server.baseUrl, tag, {
       tools: [{ type: 'function', function: { name: 'tlon' } }],
@@ -415,7 +423,11 @@ describe('shared model script helpers', () => {
         toolLoopResult: true,
       },
     };
-    const tag = await registerModelScript(fakeModel, 'tool-loop-mismatch', script);
+    const tag = await registerModelScript(
+      fakeModel,
+      'tool-loop-mismatch',
+      script
+    );
 
     const toolCall = await postChatForToolCall(server.baseUrl, tag);
     await postChat(server.baseUrl, tag, {
@@ -436,7 +448,9 @@ describe('shared model script helpers', () => {
   });
 
   test('asserts no model calls for negative scenarios', async () => {
-    await expect(expectNoModelCalls(fakeModel, 'no-calls')).resolves.toBeUndefined();
+    await expect(
+      expectNoModelCalls(fakeModel, 'no-calls')
+    ).resolves.toBeUndefined();
   });
 
   test('asserts no unkeyed or differently keyed model calls for negative scenarios', async () => {

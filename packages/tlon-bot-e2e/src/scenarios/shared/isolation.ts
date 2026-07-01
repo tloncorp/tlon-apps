@@ -1,4 +1,4 @@
-import { waitFor, sleep } from '../../runtime/waiters.js';
+import { sleep, waitFor } from '../../runtime/waiters.js';
 import type { ScenarioActors } from './actors.js';
 
 export const SETTINGS_DESK = 'moltbot';

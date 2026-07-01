@@ -196,7 +196,10 @@ export function findDisallowedEnvKeys(
 
 function parseEnvFile(contents: string, envFilePath: string): ParsedEnvEntry[] {
   const entries: ParsedEnvEntry[] = [];
-  const lines = contents.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const lines = contents
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .split('\n');
   lines.forEach((rawLine, index) => {
     const lineNumber = index + 1;
     let line = rawLine.trim();

@@ -101,14 +101,18 @@ export function selectScenarioPartitions(
   const allPartitions = partitionScenarios(scenarios);
   const partitions = partitionScenarios(
     opts.driverName
-      ? scenarios.filter((scenario) => scenarioMatchesDriver(scenario, opts.driverName))
+      ? scenarios.filter((scenario) =>
+          scenarioMatchesDriver(scenario, opts.driverName)
+        )
       : scenarios
   );
   const requested = parseRequestedPartitions(opts.requested);
   if (requested === 'all') {
     return partitions;
   }
-  const selected = partitions.filter((partition) => requested.has(partition.key));
+  const selected = partitions.filter((partition) =>
+    requested.has(partition.key)
+  );
   const missing = [...requested].filter(
     (key) => !allPartitions.some((partition) => partition.key === key)
   );
@@ -177,7 +181,9 @@ function scenarioMatchesDriver(
   scenario: SharedScenario,
   driverName?: BotDriver['name']
 ): boolean {
-  return !driverName || !scenario.drivers || scenario.drivers.includes(driverName);
+  return (
+    !driverName || !scenario.drivers || scenario.drivers.includes(driverName)
+  );
 }
 
 function partitionSortKey(partition: ScenarioPartition): string {

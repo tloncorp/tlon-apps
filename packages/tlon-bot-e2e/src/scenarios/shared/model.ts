@@ -1,8 +1,8 @@
-import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import type {
   ModelAuxiliaryCallKind,
   ModelScript,
 } from '../../drivers/types.js';
+import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import { sleep } from '../../runtime/waiters.js';
 
 export const MODEL_EXPECTATION_SETTLE_MS = 1_500;
@@ -29,12 +29,7 @@ export async function expectModelExpectations(
   options: ExpectModelExpectationsOptions = {}
 ): Promise<ReceivedCall[]> {
   assertExtraCallAllowanceIsClassified(script, key);
-  const calls = await receivedCallsAfterSettle(
-    fakeModel,
-    key,
-    script,
-    options
-  );
+  const calls = await receivedCallsAfterSettle(fakeModel, key, script, options);
   const expectations = script.expectations;
   if (!expectations) {
     return calls;
@@ -169,7 +164,9 @@ export async function expectNoModelCalls(
 }
 
 export function isBenignBackgroundModelCall(call: ReceivedCall): boolean {
-  return call.key === null && call.userText.startsWith('[OpenClaw heartbeat poll]');
+  return (
+    call.key === null && call.userText.startsWith('[OpenClaw heartbeat poll]')
+  );
 }
 
 function assertAllAdvertisedTools(
@@ -182,7 +179,9 @@ function assertAllAdvertisedTools(
     return;
   }
   if (calls.length === 0) {
-    throw new Error(`Cannot assert advertised tools for ${key}: no model calls.`);
+    throw new Error(
+      `Cannot assert advertised tools for ${key}: no model calls.`
+    );
   }
   const expectedCallCount = script.expectations?.expectedCallCount;
   if (expectedCallCount === undefined) {
@@ -287,11 +286,17 @@ function assertAdvertisedTools(
     return;
   }
   if (!call) {
-    throw new Error(`Cannot assert advertised tools for ${key}: no model calls.`);
+    throw new Error(
+      `Cannot assert advertised tools for ${key}: no model calls.`
+    );
   }
   const actual = call.toolNames ?? [];
-  const missing = (expected.include ?? []).filter((tool) => !actual.includes(tool));
-  const forbidden = (expected.exclude ?? []).filter((tool) => actual.includes(tool));
+  const missing = (expected.include ?? []).filter(
+    (tool) => !actual.includes(tool)
+  );
+  const forbidden = (expected.exclude ?? []).filter((tool) =>
+    actual.includes(tool)
+  );
   if (missing.length > 0 || forbidden.length > 0) {
     throw new Error(
       `Advertised tools mismatch for ${key}: actual=${JSON.stringify(actual)}, ` +
@@ -316,7 +321,9 @@ function assertStreamedToolLoop(
   key: string
 ): void {
   if (calls.length < 2) {
-    throw new Error(`Expected streamed tool loop for ${key}, got ${calls.length} call(s).`);
+    throw new Error(
+      `Expected streamed tool loop for ${key}, got ${calls.length} call(s).`
+    );
   }
   if (!calls[0].stream) {
     throw new Error(`Expected first model request for ${key} to be streamed.`);
@@ -335,11 +342,15 @@ function assertToolLoopResult(
   key: string
 ): void {
   if (calls.length < 2) {
-    throw new Error(`Expected tool loop for ${key}, got ${calls.length} call(s).`);
+    throw new Error(
+      `Expected tool loop for ${key}, got ${calls.length} call(s).`
+    );
   }
   const expectedTool = script.steps.find((step) => step.kind === 'tool_call');
   if (!expectedTool) {
-    throw new Error(`Cannot assert tool loop for ${key}: script has no tool call.`);
+    throw new Error(
+      `Cannot assert tool loop for ${key}: script has no tool call.`
+    );
   }
   const emittedToolCall = calls[0].responseToolCalls.find(
     (toolCall) => toolCall.function.name === expectedTool.name

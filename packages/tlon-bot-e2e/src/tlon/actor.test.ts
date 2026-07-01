@@ -9,9 +9,7 @@ describe('TlonActorClient DM baseline handling', () => {
       throw new Error('history unavailable');
     };
 
-    await expect(
-      client.latestSequenceFrom('~zod', '~zod')
-    ).resolves.toBe(-1);
+    await expect(client.latestSequenceFrom('~zod', '~zod')).resolves.toBe(-1);
     await expect(
       client.latestSequenceFrom('~zod', '~zod', { strict: true })
     ).rejects.toThrow(/Failed to read DM baseline.*~zod.*history unavailable/);

@@ -31,13 +31,10 @@ export async function waitForHttpOk(
   url: string,
   opts: WaitForOptions
 ): Promise<void> {
-  await waitFor(
-    async () => {
-      const response = await fetch(url);
-      return response.ok;
-    },
-    opts
-  );
+  await waitFor(async () => {
+    const response = await fetch(url);
+    return response.ok;
+  }, opts);
 }
 
 export async function waitForShipLogin(
@@ -45,18 +42,15 @@ export async function waitForShipLogin(
   code: string,
   opts: WaitForOptions
 ): Promise<void> {
-  await waitFor(
-    async () => {
-      const response = await fetch(`${url}/~/login`, {
-        method: 'POST',
-        body: new URLSearchParams({ password: code }),
-        redirect: 'manual',
-      });
-      const cookie = response.headers.get('set-cookie') ?? '';
-      return response.ok || cookie.includes('urbauth');
-    },
-    opts
-  );
+  await waitFor(async () => {
+    const response = await fetch(`${url}/~/login`, {
+      method: 'POST',
+      body: new URLSearchParams({ password: code }),
+      redirect: 'manual',
+    });
+    const cookie = response.headers.get('set-cookie') ?? '';
+    return response.ok || cookie.includes('urbauth');
+  }, opts);
 }
 
 export function sleep(ms: number): Promise<void> {

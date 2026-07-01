@@ -1,5 +1,4 @@
 import path from 'node:path';
-
 import { describe, expect, test } from 'vitest';
 
 import { createRuntimeContext } from '../runtime/context.js';
@@ -28,7 +27,10 @@ describe('Hermes driver runtime spec', () => {
     expect(Object.isFrozen(ctx.endpoints.ships.zod)).toBe(true);
     expect(ctx.composeProjectName).toBe('tlon-bot-e2e-hermes-unit');
     expect(ctx.composeFiles).toEqual([
-      path.join(repoRoot, 'packages/tlon-bot-e2e/docker/docker-compose.base.yml'),
+      path.join(
+        repoRoot,
+        'packages/tlon-bot-e2e/docker/docker-compose.base.yml'
+      ),
       path.join(
         repoRoot,
         'packages/tlon-bot-e2e/docker/docker-compose.hermes.yml'

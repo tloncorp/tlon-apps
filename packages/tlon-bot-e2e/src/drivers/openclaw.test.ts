@@ -1,5 +1,4 @@
 import path from 'node:path';
-
 import { afterEach, describe, expect, test } from 'vitest';
 
 import { createRuntimeContext } from '../runtime/context.js';
@@ -40,7 +39,10 @@ describe('OpenClaw driver runtime spec', () => {
     expect(Object.isFrozen(ctx)).toBe(true);
     expect(ctx.composeProjectName).toBe('tlon-bot-e2e-openclaw-unit');
     expect(ctx.composeFiles).toEqual([
-      path.join(repoRoot, 'packages/tlon-bot-e2e/docker/docker-compose.base.yml'),
+      path.join(
+        repoRoot,
+        'packages/tlon-bot-e2e/docker/docker-compose.base.yml'
+      ),
       path.join(
         repoRoot,
         'packages/tlon-bot-e2e/docker/docker-compose.openclaw.yml'

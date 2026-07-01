@@ -1,11 +1,11 @@
 import type { RuntimeContext, ShipEndpoint } from '../../drivers/types.js';
 import {
-  TlonActorClient,
   type BotProfileInput,
   type PostRef,
   type PromptResult,
   type StateReader,
   type StoryInput,
+  TlonActorClient,
 } from '../../tlon/index.js';
 
 export interface UploadBlobParams {
@@ -76,8 +76,16 @@ const teardownRegistry = new WeakMap<ScenarioActors, Teardown[]>();
 export function createScenarioActors(ctx: RuntimeContext): ScenarioActors {
   const teardowns: Teardown[] = [];
   const actors: ScenarioActors = {
-    bot: createScenarioActor(ctx.endpoints.ships.zod, ctx.endpoints.ships.zod, teardowns),
-    owner: createScenarioActor(ctx.endpoints.ships.ten, ctx.endpoints.ships.zod, teardowns),
+    bot: createScenarioActor(
+      ctx.endpoints.ships.zod,
+      ctx.endpoints.ships.zod,
+      teardowns
+    ),
+    owner: createScenarioActor(
+      ctx.endpoints.ships.ten,
+      ctx.endpoints.ships.zod,
+      teardowns
+    ),
     thirdParty: createScenarioActor(
       ctx.endpoints.ships.mug,
       ctx.endpoints.ships.zod,
@@ -88,7 +96,9 @@ export function createScenarioActors(ctx: RuntimeContext): ScenarioActors {
   return actors;
 }
 
-export async function runScenarioTeardowns(actors: ScenarioActors): Promise<void> {
+export async function runScenarioTeardowns(
+  actors: ScenarioActors
+): Promise<void> {
   const teardowns = teardownRegistry.get(actors) ?? [];
   const errors: string[] = [];
   while (teardowns.length > 0) {

@@ -69,7 +69,10 @@ export interface StateReader {
   groups(): Promise<unknown[]>;
   group(flag: string): Promise<unknown | null>;
   settings(): Promise<unknown>;
-  settingsBucket(desk: string, bucket: string): Promise<Record<string, unknown>>;
+  settingsBucket(
+    desk: string,
+    bucket: string
+  ): Promise<Record<string, unknown>>;
   channelPosts(channelId: string, count?: number): Promise<ChannelPost[]>;
   latestSequenceFrom(
     peerShip: string,
@@ -136,7 +139,11 @@ export class TlonActorClient {
       },
     };
 
-    await this.urbit.poke({ app: 'chat', mark: 'chat-dm-action', json: action });
+    await this.urbit.poke({
+      app: 'chat',
+      mark: 'chat-dm-action',
+      json: action,
+    });
   }
 
   async dmPostsWith(peerShip: string, count = 30): Promise<DmPost[]> {
@@ -251,7 +258,11 @@ export class TlonActorClient {
     });
 
     return (
-      (await this.findAuthoredPost(params.channelId, params.content, sentAt)) ?? {
+      (await this.findAuthoredPost(
+        params.channelId,
+        params.content,
+        sentAt
+      )) ?? {
         channelId: params.channelId,
         id: `${this.shipName}/${scot('ud', da.fromUnix(sentAt))}`,
         authorId: this.shipName,
@@ -297,7 +308,9 @@ export class TlonActorClient {
     title: string;
     members?: string[];
   }): Promise<{ groupId: string; chatChannel: string }> {
-    const slug = slugify(`${params.title}-${Date.now().toString(36)}-${randomId()}`);
+    const slug = slugify(
+      `${params.title}-${Date.now().toString(36)}-${randomId()}`
+    );
     const groupId = `${this.shipName}/${slug}`;
     const chatChannel = `chat/${this.shipName}/${slug}-general`;
     const memberIds = params.members?.map(normalizeShip);
@@ -441,7 +454,8 @@ export class TlonActorClient {
           posts = await this.state.channelPosts(normalizeShip(peerShip), 30);
         } catch (error) {
           if (opts.strict) {
-            const message = error instanceof Error ? error.message : String(error);
+            const message =
+              error instanceof Error ? error.message : String(error);
             throw new Error(
               `Failed to read DM baseline for author ${author} in ` +
                 `${normalizeShip(peerShip)}: ${message}`
@@ -469,7 +483,10 @@ export class TlonActorClient {
 
       inviteToGroup: async (groupId: string, contactIds: string[]) => {
         await this.withClient(async () => {
-          await inviteGroupMembers({ groupId, contactIds: contactIds.map(normalizeShip) });
+          await inviteGroupMembers({
+            groupId,
+            contactIds: contactIds.map(normalizeShip),
+          });
         });
       },
 
@@ -577,7 +594,9 @@ function postFromApi(post: unknown): ChannelPost {
     authorId: raw.authorId,
     sentAt: raw.sentAt,
     sequenceNum: raw.sequenceNum,
-    text: (raw.textContent ?? storyInputText((raw.content ?? []) as Story)).trim(),
+    text: (
+      raw.textContent ?? storyInputText((raw.content ?? []) as Story)
+    ).trim(),
     content: raw.content,
   };
 }
