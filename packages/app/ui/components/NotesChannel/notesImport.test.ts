@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
   buildNotesImportItems,
+  getNotesImportTargetFolderId,
   makeUniqueNoteTitle,
   normalizeTitleKey,
   readNotesImportSourcesFromDataTransfer,
@@ -128,6 +129,30 @@ describe('notes import helpers', () => {
     expect(makeUniqueNoteTitle('Plan', existingTitles)).toBe('Plan (2)');
     expect(makeUniqueNoteTitle('Plan', existingTitles)).toBe('Plan (3)');
     expect(makeUniqueNoteTitle('', existingTitles)).toBe('Untitled');
+  });
+
+  test('uses selected folder, active folder, then root for import target', () => {
+    expect(
+      getNotesImportTargetFolderId({
+        selectedFolderId: 9,
+        activeFolderId: 4,
+        rootFolderId: 1,
+      })
+    ).toBe(9);
+    expect(
+      getNotesImportTargetFolderId({
+        selectedFolderId: null,
+        activeFolderId: 4,
+        rootFolderId: 1,
+      })
+    ).toBe(4);
+    expect(
+      getNotesImportTargetFolderId({
+        selectedFolderId: null,
+        activeFolderId: null,
+        rootFolderId: 1,
+      })
+    ).toBe(1);
   });
 
   test('reads dropped files and folders from desktop browsers', async () => {

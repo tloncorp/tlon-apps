@@ -7,6 +7,18 @@ export type NotesImportSource = {
   contents: string;
 };
 
+export function getNotesImportTargetFolderId({
+  activeFolderId,
+  rootFolderId,
+  selectedFolderId,
+}: {
+  activeFolderId: number | null | undefined;
+  rootFolderId: number | null | undefined;
+  selectedFolderId: number | null | undefined;
+}) {
+  return selectedFolderId ?? activeFolderId ?? rootFolderId ?? null;
+}
+
 type NotesImportItem = {
   body: string;
   folderSegments: string[];
