@@ -175,6 +175,34 @@ test('createNotebookNote uses a fresh baseline before finding the created note',
   expect(note?.noteId).toBe(createdNote.noteId);
 });
 
+test('createNotebookNote does not return an existing note when create sync times out', async () => {
+  const existingNote = makeNotesNote(4, rootFolder.folderId, 'Untitled');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notesV1, 'listNotes').mockResolvedValue([
+    makeApiNotesNote(existingNote),
+  ]);
+  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notesV1, 'createNote').mockResolvedValue(undefined);
+
+  const note = await createNotebookNote({
+    notebookFlag,
+    folderId: rootFolder.folderId,
+    title: existingNote.title,
+  });
+
+  expect(note).toBeNull();
+});
+
 test('deleteNotebookNote waits for the deleted note to disappear from sync', async () => {
   const note = makeNote('Delete me');
   await db.saveNotesNotebookSnapshot({
