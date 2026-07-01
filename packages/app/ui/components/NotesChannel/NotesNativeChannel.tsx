@@ -554,6 +554,16 @@ export function NotesNativeChannel({
     }
   );
 
+  const runImportAfterSheetCloses = useMutableCallback((action: () => void) => {
+    setNewActionSheetOpen(false);
+    if (Platform.OS === 'web') {
+      action();
+      return;
+    }
+
+    setTimeout(action, 50);
+  });
+
   const createActions = [
     createNotesNewNoteAction({
       action: () => {
@@ -580,8 +590,7 @@ export function NotesNativeChannel({
             title: 'Import files',
             startIcon: 'ChannelNote' as const,
             action: () => {
-              setNewActionSheetOpen(false);
-              importFiles();
+              runImportAfterSheetCloses(importFiles);
             },
             disabled: isImportingNotes,
             testID: 'NotesImportFilesAction',
@@ -594,8 +603,7 @@ export function NotesNativeChannel({
             title: 'Import folder',
             startIcon: 'Folder' as const,
             action: () => {
-              setNewActionSheetOpen(false);
-              importFolder();
+              runImportAfterSheetCloses(importFolder);
             },
             disabled: isImportingNotes,
             testID: 'NotesImportFolderAction',
