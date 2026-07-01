@@ -20,6 +20,11 @@ scenario also accepts `TLON_KNOWN_BOT_USERS` and
 `TLON_MAX_CONSECUTIVE_BOT_RESPONSES`; defaults are chosen by the drivers so the
 baseline suite works without local overrides.
 
+Runner controls such as `TLON_BOT_E2E_SUITE` and
+`TLON_BOT_E2E_SCENARIO_PARTITIONS` are also allowed in this package `.env` for
+local workflows. Shell values still win over the file, so commands can override
+them for one-off runs without editing local config.
+
 The loader only accepts the explicit harness allowlist in `src/runtime/env.ts`.
 Unknown keys fail the run instead of being passed through implicitly. Docker
 Compose is still launched with `.env` auto-loading disabled, so package-local

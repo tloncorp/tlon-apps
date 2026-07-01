@@ -64,8 +64,13 @@ export interface DriverRuntimeSpec {
   testEnv: Record<string, string>;
 }
 
+export interface RuntimeTestMetadata {
+  tlonMaxConsecutiveBotResponses?: string;
+}
+
 export interface RuntimeContext extends RuntimeSeed, DriverRuntimeSpec {
   fakeModel: FakeModelClient;
+  testMetadata?: RuntimeTestMetadata;
 }
 
 export interface ComposeServiceState {
@@ -148,6 +153,14 @@ export interface ModelScriptExpectations {
   }>;
   toolLoopResult?: boolean;
   streamedToolLoop?: boolean;
+  /**
+   * The driver has observable tool side effects, but the fake-model received
+   * calls do not expose an OpenAI-format tool-result transcript for assertion.
+   */
+  toolEffectOnly?: boolean;
+  allowUnclassifiedExtraCallsForDriverQuirk?: {
+    reason: string;
+  };
 }
 
 export type ModelAuxiliaryCallKind = 'hermes_title_generation';

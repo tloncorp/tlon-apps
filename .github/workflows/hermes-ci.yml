@@ -53,3 +53,11 @@ jobs:
           TLON_BOT_E2E_RUN_ID:
             ${{ github.run_id }}-${{ github.run_attempt }}-hermes
         run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:hermes
+
+      - name: Run Hermes package smoke E2E
+        env:
+          FAKE_SHIP_CACHE_DIR:
+            ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
+          TLON_BOT_E2E_RUN_ID:
+            ${{ github.run_id }}-${{ github.run_attempt }}-hermes-package
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:hermes:package

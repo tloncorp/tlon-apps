@@ -3,6 +3,15 @@ import type {
   ModelAuxiliaryCallKind,
   ModelScript,
 } from '../../drivers/types.js';
+import { sleep } from '../../runtime/waiters.js';
+
+export const MODEL_EXPECTATION_SETTLE_MS = 1_500;
+
+export interface ExpectModelExpectationsOptions {
+  settleMs?: number;
+  settleTimeoutMs?: number;
+  pollIntervalMs?: number;
+}
 
 export async function registerModelScript(
   fakeModel: FakeModelClient,
@@ -16,9 +25,16 @@ export async function registerModelScript(
 export async function expectModelExpectations(
   fakeModel: FakeModelClient,
   key: string,
-  script: ModelScript
+  script: ModelScript,
+  options: ExpectModelExpectationsOptions = {}
 ): Promise<ReceivedCall[]> {
-  const calls = await fakeModel.received(key);
+  assertExtraCallAllowanceIsClassified(script, key);
+  const calls = await receivedCallsAfterSettle(
+    fakeModel,
+    key,
+    script,
+    options
+  );
   const expectations = script.expectations;
   if (!expectations) {
     return calls;
@@ -56,6 +72,66 @@ export async function expectModelExpectations(
   return calls;
 }
 
+async function receivedCallsAfterSettle(
+  fakeModel: FakeModelClient,
+  key: string,
+  script: ModelScript,
+  options: ExpectModelExpectationsOptions
+): Promise<ReceivedCall[]> {
+  const settleMs = options.settleMs ?? MODEL_EXPECTATION_SETTLE_MS;
+  if (settleMs <= 0) {
+    return fakeModel.received(key);
+  }
+
+  const expectedMinimum = script.expectations?.expectedCallCount ?? 0;
+  const pollIntervalMs = options.pollIntervalMs ?? Math.min(100, settleMs);
+  const settleTimeoutMs =
+    options.settleTimeoutMs ?? Math.max(settleMs * 2, settleMs + 500);
+  const deadline = Date.now() + settleTimeoutMs;
+  let calls = await fakeModel.received(key);
+  let lastCount = calls.length;
+  let quietSince = Date.now();
+
+  while (Date.now() < deadline) {
+    if (
+      calls.length >= expectedMinimum &&
+      Date.now() - quietSince >= settleMs
+    ) {
+      return calls;
+    }
+
+    await sleep(pollIntervalMs);
+    calls = await fakeModel.received(key);
+    if (calls.length !== lastCount) {
+      lastCount = calls.length;
+      quietSince = Date.now();
+    }
+  }
+
+  return calls;
+}
+
+function assertExtraCallAllowanceIsClassified(
+  script: ModelScript,
+  key: string
+): void {
+  const allowExtraCalls = script.options?.allowExtraCalls ?? 0;
+  if (allowExtraCalls <= 0) {
+    return;
+  }
+  const expectations = script.expectations;
+  if ((expectations?.allowedAuxiliaryCalls ?? []).length > 0) {
+    return;
+  }
+  if (expectations?.allowUnclassifiedExtraCallsForDriverQuirk?.reason.trim()) {
+    return;
+  }
+  throw new Error(
+    `Model script ${key} allows ${allowExtraCalls} extra call(s) without ` +
+      `allowedAuxiliaryCalls or allowUnclassifiedExtraCallsForDriverQuirk.`
+  );
+}
+
 function callCountInExpectedRange(count: number, script: ModelScript): boolean {
   const expected = script.expectations?.expectedCallCount;
   if (expected === undefined) {
@@ -75,7 +151,9 @@ export async function expectNoModelCalls(
   fakeModel: FakeModelClient,
   key?: string
 ): Promise<void> {
-  const calls = await fakeModel.received(key);
+  const calls = (await fakeModel.received(key)).filter(
+    (call) => !isBenignBackgroundModelCall(call)
+  );
   if (calls.length > 0) {
     const scope = key ? ` for ${key}` : '';
     const summary = calls
@@ -88,6 +166,10 @@ export async function expectNoModelCalls(
         `.`
     );
   }
+}
+
+export function isBenignBackgroundModelCall(call: ReceivedCall): boolean {
+  return call.key === null && call.userText.startsWith('[OpenClaw heartbeat poll]');
 }
 
 function assertAllAdvertisedTools(
@@ -306,39 +388,105 @@ function assertCallSequence(
   key: string
 ): void {
   const expected = script.expectations?.expectedCallSequence ?? [];
-  let modelRequestCount = 0;
+  let currentCallIndex = -1;
   let toolStepIndex = 0;
   let textStepIndex = 0;
   for (const item of expected) {
     if (item.kind === 'model_request') {
-      modelRequestCount += 1;
-      if (calls.length < modelRequestCount) {
+      currentCallIndex += 1;
+      if (calls.length <= currentCallIndex) {
         throw new Error(
-          `Expected model request #${modelRequestCount} for ${key}, got ${calls.length}.`
+          `Expected model request #${currentCallIndex + 1} for ${key}, ` +
+            `got ${calls.length}.`
         );
       }
       continue;
     }
 
     if (item.kind === 'tool_call') {
-      const toolStep = script.steps
-        .slice(toolStepIndex)
-        .find((step) => step.kind === 'tool_call');
-      if (!toolStep || toolStep.name !== item.toolName) {
+      const call = calls[currentCallIndex];
+      if (!call) {
         throw new Error(
-          `Expected scripted tool call ${item.toolName ?? '(any)'} for ${key}.`
+          `Expected a model request before tool call ${item.toolName ?? '(any)'} ` +
+            `for ${key}.`
         );
       }
-      toolStepIndex = script.steps.indexOf(toolStep) + 1;
+      const expectedToolName =
+        item.toolName ?? nextScriptToolName(script, toolStepIndex);
+      if (!expectedToolName) {
+        throw new Error(`Expected scripted tool call for ${key}.`);
+      }
+      const emittedTool = call.responseToolCalls.find(
+        (toolCall) => toolCall.function.name === expectedToolName
+      );
+      if (!emittedTool) {
+        throw new Error(
+          `Expected model response #${currentCallIndex + 1} for ${key} ` +
+            `to emit tool ${expectedToolName}, got ${JSON.stringify(
+              call.responseToolCalls.map(
+                (toolCall) => toolCall.function.name ?? '<missing>'
+              )
+            )}.`
+        );
+      }
+      toolStepIndex = nextScriptStepIndex(script, toolStepIndex, 'tool_call');
       continue;
     }
 
-    const textStep = script.steps
-      .slice(textStepIndex)
-      .find((step) => step.kind === 'text');
+    const call = calls[currentCallIndex];
+    if (!call) {
+      throw new Error(`Expected a model request before final text for ${key}.`);
+    }
+    const textStep = nextScriptTextStep(script, textStepIndex);
     if (!textStep) {
       throw new Error(`Expected scripted final model text for ${key}.`);
     }
-    textStepIndex = script.steps.indexOf(textStep) + 1;
+    if (call.responseText !== textStep.content) {
+      throw new Error(
+        `Expected model response #${currentCallIndex + 1} for ${key} to serve ` +
+          `final text ${JSON.stringify(textStep.content)}, got ` +
+          `${JSON.stringify(call.responseText ?? '')}.`
+      );
+    }
+    textStepIndex = nextScriptStepIndex(script, textStepIndex, 'text');
   }
+}
+
+function nextScriptToolName(
+  script: ModelScript,
+  startIndex: number
+): string | undefined {
+  for (let index = startIndex; index < script.steps.length; index += 1) {
+    const step = script.steps[index];
+    if (step.kind === 'tool_call') {
+      return step.name;
+    }
+  }
+  return undefined;
+}
+
+function nextScriptTextStep(
+  script: ModelScript,
+  startIndex: number
+): Extract<ModelScript['steps'][number], { kind: 'text' }> | undefined {
+  for (let index = startIndex; index < script.steps.length; index += 1) {
+    const step = script.steps[index];
+    if (step.kind === 'text') {
+      return step;
+    }
+  }
+  return undefined;
+}
+
+function nextScriptStepIndex(
+  script: ModelScript,
+  startIndex: number,
+  kind: ModelScript['steps'][number]['kind']
+): number {
+  for (let index = startIndex; index < script.steps.length; index += 1) {
+    if (script.steps[index].kind === kind) {
+      return index + 1;
+    }
+  }
+  return script.steps.length;
 }

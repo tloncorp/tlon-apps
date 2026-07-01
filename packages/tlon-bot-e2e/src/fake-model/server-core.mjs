@@ -210,7 +210,9 @@ async function handleChatCompletion(state, req, res) {
       console.log(
         `[fake-model] key="${key}"${streamFlag} -> 200 STALE-BENIGN (registeredEpoch=${registeredEpoch} arrivedEpoch=${state.epoch}, provenance=${provenance})`
       );
-      respondScripted(res, body, benignFiller());
+      const scripted = benignFiller();
+      recordScriptedResponse(callRecord, scripted);
+      respondScripted(res, body, scripted);
       return;
     }
     console.log(
@@ -230,7 +232,9 @@ async function handleChatCompletion(state, req, res) {
         `[fake-model] key="${key}"${streamFlag} -> 200 EXTRA call ${n + 1} (of ${steps.length}+${extra})`
       );
       state.callCounts.set(key, n + 1);
-      respondScripted(res, body, benignFiller());
+      const scripted = benignFiller();
+      recordScriptedResponse(callRecord, scripted);
+      respondScripted(res, body, scripted);
       return;
     }
     console.log(
@@ -250,15 +254,24 @@ async function handleChatCompletion(state, req, res) {
     step.kind === 'tool_call'
       ? toolCallResponse({ name: step.name, args: step.args })
       : textResponse(step.content);
-  callRecord.responseToolCalls = summarizeToolCalls(
-    scripted.message.tool_calls ?? []
-  );
+  recordScriptedResponse(callRecord, scripted);
 
   console.log(
     `[fake-model] POST /v1/chat/completions key="${key}"${streamFlag} -> 200 step ${n + 1}/${steps.length} (${step.kind}) [${provenance}]`
   );
 
   respondScripted(res, body, scripted);
+}
+
+function recordScriptedResponse(callRecord, scripted) {
+  callRecord.responseToolCalls = summarizeToolCalls(
+    scripted.message.tool_calls ?? []
+  );
+  callRecord.responseText =
+    typeof scripted.message.content === 'string'
+      ? scripted.message.content
+      : scripted.message.content ?? null;
+  callRecord.responseFinishReason = scripted.finish_reason;
 }
 
 function recordRegistration(state, key) {
@@ -565,13 +578,19 @@ function sendSseCompletion(res, payload) {
   };
 
   if (choice.message.tool_calls?.length) {
+    const indexedToolCalls = choice.message.tool_calls.map(
+      (toolCall, index) => ({
+        index,
+        ...toolCall,
+      })
+    );
     res.write(
       `data: ${JSON.stringify({
         ...base,
         choices: [
           {
             index: 0,
-            delta: { role: 'assistant', tool_calls: choice.message.tool_calls },
+            delta: { role: 'assistant', tool_calls: indexedToolCalls },
             finish_reason: null,
           },
         ],

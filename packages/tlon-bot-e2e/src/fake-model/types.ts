@@ -41,6 +41,10 @@ export interface ReceivedCall {
   provenance: 'latest-user' | 'history-active' | 'history-inactive' | 'none';
   /** Assistant tool calls emitted by the fake-model response for this request. */
   responseToolCalls: FakeModelToolCallSummary[];
+  /** Assistant text emitted by the fake-model response for this request. */
+  responseText?: string | null;
+  /** Finish reason emitted by the fake-model response for this request. */
+  responseFinishReason?: string;
 }
 
 export interface FakeModelReceivedResponse {

@@ -15,6 +15,7 @@ import {
 import {
   expectModelExpectations,
   expectNoModelCalls,
+  isBenignBackgroundModelCall,
   registerModelScript,
 } from './model.js';
 
@@ -66,10 +67,13 @@ export const commonScenarios: readonly SharedScenario[] = [
     const nicknameToken = `shared-tool-${key}`;
     const finalReply = `Common tlon command final reply ${key}`;
     const previousNickname = await botNickname(actors.bot);
-    actors.bot.teardown(async () => {
-      await setBotNickname(actors.bot, previousNickname);
-      await waitForBotNickname(actors.bot, previousNickname);
-    });
+    actors.bot.teardown(
+      async () => {
+        await setBotNickname(actors.bot, previousNickname);
+        await waitForBotNickname(actors.bot, previousNickname);
+      },
+      { kind: 'profile-rollback', label: 'restore bot nickname' }
+    );
 
     const script = driver.model.readOrAdmin(
       `contacts update-profile --nickname ${JSON.stringify(nicknameToken)}`,
@@ -533,7 +537,9 @@ async function waitForModelCalls(
 }
 
 async function modelCallCount(fakeModel: FakeModelClient): Promise<number> {
-  return (await fakeModel.received()).length;
+  return (await fakeModel.received()).filter(
+    (call) => !isBenignBackgroundModelCall(call)
+  ).length;
 }
 
 async function expectNoNewModelCallsAfterSettle(
@@ -542,7 +548,9 @@ async function expectNoNewModelCallsAfterSettle(
   settleMs = NEGATIVE_SETTLE_MS
 ): Promise<void> {
   await sleep(settleMs);
-  const calls = await fakeModel.received();
+  const calls = (await fakeModel.received()).filter(
+    (call) => !isBenignBackgroundModelCall(call)
+  );
   if (calls.length !== baselineCount) {
     const newCalls = calls.slice(baselineCount);
     const summary = newCalls
@@ -678,7 +686,10 @@ function botProfileFor(ship: string): { nickname: string; avatar: string } {
 }
 
 function knownBotLoopLimit(ctx: RuntimeContext): number {
-  const raw = ctx.composeEnv.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '2';
+  const raw =
+    ctx.testMetadata?.tlonMaxConsecutiveBotResponses ??
+    process.env.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ??
+    '2';
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(

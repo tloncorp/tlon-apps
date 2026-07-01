@@ -173,13 +173,14 @@ describe('OpenClaw driver runtime spec', () => {
         },
         { kind: 'text', content: 'Done' },
       ],
-      options: { allowExtraCalls: 1 },
       expectations: {
         advertisedTools: { exact: ['message', 'tlon'] },
         expectedCallCount: 2,
+        toolEffectOnly: true,
       },
     });
     expect(sendMessage.expectations).not.toHaveProperty('toolLoopResult');
+    expect(sendMessage.expectations).not.toHaveProperty('streamedToolLoop');
 
     const readOrAdmin = openclawDriver.model.readOrAdmin('version', 'done');
     expect(readOrAdmin).toMatchObject({
@@ -187,13 +188,14 @@ describe('OpenClaw driver runtime spec', () => {
         { kind: 'tool_call', name: 'tlon', args: { command: 'version' } },
         { kind: 'text', content: 'done' },
       ],
-      options: { allowExtraCalls: 1 },
       expectations: {
         advertisedTools: { exact: ['message', 'tlon'] },
         expectedCallCount: 2,
+        toolEffectOnly: true,
       },
     });
     expect(readOrAdmin.expectations).not.toHaveProperty('toolLoopResult');
+    expect(readOrAdmin.expectations).not.toHaveProperty('streamedToolLoop');
 
     expect(openclawDriver.model.imageSearch('cats')).toMatchObject({
       expectations: {

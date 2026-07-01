@@ -11,6 +11,7 @@ interface ChatCompletionResponse {
     message: {
       content?: string | null;
       tool_calls?: Array<{
+        index?: number;
         id: string;
         type: string;
         function: {
@@ -28,6 +29,7 @@ interface ChatCompletionChunk {
     delta: {
       content?: string;
       tool_calls?: Array<{
+        index?: number;
         id: string;
         type: string;
         function: {
@@ -115,6 +117,7 @@ describe('fake model server', () => {
     const chunks = parseSseChunks(await response.text());
     const toolCall = chunks[0].choices[0].delta.tool_calls?.[0];
 
+    expect(toolCall?.index).toBe(0);
     expect(toolCall?.type).toBe('function');
     expect(toolCall?.function.name).toBe('tlon');
     expect(JSON.parse(toolCall?.function.arguments ?? '{}')).toEqual({
@@ -242,6 +245,9 @@ describe('fake model server', () => {
         },
       },
     ]);
+    expect(calls[0].responseFinishReason).toBe('tool_calls');
+    expect(calls[1].responseText).toBe('done');
+    expect(calls[1].responseFinishReason).toBe('stop');
     expect(calls[1].messages).toMatchObject([
       { role: 'user', content: { kind: 'text' } },
       {

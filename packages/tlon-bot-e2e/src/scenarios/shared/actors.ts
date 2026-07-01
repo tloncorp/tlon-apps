@@ -51,10 +51,25 @@ export interface ScenarioActor {
     desk?: string;
   }): Promise<void>;
   uploadBlob?(params: UploadBlobParams): Promise<string>;
-  teardown(fn: () => Promise<void>): void;
+  teardown(fn: () => Promise<void>, opts?: ScenarioTeardownOptions): void;
 }
 
-type Teardown = () => Promise<void>;
+export type ScenarioTeardownKind =
+  | 'generic'
+  | 'idempotent-group-delete'
+  | 'profile-rollback'
+  | 'settings-rollback';
+
+export interface ScenarioTeardownOptions {
+  kind?: ScenarioTeardownKind;
+  label?: string;
+}
+
+interface Teardown {
+  fn: () => Promise<void>;
+  kind: ScenarioTeardownKind;
+  label: string;
+}
 
 const teardownRegistry = new WeakMap<ScenarioActors, Teardown[]>();
 
@@ -75,26 +90,22 @@ export function createScenarioActors(ctx: RuntimeContext): ScenarioActors {
 
 export async function runScenarioTeardowns(actors: ScenarioActors): Promise<void> {
   const teardowns = teardownRegistry.get(actors) ?? [];
-  const errors: unknown[] = [];
+  const errors: string[] = [];
   while (teardowns.length > 0) {
     const teardown = teardowns.pop();
     if (!teardown) {
       continue;
     }
     try {
-      await teardown();
+      await teardown.fn();
     } catch (error) {
-      if (!isBenignTeardownError(error)) {
-        errors.push(error);
+      if (!isBenignTeardownError(error, teardown)) {
+        errors.push(`${teardown.label}: ${errorMessage(error)}`);
       }
     }
   }
   if (errors.length > 0) {
-    throw new Error(
-      `Scenario teardown failed: ${errors
-        .map((error) => (error instanceof Error ? error.message : String(error)))
-        .join('; ')}`
-    );
+    throw new Error(`Scenario teardown failed: ${errors.join('; ')}`);
   }
 }
 
@@ -133,14 +144,12 @@ function createScenarioActor(
 
     async createGroupWithChannel(params) {
       const group = await client.createGroupWithChannel(params);
-      teardowns.push(async () => {
-        try {
+      teardowns.push({
+        fn: async () => {
           await client.state.deleteGroup(group.groupId);
-        } catch (error) {
-          if (!isBenignTeardownError(error)) {
-            throw error;
-          }
-        }
+        },
+        kind: 'idempotent-group-delete',
+        label: `delete group ${group.groupId}`,
       });
       return group;
     },
@@ -149,13 +158,23 @@ function createScenarioActor(
       await client.setSettingsEntry(params);
     },
 
-    teardown(fn) {
-      teardowns.push(fn);
+    teardown(fn, opts = {}) {
+      teardowns.push({
+        fn,
+        kind: opts.kind ?? 'generic',
+        label: opts.label ?? opts.kind ?? 'teardown',
+      });
     },
   };
 }
 
-function isBenignTeardownError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /TimeoutError:\s*(active|reconnected)/i.test(message);
+function isBenignTeardownError(error: unknown, teardown: Teardown): boolean {
+  return (
+    teardown.kind === 'idempotent-group-delete' &&
+    /TimeoutError:\s*(active|reconnected)/i.test(errorMessage(error))
+  );
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

@@ -164,6 +164,7 @@ export const hermesDriver: BotDriver = {
           expectedCallSequence: [
             { kind: 'model_request' },
             { kind: 'tool_call', toolName: 'tlon' },
+            { kind: 'model_request' },
             { kind: 'final_model_text' },
           ],
           toolLoopResult: true,

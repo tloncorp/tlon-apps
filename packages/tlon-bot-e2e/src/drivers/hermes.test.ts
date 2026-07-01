@@ -78,6 +78,12 @@ describe('Hermes driver runtime spec', () => {
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 2,
+        expectedCallSequence: [
+          { kind: 'model_request' },
+          { kind: 'tool_call', toolName: 'tlon' },
+          { kind: 'model_request' },
+          { kind: 'final_model_text' },
+        ],
         streamedToolLoop: true,
         allowedAuxiliaryCalls: ['hermes_title_generation'],
       },

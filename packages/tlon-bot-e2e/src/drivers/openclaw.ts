@@ -181,10 +181,16 @@ export const openclawDriver: BotDriver = {
           },
           { kind: 'text', content: 'Done' },
         ],
-        options: { allowExtraCalls: 1 },
         expectations: {
           advertisedTools: { exact: ['message', 'tlon'] },
           expectedCallCount: 2,
+          // Observed against openclaw@2026.5.7: the fake model receives the
+          // initial tool-call request and a follow-up request, but that
+          // follow-up does not contain an OpenAI role:tool/function message
+          // carrying the emitted tool_call_id. Shared scenarios therefore
+          // assert the visible reply plus Tlon side effect instead of claiming
+          // Hermes-style tool-result transcript coverage.
+          toolEffectOnly: true,
         },
       };
     },
@@ -195,10 +201,13 @@ export const openclawDriver: BotDriver = {
           { kind: 'tool_call', name: 'tlon', args: { command } },
           { kind: 'text', content: finalText },
         ],
-        options: { allowExtraCalls: 1 },
         expectations: {
           advertisedTools: { exact: ['message', 'tlon'] },
           expectedCallCount: 2,
+          // See sendMessage: the current OpenClaw transcript is observable as
+          // a second model request but not as an OpenAI-format tool-result
+          // message with the emitted tool_call_id.
+          toolEffectOnly: true,
         },
       };
     },

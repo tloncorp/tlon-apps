@@ -71,7 +71,11 @@ export interface StateReader {
   settings(): Promise<unknown>;
   settingsBucket(desk: string, bucket: string): Promise<Record<string, unknown>>;
   channelPosts(channelId: string, count?: number): Promise<ChannelPost[]>;
-  latestSequenceFrom(peerShip: string, authorShip: string): Promise<number>;
+  latestSequenceFrom(
+    peerShip: string,
+    authorShip: string,
+    opts?: { strict?: boolean }
+  ): Promise<number>;
   scry<T = unknown>(app: string, path: string): Promise<T>;
   poke(params: { app: string; mark: string; json: unknown }): Promise<void>;
   inviteToGroup(groupId: string, contactIds: string[]): Promise<void>;
@@ -145,7 +149,18 @@ export class TlonActorClient {
     opts: { timeoutMs?: number } = {}
   ): Promise<PromptResult> {
     const bot = normalizeShip(botShip);
-    const baseline = await this.latestSequenceFrom(bot, bot);
+    let baseline: number;
+    try {
+      baseline = await this.latestSequenceFrom(bot, bot, { strict: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        error:
+          `Failed to capture DM baseline from ${bot} before sending prompt: ` +
+          message,
+      };
+    }
     await this.sendDm(bot, text);
     const started = Date.now();
     const timeoutMs = opts.timeoutMs ?? 90_000;
@@ -208,8 +223,12 @@ export class TlonActorClient {
     }
   }
 
-  async latestSequenceFrom(peerShip: string, authorShip: string): Promise<number> {
-    return this.state.latestSequenceFrom(peerShip, authorShip);
+  async latestSequenceFrom(
+    peerShip: string,
+    authorShip: string,
+    opts: { strict?: boolean } = {}
+  ): Promise<number> {
+    return this.state.latestSequenceFrom(peerShip, authorShip, opts);
   }
 
   async sendChannelPost(params: {
@@ -411,12 +430,23 @@ export class TlonActorClient {
         });
       },
 
-      latestSequenceFrom: async (peerShip: string, authorShip: string) => {
+      latestSequenceFrom: async (
+        peerShip: string,
+        authorShip: string,
+        opts: { strict?: boolean } = {}
+      ) => {
         const author = normalizeShip(authorShip);
         let posts: ChannelPost[];
         try {
           posts = await this.state.channelPosts(normalizeShip(peerShip), 30);
-        } catch {
+        } catch (error) {
+          if (opts.strict) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(
+              `Failed to read DM baseline for author ${author} in ` +
+                `${normalizeShip(peerShip)}: ${message}`
+            );
+          }
           return -1;
         }
         return posts

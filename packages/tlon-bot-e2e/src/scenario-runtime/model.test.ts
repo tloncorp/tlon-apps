@@ -12,6 +12,7 @@ import {
 describe('shared model script helpers', () => {
   let server: FakeModelServerListener;
   let fakeModel: FakeModelClient;
+  const noSettle = { settleMs: 0 };
 
   beforeEach(async () => {
     server = await createFakeModelServer().listen({ port: 0 });
@@ -29,6 +30,7 @@ describe('shared model script helpers', () => {
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 2,
+        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     };
     const tag = await registerModelScript(fakeModel, 'script-options', script);
@@ -41,17 +43,18 @@ describe('shared model script helpers', () => {
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'script-options', script)
+      expectModelExpectations(fakeModel, 'script-options', script, noSettle)
     ).resolves.toHaveLength(2);
   });
 
-  test('allows only the declared extra model-call budget', async () => {
+  test('allows only declared and classified extra model-call budget', async () => {
     const script: ModelScript = {
       steps: [{ kind: 'text', content: 'ok' }],
       options: { allowExtraCalls: 1 },
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 1,
+        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     };
     const tag = await registerModelScript(fakeModel, 'extra-budget', script);
@@ -60,11 +63,11 @@ describe('shared model script helpers', () => {
       tools: [{ type: 'function', function: { name: 'tlon' } }],
     });
     await postChat(server.baseUrl, tag, {
-      tools: [{ type: 'function', function: { name: 'tlon' } }],
+      messages: hermesTitleMessages(tag, 'ok'),
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'extra-budget', script)
+      expectModelExpectations(fakeModel, 'extra-budget', script, noSettle)
     ).resolves.toHaveLength(2);
 
     await postChatAllowFailure(server.baseUrl, tag, {
@@ -72,11 +75,11 @@ describe('shared model script helpers', () => {
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'extra-budget', script)
+      expectModelExpectations(fakeModel, 'extra-budget', script, noSettle)
     ).rejects.toThrow(/Expected 1-2 model call/);
   });
 
-  test('allows tool-less auxiliary extra calls while checking tool-bearing calls', async () => {
+  test('rejects unclassified extra-call allowances', async () => {
     const script: ModelScript = {
       steps: [{ kind: 'text', content: 'ok' }],
       options: { allowExtraCalls: 1 },
@@ -85,16 +88,10 @@ describe('shared model script helpers', () => {
         expectedCallCount: 1,
       },
     };
-    const tag = await registerModelScript(fakeModel, 'toolless-extra', script);
-
-    await postChat(server.baseUrl, tag, {
-      tools: [{ type: 'function', function: { name: 'tlon' } }],
-    });
-    await postChat(server.baseUrl, tag);
 
     await expect(
-      expectModelExpectations(fakeModel, 'toolless-extra', script)
-    ).resolves.toHaveLength(2);
+      expectModelExpectations(fakeModel, 'unclassified-extra', script, noSettle)
+    ).rejects.toThrow(/without allowedAuxiliaryCalls/);
   });
 
   test('allows declared Hermes title-generation auxiliary calls', async () => {
@@ -114,8 +111,41 @@ describe('shared model script helpers', () => {
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'hermes-title', script)
+      expectModelExpectations(fakeModel, 'hermes-title', script, noSettle)
     ).resolves.toHaveLength(2);
+  });
+
+  test('catches delayed unexpected extra calls inside the settle window', async () => {
+    const script: ModelScript = {
+      steps: [{ kind: 'text', content: 'ok' }],
+      options: { allowExtraCalls: 1 },
+      expectations: {
+        expectedCallCount: 1,
+        allowedAuxiliaryCalls: ['hermes_title_generation'],
+      },
+    };
+    const tag = await registerModelScript(fakeModel, 'delayed-extra', script);
+
+    await postChat(server.baseUrl, tag);
+    const delayedExtra = new Promise<void>((resolve, reject) => {
+      setTimeout(() => {
+        postChat(server.baseUrl, tag, {
+          messages: [
+            { role: 'system', content: 'Normal assistant request.' },
+            { role: 'user', content: `${tag} Duplicate dispatch.` },
+          ],
+        }).then(resolve, reject);
+      }, 25);
+    });
+
+    await expect(
+      expectModelExpectations(fakeModel, 'delayed-extra', script, {
+        settleMs: 80,
+        settleTimeoutMs: 500,
+        pollIntervalMs: 10,
+      })
+    ).rejects.toThrow(/Unexpected auxiliary model call/);
+    await delayedExtra;
   });
 
   test('rejects unexpected extra calls when auxiliary calls are narrowed', async () => {
@@ -142,14 +172,21 @@ describe('shared model script helpers', () => {
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'unexpected-auxiliary', script)
+      expectModelExpectations(
+        fakeModel,
+        'unexpected-auxiliary',
+        script,
+        noSettle
+      )
     ).rejects.toThrow(/Unexpected auxiliary model call/);
   });
 
   test('fails when a required model call omits advertised tools', async () => {
     const script: ModelScript = {
-      steps: [{ kind: 'text', content: 'ok' }],
-      options: { allowExtraCalls: 1 },
+      steps: [
+        { kind: 'text', content: 'ok' },
+        { kind: 'text', content: 'ok again' },
+      ],
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 2,
@@ -163,14 +200,21 @@ describe('shared model script helpers', () => {
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'missing-required-tools', script)
+      expectModelExpectations(
+        fakeModel,
+        'missing-required-tools',
+        script,
+        noSettle
+      )
     ).rejects.toThrow(/Expected exact advertised tools/);
   });
 
   test('fails when any scenario call advertises unexpected tools', async () => {
     const script: ModelScript = {
-      steps: [{ kind: 'text', content: 'ok' }],
-      options: { allowExtraCalls: 1 },
+      steps: [
+        { kind: 'text', content: 'ok' },
+        { kind: 'text', content: 'ok again' },
+      ],
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 2,
@@ -189,7 +233,12 @@ describe('shared model script helpers', () => {
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'later-tool-mismatch', script)
+      expectModelExpectations(
+        fakeModel,
+        'later-tool-mismatch',
+        script,
+        noSettle
+      )
     ).rejects.toThrow(/Expected exact advertised tools/);
   });
 
@@ -206,7 +255,7 @@ describe('shared model script helpers', () => {
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'tool-mismatch', script)
+      expectModelExpectations(fakeModel, 'tool-mismatch', script, noSettle)
     ).rejects.toThrow(/Advertised tools mismatch/);
   });
 
@@ -219,6 +268,12 @@ describe('shared model script helpers', () => {
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 2,
+        expectedCallSequence: [
+          { kind: 'model_request' },
+          { kind: 'tool_call', toolName: 'tlon' },
+          { kind: 'model_request' },
+          { kind: 'final_model_text' },
+        ],
         toolLoopResult: true,
       },
     };
@@ -241,8 +296,73 @@ describe('shared model script helpers', () => {
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'tool-loop-ok', script)
+      expectModelExpectations(fakeModel, 'tool-loop-ok', script, noSettle)
     ).resolves.toHaveLength(2);
+  });
+
+  test('fails call-sequence expectations when emitted tool name is wrong', async () => {
+    const script: ModelScript = {
+      steps: [
+        { kind: 'tool_call', name: 'message', args: { action: 'send' } },
+        { kind: 'text', content: 'done' },
+      ],
+      expectations: {
+        expectedCallCount: 1,
+        expectedCallSequence: [
+          { kind: 'model_request' },
+          { kind: 'tool_call', toolName: 'tlon' },
+        ],
+      },
+    };
+    const tag = await registerModelScript(
+      fakeModel,
+      'sequence-tool-mismatch',
+      script
+    );
+
+    await postChatForToolCall(server.baseUrl, tag);
+
+    await expect(
+      expectModelExpectations(
+        fakeModel,
+        'sequence-tool-mismatch',
+        script,
+        noSettle
+      )
+    ).rejects.toThrow(/emit tool tlon/);
+  });
+
+  test('fails call-sequence expectations when final text is asserted before the follow-up request', async () => {
+    const script: ModelScript = {
+      steps: [
+        { kind: 'tool_call', name: 'tlon', args: { command: 'version' } },
+        { kind: 'text', content: 'done' },
+      ],
+      expectations: {
+        expectedCallCount: 1,
+        expectedCallSequence: [
+          { kind: 'model_request' },
+          { kind: 'tool_call', toolName: 'tlon' },
+          { kind: 'final_model_text' },
+        ],
+      },
+    };
+    const tag = await registerModelScript(
+      fakeModel,
+      'sequence-final-position',
+      script
+    );
+
+    await postChatForToolCall(server.baseUrl, tag);
+
+    await expect(
+      expectModelExpectations(
+        fakeModel,
+        'sequence-final-position',
+        script,
+        noSettle
+      )
+    ).rejects.toThrow(/serve final text/);
   });
 
   test('accepts tool-result follow-up without assistant echo when ids match', async () => {
@@ -275,7 +395,12 @@ describe('shared model script helpers', () => {
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'tool-loop-no-assistant-echo', script)
+      expectModelExpectations(
+        fakeModel,
+        'tool-loop-no-assistant-echo',
+        script,
+        noSettle
+      )
     ).resolves.toHaveLength(2);
   });
 
@@ -306,7 +431,7 @@ describe('shared model script helpers', () => {
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'tool-loop-mismatch', script)
+      expectModelExpectations(fakeModel, 'tool-loop-mismatch', script, noSettle)
     ).rejects.toThrow(/tool-result message with tool_call_id/);
   });
 
@@ -322,6 +447,21 @@ describe('shared model script helpers', () => {
     await expect(expectNoModelCalls(fakeModel)).rejects.toThrow(
       /Expected no model calls, got 1 \(<unkeyed>\)/
     );
+  });
+
+  test('ignores OpenClaw heartbeat background model calls in negative assertions', async () => {
+    await postChatAllowFailure(server.baseUrl, '[OpenClaw heartbeat poll]', {
+      messages: [
+        { role: 'user', content: '[OpenClaw heartbeat poll]' },
+        {
+          role: 'user',
+          content:
+            'Read HEARTBEAT.md if it exists. If nothing needs attention, reply HEARTBEAT_OK.',
+        },
+      ],
+    });
+
+    await expect(expectNoModelCalls(fakeModel)).resolves.toBeUndefined();
   });
 });
 

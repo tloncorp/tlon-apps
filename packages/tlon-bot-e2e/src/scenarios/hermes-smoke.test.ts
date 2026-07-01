@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 
+import { hermesDriver } from '../drivers/hermes.js';
 import { FakeModelClient } from '../fake-model/index.js';
+import {
+  expectModelExpectations,
+  registerModelScript,
+} from './shared/model.js';
 import {
   TlonActorClient,
   actorFromEnv,
@@ -23,54 +28,39 @@ describe('Hermes shared E2E smoke', () => {
   test('owner DM receives final assistant text', async () => {
     const key = `hermes-text-${Date.now()}`;
     const reply = `Hermes text smoke reply ${key}`;
-    await fakeModel.script(key, [{ kind: 'text', content: reply }], {
-      allowExtraCalls: 1,
-    });
+    const script = hermesDriver.model.replyText(reply);
+    const tag = await registerModelScript(fakeModel, key, script);
 
     const result = await owner.promptDm(
       botShip,
-      `[tlon-test:${key}] Reply with the scripted smoke text.`
+      `${tag} Reply with the scripted smoke text.`
     );
 
     expect(result.success, result.error).toBe(true);
     expect(result.text).toContain(reply);
 
-    const calls = await fakeModel.received(key);
-    expect(calls.length).toBeGreaterThanOrEqual(1);
+    const calls = await expectModelExpectations(fakeModel, key, script);
     expect(calls[0].stream).toBe(true);
-    expect(calls[0].toolNames).toContain('tlon');
-    expect(calls[0].toolNames).not.toContain('image_search');
     expect(calls[0].model).toBe('tlon-test-scripted');
   });
 
   test('streamed tlon tool call loops back to final assistant text', async () => {
     const key = `hermes-tlon-${Date.now()}`;
     const finalReply = `Hermes tlon tool smoke final reply ${key}`;
-    await fakeModel.script(
-      key,
-      [
-        { kind: 'tool_call', name: 'tlon', args: { command: 'version' } },
-        { kind: 'text', content: finalReply },
-      ],
-      {
-        allowExtraCalls: 1,
-      }
-    );
+    const script = hermesDriver.model.readOrAdmin('version', finalReply);
+    const tag = await registerModelScript(fakeModel, key, script);
 
     const result = await owner.promptDm(
       botShip,
-      `[tlon-test:${key}] Run tlon version, then reply with the scripted result.`,
+      `${tag} Run tlon version, then reply with the scripted result.`,
       { timeoutMs: 120_000 }
     );
 
     expect(result.success, result.error).toBe(true);
     expect(result.text).toContain(finalReply);
 
-    const calls = await fakeModel.received(key);
-    expect(calls.length).toBeGreaterThanOrEqual(2);
+    const calls = await expectModelExpectations(fakeModel, key, script);
     expect(calls[0].stream).toBe(true);
-    expect(calls[0].toolNames).toContain('tlon');
-    expect(calls[0].toolNames).not.toContain('image_search');
     expect(calls[1].messageCount).toBeGreaterThan(calls[0].messageCount);
   });
 

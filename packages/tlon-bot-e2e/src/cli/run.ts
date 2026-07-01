@@ -1,4 +1,4 @@
-import { mkdir, readdir, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +18,6 @@ import {
 } from '../runtime/context.js';
 import { collectRuntimeDiagnostics } from '../runtime/diagnostics.js';
 import {
-  buildComposeProcessEnv,
   loadTlonBotE2eEnvFile,
 } from '../runtime/env.js';
 import {
@@ -34,6 +33,11 @@ import {
   type ScenarioPartition,
   selectScenarioPartitions,
 } from '../scenarios/shared/dsl.js';
+import {
+  buildCommonScenarioEnv,
+  buildHermesSmokeEnv,
+  buildOpenClawPackageTestEnv,
+} from './test-env.js';
 
 const packageDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -240,30 +244,41 @@ async function runPackageSpecificTests(
   await runHermesSmoke(ctx);
 }
 
-async function writeRuntimeContextFile(ctx: RuntimeContext): Promise<string> {
-  const contextDir = await mkdir(
-    path.join(os.tmpdir(), `tlon-bot-e2e-${ctx.runId}`),
-    { recursive: true }
-  ).then(() => path.join(os.tmpdir(), `tlon-bot-e2e-${ctx.runId}`));
+interface RuntimeContextFile {
+  contextDir: string;
+  contextFile: string;
+}
+
+async function writeRuntimeContextFile(
+  ctx: RuntimeContext
+): Promise<RuntimeContextFile> {
+  const contextDir = await mkdtemp(
+    path.join(os.tmpdir(), `tlon-bot-e2e-${ctx.runId}-`)
+  );
+  await chmod(contextDir, 0o700);
   const contextFile = path.join(contextDir, 'runtime-context.json');
   await writeFile(
     contextFile,
     JSON.stringify(runtimeContextForJson(ctx), null, 2),
-    'utf8'
+    { encoding: 'utf8', mode: 0o600 }
   );
-  return contextFile;
+  return { contextDir, contextFile };
+}
+
+async function withRuntimeContextFile<T>(
+  ctx: RuntimeContext,
+  fn: (contextFile: string) => Promise<T>
+): Promise<T> {
+  const { contextDir, contextFile } = await writeRuntimeContextFile(ctx);
+  try {
+    return await fn(contextFile);
+  } finally {
+    await rm(contextDir, { recursive: true, force: true });
+  }
 }
 
 async function runHermesSmoke(ctx: RuntimeContext): Promise<void> {
-  const contextFile = await writeRuntimeContextFile(ctx);
-
-  const env = buildComposeProcessEnv({
-    projectName: ctx.composeProjectName,
-    explicitEnv: {
-      ...ctx.testEnv,
-      TLON_BOT_E2E_RUNTIME_CONTEXT_FILE: contextFile,
-    },
-  });
+  const env = buildHermesSmokeEnv(ctx);
 
   const result = await runCommand(
     'pnpm',
@@ -286,37 +301,27 @@ async function runCommonScenarioPartition(
   ctx: RuntimeContext,
   partition: ScenarioPartition
 ): Promise<void> {
-  const contextFile = await writeRuntimeContextFile(ctx);
-  const env = buildComposeProcessEnv({
-    projectName: ctx.composeProjectName,
-    explicitEnv: {
-      ...ctx.testEnv,
-      TLON_BOT_E2E_RUNTIME_CONTEXT_FILE: contextFile,
-      TLON_BOT_E2E_SCENARIO_PARTITION: partition.key,
-      TLON_BOT_E2E_SCENARIO_CAPABILITIES: JSON.stringify(
-        partition.capabilities
-      ),
-    },
-  });
-
   console.log('');
   console.log(
     `==> Running common ${ctx.driverName} scenarios (${partition.key})...`
   );
   console.log('');
 
-  const result = await runCommand(
-    'pnpm',
-    [
-      'exec',
-      'vitest',
-      'run',
-      '--config',
-      'vitest.e2e.config.ts',
-      'src/scenarios/common.test.ts',
-    ],
-    { cwd: path.join(ctx.repoRoot, 'packages/tlon-bot-e2e'), env }
-  );
+  const result = await withRuntimeContextFile(ctx, async (contextFile) => {
+    const env = buildCommonScenarioEnv(ctx, contextFile, partition);
+    return runCommand(
+      'pnpm',
+      [
+        'exec',
+        'vitest',
+        'run',
+        '--config',
+        'vitest.e2e.config.ts',
+        'src/scenarios/common.test.ts',
+      ],
+      { cwd: path.join(ctx.repoRoot, 'packages/tlon-bot-e2e'), env }
+    );
+  });
   if (result.exitCode !== 0) {
     throw new Error(
       `Common scenario vitest failed with exit ${result.exitCode}`
@@ -328,19 +333,8 @@ async function runOpenClawVitestFiles(
   ctx: RuntimeContext,
   rawArgs: string[]
 ): Promise<void> {
-  const contextFile = await writeRuntimeContextFile(ctx);
   const testFiles = await resolveOpenClawTestFiles(ctx, rawArgs);
-  const env = buildComposeProcessEnv({
-    projectName: ctx.composeProjectName,
-    explicitEnv: {
-      ...ctx.composeEnv,
-      ...ctx.testEnv,
-      TLON_BOT_E2E_RUNTIME_CONTEXT_FILE: contextFile,
-      TEST_COMPOSE_FILE: ctx.composeFiles[0] ?? '',
-      TEST_COMPOSE_FILES: JSON.stringify(ctx.composeFiles),
-      TEST_COMPOSE_PROJECT_NAME: ctx.composeProjectName,
-    },
-  });
+  const env = buildOpenClawPackageTestEnv(ctx);
 
   console.log('');
   console.log('==> Running OpenClaw integration tests...');

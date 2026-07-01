@@ -84,21 +84,24 @@ export async function withSettingsEntry(
   const hadBefore = Object.prototype.hasOwnProperty.call(before, key);
   const previous = before[key];
   await actors.bot.setSettingsEntry({ bucket: SETTINGS_BUCKET, key, value });
-  actors.bot.teardown(async () => {
-    if (hadBefore) {
-      await actors.bot.setSettingsEntry({
-        bucket: SETTINGS_BUCKET,
-        key,
-        value: previous,
-      });
-    } else {
-      await actors.bot.setSettingsEntry({
-        bucket: SETTINGS_BUCKET,
-        key,
-        value: defaultSettingValue(key),
-      });
-    }
-  });
+  actors.bot.teardown(
+    async () => {
+      if (hadBefore) {
+        await actors.bot.setSettingsEntry({
+          bucket: SETTINGS_BUCKET,
+          key,
+          value: previous,
+        });
+      } else {
+        await actors.bot.setSettingsEntry({
+          bucket: SETTINGS_BUCKET,
+          key,
+          value: defaultSettingValue(key),
+        });
+      }
+    },
+    { kind: 'settings-rollback', label: `restore setting ${key}` }
+  );
   await waitForSettingsEntries(actors, { [key]: value });
   await sleep(750);
 }
@@ -117,13 +120,16 @@ export async function allowDmFrom(
     key: 'dmAllowlist',
     value: next,
   });
-  actors.bot.teardown(async () => {
-    await actors.bot.setSettingsEntry({
-      bucket: SETTINGS_BUCKET,
-      key: 'dmAllowlist',
-      value: [actors.owner.ship],
-    });
-  });
+  actors.bot.teardown(
+    async () => {
+      await actors.bot.setSettingsEntry({
+        bucket: SETTINGS_BUCKET,
+        key: 'dmAllowlist',
+        value: [actors.owner.ship],
+      });
+    },
+    { kind: 'settings-rollback', label: 'restore dmAllowlist' }
+  );
   await waitForSettingsEntries(actors, { dmAllowlist: next });
   await sleep(750);
 }
@@ -137,13 +143,16 @@ export async function monitorGroupChannels(
     key: 'groupChannels',
     value: [...channels],
   });
-  actors.bot.teardown(async () => {
-    await actors.bot.setSettingsEntry({
-      bucket: SETTINGS_BUCKET,
-      key: 'groupChannels',
-      value: [],
-    });
-  });
+  actors.bot.teardown(
+    async () => {
+      await actors.bot.setSettingsEntry({
+        bucket: SETTINGS_BUCKET,
+        key: 'groupChannels',
+        value: [],
+      });
+    },
+    { kind: 'settings-rollback', label: 'restore groupChannels' }
+  );
   await waitForSettingsEntries(actors, { groupChannels: [...channels] });
   await sleep(750);
 }

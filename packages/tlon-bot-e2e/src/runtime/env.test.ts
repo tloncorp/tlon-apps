@@ -68,6 +68,8 @@ describe('tlon-bot-e2e env file loader', () => {
     const envFilePath = await writeTempEnvFile(`
       # local harness settings
       export TLON_BOT_E2E_DRIVER=openclaw
+      TLON_BOT_E2E_SUITE=common
+      TLON_BOT_E2E_SCENARIO_PARTITIONS=baseline
       FAKE_SHIP_CACHE_DIR="/tmp/tlon cache"
       BRAVE_API_KEY=abc#def
       TEST_STORAGE_BUCKET=bucket-name # inline comment
@@ -83,6 +85,8 @@ describe('tlon-bot-e2e env file loader', () => {
       envFilePath,
       loaded: [
         'TLON_BOT_E2E_DRIVER',
+        'TLON_BOT_E2E_SUITE',
+        'TLON_BOT_E2E_SCENARIO_PARTITIONS',
         'FAKE_SHIP_CACHE_DIR',
         'BRAVE_API_KEY',
         'TEST_STORAGE_BUCKET',
@@ -90,6 +94,8 @@ describe('tlon-bot-e2e env file loader', () => {
       skipped: ['TEST_STORAGE_SECRET_KEY'],
     });
     expect(targetEnv.TLON_BOT_E2E_DRIVER).toBe('openclaw');
+    expect(targetEnv.TLON_BOT_E2E_SUITE).toBe('common');
+    expect(targetEnv.TLON_BOT_E2E_SCENARIO_PARTITIONS).toBe('baseline');
     expect(targetEnv.FAKE_SHIP_CACHE_DIR).toBe('/tmp/tlon cache');
     expect(targetEnv.BRAVE_API_KEY).toBe('abc#def');
     expect(targetEnv.TEST_STORAGE_BUCKET).toBe('bucket-name');
