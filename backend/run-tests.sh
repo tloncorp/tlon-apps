@@ -110,7 +110,7 @@ TIMEOUT=800
 TIMEOUT_LONG=2700
 
 run_click="$click -t $TIMEOUT -b $vere -i - -kp"
-run_click_long ="$click -t $TIMEOUT_LONG -b $vere -i - -kp"
+run_click_long="$click -t $TIMEOUT_LONG -b $vere -i - -kp"
 
 # Mount %base
 echo "Mounting base..."
