@@ -77,6 +77,17 @@ function getSaveFormat(mimeType?: string): SaveFormat {
   return SaveFormat.JPEG;
 }
 
+function getSaveFormatMimeType(format: SaveFormat): string {
+  switch (format) {
+    case SaveFormat.PNG:
+      return 'image/png';
+    case SaveFormat.WEBP:
+      return 'image/webp';
+    default:
+      return 'image/jpeg';
+  }
+}
+
 export async function uploadAsset(
   intent: Attachment.UploadIntent,
   isWeb = false
@@ -197,7 +208,9 @@ async function uploadImageAsset(
       const asset = uploadIntent.asset;
       logger.log('resizing asset', asset.uri);
       let resizedAsset = asset;
-      const originalMimeType = asset.mimeType;
+      // manipulateAsync re-encodes to `format`, so the upload mime must track
+      // the output (e.g. HEIC is saved as JPEG), not the original asset mime.
+      let uploadMimeType = asset.mimeType;
       // Only resize when we know it's a non-gif image. If mimeType is missing
       // or non-image, upload the original bytes — re-encoding through the
       // canvas-backed manipulator would clobber the format (e.g. animated
@@ -221,10 +234,11 @@ async function uploadImageAsset(
             format,
           }
         );
+        uploadMimeType = getSaveFormatMimeType(format);
       }
       return {
         ...resizedAsset,
-        mimeType: originalMimeType,
+        mimeType: uploadMimeType,
       };
     },
   });
@@ -248,22 +262,23 @@ export const performUpload = async (
     throw new Error('unable to upload: missing storage configuration');
   }
 
-  const { blob, fileName, contentType, sourceUri } = await (async () => {
+  const { size, fileName, contentType, sourceUri } = await (async () => {
     if (params instanceof File) {
       return {
-        blob: params,
+        size: params.size,
         fileName: params.name,
         contentType: params.type,
         sourceUri: URL.createObjectURL(params),
       };
     } else {
-      const response = await fetch(params.uri);
-      const blob = await response.blob();
-
-      // expo/fetch's Response.blob() is typeless, so prefer the asset's known
-      // mimeType for the upload Content-Type and fall back to the blob's type.
-      const contentType =
-        params.mimeType || blob.type || 'application/octet-stream';
+      // Stat the file for its size rather than buffering the whole thing into a
+      // Blob: uploadFile streams the bytes straight from `sourceUri`
+      // (FileSystem.uploadAsync), so size is all we need here. The upload
+      // Content-Type comes from the asset's mimeType — a local file:// read has
+      // no Content-Type header to recover a type from.
+      const fileInfo = await FileSystem.getInfoAsync(params.uri);
+      const size = fileInfo.exists ? fileInfo.size : 0;
+      const contentType = params.mimeType || 'application/octet-stream';
       const baseFileName =
         params.uri.split('/').pop()?.split('?')[0] || 'image';
       const extension = getExtensionFromMimeType(
@@ -274,7 +289,7 @@ export const performUpload = async (
         : `${baseFileName}${extension}`;
 
       return {
-        blob,
+        size,
         fileName,
         contentType,
         sourceUri: params.uri,
@@ -282,7 +297,7 @@ export const performUpload = async (
     }
   })();
 
-  logger.log('fetched file', fileName, contentType, blob.size);
+  logger.log('fetched file', fileName, contentType, size);
 
   const fileKey = `${desig(getCurrentUserId())}/${desig(
     render('da', da.fromUnix(new Date().getTime()))
@@ -291,7 +306,7 @@ export const performUpload = async (
 
   if (hasHostingUploadCreds(config, credentials)) {
     const { hostedUrl, uploadUrl } = await getMemexUpload({
-      contentLength: blob.size,
+      contentLength: size,
       contentType,
       fileName: fileKey,
     });
