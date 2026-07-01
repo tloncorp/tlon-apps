@@ -260,7 +260,10 @@ export const performUpload = async (
       const response = await fetch(params.uri);
       const blob = await response.blob();
 
-      const contentType = blob.type;
+      // expo/fetch's Response.blob() is typeless, so prefer the asset's known
+      // mimeType for the upload Content-Type and fall back to the blob's type.
+      const contentType =
+        params.mimeType || blob.type || 'application/octet-stream';
       const baseFileName =
         params.uri.split('/').pop()?.split('?')[0] || 'image';
       const extension = getExtensionFromMimeType(

@@ -1,16 +1,13 @@
+import { Blob } from 'expo-blob';
 import { fetch as expoFetch } from 'expo/fetch';
 
-// Expo's winter runtime installs expo/fetch as the global `fetch`, and its
-// Response.blob() builds `new Blob([ArrayBuffer])` — unsupported by React
-// Native's Blob — so every global fetch().blob() (image upload, Urbit HTTP)
-// throws. Restore React Native's XHR-backed fetch, whose .blob() works, as the
-// global. expo/fetch is used only for the SSE channel, via platformFetch below.
-// TextEncoder (Hermes) and TextDecoder + ReadableStream (winter + Metro globals)
-// come from the platform, so no encoding/stream polyfills are needed here.
+// Kept as a function for parity with the web polyfills entrypoint (a no-op
+// there) so the shared client setup can call it on both platforms. On native it
+// installs expo-blob's spec-compliant Blob as the global: expo/fetch (the global
+// fetch) and our upload paths construct blobs from binary data, which React
+// Native's built-in Blob rejects.
 export const initializePolyfills = () => {
-  // whatwg-fetch ships no type declarations and is already bundled by React
-  // Native (Libraries/Network/fetch); require it for its fetch implementation.
-  globalThis.fetch = require('whatwg-fetch').fetch as typeof fetch;
+  globalThis.Blob = Blob as unknown as typeof globalThis.Blob;
 };
 
 // expo/fetch is a native streaming fetch (Response.body as a ReadableStream),
