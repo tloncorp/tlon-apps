@@ -23,12 +23,13 @@ import { YStack } from 'tamagui';
 
 import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
-import { SimpleActionSheet } from '../ActionSheet';
+import { ActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {
   MoveNoteSheet,
   NotebookGateMessage,
   NotesBanner,
+  NotesActionGroupList,
   confirmNotesDestructiveAction,
   errorMessage,
   useEntityDialog,
@@ -527,7 +528,7 @@ export function NotesNativeChannel({
     }
   );
 
-  const newActions = [
+  const createActions = [
     createNotesNewNoteAction({
       action: () => {
         setNewActionSheetOpen(false);
@@ -544,6 +545,13 @@ export function NotesNativeChannel({
       disabled: isCreatingFolder,
       testID: 'NotesNewFolderAction',
     }),
+  ];
+
+  const newActionGroups = [
+    {
+      accent: 'neutral' as const,
+      actions: createActions,
+    },
   ];
 
   const headerActions = useMemo(() => {
@@ -629,13 +637,26 @@ export function NotesNativeChannel({
       {error ? <NotesBanner message={error} tone="negative" /> : null}
 
       {useDesktopSplit ? noteDetailPane : notesTreePane}
-      <SimpleActionSheet
+      <ActionSheet
         open={newActionSheetOpen}
         onOpenChange={setNewActionSheetOpen}
-        title="New"
-        actions={newActions}
         modal
-      />
+        unmountOnClose
+      >
+        <ActionSheet.SimpleHeader
+          title="New"
+          subtitle="Create notes or folders"
+        />
+        <ActionSheet.Content>
+          <NotesActionGroupList
+            groups={newActionGroups}
+            onAction={(action) => {
+              setNewActionSheetOpen(false);
+              action?.();
+            }}
+          />
+        </ActionSheet.Content>
+      </ActionSheet>
       <AddFolderDialog
         isCreating={isCreatingFolder}
         name={newFolderName}
