@@ -121,7 +121,9 @@ export function useNotesImportController({
             body: item.body,
           });
           if (!note) {
-            throw new Error(`Failed to create note ${item.relativePath}`);
+            throw new Error(
+              `${NOTES_PENDING_WRITE_MESSAGE}; the outcome is unknown and it may still complete. Check whether note "${title}" was created before retrying.`
+            );
           }
           importedCount += 1;
         } catch (e) {
