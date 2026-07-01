@@ -77,6 +77,26 @@ function clearNotesNoteDraftSnapshot(notebookFlag: string, noteId: number) {
   notesNoteDraftSnapshots.delete(draftSnapshotKey(notebookFlag, noteId));
 }
 
+function clearMatchingNotesNoteDraftSnapshot({
+  notebookFlag,
+  noteId,
+  title,
+  body,
+}: {
+  notebookFlag: string;
+  noteId: number;
+  title: string;
+  body: string;
+}) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  const snapshot = notesNoteDraftSnapshots.get(key);
+  if (!snapshot || snapshot.title !== title || snapshot.body !== body) {
+    return;
+  }
+
+  notesNoteDraftSnapshots.delete(key);
+}
+
 export function getNotesNoteDraftSnapshot(
   notebookFlag: string,
   noteId: number
@@ -477,6 +497,12 @@ export function NotesNoteDetail({
         title: titleDraft,
         body: bodyToSave,
       });
+      clearMatchingNotesNoteDraftSnapshot({
+        notebookFlag,
+        noteId: draftBase.noteId,
+        title: titleDraft,
+        body: bodyToSave,
+      });
       setSaveState('saved');
       return true;
     } catch (e) {
@@ -549,6 +575,12 @@ export function NotesNoteDetail({
     runSave(flag, base, title, bodyToSave)
       .then((updated) => {
         clearDraftStash(flag, base.noteId, { title, body: bodyToSave });
+        clearMatchingNotesNoteDraftSnapshot({
+          notebookFlag: flag,
+          noteId: base.noteId,
+          title,
+          body: bodyToSave,
+        });
         // No-ops after unmount; while mounted (background flush) rebase so
         // the next cycle doesn't re-send a stale revision.
         if (updated) {
