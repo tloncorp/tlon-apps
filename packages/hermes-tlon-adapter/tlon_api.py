@@ -223,6 +223,7 @@ class TlonConfig:
     gateway_status_reply_cooldown_seconds: int = DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS
     context_lens_enabled: bool = False
     context_lens_owner: str = ""
+    context_lens_store_path: str = ""
     sse_read_timeout_seconds: float = DEFAULT_SSE_READ_TIMEOUT_SECONDS
     # Force the hosted (memex) image-upload path. Opt-in: only true when the
     # operator sets TLON_HOSTING. Read once where the env is reliably present
@@ -518,6 +519,12 @@ class TlonConfig:
                 ("context_lens_owner",),
             )
         )
+        context_lens_store_path = _env_first(
+            env,
+            ("TLON_CONTEXT_LENS_STORE_PATH",),
+            extra,
+            ("context_lens_store_path",),
+        )
         sse_read_timeout_seconds = _parse_float(
             _env_or_extra(
                 env,
@@ -580,6 +587,7 @@ class TlonConfig:
             gateway_status_reply_cooldown_seconds=gateway_status_reply_cooldown_seconds,
             context_lens_enabled=context_lens_enabled,
             context_lens_owner=context_lens_owner,
+            context_lens_store_path=context_lens_store_path,
             sse_read_timeout_seconds=sse_read_timeout_seconds,
         )
 
