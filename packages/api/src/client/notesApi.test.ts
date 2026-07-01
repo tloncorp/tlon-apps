@@ -9,6 +9,7 @@ import {
 } from 'vitest';
 
 import {
+  NotesV1PendingWriteError,
   createNotesNote,
   deleteNotesNotebook,
   deleteNotesNotebookBestEffort,
@@ -53,13 +54,23 @@ const requestJsonMock = requestJson as unknown as Mock;
 const subscribeMock = subscribe as unknown as Mock;
 const unsubscribeMock = unsubscribe as unknown as Mock;
 
-async function rejectionMessage(promise: Promise<unknown>): Promise<string> {
+async function rejectionError(promise: Promise<unknown>): Promise<unknown> {
   try {
     await promise;
   } catch (error) {
-    return error instanceof Error ? error.message : String(error);
+    return error;
   }
   throw new Error('Expected promise to reject');
+}
+
+function pendingErrorStrings(error: NotesV1PendingWriteError): string {
+  return [
+    error.name,
+    error.message,
+    error.requestId ?? '',
+    error.status ?? '',
+    JSON.stringify(error.checks),
+  ].join('\n');
 }
 
 beforeEach(() => {
@@ -443,22 +454,24 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     }
   });
 
-  test('createNotebook pending includes request status and notebook checks', async () => {
+  test('createNotebook pending preserves structured request status and notebook checks', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: '0vabc',
-      body: { type: 'pending' },
+      body: { type: 'pending', status: 'acked' },
     });
 
-    const message = await rejectionMessage(
-      notesV1.createNotebook({ title: 'B' })
-    );
+    const error = await rejectionError(notesV1.createNotebook({ title: 'B' }));
 
-    expect(message).toContain('%notes write request is still pending');
-    expect(message).toContain('Do not retry automatically');
-    expect(message).toContain('tlon notes request 0vabc');
-    expect(message).toContain('tlon notes list');
-    expect(message).toContain('tlon notes show <notes-nest-from-list>');
-    expect(message).not.toContain('try again');
+    expect(error).toBeInstanceOf(NotesV1PendingWriteError);
+    const pending = error as NotesV1PendingWriteError;
+    expect(pending.message).toBe('%notes write request is still pending');
+    expect(pending.requestId).toBe('0vabc');
+    expect(pending.status).toBe('acked');
+    expect(pending.checks).toEqual([
+      { type: 'notebook-list' },
+      { type: 'notebook-detail' },
+    ]);
+    expect(pendingErrorStrings(pending)).not.toContain('tlon notes');
   });
 
   test('createNotebook reports empty error envelopes with fallback detail', async () => {
@@ -483,13 +496,13 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     );
   });
 
-  test('createNote pending includes request status and note checks', async () => {
+  test('createNote pending preserves structured request status and note checks', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: '0vnote',
-      body: { type: 'pending' },
+      body: { type: 'pending', status: 'queued' },
     });
 
-    const message = await rejectionMessage(
+    const error = await rejectionError(
       notesV1.createNote({
         flag: 'notes/~zod/blog',
         folder: 3,
@@ -498,12 +511,15 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
       })
     );
 
-    expect(message).toContain('%notes write request is still pending');
-    expect(message).toContain('Do not retry automatically');
-    expect(message).toContain('tlon notes request 0vnote');
-    expect(message).toContain('tlon notes notes notes/~zod/blog');
-    expect(message).toContain('tlon notes note notes/~zod/blog <id-from-list>');
-    expect(message).not.toContain('try again');
+    expect(error).toBeInstanceOf(NotesV1PendingWriteError);
+    const pending = error as NotesV1PendingWriteError;
+    expect(pending.requestId).toBe('0vnote');
+    expect(pending.status).toBe('queued');
+    expect(pending.checks).toEqual([
+      { type: 'note-list', nest: 'notes/~zod/blog' },
+      { type: 'note-detail', nest: 'notes/~zod/blog' },
+    ]);
+    expect(pendingErrorStrings(pending)).not.toContain('tlon notes');
   });
 
   test('updateNoteBody includes expectedRevision only when provided', async () => {
@@ -631,24 +647,33 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     }
   });
 
-  test('pending note and folder writes point at affected objects', async () => {
+  test('pending note and folder writes point at affected objects structurally', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: '0vobj',
       body: { type: 'pending' },
     });
 
-    const noteMessage = await rejectionMessage(
+    const noteError = await rejectionError(
       notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'x' })
     );
-    expect(noteMessage).toContain('tlon notes request 0vobj');
-    expect(noteMessage).toContain('tlon notes note notes/~zod/blog 12');
-    expect(noteMessage).not.toContain('try again');
+    expect(noteError).toBeInstanceOf(NotesV1PendingWriteError);
+    const pendingNote = noteError as NotesV1PendingWriteError;
+    expect(pendingNote.requestId).toBe('0vobj');
+    expect(pendingNote.status).toBeUndefined();
+    expect(pendingNote.checks).toEqual([
+      { type: 'note-detail', nest: 'notes/~zod/blog', noteId: 12 },
+    ]);
+    expect(pendingErrorStrings(pendingNote)).not.toContain('tlon notes');
 
-    const folderMessage = await rejectionMessage(
+    const folderError = await rejectionError(
       notesV1.renameFolder({ flag: 'notes/~zod/blog', folderId: 4, name: 'x' })
     );
-    expect(folderMessage).toContain('tlon notes folder notes/~zod/blog 4');
-    expect(folderMessage).not.toContain('try again');
+    expect(folderError).toBeInstanceOf(NotesV1PendingWriteError);
+    const pendingFolder = folderError as NotesV1PendingWriteError;
+    expect(pendingFolder.checks).toEqual([
+      { type: 'folder-detail', nest: 'notes/~zod/blog', folderId: 4 },
+    ]);
+    expect(pendingErrorStrings(pendingFolder)).not.toContain('tlon notes');
   });
 
   test('void writes report empty error envelopes with fallback detail', async () => {

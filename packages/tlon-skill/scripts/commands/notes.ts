@@ -9,6 +9,10 @@ import type {
 } from '@tloncorp/api';
 
 import {
+  type NotesPendingWriteErrorLike,
+  formatPendingWriteError,
+} from '../notes-pending-write';
+import {
   type CommandDeps,
   commandError,
   errorMessage,
@@ -111,12 +115,13 @@ export const NOTES_COMMAND_HELP: Record<string, string> = {
 // The %notes v1 protocol (path construction, request payloads, canonical
 // response shapes, and envelope handling) lives in `@tloncorp/api`'s `notesV1`.
 // This module owns CLI parsing, pre-auth validation, content-source handling,
-// `root` resolution, and human-readable output — it passes typed operations,
-// never string-built paths. (Type-only API import keeps the command-source
-// contract green.)
+// `root` resolution, pending-write guidance, and human-readable output — it
+// passes typed operations, never string-built paths. Runtime deps identify API
+// error classes, keeping API imports type-only for the command-source contract.
 export interface NotesDeps extends CommandDeps {
   authenticate: () => Promise<void>;
   notesV1: NotesV1Api;
+  isPendingWriteError: (error: unknown) => error is NotesPendingWriteErrorLike;
   joinNotesNotebook: (nest: string) => Promise<void>;
   leaveNotesNotebook: (nest: string) => Promise<void>;
   readFile: (path: string) => string;
@@ -1042,6 +1047,12 @@ export async function run(args: string[], deps: NotesDeps): Promise<number> {
         return await runLeave(parsed.target, deps);
     }
   } catch (error) {
+    if (deps.isPendingWriteError(error)) {
+      for (const line of formatPendingWriteError(error)) {
+        writeLine(deps.stderr, line);
+      }
+      return 1;
+    }
     const handled = handleExpectedCommandError(error, deps);
     if (handled !== null) return handled;
     throw error;
