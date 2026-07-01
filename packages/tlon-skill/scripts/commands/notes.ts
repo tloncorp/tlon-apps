@@ -9,6 +9,10 @@ import type {
 } from '@tloncorp/api';
 
 import {
+  type NotesPendingWriteErrorLike,
+  formatPendingWriteError,
+} from '../notes-pending-write';
+import {
   type CommandDeps,
   commandError,
   errorMessage,
@@ -18,10 +22,6 @@ import {
   writeHelp,
   writeLine,
 } from './command';
-import {
-  formatPendingWriteError,
-  type NotesPendingWriteErrorLike,
-} from '../notes-pending-write';
 
 export const NOTES_HELP = `Usage: tlon notes <command>
 

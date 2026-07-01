@@ -1,6 +1,7 @@
 import type { NotesV1Api } from '@tloncorp/api';
 import { describe, expect, it } from 'bun:test';
 
+import type { NotesPendingWriteErrorLike } from '../notes-pending-write';
 import { commandError } from './command';
 import {
   NOTES_COMMAND_HELP,
@@ -9,7 +10,6 @@ import {
   parseNotesNest,
   run,
 } from './notes';
-import type { NotesPendingWriteErrorLike } from '../notes-pending-write';
 
 type AnyFn = (...args: unknown[]) => Promise<unknown>;
 

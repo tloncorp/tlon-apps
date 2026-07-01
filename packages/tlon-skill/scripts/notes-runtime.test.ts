@@ -81,9 +81,9 @@ mock.module('@tloncorp/api', () => ({
 }));
 
 let runtimeModule: Promise<typeof import('./notes-runtime')> | null = null;
-let channelRuntimeModule:
-  | Promise<typeof import('./notes-channel-runtime')>
-  | null = null;
+let channelRuntimeModule: Promise<
+  typeof import('./notes-channel-runtime')
+> | null = null;
 
 function loadRuntime() {
   runtimeModule ??= import('./notes-runtime');
