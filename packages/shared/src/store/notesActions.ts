@@ -239,8 +239,8 @@ async function createAndFindNewItem<T>({
     (await list()).some(isNew)
   );
 
-  const after = await list();
-  return after.find(isNew) ?? findFallback?.(after) ?? null;
+  const newItems = (await list()).filter(isNew);
+  return findFallback?.(newItems) ?? newItems[0] ?? null;
 }
 
 export async function createNotebookNote({
