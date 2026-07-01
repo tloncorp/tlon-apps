@@ -131,14 +131,14 @@ describe('notes import helpers', () => {
     expect(makeUniqueNoteTitle('', existingTitles)).toBe('Untitled');
   });
 
-  test('uses selected folder, active folder, then root for import target', () => {
+  test('uses active folder, selected folder, then root for import target', () => {
     expect(
       getNotesImportTargetFolderId({
         selectedFolderId: 9,
         activeFolderId: 4,
         rootFolderId: 1,
       })
-    ).toBe(9);
+    ).toBe(4);
     expect(
       getNotesImportTargetFolderId({
         selectedFolderId: null,
