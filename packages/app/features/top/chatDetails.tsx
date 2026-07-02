@@ -33,7 +33,7 @@ import {
   useIsAdmin,
 } from '../../ui';
 import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
-import { getChannelHost } from '../../ui/utils';
+import { getChannelActionCapabilities, getChannelHost } from '../../ui/utils';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 // Utility functions
@@ -565,8 +565,9 @@ export function LeaveActionsSection({
     entityType === 'group'
       ? group?.currentUserIsHost
       : channel?.currentUserIsHost ?? false;
+  const channelActionCapabilities = getChannelActionCapabilities(channel);
   const canLeave =
-    !isHost && (entityType !== 'channel' || channel?.type !== 'notes');
+    !isHost && (entityType !== 'channel' || channelActionCapabilities.canLeave);
   const canDelete = isHost || (entityType === 'channel' && currentUserIsAdmin);
 
   const chatTitle =
@@ -646,9 +647,7 @@ export function LeaveActionsSection({
   const deleteDescription =
     entityType === 'group'
       ? 'This action cannot be undone.'
-      : channel?.type === 'notes'
-        ? 'This action cannot be undone. The notebook and its notes will be permanently deleted.'
-        : 'This action cannot be undone. All messages in this channel will be permanently deleted.';
+      : channelActionCapabilities.deleteDescription;
 
   return (
     <View paddingHorizontal={'$l'}>

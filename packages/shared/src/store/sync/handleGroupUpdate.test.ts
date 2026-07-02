@@ -246,23 +246,17 @@ test('addChannelToNavSection rolls back the dedup delete if the insert fails', a
   expect(rows[0]?.groupNavSectionId).toBe(sectionADbId);
 });
 
-test('does not auto-join a notes channel before reader roles are synced', async () => {
+test('addChannel propagates group sync failures for normal channels', async () => {
   const groupId = '~bus/test-group';
-  const channelId = 'notes/~bus/private-notebook';
-  const roleId = 'admin';
-  const currentUserId = '~solfer-magfed';
+  const channelId = 'chat/~bus/example';
 
   const client = getClient();
   if (!client) throw new Error('test db client not initialized');
 
-  vi.spyOn(api, 'getGroup').mockRejectedValue(
-    new Error('missing v2 group scry')
-  );
-  vi.spyOn(api, 'getGroupAndChannelUnreads').mockResolvedValue({
-    groupUnreads: [],
-    channelUnreads: [],
-    threadActivity: [],
-  });
+  const getGroup = vi
+    .spyOn(api, 'getGroup')
+    .mockRejectedValue(new Error('missing v2 group scry'));
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
   await client.insert(schema.groups).values({
     id: groupId,
@@ -270,50 +264,26 @@ test('does not auto-join a notes channel before reader roles are synced', async 
     currentUserIsHost: false,
     hostUserId: '~bus',
   });
-  await client.insert(schema.groupRoles).values({
-    id: roleId,
-    groupId,
-  });
-  await client.insert(schema.groupNavSections).values({
-    id: 'default',
-    sectionId: 'default',
-    groupId,
-  });
-  await client.insert(schema.chatMembers).values({
-    chatId: groupId,
-    contactId: currentUserId,
-    membershipType: 'group',
-  });
-  await client.insert(schema.chatMemberGroupRoles).values({
-    groupId,
-    contactId: currentUserId,
-    roleId,
-  });
 
-  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
   try {
-    await batchEffects('test:add-auto-join-notes-channel', async (ctx) => {
-      await handleGroupUpdate(
-        {
-          type: 'addChannel',
-          autoJoinIfReadable: true,
-          channel: {
-            id: channelId,
-            type: 'notes',
-            groupId,
-            currentUserIsMember: false,
-            readerRoles: [{ channelId, roleId }],
+    await expect(
+      batchEffects('test:add-channel-sync-failure', async (ctx) => {
+        await handleGroupUpdate(
+          {
+            type: 'addChannel',
+            channel: {
+              id: channelId,
+              type: 'chat',
+              groupId,
+              currentUserIsMember: false,
+            },
           },
-        },
-        ctx
-      );
-    });
+          ctx
+        );
+      })
+    ).rejects.toThrow('missing v2 group scry');
   } finally {
     consoleError.mockRestore();
+    getGroup.mockRestore();
   }
-
-  const channel = await client.query.channels.findFirst({
-    where: $.eq(schema.channels.id, channelId),
-  });
-  expect(channel?.currentUserIsMember).toBe(false);
 });

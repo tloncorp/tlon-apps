@@ -27,6 +27,10 @@ export interface InitData {
   unreads: db.ActivityInit;
 }
 
+type InitDataOptions = {
+  currentUserId: string;
+};
+
 export const getInitData = async () => {
   const response = await scry<ub.GroupsInit7>({
     app: 'groups-ui',
@@ -35,7 +39,7 @@ export const getInitData = async () => {
 
   logger.crumb('got init data from api');
 
-  return toInitData(response);
+  return toInitData(response, { currentUserId: getCurrentUserId() });
 };
 
 function extractChannelReadersFromV7Groups(
@@ -56,33 +60,20 @@ function extractJoinedGroupChannelsFromV7Groups(
   groups: Record<string, ub.GroupV7>
 ): string[] {
   const joinedChannelIds = new Set<string>();
-  const currentUserId = getCurrentUserId();
 
   Object.values(groups ?? {}).forEach((group) => {
-    const currentUserRoles = group.seats?.[currentUserId]?.roles ?? [];
-
     (group['active-channels'] ?? []).forEach((channelId) => {
       joinedChannelIds.add(channelId);
-    });
-
-    // Older %notes backends create a group listing with join=true, but do not
-    // report the matching %groups active-channel event. Treat only notes
-    // listings as joined so initial sync does not hide newly-created notebooks.
-    Object.entries(group.channels ?? {}).forEach(([channelId, channel]) => {
-      const readers = channel.readers ?? [];
-      const canRead =
-        readers.length === 0 ||
-        readers.some((roleId) => currentUserRoles.includes(roleId));
-      if (channelId.startsWith('notes/') && channel.join && canRead) {
-        joinedChannelIds.add(channelId);
-      }
     });
   });
 
   return [...joinedChannelIds];
 }
 
-export const toInitData = (response: ub.GroupsInit7): InitData => {
+export const toInitData = (
+  response: ub.GroupsInit7,
+  options: InitDataOptions
+): InitData => {
   logger.crumb('converting init data to client data');
   logger.log('response.groups:', response.groups);
 
@@ -110,11 +101,14 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
 
   logger.crumb('converting groups to client data');
 
-  const groups = toClientGroupsV7(response.groups, true);
+  const groups = toClientGroupsV7(response.groups, true, options.currentUserId);
 
   logger.crumb('converting unjoined groups to client data');
 
-  const unjoinedGroups = toClientGroupsFromForeigns(response.foreigns);
+  const unjoinedGroups = toClientGroupsFromForeigns(
+    response.foreigns,
+    options.currentUserId
+  );
 
   logger.crumb('converting dm channels to client data');
 

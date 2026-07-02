@@ -633,6 +633,7 @@ export function ChannelOptionsSheetContent({
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
 
   const currentUserIsChannelHost = channel.currentUserIsHost ?? false;
+  const channelActionCapabilities = utils.getChannelActionCapabilities(channel);
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
@@ -739,7 +740,7 @@ export function ChannelOptionsSheetContent({
           },
         ],
         !currentUserIsChannelHost &&
-          channel.type !== 'notes' && [
+          channelActionCapabilities.canLeave && [
             'negative',
             {
               title: group ? `Leave channel` : 'Leave chat',
@@ -765,6 +766,7 @@ export function ChannelOptionsSheetContent({
       hooksPreview,
       onPressChannelTemplate,
       currentUserIsChannelHost,
+      channelActionCapabilities.canLeave,
       leaveChannel,
     ]
   );

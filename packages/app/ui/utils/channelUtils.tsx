@@ -95,6 +95,19 @@ export function useChatDescription(
   return null;
 }
 
+export function getChannelActionCapabilities(channel?: db.Channel | null): {
+  canLeave: boolean;
+  deleteDescription: string;
+} {
+  return {
+    canLeave: !!channel && channel.type !== 'notes',
+    deleteDescription:
+      channel?.type === 'notes'
+        ? 'This action cannot be undone. The notebook and its notes will be permanently deleted.'
+        : 'This action cannot be undone. All messages in this channel will be permanently deleted.',
+  };
+}
+
 export function useChannelTitle(channel: db.Channel | null) {
   const { disableNicknames } = useCalm();
   return useMemo(() => {

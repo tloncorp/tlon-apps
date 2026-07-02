@@ -1002,7 +1002,6 @@ export type GroupEdit = {
 export type GroupChannelAdd = {
   type: 'addChannel';
   channel: db.Channel;
-  autoJoinIfReadable?: boolean;
 };
 
 export type GroupChannelUpdate = {
@@ -1514,7 +1513,6 @@ export const toV1GroupsUpdate = (
           channel: rChannel.add,
           groupId,
         }),
-        autoJoinIfReadable: channelId.startsWith('notes/') && rChannel.add.join,
       };
     }
 
@@ -1671,22 +1669,23 @@ const extractFlaggedPosts = (
 
 export function toClientGroupsV7(
   groups: Record<string, ub.GroupV7>,
-  isJoined: boolean
+  isJoined: boolean,
+  currentUserId = getCurrentUserId()
 ) {
   if (!groups) {
     return [];
   }
   return Object.entries(groups).map(([id, group]) => {
-    return toClientGroupV7(id, group, isJoined);
+    return toClientGroupV7(id, group, isJoined, currentUserId);
   });
 }
 
 export function toClientGroupV7(
   id: string,
   group: ub.GroupV7,
-  isJoined: boolean
+  isJoined: boolean,
+  currentUserId = getCurrentUserId()
 ): db.Group {
-  const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupId(id);
   const rolesById: Record<string, db.GroupRole> = {};
   const flaggedPosts: db.GroupFlaggedPosts[] = extractFlaggedPosts(
@@ -1822,6 +1821,7 @@ export function toClientGroupV7(
           channels: group.channels,
           groupId: id,
           currentUserRoles,
+          currentUserId,
         })
       : [],
   };
@@ -1859,9 +1859,9 @@ const toForeignsGroupsUpdate = (foreignsEvent: ub.Foreigns): GroupUpdate => {
 
 export function toClientGroupFromForeign(
   id: string,
-  foreign: ub.Foreign
+  foreign: ub.Foreign,
+  currentUserId = getCurrentUserId()
 ): db.Group {
-  const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupId(id);
   const privacy = extractGroupPrivacy(foreign.preview);
   const joinStatus = getJoinStatusFromForeign(foreign);
@@ -1883,11 +1883,12 @@ export function toClientGroupFromForeign(
 }
 
 export function toClientGroupsFromForeigns(
-  foreigns: Record<string, ub.Foreign>
+  foreigns: Record<string, ub.Foreign>,
+  currentUserId = getCurrentUserId()
 ) {
   if (!foreigns) return [];
   return Object.entries(foreigns).map(([id, foreign]) =>
-    toClientGroupFromForeign(id, foreign)
+    toClientGroupFromForeign(id, foreign, currentUserId)
   );
 }
 
@@ -1927,13 +1928,15 @@ function toClientChannels({
   channels,
   groupId,
   currentUserRoles = [],
+  currentUserId = getCurrentUserId(),
 }: {
   channels: Record<string, ub.GroupChannel | ub.GroupChannelV7>;
   groupId: string;
   currentUserRoles?: string[];
+  currentUserId?: string;
 }): db.Channel[] {
   return Object.entries(channels).map(([id, channel]) =>
-    toClientChannel({ id, channel, groupId, currentUserRoles })
+    toClientChannel({ id, channel, groupId, currentUserRoles, currentUserId })
   );
 }
 
@@ -1942,11 +1945,13 @@ function toClientChannel({
   channel,
   groupId,
   currentUserRoles = [],
+  currentUserId = getCurrentUserId(),
 }: {
   id: string;
   channel: ub.GroupChannel | ub.GroupChannelV7;
   groupId: string;
   currentUserRoles?: string[];
+  currentUserId?: string;
 }): db.Channel {
   const { description, channelContentConfiguration } =
     StructuredChannelDescriptionPayload.decode(channel.meta.description);
@@ -1956,7 +1961,6 @@ function toClientChannel({
     roleId,
   }));
 
-  const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupChannelId(id);
 
   // Determine currentUserIsMember based on read permissions

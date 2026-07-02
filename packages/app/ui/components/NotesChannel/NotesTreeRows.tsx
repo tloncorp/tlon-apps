@@ -11,7 +11,7 @@ import type { ActionGroup } from '../ActionSheet';
 import { createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
-import { NotesActionMenu } from './NotesCommon';
+import { NotesActionMenu } from './NotesActions';
 
 const TREE_ROW_HEIGHT = 44;
 const TREE_LEVEL_WIDTH = 24;

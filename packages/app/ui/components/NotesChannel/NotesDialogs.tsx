@@ -7,12 +7,12 @@ import { YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
 import { TextInput } from '../Form';
+import { NotesDialog } from './NotesDialogPrimitives';
 import {
   FolderDestinationSearch,
   MoveDestinationSheet,
-  NotesDialog,
   useFolderDestinationSelection,
-} from './NotesCommon';
+} from './NotesMoveSheets';
 import type { FolderRow } from './notesTree';
 import { getFolderLabel } from './notesTree';
 

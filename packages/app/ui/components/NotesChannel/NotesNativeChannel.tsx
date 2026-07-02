@@ -25,26 +25,25 @@ import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import { ActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
-import {
-  MoveNoteSheet,
-  NotebookGateMessage,
-  NotesActionGroupList,
-  NotesBanner,
-  confirmNotesDestructiveAction,
-  errorMessage,
-  useEntityDialog,
-  useNotebookData,
-} from './NotesCommon';
+import { NotesActionGroupList } from './NotesActions';
+import { NotebookGateMessage, useNotebookData } from './NotesData';
+import { useEntityDialog } from './NotesDialogPrimitives';
 import {
   AddFolderDialog,
   MoveFolderSheet,
   RenameFolderDialog,
 } from './NotesDialogs';
 import {
+  NotesBanner,
+  confirmNotesDestructiveAction,
+  errorMessage,
+} from './NotesFeedback';
+import {
   NotesHeaderActions,
   createNotesNewFolderAction,
   createNotesNewNoteAction,
 } from './NotesHeaderActions';
+import { MoveNoteSheet } from './NotesMoveSheets';
 import { NotesNoteDetail } from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import { trackNotesActionError } from './notesTelemetry';

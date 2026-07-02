@@ -30,11 +30,10 @@ import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
 import { ScreenHeader } from '../ScreenHeader';
 import {
   NotebookGateMessage,
-  NotesBanner,
   NotesMessage,
-  errorMessage,
   useNotebookData,
-} from './NotesCommon';
+} from './NotesData';
+import { NotesBanner, errorMessage } from './NotesFeedback';
 import { trackNotesActionError } from './notesTelemetry';
 import { formatNoteDate, getFolderPath } from './notesTree';
 
