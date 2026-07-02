@@ -40,7 +40,7 @@ case $OSTYPE in
     esac ;;
 esac
 
-pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2-408k.pill"
+pill_download_url="https://bootstrap.urbit.org/base-408k-rc2-groups-v11-3-0.pill"
 
 #archive=`basename $download_url`
 pill=`basename $pill_download_url`
@@ -142,14 +142,6 @@ if [ ! -f "${pier}/groups/${pill_name}.jam" ]
 then
   cp $pill ${pier}/groups/${pill_name}.jam
 fi
-
-patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
-rm -f $pier/base/lib/strandio.hoon.rej
-rm -f $pier/base/lib/strandio.hoon.orig
-
-patch -f $pier/base/sur/aquarium.hoon `dirname $0`/aqua-sur.patch
-rm -f $pier/base/sur/aquarium.hoon.rej
-rm -f $pier/base/sur/aquarium.hoon.orig
 
 echo "Updating base desk..."
 $run_click $pier <<EOF
