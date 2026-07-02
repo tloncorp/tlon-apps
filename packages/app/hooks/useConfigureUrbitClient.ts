@@ -13,7 +13,7 @@ import { useShip } from '../contexts/ship';
 // resetDb.native.ts file. We need to import the right one based on the
 // platform.
 import { resetDb } from '../lib/resetDb';
-import { initializePolyfills, platformFetch } from '../platform/polyfills';
+import { initializePolyfills } from '../platform/polyfills';
 import { useHandleLogout } from './useHandleLogout';
 
 initializePolyfills();
@@ -35,10 +35,10 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     // Avoid setting credentials method for same reason as above.
     credentials: undefined,
   };
-  const containsEventStream = headers['accept'] === 'text/event-stream';
-  return containsEventStream
-    ? platformFetch(input, newInit)
-    : fetch(input, newInit);
+  // SSE (text/event-stream) requests need a streaming Response.body; on native
+  // this is provided by expo/fetch, installed as the global fetch by Expo's
+  // winter runtime (SDK 56+).
+  return fetch(input, newInit);
 };
 
 export function configureUrbitClient({
