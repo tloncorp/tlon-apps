@@ -281,7 +281,11 @@ export const performUpload = async (
         sourceUri: URL.createObjectURL(params),
       };
     } else {
-      const size = params.size ?? (await getLocalFileSize(params.uri));
+      // fileUri intents use -1 when the source didn't report a size.
+      const size =
+        params.size != null && params.size >= 0
+          ? params.size
+          : await getLocalFileSize(params.uri);
       const contentType = params.mimeType || 'application/octet-stream';
       const baseFileName =
         params.name || params.uri.split('/').pop()?.split('?')[0] || 'image';
