@@ -312,7 +312,6 @@ function NotebookContentsListFixture() {
             isNotePublished={(noteId) => publishedNoteIds.has(noteId)}
             layout={usePhoneViewport ? 'stack' : 'takeover'}
             publishDisabled={false}
-            publishingAction={null}
             selectedNoteId={selectedNoteId}
             treeRows={treeRows}
             onCreateFolderInFolder={() => {}}
@@ -379,7 +378,6 @@ function NotesTreeFixture() {
             isDeletingFolder={false}
             layout="takeover"
             publishDisabled={false}
-            publishingAction={null}
             selectedNoteId={1}
             treeRows={treeRows}
             onCreateFolderInFolder={() => {}}

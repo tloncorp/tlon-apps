@@ -3,18 +3,16 @@ import { Icon, Pressable } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Platform } from 'react-native';
-import { TamaguiWebElement, XStack } from 'tamagui';
+import { Platform, Switch } from 'react-native';
+import { TamaguiWebElement, View, XStack } from 'tamagui';
 
 import { useSheetCloseAfterAnimation } from '../../hooks/useSheetCloseAfterAnimation';
 import type { ActionGroup } from '../ActionSheet';
-import { createActionGroups } from '../ActionSheet';
+import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { NotesActionMenu } from './NotesActions';
 import { noteTimestampMs } from './notesTree';
-
-type PublishingAction = 'publish' | 'unpublish' | null;
 
 export function FolderTreeRow({
   canEdit,
@@ -128,7 +126,6 @@ export function NoteRow({
   note,
   publishDisabled,
   publishedUrl,
-  publishingAction,
   selected = false,
   onDelete,
   onMove,
@@ -143,7 +140,6 @@ export function NoteRow({
   note: db.NotesNote;
   publishDisabled: boolean;
   publishedUrl?: string | null;
-  publishingAction: PublishingAction;
   selected?: boolean;
   onDelete: () => void;
   onMove: () => void;
@@ -172,34 +168,8 @@ export function NoteRow({
         testID: `NotesMoveNoteAction-${note.noteId}`,
       },
     ],
-    [
-      'neutral',
-      {
-        title: isPublished ? 'Update published note' : 'Publish to web',
-        description: isPublished ? publishedUrl ?? undefined : undefined,
-        startIcon: 'EyeOpen',
-        action: onPublish,
-        disabled: publishDisabled,
-        testID: `NotesPublishNoteAction-${note.noteId}`,
-      },
-      isPublished && publishedUrl && onViewPublished
-        ? {
-            title: 'View published note',
-            startIcon: 'Link',
-            action: onViewPublished,
-            testID: `NotesViewPublishedNoteAction-${note.noteId}`,
-          }
-        : null,
-    ],
     canEdit && [
       'negative',
-      isPublished && {
-        title: 'Unpublish note',
-        startIcon: 'EyeClosed',
-        action: onUnpublish,
-        disabled: publishDisabled || publishingAction === 'unpublish',
-        testID: `NotesUnpublishNoteAction-${note.noteId}`,
-      },
       {
         title: 'Delete note',
         startIcon: 'Trash',
@@ -207,6 +177,60 @@ export function NoteRow({
         testID: `NotesDeleteNoteAction-${note.noteId}`,
       },
     ]
+  );
+  // Rendered outside NotesActionGroupList's dismiss-on-press wrapper: the
+  // sheet stays open, so the switch flips and the published-note actions
+  // appear in place instead of the sheet vanishing mid-operation.
+  const publishSection = (
+    <ActionSheet.ActionGroup accent="neutral">
+      <ActionSheet.Action
+        action={{
+          title: 'Publish to web',
+          description: isPublished ? publishedUrl ?? undefined : undefined,
+          startIcon: 'EyeOpen',
+          // Visual-only: the row press drives the toggle. Letting the Switch
+          // handle taps double-fires with the row action, and its taps get
+          // eaten by the sheet's pan gesture on Android (see
+          // ChannelPermissions.tsx for the same workaround).
+          endIcon: (
+            <View pointerEvents="none">
+              <Switch value={isPublished} disabled={publishDisabled} />
+            </View>
+          ),
+          action: isPublished ? onUnpublish : onPublish,
+          disabled: publishDisabled,
+        }}
+        testID={`NotesPublishToggleAction-${note.noteId}`}
+      />
+      {isPublished ? (
+        <ActionSheet.Action
+          action={{
+            title: 'Update published note',
+            startIcon: 'Refresh',
+            action: onPublish,
+            disabled: publishDisabled,
+          }}
+          testID={`NotesPublishNoteAction-${note.noteId}`}
+        />
+      ) : null}
+      {isPublished && publishedUrl ? (
+        <ActionSheet.CopyAction
+          action={{ title: 'Copy link', startIcon: 'Copy' }}
+          copyText={publishedUrl}
+          testID={`NotesCopyPublishedNoteAction-${note.noteId}`}
+        />
+      ) : null}
+      {isPublished && publishedUrl && onViewPublished ? (
+        <ActionSheet.Action
+          action={{
+            title: 'View published note',
+            startIcon: 'Link',
+            action: onViewPublished,
+          }}
+          testID={`NotesViewPublishedNoteAction-${note.noteId}`}
+        />
+      ) : null}
+    </ActionSheet.ActionGroup>
   );
   const { actionsMenu, rowActionProps } = useRowActions({
     actionGroups,
@@ -216,6 +240,7 @@ export function NoteRow({
       title: note.title || 'Untitled',
       subtitle: bodyPreview || 'Note',
     },
+    bottomContent: publishSection,
   });
 
   return (
@@ -257,6 +282,7 @@ function useRowActions({
   actionGroups,
   canEdit,
   header,
+  bottomContent,
 }: {
   actionGroups: ActionGroup[];
   canEdit: boolean;
@@ -265,6 +291,7 @@ function useRowActions({
     subtitle?: string;
     title: string;
   };
+  bottomContent?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -327,6 +354,7 @@ function useRowActions({
           open={open}
           onAction={handleAction}
           onOpenChange={handleOpenChange}
+          bottomContent={bottomContent}
           trigger={actionsTrigger}
         />
       ) : null,

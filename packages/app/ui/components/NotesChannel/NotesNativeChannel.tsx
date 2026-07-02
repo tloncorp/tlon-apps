@@ -796,7 +796,6 @@ export function NotesNativeChannel({
       isNotePublished={isNotePublished}
       layout={useDesktopSplit ? 'takeover' : 'stack'}
       publishDisabled={publishingAction !== null}
-      publishingAction={publishingAction}
       selectedNoteId={useDesktopSplit ? selectedNoteId : null}
       treeRows={treeRows}
       onDeleteFolder={handleDeleteFolder}

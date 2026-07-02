@@ -13,7 +13,6 @@ export function NotesTreePane({
   isNotePublished,
   layout,
   publishDisabled,
-  publishingAction,
   selectedNoteId,
   treeRows,
   onCreateFolderInFolder,
@@ -36,7 +35,6 @@ export function NotesTreePane({
   isNotePublished: (noteId: number) => boolean;
   layout: 'stack' | 'takeover';
   publishDisabled: boolean;
-  publishingAction: 'publish' | 'unpublish' | null;
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
   onCreateFolderInFolder: (folder: db.NotesFolder) => void;
@@ -97,7 +95,6 @@ export function NotesTreePane({
                 ? getPublishedNoteUrl?.(row.note) ?? null
                 : null
             }
-            publishingAction={publishingAction}
             selected={selectedNoteId === row.note.noteId}
             onDelete={() => onDeleteNote(row.note)}
             onMove={() => onMoveNote(row.note)}
