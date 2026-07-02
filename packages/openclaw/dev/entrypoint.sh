@@ -60,10 +60,24 @@ if [ -f "/workspace/tlonbot/openclaw.json" ]; then
   echo "==> Copying config from tlonbot..."
   cp /workspace/tlonbot/openclaw.json "$CONFIG_PATH"
 
-  # Patch in Brave API key if available
+  # Patch in Brave web search if available. openclaw 2026.5.28 only accepts
+  # provider "brave" when the plugin is installed, allowed, and enabled, so
+  # set provider, allow, and enable together (mirrors the test entrypoint and
+  # production tlonbot flow).
   if [ -n "$BRAVE_API_KEY" ]; then
-    echo "==> Patching Brave API key into config..."
-    jq --arg key "$BRAVE_API_KEY" '.tools.web.search.apiKey = $key' \
+    # The install ledger lives in /root/.openclaw, which is a persisted
+    # volume (openclaw-state) — the image-layer install (Dockerfile) only
+    # seeds brand-new volumes. Repair existing volumes idempotently at
+    # startup, like production does before every gateway start. Tolerate
+    # failure (e.g. offline) the same way; config validation will surface it.
+    echo "==> Ensuring Brave web-search plugin is installed..."
+    openclaw plugins install @openclaw/brave-plugin \
+      || echo "WARN: brave plugin install failed; web_search may be unavailable"
+    echo "==> Patching Brave web search into config..."
+    jq --arg key "$BRAVE_API_KEY" \
+      '.tools.web.search = {"provider": "brave", "apiKey": $key}
+      | .plugins.allow += ["brave"]
+      | .plugins.entries.brave = {"enabled": true, "config": {"webSearch": {"apiKey": $key}}}' \
       "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
   fi
 

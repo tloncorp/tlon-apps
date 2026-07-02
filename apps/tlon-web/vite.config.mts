@@ -246,6 +246,13 @@ export default ({ mode }: { mode: string }) => {
     // @tamagui/vite-plugin overrides envPrefix to ["TAMAGUI_"], blocking VITE_* env vars.
     // Explicitly set both prefixes so VITE_* vars remain available in import.meta.env.
     envPrefix: ['VITE_', 'TAMAGUI_'],
+    // expo 56's runtime (expo/src/async-require/setupHMR) reads process.env.EXPO_OS
+    // to resolve the platform. Metro inlines it via babel-preset-expo; the vite web
+    // build must define it explicitly or expo throws "Missing required parameter
+    // `platform`" at boot.
+    define: {
+      'process.env.EXPO_OS': JSON.stringify('web'),
+    },
     base: base(mode),
     server: {
       host: 'localhost',

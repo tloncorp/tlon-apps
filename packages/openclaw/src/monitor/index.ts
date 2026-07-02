@@ -2815,8 +2815,9 @@ export async function monitorTlonProvider(
       // (the shared `message` tool, subagents, system-event turns) resolve
       // their destination from the session store; without a persisted Tlon
       // route they fall back to webchat. recordTlonRouteAndDispatch (below)
-      // records the route before dispatch and fails open — never blocks the
-      // reply.
+      // runs the turn through the SDK's prepared channel-turn kernel, which
+      // records the route before dispatch; persistence fails open — never
+      // blocks the reply.
       const routeDebug: ((rec: TlonInboundRouteRecord) => void) | undefined =
         isRouteDebugEnabled()
           ? (rec) =>

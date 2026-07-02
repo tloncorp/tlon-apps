@@ -27,7 +27,6 @@ import {
   ScrollView,
   Spinner,
   View,
-  ViewStyle,
   XStack,
   YStack,
   getTokenValue,
@@ -147,7 +146,7 @@ const TextInputComponent = RawTextInput.styleable<{
   accent?: Accent;
   backgroundType?: 'primary' | 'secondary';
   rightControls?: ReactNode;
-  frameStyle?: ViewStyle;
+  frameStyle?: ComponentProps<typeof InputFrame>;
 }>(
   (
     { icon, accent, backgroundType, frameStyle, rightControls, ...props },
