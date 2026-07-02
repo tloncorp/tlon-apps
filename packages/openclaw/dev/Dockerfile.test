@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install -y git curl jq && rm -rf /var/lib/apt/list
 RUN npm install -g pnpm@9.15.9
 
 # Install OpenClaw globally (pinned to avoid dependency bugs in latest)
-RUN npm install -g openclaw@2026.5.7
+RUN npm install -g openclaw@2026.5.28
 
 # Create workspace
 WORKDIR /workspace
