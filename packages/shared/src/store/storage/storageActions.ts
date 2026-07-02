@@ -10,6 +10,7 @@ import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { AnalyticsEvent } from '../../domain';
+import { getLocalFileInfo } from './getLocalFileInfo';
 import { setUploadState } from './storageUploadState';
 import {
   getExtensionFromMimeType,
@@ -283,16 +284,9 @@ export const performUpload = async (
       let size = params.size;
       let fallbackType: string | undefined;
       if (size == null) {
-        if (isWeb) {
-          // Web URIs are blob:/data:, which the browser's fetch resolves and
-          // expo-file-system's web shim cannot stat.
-          const blob = await (await fetch(params.uri)).blob();
-          size = blob.size;
-          fallbackType = blob.type || undefined;
-        } else {
-          const fileInfo = await FileSystem.getInfoAsync(params.uri);
-          size = fileInfo.exists ? fileInfo.size : 0;
-        }
+        const fileInfo = await getLocalFileInfo(params.uri);
+        size = fileInfo.size;
+        fallbackType = fileInfo.mimeType;
       }
       const contentType =
         params.mimeType || fallbackType || 'application/octet-stream';
