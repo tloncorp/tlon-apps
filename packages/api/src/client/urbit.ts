@@ -31,6 +31,7 @@ interface Config
   pendingAuth: Promise<string | void> | null;
   loggingOut: boolean;
   lastStatus: string;
+  activitySupportsReactions: boolean;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -60,7 +61,10 @@ export class BadResponseError extends Error {
     public status: number,
     public body: string
   ) {
-    super();
+    const prefix = status > 0 ? `HTTP ${status}` : 'HTTP request failed';
+    const detail = body.trim();
+    super(detail ? `${prefix}: ${detail}` : prefix);
+    this.name = 'BadResponseError';
   }
 }
 
@@ -111,6 +115,21 @@ const config: Config = {
   onQuitOrReset: undefined,
   getCode: undefined,
   handleAuthFailure: undefined,
+  // Off until the app confirms the backend's groups version ships reactions.
+  // Drives which %activity endpoint versions the client uses (feed/sub/marks).
+  activitySupportsReactions: false,
+};
+
+// Whether the connected backend supports reaction activity (v9 %activity
+// endpoints). Set by the app from the backend's groups version; read by the
+// activity client to pick endpoint versions. Defaults false so an old backend
+// gets the pre-reaction (v5 feed / v4 subscription / v8 mark) endpoints.
+export const setActivitySupportsReactions = (value: boolean) => {
+  config.activitySupportsReactions = value;
+};
+
+export const getActivitySupportsReactions = (): boolean => {
+  return config.activitySupportsReactions;
 };
 
 export const client = new Proxy(
@@ -313,11 +332,13 @@ export async function subscribe<T>(
     }
 
     config.pendingAuth = reauth();
-    return doSub();
+    // keep the err handler wired so the re-established subscription can
+    // recover from a later auth death the same way the initial one does
+    return doSub(retry);
   };
 
   try {
-    return doSub(retry);
+    return await doSub(retry);
   } catch (err) {
     return retry(err);
   }
@@ -422,9 +443,9 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
   };
 
   try {
-    return doPoke({ onError: retry });
+    return await doPoke({ onError: retry });
   } catch (err) {
-    retry(err);
+    return retry(err);
   }
 }
 
@@ -652,6 +673,45 @@ export async function scry<T>({
     });
     throw new BadResponseError(res.status, res.toString());
   }
+}
+
+// Authenticated JSON request to an arbitrary ship path. Reauths once on 403.
+export async function requestJson<T = any>(
+  path: string,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
+  body?: unknown
+): Promise<T> {
+  if (!config.client) {
+    throw new Error('Client not initialized');
+  }
+  if (config.pendingAuth) {
+    await config.pendingAuth;
+  }
+
+  try {
+    return await config.client.requestJson<T>(path, method, body);
+  } catch (res) {
+    if (res?.status === 403) {
+      await reauth();
+      return await config.client.requestJson<T>(path, method, body);
+    }
+    const errorBody = await responseErrorBody(res);
+    throw new BadResponseError(res?.status ?? 0, errorBody);
+  }
+}
+
+async function responseErrorBody(res: any): Promise<string> {
+  if (typeof res?.text === 'function') {
+    try {
+      return await res.text();
+    } catch {
+      // Fall through to the generic cases below.
+    }
+  }
+  if (typeof res?.body === 'string') return res.body;
+  if (typeof res?.message === 'string') return res.message;
+  const text = String(res);
+  return text === '[object Response]' ? '' : text;
 }
 
 export async function scryNoun({

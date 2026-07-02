@@ -7,33 +7,41 @@ description: Interact with Tlon/Urbit API. Use for reading activity, message his
 
 Use the `tlon` command for reading data, managing channels/groups/contacts, and administration.
 
+## Hermes
+
+When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the
+`tlon` CLI for reading data, administration, and management. Do **not** use it
+to send replies or create posts.
+
+For exact command syntax, use the command sections below or run
+`tlon <subcommand> --help` through the tool.
+
+When a Tlon user asks you to create a group for them, use
+`tlon groups create-owned "Name" --owner ~requester [--description "..."]`.
+This invites the requester and makes them an admin. Do not use plain
+`tlon groups create` for user-requested groups; that creates a bot-owned group
+that does not automatically include the requester.
+
+For a normal reply in the current Tlon conversation, respond with final
+assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post
+to a different channel or one-to-one DM (a proactive send), use `posts send`
+with that target (`chat/~host/slug` for channels, `~ship` for one-to-one DMs).
+Reserve `dms send <club-id>` for group DMs, whose club IDs start with `0v`.
+
+Blocked in Hermes' `tlon` tool: plain-text `posts send`/`posts reply`/`dms
+send`/`dms reply` targeting the **current** conversation (reply normally
+instead). Image sends (`--image`) are allowed anywhere,
+including the current conversation: `tlon upload <direct-image-url>`, then
+`posts send <target> [caption] --image <uploaded-url>`.
+
 ## OpenClaw
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
 
-### Diary / Notebook Thread Replies
-
-Tlon diary/notebook channels are special: a channel-level `send` creates a **new notebook post/note**. Do **not** use `message` with `action: "send"` in a diary channel unless you intentionally want to create a new notebook post.
-
-For normal conversation inside an existing diary/notebook post, use the `message` tool with `action: "reply"` and reply to the **parent diary post id**, not the newest reply id.
-
-Working pattern:
-
-```json
-{
-  "action": "reply",
-  "channel": "tlon",
-  "target": "diary/~host/slug",
-  "messageId": "170.141.184.507.950.303.933.087.606.997.052.817.408",
-  "message": "Reply text here"
-}
-```
-
-Important details:
-- Use the dotted `@ud` post id format when available.
-- `messageId` should be the parent notebook post/thread id.
-- After sending, verify with `tlon messages post <diary-nest> <parent-post-id>` when correctness matters.
-- If the tool reports success but the reply is not visible under the parent post, treat it as a delivery/plugin issue and do not claim success until verified.
+> **Removed: diary/notebook channels.** The `%diary` backend has been removed.
+> `tlon notebook`, `--kind diary`, and any `diary/...` nest now fail with an
+> explanatory error pointing at `%notes`. Use the `tlon notes` family for
+> Markdown notebooks instead.
 
 ## Installation
 
@@ -190,6 +198,7 @@ tlon channels groups                                       # List subscribed gro
 tlon channels all                                          # List everything
 tlon channels info chat/~host/slug                         # Get channel details
 tlon channels create ~host/slug "Projects" --kind chat     # Create a group channel
+tlon channels create ~host/slug "Notes" --kind notes       # Create a %notes group channel
 tlon channels rename chat/~host/slug "New Title"           # Rename a channel
 tlon channels update chat/~host/slug --title "New Title"   # Update metadata
 tlon channels delete chat/~host/slug                       # Delete a channel
@@ -215,7 +224,6 @@ Notes on permissions:
 
 - Empty writers list = anyone in the group can post (default for chat)
 - Empty readers list = anyone in the group can view (default)
-- Diaries default to admin-only writers
 - Roles must exist in the group (use `tlon groups add-role` first)
 
 ### Contacts
@@ -242,8 +250,8 @@ Full group management.
 # Basics
 tlon groups list                                         # List your groups
 tlon groups info ~host/slug                              # Get group details
+tlon groups create-owned "Name" --owner ~ship [--description "..."] # Create group for a user, invite owner, make owner admin
 tlon groups create "Name" [--description "..."]          # Create a group
-tlon groups create-owned "Name" --owner ~ship [--description "..."] # Create group, invite owner, make owner admin
 tlon groups join ~host/slug                              # Join public/invited group, or request invite if private
 tlon groups request-invite ~host/slug                    # Request invite to a private group
 tlon groups accept-invite ~host/slug                     # Accept an existing group invite
@@ -285,7 +293,7 @@ Roles vs Admin:
   via the backend directly (not yet exposed in the Tlon app UI).
 
 # Channels
-tlon groups add-channel ~host/slug "Name" [--kind chat|diary|heap]
+tlon groups add-channel ~host/slug "Name" [--kind chat|heap|notes]
 ```
 
 `tlon groups add-channel` remains supported, but for agent/tool use prefer the more discoverable channel-centric form:
@@ -389,6 +397,13 @@ tlon dms unreact ~sampel ~author/170.141...              # Remove reaction
 tlon dms delete ~sampel ~author/170.141...               # Delete a DM
 tlon dms accept ~sampel                                  # Accept DM invite
 tlon dms decline ~sampel                                 # Decline DM invite
+
+# Group DM (club) sends
+tlon dms send 0v5.abcde "hello"                          # Send to a group DM
+tlon dms send 0v5.abcde "look" --image https://...       # Send with an image
+
+# One-to-one proactive DMs use posts, not dms
+tlon posts send ~sampel "hello"                           # Send to a 1:1 DM
 ```
 
 ### Expose
@@ -399,8 +414,8 @@ Publish Tlon content to the clearweb via the %expose agent.
 tlon expose list                                         # List all exposed content
 tlon expose show chat/~host/slug/170.141...              # Expose a post publicly
 tlon expose hide chat/~host/slug/170.141...              # Hide an exposed post
-tlon expose check diary/~host/blog/170.141...            # Check if a post is exposed
-tlon expose url diary/~host/blog/170.141...              # Get the public URL
+tlon expose check heap/~host/gallery/170.141...          # Check if a post is exposed
+tlon expose url heap/~host/gallery/170.141...            # Get the public URL
 ```
 
 Cite path formats:
@@ -408,58 +423,69 @@ Cite path formats:
 - Simplified: `chat/~host/channel/170.141...` (auto-expands)
 - Full: `/1/chan/chat/~host/channel/msg/170.141...`
 
-Channel kinds map to content types: chat→msg, diary→note, heap→curio
+Channel kinds map to content types: chat→msg, heap→curio
 
 ### Posts
 
-Manage channel posts (reactions, edits, deletes).
+Manage channel posts (sends, reactions, edits, deletes).
 
 ```bash
+tlon posts send chat/~host/slug "Hello"                  # Send a message
+tlon posts send ~sampel "Hello"                          # Send a 1:1 DM
+tlon posts send chat/~host/slug "Look" --image https://storage.../x.png # Send with an image
+tlon posts send chat/~host/slug --image https://...      # Image only (no caption)
 tlon posts react chat/~host/slug 170.141... "👍"         # React to a post
 tlon posts unreact chat/~host/slug 170.141...            # Remove reaction
-tlon posts edit chat/~host/slug 170.141... "New text"    # Edit with plain text
-tlon posts edit diary/~host/slug 170.141... --title "T" --image <url> --content story.json # Edit notebook
+tlon posts edit chat/~host/slug 170.141... "New text"    # Edit a post's message text
 tlon posts delete chat/~host/slug 170.141...             # Delete a post
 ```
 
-Edit options for notebooks: `--title`, `--image` (cover URL), `--content` (Story JSON file for rich formatting).
+Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
 
-### Notebook
+`posts edit` edits message text only. The former notebook-only
+`--title`/`--image`/`--content` edit flags are removed (they refuse with an
+explanatory error) along with diary/notebook channels.
 
-Post to diary/notebook channels.
+### Notes
+
+Manage %notes notebooks (Markdown-first). Notebooks are nests of the form
+`notes/~host/name`; note bodies are plain Markdown (not Tlon Story).
 
 ```bash
-tlon notebook diary/~host/slug "Title"                   # Post with no body
-tlon notebook diary/~host/slug "Title" --content story.json # Post with Story JSON
-tlon notebook diary/~host/slug "Title" --markdown post.md   # Post with Markdown
-cat post.md | tlon notebook diary/~host/slug "Title" --markdown-stdin
-tlon notebook diary/~host/slug "Title" --image <url>     # Post with cover image
+tlon notes status                                        # Check %notes reachability
+tlon notes request 0vabc                                 # Check a pending write request
+tlon notes list                                          # List your notebooks
+tlon notes show notes/~host/name                         # Show a notebook
+tlon notes notes notes/~host/name                        # List notes in a notebook
+tlon notes note notes/~host/name 12                      # Show a note (with Markdown body)
+tlon notes note-create notes/~host/name root "Title" --markdown post.md   # New note at the notebook root
+tlon notes note-create notes/~host/name 7 "Title" --stdin                 # New note in folder 7 from stdin
+tlon notes note-update notes/~host/name 12 --body new.md --expected-revision 3
+tlon notes note-rename notes/~host/name 12 "New Title"   # Rename a note
+tlon notes note-move notes/~host/name 12 3               # Move a note into folder 3
+tlon notes note-delete notes/~host/name 12               # Delete a note
+tlon notes history notes/~host/name 12                   # Show a note's revision history
+tlon notes folders notes/~host/name                      # List folders
+tlon notes folder notes/~host/name 3                     # Show a folder
+tlon notes folder-create notes/~host/name "Drafts" --parent 3   # Create a folder (root if no --parent)
+tlon notes folder-rename notes/~host/name 4 "Archive"    # Rename a folder
+tlon notes folder-move notes/~host/name 4 3              # Move a folder under parent 3
+tlon notes folder-delete notes/~host/name 4 --recursive  # Delete a folder (--recursive for non-empty)
+tlon notes members notes/~host/name                      # List notebook members
+tlon notes join notes/~host/name                         # Join a notebook
+tlon notes leave notes/~host/name                        # Leave a notebook
 ```
 
-The `--content` file should be **Urbit Story JSON**: an array of verses accepted by the ship's `story-json` decoder. Use `--markdown` for Markdown files instead of passing Markdown or editor-export JSON through `--content`.
+Note bodies come from exactly one of `--body <file>`, `--markdown <file>` (alias),
+or `--stdin`. `note-create` places the note in a folder id, or `root` (resolved to
+the notebook's root folder). `--expected-revision` on `note-update` is optional
+(last-write-wins by default).
 
-Working examples:
-
-```json
-[{"inline": ["Hello world"]}]
-```
-
-```json
-[{"block": {"header": {"tag": "h1", "content": ["Title"]}}}]
-```
-
-```json
-[{"inline": ["Use ", {"inline-code": "ha-q"}, " for entity queries."]}]
-```
-
-Important gotcha:
-- Do **not** assume newer block-editor JSON shapes or arbitrary markdown-export JSON will work.
-- If posting fails with a `channel-action-2` cast error mentioning `content -> add -> post -> action -> channel`, the first thing to check is whether the content file matches the ship's Story JSON shape.
-- When debugging, post a minimal one-verse story first so you do not create duplicate full notebook posts.
-
-See the ship-side decoder and types here:
-- `tlon-apps/desk/lib/story-json.hoon`
-- [Story types in tlon-apps](https://github.com/tloncorp/tlon-apps/blob/develop/packages/shared/src/urbit/content.ts)
+To create a **group-backed** notes channel for the Tlon app, use `tlon channels
+create ~host/slug "Title" --kind notes` — %notes owns the listing, so
+`--description` and writer roles aren't accepted there. Do not use
+`tlon notes create` for app/group channels; it creates a standalone %notes
+notebook only.
 
 ### Upload
 
@@ -508,7 +534,7 @@ tlon settings deauthorize-ship ~ship                     # Remove from auth
 - Ship names should include `~` prefix
 - Post IDs are @ud format with dots (e.g. `170.141.184.507...`)
 - DM post IDs include author prefix (`~ship/170.141...`)
-- Channel nests: `<kind>/~<host>/<name>` (chat, diary, or heap)
+- Channel nests: `<kind>/~<host>/<name>` (chat, heap, or notes)
 
 ## Limits
 

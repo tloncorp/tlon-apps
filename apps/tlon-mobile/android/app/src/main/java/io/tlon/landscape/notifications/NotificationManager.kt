@@ -132,6 +132,7 @@ suspend fun processNotification(context: Context, uid: String, id: String) {
         // Proceed with rich notification
         val extras = Bundle()
         extras.putString("id", id)
+        extras.putString("uid", uid)
         extras.putString("activityEventJsonString", activityEventJSON)
 
         showRichNotification(context, uid, preview, extras)

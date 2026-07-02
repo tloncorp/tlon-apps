@@ -9,6 +9,7 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '@tloncorp/api/client/activity';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { Rank } from '@tloncorp/api/urbit';
 import {
   AnyColumn,
@@ -28,7 +29,6 @@ import {
   inArray,
   isNotNull,
   isNull,
-  like,
   lt,
   lte,
   max,
@@ -66,6 +66,7 @@ import {
   contactAttestations as $contactAttestations,
   contactGroups as $contactGroups,
   contacts as $contacts,
+  contextLensRuns as $contextLensRuns,
   groupFlaggedPosts as $groupFlaggedPosts,
   groupJoinRequests as $groupJoinRequests,
   groupMemberBans as $groupMemberBans,
@@ -76,6 +77,10 @@ import {
   groupRoles as $groupRoles,
   groupUnreads as $groupUnreads,
   groups as $groups,
+  notesFolders as $notesFolders,
+  notesMembers as $notesMembers,
+  notesNotebooks as $notesNotebooks,
+  notesNotes as $notesNotes,
   pins as $pins,
   postReactions as $postReactions,
   posts as $posts,
@@ -100,11 +105,16 @@ import {
   ClientMeta,
   Contact,
   ContactAttestation,
+  ContextLensRun,
   Group,
   GroupJoinRequest,
   GroupNavSection,
   GroupRole,
   GroupUnread,
+  NotesFolder,
+  NotesMember,
+  NotesNote,
+  NotesNotebook,
   PendingMemberDismissals,
   Pin,
   PinType,
@@ -403,13 +413,242 @@ export const getAnalyticsDigest = createReadQuery(
   []
 );
 
+export const getNotesNotebook = createReadQuery(
+  'getNotesNotebook',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotebooks
+      .findFirst({
+        where: eq($notesNotebooks.id, notebookFlag),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotebooks']
+);
+
+export const getNotesNotebookWithRelations = createReadQuery(
+  'getNotesNotebookWithRelations',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotebooks
+      .findFirst({
+        where: eq($notesNotebooks.id, notebookFlag),
+        with: {
+          folders: true,
+          notes: true,
+          members: true,
+        },
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+export const getNotesFolders = createReadQuery(
+  'getNotesFolders',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesFolders.findMany({
+      where: eq($notesFolders.notebookFlag, notebookFlag),
+      orderBy: [asc($notesFolders.name)],
+    });
+  },
+  ['notesFolders']
+);
+
+export const getNotesNotes = createReadQuery(
+  'getNotesNotes',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotes.findMany({
+      where: eq($notesNotes.notebookFlag, notebookFlag),
+      orderBy: [desc($notesNotes.updatedAt), asc($notesNotes.title)],
+    });
+  },
+  ['notesNotes']
+);
+
+export const getNotesNote = createReadQuery(
+  'getNotesNote',
+  async (
+    { notebookFlag, noteId }: { notebookFlag: string; noteId: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.notesNotes
+      .findFirst({
+        where: and(
+          eq($notesNotes.notebookFlag, notebookFlag),
+          eq($notesNotes.noteId, noteId)
+        ),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotes']
+);
+
+export const getNotesMembers = createReadQuery(
+  'getNotesMembers',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesMembers.findMany({
+      where: eq($notesMembers.notebookFlag, notebookFlag),
+      orderBy: [asc($notesMembers.contactId), asc($notesMembers.role)],
+    });
+  },
+  ['notesMembers']
+);
+
+export const saveNotesNotebookSnapshot = createWriteQuery(
+  'saveNotesNotebookSnapshot',
+  async (
+    {
+      notebook,
+      folders,
+      notes,
+      members,
+    }: {
+      notebook: NotesNotebook;
+      folders: NotesFolder[];
+      notes: NotesNote[];
+      members: NotesMember[];
+    },
+    ctx: QueryCtx
+  ) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($notesNotebooks)
+        .values(notebook)
+        .onConflictDoUpdate({
+          target: $notesNotebooks.id,
+          set: conflictUpdateSetAll($notesNotebooks, ['lastOpenedAt']),
+        });
+
+      await txCtx.db
+        .delete($notesFolders)
+        .where(eq($notesFolders.notebookFlag, notebook.id));
+      await batchAction(
+        folders,
+        async (batch) => {
+          await txCtx.db.insert($notesFolders).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+
+      await txCtx.db
+        .delete($notesNotes)
+        .where(eq($notesNotes.notebookFlag, notebook.id));
+      await batchAction(
+        notes,
+        async (batch) => {
+          await txCtx.db.insert($notesNotes).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+
+      await txCtx.db
+        .delete($notesMembers)
+        .where(eq($notesMembers.notebookFlag, notebook.id));
+      await batchAction(
+        members,
+        async (batch) => {
+          await txCtx.db.insert($notesMembers).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+    });
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+export const deleteNotesNote = createWriteQuery(
+  'deleteNotesNote',
+  async (
+    { notebookFlag, noteId }: { notebookFlag: string; noteId: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($notesNotes)
+      .where(
+        and(
+          eq($notesNotes.notebookFlag, notebookFlag),
+          eq($notesNotes.noteId, noteId)
+        )
+      );
+  },
+  ['notesNotes']
+);
+
+export const deleteNotesFolders = createWriteQuery(
+  'deleteNotesFolders',
+  async (
+    { notebookFlag, folderIds }: { notebookFlag: string; folderIds: number[] },
+    ctx: QueryCtx
+  ) => {
+    if (folderIds.length === 0) {
+      return;
+    }
+
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($notesNotes)
+        .where(
+          and(
+            eq($notesNotes.notebookFlag, notebookFlag),
+            inArray($notesNotes.folderId, folderIds)
+          )
+        );
+      await txCtx.db
+        .delete($notesFolders)
+        .where(
+          and(
+            eq($notesFolders.notebookFlag, notebookFlag),
+            inArray($notesFolders.folderId, folderIds)
+          )
+        );
+    });
+  },
+  ['notesFolders', 'notesNotes']
+);
+
+export const setNotesNotebookLastOpened = createWriteQuery(
+  'setNotesNotebookLastOpened',
+  async (
+    { notebookFlag, openedAt }: { notebookFlag: string; openedAt: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($notesNotebooks)
+      .set({ lastOpenedAt: openedAt })
+      .where(eq($notesNotebooks.id, notebookFlag));
+  },
+  ['notesNotebooks']
+);
+
+export const deleteNotesNotebook = createWriteQuery(
+  'deleteNotesNotebook',
+  async (notebookFlag: string, ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($notesNotes)
+        .where(eq($notesNotes.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesFolders)
+        .where(eq($notesFolders.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesMembers)
+        .where(eq($notesMembers.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesNotebooks)
+        .where(eq($notesNotebooks.id, notebookFlag));
+    });
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+const NOTES_SNAPSHOT_BATCH_SIZE = 50;
 const BATCH_SIZE = 200;
 async function batchAction<T>(
   items: T[],
-  handler: (subset: T[]) => Promise<void>
+  handler: (subset: T[]) => Promise<void>,
+  batchSize = BATCH_SIZE
 ) {
-  for (let i = 0; i < items.length; i += BATCH_SIZE) {
-    const batch = items.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
     await handler(batch);
   }
 }
@@ -1442,6 +1681,91 @@ export const getFlaggedPosts = createReadQuery(
     });
   },
   ['groupFlaggedPosts']
+);
+
+export const insertContextLensRuns = createWriteQuery(
+  'insertContextLensRuns',
+  async (runs: ContextLensRun[], ctx: QueryCtx) => {
+    if (runs.length === 0) return;
+    return ctx.db
+      .insert($contextLensRuns)
+      .values(runs)
+      .onConflictDoUpdate({
+        target: [$contextLensRuns.botShip, $contextLensRuns.lensId],
+        set: conflictUpdateSetAll($contextLensRuns, ['botShip', 'lensId']),
+      });
+  },
+  ['contextLensRuns']
+);
+
+export const getContextLensRun = createReadQuery(
+  'getContextLensRun',
+  async (
+    { botShip, lensId }: { botShip: string; lensId: string },
+    ctx: QueryCtx
+  ) => {
+    const run = await ctx.db.query.contextLensRuns.findFirst({
+      where: and(
+        eq($contextLensRuns.botShip, botShip),
+        eq($contextLensRuns.lensId, lensId)
+      ),
+    });
+    // findFirst resolves to undefined on a miss; normalize to null so React
+    // Query doesn't treat a not-yet-synced run as a query error.
+    return run ?? null;
+  },
+  ['contextLensRuns']
+);
+
+export const getRecentContextLensRuns = createReadQuery(
+  'getRecentContextLensRuns',
+  async ({ count: limit = 50 }: { count?: number }, ctx: QueryCtx) => {
+    return ctx.db.query.contextLensRuns.findMany({
+      orderBy: [desc($contextLensRuns.receivedAt)],
+      limit,
+    });
+  },
+  ['contextLensRuns']
+);
+
+export const getContextLensBotShips = createReadQuery(
+  'getContextLensBotShips',
+  async (ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .selectDistinct({ botShip: $contextLensRuns.botShip })
+      .from($contextLensRuns);
+    return rows.map((row) => preSig(row.botShip));
+  },
+  ['contextLensRuns']
+);
+
+export const getContextLensBotsInChat = createReadQuery(
+  'getContextLensBotsInChat',
+  async ({ chatId }: { chatId: string }, ctx: QueryCtx) => {
+    const [botRows, memberRows] = await Promise.all([
+      ctx.db
+        .selectDistinct({ botShip: $contextLensRuns.botShip })
+        .from($contextLensRuns),
+      ctx.db
+        .select({
+          contactId: $chatMembers.contactId,
+          status: $chatMembers.status,
+        })
+        .from($chatMembers)
+        .where(eq($chatMembers.chatId, chatId)),
+    ]);
+    // chatMembers.status is only set for invite flows; anything but 'invited'
+    // counts as present. Compare sig-normalized since botShip comes from the
+    // gateway and contactId from groups sync.
+    const members = new Set(
+      memberRows
+        .filter((row) => row.status !== 'invited')
+        .map((row) => preSig(row.contactId))
+    );
+    const botShips = new Set(botRows.map((row) => preSig(row.botShip)));
+    return [...botShips].filter((ship) => members.has(ship));
+  },
+  ['contextLensRuns', 'chatMembers']
 );
 
 export const insertChannelPerms = createWriteQuery(
@@ -2687,74 +3011,6 @@ export const getChannelNavSection = createReadQuery(
   ['groupNavSectionChannels']
 );
 
-/* This sets which channels the current user is a member of, which is what we key off of
-when determining channels to show in the UI. There's no direct setting for this on
-the backend. Instead we look at two things:
-   1) do you have an unreads entry for the channel?
-   2) if you do, do you have read permissions for it?
-    Read permissions are stored as an array of roles. If the array is empty, anyone
-    can read the channel. If it's not empty, we check to make sure the user has one of the
-    reader roles.
-*/
-export const setJoinedGroupChannels = createWriteQuery(
-  'setJoinedGroupChannels',
-  async ({ channelIds }: { channelIds: string[] }, ctx: QueryCtx) => {
-    const currentUserId = getCurrentUserId();
-    if (channelIds.length === 0) return;
-
-    const channels = await ctx.db.query.channels.findMany({
-      with: {
-        readerRoles: true,
-        group: {
-          with: {
-            roles: {
-              with: {
-                members: true,
-              },
-            },
-          },
-        },
-      },
-    });
-    const channelsIndex = new Map<string, Channel>();
-    for (const channel of channels) {
-      channelsIndex.set(channel.id, channel);
-    }
-
-    const channelsWhereMember = channelIds.filter((id) => {
-      const channel = channelsIndex.get(id);
-      const isOpenChannel = channel?.readerRoles?.length === 0;
-
-      const userRolesForGroup =
-        channel?.group?.roles
-          ?.filter((role) =>
-            role.members?.map((m) => m.contactId).includes(currentUserId)
-          )
-          .map((role) => role.id) ?? [];
-
-      const isClosedButCanRead = channel?.readerRoles
-        ?.map((r) => r.roleId)
-        .some((r) => userRolesForGroup.includes(r));
-      return isOpenChannel || isClosedButCanRead;
-    });
-    if (channelsWhereMember.length) {
-      logger.log('setJoinedGroupChannels', channelIds);
-      return await ctx.db
-        .update($channels)
-        .set({
-          currentUserIsMember: true,
-        })
-        .where(
-          and(
-            inArray($channels.id, channelsWhereMember),
-            isNotNull($channels.groupId)
-          )
-        );
-    }
-  },
-  ['channels']
-);
-
 export const addJoinedGroupChannel = createWriteQuery(
   'addJoinedGroupChannel',
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
@@ -2800,46 +3056,34 @@ export const removeJoinedGroupChannel = createWriteQuery(
   ['channels']
 );
 
-export const setLeftGroupChannels = createWriteQuery(
-  'setLeftGroupChannels',
+// Single source of truth for group-channel membership. %groups tracks our
+// membership in every group's active-channels set, across all channel kinds —
+// first-party chat/diary/heap and third-party (e.g. notes) alike.
+// joinedChannelIds is the union of those sets. We mark those channels joined
+// and every other group channel left, so this two-way reconcile handles join,
+// leave, revoke, and re-gain in one pass.
+export const reconcileJoinedGroupChannels = createWriteQuery(
+  'reconcileJoinedGroupChannels',
   async (
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
-    // notes channels aren't tracked by %channels, so they never appear
-    // in joinedChannelIds. Force them joined here (idempotent) so they aren't
-    // flipped to currentUserIsMember=false, and so previously-broken rows get
-    // repaired on next init.
-    const notesChannel = like($channels.id, 'notes/%');
-    await ctx.db
-      .update($channels)
-      .set({ currentUserIsMember: true })
-      .where(and(isNotNull($channels.groupId), notesChannel));
-
-    const notNotesChannel = not(notesChannel);
-    if (joinedChannelIds.length === 0) {
-      return await ctx.db
+    if (joinedChannelIds.length) {
+      await ctx.db
         .update($channels)
-        .set({ currentUserIsMember: false })
-        .where(
-          and(
-            isNotNull($channels.groupId),
-            eq($channels.currentUserIsMember, true),
-            notNotesChannel
-          )
-        );
+        .set({ currentUserIsMember: true })
+        .where(inArray($channels.id, joinedChannelIds));
     }
     return await ctx.db
       .update($channels)
-      .set({
-        currentUserIsMember: false,
-      })
+      .set({ currentUserIsMember: false })
       .where(
         and(
-          notInArray($channels.id, joinedChannelIds),
           isNotNull($channels.groupId),
           eq($channels.currentUserIsMember, true),
-          notNotesChannel
+          joinedChannelIds.length
+            ? notInArray($channels.id, joinedChannelIds)
+            : undefined
         )
       );
   },
@@ -3334,11 +3578,14 @@ export const getChannelPostsAround = createReadQuery(
       throw new Error('Reference post not found');
     }
 
-    const sentAt = referencePost.sentAt;
+    const receivedAt = referencePost.receivedAt;
 
     // Get before posts
     const beforePosts = await ctx.db.query.posts.findMany({
-      where: and(eq($posts.channelId, channelId), lt($posts.sentAt, sentAt!)),
+      where: and(
+        eq($posts.channelId, channelId),
+        lt($posts.receivedAt, receivedAt!)
+      ),
       orderBy: [desc($posts.receivedAt)],
       limit: 25,
       with: {
@@ -3353,7 +3600,10 @@ export const getChannelPostsAround = createReadQuery(
 
     // Get after posts
     const afterPosts = await ctx.db.query.posts.findMany({
-      where: and(eq($posts.channelId, channelId), gt($posts.sentAt, sentAt!)),
+      where: and(
+        eq($posts.channelId, channelId),
+        gt($posts.receivedAt, receivedAt!)
+      ),
       orderBy: [asc($posts.receivedAt)],
       limit: 25,
       with: {
@@ -4441,6 +4691,32 @@ export const getPostWithRelations = createReadQuery(
   []
 );
 
+// Resolves a post by the author's send time when the canonical id is
+// unknown — e.g. context lens output ids encode the bot's send time, while
+// channel posts are keyed by host receipt time.
+export const getPostBySentAt = createReadQuery(
+  'getPostBySentAt',
+  async (
+    {
+      channelId,
+      authorId,
+      sentAt,
+    }: { channelId: string; authorId: string; sentAt: number },
+    ctx: QueryCtx
+  ): Promise<Post | null> => {
+    return ctx.db.query.posts
+      .findFirst({
+        where: and(
+          eq($posts.channelId, channelId),
+          eq($posts.authorId, authorId),
+          eq($posts.sentAt, sentAt)
+        ),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['posts']
+);
+
 export const getPersonalGroup = createReadQuery(
   'getPersonalGroup',
   async (ctx: QueryCtx) => {
@@ -5332,6 +5608,18 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
                 and(
                   eq($activityEvents.type, 'post'),
                   gt($channelUnreads.count, 0)
+                ),
+                // reacts don't bump an unread count (unreads=|), so gate on the
+                // source's notify flag instead: a notified react lights the bell
+                // and clears once the source is read (notify -> false), mirroring
+                // how posts clear via channelUnreads.count. reply reacts carry the
+                // notify bit on the thread, top-level reacts on the channel/dm.
+                and(
+                  eq($activityEvents.type, 'react'),
+                  or(
+                    eq($channelUnreads.notify, true),
+                    eq($threadUnreads.notify, true)
+                  )
                 ),
                 and(
                   gt($groupUnreads.notifyCount, 0),

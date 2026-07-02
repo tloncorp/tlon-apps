@@ -47,6 +47,8 @@ function getBucket(key: string): string {
     case 'enableTelemetry':
     case 'tlonbotConfig':
     case 'webAppSplashDismissed':
+    case 'mobileAppPromoDismissed':
+    case 'contextLensEnabled':
       return 'groups';
     case 'disableAvatars':
     case 'disableNicknames':
@@ -152,6 +154,9 @@ export const toClientSettings = (
     disableTlonInfraEnhancement:
       settings.desk.groups?.disableTlonInfraEnhancement ?? false,
     webAppSplashDismissed: settings.desk.groups?.webAppSplashDismissed ?? false,
+    mobileAppPromoDismissed:
+      settings.desk.groups?.mobileAppPromoDismissed ?? false,
+    contextLensEnabled: settings.desk.groups?.contextLensEnabled ?? false,
   };
 };
 

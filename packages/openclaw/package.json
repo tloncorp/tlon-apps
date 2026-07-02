@@ -1,0 +1,95 @@
+{
+  "name": "@tloncorp/openclaw",
+  "version": "0.8.0",
+  "description": "OpenClaw Tlon/Urbit channel plugin",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tloncorp/tlon-apps.git",
+    "directory": "packages/openclaw"
+  },
+  "files": [
+    "dist/",
+    "openclaw.plugin.json",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./plugin": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "postbuild": "node scripts/generate-channel-configs.mjs",
+    "clean": "rm -rf dist",
+    "dev": "./dev/run.sh",
+    "lint": "eslint .",
+    "lint:format": "prettier ./ --write",
+    "postinstall": "node scripts/generate-version.js",
+    "prebuild": "node scripts/generate-version.js",
+    "tsc": "tsc --noEmit",
+    "test": "vitest run src/",
+    "test:all": "vitest run && vitest run --config vitest.integration.config.ts",
+    "test:integration": "bash ./test/run.sh",
+    "test:integration:dev": "./test/run-dev.sh",
+    "test:integration:watch": "./test/run-dev.sh --watch",
+    "test:manual": "bash ./test/run-manual.sh",
+    "test:security": "vitest run src/security.test.ts",
+    "test:watch": "vitest src/",
+    "prepare:publish": "npm run build && node scripts/prepare-publish-package.js",
+    "pack:publish": "npm run prepare:publish && npm pack .publish",
+    "publish:clean": "npm run prepare:publish && npm publish .publish --access public"
+  },
+  "dependencies": {
+    "@tloncorp/api": "workspace:^",
+    "@tloncorp/tlon-skill": "workspace:^",
+    "@urbit/aura": "^3.0.0",
+    "posthog-node": "^5.28.9",
+    "zod": "^4.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "dotenv": "^17.2.4",
+    "openclaw": "2026.5.28",
+    "typescript": "^5.7.0",
+    "vite": "^8.0.7",
+    "vitest": "^4.0.0",
+    "zod": "^4.4.1"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.5.7"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "setupEntry": "./dist/setup-entry.js",
+    "channel": {
+      "id": "tlon",
+      "label": "Tlon",
+      "selectionLabel": "Tlon (Urbit)",
+      "docsPath": "/channels/tlon",
+      "docsLabel": "tlon",
+      "blurb": "decentralized messaging on Urbit; install the plugin to enable.",
+      "order": 90,
+      "quickstartAllowFrom": true
+    },
+    "install": {
+      "minHostVersion": ">=2026.5.7",
+      "npmSpec": "@tloncorp/openclaw",
+      "localPath": "extensions/tlon",
+      "defaultChoice": "npm"
+    }
+  }
+}

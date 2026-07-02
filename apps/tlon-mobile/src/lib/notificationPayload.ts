@@ -33,6 +33,11 @@ export interface GroupJoinRequestNotificationData extends BaseNotificationData {
   groupId: string;
 }
 
+export interface GroupInviteNotificationData extends BaseNotificationData {
+  type: 'groupInvite';
+  groupId: string;
+}
+
 export interface ContactMatchedNotificationData extends BaseNotificationData {
   type: 'contactMatched';
   contactId: string;
@@ -46,6 +51,7 @@ export type NotificationData =
   | MinimalNotificationData
   | DMInviteNotificationData
   | GroupJoinRequestNotificationData
+  | GroupInviteNotificationData
   | ContactMatchedNotificationData
   | ContactsMatchedNotificationData
   | UnrecognizedNotificationData;
@@ -175,8 +181,32 @@ export function parseNotificationPayload(
         case is(ev, 'reply'):
           return channelPostTarget(ev.reply, { parent: ev.reply.parent });
 
+        case is(ev, 'react'):
+          // navigate to the reacted-to content: the thread if it's a reply
+          // react, otherwise the channel
+          return channelPostTarget(ev.react, {
+            parent: ev.react.parent ?? undefined,
+          });
+
+        case is(ev, 'dm-react'):
+          return dmTarget(ev['dm-react'], {
+            parent: ev['dm-react'].parent ?? undefined,
+          });
+
         case is(ev, 'group-ask'):
           return groupAskTarget(ev['group-ask']);
+
+        case is(ev, 'group-invite'): {
+          const { group } = ev['group-invite'];
+          if (typeof group !== 'string') {
+            return null;
+          }
+          return {
+            ...baseNotificationData,
+            type: 'groupInvite',
+            groupId: group,
+          };
+        }
 
         case is(ev, 'dm-invite'): {
           const whom = ev['dm-invite'];
@@ -199,8 +229,6 @@ export function parseNotificationPayload(
         case is(ev, 'group-join'):
         // fallthrough
         case is(ev, 'group-kick'):
-        // fallthrough
-        case is(ev, 'group-invite'):
         // fallthrough
         case is(ev, 'group-role'):
         // fallthrough

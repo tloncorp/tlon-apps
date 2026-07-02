@@ -44,6 +44,14 @@ export default ({ mode }: { mode: string }) => {
   const shouldUploadSourcemaps =
     process.env.CI === 'true' && Boolean(process.env.SENTRY_AUTH_TOKEN);
 
+  // why-did-you-render's jsx runtime wraps every createElement call and pulls
+  // the library into the bundle, so only opt in when WDYR is actually enabled
+  // (see src/wdyr.ts) rather than in every production build
+  const wdyrJsxImportSource =
+    process.env.VITE_ENABLE_WDYR === 'true'
+      ? '@welldone-software/why-did-you-render'
+      : undefined;
+
   // eslint-disable-next-line
   const base = (mode: string) => {
     console.log('mode', mode);
@@ -65,7 +73,7 @@ export default ({ mode }: { mode: string }) => {
       return [
         basicSsl() as Plugin,
         react({
-          jsxImportSource: '@welldone-software/why-did-you-render',
+          jsxImportSource: wdyrJsxImportSource,
         }) as PluginOption[],
       ];
     }
@@ -81,7 +89,7 @@ export default ({ mode }: { mode: string }) => {
               'react-native-worklets/plugin',
             ],
           },
-          jsxImportSource: '@welldone-software/why-did-you-render',
+          jsxImportSource: wdyrJsxImportSource,
         }) as PluginOption[],
         svgr({
           include: '**/*.svg',
@@ -113,7 +121,7 @@ export default ({ mode }: { mode: string }) => {
             'react-native-worklets/plugin',
           ],
         },
-        jsxImportSource: '@welldone-software/why-did-you-render',
+        jsxImportSource: wdyrJsxImportSource,
       }) as PluginOption[],
       svgr({
         include: '**/*.svg',
@@ -238,6 +246,13 @@ export default ({ mode }: { mode: string }) => {
     // @tamagui/vite-plugin overrides envPrefix to ["TAMAGUI_"], blocking VITE_* env vars.
     // Explicitly set both prefixes so VITE_* vars remain available in import.meta.env.
     envPrefix: ['VITE_', 'TAMAGUI_'],
+    // expo 56's runtime (expo/src/async-require/setupHMR) reads process.env.EXPO_OS
+    // to resolve the platform. Metro inlines it via babel-preset-expo; the vite web
+    // build must define it explicitly or expo throws "Missing required parameter
+    // `platform`" at boot.
+    define: {
+      'process.env.EXPO_OS': JSON.stringify('web'),
+    },
     base: base(mode),
     server: {
       host: 'localhost',

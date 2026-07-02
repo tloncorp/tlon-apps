@@ -1,6 +1,8 @@
 export * from './utilHooks';
+export * from './contextLens';
 export * from './embed';
 export * from './semver';
+export * from './reactionSupport';
 export * from '@tloncorp/api/lib/types';
 export * from '@tloncorp/api/lib/utils';
 export * as featureFlags from '@tloncorp/api/lib/featureFlags';

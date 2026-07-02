@@ -57,20 +57,10 @@ export type CreateChannelUpdate = {
   groupId: string | null;
 };
 
-export type JoinChannelSuccessUpdate = {
-  type: 'joinChannelSuccess';
-  channelId: string;
-};
-
 export type InitialPostsOnChannelJoin = {
   type: 'initialPostsOnChannelJoin';
   channelId: string;
   posts: db.Post[];
-};
-
-export type LeaveChannelSuccessUpdate = {
-  type: 'leaveChannelSuccess';
-  channelId: string;
 };
 
 export type MarkChannelReadUpdate = {
@@ -93,8 +83,6 @@ export type ChannelsUpdate =
   | ShowPostUpdate
   | MetaUpdate
   | CreateChannelUpdate
-  | JoinChannelSuccessUpdate
-  | LeaveChannelSuccessUpdate
   | InitialPostsOnChannelJoin
   // | MarkChannelReadUpdate
   | OrderUpdate
@@ -259,27 +247,10 @@ export const toChannelsUpdate = (
       };
     }
 
-    if ('join' in channelEvent.response) {
-      return {
-        type: 'joinChannelSuccess',
-        channelId,
-      };
-    }
-
-    // not clear that this is necessary
-    // if ('read' in channelEvent.response) {
-    // return {
-    // type: 'markChannelRead',
-    // channelId,
-    // };
-    // }
-
-    if ('leave' in channelEvent.response) {
-      return {
-        type: 'leaveChannelSuccess',
-        channelId,
-      };
-    }
+    // %channels' join/leave responses are intentionally not mapped to events:
+    // group-channel membership is tracked solely via %groups' active-channel
+    // deltas (handled as joinChannel/leaveChannel). The join/leave action's own
+    // confirmation is handled by trackedPoke against the raw /v4 response.
 
     if ('posts' in channelEvent.response) {
       const { posts: postsFromBackend }: { posts: Posts } =

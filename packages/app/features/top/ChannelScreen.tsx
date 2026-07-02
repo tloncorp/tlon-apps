@@ -145,8 +145,14 @@ export default function ChannelScreen(props: Props) {
     }
   }, [currentChannelId, isFocused]);
 
-  const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
-    useChannelNavigation({ channelId: currentChannelId });
+  const {
+    navigateToImage,
+    navigateToPost,
+    navigateToRef,
+    navigateToSearch,
+    navigateToContextLensRuns,
+    navigateToContextLensRun,
+  } = useChannelNavigation({ channelId: currentChannelId });
   const { navigation } = useRootNavigation();
   const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
@@ -382,24 +388,6 @@ export default function ChannelScreen(props: Props) {
     }
   }, [group, navigationRef]);
 
-  const handleGoToChannelDetails = useCallback(
-    (groupId: string, channelId: string) => {
-      navigationRef.current.navigate('ChatDetails', {
-        chatType: 'channel',
-        chatId: channelId,
-        groupId,
-      });
-    },
-    [navigationRef]
-  );
-
-  const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
-  const handleConfigureChannel = useCallback(() => {
-    if (channelRef.current) {
-      channelRef.current.openChannelConfigurationBar();
-    }
-  }, [channelRef]);
-
   const initialChat = useMemo(
     () =>
       ({
@@ -418,14 +406,12 @@ export default function ChannelScreen(props: Props) {
     <ChatOptionsProvider
       initialChat={initialChat}
       useGroup={store.useGroup}
-      onPressConfigureChannel={handleConfigureChannel}
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         <Channel
           key={currentChannelId}
-          ref={channelRef}
           channel={channel}
           initialChannelUnread={
             clearedCursor ? undefined : initialChannelUnread
@@ -444,9 +430,10 @@ export default function ChannelScreen(props: Props) {
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
+          goToContextLensRuns={navigateToContextLensRuns}
+          goToContextLensRun={navigateToContextLensRun}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
-          goToChannelDetails={handleGoToChannelDetails}
           goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}

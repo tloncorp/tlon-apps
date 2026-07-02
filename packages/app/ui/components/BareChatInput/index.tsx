@@ -730,8 +730,8 @@ function BareChatInput(
   useEffect(() => {
     if (!hasSetInitialContent) {
       bareChatInputLogger.log('setting initial content');
-      try {
-        getDraft().then((draft) => {
+      getDraft()
+        .then((draft) => {
           bareChatInputLogger.log('got draft', draft);
           if (!editingPost) {
             setInputFromDraft(draft);
@@ -775,10 +775,12 @@ function BareChatInput(
               },
             });
           }
+        })
+        .catch((e) => {
+          // a try/catch around getDraft().then(...) can't catch async
+          // rejections, so handle them here
+          bareChatInputLogger.error('Error setting initial content', e);
         });
-      } catch (e) {
-        bareChatInputLogger.error('Error setting initial content', e);
-      }
     }
   }, [
     getDraft,
@@ -963,7 +965,15 @@ function BareChatInput(
             style={{
               backgroundColor: 'transparent',
               minHeight: initialHeight,
-              height: isWeb ? inputHeight : undefined,
+              // Let the native input auto-size while it has content; force the
+              // initial height when empty. The uncontrolled native input keeps a
+              // stale (expanded) measurement after the text is cleared on send,
+              // so an explicit height on empty snaps it back to a single line.
+              height: isWeb
+                ? inputHeight
+                : controlledText === ''
+                  ? initialHeight
+                  : undefined,
               maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
               paddingHorizontal: getTokenValue('$l', 'space'),
               paddingTop: getTokenValue('$l', 'space'),

@@ -2,7 +2,6 @@ import { parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, jam } from '@urbit/nockjs';
 
 import { EventEmitter } from '../lib/EventEmitter';
-import { readArrayBufferFromBlob } from '../lib/blob';
 import { createDevLogger } from '../lib/logger';
 import { createTimeoutSignal } from '../lib/timeoutSignal';
 import { desig } from '../lib/urbit';
@@ -976,6 +975,32 @@ export class Urbit {
     return result;
   }
 
+  /**
+   * Authenticated request to an arbitrary path on this ship, returning parsed
+   * JSON. Used for first-class HTTP APIs served directly by agents (e.g. the
+   * %notes /notes/~/v1 REST surface), where the response carries data the
+   * channel/poke surface doesn't (such as a server-assigned notebook flag).
+   */
+  async requestJson<T = any>(
+    path: string,
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
+    body?: unknown
+  ): Promise<T> {
+    const response = await this.fetchFn(`${this.url}${path}`, {
+      ...this.fetchOptions,
+      method,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!response.ok) {
+      return Promise.reject(response);
+    }
+    const text = await response.text();
+    if (text.length === 0) {
+      return undefined as T;
+    }
+    return JSON.parse(text) as T;
+  }
+
   async scryNounWithInfo(params: Scry): Promise<{
     responseStatus: number;
     responseSizeInBytes: number;
@@ -995,8 +1020,7 @@ export class Urbit {
         return Promise.reject(response);
       }
 
-      const responseBlob = await response.blob();
-      const buffer = await readArrayBufferFromBlob(responseBlob);
+      const buffer = await response.arrayBuffer();
 
       try {
         const unpacked = await unpackJamBytes(buffer);

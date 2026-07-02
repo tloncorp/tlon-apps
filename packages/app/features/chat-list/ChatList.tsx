@@ -1,4 +1,4 @@
-import { FlashList, ListRenderItem } from '@shopify/flash-list';
+import { FlashList, FlashListRef, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import { Pressable, Text } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
@@ -35,6 +35,7 @@ export const ChatList = React.memo(function ChatListComponent({
   onLoad,
   disableScrollAnchoring,
   scrollerTestID,
+  scrollRef,
 }: {
   data: SectionedChatData;
   // Full unfiltered pinned set (for filtered-tab full-order reconstruction). If
@@ -44,6 +45,7 @@ export const ChatList = React.memo(function ChatListComponent({
   onLoad?: () => void;
   disableScrollAnchoring?: boolean;
   scrollerTestID?: string;
+  scrollRef?: React.RefObject<FlashListRef<ChatListItemData> | null>;
 }) {
   // The pinned section renders as the FlashList ListHeaderComponent (sortable),
   // and only the non-pinned sections feed the virtualized list (TLON-5948 §5.5).
@@ -191,6 +193,7 @@ export const ChatList = React.memo(function ChatListComponent({
 
   return (
     <FlashList
+      ref={scrollRef}
       data={listItems}
       contentContainerStyle={contentContainerStyle}
       keyExtractor={getChatKey}

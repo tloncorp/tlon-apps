@@ -3,6 +3,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import {
   getMissingNotificationTargetRecovery,
   getNotificationRouteCategory,
+  groupInvitePreviewRouteStack,
 } from '../hooks/useNotificationListener';
 import { parseNotificationPayload } from '../lib/notificationPayload';
 
@@ -245,6 +246,119 @@ describe('parseNotificationPayload', () => {
     });
   });
 
+  it('parses group-invite activity into a routable groupInvite payload', () => {
+    const result = parseNotificationPayload(
+      payloadFor({
+        'group-invite': {
+          ship: '~sampel-palnet',
+          group: '~sampel-palnet/test',
+        },
+      })
+    );
+
+    expectBaseMeta(result);
+    expect(result).toMatchObject({
+      type: 'groupInvite',
+      groupId: '~sampel-palnet/test',
+    });
+  });
+
+  it('returns null for a group-invite event missing its group id', () => {
+    expect(parseNotificationPayload(payloadFor({ 'group-invite': {} }))).toBe(
+      null
+    );
+  });
+
+  it('parses channel post react activity to the channel', () => {
+    const result = parseNotificationPayload(
+      payloadFor({
+        react: {
+          key: childKey,
+          parent: null,
+          group: '~sampel-palnet/test',
+          channel: 'chat/~sampel-palnet/test',
+          author: '~sampel-palnet',
+          react: '❤️',
+        },
+      })
+    );
+
+    expect(result).toEqual({
+      meta: { errorsFromExtension: undefined },
+      channelId: 'chat/~sampel-palnet/test',
+      postInfo: null,
+    });
+  });
+
+  it('parses channel reply react activity to the parent thread', () => {
+    const result = parseNotificationPayload(
+      payloadFor({
+        react: {
+          key: childKey,
+          parent: parentKey,
+          group: '~sampel-palnet/test',
+          channel: 'chat/~sampel-palnet/test',
+          author: '~sampel-palnet',
+          react: '❤️',
+        },
+      })
+    );
+
+    expect(result).toEqual({
+      meta: { errorsFromExtension: undefined },
+      channelId: 'chat/~sampel-palnet/test',
+      postInfo: {
+        id: parentId.split('/')[1],
+        authorId: '~sampel-palnet',
+        isDm: false,
+      },
+    });
+  });
+
+  it('parses DM react activity to the DM channel', () => {
+    const result = parseNotificationPayload(
+      payloadFor({
+        'dm-react': {
+          key: childKey,
+          parent: null,
+          whom: { ship: '~sampel-palnet' },
+          author: '~sampel-palnet',
+          react: '❤️',
+        },
+      })
+    );
+
+    expect(result).toEqual({
+      meta: { errorsFromExtension: undefined },
+      channelId: '~sampel-palnet',
+      postInfo: null,
+    });
+  });
+
+  it('parses DM thread react activity to the parent thread', () => {
+    const result = parseNotificationPayload(
+      payloadFor({
+        'dm-react': {
+          key: childKey,
+          parent: parentKey,
+          whom: { club: groupDmId },
+          author: '~sampel-palnet',
+          react: '❤️',
+        },
+      })
+    );
+
+    expect(result).toEqual({
+      meta: { errorsFromExtension: undefined },
+      channelId: groupDmId,
+      postInfo: {
+        id: parentId.split('/')[1],
+        authorId: '~sampel-palnet',
+        isDm: false,
+      },
+    });
+  });
+
   it('ignores malformed activity JSON without throwing', () => {
     expect(() =>
       parseNotificationPayload({ activityEventJsonString: '{' })
@@ -265,6 +379,31 @@ describe('parseNotificationPayload', () => {
 });
 
 describe('notification routing decisions', () => {
+  it('builds the group-invite preview route stack with the invite marker', () => {
+    expect(groupInvitePreviewRouteStack('~sampel-palnet/test')).toEqual([
+      {
+        name: 'ChatList',
+        params: {
+          previewGroupId: '~sampel-palnet/test',
+          previewGroupFromInviteNotification: true,
+        },
+      },
+    ]);
+  });
+
+  it('classifies a group invite as a non-channel notification needing no recovery', () => {
+    const notification = {
+      meta: {},
+      type: 'groupInvite' as const,
+      groupId: '~sampel-palnet/test',
+    };
+
+    expect(getNotificationRouteCategory(notification)).toBe(
+      'nonChannelNotification'
+    );
+    expect(getMissingNotificationTargetRecovery(notification)).toBe('none');
+  });
+
   it('does not retry targeted recovery for a single-DM invite already checked during preparation', () => {
     const notification = {
       meta: {},
