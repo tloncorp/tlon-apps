@@ -46,6 +46,7 @@ import {
 import { MoveNoteSheet } from './NotesMoveSheets';
 import { NotesNoteDetail } from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
+import { canSelectNotesImportSources } from './notesImport';
 import { trackNotesActionError } from './notesTelemetry';
 import {
   type FolderRow,
@@ -57,6 +58,7 @@ import {
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
 } from './notesTree';
+import { useNotesImportController } from './useNotesImportController';
 
 const MOVE_OPERATION_TIMEOUT_MS = 12000;
 const MOVE_OPERATION_TIMEOUT_MESSAGE =
@@ -151,6 +153,9 @@ export function NotesNativeChannel({
     notebookFlag,
     { syncEnabled: isFocused }
   );
+
+  const canImportFiles = canEdit && canSelectNotesImportSources('files');
+  const canImportFolder = canEdit && canSelectNotesImportSources('folder');
 
   const parentFolderRows = useMemo(
     () => buildFolderRows(folders, rootFolderId, { includeRoot: true }),
@@ -318,6 +323,26 @@ export function NotesNativeChannel({
         (currentParentId) => getCreateTargetFolderId(currentParentId) ?? null
       );
     }
+  });
+
+  const canDropImportNotes = canImportFolder && gate !== 'unjoinable';
+  const {
+    dropImportProps,
+    importFiles,
+    importFolder,
+    importNotice,
+    isDragImportActive,
+    isImportingNotes,
+  } = useNotesImportController({
+    activeFolderId,
+    canDropImportNotes,
+    canEdit,
+    folders,
+    notebookFlag,
+    notes,
+    rootFolderId,
+    selectedFolderId,
+    setError,
   });
 
   const handleMoveNoteToFolder = useMutableCallback(
@@ -529,6 +554,16 @@ export function NotesNativeChannel({
     }
   );
 
+  const runImportAfterSheetCloses = useMutableCallback((action: () => void) => {
+    setNewActionSheetOpen(false);
+    if (Platform.OS === 'web') {
+      action();
+      return;
+    }
+
+    setTimeout(action, 50);
+  });
+
   const createActions = [
     createNotesNewNoteAction({
       action: () => {
@@ -548,11 +583,48 @@ export function NotesNativeChannel({
     }),
   ];
 
+  const importActions = [
+    ...(canImportFiles
+      ? [
+          {
+            title: 'Import files',
+            startIcon: 'ChannelNote' as const,
+            action: () => {
+              runImportAfterSheetCloses(importFiles);
+            },
+            disabled: isImportingNotes,
+            testID: 'NotesImportFilesAction',
+          },
+        ]
+      : []),
+    ...(canImportFolder
+      ? [
+          {
+            title: 'Import folder',
+            startIcon: 'Folder' as const,
+            action: () => {
+              runImportAfterSheetCloses(importFolder);
+            },
+            disabled: isImportingNotes,
+            testID: 'NotesImportFolderAction',
+          },
+        ]
+      : []),
+  ];
+
   const newActionGroups = [
     {
       accent: 'neutral' as const,
       actions: createActions,
     },
+    ...(importActions.length > 0
+      ? [
+          {
+            accent: 'neutral' as const,
+            actions: importActions,
+          },
+        ]
+      : []),
   ];
 
   const headerActions = useMemo(() => {
@@ -637,10 +709,30 @@ export function NotesNativeChannel({
   );
 
   return (
-    <YStack flex={1} backgroundColor="$background" position="relative">
+    <YStack
+      flex={1}
+      backgroundColor="$background"
+      position="relative"
+      {...dropImportProps}
+    >
       {error ? <NotesBanner message={error} tone="negative" /> : null}
+      {importNotice ? <NotesBanner message={importNotice} /> : null}
 
       {useDesktopSplit ? noteDetailPane : notesTreePane}
+      {isDragImportActive ? (
+        <YStack
+          pointerEvents="none"
+          position="absolute"
+          top={0}
+          right={0}
+          bottom={0}
+          left={0}
+          borderColor="$positiveText"
+          borderWidth={2}
+          backgroundColor="$backgroundHover"
+          opacity={0.7}
+        />
+      ) : null}
       <ActionSheet
         open={newActionSheetOpen}
         onOpenChange={setNewActionSheetOpen}
@@ -649,7 +741,7 @@ export function NotesNativeChannel({
       >
         <ActionSheet.SimpleHeader
           title="New"
-          subtitle="Create notes or folders"
+          subtitle="Create or import notes or folders"
         />
         <ActionSheet.Content>
           <NotesActionGroupList
