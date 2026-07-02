@@ -75,11 +75,11 @@
       "react-native-country-codes-picker": "patches/react-native-country-codes-picker@2.3.5.patch",
       "@simform_solutions/react-native-audio-waveform": "patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch",
       "@gorhom/bottom-sheet": "patches/@gorhom__bottom-sheet@5.2.14.patch",
-      "react-native-reanimated": "patches/react-native-reanimated@4.5.0.patch",
       "react-native-gesture-handler": "patches/react-native-gesture-handler@2.32.0.patch",
       "expo-image-manipulator": "patches/expo-image-manipulator@57.0.1.patch",
       "expo-background-task": "patches/expo-background-task@57.0.1.patch",
-      "@tamagui/web": "patches/@tamagui__web@2.4.0.patch"
+      "@tamagui/web": "patches/@tamagui__web@2.4.0.patch",
+      "react-native-reanimated": "patches/react-native-reanimated@4.5.0.patch"
     },
     "allowNonAppliedPatches": false,
     "overrides": {

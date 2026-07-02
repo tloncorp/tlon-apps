@@ -123,9 +123,10 @@ Why:
   branch is taken on React Native Web 0.19+ regardless of whether
   `createReactDOMStyle` is exported, with a transform serializer fallback
 - Guards `InlinePropManager.inlinePropsHasChanged` and `getInlineStyle`
-  against null inputs, and `PropsFilter.animatedProps` against
-  `initial.value == null`, so `Object.keys`/`Object.entries` calls in those
-  hot paths no longer throw
+  against null inputs, so `Object.keys`/`Object.entries` calls in those
+  hot paths no longer throw. (Reanimated 4.5 rewrote
+  `PropsFilter.animatedProps` to null-safe `for...in` iteration, so the
+  former `initial.value == null` guard there is no longer carried.)
 - Works with the web bundler alias in `apps/tlon-web/vite.config.mts` that
   keeps Vite on the patched top-level Reanimated package instead of a stale
   nested copy
