@@ -10,7 +10,7 @@ import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { AnalyticsEvent } from '../../domain';
-import { getLocalFileInfo } from './getLocalFileInfo';
+import { getLocalFileSize } from './getLocalFileSize';
 import { setUploadState } from './storageUploadState';
 import {
   getExtensionFromMimeType,
@@ -281,15 +281,8 @@ export const performUpload = async (
         sourceUri: URL.createObjectURL(params),
       };
     } else {
-      let size = params.size;
-      let fallbackType: string | undefined;
-      if (size == null) {
-        const fileInfo = await getLocalFileInfo(params.uri);
-        size = fileInfo.size;
-        fallbackType = fileInfo.mimeType;
-      }
-      const contentType =
-        params.mimeType || fallbackType || 'application/octet-stream';
+      const size = params.size ?? (await getLocalFileSize(params.uri));
+      const contentType = params.mimeType || 'application/octet-stream';
       const baseFileName =
         params.name || params.uri.split('/').pop()?.split('?')[0] || 'image';
       const extension = getExtensionFromMimeType(contentType);
