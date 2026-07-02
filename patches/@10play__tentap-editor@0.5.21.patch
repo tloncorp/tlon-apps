@@ -167,3 +167,24 @@ index 8c3dae2c12..bd99f3dcb5 100644
            if (n) {
              const s = ls(n).filter((o) => o.isLink);
              s.length && s.forEach((o) => i.push({
+diff --git a/android/src/main/java/com/tentap/TenTapViewManager.kt b/android/src/main/java/com/tentap/TenTapViewManager.kt
+index d90e66f1053667fd2df73a7a7f28fa5917a09e34..f1f5d1a579b8a7b7b391007a80bc9a3c2377c8ea 100644
+--- a/android/src/main/java/com/tentap/TenTapViewManager.kt
++++ b/android/src/main/java/com/tentap/TenTapViewManager.kt
+@@ -21,15 +21,7 @@ class TenTapViewManager :
+   TenTapViewManagerSpec<TenTapView>() {
+ 
+   private fun dispatchUIUpdate(runnable: Runnable){
+-    UiThreadUtil.runOnUiThread(Runnable {
+-        runnable.run()
+-        var uiManagerModule = reactContext.getNativeModule(UIManagerModule::class.java)
+-        if(uiManagerModule != null) {
+-          reactContext.runOnNativeModulesQueueThread(Runnable {
+-            uiManagerModule.onBatchComplete()
+-          })
+-        }
+-    })
++    UiThreadUtil.runOnUiThread(runnable)
+   }
+ 
+ 

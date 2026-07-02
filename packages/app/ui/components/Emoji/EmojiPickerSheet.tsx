@@ -146,7 +146,6 @@ export function EmojiPickerSheet(
               numColumns={6}
               renderItem={renderItem}
               extraData={listData}
-              estimatedListSize={estimatedListSize}
             />
           </View>
         </ActionSheet.Content>

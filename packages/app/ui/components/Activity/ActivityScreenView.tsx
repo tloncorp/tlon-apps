@@ -38,6 +38,7 @@ export function ActivityScreenView({
   loadingSubtitle,
   onNavigateToContacts,
   onInviteFriends,
+  scrollRef,
 }: {
   isFocused: boolean;
   goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
@@ -51,6 +52,7 @@ export function ActivityScreenView({
   loadingSubtitle?: string | null;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
+  scrollRef?: React.RefObject<FlatList | null>;
 }) {
   const store = useStore();
   const { data: activitySeenMarker } = store.useActivitySeenMarker();
@@ -248,6 +250,7 @@ export function ActivityScreenView({
       loadingSubtitle={loadingSubtitle}
       onNavigateToContacts={onNavigateToContacts}
       onInviteFriends={onInviteFriends}
+      scrollRef={scrollRef}
     />
   );
 }
@@ -269,6 +272,7 @@ export function ActivityScreenContent({
   loadingSubtitle,
   onNavigateToContacts,
   onInviteFriends,
+  scrollRef,
 }: {
   activeTab: db.ActivityBucket;
   onPressTab: (tab: db.ActivityBucket) => void;
@@ -286,6 +290,7 @@ export function ActivityScreenContent({
   loadingSubtitle?: string | null;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
+  scrollRef?: React.RefObject<FlatList | null>;
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
@@ -364,6 +369,7 @@ export function ActivityScreenContent({
               </XStack>
             ) : (
               <FlatList
+                ref={scrollRef}
                 data={events}
                 renderItem={renderItem}
                 keyExtractor={keyExtractor}
