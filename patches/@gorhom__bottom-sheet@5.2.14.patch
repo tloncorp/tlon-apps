@@ -53,3 +53,30 @@ index 4a69a6892ff553836b72216b598451c56f6284cc..7cdacc259c532844f5ec378e111f2f16
      return {
        paddingBottom: animate({
          point: paddingBottom,
+diff --git a/src/components/bottomSheetModal/BottomSheetModal.tsx b/src/components/bottomSheetModal/BottomSheetModal.tsx
+index 2954b3f4282e28c1973ab88f479eb2d7889913c5..ec2ea40cdb40688fffb297bad212097529bea7e5 100644
+--- a/src/components/bottomSheetModal/BottomSheetModal.tsx
++++ b/src/components/bottomSheetModal/BottomSheetModal.tsx
+@@ -275,11 +275,19 @@ function BottomSheetModalComponent<T = never>(
+       /**
+        * if the modal position is already in a closed position,
+        * then we unmount the node and early exit.
++       *
++       * INITIAL is included so that dismissing a modal that was never
++       * presented (or that already fully dismissed itself, e.g. via a
++       * backdrop press) stays idempotent. Without it, the status gets
++       * stuck at DISMISSING and every later present() silently no-ops.
++       * https://github.com/gorhom/react-native-bottom-sheet/issues/2669
+        */
+       if (
+-        [MODAL_STATUS.CLOSED, MODAL_STATUS.MINIMIZED].includes(
+-          statusRef.current
+-        ) ||
++        [
++          MODAL_STATUS.INITIAL,
++          MODAL_STATUS.CLOSED,
++          MODAL_STATUS.MINIMIZED,
++        ].includes(statusRef.current) ||
+         (statusRef.current === MODAL_STATUS.DISMISSING &&
+           currentIndexRef.current === -1)
+       ) {
