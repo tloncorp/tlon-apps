@@ -43,7 +43,7 @@ esac
 
 #download_url=`jq -r ".[\"$ship\"][\"downloadUrl\"]" < $ship_manifest`
 #download_url="https://bootstrap.urbit.org/zod-aqua-408k.xst"
-pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2-408k.pill"
+pill_download_url="https://bootstrap.urbit.org/groups-v11-3-0-408k.pill"
 
 #archive=`basename $download_url`
 pill=`basename $pill_download_url`
@@ -150,14 +150,6 @@ then
   cp $pill ${pier}/groups/${pill_name}.jam
 fi
 
-patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
-rm -f $pier/base/lib/strandio.hoon.rej
-rm -f $pier/base/lib/strandio.hoon.orig
-
-patch -f $pier/base/sur/aquarium.hoon `dirname $0`/aqua-sur.patch
-rm -f $pier/base/sur/aquarium.hoon.rej
-rm -f $pier/base/sur/aquarium.hoon.orig
-
 echo "Updating base desk..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
@@ -165,9 +157,6 @@ $run_click $pier <<EOF
 ;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%base |]))  
 (pure:m !>(%ok))  
 EOF
-
-# TODO: We should figure out the source ship for this file and delete it
-rm -f $pier/groups/tests/lib/diary-graph.hoon
 
 # Update the groups desk
 rsync -r desk/ $pier/groups

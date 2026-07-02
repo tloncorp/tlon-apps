@@ -130,10 +130,6 @@ $run_click $pier <<EOF
 (pure:m !>(%ok))  
 EOF
 
-patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
-rm -f $pier/base/lib/strandio.hoon.rej
-rm -f $pier/base/lib/strandio.hoon.orig
-
 echo "Updating base desk..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
