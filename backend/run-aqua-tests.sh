@@ -150,14 +150,6 @@ then
   cp $pill ${pier}/groups/${pill_name}.jam
 fi
 
-patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
-rm -f $pier/base/lib/strandio.hoon.rej
-rm -f $pier/base/lib/strandio.hoon.orig
-
-patch -f $pier/base/sur/aquarium.hoon `dirname $0`/aqua-sur.patch
-rm -f $pier/base/sur/aquarium.hoon.rej
-rm -f $pier/base/sur/aquarium.hoon.orig
-
 echo "Updating base desk..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
@@ -165,9 +157,6 @@ $run_click $pier <<EOF
 ;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%base |]))  
 (pure:m !>(%ok))  
 EOF
-
-# TODO: We should figure out the source ship for this file and delete it
-rm -f $pier/groups/tests/lib/diary-graph.hoon
 
 # Update the groups desk
 rsync -r desk/ $pier/groups
