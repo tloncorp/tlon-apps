@@ -692,6 +692,14 @@ async function waitForPublishedNoteState(
     if (e !== notYetSynced) {
       throw e;
     }
+    // Unlike snapshot polls, this confirmation gates a user-facing success
+    // signal (link copied, toast) — an unconfirmed publish must fail loudly
+    // rather than report success for a state the backend never reached.
+    throw new Error(
+      `%notes write request is still pending; the ${
+        expected ? 'publish' : 'unpublish'
+      } is not yet confirmed and may still complete. Check the note's published state before retrying.`
+    );
   }
 }
 

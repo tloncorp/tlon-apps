@@ -442,6 +442,20 @@ test('publishedNoteUrl builds links from the ship URL', () => {
   ).toBe('https://zod.tlon.network/notes/pub/~zod/native-notes/3');
 });
 
+test('publishNotebookNote fails loudly when the publish never confirms', async () => {
+  vi.spyOn(api.notes, 'publishNote').mockResolvedValue(1);
+  vi.spyOn(api.notes, 'listPublished').mockResolvedValue([]);
+
+  await expect(
+    publishNotebookNote({
+      notebookFlag,
+      noteId: 3,
+      title: 'Unconfirmed',
+      body: 'body',
+    })
+  ).rejects.toThrow('publish is not yet confirmed');
+});
+
 test('unpublishNotebookNote waits for the note to leave published records', async () => {
   const unpublishNotesNote = vi
     .spyOn(api.notes, 'unpublishNote')
