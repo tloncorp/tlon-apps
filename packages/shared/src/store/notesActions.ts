@@ -254,6 +254,10 @@ export const useNotesNotebook = createNotebookQueryHook(
   'notesNotebook',
   db.getNotesNotebook
 );
+export const useNotesNotebookWithRelations = createNotebookQueryHook(
+  'notesNotebookWithRelations',
+  db.getNotesNotebookWithRelations
+);
 export const useNotesFolders = createNotebookQueryHook(
   'notesFolders',
   db.getNotesFolders

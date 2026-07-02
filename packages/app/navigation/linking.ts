@@ -26,6 +26,20 @@ export const getMobileLinkingConfig = (
             path: 'group/:groupId/channel/:channelId/:selectedPostId?',
             parse: parsePathParams('channelId', 'groupId', 'selectedPostId'),
           },
+          NotesDetail: {
+            path: 'group/:groupId/channel/:channelId/note/:noteId',
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              noteId: Number,
+            },
+          },
+          NotesFolder: {
+            path: 'group/:groupId/channel/:channelId/folder/:folderId',
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              folderId: Number,
+            },
+          },
           ChatList: 'ChatList',
           ChannelSearch: { path: 'channel/:channelId/search' },
           ContextLensRuns: { path: 'lens/runs' },
@@ -151,6 +165,14 @@ export const getDesktopLinkingConfig = (
                   },
                   GroupSettings: {},
                   ChannelSearch: {},
+                  NotesDetail: {
+                    path: 'note/:noteId',
+                    parse: { noteId: Number },
+                  },
+                  NotesFolder: {
+                    path: 'folder/:folderId',
+                    parse: { folderId: Number },
+                  },
                   Post: postScreenConfig(mode),
                   MediaViewer: {},
                 },
