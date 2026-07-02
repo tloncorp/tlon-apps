@@ -262,6 +262,27 @@ describe('notes import helpers', () => {
     expect(unsupportedFile.text).not.toHaveBeenCalled();
   });
 
+  test('strips only the SAF volume prefix, keeping colons in file names', async () => {
+    vi.stubGlobal('document', undefined);
+    vi.mocked(ExpoDirectory.pickDirectoryAsync).mockResolvedValue(
+      makeNativeDirectory(
+        'primary:Research',
+        [
+          makeNativeFile(
+            'primary:Research/Meeting: Q3.md',
+            'Agenda',
+            'content://com.android.externalstorage.documents/tree/primary%3AResearch/document/primary%3AResearch%2FMeeting%3A%20Q3.md'
+          ),
+        ],
+        'content://com.android.externalstorage.documents/tree/primary%3AResearch'
+      ) as never
+    );
+
+    const sources = await selectNotesImportSources('folder');
+
+    expect(sources).toEqual([source('Research/Meeting: Q3.md', 'Agenda')]);
+  });
+
   test('returns null when native folder selection is canceled', async () => {
     vi.stubGlobal('document', undefined);
     vi.mocked(ExpoDirectory.pickDirectoryAsync).mockRejectedValue(

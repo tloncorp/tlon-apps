@@ -410,12 +410,16 @@ function isNotesNativeFile(
 
 function getNativeEntryName(entry: NotesNativeEntry) {
   const rawName = entry.name || getNameFromUri(entry.uri) || '';
-  const decodedName = safeDecodeURIComponent(rawName);
+  let decodedName = safeDecodeURIComponent(rawName);
+  // Android SAF entry names decode to full document ids of the form
+  // "<volume>:<path>" (e.g. "primary:Notes/Meeting: Q3.md"). Strip only the
+  // leading volume prefix — any colon after the first path separator belongs
+  // to a real file or folder name and must survive.
+  if (entry.uri?.startsWith('content://')) {
+    decodedName = decodedName.replace(/^[^:/\\]+:/, '');
+  }
   const pathSegments = splitImportPath(decodedName);
   const name = pathSegments[pathSegments.length - 1] ?? decodedName;
-  if (entry.uri?.startsWith('content://') && name.includes(':')) {
-    return name.split(':').pop()?.trim() ?? '';
-  }
   return name.trim();
 }
 
