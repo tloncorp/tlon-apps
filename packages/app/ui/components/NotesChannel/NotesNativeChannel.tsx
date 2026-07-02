@@ -50,6 +50,7 @@ import { trackNotesActionError } from './notesTelemetry';
 import {
   type FolderRow,
   buildFolderContentsRows,
+  buildFolderDestinationRows,
   buildFolderNoteCounts,
   buildFolderRows,
   getFolderLabel,
@@ -572,7 +573,6 @@ export function NotesNativeChannel({
       canEdit={canEdit}
       isDeletingFolder={isDeletingFolder}
       layout={useDesktopSplit ? 'takeover' : 'stack'}
-      selectedFolderId={null}
       selectedNoteId={useDesktopSplit ? selectedNoteId : null}
       treeRows={treeRows}
       onDeleteFolder={handleDeleteFolder}
@@ -711,14 +711,9 @@ function getMoveDestinationLabel(
     return 'folder';
   }
 
-  const row = folderRows.find(
-    (candidate) => candidate.folder.folderId === folderId
+  return (
+    buildFolderDestinationRows({ folderRows }).find(
+      (destination) => destination.folder.folderId === folderId
+    )?.displayPath ?? 'folder'
   );
-  if (!row) {
-    return 'folder';
-  }
-  if (row.folder.name === '/') {
-    return getFolderLabel(row.folder);
-  }
-  return row.path.replace(/^Root \/ /, '');
 }

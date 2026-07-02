@@ -224,24 +224,21 @@ function NotebookContentsListFixture() {
   const usePhoneViewport = viewport === 'Phone channel';
   const initialSelection = useMemo(() => {
     if (contentsState === 'Empty' || selectedItem === 'No selection') {
-      return { activeFolderId: 1, folderId: null, noteId: null };
+      return { activeFolderId: 1, noteId: null };
     }
 
     if (selectedItem === 'Projects folder') {
-      return { activeFolderId: 1, folderId: 2, noteId: null };
+      return { activeFolderId: 1, noteId: null };
     }
 
     if (selectedItem === 'Release checklist') {
-      return { activeFolderId: 4, folderId: 4, noteId: 4 };
+      return { activeFolderId: 4, noteId: 4 };
     }
 
-    return { activeFolderId: 1, folderId: 1, noteId: 1 };
+    return { activeFolderId: 1, noteId: 1 };
   }, [contentsState, selectedItem]);
   const [activeFolderId, setActiveFolderId] = useState<number>(
     initialSelection.activeFolderId
-  );
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(
-    initialSelection.folderId
   );
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(
     initialSelection.noteId
@@ -249,7 +246,6 @@ function NotebookContentsListFixture() {
 
   useEffect(() => {
     setActiveFolderId(initialSelection.activeFolderId);
-    setSelectedFolderId(initialSelection.folderId);
     setSelectedNoteId(initialSelection.noteId);
   }, [initialSelection]);
 
@@ -267,12 +263,10 @@ function NotebookContentsListFixture() {
 
   const openFolder = (folder: db.NotesFolder) => {
     setSelectedNoteId(null);
-    setSelectedFolderId(folder.folderId);
     setActiveFolderId(folder.folderId);
   };
 
   const openNote = (note: db.NotesNote) => {
-    setSelectedFolderId(note.folderId);
     setSelectedNoteId(note.noteId);
   };
 
@@ -305,7 +299,6 @@ function NotebookContentsListFixture() {
             canEdit={canEdit}
             isDeletingFolder={false}
             layout={usePhoneViewport ? 'stack' : 'takeover'}
-            selectedFolderId={selectedFolderId}
             selectedNoteId={selectedNoteId}
             treeRows={treeRows}
             onCreateFolderInFolder={() => {}}
@@ -367,7 +360,6 @@ function NotesTreeFixture() {
             canEdit
             isDeletingFolder={false}
             layout="takeover"
-            selectedFolderId={null}
             selectedNoteId={1}
             treeRows={treeRows}
             onCreateFolderInFolder={() => {}}

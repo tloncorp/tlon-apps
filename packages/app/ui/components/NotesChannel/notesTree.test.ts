@@ -98,10 +98,10 @@ describe('notes tree helpers', () => {
     expect(
       rows.map((row) =>
         row.type === 'folder'
-          ? `folder:${row.folder.name}:${row.depth}:${row.noteCount}`
-          : `note:${row.note.title}:${row.depth}`
+          ? `folder:${row.folder.name}:${row.noteCount}`
+          : `note:${row.note.title}`
       )
-    ).toEqual(['folder:Backlog:0:1', 'note:Beta:0', 'note:Alpha:0']);
+    ).toEqual(['folder:Backlog:1', 'note:Beta', 'note:Alpha']);
   });
 
   test('builds root contents without nested descendants', () => {
@@ -122,14 +122,10 @@ describe('notes tree helpers', () => {
     expect(
       rows.map((row) =>
         row.type === 'folder'
-          ? `folder:${row.folder.name}:${row.depth}:${row.noteCount}`
-          : `note:${row.note.title}:${row.depth}`
+          ? `folder:${row.folder.name}:${row.noteCount}`
+          : `note:${row.note.title}`
       )
-    ).toEqual([
-      'folder:Archive:0:0',
-      'folder:Projects:0:2',
-      'note:Root note:0',
-    ]);
+    ).toEqual(['folder:Archive:0', 'folder:Projects:2', 'note:Root note']);
   });
 
   test('searching a folder includes ancestors, descendants, and descendant notes', () => {

@@ -12,19 +12,14 @@ import { createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { NotesActionMenu } from './NotesActions';
-
-const TREE_ROW_HEIGHT = 44;
-const TREE_LEVEL_WIDTH = 24;
-const FOLDER_ROW_LEFT_PADDING = 5.5;
+import { noteTimestampMs } from './notesTree';
 
 export function FolderTreeRow({
   canEdit,
-  depth,
   folder,
   isDeleting,
   label,
   noteCount,
-  selected,
   onDelete,
   onCreateFolder,
   onCreateNote,
@@ -33,12 +28,10 @@ export function FolderTreeRow({
   onRename,
 }: {
   canEdit: boolean;
-  depth: number;
   folder: db.NotesFolder;
   isDeleting: boolean;
   label: string;
   noteCount: number;
-  selected: boolean;
   onDelete: (folder: db.NotesFolder) => void;
   onCreateFolder: (folder: db.NotesFolder) => void;
   onCreateNote: (folder: db.NotesFolder) => void;
@@ -46,6 +39,7 @@ export function FolderTreeRow({
   onPress: () => void;
   onRename: (folder: db.NotesFolder) => void;
 }) {
+  const subtitle = noteCount > 0 ? formatNoteCount(noteCount) : 'Folder';
   const actionGroups = createActionGroups(
     [
       'neutral',
@@ -94,15 +88,12 @@ export function FolderTreeRow({
     header: {
       icon: 'Folder',
       title: label,
-      subtitle: noteCount > 0 ? formatNoteCount(noteCount) : 'Folder',
+      subtitle,
     },
   });
 
   return (
     <TreeRowFrame
-      depth={depth}
-      selected={selected}
-      variant="chatList"
       {...rowActionProps}
       onPress={onPress}
       testID={`NotesFolderRow-${label}`}
@@ -117,9 +108,7 @@ export function FolderTreeRow({
         >
           {label}
         </ListItem.Title>
-        <ListItem.Subtitle>
-          {noteCount > 0 ? formatNoteCount(noteCount) : 'Folder'}
-        </ListItem.Subtitle>
+        <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
       </ListItem.MainContent>
       <ListItem.EndContent>
         <XStack alignItems="center" gap="$xs">
@@ -133,7 +122,6 @@ export function FolderTreeRow({
 
 export function NoteRow({
   canEdit,
-  depth,
   note,
   selected = false,
   onDelete,
@@ -142,7 +130,6 @@ export function NoteRow({
   onRename,
 }: {
   canEdit: boolean;
-  depth: number;
   note: db.NotesNote;
   selected?: boolean;
   onDelete: () => void;
@@ -150,7 +137,7 @@ export function NoteRow({
   onPress: () => void;
   onRename: () => void;
 }) {
-  const updatedAt = getNoteTimestampMs(note.updatedAt ?? note.createdAt);
+  const updatedAt = noteTimestampMs(note.updatedAt ?? note.createdAt);
   const bodyPreview = getNoteBodyPreview(note.bodyMd);
 
   const actionGroups = createActionGroups(
@@ -191,9 +178,7 @@ export function NoteRow({
 
   return (
     <TreeRowFrame
-      depth={depth}
       selected={selected}
-      variant="chatList"
       {...rowActionProps}
       onPress={onPress}
       testID={`NotesNoteRow-${note.noteId}`}
@@ -312,27 +297,21 @@ function useRowActions({
 
 function TreeRowFrame({
   children,
-  depth,
   onPress,
   onOpenMenu,
   onMouseEnter,
   onMouseLeave,
   selected = false,
   testID,
-  variant = 'compact',
 }: {
   children: ReactNode;
-  depth: number;
   onPress: () => void;
   onOpenMenu?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   selected?: boolean;
   testID?: string;
-  variant?: 'compact' | 'chatList';
 }) {
-  const chatListStyle = variant === 'chatList';
-
   return (
     <TreeRowPressable
       onMouseEnter={onMouseEnter}
@@ -342,25 +321,15 @@ function TreeRowFrame({
       testID={testID}
     >
       <ListItem
-        alignItems={chatListStyle ? 'stretch' : 'center'}
-        minHeight={chatListStyle ? undefined : TREE_ROW_HEIGHT}
+        alignItems="stretch"
         position="relative"
-        borderRadius={chatListStyle ? '$xl' : '$m'}
-        backgroundColor={
-          selected
-            ? chatListStyle
-              ? '$shadow'
-              : '$secondaryBackground'
-            : 'transparent'
-        }
-        paddingLeft={chatListStyle ? '$l' : FOLDER_ROW_LEFT_PADDING}
-        paddingRight={chatListStyle ? '$l' : '$s'}
-        paddingVertical={chatListStyle ? '$l' : '$xs'}
-        gap={chatListStyle ? '$l' : '$s'}
+        borderRadius="$xl"
+        backgroundColor={selected ? '$shadow' : 'transparent'}
+        paddingLeft="$l"
+        paddingRight="$l"
+        paddingVertical="$l"
+        gap="$l"
       >
-        {depth > 0 ? (
-          <XStack width={depth * TREE_LEVEL_WIDTH} flexShrink={0} />
-        ) : null}
         {children}
       </ListItem>
     </TreeRowPressable>
@@ -414,11 +383,6 @@ function TreeRowPressable({
       {children}
     </Pressable>
   );
-}
-
-function getNoteTimestampMs(timestamp: number | null | undefined) {
-  if (!timestamp) return null;
-  return timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
 }
 
 function getNoteBodyPreview(bodyMd: string | null | undefined) {

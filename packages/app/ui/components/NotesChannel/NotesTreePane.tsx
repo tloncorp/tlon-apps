@@ -10,7 +10,6 @@ export function NotesTreePane({
   canEdit,
   isDeletingFolder,
   layout,
-  selectedFolderId,
   selectedNoteId,
   treeRows,
   onCreateFolderInFolder,
@@ -27,7 +26,6 @@ export function NotesTreePane({
   canEdit: boolean;
   isDeletingFolder: boolean;
   layout: 'stack' | 'takeover';
-  selectedFolderId: number | null;
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
   onCreateFolderInFolder: (folder: db.NotesFolder) => void;
@@ -56,23 +54,37 @@ export function NotesTreePane({
   }
 
   const treeList = (
-    <NotesTreeRowsList
-      canEdit={canEdit}
-      isDeletingFolder={isDeletingFolder}
-      selectedFolderId={selectedFolderId}
-      selectedNoteId={selectedNoteId}
-      treeRows={treeRows}
-      onCreateFolderInFolder={onCreateFolderInFolder}
-      onCreateNoteInFolder={onCreateNoteInFolder}
-      onDeleteFolder={onDeleteFolder}
-      onDeleteNote={onDeleteNote}
-      onMoveFolder={onMoveFolder}
-      onMoveNote={onMoveNote}
-      onOpenNote={onOpenNote}
-      onRenameFolder={onRenameFolder}
-      onRenameNote={onRenameNote}
-      onOpenFolder={onOpenFolder}
-    />
+    <YStack>
+      {treeRows.map((row) =>
+        row.type === 'folder' ? (
+          <FolderTreeRow
+            key={row.folder.id}
+            canEdit={canEdit}
+            folder={row.folder}
+            isDeleting={isDeletingFolder}
+            label={getFolderLabel(row.folder)}
+            noteCount={row.noteCount}
+            onDelete={onDeleteFolder}
+            onCreateFolder={onCreateFolderInFolder}
+            onCreateNote={onCreateNoteInFolder}
+            onMove={onMoveFolder}
+            onPress={() => onOpenFolder(row.folder)}
+            onRename={onRenameFolder}
+          />
+        ) : (
+          <NoteRow
+            key={row.note.id}
+            canEdit={canEdit}
+            note={row.note}
+            selected={selectedNoteId === row.note.noteId}
+            onDelete={() => onDeleteNote(row.note)}
+            onMove={() => onMoveNote(row.note)}
+            onPress={() => onOpenNote(row.note)}
+            onRename={() => onRenameNote(row.note)}
+          />
+        )
+      )}
+    </YStack>
   );
 
   if (layout === 'takeover') {
@@ -101,77 +113,6 @@ export function NotesTreePane({
         {treeList}
       </YStack>
     </ScrollView>
-  );
-}
-
-function NotesTreeRowsList({
-  canEdit,
-  isDeletingFolder,
-  selectedFolderId,
-  selectedNoteId,
-  treeRows,
-  onCreateFolderInFolder,
-  onCreateNoteInFolder,
-  onDeleteFolder,
-  onDeleteNote,
-  onMoveFolder,
-  onMoveNote,
-  onOpenNote,
-  onRenameFolder,
-  onRenameNote,
-  onOpenFolder,
-}: {
-  canEdit: boolean;
-  isDeletingFolder: boolean;
-  selectedFolderId: number | null;
-  selectedNoteId: number | null;
-  treeRows: NotesTreeRow[];
-  onCreateFolderInFolder: (folder: db.NotesFolder) => void;
-  onCreateNoteInFolder: (folder: db.NotesFolder) => void;
-  onDeleteFolder: (folder: db.NotesFolder) => void;
-  onDeleteNote: (note: db.NotesNote) => void;
-  onMoveFolder: (folder: db.NotesFolder) => void;
-  onMoveNote: (note: db.NotesNote) => void;
-  onOpenNote: (note: db.NotesNote) => void;
-  onRenameFolder: (folder: db.NotesFolder) => void;
-  onRenameNote: (note: db.NotesNote) => void;
-  onOpenFolder: (folder: db.NotesFolder) => void;
-}) {
-  return (
-    <YStack>
-      {treeRows.map((row) =>
-        row.type === 'folder' ? (
-          <FolderTreeRow
-            key={row.folder.id}
-            canEdit={canEdit}
-            depth={row.depth}
-            folder={row.folder}
-            isDeleting={isDeletingFolder}
-            label={getFolderLabel(row.folder)}
-            noteCount={row.noteCount}
-            selected={selectedFolderId === row.folder.folderId}
-            onDelete={onDeleteFolder}
-            onCreateFolder={onCreateFolderInFolder}
-            onCreateNote={onCreateNoteInFolder}
-            onMove={onMoveFolder}
-            onPress={() => onOpenFolder(row.folder)}
-            onRename={onRenameFolder}
-          />
-        ) : (
-          <NoteRow
-            key={row.note.id}
-            canEdit={canEdit}
-            depth={row.depth}
-            note={row.note}
-            selected={selectedNoteId === row.note.noteId}
-            onDelete={() => onDeleteNote(row.note)}
-            onMove={() => onMoveNote(row.note)}
-            onPress={() => onOpenNote(row.note)}
-            onRename={() => onRenameNote(row.note)}
-          />
-        )
-      )}
-    </YStack>
   );
 }
 

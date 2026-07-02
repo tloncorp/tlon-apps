@@ -1,7 +1,7 @@
 import { makePrettyShortDate } from '@tloncorp/api/lib/utils';
 import * as db from '@tloncorp/shared/db';
 
-export type FolderRow = { folder: db.NotesFolder; depth: number; path: string };
+export type FolderRow = { folder: db.NotesFolder; path: string };
 export type FolderDestinationRow = {
   folder: db.NotesFolder;
   label: string;
@@ -12,11 +12,10 @@ export type NotesTreeRow =
   | {
       type: 'folder';
       folder: db.NotesFolder;
-      depth: number;
       noteCount: number;
       path: string;
     }
-  | { type: 'note'; note: db.NotesNote; depth: number };
+  | { type: 'note'; note: db.NotesNote };
 
 function indexFolders(
   folders: db.NotesFolder[],
@@ -63,7 +62,7 @@ function visitOrphans(
   folders: db.NotesFolder[],
   byId: Map<number, db.NotesFolder>,
   visited: Set<number>,
-  visit: (folder: db.NotesFolder, depth: number) => void
+  visit: (folder: db.NotesFolder) => void
 ) {
   const hasVisitedAncestor = (folder: db.NotesFolder) => {
     const seen = new Set<number>();
@@ -87,14 +86,14 @@ function visitOrphans(
       if (visited.has(folder.folderId)) return false;
       return folder.parentFolderId == null || !byId.has(folder.parentFolderId);
     })
-    .forEach((folder) => visit(folder, 0));
+    .forEach((folder) => visit(folder));
 
   folders
     .filter((folder) => {
       if (visited.has(folder.folderId)) return false;
       return !hasVisitedAncestor(folder);
     })
-    .forEach((folder) => visit(folder, 0));
+    .forEach((folder) => visit(folder));
 }
 
 export function filterNotesTreeData({
@@ -178,7 +177,7 @@ export function buildFolderRows(
   const visited = new Set<number>();
   const root = findRootFolder(folders, rootFolderId);
 
-  const visit = (folder: db.NotesFolder, depth: number, parentPath = '') => {
+  const visit = (folder: db.NotesFolder, parentPath = '') => {
     if (visited.has(folder.folderId)) return;
 
     visited.add(folder.folderId);
@@ -186,19 +185,15 @@ export function buildFolderRows(
     const path = parentPath ? `${parentPath} / ${label}` : label;
     const isRoot = root ? folder.folderId === root.folderId : false;
     if (includeRoot || !isRoot) {
-      rows.push({
-        folder,
-        depth: includeRoot ? depth : Math.max(0, depth - 1),
-        path,
-      });
+      rows.push({ folder, path });
     }
 
     const children = byParent.get(folder.folderId) ?? [];
-    children.forEach((child) => visit(child, depth + 1, path));
+    children.forEach((child) => visit(child, path));
   };
 
   if (root) {
-    visit(root, 0);
+    visit(root);
   }
   visitOrphans(folders, byId, visited, visit);
 
@@ -273,14 +268,11 @@ export function buildFolderContentsRows({
       return {
         type: 'folder',
         folder,
-        depth: 0,
         noteCount: folderNoteCounts.get(folder.folderId) ?? 0,
         path: pathByFolderId.get(folder.folderId) ?? getFolderLabel(folder),
       };
     }),
-    ...folderNotes.map(
-      (note): NotesTreeRow => ({ type: 'note', note, depth: 0 })
-    ),
+    ...folderNotes.map((note): NotesTreeRow => ({ type: 'note', note })),
   ];
 }
 
@@ -365,8 +357,13 @@ export function normalizeSearchText(value: string | null | undefined) {
   return (value ?? '').trim().toLowerCase();
 }
 
-export function formatNoteDate(timestamp: number | null | undefined) {
+// Note timestamps may arrive in seconds or milliseconds depending on source.
+export function noteTimestampMs(timestamp: number | null | undefined) {
   if (!timestamp) return null;
-  const unixMs = timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
-  return makePrettyShortDate(new Date(unixMs));
+  return timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
+}
+
+export function formatNoteDate(timestamp: number | null | undefined) {
+  const unixMs = noteTimestampMs(timestamp);
+  return unixMs === null ? null : makePrettyShortDate(new Date(unixMs));
 }

@@ -175,12 +175,16 @@ export function MoveFolderSheet({
 
     return ids;
   }, [folder, folders]);
-  const { selectedDestination, selectedFolderId, setSelectedFolderId } =
-    useFolderDestinationSelection({
-      folderRows,
-      hiddenFolderIds,
-      resetKey: open ? folder?.id : null,
-    });
+  const {
+    destinations,
+    selectedDestination,
+    selectedFolderId,
+    setSelectedFolderId,
+  } = useFolderDestinationSelection({
+    folderRows,
+    hiddenFolderIds,
+    resetKey: open ? folder?.id : null,
+  });
 
   return (
     <MoveDestinationSheet
@@ -194,8 +198,7 @@ export function MoveFolderSheet({
       onConfirm={onMove}
     >
       <FolderDestinationSearch
-        folderRows={folderRows}
-        hiddenFolderIds={hiddenFolderIds}
+        destinations={destinations}
         isLoading={isMoving}
         onSelectFolder={setSelectedFolderId}
         resetKey={open ? folder?.id : null}

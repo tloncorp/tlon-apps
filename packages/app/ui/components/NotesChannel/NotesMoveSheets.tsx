@@ -34,12 +34,16 @@ export function MoveNoteSheet({
     () => new Set<number>(note ? [note.folderId] : []),
     [note]
   );
-  const { selectedDestination, selectedFolderId, setSelectedFolderId } =
-    useFolderDestinationSelection({
-      folderRows,
-      hiddenFolderIds,
-      resetKey: open ? note?.id : null,
-    });
+  const {
+    destinations,
+    selectedDestination,
+    selectedFolderId,
+    setSelectedFolderId,
+  } = useFolderDestinationSelection({
+    folderRows,
+    hiddenFolderIds,
+    resetKey: open ? note?.id : null,
+  });
   const title = note?.title?.trim() || 'Untitled';
 
   return (
@@ -54,8 +58,7 @@ export function MoveNoteSheet({
       onConfirm={onMove}
     >
       <FolderDestinationSearch
-        folderRows={folderRows}
-        hiddenFolderIds={hiddenFolderIds}
+        destinations={destinations}
         isLoading={isMoving}
         onSelectFolder={setSelectedFolderId}
         resetKey={open ? note?.id : null}
@@ -98,7 +101,12 @@ export function useFolderDestinationSelection({
     }
   }, [selectedDestination, selectedFolderId]);
 
-  return { selectedDestination, selectedFolderId, setSelectedFolderId };
+  return {
+    destinations,
+    selectedDestination,
+    selectedFolderId,
+    setSelectedFolderId,
+  };
 }
 
 export function MoveDestinationSheet({
@@ -174,8 +182,7 @@ export function MoveDestinationSheet({
 }
 
 export function FolderDestinationSearch({
-  folderRows,
-  hiddenFolderIds,
+  destinations,
   isLoading = false,
   maxHeight = 520,
   onSelectFolder,
@@ -183,8 +190,7 @@ export function FolderDestinationSearch({
   selectedFolderId,
   testID,
 }: {
-  folderRows: FolderRow[];
-  hiddenFolderIds?: Set<number>;
+  destinations: FolderDestinationRow[];
   isLoading?: boolean;
   maxHeight?: number;
   onSelectFolder: (folderId: number) => void;
@@ -197,11 +203,6 @@ export function FolderDestinationSearch({
   useEffect(() => {
     setQuery('');
   }, [resetKey]);
-
-  const destinations = useMemo(
-    () => buildFolderDestinationRows({ folderRows, hiddenFolderIds }),
-    [folderRows, hiddenFolderIds]
-  );
 
   const fuse = useMemo(
     () =>
