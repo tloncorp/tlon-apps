@@ -168,6 +168,8 @@ export async function sendVouchedDmWithStory({
   const sentAt = Date.now();
   const result = await apiSendVouchedDm({
     as,
+    // the host authors as its own moon
+    authorId: as,
     toShip,
     content: story,
     sentAt,

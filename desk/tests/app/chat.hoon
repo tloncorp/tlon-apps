@@ -32,8 +32,12 @@
   =/  =diff:dm:c  (dm-message ~bus now.bw [%inline ~['hi bot']])
   ;<  caz=(list card)  bind:m
     (do-poke %chat-dm-vouched-action-2 !>(`vouched-action:dm:c`[moon moon diff]))
+  ::  as the human, we also surface the conversation to our own client as a DM
+  ::  keyed by the moon (on the /v4 firehose), then proxy to the moon's owner.
+  =/  mp=@ta  (scot %p moon)
   %+  ex-cards  caz
-  :~  %+  ex-poke  /vouched-dm/(scot %p moon)/(scot %p ~bus)
+  :~  (ex-fact-paths ~[/v4 ~[%v4 %dm mp] ~[%v4 %dm mp %writs]])
+      %+  ex-poke  /vouched-dm/(scot %p moon)/(scot %p ~bus)
       [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
   ==
 ::  the host stores an inbound vouched dm and streams it to local subscribers

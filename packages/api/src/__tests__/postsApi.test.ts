@@ -2,11 +2,12 @@ import { beforeEach, expect, test, vi } from 'vitest';
 
 import {
   getPostReference,
+  sendPost,
   toPostData,
   toPostReplyData,
   toPostsData,
 } from '../client/postsApi';
-import { subscribeOnce } from '../client/urbit';
+import { poke, subscribeOnce } from '../client/urbit';
 import type { Post } from '../types/models';
 import * as ub from '../urbit';
 import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
@@ -20,7 +21,40 @@ vi.mock('../client/urbit', async () => {
   return {
     ...actual,
     subscribeOnce: vi.fn(),
+    poke: vi.fn(),
   };
+});
+
+test('sendPost routes a DM to a bot moon through the vouched path', async () => {
+  vi.mocked(poke).mockReset();
+  vi.mocked(poke).mockResolvedValue(undefined as never);
+  await sendPost({
+    channelId: '~doznec-sampel-palnet', // a moon
+    authorId: '~bus',
+    sentAt: 1701275662689,
+    content: [{ inline: ['hi bot'] }],
+  });
+  expect(poke).toHaveBeenCalledTimes(1);
+  const arg = vi.mocked(poke).mock.calls[0][0] as {
+    app: string;
+    mark: string;
+    json: { as: string; action: { ship: string } };
+  };
+  expect(arg).toMatchObject({ app: 'chat', mark: 'chat-dm-vouched-action-2' });
+  expect(arg.json.as).toBe('~doznec-sampel-palnet');
+});
+
+test('sendPost sends a normal DM to a non-moon peer', async () => {
+  vi.mocked(poke).mockReset();
+  vi.mocked(poke).mockResolvedValue(undefined as never);
+  await sendPost({
+    channelId: '~bus', // a comet/planet, not a moon
+    authorId: '~zod',
+    sentAt: 1701275662689,
+    content: [{ inline: ['hi'] }],
+  });
+  const arg = vi.mocked(poke).mock.calls[0][0] as { mark: string };
+  expect(arg.mark).not.toBe('chat-dm-vouched-action-2');
 });
 
 const botAuthor: ub.BotProfile = {

@@ -3114,13 +3114,6 @@
 ::    store (+reduce:pac); skips the invite handshake / activity / unread
 ::    bookkeeping for now (experimental).
 ::
-::  +dv-core: experimental "vouched" DM core for virtual identities (bots).
-::
-::    Parallels +di-core but operates on .vouched-dms keyed by [as=moon
-::    who=human], leaving the normal DM path untouched. Reuses the message
-::    store (+reduce:pac); skips the invite handshake / activity / unread
-::    bookkeeping for now (experimental).
-::
 ++  dv-core
   |_  [as=ship who=ship =dm:c]
   +*  dv-pact  ~(. pac pact.dm)
@@ -3134,12 +3127,31 @@
     =.  vouched-dms  (~(put by vouched-dms) [as who] dm)
     cor
   ++  dv-wire  `wire`/vouched-dm/(scot %p as)/(scot %p who)
+  ::  from the human's side the moon IS the conversation, so surface vouched
+  ::  writs as a normal DM keyed by .as on the /v4 firehose the client reads.
+  ++  dv-area        `path`/dm/(scot %p as)
+  ++  dv-area-writs  `path`/dm/(scot %p as)/writs
+  ++  dv-give-writs-diff
+    |=  =diff:writs:c
+    ~>  %spin.['dv-give-writs-diff']
+    ^+  dv-core
+    =/  =whom:c  [%ship as]
+    =/  response=(unit response:writs:c)
+      (diff-to-response diff pact.dm)
+    ?~  response  dv-core
+    =.  cor
+      =/  =rail  writ-response-4+[whom u.response]
+      (emit %give %fact ~[/v4 v4+dv-area v4+dv-area-writs] rail)
+    dv-core
   ++  dv-ingest
     |=  =diff:dm:c
     ~>  %spin.['dv-ingest']
     ^+  dv-core
     =.  pact.dm  (reduce:dv-pact now.bowl from-self diff)
-    dv-core
+    ::  if we're the human in this conversation, publish it to our own client
+    ::  as a DM with the moon; the host side instead streams to /vouched-dm.
+    ?.  =(who our.bowl)  dv-core
+    (dv-give-writs-diff diff)
   ++  dv-proxy
     |=  [dest=ship =diff:dm:c]
     ~>  %spin.['dv-proxy']

@@ -1,4 +1,4 @@
-import { da, render } from '@urbit/aura';
+import { da, p, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
 import { createDevLogger } from '../lib/logger';
@@ -169,6 +169,21 @@ export const sendPost = async ({
 
   const author = toAuthor(authorId, botProfile);
 
+  // A DM to a bot moon can't be delivered peer-to-peer (the moon isn't
+  // running), so route it through the vouched path to the moon's host, which
+  // hands it to the bot and files it under the [moon, us] conversation.
+  if (channelType === 'dm' && p.clan(channelId) === 'earl') {
+    await sendVouchedDm({
+      as: channelId,
+      authorId,
+      toShip: channelId,
+      content,
+      sentAt,
+      blob,
+    });
+    return;
+  }
+
   if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
       add: {
@@ -219,13 +234,17 @@ export const sendPost = async ({
 };
 
 /**
- * Send a DM as a "virtual identity" (a moon, `as`) to `toShip`, via the
- * vouched DM path (`chat-dm-vouched-action-2`). The poking ship must be the
- * moon's host (sein); the message is filed under the [moon, human]
- * conversation on both ends. See +dv-core in desk/app/chat.
+ * Send a DM in a vouched "virtual identity" conversation, keyed by the moon
+ * `as`, via `chat-dm-vouched-action-2`. Works in both directions:
+ *   - the host authors as its moon (authorId = the moon, with a botProfile);
+ *   - a human authors as themselves (authorId = current user).
+ * The poking ship's %chat routes to the moon's sponsor and files the writ
+ * under the [moon, human] conversation on both ends. See +dv-core in
+ * desk/app/chat.
  */
 export const sendVouchedDm = async ({
   as,
+  authorId,
   toShip,
   content,
   sentAt,
@@ -233,13 +252,14 @@ export const sendVouchedDm = async ({
   botProfile,
 }: {
   as: string;
+  authorId: string;
   toShip: string;
   content: Story;
   sentAt: number;
   blob?: string;
   botProfile?: AuthorProfile;
 }) => {
-  const author = toAuthor(as, botProfile ?? { nickname: null, avatar: null });
+  const author = toAuthor(authorId, botProfile);
   const delta: WritDeltaAdd = {
     add: {
       essay: {
@@ -253,7 +273,7 @@ export const sendVouchedDm = async ({
       time: null,
     },
   };
-  const id = `${as}/${formatUd(da.fromUnix(sentAt).toString())}`;
+  const id = `${authorId}/${formatUd(da.fromUnix(sentAt).toString())}`;
   const diff: WritDiff = { id, delta };
   await poke({
     app: 'chat',
