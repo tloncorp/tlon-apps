@@ -35,9 +35,6 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
     // Avoid setting credentials method for same reason as above.
     credentials: undefined,
   };
-  // SSE (text/event-stream) requests need a streaming Response.body; on native
-  // this is provided by expo/fetch, installed as the global fetch by Expo's
-  // winter runtime (SDK 56+).
   return fetch(input, newInit);
 };
 
