@@ -627,6 +627,10 @@ export function NotesNativeChannel({
           notebookFlag={notebookFlag}
           onTitleAutoFocused={handleTitleAutoFocused}
           startInEdit={startEditNoteId === selectedNoteId}
+          // This embedded pane shares the shell's notebook; syncing here too
+          // would add a duplicate %notes subscription that keeps running
+          // after this screen loses focus.
+          syncEnabled={false}
         />
       )}
     </YStack>
