@@ -29,6 +29,7 @@ import {
   BadResponseError,
   poke,
   requestJson,
+  scry,
   subscribe,
   unsubscribe,
 } from './urbit';
@@ -40,6 +41,7 @@ vi.mock('./urbit', async () => {
     ...actual,
     poke: vi.fn(),
     requestJson: vi.fn(),
+    scry: vi.fn(),
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
   };
@@ -47,6 +49,7 @@ vi.mock('./urbit', async () => {
 
 const pokeMock = poke as unknown as Mock;
 const requestJsonMock = requestJson as unknown as Mock;
+const scryMock = scry as unknown as Mock;
 const subscribeMock = subscribe as unknown as Mock;
 const unsubscribeMock = unsubscribe as unknown as Mock;
 
@@ -72,6 +75,7 @@ function pendingErrorStrings(error: NotesV1PendingWriteError): string {
 beforeEach(() => {
   requestJsonMock.mockResolvedValue(undefined);
   pokeMock.mockResolvedValue(undefined);
+  scryMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -759,6 +763,57 @@ describe('notebook delete helpers', () => {
     await expect(
       deleteNotesNotebookBestEffort('~zod/blog')
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('publish helpers', () => {
+  test('notes facade lists and updates published notes through %notes', async () => {
+    scryMock.mockResolvedValue([{ host: '~zod', flagName: 'blog', noteId: 3 }]);
+
+    await expect(notes.listPublished()).resolves.toEqual([
+      { host: '~zod', flagName: 'blog', noteId: 3 },
+    ]);
+    expect(scryMock).toHaveBeenCalledWith({
+      app: 'notes',
+      path: '/v0/published',
+    });
+
+    await notes.publishNote({
+      flag: 'notes/~zod/blog',
+      noteId: 3,
+      html: '<p>Hello</p>',
+    });
+    expect(pokeMock).toHaveBeenLastCalledWith({
+      app: 'notes',
+      mark: 'notes-action',
+      json: {
+        type: 'notebook',
+        flag: '~zod/blog',
+        action: {
+          type: 'note',
+          id: 3,
+          action: { type: 'publish', html: '<p>Hello</p>' },
+        },
+      },
+    });
+
+    await notes.unpublishNote({
+      flag: { host: 'zod', name: 'blog' },
+      noteId: 3,
+    });
+    expect(pokeMock).toHaveBeenLastCalledWith({
+      app: 'notes',
+      mark: 'notes-action',
+      json: {
+        type: 'notebook',
+        flag: '~zod/blog',
+        action: {
+          type: 'note',
+          id: 3,
+          action: { type: 'unpublish' },
+        },
+      },
+    });
   });
 });
 
