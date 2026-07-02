@@ -1,11 +1,11 @@
-|_  res=*
+|_  =vase
 ++  grab
   |%
-  ++  noun  *
+  ++  noun  ^vase
   --
 ++  grow
   |%
-  ++  noun  res
+  ++  noun  vase
   --
 ++  grad  %noun
 --
