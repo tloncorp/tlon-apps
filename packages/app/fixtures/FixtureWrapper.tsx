@@ -49,9 +49,6 @@ function MockedUrbitClientProvider({ children }: PropsWithChildren<object>) {
 export const FixtureWrapper = (props: FixtureWrapperProps) => {
   return (
     <ToastProvider>
-      {/* The cosmos decorator mounts a NavigationContainer above the
-          PortalProvider; this container must be an independent tree to be
-          nested inside it. */}
       <NavigationIndependentTree>
         <NavigationContainer navigationInChildEnabled>
           <MockedUrbitClientProvider>

@@ -34,9 +34,6 @@ export default ({ children }: { children: React.ReactNode }) => {
         <SafeAreaProvider>
           <ChannelProvider value={{ channel: tlonLocalIntros }}>
             <ComponentsKitProvider>
-              {/* Modal sheets portal their content to this PortalProvider, so
-                  navigation context (e.g. LinkingContext used by Pressable)
-                  must be provided above it. */}
               <NavigationContainer>
                 <PortalProvider>{children}</PortalProvider>
               </NavigationContainer>
