@@ -180,8 +180,18 @@ describe('re-engagement nudges', () => {
     console.log(`Got stage-1 nudge: ${nudgePost!.text.slice(0, 80)}...`);
     expect(nudgePost!.text).toContain(STAGE_1_MARKER);
 
-    // After the nudge fires, lastNudgeStage should be 1 on the bot ship.
-    const afterNudgeStage = await readLastNudgeStage();
+    // After the nudge fires, lastNudgeStage should be 1 on the bot ship. The
+    // nudge post and the lastNudgeStage settings write are separate pokes, so
+    // the post can become visible before the settings write lands — poll for
+    // the stage rather than reading it once (mirrors the Phase-2 poll below).
+    const afterNudgeStage = await waitFor(
+      async () => {
+        const stage = await readLastNudgeStage();
+        return stage === 1 ? stage : undefined;
+      },
+      30_000,
+      1_000
+    );
     console.log(`lastNudgeStage after nudge: ${afterNudgeStage}`);
     expect(afterNudgeStage).toBe(1);
 

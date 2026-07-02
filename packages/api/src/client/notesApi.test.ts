@@ -9,15 +9,15 @@ import {
 } from 'vitest';
 
 import {
-  createNotesNote,
-  deleteNotesNotebook,
+  NotesV1PendingWriteError,
   deleteNotesNotebookBestEffort,
   deleteNotesNotebookStrict,
   formatNotesFlag,
   joinNotesChannel,
+  joinNotesNotebook,
   leaveNotesChannel,
-  listNotesNotebooks,
   normalizeNotesTarget,
+  notes,
   notesChannelId,
   notesV1,
   parseNotesChannelId,
@@ -40,32 +40,42 @@ vi.mock('./urbit', async () => {
   return {
     ...actual,
     poke: vi.fn(),
-    scry: vi.fn(),
     requestJson: vi.fn(),
+    scry: vi.fn(),
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
   };
 });
 
 const pokeMock = poke as unknown as Mock;
-const scryMock = scry as unknown as Mock;
 const requestJsonMock = requestJson as unknown as Mock;
+const scryMock = scry as unknown as Mock;
 const subscribeMock = subscribe as unknown as Mock;
 const unsubscribeMock = unsubscribe as unknown as Mock;
 
-async function rejectionMessage(promise: Promise<unknown>): Promise<string> {
+async function rejectionError(promise: Promise<unknown>): Promise<unknown> {
   try {
     await promise;
   } catch (error) {
-    return error instanceof Error ? error.message : String(error);
+    return error;
   }
   throw new Error('Expected promise to reject');
+}
+
+function pendingErrorStrings(error: NotesV1PendingWriteError): string {
+  return [
+    error.name,
+    error.message,
+    error.requestId ?? '',
+    error.status ?? '',
+    JSON.stringify(error.checks),
+  ].join('\n');
 }
 
 beforeEach(() => {
   requestJsonMock.mockResolvedValue(undefined);
   pokeMock.mockResolvedValue(undefined);
-  scryMock.mockResolvedValue([]);
+  scryMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -90,6 +100,7 @@ describe('flag parsing and formatting', () => {
       name: 'blog',
     });
     expect(parseNotesChannelId('chat/~zod/blog')).toBeNull();
+    expect(parseNotesChannelId('notes/~zod/blog/extra')).toBeNull();
   });
 
   test('notesChannelId', () => {
@@ -139,32 +150,17 @@ describe('normalizeNotesTarget', () => {
   });
 });
 
-describe('v0 surface preserves #5990 scry/poke semantics', () => {
-  test('listNotesNotebooks scries /v0/notebooks', async () => {
-    scryMock.mockResolvedValue([{ host: '~zod' }]);
-    const result = await listNotesNotebooks();
-    expect(scryMock).toHaveBeenCalledWith({
-      app: 'notes',
-      path: '/v0/notebooks',
-    });
-    expect(result).toEqual([{ host: '~zod' }]);
-  });
-
-  test('createNotesNote pokes a %notes notebook action (not %channels, not v1)', async () => {
-    await createNotesNote({
-      flag: '~zod/blog',
-      folder: 3,
-      title: 'T',
-      body: 'B',
-    });
+describe('%notes transport helpers', () => {
+  test('joinNotesNotebook pokes %notes directly and does not call v1 HTTP', async () => {
+    await joinNotesNotebook('notes/~zod/blog');
     expect(requestJsonMock).not.toHaveBeenCalled();
     expect(pokeMock).toHaveBeenCalledWith({
       app: 'notes',
       mark: 'notes-action',
       json: {
-        type: 'notebook',
-        flag: '~zod/blog',
-        action: { type: 'create-note', folder: 3, title: 'T', body: 'B' },
+        type: 'join',
+        ship: '~zod',
+        name: 'blog',
       },
     });
   });
@@ -388,6 +384,62 @@ describe('notesV1 normalization variants', () => {
   });
 });
 
+describe('notes app facade', () => {
+  test('getNotebook returns the flat client model used by shared', async () => {
+    requestJsonMock.mockResolvedValue({
+      host: '~zod',
+      flagName: 'blog',
+      visibility: 'private',
+      notebook: {
+        id: 2,
+        title: 'Blog',
+        rootFolderId: 3,
+        createdBy: '~zod',
+      },
+    });
+
+    await expect(notes.getNotebook('notes/~zod/blog')).resolves.toMatchObject({
+      id: '~zod/blog',
+      host: '~zod',
+      flagName: 'blog',
+      notebookId: 2,
+      title: 'Blog',
+      visibility: 'private',
+      rootFolderId: 3,
+      createdBy: '~zod',
+    });
+  });
+
+  test('listNotes returns client ids while preserving omitted detail fields', async () => {
+    requestJsonMock.mockResolvedValue([{ id: 12, title: 'First' }]);
+
+    const [note] = await notes.listNotes('notes/~zod/blog');
+
+    expect(note).toMatchObject({
+      id: '~zod/blog/note/12',
+      notebookFlag: '~zod/blog',
+      noteId: 12,
+      title: 'First',
+    });
+    expect(note.folderId).toBeUndefined();
+    expect(note.bodyMd).toBeUndefined();
+    expect(note.revision).toBeUndefined();
+  });
+
+  test('listMembers flattens roles and preserves role-less members', async () => {
+    requestJsonMock.mockResolvedValue([
+      { ship: '~zod', roles: ['owner', 'editor'] },
+      { ship: '~nec' },
+    ]);
+
+    await expect(notes.listMembers('notes/~zod/blog')).resolves.toEqual([
+      { notebookFlag: '~zod/blog', contactId: '~zod', role: 'owner' },
+      { notebookFlag: '~zod/blog', contactId: '~zod', role: 'editor' },
+      { notebookFlag: '~zod/blog', contactId: '~nec', role: null },
+    ]);
+  });
+});
+
 describe('notesV1 writes send pinned v1 HTTP bodies', () => {
   test('createNotebook unwraps the notebook envelope', async () => {
     requestJsonMock.mockResolvedValue({
@@ -443,22 +495,24 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     }
   });
 
-  test('createNotebook pending includes request status and notebook checks', async () => {
+  test('createNotebook pending preserves structured request status and notebook checks', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: '0vabc',
-      body: { type: 'pending' },
+      body: { type: 'pending', status: 'acked' },
     });
 
-    const message = await rejectionMessage(
-      notesV1.createNotebook({ title: 'B' })
-    );
+    const error = await rejectionError(notesV1.createNotebook({ title: 'B' }));
 
-    expect(message).toContain('%notes write request is still pending');
-    expect(message).toContain('Do not retry automatically');
-    expect(message).toContain('tlon notes request 0vabc');
-    expect(message).toContain('tlon notes list');
-    expect(message).toContain('tlon notes show <notes-nest-from-list>');
-    expect(message).not.toContain('try again');
+    expect(error).toBeInstanceOf(NotesV1PendingWriteError);
+    const pending = error as NotesV1PendingWriteError;
+    expect(pending.message).toBe('%notes write request is still pending');
+    expect(pending.requestId).toBe('0vabc');
+    expect(pending.status).toBe('acked');
+    expect(pending.checks).toEqual([
+      { type: 'notebook-list' },
+      { type: 'notebook-detail' },
+    ]);
+    expect(pendingErrorStrings(pending)).not.toContain('tlon notes');
   });
 
   test('createNotebook reports empty error envelopes with fallback detail', async () => {
@@ -483,13 +537,13 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     );
   });
 
-  test('createNote pending includes request status and note checks', async () => {
+  test('createNote pending preserves structured request status and note checks', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: '0vnote',
-      body: { type: 'pending' },
+      body: { type: 'pending', status: 'queued' },
     });
 
-    const message = await rejectionMessage(
+    const error = await rejectionError(
       notesV1.createNote({
         flag: 'notes/~zod/blog',
         folder: 3,
@@ -498,12 +552,15 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
       })
     );
 
-    expect(message).toContain('%notes write request is still pending');
-    expect(message).toContain('Do not retry automatically');
-    expect(message).toContain('tlon notes request 0vnote');
-    expect(message).toContain('tlon notes notes notes/~zod/blog');
-    expect(message).toContain('tlon notes note notes/~zod/blog <id-from-list>');
-    expect(message).not.toContain('try again');
+    expect(error).toBeInstanceOf(NotesV1PendingWriteError);
+    const pending = error as NotesV1PendingWriteError;
+    expect(pending.requestId).toBe('0vnote');
+    expect(pending.status).toBe('queued');
+    expect(pending.checks).toEqual([
+      { type: 'note-list', nest: 'notes/~zod/blog' },
+      { type: 'note-detail', nest: 'notes/~zod/blog' },
+    ]);
+    expect(pendingErrorStrings(pending)).not.toContain('tlon notes');
   });
 
   test('updateNoteBody includes expectedRevision only when provided', async () => {
@@ -631,24 +688,33 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     }
   });
 
-  test('pending note and folder writes point at affected objects', async () => {
+  test('pending note and folder writes point at affected objects structurally', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: '0vobj',
       body: { type: 'pending' },
     });
 
-    const noteMessage = await rejectionMessage(
+    const noteError = await rejectionError(
       notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'x' })
     );
-    expect(noteMessage).toContain('tlon notes request 0vobj');
-    expect(noteMessage).toContain('tlon notes note notes/~zod/blog 12');
-    expect(noteMessage).not.toContain('try again');
+    expect(noteError).toBeInstanceOf(NotesV1PendingWriteError);
+    const pendingNote = noteError as NotesV1PendingWriteError;
+    expect(pendingNote.requestId).toBe('0vobj');
+    expect(pendingNote.status).toBeUndefined();
+    expect(pendingNote.checks).toEqual([
+      { type: 'note-detail', nest: 'notes/~zod/blog', noteId: 12 },
+    ]);
+    expect(pendingErrorStrings(pendingNote)).not.toContain('tlon notes');
 
-    const folderMessage = await rejectionMessage(
+    const folderError = await rejectionError(
       notesV1.renameFolder({ flag: 'notes/~zod/blog', folderId: 4, name: 'x' })
     );
-    expect(folderMessage).toContain('tlon notes folder notes/~zod/blog 4');
-    expect(folderMessage).not.toContain('try again');
+    expect(folderError).toBeInstanceOf(NotesV1PendingWriteError);
+    const pendingFolder = folderError as NotesV1PendingWriteError;
+    expect(pendingFolder.checks).toEqual([
+      { type: 'folder-detail', nest: 'notes/~zod/blog', folderId: 4 },
+    ]);
+    expect(pendingErrorStrings(pendingFolder)).not.toContain('tlon notes');
   });
 
   test('void writes report empty error envelopes with fallback detail', async () => {
@@ -678,46 +744,6 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
 });
 
 describe('notebook delete helpers', () => {
-  test('legacy deleteNotesNotebook(channelId) is best-effort and swallows failures', async () => {
-    pokeMock.mockRejectedValue(new Error('not host'));
-    await expect(
-      deleteNotesNotebook('notes/~zod/blog')
-    ).resolves.toBeUndefined();
-    // pokes a %notes notebook-delete action with the ~host/name flag (never a
-    // raw flag with host "notes").
-    expect(pokeMock).toHaveBeenCalledWith({
-      app: 'notes',
-      mark: 'notes-action',
-      json: {
-        type: 'notebook',
-        flag: '~zod/blog',
-        action: { type: 'delete' },
-      },
-    });
-  });
-
-  test('legacy deleteNotesNotebook only acts on an exact notes/<host>/<name> nest', async () => {
-    // Bare flag, malformed nest, and over-long note/cite paths all no-op.
-    for (const id of [
-      '~zod/blog',
-      'notes/~zod',
-      'notes/~zod/blog/12',
-      'notes/~zod/blog/note/12',
-      'notes//blog',
-    ]) {
-      await deleteNotesNotebook(id);
-    }
-    expect(pokeMock).not.toHaveBeenCalled();
-
-    // The exact nest still deletes.
-    await deleteNotesNotebook('notes/~zod/blog');
-    expect(pokeMock).toHaveBeenCalledWith({
-      app: 'notes',
-      mark: 'notes-action',
-      json: { type: 'notebook', flag: '~zod/blog', action: { type: 'delete' } },
-    });
-  });
-
   test('deleteNotesNotebookStrict propagates failures and normalizes targets', async () => {
     pokeMock.mockRejectedValue(new Error('boom'));
     await expect(deleteNotesNotebookStrict('notes/~zod/blog')).rejects.toThrow(
@@ -737,6 +763,57 @@ describe('notebook delete helpers', () => {
     await expect(
       deleteNotesNotebookBestEffort('~zod/blog')
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('publish helpers', () => {
+  test('notes facade lists and updates published notes through %notes', async () => {
+    scryMock.mockResolvedValue([{ host: '~zod', flagName: 'blog', noteId: 3 }]);
+
+    await expect(notes.listPublished()).resolves.toEqual([
+      { host: '~zod', flagName: 'blog', noteId: 3 },
+    ]);
+    expect(scryMock).toHaveBeenCalledWith({
+      app: 'notes',
+      path: '/v0/published',
+    });
+
+    await notes.publishNote({
+      flag: 'notes/~zod/blog',
+      noteId: 3,
+      html: '<p>Hello</p>',
+    });
+    expect(pokeMock).toHaveBeenLastCalledWith({
+      app: 'notes',
+      mark: 'notes-action',
+      json: {
+        type: 'notebook',
+        flag: '~zod/blog',
+        action: {
+          type: 'note',
+          id: 3,
+          action: { type: 'publish', html: '<p>Hello</p>' },
+        },
+      },
+    });
+
+    await notes.unpublishNote({
+      flag: { host: 'zod', name: 'blog' },
+      noteId: 3,
+    });
+    expect(pokeMock).toHaveBeenLastCalledWith({
+      app: 'notes',
+      mark: 'notes-action',
+      json: {
+        type: 'notebook',
+        flag: '~zod/blog',
+        action: {
+          type: 'note',
+          id: 3,
+          action: { type: 'unpublish' },
+        },
+      },
+    });
   });
 });
 

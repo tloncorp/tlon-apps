@@ -45,15 +45,15 @@ export const useCurrentChats = (
   });
 };
 
-// Scry %notes once to detect whether the notes desk is installed on the
+// Probe %notes once to detect whether the notes desk is installed on the
 // user's ship. Used to gate notes-specific UI (channel-creation option,
-// 'Bulletin' rename, etc.). Defaults to false until the scry resolves.
+// 'Bulletin' rename, etc.). Defaults to false until the request resolves.
 export const useNotesDeskAvailable = () => {
   return useQuery({
     queryKey: ['notesDeskAvailable'],
     queryFn: async () => {
       try {
-        await api.scry({ app: 'notes', path: '/v0/notebooks' });
+        await api.notes.listNotebooks();
         return true;
       } catch (e) {
         return false;
@@ -820,6 +820,17 @@ export const useTelemetryEnabled = () => {
     queryFn: async () => {
       const settings = await db.getSettings();
       return settings?.enableTelemetry ?? false;
+    },
+  });
+};
+
+export const useContextLensEnabled = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['contextLensEnabled', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.contextLensEnabled ?? false;
     },
   });
 };

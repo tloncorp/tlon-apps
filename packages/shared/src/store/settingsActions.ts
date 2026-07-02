@@ -234,6 +234,24 @@ export async function updateEnableTelemetry(value: boolean) {
   }
 }
 
+export async function updateContextLensEnabled(value: boolean) {
+  const existing = await db.getSettings();
+  const oldValue = existing?.contextLensEnabled;
+
+  try {
+    // optimistic update
+    await db.insertSettings({ contextLensEnabled: value });
+    await api.setSetting('contextLensEnabled', value);
+  } catch (e) {
+    logger.trackError('Error updating context lens enabled setting', {
+      error: e,
+      value,
+      severity: AnalyticsSeverity.Medium,
+    });
+    await db.insertSettings({ contextLensEnabled: oldValue });
+  }
+}
+
 export async function updatePendingMemberDismissal(
   dismissal: db.PendingMemberDismissal
 ) {
