@@ -23,14 +23,19 @@
   =/  =beak  [who %groups da+now.bowl]
   =/  file=term  (cat 3 'pioneer-' name)
   =/  start=start-args:spider  [~ `tid beak file !>(`(unit json)`[~ arg])]
-  =/  watch-path=path  /(scot %p who)/spider/thread-result/[tid]
-  ;<  ~  bind:m  (watch-app watch-path [who %spider] /thread-result/[tid])
+  =/  =wire  /(scot %p who)/spider/thread-result/[tid]
+  ;<  ~  bind:m  (watch-app wire [who %spider] /thread-result/[tid])
   ;<  ~  bind:m  (poke-app [who %spider] spider-start+start)
-  ;<  kag=cage  bind:m  (wait-for-app-fact watch-path [who %spider])
-  ;<  ~  bind:m  (leave-app watch-path [who %spider])
+  ;<  kag=cage  bind:m  (wait-for-app-fact wire [who %spider])
+  ;<  ~  bind:m  (leave-app wire [who %spider])
   ?+    p.kag  ~|([%strange-thread-result p.kag tid] !!)
       %thread-done
+    ::FIXME thread-done should carry a vase, but there is a hoon/clay
+    ::      bug which prevents a mark carrying a vase
+    ::      from being validated via a dais.
+    ::
     (pure:m q.kag)
+  ::
       %thread-fail
     =+  !<([=term =tang] q.kag)
     %-  (slog tang)
@@ -49,16 +54,16 @@
   =/  m  (strand ,^json)
   ^-  form:m
   ;<  out=vase  bind:m  (run-thread who name arg)
-  (pure:m !<(^json out))
+  (pure:m ;;(^json q.out))
 ::
 ++  create-test-group
   =/  m   (strand ,~)
   ^-  form:m
   ;<  ~  bind:m  (watch-app /~zod/groups/v1/groups [~zod %groups] /v1/groups)
-  ::NOTE  from /tests/ph/for/lure.hoon
+  ::NOTE  from /tests/ph/platform/lure.hoon
   =/  =create-group:g
     :*  my-test-group-name
-        ['My Test Group' 'My testing group' '' '']
+        ['My Test Group' 'My test group' '' '']
         %secret
         [~ ~]
         ~
