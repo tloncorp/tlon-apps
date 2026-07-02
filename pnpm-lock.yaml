@@ -31,7 +31,7 @@ patchedDependencies:
     hash: tfmnpfof2myqgpz3kv2tl4djpm
     path: patches/@10play__tentap-editor@0.5.21.patch
   '@gorhom/bottom-sheet':
-    hash: 3r63mh5ero7blgeewu2xcfbxqy
+    hash: xno6vrsagsnp3lsnzxd4islqsm
     path: patches/@gorhom__bottom-sheet@5.2.14.patch
   '@simform_solutions/react-native-audio-waveform':
     hash: a4fa2r3d43epbulffgzabkfham
@@ -55,7 +55,7 @@ patchedDependencies:
     hash: e2dvaofo7ridrjocchqzytht3q
     path: patches/expo-background-task@56.0.19.patch
   expo-image-manipulator:
-    hash: dfkb33kreic4nmwomhargjmwmy
+    hash: vrekreoxc43zz3znwmilpjgq4y
     path: patches/expo-image-manipulator@56.0.19.patch
   react-cosmos:
     hash: 3fzdsz7y5qive4fsxr74vllywq
@@ -191,7 +191,7 @@ importers:
         version: 18.8.2(react-native@0.85.3(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@gorhom/bottom-sheet':
         specifier: ^5.2.14
-        version: 5.2.14(patch_hash=3r63mh5ero7blgeewu2xcfbxqy)(k57kres2cv7iqg4x6tibma75u4)
+        version: 5.2.14(patch_hash=xno6vrsagsnp3lsnzxd4islqsm)(k57kres2cv7iqg4x6tibma75u4)
       '@op-engineering/op-sqlite':
         specifier: 15.2.5
         version: 15.2.5(react-native@0.85.3(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -326,7 +326,7 @@ importers:
         version: 56.0.11(expo@56.0.12)(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       expo-image-manipulator:
         specifier: ~56.0.15
-        version: 56.0.19(patch_hash=dfkb33kreic4nmwomhargjmwmy)(expo@56.0.12)
+        version: 56.0.19(patch_hash=vrekreoxc43zz3znwmilpjgq4y)(expo@56.0.12)
       expo-image-picker:
         specifier: ~56.0.14
         version: 56.0.18(expo@56.0.12)
@@ -18221,7 +18221,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@gorhom/bottom-sheet@5.2.14(patch_hash=3r63mh5ero7blgeewu2xcfbxqy)(k57kres2cv7iqg4x6tibma75u4)':
+  '@gorhom/bottom-sheet@5.2.14(patch_hash=xno6vrsagsnp3lsnzxd4islqsm)(k57kres2cv7iqg4x6tibma75u4)':
     dependencies:
       '@gorhom/portal': 1.0.14(react-native@0.85.3(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       invariant: 2.2.4
@@ -25352,7 +25352,7 @@ snapshots:
     dependencies:
       expo: 56.0.12(hed2hf4wsztb7pemtxuk4ffjti)
 
-  expo-image-manipulator@56.0.19(patch_hash=dfkb33kreic4nmwomhargjmwmy)(expo@56.0.12):
+  expo-image-manipulator@56.0.19(patch_hash=vrekreoxc43zz3znwmilpjgq4y)(expo@56.0.12):
     dependencies:
       expo: 56.0.12(hed2hf4wsztb7pemtxuk4ffjti)
       expo-image-loader: 56.0.3(expo@56.0.12)

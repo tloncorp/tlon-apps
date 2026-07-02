@@ -1,3 +1,19 @@
+diff --git a/ios/ImageManipulatorModule.swift b/ios/ImageManipulatorModule.swift
+index 1f8c73a715d14caa501cc1096310874963ae8685..deddcbf671787eed6970c282ef73ca9d3feb88d6 100644
+--- a/ios/ImageManipulatorModule.swift
++++ b/ios/ImageManipulatorModule.swift
+@@ -10,7 +10,10 @@ public class ImageManipulatorModule: Module {
+   public func definition() -> ModuleDefinition {
+     Name("ExpoImageManipulator")
+ 
+-    Function("manipulate") { (source: Either<URL, SharedRef<UIImage>>) -> ImageManipulatorContext in
++    // SharedRef must be probed before URL: Either tries branches in order, and the
++    // URL branch converts the JS value via the trapping getAny(), which hits a Swift
++    // fatalError on shared-object instances (e.g. expo-video's VideoThumbnail).
++    Function("manipulate") { (source: Either<SharedRef<UIImage>, URL>) -> ImageManipulatorContext in
+       let context = ImageManipulatorContext { [weak appContext] in
+         guard let appContext else {
+           throw Exceptions.AppContextLost()
 diff --git a/ios/Transformers/ImageFixOrientationTransformer.swift b/ios/Transformers/ImageFixOrientationTransformer.swift
 index c3e3b66eb6b5b0ef75431c96bf292d4fae004606..9e9e6503a09771896936c4d823dd28e9d03b51df 100644
 --- a/ios/Transformers/ImageFixOrientationTransformer.swift
