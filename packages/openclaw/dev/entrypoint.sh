@@ -60,10 +60,16 @@ if [ -f "/workspace/tlonbot/openclaw.json" ]; then
   echo "==> Copying config from tlonbot..."
   cp /workspace/tlonbot/openclaw.json "$CONFIG_PATH"
 
-  # Patch in Brave API key if available
+  # Patch in Brave web search if available. openclaw 2026.5.28 only accepts
+  # provider "brave" when the plugin (installed at image build time, see
+  # Dockerfile) is allowed and enabled, so set provider, allow, and enable
+  # together (mirrors the test entrypoint and production tlonbot flow).
   if [ -n "$BRAVE_API_KEY" ]; then
-    echo "==> Patching Brave API key into config..."
-    jq --arg key "$BRAVE_API_KEY" '.tools.web.search.apiKey = $key' \
+    echo "==> Patching Brave web search into config..."
+    jq --arg key "$BRAVE_API_KEY" \
+      '.tools.web.search = {"provider": "brave", "apiKey": $key}
+      | .plugins.allow += ["brave"]
+      | .plugins.entries.brave = {"enabled": true, "config": {"webSearch": {"apiKey": $key}}}' \
       "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
   fi
 
