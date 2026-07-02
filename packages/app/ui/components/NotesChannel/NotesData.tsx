@@ -47,13 +47,20 @@ export function useNotebookData(
     markNotesNotebookOpened(notebookFlag);
   }, [notebookFlag]);
 
+  // A joined notebook with no local row means the sync failed (or hasn't
+  // run) before anything was cached — gate as unavailable rather than
+  // rendering an empty notebook. With a cached row, stale data renders and
+  // sync failures stay non-blocking.
   const gate: NotebookGate = !notebookFlag
     ? 'unavailable'
-    : joinQuery.isLoading || (syncQuery.isLoading && !notebook)
+    : joinQuery.isLoading ||
+        (!notebook && (syncQuery.isLoading || notebookQuery.isLoading))
       ? 'loading'
       : !joined
         ? 'unjoinable'
-        : null;
+        : !notebook
+          ? 'unavailable'
+          : null;
 
   return { notebook, folders, notes, canEdit, rootFolderId, gate };
 }
