@@ -316,6 +316,13 @@
 /%  ship                        %ship
 /%  ships                       %ships
 /%  sigil                       %sigil
+/%  spider-start                %spider-start
+/%  spider-stop                 %spider-stop
+/%  steward-action-1            %steward-action-1
+/%  steward-gateway-action-1    %steward-gateway-action-1
+/%  steward-gateway-update-1    %steward-gateway-update-1
+/%  steward-lens-action-1       %steward-lens-action-1
+/%  steward-lens-update-1       %steward-lens-update-1
 /%  thread-done                 %thread-done
 /%  thread-fail                 %thread-fail
 /%  toc                         %toc
@@ -669,6 +676,13 @@
       $:  %ship                        $+  ship                        p=_*vale:ship                        ==
       $:  %ships                       $+  ships                       p=_*vale:ships                       ==
       $:  %sigil                       $+  sigil                       p=_*vale:sigil                       ==
+      $:  %spider-start                $+  spider-start                p=_*vale:spider-start                ==
+      $:  %spider-stop                 $+  spider-stop                 p=_*vale:spider-stop                 ==
+      $:  %steward-action-1            $+  steward-action-1            p=_*vale:steward-action-1            ==
+      $:  %steward-gateway-action-1    $+  steward-gateway-action-1    p=_*vale:steward-gateway-action-1    ==
+      $:  %steward-gateway-update-1    $+  steward-gateway-update-1    p=_*vale:steward-gateway-update-1    ==
+      $:  %steward-lens-action-1       $+  steward-lens-action-1       p=_*vale:steward-lens-action-1       ==
+      $:  %steward-lens-update-1       $+  steward-lens-update-1       p=_*vale:steward-lens-update-1       ==
       $:  %thread-done                 $+  thread-done                 p=_*vale:thread-done                 ==
       $:  %thread-fail                 $+  thread-fail                 p=_*vale:thread-fail                 ==
       $:  %toc                         $+  toc                         p=_*vale:toc                         ==
@@ -1024,6 +1038,13 @@
     %ship                        [-.rail !>(+.rail)]
     %ships                       [-.rail !>(+.rail)]
     %sigil                       [-.rail !>(+.rail)]
+    %spider-start                [-.rail !>(+.rail)]
+    %spider-stop                 [-.rail !>(+.rail)]
+    %steward-action-1            [-.rail !>(+.rail)]
+    %steward-gateway-action-1    [-.rail !>(+.rail)]
+    %steward-gateway-update-1    [-.rail !>(+.rail)]
+    %steward-lens-action-1       [-.rail !>(+.rail)]
+    %steward-lens-update-1       [-.rail !>(+.rail)]
     %thread-done                 [-.rail !>(+.rail)]
     %thread-fail                 [-.rail !>(+.rail)]
     %toc                         [-.rail !>(+.rail)]
@@ -1377,6 +1398,13 @@
     %ship                        [p !<(_*vale:ship q)]
     %ships                       [p !<(_*vale:ships q)]
     %sigil                       [p !<(_*vale:sigil q)]
+    %spider-start                [p !<(_*vale:spider-start q)]
+    %spider-stop                 [p !<(_*vale:spider-stop q)]
+    %steward-action-1            [p !<(_*vale:steward-action-1 q)]
+    %steward-gateway-action-1    [p !<(_*vale:steward-gateway-action-1 q)]
+    %steward-gateway-update-1    [p !<(_*vale:steward-gateway-update-1 q)]
+    %steward-lens-action-1       [p !<(_*vale:steward-lens-action-1 q)]
+    %steward-lens-update-1       [p !<(_*vale:steward-lens-update-1 q)]
     %thread-done                 [p !<(_*vale:thread-done q)]
     %thread-fail                 [p !<(_*vale:thread-fail q)]
     %toc                         [p !<(_*vale:toc q)]
@@ -1730,6 +1758,13 @@
       :-  %ship                        -:!>(*vale:ship)
       :-  %ships                       -:!>(*vale:ships)
       :-  %sigil                       -:!>(*vale:sigil)
+      :-  %spider-start                -:!>(*vale:spider-start)
+      :-  %spider-stop                 -:!>(*vale:spider-stop)
+      :-  %steward-action-1            -:!>(*vale:steward-action-1)
+      :-  %steward-gateway-action-1    -:!>(*vale:steward-gateway-action-1)
+      :-  %steward-gateway-update-1    -:!>(*vale:steward-gateway-update-1)
+      :-  %steward-lens-action-1       -:!>(*vale:steward-lens-action-1)
+      :-  %steward-lens-update-1       -:!>(*vale:steward-lens-update-1)
       :-  %thread-done                 -:!>(*vale:thread-done)
       :-  %thread-fail                 -:!>(*vale:thread-fail)
       :-  %toc                         -:!>(*vale:toc)
