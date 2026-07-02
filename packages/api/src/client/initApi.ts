@@ -10,7 +10,7 @@ import {
   toClientPinnedItems,
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
-import { scry } from './urbit';
+import { getCurrentUserId, scry } from './urbit';
 
 const logger = createDevLogger('initApi', false);
 
@@ -27,6 +27,10 @@ export interface InitData {
   unreads: db.ActivityInit;
 }
 
+type InitDataOptions = {
+  currentUserId: string;
+};
+
 export const getInitData = async () => {
   const response = await scry<ub.GroupsInit7>({
     app: 'groups-ui',
@@ -35,7 +39,7 @@ export const getInitData = async () => {
 
   logger.crumb('got init data from api');
 
-  return toInitData(response);
+  return toInitData(response, { currentUserId: getCurrentUserId() });
 };
 
 function extractChannelReadersFromV7Groups(
@@ -52,7 +56,24 @@ function extractChannelReadersFromV7Groups(
   return readers;
 }
 
-export const toInitData = (response: ub.GroupsInit7): InitData => {
+function extractJoinedGroupChannelsFromV7Groups(
+  groups: Record<string, ub.GroupV7>
+): string[] {
+  const joinedChannelIds = new Set<string>();
+
+  Object.values(groups ?? {}).forEach((group) => {
+    (group['active-channels'] ?? []).forEach((channelId) => {
+      joinedChannelIds.add(channelId);
+    });
+  });
+
+  return [...joinedChannelIds];
+}
+
+export const toInitData = (
+  response: ub.GroupsInit7,
+  options: InitDataOptions
+): InitData => {
   logger.crumb('converting init data to client data');
   logger.log('response.groups:', response.groups);
 
@@ -80,11 +101,14 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
 
   logger.crumb('converting groups to client data');
 
-  const groups = toClientGroupsV7(response.groups, true);
+  const groups = toClientGroupsV7(response.groups, true, options.currentUserId);
 
   logger.crumb('converting unjoined groups to client data');
 
-  const unjoinedGroups = toClientGroupsFromForeigns(response.foreigns);
+  const unjoinedGroups = toClientGroupsFromForeigns(
+    response.foreigns,
+    options.currentUserId
+  );
 
   logger.crumb('converting dm channels to client data');
 
@@ -108,11 +132,8 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
 
   logger.crumb('extracting joined channels');
 
-  // %groups is the single source of truth for group-channel membership: it
-  // tracks our membership in every group's active-channels set, across all
-  // channel kinds (first-party chat/diary/heap and third-party e.g. notes).
-  const joinedGroupChannels = Object.values(response.groups ?? {}).flatMap(
-    (group) => group['active-channels'] ?? []
+  const joinedGroupChannels = extractJoinedGroupChannelsFromV7Groups(
+    response.groups
   );
 
   logger.crumb('returning init data');

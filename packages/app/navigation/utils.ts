@@ -5,6 +5,7 @@ import {
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import { parseNotesChannelId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -487,8 +488,13 @@ export function getDesktopChannelRoute(
 ) {
   const screenName = screenNameFromChannelId(channelId);
   logger.log('getDesktopChannelRoute', screenName);
+  // Notes channels always open under Home: the notebook sidebar wiring
+  // (NotebookSidebarProvider + the GroupChannelsScreenView takeover) exists
+  // only in that drawer, so under Messages the desktop split view would
+  // render a note detail with no tree or create actions.
+  const resolvedTab = parseNotesChannelId(channelId) ? 'Home' : tab;
   return {
-    name: tab,
+    name: resolvedTab,
     params: {
       screen: screenName,
       pop: true,

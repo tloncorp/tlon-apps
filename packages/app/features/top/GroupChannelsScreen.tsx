@@ -123,6 +123,7 @@ export function GroupChannelsScreenContent({
           onGoToGroupMembers={handleGoToGroupMembers}
           onPressManageChannels={chatSettingsNav.onPressManageChannels}
           group={group}
+          focusedChannelId={focusedChannelId}
           unjoinedChannels={unjoinedChannels}
         />
       </NavigationProvider>

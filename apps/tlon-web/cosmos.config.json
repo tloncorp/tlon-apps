@@ -3,7 +3,8 @@
   "hostname": "localhost",
   "port": 5555,
   "vite": {
-    "configPath": "./vite.cosmos.config.mts"
+    "configPath": "./vite.cosmos.config.mts",
+    "mainScriptUrl": "/src/main.tsx"
   },
   "dom": {
     "containerQuerySelector": "#app"
