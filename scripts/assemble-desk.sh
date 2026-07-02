@@ -35,8 +35,12 @@ fi
 mkdir -p "$target"
 # 1. vendored deps first, clearing anything stale in the target
 rsync -aL --delete desk-deps/ "$target/"
-# 2. our own source on top (wins on overlap)
-rsync -aL desk/ "$target/"
+# 2. our own source on top (wins on overlap). Excludes:
+#   - app/notes-ui/  the raw single-file HTML app kept in-repo only as an
+#     editable source; it's hand-copied into lib/notes-ui.hoon (+index), which
+#     is what %notes actually serves. It's not desk source, so keep it off the
+#     assembled desk.
+rsync -aL --exclude 'app/notes-ui/' desk/ "$target/"
 
 # stamp the build commit, like the deploy pipeline does
 git rev-parse --short HEAD > "$target/commit.txt" 2>/dev/null || true
