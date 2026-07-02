@@ -8,6 +8,8 @@ import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
 import { AddContactsScreen } from '../features/contacts/AddContactsScreen';
 import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemContactsScreen';
+import { ContextLensRunScreen } from '../features/lens/ContextLensRunScreen';
+import { ContextLensRunsScreen } from '../features/lens/ContextLensRunsScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
@@ -96,6 +98,8 @@ export function RootStack() {
       <Root.Screen name="DM" component={ChannelScreen} />
       <Root.Screen name="GroupDM" component={ChannelScreen} />
       <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
+      <Root.Screen name="ContextLensRuns" component={ContextLensRunsScreen} />
+      <Root.Screen name="ContextLensRun" component={ContextLensRunScreen} />
       <Root.Screen name="Post" component={PostScreen} />
       <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
       <Root.Screen

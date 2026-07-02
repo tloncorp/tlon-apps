@@ -4,6 +4,7 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { FlashListRef } from '@shopify/flash-list';
 import { markInvitesRead } from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -20,6 +21,7 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
 import type { RootStackParamList } from '../../navigation/types';
@@ -42,7 +44,7 @@ import {
 import SystemNotices from '../../ui/components/SystemNotices';
 import WayfindingNotice from '../../ui/components/Wayfinding/Notices';
 import { identifyTlonEmployee } from '../../utils/posthog';
-import { ChatList } from '../chat-list/ChatList';
+import { ChatList, ChatListItemData } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
@@ -80,6 +82,8 @@ export function ChatListScreenView({
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const personalInvite = db.personalInviteLink.useValue();
   const { isOpen, setIsOpen } = useGlobalSearch();
+  const { scrollRef: chatListRef, onPressActiveTab } =
+    useScrollTabToTop<FlashListRef<ChatListItemData>>();
 
   const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
@@ -450,6 +454,7 @@ export function ChatListScreenView({
                     data={displayData}
                     onPressItem={onPressChat}
                     onLoad={handleChatListLoad}
+                    scrollRef={chatListRef}
                   />
                 )}
               </>
@@ -473,6 +478,7 @@ export function ChatListScreenView({
           navigateToNotifications={() => {
             navigation.navigate('Activity', undefined, { pop: true });
           }}
+          onPressActiveTab={onPressActiveTab}
           currentRoute="ChatList"
           currentUserId={currentUser}
         />

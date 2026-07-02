@@ -256,6 +256,7 @@ export interface Settings {
   disableTlonInfraEnhancement?: boolean;
   webAppSplashDismissed?: boolean;
   mobileAppPromoDismissed?: boolean;
+  contextLensEnabled?: boolean;
 }
 
 export interface VolumeSettings {

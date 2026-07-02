@@ -139,6 +139,33 @@
   =+  .^(=dais:clay %cb /(scot %p our.bowl)/groups/(scot %da now.bowl)/[mark])
   =/  =vase  (vale:dais noun.p.q.unix-effect)
   (pure:m [mark vase])
+::  +wait-for-app-fact: receive a gall fact from a virtual ship and unpack it
+::
+++  wait-for-app-fact-value
+  |*  [=mold =wire [our=ship dap=term]]
+  =/  m  (strand mold)
+  ^-  form:m
+  %^  (set-timeout-err mold)  timeout
+    :~  'wait-for-app-fact-value'
+        leaf+"expected a fact from {<our>}/{<dap>}"
+        leaf+"on wire {<wire>}"
+    ==
+  ;<  =bowl:strand  bind:m  get-bowl
+  |-
+  =*  loop  $
+  ;<  =^cage  bind:m  (take-fact /effect/unto)
+  ?>  ?=(%aqua-effect p.cage)
+  =+  !<(=aqua-effect q.cage)
+  =/  [from=^ship =unix-effect]  aqua-effect
+  ?.  =(from our)  loop
+  ?.  =(wire p.unix-effect)  loop
+  ?.  ?=([%unto %raw-fact *] q.unix-effect)  loop
+  =*  mark  mark.p.q.unix-effect
+  ::  note: this assumes that the marks on the virtual ship and the host match
+  ::
+  =+  .^(=dais:clay %cb /(scot %p our.bowl)/groups/(scot %da now.bowl)/[mark])
+  =/  =vase  (vale:dais noun.p.q.unix-effect)
+  (pure:m !<(mold vase))
 ::  +ex-equal: expect .actual to be equal to .expected
 ::
 ++  ex-equal
@@ -196,7 +223,7 @@
       ==
     (ex-equal q.fact q.ex-fact)
   (pure:m ~)
-::  +ex-app-fact-mark: expect app fact with a mark on a wire
+::  +ex-app-fact-mark: expect app fact with a given mark on a wire
 ::
 ++  ex-app-fact-mark
   |=  [=wire =dock =mark]

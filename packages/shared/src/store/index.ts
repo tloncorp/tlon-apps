@@ -27,4 +27,5 @@ export * from './settingsActions';
 export * from './systemContactActions';
 export * from './blockingActions';
 export * from './metagrabActions';
+export * from './lensActions';
 export { useChannelContext } from './useChannelContext';

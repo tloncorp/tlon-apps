@@ -13,17 +13,20 @@
  *   dms          Direct message operations
  *   groups       Group management
  *   messages     Message history and search (dm, channel, history, search, context, post)
- *   notebook     Post to diary/notebook channels
+ *   notes        %notes notebook operations
  *   posts        Post reactions, edits, deletes
  *   settings     OpenClaw settings management
  */
 import { createActivityDeps } from './activity-runtime';
 import { setCliCredentialOverrides } from './api-client';
+import { DIARY_REMOVED } from './cli-utils';
 import { run as runActivityCommand } from './commands/activity';
 import { formatUnexpectedError } from './commands/command';
+import { run as runNotesCommand } from './commands/notes';
 import { run as runPostsCommand } from './commands/posts';
 import { run as runUploadCommand } from './commands/upload';
 import { CredentialFlagError, parseGlobalCliOptions } from './credential-flags';
+import { createNotesDeps } from './notes-runtime';
 import { createPostsDeps } from './posts-runtime';
 import { isTopLevelCommand } from './top-level-commands';
 import { createUploadDeps } from './upload-runtime';
@@ -47,7 +50,7 @@ Commands:
   groups       Group management (list, create, info, join, request/accept invites, leave, delete, ...)
   hooks        Channel hooks management (list, add, edit, delete, order, config, cron, rest)
   messages     Message history and search (dm, channel, history, search, context, post)
-  notebook     Post to diary/notebook channels
+  notes        %notes notebooks (list, show, request, note-create, note-update, join, leave)
   posts        Post reactions, edits, deletes (react, unreact, edit, delete)
   settings     OpenClaw settings management (get, set, delete, allow-dm, ...)
   upload       Upload a file from URL, local path, or stdin
@@ -132,6 +135,15 @@ async function main() {
     process.exit(0);
   }
 
+  // The `notebook` command is removed (diary/notebook channels are gone). Refuse
+  // it with the explanatory %notes message before the unknown-command check, so
+  // `tlon notebook ...` (any args, including --help) gets the tailored error
+  // rather than a generic "Unknown command: notebook".
+  if (command === 'notebook') {
+    console.error(`Error: ${DIARY_REMOVED}`);
+    process.exit(1);
+  }
+
   if (!isTopLevelCommand(command)) {
     console.error(`Unknown command: ${command}`);
     console.error('Run "tlon --help" for usage information.');
@@ -190,9 +202,9 @@ async function main() {
         const mod = await import('./messages');
         break;
       }
-      case 'notebook': {
-        process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./notebook-post');
+      case 'notes': {
+        const exitCode = await runNotesCommand(scriptArgs, createNotesDeps());
+        process.exit(exitCode);
         break;
       }
       case 'posts': {
