@@ -176,6 +176,7 @@ export function NotesNoteDetail({
     noteId,
     startInEdit
   );
+  const titleDraftRef = useRef(titleDraft);
   const bodyDraftRef = useRef(bodyDraft);
   const pendingBodyDraftRef = useRef<string | null>(null);
   const bodyDraftUpdateTimeoutRef = useRef<ReturnType<
@@ -234,6 +235,14 @@ export function NotesNoteDetail({
   const noteDate = selectedNote
     ? formatNoteDate(selectedNote.updatedAt ?? selectedNote.createdAt)
     : null;
+  // Passive on purpose: programmatic draft updates (note switch, stash
+  // restore) must reach these refs in the same commit as their new draft
+  // base, or an out-of-band flush could pair one note's base with another
+  // note's drafts. Keystrokes also update the refs synchronously in the
+  // change handlers so a flush can't miss a just-typed edit.
+  useEffect(() => {
+    titleDraftRef.current = titleDraft;
+  }, [titleDraft]);
   useEffect(() => {
     bodyDraftRef.current = bodyDraft;
   }, [bodyDraft]);
@@ -393,40 +402,40 @@ export function NotesNoteDetail({
     return () => clearTimeout(timeout);
   }, [canEdit, isDirty, saveSelectedNote, saveState]);
 
-  // Snapshot of the latest committed editor state, for flushes that run
-  // outside the React data flow (unmount cleanup, AppState changes). Synced
-  // in an effect so a selection-change cleanup still sees the previous
-  // note's drafts rather than the new render's.
+  // Save target for flushes that run outside the React data flow (unmount
+  // cleanup, AppState changes). Synced in an effect so a selection-change
+  // cleanup still sees the previous note as its base rather than the new
+  // render's; the draft refs lag in step, keeping base and drafts paired.
   const flushCtxRef = useRef<{
     flag: string | null | undefined;
     base: db.NotesNote | null;
-    title: string;
-    body: string;
     canEdit: boolean;
   } | null>(null);
   useEffect(() => {
     flushCtxRef.current = {
       flag: notebookFlag,
       base: draftBase,
-      title: titleDraft,
-      body: bodyDraft,
       canEdit,
     };
   });
 
   const flushPendingSave = useCallback(() => {
     const bodyToSave = flushPendingBodyDraft();
+    const titleToSave = titleDraftRef.current;
     const ctx = flushCtxRef.current;
     if (!ctx || !ctx.flag || !ctx.base || !ctx.canEdit) return;
     const dirty =
-      normalizeNotebookNoteTitle(ctx.title) !== ctx.base.title ||
+      normalizeNotebookNoteTitle(titleToSave) !== ctx.base.title ||
       bodyToSave !== ctx.base.bodyMd;
     if (!dirty) return;
-    const { flag, base, title } = ctx;
+    const { flag, base } = ctx;
     preserveScrollOffset();
-    runSave(flag, base, title, bodyToSave)
+    runSave(flag, base, titleToSave, bodyToSave)
       .then((updated) => {
-        clearDraftStash(flag, base.noteId, { title, body: bodyToSave });
+        clearDraftStash(flag, base.noteId, {
+          title: titleToSave,
+          body: bodyToSave,
+        });
         // No-ops after unmount; while mounted (background flush) rebase so
         // the next cycle doesn't re-send a stale revision.
         if (updated) {
@@ -529,6 +538,11 @@ export function NotesNoteDetail({
     },
     []
   );
+
+  const handleTitleDraftChange = useCallback((nextTitle: string) => {
+    titleDraftRef.current = nextTitle;
+    setTitleDraft(nextTitle);
+  }, []);
 
   const handleBodyDraftChange = useCallback(
     (nextBody: string) => {
@@ -681,7 +695,7 @@ export function NotesNoteDetail({
                 flex={1}
                 width="100%"
                 value={titleDraft}
-                onChangeText={setTitleDraft}
+                onChangeText={handleTitleDraftChange}
                 onSubmitEditing={focusBodyInput}
                 placeholder="Untitled"
                 placeholderTextColor="$tertiaryText"
