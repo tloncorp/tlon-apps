@@ -8,6 +8,7 @@
   "dom": {
     "containerQuerySelector": "#app"
   },
+  "globalImports": ["./tamagui.config.ts"],
   "fixturesLocation": "../../packages/app/fixtures",
   "plugins": ["react-cosmos-plugin-vite"]
 }

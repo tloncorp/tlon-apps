@@ -1,6 +1,9 @@
 // tamagui-ignore
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  NavigationIndependentTree,
+} from '@react-navigation/native';
 import { internalConfigureClient } from '@tloncorp/api';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { type PropsWithChildren, useEffect, useState } from 'react';
@@ -46,11 +49,16 @@ function MockedUrbitClientProvider({ children }: PropsWithChildren<object>) {
 export const FixtureWrapper = (props: FixtureWrapperProps) => {
   return (
     <ToastProvider>
-      <NavigationContainer navigationInChildEnabled>
-        <MockedUrbitClientProvider>
-          <InnerWrapper {...props} />
-        </MockedUrbitClientProvider>
-      </NavigationContainer>
+      {/* The cosmos decorator mounts a NavigationContainer above the
+          PortalProvider; this container must be an independent tree to be
+          nested inside it. */}
+      <NavigationIndependentTree>
+        <NavigationContainer navigationInChildEnabled>
+          <MockedUrbitClientProvider>
+            <InnerWrapper {...props} />
+          </MockedUrbitClientProvider>
+        </NavigationContainer>
+      </NavigationIndependentTree>
     </ToastProvider>
   );
 };

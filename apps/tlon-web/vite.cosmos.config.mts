@@ -25,6 +25,13 @@ export default defineConfig(({ mode }) => {
 
   return {
     envPrefix: ['VITE_', 'TAMAGUI_'],
+    // expo 56's runtime (expo/src/async-require/setupHMR) reads process.env.EXPO_OS
+    // to resolve the platform. Metro inlines it via babel-preset-expo; the vite web
+    // build must define it explicitly or expo throws "Missing required parameter
+    // `platform`" at boot.
+    define: {
+      'process.env.EXPO_OS': JSON.stringify('web'),
+    },
     plugins: [
       exportingRawText(/\.sql$/),
       expo52PatchPlugin(),
