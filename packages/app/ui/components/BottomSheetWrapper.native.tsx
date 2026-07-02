@@ -166,7 +166,6 @@ export const BottomSheetWrapper = forwardRef<
     const [mountKey, setMountKey] = useState(0);
     const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const prevOpenRef = useRef<boolean>(open);
-    const didNotifyCloseRef = useRef(false);
     const theme = useTheme();
 
     const clearCloseTimer = useCallback(() => {
@@ -342,33 +341,17 @@ export const BottomSheetWrapper = forwardRef<
     useEffect(() => {
       if (!open) {
         Keyboard.dismiss();
-      } else {
-        didNotifyCloseRef.current = false;
       }
     }, [open]);
-
-    const notifyUserClose = useCallback(() => {
-      if (
-        dismissOnSnapToBottom &&
-        !isProgrammaticChange.current &&
-        !didNotifyCloseRef.current
-      ) {
-        didNotifyCloseRef.current = true;
-        onOpenChange(false);
-      }
-    }, [dismissOnSnapToBottom, onOpenChange]);
 
     const handleSheetChanges = useCallback(
       (index: number) => {
         // When sheet is closed (index -1), handle cleanup and callbacks
         if (index === -1) {
-          // BottomSheetModal dismissal is finalized through `onDismiss`; keep
-          // the programmatic-close flag intact until that callback runs.
-          if (modal) {
-            return;
+          // Only notify parent if dismissOnSnapToBottom is true and it's user-initiated
+          if (dismissOnSnapToBottom && !isProgrammaticChange.current) {
+            onOpenChange(false);
           }
-          // Only notify parent if dismissal is user-initiated.
-          notifyUserClose();
           // Reset flag when reaching closed state
           isProgrammaticChange.current = false;
         } else if (index >= 0) {
@@ -377,13 +360,19 @@ export const BottomSheetWrapper = forwardRef<
           isProgrammaticChange.current = false;
         }
       },
-      [modal, notifyUserClose]
+      [dismissOnSnapToBottom, onOpenChange]
     );
 
+    // Gorhom skips onChange(-1) when the sheet is dismissed before its open
+    // animation finishes (e.g. a backdrop tap mid-animation), so
+    // handleSheetChanges alone can leave `open` stuck at true. onDismiss fires
+    // on every modal dismissal path; if the parent still thinks the sheet is
+    // open at that point, sync it so the next open isn't a no-op.
     const handleModalDismiss = useCallback(() => {
-      notifyUserClose();
-      isProgrammaticChange.current = false;
-    }, [notifyUserClose]);
+      if (open) {
+        onOpenChange(false);
+      }
+    }, [open, onOpenChange]);
 
     const renderBackdrop = useCallback(
       (props: any) =>
@@ -489,8 +478,8 @@ export const BottomSheetWrapper = forwardRef<
           ref={bottomSheetModalRef}
           accessibilityViewIsModal={true}
           stackBehavior={stackBehavior}
-          {...commonProps}
           onDismiss={handleModalDismiss}
+          {...commonProps}
           {...commonOverrides}
         >
           {/* BottomSheetView is only for simple static content. Use plain View for:
