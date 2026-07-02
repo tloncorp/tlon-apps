@@ -25,7 +25,7 @@
   =/  start=start-args:spider  [~ `tid beak file !>(`(unit json)`[~ arg])]
   =/  watch-path=path  /(scot %p who)/spider/thread-result/[tid]
   ;<  ~  bind:m  (watch-app watch-path [who %spider] /thread-result/[tid])
-  ;<  ~  bind:m  (poke-app-cage [who %spider] spider-start+!>(start))
+  ;<  ~  bind:m  (poke-app [who %spider] spider-start+start)
   ;<  kag=cage  bind:m  (wait-for-app-fact watch-path [who %spider])
   ;<  ~  bind:m  (leave-app watch-path [who %spider])
   ?+    p.kag  ~|([%strange-thread-result p.kag tid] !!)
@@ -49,10 +49,7 @@
   =/  m  (strand ,^json)
   ^-  form:m
   ;<  out=vase  bind:m  (run-thread who name arg)
-  ::  the %thread-done mark re-vales the result as a bare noun (its
-  ::  grab is *), so the json type is lost over aqua; clam it back.
-  ::
-  (pure:m ;;(^json q.out))
+  (pure:m !<(^json out))
 ::
 ++  create-test-group
   =/  m   (strand ,~)
