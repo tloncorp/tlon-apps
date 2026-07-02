@@ -275,7 +275,6 @@ interface ChannelProps {
   goToContextLensRuns?: () => void;
   goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   goToUserProfile: (userId: string) => void;
-  goToChannelDetails?: (groupId: string, channelId: string) => void;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
