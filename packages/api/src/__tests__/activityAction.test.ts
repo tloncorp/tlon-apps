@@ -17,13 +17,17 @@ const adjustAction: ActivityAction = {
 afterEach(() => setActivitySupportsReactions(false));
 
 describe('activityAction mark gating', () => {
-  test('uses the v9 mark and keeps react keys when supported', () => {
+  // react keys are stripped on both marks: the v9 activity-action-1 mark's
+  // dejs falls through to the v8 volume-map parser, which rejects them
+  test('uses the v9 mark and still strips react keys when supported', () => {
     setActivitySupportsReactions(true);
     const action = activityAction(adjustAction);
     expect(action.mark).toBe('activity-action-1');
     const sent = action.json as typeof adjustAction;
-    expect(sent.adjust.volume).toHaveProperty('react');
-    expect(sent.adjust.volume).toHaveProperty('dm-react');
+    expect(sent.adjust.volume).not.toHaveProperty('react');
+    expect(sent.adjust.volume).not.toHaveProperty('dm-react');
+    // non-react keys are preserved
+    expect(sent.adjust.volume).toHaveProperty('post');
   });
 
   test('uses the v8 mark and strips react keys when unsupported', () => {

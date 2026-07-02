@@ -642,10 +642,13 @@ export function subscribeToActivity(
   );
 }
 
-// The v8 activity-action mark's dejs perks over the v8 event-type set and
-// crashes on react/dm-react volume-map keys. When poking an old backend with
-// the v8 mark, strip those keys so the poke parses (reacts aren't configurable
-// on a backend that doesn't support them anyway).
+// No deployed activity-action mark parses react/dm-react volume-map keys: the
+// v8 activity-action mark's dejs perks over the v8 event-type set, and the v9
+// activity-action-1 mark's dejs never overrides adjust/volume-map, so its
+// volume-map parsing falls through to the same v8 event-type set. Either mark
+// crashes on react keys, nacking the poke and rolling back the client's
+// optimistic volume update. Strip the keys from every adjust poke; reacts
+// follow the backend's default react volume instead.
 function stripReactVolumeKeys(action: ub.ActivityAction): ub.ActivityAction {
   if (!('adjust' in action) || !action.adjust.volume) {
     return action;
@@ -657,13 +660,13 @@ function stripReactVolumeKeys(action: ub.ActivityAction): ub.ActivityAction {
 }
 
 export function activityAction(action: ub.ActivityAction) {
-  // activity-action-1 (v9) parses react keys; the agent accepts both marks. Old
-  // backends only have the v8 activity-action mark, so use it and strip reacts.
+  // the agent accepts both marks; old backends only have the v8 activity-action
+  // mark, so gate the mark on backend version
   const supportsReactions = getActivitySupportsReactions();
   return {
     app: 'activity',
     mark: supportsReactions ? 'activity-action-1' : 'activity-action',
-    json: supportsReactions ? action : stripReactVolumeKeys(action),
+    json: stripReactVolumeKeys(action),
   };
 }
 
