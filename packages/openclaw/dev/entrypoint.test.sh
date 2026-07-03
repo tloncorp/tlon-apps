@@ -212,11 +212,16 @@ if [ ! -d "/workspace/tlonbot/image-search" ] && [ -n "$BRAVE_API_KEY" ] && [ -n
     && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
 fi
 
-# Patch in Brave API key for web search if available
+# Patch in Brave API key for web search if available. openclaw 2026.5.28
+# only accepts provider "brave" when the brave plugin (installed at image
+# build time, see Dockerfile.test) is allowed and enabled; the config was
+# rewritten from scratch above, so re-assert both here (mirrors production).
 if [ -n "$BRAVE_API_KEY" ]; then
   echo "==> Patching config: adding Brave search API key..."
   jq --arg key "$BRAVE_API_KEY" \
-    '.tools.web.search = {"provider": "brave", "apiKey": $key}' \
+    '.tools.web.search = {"provider": "brave", "apiKey": $key}
+    | .plugins.allow += ["brave"]
+    | .plugins.entries.brave = {"enabled": true, "config": {"webSearch": {"apiKey": $key}}}' \
     "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
     && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
 fi

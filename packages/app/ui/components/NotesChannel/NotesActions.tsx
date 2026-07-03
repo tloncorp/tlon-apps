@@ -13,6 +13,7 @@ export function NotesActionMenu({
   onAction,
   open,
   onOpenChange,
+  bottomContent,
   trigger,
 }: {
   groups: ActionGroup[];
@@ -24,6 +25,9 @@ export function NotesActionMenu({
   onAction?: (action?: () => void) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // Rendered below the action list, outside the dismiss-on-press wrapper —
+  // for rows that must keep the sheet open, e.g. inline toggles.
+  bottomContent?: ReactNode;
   trigger: ReactNode;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
@@ -63,6 +67,7 @@ export function NotesActionMenu({
       ) : null}
       <ActionSheet.Content>
         <NotesActionGroupList groups={groups} onAction={handleAction} />
+        {bottomContent}
       </ActionSheet.Content>
     </ActionSheet>
   );
