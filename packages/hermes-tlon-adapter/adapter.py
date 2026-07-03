@@ -663,7 +663,7 @@ class TlonAdapter(BasePlatformAdapter):
             )
             return None
 
-    async def connect(self) -> bool:
+    async def connect(self, *, is_reconnect: bool = False) -> bool:
         if not AIOHTTP_AVAILABLE:
             logger.warning("[tlon] aiohttp is not installed")
             return False
