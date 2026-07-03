@@ -593,9 +593,12 @@ def build_retry_dispatch(lens: Mapping[str, Any]) -> RetryDispatchResult:
 
 
 def default_lens_store_path() -> str:
-    return os.path.join(
-        os.path.expanduser("~"), ".hermes", "tlon", "context-lens-runs.jsonl"
+    # Hermes resolves its state dir via HERMES_HOME (profile/Docker aware),
+    # falling back to ~/.hermes (hermes_constants.get_hermes_home).
+    home = os.environ.get("HERMES_HOME") or os.path.join(
+        os.path.expanduser("~"), ".hermes"
     )
+    return os.path.join(home, "tlon", "context-lens-runs.jsonl")
 
 
 def _lens_finalized_at(lens: Mapping[str, Any]) -> int:
