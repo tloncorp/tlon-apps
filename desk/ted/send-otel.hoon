@@ -9,16 +9,23 @@
 ::
 =,  strand=strand:spider
 ^-  thread:spider
-::  .arg: a pair of origin and log item
+::  args
+::
+::  .otel: open telemetry endpoint
+::  .path: origin
+::  .log-item: log report
+::  .log-data: log report supplement
 ::
 |=  arg=vase
 =/  m  (strand ,vase)
 ^-  form:m
-=+  !<(arg=(unit (trel path log-item:l log-data:l)) arg)
+=+  !<(arg=(unit [otel=@t =path =log-item:l =log-data:l]) arg)
 ?>  ?=(^ arg)
-=*  origin  p.u.arg
-=*  log-item  q.u.arg
-=*  log-data  r.u.arg
+=*  otel      otel.u.arg
+=*  origin    path.u.arg
+=*  log-item  log-item.u.arg
+=*  log-data  log-data.u.arg
+::
 ;<  =bowl:strand  bind:m  get-bowl:io
 =/  log-event-json=$>(%o json)  (log-event:enjs:l event.log-item)
 ::  retrieve desk hash
@@ -50,7 +57,7 @@
           ::  name with a leading slash to service namespace to
           ::  construct the final service name.
           ::
-          'value'^(frond 'stringValue' s+(rsh [3 1] (spat origin)))
+          'value'^(frond 'stringValue' (spat origin))
       ==
     ::
       %-  pairs
@@ -131,7 +138,6 @@
     (turn echo.event.log-item (cury wash [0 80]))
   :-  %s
   (crip (zing (join "\0a" lines)))
-
 ::  unix epoch milisecond time to nanoseconds
 =/  log-record=json
   %-  pairs
@@ -157,7 +163,7 @@
 ~&  (en:json:html logs)
 =/  =request:http
   :*  %'POST'
-      otel-provider-url
+      otel
       ~['content-type'^'application/json']
       `(as-octs:mimes:html (en:json:html logs))
   ==

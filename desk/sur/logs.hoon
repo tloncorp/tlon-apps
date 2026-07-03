@@ -4,7 +4,7 @@
 ::  $echo: formatted message
 +$  echo  (list tank)
 ::  $volume: log volume
-+$  volume  ?(%trace %dbug %info %warn %error %fatal)
++$  volume  $~(%trace ?(%trace %dbug %info %warn %error %fatal))
 ::  $log-event
 ::
 ::  %fail: agent crash
@@ -26,6 +26,7 @@
 +$  a-log
   $%  [%log event=log-event data=log-data]
       [%set-volume vol=(unit volume)]
+      [%set-otel url=(unit @t)]
   ==
 ++  v1  .
 ++  v0

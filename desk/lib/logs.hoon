@@ -101,11 +101,11 @@
   --
 ++  conv
   |%
-  ++  v1
+  ++  v0
     |%
     ++  volume
       |%
-      ++  v0
+      ++  v1
         |=  =volume:^v0
         ^-  volume:^v1
         ?-  volume

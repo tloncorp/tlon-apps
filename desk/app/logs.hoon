@@ -10,7 +10,8 @@
   +$  card  card:agent:gall
   +$  current-state
     $:  %2
-          volume=(unit volume:v1:l)
+          volume=(unit volume:v1:l)  ::  volume threshold
+          otel=(unit @t)             ::  open telemetry endpoint
     ==
   ::
   ++  commit  ?~(^commit 'unknown' -.^commit)
@@ -70,10 +71,10 @@
 ::  +send-otel-event: send open telemetry event
 ::
 ++  send-otel-event
-  |=  [origin=path =time =log-event:l =log-data:l]
+  |=  [otel=@t origin=path =time =log-event:l =log-data:l]
   ^+  cor
   =/  fard=(fyrd:khan cage)
-    [q.byk.bowl %send-otel noun+!>(`[origin [time log-event] log-data])]
+    [q.byk.bowl %send-otel noun+!>(`[otel origin [time log-event] log-data])]
   ::
   (emit %pass /send/otel [%arvo %k %fard fard])
 ::
@@ -99,8 +100,7 @@
   ++  state-1-to-2
     |=  =state-1
     ^-  state-2
-    ::TODO FIXME
-    *state-2
+    [%2 (bind posthog.state-1 v1:volume:v0:conv:l) ~]
   --
 ::
 ++  poke
@@ -123,11 +123,15 @@
         cor
       =.  data.a-log  ['commit'^s+commit data.a-log]
       =.  cor  (send-posthog-event sap.bowl now.bowl +.a-log)
-      =.  cor  (send-otel-event sap.bowl now.bowl +.a-log)
+      =?  cor  ?=(^ otel)
+        (send-otel-event u.otel sap.bowl now.bowl +.a-log)
       cor
     ::
         %set-volume
       cor(volume vol.a-log)
+    ::
+        %set-otel
+      cor(otel url.a-log)
     ==
   ==
 ::
