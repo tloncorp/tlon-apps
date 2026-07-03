@@ -617,11 +617,18 @@ def build_retry_dispatch(lens: Mapping[str, Any]) -> RetryDispatchResult:
 
 
 def default_lens_store_path() -> str:
-    # Hermes resolves its state dir via HERMES_HOME (profile/Docker aware),
-    # falling back to ~/.hermes (hermes_constants.get_hermes_home).
-    home = os.environ.get("HERMES_HOME") or os.path.join(
-        os.path.expanduser("~"), ".hermes"
-    )
+    # hermes_constants.get_hermes_home is the single source of truth for the
+    # state dir (env var + context-local profile override). Guarded import,
+    # same pattern as hermes-agent's agent/file_safety.py, so the adapter
+    # still works standalone (tests) with the env/HOME fallback.
+    try:
+        from hermes_constants import get_hermes_home
+
+        home = str(get_hermes_home())
+    except Exception:
+        home = os.environ.get("HERMES_HOME") or os.path.join(
+            os.path.expanduser("~"), ".hermes"
+        )
     return os.path.join(home, "tlon", "context-lens-runs.jsonl")
 
 
