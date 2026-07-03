@@ -7,6 +7,12 @@ packages:
 nodeLinker: hoisted
 engineStrict: true
 
+# Run package.json scripts through bash (they use bash-isms like rm -rf).
+# pnpm 11 ignores script-shell in .npmrc, and npm can't expand the ${VAR-default}
+# fallback, so this lives here where pnpm expands it. Windows devs set TLON_SHELL
+# to their Git bash; everywhere else it falls back to /bin/bash.
+scriptShell: ${TLON_SHELL-/bin/bash}
+
 patchedDependencies:
   "@types/testing-library__jest-dom": patches/@types__testing-library__jest-dom@5.14.5.patch
   "@urbit/http-api": patches/@urbit__http-api@3.2.0-dev.patch
