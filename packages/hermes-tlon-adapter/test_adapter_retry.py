@@ -61,13 +61,15 @@ class MessageEvent:
 
 class SendResult:
     def __init__(
-        self, *, success, message_id=None, error=None, raw_response=None, retryable=False
+        self, *, success, message_id=None, error=None, raw_response=None, retryable=False,
+        continuation_message_ids=()
     ):
         self.success = success
         self.message_id = message_id
         self.error = error
         self.raw_response = raw_response or {}
         self.retryable = retryable
+        self.continuation_message_ids = tuple(continuation_message_ids)
 
 
 class BasePlatformAdapter:

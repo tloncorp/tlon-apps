@@ -786,6 +786,10 @@ class TlonSSEEvent:
     raw: dict[str, Any]
 
 
+class TlonAuthError(ConnectionError):
+    """The ship rejected our credentials (bad access code) — unrecoverable."""
+
+
 class TlonSSEClient:
     """Eyre SSE channel client for subscriptions."""
 
@@ -823,6 +827,11 @@ class TlonSSEClient:
             allow_redirects=False,
             timeout=aiohttp.ClientTimeout(total=15),
         ) as resp:
+            if resp.status in (400, 401, 403):
+                # The ship rejected the access code itself — retrying with the
+                # same credentials can never succeed (5xx / timeouts stay
+                # transient: the ship may just be down).
+                raise TlonAuthError(f"Tlon auth rejected: HTTP {resp.status}")
             if resp.status not in (200, 204, 302, 303, 307):
                 raise ConnectionError(f"Tlon auth failed: HTTP {resp.status}")
             cookie = resp.headers.get("set-cookie", "")
