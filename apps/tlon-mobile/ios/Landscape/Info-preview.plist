@@ -39,6 +39,12 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>EXDevMenuIsOnboardingFinished</key>
+	<true/>
+	<key>EXDevMenuShowFloatingActionButton</key>
+	<false/>
+	<key>EXDevMenuShowsAtLaunch</key>
+	<false/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSApplicationCategoryType</key>
