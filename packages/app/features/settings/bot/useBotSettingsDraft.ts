@@ -295,6 +295,22 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
     setApplying(true);
     setApplyError(null);
     try {
+      // Refetch the provider config at most once and reuse it for both the
+      // model save and the channel-override merge; abort if it fails rather than
+      // writing/merging against stale data.
+      let freshProviderConfig: api.TlawnProviderConfigInfo | null = null;
+      const getFreshProviderConfig = async () => {
+        if (freshProviderConfig) return freshProviderConfig;
+        const refetched = await queries.providerConfigQuery.refetch();
+        if (!refetched.isSuccess || !refetched.data) {
+          throw new Error(
+            'Could not load the latest model configuration. Please try again.'
+          );
+        }
+        freshProviderConfig = refetched.data;
+        return freshProviderConfig;
+      };
+
       if (draft.pending.nickname) {
         await mutations.updateNickname.mutateAsync(nextValues.nickname.trim());
       }
@@ -303,7 +319,20 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         draft.pending.model ||
         draft.pending.fallbacks
       ) {
-        await mutations.savePrimaryModel.mutateAsync(nextValues.model);
+        // Merge against the latest server model config so editing only the
+        // primary model (or only the fallbacks) doesn't write the other's stale
+        // value back and clobber a concurrent change.
+        const serverModel = getModelFormValues(await getFreshProviderConfig());
+        const primaryDirty = draft.pending.modelProvider || draft.pending.model;
+        await mutations.savePrimaryModel.mutateAsync({
+          provider: primaryDirty
+            ? nextValues.model.provider
+            : serverModel.provider,
+          model: primaryDirty ? nextValues.model.model : serverModel.model,
+          fallbacks: draft.pending.fallbacks
+            ? nextValues.model.fallbacks
+            : serverModel.fallbacks,
+        });
       }
       if (
         draft.pending.dmAllowlist ||
@@ -318,27 +347,25 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           nextValues.chat.channelRuleDrafts
         );
 
-        // The merge preserves per-channel overrides for channels this draft
-        // never touched, so it must run against fresh server data. If the
-        // refetch fails, abort rather than merging against the stale cache —
-        // that could silently drop an override another client just added.
-        // A failed refetch still resolves with the last successful `data`, so
-        // gate on `isSuccess` (not just presence of data) to catch that case.
-        let providerConfigForMerge = queries.providerConfig;
-        if (channelModelsChanged) {
-          const refetched = await queries.providerConfigQuery.refetch();
-          if (!refetched.isSuccess || !refetched.data) {
-            throw new Error(
-              'Could not load the latest model configuration. Please try again.'
-            );
-          }
-          providerConfigForMerge = refetched.data;
-        }
+        // The merge preserves overrides for channels this draft never touched,
+        // so it must run against fresh server data (reused refetch, aborts on
+        // failure).
+        const providerConfigForMerge = channelModelsChanged
+          ? await getFreshProviderConfig()
+          : queries.providerConfig;
 
         // Send only the fields the user actually changed. The backend merges
         // config partially, so writing the whole payload would clobber a
         // concurrent change to a field this draft never touched.
         const fullConfig = buildConfigFromChatValues(nextValues.chat);
+        // pending.channelRules is also true for model-override-only edits (the
+        // override fields live in channelRuleDrafts). Compare the built rule
+        // payloads so channelRules is only sent when the mode/allowlist/
+        // inheritance actually changed — override moves go via channelModels.
+        const rulesChanged =
+          stableStringify(
+            buildConfigFromChatValues(draft.baseline.chat).channelRules
+          ) !== stableStringify(fullConfig.channelRules);
         const config: Partial<typeof fullConfig> = {};
         if (draft.pending.dmAllowlist) {
           config.dmAllowlist = fullConfig.dmAllowlist;
@@ -355,7 +382,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         if (draft.pending.autoDiscoverChannels) {
           config.autoDiscoverChannels = fullConfig.autoDiscoverChannels;
         }
-        if (draft.pending.channelRules) {
+        if (rulesChanged) {
           config.channelRules = fullConfig.channelRules;
           config.groupChannels = fullConfig.groupChannels;
         }
