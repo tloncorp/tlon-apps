@@ -160,12 +160,17 @@ export const hasProviderCredential = (
     ? Boolean(config?.defaultKeys?.[BASIC_PROVIDER_ID])
     : Boolean(config?.keys?.[providerId]);
 
+// Never render a stored key in full. Show a redacted summary (mask + last four
+// characters) so the settings screens can indicate a key is set without
+// exposing the secret in clear text.
 export const safeKeySummary = (
   config: TlawnProviderConfigInfo | undefined,
   providerId: string
 ): string => {
   if (providerId === BASIC_PROVIDER_ID) return 'Included';
-  return config?.keys?.[providerId] || 'Not set';
+  const key = config?.keys?.[providerId];
+  if (!key) return 'Not set';
+  return key.length > 4 ? `••••${key.slice(-4)}` : '••••';
 };
 
 // A user without a custom openrouter key falls back to the shared "basic"

@@ -17,6 +17,7 @@ import {
   normalizeTlonbotConfig,
   parseChannelRuleKey,
   resolveGroupFull,
+  safeKeySummary,
   toDisplayProviderId,
   validateProviderKey,
 } from './helpers';
@@ -100,6 +101,23 @@ describe('provider config', () => {
       )
     ).toBe('openrouter');
     expect(toDisplayProviderId(config, 'anthropic')).toBe('anthropic');
+  });
+
+  it('redacts stored keys instead of rendering them in full', () => {
+    const config = normalizeProviderConfig({
+      keys: { anthropic: 'sk-ant-secret-abcd1234', openai: 'x' },
+      models: [],
+      defaultKeys: { basic: { key: 'shared' } },
+    });
+    const summary = safeKeySummary(config, 'anthropic');
+    expect(summary).toBe('••••1234');
+    expect(summary).not.toContain('secret');
+    // short keys are masked entirely
+    expect(safeKeySummary(config, 'openai')).toBe('••••');
+    expect(safeKeySummary(config, 'anthropic'.replace('anthropic', 'missing'))).toBe(
+      'Not set'
+    );
+    expect(safeKeySummary(config, 'basic')).toBe('Included');
   });
 
   it('derives model form values from the provider config', () => {
