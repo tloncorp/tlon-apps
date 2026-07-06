@@ -27,12 +27,11 @@ echo "==> Installing plugin dependencies..."
 cd /workspace/tlon
 node scripts/resolve-workspace-deps.mjs package.json --registry
 # This is a standalone install of the plugin (no root pnpm-workspace.yaml), so
-# the monorepo's allowBuilds/nodeLinker settings aren't in scope, and pnpm 11
-# no longer reads node-linker from .npmrc.
+# the monorepo's allowBuilds/nodeLinker settings aren't in scope.
 # - nodeLinker=hoisted: build-local-skill-override.sh hydrates the platform
 #   tlon binary by resolving @tloncorp/tlon-skill-<platform>-<arch> at the top
 #   level of node_modules, which only the hoisted layout provides.
-# - dangerouslyAllowAllBuilds: pnpm 11 hard-errors on unapproved dependency
+# - dangerouslyAllowAllBuilds: pnpm requires explicit approval for dependency
 #   build scripts; allow them all — this is an ephemeral container building
 #   openclaw's own pinned dependencies, not a trust boundary.
 pnpm install --config.nodeLinker=hoisted --config.dangerouslyAllowAllBuilds=true

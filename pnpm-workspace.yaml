@@ -2,15 +2,14 @@ packages:
   - "packages/*"
   - "apps/*"
 
-# pnpm 11 reads its settings from this file only (.npmrc and the package.json
-# "pnpm" field are no longer consulted).
+# pnpm 11 reads its settings from this file only (not .npmrc or the
+# package.json "pnpm" field).
 nodeLinker: hoisted
 engineStrict: true
 
 # Run package.json scripts through bash (they use bash-isms like rm -rf).
-# pnpm 11 ignores script-shell in .npmrc, and npm can't expand the ${VAR-default}
-# fallback, so this lives here where pnpm expands it. Windows devs set TLON_SHELL
-# to their Git bash; everywhere else it falls back to /bin/bash.
+# pnpm expands the ${VAR-default} fallback in this file. Windows devs set
+# TLON_SHELL to their Git bash; everywhere else it falls back to /bin/bash.
 scriptShell: ${TLON_SHELL-/bin/bash}
 
 patchedDependencies:
