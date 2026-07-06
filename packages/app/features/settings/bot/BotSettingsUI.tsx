@@ -10,6 +10,7 @@ import { PropsWithChildren, ReactNode } from 'react';
 import { Switch } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
+import { ImageAvatar } from '../../../ui/components/Avatar';
 import { Badge } from '../../../ui/components/Badge';
 import { ListItem } from '../../../ui/components/ListItem';
 
@@ -188,12 +189,14 @@ export function SelectableRow({
 export function BotIdentityHeader({
   title,
   subtitle,
+  avatarUrl,
   ready,
   pending,
   restarting,
 }: {
   title: string;
   subtitle: string;
+  avatarUrl?: string;
   ready: boolean;
   pending?: boolean;
   restarting?: boolean;
@@ -210,16 +213,24 @@ export function BotIdentityHeader({
 
   return (
     <XStack alignItems="center" gap="$l" paddingHorizontal="$s">
-      <View
+      <ImageAvatar
+        imageUrl={avatarUrl || undefined}
         width={56}
         height={56}
-        alignItems="center"
-        justifyContent="center"
         borderRadius="$l"
-        backgroundColor="$secondaryBackground"
-      >
-        <Icon type="Face" size="$l" color="$secondaryText" />
-      </View>
+        fallback={
+          <View
+            width={56}
+            height={56}
+            alignItems="center"
+            justifyContent="center"
+            borderRadius="$l"
+            backgroundColor="$background"
+          >
+            <Icon type="Face" size="$l" color="$secondaryText" />
+          </View>
+        }
+      />
       <YStack flex={1} minWidth={0} gap="$2xs">
         <XStack alignItems="center" justifyContent="space-between" gap="$m">
           <Text size="$label/2xl" fontWeight="600" numberOfLines={1} flex={1}>

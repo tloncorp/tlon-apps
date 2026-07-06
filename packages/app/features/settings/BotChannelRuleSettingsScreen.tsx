@@ -51,7 +51,7 @@ const ACCESS_MODES: {
   {
     id: 'allowlist',
     label: 'Allowlist only',
-    description: 'Authorized ships only',
+    description: 'Authorized users only',
   },
 ];
 
@@ -269,7 +269,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                 <BotSettingsDivider />
                 <YStack padding="$l" gap="$m">
                   <Text size="$label/m" color="$tertiaryText">
-                    Allowed ships
+                    Allowed users
                   </Text>
                   <XStack gap="$m" alignItems="center">
                     <View flex={1}>
@@ -315,7 +315,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                     </XStack>
                   ))}
                   <Text size="$label/s" color="$secondaryText">
-                    Only these ships can invoke Tlonbot in this channel.
+                    Only these users can invoke Tlonbot in this channel.
                   </Text>
                 </YStack>
               </>

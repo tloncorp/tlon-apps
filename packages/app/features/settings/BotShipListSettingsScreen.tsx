@@ -30,18 +30,18 @@ const shipListMeta: Record<
 > = {
   dmAllowlist: {
     title: 'DM allowlist',
-    listTitle: 'Allowed ships',
-    description: 'Contacts on the allowlist can DM Tlonbot directly.',
+    listTitle: 'Allowed users',
+    description: 'Users on the allowlist can DM Tlonbot directly.',
   },
   defaultAuthorizedShips: {
-    title: 'Authorized ships',
-    listTitle: 'Authorized ships',
-    description: 'Authorized contacts can always interact with Tlonbot.',
+    title: 'Authorized users',
+    listTitle: 'Authorized users',
+    description: 'Authorized users can always interact with Tlonbot.',
   },
   groupInviteAllowlist: {
     title: 'Can invite to groups',
     listTitle: 'Invite allowlist',
-    description: 'These ships can invite Tlonbot to groups.',
+    description: 'These users can invite Tlonbot to groups.',
   },
 };
 
@@ -94,7 +94,7 @@ export function BotShipListSettingsScreen(props: Props) {
         <YStack gap="$2xl" paddingBottom="$2xl">
           <YStack gap="$m">
             <Text size="$label/m" color="$secondaryText" paddingHorizontal="$s">
-              Add a ship
+              Add a user
             </Text>
             <XStack gap="$m" alignItems="center">
               <View flex={1}>
@@ -125,7 +125,7 @@ export function BotShipListSettingsScreen(props: Props) {
             description={meta.description}
           >
             {ships.length === 0 ? (
-              <EmptyRowText>No ships on this list.</EmptyRowText>
+              <EmptyRowText>No users on this list.</EmptyRowText>
             ) : (
               ships.map((ship, index) => (
                 <YStack key={ship}>

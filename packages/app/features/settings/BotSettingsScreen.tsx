@@ -36,6 +36,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
 
 const logger = createDevLogger('BotSettingsScreen', false);
 
+const userCount = (n: number): string => `${n} ${n === 1 ? 'user' : 'users'}`;
+
 export function BotSettingsScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
   const resetDb = useResetDb();
@@ -146,6 +148,7 @@ export function BotSettingsScreen(props: Props) {
           <BotIdentityHeader
             title={draft.nickname || 'Tlonbot'}
             subtitle={queries.moon ?? `~${queries.ship}`}
+            avatarUrl={queries.avatarQuery.data ?? undefined}
             ready={queries.botReady}
             pending={hasChanges}
             restarting={applying}
@@ -238,7 +241,9 @@ export function BotSettingsScreen(props: Props) {
           <BotSettingsSection title="Who can message Tlonbot">
             <BotSettingsRow
               label="DM allowlist"
-              value={`${normalizeShipList(draft.chat.dmAllowlist).length} ships`}
+              value={userCount(
+                normalizeShipList(draft.chat.dmAllowlist).length
+              )}
               pending={pending.dmAllowlist}
               disabled={controlsReadOnly}
               onPress={() =>
@@ -248,7 +253,7 @@ export function BotSettingsScreen(props: Props) {
             <BotSettingsDivider />
             <BotSwitchRow
               label="Auto-accept DM invites"
-              description="From ships on the allowlist"
+              description="From users on the allowlist"
               checked={draft.chat.autoAcceptDmInvites}
               disabled={controlsReadOnly}
               pending={pending.autoAcceptDmInvites}
@@ -276,12 +281,14 @@ export function BotSettingsScreen(props: Props) {
           </BotSettingsSection>
 
           <BotSettingsSection
-            title="Authorized ships"
-            description="These ships can always interact with Tlonbot, regardless of per-channel rules."
+            title="Authorized users"
+            description="These users can always interact with Tlonbot, regardless of per-channel rules."
           >
             <BotSettingsRow
               label="Default authorized"
-              value={`${normalizeShipList(draft.chat.defaultAuthorizedShips).length} ships`}
+              value={userCount(
+                normalizeShipList(draft.chat.defaultAuthorizedShips).length
+              )}
               pending={pending.defaultAuthorizedShips}
               disabled={controlsReadOnly}
               onPress={() =>
@@ -293,7 +300,9 @@ export function BotSettingsScreen(props: Props) {
             <BotSettingsDivider />
             <BotSettingsRow
               label="Can invite to groups"
-              value={`${normalizeShipList(draft.chat.groupInviteAllowlist).length} ships`}
+              value={userCount(
+                normalizeShipList(draft.chat.groupInviteAllowlist).length
+              )}
               pending={pending.groupInviteAllowlist}
               disabled={controlsReadOnly}
               onPress={() =>
