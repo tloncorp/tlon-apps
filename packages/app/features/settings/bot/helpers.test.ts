@@ -165,24 +165,39 @@ describe('provider config', () => {
 describe('tlonbot config', () => {
   it('normalizes partial configs', () => {
     const config = normalizeTlonbotConfig({
+      defaultAuthorizedShips: ['~bus'],
       channelRules: {
         'chat/~zod/general': { mode: 'restricted', allowedShips: ['~nec'] },
         'chat/~zod/random': { mode: 'open', allowedShips: [] },
         'chat/~zod/unknown': { mode: 'bogus', allowedShips: [] },
+        'chat/~zod/inherit': { mode: 'restricted' } as {
+          mode: string;
+          allowedShips: string[];
+        },
       },
     });
     expect(config.dmAllowlist).toEqual([]);
     expect(config.channelRules['chat/~zod/general'].mode).toBe('restricted');
+    expect(config.channelRules['chat/~zod/general'].allowedShips).toEqual([
+      '~nec',
+    ]);
     expect(config.channelRules['chat/~zod/random'].mode).toBe('open');
     // anything that isn't an explicit `open` stays restricted, so a rule never
     // silently loses its allowlist on round-trip
     expect(config.channelRules['chat/~zod/unknown'].mode).toBe('restricted');
+    // an explicit empty allowlist is preserved (block-all), not widened
+    expect(config.channelRules['chat/~zod/unknown'].allowedShips).toEqual([]);
+    // a restricted rule that omits allowedShips inherits defaultAuthorizedShips
+    expect(config.channelRules['chat/~zod/inherit'].allowedShips).toEqual([
+      '~bus',
+    ]);
     expect(config.autoAcceptDmInvites).toBe(false);
   });
 
   it('builds channel rule drafts including model overrides', () => {
     const drafts = buildChannelRuleDrafts(
       normalizeTlonbotConfig({
+        defaultAuthorizedShips: ['~bus'],
         channelRules: {
           'zod/general': { mode: 'restricted', allowedShips: ['nec'] },
         },
@@ -206,9 +221,11 @@ describe('tlonbot config', () => {
       modelOverrideProvider: 'basic',
       modelOverride: 'some/model',
     });
+    // a group channel with no explicit rule defaults to restricted with the
+    // default authorized ships, not an open channel
     expect(drafts['chat/~zod/random']).toEqual({
-      mode: 'open',
-      allowedShips: '',
+      mode: 'allowlist',
+      allowedShips: '~bus',
     });
   });
 

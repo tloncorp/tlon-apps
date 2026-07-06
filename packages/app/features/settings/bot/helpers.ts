@@ -242,23 +242,29 @@ export const toBackendMode = (mode: 'open' | 'allowlist'): string =>
 
 export const normalizeTlonbotConfig = (
   raw: Partial<TlawnConfig> | null | undefined
-): TlawnConfig => ({
-  dmAllowlist: raw?.dmAllowlist ?? [],
-  defaultAuthorizedShips: raw?.defaultAuthorizedShips ?? [],
-  channelRules: Object.fromEntries(
-    Object.entries(raw?.channelRules ?? {}).map(([key, rule]) => [
-      key,
-      {
-        mode: toBackendMode(toDraftMode(rule?.mode)),
-        allowedShips: rule?.allowedShips ?? [],
-      },
-    ])
-  ),
-  groupChannels: raw?.groupChannels ?? [],
-  groupInviteAllowlist: raw?.groupInviteAllowlist ?? [],
-  autoAcceptDmInvites: raw?.autoAcceptDmInvites ?? false,
-  autoDiscoverChannels: raw?.autoDiscoverChannels ?? false,
-});
+): TlawnConfig => {
+  const defaultAuthorizedShips = raw?.defaultAuthorizedShips ?? [];
+  return {
+    dmAllowlist: raw?.dmAllowlist ?? [],
+    defaultAuthorizedShips,
+    channelRules: Object.fromEntries(
+      Object.entries(raw?.channelRules ?? {}).map(([key, rule]) => {
+        const mode = toBackendMode(toDraftMode(rule?.mode));
+        // A restricted rule that omits allowedShips inherits
+        // defaultAuthorizedShips on the backend; materialize that so the UI
+        // round-trips the same allowlist instead of an empty (block-all) list.
+        const allowedShips =
+          rule?.allowedShips ??
+          (mode === 'restricted' ? defaultAuthorizedShips : []);
+        return [key, { mode, allowedShips }];
+      })
+    ),
+    groupChannels: raw?.groupChannels ?? [],
+    groupInviteAllowlist: raw?.groupInviteAllowlist ?? [],
+    autoAcceptDmInvites: raw?.autoAcceptDmInvites ?? false,
+    autoDiscoverChannels: raw?.autoDiscoverChannels ?? false,
+  };
+};
 
 export const buildChannelRuleDrafts = (
   config: TlawnConfig,
@@ -274,9 +280,12 @@ export const buildChannelRuleDrafts = (
   (config.groupChannels || []).forEach((key) => {
     const channelKey = normalizeChannelRuleKey(key);
     if (!drafts[channelKey]) {
+      // No explicit rule means the backend treats the channel as restricted,
+      // allowing defaultAuthorizedShips. Represent it that way so saving doesn't
+      // turn a monitored/default-authorized channel into an open one.
       drafts[channelKey] = {
-        mode: 'open',
-        allowedShips: '',
+        mode: 'allowlist',
+        allowedShips: formatShipList(config.defaultAuthorizedShips || []),
       };
     }
   });
