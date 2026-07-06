@@ -1,5 +1,12 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  LoadingSpinner,
+  Pressable,
+  Text,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
@@ -27,7 +34,10 @@ import {
   useAllProviderModels,
   useBotSettingsQueries,
 } from './bot/useBotSettingsData';
-import { useBotSettingsDraft } from './bot/useBotSettingsDraft';
+import {
+  useBotSettingsDraft,
+  useSyncBotSettingsDraft,
+} from './bot/useBotSettingsDraft';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotModelSettings'>;
 
@@ -38,7 +48,12 @@ export function BotModelSettingsScreen(props: Props) {
   const { mode } = props.route.params;
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
+  // Sync the draft from the server before editing so reaching this leaf
+  // directly (cold launch / deep link) doesn't start from an empty draft and
+  // apply empty defaults over the real config. Gate edits on `initialized`.
+  useSyncBotSettingsDraft(queries);
   const draft = useBotSettingsDraft();
+  const ready = draft.initialized;
   const allProviderModels = useAllProviderModels(queries.providerConfig);
   const [search, setSearch] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -67,17 +82,19 @@ export function BotModelSettingsScreen(props: Props) {
 
   const setModel = useCallback(
     (provider: string, model: string) => {
+      if (!ready) return;
       setValidationError(null);
       draft.commitDraft((current) => ({
         ...current,
         model: { ...current.model, provider, model },
       }));
     },
-    [draft]
+    [draft, ready]
   );
 
   const toggleFallback = useCallback(
     (selection: { provider: string; model: string }) => {
+      if (!ready) return;
       draft.commitDraft((current) => {
         const key = fallbackKey(selection);
         const exists = current.model.fallbacks.some(
@@ -96,7 +113,7 @@ export function BotModelSettingsScreen(props: Props) {
         };
       });
     },
-    [draft]
+    [draft, ready]
   );
 
   const removeFallbackAt = useCallback(
@@ -187,45 +204,156 @@ export function BotModelSettingsScreen(props: Props) {
         backAction={isWindowNarrow ? handleBack : undefined}
         title={mode === 'default' ? 'Default model' : 'Fallback models'}
       />
-      <SettingsContentScrollView
-        paddingHorizontal="$l"
-        paddingTop="$l"
-        safeAreaBottomOffset={24}
-      >
-        <YStack gap="$2xl" paddingBottom="$2xl">
-          {mode === 'default' ? (
-            <>
-              <BotSettingsSection title="Provider">
-                {availableProviders.map((option, index) => (
-                  <YStack key={option.id}>
-                    <SelectableRow
-                      label={option.label}
-                      selected={modelValues.provider === option.id}
-                      onPress={() =>
-                        setModel(
-                          option.id,
-                          option.id === BASIC_PROVIDER_ID
-                            ? BASIC_DEFAULT_MODEL
-                            : ''
-                        )
-                      }
-                    />
-                    {index < availableProviders.length - 1 ? (
-                      <BotSettingsDivider />
-                    ) : null}
-                  </YStack>
-                ))}
-              </BotSettingsSection>
-              {modelValues.provider === BASIC_PROVIDER_ID ? (
+      {!ready ? (
+        <View flex={1} alignItems="center" justifyContent="center">
+          <LoadingSpinner />
+        </View>
+      ) : (
+        <SettingsContentScrollView
+          paddingHorizontal="$l"
+          paddingTop="$l"
+          safeAreaBottomOffset={24}
+        >
+          <YStack gap="$2xl" paddingBottom="$2xl">
+            {mode === 'default' ? (
+              <>
+                <BotSettingsSection title="Provider">
+                  {availableProviders.map((option, index) => (
+                    <YStack key={option.id}>
+                      <SelectableRow
+                        label={option.label}
+                        selected={modelValues.provider === option.id}
+                        onPress={() =>
+                          setModel(
+                            option.id,
+                            option.id === BASIC_PROVIDER_ID
+                              ? BASIC_DEFAULT_MODEL
+                              : ''
+                          )
+                        }
+                      />
+                      {index < availableProviders.length - 1 ? (
+                        <BotSettingsDivider />
+                      ) : null}
+                    </YStack>
+                  ))}
+                </BotSettingsSection>
+                {modelValues.provider === BASIC_PROVIDER_ID ? (
+                  <Text
+                    size="$label/s"
+                    color="$secondaryText"
+                    paddingHorizontal="$s"
+                  >
+                    Basic uses MiniMax M3.
+                  </Text>
+                ) : (
+                  <BotSettingsSection title="Model">
+                    <View padding="$l">
+                      <TextInput
+                        value={search}
+                        placeholder="Search models"
+                        onChangeText={setSearch}
+                      />
+                    </View>
+                    <BotSettingsDivider />
+                    {providerModelsLoading ? (
+                      <EmptyRowText>Loading models…</EmptyRowText>
+                    ) : providerModelsError ? (
+                      <EmptyRowText>
+                        {getErrorMessage(providerModelsError) ??
+                          'Unable to load models.'}
+                      </EmptyRowText>
+                    ) : filteredProviderModels.length === 0 ? (
+                      <EmptyRowText>No models found.</EmptyRowText>
+                    ) : (
+                      <>
+                        {filteredProviderModels.map((model, index) => (
+                          <YStack key={model.id}>
+                            <SelectableRow
+                              label={getModelDisplayName(model)}
+                              description={model.id}
+                              selected={modelValues.model === model.id}
+                              onPress={() =>
+                                setModel(modelValues.provider, model.id)
+                              }
+                            />
+                            {index < filteredProviderModels.length - 1 ? (
+                              <BotSettingsDivider />
+                            ) : null}
+                          </YStack>
+                        ))}
+                        {hiddenProviderModelCount > 0 ? (
+                          <EmptyRowText>
+                            {hiddenProviderModelCount} more — refine your search
+                            to see them.
+                          </EmptyRowText>
+                        ) : null}
+                      </>
+                    )}
+                  </BotSettingsSection>
+                )}
+                <BotSettingsErrorText>{validationError}</BotSettingsErrorText>
+              </>
+            ) : (
+              <>
                 <Text
-                  size="$label/s"
+                  size="$label/m"
                   color="$secondaryText"
                   paddingHorizontal="$s"
                 >
-                  Basic uses MiniMax M3.
+                  If the default model fails, Tlonbot tries each of these in
+                  order.
                 </Text>
-              ) : (
-                <BotSettingsSection title="Model">
+                <BotSettingsSection title="Fallback chain">
+                  {modelValues.fallbacks.length === 0 ? (
+                    <EmptyRowText>No fallback models set.</EmptyRowText>
+                  ) : (
+                    modelValues.fallbacks.map((fallback, index) => (
+                      <YStack key={`${fallbackKey(fallback)}:${index}`}>
+                        <XStack
+                          minHeight={56}
+                          alignItems="center"
+                          gap="$l"
+                          paddingHorizontal="$l"
+                          paddingVertical="$m"
+                        >
+                          <View
+                            width="$2xl"
+                            height="$2xl"
+                            alignItems="center"
+                            justifyContent="center"
+                            borderRadius="$m"
+                            backgroundColor="$secondaryBackground"
+                          >
+                            <Text size="$label/m" color="$secondaryText">
+                              {index + 1}
+                            </Text>
+                          </View>
+                          <Text
+                            flex={1}
+                            size="$label/l"
+                            color="$primaryText"
+                            numberOfLines={1}
+                          >
+                            {fallbackLabelByKey.get(fallbackKey(fallback)) ??
+                              `${fallback.provider}: ${fallback.model}`}
+                          </Text>
+                          <Pressable onPress={() => removeFallbackAt(index)}>
+                            <Icon
+                              type="Close"
+                              size="$m"
+                              color="$secondaryText"
+                            />
+                          </Pressable>
+                        </XStack>
+                        {index < modelValues.fallbacks.length - 1 ? (
+                          <BotSettingsDivider />
+                        ) : null}
+                      </YStack>
+                    ))
+                  )}
+                </BotSettingsSection>
+                <BotSettingsSection title="Available models">
                   <View padding="$l">
                     <TextInput
                       value={search}
@@ -234,148 +362,52 @@ export function BotModelSettingsScreen(props: Props) {
                     />
                   </View>
                   <BotSettingsDivider />
-                  {providerModelsLoading ? (
-                    <EmptyRowText>Loading models…</EmptyRowText>
-                  ) : providerModelsError ? (
+                  {filteredSelectableModels.length === 0 ? (
                     <EmptyRowText>
-                      {getErrorMessage(providerModelsError) ??
-                        'Unable to load models.'}
+                      {availableProviders.length === 0
+                        ? 'No providers configured.'
+                        : 'No models found.'}
                     </EmptyRowText>
-                  ) : filteredProviderModels.length === 0 ? (
-                    <EmptyRowText>No models found.</EmptyRowText>
                   ) : (
                     <>
-                      {filteredProviderModels.map((model, index) => (
-                        <YStack key={model.id}>
+                      {filteredSelectableModels.map((model, index) => (
+                        <YStack key={model.key}>
                           <SelectableRow
-                            label={getModelDisplayName(model)}
-                            description={model.id}
-                            selected={modelValues.model === model.id}
+                            label={model.modelLabel}
+                            description={model.providerLabel}
+                            selected={selectedFallbackKeys.has(model.key)}
                             onPress={() =>
-                              setModel(modelValues.provider, model.id)
+                              toggleFallback({
+                                provider: model.providerId,
+                                model: model.modelId,
+                              })
                             }
                           />
-                          {index < filteredProviderModels.length - 1 ? (
+                          {index < filteredSelectableModels.length - 1 ? (
                             <BotSettingsDivider />
                           ) : null}
                         </YStack>
                       ))}
-                      {hiddenProviderModelCount > 0 ? (
+                      {hiddenSelectableModelCount > 0 ? (
                         <EmptyRowText>
-                          {hiddenProviderModelCount} more — refine your search
+                          {hiddenSelectableModelCount} more — refine your search
                           to see them.
                         </EmptyRowText>
                       ) : null}
                     </>
                   )}
                 </BotSettingsSection>
-              )}
-              <BotSettingsErrorText>{validationError}</BotSettingsErrorText>
-            </>
-          ) : (
-            <>
-              <Text
-                size="$label/m"
-                color="$secondaryText"
-                paddingHorizontal="$s"
-              >
-                If the default model fails, Tlonbot tries each of these in
-                order.
-              </Text>
-              <BotSettingsSection title="Fallback chain">
-                {modelValues.fallbacks.length === 0 ? (
-                  <EmptyRowText>No fallback models set.</EmptyRowText>
-                ) : (
-                  modelValues.fallbacks.map((fallback, index) => (
-                    <YStack key={`${fallbackKey(fallback)}:${index}`}>
-                      <XStack
-                        minHeight={56}
-                        alignItems="center"
-                        gap="$l"
-                        paddingHorizontal="$l"
-                        paddingVertical="$m"
-                      >
-                        <View
-                          width="$2xl"
-                          height="$2xl"
-                          alignItems="center"
-                          justifyContent="center"
-                          borderRadius="$m"
-                          backgroundColor="$secondaryBackground"
-                        >
-                          <Text size="$label/m" color="$secondaryText">
-                            {index + 1}
-                          </Text>
-                        </View>
-                        <Text
-                          flex={1}
-                          size="$label/l"
-                          color="$primaryText"
-                          numberOfLines={1}
-                        >
-                          {fallbackLabelByKey.get(fallbackKey(fallback)) ??
-                            `${fallback.provider}: ${fallback.model}`}
-                        </Text>
-                        <Pressable onPress={() => removeFallbackAt(index)}>
-                          <Icon type="Close" size="$m" color="$secondaryText" />
-                        </Pressable>
-                      </XStack>
-                      {index < modelValues.fallbacks.length - 1 ? (
-                        <BotSettingsDivider />
-                      ) : null}
-                    </YStack>
-                  ))
-                )}
-              </BotSettingsSection>
-              <BotSettingsSection title="Available models">
-                <View padding="$l">
-                  <TextInput
-                    value={search}
-                    placeholder="Search models"
-                    onChangeText={setSearch}
-                  />
-                </View>
-                <BotSettingsDivider />
-                {filteredSelectableModels.length === 0 ? (
-                  <EmptyRowText>
-                    {availableProviders.length === 0
-                      ? 'No providers configured.'
-                      : 'No models found.'}
-                  </EmptyRowText>
-                ) : (
-                  <>
-                    {filteredSelectableModels.map((model, index) => (
-                      <YStack key={model.key}>
-                        <SelectableRow
-                          label={model.modelLabel}
-                          description={model.providerLabel}
-                          selected={selectedFallbackKeys.has(model.key)}
-                          onPress={() =>
-                            toggleFallback({
-                              provider: model.providerId,
-                              model: model.modelId,
-                            })
-                          }
-                        />
-                        {index < filteredSelectableModels.length - 1 ? (
-                          <BotSettingsDivider />
-                        ) : null}
-                      </YStack>
-                    ))}
-                    {hiddenSelectableModelCount > 0 ? (
-                      <EmptyRowText>
-                        {hiddenSelectableModelCount} more — refine your search
-                        to see them.
-                      </EmptyRowText>
-                    ) : null}
-                  </>
-                )}
-              </BotSettingsSection>
-            </>
-          )}
-          <Button preset="primary" label="Done" onPress={handleBack} centered />
-        </YStack>
-      </SettingsContentScrollView>
+              </>
+            )}
+            <Button
+              preset="primary"
+              label="Done"
+              onPress={handleBack}
+              centered
+            />
+          </YStack>
+        </SettingsContentScrollView>
+      )}
     </View>
   );
 }
