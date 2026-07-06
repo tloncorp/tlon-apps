@@ -1,3 +1,4 @@
+import { nestToFlag } from '@tloncorp/api';
 import type {
   TlawnChannelGroups,
   TlawnChannelModelOverride,
@@ -45,13 +46,11 @@ export const parseChannelRuleKey = (
   key: string
 ): { host: string; channelId: string } | null => {
   const trimmed = key.trim();
-  const normalized = trimmed.startsWith('chat/')
-    ? trimmed.slice('chat/'.length)
-    : trimmed;
-  const parts = normalized.split('/');
-  if (parts.length < 2) return null;
-  const host = parts[0];
-  const channelId = parts.slice(1).join('/');
+  // Channel keys are chat nests (chat/~host/channelId); strip the app prefix
+  // with the shared helper. Keys without the prefix are already host/channelId.
+  const flag = trimmed.startsWith('chat/') ? nestToFlag(trimmed)[1] : trimmed;
+  const [host, ...rest] = flag.split('/');
+  const channelId = rest.join('/');
   if (!host || !channelId) return null;
   return { host, channelId };
 };
