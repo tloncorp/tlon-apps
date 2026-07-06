@@ -4,6 +4,7 @@ import type { Plugin as ESBuildPlugin } from 'esbuild';
 import flowRemoveTypes from 'flow-remove-types';
 import { existsSync } from 'fs';
 import fs from 'fs/promises';
+import { createRequire } from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { transformWithEsbuild } from 'vite';
@@ -12,6 +13,18 @@ import type { Plugin as VitePlugin } from 'vite';
 // import type { ViteReactNativeWebOptions } from '../types'
 
 const development = process.env.NODE_ENV === 'development';
+
+// react-native-webview is aliased to @10play/react-native-web-webview, which
+// is a dependency of tlon-web but is imported from files in packages/app.
+// Resolve it to an absolute path here so the alias doesn't depend on where
+// pnpm hoists the package relative to the importing file.
+const require = createRequire(import.meta.url);
+// resolve() returns lib/commonjs/index.js; the aliases point at the ESM
+// build next to it.
+const webWebviewModuleDir = path.join(
+  path.dirname(require.resolve('@10play/react-native-web-webview')),
+  '../module'
+);
 
 const extensions = [
   '.web.mjs',
@@ -80,11 +93,11 @@ const reactNativeWeb =
           },
           {
             find: 'react-native-webview',
-            replacement: '@10play/react-native-web-webview',
+            replacement: path.join(webWebviewModuleDir, 'index.js'),
           },
           {
             find: 'react-native/Libraries/Utilities/codegenNativeComponent',
-            replacement: '@10play/react-native-web-webview/shim',
+            replacement: path.join(webWebviewModuleDir, 'shim.js'),
           },
           {
             find: 'react-native-gesture-handler/ReanimatedSwipeable',

@@ -780,7 +780,7 @@ importers:
         version: 0.16.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       vite-plugin-svgr:
         specifier: ^4.2.0
-        version: 4.2.0(rollup@4.13.0)(typescript@5.9.3)(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0))
+        version: 4.2.0(rollup@4.13.0)(typescript@5.9.3)(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0))
       workbox-precaching:
         specifier: ^6.5.4
         version: 6.6.0
@@ -819,8 +819,8 @@ importers:
         specifier: 4.14.183
         version: 4.14.183
       '@types/node':
-        specifier: ^20.10.8
-        version: 20.19.31
+        specifier: ^25.4.0
+        version: 25.9.3
       '@types/node-fetch':
         specifier: ^2.6.4
         version: 2.6.10
@@ -865,10 +865,10 @@ importers:
         version: 2.0.1
       '@vitejs/plugin-basic-ssl':
         specifier: ^1.1.0
-        version: 1.1.0(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0))
+        version: 1.1.0(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0))
       '@vitejs/plugin-react':
         specifier: ^4.2.1
-        version: 4.2.1(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0))
+        version: 4.2.1(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0))
       '@welldone-software/why-did-you-render':
         specifier: ^7.0.1
         version: 7.0.1(react@19.2.3)
@@ -910,7 +910,7 @@ importers:
         version: 3.2.5
       react-cosmos-plugin-vite:
         specifier: 7.2.0
-        version: 7.2.0(react-cosmos@7.2.0(patch_hash=658acdaf59c16d70e54b6b0b9d522593cd973839891ed5446a3dd3045d4e37eb)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0))
+        version: 7.2.0(react-cosmos@7.2.0(patch_hash=658acdaf59c16d70e54b6b0b9d522593cd973839891ed5446a3dd3045d4e37eb)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0))
       react-test-renderer:
         specifier: 19.2.3
         version: 19.2.3(react@19.2.3)
@@ -928,10 +928,10 @@ importers:
         version: 1.1.4(typescript@5.9.3)
       vite:
         specifier: ^5.1.6
-        version: 5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0)
+        version: 5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0)
       vite-plugin-pwa:
         specifier: ^0.17.5
-        version: 0.17.5(@types/babel__core@7.20.5)(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0))(workbox-window@7.0.0)
+        version: 0.17.5(@types/babel__core@7.20.5)(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0))(workbox-window@7.0.0)
       vitest:
         specifier: ^0.34.1
         version: 0.34.6(jsdom@23.2.0)(lightningcss@1.32.0)(playwright@1.52.0)(terser@5.46.0)
@@ -20207,20 +20207,9 @@ snapshots:
 
   '@urbit/vite-plugin-urbit@2.0.1': {}
 
-  '@vitejs/plugin-basic-ssl@1.1.0(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0))':
+  '@vitejs/plugin-basic-ssl@1.1.0(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0))':
     dependencies:
-      vite: 5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0)
-
-  '@vitejs/plugin-react@4.2.1(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0))':
-    dependencies:
-      '@babel/core': 7.29.0
-      '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
-      '@babel/plugin-transform-react-jsx-source': 7.27.1(@babel/core@7.29.0)
-      '@types/babel__core': 7.20.5
-      react-refresh: 0.14.2
-      vite: 5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0)
-    transitivePeerDependencies:
-      - supports-color
+      vite: 5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0)
 
   '@vitejs/plugin-react@4.2.1(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0))':
     dependencies:
@@ -26390,7 +26379,7 @@ snapshots:
       react-cosmos-renderer: 7.2.0(react@19.2.3)
       react-native: 0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3)
 
-  react-cosmos-plugin-vite@7.2.0(react-cosmos@7.2.0(patch_hash=658acdaf59c16d70e54b6b0b9d522593cd973839891ed5446a3dd3045d4e37eb)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0)):
+  react-cosmos-plugin-vite@7.2.0(react-cosmos@7.2.0(patch_hash=658acdaf59c16d70e54b6b0b9d522593cd973839891ed5446a3dd3045d4e37eb)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0)):
     dependencies:
       parse5: 7.3.0
       react: 19.2.3
@@ -26398,7 +26387,7 @@ snapshots:
       react-cosmos-core: 7.2.0(react@19.2.3)
       react-cosmos-dom: 7.2.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-dom: 19.2.3(react@19.2.3)
-      vite: 5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0)
+      vite: 5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0)
 
   react-cosmos-renderer@7.2.0(react@19.2.3):
     dependencies:
@@ -28458,12 +28447,12 @@ snapshots:
       - supports-color
       - terser
 
-  vite-plugin-pwa@0.17.5(@types/babel__core@7.20.5)(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0))(workbox-window@7.0.0):
+  vite-plugin-pwa@0.17.5(@types/babel__core@7.20.5)(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0))(workbox-window@7.0.0):
     dependencies:
       debug: 4.4.3
       fast-glob: 3.3.3
       pretty-bytes: 6.1.1
-      vite: 5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0)
+      vite: 5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0)
       workbox-build: 7.0.0(@types/babel__core@7.20.5)
       workbox-window: 7.0.0
     transitivePeerDependencies:
@@ -28476,27 +28465,16 @@ snapshots:
       rollup: 4.13.0
       vite: 5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0)
 
-  vite-plugin-svgr@4.2.0(rollup@4.13.0)(typescript@5.9.3)(vite@5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0)):
+  vite-plugin-svgr@4.2.0(rollup@4.13.0)(typescript@5.9.3)(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0)):
     dependencies:
       '@rollup/pluginutils': 5.1.0(rollup@4.13.0)
       '@svgr/core': 8.1.0(typescript@5.9.3)
       '@svgr/plugin-jsx': 8.1.0(@svgr/core@8.1.0(typescript@5.9.3))
-      vite: 5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0)
+      vite: 5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0)
     transitivePeerDependencies:
       - rollup
       - supports-color
       - typescript
-
-  vite@5.1.6(@types/node@20.19.31)(lightningcss@1.32.0)(terser@5.46.0):
-    dependencies:
-      esbuild: 0.27.3
-      postcss: 8.5.15
-      rollup: 4.13.0
-    optionalDependencies:
-      '@types/node': 20.19.31
-      fsevents: 2.3.3
-      lightningcss: 1.32.0
-      terser: 5.46.0
 
   vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0):
     dependencies:
