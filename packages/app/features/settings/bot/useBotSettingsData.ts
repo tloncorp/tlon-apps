@@ -270,14 +270,26 @@ export function useBotSettingsMutations() {
   });
 
   const savePrimaryModel = useMutation({
-    mutationFn: (update: ModelFormValues) =>
-      api.setTlawnPrimaryModel(hostingUserId, {
+    mutationFn: (update: ModelFormValues) => {
+      // A row with a provider but no model (or vice versa) is incomplete. Fail
+      // rather than silently dropping it, so the caller doesn't mark a fallback
+      // change as applied while the server actually saved nothing for it.
+      const hasPartialFallback = update.fallbacks.some(
+        (fallback) => Boolean(fallback.provider) !== Boolean(fallback.model)
+      );
+      if (hasPartialFallback) {
+        throw new Error(
+          'Select both a provider and a model for each fallback, or remove it.'
+        );
+      }
+      return api.setTlawnPrimaryModel(hostingUserId, {
         provider: update.provider,
         model: update.model,
         fallbacks: update.fallbacks.filter(
           (fallback) => fallback.provider && fallback.model
         ),
-      }),
+      });
+    },
     onSuccess: setProviderConfig,
   });
 
