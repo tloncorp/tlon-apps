@@ -66,6 +66,12 @@ export function useBotSettingsQueries() {
     queryFn: async () =>
       normalizeProviderConfig(await api.getTlawnProviderKeys(hostingUserId)),
     enabled: Boolean(hostingUserId) && isFocused,
+    // This can 409/504 while tlawn is starting. Since draft readiness gates on
+    // its success, poll until it resolves instead of getting stuck in an error
+    // state after the default retries (matching the other tlawn queries).
+    retry: false,
+    refetchInterval: (query) =>
+      query.state.data !== undefined ? false : RETRY_INTERVAL_MS,
   });
 
   const configQuery = useQuery({
