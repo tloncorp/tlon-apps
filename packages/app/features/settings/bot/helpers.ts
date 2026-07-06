@@ -14,6 +14,12 @@ export type ChannelRuleDraft = {
   allowedShips: string;
   modelOverrideProvider?: string;
   modelOverride?: string;
+  // True for a channel that has no explicit server rule and therefore inherits
+  // defaultAuthorizedShips. `allowedShips` holds a snapshot for display, but the
+  // save path rederives it from the current defaults so a later change to
+  // defaultAuthorizedShips isn't frozen out. Cleared once the user edits the
+  // rule explicitly (see setRule in BotChannelRuleSettingsScreen).
+  inheritsDefaultShips?: boolean;
 };
 
 export type ChatFormValues = {
@@ -281,11 +287,13 @@ export const buildChannelRuleDrafts = (
     const channelKey = normalizeChannelRuleKey(key);
     if (!drafts[channelKey]) {
       // No explicit rule means the backend treats the channel as restricted,
-      // allowing defaultAuthorizedShips. Represent it that way so saving doesn't
-      // turn a monitored/default-authorized channel into an open one.
+      // allowing defaultAuthorizedShips. Represent it that way (flagged as
+      // inherited) so saving doesn't open the channel and the save path can
+      // rederive the allowlist from the current defaults.
       drafts[channelKey] = {
         mode: 'allowlist',
         allowedShips: formatShipList(config.defaultAuthorizedShips || []),
+        inheritsDefaultShips: true,
       };
     }
   });
@@ -393,8 +401,15 @@ export const buildConfigFromChatValues = (
       normalizeChannelRuleKey(key),
       {
         mode: toBackendMode(rule.mode),
+        // Inherited channels rederive their allowlist from the current defaults
+        // so an edit to defaultAuthorizedShips isn't frozen out by the snapshot
+        // captured when the form was opened.
         allowedShips:
-          rule.mode === 'allowlist' ? normalizeShipList(rule.allowedShips) : [],
+          rule.mode === 'allowlist'
+            ? rule.inheritsDefaultShips
+              ? normalizeShipList(values.defaultAuthorizedShips)
+              : normalizeShipList(rule.allowedShips)
+            : [],
       },
     ])
   );

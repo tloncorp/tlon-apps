@@ -222,11 +222,43 @@ describe('tlonbot config', () => {
       modelOverride: 'some/model',
     });
     // a group channel with no explicit rule defaults to restricted with the
-    // default authorized ships, not an open channel
+    // default authorized ships (flagged inherited), not an open channel
     expect(drafts['chat/~zod/random']).toEqual({
       mode: 'allowlist',
       allowedShips: '~bus',
+      inheritsDefaultShips: true,
     });
+  });
+
+  it('rederives inherited channel allowlists from the current defaults', () => {
+    const config = buildConfigFromChatValues({
+      dmAllowlist: '',
+      defaultAuthorizedShips: '~zod, ~bus',
+      groupInviteAllowlist: '',
+      autoAcceptDmInvites: false,
+      autoDiscoverChannels: false,
+      channelRuleDrafts: {
+        // stale snapshot allowedShips should be ignored in favor of the current
+        // default authorized ships
+        'chat/~zod/general': {
+          mode: 'allowlist',
+          allowedShips: '~nec',
+          inheritsDefaultShips: true,
+        },
+        // an explicitly edited rule keeps its own allowlist
+        'chat/~zod/private': {
+          mode: 'allowlist',
+          allowedShips: '~mel',
+        },
+      },
+    });
+    expect(config.channelRules['chat/~zod/general'].allowedShips).toEqual([
+      '~zod',
+      '~bus',
+    ]);
+    expect(config.channelRules['chat/~zod/private'].allowedShips).toEqual([
+      '~mel',
+    ]);
   });
 
   it('builds a config payload from chat form values', () => {
