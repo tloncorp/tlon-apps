@@ -317,16 +317,16 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           nextValues.chat.channelRuleDrafts
         );
 
-        // Overrides are merged against the latest provider config so entries
-        // for channels this draft never touched are preserved.
         // The merge preserves per-channel overrides for channels this draft
         // never touched, so it must run against fresh server data. If the
         // refetch fails, abort rather than merging against the stale cache —
         // that could silently drop an override another client just added.
+        // A failed refetch still resolves with the last successful `data`, so
+        // gate on `isSuccess` (not just presence of data) to catch that case.
         let providerConfigForMerge = queries.providerConfig;
         if (channelModelsChanged) {
           const refetched = await queries.providerConfigQuery.refetch();
-          if (!refetched.data) {
+          if (!refetched.isSuccess || !refetched.data) {
             throw new Error(
               'Could not load the latest model configuration. Please try again.'
             );
