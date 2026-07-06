@@ -219,7 +219,7 @@ fi
 if [ -n "$BRAVE_API_KEY" ]; then
   echo "==> Patching config: adding Brave search API key..."
   jq --arg key "$BRAVE_API_KEY" \
-    '.tools.web.search = {"provider": "brave", "apiKey": $key}
+    '.tools.web.search = {"enabled": true, "provider": "brave", "apiKey": $key}
     | .plugins.allow += ["brave"]
     | .plugins.entries.brave = {"enabled": true, "config": {"webSearch": {"apiKey": $key}}}' \
     "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
