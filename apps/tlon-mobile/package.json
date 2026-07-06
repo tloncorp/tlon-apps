@@ -115,7 +115,7 @@
     "expo-secure-store": "~57.0.0",
     "expo-sensors": "~57.0.1",
     "expo-linking": "~57.0.1",
-    "expo-share-intent": "5.1.1",
+    "expo-share-intent": "8.0.0",
     "expo-sms": "~57.0.0",
     "expo-speech-recognition": "~56.0.0",
     "expo-splash-screen": "~57.0.1",
