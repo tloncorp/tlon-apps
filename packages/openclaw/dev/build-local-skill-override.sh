@@ -86,8 +86,8 @@ else
   # checkout may carry a host-built darwin binary (e.g. from `pnpm dev:link`),
   # which won't run in the linux container.
   echo "==> Hydrating $ARCH_KEY binary from container npm install..."
-  # Resolution depends on the hoisted layout (dev/entrypoint*.sh pass
-  # --config.nodeLinker=hoisted), which puts @tloncorp/tlon-skill-${platform}-${arch}
+  # Resolution depends on the hoisted layout (dev/entrypoint*.sh set
+  # nodeLinker: hoisted), which puts @tloncorp/tlon-skill-${platform}-${arch}
   # at the top level of node_modules (it's an optionalDep of @tloncorp/tlon-skill,
   # not a direct dep of this repo). If the linker is ever switched to pnpm's
   # default isolated layout, this resolution will fail and the fallback must
@@ -113,7 +113,7 @@ else
   else
     echo "==> WARN: could not locate a platform-native tlon binary; the tlon CLI may not run."
     echo "==> Run \`pnpm dev:link\` inside $TLON_SKILL_DIR to build it locally,"
-    echo "==> or check that the install ran with --config.nodeLinker=hoisted (see dev/entrypoint*.sh)."
+    echo "==> or check that the install ran with nodeLinker: hoisted (see dev/entrypoint*.sh)."
     # Pre-existing bin/tlon may be stale or wrong-arch; remove it so the CLI
     # shim's "platform unsupported" error surfaces clearly instead of segfaulting
     # or executing the wrong arch.

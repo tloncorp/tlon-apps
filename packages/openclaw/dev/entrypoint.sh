@@ -27,14 +27,24 @@ echo "==> Installing plugin dependencies..."
 cd /workspace/tlon
 node scripts/resolve-workspace-deps.mjs package.json --registry
 # This is a standalone install of the plugin (no root pnpm-workspace.yaml), so
-# the monorepo's allowBuilds/nodeLinker settings aren't in scope.
-# - nodeLinker=hoisted: build-local-skill-override.sh hydrates the platform
-#   tlon binary by resolving @tloncorp/tlon-skill-<platform>-<arch> at the top
+# the monorepo's pnpm settings aren't in scope. Generate a container-local
+# workspace file: pnpm reads these settings only from pnpm-workspace.yaml, and
+# a file (unlike --config flags) also covers pnpm's internal deps-status
+# re-install that runs before `pnpm build` and other scripts.
+# - nodeLinker: build-local-skill-override.sh hydrates the platform tlon
+#   binary by resolving @tloncorp/tlon-skill-<platform>-<arch> at the top
 #   level of node_modules, which only the hoisted layout provides.
 # - dangerouslyAllowAllBuilds: pnpm requires explicit approval for dependency
 #   build scripts; allow them all — this is an ephemeral container building
 #   openclaw's own pinned dependencies, not a trust boundary.
-pnpm install --config.nodeLinker=hoisted --config.dangerouslyAllowAllBuilds=true
+# - minimumReleaseAge: matches the monorepo policy; at the pnpm default (~24h)
+#   any dep released in the last day fails the install.
+cat > pnpm-workspace.yaml << 'PNPM_EOF'
+nodeLinker: hoisted
+dangerouslyAllowAllBuilds: true
+minimumReleaseAge: 0
+PNPM_EOF
+pnpm install
 pnpm build
 ./dev/build-local-api-override.sh
 ./dev/build-local-skill-override.sh
