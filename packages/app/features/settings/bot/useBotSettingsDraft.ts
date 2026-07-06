@@ -4,6 +4,7 @@ import create from 'zustand';
 
 import { BASIC_PROVIDER_ID } from './constants';
 import {
+  ChannelRuleDraft,
   ChatFormValues,
   ModelFormValues,
   buildConfigFromChatValues,
@@ -334,15 +335,65 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           providerConfigForMerge = refetched.data;
         }
 
+        // Send only the fields the user actually changed. The backend merges
+        // config partially, so writing the whole payload would clobber a
+        // concurrent change to a field this draft never touched.
+        const fullConfig = buildConfigFromChatValues(nextValues.chat);
+        const config: Partial<typeof fullConfig> = {};
+        if (draft.pending.dmAllowlist) {
+          config.dmAllowlist = fullConfig.dmAllowlist;
+        }
+        if (draft.pending.defaultAuthorizedShips) {
+          config.defaultAuthorizedShips = fullConfig.defaultAuthorizedShips;
+        }
+        if (draft.pending.groupInviteAllowlist) {
+          config.groupInviteAllowlist = fullConfig.groupInviteAllowlist;
+        }
+        if (draft.pending.autoAcceptDmInvites) {
+          config.autoAcceptDmInvites = fullConfig.autoAcceptDmInvites;
+        }
+        if (draft.pending.autoDiscoverChannels) {
+          config.autoDiscoverChannels = fullConfig.autoDiscoverChannels;
+        }
+        if (draft.pending.channelRules) {
+          config.channelRules = fullConfig.channelRules;
+          config.groupChannels = fullConfig.groupChannels;
+        }
+
+        // Only rewrite model overrides for channels whose override actually
+        // changed. Passing just the dirty channels lets the merge preserve the
+        // refetched server value for every other (including visible but
+        // untouched) channel instead of the stale draft snapshot.
+        const overrideSig = (rule?: ChannelRuleDraft) =>
+          rule?.modelOverrideProvider && rule?.modelOverride
+            ? `${rule.modelOverrideProvider} ${rule.modelOverride}`
+            : '';
+        const baselineChannelDrafts = draft.baseline.chat.channelRuleDrafts;
+        const nextChannelDrafts = nextValues.chat.channelRuleDrafts;
+        const dirtyChannelKeys = new Set(
+          [
+            ...Object.keys(baselineChannelDrafts),
+            ...Object.keys(nextChannelDrafts),
+          ].filter(
+            (key) =>
+              overrideSig(baselineChannelDrafts[key]) !==
+              overrideSig(nextChannelDrafts[key])
+          )
+        );
+        const pickDirty = (drafts: Record<string, ChannelRuleDraft>) =>
+          Object.fromEntries(
+            Object.entries(drafts).filter(([key]) => dirtyChannelKeys.has(key))
+          );
+
         const result = await api.setTlawnChatConfig(queries.ship, {
-          config: buildConfigFromChatValues(nextValues.chat),
+          config,
           ...(channelModelsChanged
             ? {
                 channelModels: {
                   models: buildMergedChannelModelEntries(
                     providerConfigForMerge,
-                    draft.baseline.chat.channelRuleDrafts,
-                    nextValues.chat.channelRuleDrafts
+                    pickDirty(baselineChannelDrafts),
+                    pickDirty(nextChannelDrafts)
                   ),
                 },
               }
