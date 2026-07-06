@@ -18,10 +18,6 @@ verifyDepsBeforeRun: false
 # TLON_SHELL to their Git bash; everywhere else it falls back to /bin/bash.
 scriptShell: ${TLON_SHELL-/bin/bash}
 
-# Missing peers must be declared by the consuming package instead of pnpm
-# installing its own copies. Auto-installed peers keep previously-locked
-# resolutions across upgrades, leaving duplicate package versions in the graph
-# (e.g. dual expo SDK copies after an SDK bump).
 autoInstallPeers: false
 
 peerDependencyRules:
