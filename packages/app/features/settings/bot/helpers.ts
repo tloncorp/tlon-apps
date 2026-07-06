@@ -4,6 +4,7 @@ import type {
   TlawnConfig,
   TlawnProviderConfigInfo,
 } from '@tloncorp/api';
+import { desig, preSig } from '@tloncorp/api/lib/urbit';
 
 import { BASIC_DEFAULT_MODEL, BASIC_PROVIDER_ID } from './constants';
 
@@ -38,8 +39,7 @@ export type ChannelListGroup = {
 
 // --- channel key utilities ---
 
-export const formatChannelHost = (host: string): string =>
-  host.startsWith('~') ? host : `~${host}`;
+export const formatChannelHost = (host: string): string => preSig(host);
 
 export const parseChannelRuleKey = (
   key: string
@@ -62,7 +62,7 @@ export const resolveGroupForChannel = (
   channelId: string
 ): string | null => {
   const hostKey = formatChannelHost(host);
-  const hostGroups = groups[hostKey] || groups[hostKey.replace(/^~/, '')] || {};
+  const hostGroups = groups[hostKey] || groups[desig(hostKey)] || {};
   for (const [group, entry] of Object.entries(hostGroups)) {
     const chats = entry?.channels || {};
     if (Object.prototype.hasOwnProperty.call(chats, channelId)) {
@@ -78,7 +78,7 @@ export const hasGroupMembership = (
   group: string
 ): boolean => {
   const hostKey = formatChannelHost(host);
-  const hostGroups = groups[hostKey] || groups[hostKey.replace(/^~/, '')] || {};
+  const hostGroups = groups[hostKey] || groups[desig(hostKey)] || {};
   return Object.prototype.hasOwnProperty.call(hostGroups, group);
 };
 
@@ -111,19 +111,16 @@ export const resolveGroupFull = (
 // --- ship list utilities ---
 
 export const normalizeShip = (value: string): string | null => {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const stripped = trimmed.replace(/^[@~]+/, '');
-  if (!stripped) return null;
-  return `~${stripped}`;
+  const stripped = value.trim().replace(/^[@~]+/, '');
+  return stripped ? preSig(stripped) : null;
 };
 
 export const normalizeMoonName = (moon: string, ship: string): string => {
-  const strippedShip = ship.replace(/^~/, '');
+  const strippedShip = desig(ship);
   const stripped = moon.trim().replace(/^[@~]+/, '');
   const suffix = `-${strippedShip}`;
   const full = stripped.endsWith(suffix) ? stripped : `${stripped}${suffix}`;
-  return `~${full}`;
+  return preSig(full);
 };
 
 export const normalizeShipList = (value: string): string[] => {
