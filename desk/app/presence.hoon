@@ -139,20 +139,6 @@
   ?:  =(~ tos)  (~(del by places) context)
   (~(put by places) context tos)
 ::
-++  cancel-expire
-  |=  [=places key]
-  ^-  (list card)
-  =/  tos  (~(gut by places) context *topics)
-  =/  pes  (~(gut by tos) topic *people)
-  ?~  pre=(~(get by pes) ship)  ~
-  =/  end=@da
-    %+  add  since.u.pre
-    (fall timeout.u.pre (default-timeout topic))
-  :_  ~
-  :+  %pass
-    [%expire (scot %p ship) topic context]
-  [%arvo %b %rest end]
-::
 ++  give-update
   |=  [subs=(jug context ship) disclose=(set ship) upd=update-1]
   ^-  (list card)
@@ -348,7 +334,7 @@
       :+  (give-response %here +>.cmd)
         :+  %pass
           ::TODO  +key-wire
-          [%expire (scot %p ship.key.cmd) topic.key.cmd context.key.cmd]
+          [%expire (scot %da end) (scot %p ship.key.cmd) topic.key.cmd context.key.cmd]
         [%arvo %b %wait end]
       fus
     ::
@@ -356,7 +342,6 @@
       ::TODO  no-op if we didn't have it anyway
       :_  this(places (del-presence places key.cmd))
       ;:  weld
-        (cancel-expire places key.cmd)
         [(give-response %gone key.cmd)]~
         %+  give-update
           (~(del ju subs) context.key.cmd src.bowl)
@@ -557,18 +542,15 @@
             (give-response %here +.upd)
             :+  %pass
               ::TODO  +key-wire
-              [%expire (scot %p ship.key.upd) topic.key.upd context.key.upd]
+              [%expire (scot %da end) (scot %p ship.key.upd) topic.key.upd context.key.upd]
             [%arvo %b %wait end]
         ==
       ::
           %clear
         ::TODO  no-op if we didn't have it anyway
         :_  this(places (del-presence places key.upd))
-        ;:  weld
-          (cancel-expire places key.upd)
-          :~  (tell:log %dbug ~['context fact: %clear applied' >key.upd<] ~)
-              (give-response %gone key.upd)
-          ==
+        :~  (tell:log %dbug ~['context fact: %clear applied' >key.upd<] ~)
+            (give-response %gone key.upd)
         ==
       ==
     ==
@@ -630,14 +612,26 @@
         (watch-context our.bowl ship context)
     ==
   ::
-      [%expire @ topic *]
+      [%expire @ @ topic *]
     ::TODO  +wire-key
-    =/  =ship    (slav %p i.t.wire)
-    =*  topic    i.t.t.wire
-    =*  context  t.t.t.wire
+    =/  end=@da  (slav %da i.t.wire)
+    =/  =ship    (slav %p i.t.t.wire)
+    =*  topic    i.t.t.t.wire
+    =*  context  t.t.t.t.wire
     =*  key      [context ship topic]
-    ::TODO  no-op if we didn't have it anyway
-    =.  places   (del-presence places key)
+    ::  self-validating wake. each %set schedules a fresh timer keyed by its
+    ::  own end, so several may be live on this wire at once. only expire when
+    ::  the stored presence's end matches this wake (i.e. no later %set slid it
+    ::  forward); ignore superseded wakes, and ones whose presence is already
+    ::  gone (cleared, or expired by an earlier wake).
+    =/  tos  (~(gut by places) context *topics)
+    =/  pes  (~(gut by tos) topic *people)
+    ?~  pre=(~(get by pes) ship)  [~ this]
+    =/  cur=@da
+      %+  add  since.u.pre
+      (fall timeout.u.pre (default-timeout topic))
+    ?:  (gth cur end)  [~ this]
+    =.  places  (del-presence places key)
     [[(give-response %gone key)]~ this]
   ==
 ::
