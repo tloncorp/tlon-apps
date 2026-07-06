@@ -319,10 +319,20 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
 
         // Overrides are merged against the latest provider config so entries
         // for channels this draft never touched are preserved.
-        const providerConfigForMerge = channelModelsChanged
-          ? (await queries.providerConfigQuery.refetch()).data ??
-            queries.providerConfig
-          : queries.providerConfig;
+        // The merge preserves per-channel overrides for channels this draft
+        // never touched, so it must run against fresh server data. If the
+        // refetch fails, abort rather than merging against the stale cache —
+        // that could silently drop an override another client just added.
+        let providerConfigForMerge = queries.providerConfig;
+        if (channelModelsChanged) {
+          const refetched = await queries.providerConfigQuery.refetch();
+          if (!refetched.data) {
+            throw new Error(
+              'Could not load the latest model configuration. Please try again.'
+            );
+          }
+          providerConfigForMerge = refetched.data;
+        }
 
         const result = await api.setTlawnChatConfig(queries.ship, {
           config: buildConfigFromChatValues(nextValues.chat),
