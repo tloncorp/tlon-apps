@@ -64,7 +64,9 @@ export function BotChannelRulesScreen(props: Props) {
   // wipe existing chat settings on save. Gate edits on `initialized`.
   useSyncBotSettingsDraft(queries);
   const draft = useBotSettingsDraft();
-  const ready = draft.initialized;
+  // Also require the draft to be scoped to the current ship so a previous
+  // account's initialized draft isn't treated as ready after switching.
+  const ready = draft.initialized && draft.scopeKey === queries.ship;
   const [search, setSearch] = useState('');
   const [enabledOnly, setEnabledOnly] = useState(false);
   const [joiningGroups, setJoiningGroups] = useState<Record<string, boolean>>(
