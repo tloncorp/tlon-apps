@@ -87,6 +87,10 @@ export function BotChannelRulesScreen(props: Props) {
   const channelsData = queries.channelsQuery.data;
   const rawGroups = useMemo(() => channelsData ?? {}, [channelsData]);
   const moonChannels = queries.moonChannelsQuery.data ?? {};
+  // Until the moon's channel listing has loaded we can't tell which groups the
+  // bot is already in; treat membership as unknown rather than "not a member"
+  // so we don't offer a redundant Join for a group it may already belong to.
+  const membershipsLoaded = queries.moonChannelsQuery.data !== undefined;
 
   const groups = useMemo(
     () => groupChannelEntries(rawGroups, drafts),
@@ -322,6 +326,7 @@ export function BotChannelRulesScreen(props: Props) {
                   group.group !== 'unknown' &&
                   hasGroupMembership(moonChannels, group.host, group.group);
                 const canJoinGroup =
+                  membershipsLoaded &&
                   !isGroupMember &&
                   group.group !== 'unknown' &&
                   Boolean(queries.ship) &&
