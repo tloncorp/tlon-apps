@@ -53,9 +53,6 @@ COPY ../../../apps/tlon-desktop/package.json /workspace/apps/tlon-desktop/
 # Copy patches directory (needed for pnpm patches)
 COPY ../../../patches/ /workspace/patches/
 
-# Copy .npmrc if it exists (for npm configurations)
-COPY ../../../.npmrc* /workspace/
-
 # Install dependencies.
 # Ignore lifecycle scripts in this dependency-only layer to avoid running
 # desktop postinstall hooks (electron native rebuilds) during web E2E image build.
