@@ -31,7 +31,10 @@ import {
   resolveGroupFull,
 } from './bot/helpers';
 import { useBotSettingsQueries } from './bot/useBotSettingsData';
-import { useBotSettingsDraft } from './bot/useBotSettingsDraft';
+import {
+  useBotSettingsDraft,
+  useSyncBotSettingsDraft,
+} from './bot/useBotSettingsDraft';
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -56,7 +59,12 @@ const ruleChanged = (
 export function BotChannelRulesScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
+  // Sync the draft from the server before editing so reaching this screen
+  // directly (cold launch / deep link) doesn't start from an empty draft and
+  // wipe existing chat settings on save. Gate edits on `initialized`.
+  useSyncBotSettingsDraft(queries);
   const draft = useBotSettingsDraft();
+  const ready = draft.initialized;
   const [search, setSearch] = useState('');
   const [enabledOnly, setEnabledOnly] = useState(false);
   const [joiningGroups, setJoiningGroups] = useState<Record<string, boolean>>(
@@ -120,12 +128,13 @@ export function BotChannelRulesScreen(props: Props) {
 
   const replaceDrafts = useCallback(
     (channelRuleDrafts: Record<string, ChannelRuleDraft>) => {
+      if (!ready) return;
       draft.commitDraft((current) => ({
         ...current,
         chat: { ...current.chat, channelRuleDrafts },
       }));
     },
-    [draft]
+    [draft, ready]
   );
 
   const handleDisableEverywhereToggle = useCallback(() => {
@@ -211,254 +220,265 @@ export function BotChannelRulesScreen(props: Props) {
         }
         title="Channel rules"
       />
-      <SettingsContentScrollView
-        paddingHorizontal="$l"
-        paddingTop="$l"
-        safeAreaBottomOffset={24}
-      >
-        <YStack gap="$2xl" paddingBottom="$2xl">
-          <TextInput
-            value={search}
-            placeholder="Search channels"
-            onChangeText={setSearch}
-          />
-          <XStack gap="$m">
-            <View flex={1}>
-              <Button
-                preset={!enabledOnly ? 'secondary' : 'minimal'}
-                label="All"
-                centered
-                onPress={() => setEnabledOnly(false)}
-              />
-            </View>
-            <View flex={1}>
-              <Button
-                preset={enabledOnly ? 'secondary' : 'minimal'}
-                label="Enabled"
-                centered
-                onPress={() => setEnabledOnly(true)}
-              />
-            </View>
-          </XStack>
-
-          {enabledOnly ? (
-            <BotSettingsSection>
-              <XStack
-                minHeight={56}
-                alignItems="center"
-                gap="$l"
-                paddingHorizontal="$l"
-                paddingVertical="$m"
-              >
-                <YStack flex={1} minWidth={0}>
-                  <Text size="$label/l" color="$primaryText">
-                    Disable everywhere
-                  </Text>
-                  <Text size="$label/s" color="$secondaryText">
-                    {canUndoDisableEverywhere
-                      ? 'Restore the channels that were previously enabled'
-                      : allChannelsDisabled
-                        ? 'No channels are enabled'
-                        : `Turn off ${enabledChannelCount} enabled ${
-                            enabledChannelCount === 1 ? 'channel' : 'channels'
-                          }`}
-                  </Text>
-                </YStack>
+      {!ready ? (
+        <View flex={1} alignItems="center" justifyContent="center">
+          <LoadingSpinner />
+        </View>
+      ) : (
+        <SettingsContentScrollView
+          paddingHorizontal="$l"
+          paddingTop="$l"
+          safeAreaBottomOffset={24}
+        >
+          <YStack gap="$2xl" paddingBottom="$2xl">
+            <TextInput
+              value={search}
+              placeholder="Search channels"
+              onChangeText={setSearch}
+            />
+            <XStack gap="$m">
+              <View flex={1}>
                 <Button
-                  preset={
-                    canUndoDisableEverywhere
-                      ? 'secondaryOutline'
-                      : 'destructive'
-                  }
-                  label={canUndoDisableEverywhere ? 'Undo' : 'Disable all'}
-                  disabled={!canUndoDisableEverywhere && allChannelsDisabled}
-                  onPress={handleDisableEverywhereToggle}
+                  preset={!enabledOnly ? 'secondary' : 'minimal'}
+                  label="All"
+                  centered
+                  onPress={() => setEnabledOnly(false)}
                 />
-              </XStack>
-            </BotSettingsSection>
-          ) : null}
+              </View>
+              <View flex={1}>
+                <Button
+                  preset={enabledOnly ? 'secondary' : 'minimal'}
+                  label="Enabled"
+                  centered
+                  onPress={() => setEnabledOnly(true)}
+                />
+              </View>
+            </XStack>
 
-          <BotSettingsErrorText>{joinError}</BotSettingsErrorText>
+            {enabledOnly ? (
+              <BotSettingsSection>
+                <XStack
+                  minHeight={56}
+                  alignItems="center"
+                  gap="$l"
+                  paddingHorizontal="$l"
+                  paddingVertical="$m"
+                >
+                  <YStack flex={1} minWidth={0}>
+                    <Text size="$label/l" color="$primaryText">
+                      Disable everywhere
+                    </Text>
+                    <Text size="$label/s" color="$secondaryText">
+                      {canUndoDisableEverywhere
+                        ? 'Restore the channels that were previously enabled'
+                        : allChannelsDisabled
+                          ? 'No channels are enabled'
+                          : `Turn off ${enabledChannelCount} enabled ${
+                              enabledChannelCount === 1 ? 'channel' : 'channels'
+                            }`}
+                    </Text>
+                  </YStack>
+                  <Button
+                    preset={
+                      canUndoDisableEverywhere
+                        ? 'secondaryOutline'
+                        : 'destructive'
+                    }
+                    label={canUndoDisableEverywhere ? 'Undo' : 'Disable all'}
+                    disabled={!canUndoDisableEverywhere && allChannelsDisabled}
+                    onPress={handleDisableEverywhereToggle}
+                  />
+                </XStack>
+              </BotSettingsSection>
+            ) : null}
 
-          {loading ? (
-            <YStack alignItems="center" gap="$m" paddingVertical="$2xl">
-              <LoadingSpinner />
-              <Text size="$label/m" color="$secondaryText">
-                Loading channels…
+            <BotSettingsErrorText>{joinError}</BotSettingsErrorText>
+
+            {loading ? (
+              <YStack alignItems="center" gap="$m" paddingVertical="$2xl">
+                <LoadingSpinner />
+                <Text size="$label/m" color="$secondaryText">
+                  Loading channels…
+                </Text>
+              </YStack>
+            ) : filteredGroups.length === 0 ? (
+              <Text
+                size="$label/m"
+                color="$secondaryText"
+                paddingHorizontal="$s"
+              >
+                {groups.length === 0
+                  ? 'No channels found on this node yet.'
+                  : enabledOnly
+                    ? 'No enabled channels.'
+                    : 'No channels match.'}
               </Text>
-            </YStack>
-          ) : filteredGroups.length === 0 ? (
-            <Text size="$label/m" color="$secondaryText" paddingHorizontal="$s">
-              {groups.length === 0
-                ? 'No channels found on this node yet.'
-                : enabledOnly
-                  ? 'No enabled channels.'
-                  : 'No channels match.'}
-            </Text>
-          ) : (
-            filteredGroups.map((group) => {
-              const groupKey = `${group.host}/${group.group}`;
-              const isGroupMember =
-                group.group !== 'unknown' &&
-                hasGroupMembership(moonChannels, group.host, group.group);
-              const canJoinGroup =
-                !isGroupMember &&
-                group.group !== 'unknown' &&
-                Boolean(queries.ship) &&
-                Boolean(queries.moon);
-              const isJoining = Boolean(joiningGroups[groupKey]);
-              const groupLabel = group.title || group.group;
-              const enabledCount = group.channels.filter((channel) =>
-                Boolean(drafts[channel.key])
-              ).length;
+            ) : (
+              filteredGroups.map((group) => {
+                const groupKey = `${group.host}/${group.group}`;
+                const isGroupMember =
+                  group.group !== 'unknown' &&
+                  hasGroupMembership(moonChannels, group.host, group.group);
+                const canJoinGroup =
+                  !isGroupMember &&
+                  group.group !== 'unknown' &&
+                  Boolean(queries.ship) &&
+                  Boolean(queries.moon);
+                const isJoining = Boolean(joiningGroups[groupKey]);
+                const groupLabel = group.title || group.group;
+                const enabledCount = group.channels.filter((channel) =>
+                  Boolean(drafts[channel.key])
+                ).length;
 
-              return (
-                <YStack key={groupKey} gap="$m">
-                  <XStack
-                    alignItems="flex-end"
-                    justifyContent="space-between"
-                    gap="$l"
-                    paddingHorizontal="$s"
-                  >
-                    <YStack flex={1} minWidth={0}>
-                      <Text
-                        size="$label/m"
-                        fontWeight="500"
-                        color="$primaryText"
-                        numberOfLines={1}
-                      >
-                        {groupLabel}
-                      </Text>
-                      <Text
-                        size="$label/s"
-                        color="$secondaryText"
-                        numberOfLines={1}
-                      >
-                        {formatChannelHost(group.host)}/{group.group}
-                      </Text>
-                    </YStack>
-                    {!isGroupMember ? (
-                      <Button
-                        preset="secondaryOutline"
-                        label={isJoining ? 'Joining…' : 'Join'}
-                        disabled={isJoining || !canJoinGroup}
-                        onPress={() =>
-                          setJoinTarget({
-                            groupHost: group.host,
-                            groupName: group.group,
-                            sampleChannelKey: group.channels[0]?.key ?? '',
-                            label: groupLabel,
-                          })
-                        }
-                      />
-                    ) : (
-                      <Text size="$label/s" color="$secondaryText">
-                        {enabledCount}/{group.channels.length} enabled
-                      </Text>
-                    )}
-                  </XStack>
-                  <BotSettingsSection>
-                    {group.channels.map((channel, index) => {
-                      const rule = drafts[channel.key];
-                      const pending = ruleChanged(
-                        rule,
-                        baselineDrafts[channel.key]
-                      );
-                      const isEnabled = Boolean(rule);
-                      const accessLabel =
-                        rule?.mode === 'allowlist' ? 'Allowlist' : 'Open';
-                      const modelLabel = rule?.modelOverrideProvider
-                        ? rule.modelOverrideProvider === BASIC_PROVIDER_ID
-                          ? 'Basic'
-                          : providerLabel(rule.modelOverrideProvider)
-                        : 'Default';
+                return (
+                  <YStack key={groupKey} gap="$m">
+                    <XStack
+                      alignItems="flex-end"
+                      justifyContent="space-between"
+                      gap="$l"
+                      paddingHorizontal="$s"
+                    >
+                      <YStack flex={1} minWidth={0}>
+                        <Text
+                          size="$label/m"
+                          fontWeight="500"
+                          color="$primaryText"
+                          numberOfLines={1}
+                        >
+                          {groupLabel}
+                        </Text>
+                        <Text
+                          size="$label/s"
+                          color="$secondaryText"
+                          numberOfLines={1}
+                        >
+                          {formatChannelHost(group.host)}/{group.group}
+                        </Text>
+                      </YStack>
+                      {!isGroupMember ? (
+                        <Button
+                          preset="secondaryOutline"
+                          label={isJoining ? 'Joining…' : 'Join'}
+                          disabled={isJoining || !canJoinGroup}
+                          onPress={() =>
+                            setJoinTarget({
+                              groupHost: group.host,
+                              groupName: group.group,
+                              sampleChannelKey: group.channels[0]?.key ?? '',
+                              label: groupLabel,
+                            })
+                          }
+                        />
+                      ) : (
+                        <Text size="$label/s" color="$secondaryText">
+                          {enabledCount}/{group.channels.length} enabled
+                        </Text>
+                      )}
+                    </XStack>
+                    <BotSettingsSection>
+                      {group.channels.map((channel, index) => {
+                        const rule = drafts[channel.key];
+                        const pending = ruleChanged(
+                          rule,
+                          baselineDrafts[channel.key]
+                        );
+                        const isEnabled = Boolean(rule);
+                        const accessLabel =
+                          rule?.mode === 'allowlist' ? 'Allowlist' : 'Open';
+                        const modelLabel = rule?.modelOverrideProvider
+                          ? rule.modelOverrideProvider === BASIC_PROVIDER_ID
+                            ? 'Basic'
+                            : providerLabel(rule.modelOverrideProvider)
+                          : 'Default';
 
-                      return (
-                        <YStack key={channel.key}>
-                          <Pressable
-                            onPress={() =>
-                              props.navigation.navigate(
-                                'BotChannelRuleSettings',
-                                {
-                                  channelKey: channel.key,
-                                  channelLabel: channel.label,
-                                  groupJoined:
-                                    group.group === 'unknown' || isGroupMember,
-                                }
-                              )
-                            }
-                            pressStyle={{
-                              backgroundColor: '$secondaryBackground',
-                            }}
-                          >
-                            <XStack
-                              minHeight={56}
-                              alignItems="center"
-                              gap="$l"
-                              paddingHorizontal="$l"
-                              paddingVertical="$m"
-                            >
-                              <YStack flex={1} minWidth={0} gap="$2xs">
-                                <Text
-                                  size="$label/l"
-                                  color={
-                                    isEnabled
-                                      ? '$primaryText'
-                                      : '$secondaryText'
+                        return (
+                          <YStack key={channel.key}>
+                            <Pressable
+                              onPress={() =>
+                                props.navigation.navigate(
+                                  'BotChannelRuleSettings',
+                                  {
+                                    channelKey: channel.key,
+                                    channelLabel: channel.label,
+                                    groupJoined:
+                                      group.group === 'unknown' ||
+                                      isGroupMember,
                                   }
-                                  numberOfLines={1}
-                                >
-                                  {channel.label}
-                                </Text>
-                                <Text
-                                  size="$label/s"
-                                  color="$secondaryText"
-                                  numberOfLines={1}
-                                >
-                                  {channel.key}
-                                </Text>
-                                {isEnabled ? (
-                                  <XStack gap="$s" marginTop="$2xs">
-                                    <Badge
-                                      text={accessLabel}
-                                      type="neutral"
-                                      size="micro"
-                                    />
-                                    <Badge
-                                      text={modelLabel}
-                                      type="neutral"
-                                      size="micro"
-                                    />
-                                  </XStack>
+                                )
+                              }
+                              pressStyle={{
+                                backgroundColor: '$secondaryBackground',
+                              }}
+                            >
+                              <XStack
+                                minHeight={56}
+                                alignItems="center"
+                                gap="$l"
+                                paddingHorizontal="$l"
+                                paddingVertical="$m"
+                              >
+                                <YStack flex={1} minWidth={0} gap="$2xs">
+                                  <Text
+                                    size="$label/l"
+                                    color={
+                                      isEnabled
+                                        ? '$primaryText'
+                                        : '$secondaryText'
+                                    }
+                                    numberOfLines={1}
+                                  >
+                                    {channel.label}
+                                  </Text>
+                                  <Text
+                                    size="$label/s"
+                                    color="$secondaryText"
+                                    numberOfLines={1}
+                                  >
+                                    {channel.key}
+                                  </Text>
+                                  {isEnabled ? (
+                                    <XStack gap="$s" marginTop="$2xs">
+                                      <Badge
+                                        text={accessLabel}
+                                        type="neutral"
+                                        size="micro"
+                                      />
+                                      <Badge
+                                        text={modelLabel}
+                                        type="neutral"
+                                        size="micro"
+                                      />
+                                    </XStack>
+                                  ) : null}
+                                </YStack>
+                                {pending ? (
+                                  <Badge
+                                    text="Pending"
+                                    type="warning"
+                                    size="micro"
+                                  />
                                 ) : null}
-                              </YStack>
-                              {pending ? (
-                                <Badge
-                                  text="Pending"
-                                  type="warning"
-                                  size="micro"
+                                <Icon
+                                  type="ChevronRight"
+                                  size="$m"
+                                  color="$tertiaryText"
                                 />
-                              ) : null}
-                              <Icon
-                                type="ChevronRight"
-                                size="$m"
-                                color="$tertiaryText"
-                              />
-                            </XStack>
-                          </Pressable>
-                          {index < group.channels.length - 1 ? (
-                            <BotSettingsDivider />
-                          ) : null}
-                        </YStack>
-                      );
-                    })}
-                  </BotSettingsSection>
-                </YStack>
-              );
-            })
-          )}
-        </YStack>
-      </SettingsContentScrollView>
+                              </XStack>
+                            </Pressable>
+                            {index < group.channels.length - 1 ? (
+                              <BotSettingsDivider />
+                            ) : null}
+                          </YStack>
+                        );
+                      })}
+                    </BotSettingsSection>
+                  </YStack>
+                );
+              })
+            )}
+          </YStack>
+        </SettingsContentScrollView>
+      )}
       <ConfirmDialog
         open={Boolean(joinTarget)}
         onOpenChange={(open) => {
