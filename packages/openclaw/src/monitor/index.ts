@@ -2940,10 +2940,17 @@ export async function monitorTlonProvider(
             // callbacks, killing the thinking indicator for the rest of long
             // runs. stopRun is already wired to deliver/idle/cleanup.
             maxDurationMs: 0,
-            // The SDK default (2) trips the keepalive permanently after two
-            // transient poke failures, which lets the ship-side presence expire
-            // mid-run. Failures are already logged via onStartError.
-            maxConsecutiveFailures: 5,
+            // Any positive value permanently trips the keepalive guard after N
+            // consecutive poke failures — with no mid-run reset, that seals the
+            // indicator for the rest of the run. Long tool chains self-DoS the
+            // bot ship's Eyre (CLI pokes, scries, uploads, lens partials all on
+            // the same event loop as the 20s keepalive), and refresh failures
+            // cluster in exactly those runs. Setting 0 disables the trip: the
+            // loop keeps attempting every 20s, and the first successful poke
+            // after Eyre recovers re-publishes the full status — which
+            // re-creates the ship-side %computing entry even if the 90s TTL
+            // already expired it. Failures are still logged via onStartError.
+            maxConsecutiveFailures: 0,
           })
         : undefined;
 
