@@ -152,6 +152,12 @@ export function BotChannelRuleSettingsScreen(props: Props) {
             mode: nextRule.mode,
             allowedShips: nextRule.allowedShips,
           };
+          // Preserve the inherited-defaults flag; `patch` clears it when the
+          // access mode or allowlist is actually edited, so a model-only change
+          // keeps the channel following defaultAuthorizedShips.
+          if (nextRule.inheritsDefaultShips) {
+            normalized.inheritsDefaultShips = true;
+          }
           if (nextRule.modelOverrideProvider) {
             normalized.modelOverrideProvider = nextRule.modelOverrideProvider;
           }
@@ -176,7 +182,16 @@ export function BotChannelRuleSettingsScreen(props: Props) {
       // Never create a rule from a subordinate control — only the enable
       // switch may bring a channel's rule into existence.
       if (!rule) return;
-      setRule({ ...currentRule, ...next });
+      // Editing the access mode or allowlist makes the allowlist explicit, so
+      // drop the inherited flag; a model-only edit leaves it intact so the
+      // channel keeps following defaultAuthorizedShips.
+      const editsAccess =
+        next.mode !== undefined || next.allowedShips !== undefined;
+      setRule({
+        ...currentRule,
+        ...(editsAccess ? { inheritsDefaultShips: false } : {}),
+        ...next,
+      });
     },
     [rule, setRule, currentRule]
   );
