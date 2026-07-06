@@ -67,7 +67,10 @@ export function BotShipListSettingsScreen(props: Props) {
   const queries = useBotSettingsQueries();
   useSyncBotSettingsDraft(queries);
   const draft = useBotSettingsDraft();
-  const ready = draft.initialized;
+  // Also require the draft to be scoped to the current ship: after switching
+  // accounts the store can still hold the previous ship's (initialized) draft
+  // until useSyncBotSettingsDraft replaces it.
+  const ready = draft.initialized && draft.scopeKey === queries.ship;
   const [pendingShip, setPendingShip] = useState('');
 
   const value = draft.draft.chat[list];
