@@ -263,8 +263,9 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
     if (!queries.ship || !draft.hasChanges || applying) return;
     const nextValues = draft.draft;
     // Screen-level validation can be bypassed (hardware back, drawer
-    // navigation), so re-check the one invariant that would persist a broken
-    // config: a non-basic provider needs a concrete model.
+    // navigation), so re-check the invariants that would silently persist a
+    // broken config: a non-basic provider needs a concrete model, for both the
+    // default model and any per-channel override.
     if (
       (draft.pending.modelProvider ||
         draft.pending.model ||
@@ -274,6 +275,20 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
     ) {
       setApplyError('Select a default model before applying.');
       return;
+    }
+    if (draft.pending.channelRules) {
+      const incompleteOverride = Object.values(
+        nextValues.chat.channelRuleDrafts
+      ).some(
+        (rule) =>
+          rule.modelOverrideProvider &&
+          rule.modelOverrideProvider !== BASIC_PROVIDER_ID &&
+          !rule.modelOverride
+      );
+      if (incompleteOverride) {
+        setApplyError('Select a model for each channel with a custom model.');
+        return;
+      }
     }
     setApplying(true);
     setApplyError(null);

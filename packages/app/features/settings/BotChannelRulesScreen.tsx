@@ -42,6 +42,11 @@ const logger = createDevLogger('BotChannelRulesScreen', false);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Group joins are eventually consistent; poll the moon's channel listing after
+// a join until the group shows up (~15s worst case) before giving up.
+const JOIN_MEMBERSHIP_POLL_ATTEMPTS = 8;
+const JOIN_MEMBERSHIP_POLL_INTERVAL_MS = 2000;
+
 const ruleChanged = (
   current: ChannelRuleDraft | undefined,
   initial: ChannelRuleDraft | undefined
@@ -167,7 +172,22 @@ export function BotChannelRulesScreen(props: Props) {
         }
         await sleep(1500);
         await api.joinTlawnGroup(queries.ship, groupFull, queries.moon);
-        queries.moonChannelsQuery.refetch();
+        // The join is eventually consistent: the moon often doesn't list the
+        // new group in its first post-join fetch. moonChannelsQuery stops
+        // polling once it has data, so a single refetch here would frequently
+        // race ahead and leave the row stuck on "Join". Poll until membership
+        // registers (or we give up), keeping the "Joining…" state meanwhile.
+        for (
+          let attempt = 0;
+          attempt < JOIN_MEMBERSHIP_POLL_ATTEMPTS;
+          attempt++
+        ) {
+          const { data } = await queries.moonChannelsQuery.refetch();
+          if (data && hasGroupMembership(data, groupHost, groupName)) {
+            break;
+          }
+          await sleep(JOIN_MEMBERSHIP_POLL_INTERVAL_MS);
+        }
       } catch (error) {
         setJoinError(getErrorMessage(error) ?? 'Failed to join this group.');
       } finally {

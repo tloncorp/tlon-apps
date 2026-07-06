@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Text, useIsWindowNarrow } from '@tloncorp/ui';
+import { Text, pluralize, useIsWindowNarrow } from '@tloncorp/ui';
 import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
@@ -36,7 +36,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
 
 const logger = createDevLogger('BotSettingsScreen', false);
 
-const userCount = (n: number): string => `${n} ${n === 1 ? 'user' : 'users'}`;
+const userCount = (n: number): string => `${n} ${pluralize(n, 'user')}`;
 
 export function BotSettingsScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
