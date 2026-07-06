@@ -7,6 +7,12 @@ packages:
 nodeLinker: hoisted
 engineStrict: true
 
+# Don't auto-install on pnpm run/exec when the workspace looks out of sync.
+# The rube Docker image installs a subset of workspace manifests with
+# --ignore-scripts before copying full sources; an implicit install there
+# would re-run without that flag and trigger native postinstalls.
+verifyDepsBeforeRun: false
+
 # Run package.json scripts through bash (they use bash-isms like rm -rf).
 # pnpm expands the ${VAR-default} fallback in this file. Windows devs set
 # TLON_SHELL to their Git bash; everywhere else it falls back to /bin/bash.
