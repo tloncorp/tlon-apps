@@ -1,0 +1,483 @@
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as api from '@tloncorp/api';
+import { createDevLogger } from '@tloncorp/shared';
+import {
+  Button,
+  ConfirmDialog,
+  Icon,
+  LoadingSpinner,
+  Pressable,
+  Text,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, XStack, YStack } from 'tamagui';
+
+import { RootStackParamList } from '../../navigation/types';
+import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
+import { Badge } from '../../ui/components/Badge';
+import {
+  BotSettingsDivider,
+  BotSettingsErrorText,
+  BotSettingsSection,
+} from './bot/BotSettingsUI';
+import { BASIC_PROVIDER_ID, providerLabel } from './bot/constants';
+import {
+  ChannelRuleDraft,
+  formatChannelHost,
+  getErrorMessage,
+  groupChannelEntries,
+  hasGroupMembership,
+  resolveGroupFull,
+} from './bot/helpers';
+import { useBotSettingsQueries } from './bot/useBotSettingsData';
+import { useBotSettingsDraft } from './bot/useBotSettingsDraft';
+
+type Props = NativeStackScreenProps<
+  RootStackParamList,
+  'BotChannelRulesSettings'
+>;
+
+const logger = createDevLogger('BotChannelRulesScreen', false);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Group joins are eventually consistent; poll the moon's channel listing after
+// a join until the group shows up (~15s worst case) before giving up.
+const JOIN_MEMBERSHIP_POLL_ATTEMPTS = 8;
+const JOIN_MEMBERSHIP_POLL_INTERVAL_MS = 2000;
+
+const ruleChanged = (
+  current: ChannelRuleDraft | undefined,
+  initial: ChannelRuleDraft | undefined
+): boolean =>
+  JSON.stringify(current ?? null) !== JSON.stringify(initial ?? null);
+
+export function BotChannelRulesScreen(props: Props) {
+  const isWindowNarrow = useIsWindowNarrow();
+  const queries = useBotSettingsQueries();
+  const draft = useBotSettingsDraft();
+  const [search, setSearch] = useState('');
+  const [enabledOnly, setEnabledOnly] = useState(false);
+  const [joiningGroups, setJoiningGroups] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [joinTarget, setJoinTarget] = useState<{
+    groupHost: string;
+    groupName: string;
+    sampleChannelKey: string;
+    label: string;
+  } | null>(null);
+  const [disableEverywhereSnapshot, setDisableEverywhereSnapshot] =
+    useState<Record<string, ChannelRuleDraft> | null>(null);
+
+  const drafts = draft.draft.chat.channelRuleDrafts;
+  const baselineDrafts = draft.baseline.chat.channelRuleDrafts;
+  const channelsData = queries.channelsQuery.data;
+  const rawGroups = useMemo(() => channelsData ?? {}, [channelsData]);
+  const moonChannels = queries.moonChannelsQuery.data ?? {};
+
+  const groups = useMemo(
+    () => groupChannelEntries(rawGroups, drafts),
+    [rawGroups, drafts]
+  );
+
+  const filteredGroups = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return groups
+      .map((group) => ({
+        ...group,
+        channels: group.channels.filter((channel) => {
+          if (enabledOnly && !drafts[channel.key]) {
+            return false;
+          }
+          if (!normalizedSearch) return true;
+          return (
+            channel.label.toLowerCase().includes(normalizedSearch) ||
+            channel.key.toLowerCase().includes(normalizedSearch) ||
+            (group.title || group.group)
+              .toLowerCase()
+              .includes(normalizedSearch)
+          );
+        }),
+      }))
+      .filter((group) => group.channels.length > 0);
+  }, [groups, drafts, search, enabledOnly]);
+
+  const enabledChannelCount = Object.keys(drafts).length;
+  const allChannelsDisabled = enabledChannelCount === 0;
+  const canUndoDisableEverywhere =
+    allChannelsDisabled &&
+    Boolean(
+      disableEverywhereSnapshot &&
+        Object.keys(disableEverywhereSnapshot).length > 0
+    );
+
+  useEffect(() => {
+    if (!allChannelsDisabled) setDisableEverywhereSnapshot(null);
+  }, [allChannelsDisabled]);
+
+  const replaceDrafts = useCallback(
+    (channelRuleDrafts: Record<string, ChannelRuleDraft>) => {
+      draft.commitDraft((current) => ({
+        ...current,
+        chat: { ...current.chat, channelRuleDrafts },
+      }));
+    },
+    [draft]
+  );
+
+  const handleDisableEverywhereToggle = useCallback(() => {
+    if (canUndoDisableEverywhere && disableEverywhereSnapshot) {
+      replaceDrafts(disableEverywhereSnapshot);
+      setDisableEverywhereSnapshot(null);
+      return;
+    }
+    setDisableEverywhereSnapshot(drafts);
+    replaceDrafts({});
+  }, [
+    canUndoDisableEverywhere,
+    disableEverywhereSnapshot,
+    drafts,
+    replaceDrafts,
+  ]);
+
+  const handleJoinGroup = useCallback(
+    async (groupHost: string, groupName: string, sampleChannelKey: string) => {
+      setJoinError(null);
+      if (!queries.moon) {
+        setJoinError('Tlonbot moon is not ready yet.');
+        return;
+      }
+      const groupFull = resolveGroupFull(
+        rawGroups,
+        groupHost,
+        groupName,
+        sampleChannelKey
+      );
+      if (!groupFull) {
+        setJoinError('Could not find this group.');
+        return;
+      }
+      const groupKey = `${groupHost}/${groupName}`;
+      setJoiningGroups((prev) => ({ ...prev, [groupKey]: true }));
+      try {
+        try {
+          await api.addTlawnToCordon(queries.ship, groupFull, queries.moon);
+        } catch (error) {
+          // Cordon add is best-effort: it fails when the moon is already
+          // allowed. The join below is what must succeed.
+          logger.trackError('Failed to add Tlonbot moon to cordon', { error });
+        }
+        await sleep(1500);
+        await api.joinTlawnGroup(queries.ship, groupFull, queries.moon);
+        // The join is eventually consistent: the moon often doesn't list the
+        // new group in its first post-join fetch. moonChannelsQuery stops
+        // polling once it has data, so a single refetch here would frequently
+        // race ahead and leave the row stuck on "Join". Poll until membership
+        // registers (or we give up), keeping the "Joining…" state meanwhile.
+        for (
+          let attempt = 0;
+          attempt < JOIN_MEMBERSHIP_POLL_ATTEMPTS;
+          attempt++
+        ) {
+          const { data } = await queries.moonChannelsQuery.refetch();
+          if (data && hasGroupMembership(data, groupHost, groupName)) {
+            break;
+          }
+          await sleep(JOIN_MEMBERSHIP_POLL_INTERVAL_MS);
+        }
+      } catch (error) {
+        setJoinError(getErrorMessage(error) ?? 'Failed to join this group.');
+      } finally {
+        setJoiningGroups((prev) => ({ ...prev, [groupKey]: false }));
+      }
+    },
+    [queries, rawGroups]
+  );
+
+  // Gate only on the initial load: channelsQuery polls while the bot is
+  // starting, and swapping the list for a spinner on every background
+  // refetch would discard the rendered tree (and scroll position) each poll.
+  const loading = queries.channelsQuery.isLoading;
+
+  return (
+    <View flex={1} backgroundColor="$secondaryBackground">
+      <ScreenHeader
+        borderBottom
+        backAction={
+          isWindowNarrow ? () => props.navigation.goBack() : undefined
+        }
+        title="Channel rules"
+      />
+      <SettingsContentScrollView
+        paddingHorizontal="$l"
+        paddingTop="$l"
+        safeAreaBottomOffset={24}
+      >
+        <YStack gap="$2xl" paddingBottom="$2xl">
+          <TextInput
+            value={search}
+            placeholder="Search channels"
+            onChangeText={setSearch}
+          />
+          <XStack gap="$m">
+            <View flex={1}>
+              <Button
+                preset={!enabledOnly ? 'secondary' : 'minimal'}
+                label="All"
+                centered
+                onPress={() => setEnabledOnly(false)}
+              />
+            </View>
+            <View flex={1}>
+              <Button
+                preset={enabledOnly ? 'secondary' : 'minimal'}
+                label="Enabled"
+                centered
+                onPress={() => setEnabledOnly(true)}
+              />
+            </View>
+          </XStack>
+
+          {enabledOnly ? (
+            <BotSettingsSection>
+              <XStack
+                minHeight={56}
+                alignItems="center"
+                gap="$l"
+                paddingHorizontal="$l"
+                paddingVertical="$m"
+              >
+                <YStack flex={1} minWidth={0}>
+                  <Text size="$label/l" color="$primaryText">
+                    Disable everywhere
+                  </Text>
+                  <Text size="$label/s" color="$secondaryText">
+                    {canUndoDisableEverywhere
+                      ? 'Restore the channels that were previously enabled'
+                      : allChannelsDisabled
+                        ? 'No channels are enabled'
+                        : `Turn off ${enabledChannelCount} enabled ${
+                            enabledChannelCount === 1 ? 'channel' : 'channels'
+                          }`}
+                  </Text>
+                </YStack>
+                <Button
+                  preset={
+                    canUndoDisableEverywhere
+                      ? 'secondaryOutline'
+                      : 'destructive'
+                  }
+                  label={canUndoDisableEverywhere ? 'Undo' : 'Disable all'}
+                  disabled={!canUndoDisableEverywhere && allChannelsDisabled}
+                  onPress={handleDisableEverywhereToggle}
+                />
+              </XStack>
+            </BotSettingsSection>
+          ) : null}
+
+          <BotSettingsErrorText>{joinError}</BotSettingsErrorText>
+
+          {loading ? (
+            <YStack alignItems="center" gap="$m" paddingVertical="$2xl">
+              <LoadingSpinner />
+              <Text size="$label/m" color="$secondaryText">
+                Loading channels…
+              </Text>
+            </YStack>
+          ) : filteredGroups.length === 0 ? (
+            <Text size="$label/m" color="$secondaryText" paddingHorizontal="$s">
+              {groups.length === 0
+                ? 'No channels found on this node yet.'
+                : enabledOnly
+                  ? 'No enabled channels.'
+                  : 'No channels match.'}
+            </Text>
+          ) : (
+            filteredGroups.map((group) => {
+              const groupKey = `${group.host}/${group.group}`;
+              const isGroupMember =
+                group.group !== 'unknown' &&
+                hasGroupMembership(moonChannels, group.host, group.group);
+              const canJoinGroup =
+                !isGroupMember &&
+                group.group !== 'unknown' &&
+                Boolean(queries.ship) &&
+                Boolean(queries.moon);
+              const isJoining = Boolean(joiningGroups[groupKey]);
+              const groupLabel = group.title || group.group;
+              const enabledCount = group.channels.filter((channel) =>
+                Boolean(drafts[channel.key])
+              ).length;
+
+              return (
+                <YStack key={groupKey} gap="$m">
+                  <XStack
+                    alignItems="flex-end"
+                    justifyContent="space-between"
+                    gap="$l"
+                    paddingHorizontal="$s"
+                  >
+                    <YStack flex={1} minWidth={0}>
+                      <Text
+                        size="$label/m"
+                        fontWeight="500"
+                        color="$primaryText"
+                        numberOfLines={1}
+                      >
+                        {groupLabel}
+                      </Text>
+                      <Text
+                        size="$label/s"
+                        color="$secondaryText"
+                        numberOfLines={1}
+                      >
+                        {formatChannelHost(group.host)}/{group.group}
+                      </Text>
+                    </YStack>
+                    {!isGroupMember ? (
+                      <Button
+                        preset="secondaryOutline"
+                        label={isJoining ? 'Joining…' : 'Join'}
+                        disabled={isJoining || !canJoinGroup}
+                        onPress={() =>
+                          setJoinTarget({
+                            groupHost: group.host,
+                            groupName: group.group,
+                            sampleChannelKey: group.channels[0]?.key ?? '',
+                            label: groupLabel,
+                          })
+                        }
+                      />
+                    ) : (
+                      <Text size="$label/s" color="$secondaryText">
+                        {enabledCount}/{group.channels.length} enabled
+                      </Text>
+                    )}
+                  </XStack>
+                  <BotSettingsSection>
+                    {group.channels.map((channel, index) => {
+                      const rule = drafts[channel.key];
+                      const pending = ruleChanged(
+                        rule,
+                        baselineDrafts[channel.key]
+                      );
+                      const isEnabled = Boolean(rule);
+                      const accessLabel =
+                        rule?.mode === 'allowlist' ? 'Allowlist' : 'Open';
+                      const modelLabel = rule?.modelOverrideProvider
+                        ? rule.modelOverrideProvider === BASIC_PROVIDER_ID
+                          ? 'Basic'
+                          : providerLabel(rule.modelOverrideProvider)
+                        : 'Default';
+
+                      return (
+                        <YStack key={channel.key}>
+                          <Pressable
+                            onPress={() =>
+                              props.navigation.navigate(
+                                'BotChannelRuleSettings',
+                                {
+                                  channelKey: channel.key,
+                                  channelLabel: channel.label,
+                                  groupJoined:
+                                    group.group === 'unknown' || isGroupMember,
+                                }
+                              )
+                            }
+                            pressStyle={{
+                              backgroundColor: '$secondaryBackground',
+                            }}
+                          >
+                            <XStack
+                              minHeight={56}
+                              alignItems="center"
+                              gap="$l"
+                              paddingHorizontal="$l"
+                              paddingVertical="$m"
+                            >
+                              <YStack flex={1} minWidth={0} gap="$2xs">
+                                <Text
+                                  size="$label/l"
+                                  color={
+                                    isEnabled
+                                      ? '$primaryText'
+                                      : '$secondaryText'
+                                  }
+                                  numberOfLines={1}
+                                >
+                                  {channel.label}
+                                </Text>
+                                <Text
+                                  size="$label/s"
+                                  color="$secondaryText"
+                                  numberOfLines={1}
+                                >
+                                  {channel.key}
+                                </Text>
+                                {isEnabled ? (
+                                  <XStack gap="$s" marginTop="$2xs">
+                                    <Badge
+                                      text={accessLabel}
+                                      type="neutral"
+                                      size="micro"
+                                    />
+                                    <Badge
+                                      text={modelLabel}
+                                      type="neutral"
+                                      size="micro"
+                                    />
+                                  </XStack>
+                                ) : null}
+                              </YStack>
+                              {pending ? (
+                                <Badge
+                                  text="Pending"
+                                  type="warning"
+                                  size="micro"
+                                />
+                              ) : null}
+                              <Icon
+                                type="ChevronRight"
+                                size="$m"
+                                color="$tertiaryText"
+                              />
+                            </XStack>
+                          </Pressable>
+                          {index < group.channels.length - 1 ? (
+                            <BotSettingsDivider />
+                          ) : null}
+                        </YStack>
+                      );
+                    })}
+                  </BotSettingsSection>
+                </YStack>
+              );
+            })
+          )}
+        </YStack>
+      </SettingsContentScrollView>
+      <ConfirmDialog
+        open={Boolean(joinTarget)}
+        onOpenChange={(open) => {
+          if (!open) setJoinTarget(null);
+        }}
+        title={`Join ${joinTarget?.label ?? 'group'}?`}
+        description="This adds your Tlonbot to the group. After it joins, you can choose which channels it can respond in."
+        confirmText="Join"
+        onConfirm={() => {
+          if (!joinTarget) return;
+          const target = joinTarget;
+          setJoinTarget(null);
+          handleJoinGroup(
+            target.groupHost,
+            target.groupName,
+            target.sampleChannelKey
+          );
+        }}
+      />
+    </View>
+  );
+}
