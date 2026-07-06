@@ -508,7 +508,14 @@ export function BotChannelRuleSettingsScreen(props: Props) {
               disabled={controlsDisabled}
               onPress={() => {
                 setValidationError(null);
-                setRule({ mode: 'open', allowedShips: '' });
+                // The default is restricted, inheriting defaultAuthorizedShips —
+                // not open. Restore that (and drop any model override) rather
+                // than widening the channel to every member.
+                setRule({
+                  mode: 'allowlist',
+                  allowedShips: draft.draft.chat.defaultAuthorizedShips,
+                  inheritsDefaultShips: true,
+                });
               }}
             />
             <Button
