@@ -103,6 +103,11 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     queries.moonChannelsQuery.data,
   ]);
   const readOnly = !groupJoined;
+  // The access-mode, allowlist, and model controls only make sense once the
+  // channel has a rule. Disable them (and no-op patch) while it's off so
+  // merely inspecting a disabled channel can't create a rule and silently
+  // enable Tlonbot in it.
+  const controlsDisabled = readOnly || !rule;
 
   const availableProviders = useMemo(
     () =>
@@ -151,9 +156,12 @@ export function BotChannelRuleSettingsScreen(props: Props) {
 
   const patch = useCallback(
     (next: Partial<ChannelRuleDraft>) => {
+      // Never create a rule from a subordinate control — only the enable
+      // switch may bring a channel's rule into existence.
+      if (!rule) return;
       setRule({ ...currentRule, ...next });
     },
-    [setRule, currentRule]
+    [rule, setRule, currentRule]
   );
 
   const handleBack = useCallback(() => {
@@ -256,7 +264,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                   label={mode.label}
                   description={mode.description}
                   selected={currentRule.mode === mode.id}
-                  disabled={readOnly}
+                  disabled={controlsDisabled}
                   onPress={() => patch({ mode: mode.id })}
                 />
                 {index < ACCESS_MODES.length - 1 ? (
@@ -278,7 +286,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                         placeholder="~zod, ~nec"
                         autoCapitalize="none"
                         autoCorrect={false}
-                        editable={!readOnly}
+                        editable={!controlsDisabled}
                         onChangeText={setPendingShip}
                         onSubmitEditing={addPendingShip}
                         returnKeyType="done"
@@ -287,7 +295,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                     <Button
                       preset="secondary"
                       label="Add"
-                      disabled={readOnly || !pendingShip.trim()}
+                      disabled={controlsDisabled || !pendingShip.trim()}
                       onPress={addPendingShip}
                     />
                   </XStack>
@@ -334,7 +342,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
               label="Default model"
               description="Inherit from setup"
               selected={!isCustomModel}
-              disabled={readOnly}
+              disabled={controlsDisabled}
               onPress={() => {
                 setValidationError(null);
                 patch({ modelOverrideProvider: '', modelOverride: '' });
@@ -345,7 +353,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
               label="Custom model"
               description="Override for this channel"
               selected={isCustomModel}
-              disabled={readOnly || !hasCustomProviderKey}
+              disabled={controlsDisabled || !hasCustomProviderKey}
               onPress={() => {
                 const provider =
                   availableProviders.find(
@@ -377,7 +385,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                             : 'secondaryOutline'
                         }
                         label={provider.label}
-                        disabled={readOnly}
+                        disabled={controlsDisabled}
                         onPress={() => {
                           setValidationError(null);
                           patch({
@@ -400,7 +408,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                       <TextInput
                         value={modelSearch}
                         placeholder="Search models"
-                        editable={!readOnly}
+                        editable={!controlsDisabled}
                         onChangeText={setModelSearch}
                       />
                       {overrideModelsLoading ? (
@@ -422,7 +430,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                                 selected={
                                   currentRule.modelOverride === model.id
                                 }
-                                disabled={readOnly}
+                                disabled={controlsDisabled}
                                 onPress={() => {
                                   setValidationError(null);
                                   patch({ modelOverride: model.id });
@@ -454,7 +462,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
             preset="destructive"
             label="Reset to defaults"
             centered
-            disabled={readOnly}
+            disabled={controlsDisabled}
             onPress={() => {
               setValidationError(null);
               setRule({ mode: 'open', allowedShips: '' });
