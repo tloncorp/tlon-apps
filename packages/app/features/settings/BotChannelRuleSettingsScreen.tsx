@@ -1,5 +1,12 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  LoadingSpinner,
+  Pressable,
+  Text,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
@@ -35,7 +42,10 @@ import {
   useAllProviderModels,
   useBotSettingsQueries,
 } from './bot/useBotSettingsData';
-import { useBotSettingsDraft } from './bot/useBotSettingsDraft';
+import {
+  useBotSettingsDraft,
+  useSyncBotSettingsDraft,
+} from './bot/useBotSettingsDraft';
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -63,7 +73,13 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   } = props.route.params;
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
+  // Sync the draft from the server before editing: a restored stack / deep link
+  // can mount this per-channel screen without the list having initialized the
+  // store, and enabling this channel from an empty draft would drop the rest of
+  // the chat settings on save. Gate edits until the draft is scoped and ready.
+  useSyncBotSettingsDraft(queries);
   const draft = useBotSettingsDraft();
+  const ready = draft.initialized && draft.scopeKey === queries.ship;
   const allProviderModels = useAllProviderModels(queries.providerConfig);
   const [pendingShip, setPendingShip] = useState('');
   const [modelSearch, setModelSearch] = useState('');
@@ -126,6 +142,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
 
   const setRule = useCallback(
     (nextRule: ChannelRuleDraft | undefined) => {
+      if (!ready) return;
       draft.commitDraft((current) => {
         const channelRuleDrafts = { ...current.chat.channelRuleDrafts };
         if (nextRule) {
@@ -151,7 +168,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
         };
       });
     },
-    [draft, channelKey]
+    [draft, channelKey, ready]
   );
 
   const patch = useCallback(
@@ -219,264 +236,275 @@ export function BotChannelRuleSettingsScreen(props: Props) {
         backAction={isWindowNarrow ? handleBack : undefined}
         title={channelLabel || 'Channel'}
       />
-      <SettingsContentScrollView
-        paddingHorizontal="$l"
-        paddingTop="$l"
-        safeAreaBottomOffset={24}
-      >
-        <YStack gap="$2xl" paddingBottom="$2xl">
-          <YStack paddingHorizontal="$s" gap="$2xs">
-            <Text size="$label/xl" fontWeight="600" numberOfLines={1}>
-              {channelLabel}
-            </Text>
-            <Text size="$label/s" color="$secondaryText" numberOfLines={1}>
-              {channelKey}
-            </Text>
-          </YStack>
+      {!ready ? (
+        <View flex={1} alignItems="center" justifyContent="center">
+          <LoadingSpinner />
+        </View>
+      ) : (
+        <SettingsContentScrollView
+          paddingHorizontal="$l"
+          paddingTop="$l"
+          safeAreaBottomOffset={24}
+        >
+          <YStack gap="$2xl" paddingBottom="$2xl">
+            <YStack paddingHorizontal="$s" gap="$2xs">
+              <Text size="$label/xl" fontWeight="600" numberOfLines={1}>
+                {channelLabel}
+              </Text>
+              <Text size="$label/s" color="$secondaryText" numberOfLines={1}>
+                {channelKey}
+              </Text>
+            </YStack>
 
-          <BotSettingsSection
-            description={
-              !groupJoined
-                ? 'Join this group to enable Tlonbot in this channel.'
-                : undefined
-            }
-          >
-            <BotSwitchRow
-              label="Enable Tlonbot here"
+            <BotSettingsSection
               description={
-                rule
-                  ? 'Listening for prompts'
-                  : 'Tlonbot will ignore this channel'
+                !groupJoined
+                  ? 'Join this group to enable Tlonbot in this channel.'
+                  : undefined
               }
-              checked={Boolean(rule)}
-              disabled={readOnly}
-              onCheckedChange={(checked) => {
-                setValidationError(null);
-                setRule(checked ? currentRule : undefined);
-              }}
-            />
-          </BotSettingsSection>
+            >
+              <BotSwitchRow
+                label="Enable Tlonbot here"
+                description={
+                  rule
+                    ? 'Listening for prompts'
+                    : 'Tlonbot will ignore this channel'
+                }
+                checked={Boolean(rule)}
+                disabled={readOnly}
+                onCheckedChange={(checked) => {
+                  setValidationError(null);
+                  setRule(checked ? currentRule : undefined);
+                }}
+              />
+            </BotSettingsSection>
 
-          <BotSettingsSection title="Access mode">
-            {ACCESS_MODES.map((mode, index) => (
-              <YStack key={mode.id}>
-                <SelectableRow
-                  label={mode.label}
-                  description={mode.description}
-                  selected={currentRule.mode === mode.id}
-                  disabled={controlsDisabled}
-                  onPress={() => patch({ mode: mode.id })}
-                />
-                {index < ACCESS_MODES.length - 1 ? (
-                  <BotSettingsDivider />
-                ) : null}
-              </YStack>
-            ))}
-            {currentRule.mode === 'allowlist' ? (
-              <>
-                <BotSettingsDivider />
-                <YStack padding="$l" gap="$m">
-                  <Text size="$label/m" color="$tertiaryText">
-                    Allowed users
-                  </Text>
-                  <XStack gap="$m" alignItems="center">
-                    <View flex={1}>
-                      <TextInput
-                        value={pendingShip}
-                        placeholder="~zod, ~nec"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        editable={!controlsDisabled}
-                        onChangeText={setPendingShip}
-                        onSubmitEditing={addPendingShip}
-                        returnKeyType="done"
-                      />
-                    </View>
-                    <Button
-                      preset="secondary"
-                      label="Add"
-                      disabled={controlsDisabled || !pendingShip.trim()}
-                      onPress={addPendingShip}
-                    />
-                  </XStack>
-                  {allowedShips.map((ship) => (
-                    <XStack
-                      key={ship}
-                      alignItems="center"
-                      justifyContent="space-between"
-                      gap="$m"
-                    >
-                      <Text size="$label/l" color="$primaryText">
-                        {ship}
-                      </Text>
-                      <Pressable
-                        disabled={controlsDisabled}
-                        onPress={() =>
-                          patch({
-                            allowedShips: formatShipList(
-                              allowedShips.filter((entry) => entry !== ship)
-                            ),
-                          })
-                        }
-                      >
-                        <Icon
-                          type="Close"
-                          size="$m"
-                          color="$secondaryText"
-                          opacity={controlsDisabled ? 0.4 : 1}
-                        />
-                      </Pressable>
-                    </XStack>
-                  ))}
-                  <Text size="$label/s" color="$secondaryText">
-                    Only these users can invoke Tlonbot in this channel.
-                  </Text>
+            <BotSettingsSection title="Access mode">
+              {ACCESS_MODES.map((mode, index) => (
+                <YStack key={mode.id}>
+                  <SelectableRow
+                    label={mode.label}
+                    description={mode.description}
+                    selected={currentRule.mode === mode.id}
+                    disabled={controlsDisabled}
+                    onPress={() => patch({ mode: mode.id })}
+                  />
+                  {index < ACCESS_MODES.length - 1 ? (
+                    <BotSettingsDivider />
+                  ) : null}
                 </YStack>
-              </>
-            ) : null}
-          </BotSettingsSection>
+              ))}
+              {currentRule.mode === 'allowlist' ? (
+                <>
+                  <BotSettingsDivider />
+                  <YStack padding="$l" gap="$m">
+                    <Text size="$label/m" color="$tertiaryText">
+                      Allowed users
+                    </Text>
+                    <XStack gap="$m" alignItems="center">
+                      <View flex={1}>
+                        <TextInput
+                          value={pendingShip}
+                          placeholder="~zod, ~nec"
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          editable={!controlsDisabled}
+                          onChangeText={setPendingShip}
+                          onSubmitEditing={addPendingShip}
+                          returnKeyType="done"
+                        />
+                      </View>
+                      <Button
+                        preset="secondary"
+                        label="Add"
+                        disabled={controlsDisabled || !pendingShip.trim()}
+                        onPress={addPendingShip}
+                      />
+                    </XStack>
+                    {allowedShips.map((ship) => (
+                      <XStack
+                        key={ship}
+                        alignItems="center"
+                        justifyContent="space-between"
+                        gap="$m"
+                      >
+                        <Text size="$label/l" color="$primaryText">
+                          {ship}
+                        </Text>
+                        <Pressable
+                          disabled={controlsDisabled}
+                          onPress={() =>
+                            patch({
+                              allowedShips: formatShipList(
+                                allowedShips.filter((entry) => entry !== ship)
+                              ),
+                            })
+                          }
+                        >
+                          <Icon
+                            type="Close"
+                            size="$m"
+                            color="$secondaryText"
+                            opacity={controlsDisabled ? 0.4 : 1}
+                          />
+                        </Pressable>
+                      </XStack>
+                    ))}
+                    <Text size="$label/s" color="$secondaryText">
+                      Only these users can invoke Tlonbot in this channel.
+                    </Text>
+                  </YStack>
+                </>
+              ) : null}
+            </BotSettingsSection>
 
-          <BotSettingsSection
-            title="Model"
-            description={
-              !hasCustomProviderKey
-                ? 'Add an API key in Bot settings to use a custom model here.'
-                : undefined
-            }
-          >
-            <SelectableRow
-              label="Default model"
-              description="Inherit from setup"
-              selected={!isCustomModel}
+            <BotSettingsSection
+              title="Model"
+              description={
+                !hasCustomProviderKey
+                  ? 'Add an API key in Bot settings to use a custom model here.'
+                  : undefined
+              }
+            >
+              <SelectableRow
+                label="Default model"
+                description="Inherit from setup"
+                selected={!isCustomModel}
+                disabled={controlsDisabled}
+                onPress={() => {
+                  setValidationError(null);
+                  patch({ modelOverrideProvider: '', modelOverride: '' });
+                }}
+              />
+              <BotSettingsDivider />
+              <SelectableRow
+                label="Custom model"
+                description="Override for this channel"
+                selected={isCustomModel}
+                disabled={controlsDisabled || !hasCustomProviderKey}
+                onPress={() => {
+                  const provider =
+                    availableProviders.find(
+                      (option) => option.id !== BASIC_PROVIDER_ID
+                    )?.id ||
+                    availableProviders[0]?.id ||
+                    BASIC_PROVIDER_ID;
+                  patch({
+                    modelOverrideProvider: provider,
+                    modelOverride:
+                      provider === BASIC_PROVIDER_ID ? BASIC_DEFAULT_MODEL : '',
+                  });
+                }}
+              />
+              {isCustomModel ? (
+                <>
+                  <BotSettingsDivider />
+                  <YStack padding="$l" gap="$m">
+                    <Text size="$label/m" color="$tertiaryText">
+                      Provider
+                    </Text>
+                    <XStack gap="$m" flexWrap="wrap">
+                      {availableProviders.map((provider) => (
+                        <Button
+                          key={provider.id}
+                          preset={
+                            overrideProvider === provider.id
+                              ? 'secondary'
+                              : 'secondaryOutline'
+                          }
+                          label={provider.label}
+                          disabled={controlsDisabled}
+                          onPress={() => {
+                            setValidationError(null);
+                            patch({
+                              modelOverrideProvider: provider.id,
+                              modelOverride:
+                                provider.id === BASIC_PROVIDER_ID
+                                  ? BASIC_DEFAULT_MODEL
+                                  : '',
+                            });
+                          }}
+                        />
+                      ))}
+                    </XStack>
+                    {overrideProvider === BASIC_PROVIDER_ID ? (
+                      <Text size="$label/s" color="$secondaryText">
+                        {BASIC_PROVIDER_LABEL}
+                      </Text>
+                    ) : (
+                      <YStack gap="$m">
+                        <TextInput
+                          value={modelSearch}
+                          placeholder="Search models"
+                          editable={!controlsDisabled}
+                          onChangeText={setModelSearch}
+                        />
+                        {overrideModelsLoading ? (
+                          <EmptyRowText>Loading models…</EmptyRowText>
+                        ) : overrideModelsError ? (
+                          <EmptyRowText>
+                            {getErrorMessage(overrideModelsError) ??
+                              'Unable to load models.'}
+                          </EmptyRowText>
+                        ) : filteredOverrideModels.length === 0 ? (
+                          <EmptyRowText>No models found.</EmptyRowText>
+                        ) : (
+                          <>
+                            {filteredOverrideModels.map((model, index) => (
+                              <YStack key={model.id}>
+                                <SelectableRow
+                                  label={getModelDisplayName(model)}
+                                  description={model.id}
+                                  selected={
+                                    currentRule.modelOverride === model.id
+                                  }
+                                  disabled={controlsDisabled}
+                                  onPress={() => {
+                                    setValidationError(null);
+                                    patch({ modelOverride: model.id });
+                                  }}
+                                />
+                                {index < filteredOverrideModels.length - 1 ? (
+                                  <BotSettingsDivider />
+                                ) : null}
+                              </YStack>
+                            ))}
+                            {hiddenOverrideModelCount > 0 ? (
+                              <EmptyRowText>
+                                {hiddenOverrideModelCount} more — refine your
+                                search to see them.
+                              </EmptyRowText>
+                            ) : null}
+                          </>
+                        )}
+                      </YStack>
+                    )}
+                  </YStack>
+                </>
+              ) : null}
+            </BotSettingsSection>
+
+            <BotSettingsErrorText>{validationError}</BotSettingsErrorText>
+
+            <Button
+              preset="destructive"
+              label="Reset to defaults"
+              centered
               disabled={controlsDisabled}
               onPress={() => {
                 setValidationError(null);
-                patch({ modelOverrideProvider: '', modelOverride: '' });
+                setRule({ mode: 'open', allowedShips: '' });
               }}
             />
-            <BotSettingsDivider />
-            <SelectableRow
-              label="Custom model"
-              description="Override for this channel"
-              selected={isCustomModel}
-              disabled={controlsDisabled || !hasCustomProviderKey}
-              onPress={() => {
-                const provider =
-                  availableProviders.find(
-                    (option) => option.id !== BASIC_PROVIDER_ID
-                  )?.id ||
-                  availableProviders[0]?.id ||
-                  BASIC_PROVIDER_ID;
-                patch({
-                  modelOverrideProvider: provider,
-                  modelOverride:
-                    provider === BASIC_PROVIDER_ID ? BASIC_DEFAULT_MODEL : '',
-                });
-              }}
+            <Button
+              preset="primary"
+              label="Done"
+              centered
+              onPress={handleBack}
             />
-            {isCustomModel ? (
-              <>
-                <BotSettingsDivider />
-                <YStack padding="$l" gap="$m">
-                  <Text size="$label/m" color="$tertiaryText">
-                    Provider
-                  </Text>
-                  <XStack gap="$m" flexWrap="wrap">
-                    {availableProviders.map((provider) => (
-                      <Button
-                        key={provider.id}
-                        preset={
-                          overrideProvider === provider.id
-                            ? 'secondary'
-                            : 'secondaryOutline'
-                        }
-                        label={provider.label}
-                        disabled={controlsDisabled}
-                        onPress={() => {
-                          setValidationError(null);
-                          patch({
-                            modelOverrideProvider: provider.id,
-                            modelOverride:
-                              provider.id === BASIC_PROVIDER_ID
-                                ? BASIC_DEFAULT_MODEL
-                                : '',
-                          });
-                        }}
-                      />
-                    ))}
-                  </XStack>
-                  {overrideProvider === BASIC_PROVIDER_ID ? (
-                    <Text size="$label/s" color="$secondaryText">
-                      {BASIC_PROVIDER_LABEL}
-                    </Text>
-                  ) : (
-                    <YStack gap="$m">
-                      <TextInput
-                        value={modelSearch}
-                        placeholder="Search models"
-                        editable={!controlsDisabled}
-                        onChangeText={setModelSearch}
-                      />
-                      {overrideModelsLoading ? (
-                        <EmptyRowText>Loading models…</EmptyRowText>
-                      ) : overrideModelsError ? (
-                        <EmptyRowText>
-                          {getErrorMessage(overrideModelsError) ??
-                            'Unable to load models.'}
-                        </EmptyRowText>
-                      ) : filteredOverrideModels.length === 0 ? (
-                        <EmptyRowText>No models found.</EmptyRowText>
-                      ) : (
-                        <>
-                          {filteredOverrideModels.map((model, index) => (
-                            <YStack key={model.id}>
-                              <SelectableRow
-                                label={getModelDisplayName(model)}
-                                description={model.id}
-                                selected={
-                                  currentRule.modelOverride === model.id
-                                }
-                                disabled={controlsDisabled}
-                                onPress={() => {
-                                  setValidationError(null);
-                                  patch({ modelOverride: model.id });
-                                }}
-                              />
-                              {index < filteredOverrideModels.length - 1 ? (
-                                <BotSettingsDivider />
-                              ) : null}
-                            </YStack>
-                          ))}
-                          {hiddenOverrideModelCount > 0 ? (
-                            <EmptyRowText>
-                              {hiddenOverrideModelCount} more — refine your
-                              search to see them.
-                            </EmptyRowText>
-                          ) : null}
-                        </>
-                      )}
-                    </YStack>
-                  )}
-                </YStack>
-              </>
-            ) : null}
-          </BotSettingsSection>
-
-          <BotSettingsErrorText>{validationError}</BotSettingsErrorText>
-
-          <Button
-            preset="destructive"
-            label="Reset to defaults"
-            centered
-            disabled={controlsDisabled}
-            onPress={() => {
-              setValidationError(null);
-              setRule({ mode: 'open', allowedShips: '' });
-            }}
-          />
-          <Button preset="primary" label="Done" centered onPress={handleBack} />
-        </YStack>
-      </SettingsContentScrollView>
+          </YStack>
+        </SettingsContentScrollView>
+      )}
     </View>
   );
 }
