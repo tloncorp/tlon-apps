@@ -7,6 +7,33 @@
 =+  retry=3
 =+  retry-delay=~s5
 ::
+=>
+|%
+::  +json-val-to-attr: convert json value to otel attribute
+::
+++  json-val-to-attr
+  |=  val=json
+  ^-  json
+  =,  enjs:format
+  ?-  -.val
+    %s  (frond 'stringValue' s+p.val)
+    %n  (frond 'intValue' s+p.val)
+    %b  (frond 'boolValue' b+p.val)
+    %a  a+(turn p.val json-val-to-attr)
+    %o  o+(~(run by p.val) json-val-to-attr)
+  ==
+::  +json-obj-to-attrs: convert flattened json object to otel attributes list
+::
+++  json-obj-to-attrs
+  |=  obf=(list (pair @t json))
+  ^-  (list json)
+  %+  turn  obf
+  |=  [key=@t val=json]
+  %-  pairs:enjs:format
+  :~  'key'^s+key
+      'value'^(json-val-to-attr val)
+  ==
+--
 =,  strand=strand:spider
 ^-  thread:spider
 ::  args
@@ -57,7 +84,7 @@
           ::  name with a leading slash to service namespace to
           ::  construct the final service name.
           ::
-          'value'^(frond 'stringValue' (spat origin))
+          'value'^(frond 'stringValue' s+(spat origin))
       ==
     ::
       %-  pairs
@@ -93,7 +120,7 @@
     =*  head  i.tang
     ?:  ?=(@ head)
       :_  t.tang
-      s+(crip "failed in {<head>}")
+      s+(crip "failed in {(trip head)}")
     ?:  ?=(%leaf -.head)
       :_  t.tang
       s+(crip "failed in {p.head}")
@@ -122,8 +149,8 @@
             'value'^(frond 'stringValue' ship-id)
         ==
     ==
-  ::
     exception
+    (json-obj-to-attrs log-data)
   ==
 =/  body=json
   ?:  ?=(%fail -.event.log-item)
