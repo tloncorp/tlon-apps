@@ -53,7 +53,9 @@ export function BotModelSettingsScreen(props: Props) {
   // apply empty defaults over the real config. Gate edits on `initialized`.
   useSyncBotSettingsDraft(queries);
   const draft = useBotSettingsDraft();
-  const ready = draft.initialized;
+  // Also require the draft to be scoped to the current ship so a previous
+  // account's initialized draft isn't treated as ready after switching.
+  const ready = draft.initialized && draft.scopeKey === queries.ship;
   const allProviderModels = useAllProviderModels(queries.providerConfig);
   const [search, setSearch] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
