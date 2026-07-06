@@ -112,7 +112,10 @@ export interface TlawnBotInfo {
 export interface TlawnConfig {
   dmAllowlist: string[];
   defaultAuthorizedShips: string[];
-  channelRules: Record<string, { mode: string; allowedShips: string[] }>;
+  // `allowedShips` is optional: a restricted rule that omits it inherits
+  // `defaultAuthorizedShips` on the backend, so the field is absent (not `[]`)
+  // when a channel follows the defaults.
+  channelRules: Record<string, { mode: string; allowedShips?: string[] }>;
   groupChannels: string[];
   groupInviteAllowlist: string[];
   autoAcceptDmInvites: boolean;
