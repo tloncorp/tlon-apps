@@ -120,6 +120,11 @@ export const SettingsNavigator = () => {
   return (
     <SettingsDrawer.Navigator
       initialRouteName="SettingsEmpty"
+      // Back should return to the previously focused screen (e.g. the
+      // BotSettings hub that holds the Apply bar), not the drawer's first route.
+      // The default 'firstRoute' would strand pending bot edits after
+      // BotSettings -> BotModelSettings -> Done.
+      backBehavior="history"
       drawerContent={DrawerContent}
       screenOptions={{
         headerShown: false,
