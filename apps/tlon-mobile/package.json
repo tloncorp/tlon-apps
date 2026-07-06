@@ -87,6 +87,7 @@
     "@urbit/http-api": "3.2.0-dev",
     "classnames": "^2.3.2",
     "dotenv-expand": "^11.0.6",
+    "drizzle-orm": "0.39.3",
     "expo": "~56.0.5",
     "expo-application": "~56.0.3",
     "expo-asset": "~56.0.15",
@@ -154,6 +155,7 @@
   "devDependencies": {
     "@faker-js/faker": "^8.4.1",
     "@jest/globals": "^29.7.0",
+    "@react-native/jest-preset": "0.85.3",
     "@react-native/metro-config": "0.85.3",
     "@tamagui/babel-plugin": "2.4.2",
     "@testing-library/react-native": "^12.5.2",
