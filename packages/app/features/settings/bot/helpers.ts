@@ -256,13 +256,12 @@ export const normalizeTlonbotConfig = (
     channelRules: Object.fromEntries(
       Object.entries(raw?.channelRules ?? {}).map(([key, rule]) => {
         const mode = toBackendMode(toDraftMode(rule?.mode));
-        // A restricted rule that omits allowedShips inherits
-        // defaultAuthorizedShips on the backend; materialize that so the UI
-        // round-trips the same allowlist instead of an empty (block-all) list.
-        const allowedShips =
-          rule?.allowedShips ??
-          (mode === 'restricted' ? defaultAuthorizedShips : []);
-        return [key, { mode, allowedShips }];
+        // Preserve an omitted allowedShips (undefined) rather than materializing
+        // it: the backend treats a restricted rule without allowedShips as
+        // inheriting defaultAuthorizedShips, and buildChannelRuleDrafts needs
+        // that distinction to keep the rule following the defaults. An explicit
+        // [] (block-all) is kept as-is.
+        return [key, { mode, allowedShips: rule?.allowedShips }];
       })
     ),
     groupChannels: raw?.groupChannels ?? [],
@@ -272,29 +271,37 @@ export const normalizeTlonbotConfig = (
   };
 };
 
+// A restricted channel that follows defaultAuthorizedShips. The allowlist is
+// prefilled for display, but the flag makes the save path omit allowedShips so
+// the channel keeps inheriting the (current and future) defaults.
+const inheritedDraft = (defaultAuthorizedShips: string[]): ChannelRuleDraft => ({
+  mode: 'allowlist',
+  allowedShips: formatShipList(defaultAuthorizedShips || []),
+  inheritsDefaultShips: true,
+});
+
 export const buildChannelRuleDrafts = (
   config: TlawnConfig,
   providerConfig?: TlawnProviderConfigInfo
 ): Record<string, ChannelRuleDraft> => {
   const drafts: Record<string, ChannelRuleDraft> = {};
   Object.entries(config.channelRules || {}).forEach(([key, rule]) => {
-    drafts[normalizeChannelRuleKey(key)] = {
-      mode: toDraftMode(rule.mode),
-      allowedShips: formatShipList(rule.allowedShips || []),
-    };
+    // A restricted rule with no explicit allowedShips inherits
+    // defaultAuthorizedShips on the backend; flag it so a save keeps it
+    // following the defaults instead of freezing the current list.
+    drafts[normalizeChannelRuleKey(key)] =
+      rule.mode === 'restricted' && rule.allowedShips === undefined
+        ? inheritedDraft(config.defaultAuthorizedShips)
+        : {
+            mode: toDraftMode(rule.mode),
+            allowedShips: formatShipList(rule.allowedShips || []),
+          };
   });
   (config.groupChannels || []).forEach((key) => {
     const channelKey = normalizeChannelRuleKey(key);
     if (!drafts[channelKey]) {
-      // No explicit rule means the backend treats the channel as restricted,
-      // allowing defaultAuthorizedShips. Represent it that way (flagged as
-      // inherited) so saving doesn't open the channel and the save path can
-      // rederive the allowlist from the current defaults.
-      drafts[channelKey] = {
-        mode: 'allowlist',
-        allowedShips: formatShipList(config.defaultAuthorizedShips || []),
-        inheritsDefaultShips: true,
-      };
+      // No explicit rule at all — same inherited-restricted default.
+      drafts[channelKey] = inheritedDraft(config.defaultAuthorizedShips);
     }
   });
   providerConfig?.models?.forEach((model) => {
@@ -397,21 +404,26 @@ export const buildConfigFromChatValues = (
   values: ChatFormValues
 ): TlawnConfig => {
   const channelRules = Object.fromEntries(
-    Object.entries(values.channelRuleDrafts).map(([key, rule]) => [
-      normalizeChannelRuleKey(key),
-      {
-        mode: toBackendMode(rule.mode),
-        // Inherited channels rederive their allowlist from the current defaults
-        // so an edit to defaultAuthorizedShips isn't frozen out by the snapshot
-        // captured when the form was opened.
-        allowedShips:
-          rule.mode === 'allowlist'
-            ? rule.inheritsDefaultShips
-              ? normalizeShipList(values.defaultAuthorizedShips)
-              : normalizeShipList(rule.allowedShips)
-            : [],
-      },
-    ])
+    Object.entries(values.channelRuleDrafts).map(([key, rule]) => {
+      const normalizedKey = normalizeChannelRuleKey(key);
+      const mode = toBackendMode(rule.mode);
+      // Inherited channels are written without allowedShips so the backend keeps
+      // applying defaultAuthorizedShips (following future changes) instead of
+      // freezing the current list.
+      if (rule.mode === 'allowlist' && rule.inheritsDefaultShips) {
+        return [normalizedKey, { mode }];
+      }
+      return [
+        normalizedKey,
+        {
+          mode,
+          allowedShips:
+            rule.mode === 'allowlist'
+              ? normalizeShipList(rule.allowedShips)
+              : [],
+        },
+      ];
+    })
   );
   return {
     dmAllowlist: normalizeShipList(values.dmAllowlist),
