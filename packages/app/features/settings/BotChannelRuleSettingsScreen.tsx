@@ -310,6 +310,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                         {ship}
                       </Text>
                       <Pressable
+                        disabled={controlsDisabled}
                         onPress={() =>
                           patch({
                             allowedShips: formatShipList(
@@ -318,7 +319,12 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                           })
                         }
                       >
-                        <Icon type="Close" size="$m" color="$secondaryText" />
+                        <Icon
+                          type="Close"
+                          size="$m"
+                          color="$secondaryText"
+                          opacity={controlsDisabled ? 0.4 : 1}
+                        />
                       </Pressable>
                     </XStack>
                   ))}
