@@ -12286,6 +12286,9 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "chat/~latter-bolden/welcome-4929"
       ]
     },
     "~latter-bolden/test-channels": {
@@ -12355,6 +12358,9 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "chat/~latter-bolden/welcome-2421"
       ]
     },
     "~latter-bolden/pumpkins": {
@@ -12424,6 +12430,9 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "chat/~latter-bolden/welcome-570"
       ]
     },
     "~latter-bolden/woodshop": {
@@ -12493,6 +12502,9 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "chat/~latter-bolden/welcome-8186"
       ]
     },
     "~latter-bolden/priv": {
@@ -12564,6 +12576,9 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "chat/~latter-bolden/welcome-1528"
       ]
     },
     "~latter-bolden/demo-test": {
@@ -12633,6 +12648,9 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "chat/~latter-bolden/welcome-5883"
       ]
     },
     "~pondus-watbel/testing-facility": {
@@ -12839,6 +12857,17 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "chat/~pondus-watbel/short-chats",
+        "heap/~pondus-watbel/new-blocks",
+        "diary/~pondus-watbel/books",
+        "heap/~pondus-watbel/stuffs",
+        "chat/~pondus-watbel/new-channel",
+        "chat/~latter-bolden/banter-79",
+        "chat/~pondus-watbel/image-test",
+        "chat/~pondus-watbel/ghost-town",
+        "chat/~pondus-watbel/looooong-chats"
       ]
     },
     "~pondus-watbel/digital-basics": {
@@ -12908,6 +12937,9 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "chat/~pondus-watbel/stray-thoughts"
       ]
     },
     "~nibset-napwyn/tlon": {
@@ -13201,6 +13233,16 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "diary/~nocsyx-lassul/feedback-and-questions-2368",
+        "chat/~nibset-napwyn/developers",
+        "chat/~nibset-napwyn/commons",
+        "chat/~nibset-napwyn/intros",
+        "diary/~nibset-napwyn/getting-started",
+        "heap/~nibset-napwyn/bulletin-board-53",
+        "diary/~dalwes-migdec/fall-updates",
+        "heap/~nibset-napwyn/local-directory"
       ]
     },
     "~latter-bolden/joiner-2": {
@@ -13270,6 +13312,9 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "chat/~latter-bolden/welcome-6251"
       ]
     },
     "~pondus-watbel/quality-assurance-center-of-consumer-excellence": {
@@ -13339,6 +13384,9 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "chat/~pondus-watbel/the-catalogue"
       ]
     },
     "~pondus-watbel/atlanta-motor-speedway": {
@@ -13408,6 +13456,9 @@
       },
       "admins": [
         "admin"
+      ],
+      "active-channels": [
+        "chat/~pondus-watbel/welcome-4526"
       ]
     }
   },

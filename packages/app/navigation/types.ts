@@ -36,12 +36,33 @@ export type RootStackParamList = {
     channelId: string;
     groupId: string;
   };
+  ContextLensRuns: {
+    channelId?: string;
+  };
+  ContextLensRun: {
+    botShip: string;
+    lensId: string;
+    channelId?: string;
+  };
   Post: {
     postId: string;
     channelId: string;
     authorId: string;
     groupId?: string;
     selectedPostId?: string | null;
+  };
+  NotesDetail: {
+    channelId: string;
+    focusTitle?: boolean;
+    groupId?: string;
+    noteId: number;
+    startInEdit?: boolean;
+  };
+  NotesFolder: {
+    channelId: string;
+    folderId: number;
+    folderTitle?: string;
+    groupId?: string;
   };
   MediaViewer: {
     mediaType: 'image' | 'video';
@@ -167,6 +188,8 @@ export type ChannelStackParamList = {
   GroupSettings: RootStackParamList['GroupSettings'];
   ChannelSearch: RootStackParamList['ChannelSearch'];
   Post: RootStackParamList['Post'];
+  NotesDetail: RootStackParamList['NotesDetail'];
+  NotesFolder: RootStackParamList['NotesFolder'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
@@ -179,6 +202,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'GroupSettings'
   | 'ChannelSearch'
   | 'Post'
+  | 'NotesDetail'
+  | 'NotesFolder'
   | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'

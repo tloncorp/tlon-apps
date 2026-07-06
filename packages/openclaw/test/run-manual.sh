@@ -115,7 +115,7 @@ print_info() {
   echo ""
   echo "  Gateway:       http://localhost:$GATEWAY_PORT"
   echo ""
-  echo "  Stop with:     pnpm test:manual -- --stop"
+  echo "  Stop with:     pnpm test:manual --stop"
   echo "                 (or Ctrl+C)"
   echo "============================================"
   echo ""

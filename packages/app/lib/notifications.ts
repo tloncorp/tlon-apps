@@ -19,15 +19,17 @@ import { connectNotifyProvider } from './notificationsApi';
 
 const logger = createDevLogger('notifications', true);
 
-if (Platform.OS !== 'web') {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: false,
-      shouldSetBadge: true,
-    }),
-  });
+export function initializeNotifications() {
+  if (Platform.OS !== 'web') {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: false,
+        shouldSetBadge: true,
+      }),
+    });
+  }
 }
 
 /** Returns true if notification permission is thought to be granted, false otherwise */
