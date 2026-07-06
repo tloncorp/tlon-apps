@@ -277,13 +277,14 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
       return;
     }
     if (draft.pending.channelRules) {
+      // A model override needs both a provider and a model; a row with only one
+      // (including a Basic provider with no model) is silently dropped by the
+      // merge path, so reject it here rather than marking it applied.
       const incompleteOverride = Object.values(
         nextValues.chat.channelRuleDrafts
       ).some(
         (rule) =>
-          rule.modelOverrideProvider &&
-          rule.modelOverrideProvider !== BASIC_PROVIDER_ID &&
-          !rule.modelOverride
+          Boolean(rule.modelOverrideProvider) !== Boolean(rule.modelOverride)
       );
       if (incompleteOverride) {
         setApplyError('Select a model for each channel with a custom model.');
