@@ -2,8 +2,8 @@ packages:
   - "packages/*"
   - "apps/*"
 
-# pnpm 11 no longer reads pnpm settings from .npmrc; the copies there remain
-# for npm/npx interop only.
+# pnpm 11 reads its settings from this file only (.npmrc and the package.json
+# "pnpm" field are no longer consulted).
 nodeLinker: hoisted
 engineStrict: true
 
