@@ -1,0 +1,1235 @@
+openapi: 3.1.0
+info:
+  title: Notes v1 HTTP API
+  version: 1.0.0
+  description: |
+    Request/response HTTP surface for the `%notes` Urbit Gall agent.
+    Every action carries a client-generated `requestId` (`@uv`); the
+    agent holds the POST open until either the host's terminal
+    `response-update` is forwarded back, or the 20 s per-request
+    timeout fires (in which case the body is `pending` and the client
+    can poll the GET endpoint or subscribe to the SSE path).
+
+    All endpoints are mounted under the agent's Eyre bind (`/notes`).
+    Authentication is one of:
+
+    - **`urbauth-{patp}` cookie** — set by `POST /~/login` with the
+      ship's `+code`. Standard browser-driven session auth.
+    - **`X-Api-Key` header** — long-lived shared secret minted on
+      first install (and after the state-11 → state-12 migration).
+      Designed for bot ships / MCP proxies / automation that can't
+      paste a rotating cookie. Inspect via the
+      `/x/v0/api-key` scry; rotate or clear via the
+      `regenerate-api-key` / `clear-api-key` actions.
+
+    Either credential is sufficient — POST and GET both honor either,
+    and `/notes/openapi.json` is unauthenticated (spec metadata).
+servers:
+  - url: http://localhost:8082
+    description: Local dev ship
+paths:
+  /notes/~/v1:
+    post:
+      summary: Submit an action
+      description: |
+        Parses the body as a `RequestEnvelope`, registers the
+        `requestId` in the agent's `requests` map with this Eyre
+        request's id as the held HTTP slot, then dispatches the
+        wrapped action. Returns when a terminal response-update
+        arrives (typical), the host nacks (error), or the 20 s
+        per-request behn timer fires (pending).
+      operationId: submitAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestEnvelope"
+            examples:
+              create-notebook:
+                summary: Create a notebook
+                value:
+                  requestId: "0v1.ab2cd.ef3gh.ij4kl"
+                  action:
+                    type: create-notebook
+                    title: My Notebook
+              create-note:
+                summary: Create a note in a notebook on the host
+                value:
+                  requestId: "0v2.aaaaa.bbbbb.ccccc"
+                  action:
+                    type: notebook
+                    flag: "~zod/my-notebook-1"
+                    action:
+                      type: create-note
+                      folder: 2
+                      title: Untitled
+                      body: ""
+              update-note:
+                summary: Auto-save body with optimistic-concurrency check
+                value:
+                  requestId: "0v3.aaaaa.bbbbb.ccccc"
+                  action:
+                    type: notebook
+                    flag: "~zod/my-notebook-1"
+                    action:
+                      type: note
+                      id: 3
+                      action:
+                        type: update
+                        body: "# New body"
+                        expectedRevision: 4
+      responses:
+        "200":
+          description: Terminal or pending response from the agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        "400":
+          description: Missing or malformed body
+          content:
+            text/plain:
+              schema:
+                type: string
+        "405":
+          description: Method not allowed
+  /notes/~/v1/request/{requestId}:
+    get:
+      summary: Poll a request's current state
+      description: |
+        Returns the same `Response` shape as the original POST. If the
+        request is still in flight (or the POST timed out with a
+        `pending` body), this returns the current state. Marks the
+        request as fetched so the agent's cleanup pass can evict it
+        sooner.
+      operationId: getRequest
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema:
+            $ref: "#/components/schemas/RequestId"
+      responses:
+        "200":
+          description: Current request state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Response"
+        "404":
+          description: No such request (cleaned up, never registered, or bad path)
+          content:
+            text/plain:
+              schema:
+                type: string
+  /notes/~/v1/notebooks:
+    get:
+      summary: List notebooks
+      description: |
+        All notebooks the authenticated identity can view (hosted or
+        subscribed). Same data as the `/x/v0/notebooks` scry, but
+        honors `X-Api-Key` so a bot can read without a session cookie.
+      operationId: listNotebooks
+      responses:
+        "200":
+          description: Notebook summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NotebookSummary"
+        "401":
+          description: Unauthorized
+    post:
+      summary: Create a notebook
+      description: |
+        First-class convenience endpoint — flat body, no discriminated
+        union. Equivalent to submitAction with a create-notebook action.
+        Returns the new notebook's summary (incl. the slugified flag).
+      operationId: createNotebook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string }
+      responses:
+        "200":
+          description: Created — response body is type `notebook`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Response" }
+        "400": { description: Missing/invalid title }
+        "401": { description: Unauthorized }
+  /notes/~/v1/notebooks/{host}/{name}:
+    get:
+      summary: Notebook detail
+      operationId: getNotebook
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string }, description: "Host ship (~-prefixed @p)" }
+        - { in: path, name: name, required: true, schema: { type: string }, description: "Notebook slug (@tas)" }
+      responses:
+        "200":
+          description: Notebook detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotebookSummary"
+        "401": { description: Unauthorized }
+        "404": { description: Notebook not found / caller not a member }
+  /notes/~/v1/notebooks/{host}/{name}/folders:
+    get:
+      summary: List folders
+      operationId: listFolders
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string } }
+        - { in: path, name: name, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Folders
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Folder" }
+        "401": { description: Unauthorized }
+        "404": { description: Not found }
+    post:
+      summary: Create a folder
+      operationId: createFolder
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string } }
+        - { in: path, name: name, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folderName]
+              properties:
+                folderName:
+                  type: string
+                  description: >-
+                    Name of the new folder. (Distinct from the path's
+                    `{name}` which is the notebook slug — when mcp-proxy
+                    flattens path + body fields into a single tool input,
+                    a colliding name would conflate the two.)
+                parent:
+                  type: integer
+                  description: >-
+                    Parent folder id. If omitted (or null), the folder lands
+                    under the notebook's root (`notebook.rootFolderId`). An
+                    explicit id that doesn't exist in the notebook is
+                    rejected.
+      responses:
+        "200":
+          description: Created — response carries the folder-created update
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Response" }
+        "400": { description: Missing name }
+        "401": { description: Unauthorized }
+        "404": { description: Notebook not found }
+  /notes/~/v1/notebooks/{host}/{name}/folders/{id}:
+    get:
+      summary: Single folder
+      operationId: getFolder
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string } }
+        - { in: path, name: name, required: true, schema: { type: string } }
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Folder
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Folder" }
+        "401": { description: Unauthorized }
+        "404": { description: Not found }
+    put:
+      summary: Rename and/or move a folder
+      description: >-
+        Provide `name`, `parent`, or both. Fields left out (or null) are
+        unchanged. An explicit `parent` that doesn't exist in the notebook,
+        or that would move the folder into its own subtree, is rejected.
+      operationId: updateFolder
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string } }
+        - { in: path, name: name, required: true, schema: { type: string } }
+        - { in: path, name: id,   required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                folderName: { type: string,  nullable: true }
+                parent:     { type: integer, nullable: true }
+      responses:
+        "200":
+          description: Updated — response carries the folder-updated update
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Response" }
+        "400": { description: Empty body (no name, no parent) }
+        "401": { description: Unauthorized }
+        "404": { description: Notebook or folder not found }
+    delete:
+      summary: Delete a folder
+      description: >-
+        Default refuses if the folder has children; pass `?recursive=true`
+        to delete the folder and everything beneath it.
+      operationId: deleteFolder
+      parameters:
+        - { in: path,  name: host, required: true, schema: { type: string } }
+        - { in: path,  name: name, required: true, schema: { type: string } }
+        - { in: path,  name: id,   required: true, schema: { type: integer } }
+        - in: query
+          name: recursive
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Deleted — response carries the folder-deleted update
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Response" }
+        "401": { description: Unauthorized }
+        "404": { description: Notebook or folder not found }
+        "409": { description: Non-empty folder without ?recursive=true }
+  /notes/~/v1/notebooks/{host}/{name}/notes:
+    get:
+      summary: List notes
+      operationId: listNotes
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string } }
+        - { in: path, name: name, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Note" }
+        "401": { description: Unauthorized }
+        "404": { description: Not found }
+    post:
+      summary: Create a note
+      operationId: createNote
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string } }
+        - { in: path, name: name, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder, title]
+              properties:
+                folder: { type: integer, description: Containing folder id }
+                title: { type: string }
+                body: { type: string, description: "Markdown body; defaults to empty" }
+      responses:
+        "200":
+          description: Created — response carries the note-created update with the new id
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Response" }
+        "400": { description: Missing folder/title }
+        "401": { description: Unauthorized }
+        "404": { description: Notebook not found }
+  /notes/~/v1/notebooks/{host}/{name}/notes/{id}:
+    get:
+      summary: Single note (with body)
+      operationId: getNote
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string } }
+        - { in: path, name: name, required: true, schema: { type: string } }
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Note
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Note" }
+        "401": { description: Unauthorized }
+        "404": { description: Not found }
+    put:
+      summary: Update a note (body, title, or folder)
+      description: |
+        Updates a note. Two distinct modes based on what's in the body:
+
+        - **Content edit**: provide `body` (with optional `expectedRevision`
+          for optimistic-concurrency, exactly like the UI's autosave;
+          omit it for last-write-wins). Bumps the note's revision.
+        - **Metadata edit**: provide `title` and/or `folder` (rename
+          and/or move). Does *not* bump revision.
+
+        If `body` is present, the call is treated as a content edit and
+        `title` / `folder` are ignored. To rename or move alongside a
+        content edit, send two requests.
+
+        Uses PUT, not PATCH — vere's runtime HTTP server rejects PATCH
+        before it reaches the agent.
+      operationId: updateNote
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string } }
+        - { in: path, name: name, required: true, schema: { type: string } }
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body: { type: string, nullable: true }
+                expectedRevision:
+                  type: integer
+                  nullable: true
+                  description: "Optional content-edit guard"
+                title:
+                  type: string
+                  nullable: true
+                  description: "New title (metadata-edit mode)"
+                folder:
+                  type: integer
+                  nullable: true
+                  description: "New parent folder id (metadata-edit mode)"
+      responses:
+        "200":
+          description: Updated — response carries the note-updated update
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Response" }
+        "400": { description: Empty body (no body, no title, no folder) }
+        "401": { description: Unauthorized }
+        "404": { description: Not found }
+    delete:
+      summary: Delete a note
+      operationId: deleteNote
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string } }
+        - { in: path, name: name, required: true, schema: { type: string } }
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Deleted — response carries the note-deleted update
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Response" }
+        "401": { description: Unauthorized }
+        "404": { description: Not found }
+  /notes/~/v1/notebooks/{host}/{name}/notes/{id}/history:
+    get:
+      summary: Note revision history (newest first)
+      operationId: getNoteHistory
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string } }
+        - { in: path, name: name, required: true, schema: { type: string } }
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Archived revisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/NoteRevision" }
+        "401": { description: Unauthorized }
+        "404": { description: Not found }
+  /notes/~/v1/notebooks/{host}/{name}/members:
+    get:
+      summary: List members + roles
+      operationId: listMembers
+      parameters:
+        - { in: path, name: host, required: true, schema: { type: string } }
+        - { in: path, name: name, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Members
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MemberRecord" }
+        "401": { description: Unauthorized }
+        "404": { description: Not found }
+  /notes/~/v1/invites:
+    get:
+      summary: Pending invites we've received
+      operationId: listInvites
+      responses:
+        "200":
+          description: Invite records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InviteRecord" }
+        "401": { description: Unauthorized }
+components:
+  schemas:
+    # ── Envelope ───────────────────────────────────────────────
+    RequestId:
+      type: string
+      description: |
+        Canonical Hoon `@uv` (base-32 with `.` separators every 5
+        chars from the right, prefixed `0v`). A correlation id for the
+        request. OPTIONAL on POST: if you omit it (or send something
+        that isn't a valid `@uv`), the server mints one and returns it
+        in the response. You only need to supply your own if you intend
+        to poll `GET /request/{requestId}` or subscribe to the SSE
+        request stream — for the common case (read the held-open POST
+        response inline) you can leave it out entirely.
+      pattern: "^0v[0-9a-v.]+$"
+      example: "0v3.1k7gh.j5b2m.r8nq9"
+    RequestEnvelope:
+      type: object
+      required: [action]
+      properties:
+        requestId:
+          $ref: "#/components/schemas/RequestId"
+        action:
+          $ref: "#/components/schemas/Action"
+    Response:
+      type: object
+      required: [requestId, body]
+      properties:
+        requestId:
+          $ref: "#/components/schemas/RequestId"
+        body:
+          $ref: "#/components/schemas/ResponseBody"
+    # ── Response body union ────────────────────────────────────
+    ResponseBody:
+      oneOf:
+        - $ref: "#/components/schemas/ResponseOk"
+        - $ref: "#/components/schemas/ResponseNoChange"
+        - $ref: "#/components/schemas/ResponseNotebook"
+        - $ref: "#/components/schemas/ResponseApiKey"
+        - $ref: "#/components/schemas/ResponseError"
+        - $ref: "#/components/schemas/ResponsePending"
+      discriminator:
+        propertyName: type
+        mapping:
+          ok: "#/components/schemas/ResponseOk"
+          no-change: "#/components/schemas/ResponseNoChange"
+          notebook: "#/components/schemas/ResponseNotebook"
+          api-key: "#/components/schemas/ResponseApiKey"
+          error: "#/components/schemas/ResponseError"
+          pending: "#/components/schemas/ResponsePending"
+    ResponseOk:
+      type: object
+      required: [type, response]
+      properties:
+        type:
+          type: string
+          enum: [ok]
+        response:
+          $ref: "#/components/schemas/RNotes"
+    ResponseNotebook:
+      type: object
+      description: |
+        Returned by `create-notebook` — the new notebook's summary so
+        the caller learns the slugified flag + metadata without a
+        follow-up read.
+      required: [type, notebook]
+      properties:
+        type:
+          type: string
+          enum: [notebook]
+        notebook:
+          $ref: "#/components/schemas/NotebookSummary"
+    ResponseApiKey:
+      type: object
+      description: |
+        Returned by `regenerate-api-key` (new key) and `clear-api-key`
+        (apiKey: null). `apiKey` is the value to send as `X-Api-Key`.
+      required: [type, apiKey]
+      properties:
+        type:
+          type: string
+          enum: [api-key]
+        apiKey:
+          type: [string, "null"]
+    ResponseNoChange:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [no-change]
+    ResponseError:
+      type: object
+      required: [type, errorType, message]
+      properties:
+        type:
+          type: string
+          enum: [error]
+        errorType:
+          $ref: "#/components/schemas/ActionError"
+        message:
+          type: array
+          description: Hoon `tang` rendered as JSON strings. Empty for now.
+          items:
+            type: string
+    ResponsePending:
+      type: object
+      required: [type, status]
+      properties:
+        type:
+          type: string
+          enum: [pending]
+        status:
+          $ref: "#/components/schemas/PokeStatus"
+    PokeStatus:
+      type: string
+      enum: [sending, acked, nacked]
+      description: |
+        Where the cross-ship poke stood when the timeout fired.
+        `sending` = no poke-ack yet, `acked` = host accepted but no
+        response-update yet, `nacked` = host crashed (a terminal
+        `error` body would normally have followed; if you see this,
+        the timeout beat the nack delivery).
+    ActionError:
+      type: string
+      enum:
+        - not-authorized
+        - not-found
+        - invalid-name
+        - conflict
+        - request-too-large
+        - unknown
+      description: |
+        Structured failure mode. `conflict` corresponds to an
+        `expectedRevision` mismatch on a note update. Today most
+        host-side crashes surface as `unknown` (raw nack); future
+        work will route revision-mismatch and visibility errors to
+        their typed variants.
+
+    # ── Action union (a-notes) ─────────────────────────────────
+    Action:
+      oneOf:
+        - $ref: "#/components/schemas/ActionCreateNotebook"
+        - $ref: "#/components/schemas/ActionJoin"
+        - $ref: "#/components/schemas/ActionLeave"
+        - $ref: "#/components/schemas/ActionAcceptInvite"
+        - $ref: "#/components/schemas/ActionDeclineInvite"
+        - $ref: "#/components/schemas/ActionNotebookEnvelope"
+        - $ref: "#/components/schemas/ActionRegenerateApiKey"
+        - $ref: "#/components/schemas/ActionClearApiKey"
+      discriminator:
+        propertyName: type
+        mapping:
+          create-notebook: "#/components/schemas/ActionCreateNotebook"
+          join: "#/components/schemas/ActionJoin"
+          leave: "#/components/schemas/ActionLeave"
+          accept-invite: "#/components/schemas/ActionAcceptInvite"
+          decline-invite: "#/components/schemas/ActionDeclineInvite"
+          notebook: "#/components/schemas/ActionNotebookEnvelope"
+          regenerate-api-key: "#/components/schemas/ActionRegenerateApiKey"
+          clear-api-key: "#/components/schemas/ActionClearApiKey"
+    ActionCreateNotebook:
+      type: object
+      required: [type, title]
+      properties:
+        type:
+          type: string
+          enum: [create-notebook]
+        title:
+          type: string
+    ShipRef:
+      type: object
+      required: [ship, name]
+      properties:
+        ship:
+          type: string
+          description: Host ship, `~`-prefixed (e.g. `~zod`).
+          example: "~zod"
+        name:
+          type: string
+          description: Slug part of the flag (`@tas`-validated, lowercase).
+          example: "my-notebook-1"
+    ActionJoin:
+      allOf:
+        - $ref: "#/components/schemas/ShipRef"
+        - type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: [join]
+    ActionLeave:
+      allOf:
+        - $ref: "#/components/schemas/ShipRef"
+        - type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: [leave]
+    ActionAcceptInvite:
+      allOf:
+        - $ref: "#/components/schemas/ShipRef"
+        - type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: [accept-invite]
+    ActionDeclineInvite:
+      allOf:
+        - $ref: "#/components/schemas/ShipRef"
+        - type: object
+          required: [type]
+          properties:
+            type:
+              type: string
+              enum: [decline-invite]
+    ActionNotebookEnvelope:
+      type: object
+      required: [type, flag, action]
+      properties:
+        type:
+          type: string
+          enum: [notebook]
+        flag:
+          $ref: "#/components/schemas/Flag"
+        action:
+          $ref: "#/components/schemas/ANotebook"
+    ActionRegenerateApiKey:
+      type: object
+      required: [type]
+      description: |
+        Replace the stored `X-Api-Key` with a fresh random value.
+        Invalidates any bots / scripts still using the previous key.
+      properties:
+        type:
+          type: string
+          enum: [regenerate-api-key]
+    ActionClearApiKey:
+      type: object
+      required: [type]
+      description: |
+        Erase the stored `X-Api-Key`. Disables the bypass entirely —
+        afterward only eyre-cookie-authenticated requests pass the v1
+        dispatch gate. Re-mint via `regenerate-api-key`.
+      properties:
+        type:
+          type: string
+          enum: [clear-api-key]
+    Flag:
+      type: string
+      description: |
+        Notebook identity in `~ship/name` form. Splits at the first
+        `/`; the right side must be a valid `@tas` slug.
+      pattern: "^~[a-z-]+/[a-z][a-z0-9-]*$"
+      example: "~zod/my-notebook-1"
+
+    # ── Notebook-scoped action union (a-notebook) ──────────────
+    ANotebook:
+      oneOf:
+        - $ref: "#/components/schemas/NbRename"
+        - $ref: "#/components/schemas/NbDelete"
+        - $ref: "#/components/schemas/NbVisibility"
+        - $ref: "#/components/schemas/NbInvite"
+        - $ref: "#/components/schemas/NbCreateFolder"
+        - $ref: "#/components/schemas/NbFolderEnvelope"
+        - $ref: "#/components/schemas/NbCreateNote"
+        - $ref: "#/components/schemas/NbNoteEnvelope"
+        - $ref: "#/components/schemas/NbBatchImport"
+        - $ref: "#/components/schemas/NbBatchImportTree"
+      discriminator:
+        propertyName: type
+        mapping:
+          rename: "#/components/schemas/NbRename"
+          delete: "#/components/schemas/NbDelete"
+          visibility: "#/components/schemas/NbVisibility"
+          invite: "#/components/schemas/NbInvite"
+          create-folder: "#/components/schemas/NbCreateFolder"
+          folder: "#/components/schemas/NbFolderEnvelope"
+          create-note: "#/components/schemas/NbCreateNote"
+          note: "#/components/schemas/NbNoteEnvelope"
+          batch-import: "#/components/schemas/NbBatchImport"
+          batch-import-tree: "#/components/schemas/NbBatchImportTree"
+    NbRename:
+      type: object
+      required: [type, title]
+      properties:
+        type: { type: string, enum: [rename] }
+        title: { type: string }
+    NbDelete:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, enum: [delete] }
+    NbVisibility:
+      type: object
+      required: [type, visibility]
+      properties:
+        type: { type: string, enum: [visibility] }
+        visibility:
+          type: string
+          enum: [public, private]
+    NbInvite:
+      type: object
+      required: [type, who]
+      properties:
+        type: { type: string, enum: [invite] }
+        who:
+          type: string
+          description: Invitee ship.
+          example: "~bus"
+    NbCreateFolder:
+      type: object
+      required: [type, name]
+      properties:
+        type: { type: string, enum: [create-folder] }
+        parent:
+          type: [integer, "null"]
+          description: Parent folder id; null = root.
+        name: { type: string }
+    NbFolderEnvelope:
+      type: object
+      required: [type, id, action]
+      properties:
+        type: { type: string, enum: [folder] }
+        id: { type: integer }
+        action: { $ref: "#/components/schemas/AFolder" }
+    NbCreateNote:
+      type: object
+      required: [type, folder, title, body]
+      properties:
+        type: { type: string, enum: [create-note] }
+        folder: { type: integer }
+        title: { type: string }
+        body: { type: string }
+    NbNoteEnvelope:
+      type: object
+      required: [type, id, action]
+      properties:
+        type: { type: string, enum: [note] }
+        id: { type: integer }
+        action: { $ref: "#/components/schemas/ANote" }
+    NbBatchImport:
+      type: object
+      required: [type, folder, notes]
+      properties:
+        type: { type: string, enum: [batch-import] }
+        folder: { type: integer }
+        notes:
+          type: array
+          items:
+            type: object
+            required: [title, body]
+            properties:
+              title: { type: string }
+              body: { type: string }
+    NbBatchImportTree:
+      type: object
+      required: [type, parent, tree]
+      properties:
+        type: { type: string, enum: [batch-import-tree] }
+        parent: { type: integer }
+        tree:
+          type: array
+          items: { $ref: "#/components/schemas/ImportNode" }
+    ImportNode:
+      oneOf:
+        - type: object
+          required: [name, children]
+          properties:
+            name: { type: string }
+            children:
+              type: array
+              items: { $ref: "#/components/schemas/ImportNode" }
+        - type: object
+          required: [title, body]
+          properties:
+            title: { type: string }
+            body: { type: string }
+      description: |
+        A folder (has `children`) or a note (has `title` + `body`).
+
+    # ── Folder-scoped (a-folder) ───────────────────────────────
+    AFolder:
+      oneOf:
+        - type: object
+          required: [type, name]
+          properties:
+            type: { type: string, enum: [rename] }
+            name: { type: string }
+        - type: object
+          required: [type, newParent]
+          properties:
+            type: { type: string, enum: [move] }
+            newParent: { type: integer }
+        - type: object
+          required: [type, recursive]
+          properties:
+            type: { type: string, enum: [delete] }
+            recursive: { type: boolean }
+      discriminator:
+        propertyName: type
+
+    # ── Note-scoped (a-note) ───────────────────────────────────
+    ANote:
+      oneOf:
+        - type: object
+          required: [type, title]
+          properties:
+            type: { type: string, enum: [rename] }
+            title: { type: string }
+        - type: object
+          required: [type, folder]
+          properties:
+            type: { type: string, enum: [move] }
+            folder: { type: integer }
+        - type: object
+          required: [type]
+          properties:
+            type: { type: string, enum: [delete] }
+        - type: object
+          required: [type, body, expectedRevision]
+          properties:
+            type: { type: string, enum: [update] }
+            body: { type: string }
+            expectedRevision:
+              type: integer
+              description: |
+                Server-known revision the client is updating from.
+                Mismatch surfaces as a `conflict` error (planned;
+                currently `unknown`).
+        - type: object
+          required: [type, html]
+          properties:
+            type: { type: string, enum: [publish] }
+            html: { type: string }
+        - type: object
+          required: [type]
+          properties:
+            type: { type: string, enum: [unpublish] }
+        - type: object
+          required: [type, rev]
+          properties:
+            type: { type: string, enum: [restore] }
+            rev: { type: integer }
+      discriminator:
+        propertyName: type
+
+    # ── Successful response payload (r-notes) ──────────────────
+    RNotes:
+      oneOf:
+        - $ref: "#/components/schemas/RSnapshot"
+        - $ref: "#/components/schemas/RUpdate"
+      discriminator:
+        propertyName: type
+        mapping:
+          snapshot: "#/components/schemas/RSnapshot"
+          update: "#/components/schemas/RUpdate"
+    RSnapshot:
+      type: object
+      required: [type, host, flagName, visibility]
+      properties:
+        type: { type: string, enum: [snapshot] }
+        host: { type: string, example: "~zod" }
+        flagName: { type: string, example: "my-notebook-1" }
+        visibility:
+          type: string
+          enum: [public, private]
+    RUpdate:
+      type: object
+      required: [type, host, flagName, time, update]
+      properties:
+        type: { type: string, enum: [update] }
+        host: { type: string }
+        flagName: { type: string }
+        time:
+          type: integer
+          description: Unix seconds when the host applied the change.
+        update:
+          $ref: "#/components/schemas/UNotebook"
+
+    # ── Notebook-level update (u-notebook) ─────────────────────
+    UNotebook:
+      oneOf:
+        - $ref: "#/components/schemas/UNbCreated"
+        - $ref: "#/components/schemas/UNbUpdated"
+        - $ref: "#/components/schemas/UNbDeleted"
+        - $ref: "#/components/schemas/UNbVisibilityChanged"
+        - $ref: "#/components/schemas/UMemberJoined"
+        - $ref: "#/components/schemas/UMemberLeft"
+        - $ref: "#/components/schemas/UInviteReceived"
+        - $ref: "#/components/schemas/UInviteRemoved"
+        - $ref: "#/components/schemas/UFolderUpdate"
+        - $ref: "#/components/schemas/UNoteUpdate"
+      discriminator:
+        propertyName: type
+        mapping:
+          notebook-created: "#/components/schemas/UNbCreated"
+          notebook-updated: "#/components/schemas/UNbUpdated"
+          notebook-deleted: "#/components/schemas/UNbDeleted"
+          notebook-visibility-changed: "#/components/schemas/UNbVisibilityChanged"
+          member-joined: "#/components/schemas/UMemberJoined"
+          member-left: "#/components/schemas/UMemberLeft"
+          invite-received: "#/components/schemas/UInviteReceived"
+          invite-removed: "#/components/schemas/UInviteRemoved"
+          folder-update: "#/components/schemas/UFolderUpdate"
+          note-update: "#/components/schemas/UNoteUpdate"
+    Notebook:
+      type: object
+      required: [id, title, rootFolderId, createdBy, createdAt, updatedAt, updatedBy]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        rootFolderId:
+          type: integer
+          description: >-
+            Id of the notebook's root folder. Pass this as `parent` when
+            creating a folder/note at the top level. Equal to `id + 1`.
+        createdBy: { type: string }
+        createdAt: { type: integer, description: Unix seconds }
+        updatedAt: { type: integer }
+        updatedBy: { type: string }
+    NotebookSummary:
+      type: object
+      required: [host, flagName, notebook, visibility]
+      properties:
+        host: { type: string, example: "~zod" }
+        flagName: { type: string, example: "my-notebook-1" }
+        notebook: { $ref: "#/components/schemas/Notebook" }
+        visibility:
+          type: string
+          enum: [public, private]
+    NoteRevision:
+      type: object
+      required: [rev, at, author, title, bodyMd]
+      properties:
+        rev: { type: integer }
+        at: { type: integer, description: Unix seconds }
+        author: { type: string }
+        title: { type: string }
+        bodyMd: { type: string }
+    MemberRecord:
+      type: object
+      required: [ship, role]
+      properties:
+        ship: { type: string }
+        role:
+          type: string
+          enum: [owner, editor, viewer]
+    InviteRecord:
+      type: object
+      required: [host, flagName, from, sentAt, title]
+      properties:
+        host: { type: string }
+        flagName: { type: string }
+        from: { type: string }
+        sentAt: { type: integer, description: Unix seconds }
+        title: { type: string }
+    Folder:
+      type: object
+      required: [id, notebookId, name, parentFolderId, createdBy, createdAt, updatedAt, updatedBy]
+      properties:
+        id: { type: integer }
+        notebookId: { type: integer }
+        name: { type: string }
+        parentFolderId:
+          type: [integer, "null"]
+        createdBy: { type: string }
+        createdAt: { type: integer }
+        updatedAt: { type: integer }
+        updatedBy: { type: string }
+    Note:
+      type: object
+      required: [id, notebookId, folderId, title, slug, bodyMd, createdBy, createdAt, updatedBy, updatedAt, revision]
+      properties:
+        id: { type: integer }
+        notebookId: { type: integer }
+        folderId: { type: integer }
+        title: { type: string }
+        slug:
+          type: [string, "null"]
+        bodyMd: { type: string }
+        createdBy: { type: string }
+        createdAt: { type: integer }
+        updatedBy: { type: string }
+        updatedAt: { type: integer }
+        revision: { type: integer }
+    UNbCreated:
+      type: object
+      required: [type, host, flagName, notebook, visibility]
+      properties:
+        type: { type: string, enum: [notebook-created] }
+        host: { type: string }
+        flagName: { type: string }
+        notebook: { $ref: "#/components/schemas/Notebook" }
+        visibility: { type: string, enum: [public, private] }
+    UNbUpdated:
+      type: object
+      required: [type, host, flagName, notebook]
+      properties:
+        type: { type: string, enum: [notebook-updated] }
+        host: { type: string }
+        flagName: { type: string }
+        notebook: { $ref: "#/components/schemas/Notebook" }
+    UNbDeleted:
+      type: object
+      required: [type, host, flagName]
+      properties:
+        type: { type: string, enum: [notebook-deleted] }
+        host: { type: string }
+        flagName: { type: string }
+    UNbVisibilityChanged:
+      type: object
+      required: [type, host, flagName, visibility]
+      properties:
+        type: { type: string, enum: [notebook-visibility-changed] }
+        host: { type: string }
+        flagName: { type: string }
+        visibility: { type: string, enum: [public, private] }
+    UMemberJoined:
+      type: object
+      required: [type, host, flagName, who, role]
+      properties:
+        type: { type: string, enum: [member-joined] }
+        host: { type: string }
+        flagName: { type: string }
+        who: { type: string }
+        role:
+          type: string
+          enum: [owner, editor, viewer]
+    UMemberLeft:
+      type: object
+      required: [type, host, flagName, who]
+      properties:
+        type: { type: string, enum: [member-left] }
+        host: { type: string }
+        flagName: { type: string }
+        who: { type: string }
+    UInviteReceived:
+      type: object
+      required: [type, host, flagName, from, title]
+      properties:
+        type: { type: string, enum: [invite-received] }
+        host: { type: string }
+        flagName: { type: string }
+        from: { type: string }
+        title: { type: string }
+    UInviteRemoved:
+      type: object
+      required: [type, host, flagName]
+      properties:
+        type: { type: string, enum: [invite-removed] }
+        host: { type: string }
+        flagName: { type: string }
+    UFolderUpdate:
+      type: object
+      required: [type, host, flagName, folderUpdate]
+      properties:
+        type: { type: string, enum: [folder-update] }
+        host: { type: string }
+        flagName: { type: string }
+        folderUpdate: { $ref: "#/components/schemas/UFolder" }
+    UNoteUpdate:
+      type: object
+      required: [type, host, flagName, noteUpdate]
+      properties:
+        type: { type: string, enum: [note-update] }
+        host: { type: string }
+        flagName: { type: string }
+        noteUpdate: { $ref: "#/components/schemas/UNote" }
+    UFolder:
+      oneOf:
+        - type: object
+          required: [type, id, folder]
+          properties:
+            type: { type: string, enum: [folder-created] }
+            id: { type: integer }
+            folder: { $ref: "#/components/schemas/Folder" }
+        - type: object
+          required: [type, id, folder]
+          properties:
+            type: { type: string, enum: [folder-updated] }
+            id: { type: integer }
+            folder: { $ref: "#/components/schemas/Folder" }
+        - type: object
+          required: [type, id]
+          properties:
+            type: { type: string, enum: [folder-deleted] }
+            id: { type: integer }
+      discriminator:
+        propertyName: type
+    UNote:
+      oneOf:
+        - type: object
+          required: [type, id, note]
+          properties:
+            type: { type: string, enum: [note-created] }
+            id: { type: integer }
+            note: { $ref: "#/components/schemas/Note" }
+        - type: object
+          required: [type, id, note]
+          properties:
+            type: { type: string, enum: [note-updated] }
+            id: { type: integer }
+            note: { $ref: "#/components/schemas/Note" }
+        - type: object
+          required: [type, id]
+          properties:
+            type: { type: string, enum: [note-deleted] }
+            id: { type: integer }
+        - type: object
+          required: [type, id, html]
+          properties:
+            type: { type: string, enum: [note-published] }
+            id: { type: integer }
+            html: { type: string }
+        - type: object
+          required: [type, id]
+          properties:
+            type: { type: string, enum: [note-unpublished] }
+            id: { type: integer }
+        - type: object
+          required: [type, id, revision]
+          properties:
+            type: { type: string, enum: [note-history-archived] }
+            id: { type: integer }
+            revision: { $ref: "#/components/schemas/NoteRevision" }
+      discriminator:
+        propertyName: type
+  securitySchemes:
+    eyreCookie:
+      type: apiKey
+      in: cookie
+      name: urbauth-{patp}
+      description: |
+        Eyre session cookie set by `POST /~/login` with the ship's
+        `+code`. The same cookie authorizes all `/notes/*` paths.
+        Rotates on a `~m30` Max-Age — fine for interactive use,
+        burdensome for unattended automation.
+    xApiKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: |
+        Long-lived shared secret minted on first install. Bypass for
+        the v1 dispatch's `src.bowl == our.bowl` guard — designed
+        specifically for bot ships / MCP proxies / automation that
+        can't paste a rotating session cookie. Inspect via the
+        `/x/v0/api-key` scry (local user only). Rotate or clear with
+        the `regenerate-api-key` / `clear-api-key` actions.
+security:
+  # Either scheme is sufficient. List in priority order: cookie when
+  # the request carries one (browser FE / interactive use), X-Api-Key
+  # otherwise (automation, MCP proxies).
+  - eyreCookie: []
+  - xApiKey: []
