@@ -92,7 +92,7 @@ export function BotApiKeySettingsScreen(props: Props) {
       : null);
 
   return (
-    <View flex={1} backgroundColor="$background">
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
@@ -103,7 +103,7 @@ export function BotApiKeySettingsScreen(props: Props) {
         paddingTop="$l"
         safeAreaBottomOffset={24}
       >
-        <YStack gap="$xl" paddingBottom="$2xl">
+        <YStack gap="$2xl" paddingBottom="$2xl">
           <BotSettingsSection
             description={
               isConfigured

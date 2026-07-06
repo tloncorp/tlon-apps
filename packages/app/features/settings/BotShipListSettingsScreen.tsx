@@ -80,7 +80,7 @@ export function BotShipListSettingsScreen(props: Props) {
   }, [pendingShip, ships, commitShips]);
 
   return (
-    <View flex={1} backgroundColor="$background">
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
@@ -91,9 +91,9 @@ export function BotShipListSettingsScreen(props: Props) {
         paddingTop="$l"
         safeAreaBottomOffset={24}
       >
-        <YStack gap="$xl" paddingBottom="$2xl">
+        <YStack gap="$2xl" paddingBottom="$2xl">
           <YStack gap="$m">
-            <Text size="$label/m" color="$tertiaryText" paddingHorizontal="$s">
+            <Text size="$label/m" color="$secondaryText" paddingHorizontal="$s">
               Add a ship
             </Text>
             <XStack gap="$m" alignItems="center">

@@ -183,7 +183,7 @@ export function BotChannelRulesScreen(props: Props) {
   const loading = queries.channelsQuery.isLoading;
 
   return (
-    <View flex={1} backgroundColor="$background">
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
         backAction={
@@ -196,7 +196,7 @@ export function BotChannelRulesScreen(props: Props) {
         paddingTop="$l"
         safeAreaBottomOffset={24}
       >
-        <YStack gap="$xl" paddingBottom="$2xl">
+        <YStack gap="$2xl" paddingBottom="$2xl">
           <TextInput
             value={search}
             placeholder="Search channels"

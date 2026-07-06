@@ -11,6 +11,7 @@ import { Switch } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import { Badge } from '../../../ui/components/Badge';
+import { ListItem } from '../../../ui/components/ListItem';
 
 export function BotSettingsSection({
   title,
@@ -73,52 +74,32 @@ export function BotSettingsRow({
   onPress?: () => void;
 }>) {
   const content = (
-    <XStack
-      minHeight={56}
-      alignItems="center"
-      gap="$l"
-      paddingHorizontal="$l"
-      paddingVertical="$m"
-      opacity={disabled ? 0.6 : 1}
-    >
-      {icon ? (
-        <View
-          width="$3xl"
-          height="$3xl"
-          alignItems="center"
-          justifyContent="center"
-          borderRadius="$m"
-          backgroundColor="$secondaryBackground"
-        >
-          <Icon type={icon} size="$m" color="$secondaryText" />
-        </View>
-      ) : null}
-      <YStack flex={1} minWidth={0}>
-        <Text size="$label/l" color="$primaryText" numberOfLines={1}>
-          {label}
-        </Text>
+    <ListItem opacity={disabled ? 0.6 : 1}>
+      {icon ? <ListItem.SystemIcon icon={icon} rounded /> : null}
+      <ListItem.MainContent>
+        <ListItem.Title>{label}</ListItem.Title>
         {description ? (
-          <Text size="$label/s" color="$secondaryText" numberOfLines={2}>
-            {description}
+          <ListItem.Subtitle>{description}</ListItem.Subtitle>
+        ) : null}
+      </ListItem.MainContent>
+      <XStack alignItems="center" gap="$s" flexShrink={0}>
+        {pending ? <PendingBadge /> : null}
+        {value ? (
+          <Text
+            size="$label/m"
+            color="$tertiaryText"
+            numberOfLines={1}
+            maxWidth={160}
+          >
+            {value}
           </Text>
         ) : null}
-      </YStack>
-      {pending ? <PendingBadge /> : null}
-      {value ? (
-        <Text
-          size="$label/m"
-          color="$secondaryText"
-          numberOfLines={1}
-          maxWidth="45%"
-        >
-          {value}
-        </Text>
-      ) : null}
-      {children}
-      {onPress ? (
-        <Icon type="ChevronRight" size="$m" color="$tertiaryText" />
-      ) : null}
-    </XStack>
+        {children}
+        {onPress ? (
+          <Icon type="ChevronRight" size="$m" color="$tertiaryText" />
+        ) : null}
+      </XStack>
+    </ListItem>
   );
 
   if (!onPress) {
@@ -127,6 +108,8 @@ export function BotSettingsRow({
 
   return (
     <Pressable
+      borderRadius="$xl"
+      disabled={disabled}
       onPress={disabled ? undefined : onPress}
       pressStyle={{ backgroundColor: '$secondaryBackground' }}
     >
@@ -180,31 +163,24 @@ export function SelectableRow({
 }) {
   return (
     <Pressable
+      borderRadius="$xl"
+      disabled={disabled}
       onPress={disabled ? undefined : onPress}
       pressStyle={{ backgroundColor: '$secondaryBackground' }}
     >
-      <XStack
-        minHeight={56}
-        alignItems="center"
-        gap="$l"
-        paddingHorizontal="$l"
-        paddingVertical="$m"
-        opacity={disabled ? 0.6 : 1}
-      >
-        <YStack flex={1} minWidth={0}>
-          <Text size="$label/l" color="$primaryText" numberOfLines={1}>
-            {label}
-          </Text>
+      <ListItem opacity={disabled ? 0.6 : 1}>
+        <ListItem.MainContent>
+          <ListItem.Title>{label}</ListItem.Title>
           {description ? (
-            <Text size="$label/s" color="$secondaryText" numberOfLines={2}>
-              {description}
-            </Text>
+            <ListItem.Subtitle>{description}</ListItem.Subtitle>
           ) : null}
-        </YStack>
+        </ListItem.MainContent>
         {selected ? (
-          <Icon type="Checkmark" size="$m" color="$positiveActionText" />
+          <XStack alignItems="center" flexShrink={0}>
+            <Icon type="Checkmark" size="$m" color="$positiveActionText" />
+          </XStack>
         ) : null}
-      </XStack>
+      </ListItem>
     </Pressable>
   );
 }

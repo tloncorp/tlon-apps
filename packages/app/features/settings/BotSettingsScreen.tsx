@@ -131,7 +131,7 @@ export function BotSettingsScreen(props: Props) {
   const navigate = props.navigation.navigate;
 
   return (
-    <View flex={1} backgroundColor="$background">
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
@@ -142,7 +142,7 @@ export function BotSettingsScreen(props: Props) {
         paddingTop="$l"
         safeAreaBottomOffset={24}
       >
-        <YStack gap="$xl" paddingBottom="$2xl">
+        <YStack gap="$2xl" paddingBottom="$2xl">
           <BotIdentityHeader
             title={draft.nickname || 'Tlonbot'}
             subtitle={queries.moon ?? `~${queries.ship}`}

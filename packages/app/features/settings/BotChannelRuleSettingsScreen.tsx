@@ -205,7 +205,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     }, [allProviderModels.models, overrideProvider, normalizedModelSearch]);
 
   return (
-    <View flex={1} backgroundColor="$background">
+    <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
@@ -216,7 +216,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
         paddingTop="$l"
         safeAreaBottomOffset={24}
       >
-        <YStack gap="$xl" paddingBottom="$2xl">
+        <YStack gap="$2xl" paddingBottom="$2xl">
           <YStack paddingHorizontal="$s" gap="$2xs">
             <Text size="$label/xl" fontWeight="600" numberOfLines={1}>
               {channelLabel}
