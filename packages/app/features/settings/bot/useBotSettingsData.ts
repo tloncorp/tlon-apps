@@ -250,16 +250,34 @@ export function useBotSettingsMutations() {
     [queryClient, hostingUserId]
   );
 
+  // The model picker caches models per provider (['tlonbot','provider-models',
+  // user, provider]); adding, replacing, or removing a key can change or unblock
+  // that catalog, so drop the stale query after a successful write.
+  const invalidateProviderModels = useCallback(
+    (provider: string) => {
+      queryClient.invalidateQueries({
+        queryKey: ['tlonbot', 'provider-models', hostingUserId, provider],
+      });
+    },
+    [queryClient, hostingUserId]
+  );
+
   const saveProviderKey = useMutation({
     mutationFn: ({ provider, key }: { provider: string; key: string }) =>
       api.setTlawnProviderKey(hostingUserId, provider, key),
-    onSuccess: setProviderConfig,
+    onSuccess: (data, { provider }) => {
+      setProviderConfig(data);
+      invalidateProviderModels(provider);
+    },
   });
 
   const deleteProviderKey = useMutation({
     mutationFn: ({ provider }: { provider: string }) =>
       api.deleteTlawnProviderKey(hostingUserId, provider),
-    onSuccess: setProviderConfig,
+    onSuccess: (data, { provider }) => {
+      setProviderConfig(data);
+      invalidateProviderModels(provider);
+    },
   });
 
   const updateNickname = useMutation({
