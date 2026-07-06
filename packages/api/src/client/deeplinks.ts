@@ -7,6 +7,25 @@ import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('deeplinks', false);
 
+const DEFAULT_INVITE_DOMAINS = ['join.tlon.io', 'invite.tlon.io'];
+const DEFAULT_APP_LINK_DOMAINS = [
+  'sa96e.app.link',
+  'sa96e-alternate.app.link',
+  'sa96e.test-app.link',
+  'sa96e-alternate.test-app.link',
+];
+const DM_INVITE_PREFIX = 'dm-';
+
+type ParsedInviteDeepLink =
+  | { type: 'lure'; token: string }
+  | { type: 'wer'; wer: string };
+
+interface InviteDeepLinkParseOptions {
+  branchDomain?: string;
+  inviteDomains?: string[];
+  appLinkDomains?: string[];
+}
+
 export async function getReferenceFromDeeplink({
   deepLink,
 }: {
@@ -156,39 +175,128 @@ export async function getMetadataFromInviteToken(token: string) {
   return metadata;
 }
 
-export function createInviteLinkRegex() {
-  const env = getConstants();
-  return new RegExp(
-    `^(https?://)?(${env.BRANCH_DOMAIN}/|tlon\\.network/lure/)0v[^/]+$`
+function getInviteHosts(options: InviteDeepLinkParseOptions = {}) {
+  const hosts = [
+    ...(options.inviteDomains ?? DEFAULT_INVITE_DOMAINS),
+    ...(options.appLinkDomains ?? DEFAULT_APP_LINK_DOMAINS),
+    options.branchDomain,
+  ];
+
+  return new Set(
+    hosts
+      .filter((host): host is string => Boolean(host))
+      .map((host) =>
+        host
+          .replace(/^https?:\/\//, '')
+          .replace(/\/.*$/, '')
+          .toLowerCase()
+      )
   );
 }
 
-export function extractTokenFromInviteLink(url: string): string | null {
-  if (!url) return null;
-  const INVITE_LINK_REGEX = createInviteLinkRegex();
-  const match = url.trim().match(INVITE_LINK_REGEX);
+function parseUrl(input: string) {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return null;
+  }
 
-  if (match) {
-    const parts = match[0].split('/');
-    const token = parts[parts.length - 1];
-    return token ?? null;
+  try {
+    return new URL(trimmed);
+  } catch {
+    try {
+      return new URL(`https://${trimmed}`);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function getTokenFromPath(pathname: string) {
+  const path = pathname.replace(/^\/+|\/+$/g, '');
+  if (!path) {
+    return null;
+  }
+
+  if (/^0v[^/]+$/.test(path)) {
+    return path;
+  }
+
+  if (/^~[a-z-]+\/[^/]+(?:\/[^/]+)*$/i.test(path)) {
+    return path;
   }
 
   return null;
 }
 
-export function extractNormalizedInviteLink(url: string): string | null {
-  if (!url) return null;
-  const env = getConstants();
-  const INVITE_LINK_REGEX = createInviteLinkRegex();
-  const match = url.trim().match(INVITE_LINK_REGEX);
+function getConfiguredBranchDomain() {
+  try {
+    return getConstants().BRANCH_DOMAIN;
+  } catch {
+    return undefined;
+  }
+}
 
-  if (match) {
-    const parts = match[0].split('/');
-    const token = parts[parts.length - 1];
-    if (token) {
-      return `https://${env.BRANCH_DOMAIN}/${token}`;
-    }
+export function parseInviteDeepLink(
+  input: string,
+  options: InviteDeepLinkParseOptions = {}
+): ParsedInviteDeepLink | null {
+  const parsed = parseUrl(input);
+  if (!parsed) {
+    return null;
+  }
+
+  const host = parsed.hostname.toLowerCase();
+  const inviteHosts = getInviteHosts(options);
+
+  if (host === 'tlon.network' && parsed.pathname.startsWith('/lure/')) {
+    const token = getTokenFromPath(parsed.pathname.replace(/^\/lure\//, ''));
+    return token ? { type: 'lure', token } : null;
+  }
+
+  if (!inviteHosts.has(host)) {
+    return null;
+  }
+
+  const path = parsed.pathname.replace(/^\/+|\/+$/g, '');
+  if (path.startsWith(DM_INVITE_PREFIX)) {
+    const ship = path.slice(DM_INVITE_PREFIX.length);
+    return ship ? { type: 'wer', wer: `dm/${ship}` } : null;
+  }
+
+  const token = getTokenFromPath(parsed.pathname);
+  return token ? { type: 'lure', token } : null;
+}
+
+function getInviteLinkPattern() {
+  const hosts = Array.from(
+    getInviteHosts({ branchDomain: getConfiguredBranchDomain() })
+  )
+    .map((host) => host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+
+  return `(?:${hosts}|tlon\\.network/lure)`;
+}
+
+export function createInviteLinkRegex() {
+  return new RegExp(
+    `^(https?://)?${getInviteLinkPattern()}/(?:0v[^/\\s]+|~[a-z-]+/\\S+)$`,
+    'i'
+  );
+}
+
+export function extractTokenFromInviteLink(url: string): string | null {
+  const parsed = parseInviteDeepLink(url, {
+    branchDomain: getConfiguredBranchDomain(),
+  });
+  return parsed?.type === 'lure' ? parsed.token : null;
+}
+
+export function extractNormalizedInviteLink(url: string): string | null {
+  const env = getConstants();
+  const parsed = parseInviteDeepLink(url, { branchDomain: env.BRANCH_DOMAIN });
+
+  if (parsed?.type === 'lure') {
+    return `https://${env.BRANCH_DOMAIN}/${parsed.token}`;
   }
 
   return null;

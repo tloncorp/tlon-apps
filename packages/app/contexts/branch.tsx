@@ -1,17 +1,25 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
-import { AppInvite, Lure, extractLureMetadata } from '@tloncorp/shared/logic';
+import {
+  AppInvite,
+  Lure,
+  extractLureMetadata,
+  getMetadataFromInviteToken,
+  parseInviteDeepLink,
+} from '@tloncorp/shared/logic';
 import {
   type ReactNode,
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
+import { Linking } from 'react-native';
 import branch from 'react-native-branch';
 
-import { MCP_OAUTH_COMPLETION_PATH } from '../constants';
+import { BRANCH_DOMAIN, MCP_OAUTH_COMPLETION_PATH } from '../constants';
 import { useGroupNavigation } from '../hooks/useGroupNavigation';
 import { getPathFromWer } from '../utils/string';
 import { useShip } from './ship';
@@ -81,15 +89,94 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
   const [{ deepLinkPath, lure, priorityToken }, setState] =
     useState(INITIAL_STATE);
   const { isAuthenticated } = useShip();
+  const handledInviteTokenRef = useRef<string | null>(null);
+  const lastSetLureIdRef = useRef<string | null>(null);
 
   const { goToChannel } = useGroupNavigation();
+
+  const setInviteLure = useCallback(
+    (
+      invite: AppInvite,
+      options: { priorityToken?: string; source?: string } = {}
+    ) => {
+      const nextLure: Lure = {
+        lure: {
+          ...invite,
+          // if not already authenticated, we should run Lure's invite auto-join capability after signing in
+          shouldAutoJoin: !isAuthenticated,
+        },
+        priorityToken: options.priorityToken,
+      };
+      console.log(`setting deeplink lure`, nextLure);
+      lastSetLureIdRef.current = invite.id;
+      setState({
+        ...nextLure,
+        deepLinkPath: undefined,
+      });
+      void storage.invitation.setValue(nextLure).catch((error) => {
+        logger.trackError(AnalyticsEvent.InviteError, {
+          error,
+          context: 'Failed to save lure metadata',
+          inviteId: invite.id,
+          source: options.source,
+        });
+      });
+    },
+    [isAuthenticated]
+  );
+
+  const handleInviteUrl = useCallback(
+    async (url: string, source: 'expo_linking' | 'non_branch_link') => {
+      const parsed = parseInviteDeepLink(url, { branchDomain: BRANCH_DOMAIN });
+      if (!parsed) {
+        return false;
+      }
+
+      if (parsed.type === 'wer') {
+        const deepLinkPath = getPathFromWer(parsed.wer);
+        console.debug('detected non-Branch deep link:', deepLinkPath);
+        setState({
+          deepLinkPath,
+          lure: undefined,
+          priorityToken: undefined,
+        });
+        return true;
+      }
+
+      if (handledInviteTokenRef.current === parsed.token) {
+        return true;
+      }
+      handledInviteTokenRef.current = parsed.token;
+
+      logger.trackEvent('Detected Branch-Independent Invite Link', {
+        inviteId: parsed.token,
+        source,
+      });
+
+      const invite = await getMetadataFromInviteToken(parsed.token);
+      if (!invite && lastSetLureIdRef.current === parsed.token) {
+        // a richer lure (e.g. from the Branch callback) landed for this token
+        // while we were fetching — don't clobber it with an id-only fallback
+        return true;
+      }
+      setInviteLure(
+        invite ?? {
+          id: parsed.token,
+          shouldAutoJoin: !isAuthenticated,
+        },
+        { source }
+      );
+      return true;
+    },
+    [isAuthenticated, setInviteLure]
+  );
 
   useEffect(() => {
     console.debug('[branch] Subscribing to Branch listener');
 
     // Subscribe to Branch deep link listener
     const unsubscribe = branch.subscribe({
-      onOpenComplete: ({ params }) => {
+      onOpenComplete: async ({ params }) => {
         const nonBranchLink = params?.['+non_branch_link'];
         if (nonBranchLink != null && typeof nonBranchLink === 'string') {
           let asUrl: URL;
@@ -106,7 +193,11 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
             return;
           }
 
-          if (asUrl.hostname === 'channel') {
+          const handled = await handleInviteUrl(
+            nonBranchLink,
+            'non_branch_link'
+          );
+          if (!handled && asUrl.hostname === 'channel') {
             switch (asUrl.pathname) {
               // example: io.tlon.groups://channel/open?id=0v4.00000.qd4mk.d4htu.er4b8.eao21&startDraft=true
               case '/open': {
@@ -133,9 +224,12 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
               : null;
           logger.trackEvent('Detected Branch Link Click', {
             inviteId: lureId,
+            matchGuaranteed: params?.['+match_guaranteed'] === true,
+            isFirstSession: params?.['+is_first_session'] === true,
           });
 
           if (lureId) {
+            handledInviteTokenRef.current = lureId;
             // Link had a lure field embedded
             logger.log('detected lure link:', lureId);
             if (
@@ -149,27 +243,17 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
             }
 
             try {
-              const nextLure: Lure = {
-                lure: {
+              setInviteLure(
+                {
                   ...extractLureMetadata(params),
                   id: lureId,
-                  // if not already authenticated, we should run Lure's invite auto-join capability after signing in
                   shouldAutoJoin: !isAuthenticated,
                 },
-                priorityToken: params.token as string | undefined,
-              };
-              console.log(`setting deeplink lure`, nextLure);
-              setState({
-                ...nextLure,
-                deepLinkPath: undefined,
-              });
-              void storage.invitation.setValue(nextLure).catch((error) => {
-                logger.trackError(AnalyticsEvent.InviteError, {
-                  error,
-                  context: 'Failed to save lure metadata',
-                  inviteId: lureId,
-                });
-              });
+                {
+                  priorityToken: params.token as string | undefined,
+                  source: 'branch',
+                }
+              );
             } catch (e) {
               logger.trackError(AnalyticsEvent.InviteError, {
                 error: e,
@@ -191,10 +275,27 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       },
     });
 
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) {
+          void handleInviteUrl(url, 'expo_linking');
+        }
+      })
+      .catch((error) => {
+        logger.trackError(AnalyticsEvent.InviteError, {
+          error,
+          context: 'Failed to get initial URL',
+        });
+      });
+
+    const linkingSubscription = Linking.addEventListener('url', (event) => {
+      void handleInviteUrl(event.url, 'expo_linking');
+    });
+
     // Check for saved lure
     (async () => {
       const nextLure = await storage.invitation.getValue();
-      if (nextLure) {
+      if (nextLure && handledInviteTokenRef.current == null) {
         console.debug('[branch] Detected saved lure:', nextLure.lure);
         setState({
           ...nextLure,
@@ -206,30 +307,16 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       console.debug('[branch] Unsubscribing from Branch listener');
       unsubscribe();
+      linkingSubscription.remove();
     };
-  }, [goToChannel, isAuthenticated]);
+  }, [goToChannel, handleInviteUrl, isAuthenticated, setInviteLure]);
 
-  const setLure = useCallback(
-    (invite: AppInvite) => {
-      const nextLure: Lure = {
-        lure: {
-          ...invite,
-          // if not already authenticated, we should run Lure's invite auto-join capability after signing in
-          shouldAutoJoin: !isAuthenticated,
-        },
-        priorityToken: undefined,
-      };
-      setState({
-        ...nextLure,
-        deepLinkPath: undefined,
-      });
-      storage.invitation.setValue(nextLure);
-    },
-    [isAuthenticated]
-  );
+  const setLure = setInviteLure;
 
   const clearLure = useCallback(() => {
     console.debug('[branch] Clearing lure state');
+    handledInviteTokenRef.current = null;
+    lastSetLureIdRef.current = null;
     setState((curr) => ({
       ...curr,
       lure: undefined,
