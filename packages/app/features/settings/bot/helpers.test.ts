@@ -54,21 +54,39 @@ describe('ship normalization', () => {
 describe('channel rule keys', () => {
   it('parses channel rule keys with and without the chat/ prefix', () => {
     expect(parseChannelRuleKey('chat/~zod/general')).toEqual({
+      app: 'chat',
       host: '~zod',
       channelId: 'general',
     });
     expect(parseChannelRuleKey('zod/general/extra')).toEqual({
+      app: 'chat',
       host: 'zod',
       channelId: 'general/extra',
+    });
+    // non-chat channel nests keep their app prefix
+    expect(parseChannelRuleKey('heap/~zod/gallery')).toEqual({
+      app: 'heap',
+      host: '~zod',
+      channelId: 'gallery',
+    });
+    expect(parseChannelRuleKey('diary/~zod/plans')).toEqual({
+      app: 'diary',
+      host: '~zod',
+      channelId: 'plans',
     });
     expect(parseChannelRuleKey('nonsense')).toBeNull();
   });
 
-  it('normalizes keys to chat/~host/channel form', () => {
+  it('normalizes keys to app/~host/channel form, preserving the app', () => {
     expect(normalizeChannelRuleKey('zod/general')).toBe('chat/~zod/general');
     expect(normalizeChannelRuleKey('chat/~zod/general')).toBe(
       'chat/~zod/general'
     );
+    // heap/diary nests round-trip instead of being rewritten as chat
+    expect(normalizeChannelRuleKey('heap/~zod/gallery')).toBe(
+      'heap/~zod/gallery'
+    );
+    expect(normalizeChannelRuleKey('diary/zod/plans')).toBe('diary/~zod/plans');
     expect(normalizeChannelRuleKey('nonsense')).toBe('nonsense');
   });
 });

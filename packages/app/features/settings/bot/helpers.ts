@@ -40,19 +40,28 @@ export type ChannelListGroup = {
 
 // --- channel key utilities ---
 
+// The bot monitors chat, heap, and diary channels (see the OpenClaw firehose),
+// each keyed by its own nest prefix. Preserve the prefix so a heap/diary rule
+// isn't rewritten as a chat nest (which would drop the real rule server-side).
+const CHANNEL_APPS = ['chat', 'heap', 'diary'];
+const DEFAULT_CHANNEL_APP = 'chat';
+
 export const formatChannelHost = (host: string): string => preSig(host);
 
 export const parseChannelRuleKey = (
   key: string
-): { host: string; channelId: string } | null => {
+): { app: string; host: string; channelId: string } | null => {
   const trimmed = key.trim();
-  // Channel keys are chat nests (chat/~host/channelId); strip the app prefix
-  // with the shared helper. Keys without the prefix are already host/channelId.
-  const flag = trimmed.startsWith('chat/') ? nestToFlag(trimmed)[1] : trimmed;
+  // Channel keys are nests (app/~host/channelId). Strip a known app prefix with
+  // the shared helper; keys without one are already host/channelId (app: chat).
+  const maybeApp = trimmed.split('/')[0];
+  const hasAppPrefix = CHANNEL_APPS.includes(maybeApp);
+  const app = hasAppPrefix ? maybeApp : DEFAULT_CHANNEL_APP;
+  const flag = hasAppPrefix ? nestToFlag(trimmed)[1] : trimmed;
   const [host, ...rest] = flag.split('/');
   const channelId = rest.join('/');
   if (!host || !channelId) return null;
-  return { host, channelId };
+  return { app, host, channelId };
 };
 
 export const resolveGroupForChannel = (
@@ -84,7 +93,7 @@ export const hasGroupMembership = (
 export const normalizeChannelRuleKey = (key: string): string => {
   const parsed = parseChannelRuleKey(key);
   if (!parsed) return key;
-  return `chat/${formatChannelHost(parsed.host)}/${parsed.channelId}`;
+  return `${parsed.app}/${formatChannelHost(parsed.host)}/${parsed.channelId}`;
 };
 
 export const resolveGroupFull = (
