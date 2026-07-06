@@ -281,7 +281,7 @@ PODS:
     - ExpoModulesCore
   - ExpoSensors (56.0.6):
     - ExpoModulesCore
-  - ExpoShareIntentModule (5.1.1):
+  - ExpoShareIntentModule (7.0.0):
     - ExpoModulesCore
   - ExpoSMS (56.0.3):
     - ExpoModulesCore
@@ -3399,7 +3399,7 @@ SPEC CHECKSUMS:
   ExpoNotifications: 87875dae0faded5284004bc1204990947d3f64e0
   ExpoSecureStore: f1bd083c1b7b8d4142013ffcc0082d377d9f49f4
   ExpoSensors: d34558ddf1f1d61c7a22180d1d40d8bd89d67d7b
-  ExpoShareIntentModule: 928ff229dd5e577561944786f0de08be339f640b
+  ExpoShareIntentModule: ca4400482299e779d77b93a722ee79146c108c35
   ExpoSMS: 2cebfd889706da39a397d20c8a68abb0ce7f185d
   ExpoSpeechRecognition: 119acf84448579e53f841d040aad76982f945e2d
   ExpoSplashScreen: 3fe3a57d56d7242a9109d9714a6f9fa1e256538b
