@@ -27,7 +27,6 @@ patchedDependencies:
   react-native-gesture-handler: patches/react-native-gesture-handler@2.31.2.patch
   expo-image-manipulator: patches/expo-image-manipulator@56.0.19.patch
   expo-background-task: patches/expo-background-task@56.0.19.patch
-  "@tamagui/web": patches/@tamagui__web@2.4.0.patch
 
 allowUnusedPatches: false
 
