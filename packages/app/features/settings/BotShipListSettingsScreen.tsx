@@ -1,5 +1,12 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  LoadingSpinner,
+  Pressable,
+  Text,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
@@ -15,7 +22,11 @@ import {
   normalizeShip,
   normalizeShipList,
 } from './bot/helpers';
-import { useBotSettingsDraft } from './bot/useBotSettingsDraft';
+import { useBotSettingsQueries } from './bot/useBotSettingsData';
+import {
+  useBotSettingsDraft,
+  useSyncBotSettingsDraft,
+} from './bot/useBotSettingsDraft';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotShipListSettings'>;
 
@@ -49,7 +60,14 @@ export function BotShipListSettingsScreen(props: Props) {
   const { list } = props.route.params;
   const meta = shipListMeta[list];
   const isWindowNarrow = useIsWindowNarrow();
+  // Populate the draft from the server before editing. Reaching this leaf
+  // directly (cold launch / deep link) would otherwise start from an empty
+  // draft, and applying would persist those empty defaults over the real
+  // permissions. Gate edits on `initialized`.
+  const queries = useBotSettingsQueries();
+  useSyncBotSettingsDraft(queries);
   const draft = useBotSettingsDraft();
+  const ready = draft.initialized;
   const [pendingShip, setPendingShip] = useState('');
 
   const value = draft.draft.chat[list];
@@ -71,13 +89,14 @@ export function BotShipListSettingsScreen(props: Props) {
   );
 
   const addPendingShip = useCallback(() => {
+    if (!ready) return;
     const ship = normalizeShip(pendingShip);
     if (!ship) return;
     if (!ships.includes(ship)) {
       commitShips([...ships, ship]);
     }
     setPendingShip('');
-  }, [pendingShip, ships, commitShips]);
+  }, [ready, pendingShip, ships, commitShips]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
@@ -86,79 +105,93 @@ export function BotShipListSettingsScreen(props: Props) {
         backAction={isWindowNarrow ? handleBack : undefined}
         title={meta.title}
       />
-      <SettingsContentScrollView
-        paddingHorizontal="$l"
-        paddingTop="$l"
-        safeAreaBottomOffset={24}
-      >
-        <YStack gap="$2xl" paddingBottom="$2xl">
-          <YStack gap="$m">
-            <Text size="$label/m" color="$secondaryText" paddingHorizontal="$s">
-              Add a user
-            </Text>
-            <XStack gap="$m" alignItems="center">
-              <View flex={1}>
-                <TextInput
-                  value={pendingShip}
-                  placeholder="~zod, ~nec"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  onChangeText={setPendingShip}
-                  onSubmitEditing={addPendingShip}
-                  returnKeyType="done"
+      {!ready ? (
+        <View flex={1} alignItems="center" justifyContent="center">
+          <LoadingSpinner />
+        </View>
+      ) : (
+        <SettingsContentScrollView
+          paddingHorizontal="$l"
+          paddingTop="$l"
+          safeAreaBottomOffset={24}
+        >
+          <YStack gap="$2xl" paddingBottom="$2xl">
+            <YStack gap="$m">
+              <Text
+                size="$label/m"
+                color="$secondaryText"
+                paddingHorizontal="$s"
+              >
+                Add a user
+              </Text>
+              <XStack gap="$m" alignItems="center">
+                <View flex={1}>
+                  <TextInput
+                    value={pendingShip}
+                    placeholder="~zod, ~nec"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    onChangeText={setPendingShip}
+                    onSubmitEditing={addPendingShip}
+                    returnKeyType="done"
+                  />
+                </View>
+                <Button
+                  preset="secondary"
+                  label="Add"
+                  disabled={!pendingShip.trim()}
+                  onPress={addPendingShip}
                 />
-              </View>
-              <Button
-                preset="secondary"
-                label="Add"
-                disabled={!pendingShip.trim()}
-                onPress={addPendingShip}
-              />
-            </XStack>
-            <Text size="$label/s" color="$secondaryText" paddingHorizontal="$s">
-              Provide any @p.
-            </Text>
-          </YStack>
+              </XStack>
+              <Text
+                size="$label/s"
+                color="$secondaryText"
+                paddingHorizontal="$s"
+              >
+                Provide any @p.
+              </Text>
+            </YStack>
 
-          <BotSettingsSection
-            title={meta.listTitle}
-            description={meta.description}
-          >
-            {ships.length === 0 ? (
-              <EmptyRowText>No users on this list.</EmptyRowText>
-            ) : (
-              ships.map((ship, index) => (
-                <YStack key={ship}>
-                  <XStack
-                    minHeight={56}
-                    alignItems="center"
-                    gap="$l"
-                    paddingHorizontal="$l"
-                    paddingVertical="$m"
-                  >
-                    <Text
-                      flex={1}
-                      size="$label/l"
-                      color="$primaryText"
-                      numberOfLines={1}
+            <BotSettingsSection
+              title={meta.listTitle}
+              description={meta.description}
+            >
+              {ships.length === 0 ? (
+                <EmptyRowText>No users on this list.</EmptyRowText>
+              ) : (
+                ships.map((ship, index) => (
+                  <YStack key={ship}>
+                    <XStack
+                      minHeight={56}
+                      alignItems="center"
+                      gap="$l"
+                      paddingHorizontal="$l"
+                      paddingVertical="$m"
                     >
-                      {ship}
-                    </Text>
-                    <Pressable
-                      onPress={() =>
-                        commitShips(ships.filter((entry) => entry !== ship))
-                      }
-                    >
-                      <Icon type="Close" size="$m" color="$secondaryText" />
-                    </Pressable>
-                  </XStack>
-                  {index < ships.length - 1 ? <BotSettingsDivider /> : null}
-                </YStack>
-              ))
-            )}
-          </BotSettingsSection>
-        </YStack>
-      </SettingsContentScrollView>
+                      <Text
+                        flex={1}
+                        size="$label/l"
+                        color="$primaryText"
+                        numberOfLines={1}
+                      >
+                        {ship}
+                      </Text>
+                      <Pressable
+                        onPress={() =>
+                          commitShips(ships.filter((entry) => entry !== ship))
+                        }
+                      >
+                        <Icon type="Close" size="$m" color="$secondaryText" />
+                      </Pressable>
+                    </XStack>
+                    {index < ships.length - 1 ? <BotSettingsDivider /> : null}
+                  </YStack>
+                ))
+              )}
+            </BotSettingsSection>
+          </YStack>
+        </SettingsContentScrollView>
+      )}
     </View>
   );
 }
