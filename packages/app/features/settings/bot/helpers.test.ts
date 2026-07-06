@@ -130,13 +130,17 @@ describe('tlonbot config', () => {
   it('normalizes partial configs', () => {
     const config = normalizeTlonbotConfig({
       channelRules: {
-        'chat/~zod/general': { mode: 'allowlist', allowedShips: ['~nec'] },
-        'chat/~zod/random': { mode: 'bogus', allowedShips: [] },
+        'chat/~zod/general': { mode: 'restricted', allowedShips: ['~nec'] },
+        'chat/~zod/random': { mode: 'open', allowedShips: [] },
+        'chat/~zod/unknown': { mode: 'bogus', allowedShips: [] },
       },
     });
     expect(config.dmAllowlist).toEqual([]);
-    expect(config.channelRules['chat/~zod/general'].mode).toBe('allowlist');
+    expect(config.channelRules['chat/~zod/general'].mode).toBe('restricted');
     expect(config.channelRules['chat/~zod/random'].mode).toBe('open');
+    // anything that isn't an explicit `open` stays restricted, so a rule never
+    // silently loses its allowlist on round-trip
+    expect(config.channelRules['chat/~zod/unknown'].mode).toBe('restricted');
     expect(config.autoAcceptDmInvites).toBe(false);
   });
 
@@ -144,7 +148,7 @@ describe('tlonbot config', () => {
     const drafts = buildChannelRuleDrafts(
       normalizeTlonbotConfig({
         channelRules: {
-          'zod/general': { mode: 'allowlist', allowedShips: ['nec'] },
+          'zod/general': { mode: 'restricted', allowedShips: ['nec'] },
         },
         groupChannels: ['zod/general', 'zod/random'],
       }),
@@ -185,8 +189,9 @@ describe('tlonbot config', () => {
       },
     });
     expect(config.dmAllowlist).toEqual(['~zod', '~nec']);
+    // the `allowlist` draft mode is written back as the backend's `restricted`
     expect(config.channelRules['chat/~zod/general']).toEqual({
-      mode: 'allowlist',
+      mode: 'restricted',
       allowedShips: ['~nec', '~bus'],
     });
     // open channels drop their allowlists
@@ -290,11 +295,11 @@ describe('channel grouping', () => {
 
   it('resolves full group ids for join requests', () => {
     expect(resolveGroupFull(groups, '~zod', 'my-group', '')).toBe(
-      '~zod%my-group'
+      '~zod/my-group'
     );
     expect(
       resolveGroupFull(groups, 'zod', 'unknown', 'chat/~zod/general')
-    ).toBe('~zod%my-group');
+    ).toBe('~zod/my-group');
     expect(resolveGroupFull(groups, '~bus', 'unknown', 'chat/~bus/ghost')).toBe(
       null
     );

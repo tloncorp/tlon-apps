@@ -94,7 +94,9 @@ export const resolveGroupFull = (
   entryKey: string
 ): string | null => {
   const hostKey = formatChannelHost(host);
-  if (groupName !== 'unknown') return `${hostKey}%${groupName}`;
+  // Group flags are slash-delimited (~host/name), matching what the cordon/join
+  // backend expects — not the %-delimited form.
+  if (groupName !== 'unknown') return `${hostKey}/${groupName}`;
   const parsed = parseChannelRuleKey(entryKey);
   if (!parsed) return null;
   const resolvedGroup = resolveGroupForChannel(
@@ -103,7 +105,7 @@ export const resolveGroupFull = (
     parsed.channelId
   );
   return resolvedGroup
-    ? `${formatChannelHost(parsed.host)}%${resolvedGroup}`
+    ? `${formatChannelHost(parsed.host)}/${resolvedGroup}`
     : null;
 };
 
@@ -213,6 +215,17 @@ export const getModelFormValues = (
 
 // --- tlonbot config utilities ---
 
+// The backend stores channel authorization as `restricted | open` and treats a
+// missing mode as restricted. The settings UI models the restricted state as an
+// `allowlist` draft. Translate between the two vocabularies so that reading a
+// restricted rule never presents (and then saves) it as open, silently dropping
+// the restriction.
+export const toDraftMode = (mode: string | undefined): 'open' | 'allowlist' =>
+  mode === 'open' ? 'open' : 'allowlist';
+
+export const toBackendMode = (mode: 'open' | 'allowlist'): string =>
+  mode === 'allowlist' ? 'restricted' : 'open';
+
 export const normalizeTlonbotConfig = (
   raw: Partial<TlawnConfig> | null | undefined
 ): TlawnConfig => ({
@@ -222,7 +235,7 @@ export const normalizeTlonbotConfig = (
     Object.entries(raw?.channelRules ?? {}).map(([key, rule]) => [
       key,
       {
-        mode: rule?.mode === 'allowlist' ? 'allowlist' : 'open',
+        mode: toBackendMode(toDraftMode(rule?.mode)),
         allowedShips: rule?.allowedShips ?? [],
       },
     ])
@@ -240,7 +253,7 @@ export const buildChannelRuleDrafts = (
   const drafts: Record<string, ChannelRuleDraft> = {};
   Object.entries(config.channelRules || {}).forEach(([key, rule]) => {
     drafts[normalizeChannelRuleKey(key)] = {
-      mode: rule.mode === 'allowlist' ? 'allowlist' : 'open',
+      mode: toDraftMode(rule.mode),
       allowedShips: formatShipList(rule.allowedShips || []),
     };
   });
@@ -356,7 +369,7 @@ export const buildConfigFromChatValues = (
     Object.entries(values.channelRuleDrafts).map(([key, rule]) => [
       normalizeChannelRuleKey(key),
       {
-        mode: rule.mode,
+        mode: toBackendMode(rule.mode),
         allowedShips:
           rule.mode === 'allowlist' ? normalizeShipList(rule.allowedShips) : [],
       },
