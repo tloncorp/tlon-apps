@@ -359,13 +359,24 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         // concurrent change to a field this draft never touched.
         const fullConfig = buildConfigFromChatValues(nextValues.chat);
         // pending.channelRules is also true for model-override-only edits (the
-        // override fields live in channelRuleDrafts). Compare the built rule
-        // payloads so channelRules is only sent when the mode/allowlist/
-        // inheritance actually changed — override moves go via channelModels.
-        const rulesChanged =
-          stableStringify(
-            buildConfigFromChatValues(draft.baseline.chat).channelRules
-          ) !== stableStringify(fullConfig.channelRules);
+        // override fields live in channelRuleDrafts), and a real rule edit must
+        // not resend the whole map (that clobbers a concurrent change to another
+        // channel). Diff the built rule payloads per channel; override moves go
+        // via channelModels, not here.
+        const baselineRules = buildConfigFromChatValues(
+          draft.baseline.chat
+        ).channelRules;
+        const nextRules = fullConfig.channelRules;
+        const dirtyRuleKeys = [
+          ...new Set([
+            ...Object.keys(baselineRules),
+            ...Object.keys(nextRules),
+          ]),
+        ].filter(
+          (key) =>
+            stableStringify(baselineRules[key]) !==
+            stableStringify(nextRules[key])
+        );
         const config: Partial<typeof fullConfig> = {};
         if (draft.pending.dmAllowlist) {
           config.dmAllowlist = fullConfig.dmAllowlist;
@@ -382,9 +393,26 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         if (draft.pending.autoDiscoverChannels) {
           config.autoDiscoverChannels = fullConfig.autoDiscoverChannels;
         }
-        if (rulesChanged) {
-          config.channelRules = fullConfig.channelRules;
-          config.groupChannels = fullConfig.groupChannels;
+        if (dirtyRuleKeys.length > 0) {
+          // Merge just the changed channels onto the latest server rules so a
+          // concurrent edit to an untouched channel isn't overwritten by our
+          // stale full map.
+          const refetchedSettings = await queries.configQuery.refetch();
+          if (!refetchedSettings.isSuccess || !refetchedSettings.data) {
+            throw new Error(
+              'Could not load the latest channel rules. Please try again.'
+            );
+          }
+          const mergedRules = { ...refetchedSettings.data.channelRules };
+          dirtyRuleKeys.forEach((key) => {
+            if (nextRules[key] !== undefined) {
+              mergedRules[key] = nextRules[key];
+            } else {
+              delete mergedRules[key];
+            }
+          });
+          config.channelRules = mergedRules;
+          config.groupChannels = Object.keys(mergedRules);
         }
 
         // Only rewrite model overrides for channels whose override actually
