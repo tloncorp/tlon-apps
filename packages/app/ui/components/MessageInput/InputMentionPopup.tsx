@@ -1,33 +1,14 @@
 import * as db from '@tloncorp/shared/db';
-import { PropsWithRef, useEffect, useState } from 'react';
+import { PropsWithRef } from 'react';
 import React from 'react';
-import { Keyboard, Platform, Pressable } from 'react-native';
+import { Platform, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Portal, View, YStack } from 'tamagui';
 
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { MentionOption } from '../BareChatInput/useMentions';
 import { useIsWindowNarrow } from '../Emoji';
 import MentionPopup, { MentionPopupRef } from '../MentionPopup';
-
-function useKeyboardHeight() {
-  // Read the keyboard state synchronously on mount so the popup positions
-  // correctly when the component mounts with the keyboard already visible
-  // (e.g. navigating between channels without dismissing the keyboard).
-  const [height, setHeight] = useState(() => Keyboard.metrics()?.height ?? 0);
-  useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
-      setHeight(e.endCoordinates.height);
-    });
-    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-      setHeight(0);
-    });
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
-  return height;
-}
 
 function InputMentionPopupInternal(
   {

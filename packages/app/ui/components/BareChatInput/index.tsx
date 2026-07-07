@@ -44,6 +44,7 @@ import {
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import { useStore } from '../../contexts/storeContext';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
@@ -63,38 +64,11 @@ import {
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
 
-const DEFAULT_KEYBOARD_HEIGHT = 300;
-
-function useKeyboardHeight(maxInputHeightBasic: number) {
-  const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
-
-  useEffect(() => {
-    const handleKeyboardShow = () => {
-      const keyboardHeight =
-        Keyboard.metrics()?.height || DEFAULT_KEYBOARD_HEIGHT;
-      setMaxInputHeight(maxInputHeightBasic - keyboardHeight);
-    };
-
-    const handleKeyboardHide = () => {
-      setMaxInputHeight(maxInputHeightBasic);
-    };
-
-    const showSubscription = Keyboard.addListener(
-      'keyboardDidShow',
-      handleKeyboardShow
-    );
-    const hideSubscription = Keyboard.addListener(
-      'keyboardDidHide',
-      handleKeyboardHide
-    );
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, [maxInputHeightBasic]);
-
-  return maxInputHeight;
+function useMaxInputHeight(maxInputHeightBasic: number) {
+  const keyboardHeight = useKeyboardHeight();
+  return keyboardHeight > 0
+    ? maxInputHeightBasic - keyboardHeight
+    : maxInputHeightBasic;
 }
 
 function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
@@ -294,7 +268,7 @@ function BareChatInput(
     handleMentionEscape,
     handleMentionSoftDismiss,
   } = useMentions({ chatId: groupId ?? channelId, roleOptions });
-  const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
+  const maxInputHeight = useMaxInputHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
   usePasteHandler(addAttachment);
