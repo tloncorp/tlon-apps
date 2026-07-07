@@ -401,6 +401,13 @@ export function BotChannelRulesScreen(props: Props) {
                         return (
                           <YStack key={channel.key}>
                             <Pressable
+                              // Until the moon's memberships load we can't tell
+                              // whether this group is joined, and the route
+                              // param would wrongly open the editor read-only —
+                              // hold navigation for known groups until then.
+                              disabled={
+                                !membershipsLoaded && group.group !== 'unknown'
+                              }
                               onPress={() =>
                                 props.navigation.navigate(
                                   'BotChannelRuleSettings',
