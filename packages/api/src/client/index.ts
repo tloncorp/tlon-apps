@@ -75,6 +75,7 @@ export {
   awaitBotRunning,
 } from './hostingApi';
 export type {
+  BotAgentType,
   HostingHeartBeatCode,
   TlawnProviderConfigInfo,
   TlawnModelEntry,

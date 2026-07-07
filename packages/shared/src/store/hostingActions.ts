@@ -2,16 +2,20 @@ import {
   HostingError,
   checkPhoneVerify as checkPhoneVerifyApi,
   clearShipRevivalStatus as clearHostedShipRevivalStatus,
+  getCurrentUserId,
+  getCurrentUserIsHosted,
   getShip as getHostedShip,
   getHostingUser,
   getLandscapeAuthCookie,
   getNodeStatus,
   getShipAccessCode,
+  getTlawnBotInfo,
   logInHostingUser,
   markUserTlonbotEnabled,
   requestPhoneVerify as requestPhoneVerifyApi,
   signUpHostingUser,
 } from '@tloncorp/api';
+import { desig } from '@tloncorp/api/lib/urbit';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -320,6 +324,76 @@ export async function clearShipRevivalStatus() {
     numOfAttempts: 4,
     maxDelay: 4000,
   });
+}
+
+// Throttle bot-agent fetches, keyed by ship so an account switch always
+// refetches. In-process memory; survives logout→login, which is why the cache
+// itself is ship-scoped.
+const BOT_AGENT_SYNC_THROTTLE_MS = 5 * 60 * 1000;
+let lastBotAgentSync: { ship: string; at: number } | null = null;
+
+export async function syncHostingBotAgent(opts?: {
+  bypassThrottle?: boolean;
+}): Promise<void> {
+  if (!getCurrentUserIsHosted()) {
+    return;
+  }
+
+  let ship: string;
+  try {
+    ship = desig(getCurrentUserId());
+  } catch {
+    // Client not initialized yet; nothing to sync.
+    return;
+  }
+
+  const now = Date.now();
+  if (
+    !opts?.bypassThrottle &&
+    lastBotAgentSync?.ship === ship &&
+    now - lastBotAgentSync.at < BOT_AGENT_SYNC_THROTTLE_MS
+  ) {
+    return;
+  }
+  lastBotAgentSync = { ship, at: now };
+
+  try {
+    const info = await getTlawnBotInfo(ship);
+    // Guard against a stale response: if the user switched hosted accounts
+    // while this fetch was in flight, persisting now would clobber the newer
+    // ship's cache with the old ship — useBotSlashCommandManifest would then
+    // read a ship mismatch and fall back to openclaw, and the new ship's sync
+    // may already be throttled. Discard instead of writing.
+    let currentShip: string | null = null;
+    try {
+      currentShip = desig(getCurrentUserId());
+    } catch {
+      currentShip = null;
+    }
+    if (currentShip !== ship) {
+      // Discarding a stale response. If the throttle entry is still ours — i.e.
+      // no newer ship's sync replaced it (logout mid-flight, not an account
+      // switch) — clear it so an imminent re-login to this same ship refetches
+      // instead of being suppressed for the rest of the window. If a different
+      // ship now owns the entry, leave it: that ship's throttle is legitimate.
+      if (lastBotAgentSync?.ship === ship) {
+        lastBotAgentSync = null;
+      }
+      return;
+    }
+    // The network response is untrusted: only persist known enum values so a
+    // typo or transitional backend value can't poison the cache.
+    const agent = domain.isBotAgentType(info.agent) ? info.agent : 'openclaw';
+    await db.hostingBotAgent.setValue({ ship, agent });
+  } catch (e) {
+    // Swallow and keep any cached value, but clear the throttle entry so the
+    // next mount retries instead of being suppressed for the full window.
+    lastBotAgentSync = null;
+    logger.trackError(AnalyticsEvent.ExpectedHostingError, {
+      context: 'Failed to sync hosting bot agent',
+      errorMessage: e instanceof Error ? e.message : 'Unknown error',
+    });
+  }
 }
 
 export async function markCurrentUserTlonbotEnabled() {

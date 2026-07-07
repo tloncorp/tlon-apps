@@ -134,6 +134,15 @@ test('should test comprehensive chat functionality', async ({
     expectedLiteralText: /TLON-5709 unselected @all/,
   });
 
+  // Bot slash commands must not appear in a normal (non-bot) channel: typing a
+  // leading "/" shows no popup, and a command-shaped message sends as plain
+  // text.
+  await zodPage.getByTestId('MessageInput').click();
+  await zodPage.fill('[data-testid="MessageInput"]', '/');
+  await expect(zodPage.getByTestId('SlashCommandPopup')).not.toBeVisible();
+  await zodPage.fill('[data-testid="MessageInput"]', '');
+  await helpers.sendMessage(zodPage, '/status not a command here');
+
   // Same case in a thread reply composer.
   await helpers.startThread(zodPage, 'Hello, world!');
   await helpers.sendUnselectedMentionMessage(zodPage, {

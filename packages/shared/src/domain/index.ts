@@ -13,3 +13,4 @@ export * from '@tloncorp/api/types/systemContacts';
 export * from '@tloncorp/api/types/uploads';
 export * from '@tloncorp/api/types/wayfinding';
 export * from './botConfig';
+export * from './slashCommands';
