@@ -58,6 +58,9 @@ TERMINAL_STATUSES: frozenset[str] = frozenset(
 _STEWARD_APP = "steward"
 _CONFIGURE_MARK = "steward-action-1"
 _LENS_MARK = "steward-lens-action-1"
+# Existence probe: a %steward lens scry that any installed agent answers (and
+# our own ship is always allowed to peek). A ship without %steward nacks it.
+_STEWARD_PROBE_PATH = "/steward/v1/lens/recent"
 
 
 def _now_ms() -> int:
@@ -506,6 +509,10 @@ class TlonLensSync:
         self._client_factory = client_factory
         self._client: Optional[TlonSSEClient] = None
         self._configured = False
+        # Set once start() confirms %steward is installed; gates begin/stamp so
+        # we never poke into the void or stamp replies with lens IDs whose runs
+        # were never stored (a badge the client can't load).
+        self._ready = False
         self._on_error = on_error
         # Serialize pokes so a run's partial/final ordering is preserved.
         self._queue: asyncio.Lock = asyncio.Lock()
@@ -513,6 +520,11 @@ class TlonLensSync:
     @property
     def enabled(self) -> bool:
         return bool(self.config.context_lens_enabled and self.owner)
+
+    @property
+    def active(self) -> bool:
+        """Enabled AND a live sync that verified %steward at startup."""
+        return self.enabled and self._ready
 
     def _report_error(self, operation: str, exc: BaseException) -> None:
         if self._on_error is None:
@@ -538,11 +550,31 @@ class TlonLensSync:
             await self._safe_close_client()
             self._client = None
             raise
+        # Verify %steward is installed before trusting pokes or stamping
+        # replies (mirrors OpenClaw gating the lens on the /v1/lens subscribe,
+        # which a ship without the agent nacks).
+        if not await self._steward_installed(client):
+            logger.info(
+                "[tlon] context-lens skipped: steward agent not reachable"
+            )
+            await self._safe_close_client()
+            self._client = None
+            return False
+        self._ready = True
         logger.info("[tlon] context-lens sync active (owner=%s)", self.owner)
         return True
 
+    async def _steward_installed(self, client: TlonSSEClient) -> bool:
+        try:
+            await client.scry(_STEWARD_PROBE_PATH)
+            return True
+        except Exception as exc:
+            logger.debug("[tlon] context-lens steward probe failed: %s", exc)
+            return False
+
     async def stop(self) -> None:
         self._configured = False
+        self._ready = False
         await self._safe_close_client()
         self._client = None
 
@@ -597,6 +629,10 @@ class TlonLensRecorder:
     @property
     def enabled(self) -> bool:
         return self._sync.enabled
+
+    @property
+    def active(self) -> bool:
+        return self._sync.active
 
     def get(self, conversation_id: str) -> Optional[LensRun]:
         return self._runs.get(conversation_id)

@@ -728,6 +728,8 @@ class AdapterAttentionTests(unittest.TestCase):
             {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
         )
         self.assertTrue(adapter._lens.enabled)
+        # Simulate a started sync that verified %steward at startup.
+        adapter._lens_sync._ready = True
         captured = {}
 
         async def record_message(chat_id, text, *, blob=None):
@@ -758,6 +760,8 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter = self.make_adapter(
             {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
         )
+        # Active sync, but no run began for this conversation → no stamp.
+        adapter._lens_sync._ready = True
         captured = {"blob": "unset"}
 
         async def record_message(chat_id, text, *, blob=None):

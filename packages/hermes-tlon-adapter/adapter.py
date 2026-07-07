@@ -2123,7 +2123,7 @@ class TlonAdapter(BasePlatformAdapter):
         is_dm: bool,
         dispatch_reason: str,
     ) -> None:
-        if not self._lens.enabled:
+        if not self._lens.active:
             return
         # The lens is a non-essential observability sink; a bug in its
         # accounting must never break message dispatch. Poke failures are
@@ -2152,7 +2152,7 @@ class TlonAdapter(BasePlatformAdapter):
             self._telemetry.error("context_lens", exc, operation="begin")
 
     def _lens_reference_blob(self, conversation_id: str) -> Optional[str]:
-        if not self._lens.enabled:
+        if not self._lens.active:
             return None
         run = self._lens.get(conversation_id)
         if run is None:
@@ -2162,7 +2162,7 @@ class TlonAdapter(BasePlatformAdapter):
         )
 
     async def _finish_lens_run_on_error(self, conversation_id: str) -> None:
-        if not self._lens.enabled:
+        if not self._lens.active:
             return
         try:
             # finish() no-ops if the run already reached a terminal state and
