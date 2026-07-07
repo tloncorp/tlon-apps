@@ -241,9 +241,21 @@ export function BotChannelRulesScreen(props: Props) {
         >
           <YStack gap="$2xl" paddingBottom="$2xl">
             <TextInput
+              icon="Search"
+              placeholder="Filter by name"
               value={search}
-              placeholder="Search channels"
               onChangeText={setSearch}
+              spellCheck={false}
+              autoCorrect={false}
+              autoCapitalize="none"
+              rightControls={
+                search !== '' ? (
+                  <TextInput.InnerButton
+                    label="Clear"
+                    onPress={() => setSearch('')}
+                  />
+                ) : undefined
+              }
             />
             <Tabs>
               <Tabs.Tab
