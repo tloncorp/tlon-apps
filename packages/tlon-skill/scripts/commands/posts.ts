@@ -1,3 +1,5 @@
+import { da } from '@urbit/aura';
+
 import {
   DIARY_REMOVED,
   NOTES_CHANNEL_CONTENT_UNSUPPORTED,
@@ -201,6 +203,14 @@ function formatUd(id: string): string {
 
 function formatPostId(postId: string): string {
   return formatUd(extractNumericId(postId));
+}
+
+// The lens/consumer-facing id for a just-sent post: `~author/<@ud of the send
+// @da>`. This matches how the api stamps the post id and how the client
+// resolves a reply (by author + sent time), so callers scraping stdout can
+// navigate to it. Compute from the same sentAt handed to the send call.
+function referenceId(authorId: string, sentAt: number): string {
+  return `${authorId}/${formatUd(da.fromUnix(sentAt).toString())}`;
 }
 
 function wantsHelp(args: string[]): boolean {
@@ -516,7 +526,7 @@ async function sendPost(
     blob?: string;
   },
   deps: PostsDeps
-): Promise<void> {
+): Promise<string> {
   // Image block first, caption after — matches how the apps compose
   // attachment posts.
   const imageVerse = parsed.imageUrl
@@ -527,13 +537,16 @@ async function sendPost(
     ...(parsed.message ? markdownToStory(parsed.message) : []),
   ];
 
+  const authorId = deps.getCurrentUserId();
+  const sentAt = deps.now();
   await deps.postsApi.sendPost({
     channelId: parsed.channelId,
-    authorId: deps.getCurrentUserId(),
-    sentAt: deps.now(),
+    authorId,
+    sentAt,
     content,
     blob: parsed.blob,
   });
+  return referenceId(authorId, sentAt);
 }
 
 async function sendReply(
@@ -545,8 +558,9 @@ async function sendReply(
     blob?: string;
   },
   deps: PostsDeps
-): Promise<void> {
+): Promise<string> {
   const authorId = deps.getCurrentUserId();
+  const sentAt = deps.now();
   await deps.postsApi.sendReply({
     channelId: parsed.channelId,
     parentId: formatPostId(parsed.postId),
@@ -556,10 +570,11 @@ async function sendReply(
       parsed.parentAuthor
     ),
     content: markdownToStory(parsed.message),
-    sentAt: deps.now(),
+    sentAt,
     authorId,
     blob: parsed.blob,
   });
+  return referenceId(authorId, sentAt);
 }
 
 // Fetch existing post to preserve metadata during edits. Returns null on any
@@ -628,14 +643,18 @@ export async function run(args: string[], deps: PostsDeps): Promise<number> {
     await deps.authenticate(postTargetApps(parsed.kind, parsed.channelId));
 
     switch (parsed.kind) {
-      case 'send':
-        await sendPost(parsed, deps);
+      case 'send': {
+        const id = await sendPost(parsed, deps);
         writeLine(deps.stdout, '✓ Message sent');
+        writeLine(deps.stdout, `postId=${id}`);
         return 0;
-      case 'reply':
-        await sendReply(parsed, deps);
+      }
+      case 'reply': {
+        const id = await sendReply(parsed, deps);
         writeLine(deps.stdout, '✓ Reply sent');
+        writeLine(deps.stdout, `postId=${id}`);
         return 0;
+      }
       case 'react':
         await reactToPost(parsed, deps);
         writeLine(deps.stdout, '✓ Reaction added');

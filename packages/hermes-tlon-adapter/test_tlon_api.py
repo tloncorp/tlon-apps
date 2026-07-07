@@ -561,6 +561,30 @@ class TlonCLITests(unittest.TestCase):
         self.assertEqual(calls[0][1]["TLON_ACCESS_CODE"], "code")
         self.assertEqual(calls[0][1]["TLON_URL"], "https://zod.tlon.network")
 
+    def test_send_extracts_post_id_from_stdout(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout):
+            return tlon_api.TlonProcessResult(
+                returncode=0,
+                stdout="✓ Message sent\npostId=~zod/170.141.184.503.808\n",
+            )
+
+        async def run():
+            cli = tlon_api.TlonCLI(cfg, runner=runner)
+            return await cli.send_message("chat/~zod/general", "hi")
+
+        result = asyncio.run(run())
+        self.assertTrue(result.success)
+        self.assertEqual(result.message_id, "~zod/170.141.184.503.808")
+
     def test_run_command_uses_same_runner_and_env(self):
         calls = []
         cfg = tlon_api.TlonConfig.from_env(

@@ -280,7 +280,7 @@ describe('posts send', () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(context.stdout()).toBe('✓ Message sent\n');
+    expect(context.stdout()).toMatch(/^✓ Message sent\npostId=~nec\/[\d.]+\n$/);
     expect(context.stderr()).toBe('');
     expect(context.calls.authenticateApps).toEqual([['channels']]);
     expect(context.calls.sendPost).toEqual([
@@ -404,7 +404,7 @@ describe('posts reply', () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(context.stdout()).toBe('✓ Reply sent\n');
+    expect(context.stdout()).toMatch(/^✓ Reply sent\npostId=~nec\/[\d.]+\n$/);
     expect(context.calls.authenticateApps).toEqual([['channels']]);
     expect(context.calls.sendReply).toEqual([
       {
