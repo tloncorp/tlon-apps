@@ -274,6 +274,9 @@ export function ApplyChangesBar({
       paddingBottom={insets.bottom}
       gap="$m"
     >
+      {/* Surface apply errors right here, above the buttons — otherwise they're
+          easy to miss buried in the scrolling form. */}
+      {error ? <BotSettingsErrorText>{error}</BotSettingsErrorText> : null}
       {applying ? <LoadingSpinner size="small" /> : null}
       {!applying ? (
         <YStack gap="$m">
