@@ -24,6 +24,7 @@ import {
   normalizeMoonName,
   normalizeProviderConfig,
   normalizeTlonbotConfig,
+  toBackendProviderId,
 } from './helpers';
 
 /**
@@ -306,12 +307,18 @@ export function useBotSettingsMutations() {
           'Select both a provider and a model for each fallback, or remove it.'
         );
       }
+      // The form works in display provider ids, where "basic" aliases the
+      // shared openrouter default key; translate back to backend ids so the
+      // hosting API never receives the display-only value.
       return api.setTlawnPrimaryModel(hostingUserId, {
-        provider: update.provider,
+        provider: toBackendProviderId(update.provider),
         model: update.model,
-        fallbacks: update.fallbacks.filter(
-          (fallback) => fallback.provider && fallback.model
-        ),
+        fallbacks: update.fallbacks
+          .filter((fallback) => fallback.provider && fallback.model)
+          .map((fallback) => ({
+            ...fallback,
+            provider: toBackendProviderId(fallback.provider),
+          })),
       });
     },
     onSuccess: setProviderConfig,
