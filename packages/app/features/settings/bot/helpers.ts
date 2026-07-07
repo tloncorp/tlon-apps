@@ -338,13 +338,20 @@ export const toChatFormValues = (
     : {},
 });
 
+// Inverse of toDisplayProviderId: "basic" is a display-only alias for the
+// shared openrouter default key, so anything picked as Basic must be written
+// back with the real backend provider or the hosting API can reject it (or
+// persist an override the gateway can't run).
+export const toBackendProviderId = (providerId: string): string =>
+  providerId === BASIC_PROVIDER_ID ? 'openrouter' : providerId;
+
 export const buildChannelModelEntries = (
   drafts: Record<string, ChannelRuleDraft>
 ): TlawnChannelModelOverride[] =>
   Object.entries(drafts)
     .filter(([, rule]) => rule.modelOverrideProvider && rule.modelOverride)
     .map(([channel, rule]) => ({
-      provider: rule.modelOverrideProvider || '',
+      provider: toBackendProviderId(rule.modelOverrideProvider || ''),
       model: rule.modelOverride || '',
       channels: [normalizeChannelRuleKey(channel)],
     }));

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildChannelModelEntries,
   buildChannelRuleDrafts,
   buildConfigFromChatValues,
   buildMergedChannelModelEntries,
@@ -354,6 +355,24 @@ describe('channel model overrides', () => {
       {
         provider: 'openai',
         model: 'gpt-x',
+        channels: ['chat/~zod/general'],
+      },
+    ]);
+  });
+
+  it('writes Basic overrides back as the openrouter backend provider', () => {
+    const entries = buildChannelModelEntries({
+      'chat/~zod/general': {
+        mode: 'open',
+        allowedShips: '',
+        modelOverrideProvider: 'basic',
+        modelOverride: 'some/model',
+      },
+    });
+    expect(entries).toEqual([
+      {
+        provider: 'openrouter',
+        model: 'some/model',
         channels: ['chat/~zod/general'],
       },
     ]);
