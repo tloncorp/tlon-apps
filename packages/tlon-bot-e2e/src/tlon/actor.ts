@@ -19,6 +19,7 @@ import type { Story } from '@tloncorp/api';
 import { markdownToStory } from '@tloncorp/api/client/markdown';
 import { da, scot } from '@urbit/aura';
 
+import { randomId, requireEnv } from '../runtime/util.js';
 import { sleep } from '../runtime/waiters.js';
 
 export interface ShipCredentials {
@@ -117,32 +118,14 @@ export class TlonActorClient {
   }
 
   async sendDm(toShip: string, message: string): Promise<void> {
-    await this.ensureConnected();
     const targetShip = normalizeShip(toShip);
-    const sentAt = Date.now();
-    const id = `${this.shipName}/${scot('ud', da.fromUnix(sentAt))}`;
-    const action = {
-      ship: targetShip,
-      diff: {
-        id,
-        delta: {
-          add: {
-            memo: {
-              content: markdownToStory(message),
-              author: this.shipName,
-              sent: sentAt,
-            },
-            kind: null,
-            time: null,
-          },
-        },
-      },
-    };
-
-    await this.urbit.poke({
-      app: 'chat',
-      mark: 'chat-dm-action',
-      json: action,
+    await this.withClient(async () => {
+      await sendPost({
+        channelId: targetShip,
+        authorId: this.shipName,
+        sentAt: Date.now(),
+        content: markdownToStory(message),
+      });
     });
   }
 
@@ -632,16 +615,4 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
   return slug || `scenario-${randomId()}`;
-}
-
-function randomId(): string {
-  return Math.random().toString(36).slice(2, 8);
-}
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
 }

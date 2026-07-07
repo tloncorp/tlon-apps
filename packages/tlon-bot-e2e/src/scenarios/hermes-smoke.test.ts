@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from 'vitest';
 
 import { hermesDriver } from '../drivers/hermes.js';
 import { FakeModelClient } from '../fake-model/index.js';
+import { requireEnv } from '../runtime/util.js';
 import {
   TlonActorClient,
   actorFromEnv,
@@ -84,11 +85,3 @@ describe('Hermes shared E2E smoke', () => {
     expect(botCredentialsFromEnv().shipName).toBe(botShip);
   });
 });
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}

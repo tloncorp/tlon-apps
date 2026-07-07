@@ -25,6 +25,7 @@ import {
   assertRequestedPortsAvailable,
   requestedRuntimeEndpointPorts,
 } from '../runtime/ports.js';
+import { randomId } from '../runtime/util.js';
 import { waitForHttpOk, waitForShipLogin } from '../runtime/waiters.js';
 import { commonScenarios } from '../scenarios/shared/common.js';
 import {
@@ -454,10 +455,6 @@ function parsePort(value: string | undefined): number | undefined {
     throw new Error(`Invalid port: ${value}`);
   }
   return port;
-}
-
-function randomId(): string {
-  return Math.random().toString(36).slice(2, 8);
 }
 
 function sanitizeRunId(value: string): string {
