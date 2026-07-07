@@ -438,11 +438,14 @@ export function BotChannelRulesScreen(props: Props) {
                                   : 'Off'
                               }
                               pending={pending}
-                              // Hold navigation for known groups until the moon
-                              // memberships load, so the editor doesn't open in
-                              // the wrong read-only state.
+                              // Only block navigation when membership is truly
+                              // unknown. A group we already treat as a member
+                              // (via moon listing or saved config) stays
+                              // editable even while the moon listing loads/errors.
                               disabled={
-                                !membershipsLoaded && group.group !== 'unknown'
+                                !isGroupMember &&
+                                !membershipsLoaded &&
+                                group.group !== 'unknown'
                               }
                               onPress={() =>
                                 props.navigation.navigate(
