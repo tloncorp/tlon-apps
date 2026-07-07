@@ -918,7 +918,7 @@
     =.  kind.log  `i.t.wire
     ?>  ?=([%behn %wake *] sign)
     ?^  error.sign
-      %-  (fail:l %error 'verifier wake failed' u.error.sign)
+      %-  (fail:l %error ~['verifier wake failed'] u.error.sign)
       [~ this]
     =/  id=identifier  (need (wire-id t.wire))
     =/  start=@da      (slav %da i.t.t.t.wire)
