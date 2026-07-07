@@ -42,11 +42,11 @@ Hermes' `web_search` is the closest match for OpenClaw search, and `web_extract`
 
 Brave is search-only, so set an extraction backend when you want `web_extract`/page reads too. The dev entrypoint auto-pins `web.extract_backend` when it sees `FIRECRAWL_API_KEY`, `FIRECRAWL_API_URL`, `FIRECRAWL_GATEWAY_URL`, `TOOL_GATEWAY_DOMAIN`, `PARALLEL_API_KEY`, `TAVILY_API_KEY`, or `EXA_API_KEY`. You can override this with `HERMES_WEB_SEARCH_BACKEND`, `HERMES_WEB_EXTRACT_BACKEND`, or shared `HERMES_WEB_BACKEND`.
 
-By default the image builds Hermes from `NousResearch/hermes-agent` at `main`. Override these in `.env` when testing against a fork or pinned branch/tag:
+By default the image builds Hermes from `NousResearch/hermes-agent` at the pinned spike tag `v2026.6.19` (observed as commit `2bd1977d8fad185c9b4be47884f7e87f1add0ce3`). Override these in `.env` when testing against a fork or another pinned branch/tag/commit:
 
 ```bash
 HERMES_AGENT_REPO=https://github.com/NousResearch/hermes-agent.git
-HERMES_AGENT_REF=main
+HERMES_AGENT_REF=v2026.6.19
 ```
 
 ## Managed Prompt Profile

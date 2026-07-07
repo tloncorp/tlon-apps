@@ -78,6 +78,18 @@ TLON_CONFIG_CODE="${TLON_CODE:-lidlut-tabwed-pillex-ridrup}"
 TLON_CONFIG_OWNER="${TLON_OWNER_SHIP:-~ten}"
 TLON_CONFIG_DM_ALLOWLIST="${TLON_DM_ALLOWLIST:-~ten}"
 TLON_CONFIG_DM_ALLOWLIST_JSON="$(printf '%s' "$TLON_CONFIG_DM_ALLOWLIST" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
+DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON='["web_fetch","web_search","image_search","read","cron","tlon","message"]'
+OPENCLAW_CONFIG_TOOLS_ALLOW_JSON="${OPENCLAW_TEST_TOOLS_ALLOW_JSON:-$DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON}"
+TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES="${TLON_MAX_CONSECUTIVE_BOT_RESPONSES:-2}"
+
+if ! printf '%s' "$OPENCLAW_CONFIG_TOOLS_ALLOW_JSON" | jq -e 'type == "array" and all(.[]; type == "string")' >/dev/null; then
+  echo "FATAL: OPENCLAW_TEST_TOOLS_ALLOW_JSON must be a JSON array of strings"
+  exit 1
+fi
+if ! printf '%s' "$TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES" | jq -e 'tonumber >= 0 and (tonumber | floor) == tonumber' >/dev/null; then
+  echo "FATAL: TLON_MAX_CONSECUTIVE_BOT_RESPONSES must be a non-negative integer"
+  exit 1
+fi
 
 cat > "$CONFIG_DIR/openclaw.json" << EOF
 {
@@ -144,15 +156,7 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
     }
   },
   "tools": {
-    "allow": [
-      "web_fetch",
-      "web_search",
-      "image_search",
-      "read",
-      "cron",
-      "tlon",
-      "message"
-    ],
+    "allow": $OPENCLAW_CONFIG_TOOLS_ALLOW_JSON,
     "deny": [
       "apply_patch",
       "bash",
@@ -186,6 +190,7 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "ownerShip": "$TLON_CONFIG_OWNER",
       "dmAllowlist": $TLON_CONFIG_DM_ALLOWLIST_JSON,
       "allowPrivateNetwork": true,
+      "maxConsecutiveBotResponses": $TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES,
       "reengagement": {
         "enabled": true
       },
@@ -267,15 +272,50 @@ fi
 
 echo "==> Config written"
 
+redact_openclaw_config() {
+  jq \
+    --arg brave_api_key "${BRAVE_API_KEY:-}" \
+    --arg tlonbot_token "${TLONBOT_TOKEN:-}" \
+    --arg test_storage_access_key "${TEST_STORAGE_ACCESS_KEY:-}" \
+    --arg test_storage_secret_key "${TEST_STORAGE_SECRET_KEY:-}" \
+    --arg telemetry_api_key "${telemetry_api_key:-}" \
+    '
+      def secret_value:
+        (. == $brave_api_key and $brave_api_key != "") or
+        (. == $tlonbot_token and $tlonbot_token != "") or
+        (. == $test_storage_access_key and $test_storage_access_key != "") or
+        (. == $test_storage_secret_key and $test_storage_secret_key != "") or
+        (. == $telemetry_api_key and $telemetry_api_key != "");
+      def redact:
+        if type == "object" then
+          with_entries(
+            if (.key | test("(api[_-]?key|token|secret|password|credential|code)"; "i")) then
+              .value = "<redacted>"
+            else
+              .value |= redact
+            end
+          )
+        elif type == "array" then
+          map(redact)
+        elif type == "string" and secret_value then
+          "<redacted>"
+        else
+          .
+        end;
+      redact
+    ' "$CONFIG_DIR/openclaw.json"
+}
+
 if [ "${VERBOSE:-0}" = "1" ]; then
-  echo "==> DEBUG: Full config:"
-  cat "$CONFIG_DIR/openclaw.json"
+  redacted_config="$(redact_openclaw_config)"
+  echo "==> DEBUG: Full config (secrets redacted):"
+  printf '%s\n' "$redacted_config"
   echo "==> DEBUG: Agent config:"
-  cat "$CONFIG_DIR/openclaw.json" | jq '.agents'
+  printf '%s\n' "$redacted_config" | jq '.agents'
   echo "==> DEBUG: Re-engagement config (plugin scheduler):"
-  cat "$CONFIG_DIR/openclaw.json" | jq '.channels.tlon.reengagement'
-  echo "==> DEBUG: Tlon channel config:"
-  cat "$CONFIG_DIR/openclaw.json" | jq '.channels.tlon'
+  printf '%s\n' "$redacted_config" | jq '.channels.tlon.reengagement'
+  echo "==> DEBUG: Tlon channel config (secrets redacted):"
+  printf '%s\n' "$redacted_config" | jq '.channels.tlon'
 fi
 
 # Create workspace
