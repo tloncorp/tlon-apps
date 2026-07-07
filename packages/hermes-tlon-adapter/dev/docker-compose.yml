@@ -6,6 +6,12 @@ services:
       args:
         HERMES_AGENT_REPO: ${HERMES_AGENT_REPO:-https://github.com/NousResearch/hermes-agent.git}
         HERMES_AGENT_REF: ${HERMES_AGENT_REF:-v2026.6.19}
+    # Launch via dev/run.sh (or pass --env-file ../.env yourself): the
+    # ${VAR:-} entries below interpolate from the compose CLI environment, not
+    # from env_file. Without --env-file they resolve to empty strings, which
+    # take precedence over the env_file values and mask the model config.
+    # The interpolated entries exist so shell exports can override ../.env,
+    # e.g. `HERMES_MODEL=other pnpm dev`.
     env_file:
       - ../.env
     environment:
