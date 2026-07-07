@@ -49,7 +49,6 @@ export function BotSettingsScreen(props: Props) {
     pending,
     changeCount,
     changeLabels,
-    hasChanges,
     commitDraft,
     discardChanges,
     applying,
@@ -150,7 +149,6 @@ export function BotSettingsScreen(props: Props) {
             subtitle={queries.moon ?? `~${queries.ship}`}
             avatarUrl={queries.avatarQuery.data ?? undefined}
             ready={queries.botReady}
-            pending={hasChanges}
             restarting={applying}
           />
           {!queries.botReady && settingsReady ? (
