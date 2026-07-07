@@ -104,6 +104,16 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   // rules screen, auto-discovery), so derive it live from the moon's channel
   // listing and fall back to the value captured at navigation time.
   const groupJoined = useMemo(() => {
+    // The bot can't have a saved rule for a channel in a group it isn't in, so
+    // an existing baseline rule means it's a member (the moon's live listing
+    // lags/omits joined groups). Also trust the navigation-time value, which
+    // already factors this in for the whole group.
+    if (
+      draft.baseline.chat.channelRuleDrafts[channelKey] ||
+      initialGroupJoined
+    ) {
+      return true;
+    }
     const parsed = parseChannelRuleKey(channelKey);
     if (!parsed || !queries.channelsQuery.data) {
       return initialGroupJoined;
@@ -130,6 +140,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   }, [
     channelKey,
     initialGroupJoined,
+    draft.baseline.chat.channelRuleDrafts,
     queries.channelsQuery.data,
     queries.moonChannelsQuery.data,
   ]);
