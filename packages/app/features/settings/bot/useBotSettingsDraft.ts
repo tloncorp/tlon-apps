@@ -378,6 +378,16 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
             stableStringify(baselineRules[key]) !==
             stableStringify(nextRules[key])
         );
+        // Inherited channels carry no channelRules entry, so enabling/disabling
+        // one shows up only as a groupChannels (monitored-set) change — track it
+        // separately from rule-payload changes or those saves get dropped.
+        const baselineGroupChannels = new Set(
+          buildConfigFromChatValues(draft.baseline.chat).groupChannels
+        );
+        const nextGroupChannels = new Set(fullConfig.groupChannels);
+        const groupChannelsChanged =
+          baselineGroupChannels.size !== nextGroupChannels.size ||
+          [...nextGroupChannels].some((key) => !baselineGroupChannels.has(key));
         const config: Partial<typeof fullConfig> = {};
         if (draft.pending.dmAllowlist) {
           config.dmAllowlist = fullConfig.dmAllowlist;
@@ -394,45 +404,48 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         if (draft.pending.autoDiscoverChannels) {
           config.autoDiscoverChannels = fullConfig.autoDiscoverChannels;
         }
-        if (dirtyRuleKeys.length > 0) {
-          // Merge just the changed channels onto the latest server rules so a
-          // concurrent edit to an untouched channel isn't overwritten by our
-          // stale full map.
+        if (dirtyRuleKeys.length > 0 || groupChannelsChanged) {
+          // Merge onto the latest server config so concurrent edits to other
+          // channels aren't overwritten by our stale full map.
           const refetchedSettings = await queries.configQuery.refetch();
           if (!refetchedSettings.isSuccess || !refetchedSettings.data) {
             throw new Error(
               'Could not load the latest channel rules. Please try again.'
             );
           }
-          // Server data can carry legacy un-normalized keys (zod/general);
-          // normalize them so the dirty-key updates/deletes below hit the same
-          // entries instead of leaving a stale duplicate behind.
-          const mergedRules: typeof nextRules = {};
-          Object.entries(refetchedSettings.data.channelRules ?? {}).forEach(
-            ([key, serverRule]) => {
-              mergedRules[normalizeChannelRuleKey(key)] = serverRule;
-            }
+          if (dirtyRuleKeys.length > 0) {
+            // Server data can carry legacy un-normalized keys (zod/general);
+            // normalize them so the dirty-key updates/deletes hit the same
+            // entries instead of leaving a stale duplicate behind.
+            const mergedRules: typeof nextRules = {};
+            Object.entries(refetchedSettings.data.channelRules ?? {}).forEach(
+              ([key, serverRule]) => {
+                mergedRules[normalizeChannelRuleKey(key)] = serverRule;
+              }
+            );
+            dirtyRuleKeys.forEach((key) => {
+              if (nextRules[key] !== undefined) {
+                mergedRules[key] = nextRules[key];
+              } else {
+                delete mergedRules[key];
+              }
+            });
+            config.channelRules = mergedRules;
+          }
+          // Apply the user's enable/disable delta to the server's monitored set
+          // so inherited-only toggles (no channelRules entry) still save, while
+          // concurrent changes to other channels are preserved.
+          const mergedGroupChannels = new Set(
+            (refetchedSettings.data.groupChannels ?? []).map(
+              normalizeChannelRuleKey
+            )
           );
-          const removedRuleKeys = new Set<string>();
-          dirtyRuleKeys.forEach((key) => {
-            if (nextRules[key] !== undefined) {
-              mergedRules[key] = nextRules[key];
-            } else {
-              delete mergedRules[key];
-              removedRuleKeys.add(key);
-            }
+          baselineGroupChannels.forEach((key) => {
+            if (!nextGroupChannels.has(key)) mergedGroupChannels.delete(key);
           });
-          // groupChannels can list monitored channels that have no explicit
-          // rule (fully inherited); keep them so the bot doesn't stop
-          // monitoring them, dropping only the channels this draft disabled.
-          const mergedGroupChannels = new Set(Object.keys(mergedRules));
-          (refetchedSettings.data.groupChannels ?? []).forEach((key) => {
-            const normalized = normalizeChannelRuleKey(key);
-            if (!removedRuleKeys.has(normalized)) {
-              mergedGroupChannels.add(normalized);
-            }
+          nextGroupChannels.forEach((key) => {
+            if (!baselineGroupChannels.has(key)) mergedGroupChannels.add(key);
           });
-          config.channelRules = mergedRules;
           config.groupChannels = [...mergedGroupChannels];
         }
 
