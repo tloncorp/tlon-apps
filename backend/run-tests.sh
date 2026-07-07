@@ -162,8 +162,18 @@ EOF
 # TODO: We should figure out the source ship for this file and delete it
 rm -f $pier/groups/tests/lib/diary-graph.hoon
 
-# Update the groups desk
-rsync -r desk/ $pier/groups
+# Update the groups desk. Assemble the full desk (desk-deps/ vendored deps +
+# desk/ source) and overlay it onto the pill's groups desk. The pill provides a
+# bootable base; the assembled tree brings in peru-vendored deps (e.g.
+# sur/mcp-proxy) that live only in desk-deps/. Overlaid without --delete so the
+# pill's own artifacts (the jammed pill used by the aqua tests) are preserved.
+assembled=$(mktemp -d)
+./scripts/assemble-desk.sh "$assembled"
+# assemble-desk stamps the git hash into commit.txt; keep the 'development'
+# placeholder the logs test (/tests/app/logs) asserts on instead.
+cp desk/commit.txt "$assembled/commit.txt"
+rsync -r "$assembled"/ $pier/groups
+rm -rf "$assembled"
 
 rsync -r --delete desk/tests/ $pier/groups/tests
 

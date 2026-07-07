@@ -167,6 +167,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install peru
+        # run-tests.sh assembles the groups desk via scripts/assemble-desk.sh,
+        # which runs `peru sync` to vendor desk deps (desk-deps/) — including
+        # peru-only deps like sur/mcp-proxy that aren't in the test pill.
+        run: |
+          pipx install peru || pip install --user peru || pip3 install --user --break-system-packages peru
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Run Backend Tests for Groups
         run: |
           sudo apt-get update
