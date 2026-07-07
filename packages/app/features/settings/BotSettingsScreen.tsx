@@ -15,7 +15,6 @@ import {
   ApplyChangesBar,
   BotIdentityHeader,
   BotSettingsDivider,
-  BotSettingsErrorText,
   BotSettingsRow,
   BotSettingsSection,
   BotSwitchRow,
@@ -323,8 +322,6 @@ export function BotSettingsScreen(props: Props) {
               onPress={() => navigate('BotChannelRulesSettings')}
             />
           </BotSettingsSection>
-
-          <BotSettingsErrorText>{applyError}</BotSettingsErrorText>
         </YStack>
       </SettingsContentScrollView>
       <ApplyChangesBar
