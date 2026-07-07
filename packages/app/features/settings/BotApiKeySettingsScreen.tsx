@@ -6,7 +6,7 @@ import {
   Pressable,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -39,6 +39,17 @@ export function BotApiKeySettingsScreen(props: Props) {
   const [showKey, setShowKey] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
+
+  // The desktop settings drawer keeps this screen mounted across provider
+  // switches, so clear the pasted key and related state when the provider
+  // param changes — an unsaved key must never carry over to (and be saved
+  // against) a different provider.
+  useEffect(() => {
+    setKey('');
+    setShowKey(false);
+    setValidationError(null);
+    setConfirmRemove(false);
+  }, [providerId]);
 
   const provider = useMemo(
     () => PROVIDER_OPTIONS.find((option) => option.id === providerId),
