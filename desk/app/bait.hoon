@@ -1,5 +1,6 @@
 /-  reel, groups-ver
 /+  default-agent, verb, dbug, server, logs, *reel
+/=  ted-branch-update  /ted/branch-update
 |%
 +$  card  card:agent:gall
 +$  versioned-state
