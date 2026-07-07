@@ -227,11 +227,10 @@ export function BotShipListSettingsScreen(props: Props) {
                   <ContactList.Item
                     key={ship}
                     contactId={ship}
+                    onPress={() => removeShip(ship)}
                     showNickname
-                    showUserId
                     showEndContent
                     endContent={<Badge text="Remove" type="neutral" />}
-                    onPress={() => removeShip(ship)}
                   />
                 ))}
               </ContactList>
