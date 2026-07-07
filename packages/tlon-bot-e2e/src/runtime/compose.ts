@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
 
 import type {
@@ -195,8 +196,18 @@ export function runCommand(
       }
     });
     child.on('error', fail);
-    child.on('close', (exitCode) => {
-      finish({ stdout, stderr, exitCode: exitCode ?? 1 });
+    child.on('close', (exitCode, signal) => {
+      finish({ stdout, stderr, exitCode: exitCode ?? signalExitCode(signal) });
     });
   });
+}
+
+/**
+ * A signal-killed child reports exitCode null plus the signal. Translate to
+ * the shell convention (128 + signal number) so callers such as the OpenClaw
+ * per-file runner can detect kills via `exitCode >= 128` and stop the suite.
+ */
+function signalExitCode(signal: NodeJS.Signals | null): number {
+  const signum = signal ? os.constants.signals[signal] : undefined;
+  return signum ? 128 + signum : 1;
 }
