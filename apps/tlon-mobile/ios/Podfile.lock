@@ -193,6 +193,8 @@ PODS:
     - ExpoTaskManager
   - ExpoBattery (56.0.4):
     - ExpoModulesCore
+  - ExpoBlob (56.0.3):
+    - ExpoModulesCore
   - ExpoBlur (56.0.3):
     - ExpoModulesCore
   - ExpoClipboard (56.0.4):
@@ -279,7 +281,7 @@ PODS:
     - ExpoModulesCore
   - ExpoSensors (56.0.6):
     - ExpoModulesCore
-  - ExpoShareIntentModule (5.1.1):
+  - ExpoShareIntentModule (7.0.0):
     - ExpoModulesCore
   - ExpoSMS (56.0.3):
     - ExpoModulesCore
@@ -2883,6 +2885,7 @@ DEPENDENCIES:
   - ExpoBackgroundFetch (from `../../../node_modules/expo-background-fetch/ios`)
   - ExpoBackgroundTask (from `../../../node_modules/expo-background-task/ios`)
   - ExpoBattery (from `../../../node_modules/expo-battery/ios`)
+  - ExpoBlob (from `../../../node_modules/expo-blob/ios`)
   - ExpoBlur (from `../../../node_modules/expo-blur/ios`)
   - ExpoClipboard (from `../../../node_modules/expo-clipboard/ios`)
   - ExpoContacts (from `../../../node_modules/expo-contacts/ios`)
@@ -3083,6 +3086,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-background-task/ios"
   ExpoBattery:
     :path: "../../../node_modules/expo-battery/ios"
+  ExpoBlob:
+    :path: "../../../node_modules/expo-blob/ios"
   ExpoBlur:
     :path: "../../../node_modules/expo-blur/ios"
   ExpoClipboard:
@@ -3367,6 +3372,7 @@ SPEC CHECKSUMS:
   ExpoBackgroundFetch: f93c0161871fb4ba49fa2db7718af76a2432fecb
   ExpoBackgroundTask: 2b852c0a560bc84aee5d90c3b4fe6e6a376afc75
   ExpoBattery: a42e918404ceee07a957db4312918ec0c52bc0d6
+  ExpoBlob: 3e896c97726abf49bdecf63151e09fb4f7e21195
   ExpoBlur: caddd80171e5f8f3581ff3d865e99c6465047240
   ExpoClipboard: 342ae52697ff1cf89b8849bee624a9a320e77d3c
   ExpoContacts: 0e1ad9b1731dfeb3107e1f203d42b2718741fc9c
@@ -3393,7 +3399,7 @@ SPEC CHECKSUMS:
   ExpoNotifications: 87875dae0faded5284004bc1204990947d3f64e0
   ExpoSecureStore: f1bd083c1b7b8d4142013ffcc0082d377d9f49f4
   ExpoSensors: d34558ddf1f1d61c7a22180d1d40d8bd89d67d7b
-  ExpoShareIntentModule: 928ff229dd5e577561944786f0de08be339f640b
+  ExpoShareIntentModule: ca4400482299e779d77b93a722ee79146c108c35
   ExpoSMS: 2cebfd889706da39a397d20c8a68abb0ce7f185d
   ExpoSpeechRecognition: 119acf84448579e53f841d040aad76982f945e2d
   ExpoSplashScreen: 3fe3a57d56d7242a9109d9714a6f9fa1e256538b
@@ -3415,7 +3421,7 @@ SPEC CHECKSUMS:
   FirebaseSharedSwift: 3d1e448b7202e36821a492941c84592d1308ea14
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
-  hermes-engine: 316b96c28aff8ba5fc6165d99257077467899020
+  hermes-engine: 5a3f43e98cc1ba4e066932e8af269dec169571ea
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
@@ -3432,7 +3438,7 @@ SPEC CHECKSUMS:
   React: e2dc35338068bbd299c66f043ae0d7f25de8499e
   React-callinvoker: 28b25d21b124c26cebaea713ba7d801b9351dc48
   React-Core: 02ed7d2ffb70437bdf2aba074a13078a7b0b9ff0
-  React-Core-prebuilt: 244ed0aecafa3149efb1e7e90601559203b2a378
+  React-Core-prebuilt: ede6f6a78271f01ad48318e6d7ecd60b67af8e75
   React-CoreModules: b3a5a42dadcde3b5d47b325bd912eb2ced89e146
   React-cxxreact: fe8f88dda044e5905e99a00f41b7a874c3908716
   React-debug: 9af1e96a6069c996e3d9f1e493603e74bc9f1593
@@ -3503,7 +3509,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 25c9c516839be2c5e3d3344f95dc7da5f7e63fc2
   ReactCodegen: 5b2b5c009cec17b5e848bde3bc067c339009390d
   ReactCommon: 7dfc3250793bf36cf221096ff59e1179e13eef7f
-  ReactNativeDependencies: 6aaf17402887e556ce8197a4c9b6a9b8d9735f52
+  ReactNativeDependencies: 3561acaa3d149b0786233796beae6d70927c3dcc
   recaptcha-enterprise-react-native: 15b27d8db2ccd8ebce5e11b5c41b66a29cb1d7bb
   RecaptchaEnterprise: 2d06f415c94253c3e92214a4d1472b5875442cdc
   RecaptchaEnterpriseSDK: 2fd06a12a27f943c24f643f8814404a27cc74288

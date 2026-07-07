@@ -6,6 +6,8 @@ export async function requestPermissionsAsync(): Promise<never> {
   throw new Error('expo-media-library is not available on web');
 }
 
-export async function saveToLibraryAsync(_uri: string): Promise<never> {
-  throw new Error('expo-media-library is not available on web');
-}
+export const Asset = {
+  create(_filePath: string): Promise<never> {
+    throw new Error('expo-media-library is not available on web');
+  },
+};

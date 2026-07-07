@@ -6,13 +6,18 @@ import { useEffect, useMemo } from 'react';
 import * as db from '../db';
 import type { WrappedQuery } from '../db/query';
 import { createDevLogger } from '../debug';
-import { withRetry } from '../logic';
+import {
+  publishedNotePath,
+  renderPublishedNoteHtml,
+  withRetry,
+} from '../logic';
 import { collectDescendantFolderIds } from '../logic/notesTree';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const logger = createDevLogger('notesActions', false);
 
 const NOTES_SYNC_STALE_TIME = 15_000;
+const NOTES_PUBLISHED_STALE_TIME = 15_000;
 
 type SyncNotesNotebookOptions = {
   hydrateNoteIds?: readonly number[];
@@ -254,6 +259,10 @@ export const useNotesNotebook = createNotebookQueryHook(
   'notesNotebook',
   db.getNotesNotebook
 );
+export const useNotesNotebookWithRelations = createNotebookQueryHook(
+  'notesNotebookWithRelations',
+  db.getNotesNotebookWithRelations
+);
 export const useNotesFolders = createNotebookQueryHook(
   'notesFolders',
   db.getNotesFolders
@@ -262,6 +271,38 @@ export const useNotesNotes = createNotebookQueryHook(
   'notesNotes',
   db.getNotesNotes
 );
+
+export function usePublishedNotesForNotebook({
+  notebookFlag,
+  enabled = true,
+}: {
+  notebookFlag: string | null | undefined;
+  enabled?: boolean;
+}) {
+  return useQuery({
+    queryKey: ['notesPublished', notebookFlag],
+    queryFn: () => listPublishedNotesForNotebook(notebookFlag!),
+    enabled: enabled && Boolean(notebookFlag),
+    staleTime: NOTES_PUBLISHED_STALE_TIME,
+  });
+}
+
+async function listPublishedNotesForNotebook(notebookFlag: string) {
+  const { parsed } = requireNotesNotebookFlag(notebookFlag);
+  const published = await api.notes.listPublished();
+  return published.filter(
+    (record) => record.host === parsed.host && record.flagName === parsed.name
+  );
+}
+
+export function noteIsPublished(
+  published: api.NotesPublishedRecord[] | null | undefined,
+  noteId: number | null | undefined
+) {
+  return noteId != null
+    ? Boolean(published?.some((record) => record.noteId === noteId))
+    : false;
+}
 
 async function createAndFindNewItem<T>({
   notebookFlag,
@@ -409,6 +450,40 @@ export async function saveNotebookNote({
       : undefined
   );
   return db.getNotesNote({ notebookFlag, noteId: note.noteId });
+}
+
+export async function publishNotebookNote({
+  notebookFlag,
+  noteId,
+  title,
+  body,
+}: {
+  notebookFlag: string;
+  noteId: number;
+  title: string;
+  body: string;
+}) {
+  await api.notes.publishNote({
+    flag: notebookFlag,
+    noteId,
+    html: renderPublishedNoteHtml({ title, body }),
+  });
+  await waitForPublishedNoteState(notebookFlag, noteId, true);
+  return publishedNotePath(notebookFlag, noteId);
+}
+
+export async function unpublishNotebookNote({
+  notebookFlag,
+  noteId,
+}: {
+  notebookFlag: string;
+  noteId: number;
+}) {
+  await api.notes.unpublishNote({
+    flag: notebookFlag,
+    noteId,
+  });
+  await waitForPublishedNoteState(notebookFlag, noteId, false);
 }
 
 export async function moveNotebookNote({
@@ -599,6 +674,33 @@ async function syncNotesNotebookUntil<T>(
     await db.saveNotesNotebookSnapshot(readySnapshot);
   }
   return readyValue;
+}
+
+async function waitForPublishedNoteState(
+  notebookFlag: string,
+  noteId: number,
+  expected: boolean
+) {
+  try {
+    await withRetry(async () => {
+      const published = await listPublishedNotesForNotebook(notebookFlag);
+      if (noteIsPublished(published, noteId) !== expected) {
+        throw notYetSynced;
+      }
+    }, notesRetryOptions);
+  } catch (e) {
+    if (e !== notYetSynced) {
+      throw e;
+    }
+    // Unlike snapshot polls, this confirmation gates a user-facing success
+    // signal (link copied, toast) — an unconfirmed publish must fail loudly
+    // rather than report success for a state the backend never reached.
+    throw new Error(
+      `%notes write request is still pending; the ${
+        expected ? 'publish' : 'unpublish'
+      } is not yet confirmed and may still complete. Check the note's published state before retrying.`
+    );
+  }
 }
 
 async function hydrateNotesForSnapshot(
