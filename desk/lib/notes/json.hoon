@@ -7,8 +7,8 @@
   |=  da=@da
   ^-  @ud
   (div (sub da ~1970.1.1) ~s1)
-::
 ::  +enjs: encode notes types to JSON
+::
 ++  enjs
   =,  enjs:format
   |%
@@ -16,273 +16,273 @@
     |=  nb=notebook:n
     ^-  json
     %-  pairs
-    :~  ['id' (numb id.nb)]
-        ['title' s+title.nb]
+    :~  'id'^(numb id.nb)
+        'title'^s+title.nb
         ::  rootFolderId is deterministically id+1 (set by se-create-notebook)
-        ['rootFolderId' (numb +(id.nb))]
-        ['createdBy' s+(scot %p created-by.nb)]
-        ['createdAt' (numb (da-to-unix created-at.nb))]
-        ['updatedAt' (numb (da-to-unix updated-at.nb))]
-        ['updatedBy' s+(scot %p updated-by.nb)]
+        'rootFolderId'^(numb +(id.nb))
+        'createdBy'^s+(scot %p created-by.nb)
+        'createdAt'^(numb (da-to-unix created-at.nb))
+        'updatedAt'^(numb (da-to-unix updated-at.nb))
+        'updatedBy'^s+(scot %p updated-by.nb)
     ==
   ::
   ++  folder
     |=  fld=folder:n
     ^-  json
     %-  pairs
-    :~  ['id' (numb id.fld)]
-        ['notebookId' (numb notebook-id.fld)]
-        ['name' s+name.fld]
-        ['parentFolderId' ?~(parent-folder-id.fld ~ (numb u.parent-folder-id.fld))]
-        ['createdBy' s+(scot %p created-by.fld)]
-        ['createdAt' (numb (da-to-unix created-at.fld))]
-        ['updatedAt' (numb (da-to-unix updated-at.fld))]
-        ['updatedBy' s+(scot %p updated-by.fld)]
+    :~  'id'^(numb id.fld)
+        'notebookId'^(numb notebook-id.fld)
+        'name'^s+name.fld
+        'parentFolderId'^?~(parent-folder-id.fld ~ (numb u.parent-folder-id.fld))
+        'createdBy'^s+(scot %p created-by.fld)
+        'createdAt'^(numb (da-to-unix created-at.fld))
+        'updatedAt'^(numb (da-to-unix updated-at.fld))
+        'updatedBy'^s+(scot %p updated-by.fld)
     ==
   ::
   ++  note
     |=  nt=note:n
     ^-  json
     %-  pairs
-    :~  ['id' (numb id.nt)]
-        ['notebookId' (numb notebook-id.nt)]
-        ['folderId' (numb folder-id.nt)]
-        ['title' s+title.nt]
-        ['slug' ?~(slug.nt ~ s+u.slug.nt)]
-        ['bodyMd' s+body-md.nt]
-        ['createdBy' s+(scot %p created-by.nt)]
-        ['createdAt' (numb (da-to-unix created-at.nt))]
-        ['updatedBy' s+(scot %p updated-by.nt)]
-        ['updatedAt' (numb (da-to-unix updated-at.nt))]
-        ['revision' (numb revision.nt)]
+    :~  'id'^(numb id.nt)
+        'notebookId'^(numb notebook-id.nt)
+        'folderId'^(numb folder-id.nt)
+        'title'^s+title.nt
+        'slug'^?~(slug.nt ~ s+u.slug.nt)
+        'bodyMd'^s+body-md.nt
+        'createdBy'^s+(scot %p created-by.nt)
+        'createdAt'^(numb (da-to-unix created-at.nt))
+        'updatedBy'^s+(scot %p updated-by.nt)
+        'updatedAt'^(numb (da-to-unix updated-at.nt))
+        'revision'^(numb revision.nt)
     ==
-  ::
   ::  +note-revision: archived prior version of a note
+  ::
   ++  note-revision
     |=  nr=note-revision:n
     ^-  json
     %-  pairs
-    :~  ['rev' (numb rev.nr)]
-        ['at' (numb (da-to-unix at.nr))]
-        ['author' s+(scot %p author.nr)]
-        ['title' s+title.nr]
-        ['bodyMd' s+body-md.nr]
+    :~  'rev'^(numb rev.nr)
+        'at'^(numb (da-to-unix at.nr))
+        'author'^s+(scot %p author.nr)
+        'title'^s+title.nr
+        'bodyMd'^s+body-md.nr
     ==
-  ::
   ::  +u-folder: encode a folder-scoped update
+  ::
   ++  u-folder
     |=  [id=@ud upd=u-folder:n]
     ^-  json
     ?-  -.upd
         %created
       %-  pairs
-      :~  ['type' s+'folder-created']
-          ['id' (numb id)]
-          ['folder' (folder folder.upd)]
+      :~  'type'^s+'folder-created'
+          'id'^(numb id)
+          'folder'^(folder folder.upd)
       ==
         %updated
       %-  pairs
-      :~  ['type' s+'folder-updated']
-          ['id' (numb id)]
-          ['folder' (folder folder.upd)]
+      :~  'type'^s+'folder-updated'
+          'id'^(numb id)
+          'folder'^(folder folder.upd)
       ==
         %deleted
       %-  pairs
-      :~  ['type' s+'folder-deleted']
-          ['id' (numb id)]
+      :~  'type'^s+'folder-deleted'
+          'id'^(numb id)
       ==
     ==
-  ::
   ::  +u-note: encode a note-scoped update
+  ::
   ++  u-note
     |=  [id=@ud upd=u-note:n]
     ^-  json
     ?-  -.upd
         %created
       %-  pairs
-      :~  ['type' s+'note-created']
-          ['id' (numb id)]
-          ['note' (note note.upd)]
+      :~  'type'^s+'note-created'
+          'id'^(numb id)
+          'note'^(note note.upd)
       ==
         %updated
       %-  pairs
-      :~  ['type' s+'note-updated']
-          ['id' (numb id)]
-          ['note' (note note.upd)]
+      :~  'type'^s+'note-updated'
+          'id'^(numb id)
+          'note'^(note note.upd)
       ==
         %deleted
       %-  pairs
-      :~  ['type' s+'note-deleted']
-          ['id' (numb id)]
+      :~  'type'^s+'note-deleted'
+          'id'^(numb id)
       ==
         %published
       %-  pairs
-      :~  ['type' s+'note-published']
-          ['id' (numb id)]
-          ['html' s+html.upd]
+      :~  'type'^s+'note-published'
+          'id'^(numb id)
+          'html'^s+html.upd
       ==
         %unpublished
       %-  pairs
-      :~  ['type' s+'note-unpublished']
-          ['id' (numb id)]
+      :~  'type'^s+'note-unpublished'
+          'id'^(numb id)
       ==
         %history-archived
       %-  pairs
-      :~  ['type' s+'note-history-archived']
-          ['id' (numb id)]
-          ['revision' (note-revision note-revision.upd)]
+      :~  'type'^s+'note-history-archived'
+          'id'^(numb id)
+          'revision'^(note-revision note-revision.upd)
       ==
     ==
-  ::
   ::  +u-notebook: encode a notebook-scoped update
+  ::
   ++  u-notebook
     |=  [=flag:n upd=u-notebook:n]
     ^-  json
     %-  pairs
     ?-  -.upd
         %created
-      :~  ['type' s+'notebook-created']
-          ['host' s+(scot %p ship.flag)]
-          ['flagName' s+name.flag]
-          ['notebook' (notebook notebook.upd)]
-          ['visibility' s+(scot %tas visibility.upd)]
+      :~  'type'^s+'notebook-created'
+          'host'^s+(scot %p ship.flag)
+          'flagName'^s+name.flag
+          'notebook'^(notebook notebook.upd)
+          'visibility'^s+(scot %tas visibility.upd)
       ==
         %updated
-      :~  ['type' s+'notebook-updated']
-          ['host' s+(scot %p ship.flag)]
-          ['flagName' s+name.flag]
-          ['notebook' (notebook notebook.upd)]
+      :~  'type'^s+'notebook-updated'
+          'host'^s+(scot %p ship.flag)
+          'flagName'^s+name.flag
+          'notebook'^(notebook notebook.upd)
       ==
         %deleted
-      :~  ['type' s+'notebook-deleted']
-          ['host' s+(scot %p ship.flag)]
-          ['flagName' s+name.flag]
+      :~  'type'^s+'notebook-deleted'
+          'host'^s+(scot %p ship.flag)
+          'flagName'^s+name.flag
       ==
         %visibility
-      :~  ['type' s+'notebook-visibility-changed']
-          ['host' s+(scot %p ship.flag)]
-          ['flagName' s+name.flag]
-          ['visibility' s+(scot %tas visibility.upd)]
+      :~  'type'^s+'notebook-visibility-changed'
+          'host'^s+(scot %p ship.flag)
+          'flagName'^s+name.flag
+          'visibility'^s+(scot %tas visibility.upd)
       ==
         %member-joined
-      :~  ['type' s+'member-joined']
-          ['host' s+(scot %p ship.flag)]
-          ['flagName' s+name.flag]
-          ['who' s+(scot %p who.upd)]
-          ['role' s+(scot %tas role.upd)]
+      :~  'type'^s+'member-joined'
+          'host'^s+(scot %p ship.flag)
+          'flagName'^s+name.flag
+          'who'^s+(scot %p who.upd)
+          'role'^s+(scot %tas role.upd)
       ==
         %member-left
-      :~  ['type' s+'member-left']
-          ['host' s+(scot %p ship.flag)]
-          ['flagName' s+name.flag]
-          ['who' s+(scot %p who.upd)]
+      :~  'type'^s+'member-left'
+          'host'^s+(scot %p ship.flag)
+          'flagName'^s+name.flag
+          'who'^s+(scot %p who.upd)
       ==
         %invite-received
-      :~  ['type' s+'invite-received']
-          ['host' s+(scot %p ship.flag)]
-          ['flagName' s+name.flag]
-          ['from' s+(scot %p from.upd)]
-          ['title' s+title.upd]
+      :~  'type'^s+'invite-received'
+          'host'^s+(scot %p ship.flag)
+          'flagName'^s+name.flag
+          'from'^s+(scot %p from.upd)
+          'title'^s+title.upd
       ==
         %invite-removed
-      :~  ['type' s+'invite-removed']
-          ['host' s+(scot %p ship.flag)]
-          ['flagName' s+name.flag]
+      :~  'type'^s+'invite-removed'
+          'host'^s+(scot %p ship.flag)
+          'flagName'^s+name.flag
       ==
         %folder
-      :~  ['type' s+'folder-update']
-          ['host' s+(scot %p ship.flag)]
-          ['flagName' s+name.flag]
-          ['folderUpdate' (u-folder id.upd u-folder.upd)]
+      :~  'type'^s+'folder-update'
+          'host'^s+(scot %p ship.flag)
+          'flagName'^s+name.flag
+          'folderUpdate'^(u-folder id.upd u-folder.upd)
       ==
         %note
-      :~  ['type' s+'note-update']
-          ['host' s+(scot %p ship.flag)]
-          ['flagName' s+name.flag]
-          ['noteUpdate' (u-note id.upd u-note.upd)]
+      :~  'type'^s+'note-update'
+          'host'^s+(scot %p ship.flag)
+          'flagName'^s+name.flag
+          'noteUpdate'^(u-note id.upd u-note.upd)
       ==
     ==
-  ::
   ::  +notebook-summary: encode one /v0/notebooks item
+  ::
   ++  notebook-summary
     |=  ns=notebook-summary:n
     ^-  json
     %-  pairs
-    :~  ['host' s+(scot %p ship.flag.ns)]
-        ['flagName' s+name.flag.ns]
-        ['notebook' (notebook notebook.ns)]
-        ['visibility' s+(scot %tas visibility.ns)]
+    :~  'host'^s+(scot %p ship.flag.ns)
+        'flagName'^s+name.flag.ns
+        'notebook'^(notebook notebook.ns)
+        'visibility'^s+(scot %tas visibility.ns)
     ==
-  ::
   ::  +notebook-summaries: encode (list notebook-summary)
+  ::
   ++  notebook-summaries
     |=  items=(list notebook-summary:n)
     ^-  json
     [%a (turn items notebook-summary)]
-  ::
   ::  +notebook-detail: encode one /v0/notebook item
+  ::
   ++  notebook-detail
     |=  nd=notebook-detail:n
     ^-  json
     %-  pairs
-    :~  ['host' s+(scot %p ship.flag.nd)]
-        ['flagName' s+name.flag.nd]
-        ['notebook' (notebook notebook.nd)]
-        ['visibility' s+(scot %tas visibility.nd)]
+    :~  'host'^s+(scot %p ship.flag.nd)
+        'flagName'^s+name.flag.nd
+        'notebook'^(notebook notebook.nd)
+        'visibility'^s+(scot %tas visibility.nd)
     ==
-  ::
   ::  +member-record: encode one /v0/members item
+  ::
   ++  member-record
     |=  mr=member-record:n
     ^-  json
     %-  pairs
-    :~  ['ship' s+(scot %p ship.mr)]
-        ['role' s+(scot %tas role.mr)]
+    :~  'ship'^s+(scot %p ship.mr)
+        'role'^s+(scot %tas role.mr)
     ==
-  ::
   ::  +member-records: encode (list member-record)
+  ::
   ++  member-records
     |=  items=(list member-record:n)
     ^-  json
     [%a (turn items member-record)]
-  ::
   ::  +invite-record: encode one /v0/invites item
+  ::
   ++  invite-record
     |=  ir=invite-record:n
     ^-  json
     %-  pairs
-    :~  ['host' s+(scot %p ship.flag.ir)]
-        ['flagName' s+name.flag.ir]
-        ['from' s+(scot %p from.invite-info.ir)]
-        ['sentAt' (numb (da-to-unix sent-at.invite-info.ir))]
-        ['title' s+title.invite-info.ir]
+    :~  'host'^s+(scot %p ship.flag.ir)
+        'flagName'^s+name.flag.ir
+        'from'^s+(scot %p from.invite-info.ir)
+        'sentAt'^(numb (da-to-unix sent-at.invite-info.ir))
+        'title'^s+title.invite-info.ir
     ==
-  ::
   ::  +invite-records: encode (list invite-record)
+  ::
   ++  invite-records
     |=  items=(list invite-record:n)
     ^-  json
     [%a (turn items invite-record)]
-  ::
   ::  +published-record: encode one /v0/published item
+  ::
   ++  published-record
     |=  pr=published-record:n
     ^-  json
     %-  pairs
-    :~  ['host' s+(scot %p ship.flag.pr)]
-        ['flagName' s+name.flag.pr]
-        ['noteId' (numb note-id.pr)]
+    :~  'host'^s+(scot %p ship.flag.pr)
+        'flagName'^s+name.flag.pr
+        'noteId'^(numb note-id.pr)
     ==
-  ::
   ::  +published-records: encode (list published-record)
+  ::
   ++  published-records
     |=  items=(list published-record:n)
     ^-  json
     [%a (turn items published-record)]
-  ::
   ::  +u-inbox: encode an /v0/inbox/stream event. Wraps the payload in
   ::  {type:'update', update:<payload>} for FE compat with the existing
   ::  applyNotebookUpdate / applyInboxEvent dispatch.
+  ::
   ++  u-inbox
     |=  evt=u-inbox:n
     ^-  json
@@ -290,77 +290,77 @@
       ?-    -.evt
           %invite-received
         %-  pairs
-        :~  ['type' s+'invite-received']
-            ['host' s+(scot %p ship.flag.evt)]
-            ['flagName' s+name.flag.evt]
-            ['from' s+(scot %p from.evt)]
-            ['sentAt' (numb (div (sub sent-at.evt ~1970.1.1) ~s1))]
-            ['title' s+title.evt]
+        :~  'type'^s+'invite-received'
+            'host'^s+(scot %p ship.flag.evt)
+            'flagName'^s+name.flag.evt
+            'from'^s+(scot %p from.evt)
+            'sentAt'^(numb (div (sub sent-at.evt ~1970.1.1) ~s1))
+            'title'^s+title.evt
         ==
       ::
           %invite-removed
         %-  pairs
-        :~  ['type' s+'invite-removed']
-            ['host' s+(scot %p ship.flag.evt)]
-            ['flagName' s+name.flag.evt]
+        :~  'type'^s+'invite-removed'
+            'host'^s+(scot %p ship.flag.evt)
+            'flagName'^s+name.flag.evt
         ==
       ::
           %notebooks-changed
         (pairs ~[['type' s+'notebooks-changed']])
       ==
     (pairs ~[['type' s+'update'] ['update' payload]])
-  ::
   ::  +note-revisions: encode (list note-revision)
+  ::
   ++  note-revisions
     |=  items=(list note-revision:n)
     ^-  json
     [%a (turn items note-revision)]
-  ::
   ::  +folders: encode (list folder)
+  ::
   ++  folders
     |=  items=(list folder:n)
     ^-  json
     [%a (turn items folder)]
-  ::
   ::  +notes: encode (list note)
+  ::
   ++  notes
     |=  items=(list note:n)
     ^-  json
     [%a (turn items note)]
-  ::
   ::  +response: encode r-notes response
+  ::
   ++  response
     |=  res=response:n
     ^-  json
     ?-  -.res
         %update
       %-  pairs
-      :~  ['type' s+'update']
-          ['host' s+(scot %p ship.flag.res)]
-          ['flagName' s+name.flag.res]
-          ['time' (numb (da-to-unix time.update.res))]
-          ['update' (u-notebook flag.res u-notebook.update.res)]
+      :~  'type'^s+'update'
+          'host'^s+(scot %p ship.flag.res)
+          'flagName'^s+name.flag.res
+          'time'^(numb (da-to-unix time.update.res))
+          'update'^(u-notebook flag.res u-notebook.update.res)
       ==
         %snapshot
       %-  pairs
-      :~  ['type' s+'snapshot']
-          ['host' s+(scot %p ship.flag.res)]
-          ['flagName' s+name.flag.res]
-          ['visibility' s+(scot %tas visibility.res)]
+      :~  'type'^s+'snapshot'
+          'host'^s+(scot %p ship.flag.res)
+          'flagName'^s+name.flag.res
+          'visibility'^s+(scot %tas visibility.res)
       ==
     ==
-  ::
   ::  +tang-json: render a tang as a JSON array.
   ::  TODO Phase 2+: render each tank to a tape with wash/re. Today we
   ::  emit an empty array; the typed errorType field carries the
   ::  actionable info, the tang is debug-only.
+  ::
   ++  tang-json
     |=  ts=tang
     ^-  json
     [%a ~]
-  ::
   ::  v1: request-id-wrapped response shapes
   ::  encoded for delivery over /notes/~/v1 HTTP and /v1 SSE paths.
+  ::
   ++  v1
     |%
     ++  action-error
@@ -372,14 +372,14 @@
       |=  s=poke-status:v1:n
       ^-  json
       s+(scot %tas s)
-    ::
     ::  +response: subscriber → client. Encoded as {requestId, body}.
+    ::
     ++  response
       |=  res=response:v1:n
       ^-  json
       %-  pairs
-      :~  ['requestId' s+(scot %uv id.res)]
-          ['body' (response-body body.res)]
+      :~  'requestId'^s+(scot %uv id.res)
+          'body'^(response-body body.res)
       ==
     ::
     ++  response-body
@@ -392,46 +392,46 @@
           %ok
         ::  ^response = outer r-notes encoder
         %-  pairs
-        :~  ['type' s+'ok']
-            ['response' (^response r-notes.bod)]
+        :~  'type'^s+'ok'
+            'response'^(^response r-notes.bod)
         ==
       ::
           %notebook
         ::  notebook-summary = outer encoder (host, flagName, notebook, visibility)
         %-  pairs
-        :~  ['type' s+'notebook']
-            ['notebook' (notebook-summary summary.bod)]
+        :~  'type'^s+'notebook'
+            'notebook'^(notebook-summary summary.bod)
         ==
       ::
           %api-key
         %-  pairs
-        :~  ['type' s+'api-key']
-            ['apiKey' ?~(key.bod ~ s+u.key.bod)]
+        :~  'type'^s+'api-key'
+            'apiKey'^?~(key.bod ~ s+u.key.bod)
         ==
       ::
           %error
         %-  pairs
-        :~  ['type' s+'error']
-            ['errorType' (action-error type.bod)]
-            ['message' (tang-json message.bod)]
+        :~  'type'^s+'error'
+            'errorType'^(action-error type.bod)
+            'message'^(tang-json message.bod)
         ==
       ::
           %pending
         %-  pairs
-        :~  ['type' s+'pending']
-            ['status' (poke-status status.bod)]
+        :~  'type'^s+'pending'
+            'status'^(poke-status status.bod)
         ==
       ==
-    ::
     ::  +response-update: host → subscriber. Not delivered to browser
     ::  clients directly; subscriber transforms to response. Encoded for
     ::  debug visibility / future tooling.
+    ::
     ++  response-update
       |=  ru=response-update:v1:n
       ^-  json
       %-  pairs
-      :~  ['requestId' s+(scot %uv id.ru)]
-          ['body' (response-update-body body.ru)]
+      :~  'requestId'^s+(scot %uv id.ru)
+          'body'^(response-update-body body.ru)
       ==
     ::
     ++  response-update-body
@@ -444,71 +444,70 @@
           %ok
         ::  encode update.time + raw u-notebook (no flag; caller knows it)
         %-  pairs
-        :~  ['type' s+'ok']
-            ['time' (numb (da-to-unix time.update.bod))]
-            ['update' (u-notebook-bare u-notebook.update.bod)]
+        :~  'type'^s+'ok'
+            'time'^(numb (da-to-unix time.update.bod))
+            'update'^(u-notebook-bare u-notebook.update.bod)
         ==
       ::
           %error
         %-  pairs
-        :~  ['type' s+'error']
-            ['errorType' (action-error type.bod)]
-            ['message' (tang-json message.bod)]
+        :~  'type'^s+'error'
+            'errorType'^(action-error type.bod)
+            'message'^(tang-json message.bod)
         ==
       ==
+    ::  +u-notebook-bare: u-notebook encoder without the flag (the
+    ::  request path carries it).
     ::
-    ::  +u-notebook-bare: u-notebook encoder that omits flag (the request
-    ::  path carries it). Mirrors the outer +u-notebook arm body without
-    ::  the host/flagName fields.
     ++  u-notebook-bare
       |=  upd=u-notebook:n
       ^-  json
       %-  pairs
       ?-  -.upd
           %created
-        :~  ['type' s+'notebook-created']
-            ['notebook' (notebook notebook.upd)]
-            ['visibility' s+(scot %tas visibility.upd)]
+        :~  'type'^s+'notebook-created'
+            'notebook'^(notebook notebook.upd)
+            'visibility'^s+(scot %tas visibility.upd)
         ==
           %updated
-        :~  ['type' s+'notebook-updated']
-            ['notebook' (notebook notebook.upd)]
+        :~  'type'^s+'notebook-updated'
+            'notebook'^(notebook notebook.upd)
         ==
           %deleted
         ~[['type' s+'notebook-deleted']]
           %visibility
-        :~  ['type' s+'notebook-visibility-changed']
-            ['visibility' s+(scot %tas visibility.upd)]
+        :~  'type'^s+'notebook-visibility-changed'
+            'visibility'^s+(scot %tas visibility.upd)
         ==
           %member-joined
-        :~  ['type' s+'member-joined']
-            ['who' s+(scot %p who.upd)]
-            ['role' s+(scot %tas role.upd)]
+        :~  'type'^s+'member-joined'
+            'who'^s+(scot %p who.upd)
+            'role'^s+(scot %tas role.upd)
         ==
           %member-left
-        :~  ['type' s+'member-left']
-            ['who' s+(scot %p who.upd)]
+        :~  'type'^s+'member-left'
+            'who'^s+(scot %p who.upd)
         ==
           %invite-received
-        :~  ['type' s+'invite-received']
-            ['from' s+(scot %p from.upd)]
-            ['title' s+title.upd]
+        :~  'type'^s+'invite-received'
+            'from'^s+(scot %p from.upd)
+            'title'^s+title.upd
         ==
           %invite-removed
         ~[['type' s+'invite-removed']]
           %folder
-        :~  ['type' s+'folder-update']
-            ['folderUpdate' (u-folder id.upd u-folder.upd)]
+        :~  'type'^s+'folder-update'
+            'folderUpdate'^(u-folder id.upd u-folder.upd)
         ==
           %note
-        :~  ['type' s+'note-update']
-            ['noteUpdate' (u-note id.upd u-note.upd)]
+        :~  'type'^s+'note-update'
+            'noteUpdate'^(u-note id.upd u-note.upd)
         ==
       ==
     --
   --
-::
 ::  +dejs: decode JSON to notes types
+::
 ++  dejs
   =,  dejs:format
   |%
@@ -521,8 +520,8 @@
     ?>  ?=(^ typ)
     ?>  ?=([%s *] u.typ)
     p.u.typ
-  ::
   ::  +a-folder: parse a-folder action object {type, ...fields}
+  ::
   ++  a-folder
     |=  jon=json
     ^-  a-folder:n
@@ -539,8 +538,8 @@
       :-  %update
       ((ot ~[['name' (mu so)] ['parent' (mu ni)]]) jon)
     ==
-  ::
   ::  +a-note: parse a-note action object {type, ...fields}
+  ::
   ++  a-note
     |=  jon=json
     ^-  a-note:n
@@ -566,8 +565,8 @@
       :-  %modify
       ((ot ~[['title' (mu so)] ['folder' (mu ni)]]) jon)
     ==
-  ::
   ::  +a-notebook: parse a-notebook action object {type, ...fields}
+  ::
   ++  a-notebook
     |=  jon=json
     ^-  a-notebook:n
@@ -604,9 +603,9 @@
       :-  %batch-import-tree
       ((ot ~[['parent' ni] ['tree' (ar import-node)]]) jon)
     ==
-  ::
   ::  +action: parse top-level a-notes from JSON
   ::  format: {"type": "...", ...fields}
+  ::
   ++  action
     |=  jon=json
     ^-  action:n
@@ -682,9 +681,9 @@
       ((ot ~[['name' so] ['children' (ar import-node)]]) jon)
     :-  %note
     ((ot ~[['title' so] ['body' so]]) jon)
-  ::
   ::  v1: request-id-wrapped action parsing
   ::  POST body: {"requestId": "0v...", "action": <a-notes JSON>}
+  ::
   ++  v1
     |%
     ++  action

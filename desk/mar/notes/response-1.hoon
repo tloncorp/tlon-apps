@@ -1,6 +1,4 @@
 ::  notes-response-1: subscriber → client response.
-::    Faceted on /v1/notes/~ship/name/request/<uv> and returned as the
-::    body of POST /notes/~/v1 (or its GET /request/<uv> follow-up).
 ::
 /-  n=notes
 /=  notes-json  /lib/notes/json

@@ -1,5 +1,4 @@
 ::  notes-action-1: HTTP / request-id wrapped action
-::    POST body JSON: {"requestId": "0v...", "action": <a-notes JSON>}
 ::
 /-  n=notes
 /=  notes-json  /lib/notes/json
