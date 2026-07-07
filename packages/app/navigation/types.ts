@@ -8,7 +8,9 @@ export type RootStackParamList = {
   VerifierStub: undefined;
   Contacts: undefined;
   Empty: undefined;
-  ChatList: { previewGroupId: string } | undefined;
+  ChatList:
+    | { previewGroupId: string; previewGroupFromInviteNotification?: boolean }
+    | undefined;
   Activity: undefined;
   Settings: undefined;
   DM: {
@@ -34,12 +36,33 @@ export type RootStackParamList = {
     channelId: string;
     groupId: string;
   };
+  ContextLensRuns: {
+    channelId?: string;
+  };
+  ContextLensRun: {
+    botShip: string;
+    lensId: string;
+    channelId?: string;
+  };
   Post: {
     postId: string;
     channelId: string;
     authorId: string;
     groupId?: string;
     selectedPostId?: string | null;
+  };
+  NotesDetail: {
+    channelId: string;
+    focusTitle?: boolean;
+    groupId?: string;
+    noteId: number;
+    startInEdit?: boolean;
+  };
+  NotesFolder: {
+    channelId: string;
+    folderId: number;
+    folderTitle?: string;
+    groupId?: string;
   };
   MediaViewer: {
     mediaType: 'image' | 'video';
@@ -53,6 +76,8 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
+  BotMcpSettings: undefined;
+  BotOtherSettings: undefined;
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -78,10 +103,6 @@ export type RootStackParamList = {
     channelId: string;
   };
   ChannelMeta: {
-    channelId: string;
-  };
-  PostUsingContentConfiguration: {
-    postId: string;
     channelId: string;
   };
   ChannelTemplate: {
@@ -152,6 +173,9 @@ export type SettingsDrawerParamList = Pick<
   | 'Theme'
   | 'FeatureFlags'
   | 'ManageAccount'
+  | 'BotSettings'
+  | 'BotMcpSettings'
+  | 'BotOtherSettings'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
@@ -164,6 +188,8 @@ export type ChannelStackParamList = {
   GroupSettings: RootStackParamList['GroupSettings'];
   ChannelSearch: RootStackParamList['ChannelSearch'];
   Post: RootStackParamList['Post'];
+  NotesDetail: RootStackParamList['NotesDetail'];
+  NotesFolder: RootStackParamList['NotesFolder'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
@@ -176,6 +202,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'GroupSettings'
   | 'ChannelSearch'
   | 'Post'
+  | 'NotesDetail'
+  | 'NotesFolder'
   | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'
@@ -195,7 +223,7 @@ export type RoleSelectionReturn =
       returnParams: {
         groupId: string;
         channelTitle: string;
-        channelType: 'chat' | 'notebook' | 'gallery';
+        channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
       };
     }
   | {
@@ -276,7 +304,7 @@ export type GroupSettingsStackParamList = {
   CreateChannelPermissions: {
     groupId: string;
     channelTitle: string;
-    channelType: 'chat' | 'notebook' | 'gallery';
+    channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
     createdRoleId?: string;
     selectedRoleIds?: string[];
   };

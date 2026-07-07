@@ -4,6 +4,7 @@ import { JSONContent } from '@tloncorp/api/urbit';
 import {
   DraftInputId,
   isChatChannel as getIsChatChannel,
+  hasUnreadActivity,
   makePrettyDayAndTime,
   useDebouncedValue,
 } from '@tloncorp/shared';
@@ -25,7 +26,7 @@ import {
 } from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, View, YStack } from 'tamagui';
+import { Text, View, XStack, YStack } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
@@ -41,6 +42,10 @@ import {
   ChannelHeader,
   ChannelHeaderItemsProvider,
 } from './Channel/ChannelHeader';
+import {
+  ContextLensPanel,
+  useContextLensController,
+} from './Channel/ContextLens';
 import { DraftInputView } from './Channel/DraftInputView';
 import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
@@ -177,6 +182,8 @@ export function PostScreenView({
   onPressDelete,
   onGroupAction,
   goToDm,
+  goToContextLensRuns,
+  goToContextLensRun,
   negotiationMatch,
   selectedPostId,
 }: {
@@ -187,6 +194,8 @@ export function PostScreenView({
   handleGoToUserProfile: (userId: string) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
+  goToContextLensRuns?: () => void;
+  goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   selectedPostId?: string | null;
 } & ChannelContext) {
   const isWindowNarrow = utils.useIsWindowNarrow();
@@ -198,6 +207,16 @@ export function PostScreenView({
   // If this screen is a carousel, this is the currently-focused post
   // (`parentPost` does not change when swiping).
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
+  const {
+    contextLensAvailable,
+    contextLensOpen,
+    contextLensActive,
+    contextLensStream,
+    selectedContextLensMessage,
+    toggleContextLens,
+    clearSelectedContextLensMessage,
+    inspectContextLensPost,
+  } = useContextLensController({ channel });
 
   const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
 
@@ -365,66 +384,100 @@ export function PostScreenView({
                     goBack={handleGoBack}
                     showEditButton={showEdit}
                     goToEdit={handleEditPress}
+                    onToggleContextLens={
+                      contextLensAvailable
+                        ? isWindowNarrow && goToContextLensRuns
+                          ? goToContextLensRuns
+                          : toggleContextLens
+                        : undefined
+                    }
+                    contextLensOpen={contextLensAvailable && contextLensOpen}
+                    contextLensActive={contextLensActive}
                   />
-                  {parentPost &&
-                    (isEditingParent && channel.type === 'gallery' ? (
-                      <YStack flex={1} backgroundColor="$background">
-                        <GalleryDraftInput
-                          channel={channel}
-                          editingPost={editingPost}
-                          getDraft={
-                            parentEditDraftCallbacks?.getDraft ??
-                            (async () => null)
+                  <XStack alignItems="stretch" flex={1} position="relative">
+                    <YStack flex={1} minWidth={0}>
+                      {parentPost &&
+                        (isEditingParent && channel.type === 'gallery' ? (
+                          <YStack flex={1} backgroundColor="$background">
+                            <GalleryDraftInput
+                              channel={channel}
+                              editingPost={editingPost}
+                              getDraft={
+                                parentEditDraftCallbacks?.getDraft ??
+                                (async () => null)
+                              }
+                              group={group}
+                              clearDraft={
+                                parentEditDraftCallbacks?.clearDraft ??
+                                (async () => {})
+                              }
+                              setEditingPost={setEditingPost}
+                              setShouldBlur={setGalleryEditShouldBlur}
+                              shouldBlur={galleryEditShouldBlur}
+                              storeDraft={
+                                parentEditDraftCallbacks?.storeDraft ??
+                                (async () => {})
+                              }
+                            />
+                          </YStack>
+                        ) : mode === 'single' ? (
+                          <SinglePostView
+                            {...{
+                              channel,
+                              chatThreadHandleRef,
+                              editingPost,
+                              goBack,
+                              group,
+                              handleGoToImage,
+                              inspectContextLensPost:
+                                contextLensAvailable && contextLensOpen
+                                  ? inspectContextLensPost
+                                  : undefined,
+                              onGoToBotRun:
+                                contextLensAvailable && isWindowNarrow
+                                  ? goToContextLensRun
+                                  : undefined,
+                              negotiationMatch,
+                              onPressDelete,
+                              onPressRetry,
+                              parentEditDraftCallbacks,
+                              parentPost,
+                              selectedPostId,
+                              setEditingPost,
+                            }}
+                          />
+                        ) : (
+                          <CarouselPostScreenContent
+                            flex={1}
+                            width="100%"
+                            channelId={channel.id}
+                            initialPostId={parentPost.id}
+                            channelContext={{
+                              editingPost,
+                              group,
+                              negotiationMatch,
+                              onPressDelete,
+                              onPressRetry,
+                              parentEditDraftCallbacks,
+                              setEditingPost,
+                            }}
+                          />
+                        ))}
+                    </YStack>
+                    {contextLensAvailable &&
+                      contextLensOpen &&
+                      !isWindowNarrow && (
+                        <ContextLensPanel
+                          events={contextLensStream.events}
+                          streamStatus={contextLensStream.status}
+                          selectedMessage={selectedContextLensMessage}
+                          onClearSelectedMessage={
+                            clearSelectedContextLensMessage
                           }
-                          group={group}
-                          clearDraft={
-                            parentEditDraftCallbacks?.clearDraft ??
-                            (async () => {})
-                          }
-                          setEditingPost={setEditingPost}
-                          setShouldBlur={setGalleryEditShouldBlur}
-                          shouldBlur={galleryEditShouldBlur}
-                          storeDraft={
-                            parentEditDraftCallbacks?.storeDraft ??
-                            (async () => {})
-                          }
+                          channelId={channel.id}
                         />
-                      </YStack>
-                    ) : mode === 'single' ? (
-                      <SinglePostView
-                        {...{
-                          channel,
-                          chatThreadHandleRef,
-                          editingPost,
-                          goBack,
-                          group,
-                          handleGoToImage,
-                          negotiationMatch,
-                          onPressDelete,
-                          onPressRetry,
-                          parentEditDraftCallbacks,
-                          parentPost,
-                          selectedPostId,
-                          setEditingPost,
-                        }}
-                      />
-                    ) : (
-                      <CarouselPostScreenContent
-                        flex={1}
-                        width="100%"
-                        channelId={channel.id}
-                        initialPostId={parentPost.id}
-                        channelContext={{
-                          editingPost,
-                          group,
-                          negotiationMatch,
-                          onPressDelete,
-                          onPressRetry,
-                          parentEditDraftCallbacks,
-                          setEditingPost,
-                        }}
-                      />
-                    ))}
+                      )}
+                  </XStack>
                   <GroupPreviewSheet
                     group={groupPreview ?? undefined}
                     open={!!groupPreview}
@@ -483,13 +536,13 @@ function useMarkThreadAsReadEffect(
     channel: db.Channel;
     parent: db.Post;
     mostRecentlyReceivedReply: db.Post;
-    hasThreadUnreads: boolean;
+    hasThreadUnreadActivity: boolean;
   } | null
 ) {
   const store = useStore();
   const shouldMarkRead = opts?.shouldMarkRead ?? false;
   const latestReplyId = opts?.mostRecentlyReceivedReply?.id ?? null;
-  const hasThreadUnreads = opts?.hasThreadUnreads ?? false;
+  const hasThreadUnreadActivity = opts?.hasThreadUnreadActivity ?? false;
 
   // Ref captures the latest opts so the effect can read current values
   // without depending on the unstable inline object identity.
@@ -497,16 +550,16 @@ function useMarkThreadAsReadEffect(
   optsRef.current = opts;
 
   // Single effect with two trigger signals:
-  //   - hasThreadUnreads: authoritative signal (SSE pushed unread count > 0).
+  //   - hasThreadUnreadActivity: authoritative signal (SSE pushed unread/notify state).
   //   - latestReplyId: secondary signal (thread sync delivered a new post,
-  //     allowing immediate mark-read if hasThreadUnreads is already true).
+  //     allowing immediate mark-read if hasThreadUnreadActivity is already true).
   //
-  // Guard: only acts when hasThreadUnreads is true.
+  // Guard: only acts when hasThreadUnreadActivity is true.
   //   - false -> true: guard passes, marks read.
-  //   - true -> false (unread state cleared): guard returns early, no poke sent.
-  // This directly mirrors Channel/index.tsx:292-301's `if (hasUnreads && ...)`.
+  //   - true -> false (read state cleared): guard returns early, no poke sent.
+  // This directly mirrors Channel/index.tsx's unread-activity guard.
   useEffect(() => {
-    if (!shouldMarkRead || !hasThreadUnreads) return;
+    if (!shouldMarkRead || !hasThreadUnreadActivity) return;
     const current = optsRef.current;
     if (current == null) return;
     const { channel, parent, mostRecentlyReceivedReply } = current;
@@ -520,7 +573,7 @@ function useMarkThreadAsReadEffect(
       });
     }, 150);
     return () => clearTimeout(timeoutId);
-  }, [shouldMarkRead, hasThreadUnreads, latestReplyId, store]);
+  }, [shouldMarkRead, hasThreadUnreadActivity, latestReplyId, store]);
 }
 
 function SinglePostView({
@@ -530,6 +583,8 @@ function SinglePostView({
   editingPost,
   goBack,
   handleGoToImage,
+  inspectContextLensPost,
+  onGoToBotRun,
   negotiationMatch,
   onPressDelete,
   onPressRetry,
@@ -544,6 +599,8 @@ function SinglePostView({
   goBack?: () => void;
   group: db.Group | null;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
+  inspectContextLensPost?: (post: db.Post) => void;
+  onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
@@ -593,9 +650,7 @@ function SinglePostView({
   const { data: liveThreadUnread } = store.useLiveThreadUnreadByParentId(
     parentPost.id
   );
-  const hasThreadUnreads = !!(
-    liveThreadUnread?.count && liveThreadUnread.count > 0
-  );
+  const hasThreadUnreadActivity = hasUnreadActivity(liveThreadUnread);
 
   const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,
@@ -623,7 +678,7 @@ function SinglePostView({
 
   // --- Chat-thread highlight + fast-path handle ---
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
-  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const highlightPost = useCallback((postId: string) => {
     setHighlightPostId(postId);
@@ -720,7 +775,7 @@ function SinglePostView({
           mostRecentlyReceivedReply: threadPosts[0],
           parent: parentPost,
           shouldMarkRead: isFocusedPost && hasLoadedReplies && isUserActive,
-          hasThreadUnreads,
+          hasThreadUnreadActivity,
         }
   );
 
@@ -813,6 +868,8 @@ function SinglePostView({
             setActiveMessage={setActiveMessage}
             highlightPostId={highlightPostId}
             scrollerRef={scrollerRef}
+            inspectContextLensPost={inspectContextLensPost}
+            onGoToBotRun={onGoToBotRun}
           />
         ) : null}
 

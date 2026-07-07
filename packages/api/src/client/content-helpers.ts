@@ -20,6 +20,9 @@ import {
   constructStory,
   pathToCite,
 } from '../urbit';
+import { A2UI } from './a2ui';
+
+export * from './a2ui';
 
 const logger = createDevLogger('content-helpers', false);
 
@@ -675,10 +678,26 @@ export type PostBlobDataEntryVideo = z.infer<
   typeof PostBlobDataEntryVideoSchema
 >;
 
+export const PostBlobDataEntryContextLensSchema = definePostBlobDataEntrySchema(
+  'tlon-context-lens',
+  1,
+  {
+    lensId: z.string().min(1),
+    /** ship hosting the bot that produced this run, e.g. `~zod` */
+    botShip: z.string().min(1).optional(),
+  }
+);
+
+export type PostBlobDataEntryContextLens = z.infer<
+  typeof PostBlobDataEntryContextLensSchema
+>;
+
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryVideoSchema,
+  PostBlobDataEntryContextLensSchema,
+  A2UI.blobEntrySchema,
 ] as const;
 
 export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);

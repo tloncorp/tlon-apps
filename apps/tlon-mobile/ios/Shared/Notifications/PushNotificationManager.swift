@@ -12,22 +12,24 @@ import NotificationCenter
 @objc final class PushNotificationManager: NSObject {
     enum ParseNotificationResult {
         case notify(uid: String, event: Any)
-        case message(uid: String, message: String)
+        case message(message: String)
         case dismiss
         case invalid
         case failedFetchContents(Error)
     }
 
     static func parseNotificationUserInfo(_ userInfo: [AnyHashable: Any]) async -> ParseNotificationResult {
-        guard let action = userInfo["action"] as? String,
-              let uid = userInfo["uid"] as? String
-        else {
+        guard let action = userInfo["action"] as? String else {
             return .invalid
         }
 
 
         switch action {
         case "notify":
+            guard let uid = userInfo["uid"] as? String else {
+                return .invalid
+            }
+
             do {
                 let aerData = try await PocketAPI.shared.fetchRawPushNotificationContents(uid)
                 let event = try JSONSerialization.jsonObject(with: aerData)
@@ -39,7 +41,7 @@ import NotificationCenter
             guard let message = userInfo["message"] as? String else {
                 return .invalid
             }
-            return .message(uid: uid, message: message)
+            return .message(message: message)
         case "dismiss":
             return .dismiss
 

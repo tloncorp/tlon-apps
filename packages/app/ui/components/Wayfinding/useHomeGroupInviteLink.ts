@@ -22,6 +22,7 @@ export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
   const inviteService = useInviteService();
   const cachedInviteLink = db.homeGroupInviteLink.useValue();
   const enabledGroupLinksRef = useRef<string | null>(null);
+  const cachedRecoveredInviteRef = useRef<string | null>(null);
 
   const homeGroupId = useMemo(
     () =>
@@ -59,6 +60,25 @@ export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
     disableLoading: !shouldRecoverFromLure,
   });
 
+  useEffect(() => {
+    if (!enabled || cachedInviteLink || !shareUrl) {
+      return;
+    }
+
+    if (cachedRecoveredInviteRef.current === shareUrl) {
+      return;
+    }
+
+    cachedRecoveredInviteRef.current = shareUrl;
+    db.homeGroupInviteLink.setValue(shareUrl).catch((error) => {
+      cachedRecoveredInviteRef.current = null;
+      logger.trackError('Wayfinding Home Group Invite Cache Failed', {
+        error,
+        groupId: homeGroup?.id,
+      });
+    });
+  }, [cachedInviteLink, enabled, homeGroup?.id, shareUrl]);
+
   const inviteUrl = cachedInviteLink ?? shareUrl ?? null;
   const state = useMemo<HomeGroupInviteState>(() => {
     if (inviteUrl) {
@@ -77,7 +97,11 @@ export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
       return 'unavailable';
     }
 
-    if (lureStatus === 'loading' || lureStatus === 'stale') {
+    if (
+      lureStatus === 'loading' ||
+      lureStatus === 'stale' ||
+      lureStatus === 'unsupported'
+    ) {
       return 'loading';
     }
 

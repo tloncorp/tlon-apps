@@ -1,28 +1,56 @@
 const { mergeConfig } = require('@react-native/metro-config');
 const path = require('path');
+const os = require('os');
 const fs = require('fs');
 const connect = require('connect');
 const { spawn } = require('child_process');
 const { getSentryExpoConfig } = require('@sentry/react-native/metro');
+const { FileStore } = require('metro-cache');
+
+const nonInlinedRequires = require('./metro-non-inlined-requires');
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
-const config = getSentryExpoConfig(projectRoot);
+const baseConfig = getSentryExpoConfig(projectRoot);
 
-module.exports = mergeConfig(config, {
-  watchFolders: [workspaceRoot],
+// Shared Metro transform cache across worktrees on this machine.
+// metro-transform-worker keys are content-addressed (relative paths only),
+// and Expo's `_expoRelativeProjectRoot` is workspace-relative, so identical
+// sources in different worktrees produce identical keys. Partition by
+// resolved RN+Expo version so upgrades don't poison the cache.
+//
+// Off by default to avoid affecting normal dev workflows. Opt in with
+// TLON_METRO_SHARED_CACHE_ENABLED=1 (e.g., set in the agent-loop harness or by
+// individual devs who want the cross-worktree speedup).
+const rnVersion = require('react-native/package.json').version;
+const expoVersion = require('expo/package.json').version;
+const sharedCacheRoot = path.join(
+  process.env.TLON_METRO_SHARED_CACHE_DIR ||
+    path.join(os.homedir(), '.cache', 'tlon-metro-shared'),
+  `rn-${rnVersion}-expo-${expoVersion}`
+);
+const sharedCacheStores =
+  process.env.TLON_METRO_SHARED_CACHE_ENABLED === '1'
+    ? [new FileStore({ root: sharedCacheRoot })]
+    : undefined;
+
+/**
+ * Metro configuration
+ * https://reactnative.dev/docs/metro
+ *
+ * @type {import('@react-native/metro-config').MetroConfig}
+ */
+const config = {
+  ...(sharedCacheStores ? { cacheStores: sharedCacheStores } : {}),
   transformer: {
     babelTransformerPath: require.resolve('react-native-svg-transformer'),
+    // Enable inlineRequires (off by default in Expo) to defer module eval until
+    // first use, speeding up cold start.
     getTransformOptions: async () => ({
       transform: {
-        experimentalImportSupport: false,
-        inlineRequires: false,
-        nonInlinedRequires: [
-          '@react-native-community/async-storage',
-          'React',
-          'react',
-          'react-native',
-        ],
+        experimentalImportSupport: true,
+        inlineRequires: true,
+        nonInlinedRequires,
       },
     }),
   },
@@ -101,8 +129,7 @@ module.exports = mergeConfig(config, {
     },
   },
   resolver: {
-    assetExts: config.resolver.assetExts.filter((ext) => ext !== 'svg'),
-    disableHierarchicalLookup: true,
+    assetExts: baseConfig.resolver.assetExts.filter((ext) => ext !== 'svg'),
     // requireCycleIgnorePatterns needs to cover ContentReference, as
     // that require cycle can't be avoided without a major refactor.
     requireCycleIgnorePatterns: [
@@ -120,7 +147,7 @@ module.exports = mergeConfig(config, {
       // without this.
       path.resolve(workspaceRoot, 'node_modules/tamagui/node_modules'),
     ],
-    sourceExts: [...config.resolver.sourceExts, 'svg', 'sql'],
+    sourceExts: [...baseConfig.resolver.sourceExts, 'svg', 'sql'],
 
     // Enables importing alternative package exports, e.g. `react-tweet/api`
     unstable_enablePackageExports: true,
@@ -128,7 +155,7 @@ module.exports = mergeConfig(config, {
     // This is the default setting in newer versions of react-native
     unstable_conditionNames: ['tlon-source', 'source', 'require'],
   },
-});
+};
 
 function openDrizzleStudio(dbPath) {
   console.log('Opening Drizzle Studio at', dbPath);
@@ -153,3 +180,5 @@ function openDrizzleStudio(dbPath) {
     open('http://local.drizzle.studio')
   );
 }
+
+module.exports = mergeConfig(baseConfig, config);

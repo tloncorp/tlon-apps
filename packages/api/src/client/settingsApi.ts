@@ -46,6 +46,9 @@ function getBucket(key: string): string {
     case 'disableTlonInfraEnhancement':
     case 'enableTelemetry':
     case 'tlonbotConfig':
+    case 'webAppSplashDismissed':
+    case 'mobileAppPromoDismissed':
+    case 'contextLensEnabled':
       return 'groups';
     case 'disableAvatars':
     case 'disableNicknames':
@@ -150,6 +153,10 @@ export const toClientSettings = (
       settings.desk.groups?.completedWayfindingTutorial ?? false,
     disableTlonInfraEnhancement:
       settings.desk.groups?.disableTlonInfraEnhancement ?? false,
+    webAppSplashDismissed: settings.desk.groups?.webAppSplashDismissed ?? false,
+    mobileAppPromoDismissed:
+      settings.desk.groups?.mobileAppPromoDismissed ?? false,
+    contextLensEnabled: settings.desk.groups?.contextLensEnabled ?? false,
   };
 };
 

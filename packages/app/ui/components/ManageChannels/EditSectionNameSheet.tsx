@@ -25,20 +25,26 @@ export function EditSectionNameSheet({
   });
 
   useEffect(() => {
-    reset({ name: name ?? '' });
-  }, [name, reset]);
+    if (open) {
+      reset({ name: name ?? '' });
+    }
+  }, [open, name, reset]);
 
   const handlePressSave = useCallback(
     async (data: { name: string }) => {
       await onSave?.(data.name);
-      reset();
       onOpenChange(false);
     },
-    [onSave, onOpenChange, reset]
+    [onSave, onOpenChange]
   );
 
   return (
-    <ActionSheet moveOnKeyboardChange open={open} onOpenChange={onOpenChange}>
+    <ActionSheet
+      moveOnKeyboardChange
+      open={open}
+      onOpenChange={onOpenChange}
+      unmountOnClose
+    >
       <ActionSheet.SimpleHeader
         title={mode === 'add' ? 'Add section' : 'Change section name'}
       />

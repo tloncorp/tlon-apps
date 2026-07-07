@@ -1,9 +1,11 @@
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { View, YStack, getTokenValue } from 'tamagui';
 
 import Scroller, { ScrollAnchor } from './Channel/Scroller';
+import { ThinkingState } from './Channel/ThinkingState';
+import { useShouldShowThinkingState } from './Channel/useShouldShowThinkingState';
 import { ChatMessage } from './ChatMessage';
 import { GalleryPostDetailView } from './GalleryPost/GalleryPost';
 import { NotebookPostDetailView } from './NotebookPost/NotebookPost';
@@ -12,7 +14,7 @@ export interface DetailViewProps {
   post: db.Post;
   channel: db.Channel;
   initialPostUnread?: db.ThreadUnreadState | null;
-  children?: JSX.Element;
+  children?: ReactNode;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   posts?: db.Post[];
@@ -20,6 +22,8 @@ export interface DetailViewProps {
   goBack?: () => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
+  inspectContextLensPost?: (post: db.Post) => void;
+  onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;
   anchor?: ScrollAnchor | null;
@@ -27,7 +31,7 @@ export interface DetailViewProps {
   scrollerRef?: React.RefObject<{
     scrollToStart: (opts: { animated?: boolean }) => void;
     scrollToEnd: (opts: { animated?: boolean }) => void;
-  }>;
+  } | null>;
 }
 
 export const DetailView = ({
@@ -40,6 +44,8 @@ export const DetailView = ({
   onPressImage,
   onPressRetry,
   onPressDelete,
+  inspectContextLensPost,
+  onGoToBotRun,
   setActiveMessage,
   activeMessage,
   anchor,
@@ -64,6 +70,19 @@ export const DetailView = ({
           maxWidth: 600,
         };
   }, [isChat]);
+
+  const shouldShowThinkingState = useShouldShowThinkingState(channel);
+  // Computing presence is channel-scoped, so this shows bots thinking
+  // anywhere in the channel, not just in this thread. The ideal end state is
+  // thread-scoped presence contexts (e.g. /channel/chat/~host/name/thread/<id>)
+  // published by the gateway, with the channel view aggregating by prefix.
+  const listBottomComponent = useMemo(
+    () =>
+      shouldShowThinkingState ? (
+        <ThinkingState conversationId={channel.id} channelType={channel.type} />
+      ) : undefined,
+    [shouldShowThinkingState, channel.id, channel.type]
+  );
 
   const listHeaderComponent = useMemo(() => {
     if (isChat) {
@@ -109,6 +128,8 @@ export const DetailView = ({
         onPressImage={onPressImage}
         onPressRetry={onPressRetry}
         onPressDelete={onPressDelete}
+        onPressPost={inspectContextLensPost}
+        onGoToBotRun={onGoToBotRun}
         highlightPostId={highlightPostId}
         firstUnreadId={
           initialPostUnread?.count ?? 0 > 0
@@ -120,6 +141,7 @@ export const DetailView = ({
         activeMessage={activeMessage}
         setActiveMessage={setActiveMessage}
         listHeaderComponent={listHeaderComponent}
+        listBottomComponent={listBottomComponent}
       />
     </View>
   );

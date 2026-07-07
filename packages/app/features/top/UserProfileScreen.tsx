@@ -21,11 +21,23 @@ import {
   UserProfileScreenView,
   useIsWindowNarrow,
 } from '../../ui';
+import {
+  openExternalBotSettings,
+  useHasExpectedBotDm,
+} from '../../utils/botSettings';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
 const logger = createDevLogger('UserProfileScreen', false);
+
+function getCurrentUserIsHostedSafely() {
+  try {
+    return api.getCurrentUserIsHosted();
+  } catch {
+    return false;
+  }
+}
 
 export function UserProfileScreen({ route, navigation }: Props) {
   const theme = useTheme();
@@ -38,7 +50,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const connectionStatus = useShipConnectionStatus(userId);
   const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  const { resetToDm } = useRootNavigation();
+  const { navigateToBotSettings, resetToDm } = useRootNavigation();
 
   useEffect(() => {
     if (userId && userId !== currentUserId) {
@@ -86,6 +98,27 @@ export function UserProfileScreen({ route, navigation }: Props) {
     );
     setSelectedGroup(group);
   }, []);
+
+  const isOwnBotProfile = useMemo(() => {
+    return api.isBotUserIdForUser(userId, currentUserId);
+  }, [currentUserId, userId]);
+
+  const isHostedUser = isWeb ? getCurrentUserIsHostedSafely() : false;
+  const hasExpectedBotDm = useHasExpectedBotDm(
+    currentUserId,
+    isWeb && isHostedUser
+  );
+  const shouldShowBotSettingsProfileAction = isWeb
+    ? isHostedUser && hasExpectedBotDm && isOwnBotProfile
+    : isOwnBotProfile;
+
+  const handlePressBotSettings = useCallback(() => {
+    if (isWeb) {
+      openExternalBotSettings();
+      return;
+    }
+    navigateToBotSettings();
+  }, [navigateToBotSettings]);
 
   const canEdit = useMemo(() => {
     return (
@@ -139,6 +172,11 @@ export function UserProfileScreen({ route, navigation }: Props) {
             <UserProfileScreenView
               userId={userId}
               connectionStatus={connectionStatus}
+              onPressBotSettings={
+                shouldShowBotSettingsProfileAction
+                  ? handlePressBotSettings
+                  : undefined
+              }
               onPressGroup={handlePressGroup}
             />
           </View>

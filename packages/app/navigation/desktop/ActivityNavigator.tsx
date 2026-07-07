@@ -59,8 +59,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
     (group: db.Group) => {
       store.markGroupRead(group.id);
       props.navigation.navigate('GroupSettings', {
-        screen: 'GroupMembers',
-        params: { groupId: group.id },
+        state: {
+          routes: [{ name: 'GroupMembers', params: { groupId: group.id } }],
+          index: 0,
+        },
       });
     },
     [props.navigation]

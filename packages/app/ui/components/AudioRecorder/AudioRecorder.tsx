@@ -22,6 +22,7 @@ import {
 import { Alert, StyleSheet } from 'react-native';
 import { useTheme } from 'tamagui';
 
+import { useAppStatusChange } from '../../../hooks/useAppStatusChange';
 import {
   FinishMode,
   IWaveformRef,
@@ -65,10 +66,7 @@ export const AudioRecorder = forwardRef<
       }) => void;
       onCancel?: (audioFilePath: string | null) => void;
       dangerouslyOverrideIsAudioAvailable?: boolean;
-      /** If provided, will use this number as a paddingHorizontal *except* for
-       * leading edge of waveform. Use this instead of paddingHorizontal to
-       * show waveform starting flush against the left edge of the container
-       * while still having padding on the right edge. */
+      /** Horizontal padding applied to both edges of the container. */
       contentInsetHorizontal?: number;
     } & (
       | {
@@ -347,6 +345,23 @@ export const AudioRecorder = forwardRef<
     [elapsedMs]
   );
 
+  useAppStatusChange(
+    useCallback(
+      (status) => {
+        if (
+          status === 'background' &&
+          state.live &&
+          state.recorderState === RecorderState.recording
+        ) {
+          refApi.stopRecording().catch((error) => {
+            console.error('Failed to stop recording on app background', error);
+          });
+        }
+      },
+      [refApi, state]
+    )
+  );
+
   return (
     <View
       flexDirection="row"
@@ -356,7 +371,7 @@ export const AudioRecorder = forwardRef<
       {...(contentInsetHorizontal == null
         ? null
         : {
-            paddingStart: state.live ? undefined : contentInsetHorizontal,
+            paddingStart: contentInsetHorizontal,
             paddingEnd: contentInsetHorizontal,
           })}
       {...forwardedProps}
@@ -479,7 +494,7 @@ function useTimer({
     }
 
     // Wait for the next aligned tick (setTimeout), then schedule regular ticks (setInterval).
-    let intervalId: NodeJS.Timeout | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     const remainder = (Date.now() - start.getTime()) % intervalMs;
     const nextTickTime = (intervalMs - remainder) % intervalMs;
     const timeoutId = setTimeout(() => {

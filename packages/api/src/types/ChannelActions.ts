@@ -3,6 +3,7 @@ import type * as db from './models';
 export type Id =
   | 'debugJson'
   | 'quote'
+  | 'replyToComment'
   | 'startThread'
   | 'muteThread'
   | 'viewReactions'
@@ -39,6 +40,7 @@ export function channelActionIdsFor({
       return [];
     case 'gallery':
       actions = [
+        'replyToComment',
         'startThread',
         'muteThread',
         'copyRef',
@@ -101,7 +103,12 @@ export function channelActionIdsFor({
 
   // Filter out write-dependent actions if user cannot write
   if (canWrite === false) {
-    const writeOnlyActions: Id[] = ['quote', 'startThread', 'edit'];
+    const writeOnlyActions: Id[] = [
+      'quote',
+      'replyToComment',
+      'startThread',
+      'edit',
+    ];
     actions = actions.filter((action) => !writeOnlyActions.includes(action));
   }
 
@@ -118,6 +125,7 @@ const STATIC_SPECS = {
   edit: { isNetworkDependent: true },
   muteThread: { isNetworkDependent: true },
   quote: { isNetworkDependent: true },
+  replyToComment: { isNetworkDependent: true },
   forward: { isNetworkDependent: true },
   report: { isNetworkDependent: true },
   startThread: { isNetworkDependent: true },

@@ -6,7 +6,7 @@
 ++  dap  %channels-server
 ::
 +$  current-state
-  [%14 =v-channels:v10:cv =hooks:h =pimp:imp]
+  [%15 =v-channels:v10:cv =hooks:h =pimp:imp]
 +$  state-8
   [%8 =v-channels:v8:cv =hooks:h =pimp:imp]
 --
@@ -43,14 +43,13 @@
         [kind=/chat meta=~ blob=~]
     ==
   ::  edit carefully to work around lib negotiate state.
-  ::  yes, the inner state is double-vased!
   ::
   ;<  save=vase  bind:m  get-save
   =.  save
     ;:  slop
       (slot 2 save)  ::  lib discipline
       (slot 6 save)  ::  lib negotiate
-      !>(!>(state))  ::  negotiate's double-vasing
+      !>(state)
     ==
   ;<  *  bind:m  (do-load agent `save)
   ;<  caz=(list card)  bind:m
@@ -273,14 +272,13 @@
       (~(put by *v-channels:c) *nest:c chan)
     ;<  *  bind:m  (do-init dap agent)
     ::  edit carefully to work around lib negotiate state.
-    ::  yes, the inner state is double-vased!
     ::
     ;<  save=vase  bind:m  get-save
     =.  save
       ;:  slop
         (slot 2 save)      ::  lib discipline
         (slot 6 save)      ::  lib negotiate
-        !>(!>(bad-state))  :: negotiate's double-vasing
+        !>(bad-state)
       ==
     ;<  caz=(list card:agent:gall)  bind:m  (do-load agent `save)
     ::
@@ -288,14 +286,14 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%14 chans *hooks:h *pimp:imp]
+        [%15 chans *hooks:h *pimp:imp]
       =/  chan=v-channel:c
         tombstone-rescue-test-channel-new
       (~(put by *v-channels:c) *nest:c chan)
     ::  again, carefully work around lib negotiate state.
     ::
-    =.  save  (slot 3 save)           ::  lib discipline
-    =.  save  !<(vase (slot 3 save))  ::  lib negotiate
+    =.  save  (slot 3 save)  ::  lib discipline
+    =.  save  (slot 3 save)  ::  lib negotiate
     (ex-equal save !>(fixed-state))
   --
 --

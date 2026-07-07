@@ -7,7 +7,7 @@ import { DimensionValue, View as RNView } from 'react-native';
 export type ChatMessageActionsProps = {
   post: db.Post;
   postActionIds: ChannelAction.Id[];
-  postRef?: RefObject<RNView>;
+  postRef?: RefObject<RNView | null>;
   onDismiss: () => void;
   onOpenChange?: (open: boolean) => void;
   width?: DimensionValue;
@@ -15,6 +15,7 @@ export type ChatMessageActionsProps = {
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
+  onViewBotRun?: (post: db.Post) => void;
   onShowEmojiPicker?: () => void;
   trigger?: React.ReactNode;
   mode: 'await-trigger' | 'immediate';

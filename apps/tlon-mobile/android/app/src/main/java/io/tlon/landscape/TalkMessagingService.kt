@@ -104,18 +104,17 @@ class TalkMessagingService : FirebaseMessagingService() {
                 }
 
                 if (data["action"] == "message") {
-                    data["uid"]?.let { uid ->
-                        val bundle = remoteMessage.toBasicBundle()
-                        val message = data["message"] ?: bundle.getString("body")
-                        if (message != null) {
-                            showGenericNotification(
-                                this,
-                                uid,
-                                bundle.getString("title") ?: getString(R.string.app_name),
-                                message,
-                                bundle
-                            )
-                        }
+                    val bundle = remoteMessage.toBasicBundle()
+                    val message = data["message"] ?: bundle.getString("body")
+                    if (message != null) {
+                        val notificationIdentifier = data["id"] ?: remoteMessage.messageId ?: "generic-message-${message.hashCode()}"
+                        showGenericNotification(
+                            this,
+                            notificationIdentifier,
+                            bundle.getString("title") ?: getString(R.string.app_name),
+                            message,
+                            bundle
+                        )
                     }
                 }
 
@@ -184,6 +183,7 @@ class TalkMessagingService : FirebaseMessagingService() {
         val body = bundle.getString("body") ?: "You have a new message"
 
         val extras = Bundle()
+        extras.putString("uid", uid)
         if (exception.activityEvent != null) {
             extras.putString("activityEventJsonString", exception.activityEvent)
         }

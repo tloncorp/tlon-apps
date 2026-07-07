@@ -1,5 +1,6 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import { discoverContactsAndNotify } from '@tloncorp/app/lib/notifications';
 import {
   SyncPriority,
   createDevLogger,
@@ -11,8 +12,6 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
-
-import { refreshHostingAuth } from './hostingAuth';
 
 const logger = createDevLogger('backgroundSync', true);
 
@@ -70,6 +69,21 @@ async function performSync() {
       },
     });
     timings.changesDuration = Date.now() - changesStart;
+
+    // Run lanyard contact discovery as part of the bg cycle so new
+    // matches surface even if the user hasn't opened the app recently.
+    const discoveryStart = Date.now();
+    const { newMatchCount } = await discoverContactsAndNotify({
+      context: { taskExecutionId },
+    });
+    timings.discoveryDuration = Date.now() - discoveryStart;
+    if (newMatchCount > 0) {
+      logger.trackEvent('New matches notification', {
+        count: newMatchCount,
+        taskExecutionId,
+      });
+    }
+
     logger.trackEvent('Background sync complete', { taskExecutionId });
     didSucceed = true;
 
@@ -117,31 +131,32 @@ export async function removeLegacyTasks() {
   }
 }
 
-// Define the background task at module scope - this must happen before registration
-TaskManager.defineTask<Record<string, unknown>>(
-  TASK_ID,
-  async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
-    logger.trackEvent(`Running background task`);
-    if (error) {
-      logger.trackError(`Failed background task`, {
-        error,
-        context: 'called with error',
-      });
-      return BackgroundTask.BackgroundTaskResult.Failed;
-    }
+export function initializeBackgroundSync() {
+  TaskManager.defineTask<Record<string, unknown>>(
+    TASK_ID,
+    async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
+      logger.trackEvent('Running background task');
+      if (error) {
+        logger.trackError(`Failed background task`, {
+          error,
+          context: 'called with error',
+        });
+        return BackgroundTask.BackgroundTaskResult.Failed;
+      }
 
-    try {
-      await performSync();
-      return BackgroundTask.BackgroundTaskResult.Success;
-    } catch (err) {
-      logger.trackError('Failed background task', {
-        error: err instanceof Error ? err : undefined,
-        context: 'catch',
-      });
-      return BackgroundTask.BackgroundTaskResult.Failed;
+      try {
+        await performSync();
+        return BackgroundTask.BackgroundTaskResult.Success;
+      } catch (err) {
+        logger.trackError('Failed background task', {
+          error: err instanceof Error ? err : undefined,
+          context: 'catch',
+        });
+        return BackgroundTask.BackgroundTaskResult.Failed;
+      }
     }
-  }
-);
+  );
+}
 
 export async function registerBackgroundSyncTask() {
   await removeLegacyTasks();

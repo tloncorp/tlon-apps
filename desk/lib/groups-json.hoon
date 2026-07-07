@@ -209,7 +209,7 @@
             'r-section'^(r-section r-section.r-group)
         ==
       ::
-          %section-order  
+          %section-order
         (frond 'section-order' a+(turn order.r-group (lead %s)))
       ::
         %flag-content  (flag-content +.r-group)
@@ -283,6 +283,26 @@
           preview+?~(preview ~ (^preview u.preview))
           progress+?~(progress ~ s+u.progress)
           token+?~(token ~ (^token u.token))
+      ==
+    ++  r-groups
+      |=  =r-groups:v10:gv
+      ^-  json
+      %-  pairs
+      :~  'flag'^(flag flag.r-groups)
+          'r-group'^(r-group r-group.r-groups)
+      ==
+    ::  $r-group: superset of v9 with the local-only %active-channel delta.
+    ::  delegate the shared variants to v9's enjs.
+    ::
+    ++  r-group
+      |=  =r-group:v10:gv
+      ^-  json
+      ?.  ?=([%active-channel *] r-group)
+        (r-group:v9 r-group)
+      %+  frond  %active-channel
+      %-  pairs
+      :~  'nest'^(nest nest.r-group)
+          'joined'^b+joined.r-group
       ==
     --
   ::
@@ -1304,9 +1324,32 @@
     %-  of
     :~  add+whom
         del+whom
+        set-order+(ar whom)
     ==
   ::
+  ++  v9
+    =,  v8
+    |%
+    ++  a-foreigns
+      ^-  $-(json a-foreigns:v9:gv)
+      %-  of
+      :~  foreign+(ot flag+flag a-foreign+a-foreign ~)
+          ::NOTE  invite intentionally left out
+          revoke+(ot flag+flag token+(mu (se %uv)) ~)
+          reject+flag
+      ==
+    ++  a-foreign
+      ^-  $-(json a-foreign:v9:gv)
+      %-  of
+      :~  join+(mu (se %uv))
+          ask+(mu story:dejs:sj)
+          cancel+ul
+          decline+(mu (se %uv))
+      ==
+    --
+  ::
   ++  v8
+    =,  v7
     |%
     ++  a-groups
       ^-  $-(json a-groups:v8:gv)
@@ -1348,6 +1391,7 @@
       ==
     --
   ++  v7
+    =,  v6
     |%
     ++  a-groups
       ^-  $-(json a-groups:v7:gv)

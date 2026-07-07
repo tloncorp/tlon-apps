@@ -10,7 +10,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { StyleProp, ViewStyle } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Swipeable, {
   SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -18,12 +18,30 @@ import Animated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
+import { ColorTokens, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
 import { ListItemProps } from '../ListItem';
 import { ChatListItem } from './ChatListItem';
 import { useBoundHandler } from './listItemUtils';
+
+const leftActionsStaticStyle = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderBottomLeftRadius: getTokenValue('$m', 'radius'),
+    borderTopLeftRadius: getTokenValue('$m', 'radius'),
+  },
+}).container;
+
+const rightActionsStaticStyle = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderBottomRightRadius: getTokenValue('$m', 'radius'),
+    borderTopRightRadius: getTokenValue('$m', 'radius'),
+  },
+}).container;
 
 function BaseInteractableChatRow({
   model,
@@ -161,17 +179,10 @@ function BaseLeftActions({
     [drag]
   );
 
-  const containerStyle: StyleProp<ViewStyle> = useMemo(() => {
-    return [
-      containerWidthStyle,
-      {
-        flexDirection: 'row',
-        overflow: 'hidden',
-        borderBottomLeftRadius: getTokenValue('$m', 'radius'),
-        borderTopLeftRadius: getTokenValue('$m', 'radius'),
-      },
-    ] as const;
-  }, [containerWidthStyle]);
+  const containerStyle = useMemo(
+    () => [containerWidthStyle, leftActionsStaticStyle],
+    [containerWidthStyle]
+  );
 
   return (
     <View width={80} justifyContent="flex-start" flexDirection="row">
@@ -209,17 +220,10 @@ function BaseRightActions({
     [drag]
   );
 
-  const containerStyle: StyleProp<ViewStyle> = useMemo(() => {
-    return [
-      containerWidthStyle,
-      {
-        flexDirection: 'row',
-        overflow: 'hidden',
-        borderBottomRightRadius: getTokenValue('$m', 'radius'),
-        borderTopRightRadius: getTokenValue('$m', 'radius'),
-      },
-    ] as const;
-  }, [containerWidthStyle]);
+  const containerStyle = useMemo(
+    () => [containerWidthStyle, rightActionsStaticStyle],
+    [containerWidthStyle]
+  );
 
   return (
     <View width={160} justifyContent="flex-end" flexDirection="row">
@@ -252,14 +256,14 @@ function Action({
   handleAction,
   color,
   iconType,
-}: ComponentProps<typeof Stack> & {
+}: ComponentProps<typeof View> & {
   backgroundColor: string;
   color: string;
   iconType: IconType;
   handleAction?: () => void;
 }) {
   return (
-    <View flex={0.5}>
+    <View flex={1}>
       <Icon
         minWidth={80}
         type={iconType}

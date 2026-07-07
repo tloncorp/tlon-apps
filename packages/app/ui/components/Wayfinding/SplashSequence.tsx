@@ -1,6 +1,6 @@
 // tamagui-ignore
-import Clipboard from '@react-native-clipboard/clipboard';
 import * as api from '@tloncorp/api';
+import { desig } from '@tloncorp/api/lib/urbit';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
@@ -9,7 +9,16 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { Attachment, DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import { withRetry } from '@tloncorp/shared/logic';
-import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
+import * as store from '@tloncorp/shared/store';
+import {
+  checkCurrentNodeIsTlonbotReady,
+  clearShipRevivalStatus,
+  markCurrentUserTlonbotEnabled,
+  syncStart,
+  uploadAsset,
+  useCanUpload,
+  useLureState,
+} from '@tloncorp/shared/store';
 import {
   Button,
   Icon,
@@ -17,8 +26,10 @@ import {
   LoadingSpinner,
   Pressable,
   Text,
+  ZStack,
   useToast,
 } from '@tloncorp/ui';
+import * as Clipboard from 'expo-clipboard';
 import React, {
   ComponentProps,
   useCallback,
@@ -27,23 +38,35 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FlatList, Image, Keyboard, ScrollView, Share } from 'react-native';
+import {
+  AppState,
+  FlatList,
+  Image,
+  Keyboard,
+  ScrollView,
+  Share,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   YStack,
-  ZStack,
   getTokenValue,
   isWeb,
   styled,
   useThemeName,
 } from 'tamagui';
 
+import { useContactDiscovery } from '../../../hooks/useContactDiscovery';
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
 import {
   InviteSystemContactsFn,
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
+import {
+  recoverTlonbotRevivalDeferredConfig,
+  stageTlonbotRevivalDeferredConfig,
+} from '../../../lib/tlonbotRevivalDeferredConfig';
+import { prepareTlonbotRevivalNotificationsForProvisioning } from '../../../lib/tlonbotRevivalNotifications';
 import { useActiveTheme } from '../../../provider';
 import {
   AttachmentProvider,
@@ -53,13 +76,14 @@ import {
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import AttachmentSheet from '../AttachmentSheet';
-import { Field, TextInput } from '../Form';
+import { Field, TextInput, TextInputRef } from '../Form';
 import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
+import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
 import { validateProviderKey } from './providerKeyValidation';
 import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
@@ -70,6 +94,8 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  * Bot-enabled flow:
  *   Welcome → TlonBot → BotName → BotAvatar → BotProvider
  *     → (BotApiKey if provider requires key) → BotModel → Group → Invite
+ *
+ * TlonBot revival delays Group → Invite until the revival setup wait finishes.
  *
  * Standard flow:
  *   Welcome → Group → Channels → Privacy → Invite
@@ -85,10 +111,20 @@ enum SplashPane {
   BotProvider = 'BotProvider',
   BotApiKey = 'BotApiKey',
   BotModel = 'BotModel',
+  TlonBotSetup = 'TlonBotSetup',
   Invite = 'Invite',
 }
 
 type CustomBotSetupStatus = 'idle' | 'pending' | 'ready' | 'failed';
+
+export type TlonbotSplashConfig = {
+  botName?: string;
+  botAvatarUrl?: string | null;
+  botAvatarUploadIntent?: Attachment.UploadIntent | null;
+  botProvider?: string;
+  botModel?: string;
+  stage?: db.TlonbotRevivalStage;
+};
 
 function getPreviewBotName(userNickname?: string | null) {
   const trimmedNickname = userNickname?.trim();
@@ -101,17 +137,28 @@ function getPreviewBotName(userNickname?: string | null) {
 
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
+  onLogout?: () => void | Promise<void>;
   inviteSystemContacts?: InviteSystemContactsFn;
   hostingBotEnabled?: boolean;
+  splashSequenceMode?: db.ShipInfo['splashSequenceMode'];
 }) {
   const store = useStore();
   const canUpload = useCanUpload();
-  const [currentPane, setCurrentPane] = React.useState(SplashPane.Welcome);
-  const { hostingBotEnabled } = props;
+  const tlonbotRevivalSetup = db.tlonbotRevivalSetup.useValue();
+  const [currentPane, setCurrentPane] = React.useState(
+    props.splashSequenceMode === 'tlonbotRevival'
+      ? SplashPane.TlonBot
+      : SplashPane.Welcome
+  );
+  const hostingBotEnabled =
+    props.hostingBotEnabled || props.splashSequenceMode === 'tlonbotRevival';
+  const isRevivalSplash = props.splashSequenceMode === 'tlonbotRevival';
   const [botName, setBotName] = React.useState('');
   const [botAvatarUrl, setBotAvatarUrl] = React.useState<string | null>(
     DEFAULT_BOT_CONFIG.avatarUrl
   );
+  const [botAvatarUploadIntent, setBotAvatarUploadIntent] =
+    React.useState<Attachment.UploadIntent | null>(null);
   const [botModel, setBotModel] = React.useState('');
   const [botApiKey, setBotApiKey] = React.useState('');
   const [userShipId, setUserShipId] = React.useState<string | null>(null);
@@ -132,7 +179,9 @@ function SplashSequenceComponent(props: {
     React.useState<CustomBotSetupStatus>('idle');
   const [finishingSplash, setFinishingSplash] = React.useState(false);
   const customBotSetupPromiseRef = useRef<Promise<boolean> | null>(null);
+  const didHydrateTlonbotRevivalConfigRef = useRef(false);
   const isMountedRef = useRef(true);
+  const shouldDeferTlonbotSetup = props.splashSequenceMode === 'tlonbotRevival';
 
   useEffect(() => {
     return () => {
@@ -145,6 +194,62 @@ function SplashSequenceComponent(props: {
       pane: currentPane,
     });
   }, [currentPane]);
+
+  useEffect(() => {
+    if (!shouldDeferTlonbotSetup || didHydrateTlonbotRevivalConfigRef.current) {
+      return;
+    }
+
+    const hasDeferredConfig =
+      !!tlonbotRevivalSetup.botName ||
+      !!tlonbotRevivalSetup.botAvatarUrl ||
+      !!tlonbotRevivalSetup.botAvatarUploadIntent ||
+      !!tlonbotRevivalSetup.botProvider;
+
+    if (!hasDeferredConfig) {
+      return;
+    }
+
+    didHydrateTlonbotRevivalConfigRef.current = true;
+
+    if (tlonbotRevivalSetup.botName) {
+      setBotName(tlonbotRevivalSetup.botName);
+    }
+    if (tlonbotRevivalSetup.botAvatarUrl) {
+      setBotAvatarUrl(tlonbotRevivalSetup.botAvatarUrl);
+      setAvatarDirty(true);
+    }
+    if (tlonbotRevivalSetup.botAvatarUploadIntent) {
+      setBotAvatarUploadIntent(tlonbotRevivalSetup.botAvatarUploadIntent);
+    }
+    if (tlonbotRevivalSetup.botProvider) {
+      setBotModel(tlonbotRevivalSetup.botProvider);
+    }
+  }, [
+    shouldDeferTlonbotSetup,
+    tlonbotRevivalSetup.botAvatarUploadIntent,
+    tlonbotRevivalSetup.botAvatarUrl,
+    tlonbotRevivalSetup.botName,
+    tlonbotRevivalSetup.botProvider,
+  ]);
+
+  useEffect(() => {
+    if (!shouldDeferTlonbotSetup) {
+      return;
+    }
+
+    switch (tlonbotRevivalSetup.stage) {
+      case 'settingUp':
+        setCurrentPane(SplashPane.TlonBotSetup);
+        break;
+      case 'group':
+        setCurrentPane(SplashPane.Group);
+        break;
+      case 'invite':
+        setCurrentPane(SplashPane.Invite);
+        break;
+    }
+  }, [shouldDeferTlonbotSetup, tlonbotRevivalSetup.stage]);
 
   // Fetch bot info and provider config from hosting API on mount
   useEffect(() => {
@@ -166,9 +271,21 @@ function SplashSequenceComponent(props: {
             ]);
           if (!cancelled) {
             const resolvedUserNickname =
-              userContact?.nickname?.trim() || cachedNickname?.trim();
+              cachedNickname?.trim() || userContact?.nickname?.trim();
             if (resolvedUserNickname) {
               setUserNickname(resolvedUserNickname);
+              if (shouldDeferTlonbotSetup) {
+                db.tlonbotRevivalSetup
+                  .setValue((current) => ({
+                    ...current,
+                    nickname: current.nickname ?? resolvedUserNickname,
+                  }))
+                  .catch((error) => {
+                    logger.trackError('Failed to cache revival nickname', {
+                      error,
+                    });
+                  });
+              }
             }
             if (botInfo?.moon) {
               // Hosting returns the moon prefix (e.g., `pinser-botter`); the
@@ -231,10 +348,29 @@ function SplashSequenceComponent(props: {
     };
   }, []);
 
-  const handleAvatarUrlChange = useCallback((url: string | null) => {
-    setBotAvatarUrl(url);
-    setAvatarDirty(true);
-  }, []);
+  const handleAvatarUrlChange = useCallback(
+    (url: string | null, uploadIntent?: Attachment.UploadIntent | null) => {
+      setBotAvatarUrl(url);
+      setBotAvatarUploadIntent(uploadIntent ?? null);
+      setAvatarDirty(true);
+    },
+    []
+  );
+
+  const saveDeferredTlonbotConfig = useCallback(
+    (config: TlonbotSplashConfig = {}) => {
+      const resolvedBotName = botName.trim() || 'Tlonbot';
+      return db.tlonbotRevivalSetup.setValue((current) => ({
+        ...current,
+        botName: resolvedBotName,
+        botAvatarUrl: avatarDirty ? botAvatarUrl : null,
+        botAvatarUploadIntent: avatarDirty ? botAvatarUploadIntent : null,
+        pending: true,
+        ...config,
+      }));
+    },
+    [avatarDirty, botAvatarUploadIntent, botAvatarUrl, botName]
+  );
 
   const persistBotIdentityInBackground = useCallback(
     ({
@@ -309,14 +445,20 @@ function SplashSequenceComponent(props: {
     []
   );
 
-  const handleBotAvatarCompleted = useCallback(() => {
-    persistBotIdentityInBackground({
-      flow: 'identity',
-      provider: botModel || 'unselected',
-      shipId: userShipId ? userShipId.slice(1) : null,
-      nickname: botName,
-      avatarUrl: avatarDirty ? botAvatarUrl : null,
-    });
+  const handleBotAvatarCompleted = useCallback(async () => {
+    if (shouldDeferTlonbotSetup) {
+      await saveDeferredTlonbotConfig({
+        botProvider: botModel || undefined,
+      });
+    } else {
+      persistBotIdentityInBackground({
+        flow: 'identity',
+        provider: botModel || 'unselected',
+        shipId: userShipId ? userShipId.slice(1) : null,
+        nickname: botName,
+        avatarUrl: avatarDirty ? botAvatarUrl : null,
+      });
+    }
     setCurrentPane(SplashPane.BotProvider);
   }, [
     avatarDirty,
@@ -324,6 +466,8 @@ function SplashSequenceComponent(props: {
     botModel,
     botName,
     persistBotIdentityInBackground,
+    saveDeferredTlonbotConfig,
+    shouldDeferTlonbotSetup,
     userShipId,
   ]);
 
@@ -430,7 +574,16 @@ function SplashSequenceComponent(props: {
       if (provider === BASIC_PROVIDER_ID) {
         setDidConfigureBot(true);
         setCustomBotSetupStatus('ready');
-        setCurrentPane(SplashPane.Group);
+        if (shouldDeferTlonbotSetup) {
+          await saveDeferredTlonbotConfig({
+            botProvider: provider,
+            botModel: `${provider}/auto`,
+            stage: 'settingUp',
+          });
+          setCurrentPane(SplashPane.TlonBotSetup);
+        } else {
+          setCurrentPane(SplashPane.Group);
+        }
         return;
       }
 
@@ -493,7 +646,13 @@ function SplashSequenceComponent(props: {
         setSavingConfig(false);
       }
     }
-  }, [botApiKey, botModel, providerOptions]);
+  }, [
+    botApiKey,
+    botModel,
+    providerOptions,
+    saveDeferredTlonbotConfig,
+    shouldDeferTlonbotSetup,
+  ]);
 
   // When the user advances from BotProviderPane: if the chosen provider needs
   // a key, step into BotApiKey; otherwise (e.g. the free basic provider) fall
@@ -508,6 +667,36 @@ function SplashSequenceComponent(props: {
     }
     handleValidateProvider();
   }, [botModel, providerOptions, handleValidateProvider]);
+
+  const handleTlonbotSetupComplete = useCallback(async () => {
+    useLureState
+      .getState()
+      .start()
+      .catch((error) => {
+        logger.trackError('Wayfinding Home Group Invite Bait Warmup Failed', {
+          error,
+        });
+      });
+
+    await db.tlonbotRevivalSetup.setValue((current) => ({
+      ...current,
+      pending: true,
+      applied: true,
+      stage: 'group',
+    }));
+    setCurrentPane(SplashPane.Group);
+  }, []);
+
+  const handleTlonbotGroupCompleted = useCallback(async () => {
+    if (shouldDeferTlonbotSetup) {
+      await db.tlonbotRevivalSetup.setValue((current) => ({
+        ...current,
+        pending: true,
+        stage: 'invite',
+      }));
+    }
+    setCurrentPane(SplashPane.Invite);
+  }, [shouldDeferTlonbotSetup]);
 
   const handleModelBackPress = useCallback(() => {
     const provider = botModel || BASIC_PROVIDER_ID;
@@ -531,65 +720,108 @@ function SplashSequenceComponent(props: {
         botProvider: provider,
         botModel: model,
       });
-      startCustomBotSetup({ userId, shipId, provider, model });
-      setCurrentPane(SplashPane.Group);
+      if (shouldDeferTlonbotSetup) {
+        setCustomBotSetupStatus('ready');
+        await saveDeferredTlonbotConfig({
+          botProvider: provider,
+          botModel: model,
+          stage: 'settingUp',
+        });
+        setCurrentPane(SplashPane.TlonBotSetup);
+      } else {
+        startCustomBotSetup({ userId, shipId, provider, model });
+        setCurrentPane(SplashPane.Group);
+      }
     } catch (e) {
       console.error('Failed to save bot config during onboarding:', e);
       logger.trackError('Wayfinding Bot Reconfigure Failed', {
         step: 'save_handler',
         error: e,
       });
-      setCurrentPane(SplashPane.Group);
+      setCurrentPane(
+        shouldDeferTlonbotSetup ? SplashPane.TlonBotSetup : SplashPane.Group
+      );
     } finally {
       if (isMountedRef.current) {
         setSavingConfig(false);
       }
     }
-  }, [botModel, botPrimaryModel, startCustomBotSetup]);
+  }, [
+    botModel,
+    botPrimaryModel,
+    saveDeferredTlonbotConfig,
+    shouldDeferTlonbotSetup,
+    startCustomBotSetup,
+  ]);
+
+  const completeSplash = useCallback(async () => {
+    if (isRevivalSplash) {
+      await store.completeRevivalSplash();
+      if (shouldDeferTlonbotSetup) {
+        await db.tlonbotRevivalSetup.resetValue();
+        clearShipRevivalStatus().catch((error) => {
+          logger.trackError('Failed to clear TlonBot revival status', {
+            error,
+          });
+        });
+      }
+    } else {
+      await store.completeWayfindingSplash();
+    }
+  }, [isRevivalSplash, shouldDeferTlonbotSetup, store]);
 
   const handleSplashCompleted = useCallback(async () => {
     if (finishingSplash) return;
 
+    const pendingCustomBotSetup = customBotSetupPromiseRef.current;
+    if (customBotSetupStatus !== 'pending' || !pendingCustomBotSetup) {
+      props.onCompleted();
+      completeSplash().catch((error) => {
+        logger.trackError('Failed to complete wayfinding splash', {
+          error,
+          splashSequenceMode: props.splashSequenceMode,
+        });
+      });
+      return;
+    }
+
     setFinishingSplash(true);
     try {
-      const pendingCustomBotSetup = customBotSetupPromiseRef.current;
-      if (customBotSetupStatus === 'pending' && pendingCustomBotSetup) {
-        logger.trackEvent('Wayfinding Bot Exit Wait Started', {
+      logger.trackEvent('Wayfinding Bot Exit Wait Started', {
+        timeoutMs: 7000,
+      });
+      const exitWaitResult = await Promise.race([
+        pendingCustomBotSetup.then((ready) => ({
+          kind: 'resolved' as const,
+          ready,
+        })),
+        new Promise<{ kind: 'timeout' }>((resolve) => {
+          setTimeout(() => resolve({ kind: 'timeout' }), 7000);
+        }),
+      ]);
+
+      if (exitWaitResult.kind === 'resolved' && exitWaitResult.ready) {
+        logger.trackEvent('Wayfinding Bot Exit Wait Succeeded', {
           timeoutMs: 7000,
         });
-        const exitWaitResult = await Promise.race([
-          pendingCustomBotSetup.then((ready) => ({
-            kind: 'resolved' as const,
-            ready,
-          })),
-          new Promise<{ kind: 'timeout' }>((resolve) => {
-            setTimeout(() => resolve({ kind: 'timeout' }), 7000);
-          }),
-        ]);
-
-        if (exitWaitResult.kind === 'resolved' && exitWaitResult.ready) {
-          logger.trackEvent('Wayfinding Bot Exit Wait Succeeded', {
-            timeoutMs: 7000,
-          });
-        } else if (exitWaitResult.kind === 'resolved') {
-          logger.trackEvent('Wayfinding Bot Exit Wait Finished Unready', {
-            timeoutMs: 7000,
-          });
-        } else {
-          logger.trackEvent('Wayfinding Bot Exit Wait Timed Out', {
-            timeoutMs: 7000,
-          });
-        }
+      } else if (exitWaitResult.kind === 'resolved') {
+        logger.trackEvent('Wayfinding Bot Exit Wait Finished Unready', {
+          timeoutMs: 7000,
+        });
+      } else {
+        logger.trackEvent('Wayfinding Bot Exit Wait Timed Out', {
+          timeoutMs: 7000,
+        });
       }
 
-      void store.completeWayfindingSplash();
+      await completeSplash();
       props.onCompleted();
     } finally {
       if (isMountedRef.current) {
         setFinishingSplash(false);
       }
     }
-  }, [customBotSetupStatus, finishingSplash, props, store]);
+  }, [completeSplash, customBotSetupStatus, finishingSplash, props]);
 
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
@@ -621,6 +853,7 @@ function SplashSequenceComponent(props: {
         {currentPane === SplashPane.BotAvatar && (
           <BotAvatarPane
             avatarUrl={avatarDirty ? botAvatarUrl : null}
+            deferUpload={shouldDeferTlonbotSetup}
             onAvatarUrlChange={handleAvatarUrlChange}
             onBackPress={() => setCurrentPane(SplashPane.BotName)}
             onActionPress={handleBotAvatarCompleted}
@@ -663,12 +896,19 @@ function SplashSequenceComponent(props: {
           />
         )}
 
+        {currentPane === SplashPane.TlonBotSetup && (
+          <TlonBotSetupPane
+            onComplete={handleTlonbotSetupComplete}
+            onLogout={props.onLogout}
+          />
+        )}
+
         {currentPane === SplashPane.Group && (
           <GroupsPane
-            onActionPress={() =>
-              setCurrentPane(
-                hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels
-              )
+            onActionPress={
+              hostingBotEnabled
+                ? handleTlonbotGroupCompleted
+                : () => setCurrentPane(SplashPane.Channels)
             }
             hostingBotEnabled={hostingBotEnabled}
             botName={botName || 'Tlonbot'}
@@ -706,6 +946,23 @@ function SplashSequenceComponent(props: {
 export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const BASIC_PROVIDER_ID = 'basic';
+const TLONBOT_SETUP_POLL_INTERVAL_MS = 5000;
+const TLONBOT_REVIVAL_WAYFINDING_GROUP_IDS = ['~wittyr-witbes/v3s2kbd7'];
+const BOT_PREVIEW_FALLBACK_USER_SHIP_ID = '~lidlen-pillex';
+
+function prejoinTlonbotRevivalWayfindingGroups() {
+  TLONBOT_REVIVAL_WAYFINDING_GROUP_IDS.forEach((groupId) => {
+    api.joinGroup(groupId).catch((error) => {
+      logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+        error,
+        context: 'failed to prejoin TlonBot revival wayfinding group',
+        groupId,
+        during: 'TlonBot revival splash',
+        severity: AnalyticsSeverity.High,
+      });
+    });
+  });
+}
 
 async function shareTlonbotGroupInvite(homeGroupInviteLink: string) {
   if (isWeb) {
@@ -796,6 +1053,7 @@ export function WelcomePane(props: {
       </YStack>
       <Button
         data-testid="lets-get-started"
+        testID="lets-get-started"
         onPress={props.onActionPress}
         label="Let's get started"
         preset="hero"
@@ -867,6 +1125,7 @@ export function BotNamePane(props: {
 }) {
   const insets = useSafeAreaInsets();
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<TextInputRef>(null);
   const handleNameChange = (value: string) => {
     setError(null);
     props.onNameChange(value);
@@ -885,8 +1144,12 @@ export function BotNamePane(props: {
     props.onActionPress();
   };
 
+  const refocusInput = useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
+
   return (
-    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+    <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={0}>
       <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
         <YStack flex={1} gap="$2xl" paddingTop="$2xl">
           <SplashTitle>
@@ -895,8 +1158,11 @@ export function BotNamePane(props: {
           <YStack paddingHorizontal="$xl" gap="$m">
             <Field error={error ?? undefined}>
               <TextInput
+                ref={inputRef}
+                testID="bot-name-input"
                 value={props.name}
                 onChangeText={handleNameChange}
+                onBlur={refocusInput}
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="done"
@@ -920,6 +1186,8 @@ export function BotNamePane(props: {
           </YStack>
         </YStack>
         <Button
+          data-testid="bot-name-next"
+          testID="bot-name-next"
           onPress={handlePress}
           label="Next"
           preset="hero"
@@ -939,7 +1207,11 @@ export function BotNamePane(props: {
 
 export function BotAvatarPane(props: {
   avatarUrl?: string | null;
-  onAvatarUrlChange: (url: string | null) => void;
+  deferUpload?: boolean;
+  onAvatarUrlChange: (
+    url: string | null,
+    uploadIntent?: Attachment.UploadIntent | null
+  ) => void;
   onBackPress?: () => void;
   onActionPress: () => void;
 }) {
@@ -947,18 +1219,23 @@ export function BotAvatarPane(props: {
   const { canUpload } = useAttachmentContext();
   const showToast = useToast();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const shouldDeferUpload = props.deferUpload ?? false;
 
   // Local URIs (file:// or data:) mean the upload is still pending; once the
   // attachment pipeline swaps in the remote CDN URL, the avatar is safe to
   // persist. Same check used in EditProfileScreenView.
   const hasAvatar = !!props.avatarUrl;
-  const isUploading = hasAvatar && !/^(?!file|data).+/.test(props.avatarUrl!);
+  const isUploading =
+    !shouldDeferUpload &&
+    hasAvatar &&
+    !/^(?!file|data).+/.test(props.avatarUrl!);
 
   const { attachment } = useMappedImageAttachments(
-    props.avatarUrl ? { attachment: props.avatarUrl } : {}
+    !shouldDeferUpload && props.avatarUrl ? { attachment: props.avatarUrl } : {}
   );
 
   useEffect(() => {
+    if (shouldDeferUpload) return;
     if (!attachment) return;
     if (attachment.uploadState?.status === 'success') {
       const remote = attachment.uploadState.remoteUri;
@@ -973,10 +1250,10 @@ export function BotAvatarPane(props: {
       });
       props.onAvatarUrlChange(null);
     }
-  }, [attachment, props, showToast]);
+  }, [attachment, props, shouldDeferUpload, showToast]);
 
   const openSheet = useCallback(() => {
-    if (!canUpload) {
+    if (!canUpload && !shouldDeferUpload) {
       showToast({
         message: 'Please configure storage settings to upload images',
         duration: 3000,
@@ -984,17 +1261,18 @@ export function BotAvatarPane(props: {
       return;
     }
     setSheetOpen(true);
-  }, [canUpload, showToast]);
+  }, [canUpload, shouldDeferUpload, showToast]);
 
   const handleImageSelected = useCallback(
     (assets: Attachment.UploadIntent[]) => {
+      const uploadIntent = assets[0];
       const uri =
         Attachment.UploadIntent.extractImagePickerAssets(assets)[0]?.uri;
       if (uri) {
-        props.onAvatarUrlChange(uri);
+        props.onAvatarUrlChange(uri, shouldDeferUpload ? uploadIntent : null);
       }
     },
-    [props]
+    [props, shouldDeferUpload]
   );
 
   return (
@@ -1014,7 +1292,10 @@ export function BotAvatarPane(props: {
           Pick an avatar for your Tlonbot, or skip and add one later.
         </SplashParagraph>
         <YStack flex={1} alignItems="center" justifyContent="center">
-          <Pressable onPress={openSheet} disabled={!canUpload || isUploading}>
+          <Pressable
+            onPress={openSheet}
+            disabled={(!canUpload && !shouldDeferUpload) || isUploading}
+          >
             <View
               width={160}
               height={160}
@@ -1062,9 +1343,11 @@ export function BotAvatarPane(props: {
               label="Change photo"
               preset="secondary"
               backgroundColor="transparent"
-              disabled={!canUpload || isUploading}
+              disabled={(!canUpload && !shouldDeferUpload) || isUploading}
             />
             <Button
+              data-testid="bot-avatar-continue"
+              testID="bot-avatar-continue"
               onPress={props.onActionPress}
               label={isUploading ? 'Uploading…' : 'Continue'}
               preset="hero"
@@ -1080,9 +1363,11 @@ export function BotAvatarPane(props: {
               label="Upload photo"
               preset="hero"
               shadow
-              disabled={!canUpload}
+              disabled={!canUpload && !shouldDeferUpload}
             />
             <Button
+              data-testid="bot-avatar-skip"
+              testID="bot-avatar-skip"
               onPress={props.onActionPress}
               label="Skip"
               preset="secondary"
@@ -1098,6 +1383,7 @@ export function BotAvatarPane(props: {
         showClearOption={hasAvatar}
         onClearAttachments={() => props.onAvatarUrlChange(null)}
         mediaType="image"
+        attachToContext={!shouldDeferUpload}
       />
     </View>
   );
@@ -1154,6 +1440,7 @@ export function BotProviderPane(props: {
           {providers.map((option) => (
             <ModelOptionCard
               key={option.provider}
+              testID={`bot-provider-option-${option.provider}`}
               option={{
                 label: option.label,
                 description: option.requiresKey
@@ -1177,6 +1464,8 @@ export function BotProviderPane(props: {
         </ScrollView>
       </YStack>
       <Button
+        data-testid="bot-provider-next"
+        testID="bot-provider-next"
         onPress={onActionPress}
         label={loading ? 'Validating...' : 'Next'}
         preset="hero"
@@ -1213,7 +1502,7 @@ export function BotApiKeyPane(props: {
     try {
       const clipboardContents = isWeb
         ? await navigator.clipboard.readText()
-        : await Clipboard.getString();
+        : await Clipboard.getStringAsync();
       onApiKeyChange(clipboardContents.trim());
     } catch (error) {
       logger.trackError('Wayfinding Bot API Key Paste Failed', {
@@ -1380,9 +1669,10 @@ export function BotModelPane(props: {
           }}
         >
           {visibleModels.length ? (
-            visibleModels.map((m) => (
+            visibleModels.map((m, index) => (
               <ModelOptionCard
                 key={m.id}
+                testID={`bot-model-option-${index}`}
                 option={{ label: m.id, description: '' }}
                 selected={selectedModel === m.id}
                 onPress={() => handleSelectModel(m.id)}
@@ -1406,6 +1696,8 @@ export function BotModelPane(props: {
         </ScrollView>
       </YStack>
       <Button
+        data-testid="bot-model-save"
+        testID="bot-model-save"
         onPress={onActionPress}
         label={loading ? 'Starting bot…' : 'Save'}
         preset="hero"
@@ -1415,6 +1707,175 @@ export function BotModelPane(props: {
         marginTop="$xl"
       />
     </View>
+  );
+}
+
+function TlonBotSetupPane(props: {
+  onComplete: () => void | Promise<void>;
+  onLogout?: () => void | Promise<void>;
+}) {
+  const { onComplete, onLogout } = props;
+  const applyingRef = useRef(false);
+  const foregroundReadinessCheckRef = useRef(false);
+  const provisioningKickoffStartedRef = useRef(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = useCallback(async () => {
+    if (!onLogout) {
+      return;
+    }
+
+    setLoggingOut(true);
+    await onLogout();
+  }, [onLogout]);
+
+  const applyDeferredSetup = useCallback(async () => {
+    if (applyingRef.current) {
+      return;
+    }
+
+    applyingRef.current = true;
+
+    try {
+      const setup = await db.tlonbotRevivalSetup.getValue(true);
+
+      if (!setup.applied) {
+        await stageTlonbotRevivalDeferredConfig(setup);
+        syncStart(true).catch((error) => {
+          logger.trackError('TlonBot revival sync failed after setup apply', {
+            error,
+          });
+        });
+
+        recoverTlonbotRevivalDeferredConfig('post_wait_setup').catch((error) =>
+          logger.trackError('TlonBot revival deferred config recovery failed', {
+            error,
+            source: 'post_wait_setup',
+          })
+        );
+        await db.tlonbotRevivalSetup.setValue((current) => ({
+          ...current,
+          applied: true,
+        }));
+      }
+
+      await onComplete();
+    } catch (error) {
+      applyingRef.current = false;
+      logger.trackError('TlonBot revival setup failed', { error });
+      throw error;
+    }
+  }, [onComplete]);
+
+  const checkReadinessNow = useCallback(async () => {
+    if (foregroundReadinessCheckRef.current || applyingRef.current) {
+      return;
+    }
+
+    foregroundReadinessCheckRef.current = true;
+    try {
+      const isReady = await checkCurrentNodeIsTlonbotReady();
+      if (isReady) {
+        await applyDeferredSetup().catch((error) =>
+          logger.trackError('Deferred Tlonbot setup failed', {
+            error,
+          })
+        );
+      }
+    } catch (error) {
+      logger.trackError('TlonBot foreground readiness check failed', {
+        error,
+      });
+    } finally {
+      foregroundReadinessCheckRef.current = false;
+    }
+  }, [applyDeferredSetup]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (status === 'active') {
+        checkReadinessNow();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [checkReadinessNow]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const scheduleNextCheck = () => {
+      if (!cancelled) {
+        timeout = setTimeout(checkReadiness, TLONBOT_SETUP_POLL_INTERVAL_MS);
+      }
+    };
+
+    const checkReadiness = async () => {
+      try {
+        const setup = await db.tlonbotRevivalSetup.getValue();
+
+        if (
+          !setup.provisioningStarted &&
+          !provisioningKickoffStartedRef.current
+        ) {
+          provisioningKickoffStartedRef.current = true;
+          await prepareTlonbotRevivalNotificationsForProvisioning(setup);
+          if (cancelled) {
+            return;
+          }
+
+          prejoinTlonbotRevivalWayfindingGroups();
+          markCurrentUserTlonbotEnabled()
+            .then(async () => {
+              await db.tlonbotRevivalSetup.setValue((current) => ({
+                ...current,
+                provisioningStarted: true,
+              }));
+            })
+            .catch((error) => {
+              provisioningKickoffStartedRef.current = false;
+              logger.trackError('Failed to kick off TlonBot provisioning', {
+                error,
+              });
+            });
+        }
+
+        const isReady = await checkCurrentNodeIsTlonbotReady();
+        if (isReady) {
+          if (!cancelled) {
+            await applyDeferredSetup().catch((error) =>
+              logger.trackError('Deferred Tlonbot setup failed', {
+                error,
+              })
+            );
+          }
+          return;
+        }
+      } catch (error) {
+        logger.trackError('TlonBot readiness check failed', { error });
+      }
+
+      scheduleNextCheck();
+    };
+
+    checkReadiness();
+
+    return () => {
+      cancelled = true;
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [applyDeferredSetup]);
+
+  return (
+    <TlonBotSetupPaneView
+      onLogout={onLogout ? handleLogout : undefined}
+      loggingOut={loggingOut}
+    />
   );
 }
 
@@ -1436,16 +1897,58 @@ export function GroupsPane(props: {
     });
   const groupInviteIsLoading = homeGroupInviteState === 'loading';
   const groupInviteIsReady = homeGroupInviteState === 'ready';
+  const [resolvedBotShipId, setResolvedBotShipId] = useState(
+    props.botShipId ?? null
+  );
+  const previewUserShipId =
+    props.userShipId ?? BOT_PREVIEW_FALLBACK_USER_SHIP_ID;
+  const fallbackBotShipId = useMemo(
+    () => `~pinser-botter-${desig(previewUserShipId)}`,
+    [previewUserShipId]
+  );
+
+  useEffect(() => {
+    if (!props.hostingBotEnabled) {
+      return;
+    }
+
+    if (props.botShipId) {
+      setResolvedBotShipId(props.botShipId);
+      return;
+    }
+
+    if (!props.userShipId) {
+      return;
+    }
+
+    let cancelled = false;
+    const shipId = props.userShipId.replace(/^~/, '');
+    api
+      .getTlawnBotInfo(shipId)
+      .then((botInfo) => {
+        if (!cancelled && botInfo?.moon) {
+          setResolvedBotShipId(`~${botInfo.moon}-${shipId}`);
+        }
+      })
+      .catch((error) => {
+        logger.trackError('Failed to refresh TlonBot preview ship ID', {
+          error,
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [props.botShipId, props.hostingBotEnabled, props.userShipId]);
+
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       {props.hostingBotEnabled ? (
         <View style={{ width: '100%', height: 368 }}>
-          {props.userShipId && props.botShipId ? (
-            <BotChatPreview
-              userShipId={props.userShipId}
-              botShipId={props.botShipId}
-            />
-          ) : null}
+          <BotChatPreview
+            userShipId={previewUserShipId}
+            botShipId={resolvedBotShipId ?? fallbackBotShipId}
+          />
         </View>
       ) : (
         <ZStack height={368}>
@@ -1647,6 +2150,8 @@ export function InviteContactsContent(props: {
   systemContacts: db.SystemContact[];
   inviteSystemContacts?: InviteSystemContactsFn;
   completing?: boolean;
+  isDiscovering?: boolean;
+  discoveredMatches?: db.SystemContact[];
 }) {
   const inviteLink = db.personalInviteLink.useValue();
   const handleInviteContact = useInviteSystemContactHandler(
@@ -1654,11 +2159,21 @@ export function InviteContactsContent(props: {
     inviteLink
   );
   const isReady = !!inviteLink;
-  const hasContacts = props.systemContacts && props.systemContacts.length > 0;
 
-  const { displayContacts, handleSearch } = useSystemContactSearch(
-    props.systemContacts ?? []
+  const matchedIds = useMemo(
+    () => new Set((props.discoveredMatches ?? []).map((c) => c.id)),
+    [props.discoveredMatches]
   );
+  const invitableContacts = useMemo(
+    () => props.systemContacts.filter((c) => !matchedIds.has(c.id)),
+    [props.systemContacts, matchedIds]
+  );
+
+  const hasContacts = invitableContacts.length > 0;
+  const hasMatches = (props.discoveredMatches?.length ?? 0) > 0;
+
+  const { displayContacts, handleSearch } =
+    useSystemContactSearch(invitableContacts);
 
   return (
     <YStack flex={1}>
@@ -1674,7 +2189,7 @@ export function InviteContactsContent(props: {
           </ScreenHeader.TextButton>
         }
       />
-      {!hasContacts ? (
+      {!hasContacts && !hasMatches && !props.isDiscovering ? (
         <ShareInviteLinkEmptyState />
       ) : !isReady ? (
         <LoadingState />
@@ -1683,19 +2198,25 @@ export function InviteContactsContent(props: {
           <SplashParagraph marginTop="$l" marginBottom="$xl">
             {INVITE_EXPLANATION_TEXT}
           </SplashParagraph>
-          <SearchBar
-            paddingHorizontal="$xl"
-            flexGrow={0}
-            debounceTime={100}
-            onChangeQuery={handleSearch}
-            placeholder="Search contacts"
-            inputProps={{
-              spellCheck: false,
-              autoCapitalize: 'none',
-              autoComplete: 'off',
-              flex: 1,
-            }}
+          <MatchedContactsSection
+            isDiscovering={!!props.isDiscovering}
+            matches={props.discoveredMatches ?? []}
           />
+          {hasContacts && (
+            <SearchBar
+              paddingHorizontal="$xl"
+              flexGrow={0}
+              debounceTime={100}
+              onChangeQuery={handleSearch}
+              placeholder="Search contacts"
+              inputProps={{
+                spellCheck: false,
+                autoCapitalize: 'none',
+                autoComplete: 'off',
+                flex: 1,
+              }}
+            />
+          )}
           <FlatList
             data={displayContacts}
             keyExtractor={(item) => item.id}
@@ -1714,6 +2235,49 @@ export function InviteContactsContent(props: {
           />
         </>
       )}
+    </YStack>
+  );
+}
+
+function MatchedContactsSection({
+  isDiscovering,
+  matches,
+}: {
+  isDiscovering: boolean;
+  matches: db.SystemContact[];
+}) {
+  if (!isDiscovering && matches.length === 0) {
+    return null;
+  }
+  return (
+    <YStack paddingHorizontal="$xl" marginBottom="$l" gap="$s">
+      {isDiscovering ? (
+        <View flexDirection="row" alignItems="center" gap="$s">
+          <LoadingSpinner size="small" />
+          <Text size="$label/m" color="$secondaryText">
+            Finding your contacts on Tlon…
+          </Text>
+        </View>
+      ) : (
+        <Text size="$label/m" color="$secondaryText">
+          {matches.length === 1
+            ? '1 of your contacts is on Tlon'
+            : `${matches.length} of your contacts are on Tlon`}
+        </Text>
+      )}
+      {matches.map((contact) => (
+        <SystemContactListItem
+          key={contact.id}
+          systemContact={contact}
+          iconProps={{ icon: 'Checkmark' }}
+          endContent={
+            <Text size="$label/s" color="$positiveActionText">
+              On Tlon
+            </Text>
+          }
+          showEndContent
+        />
+      ))}
     </YStack>
   );
 }
@@ -1829,6 +2393,7 @@ function ConnectContactBookContent(props: {
       <YStack paddingHorizontal="$xl" gap="$l">
         <Button
           data-testid="connect-contact-book"
+          testID="connect-contact-book"
           onPress={handleAction}
           label={
             props.isCompleting
@@ -1843,6 +2408,8 @@ function ConnectContactBookContent(props: {
         />
         {shouldShowConnectOption && (
           <Button
+            data-testid="skip-contact-book"
+            testID="skip-contact-book"
             onPress={props.onSkip}
             label="Skip"
             preset="secondary"
@@ -1864,6 +2431,12 @@ export function InvitePane(props: {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteContacts, setShowInviteContacts] = useState(false);
   const [sysContacts, setSysContacts] = useState<db.SystemContact[]>([]);
+  const {
+    isDiscovering,
+    discoveredMatches,
+    runDiscovery,
+    notifyPendingMatches,
+  } = useContactDiscovery();
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
 
@@ -1874,13 +2447,12 @@ export function InvitePane(props: {
   }, []);
 
   const processContacts = useCallback(async () => {
+    let syncedContacts: db.SystemContact[] = [];
     try {
       setIsProcessing(true);
-      await storeContext.syncSystemContacts();
-      // Log analytics if no contacts were found
-      const syncedContacts = await db.getSystemContacts();
+      syncedContacts = await storeContext.syncSystemContacts();
       setSysContacts(syncedContacts);
-      if (!syncedContacts || syncedContacts.length === 0) {
+      if (syncedContacts.length === 0) {
         logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
           reason: 'no_contacts_synced',
         });
@@ -1891,7 +2463,20 @@ export function InvitePane(props: {
       setIsProcessing(false);
       setShowInviteContacts(true);
     }
-  }, [storeContext]);
+    // Kick off lanyard discovery in the background once the invite pane
+    // is visible. The user can advance before it completes — if they do,
+    // handleActionPress tails the promise so the match notification
+    // fires normally. If they stay and we surface matches here, we
+    // suppress the notification to avoid double-announcing.
+    if (syncedContacts.length > 0) {
+      void runDiscovery(syncedContacts);
+    }
+  }, [storeContext, runDiscovery]);
+
+  const handleActionPress = useCallback(() => {
+    notifyPendingMatches();
+    props.onActionPress();
+  }, [props, notifyPendingMatches]);
 
   useEffect(() => {
     if (isWeb || perms.isLoading || hasAutoProcessed.current) {
@@ -1931,6 +2516,12 @@ export function InvitePane(props: {
         return;
       }
 
+      if (perms.hasPermission) {
+        hasAutoProcessed.current = true;
+        await processContacts();
+        return;
+      }
+
       if (perms.permissionDenied) {
         advanceToInviteContacts();
       }
@@ -1955,10 +2546,12 @@ export function InvitePane(props: {
   if (showInviteContacts) {
     return (
       <InviteContactsContent
-        onComplete={props.onActionPress}
+        onComplete={handleActionPress}
         systemContacts={sysContacts}
         inviteSystemContacts={props.inviteSystemContacts}
         completing={props.isCompleting}
+        isDiscovering={isDiscovering}
+        discoveredMatches={discoveredMatches}
       />
     );
   }
@@ -2114,13 +2707,15 @@ function ModelOptionCard({
   option,
   selected,
   onPress,
+  testID,
 }: {
   option: { label: string; description: string };
   selected: boolean;
   onPress: () => void;
+  testID?: string;
 }) {
   return (
-    <Pressable onPress={onPress}>
+    <Pressable testID={testID} onPress={onPress}>
       <ListItem
         backgroundColor={selected ? '$positiveBackground' : '$background'}
         borderWidth={1}

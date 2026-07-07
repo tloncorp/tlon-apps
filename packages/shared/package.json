@@ -25,6 +25,7 @@
     "./logic/pinning": "./src/logic/index.ts",
     "./logic/*": "./src/logic/*.ts",
     "./perf": "./src/perf.ts",
+    "./perfLog": "./src/perfLog.ts",
     "./store": "./src/store/index.ts",
     "./urbit": "./src/urbit/index.ts",
     "./urbit/activity": "./src/urbit/activity.ts",
@@ -68,17 +69,12 @@
     "big-integer": "^1.6.52",
     "browser-or-node": "^3.0.0",
     "exponential-backoff": "^3.1.1",
-    "remark-gfm": "^4.0.0",
-    "remark-parse": "^11.0.0",
-    "remark-stringify": "^11.0.0",
     "sorted-btree": "^1.8.1",
-    "unified": "^11.0.0",
     "uuid": "^9.0.0",
     "validator": "^13.7.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.9",
-    "@types/mdast": "^4.0.0",
     "better-sqlite3": "11.8.1",
     "drizzle-kit": "0.28.0",
     "typescript": "5.1.3",
@@ -96,7 +92,7 @@
     "drizzle-orm": "0.39.3",
     "expo-contacts": "*",
     "expo-localization": "*",
-    "react": "^18.2.0",
+    "react": "^19.1.0",
     "zustand": "^3.7.2"
   }
 }

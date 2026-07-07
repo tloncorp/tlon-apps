@@ -1,11 +1,11 @@
-import Clipboard from '@react-native-clipboard/clipboard';
-import * as api from '@tloncorp/api';
+import { JSONContent } from '@tloncorp/api/urbit';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
+import * as Clipboard from 'expo-clipboard';
 import { memo, useMemo } from 'react';
 import { Alert, Platform } from 'react-native';
 import { isWeb } from 'tamagui';
@@ -16,6 +16,8 @@ import { useAttachmentContext } from '../../../contexts/attachment';
 import { useChannelContext } from '../../../contexts/channel';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
+import { getContextLensStamp } from '../../Channel/ContextLens/lensPost';
+import { useContextLensAvailable } from '../../Channel/ContextLens/useContextLensStore';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
 import {
   DraftInputContext,
@@ -36,14 +38,25 @@ export default function MessageActions({
   postActionIds,
   onEdit,
   onViewReactions,
+  onViewBotRun,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
+  onViewBotRun?: (post: db.Post) => void;
   post: db.Post;
   postActionIds: ChannelAction.Id[];
 }) {
+  const contextLensAvailable = useContextLensAvailable();
+  const showViewBotRun = useMemo(
+    () =>
+      Boolean(
+        contextLensAvailable && onViewBotRun && getContextLensStamp(post)
+      ),
+    [contextLensAvailable, onViewBotRun, post]
+  );
+
   // arbitrary width that looks reasonable given labels
   const width = isWeb ? 'auto' : 220;
   return (
@@ -51,7 +64,7 @@ export default function MessageActions({
       {postActionIds.map((actionId, index, list) => (
         <ConnectedAction
           key={actionId}
-          last={index === list.length - 1 && !__DEV__}
+          last={index === list.length - 1 && !__DEV__ && !showViewBotRun}
           {...{
             dismiss,
             onReply,
@@ -62,6 +75,14 @@ export default function MessageActions({
           }}
         />
       ))}
+      {showViewBotRun && onViewBotRun ? (
+        <ViewBotRunAction
+          post={post}
+          dismiss={dismiss}
+          onViewBotRun={onViewBotRun}
+          last={!__DEV__}
+        />
+      ) : null}
       {ENABLE_COPY_JSON ? <CopyJsonAction post={post} /> : null}
     </ActionList>
   );
@@ -144,6 +165,14 @@ const ConnectedAction = memo(function ConnectedAction({
         // Quote needs the active composer surface. Search/detail surfaces can
         // render actions without one, so hide Quote there.
         return !!draftInputContext?.canStartDraft;
+      case 'replyToComment':
+        // Only show on actual comments (replies), and only where a composer
+        // is mounted to receive the prefilled mention.
+        return (
+          !!post.parentId &&
+          post.authorId !== currentUserId &&
+          !!draftInputContext?.canStartDraft
+        );
       default:
         return true;
     }
@@ -211,6 +240,38 @@ const ConnectedAction = memo(function ConnectedAction({
     </ActionList.Action>
   );
 });
+
+function ViewBotRunAction({
+  post,
+  dismiss,
+  onViewBotRun,
+  last,
+}: {
+  post: db.Post;
+  dismiss: () => void;
+  onViewBotRun: (post: db.Post) => void;
+  last?: boolean;
+}) {
+  return (
+    <ActionList.Action
+      height="auto"
+      last={last}
+      onPress={() => {
+        // On iOS, dismiss the actions modal first to avoid a race between
+        // two modals (see the 'forward' action above)
+        if (Platform.OS === 'ios') {
+          dismiss();
+          setTimeout(() => onViewBotRun(post), 300);
+        } else {
+          onViewBotRun(post);
+          dismiss();
+        }
+      }}
+    >
+      View bot run
+    </ActionList.Action>
+  );
+}
 
 function CopyJsonAction({ post }: { post: db.Post }) {
   const jsonString = useMemo(() => {
@@ -305,14 +366,17 @@ export async function handleAction({
         addAttachment({ type: 'reference', reference, path });
       }
       break;
+    case 'replyToComment':
+      await prependMentionToDraft(draftTextTarget, post.authorId);
+      break;
     case 'edit':
       onEdit?.();
       break;
     case 'copyRef':
-      Clipboard.setString(logic.getPostReferencePath(post));
+      await Clipboard.setStringAsync(logic.getPostReferencePath(post));
       break;
     case 'copyText':
-      Clipboard.setString(post.textContent ?? '');
+      await Clipboard.setStringAsync(post.textContent ?? '');
       break;
     case 'delete':
       store.deletePost({ post });
@@ -371,6 +435,52 @@ async function prependTextToDraft(
       }))
     )
   );
+  ctx.startDraft?.();
+}
+
+async function prependMentionToDraft(
+  ctx: DraftTextTarget | null | undefined,
+  authorId: string
+) {
+  if (!ctx) {
+    throw new Error('Cannot prepend mention without a draft input context');
+  }
+
+  const draft = await ctx.getDraft();
+  const firstChild = draft?.content?.[0]?.content?.[0];
+  // No-op if the draft already starts with this mention.
+  if (firstChild?.type === 'mention' && firstChild.attrs?.id === authorId) {
+    ctx.startDraft?.();
+    return;
+  }
+
+  const mentionNode: JSONContent = {
+    type: 'mention',
+    attrs: { id: authorId },
+  };
+  const spaceNode: JSONContent = { type: 'text', text: ' ' };
+
+  // Splice the mention + space into the first paragraph of the existing
+  // draft. Editing the JSON directly preserves the trailing space, which
+  // textAndMentionsToContent would otherwise trim away on an empty draft.
+  const existingDocContent = draft?.content ?? [];
+  const [firstBlock, ...restBlocks] = existingDocContent;
+  const firstParagraphContent =
+    firstBlock?.type === 'paragraph' ? firstBlock.content ?? [] : [];
+
+  const nextFirstParagraph: JSONContent = {
+    type: 'paragraph',
+    content: [mentionNode, spaceNode, ...firstParagraphContent],
+  };
+  const nextDocContent =
+    firstBlock?.type === 'paragraph'
+      ? [nextFirstParagraph, ...restBlocks]
+      : [nextFirstParagraph, ...existingDocContent];
+
+  await ctx.storeDraft({
+    ...(draft ?? { type: 'doc' }),
+    content: nextDocContent,
+  });
   ctx.startDraft?.();
 }
 
@@ -447,6 +557,9 @@ export function useDisplaySpecForChannelActionId(
 
       case 'quote':
         return { label: 'Quote' };
+
+      case 'replyToComment':
+        return { label: 'Reply' };
 
       case 'report':
         return {

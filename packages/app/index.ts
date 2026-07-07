@@ -1,1 +1,3 @@
-export {};
+export default {
+  getDebugInfo: async () => null,
+};

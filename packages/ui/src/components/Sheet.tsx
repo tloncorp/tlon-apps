@@ -1,8 +1,8 @@
 import { ComponentProps, useRef } from 'react';
 import {
   SizableText,
-  Stack,
   Sheet as TamaguiSheet,
+  View,
   XStack,
   YStack,
   createSheet,
@@ -50,9 +50,9 @@ const HandleIndicator = styled(YStack, {
   borderRadius: 100,
 });
 
-const HandleFrame = Stack.styleable((props, ref) => {
+const HandleFrame = View.styleable((props, ref) => {
   return (
-    <Stack
+    <View
       width={'100%'}
       alignItems="center"
       paddingVertical="$l"
@@ -60,7 +60,7 @@ const HandleFrame = Stack.styleable((props, ref) => {
       {...props}
     >
       <HandleIndicator />
-    </Stack>
+    </View>
   );
 });
 

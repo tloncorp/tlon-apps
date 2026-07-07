@@ -3,7 +3,7 @@
 /=  channels-agent  /app/channels
 |%
 +$  current-state
-  $:  %17
+  $:  %18
       =v-channels:c
       voc=(map [nest:c plan:c] (unit said:c))
       hidden-posts=(set id-post:c)
@@ -74,7 +74,7 @@
   =/  backlog-wire  (weld negotiate-wire /backlog)
   =/  backlog-path
     %+  welp  /chat/test/checkpoint/time-range
-    /(scot %da *@da)/(scot %da last-post-time)
+    /(scot:h136 %da *@da)/(scot:h136 %da last-post-time)
   =/  backlog-retry  (weld /~/retry (weld sub-wire /backlog))
   ;<  *  bind:m  (do-agent backlog-wire the-dock %watch-ack ~)
   (check-subscription-loop backlog-wire backlog-wire the-dock backlog-path backlog-retry)
@@ -204,7 +204,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%18 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  bad 7->8 migration in old code had dropped the tombstone
@@ -241,7 +241,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%18 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  missing message will not have magically recovered,
@@ -257,7 +257,7 @@
       (~(put by *v-channels:c) *nest:c chan)
     ::
     =.  save  (slot 3 save)  ::  move "through" discipline state
-    =.  save  !<(vase (slot 3 save))  ::  move "through" negotiate state & shenanigans
+    =.  save  (slot 3 save)  ::  move "through" negotiate state
     (ex-equal save !>(fixed-state))
   --
 ::
@@ -310,7 +310,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%18 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       ::  client had just bunted tombstones
@@ -364,13 +364,13 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%18 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       (~(put by *v-channels:c) *nest:c chan)
     ::
-    =.  save  (slot 3 save)           ::  lib discipline
-    =.  save  !<(vase (slot 3 save))  ::  lib negotiate
+    =.  save  (slot 3 save)  ::  lib discipline
+    =.  save  (slot 3 save)  ::  lib negotiate
     (ex-equal save !>(fixed-state))
   --
 ::

@@ -112,6 +112,7 @@
 /$  notify-client-action  %json  %notify-client-action
 /$  group-action-4        %json  %group-action-4
 /$  activity-action       %json  %activity-action
+/$  activity-action-1     %json  %activity-action-1
 /$  channel-action-1      %json  %channel-action-1
 /$  channel-action-2      %json  %channel-action-2
 /$  chat-dm-action-2      %json  %chat-dm-action-2

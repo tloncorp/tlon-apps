@@ -5,7 +5,7 @@ import {
 } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { getMessagesFilter } from '@tloncorp/api';
-import { getConstants } from '@tloncorp/api/types/constants';
+import { referenceLookupId } from '@tloncorp/api/client/references';
 import * as ub from '@tloncorp/api/urbit';
 import { isMatch, pick } from 'lodash';
 import { useEffect, useMemo } from 'react';
@@ -45,6 +45,24 @@ export const useCurrentChats = (
   });
 };
 
+// Probe %notes once to detect whether the notes desk is installed on the
+// user's ship. Used to gate notes-specific UI (channel-creation option,
+// 'Bulletin' rename, etc.). Defaults to false until the request resolves.
+export const useNotesDeskAvailable = () => {
+  return useQuery({
+    queryKey: ['notesDeskAvailable'],
+    queryFn: async () => {
+      try {
+        await api.notes.listNotebooks();
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+    staleTime: 60_000,
+  });
+};
+
 export const useUnjoinedGroupChannels = (groupId: string) => {
   const deps = useKeyFromQueryDeps(db.getUnjoinedGroupChannels);
   return useQuery({
@@ -76,6 +94,49 @@ export const useSettings = () => {
   return useQuery({
     queryKey: ['settings', deps],
     queryFn: () => db.getSettings(),
+  });
+};
+
+export const useContextLensRun = ({
+  botShip,
+  lensId,
+}: {
+  botShip: string;
+  lensId: string;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getContextLensRun);
+  return useQuery({
+    queryKey: ['contextLensRun', deps, botShip, lensId],
+    queryFn: () => db.getContextLensRun({ botShip, lensId }),
+  });
+};
+
+export const useRecentContextLensRuns = (count?: number) => {
+  const deps = useKeyFromQueryDeps(db.getRecentContextLensRuns);
+  return useQuery({
+    queryKey: ['recentContextLensRuns', deps, count],
+    queryFn: () => db.getRecentContextLensRuns({ count }),
+  });
+};
+
+export const useContextLensBotShips = () => {
+  const deps = useKeyFromQueryDeps(db.getContextLensBotShips);
+  return useQuery({
+    queryKey: ['contextLensBotShips', deps],
+    queryFn: () => db.getContextLensBotShips(),
+  });
+};
+
+export const useContextLensBotsInChat = ({
+  chatId,
+}: {
+  chatId: string | null;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getContextLensBotsInChat);
+  return useQuery({
+    queryKey: ['contextLensBotsInChat', deps, chatId],
+    queryFn: () =>
+      chatId ? db.getContextLensBotsInChat({ chatId }) : Promise.resolve([]),
   });
 };
 
@@ -157,13 +218,13 @@ export const useContacts = () => {
   });
 };
 
-export const useUnreadsCountWithoutMuted = () => {
+export const useNotifyingUnreadSourceCount = () => {
   return useQuery({
     queryKey: [
-      'unreadsCount',
-      useKeyFromQueryDeps(db.getUnreadsCountWithoutMuted),
+      'notifyingUnreadSourceCount',
+      useKeyFromQueryDeps(db.getNotifyingUnreadSourceCount),
     ],
-    queryFn: () => db.getUnreadsCountWithoutMuted({}),
+    queryFn: () => db.getNotifyingUnreadSourceCount(),
   });
 };
 
@@ -268,6 +329,24 @@ export const useLiveThreadUnreadByParentId = (parentPostId: string | null) => {
         return db.getThreadUnreadState({ parentId: parentPostId });
       }
       return null;
+    },
+  });
+};
+
+export const useLiveThreadUnreadsByChannel = (channelId: string | null) => {
+  const depsKey = useKeyFromQueryDeps(db.getThreadUnreadsByChannel);
+
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: ['liveThreadUnreadsByChannel', depsKey, channelId],
+    queryFn: async () => {
+      if (!channelId) {
+        return [];
+      }
+      return db.getThreadUnreadsByChannel({
+        channelId,
+        excludeRead: true,
+      });
     },
   });
 };
@@ -501,20 +580,27 @@ export const usePostReference = ({
   replyId?: string;
   enabled?: boolean;
 }) => {
-  const deps = useKeyFromQueryDeps(db.getPostWithRelations, postId);
   const postQuery = useQuery({
-    queryKey: [['postReference', postId], deps],
+    // Share the ['post', id] prefix with usePostWithRelations /
+    // usePostWithThreadUnreads so changeListener's per-post invalidations
+    // (keyed on ['post', id]) partial-match references via React Query's
+    // prefix semantics. The 'reference' suffix keeps this a distinct cache
+    // entry from the plain per-post hooks, since the queryFn has a
+    // syncPostReference fallback that the others don't.
+    queryKey: ['post', referenceLookupId({ postId, replyId }), 'reference'],
+    gcTime: PER_POST_GC_TIME_MS,
     enabled: enabled && !!postId,
     queryFn: async () => {
       if (!postId) {
         return null;
       }
-      const post = await db.getPostWithRelations({ id: postId });
+      const id = referenceLookupId({ postId, replyId });
+      const post = await db.getPostWithRelations({ id });
       if (post) {
         return post;
       }
       await syncPostReference({ postId, channelId, replyId });
-      return db.getPostWithRelations({ id: postId });
+      return db.getPostWithRelations({ id });
     },
   });
   return postQuery;
@@ -572,11 +658,20 @@ export const useChannel = (options: { id?: string }) => {
   });
 };
 
+// Transient per-post queries can accumulate in the cache after threads/action
+// menus close. The default 5m gcTime keeps them sitting in the invalidation
+// scan set. Shorten so unused entries age out quickly.
+const PER_POST_GC_TIME_MS = 30_000;
+
+// Per-post queries invalidate via changeListener's per-post events instead of
+// the table-level invalidation path. The queryKey must be a flat
+// ['post', id] so changeListener's invalidateQueries({ queryKey: ['post', id] })
+// actually matches (partial-key matching is positional).
 export const usePostWithThreadUnreads = (options: { id: string }) => {
-  const tableDeps = useKeyFromQueryDeps(db.getPostWithRelations);
   return useQuery({
-    queryKey: [['post', options.id], tableDeps],
+    queryKey: ['post', options.id],
     staleTime: Infinity,
+    gcTime: PER_POST_GC_TIME_MS,
     queryFn: () => db.getPostWithRelations(options),
   });
 };
@@ -585,13 +680,31 @@ export const usePostWithRelations = (
   options: { id: string } | null,
   initialData?: db.Post
 ) => {
-  const deps = useKeyFromQueryDeps(db.getPostWithRelations, options?.id);
   return useQuery({
     enabled: options != null,
-    queryKey: [['post', options?.id], deps],
+    queryKey: ['post', options?.id],
     staleTime: Infinity,
+    gcTime: PER_POST_GC_TIME_MS,
     ...(initialData ? { initialData } : {}),
     queryFn: () => (options == null ? null : db.getPostWithRelations(options)),
+  });
+};
+
+export const usePostBySentAt = (
+  options: { channelId: string; authorId: string; sentAt: number } | null
+) => {
+  const deps = useKeyFromQueryDeps(db.getPostBySentAt);
+  return useQuery({
+    enabled: options != null,
+    queryKey: [
+      'postBySentAt',
+      options?.channelId,
+      options?.authorId,
+      options?.sentAt,
+      deps,
+    ],
+    gcTime: PER_POST_GC_TIME_MS,
+    queryFn: () => (options == null ? null : db.getPostBySentAt(options)),
   });
 };
 
@@ -649,26 +762,6 @@ export const useWayfindingCompletion = () => {
   });
 };
 
-export const useShowWebSplashModal = () => {
-  const { data: wayfinding, isLoading } = useWayfindingCompletion();
-  const { data: personalGroup } = usePersonalGroup();
-
-  // Disable splash modal during e2e tests
-  try {
-    const constants = getConstants();
-    if (constants.DISABLE_SPLASH_MODAL) {
-      return false;
-    }
-  } catch (e) {
-    // Constants not available (e.g., in test environment)
-    // Continue with normal behavior
-  }
-
-  return Boolean(
-    personalGroup && !isLoading && !(wayfinding?.completedSplash ?? true)
-  );
-};
-
 export const useShowChatInputWayfinding = (channelId: string) => {
   const wayfindingProgress = db.wayfindingProgress.useValue();
   const isCorrectChan = useMemo(() => {
@@ -680,11 +773,12 @@ export const useShowChatInputWayfinding = (channelId: string) => {
 
 export const useShowBotMentionWayfinding = (channelId: string) => {
   const wayfindingProgress = db.wayfindingProgress.useValue();
+  const currentUserId = api.getCurrentUserId();
   const isCorrectChan = useMemo(() => {
-    return logic.isBotHomeGroupChatChannel(channelId);
-  }, [channelId]);
+    return logic.isBotHomeGroupChatChannel(currentUserId, channelId);
+  }, [channelId, currentUserId]);
 
-  return isCorrectChan && !wayfindingProgress.tappedBotMention;
+  return isCorrectChan && !wayfindingProgress.tappedHomeGroupHint;
 };
 
 export const useShowHomeAddTooltip = () => {
@@ -726,6 +820,17 @@ export const useTelemetryEnabled = () => {
     queryFn: async () => {
       const settings = await db.getSettings();
       return settings?.enableTelemetry ?? false;
+    },
+  });
+};
+
+export const useContextLensEnabled = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['contextLensEnabled', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.contextLensEnabled ?? false;
     },
   });
 };

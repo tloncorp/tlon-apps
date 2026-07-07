@@ -43,6 +43,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 -   `pnpm install` - Install all dependencies
 -   `pnpm run deps` - Install dependencies including iOS pods
 
+### Desk Dependencies (peru)
+
+The Hoon `desk/` holds only our own source. Its upstream dependencies (base-dev
++ landscape libs/marks/sur) are vendored by [peru](https://github.com/buildinspace/peru)
+into a separate, **gitignored** `desk-deps/` tree, per `peru.yaml`. This replaced
+rsyncing all of `pkg/base-dev` (~119 files), which pulled in unused files that
+broke compilation on new kelvins.
+
+-   A fresh checkout's `desk/{lib,sur,mar}` is intentionally **missing** the
+    standard files (`dbug`, `default-agent`, `server`, `docket`, `json`, `hoon`,
+    …) — they live in `desk-deps/` after a sync. Don't "fix" this by committing
+    them.
+-   `./scripts/sync-deps.sh` (= `peru sync`) — populate `desk-deps/`. Run after
+    cloning and after editing `peru.yaml`. Requires peru (`pipx install peru`).
+-   `./scripts/assemble-desk.sh <target>` — build a full desk into `<target>`:
+    rsync `desk-deps/` in with `--delete`, then `desk/` on top, then stamp
+    `commit.txt`. This is how a `%groups` desk is assembled for a ship (used by
+    `deploy.sh`, rube, and local dev — see DEVELOPMENT.md).
+-   Upstream revs (urbit tag, landscape commit) are **pinned in `peru.yaml`**.
+    To build against a different kernel, change the rev there on your branch.
+-   `desk/lib/verb.hoon` is a locally-patched variant and stays committed — do
+    NOT add patched or repo-owned files to the peru pick lists.
+
 ### Database Migrations
 
 -   `pnpm generate:migration` - Generate Drizzle migration files after schema changes
@@ -222,6 +245,19 @@ To identify which component to modify:
 -   Builds on top of web application
 -   Uses Electron for native desktop features
 
+### Windows Development
+
+Several `package.json` scripts use Unix shell tools (`rm -rf`, `cp -R`, `mkdir -p`). `pnpm-workspace.yaml` routes pnpm's `scriptShell` through `${TLON_SHELL-/bin/bash}` so those scripts work everywhere:
+
+-   **macOS/Linux**: nothing to do — `TLON_SHELL` is unset and pnpm falls back to `/bin/bash`.
+-   **Windows**: install [Git for Windows](https://git-scm.com/download/win), then point pnpm at its bash:
+    ```powershell
+    [System.Environment]::SetEnvironmentVariable("TLON_SHELL", "C:\Program Files\Git\bin\bash.exe", "User")
+    ```
+    Open a fresh terminal so the env var is loaded. Do **not** rely on bare `bash` on PATH — on Windows it usually resolves to `C:\Windows\System32\bash.exe` (WSL), which runs scripts inside Linux with the wrong filesystem view.
+
+Also: use the pinned Node version (`.nvmrc` → 22.22.0). Node 24+ has no prebuilt binaries for `better-sqlite3@11.x` and will fall back to compiling via node-gyp, which needs VS Build Tools + Windows SDK installed.
+
 ### Shell Script Compatibility
 
 When writing or modifying bash scripts, ensure compatibility with both macOS and Linux:
@@ -231,6 +267,15 @@ When writing or modifying bash scripts, ensure compatibility with both macOS and
 -   Handle differences between BSD (macOS) and GNU (Linux) tools, especially `tar`, `sed`, `grep`
 -   Test scripts on both macOS and Linux when possible
 -   Use portable command options (e.g., `grep -E` instead of `egrep`)
+
+## Pre-PR Cleanup
+
+Before finalizing a PR, do a focused pass on your own diff:
+
+-   **Never ship cleanup for branch-only state.** If you added a transitional `DROP`, one-time migration step, dual-write, compat shim, or fallback to bridge a state that only existed on intermediate commits of _this_ branch, remove it before merging. Production never had the intermediate state, so the guard protects against nothing post-merge — and any teammate who built an early version can reset their local state.
+-   **Trim debug fat.** Remove leftover `console.log`s, ad-hoc perf marks, commented-out code, and stale `// TODO` notes that no longer apply. Comments that just describe _what_ the code does belong in the identifiers; keep comments only when they explain _why_ (non-obvious constraints, workarounds, decisions).
+-   **Reuse before adding.** Before introducing a new helper/util/constant, grep for an existing one. Don't ship parallel implementations — if the new one is genuinely better, remove the old in the same PR.
+-   **Audit comments for staleness.** A comment written mid-implementation may describe an earlier approach. If it references deleted code or a previous shape of the function, fix or delete it.
 
 ## Testing
 

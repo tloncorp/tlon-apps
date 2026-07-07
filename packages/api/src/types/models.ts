@@ -43,10 +43,18 @@ export type {
 export const SETTINGS_SINGLETON_KEY = 'settings' as const;
 export const BASE_UNREADS_SINGLETON_KEY = 'base_unreads' as const;
 
-export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
+export type ChannelType =
+  | 'chat'
+  | 'notebook'
+  | 'gallery'
+  | 'dm'
+  | 'groupDm'
+  | 'notes';
 export type UnreadChannelType = 'channel' | 'dm';
 export type ActivityBucket = 'all' | 'mentions' | 'replies';
 export type PinType = 'group' | 'channel' | 'dm' | 'groupDm';
+export type NotesVisibility = 'public' | 'private';
+export type NotesRole = 'owner' | 'editor' | 'viewer';
 
 export type AttestationType = 'phone' | 'node' | 'twitter' | 'dummy' | string;
 export type AttestationDiscoverability =
@@ -216,6 +224,69 @@ export interface Channel extends WithId {
   posts?: any[] | null;
 }
 
+export interface NotesNotebook extends WithId {
+  host: string;
+  flagName: string;
+  notebookId: number;
+  title: string;
+  visibility?: NotesVisibility | null;
+  rootFolderId?: number | null;
+  createdBy?: string | null;
+  createdAt?: number | null;
+  updatedBy?: string | null;
+  updatedAt?: number | null;
+  syncedAt?: number | null;
+  lastOpenedAt?: number | null;
+  currentUserRole?: NotesRole | null;
+}
+
+export interface NotesNotebookDetail extends NotesNotebook {
+  rootFolderId: number;
+}
+
+export interface NotesFolder extends WithId {
+  notebookFlag: string;
+  folderId: number;
+  notebookId?: number | null;
+  name: string;
+  parentFolderId?: number | null;
+  createdBy?: string | null;
+  createdAt?: number | null;
+  updatedBy?: string | null;
+  updatedAt?: number | null;
+  syncedAt?: number | null;
+}
+
+export interface NotesNote extends WithId {
+  notebookFlag: string;
+  noteId: number;
+  notebookId?: number | null;
+  folderId?: number | null;
+  title: string;
+  slug?: string | null;
+  bodyMd?: string | null;
+  createdBy?: string | null;
+  createdAt?: number | null;
+  updatedBy?: string | null;
+  updatedAt?: number | null;
+  revision?: number | null;
+  syncedAt?: number | null;
+}
+
+export interface NotesMember {
+  notebookFlag: string;
+  contactId: string;
+  role?: NotesRole | null;
+  syncedAt?: number | null;
+}
+
+export interface NotesNoteRevision {
+  revision?: number | null;
+  editedAt?: number | null;
+  author?: string | null;
+  bodyMd?: string | null;
+}
+
 export interface Pin {
   type: PinType;
   index: number;
@@ -248,6 +319,9 @@ export interface Settings {
   completedWayfindingSplash?: boolean;
   completedWayfindingTutorial?: boolean;
   disableTlonInfraEnhancement?: boolean;
+  webAppSplashDismissed?: boolean;
+  mobileAppPromoDismissed?: boolean;
+  contextLensEnabled?: boolean;
 }
 
 export interface VolumeSettings {

@@ -11,11 +11,12 @@ const logger = createDevLogger('refreshHostingAuth', false);
 // Authentication for hosting uses a token that can last up to a year, but
 // expires after 30 days of without use. We don't regularly interact with hosting after login,
 // so we attempt to manually refresh the token regularly
-export async function refreshHostingAuth() {
+export async function refreshHostingAuth(options: { force?: boolean } = {}) {
   logger.log(`checking hosting auth`);
 
   if (__DEV__) {
     logger.log('development mode, skipping');
+    return;
   }
 
   const expired = await db.hostingAuthExpired.getValue();
@@ -26,7 +27,7 @@ export async function refreshHostingAuth() {
     return;
   }
 
-  if (wasMoreThanDayAgo(lastCheck)) {
+  if (options.force || wasMoreThanDayAgo(lastCheck)) {
     const isOnline = await deviceIsOnline();
     if (isOnline) {
       logger.log('online and more than a day since last check, refreshing');
@@ -56,8 +57,18 @@ function wasMoreThanDayAgo(timestamp: number): boolean {
 export async function clearHostingNativeCookie() {
   console.log(`clearing hosting native cookie`);
   try {
-    await CookieManager.clearByName('http://tlon.network', 'SolarisSession');
-    await CookieManager.clearByName('https://tlon.network', 'SolarisSession');
+    if (Platform.OS === 'android') {
+      // `clearByName` isn't implemented on Android, so remove SolarisSession by
+      // handing WebView's CookieManager a raw expired Set-Cookie via
+      // `setFromResponse` — a past Expires / Max-Age=0 deletes the entry.
+      const expired =
+        'SolarisSession=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0';
+      await CookieManager.setFromResponse('http://tlon.network', expired);
+      await CookieManager.setFromResponse('https://tlon.network', expired);
+    } else {
+      await CookieManager.clearByName('http://tlon.network', 'SolarisSession');
+      await CookieManager.clearByName('https://tlon.network', 'SolarisSession');
+    }
     console.log('cleared hosting native cookie');
   } catch (e) {
     console.error('error clearing hosting native cookie:', e);

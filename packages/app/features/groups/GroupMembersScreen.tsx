@@ -20,17 +20,11 @@ export function GroupMembersScreen(props: Props) {
   const {
     groupMembers,
     groupRoles,
-    banUser,
-    unbanUser,
-    kickUser,
-    revokeInvite,
     bannedUsers,
     acceptUserJoin,
     rejectUserJoin,
     joinRequests,
     groupPrivacyType,
-    addUserToRole,
-    removeUserFromRole,
   } = useGroupContext({
     groupId,
   });
@@ -57,14 +51,8 @@ export function GroupMembersScreen(props: Props) {
       roles={groupRoles}
       groupId={groupId}
       currentUserId={currentUserId}
-      onPressBan={banUser}
-      onPressUnban={unbanUser}
       onPressAcceptJoinRequest={acceptUserJoin}
       onPressRejectJoinRequest={rejectUserJoin}
-      onPressAssignRole={addUserToRole}
-      onPressRemoveRole={removeUserFromRole}
-      onPressKick={kickUser}
-      onPressRevokeInvite={revokeInvite}
       bannedUsers={bannedUsers}
       joinRequests={joinRequests}
       groupPrivacyType={groupPrivacyType}
