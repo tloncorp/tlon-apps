@@ -1,0 +1,112 @@
+name: OpenClaw Plugin CI
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "packages/openclaw/**"
+      - "packages/tlon-bot-e2e/**"
+      - "packages/api/**"
+      - "packages/tlon-skill/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/openclaw-ci.yml"
+
+jobs:
+  unit-test:
+    name: Unit Tests
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    defaults:
+      run:
+        working-directory: packages/openclaw
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Build
+        run: pnpm build
+
+      # The postbuild step regenerates openclaw.plugin.json from
+      # src/config-schema.ts; the checked-in copy must stay in sync (it's
+      # what the npm package stages and what installers read from git).
+      - name: Check openclaw.plugin.json is up to date
+        run: |
+          git diff --exit-code openclaw.plugin.json || \
+            (echo "::error::openclaw.plugin.json is stale. Run 'pnpm build' in packages/openclaw and commit the regenerated manifest." && exit 1)
+
+      - name: Run unit tests
+        run: npx vitest run src/ --exclude src/config-schema.test.ts
+
+      - name: Run security tests
+        run: npx vitest run src/security.test.ts
+
+  integration-test:
+    name: Shared E2E
+    runs-on: blacksmith-8vcpu-ubuntu-2204
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Typecheck shared E2E harness
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' tsc
+
+      - name: Run shared E2E unit tests
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:unit
+
+      - name: Build OpenClaw
+        run: pnpm --filter '@tloncorp/openclaw' build
+
+      - name: Cache fake ship archives
+        uses: actions/cache@v4
+        with:
+          path: .cache/tlon-bot-e2e/fake-ships
+          key: tlon-bot-e2e-fake-ships-v1
+
+      - name: Prepare fake ship cache
+        run: mkdir -p .cache/tlon-bot-e2e/fake-ships
+
+      - name: Run OpenClaw shared E2E
+        env:
+          TLONBOT_TOKEN: ${{ secrets.TLONBOT_TOKEN }}
+          BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+          # Reuse the S3 test-storage secrets already configured for the
+          # tlon-web e2e suite (same S3-compatible ship-storage setup).
+          TEST_STORAGE_ENDPOINT: ${{ secrets.E2E_S3_ENDPOINT }}
+          TEST_STORAGE_BUCKET: ${{ secrets.E2E_S3_BUCKET_NAME }}
+          TEST_STORAGE_ACCESS_KEY: ${{ secrets.E2E_S3_ACCESS_KEY_ID }}
+          TEST_STORAGE_SECRET_KEY: ${{ secrets.E2E_S3_SECRET_ACCESS_KEY }}
+          TEST_STORAGE_REGION: ${{ secrets.E2E_S3_REGION }}
+          TEST_LIVE_TOOL_TRACE: "1"
+          TEST_LIVE_TOOL_TRACE_CONTENTS: "1"
+          FAKE_SHIP_CACHE_DIR:
+            ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
+          TLON_BOT_E2E_RUN_ID:
+            ${{ github.run_id }}-${{ github.run_attempt }}-openclaw
+        run: |
+          pnpm --filter '@tloncorp/openclaw' test:integration:shared

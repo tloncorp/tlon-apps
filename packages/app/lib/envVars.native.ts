@@ -28,6 +28,7 @@ export const INVITE_PROVIDER =
 export const NOTIFY_PROVIDER = envVars.notifyProvider ?? 'rivfur-livmet';
 export const NOTIFY_SERVICE = envVars.notifyService ?? 'groups-native';
 export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
+export const POST_HOG_IN_DEV = envVars.postHogInDev === 'true';
 export const SENTRY_DSN = envVars.sentryDsn ?? '';
 export const APP_VARIANT = envVars.appVariant ?? 'production';
 const configuredScheme = Constants.expoConfig?.scheme;

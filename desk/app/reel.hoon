@@ -10,6 +10,7 @@
       state-4
       state-5
       state-6
+      state-7
   ==
 ::
 ::  vic: URL of bait service
@@ -78,13 +79,26 @@
       stable-id=(map cord token:reel)
       =^subs:s
   ==
++$  state-7
+  $:  %7
+      vic=@t
+      civ=ship
+      our-profile=contact:t
+      our-metadata=(map token:reel metadata:v1:reel)
+      open-link-requests=(set (pair ship cord))
+      ::
+      :: outstanding describes. true when metadata had been modified.
+      open-describes=(map token:reel ?)
+      stable-id=(map cord token:reel)
+      =^subs:s
+  ==
 ::
 ::  url with old style token
 ++  url-for-token
   |=  [vic=cord token=cord]
   (cat 3 vic token)
 --
-=|  state-6
+=|  state-7
 =*  state  -
 ::
 %-  agent:dbug
@@ -117,6 +131,19 @@
     |*  [caz=(list card) etc=*]
     [[cad caz] etc]
   --
+::  +group-og-title: render the open-graph title for a group invite.
+::  empty group title falls back to "a Groupchat".
+::
+++  group-og-title
+  |=  [nickname=(unit @t) group-title=@t]
+  ^-  @t
+  =/  title=@t
+    ?:  =('' group-title)  'a Groupchat'
+    group-title
+  %-  crip
+  ?:  |(?=(~ nickname) =('' u.nickname))
+    "Tlon Messenger: You're Invited to {(trip title)}"
+  "Tlon Messenger: {(trip u.nickname)} invited you to {(trip title)}"
 --
 |_  =bowl:gall
 +*  this  .
@@ -181,7 +208,14 @@
     :_  old(- %6)
     =+  wait=(~(rad og eny.bowl) ~h1)
     [%pass /load/profile %arvo %b %wait (add now.bowl wait)]~
-  ?>  ?=(%6 -.old)
+  =?  old  ?=(%6 -.old)
+    %=  old  -  %7
+        open-describes
+      %-  ~(gas by *(map token:reel ?))
+      ^-  (list (pair token:reel ?))
+      (turn ~(tap in open-describes.old) (late &))  ::  force sync on open describes
+    ==
+  ?>  ?=(%7 -.old)
   =.  state  old
   :_  this
   %+  weld  caz
@@ -208,11 +242,15 @@
         %set-ship
       ::  since we're changing providers, we need to regenerate links
       ::  we'll use whatever key we currently have as the nonce
-      :_  this(civ civ.command, open-describes ~(key by our-metadata))
+      =/  opens
+        %-  ~(gas by *(map token:reel ?))
+        ^-  (list (pair token:reel ?))
+        (turn ~(tap in ~(key by our-metadata)) (late |))
+      :_  this(civ civ.command, open-describes opens)
       %+  turn  ~(tap by our-metadata)
       |=  [token=cord =metadata:reel]
       ^-  card
-      [%pass /describe %agent [civ %bait] %poke %bait-describe !>([token metadata])]
+      [%pass /bait %agent [civ %bait] %poke %bait-describe !>([token metadata])]
     ==
   ::
       %reel-bite
@@ -230,6 +268,65 @@
           [%'inviterUserId' (scot %p src.bowl)]
           [%'invitedGroupId' id]
       ==
+    ::  gap-fill open-graph metadata from server state when the caller
+    ::  didn't provide it: title / description / image from %groups,
+    ::  and nickname / avatar from our cached profile. caller-provided
+    ::  values take priority.
+    ::
+    =/  type=(unit @t)  (~(get by fields.metadata) %'inviteType')
+    =?  fields.metadata  |(?=(~ type) =('group' u.type))
+      =*  fields  fields.metadata
+      ::  treat absent or empty-string fields as gap-fillable
+      ::
+      =*  is-blank
+        |=  k=field:reel
+        ^-  ?
+        =/  v  (~(get by fields) k)
+        ?|(?=(~ v) =('' u.v))
+      ::  inviter fields from our-profile
+      ::
+      =/  nickname=(unit @t)  (~(get cy:t our-profile) %nickname %text)
+      =/  avatar=(unit @t)    (~(get cy:t our-profile) %avatar %look)
+      =?  fields
+          ?&  ?=(^ nickname)
+              !=('' u.nickname)
+              (is-blank %'inviterNickname')
+          ==
+        (~(put by fields) %'inviterNickname' u.nickname)
+      =?  fields
+          ?&  ?=(^ avatar)
+              !=('' u.avatar)
+              (is-blank %'inviterAvatarImage')
+          ==
+        (~(put by fields) %'inviterAvatarImage' u.avatar)
+      ::  group meta from %groups; only attempt when id parses as a flag
+      ::  and the group exists locally.
+      ::
+      ?~  parsed=(rush id flag)  fields
+      =/  base  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+      ?.  .^(? %gu (weld base /groups/(scot %p -.u.parsed)/[+.u.parsed]))
+        fields
+      =/  grp=group:v9:groups-ver
+        .^  group:v9:groups-ver  %gx
+          (weld base /v2/groups/(scot %p -.u.parsed)/[+.u.parsed]/group-2)
+        ==
+      =*  meta  meta.grp
+      =?  fields
+          ?&  !=('' title.meta)
+              (is-blank %'invitedGroupTitle')
+          ==
+        (~(put by fields) %'invitedGroupTitle' title.meta)
+      =?  fields
+          ?&  !=('' description.meta)
+              (is-blank %'invitedGroupDescription')
+          ==
+        (~(put by fields) %'invitedGroupDescription' description.meta)
+      =?  fields
+          ?&  !=('' image.meta)
+              (is-blank %'invitedGroupIconImageUrl')
+          ==
+        (~(put by fields) %'invitedGroupIconImageUrl' image.meta)
+      fields
     ::  the nonce here is a temporary identifier for the metadata.
     ::  a new one will be assigned by the bait provider and returned to us.
     ::
@@ -238,19 +335,19 @@
     =?  our-metadata  ?=(^ old-token)
       (~(del by our-metadata) u.old-token)
     =.  our-metadata  (~(put by our-metadata) nonce metadata)
-    =.  open-describes  (~(put in open-describes) nonce)
+    =.  open-describes  (~(put by open-describes) nonce |)
     =.  stable-id  (~(put by stable-id) id nonce)
     :_  this
-    ~[[%pass /describe %agent [civ %bait] %poke %bait-describe !>([nonce metadata])]]
+    ~[[%pass /bait %agent [civ %bait] %poke %bait-describe !>([nonce metadata])]]
   ::
       %reel-confirmation
     ?>  =(civ src.bowl)
     =+  !<(confirmation:reel vase)
     =+  log=~(. l bowl 'flow'^s+'lure' ~)
-    =.  open-describes  (~(del in open-describes) nonce)
+    =/  sync=?  (~(gut by open-describes) nonce |)
+    =.  open-describes  (~(del by open-describes) nonce)
     =/  ids=(list [id=cord =token:reel])
-      %+  skim
-        ~(tap by stable-id)
+      %+  skim  ~(tap by stable-id)
       |=  [key=cord =token:reel]
       =(nonce token)
     ?~  ids
@@ -270,12 +367,15 @@
           ~[leaf+"invite link for {(trip id)} created"]
         ~['event'^s+'Invite Link Created' 'lure-id'^s+token]
     :_  %_  this  our-metadata
-          ::  swap out the nonce for the token in our-metadata
           (~(put by (~(del by our-metadata) nonce)) token u.md)
         ==
     =/  url  (cat 3 vic token)
     =/  path  (stab (cat 3 '/v1/id-link/' id))
-    ~[[%give %fact ~[path] %json !>(s+url)]]
+    ?.  sync
+      [%give %fact ~[path] %json !>(s+url)]~
+    :~  [%pass /bait %agent [civ %bait] %poke bait-update+!>([token u.md])]
+        [%give %fact ~[path] %json !>(s+url)]
+    ==
   ::
       %reel-undescribe
     ?>  =(our.bowl src.bowl)
@@ -286,7 +386,7 @@
           ~[leaf+"invite link removed"]
         ~['event'^s+'Invite Link Removed' 'lure-id'^s+token]
     :_  this(our-metadata (~(del by our-metadata) token))
-    ~[[%pass /undescribe %agent [civ %bait] %poke %bait-undescribe !>(token)]]
+    ~[[%pass /bait %agent [civ %bait] %poke %bait-undescribe !>(token)]]
   ::  old pokes for getting links, we no longer use these because all links
   ::  are unique to that ship/user and can be scried out
   ::
@@ -321,10 +421,10 @@
     %-  (fail:log %poke-ack 'profile update failed' u.p.sign)
     `this
   ::
-      [%update %group ~]
+      [%bait ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  `this
-    %-  (fail:log %poke-ack 'group meta update failed' u.p.sign)
+    %-  (fail:log %poke-ack 'bait operation failed' u.p.sign)
     `this
   ::
       [%contacts ~]
@@ -381,29 +481,23 @@
       ::  update our lure links with new nickname, avatar image
       ::  and color. also update open-graph metadata.
       ::
-      =^  caz=(list card)  our-metadata
-        %+  ~(rib by our-metadata)  *(list card)
-        |=  [[=token:reel meta=metadata:reel] caz=(list card)]
-        ^-  [(list card) [token:reel metadata:reel]]
+      =*  token-update  ,[token:reel metadata:reel]
+      =^  updates=(list token-update)  our-metadata
+        %+  ~(rib by our-metadata)  *(list token-update)
+        |=  [[=token:reel meta=metadata:reel] ups=(list token-update)]
+        ^-  [(list token-update) [token:reel metadata:reel]]
         =;  new-update=_update
           :_  :-  token
               meta(fields (~(uni by fields.meta) fields.new-update))
-          :_  caz
-          [%pass /update/profile %agent [civ %bait] %poke bait-update+!>([token new-update])]
+          :_  ups
+          [token new-update]
         ::  insert open-graph metadata into update
         ::
         =+  type=(~(get by fields.meta) %'inviteType')
         ?:  |(?=(~ type) =('group' u.type))
-          =/  group-title=@t
-            =+  til=(~(get by fields.meta) %'invitedGroupTitle')
-            ?:  |(?=(~ til) =('' u.til))
-              'a Groupchat'
-            u.til
           =/  title=@t
-            %-  crip
-            ?:  |(?=(~ nickname) =('' u.nickname))
-              "Tlon Messenger: You're Invited to a Groupchat"
-            "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
+            %+  group-og-title  nickname
+            (fall (~(get by fields.meta) %'invitedGroupTitle') '')
           =.  fields.update
             (~(put by fields.update) %'$og_title' title)
           =.  fields.update
@@ -422,6 +516,15 @@
           update
         ::  unknown invite type, ignore
         update
+      =^  caz=(list card)  open-describes
+        %+  roll  updates
+        |=  [[=token:reel update=metadata:reel] caz=(list card) =_open-describes]
+        =/  cad=card
+          [%pass /bait %agent [civ %bait] %poke bait-update+!>([token update])]
+        :-  [cad caz]
+        ?.  (~(has by ^open-describes) token)
+          open-describes
+        (~(put by open-describes) token &)
       [caz this]
     ==
   ::
@@ -448,15 +551,9 @@
         ?+    -.r-group.r-groups  ~
             %meta
           =*  meta  meta.r-group.r-groups
-          =+  nickname=(~(get cy:t our-profile) %nickname %text)
-          =/  group-title=@t
-            ?:  =('' title.meta)  'a Groupchat'
-            title.meta
           =/  title=@t
-            %-  crip
-            ?:  |(?=(~ nickname) =('' u.nickname))
-              "Tlon Messenger: You're Invited to a Groupchat"
-            "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
+            %-  group-og-title
+            [(~(get cy:t our-profile) %nickname %text) title.meta]
           %-  ~(gas by *(map field:reel cord))
           :~  %'invitedGroupTitle'^title.meta
               %'invitedGroupDescription'^description.meta
@@ -478,11 +575,13 @@
           our-metadata
         %+  ~(put by our-metadata)  u.token
         u.our-meta(fields (~(uni by fields.u.our-meta) fields.update))
+      =+  log=~(. l bowl 'flow'^s+'lure' 'lure-id'^s+id 'has-token'^s+?:(?=(^ token) 'true' 'false') ~)
       ::  update the bait provider if we are the group host
       ::
-      ?.  =(p.flag our.bowl)  `this
+      ?.  =(p.flag our.bowl)
+        `this
       :_  this
-      [%pass /update/group %agent [civ %bait] %poke bait-update-group+!>([flag update])]~
+      [%pass /bait %agent [civ %bait] %poke bait-update-group+!>([flag update])]~
     ==
   ::
       [%token-link @ name=@ ~]
@@ -518,7 +617,7 @@
       [%v1 %id-link id=*]
     =/  id  (crip +:(spud id.pole))
     ?~  token=(~(get by stable-id) id)  `this
-    ?:  (~(has in open-describes) u.token)
+    ?:  (~(has by open-describes) u.token)
       ::  when the confirmation comes back we'll send the fact
       `this
     =/  url  (cat 3 vic u.token)

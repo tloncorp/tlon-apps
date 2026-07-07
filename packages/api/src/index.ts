@@ -1,15 +1,22 @@
 export {
   HostingError,
+  awaitNodeTlonbotReady,
   checkPhoneVerify,
   clearShipRevivalStatus,
   getHostingHeartBeat,
   getHostingUser,
   getNodeStatus,
   getShipAccessCode,
+  getTlawnOAuthStatus,
   logInHostingUser,
+  markUserTlonbotEnabled,
   requestLoginOtp,
   requestPhoneVerify,
+  setShipRevivalStatus,
+  startTlawnOAuth,
+  setUserTlonbotEnabled,
   signUpHostingUser,
+  checkNodeIsTlonbotReady,
 } from './client/hostingApi';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
 export {
@@ -62,4 +69,6 @@ export {
   type Mention,
   type PostBlobDataEntry,
 } from './client/content-helpers';
+export { getTextContent } from './client/postContent';
+export { preSig } from './lib/urbit';
 export * from './client';

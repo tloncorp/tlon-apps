@@ -1,37 +1,47 @@
-import { getConstants } from '@tloncorp/shared/domain';
+import * as store from '@tloncorp/shared/store';
 import { Icon, Image, TlonText } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import { TLON_APP_STORE_URL, TLON_PLAY_STORE_URL } from '../../constants';
-import { useNag } from '../../hooks/useNag';
 
 export function MobileAppPromoBanner() {
   const [isVisible, setIsVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const isE2eRun = (globalThis as any).TLON_IS_E2E === true;
   const isWeb = Platform.OS === 'web';
 
-  const nag = useNag({
-    key: 'mobileAppPromoBanner',
-    refreshInterval: 0,
-    refreshCycle: 0,
-    initialDelay: 500,
-  });
+  const { data: settings, isLoading } = store.useSettings();
 
+  // Wait for settings to load from the server before deciding. The dismissal
+  // is persisted in settings-store (per-account, synced), so once dismissed it
+  // stays dismissed across reloads, payloads, and devices. `dismissed` hides it
+  // immediately on click, ahead of the settings write round-tripping.
+  const shouldShow =
+    isWeb &&
+    !isE2eRun &&
+    !isLoading &&
+    !dismissed &&
+    settings?.mobileAppPromoDismissed !== true;
+
+  // Default to hidden and only reveal after `shouldShow` has held for the
+  // delay. This debounces the initial settings load/sync so a late-arriving
+  // "dismissed" value suppresses the banner before it ever paints.
   useEffect(() => {
-    if (!isE2eRun && nag.shouldShow) {
-      const timer = setTimeout(() => setIsVisible(true), 300);
-      return () => clearTimeout(timer);
+    if (!shouldShow) {
+      setIsVisible(false);
+      return;
     }
-  }, [isE2eRun, nag.shouldShow]);
+    const timer = setTimeout(() => setIsVisible(true), 500);
+    return () => clearTimeout(timer);
+  }, [shouldShow]);
 
   const handleDismiss = useCallback(() => {
     setIsVisible(false);
-    setTimeout(() => {
-      nag.eliminate();
-    }, 200);
-  }, [nag]);
+    setDismissed(true);
+    store.dismissMobileAppPromo();
+  }, []);
 
   const handleLinkPress = useCallback((url: string) => {
     if (typeof window !== 'undefined') {
@@ -39,19 +49,12 @@ export function MobileAppPromoBanner() {
     }
   }, []);
 
-  if (!isWeb || isE2eRun || !nag.shouldShow) {
+  if (!isVisible) {
     return null;
   }
 
   return (
-    <View
-      position="absolute"
-      bottom="$xl"
-      left="$xl"
-      right="$xl"
-      pointerEvents={isVisible ? 'auto' : 'none'}
-      zIndex={10}
-    >
+    <View position="absolute" bottom="$xl" left="$xl" right="$xl" zIndex={10}>
       <View
         position="relative"
         backgroundColor="$background"

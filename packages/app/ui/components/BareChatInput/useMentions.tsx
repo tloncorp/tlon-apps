@@ -300,6 +300,14 @@ export const useMentions = ({
     setIsMentionModeActive(false);
   };
 
+  const resetMentionMode = () => {
+    setIsMentionModeActive(false);
+    setMentionStartIndex(null);
+    setMentionSearchText('');
+    setWasDismissedByEscape(false);
+    setLastDismissedTriggerIndex(null);
+  };
+
   return {
     mentions,
     validOptions,
@@ -313,5 +321,6 @@ export const useMentions = ({
     handleMentionEscape,
     handleMentionSoftDismiss,
     hasMentionCandidates,
+    resetMentionMode,
   };
 };

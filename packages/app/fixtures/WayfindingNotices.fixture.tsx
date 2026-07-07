@@ -4,6 +4,7 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { ScreenHeader } from '../ui';
 import WayfindingNotice, {
+  BotMentionTooltip,
   ChatInputTooltip,
   CollectionInputTooltip,
   HomeAddTooltip,
@@ -110,6 +111,39 @@ function ChatInputTooltipFixture() {
           />
         </XStack>
         <ChatInputTooltip />
+      </YStack>
+    </FixtureWrapper>
+  );
+}
+
+function BotMentionTooltipFixture() {
+  return (
+    <FixtureWrapper fillWidth fillHeight safeArea>
+      <YStack flex={1} position="relative">
+        <View flex={1} />
+        <XStack
+          height={60}
+          backgroundColor="$secondaryBackground"
+          alignItems="center"
+          paddingHorizontal="$l"
+          borderTopWidth={1}
+          borderColor="$border"
+        >
+          <View
+            flex={1}
+            height={40}
+            backgroundColor="$background"
+            borderRadius="$l"
+            marginRight="$m"
+          />
+          <View
+            width={40}
+            height={40}
+            backgroundColor="$primaryText"
+            borderRadius="$l"
+          />
+        </XStack>
+        <BotMentionTooltip />
       </YStack>
     </FixtureWrapper>
   );
@@ -242,6 +276,21 @@ function AllTooltipsFixture() {
 
         <YStack gap="$xl">
           <Text size="$label/l" color="$secondaryText">
+            Bot Mention Tooltip
+          </Text>
+          <YStack
+            height={150}
+            position="relative"
+            backgroundColor="$secondaryBackground"
+            borderRadius="$l"
+          >
+            <View flex={1} />
+            <BotMentionTooltip />
+          </YStack>
+        </YStack>
+
+        <YStack gap="$xl">
+          <Text size="$label/l" color="$secondaryText">
             Collection Input Tooltip
           </Text>
           <YStack
@@ -280,6 +329,7 @@ export default {
   'Customize Group Notice': <CustomizeGroupNoticeFixture />,
   'Home Add Tooltip': <HomeAddTooltipFixture />,
   'Chat Input Tooltip': <ChatInputTooltipFixture />,
+  'Bot Mention Tooltip': <BotMentionTooltipFixture />,
   'Collection Input Tooltip': <CollectionInputTooltipFixture />,
   'Notebook Input Tooltip': <NotebookInputTooltipFixture />,
   'All Tooltips': <AllTooltipsFixture />,

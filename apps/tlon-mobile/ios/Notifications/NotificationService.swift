@@ -33,6 +33,10 @@ class NotificationService: UNNotificationServiceExtension {
 
         // Store the JSON string in notification userInfo
         notification.userInfo["activityEventJsonString"] = activityEventJsonString
+        // Ensure `uid` is forwarded to JS on tap. The mutableCopy from
+        // bestAttemptContent inherits userInfo from the original request, but
+        // be explicit so a future refactor cannot drop it.
+        notification.userInfo["uid"] = uid
 
         // If we have a preview, make sure to fully replace server-provided title / body.
         notification.title = ""
@@ -132,6 +136,17 @@ class NotificationService: UNNotificationServiceExtension {
         return preview
     }
 
+    private func applyGenericMessage(_ message: String, notification: UNMutableNotificationContent) -> UNNotificationContent {
+        if notification.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            notification.title = "Tlon"
+        }
+        notification.body = message
+        notification.sound = UNNotificationSound.default
+        notification.interruptionLevel = .active
+        notification.userInfo["genericMessage"] = message
+        return notification
+    }
+
     override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
         self.contentHandler = contentHandler
         bestAttemptContent = (request.content.mutableCopy() as? UNMutableNotificationContent)
@@ -171,6 +186,17 @@ class NotificationService: UNNotificationServiceExtension {
               contentHandler(notifContent)
               return
 
+          case .message(let message):
+              let notifContent = bestAttemptContent ?? UNMutableNotificationContent()
+              let notification = notifContent.mutableCopy() as! UNMutableNotificationContent
+              let renderedNotification = applyGenericMessage(
+                message,
+                notification: notification
+              )
+              await NotificationLogger.logDelivery(properties: ["message": .string("Generic notification delivered successfully")])
+              contentHandler(renderedNotification)
+              return
+
           case .dismiss:
               // Should not be hit, but set up fallback notification just in case.
               // We can't prevent this alert from being shown, so at least make it truthful.
@@ -202,10 +228,6 @@ class NotificationService: UNNotificationServiceExtension {
               }
 
               await NotificationLogger.logDelivery(properties: ["message": .string("Fallback notification delivered successfully")])
-              contentHandler(bestAttemptContent!)
-              return
-
-            case .dismiss:
               contentHandler(bestAttemptContent!)
               return
             }

@@ -2,6 +2,7 @@ import { Text } from '@tloncorp/ui';
 
 import type { MinimalRenderItemProps } from '../../contexts/componentsKits/componentsKits';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
+import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { NotebookPostHeader } from './shared';
 
 export function NotebookPostContent({
@@ -43,6 +44,8 @@ export function NotebookPostContent({
           textColor="$tertiaryText"
         />
       ) : null}
+
+      <ReactionsDisplay post={post} minimal={true} />
     </>
   );
 }

@@ -1,6 +1,9 @@
 // tamagui-ignore
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  NavigationIndependentTree,
+} from '@react-navigation/native';
 import { internalConfigureClient } from '@tloncorp/api';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { type PropsWithChildren, useEffect, useState } from 'react';
@@ -46,11 +49,13 @@ function MockedUrbitClientProvider({ children }: PropsWithChildren<object>) {
 export const FixtureWrapper = (props: FixtureWrapperProps) => {
   return (
     <ToastProvider>
-      <NavigationContainer>
-        <MockedUrbitClientProvider>
-          <InnerWrapper {...props} />
-        </MockedUrbitClientProvider>
-      </NavigationContainer>
+      <NavigationIndependentTree>
+        <NavigationContainer navigationInChildEnabled>
+          <MockedUrbitClientProvider>
+            <InnerWrapper {...props} />
+          </MockedUrbitClientProvider>
+        </NavigationContainer>
+      </NavigationIndependentTree>
     </ToastProvider>
   );
 };

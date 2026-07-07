@@ -26,6 +26,25 @@
     ==
   ::  $foreigns: depends on $foreign
   +$  foreigns  (map flag foreign)
+  ::  $r-groups: depends on $r-group
+  +$  r-groups  [=flag =r-group]
+  ::  $r-group: modified, depends on $group, $r-entry, $r-section.
+  ::
+  ::  %active-channel: per-nest active-channels (membership) delta; local-only
+  ::
+  +$  r-group
+    $%  [%create =group]
+        [%meta meta=data:meta]
+        [%entry =r-entry]
+        [%seat ships=(set ship) =r-seat]
+        [%role roles=(set role-id) =r-role]
+        [%channel =nest =r-channel]
+        [%section =section-id =r-section]
+        [%section-order order=(list section-id)]
+        [%flag-content =nest =plan src=ship]
+        [%active-channel =nest joined=?]
+        [%delete ~]
+    ==
   --
 ++  v9
   =,  v8

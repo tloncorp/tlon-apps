@@ -1,8 +1,18 @@
-import { AppThemeName, StorageConfiguration } from '@tloncorp/api';
-import type { StorageCredentials, StorageService } from '@tloncorp/api/urbit';
+import type { StorageConfiguration } from '@tloncorp/api/client/upload';
 import * as ub from '@tloncorp/api/urbit';
+import type { AppThemeName } from '@tloncorp/api/urbit/settings';
+import type {
+  StorageCredentials,
+  StorageService,
+} from '@tloncorp/api/urbit/storage';
 
-import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
+import type { Attachment } from '../domain';
+import {
+  NodeBootPhase,
+  OnboardingFlow,
+  SignupParams,
+  WayfindingProgress,
+} from '../domain';
 import { Lure } from '../logic';
 import { createStorageItem } from './storageItem';
 
@@ -111,6 +121,57 @@ export const signupData = createStorageItem<SignupParams>({
   },
 });
 
+export type TlonbotRevivalStage =
+  | 'collecting'
+  | 'settingUp'
+  | 'group'
+  | 'invite';
+
+export type TlonbotRevivalSetup = Pick<
+  SignupParams,
+  'nickname' | 'notificationToken' | 'notificationLevel'
+> & {
+  pending: boolean;
+  applied?: boolean;
+  provisioningStarted?: boolean;
+  stage?: TlonbotRevivalStage;
+  botName?: string;
+  botAvatarUrl?: string | null;
+  botAvatarUploadIntent?: Attachment.UploadIntent | null;
+  botProvider?: string;
+  botModel?: string;
+};
+
+export const tlonbotRevivalSetup = createStorageItem<TlonbotRevivalSetup>({
+  key: 'tlonbotRevivalSetup',
+  defaultValue: {
+    pending: false,
+  },
+});
+
+export type TlonbotRevivalDeferredConfig = {
+  profileNickname?: string;
+  notificationToken?: string;
+  notificationLevel?: ub.NotificationLevel;
+  botName?: string;
+  botAvatarUrl?: string | null;
+  botAvatarUploadIntent?: Attachment.UploadIntent | null;
+  botProvider?: string;
+  botModel?: string;
+};
+
+export const tlonbotRevivalDeferredConfig =
+  createStorageItem<TlonbotRevivalDeferredConfig>({
+    key: 'tlonbotRevivalDeferredConfig',
+    defaultValue: {},
+  });
+
+export const didClearPreviousInstall = createStorageItem<boolean>({
+  key: 'didClearPreviousInstall',
+  defaultValue: false,
+  persistAfterLogout: true,
+});
+
 export const lastAppVersion = createStorageItem<string | null>({
   key: 'lastAppVersion',
   defaultValue: null,
@@ -136,6 +197,11 @@ export const hasClearedLegacyWebTelemetry = createStorageItem<boolean>({
 export const lastAnonymousAppOpenAt = createStorageItem<number | null>({
   key: 'lastAnonymousAppOpenAt',
   defaultValue: null,
+});
+
+export const webAppSplashOpenCount = createStorageItem<number>({
+  key: 'webAppSplashOpenCount',
+  defaultValue: 0,
 });
 
 export const finishingSelfHostedLogin = createStorageItem<boolean>({
@@ -197,6 +263,22 @@ export const channelSortPreference = createStorageItem<ChannelSortPreference>({
   defaultValue: 'recency',
 });
 
+export type NotesNoteDraft = {
+  title: string;
+  body: string;
+  baseRevision: number;
+  stashedAt: number;
+};
+
+/** Crash insurance for the notes editor: drafts stashed between autosave
+ * cycles, keyed by `${notebookFlag}/${noteId}`. Cleared once saved. */
+export const notesNoteDrafts = createStorageItem<
+  Record<string, NotesNoteDraft>
+>({
+  key: 'notesNoteDrafts',
+  defaultValue: {},
+});
+
 export const invitation = createStorageItem<Lure | null>({
   key: 'lure',
   defaultValue: null,
@@ -208,6 +290,7 @@ export type ShipInfo = {
   shipUrl: string | undefined;
   authCookie: string | undefined;
   needsSplashSequence?: boolean;
+  splashSequenceMode?: OnboardingFlow;
 };
 
 export const shipInfo = createStorageItem<ShipInfo | null>({
@@ -218,6 +301,17 @@ export const shipInfo = createStorageItem<ShipInfo | null>({
 export const featureFlags = createStorageItem<any>({
   key: 'featureFlags',
   defaultValue: null,
+});
+
+export const contextLensGatewayUrl = createStorageItem<string | null>({
+  key: 'contextLensGatewayUrl',
+  defaultValue: null,
+});
+
+export const contextLensGatewayToken = createStorageItem<string | null>({
+  key: 'contextLensGatewayToken',
+  defaultValue: null,
+  isSecure: true,
 });
 
 export const eulaAgreed = createStorageItem<boolean>({
@@ -335,6 +429,7 @@ export const wayfindingProgress = createStorageItem<WayfindingProgress>({
     tappedAddNote: true,
     tappedAddCollection: true,
     tappedChatInput: true,
+    tappedHomeGroupHint: true,
   },
 });
 

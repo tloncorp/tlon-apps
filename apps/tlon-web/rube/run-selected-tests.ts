@@ -402,7 +402,7 @@ async function main() {
     await new Promise<void>((resolve) => {
       let dots = 0;
       const startTime = Date.now();
-      let timer: NodeJS.Timeout | null = null;
+      let timer: ReturnType<typeof setTimeout> | null = null;
 
       console.log('⏳ Waiting for ships to complete setup');
 

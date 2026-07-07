@@ -35,6 +35,7 @@ export function ChatMessageActions({
   onReply,
   onEdit,
   onViewReactions,
+  onViewBotRun,
   onShowEmojiPicker,
   trigger,
   onOpenChange,
@@ -176,6 +177,7 @@ export function ChatMessageActions({
                 onReply={onReply}
                 onEdit={onEdit}
                 onViewReactions={onViewReactions}
+                onViewBotRun={onViewBotRun}
               />
             </YStack>
           </Popover.Content>
@@ -184,14 +186,15 @@ export function ChatMessageActions({
     }
     case 'immediate': {
       return (
-        <Animated.View style={animatedStyles}>
+        <Animated.View style={animatedStyles} pointerEvents="box-none">
           <View
             width={width}
             height={height}
             onLayout={handleLayout}
             paddingHorizontal="$xl"
+            pointerEvents="box-none"
           >
-            <YStack gap="$xs">
+            <YStack gap="$xs" pointerEvents="box-none">
               {canWrite && (
                 <EmojiToolbar
                   post={post}
@@ -207,6 +210,7 @@ export function ChatMessageActions({
                 onReply={onReply}
                 onEdit={onEdit}
                 onViewReactions={onViewReactions}
+                onViewBotRun={onViewBotRun}
               />
             </YStack>
           </View>

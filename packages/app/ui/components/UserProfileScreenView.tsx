@@ -36,6 +36,7 @@ import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
+import { ListItem } from './ListItem';
 import {
   PhoneAttestDisplay,
   TwitterAttestDisplay,
@@ -46,6 +47,7 @@ import { useBoundHandler } from './listItems/listItemUtils';
 interface Props {
   userId: string;
   connectionStatus: api.ConnectionStatus | null;
+  onPressBotSettings?: () => void;
   onPressGroup: (group: db.Group) => void;
 }
 
@@ -132,6 +134,10 @@ export function UserProfileScreenView(props: Props) {
           <ProfileButtons userId={props.userId} contact={userContact} />
         ) : null}
 
+        {props.onPressBotSettings ? (
+          <BotSettingsListItem onPress={props.onPressBotSettings} />
+        ) : null}
+
         {userContact?.status && (
           <StatusDisplay status={userContact?.status ?? ''} />
         )}
@@ -163,6 +169,41 @@ export function UserProfileScreenView(props: Props) {
           onPressGroup={onPressGroup}
         />
       </ScrollView>
+    </View>
+  );
+}
+
+function BotSettingsListItem({ onPress }: { onPress: () => void }) {
+  const handlePress = useCallback(() => {
+    onPress();
+    triggerHaptic('baseButtonClick');
+  }, [onPress]);
+
+  return (
+    <View paddingHorizontal="$xl" width="100%">
+      <Pressable
+        borderRadius="$2xl"
+        onPress={handlePress}
+        pressStyle={{ backgroundColor: '$secondaryBackground' }}
+      >
+        <ListItem
+          alignItems="center"
+          backgroundColor="$background"
+          borderRadius="$2xl"
+          padding="$l"
+        >
+          <ListItem.SystemIcon icon="Face" rounded />
+          <ListItem.MainContent>
+            <ListItem.Title>Bot settings</ListItem.Title>
+          </ListItem.MainContent>
+          <ListItem.EndContent>
+            <ListItem.SystemIcon
+              icon="ChevronRight"
+              backgroundColor="$transparent"
+            />
+          </ListItem.EndContent>
+        </ListItem>
+      </Pressable>
     </View>
   );
 }
@@ -534,8 +575,6 @@ export function ProfileButton({
     >
       <Button.Text
         color={hero ? '$background' : '$primaryText'}
-        textWrap="nowrap"
-        wordWrap="unset"
         whiteSpace="nowrap"
         trimmed={false}
       >

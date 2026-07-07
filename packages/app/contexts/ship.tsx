@@ -67,6 +67,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
       authCookie,
       authType,
       needsSplashSequence,
+      splashSequenceMode,
     }: ShipInfo) => {
       // Clear all saved ship info if either required field is empty
       if (!ship || !shipUrl) {
@@ -91,6 +92,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
         authCookie,
         authType,
         needsSplashSequence,
+        splashSequenceMode,
       };
 
       // Save to React Native stoage
@@ -177,10 +179,12 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
     setShipInfo({
       ...shipInfo,
       needsSplashSequence: false,
+      splashSequenceMode: undefined,
     });
     storage.shipInfo.setValue({
       ...shipInfo,
       needsSplashSequence: false,
+      splashSequenceMode: undefined,
     });
   }, [shipInfo]);
 

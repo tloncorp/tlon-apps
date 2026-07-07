@@ -36,12 +36,14 @@ import {
   isDmChannelId,
   isGroupChannelId,
   isGroupDmChannelId,
+  parseGroupChannelId,
   toAuthor,
   toPostEssay,
   udToDate,
   with404Handler,
 } from './apiUtils';
 import { PlaintextPreviewConfig, getTextContent } from './postContent';
+import { referenceLookupId } from './references';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
@@ -95,7 +97,17 @@ export async function getPostReference({
   postId: string;
   replyId?: string;
 }) {
-  const path = `/v5/said/${channelId}/post/${postId}${
+  // The v5 said watch path requires an `ask` ship before the nest:
+  // /v5/said/<ask>/<kind>/<host>/<name>/post/<id>[/<reply>]. `ask` is the ship
+  // the channels agent forwards the subscription to, so it must be the channel
+  // host — otherwise the path fails to match and the reference never hydrates
+  // over the network (it only resolves when the post is already in the local
+  // db). References are only ever to group channels; guard so a non-group id
+  // (e.g. a DM/club pinned post) doesn't produce an `ask` of `undefined`.
+  const askPrefix = isGroupChannelId(channelId)
+    ? `${parseGroupChannelId(channelId).host}/`
+    : '';
+  const path = `/v5/said/${askPrefix}${channelId}/post/${postId}${
     replyId ? '/' + replyId : ''
   }`;
   const data = await subscribeOnce<ub.Said>(
@@ -105,9 +117,10 @@ export async function getPostReference({
     { tag: 'getPostReference' }
   );
   const post = toPostReference(data);
-  // The returned post id can be different than the postId we requested?? But the
-  // post is going to be requested by the original id, so set manually :/
-  post.id = postId;
+  // The returned post id can be different than the id we requested. Key the
+  // post by the id callers read back: the reply's own id for reply refs,
+  // otherwise the (top-level) post id.
+  post.id = referenceLookupId({ postId, replyId });
   return post;
 }
 
@@ -454,6 +467,22 @@ export const getChannelPosts = async ({
   includeReplies = false,
   sequenceBoundary = null,
 }: GetChannelPostsOptions) => {
+  // third-party channels (e.g. notes) are served by their backing agent, not
+  // %channels. Rendering is delegated to that agent's WebView, so skip post
+  // fetching here.
+  if (ub.isThirdPartyChannel(channelId)) {
+    return {
+      posts: [],
+      newer: null,
+      older: null,
+      totalPosts: 0,
+      deletedPosts: [],
+      numStubs: 0,
+      numDeletes: 0,
+      newestSequenceNum: null,
+    };
+  }
+
   const type = getChannelIdType(channelId);
   const app = type === 'channel' ? 'channels' : 'chat';
   const path = formatScryPath(

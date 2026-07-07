@@ -1,0 +1,63 @@
+name: Hermes Tlon Adapter CI
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "packages/hermes-tlon-adapter/**"
+      - "packages/tlon-bot-e2e/**"
+      - "packages/tlon-skill/**"
+      - "packages/api/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/hermes-ci.yml"
+
+jobs:
+  shared-e2e:
+    name: Shared E2E
+    runs-on: blacksmith-8vcpu-ubuntu-2204
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Cache fake ship archives
+        uses: actions/cache@v4
+        with:
+          path: .cache/tlon-bot-e2e/fake-ships
+          key: tlon-bot-e2e-fake-ships-v1
+
+      - name: Prepare fake ship cache
+        run: mkdir -p .cache/tlon-bot-e2e/fake-ships
+
+      - name: Typecheck shared E2E harness
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' tsc
+
+      - name: Run shared E2E unit tests
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:unit
+
+      - name: Run Hermes shared E2E
+        env:
+          FAKE_SHIP_CACHE_DIR:
+            ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
+          TLON_BOT_E2E_RUN_ID:
+            ${{ github.run_id }}-${{ github.run_attempt }}-hermes
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:hermes
+
+      - name: Run Hermes package smoke E2E
+        env:
+          FAKE_SHIP_CACHE_DIR:
+            ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
+          TLON_BOT_E2E_RUN_ID:
+            ${{ github.run_id }}-${{ github.run_attempt }}-hermes-package
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:hermes:package

@@ -18,11 +18,11 @@ module.exports = {
     react: {
       version: 'detect',
     },
-    "import-x/parsers": {
-      "@typescript-eslint/parser": [".ts", ".tsx"],
+    'import-x/parsers': {
+      '@typescript-eslint/parser': ['.ts', '.tsx'],
     },
-    "import-x/resolver": {
-      "typescript": true,
+    'import-x/resolver': {
+      typescript: true,
     },
   },
   parser: '@typescript-eslint/parser',
@@ -33,6 +33,16 @@ module.exports = {
       files: ['**/*.test.{ts,tsx}'],
       rules: {
         'import-x/no-restricted-paths': 'off',
+      },
+    },
+    {
+      files: ['packages/openclaw/**/*.ts'],
+      rules: {
+        // Block-scoped function declarations are well-defined in ESM/strict
+        // mode (ESLint 9 dropped this rule from eslint:recommended for that
+        // reason); the openclaw plugin predates this config and uses them
+        // heavily in its monitor loop.
+        'no-inner-declarations': 'off',
       },
     },
     {
@@ -72,9 +82,9 @@ module.exports = {
           ...importBoundaries({
             basePath: './packages/api/src',
             zones: {
-              'lib': { forbidImportFrom: ['http-api', 'urbit', 'client'] },
+              lib: { forbidImportFrom: ['http-api', 'urbit', 'client'] },
               'http-api': { forbidImportFrom: ['urbit', 'client'] },
-              'urbit': { forbidImportFrom: ['client'] },
+              urbit: { forbidImportFrom: ['client'] },
             },
           }),
           // shared/ submodules (top is forbidden from import from lower):
@@ -85,9 +95,9 @@ module.exports = {
           ...importBoundaries({
             basePath: './packages/shared/src',
             zones: {
-              'utils': { forbidImportFrom: ['logic', 'db', 'store'] },
-              'logic': { forbidImportFrom: ['db', 'store'] },
-              'db': { forbidImportFrom: ['store'] },
+              utils: { forbidImportFrom: ['logic', 'db', 'store'] },
+              logic: { forbidImportFrom: ['db', 'store'] },
+              db: { forbidImportFrom: ['store'] },
             },
           }),
         ],
@@ -106,6 +116,25 @@ module.exports = {
     'react/prop-types': 'off',
     'react/display-name': 'warn',
     'no-useless-escape': 'warn',
+    'no-restricted-imports': [
+      'error',
+      {
+        paths: [
+          {
+            name: 'tamagui',
+            importNames: ['ZStack'],
+            message:
+              'Import ZStack from @tloncorp/ui instead. The repo uses a local native-safe implementation.',
+          },
+          {
+            name: '@tamagui/stacks',
+            importNames: ['ZStack'],
+            message:
+              'Import ZStack from @tloncorp/ui instead. The repo uses a local native-safe implementation.',
+          },
+        ],
+      },
+    ],
     'react-hooks/exhaustive-deps': [
       'warn',
       {
@@ -143,6 +172,42 @@ module.exports = {
           'ImportSpecifier[imported.name="reset"][parent.parent.source.value="@react-navigation/native"]',
         message:
           'Please use the useTypedReset() hook instead of importing reset from @react-navigation/native for type safety.',
+      },
+      {
+        // `navigation.navigate('ChatList' | 'Activity' | 'Contacts' | 'Settings', …)`.
+        // Also matches TS casts like `navigate('ChatList' as never)`, which
+        // wrap the literal in a TSAsExpression.
+        // The escape hatch requires an ObjectExpression third argument
+        // containing `pop: true` (including quoted `"pop"` keys).
+        selector:
+          'CallExpression[callee.property.name="navigate"]' +
+          ':matches(' +
+          '[arguments.0.value=/^(ChatList|Activity|Contacts|Settings)$/],' +
+          '[arguments.0.expression.value=/^(ChatList|Activity|Contacts|Settings)$/]' +
+          ')' +
+          ':not(:matches(' +
+          '[arguments.2.type="ObjectExpression"]:has(Property[key.name="pop"][value.value=true]),' +
+          '[arguments.2.type="ObjectExpression"]:has(Property[key.value="pop"][value.value=true])' +
+          '))',
+        message:
+          "navigate() to a top-level tab route must pass { pop: true } as the third argument. React Navigation 7's navigate() pushes a new screen by default — without pop:true this causes duplicate screen mounts and perceived input delay on Android. See TLON-5598.",
+      },
+      {
+        // Destructured `navigate('ChatList' | ...)` (e.g. `const { navigate } = props.navigation`).
+        // Requires an ObjectExpression third argument containing
+        // `pop: true` (including quoted `"pop"` keys).
+        selector:
+          'CallExpression[callee.name="navigate"]' +
+          ':matches(' +
+          '[arguments.0.value=/^(ChatList|Activity|Contacts|Settings)$/],' +
+          '[arguments.0.expression.value=/^(ChatList|Activity|Contacts|Settings)$/]' +
+          ')' +
+          ':not(:matches(' +
+          '[arguments.2.type="ObjectExpression"]:has(Property[key.name="pop"][value.value=true]),' +
+          '[arguments.2.type="ObjectExpression"]:has(Property[key.value="pop"][value.value=true])' +
+          '))',
+        message:
+          "navigate() to a top-level tab route must pass { pop: true } as the third argument. React Navigation 7's navigate() pushes a new screen by default — without pop:true this causes duplicate screen mounts and perceived input delay on Android. See TLON-5598.",
       },
     ],
   },

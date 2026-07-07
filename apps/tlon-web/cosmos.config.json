@@ -1,12 +1,15 @@
 {
   "$schema": "http://json.schemastore.org/cosmos-config",
+  "hostname": "localhost",
+  "port": 5555,
   "vite": {
-    "configPath": "./vite.config.mts"
+    "configPath": "./vite.cosmos.config.mts",
+    "mainScriptUrl": "/src/main.tsx"
   },
   "dom": {
     "containerQuerySelector": "#app"
   },
+  "globalImports": ["./tamagui.config.ts"],
   "fixturesLocation": "../../packages/app/fixtures",
-  "rendererUrl": "http://localhost:5050/apps/groups/",
   "plugins": ["react-cosmos-plugin-vite"]
 }

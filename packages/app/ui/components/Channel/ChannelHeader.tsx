@@ -1,9 +1,10 @@
 import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useContact } from '@tloncorp/shared/store';
+import { useContact, useNotesDeskAvailable } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Fragment,
+  ReactElement,
   createContext,
   useCallback,
   useContext,
@@ -20,8 +21,10 @@ import { GroupAvatar } from '../GroupAvatar';
 import { ScreenHeader } from '../ScreenHeader';
 
 export interface ChannelHeaderItemsContextValue {
-  registerItem: (options: { item: JSX.Element }) => { remove: () => void };
-  items: readonly JSX.Element[];
+  registerItem: (options: { item: ReactElement }) => { remove: () => void };
+  setLoadingSubtitle: (subtitle: string | null) => void;
+  items: readonly ReactElement[];
+  loadingSubtitle: string | null;
 }
 
 const ChannelHeaderItemsContext =
@@ -40,11 +43,12 @@ const ChannelHeaderItemsContext =
 export function ChannelHeaderItemsProvider({
   children,
 }: {
-  children: JSX.Element;
+  children: ReactElement;
 }) {
-  const [items, setItems] = useState<JSX.Element[]>([]);
+  const [items, setItems] = useState<ReactElement[]>([]);
+  const [loadingSubtitle, setLoadingSubtitle] = useState<string | null>(null);
   const registerItem = useCallback(
-    ({ item }: { item: JSX.Element }) => {
+    ({ item }: { item: ReactElement }) => {
       setItems((prev) => [...prev, item]);
       return {
         remove: () => {
@@ -55,13 +59,15 @@ export function ChannelHeaderItemsProvider({
     [setItems]
   );
   return (
-    <ChannelHeaderItemsContext.Provider value={{ registerItem, items }}>
+    <ChannelHeaderItemsContext.Provider
+      value={{ registerItem, setLoadingSubtitle, items, loadingSubtitle }}
+    >
       {children}
     </ChannelHeaderItemsContext.Provider>
   );
 }
 
-export function useRegisterChannelHeaderItem(item: JSX.Element | null) {
+export function useRegisterChannelHeaderItem(item: ReactElement | null) {
   const registerItem = useContext(ChannelHeaderItemsContext)?.registerItem;
 
   // NB: Since we're mutating the ChannelHeaderItemsContext in this effect, we
@@ -78,6 +84,20 @@ export function useRegisterChannelHeaderItem(item: JSX.Element | null) {
   }, [registerItem, item]);
 }
 
+export function useRegisterChannelHeaderLoadingSubtitle(
+  loadingSubtitle: string | null
+) {
+  const setLoadingSubtitle = useContext(
+    ChannelHeaderItemsContext
+  )?.setLoadingSubtitle;
+
+  useEffect(() => {
+    if (!setLoadingSubtitle) return;
+    setLoadingSubtitle(loadingSubtitle);
+    return () => setLoadingSubtitle(null);
+  }, [loadingSubtitle, setLoadingSubtitle]);
+}
+
 export function ChannelHeader({
   title,
   titleIcon,
@@ -89,10 +109,15 @@ export function ChannelHeader({
   goToEdit,
   goToChatDetails,
   goToProfile,
+  onToggleContextLens,
+  contextLensOpen = false,
+  contextLensActive = false,
   showSpinner,
   loadingSubtitle = 'Loading messages…',
+  hideIdentity = false,
   showSearchButton = false,
   showEditButton = false,
+  preferProvidedTitle = false,
   post,
 }: {
   title: string;
@@ -105,10 +130,15 @@ export function ChannelHeader({
   goToEdit?: () => void;
   goToChatDetails?: () => void;
   goToProfile?: () => void;
+  onToggleContextLens?: () => void;
+  contextLensOpen?: boolean;
+  contextLensActive?: boolean;
   showSpinner?: boolean;
-  loadingSubtitle?: string;
+  loadingSubtitle?: string | null;
+  hideIdentity?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
+  preferProvidedTitle?: boolean;
   post?: db.Post;
 }) {
   const connectionStatus = useConnectionStatus();
@@ -119,21 +149,29 @@ export function ChannelHeader({
   // Get contact info for 1:1 DMs - only fetch when we have a valid contact ID
   const dmContactId = channel.type === 'dm' ? channel.contactId : null;
   const { data: dmContact } = useContact({ id: dmContactId || '' });
+  const { data: notesAvailable = false } = useNotesDeskAvailable();
 
-  const getChannelTypeName = (channelType: db.Channel['type']) => {
-    switch (channelType) {
-      case 'chat':
-        return 'Chat channel';
-      case 'notebook':
-        return 'Notebook channel';
-      case 'gallery':
-        return 'Gallery channel';
-      default:
-        return 'Channel';
-    }
-  };
+  const getChannelTypeName = useCallback(
+    (channelType: db.Channel['type']) => {
+      switch (channelType) {
+        case 'chat':
+          return 'Chat channel';
+        case 'notebook':
+          return notesAvailable ? 'Bulletin channel' : 'Notebook channel';
+        case 'notes':
+          return 'Notebook channel';
+        case 'gallery':
+          return 'Gallery channel';
+        default:
+          return 'Channel';
+      }
+    },
+    [notesAvailable]
+  );
 
-  const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
+  const context = useContext(ChannelHeaderItemsContext);
+  const contextItems = context?.items ?? [];
+  const registeredLoadingSubtitle = context?.loadingSubtitle ?? null;
   const isWindowNarrow = useIsWindowNarrow();
 
   const channelHost = useMemo(() => {
@@ -141,8 +179,8 @@ export function ChannelHeader({
   }, [channel, currentUserId]);
 
   const titleText = useMemo(() => {
-    return chatTitle ?? title;
-  }, [chatTitle, title]);
+    return preferProvidedTitle ? title : chatTitle ?? title;
+  }, [chatTitle, preferProvidedTitle, title]);
 
   const subtitleText = useMemo(() => {
     if (connectionStatus !== 'Connected') {
@@ -218,6 +256,7 @@ export function ChannelHeader({
     if (
       channel.type === 'chat' ||
       channel.type === 'notebook' ||
+      channel.type === 'notes' ||
       channel.type === 'gallery'
     ) {
       const channelType = getChannelTypeName(channel.type);
@@ -234,16 +273,20 @@ export function ChannelHeader({
     description,
     dmContactId,
     dmContact?.status,
+    getChannelTypeName,
     post,
   ]);
 
   const displayTitle = useDebouncedValue(titleText, 300);
   const displaySubtitle = useDebouncedValue(subtitleText, 300);
-  const headerLoadingSubtitle = showSpinner
-    ? loadingSubtitle
-    : connectionStatus !== 'Connected'
-      ? subtitleText
-      : null;
+  const headerLoadingSubtitle = registeredLoadingSubtitle
+    ? registeredLoadingSubtitle
+    : showSpinner
+      ? loadingSubtitle
+      : connectionStatus !== 'Connected'
+        ? subtitleText
+        : null;
+  const headerTitle = displayTitle;
 
   const avatarElement = useMemo(() => {
     // For DMs, show the other user's avatar
@@ -299,11 +342,12 @@ export function ChannelHeader({
       return goToProfile;
     }
 
-    // For group DMs, group chats, notebooks, and galleries, navigate to chat details/group info
+    // For group DMs, group chats, notebooks, notes, and galleries, navigate to chat details/group info
     if (
       (channel.type === 'groupDm' ||
         channel.type === 'chat' ||
         channel.type === 'notebook' ||
+        channel.type === 'notes' ||
         channel.type === 'gallery') &&
       goToChatDetails
     ) {
@@ -315,21 +359,27 @@ export function ChannelHeader({
 
   return (
     <ScreenHeader
-      title={displayTitle}
+      title={headerTitle}
       titleIcon={
-        <>
-          {avatarElement || titleIcon}
-          {channelHost && !isWindowNarrow && (
-            <ConnectionStatus contactId={channelHost} type="indicator" />
-          )}
-        </>
+        hideIdentity ? null : (
+          <>
+            {avatarElement || titleIcon}
+            {channelHost && !isWindowNarrow && (
+              <ConnectionStatus contactId={channelHost} type="indicator" />
+            )}
+          </>
+        )
       }
-      subtitle={displaySubtitle}
+      subtitle={hideIdentity ? undefined : displaySubtitle}
       testID="ChannelHeaderTitle"
-      showSubtitle
+      showSubtitle={!hideIdentity}
       borderBottom
-      loadingSubtitle={headerLoadingSubtitle}
-      onTitlePress={handleTitlePress}
+      loadingSubtitle={
+        hideIdentity && !registeredLoadingSubtitle
+          ? null
+          : headerLoadingSubtitle
+      }
+      onTitlePress={hideIdentity ? undefined : handleTitlePress}
       useHorizontalTitleLayout={!isWindowNarrow}
       leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
       rightControls={
@@ -349,6 +399,17 @@ export function ChannelHeader({
             >
               Edit
             </ScreenHeader.TextButton>
+          )}
+          {onToggleContextLens && (
+            <ScreenHeader.IconButton
+              type="RightSidebar"
+              onPress={onToggleContextLens}
+              testID="ContextLensHeaderButton"
+              color={contextLensActive ? '$positiveActionText' : '$primaryText'}
+              backgroundColor={
+                contextLensOpen ? '$secondaryBackground' : 'transparent'
+              }
+            />
           )}
         </>
       }

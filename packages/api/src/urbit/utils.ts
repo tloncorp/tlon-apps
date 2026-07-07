@@ -13,8 +13,8 @@ import type * as ubg from './groups';
 
 const logger = createDevLogger('urbitUtils', false);
 
-type App = 'chat' | 'heap' | 'diary';
-const APP_PREFIXES = ['chat', 'heap', 'diary'];
+type App = 'chat' | 'heap' | 'diary' | 'notes';
+const APP_PREFIXES = ['chat', 'heap', 'diary', 'notes'];
 
 export function checkNest(nest: string): boolean {
   const parts = nest.split('/');
@@ -121,6 +121,29 @@ export function idIsNest(id: string) {
   return id.split('/').length === 3;
 }
 
+// The kind segment of a nest names its backing agent. %channels backs the
+// built-in chat/diary/heap kinds; any other kind is backed by a separate,
+// third-party agent (e.g. %notes) bound to the group via %groups.
+export const CHANNELS_BACKED_KINDS = ['chat', 'diary', 'heap'];
+
+// The third-party agent backing a channel, or null when it's %channels-backed
+// (chat/diary/heap) or not a nest at all (DMs, clubs).
+// e.g. 'notes/~ship/x' -> 'notes', 'chat/~ship/x' -> null.
+export function getThirdPartyChannelAgent(channelId: string): string | null {
+  if (!idIsNest(channelId)) {
+    return null;
+  }
+  const [kind] = channelId.split('/');
+  return CHANNELS_BACKED_KINDS.includes(kind) ? null : kind;
+}
+
+// True when a channel is backed by a third-party agent rather than %channels
+// (e.g. %notes), so %channels-specific affordances (posts, hooks, activity
+// unreads, join/leave pokes) don't apply and must route to that agent instead.
+export function isThirdPartyChannel(channelId: string): boolean {
+  return getThirdPartyChannelAgent(channelId) !== null;
+}
+
 export function getChannelType(channelId: string) {
   if (!idIsNest(channelId)) {
     if (whomIsDm(channelId)) {
@@ -138,6 +161,8 @@ export function getChannelType(channelId: string) {
     return 'gallery';
   } else if (app === 'diary') {
     return 'notebook';
+  } else if (app === 'notes') {
+    return 'notes';
   } else {
     return 'chat';
   }
@@ -152,6 +177,8 @@ export function getChannelKindFromType(
     return 'heap';
   } else if (type === 'notebook') {
     return 'diary';
+  } else if (type === 'notes') {
+    return 'notes';
   } else {
     return 'chat';
   }

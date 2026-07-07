@@ -65,7 +65,9 @@ export const MessagesSidebar = memo(
     }, [syncLoadingSubtitle, chats]);
 
     /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
-    const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
+    const connectionTimeout = useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
     const connectionAttempts = useRef(0);
 
     useEffect(() => {
@@ -200,8 +202,15 @@ export const MessagesSidebar = memo(
                   </>
                 }
               />
-              {chats && chats.unpinned.length ? (
-                <ChatList data={displayData} onPressItem={onPressChat} />
+              {chats &&
+              displayData.some((section) => section.data.length > 0) ? (
+                <ChatList
+                  data={displayData}
+                  allPinnedChats={resolvedChats.pinned}
+                  onPressItem={onPressChat}
+                  disableScrollAnchoring
+                  scrollerTestID="MessagesSidebarChatScroller"
+                />
               ) : null}
               <GroupPreviewSheet
                 open={!!selectedGroup}

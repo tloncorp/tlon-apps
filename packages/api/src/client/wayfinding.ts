@@ -1,5 +1,9 @@
 import type * as db from '../types/models';
-import { PersonalGroupNames, PersonalGroupSlugs } from '../types/wayfinding';
+import {
+  BotHomeGroupSlugs,
+  PersonalGroupNames,
+  PersonalGroupSlugs,
+} from '../types/wayfinding';
 import { getChannelKindFromType } from '../urbit';
 
 export function getPersonalGroupKeys(currentUserId: string) {
@@ -79,6 +83,13 @@ export function isPersonalGroup(
 
 export function isPersonalChatChannel(channelId: string): boolean {
   return channelId.includes(PersonalGroupSlugs.chatSlug);
+}
+
+export function isBotHomeGroupChatChannel(
+  currentUserId: string,
+  channelId: string
+): boolean {
+  return channelId.endsWith(`${currentUserId}/${BotHomeGroupSlugs.chatSlug}`);
 }
 
 export function isPersonalCollectionChannel(channelId: string): boolean {

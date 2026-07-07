@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "declaration": false,
+    "types": ["node", "bun-types"]
+  },
+  "include": ["scripts/**/*.test.ts", "scripts/**/*.spec.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

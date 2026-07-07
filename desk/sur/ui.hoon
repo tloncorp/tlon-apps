@@ -1,5 +1,14 @@
 /-  av=activity-ver, gv=groups-ver, dv=channels-ver, cv=chat-ver, a=activity
 |%
++$  init-8
+  $:  groups=groups-ui:v9:gv
+      =foreigns:v8:gv
+      channel=channel-10
+      =activity:v9:av
+      pins=(list whom)
+      chat=chat-2
+      profile=?
+  ==
 +$  init-7
   $:  groups=groups-ui:v9:gv
       =foreigns:v8:gv
@@ -125,6 +134,7 @@
 +$  a-pins
   $%  [%add =whom]
       [%del =whom]
+      [%set-order order=(list whom)]
   ==
 ::
 +$  vita-enabled  ?

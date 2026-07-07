@@ -1,11 +1,12 @@
 # syntax=docker/dockerfile:1.4
 # E2E Test Container for Tlon Web
-FROM ubuntu:22.04
+# Node version pinned to match .nvmrc
+FROM node:22.22.0-bookworm
 
 # Prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install system dependencies (some already present in the base image; kept explicit)
 RUN apt-get update && apt-get install -y \
     curl \
     git \
@@ -14,17 +15,17 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     lsof \
     procps \
+    rsync \
+    python3 \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js (match version from .nvmrc)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install -g n \
-    && n 20.11.0 \
-    && hash -r
+# Install peru — rube runs `peru sync` at runtime to vendor desk dependencies
+# (base-dev + landscape picks) into desk/ before assembling ship desks.
+RUN pip3 install --no-cache-dir --break-system-packages peru
 
 # Install pnpm
-RUN npm install -g pnpm@9.0.5
+RUN npm install -g pnpm@11.9.0
 
 # Set working directory
 WORKDIR /workspace
@@ -52,15 +53,10 @@ COPY ../../../apps/tlon-desktop/package.json /workspace/apps/tlon-desktop/
 # Copy patches directory (needed for pnpm patches)
 COPY ../../../patches/ /workspace/patches/
 
-# Copy .npmrc if it exists (for npm configurations)
-COPY ../../../.npmrc* /workspace/
-
-# Install dependencies (with cache mount for faster rebuilds).
+# Install dependencies.
 # Ignore lifecycle scripts in this dependency-only layer to avoid running
 # desktop postinstall hooks (electron native rebuilds) during web E2E image build.
-# Use copy import method to avoid hard-link collisions on layered container filesystems.
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --ignore-scripts --package-import-method=copy
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Install Playwright browsers and dependencies (before source copy for better caching)
 WORKDIR /workspace/apps/tlon-web
@@ -73,10 +69,10 @@ WORKDIR /workspace
 RUN mkdir -p /opt/ships && cd /opt/ships && \
     echo "Downloading ship archives and Urbit binary in parallel..." && \
     printf "%s\n" \
-        "https://bootstrap.urbit.org/rube-zod25.tgz zod.tgz" \
+        "https://bootstrap.urbit.org/rube-zod27.tgz zod.tgz" \
         "https://bootstrap.urbit.org/rube-bus9.tgz bus.tgz" \
-        "https://bootstrap.urbit.org/rube-ten25.tgz ten.tgz" \
-        "https://bootstrap.urbit.org/rube-mug25.tgz mug.tgz" \
+        "https://bootstrap.urbit.org/rube-ten27.tgz ten.tgz" \
+        "https://bootstrap.urbit.org/rube-mug27.tgz mug.tgz" \
         "https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz urbit.tgz" \
     | xargs -P 5 -n 2 sh -c 'curl -fSL -o "$1" "$0" || exit 255' && \
     echo "All downloads complete, extracting..." && \
@@ -94,6 +90,10 @@ RUN mkdir -p /opt/ships && cd /opt/ships && \
 COPY ../../../packages/ /workspace/packages/
 COPY ../../../apps/tlon-web/ /workspace/apps/tlon-web/
 COPY ../../../desk/ /workspace/desk/
+# peru.yaml + scripts are needed for the runtime `peru sync` (into desk-deps/)
+# and assemble-desk.sh (desk-deps/ + desk/ -> ship groups desk)
+COPY ../../../peru.yaml /workspace/peru.yaml
+COPY ../../../scripts/ /workspace/scripts/
 
 # Build packages if needed
 WORKDIR /workspace

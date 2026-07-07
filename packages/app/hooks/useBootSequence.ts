@@ -1,17 +1,11 @@
 import * as api from '@tloncorp/api';
 import { preSig } from '@tloncorp/api/lib/urbit';
-import {
-  AnalyticsEvent,
-  createDevLogger,
-  extractNormalizedInviteLink,
-  withRetry,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   AnalyticsSeverity,
   BootPhaseNames,
   NodeBootPhase,
-  getConstants,
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { verifyUserInviteLink } from '@tloncorp/shared/store';
@@ -29,6 +23,7 @@ const HANDLE_SCAFFOLD_TIMEOUT = 1000 * 30;
 
 const GETTING_STARTED_GROUP_ID = '~wittyr-witbes/v3s2kbd7';
 const TLON_STUDIO = '~tommur-dostyn/tlon-studio';
+const TLONBOT_GENERAL_GROUP_ID = '~ramlud-bintun/v1l3qcoq';
 
 const logger = createDevLogger('boot sequence', true);
 
@@ -64,6 +59,7 @@ export function useBootSequence() {
     code?: string;
     isReady?: boolean;
     personalInviteToken: string | null;
+    homeGroupInviteToken: string | null;
   } | null>(null);
   const [report, setReport] = useState<BootSequenceReport | null>(null);
 
@@ -94,39 +90,12 @@ export function useBootSequence() {
       logger.crumb(`reserved node`, reservedNode.id);
       db.hostedAccountIsInitialized.setValue(true);
 
-      // handle personal DM invite cacheing if available
-      if (
-        reservedNode.personalInviteToken &&
-        reservedNode.personalInviteToken.startsWith('0v')
-      ) {
-        const env = getConstants();
-        const inviteLink = extractNormalizedInviteLink(
-          `https://${env.BRANCH_DOMAIN}/${reservedNode.personalInviteToken}`
-        );
-        await db.personalInviteLink.setValue(inviteLink);
-      } else {
-        logger.trackError('Signup missing DM invite token', {
-          nodeId: reservedNode.id,
-          tokenReceived: reservedNode.personalInviteToken,
-        });
-      }
-
-      // handle home group invite cacheing if available
-      if (
-        reservedNode.homeGroupInviteToken &&
-        reservedNode.homeGroupInviteToken.startsWith('0v')
-      ) {
-        const env = getConstants();
-        const inviteLink = extractNormalizedInviteLink(
-          `https://${env.BRANCH_DOMAIN}/${reservedNode.homeGroupInviteToken}`
-        );
-        await db.homeGroupInviteLink.setValue(inviteLink);
-      } else {
-        logger.trackError('Signup missing home group invite token', {
-          nodeId: reservedNode.id,
-          tokenReceived: reservedNode.homeGroupInviteToken,
-        });
-      }
+      await store.initializeCachedHostedInviteLinks({
+        personalLureToken: reservedNode.personalInviteToken,
+        homeGroupLureToken: reservedNode.homeGroupInviteToken,
+        nodeId: reservedNode.id,
+        source: 'signup',
+      });
 
       return NodeBootPhase.BOOTING;
     }
@@ -169,7 +138,11 @@ export function useBootSequence() {
         if (!shipInfo) {
           throw new Error('Could not authenticate with node');
         }
-        setShip({ ...shipInfo, needsSplashSequence: true });
+        setShip({
+          ...shipInfo,
+          needsSplashSequence: true,
+          splashSequenceMode: 'signup',
+        });
         telemetry?.identify(preSig(shipInfo.ship!), {
           isHostedUser: true,
           userId: preSig(shipInfo.ship!),
@@ -242,17 +215,24 @@ export function useBootSequence() {
         });
       });
 
-      // bypass wayfinding creation for now
-      const signedUpWithInvite = Boolean(lureMeta?.id);
-      return signedUpWithInvite
-        ? NodeBootPhase.CHECKING_FOR_INVITE
-        : NodeBootPhase.READY;
+      if (lureMeta?.invitedGroupId !== TLONBOT_GENERAL_GROUP_ID) {
+        store.leaveGroup(TLONBOT_GENERAL_GROUP_ID).catch((e) => {
+          logger.trackError('failed to leave Tlonbot general group', {
+            errorMessage: e.message,
+            errorStack: e.stack,
+          });
+        });
+      }
+
+      return NodeBootPhase.CHECKING_FOR_INVITE;
     }
 
     //
-    // CHECKING_FOR_INVITE [optional]: if we used an invite code to signup, see if we got the invites
+    // CHECKING_FOR_INVITE [optional]: wait for signup DMs/groups to arrive
     //
     if (bootPhase === NodeBootPhase.CHECKING_FOR_INVITE) {
+      const signedUpWithInvite = Boolean(lureMeta?.id);
+
       // always add the inviter as a contact first
       if (lureMeta?.inviterUserId) {
         const contact = await db.getContact({ id: lureMeta.inviterUserId });
@@ -274,12 +254,15 @@ export function useBootSequence() {
         store.pinGroup(botHomeGroup);
       }
 
-      const requiredInvites =
-        lureMeta?.inviteType === 'user' ? invitedDm : invitedGroup && invitedDm;
+      const requiredInvites = signedUpWithInvite
+        ? lureMeta?.inviteType === 'user'
+          ? invitedDm
+          : invitedGroup && invitedDm
+        : tlonTeamDM;
 
       if (requiredInvites) {
         logger.trackEvent(AnalyticsEvent.InviteDebug, {
-          context: 'confirmed node has the invites',
+          context: 'confirmed node has signup DMs/invites',
         });
         return NodeBootPhase.ACCEPTING_INVITES;
       }
@@ -291,17 +274,18 @@ export function useBootSequence() {
     }
 
     //
-    // ACCEPTING_INVITES [optional]: join the invited groups
+    // ACCEPTING_INVITES [optional]: accept signup DMs and join invited groups
     //
     if (bootPhase === NodeBootPhase.ACCEPTING_INVITES) {
+      const signedUpWithInvite = Boolean(lureMeta?.id);
       const { invitedDm, invitedGroup, tlonTeamDM } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
 
       // if expected items aren't there, re-run this step
       if (
         !tlonTeamDM ||
-        !invitedDm ||
-        (lureMeta?.inviteType === 'group' && !invitedGroup)
+        (signedUpWithInvite &&
+          (!invitedDm || (lureMeta?.inviteType === 'group' && !invitedGroup)))
       ) {
         return NodeBootPhase.ACCEPTING_INVITES;
       }
@@ -344,7 +328,10 @@ export function useBootSequence() {
           store.syncGroup(invitedGroup?.id, undefined, { force: true });
           store.syncGroup(GETTING_STARTED_GROUP_ID, undefined, { force: true });
         }
-        if (invitedDm && invitedDm.isDmInvite) {
+        if (
+          (tlonTeamDM && tlonTeamDM.isDmInvite) ||
+          (invitedDm && invitedDm.isDmInvite)
+        ) {
           store.syncDms();
         }
       }, 5000);
@@ -434,11 +421,7 @@ export function useBootSequence() {
           during: 'mobile signup (useBootSequence)',
           severity: AnalyticsSeverity.Critical,
         });
-        const signedUpWithInvite = Boolean(lureMeta?.id);
-        const nextBootPhase = signedUpWithInvite
-          ? NodeBootPhase.CHECKING_FOR_INVITE
-          : NodeBootPhase.READY;
-        setBootPhase(nextBootPhase);
+        setBootPhase(NodeBootPhase.CHECKING_FOR_INVITE);
         return;
       }
     }

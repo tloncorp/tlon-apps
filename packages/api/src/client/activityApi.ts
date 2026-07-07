@@ -13,7 +13,7 @@ import {
   parseGroupId,
   udToDate,
 } from './apiUtils';
-import { poke, scry, subscribe } from './urbit';
+import { getActivitySupportsReactions, poke, scry, subscribe } from './urbit';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('activityApi', false);
@@ -63,10 +63,18 @@ export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
 }
 
 export const ACTIVITY_SOURCE_PAGESIZE = 30;
+
+// v6 is the v9-native feed (carries reacts); v5 down-converts to v8 and strips
+// them. Old backends don't serve v6, so only request it once the backend is
+// known to support reactions.
+function feedVersion(): 'v6' | 'v5' {
+  return getActivitySupportsReactions() ? 'v6' : 'v5';
+}
+
 export async function getInitialActivity() {
   const response = await scry<ub.InitActivityFeeds>({
     app: 'activity',
-    path: `/v5/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
+    path: `/${feedVersion()}/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
   });
 
   const events = fromInitFeedToBucketedActivityEvents(response);
@@ -105,7 +113,7 @@ export async function getPagedActivityByBucket({
     cursor
   );
   const urbitCursor = formatUd(da.fromUnix(cursor).toString());
-  const path = `/v5/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}`;
+  const path = `/${feedVersion()}/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}`;
   const { feed, summaries } = await scry<ub.ActivityFeed>({
     app: 'activity',
     path,
@@ -276,6 +284,48 @@ function toActivityEvent({
     };
   }
 
+  if ('react' in event) {
+    const reactEvent = event.react;
+    const { postId } = getInfoFromMessageKey(reactEvent.key);
+    const parent = reactEvent.parent
+      ? getInfoFromMessageKey(reactEvent.parent)
+      : null;
+    return {
+      ...baseFields,
+      type: 'react',
+      postId,
+      parentId: parent?.postId,
+      parentAuthorId: parent?.authorId,
+      // the author is the reacting ship, not the original poster
+      authorId: ub.getReactAuthorShip(reactEvent.author),
+      channelId: reactEvent.channel,
+      groupId: reactEvent.group,
+      // we reuse the content column to carry the raw react value
+      content: reactEvent.react,
+      isMention: false,
+    };
+  }
+
+  if ('dm-react' in event) {
+    const reactEvent = event['dm-react'];
+    const { postId } = getInfoFromMessageKey(reactEvent.key, true);
+    const parent = reactEvent.parent
+      ? getInfoFromMessageKey(reactEvent.parent, true)
+      : null;
+    return {
+      ...baseFields,
+      type: 'react',
+      postId,
+      parentId: parent?.postId,
+      parentAuthorId: parent?.authorId,
+      authorId: ub.getReactAuthorShip(reactEvent.author),
+      channelId:
+        'ship' in reactEvent.whom ? reactEvent.whom.ship : reactEvent.whom.club,
+      content: reactEvent.react,
+      isMention: false,
+    };
+  }
+
   if ('group-ask' in event) {
     return {
       ...baseFields,
@@ -401,9 +451,13 @@ export type ActivityEvent =
     }
   | { type: 'addActivityEvent'; events: db.ActivityEvent[] };
 
-export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
-  subscribe<ub.ActivityUpdate>(
-    { app: 'activity', path: '/v4' },
+export function subscribeToActivity(
+  handler: (event: ActivityEvent) => void
+): Promise<number> {
+  return subscribe<ub.ActivityUpdate>(
+    // v5 is the v9-native update stream (carries reacts); v4 down-converts to
+    // v8 and drops them. Old backends don't serve v5, so fall back to v4.
+    { app: 'activity', path: getActivitySupportsReactions() ? '/v5' : '/v4' },
     async (update: ub.ActivityUpdate) => {
       logger.log(
         'activity update',
@@ -588,11 +642,28 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   );
 }
 
+// The v8 activity-action mark's dejs perks over the v8 event-type set and
+// crashes on react/dm-react volume-map keys. When poking an old backend with
+// the v8 mark, strip those keys so the poke parses (reacts aren't configurable
+// on a backend that doesn't support them anyway).
+function stripReactVolumeKeys(action: ub.ActivityAction): ub.ActivityAction {
+  if (!('adjust' in action) || !action.adjust.volume) {
+    return action;
+  }
+  const volume = { ...action.adjust.volume };
+  delete volume.react;
+  delete volume['dm-react'];
+  return { adjust: { ...action.adjust, volume } };
+}
+
 export function activityAction(action: ub.ActivityAction) {
+  // activity-action-1 (v9) parses react keys; the agent accepts both marks. Old
+  // backends only have the v8 activity-action mark, so use it and strip reacts.
+  const supportsReactions = getActivitySupportsReactions();
   return {
     app: 'activity',
-    mark: 'activity-action',
-    json: action,
+    mark: supportsReactions ? 'activity-action-1' : 'activity-action',
+    json: supportsReactions ? action : stripReactVolumeKeys(action),
   };
 }
 
@@ -1021,7 +1092,9 @@ export const toClientUnreads = (activity: ub.Activity): db.ActivityInit => {
         notify: summary.notify,
         notifyCount: summary['notify-count'],
         updatedAt: summary.recency,
+        notifTimestamp: summary['recency-uv'],
       };
+      return;
     }
     const [activityId, ...rest] = sourceId.split('/');
     if (activityId === 'ship' || activityId === 'club') {

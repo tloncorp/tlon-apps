@@ -29,6 +29,7 @@ const ChatMessage = ({
   onPress,
   onLongPress,
   onPressRetry,
+  onPressBotRun,
   onShowEmojiPicker,
   onPressEdit,
   showReplies,
@@ -48,6 +49,7 @@ const ChatMessage = ({
   onPress?: (post: db.Post) => void;
   onLongPress?: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
+  onPressBotRun?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
   onShowEmojiPicker?: (post: db.Post) => void;
   onPressEdit?: (post: db.Post) => void;
@@ -109,9 +111,9 @@ const ChatMessage = ({
         // avoid setting the top level press handler at all unless we need to
         onPress={shouldHandlePress ? handlePress : undefined}
         onLongPress={handleLongPress}
-        onHoverIn={handleHoverIn}
-        onHoverOut={handleHoverOut}
-        pressStyle="unset"
+        onMouseEnter={handleHoverIn}
+        onMouseLeave={handleHoverOut}
+        pressStyle={{}}
         cursor="default"
         testID="Post"
         borderRadius={'$m'}
@@ -127,6 +129,7 @@ const ChatMessage = ({
             hideSentAtTimestamp: hideOverflowMenu || !isHovered,
             isHighlighted,
             onLongPress,
+            onPressBotRun,
             onPressImage,
             onPressReplies,
             onPressRetry,
@@ -150,6 +153,7 @@ const ChatMessage = ({
               onReply={handleRepliesPressed}
               onEdit={handleEditPressed}
               onViewReactions={setViewReactionsPost}
+              onViewBotRun={onPressBotRun}
               onShowEmojiPicker={handleEmojiPickerPressed}
               trigger={<OverflowTriggerButton testID="MessageActionsTrigger" />}
               mode="await-trigger"
@@ -172,6 +176,7 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onPressImage === next.onPressImage &&
     prev.onLongPress === next.onLongPress &&
     prev.onPress === next.onPress &&
+    prev.onPressBotRun === next.onPressBotRun &&
     prev.searchQuery === next.searchQuery &&
     prev.displayDebugMode === next.displayDebugMode;
 

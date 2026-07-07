@@ -156,9 +156,13 @@ export function GalleryInput({
     clearDraft('link');
     resetAttachments([]);
     setRoute('gallery');
-    // Don't call setEditingPost here, as it's now handled in handlePost
-    // This prevents the blank BigInput from showing after saving
   }, [clearDraft, resetAttachments]);
+
+  const resetAndExit = useCallback(() => {
+    resetGalleryState();
+    setEditingPost?.(undefined);
+    onPresentationModeChange?.('inline');
+  }, [resetGalleryState, setEditingPost, onPresentationModeChange]);
 
   // Handle image selection
   const handleGalleryImageSet = useCallback(
@@ -319,31 +323,10 @@ export function GalleryInput({
     )
   );
 
-  // Expose methods to parent component through the ref
-  // useImperativeHandle allows the parent component to call these methods via the draftInputRef
-  // This creates a controlled interface for the parent to manage this component's state
   useImperativeHandle(
     draftInputRef,
     () => ({
-      // exitFullscreen: Called by parent when user presses back or after saving a post
-      // Handles proper cleanup and state reset to ensure smooth UI transitions
-      exitFullscreen: () => {
-        if (route === 'review-attachment') {
-          // First reset gallery state
-          resetGalleryState();
-
-          // Then clear editing state to prevent BigInput from showing
-          if (isEditingPost && setEditingPost) {
-            setEditingPost(undefined);
-          }
-
-          // Force inline presentation mode
-          onPresentationModeChange?.('inline');
-        } else {
-          setRoute('gallery');
-        }
-      },
-      // startDraft: Called by parent when user wants to create a new gallery post
+      exitFullscreen: resetAndExit,
       startDraft: (mode) => {
         if (mode === 'text' || mode === 'link') {
           setRoute(mode);
@@ -353,13 +336,7 @@ export function GalleryInput({
         setRoute('add-post');
       },
     }),
-    [
-      resetGalleryState,
-      isEditingPost,
-      route,
-      setEditingPost,
-      onPresentationModeChange,
-    ]
+    [resetAndExit]
   );
 
   const setShowBigInput = useCallback((open: boolean) => {
@@ -367,23 +344,8 @@ export function GalleryInput({
   }, []);
 
   const onAttachmentPostSent = useCallback(() => {
-    // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
-    // First reset all gallery-related state to clean up the editing environment
-    resetGalleryState();
-    setEditingPost?.(undefined);
-    onPresentationModeChange?.('inline');
-
-    // TODO: I don't think this is necessary
-    // // If editing, force inline presentation mode to return to the gallery view
-    // if (isEditingPost) {
-    //   if (setEditingPost) {
-    //     setEditingPost(undefined);
-    //   }
-    //   onPresentationModeChange?.('inline');
-    // }
-    // // Reset posting state after a short delay
-    // setTimeout(() => setIsPosting(false), 500);
-  }, [resetGalleryState, setEditingPost, onPresentationModeChange]);
+    resetAndExit();
+  }, [resetAndExit]);
 
   return (
     <>

@@ -136,6 +136,31 @@ const useAdaptiveMode = (mode?: AdaptiveMode) => {
   return mode ?? 'dialog';
 };
 
+export const DESKTOP_FLYOUT_MIN_WIDTH = 300;
+
+export const desktopFlyoutPopoverProps = {
+  allowFlip: true,
+  placement: 'top-end',
+  offset: -12,
+} as const;
+
+export const desktopFlyoutContentProps = {
+  elevate: true,
+  zIndex: 1000000,
+  position: 'relative',
+  padding: 1,
+  borderRadius: '$2xl',
+  borderColor: '$border',
+  borderWidth: 1,
+  backgroundColor: '$background',
+  shadowColor: '$shadow',
+  shadowOpacity: 0.24,
+  shadowRadius: 18,
+  shadowOffset: { width: 0, height: 8 },
+  minWidth: DESKTOP_FLYOUT_MIN_WIDTH,
+  overflow: 'hidden',
+} as const;
+
 // Main component
 
 const ActionSheetComponent = ({
@@ -148,6 +173,8 @@ const ActionSheetComponent = ({
   dialogContentProps,
   closeButton,
   footerComponent,
+  unmountOnClose,
+  stackBehavior,
   ...props
 }: PropsWithChildren<
   ActionSheetProps &
@@ -157,6 +184,8 @@ const ActionSheetComponent = ({
       | 'enableContentPanningGesture'
       | 'hasScrollableContent'
       | 'keyboardBehavior'
+      | 'unmountOnClose'
+      | 'stackBehavior'
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
@@ -174,7 +203,10 @@ const ActionSheetComponent = ({
     [maxHeight, height]
   );
 
-  const actionSheetContextValue = useMemo(() => ({ isInsideSheet: true }), []);
+  const actionSheetContextValue = useMemo(
+    () => ({ isInsideSheet: true, mode }),
+    [mode]
+  );
 
   // listen for escape key to close the sheet
   // this is helpful for e2e tests
@@ -212,15 +244,16 @@ const ActionSheetComponent = ({
           return;
         }
 
+        const childProps = child.props as any;
         // Check if it has renderScrollComponent prop (FlatList/FlashList pattern)
-        if (child.props?.renderScrollComponent) {
+        if (childProps?.renderScrollComponent) {
           hasScrollable = true;
           return;
         }
 
         // Recursively check children with depth limit
-        if (child.props?.children && !hasScrollable) {
-          Children.forEach(child.props.children, (c) =>
+        if (childProps?.children && !hasScrollable) {
+          Children.forEach(childProps.children, (c) =>
             checkChild(c, depth + 1)
           );
         }
@@ -250,19 +283,15 @@ const ActionSheetComponent = ({
       <Popover
         open={open}
         onOpenChange={onOpenChange}
-        allowFlip
-        placement="bottom-end"
-        strategy="fixed"
+        {...desktopFlyoutPopoverProps}
       >
-        <Popover.Trigger>{trigger}</Popover.Trigger>
+        {trigger ? <Popover.Trigger asChild>{trigger}</Popover.Trigger> : null}
         <Popover.Content
-          padding={1}
-          borderColor="$border"
-          borderWidth={1}
+          {...desktopFlyoutContentProps}
           maxHeight={popoverMaxHeight}
-          overflow="hidden"
         >
           <ScrollView
+            minWidth={DESKTOP_FLYOUT_MIN_WIDTH}
             maxHeight={popoverMaxHeight - 32}
             showsVerticalScrollIndicator={true}
           >
@@ -319,11 +348,7 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            <ScrollView
-              flex={1}
-              showsVerticalScrollIndicator={true}
-              contentContainerStyle={{ flexGrow: 1 }}
-            >
+            <ScrollView flex={1} showsVerticalScrollIndicator={true}>
               <ActionSheetContext.Provider value={actionSheetContextValue}>
                 {children}
               </ActionSheetContext.Provider>
@@ -331,18 +356,6 @@ const ActionSheetComponent = ({
             {footerComponent && footerComponent({})}
           </Dialog.Content>
         </Dialog.Portal>
-
-        {/* Should not be necessary, but just in case */}
-        <Dialog.Adapt when="sm">
-          <Dialog.Sheet>
-            <Dialog.Sheet.Overlay />
-            <Dialog.Sheet.Frame>
-              <Dialog.Sheet.ScrollView>
-                <Dialog.Adapt.Contents />
-              </Dialog.Sheet.ScrollView>
-            </Dialog.Sheet.Frame>
-          </Dialog.Sheet>
-        </Dialog.Adapt>
       </Dialog>
     );
   }
@@ -355,7 +368,7 @@ const ActionSheetComponent = ({
       open={open}
       onOpenChange={onOpenChange}
       dismissOnSnapToBottom={true}
-      animation="quick"
+      transition="quick"
       handleDisableScroll={true}
       modal={props.modal}
       snapPoints={props.snapPoints}
@@ -367,6 +380,8 @@ const ActionSheetComponent = ({
       keyboardBehavior={props.keyboardBehavior}
       footerComponent={footerComponent}
       hasScrollableContent={hasScrollableContent}
+      unmountOnClose={unmountOnClose}
+      stackBehavior={stackBehavior}
       frameStyle={{}}
     >
       <ActionSheetContext.Provider value={actionSheetContextValue}>
@@ -385,12 +400,12 @@ const ActionSheetComponent = ({
       onOpenChange={onOpenChange}
       dismissOnSnapToBottom
       snapPointsMode="fit"
-      animation="quick"
+      transition="quick"
       handleDisableScroll
       {...props}
       modal={props.modal}
     >
-      <Sheet.Overlay animation="quick" />
+      <Sheet.Overlay transition="quick" />
       <Sheet.Frame pressStyle={{}}>
         <Sheet.Handle />
         <ActionSheetContext.Provider value={actionSheetContextValue}>
@@ -444,6 +459,17 @@ const ActionSheetScrollableContent = forwardRef<
 >(({ ...props }, ref) => {
   const contentStyle = useContentStyle();
   const useBottomSheet = Platform.OS !== 'web';
+  const { mode } = useContext(ActionSheetContext);
+
+  // Sheet.ScrollView requires a <Sheet> ancestor, which only exists in 'sheet'
+  // mode. In popover/dialog mode the ActionSheet already wraps content in a
+  // ScrollView, so render a plain padded container instead of an unprovided
+  // (and redundant) sheet scroll view.
+  if (!useBottomSheet && mode !== 'sheet') {
+    return (
+      <View paddingBottom={contentStyle.paddingBottom} {...(props as any)} />
+    );
+  }
 
   // Use BottomSheetScrollView for native platforms
   if (useBottomSheet) {
@@ -821,17 +847,19 @@ export const SimpleActionSheet = ({
   icon,
   actions,
   accent,
+  modal,
 }: {
   title?: string;
   subtitle?: string;
   icon?: ReactElement;
   actions: Action[];
   accent?: Accent;
+  modal?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal={modal}>
       {title || subtitle ? (
         <SimpleActionSheetHeader
           title={title}
@@ -866,7 +894,7 @@ export const SimpleActionGroupList = ({
           <ActionSheet.Action
             key={index}
             action={action}
-            testID={`ActionSheetAction-${action.title}`}
+            testID={action.testID ?? `ActionSheetAction-${action.title}`}
           />
         ))}
       </ActionSheet.ActionGroup>

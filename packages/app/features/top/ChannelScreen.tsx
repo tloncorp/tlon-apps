@@ -145,8 +145,14 @@ export default function ChannelScreen(props: Props) {
     }
   }, [currentChannelId, isFocused]);
 
-  const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
-    useChannelNavigation({ channelId: currentChannelId });
+  const {
+    navigateToImage,
+    navigateToPost,
+    navigateToRef,
+    navigateToSearch,
+    navigateToContextLensRuns,
+    navigateToContextLensRun,
+  } = useChannelNavigation({ channelId: currentChannelId });
   const { navigation } = useRootNavigation();
   const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
@@ -232,8 +238,10 @@ export default function ChannelScreen(props: Props) {
 
   const filteredPosts = useMemo(
     () =>
-      channel?.type !== 'chat' ? posts?.filter((p) => !p.isDeleted) : posts,
-    [posts, channel]
+      channelConfiguration?.includeDeletedPosts
+        ? posts
+        : posts?.filter((p) => !p.isDeleted),
+    [posts, channelConfiguration?.includeDeletedPosts]
   );
   usePushNotifTapTelemetry({
     channelId: currentChannelId,
@@ -372,29 +380,13 @@ export default function ChannelScreen(props: Props) {
   const handleGoToGroupSettings = useCallback(() => {
     if (group) {
       navigationRef.current.navigate('GroupSettings', {
-        screen: 'GroupMembers',
-        params: { groupId: group.id },
+        state: {
+          routes: [{ name: 'GroupMembers', params: { groupId: group.id } }],
+          index: 0,
+        },
       });
     }
   }, [group, navigationRef]);
-
-  const handleGoToChannelDetails = useCallback(
-    (groupId: string, channelId: string) => {
-      navigationRef.current.navigate('ChatDetails', {
-        chatType: 'channel',
-        chatId: channelId,
-        groupId,
-      });
-    },
-    [navigationRef]
-  );
-
-  const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
-  const handleConfigureChannel = useCallback(() => {
-    if (channelRef.current) {
-      channelRef.current.openChannelConfigurationBar();
-    }
-  }, [channelRef]);
 
   const initialChat = useMemo(
     () =>
@@ -414,14 +406,12 @@ export default function ChannelScreen(props: Props) {
     <ChatOptionsProvider
       initialChat={initialChat}
       useGroup={store.useGroup}
-      onPressConfigureChannel={handleConfigureChannel}
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         <Channel
           key={currentChannelId}
-          ref={channelRef}
           channel={channel}
           initialChannelUnread={
             clearedCursor ? undefined : initialChannelUnread
@@ -440,9 +430,10 @@ export default function ChannelScreen(props: Props) {
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
+          goToContextLensRuns={navigateToContextLensRuns}
+          goToContextLensRun={navigateToContextLensRun}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
-          goToChannelDetails={handleGoToChannelDetails}
           goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}

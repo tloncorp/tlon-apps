@@ -111,6 +111,19 @@ export const groupDmThreadReplyActivity = (
     )
   );
 
+export const groupReactActivity = (
+  count: number,
+  extraProps?: ReactEventParams
+) =>
+  summary(
+    ...Array.from({ length: count }, (v, i) =>
+      reactEvent({
+        contact: exampleContact(i),
+        ...extraProps,
+      })
+    )
+  );
+
 export const flagPostActivity = (
   count: number,
   extraProps?: PostFlagEventParams
@@ -142,6 +155,7 @@ export const activityItems = {
   groupDmPost: groupDmPostActivity,
   groupDmThreadReply: groupDmThreadReplyActivity,
   dmPost: dmPostActivity,
+  groupReact: groupReactActivity,
   flagPost: flagPostActivity,
   flagReply: flagReplyActivity,
 };
@@ -250,6 +264,39 @@ function groupThreadReplyEvent({
     bucketId: isMention ? 'replies' : 'mentions',
     isMention,
   });
+}
+
+interface ReactEventParams {
+  group?: db.Group;
+  channel?: db.Channel;
+  contact?: db.Contact;
+  react?: string;
+}
+
+function reactEvent({
+  group = fakeGroup,
+  channel = tlonLocalIntros,
+  contact = exampleContacts.fabledFaster,
+  react = '❤️',
+}: ReactEventParams): db.ActivityEvent {
+  return {
+    id: randomId(),
+    bucketId: 'all',
+    sourceId: `channel/${channel.id}`,
+    type: 'react',
+    timestamp: Date.now(),
+    postId: randomId(),
+    authorId: contact.id,
+    author: contact,
+    channelId: channel.id,
+    channel,
+    groupId: group.id,
+    group,
+    // reactions reuse the content column to carry the raw react value
+    content: react,
+    shouldNotify: true,
+    isMention: false,
+  };
 }
 
 interface GroupJoinRequestEventParams {

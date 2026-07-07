@@ -1,5 +1,5 @@
-import * as api from '@tloncorp/api';
-import { getCanonicalPostId } from '@tloncorp/api';
+import { getCanonicalPostId, udToDate } from '@tloncorp/api/client/apiUtils';
+import { getContentImages, toPostContent } from '@tloncorp/api/client/postsApi';
 import * as ub from '@tloncorp/api/urbit';
 import { getChannelKindFromType } from '@tloncorp/api/urbit';
 import { da } from '@urbit/aura';
@@ -99,7 +99,7 @@ export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
     );
   }
 
-  const [postContent, _flags] = api.toPostContent(event.content as ub.Story);
+  const [postContent, _flags] = toPostContent(event.content as ub.Story);
   const post: types.Post = {
     id: event.postId ?? event.id,
     type: logic.getPostTypeFromChannelId({
@@ -117,7 +117,7 @@ export function assemblePostFromActivityEvent(event: db.ActivityEvent) {
       event.content as ub.Story,
       logic.PlaintextPreviewConfig.inlineConfig
     ),
-    images: api.getContentImages(event.id, event.content as ub.Story),
+    images: getContentImages(event.id, event.content as ub.Story),
     reactions: [],
     replies: [],
     hidden: false,
@@ -147,7 +147,7 @@ export function buildPostUpdate({
   blob?: string;
   parentId: string | null;
 }) {
-  const [postContent, postFlags] = api.toPostContent(content);
+  const [postContent, postFlags] = toPostContent(content);
   return {
     title: metadata?.title ?? '',
     image: metadata?.image ?? '',
@@ -156,7 +156,7 @@ export function buildPostUpdate({
       postContent,
       logic.PlaintextPreviewConfig.inlineConfig
     ),
-    images: api.getContentImages(id, content),
+    images: getContentImages(id, content),
     deliveryStatus,
     sequenceNum,
     blob,
@@ -218,6 +218,7 @@ export function buildPost({
     replies: [],
     replyContactIds: [],
     replyCount: 0,
+    optimisticReplyBumpCount: 0,
     hidden: false,
     syncedAt: Date.now(),
     draft,
@@ -436,7 +437,7 @@ export function postFromDmPostActivityEvent(
 }
 
 function getReceivedAtFromId(postId: string) {
-  return api.udToDate(postId.split('/').pop() ?? postId);
+  return udToDate(postId.split('/').pop() ?? postId);
 }
 
 export function createDmChannelsForNewContacts(

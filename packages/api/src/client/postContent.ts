@@ -1,3 +1,4 @@
+import type { A2UI } from '../client/a2ui';
 import { formatUd } from '../client/apiUtils';
 import {
   PostBlobDataEntryFile,
@@ -9,6 +10,8 @@ import { assertNever } from '../lib/assertNever';
 import { VIDEO_REGEX, containsOnlyEmoji } from '../lib/utils';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
+import { extractTablesFromContent } from './markdown/extractTables';
+import { convertInlineContent } from './postContentInlines';
 import type { PostContent as ApiPostContent } from './postsApi';
 
 // Inline types
@@ -116,6 +119,11 @@ export type VoiceMemoBlockData = {
   voiceMemo: PostBlobDataEntryVoiceMemo;
 };
 
+export type A2UIBlockData = {
+  type: 'a2ui';
+  a2ui: A2UI.BlobEntry;
+};
+
 export type LinkBlockData = {
   type: 'link';
   url: string;
@@ -157,10 +165,28 @@ export type ListData = {
   children?: ListData[];
 };
 
+export type TableAlignment = 'left' | 'center' | 'right';
+
+export type TableCellData = {
+  content: InlineData[];
+};
+
+export type TableRowData = {
+  cells: TableCellData[];
+};
+
+export type TableBlockData = {
+  type: 'table';
+  header: TableRowData;
+  rows: TableRowData[];
+  align: (TableAlignment | null)[];
+};
+
 export type BlockData =
   | BlockquoteBlockData
   | ParagraphBlockData
   | ImageBlockData
+  | A2UIBlockData
   | VideoBlockData
   | FileUploadBlockData
   | VoiceMemoBlockData
@@ -170,7 +196,8 @@ export type BlockData =
   | HeaderBlockData
   | RuleBlockData
   | ListBlockData
-  | BigEmojiBlockData;
+  | BigEmojiBlockData
+  | TableBlockData;
 
 export type BlockType = BlockData['type'];
 
@@ -263,6 +290,13 @@ export function plaintextPreviewOf(
           return plaintextPreviewOfListData(block.list, config);
         case 'bigEmoji':
           return block.emoji;
+        case 'table': {
+          const headerText = block.header.cells
+            .map((cell) => plaintextPreviewOfInlineString(cell.content, config))
+            .filter((text) => text.length > 0)
+            .join(' | ');
+          return headerText || '(Table)';
+        }
       }
     })
     .join(config.blockSeparator)
@@ -397,6 +431,18 @@ export function convertContent(
           break;
         }
 
+        case 'a2ui': {
+          out.push({
+            type: 'a2ui',
+            a2ui: entry,
+          });
+          break;
+        }
+
+        case 'tlon-context-lens': {
+          break;
+        }
+
         case 'unknown': {
           out.push({
             type: 'blockquote',
@@ -422,7 +468,7 @@ export function convertContent(
   }
 
   out.push(...convertContentSafe(story));
-  return out;
+  return extractTablesFromContent(out);
 }
 
 /**
@@ -604,77 +650,10 @@ function convertListing(listing: ub.Listing): ListData {
   }
 }
 
-function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
-  const nodes: InlineData[] = [];
-  inlines.forEach((inline, i) => {
-    if (typeof inline === 'string') {
-      nodes.push({
-        type: 'text',
-        text: inline,
-      });
-    } else if (ub.isBold(inline)) {
-      nodes.push({
-        type: 'style',
-        style: 'bold',
-        children: convertInlineContent(inline.bold),
-      });
-    } else if (ub.isItalics(inline)) {
-      nodes.push({
-        type: 'style',
-        style: 'italic',
-        children: convertInlineContent(inline.italics),
-      });
-    } else if (ub.isStrikethrough(inline)) {
-      nodes.push({
-        type: 'style',
-        style: 'strikethrough',
-        children: convertInlineContent(inline.strike),
-      });
-    } else if (ub.isInlineCode(inline)) {
-      nodes.push({
-        type: 'style',
-        style: 'code',
-        children: [{ type: 'text', text: inline['inline-code'] }],
-      });
-    } else if (ub.isLink(inline)) {
-      nodes.push({
-        type: 'link',
-        href: inline.link.href,
-        text: inline.link.content ?? inline.link.href,
-      });
-    } else if (ub.isBreak(inline)) {
-      // Most content has a final line break after it -- we don't want to render it.
-      if (i !== inlines.length - 1) {
-        nodes.push({
-          type: 'lineBreak',
-        });
-      }
-    } else if (ub.isShip(inline)) {
-      nodes.push({
-        type: 'mention',
-        contactId: inline.ship,
-      });
-    } else if (ub.isSect(inline)) {
-      nodes.push({
-        type: 'groupMention',
-        group: !inline.sect ? 'all' : inline.sect,
-      });
-    } else if (ub.isTask(inline)) {
-      nodes.push({
-        type: 'task',
-        checked: inline.task.checked,
-        children: convertInlineContent(inline.task.content),
-      });
-    } else {
-      console.warn('Unhandled inline type:', { inline });
-      nodes.push({
-        type: 'text',
-        text: 'Unknown content type',
-      });
-    }
-  });
-  return nodes;
-}
+// Re-exported (and used internally) — definition lives in postContentInlines
+// so that markdown/extractTables can import it without going through
+// postContent (which would create a cycle).
+export { convertInlineContent };
 
 export function prependInline(
   content: BlockData[],

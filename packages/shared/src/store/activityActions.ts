@@ -171,12 +171,15 @@ export async function setDefaultNotificationLevel(
 }
 
 export async function markAllRead() {
+  const baseUnread = await db.getBaseUnread();
+
   await db.insertBaseUnread({
     id: BASE_UNREADS_SINGLETON_KEY,
     count: 0,
     updatedAt: Date.now(),
     notify: false,
     notifyCount: 0,
+    notifTimestamp: baseUnread?.notifTimestamp,
   });
   await api.readAll();
 }
@@ -219,7 +222,11 @@ export async function setBaseVolumeLevel(params: {
     });
     if (existingSetting) {
       await db.setVolumes({ volumes: [existingSetting] });
+    } else {
+      await db.clearVolumeSetting('base');
     }
+
+    throw e;
   }
 }
 
@@ -329,11 +336,9 @@ export async function setChannelVolumeLevel(params: {
 export const persistUnreads = async ({
   unreads,
   ctx,
-  includesAllUnreads,
 }: {
   unreads: db.ActivityInit;
   ctx?: QueryCtx;
-  includesAllUnreads?: boolean;
 }) => {
   const { baseUnread, groupUnreads, channelUnreads, threadActivity } = unreads;
   if (baseUnread) {
@@ -342,17 +347,4 @@ export const persistUnreads = async ({
   await db.insertGroupUnreads(groupUnreads, ctx);
   await db.insertChannelUnreads(channelUnreads, ctx);
   await db.insertThreadUnreads(threadActivity, ctx);
-
-  // if we have all channel unreads, we should use that data to update which
-  // channels we're joined to
-  if (includesAllUnreads) {
-    await db.setJoinedGroupChannels(
-      {
-        channelIds: channelUnreads
-          .filter((u) => u.type === 'channel')
-          .map((u) => u.channelId),
-      },
-      ctx
-    );
-  }
 };

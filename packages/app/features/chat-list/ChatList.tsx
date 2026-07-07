@@ -1,42 +1,77 @@
-import { FlashList, ListRenderItem } from '@shopify/flash-list';
+import { FlashList, FlashListRef, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
+import { Pressable, Text } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { LayoutChangeEvent } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTokenValue } from 'tamagui';
 
 import { SectionedChatData } from '../../hooks/useFilteredChats';
+import { usePinnedChatOrdering } from '../../hooks/usePinnedChatOrdering';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import {
   ChatListItem,
   InteractableChatListItem,
   SectionListHeader,
   useChatOptions,
-  useIsWindowNarrow,
 } from '../../ui';
+import {
+  ChatListItemData,
+  PINNED_SECTION_TITLE,
+  buildChatListFlashListProps,
+  getChatKey,
+  getItemType,
+  isSectionHeader,
+  splitPinnedSection,
+} from './ChatList.helpers';
+import { SortablePinnedChats } from './SortablePinnedChats';
 
-type SectionHeaderData = { type: 'sectionHeader'; title: string };
-export type ChatListItemData = db.Chat | SectionHeaderData;
+export type { ChatListItemData } from './ChatList.helpers';
+export { getChatKey, getItemType, isSectionHeader } from './ChatList.helpers';
 
 export const ChatList = React.memo(function ChatListComponent({
   data,
+  allPinnedChats,
   onPressItem,
   onLoad,
+  disableScrollAnchoring,
+  scrollerTestID,
+  scrollRef,
 }: {
   data: SectionedChatData;
+  // Full unfiltered pinned set (for filtered-tab full-order reconstruction). If
+  // omitted, the visible pinned subset is used (correct for full-set views).
+  allPinnedChats?: db.Chat[];
   onPressItem?: (chat: db.Chat) => void;
   onLoad?: () => void;
+  disableScrollAnchoring?: boolean;
+  scrollerTestID?: string;
+  scrollRef?: React.RefObject<FlashListRef<ChatListItemData> | null>;
 }) {
-  const listItems: ChatListItemData[] = useMemo(
-    () =>
-      data.flatMap((section) => {
-        return [
-          { title: section.title, type: 'sectionHeader' },
-          ...section.data,
-        ];
-      }),
-    [data]
+  // The pinned section renders as the FlashList ListHeaderComponent (sortable),
+  // and only the non-pinned sections feed the virtualized list (TLON-5948 §5.5).
+  const { pinned, rest } = useMemo(() => splitPinnedSection(data), [data]);
+
+  // Sort mode is owned here so a single toggle in the pinned header serves every
+  // surface (mobile, Home, Messages) with no per-call-site wiring.
+  const [isSortMode, setIsSortMode] = useState(false);
+  // Force-exit sort mode when the pinned section disappears (search, or the last
+  // pin removed mid-sort).
+  useEffect(() => {
+    if (pinned.length === 0 && isSortMode) {
+      setIsSortMode(false);
+    }
+  }, [pinned.length, isSortMode]);
+
+  const { sortableItems, handleReorder } = usePinnedChatOrdering({
+    allPinned: allPinnedChats ?? pinned,
+    visiblePinned: pinned,
+  });
+
+  const flashListProps = useMemo(
+    () => buildChatListFlashListProps({ data: rest, disableScrollAnchoring }),
+    [rest, disableScrollAnchoring]
   );
+  const listItems: ChatListItemData[] = flashListProps.data;
 
   const { open } = useChatOptions();
   const handleLongPress = useCallback(
@@ -56,55 +91,21 @@ export const ChatList = React.memo(function ChatListComponent({
     paddingBottom: 100, // bottom nav height + some cushion
   };
 
-  const isNarrow = useIsWindowNarrow();
-  const sizeRefs = useRef({
-    sectionHeader: isNarrow ? 28 : 24.55,
-    chatListItem: isNarrow ? 72 : 64,
-  });
-
-  // update the sizeRefs when the window size changes
-  useEffect(() => {
-    sizeRefs.current.sectionHeader = isNarrow ? 28 : 24.55;
-    sizeRefs.current.chatListItem = isNarrow ? 72 : 64;
-  }, [isNarrow]);
-
-  const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
-    sizeRefs.current.sectionHeader = e.nativeEvent.layout.height;
-  }, []);
-
-  const handleItemLayout = useCallback((e: LayoutChangeEvent) => {
-    sizeRefs.current.chatListItem = e.nativeEvent.layout.height;
-  }, []);
-
-  const handleOverrideLayout = useCallback(
-    (layout: { span?: number; size?: number }, item: ChatListItemData) => {
-      layout.size = isSectionHeader(item)
-        ? sizeRefs.current.sectionHeader
-        : sizeRefs.current.chatListItem;
-    },
-    []
-  );
-
   const listItemHoverStyle = useMemo(
     () => ({ backgroundColor: '$secondaryBackground' }),
     []
   );
 
-  const renderItem: ListRenderItem<ChatListItemData> = useCallback(
-    ({ item }) => {
-      if (isSectionHeader(item)) {
-        return (
-          <SectionListHeader onLayout={handleHeaderLayout}>
-            <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
-          </SectionListHeader>
-        );
-      } else if (item.type === 'channel' && !item.isPending) {
+  // A single interactive chat row, shared by the virtualized rest-list and the
+  // non-sort-mode pinned block in the header.
+  const renderChat = useCallback(
+    (item: db.Chat) => {
+      if (item.type === 'channel' && !item.isPending) {
         return (
           <InteractableChatListItem
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
-            onLayout={handleItemLayout}
             hoverStyle={listItemHoverStyle}
             testID={`ChatListItem-${item.channel.title ?? item.channel.id}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
@@ -115,7 +116,6 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
-            onLayout={handleItemLayout}
             hoverStyle={listItemHoverStyle}
             testID={`ChatListItem-${item.group.title ?? item.group.id}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
@@ -126,56 +126,85 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
-            onLayout={handleItemLayout}
             disableOptions={item.isPending}
             hoverStyle={listItemHoverStyle}
           />
         );
       }
     },
-    [
-      handleHeaderLayout,
-      onPressItem,
-      handleLongPress,
-      handleItemLayout,
-      listItemHoverStyle,
-    ]
+    [onPressItem, handleLongPress, listItemHoverStyle]
   );
+
+  const renderItem: ListRenderItem<ChatListItemData> = useCallback(
+    ({ item }) => {
+      if (isSectionHeader(item)) {
+        return (
+          <SectionListHeader>
+            <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
+          </SectionListHeader>
+        );
+      }
+      return renderChat(item);
+    },
+    [renderChat]
+  );
+
+  // The pinned section header + rows, rendered above the virtualized list.
+  const pinnedHeader = useMemo(() => {
+    if (pinned.length === 0) {
+      return null;
+    }
+    return (
+      <>
+        <SectionListHeader
+          flexDirection="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <SectionListHeader.Text>
+            {PINNED_SECTION_TITLE}
+          </SectionListHeader.Text>
+          <Pressable
+            onPress={() => setIsSortMode((v) => !v)}
+            testID="PinnedSortToggle"
+          >
+            <Text size="$label/s" color="$positiveActionText">
+              {isSortMode ? 'Done' : 'Sort'}
+            </Text>
+          </Pressable>
+        </SectionListHeader>
+        {isSortMode ? (
+          <SortablePinnedChats
+            items={sortableItems}
+            onReorder={handleReorder}
+          />
+        ) : (
+          pinned.map((chat) => (
+            <React.Fragment key={getChatKey(chat)}>
+              {renderChat(chat)}
+            </React.Fragment>
+          ))
+        )}
+      </>
+    );
+  }, [pinned, isSortMode, sortableItems, handleReorder, renderChat]);
 
   useRenderCount('ChatList');
 
   return (
     <FlashList
+      ref={scrollRef}
       data={listItems}
       contentContainerStyle={contentContainerStyle}
       keyExtractor={getChatKey}
       renderItem={renderItem}
       getItemType={getItemType}
-      estimatedItemSize={sizeRefs.current.chatListItem}
-      overrideItemLayout={handleOverrideLayout}
+      ListHeaderComponent={pinnedHeader}
       onLoad={onLoad ? () => onLoad() : undefined}
+      testID={scrollerTestID}
+      maintainVisibleContentPosition={
+        flashListProps.maintainVisibleContentPosition
+      }
     />
   );
 }, isEqual);
-
-export function getItemType(item: ChatListItemData) {
-  return isSectionHeader(item) ? 'sectionHeader' : item.type;
-}
-
-export function isSectionHeader(
-  data: ChatListItemData
-): data is SectionHeaderData {
-  return 'type' in data && data.type === 'sectionHeader';
-}
-
-export function getChatKey(chatItem: ChatListItemData) {
-  if (!chatItem || typeof chatItem !== 'object') {
-    return 'invalid-item';
-  }
-
-  if (isSectionHeader(chatItem)) {
-    return chatItem.title;
-  }
-
-  return `${chatItem.id}-${chatItem.pin?.itemId ?? ''}`;
-}

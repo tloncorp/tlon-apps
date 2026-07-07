@@ -8,6 +8,8 @@ export { GroupAvatar } from './components/GroupAvatar';
 export type { GroupImageShim } from './components/Avatar';
 export * from './components/BigInput';
 export * from './components/BlockedContactsWidget';
+export * from './components/BotSettingsScreenView';
+export * from './components/BotSettingsHomeScreenView';
 export * from './components/Channel';
 export * from './components/Channel/ChannelDivider';
 export * from './components/Channel/ChannelHeader';
@@ -25,10 +27,9 @@ export { useContactName } from './components/ContactNameV2';
 export * from './components/ContactRow';
 export * from './components/ContactsScreenView';
 export * from './components/ContentReference';
-export { DetailPostView as DetailPostUsingContentConfiguration } from './components/DetailPostUsingContentConfiguration';
 export * from './components/EditProfileScreenView';
 export * from './components/EditableProfileImages';
-export * from './components/Embed';
+export * from './components/VideoPreview';
 export * from './components/Emoji/EmojiPickerSheet';
 export * from './components/FacePile';
 export * from './components/FeatureFlagScreenView';
@@ -61,15 +62,18 @@ export * from './components/PhoneAttestationPane';
 export * from './components/PostContent';
 export * from './components/PostScreenView';
 export * from './components/ProfileSheet';
+export * from './components/GroupMemberProfileSheet';
 export * from './components/ScreenHeader';
 export * from './components/SearchBar';
+export * from './components/SettingsContentScrollView';
 export * from './components/SettingsScreenView';
 export * from './components/StoppedNodePushSheet';
 export * from './components/Tabs';
 export * from './components/TwtitterAttestationPane';
 export * from './components/UserProfileScreenView';
 export * from './components/Wayfinding/SplashSequence';
-export * from './components/postCollectionViews/SummaryCollectionView';
+export * from './components/WebAppSplashSheet';
+export * from './components/Wayfinding/TlonBotSetupPaneView';
 export * from './components/WidgetPane';
 export { ConnectedPostView } from './components/postCollectionViews/shared';
 export * from './contexts/groups';
@@ -92,7 +96,6 @@ export {
   ScrollView,
   SizableText,
   Spinner,
-  Stack,
   Text,
   TextArea,
   Theme,
@@ -100,7 +103,6 @@ export {
   XStack,
   YGroup,
   YStack,
-  ZStack,
   isWeb,
   setupDev,
   useStyle,

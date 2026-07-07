@@ -1,1 +1,0 @@
-export { DetailPostView } from './DetailPostUsingContentConfiguration';

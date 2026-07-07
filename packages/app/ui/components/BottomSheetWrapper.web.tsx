@@ -16,7 +16,7 @@ export const BottomSheetWrapper = forwardRef<
       open,
       onOpenChange,
       children,
-      animation = 'quick',
+      transition = 'quick',
       dismissOnSnapToBottom = true,
       handleDisableScroll,
       snapPointsMode = 'fit',
@@ -30,6 +30,7 @@ export const BottomSheetWrapper = forwardRef<
       enablePanDownToClose: _enablePanDownToClose,
       keyboardBehavior: _keyboardBehavior,
       android_keyboardInputMode: _android_keyboardInputMode,
+      stackBehavior: _stackBehavior,
     },
     ref
   ) => {
@@ -41,15 +42,12 @@ export const BottomSheetWrapper = forwardRef<
         dismissOnSnapToBottom={dismissOnSnapToBottom}
         snapPointsMode={snapPointsMode}
         snapPoints={snapPoints}
-        animation={animation as any}
+        transition={transition}
         handleDisableScroll={handleDisableScroll}
         modal={modal}
       >
         {showOverlay && (
-          <Sheet.Overlay
-            animation={animation as any}
-            opacity={overlayOpacity}
-          />
+          <Sheet.Overlay transition={transition} opacity={overlayOpacity} />
         )}
         <Sheet.Frame style={frameStyle} pressStyle={{}}>
           {showHandle && <Sheet.Handle />}

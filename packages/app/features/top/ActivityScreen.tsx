@@ -3,10 +3,12 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
+import { FlatList } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
@@ -19,6 +21,7 @@ export function ActivityScreen(props: Props) {
   const theme = useTheme();
   const isFocused = useIsFocused();
   const currentUserId = useCurrentUserId();
+  const { scrollRef, onPressActiveTab } = useScrollTabToTop<FlatList>();
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const { performGroupAction } = useGroupActions();
   const { navigateToChannel, navigateToPost } = useRootNavigation();
@@ -73,8 +76,10 @@ export function ActivityScreen(props: Props) {
     (group: db.Group) => {
       store.markGroupRead(group.id);
       props.navigation.navigate('GroupSettings', {
-        screen: 'GroupMembers',
-        params: { groupId: group.id },
+        state: {
+          routes: [{ name: 'GroupMembers', params: { groupId: group.id } }],
+          index: 0,
+        },
       });
     },
     [props.navigation]
@@ -88,7 +93,7 @@ export function ActivityScreen(props: Props) {
   );
 
   const handleNavigateToContacts = useCallback(() => {
-    props.navigation.navigate('Contacts');
+    props.navigation.navigate('Contacts', undefined, { pop: true });
   }, [props.navigation]);
 
   const handleInviteFriends = useCallback(() => {
@@ -111,11 +116,19 @@ export function ActivityScreen(props: Props) {
           loadingSubtitle={loadingSubtitle}
           onNavigateToContacts={handleNavigateToContacts}
           onInviteFriends={handleInviteFriends}
+          scrollRef={scrollRef}
         />
         <NavBarView
-          navigateToContacts={() => props.navigation.navigate('Contacts')}
-          navigateToHome={() => props.navigation.navigate('ChatList')}
-          navigateToNotifications={() => props.navigation.navigate('Activity')}
+          navigateToContacts={() =>
+            props.navigation.navigate('Contacts', undefined, { pop: true })
+          }
+          navigateToHome={() =>
+            props.navigation.navigate('ChatList', undefined, { pop: true })
+          }
+          navigateToNotifications={() =>
+            props.navigation.navigate('Activity', undefined, { pop: true })
+          }
+          onPressActiveTab={onPressActiveTab}
           currentRoute="Activity"
           currentUserId={currentUserId}
           showContactsTab={contactsTabEnabled}

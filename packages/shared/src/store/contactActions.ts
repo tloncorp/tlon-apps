@@ -33,8 +33,14 @@ export async function addContacts(contacts: string[]) {
     count: contacts.length,
   });
 
+  // Use upsert (matching the singular addContact) so a contact row is
+  // created locally if one doesn't exist yet. Otherwise downstream
+  // writes that target an existing row by id (e.g. markContactsAsMatched
+  // for the lanyard match flow) silently no-op until %contacts pushes
+  // a subscription event back, by which point the matchedAt window
+  // has already passed.
   const optimisticUpdates = contacts.map((contactId) =>
-    db.updateContact({
+    db.upsertContact({
       id: contactId,
       isContact: true,
       isContactSuggestion: false,
@@ -308,6 +314,9 @@ export async function updateCurrentUserProfile(
     bio: update.bio,
     peerAvatarImage: update.avatarImage,
   };
+  const hasNicknameUpdate = update.nickname !== undefined;
+  const changedNickname =
+    hasNicknameUpdate && currentUserContact?.peerNickname !== update.nickname;
 
   logger.trackEvent(AnalyticsEvent.ActionUpdatedProfile, {
     editedNickname: !!update.nickname,
@@ -327,8 +336,6 @@ export async function updateCurrentUserProfile(
     const personalGroup = await db.getPersonalGroup();
     if (personalGroup) {
       const hasDefaultTitle = logic.personalGroupHasDefaultTitle(personalGroup);
-      const changedNickname =
-        currentUserContact?.peerNickname !== update.nickname;
 
       if (hasDefaultTitle && changedNickname) {
         const newTitle = logic.generatePersonalGroupTitle({
@@ -349,21 +356,21 @@ export async function updateCurrentUserProfile(
     const homeGroup = await db.getBotHomeGroup();
     if (homeGroup) {
       const hasDefaultTitle = logic.botHomeGroupHasDefaultTitle(homeGroup);
-      const changedNickname =
-        currentUserContact?.peerNickname !== update.nickname;
 
-      if (hasDefaultTitle && changedNickname) {
+      if (hasDefaultTitle && hasNicknameUpdate) {
         const newTitle = logic.generateBotHomeGroupTitle({
           id: currentUserId,
           nickname: update.nickname,
         });
-        await GroupActions.updateGroupMeta(
-          {
-            ...homeGroup,
-            title: newTitle,
-          },
-          config
-        );
+        if (homeGroup.title !== newTitle) {
+          await GroupActions.updateGroupMeta(
+            {
+              ...homeGroup,
+              title: newTitle,
+            },
+            config
+          );
+        }
       }
     }
   } catch (e) {
