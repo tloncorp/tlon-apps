@@ -260,7 +260,6 @@
 +*  wood  ~(. wood-lib [bowl wood-state])
     log   ~(. logs [our.bowl dap.bowl /logs])
     ol    (kol gte)
-    log      ~(. logs [our.bowl /logs])
     tell-log  (cork tell:log unsafe:guard)
     fail-log  (cork fail:log unsafe:guard)
 ++  abet  [(flop cards) state]
