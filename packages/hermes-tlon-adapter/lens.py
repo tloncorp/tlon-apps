@@ -466,6 +466,26 @@ def build_lens_payload(lens: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def context_lens_reference_blob(
+    lens_id: str, bot_ship: Optional[str] = None
+) -> str:
+    """Post-blob field pointing a delivered reply at its lens run.
+
+    Mirrors ``serializeContextLensReferenceBlob`` (openclaw/urbit/blob.ts): a
+    JSON array with a single ``tlon-context-lens`` entry. The client's
+    ``getContextLensStamp`` reads this off ``post.blob`` to surface the
+    per-message lens entry point (badge / message actions).
+    """
+    entry: dict[str, Any] = {
+        "type": "tlon-context-lens",
+        "version": 1,
+        "lensId": lens_id,
+    }
+    if bot_ship:
+        entry["botShip"] = bot_ship
+    return json.dumps([entry], separators=(",", ":"))
+
+
 class TlonLensSync:
     """Pokes lens run records to the bot ship's ``%steward`` agent.
 

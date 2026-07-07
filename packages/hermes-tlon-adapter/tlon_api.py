@@ -657,8 +657,13 @@ class TlonCLI:
         self._runner = runner or self._run_subprocess
         self._observer = observer
 
-    async def send_message(self, chat_id: str, text: str) -> TlonSendResult:
-        return await self._run(("posts", "send", chat_id, text))
+    async def send_message(
+        self, chat_id: str, text: str, *, blob: str | None = None
+    ) -> TlonSendResult:
+        args: list[str] = ["posts", "send", chat_id, text]
+        if blob:
+            args.extend(["--blob", blob])
+        return await self._run(tuple(args))
 
     async def send_reply(
         self,
@@ -667,10 +672,13 @@ class TlonCLI:
         text: str,
         *,
         parent_author: str | None = None,
+        blob: str | None = None,
     ) -> TlonSendResult:
         args: list[str] = ["posts", "reply", chat_id, post_id, text]
         if parent_author:
             args.extend(["--author", normalize_ship(parent_author)])
+        if blob:
+            args.extend(["--blob", blob])
         return await self._run(tuple(args))
 
     async def run_command(self, args: Sequence[str]) -> TlonSendResult:

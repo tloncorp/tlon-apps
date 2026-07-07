@@ -210,6 +210,20 @@ class TruncationTests(unittest.TestCase):
             len(json.dumps(payload, separators=(",", ":"))), lens.MAX_PAYLOAD_CHARS
         )
 
+    def test_reference_blob_shape(self):
+        # Mirrors serializeContextLensReferenceBlob (openclaw/urbit/blob.ts):
+        # a JSON array with a single tlon-context-lens entry.
+        blob = json.loads(lens.context_lens_reference_blob("L9", "~bot"))
+        self.assertEqual(
+            blob,
+            [{"type": "tlon-context-lens", "version": 1, "lensId": "L9", "botShip": "~bot"}],
+        )
+
+    def test_reference_blob_omits_bot_ship_when_absent(self):
+        blob = json.loads(lens.context_lens_reference_blob("L9"))
+        self.assertNotIn("botShip", blob[0])
+        self.assertEqual(blob[0]["lensId"], "L9")
+
     def test_small_payload_not_truncated(self):
         payload = lens.build_lens_payload(make_run().to_context_lens())
         self.assertNotIn("truncated", payload)

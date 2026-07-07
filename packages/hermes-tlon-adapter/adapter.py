@@ -116,6 +116,7 @@ from .lens import (
     TlonLensRecorder,
     TlonLensSync,
     clear_active_recorder,
+    context_lens_reference_blob,
     handle_post_api_request_lens,
     handle_post_tool_call_lens,
     handle_pre_tool_call_lens,
@@ -2150,6 +2151,16 @@ class TlonAdapter(BasePlatformAdapter):
             logger.warning("[tlon] context-lens begin failed: %s", exc)
             self._telemetry.error("context_lens", exc, operation="begin")
 
+    def _lens_reference_blob(self, conversation_id: str) -> Optional[str]:
+        if not self._lens.enabled:
+            return None
+        run = self._lens.get(conversation_id)
+        if run is None:
+            return None
+        return context_lens_reference_blob(
+            run.lens_id, normalize_ship(self.tlon_config.ship_name) or None
+        )
+
     async def _finish_lens_run_on_error(self, conversation_id: str) -> None:
         if not self._lens.enabled:
             return
@@ -2223,6 +2234,10 @@ class TlonAdapter(BasePlatformAdapter):
         if thread_parent is None and self.tlon_config.reply_in_thread:
             thread_parent = reply_to
         is_thread_reply = bool(thread_parent)
+        # Stamp the reply with a pointer to its lens run so the client can open
+        # the run from the message (badge / message actions), matching
+        # OpenClaw. Only when a run is active for this conversation.
+        lens_blob = self._lens_reference_blob(chat_id)
         with cli_context("delivery", conversation=chat_id):
             if is_thread_reply:
                 # parentAuthor: honor what Hermes passes; otherwise the CLI
@@ -2234,9 +2249,12 @@ class TlonAdapter(BasePlatformAdapter):
                     thread_parent,
                     content,
                     parent_author=parent_author,
+                    blob=lens_blob,
                 )
             else:
-                result = await self._cli.send_message(chat_id, content)
+                result = await self._cli.send_message(
+                    chat_id, content, blob=lens_blob
+                )
         self._telemetry.record_delivery(chat_id, content=content, success=result.success)
         if result.success:
             self._lens.record_output(

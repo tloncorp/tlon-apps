@@ -176,14 +176,14 @@ class FakeSSE:
 
 
 class FakeCLI:
-    async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+    async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None):
         return tlon_api.TlonSendResult(
             success=True,
             command=("tlon-test", "posts", "reply"),
             message_id="reply-id",
         )
 
-    async def send_message(self, chat_id, text):
+    async def send_message(self, chat_id, text, *, blob=None):
         return tlon_api.TlonSendResult(
             success=True,
             command=("tlon-test", "posts", "send"),
@@ -670,11 +670,11 @@ class AdapterAttentionTests(unittest.TestCase):
                 self.sends = []
                 self.thread_replies = []
 
-            async def send_message(self, chat_id, text):
+            async def send_message(self, chat_id, text, *, blob=None):
                 self.sends.append((chat_id, text))
                 return await super().send_message(chat_id, text)
 
-            async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+            async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None):
                 self.thread_replies.append((chat_id, post_id, text))
                 return await super().send_reply(
                     chat_id, post_id, text, parent_author=parent_author
@@ -713,7 +713,7 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter._cli = FakeCLI()
         recorded = []
 
-        async def record_reply(chat_id, post_id, text, *, parent_author=None):
+        async def record_reply(chat_id, post_id, text, *, parent_author=None, blob=None):
             recorded.append(post_id)
             return tlon_api.TlonSendResult(
                 success=True, command=("tlon-test",), message_id="reply-id"
@@ -722,6 +722,54 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter._cli.send_reply = record_reply
         asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="170.141"))
         self.assertEqual(recorded, ["170.141"])
+
+    def test_send_stamps_active_lens_run(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        self.assertTrue(adapter._lens.enabled)
+        captured = {}
+
+        async def record_message(chat_id, text, *, blob=None):
+            captured["blob"] = blob
+            return tlon_api.TlonSendResult(
+                success=True, command=("tlon-test",), message_id="post-id"
+            )
+
+        adapter._cli = FakeCLI()
+        adapter._cli.send_message = record_message
+        adapter._lens.begin(
+            "chat/~pen/general",
+            adapter_mod.LensRun(
+                lens_id="L42",
+                message_id="m",
+                chat_type="channel",
+                trigger="mention",
+                conversation_kind="channel",
+            ),
+        )
+        asyncio.run(adapter.send("chat/~pen/general", "hi"))
+        entry = json.loads(captured["blob"])[0]
+        self.assertEqual(entry["type"], "tlon-context-lens")
+        self.assertEqual(entry["lensId"], "L42")
+        self.assertEqual(entry["botShip"], "~pen")
+
+    def test_send_without_active_lens_run_omits_blob(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        captured = {"blob": "unset"}
+
+        async def record_message(chat_id, text, *, blob=None):
+            captured["blob"] = blob
+            return tlon_api.TlonSendResult(
+                success=True, command=("tlon-test",), message_id="post-id"
+            )
+
+        adapter._cli = FakeCLI()
+        adapter._cli.send_message = record_message
+        asyncio.run(adapter.send("chat/~pen/general", "hi"))
+        self.assertIsNone(captured["blob"])
 
     def test_nickname_fetch_failure_keeps_ship_and_alias_wakes(self):
         adapter = self.make_adapter({"allowed_users": ["~mug"], "bot_mentions": ["arvo"]})
