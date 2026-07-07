@@ -2523,9 +2523,11 @@ export const getGroupUnread = createReadQuery(
   'getGroupUnread',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
     if (!groupId) return Promise.resolve(null);
-    return ctx.db.query.groupUnreads.findFirst({
-      where: and(eq($groupUnreads.groupId, groupId)),
-    });
+    return (
+      (await ctx.db.query.groupUnreads.findFirst({
+        where: and(eq($groupUnreads.groupId, groupId)),
+      })) ?? null
+    );
   },
   ['groupUnreads']
 );
@@ -2533,9 +2535,11 @@ export const getGroupUnread = createReadQuery(
 export const getBaseUnread = createReadQuery(
   'getBaseUnread',
   async (ctx: QueryCtx) => {
-    return ctx.db.query.baseUnreads.findFirst({
-      where: eq($baseUnreads.id, BASE_UNREADS_SINGLETON_KEY),
-    });
+    return (
+      (await ctx.db.query.baseUnreads.findFirst({
+        where: eq($baseUnreads.id, BASE_UNREADS_SINGLETON_KEY),
+      })) ?? null
+    );
   },
   ['baseUnreads']
 );
