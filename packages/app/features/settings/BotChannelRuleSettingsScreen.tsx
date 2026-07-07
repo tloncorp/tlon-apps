@@ -208,9 +208,22 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     props.navigation.goBack();
   }, [rule, props.navigation]);
 
+  // While the rule inherits defaults, show (and edit from) the live
+  // defaultAuthorizedShips rather than the snapshot stored on the rule — an
+  // add/remove makes the list explicit via patch, and it must start from the
+  // current defaults, not a stale copy captured when the draft was built.
   const allowedShips = useMemo(
-    () => normalizeShipList(currentRule.allowedShips),
-    [currentRule.allowedShips]
+    () =>
+      normalizeShipList(
+        currentRule.inheritsDefaultShips
+          ? draft.draft.chat.defaultAuthorizedShips
+          : currentRule.allowedShips
+      ),
+    [
+      currentRule.inheritsDefaultShips,
+      currentRule.allowedShips,
+      draft.draft.chat.defaultAuthorizedShips,
+    ]
   );
 
   const addPendingShip = useCallback(() => {
