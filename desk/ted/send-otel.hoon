@@ -187,7 +187,6 @@
           ==
       ==
   ==
-~&  (en:json:html logs)
 =/  =request:http
   :*  %'POST'
       otel
