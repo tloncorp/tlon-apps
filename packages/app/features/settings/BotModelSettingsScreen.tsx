@@ -7,7 +7,7 @@ import {
   Text,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -59,6 +59,14 @@ export function BotModelSettingsScreen(props: Props) {
   const allProviderModels = useAllProviderModels(queries.providerConfig);
   const [search, setSearch] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // The desktop settings drawer keeps this screen mounted across mode
+  // switches (default vs fallbacks); clear the search and validation state
+  // when the mode param changes so they don't leak between the two forms.
+  useEffect(() => {
+    setSearch('');
+    setValidationError(null);
+  }, [mode]);
 
   const modelValues = draft.draft.model;
 
