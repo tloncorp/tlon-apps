@@ -21,7 +21,7 @@ export const POSTS_HELP = `Usage: tlon posts <command>
 
 Commands:
   send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>]
-  reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship]
+  reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship] [--blob <json>]
   react <channel> <post-id> <emoji>     React to a post with an emoji
   unreact <channel> <post-id>           Remove your reaction from a post
   edit <channel> <post-id> <message>    Edit a post's message text
@@ -44,7 +44,7 @@ Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 export const POSTS_COMMAND_HELP: Record<string, string> = {
   send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] (message optional with --image)',
   reply:
-    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship]',
+    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>]',
   react: 'Usage: tlon posts react <channel> <post-id> <emoji>',
   unreact: 'Usage: tlon posts unreact <channel> <post-id>',
   edit: 'Usage: tlon posts edit <channel> <post-id> <message>',
@@ -63,7 +63,7 @@ export const POSTS_REACT_HELP = POSTS_COMMAND_HELP.react;
 const POSTS_EDIT_REMOVED_FLAGS_MESSAGE =
   'tlon posts edit no longer supports --title/--image/--content (notebook-only affordances). Edit the message text directly; use `tlon notes` for %notes content.';
 
-const POST_REPLY_OPTION_FLAGS = ['author'] as const;
+const POST_REPLY_OPTION_FLAGS = ['author', 'blob'] as const;
 const POST_SEND_OPTION_FLAGS = ['blob', 'image'] as const;
 
 export interface PostReactionInput {
@@ -118,6 +118,7 @@ export interface PostReplyInput {
   content: Story;
   sentAt: number;
   authorId: string;
+  blob?: string;
 }
 
 export interface PostLookupQuery {
@@ -177,6 +178,7 @@ type ParsedPostsArgs =
       postId: string;
       message: string;
       parentAuthor?: string;
+      blob?: string;
     }
   | { kind: 'react'; channelId: string; postId: string; emoji: string }
   | { kind: 'unreact'; channelId: string; postId: string }
@@ -250,14 +252,17 @@ function validatedImageFlag(args: string[], usage: string): string | undefined {
   return url;
 }
 
-function validatedSendBlob(args: string[]): string | undefined {
+function validatedBlobFlag(
+  args: string[],
+  help: string = POSTS_COMMAND_HELP.send
+): string | undefined {
   const blobIdx = args.indexOf('--blob');
   if (blobIdx === -1) {
     return undefined;
   }
   const blob = args[blobIdx + 1];
   if (!blob) {
-    throw usageError(POSTS_COMMAND_HELP.send);
+    throw usageError(help);
   }
   try {
     if (!Array.isArray(JSON.parse(blob))) {
@@ -394,7 +399,7 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       if (!args[1] || (!message && !imageUrl)) {
         throw usageError(POSTS_COMMAND_HELP.send);
       }
-      const blob = validatedSendBlob(args);
+      const blob = validatedBlobFlag(args);
       return { kind: 'send', channelId: args[1], message, imageUrl, blob };
     }
     case 'reply': {
@@ -409,7 +414,8 @@ function parseArgs(args: string[]): ParsedPostsArgs {
         throw usageError(POSTS_COMMAND_HELP.reply);
       }
       const parentAuthor = authorIdx !== -1 ? args[authorIdx + 1] : undefined;
-      return { kind: 'reply', channelId, postId, message, parentAuthor };
+      const blob = validatedBlobFlag(args, POSTS_COMMAND_HELP.reply);
+      return { kind: 'reply', channelId, postId, message, parentAuthor, blob };
     }
     case 'react': {
       const [, channelId, postId, emoji] = args;
@@ -536,6 +542,7 @@ async function sendReply(
     postId: string;
     message: string;
     parentAuthor?: string;
+    blob?: string;
   },
   deps: PostsDeps
 ): Promise<void> {
@@ -551,6 +558,7 @@ async function sendReply(
     content: markdownToStory(parsed.message),
     sentAt: deps.now(),
     authorId,
+    blob: parsed.blob,
   });
 }
 

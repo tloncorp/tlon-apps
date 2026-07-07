@@ -428,6 +428,40 @@ describe('posts reply', () => {
     expect(context.calls.sendReply[0].parentAuthor).toBe('~bus');
   });
 
+  it('stamps a validated --blob without folding it into the message', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      [
+        'reply',
+        'chat/~host/channel',
+        '170.141',
+        'hello there',
+        '--blob',
+        '[{"type":"tlon-context-lens","lensId":"L1"}]',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendReply[0].content).toEqual([
+      { inline: ['hello there'] },
+    ]);
+    expect(context.calls.sendReply[0].blob).toBe(
+      '[{"type":"tlon-context-lens","lensId":"L1"}]'
+    );
+  });
+
+  it('rejects a malformed reply --blob', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['reply', 'chat/~host/channel', '170.141', 'hi', '--blob', '{"a":1}'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.sendReply).toEqual([]);
+  });
+
   it('defaults the parent author to a one-to-one DM target', async () => {
     const context = makeDeps({ currentUserId: '~nec' });
     await run(['reply', '~sampel-palnet', '170.141', 'hi'], context.deps);
