@@ -7,7 +7,11 @@ import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('deeplinks', false);
 
-const DEFAULT_INVITE_DOMAINS = ['join.tlon.io', 'invite.tlon.io'];
+const DEFAULT_INVITE_DOMAINS = [
+  'join.tlon.io',
+  'invite.tlon.io',
+  'serverless-infra-git-db-invite-page-service-tlon.vercel.app',
+];
 const DEFAULT_APP_LINK_DOMAINS = [
   'sa96e.app.link',
   'sa96e-alternate.app.link',

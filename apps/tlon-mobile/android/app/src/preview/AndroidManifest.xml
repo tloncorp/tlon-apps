@@ -27,6 +27,7 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="https" android:host="sa96e.test-app.link"/>
                 <data android:scheme="https" android:host="sa96e-alternate.test-app.link"/>
+                <data android:scheme="https" android:host="serverless-infra-git-db-invite-page-service-tlon.vercel.app"/>
             </intent-filter>
         </activity>
     </application>    

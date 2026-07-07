@@ -17,6 +17,15 @@ describe('parseInviteDeepLink', () => {
       type: 'lure',
       token: '0vxyz',
     });
+    expect(
+      parseInviteDeepLink(
+        'https://serverless-infra-git-db-invite-page-service-tlon.vercel.app/0vabc',
+        options
+      )
+    ).toEqual({
+      type: 'lure',
+      token: '0vabc',
+    });
   });
 
   test('parses legacy multi-segment invite tokens', () => {
