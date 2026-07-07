@@ -1,5 +1,6 @@
 import {
   type NotesV1Api,
+  NotesV1PendingWriteError,
   joinNotesChannel,
   leaveNotesChannel,
   notesV1,
@@ -9,6 +10,7 @@ import * as fs from 'fs';
 import { ensureClient } from './api-client';
 import { commandError, errorMessage } from './commands/command';
 import type { NotesDeps } from './commands/notes';
+import type { NotesPendingWriteErrorLike } from './notes-pending-write';
 
 const STDIN_TIMEOUT_MS = 30_000;
 
@@ -60,6 +62,9 @@ function wrapNotesV1(): NotesV1Api {
       try {
         return await call(...args);
       } catch (error) {
+        if (error instanceof NotesV1PendingWriteError) {
+          throw error;
+        }
         throw commandError(notesRuntimeErrorMessage(error));
       }
     };
@@ -75,6 +80,8 @@ export function createNotesDeps(): NotesDeps {
       await ensureClient();
     },
     notesV1: wrapNotesV1(),
+    isPendingWriteError: (error): error is NotesPendingWriteErrorLike =>
+      error instanceof NotesV1PendingWriteError,
     // Membership uses the %notes action wrappers (not the v0 app-sync helpers).
     joinNotesNotebook: async (nest: string) => {
       try {

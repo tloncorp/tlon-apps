@@ -1,6 +1,7 @@
 import type { NotesV1Api } from '@tloncorp/api';
 import { describe, expect, it } from 'bun:test';
 
+import type { NotesPendingWriteErrorLike } from '../notes-pending-write';
 import { commandError } from './command';
 import {
   NOTES_COMMAND_HELP,
@@ -45,10 +46,32 @@ interface NotesV1Call {
 interface MakeDepsOptions {
   authenticate?: () => Promise<void>;
   notesV1?: Partial<Record<NotesV1Op, AnyFn>>;
+  isPendingWriteError?: NotesDeps['isPendingWriteError'];
   joinNotesNotebook?: (nest: string) => Promise<void>;
   leaveNotesNotebook?: (nest: string) => Promise<void>;
   readFile?: (path: string) => string;
   readStdin?: () => Promise<string>;
+}
+
+class PendingWriteErrorForTest
+  extends Error
+  implements NotesPendingWriteErrorLike
+{
+  readonly requestId?: string;
+  readonly status?: string;
+  readonly checks: NotesPendingWriteErrorLike['checks'];
+
+  constructor({
+    requestId,
+    status,
+    checks = [],
+  }: Partial<NotesPendingWriteErrorLike> = {}) {
+    super('%notes write request is still pending');
+    this.name = 'NotesV1PendingWriteError';
+    this.requestId = requestId;
+    this.status = status;
+    this.checks = checks;
+  }
 }
 
 function makeDeps(options: MakeDepsOptions = {}) {
@@ -83,6 +106,10 @@ function makeDeps(options: MakeDepsOptions = {}) {
       await options.authenticate?.();
     },
     notesV1: notesV1 as unknown as NotesV1Api,
+    isPendingWriteError:
+      options.isPendingWriteError ??
+      ((error): error is NotesPendingWriteErrorLike =>
+        error instanceof PendingWriteErrorForTest),
     joinNotesNotebook: async (nest) => {
       calls.joinNotesNotebook.push(nest);
       calls.order.push('joinNotesNotebook');
@@ -768,6 +795,187 @@ describe('notes writes call operations with typed args', () => {
     expect(exitCode).toBe(1);
     expect(context.stdout()).toBe('');
     expect(context.stderr()).toContain('%notes error: folder not empty');
+  });
+
+  it('prints pending-write guidance for notebook create', async () => {
+    const context = makeDeps({
+      notesV1: {
+        createNotebook: async () => {
+          throw new PendingWriteErrorForTest({
+            requestId: '0vabc',
+            status: 'acked',
+            checks: [{ type: 'notebook-list' }, { type: 'notebook-detail' }],
+          });
+        },
+      },
+    });
+
+    const exitCode = await run(['create', 'New Notebook'], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain(
+      '%notes write request is still pending (request 0vabc)'
+    );
+    expect(context.stderr()).toContain('Do not retry automatically');
+    expect(context.stderr()).toContain('tlon notes request 0vabc');
+    expect(context.stderr()).toContain('tlon notes list');
+    expect(context.stderr()).toContain(
+      'tlon notes show <notes-nest-from-list>'
+    );
+    expect(context.stderr()).toContain(
+      'Only retry if the request failed or the requested change is not present.'
+    );
+    expect(context.stdout()).not.toContain('✓');
+  });
+
+  it('prints pending-write guidance for note create and update checks', async () => {
+    const create = makeDeps({
+      readStdin: async () => 'body',
+      notesV1: {
+        createNote: async () => {
+          throw new PendingWriteErrorForTest({
+            requestId: '0vnote',
+            checks: [
+              { type: 'note-list', nest: 'notes/~zod/blog' },
+              { type: 'note-detail', nest: 'notes/~zod/blog' },
+            ],
+          });
+        },
+      },
+    });
+
+    expect(
+      await run(
+        ['note-create', 'notes/~zod/blog', '7', 'Title', '--stdin'],
+        create.deps
+      )
+    ).toBe(1);
+    expect(create.stdout()).toBe('');
+    expect(create.stderr()).toContain('tlon notes request 0vnote');
+    expect(create.stderr()).toContain('tlon notes notes notes/~zod/blog');
+    expect(create.stderr()).toContain(
+      'tlon notes note notes/~zod/blog <id-from-list>'
+    );
+
+    const update = makeDeps({
+      readStdin: async () => 'updated',
+      notesV1: {
+        updateNoteBody: async () => {
+          throw new PendingWriteErrorForTest({
+            requestId: '0vupdate',
+            checks: [
+              { type: 'note-detail', nest: 'notes/~zod/blog', noteId: 12 },
+            ],
+          });
+        },
+      },
+    });
+
+    expect(
+      await run(
+        ['note-update', 'notes/~zod/blog', '12', '--stdin'],
+        update.deps
+      )
+    ).toBe(1);
+    expect(update.stdout()).toBe('');
+    expect(update.stderr()).toContain('tlon notes request 0vupdate');
+    expect(update.stderr()).toContain('tlon notes note notes/~zod/blog 12');
+  });
+
+  it('prints pending-write guidance for folder create and update checks', async () => {
+    const create = makeDeps({
+      notesV1: {
+        createFolder: async () => {
+          throw new PendingWriteErrorForTest({
+            checks: [
+              { type: 'folder-list', nest: 'notes/~zod/blog' },
+              { type: 'folder-detail', nest: 'notes/~zod/blog' },
+            ],
+          });
+        },
+      },
+    });
+
+    expect(
+      await run(['folder-create', 'notes/~zod/blog', 'Drafts'], create.deps)
+    ).toBe(1);
+    expect(create.stdout()).toBe('');
+    expect(create.stderr()).toContain(
+      'No request id was returned, so inspect whether the write landed'
+    );
+    expect(create.stderr()).not.toContain('tlon notes request');
+    expect(create.stderr()).toContain('tlon notes folders notes/~zod/blog');
+    expect(create.stderr()).toContain(
+      'tlon notes folder notes/~zod/blog <id-from-list>'
+    );
+
+    const rename = makeDeps({
+      notesV1: {
+        renameFolder: async () => {
+          throw new PendingWriteErrorForTest({
+            requestId: '0vfolder',
+            checks: [
+              { type: 'folder-detail', nest: 'notes/~zod/blog', folderId: 4 },
+            ],
+          });
+        },
+      },
+    });
+
+    expect(
+      await run(
+        ['folder-rename', 'notes/~zod/blog', '4', 'Archive'],
+        rename.deps
+      )
+    ).toBe(1);
+    expect(rename.stdout()).toBe('');
+    expect(rename.stderr()).toContain('tlon notes request 0vfolder');
+    expect(rename.stderr()).toContain('tlon notes folder notes/~zod/blog 4');
+  });
+
+  it('prints pending-write guidance for representative delete paths', async () => {
+    const noteDelete = makeDeps({
+      notesV1: {
+        deleteNote: async () => {
+          throw new PendingWriteErrorForTest({
+            requestId: '0vdel-note',
+            checks: [
+              { type: 'note-detail', nest: 'notes/~zod/blog', noteId: 12 },
+            ],
+          });
+        },
+      },
+    });
+
+    expect(
+      await run(['note-delete', 'notes/~zod/blog', '12'], noteDelete.deps)
+    ).toBe(1);
+    expect(noteDelete.stdout()).toBe('');
+    expect(noteDelete.stderr()).toContain('tlon notes request 0vdel-note');
+    expect(noteDelete.stderr()).toContain('tlon notes note notes/~zod/blog 12');
+
+    const folderDelete = makeDeps({
+      notesV1: {
+        deleteFolder: async () => {
+          throw new PendingWriteErrorForTest({
+            requestId: '0vdel-folder',
+            checks: [
+              { type: 'folder-detail', nest: 'notes/~zod/blog', folderId: 4 },
+            ],
+          });
+        },
+      },
+    });
+
+    expect(
+      await run(['folder-delete', 'notes/~zod/blog', '4'], folderDelete.deps)
+    ).toBe(1);
+    expect(folderDelete.stdout()).toBe('');
+    expect(folderDelete.stderr()).toContain('tlon notes request 0vdel-folder');
+    expect(folderDelete.stderr()).toContain(
+      'tlon notes folder notes/~zod/blog 4'
+    );
   });
 });
 

@@ -1,3 +1,4 @@
+import * as api from '@tloncorp/api';
 import { poke } from '@tloncorp/api';
 import * as $ from 'drizzle-orm';
 import { afterEach, expect, test, vi } from 'vitest';
@@ -5,7 +6,12 @@ import { afterEach, expect, test, vi } from 'vitest';
 import * as db from '../db';
 import * as schema from '../db/schema';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
-import { markChannelRead } from './channelActions';
+import {
+  createChannel,
+  joinGroupChannel,
+  leaveGroupChannel,
+  markChannelRead,
+} from './channelActions';
 
 setupDatabaseTestSuite();
 
@@ -15,27 +21,36 @@ const channelId = 'chat/~zod/stale-notify/general';
 async function insertGroupAndChannel({
   id = channelId,
   group = groupId,
+  type = 'chat',
 }: {
   id?: string;
   group?: string;
+  type?: db.ChannelType;
 } = {}) {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await insertGroup(group);
+  await client.insert(schema.channels).values({
+    id,
+    type,
+    groupId: group,
+  });
+}
+
+async function insertGroup(id = groupId) {
   const client = getClient();
   if (!client) throw new Error('test db not initialized');
 
   await client
     .insert(schema.groups)
     .values({
-      id: group,
+      id,
       currentUserIsMember: true,
       currentUserIsHost: false,
       hostUserId: '~zod',
     })
     .onConflictDoNothing();
-  await client.insert(schema.channels).values({
-    id,
-    type: 'chat',
-    groupId: group,
-  });
 }
 
 function makeChannelUnread(
@@ -82,8 +97,263 @@ function makeThreadUnread(
   };
 }
 
+function mockCreateNotesNotebook() {
+  return vi.spyOn(api.notes, 'createGroupNotebook').mockResolvedValue({
+    id: '~solfer-magfed/native-notes',
+    host: '~solfer-magfed',
+    flagName: 'native-notes',
+    notebookId: 1,
+    title: 'Native notes',
+  });
+}
+
+function mockNotesChannelListing({
+  channelId = 'notes/~solfer-magfed/native-notes',
+  readerRoles = [],
+}: {
+  channelId?: string;
+  readerRoles?: { channelId: string; roleId: string }[];
+} = {}) {
+  return vi.spyOn(api, 'getGroup').mockResolvedValue({
+    id: groupId,
+    channels: [
+      {
+        id: channelId,
+        title: 'Native notes',
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+        currentUserIsHost: true,
+        contentConfiguration: { draftInput: 'disabled' },
+        lastPostSequenceNum: 0,
+        readerRoles,
+      },
+    ],
+  } as unknown as db.Group);
+}
+
 afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.mocked(poke).mockClear();
+});
+
+test('createChannel creates a notes channel via the %notes HTTP API, forwarding readers', async () => {
+  await insertGroup();
+
+  const createGroupNotebook = mockCreateNotesNotebook();
+  const getGroup = mockNotesChannelListing({
+    readerRoles: [
+      {
+        channelId: 'notes/~solfer-magfed/native-notes',
+        roleId: 'admin',
+      },
+    ],
+  });
+  const addChannelListingToGroup = vi.spyOn(api, 'addChannelListingToGroup');
+
+  const channel = await createChannel({
+    groupId,
+    title: 'Native notes',
+    channelType: 'notes',
+    readers: ['admin'],
+  });
+
+  expect(createGroupNotebook).toHaveBeenCalledWith({
+    title: 'Native notes',
+    group: { host: '~zod', flagName: 'stale-notify' },
+    readers: ['admin'],
+  });
+  expect(getGroup).toHaveBeenCalledWith(groupId);
+  expect(addChannelListingToGroup).not.toHaveBeenCalled();
+  expect(channel.id).toBe('notes/~solfer-magfed/native-notes');
+  await expect(
+    db.getChannelWithRelations({ id: channel.id })
+  ).resolves.toMatchObject({
+    type: 'notes',
+    groupId,
+    readerRoles: [
+      {
+        channelId: channel.id,
+        roleId: 'admin',
+      },
+    ],
+  });
+});
+
+test('createChannel does not insert a notes channel when the HTTP create fails', async () => {
+  await insertGroup();
+
+  vi.spyOn(api.notes, 'createGroupNotebook').mockRejectedValue(
+    new Error('create failed')
+  );
+
+  await expect(
+    createChannel({
+      groupId,
+      title: 'Native notes',
+      channelType: 'notes',
+    })
+  ).rejects.toThrow('Failed to add notes channel to group');
+
+  await expect(
+    db.getChannel({ id: 'notes/~solfer-magfed/native-notes' })
+  ).resolves.toBeNull();
+});
+
+test('createChannel rolls back a notes notebook when local channel insert fails', async () => {
+  await insertGroup();
+
+  mockCreateNotesNotebook();
+  mockNotesChannelListing();
+  const deleteNotesNotebookStrict = vi
+    .spyOn(api, 'deleteNotesNotebookStrict')
+    .mockResolvedValue(1);
+  vi.spyOn(db, 'insertChannels').mockRejectedValue(new Error('db failed'));
+
+  await expect(
+    createChannel({
+      groupId,
+      title: 'Native notes',
+      channelType: 'notes',
+    })
+  ).rejects.toThrow('Failed to add notes channel to group');
+
+  expect(deleteNotesNotebookStrict).toHaveBeenCalledWith({
+    host: '~solfer-magfed',
+    name: 'native-notes',
+  });
+});
+
+test('createChannel removes the local notes channel when permission insert fails', async () => {
+  await insertGroup();
+
+  mockCreateNotesNotebook();
+  mockNotesChannelListing({
+    readerRoles: [
+      {
+        channelId: 'notes/~solfer-magfed/native-notes',
+        roleId: 'admin',
+      },
+    ],
+  });
+  const deleteNotesNotebookStrict = vi
+    .spyOn(api, 'deleteNotesNotebookStrict')
+    .mockResolvedValue(1);
+  vi.spyOn(db, 'insertChannelPerms').mockRejectedValue(
+    new Error('perms failed')
+  );
+
+  await expect(
+    createChannel({
+      groupId,
+      title: 'Native notes',
+      channelType: 'notes',
+    })
+  ).rejects.toThrow('Failed to add notes channel to group');
+
+  await expect(
+    db.getChannel({ id: 'notes/~solfer-magfed/native-notes' })
+  ).resolves.toBeNull();
+  expect(deleteNotesNotebookStrict).toHaveBeenCalledWith({
+    host: '~solfer-magfed',
+    name: 'native-notes',
+  });
+});
+
+test('createChannel rolls back a notes notebook when the listing never appears', async () => {
+  vi.useFakeTimers();
+  await insertGroup();
+
+  mockCreateNotesNotebook();
+  vi.spyOn(api, 'getGroup').mockResolvedValue({
+    id: groupId,
+    channels: [],
+  } as unknown as db.Group);
+  const deleteNotesNotebookStrict = vi
+    .spyOn(api, 'deleteNotesNotebookStrict')
+    .mockResolvedValue(1);
+
+  const createPromise = createChannel({
+    groupId,
+    title: 'Native notes',
+    channelType: 'notes',
+  });
+  const assertion = expect(createPromise).rejects.toThrow(
+    'Failed to add notes channel to group'
+  );
+  await vi.runAllTimersAsync();
+
+  await assertion;
+
+  await expect(
+    db.getChannel({ id: 'notes/~solfer-magfed/native-notes' })
+  ).resolves.toBeNull();
+  expect(deleteNotesNotebookStrict).toHaveBeenCalledWith({
+    host: '~solfer-magfed',
+    name: 'native-notes',
+  });
+});
+
+test('createChannel does not roll back when the notes listing cannot be verified', async () => {
+  vi.useFakeTimers();
+  await insertGroup();
+
+  mockCreateNotesNotebook();
+  vi.spyOn(api, 'getGroup').mockRejectedValue(new Error('group read failed'));
+  const deleteNotesNotebookStrict = vi
+    .spyOn(api, 'deleteNotesNotebookStrict')
+    .mockResolvedValue(1);
+
+  const createPromise = createChannel({
+    groupId,
+    title: 'Native notes',
+    channelType: 'notes',
+  });
+  const assertion = expect(createPromise).rejects.toThrow(
+    'Failed to add notes channel to group'
+  );
+  await vi.runAllTimersAsync();
+
+  await assertion;
+
+  expect(deleteNotesNotebookStrict).not.toHaveBeenCalled();
+});
+
+test('joinGroupChannel routes notes channels through the notes API', async () => {
+  const notesChannelId = 'notes/~zod/native-notes';
+  await insertGroupAndChannel({ id: notesChannelId, type: 'notes' });
+  const joinNotesChannel = vi
+    .spyOn(api, 'joinNotesChannel')
+    .mockResolvedValue(undefined);
+  const joinChannel = vi.spyOn(api, 'joinChannel').mockResolvedValue(undefined);
+
+  await joinGroupChannel({ channelId: notesChannelId, groupId });
+
+  expect(joinNotesChannel).toHaveBeenCalledWith(notesChannelId);
+  expect(joinChannel).not.toHaveBeenCalled();
+  await expect(db.getChannel({ id: notesChannelId })).resolves.toMatchObject({
+    currentUserIsMember: true,
+  });
+});
+
+test('leaveGroupChannel routes notes channels through the notes API', async () => {
+  const notesChannelId = 'notes/~zod/native-notes';
+  await insertGroupAndChannel({ id: notesChannelId, type: 'notes' });
+  const leaveNotesChannel = vi
+    .spyOn(api, 'leaveNotesChannel')
+    .mockResolvedValue(undefined);
+  const leaveChannel = vi
+    .spyOn(api, 'leaveChannel')
+    .mockResolvedValue(undefined);
+
+  await leaveGroupChannel(notesChannelId);
+
+  expect(leaveNotesChannel).toHaveBeenCalledWith(notesChannelId);
+  expect(leaveChannel).not.toHaveBeenCalled();
+  await expect(db.getChannel({ id: notesChannelId })).resolves.toMatchObject({
+    currentUserIsMember: false,
+  });
 });
 
 test('markChannelRead clears stale notification-only group unread after channel notification is read', async () => {
