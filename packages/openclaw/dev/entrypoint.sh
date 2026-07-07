@@ -26,6 +26,26 @@ mkdir -p /workspace/tlon
 echo "==> Installing plugin dependencies..."
 cd /workspace/tlon
 node scripts/resolve-workspace-deps.mjs package.json --registry
+# This is a standalone install of the plugin (no root pnpm-workspace.yaml), so
+# the monorepo's pnpm settings aren't in scope. Generate a container-local
+# workspace file: pnpm reads these settings only from pnpm-workspace.yaml
+# (--config flags cover a single invocation, not later pnpm run/exec calls).
+# - nodeLinker: build-local-skill-override.sh hydrates the platform tlon
+#   binary by resolving @tloncorp/tlon-skill-<platform>-<arch> at the top
+#   level of node_modules, which only the hoisted layout provides.
+# - dangerouslyAllowAllBuilds: pnpm requires explicit approval for dependency
+#   build scripts; allow them all — this is an ephemeral container building
+#   openclaw's own pinned dependencies, not a trust boundary.
+# - minimumReleaseAge: matches the monorepo policy; at the pnpm default (~24h)
+#   any dep released in the last day fails the install.
+# - verifyDepsBeforeRun: matches the monorepo policy; skips the implicit
+#   install pnpm otherwise runs before every pnpm run/exec.
+cat > pnpm-workspace.yaml << 'PNPM_EOF'
+nodeLinker: hoisted
+dangerouslyAllowAllBuilds: true
+minimumReleaseAge: 0
+verifyDepsBeforeRun: false
+PNPM_EOF
 pnpm install
 pnpm build
 ./dev/build-local-api-override.sh
@@ -60,10 +80,24 @@ if [ -f "/workspace/tlonbot/openclaw.json" ]; then
   echo "==> Copying config from tlonbot..."
   cp /workspace/tlonbot/openclaw.json "$CONFIG_PATH"
 
-  # Patch in Brave API key if available
+  # Patch in Brave web search if available. openclaw 2026.5.28 only accepts
+  # provider "brave" when the plugin is installed, allowed, and enabled, so
+  # set provider, allow, and enable together (mirrors the test entrypoint and
+  # production tlonbot flow).
   if [ -n "$BRAVE_API_KEY" ]; then
-    echo "==> Patching Brave API key into config..."
-    jq --arg key "$BRAVE_API_KEY" '.tools.web.search.apiKey = $key' \
+    # The install ledger lives in /root/.openclaw, which is a persisted
+    # volume (openclaw-state) — the image-layer install (Dockerfile) only
+    # seeds brand-new volumes. Repair existing volumes idempotently at
+    # startup, like production does before every gateway start. Tolerate
+    # failure (e.g. offline) the same way; config validation will surface it.
+    echo "==> Ensuring Brave web-search plugin is installed..."
+    openclaw plugins install @openclaw/brave-plugin \
+      || echo "WARN: brave plugin install failed; web_search may be unavailable"
+    echo "==> Patching Brave web search into config..."
+    jq --arg key "$BRAVE_API_KEY" \
+      '.tools.web.search = {"provider": "brave", "apiKey": $key}
+      | .plugins.allow += ["brave"]
+      | .plugins.entries.brave = {"enabled": true, "config": {"webSearch": {"apiKey": $key}}}' \
       "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
   fi
 

@@ -1,5 +1,6 @@
 import asyncio
 import importlib.util
+import json
 import sys
 import types
 import unittest
@@ -732,6 +733,116 @@ class MessageParsingTests(unittest.TestCase):
         self.assertEqual(message.chat_id, "chat/~zod/general")
         self.assertEqual(message.user_id, "~nec")
         self.assertEqual(message.text, "~zod hello")
+        self.assertEqual(message.content, [{"inline": [{"ship": "~zod"}, " hello"]}])
+
+    def test_parse_channel_message_accepts_bot_profile_author(self):
+        raw = {
+            "nest": "chat/~zod/general",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "set": {
+                            "essay": {
+                                "author": {
+                                    "ship": "~nec",
+                                    "nickname": "Test Bot",
+                                    "avatar": "",
+                                },
+                                "sent": 1000,
+                                "content": [{"inline": [{"ship": "~zod"}, " hello"]}],
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        message = tlon_api.parse_channel_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertEqual(message.user_id, "~nec")
+        self.assertEqual(message.user_name, "~nec")
+
+    def test_parse_channel_message_preserves_blob_and_allows_blob_only(self):
+        blob = json.dumps(
+            [
+                {
+                    "type": "file",
+                    "version": 1,
+                    "fileUri": "https://storage.example.com/report.pdf",
+                    "name": "report.pdf",
+                }
+            ]
+        )
+        raw = {
+            "nest": "chat/~zod/general",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "set": {
+                            "essay": {
+                                "author": "~nec",
+                                "sent": 1000,
+                                "content": [],
+                                "blob": blob,
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        message = tlon_api.parse_channel_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertEqual(message.text, "")
+        self.assertEqual(message.blob, blob)
+        self.assertEqual(message.content, [])
+
+    def test_parse_channel_reply_preserves_blob_and_parent(self):
+        blob = json.dumps(
+            [
+                {
+                    "type": "video",
+                    "version": 1,
+                    "fileUri": "https://storage.example.com/clip.mp4",
+                    "name": "clip.mp4",
+                }
+            ]
+        )
+        raw = {
+            "nest": "chat/~zod/general",
+            "response": {
+                "post": {
+                    "id": "root",
+                    "r-post": {
+                        "reply": {
+                            "id": "170.142",
+                            "r-reply": {
+                                "set": {
+                                    "seal": {"parent-id": "root"},
+                                    "memo": {
+                                        "author": "~nec",
+                                        "sent": 1000,
+                                        "content": [{"inline": ["see this"]}],
+                                        "blob": blob,
+                                    },
+                                }
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        message = tlon_api.parse_channel_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertEqual(message.message_id, "170.142")
+        self.assertEqual(message.reply_to_message_id, "root")
+        self.assertEqual(message.blob, blob)
 
     def test_old_substring_mention_helpers_are_removed(self):
         self.assertFalse(hasattr(tlon_api, "bot_mentioned"))
@@ -760,6 +871,75 @@ class MessageParsingTests(unittest.TestCase):
         self.assertEqual(message.chat_type, "dm")
         self.assertEqual(message.text, "hello")
         self.assertIsNone(own)
+
+    def test_parse_dm_message_allows_blob_only(self):
+        blob = json.dumps(
+            [
+                {
+                    "type": "voicememo",
+                    "version": 1,
+                    "fileUri": "https://storage.example.com/memo.m4a",
+                }
+            ]
+        )
+        raw = {
+            "whom": "~nec",
+            "id": "170.141",
+            "response": {
+                "add": {
+                    "essay": {
+                        "author": "~nec",
+                        "sent": 1000,
+                        "content": [],
+                        "blob": blob,
+                    }
+                }
+            },
+        }
+
+        message = tlon_api.parse_dm_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertEqual(message.text, "")
+        self.assertEqual(message.blob, blob)
+
+    def test_parse_dm_reply_preserves_blob_and_parent(self):
+        blob = json.dumps(
+            [
+                {
+                    "type": "file",
+                    "version": 1,
+                    "fileUri": "https://storage.example.com/report.pdf",
+                    "name": "report.pdf",
+                }
+            ]
+        )
+        raw = {
+            "whom": "~nec",
+            "id": "dm-root",
+            "response": {
+                "reply": {
+                    "id": "dm-reply",
+                    "delta": {
+                        "add": {
+                            "essay": {
+                                "author": "~nec",
+                                "sent": 1000,
+                                "content": [{"inline": ["see attached"]}],
+                                "blob": blob,
+                            }
+                        }
+                    },
+                }
+            },
+        }
+
+        message = tlon_api.parse_dm_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertEqual(message.message_id, "dm-reply")
+        self.assertEqual(message.reply_to_message_id, "dm-root")
+        self.assertEqual(message.blob, blob)
 
 
 if __name__ == "__main__":

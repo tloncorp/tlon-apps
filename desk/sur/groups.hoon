@@ -274,6 +274,16 @@
 ::  $flagged-content: flagged posts and replies that need admin review
 ::
 +$  flagged-content  (map nest (jug plan ship))
+::  $channel-active: channel join/leave report. third-party backing agents
+::  poke this to keep $active-channels current.
+::
++$  channel-active  [=flag =nest joined=?]
+::  $channel-join / $channel-leave: %groups tells a channel-host agent (named
+::  by the nest kind) to join or leave .nest. join carries the group flag so
+::  the host can record affiliation. see +join-channels / +leave-channels in groups.
+::
++$  channel-join   [=nest =flag]
++$  channel-leave  nest
 ::  %groups acur interface
 ::
 ::  a-* actions

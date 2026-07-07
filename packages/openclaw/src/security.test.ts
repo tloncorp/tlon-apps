@@ -7,7 +7,7 @@
  * - Ship normalization consistency
  * - Bot mention detection boundaries
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   extractMessageText,
@@ -16,11 +16,6 @@ import {
   isGroupInviteAllowed,
   sanitizeMessageText,
 } from './monitor/utils.js';
-import {
-  getSessionRole,
-  _testing as sessionRolesTesting,
-  setSessionRole,
-} from './session-roles.js';
 import { normalizeShip } from './targets.js';
 
 describe('Security: DM Allowlist', () => {
@@ -410,7 +405,9 @@ describe('Security: Sender Role Identification', () => {
     senderShip: string,
     ownerShip: string | null
   ): 'owner' | 'user' {
-    if (!ownerShip) return 'user';
+    if (!ownerShip) {
+      return 'user';
+    }
     return normalizeShip(senderShip) === normalizeShip(ownerShip)
       ? 'owner'
       : 'user';

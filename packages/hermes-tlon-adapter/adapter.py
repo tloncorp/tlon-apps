@@ -71,6 +71,7 @@ from .history import (
     fetch_channel_history,
     fetch_thread_context,
 )
+from .media import PreparedMedia, prepare_inbound_media, render_content_with_blob
 from .mention import (
     BotMentionMatcher,
     build_bot_mention_terms,
@@ -147,14 +148,30 @@ logger = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF_SECONDS = (2, 5, 10, 30, 60)
 RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000
-REQUIRED_ENV = ["TLON_NODE_URL", "TLON_NODE_ID", "TLON_ACCESS_CODE"]
+REQUIRED_ENV = [
+    "TLON_NODE_URL",
+    "TLON_NODE_ID",
+    "TLON_ACCESS_CODE",
+    "TLON_OWNER_SHIP",
+]
+OWNER_ONLY_TLON_TOOLS = frozenset(
+    {
+        "tlon",
+        "cronjob",
+        "read",
+        "read_file",
+        "write_file",
+        "patch",
+        "search_files",
+    }
+)
+OWNER_ONLY_TLON_TOOLSETS = frozenset({"file"})
 OPTIONAL_ENV = [
     "TLON_CHANNELS",
     "TLON_AUTO_DISCOVER",
     "TLON_ALLOWED_USERS",
     "TLON_ALLOW_ALL_USERS",
     "TLON_DM_ALLOWLIST",
-    "TLON_OWNER_SHIP",
     "TLON_HOME_CHANNEL",
     "TLON_BOT_MENTIONS",
     "TLON_FREE_RESPONSE_CHANNELS",
@@ -218,6 +235,21 @@ def _string_list(value: Any) -> list[str]:
     return [str(item).strip() for item in value if str(item).strip()]
 
 
+def _config_flag_enabled(value: Any, *, default: bool = True) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if not text:
+        return default
+    if text in _TRUTHY_ENV_VALUES:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 def _hermes_tool_permission_snapshot(
     env: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
@@ -244,9 +276,17 @@ def _hermes_tool_permission_snapshot(
 
         config = load_config()
         platform_toolsets = config.get("platform_toolsets") or {}
+        tlon_toolsets = (
+            _string_list(platform_toolsets.get("tlon"))
+            if isinstance(platform_toolsets, dict)
+            else []
+        )
         explicit_tlon_toolsets = (
             isinstance(platform_toolsets, dict)
             and isinstance(platform_toolsets.get("tlon"), list)
+        )
+        configured_tlon_toolsets = (
+            tlon_toolsets if explicit_tlon_toolsets else _string_list(config.get("toolsets"))
         )
         enabled_toolsets = sorted(
             str(name)
@@ -259,6 +299,20 @@ def _hermes_tool_permission_snapshot(
         disabled_toolsets = _string_list(
             agent_config.get("disabled_toolsets") if isinstance(agent_config, dict) else []
         )
+        mcp_servers = config.get("mcp_servers")
+        if not isinstance(mcp_servers, dict):
+            mcp_servers = {}
+        configured_mcp_servers = sorted(str(name) for name in mcp_servers)
+        enabled_mcp_servers = sorted(
+            str(name)
+            for name, server_config in mcp_servers.items()
+            if isinstance(server_config, dict)
+            and _config_flag_enabled(server_config.get("enabled"), default=True)
+        )
+        explicit_mcp_servers = sorted(
+            set(configured_tlon_toolsets) & set(enabled_mcp_servers)
+        )
+        resolved_mcp_servers = set(enabled_toolsets) & set(enabled_mcp_servers)
         cronjob_toolset_enabled = "cronjob" in enabled_toolsets
         cronjob_disabled = "cronjob" in disabled_toolsets
         snapshot.update(
@@ -266,6 +320,17 @@ def _hermes_tool_permission_snapshot(
                 "hermesTlonPlatformToolsetsExplicit": explicit_tlon_toolsets,
                 "hermesTlonToolsetsResolved": enabled_toolsets[:80],
                 "hermesTlonToolsetsCount": len(enabled_toolsets),
+                "hermesMcpServersConfigured": configured_mcp_servers[:80],
+                "hermesMcpServersConfiguredCount": len(configured_mcp_servers),
+                "hermesMcpServersEnabled": enabled_mcp_servers[:80],
+                "hermesMcpServersEnabledCount": len(enabled_mcp_servers),
+                "hermesMcpExplicitServerAllowlist": explicit_mcp_servers[:80],
+                "hermesMcpExplicitServerAllowlistCount": len(explicit_mcp_servers),
+                "hermesMcpDefaultServerSetEnabled": bool(
+                    resolved_mcp_servers
+                    and not explicit_mcp_servers
+                    and "no_mcp" not in configured_tlon_toolsets
+                ),
                 "hermesCronjobToolsetEnabled": cronjob_toolset_enabled,
                 "hermesCronjobDisabledByAgentConfig": cronjob_disabled,
                 "hermesCronjobAvailableAtStartup": (
@@ -273,12 +338,60 @@ def _hermes_tool_permission_snapshot(
                 ),
             }
         )
+        try:
+            from tools.registry import registry  # type: ignore
+            from toolsets import resolve_toolset  # type: ignore
+
+            tool_to_toolset = registry.get_tool_to_toolset_map()
+            registered_mcp_tools = {
+                tool: toolset
+                for tool, toolset in tool_to_toolset.items()
+                if str(toolset).startswith("mcp-")
+            }
+            registered_mcp_toolsets = sorted(set(registered_mcp_tools.values()))
+            resolved_tool_names: set[str] = set()
+            for toolset in enabled_toolsets:
+                resolved_tool_names.update(str(name) for name in resolve_toolset(toolset))
+            visible_mcp_tools = {
+                tool: toolset
+                for tool, toolset in registered_mcp_tools.items()
+                if tool in resolved_tool_names
+            }
+            snapshot.update(
+                {
+                    "hermesMcpRegisteredToolsets": registered_mcp_toolsets[:80],
+                    "hermesMcpRegisteredToolsetsCount": len(registered_mcp_toolsets),
+                    "hermesMcpRegisteredToolsCount": len(registered_mcp_tools),
+                    "hermesMcpRegisteredToolsEnabledForTlonCount": len(visible_mcp_tools),
+                }
+            )
+        except Exception as exc:
+            snapshot.update(
+                {
+                    "hermesMcpRegisteredToolsets": None,
+                    "hermesMcpRegisteredToolsetsCount": None,
+                    "hermesMcpRegisteredToolsCount": None,
+                    "hermesMcpRegisteredToolsEnabledForTlonCount": None,
+                    "hermesMcpRegistryErrorType": type(exc).__name__,
+                }
+            )
     except Exception as exc:
         snapshot.update(
             {
                 "hermesTlonPlatformToolsetsExplicit": None,
                 "hermesTlonToolsetsResolved": None,
                 "hermesTlonToolsetsCount": None,
+                "hermesMcpServersConfigured": None,
+                "hermesMcpServersConfiguredCount": None,
+                "hermesMcpServersEnabled": None,
+                "hermesMcpServersEnabledCount": None,
+                "hermesMcpExplicitServerAllowlist": None,
+                "hermesMcpExplicitServerAllowlistCount": None,
+                "hermesMcpDefaultServerSetEnabled": None,
+                "hermesMcpRegisteredToolsets": None,
+                "hermesMcpRegisteredToolsetsCount": None,
+                "hermesMcpRegisteredToolsCount": None,
+                "hermesMcpRegisteredToolsEnabledForTlonCount": None,
                 "hermesCronjobToolsetEnabled": None,
                 "hermesCronjobDisabledByAgentConfig": None,
                 "hermesCronjobAvailableAtStartup": None,
@@ -351,6 +464,10 @@ _PATP_RE = re.compile(r"^~[a-z][a-z-]*$")
 def _is_patp(ship: str) -> bool:
     """True for single-ship ids; excludes club ids like ~0v4..."""
     return bool(_PATP_RE.match(normalize_ship(ship)))
+
+
+def _message_type_member(name: str) -> Any:
+    return getattr(MessageType, str(name or "text").upper(), MessageType.TEXT)
 
 
 def _processing_outcome_value(outcome: Any) -> Optional[str]:
@@ -483,7 +600,9 @@ class TlonAdapter(BasePlatformAdapter):
             hermes_permissions = _hermes_tool_permission_snapshot()
             logger.info(
                 "[tlon] Hermes permissions: cronjob available=%s toolset=%s runtime=%s "
-                "disabled=%s flags(interactive=%s gateway=%s exec_ask=%s) home_channel=%s",
+                "disabled=%s flags(interactive=%s gateway=%s exec_ask=%s) home_channel=%s "
+                "mcp_servers=%s mcp_enabled=%s mcp_registered_toolsets=%s "
+                "mcp_registered_tools=%s mcp_visible_tools=%s",
                 hermes_permissions.get("hermesCronjobAvailableAtStartup"),
                 hermes_permissions.get("hermesCronjobToolsetEnabled"),
                 hermes_permissions.get("hermesCronjobRuntimeAllowed"),
@@ -492,6 +611,11 @@ class TlonAdapter(BasePlatformAdapter):
                 hermes_permissions.get("hermesCronjobEnvGatewaySession"),
                 hermes_permissions.get("hermesCronjobEnvExecAsk"),
                 hermes_permissions.get("hermesCronDeliveryHomeChannelConfigured"),
+                hermes_permissions.get("hermesMcpServersConfiguredCount"),
+                hermes_permissions.get("hermesMcpServersEnabledCount"),
+                hermes_permissions.get("hermesMcpRegisteredToolsetsCount"),
+                hermes_permissions.get("hermesMcpRegisteredToolsCount"),
+                hermes_permissions.get("hermesMcpRegisteredToolsEnabledForTlonCount"),
             )
             self._telemetry.gateway_connected(
                 {
@@ -718,10 +842,19 @@ class TlonAdapter(BasePlatformAdapter):
             "messageText": message.text,
             "timestamp": int(message.sent_at.timestamp() * 1000),
         }
+        if message.content is not None:
+            payload["messageContent"] = message.content
+        if message.blob:
+            payload["blob"] = message.blob
         if message.reply_to_message_id:
             payload["parentId"] = message.reply_to_message_id
             payload["isThreadReply"] = True
         return payload
+
+    @staticmethod
+    def _message_preview_text(message: TlonIncomingMessage, text: str) -> str:
+        preview = render_content_with_blob(text, message.blob, compact=False).strip()
+        return preview or "[attachment]"
 
     async def _queue_dm_approval(self, message: TlonIncomingMessage) -> None:
         if not self.tlon_config.owner_ship:
@@ -730,7 +863,7 @@ class TlonAdapter(BasePlatformAdapter):
         await self._queue_approval(
             approval_kind="dm",
             requesting_ship=message.user_id,
-            message_preview=message.text,
+            message_preview=self._message_preview_text(message, message.text),
             original_message=self._original_message_payload(message),
         )
 
@@ -746,7 +879,7 @@ class TlonAdapter(BasePlatformAdapter):
             approval_kind="channel",
             requesting_ship=message.user_id,
             channel_nest=message.chat_id,
-            message_preview=clean_text,
+            message_preview=self._message_preview_text(message, clean_text),
             original_message=original,
         )
 
@@ -1025,7 +1158,8 @@ class TlonAdapter(BasePlatformAdapter):
         if not isinstance(original, dict):
             return
         text = str(original.get("messageText") or "")
-        if not text.strip():
+        blob = str(original.get("blob") or "").strip() or None
+        if not text.strip() and not blob:
             return
         ship = approval_ship(approval)
         is_dm = approval_type(approval) == "dm"
@@ -1049,16 +1183,25 @@ class TlonAdapter(BasePlatformAdapter):
             message_id=str(original.get("messageId") or approval_id(approval)),
             reply_to_message_id=parent_id,
             sent_at=sent_at,
-            raw={"approvalReplay": approval_id(approval)},
+            raw={"approvalReplay": approval_id(approval), "originalMessage": original},
+            content=original.get("messageContent"),
+            blob=blob,
         )
+        dispatch_text, prepared_media = await self._prepare_dispatch_payload(message, text)
         if is_dm:
-            await self._dispatch_message(message, is_dm=True, dispatch_reason="approved")
+            await self._dispatch_message(
+                replace(message, text=dispatch_text),
+                is_dm=True,
+                dispatch_reason="approved",
+                prepared_media=prepared_media,
+            )
             return
-        dispatch_text = await self._with_group_context(message, text, "approved")
+        dispatch_text = await self._with_group_context(message, dispatch_text, "approved")
         await self._dispatch_message(
             replace(message, text=dispatch_text),
             is_dm=False,
             dispatch_reason="approved",
+            prepared_media=prepared_media,
         )
 
     async def _execute_ban_ship(self, ship: str) -> str:
@@ -1520,7 +1663,7 @@ class TlonAdapter(BasePlatformAdapter):
             AttentionFacts(
                 is_dm=False,
                 is_authorized=is_authorized,
-                has_text=bool(clean_text),
+                has_text=bool(clean_text or message.blob),
                 is_mentioned=is_mentioned,
                 is_owner_listen=is_owner_listen,
                 is_free_response=is_free_response,
@@ -1538,12 +1681,18 @@ class TlonAdapter(BasePlatformAdapter):
             return
         if not self._passes_group_loop_safety(message):
             return
-        dispatch_text = await self._with_group_context(message, clean_text, decision.reason)
+        dispatch_text, prepared_media = await self._prepare_dispatch_payload(
+            message, clean_text
+        )
+        dispatch_text = await self._with_group_context(
+            message, dispatch_text, decision.reason
+        )
         await self._dispatch_message(
             replace(message, text=dispatch_text),
             is_dm=False,
             mark_seen=False,
             dispatch_reason=decision.reason,
+            prepared_media=prepared_media,
         )
 
     async def _handle_dm_event(self, raw: Any) -> None:
@@ -1565,7 +1714,14 @@ class TlonAdapter(BasePlatformAdapter):
                     "[tlon] ignoring unauthorized message in %s", message.chat_id
                 )
             return
-        await self._dispatch_message(message, is_dm=True)
+        dispatch_text, prepared_media = await self._prepare_dispatch_payload(
+            message, message.text
+        )
+        await self._dispatch_message(
+            replace(message, text=dispatch_text),
+            is_dm=True,
+            prepared_media=prepared_media,
+        )
 
     async def _handle_dm_invites(self, ships: list) -> None:
         for raw_ship in ships:
@@ -1705,6 +1861,29 @@ class TlonAdapter(BasePlatformAdapter):
         if foreigns is not None:
             await self._handle_foreigns(foreigns)
 
+    async def _prepare_dispatch_payload(
+        self,
+        message: TlonIncomingMessage,
+        text: str,
+    ) -> tuple[str, PreparedMedia]:
+        try:
+            prepared = await prepare_inbound_media(message.content, message.blob)
+        except Exception as exc:
+            logger.debug(
+                "[tlon] media preparation failed for %s: %s",
+                message.message_id,
+                exc,
+            )
+            self._telemetry.error("media_prepare", exc)
+            return text, PreparedMedia()
+        if not prepared.text_prefix:
+            return text, prepared
+        body = str(text or "").strip()
+        dispatch_text = (
+            f"{prepared.text_prefix}\n{body}" if body else prepared.text_prefix
+        )
+        return dispatch_text, prepared
+
     async def _with_group_context(
         self,
         message: TlonIncomingMessage,
@@ -1779,6 +1958,7 @@ class TlonAdapter(BasePlatformAdapter):
         is_dm: bool,
         mark_seen: bool = True,
         dispatch_reason: str = "dm",
+        prepared_media: PreparedMedia | None = None,
     ) -> None:
         if not self._user_authorized(
             message.user_id,
@@ -1809,15 +1989,28 @@ class TlonAdapter(BasePlatformAdapter):
             thread_id=reply_context,
             message_id=message.message_id,
         )
-        event = MessageEvent(
-            text=message.text,
-            message_type=MessageType.TEXT,
-            source=source,
-            raw_message=message.raw,
-            message_id=message.message_id,
-            reply_to_message_id=reply_context,
-            timestamp=message.sent_at,
-        )
+        prepared = prepared_media or PreparedMedia()
+        event_kwargs = {
+            "text": message.text,
+            "message_type": _message_type_member(prepared.message_type),
+            "source": source,
+            "raw_message": message.raw,
+            "message_id": message.message_id,
+            "reply_to_message_id": reply_context,
+            "timestamp": message.sent_at,
+            "media_urls": list(prepared.media_urls),
+            "media_types": list(prepared.media_types),
+        }
+        try:
+            event = MessageEvent(**event_kwargs)
+        except TypeError:
+            # Keeps older Hermes test doubles and runtimes from failing before
+            # they pick up the native media fields.
+            media_urls = event_kwargs.pop("media_urls")
+            media_types = event_kwargs.pop("media_types")
+            event = MessageEvent(**event_kwargs)
+            setattr(event, "media_urls", media_urls)
+            setattr(event, "media_types", media_types)
         await self.handle_message(event)
 
     async def on_processing_start(self, event: MessageEvent) -> None:
@@ -1978,19 +2171,65 @@ def _session_env(name: str, default: str = "") -> str:
     return get_session_env(name, default)
 
 
+def _registered_toolset(tool_name: str) -> str:
+    try:
+        from model_tools import get_toolset_for_tool
+    except Exception:
+        return ""
+    try:
+        return str(get_toolset_for_tool(tool_name) or "").strip()
+    except Exception:
+        return ""
+
+
+def _is_owner_only_tlon_tool(tool_name: str) -> bool:
+    tool = str(tool_name or "").strip()
+    tool_key = tool.casefold()
+    if tool_key in OWNER_ONLY_TLON_TOOLS:
+        return True
+
+    toolset = _registered_toolset(tool)
+    toolset_key = toolset.casefold()
+    if toolset_key in OWNER_ONLY_TLON_TOOLSETS:
+        return True
+    return tool_key.startswith("mcp_") or toolset_key.startswith("mcp-")
+
+
+def _tool_access_block(message: str) -> dict:
+    return {"action": "block", "message": message}
+
+
 def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwargs: Any) -> Optional[dict]:
     del args
     if _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
         return None
-    if str(tool_name or "").strip() == "skill_manage":
-        return {
-            "action": "block",
-            "message": (
-                "Blocked: Tlon chat sessions use the managed Tlon prompt and "
-                "plugin-owned tlon skill. Do not create or modify Hermes skills "
-                "while handling a Tlon message."
-            ),
-        }
+
+    tool = str(tool_name or "").strip()
+    owner = TlonConfig.from_env().owner_ship
+    if not owner:
+        return _tool_access_block(
+            "Blocked: Tlon owner identity is not configured. Set TLON_OWNER_SHIP "
+            "before allowing tool use from Tlon chat sessions."
+        )
+
+    if tool == "skill_manage":
+        return _tool_access_block(
+            "Blocked: Tlon chat sessions use the managed Tlon prompt and "
+            "plugin-owned tlon skill. Do not create or modify Hermes skills "
+            "while handling a Tlon message."
+        )
+
+    if not _is_owner_only_tlon_tool(tool):
+        return None
+
+    sender = normalize_ship(_session_env("HERMES_SESSION_USER_ID", ""))
+    if not sender:
+        return _tool_access_block(
+            f"Blocked: {tool} is owner-only in Tlon chats and no Tlon sender "
+            "identity is available."
+        )
+    if sender != owner:
+        return _tool_access_block(f"Blocked: {tool} is owner-only in Tlon chats.")
     return None
 
 

@@ -16,6 +16,7 @@ import {
   type StateClient,
   createStateClient,
   getTestConfig,
+  registerEngagingTurn,
   waitFor,
 } from '../lib/index.js';
 import {
@@ -179,15 +180,29 @@ describe('re-engagement nudges', () => {
     console.log(`Got stage-1 nudge: ${nudgePost!.text.slice(0, 80)}...`);
     expect(nudgePost!.text).toContain(STAGE_1_MARKER);
 
-    // After the nudge fires, lastNudgeStage should be 1 on the bot ship.
-    const afterNudgeStage = await readLastNudgeStage();
+    // After the nudge fires, lastNudgeStage should be 1 on the bot ship. The
+    // nudge post and the lastNudgeStage settings write are separate pokes, so
+    // the post can become visible before the settings write lands — poll for
+    // the stage rather than reading it once (mirrors the Phase-2 poll below).
+    const afterNudgeStage = await waitFor(
+      async () => {
+        const stage = await readLastNudgeStage();
+        return stage === 1 ? stage : undefined;
+      },
+      30_000,
+      1_000
+    );
     console.log(`lastNudgeStage after nudge: ${afterNudgeStage}`);
     expect(afterNudgeStage).toBe(1);
 
     // Phase 2: owner replies. The plugin's owner-reply handler should clear
     // `lastNudgeStage` so the next inactivity cycle can re-send stage 1.
     const { markdownToStory } = await import('../../src/urbit/story.js');
-    const replyText = `heartbeat-reply-${Date.now()}`;
+    // Owner DMs always engage the model; tag this reply with its own key so it
+    // can't inherit a stale [tlon-test:KEY] from the shared owner DM session
+    // history. The assertion below is on lastNudgeStage state, not this reply.
+    const replyTag = await registerEngagingTurn('heartbeat-owner-reply');
+    const replyText = `${replyTag} heartbeat-reply-${Date.now()}`;
     await ownerState.sendPost({
       channelId: botShip,
       content: markdownToStory(replyText),

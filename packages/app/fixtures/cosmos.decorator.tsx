@@ -1,3 +1,4 @@
+import { NavigationContainer } from '@react-navigation/native';
 import { spyOn } from '@tloncorp/shared';
 import React, { useMemo } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -33,7 +34,9 @@ export default ({ children }: { children: React.ReactNode }) => {
         <SafeAreaProvider>
           <ChannelProvider value={{ channel: tlonLocalIntros }}>
             <ComponentsKitProvider>
-              <PortalProvider>{children}</PortalProvider>
+              <NavigationContainer>
+                <PortalProvider>{children}</PortalProvider>
+              </NavigationContainer>
             </ComponentsKitProvider>
           </ChannelProvider>
         </SafeAreaProvider>

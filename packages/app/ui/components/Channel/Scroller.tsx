@@ -49,6 +49,7 @@ import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component'
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
 import { ChannelDivider } from './ChannelDivider';
+import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
 import { PostList, PostListMethods } from './PostList';
 import type { ScrollAnchor } from './scrollerTypes';
 
@@ -99,6 +100,9 @@ const Scroller = forwardRef(
       listHeaderComponent,
       listBottomComponent,
       highlightPostId,
+      onGoToBotRun,
+      onOpenContextLens,
+      contextLensSelectedPostId,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -137,6 +141,9 @@ const Scroller = forwardRef(
       listHeaderComponent?: React.ReactElement;
       listBottomComponent?: React.ReactElement;
       highlightPostId?: string | null;
+      onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
+      onOpenContextLens?: (post: db.Post) => void;
+      contextLensSelectedPostId?: string | null;
     },
     ref
   ) => {
@@ -175,7 +182,19 @@ const Scroller = forwardRef(
     const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
       null
     );
+    const [viewBotRunPost, setViewBotRunPost] = useState<null | db.Post>(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+
+    const handlePressBotRun = useCallback(
+      (post: db.Post) => {
+        if (onOpenContextLens) {
+          onOpenContextLens(post);
+          return;
+        }
+        setViewBotRunPost(post);
+      },
+      [onOpenContextLens]
+    );
 
     const listRef = useRef<PostListMethods>(null);
 
@@ -276,7 +295,8 @@ const Scroller = forwardRef(
         const isFirstUnread = post.id === firstUnreadId;
         const isSelected =
           (anchor?.type === 'selected' && anchor.postId === post.id) ||
-          highlightPostId === post.id;
+          highlightPostId === post.id ||
+          contextLensSelectedPostId === post.id;
 
         return (
           <ScrollerItem
@@ -291,6 +311,7 @@ const Scroller = forwardRef(
             Component={renderItem}
             unreadCount={unreadCount}
             setViewReactionsPost={setViewReactionsPost}
+            onPressBotRun={handlePressBotRun}
             onPressRetry={onPressRetry}
             onPressDelete={onPressDelete}
             showReplies={showReplies}
@@ -322,6 +343,7 @@ const Scroller = forwardRef(
         anchor?.type,
         anchor?.postId,
         highlightPostId,
+        contextLensSelectedPostId,
         firstUnreadId,
         inverted,
         renderItem,
@@ -333,6 +355,7 @@ const Scroller = forwardRef(
         onPressDelete,
         onPressRetry,
         handlePostLongPressed,
+        handlePressBotRun,
         activeMessage,
         showDividers,
         collectionLayout.dividersEnabled,
@@ -572,6 +595,14 @@ const Scroller = forwardRef(
                 setViewReactionsPost(post);
                 setActiveMessage(null);
               }}
+              onViewBotRun={(post) => {
+                setActiveMessage(null);
+                if (onOpenContextLens) {
+                  onOpenContextLens(post);
+                  return;
+                }
+                setViewBotRunPost(post);
+              }}
               mode="immediate"
             />
           </Modal>
@@ -591,6 +622,14 @@ const Scroller = forwardRef(
             post={viewReactionsPost}
             open
             onOpenChange={() => setViewReactionsPost(null)}
+          />
+        ) : null}
+        {viewBotRunPost ? (
+          <ContextLensRunSheet
+            post={viewBotRunPost}
+            open
+            onOpenChange={() => setViewBotRunPost(null)}
+            onExpand={onGoToBotRun}
           />
         ) : null}
       </View>
@@ -624,6 +663,7 @@ const BaseScrollerItem = ({
   unreadCount,
   onLayout,
   setViewReactionsPost,
+  onPressBotRun,
   showReplies,
   onPressImage,
   onPressReplies,
@@ -656,6 +696,7 @@ const BaseScrollerItem = ({
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
   setViewReactionsPost?: (post: db.Post) => void;
+  onPressBotRun?: (post: db.Post) => void;
   onPressPost?: (post: db.Post) => void;
   onLongPressPost: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
@@ -764,6 +805,7 @@ const BaseScrollerItem = ({
           displayDebugMode={displayDebugMode}
           post={post}
           setViewReactionsPost={setViewReactionsPost}
+          onPressBotRun={onPressBotRun}
           showAuthor={showAuthorLive}
           showReplies={showReplies}
           onPressReplies={post.isDeleted ? undefined : onPressReplies}
@@ -804,6 +846,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.onPressImage === next.onPressImage &&
     prev.onPressPost === next.onPressPost &&
     prev.onLongPressPost === next.onLongPressPost &&
+    prev.onPressBotRun === next.onPressBotRun &&
     prev.activeMessage === next.activeMessage &&
     prev.itemWidth === next.itemWidth &&
     prev.displayDebugMode === next.displayDebugMode &&

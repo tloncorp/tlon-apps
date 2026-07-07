@@ -3,6 +3,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import {
   getMissingNotificationTargetRecovery,
   getNotificationRouteCategory,
+  groupInvitePreviewRouteStack,
 } from '../hooks/useNotificationListener';
 import { parseNotificationPayload } from '../lib/notificationPayload';
 
@@ -245,6 +246,29 @@ describe('parseNotificationPayload', () => {
     });
   });
 
+  it('parses group-invite activity into a routable groupInvite payload', () => {
+    const result = parseNotificationPayload(
+      payloadFor({
+        'group-invite': {
+          ship: '~sampel-palnet',
+          group: '~sampel-palnet/test',
+        },
+      })
+    );
+
+    expectBaseMeta(result);
+    expect(result).toMatchObject({
+      type: 'groupInvite',
+      groupId: '~sampel-palnet/test',
+    });
+  });
+
+  it('returns null for a group-invite event missing its group id', () => {
+    expect(parseNotificationPayload(payloadFor({ 'group-invite': {} }))).toBe(
+      null
+    );
+  });
+
   it('parses channel post react activity to the channel', () => {
     const result = parseNotificationPayload(
       payloadFor({
@@ -355,6 +379,31 @@ describe('parseNotificationPayload', () => {
 });
 
 describe('notification routing decisions', () => {
+  it('builds the group-invite preview route stack with the invite marker', () => {
+    expect(groupInvitePreviewRouteStack('~sampel-palnet/test')).toEqual([
+      {
+        name: 'ChatList',
+        params: {
+          previewGroupId: '~sampel-palnet/test',
+          previewGroupFromInviteNotification: true,
+        },
+      },
+    ]);
+  });
+
+  it('classifies a group invite as a non-channel notification needing no recovery', () => {
+    const notification = {
+      meta: {},
+      type: 'groupInvite' as const,
+      groupId: '~sampel-palnet/test',
+    };
+
+    expect(getNotificationRouteCategory(notification)).toBe(
+      'nonChannelNotification'
+    );
+    expect(getMissingNotificationTargetRecovery(notification)).toBe('none');
+  });
+
   it('does not retry targeted recovery for a single-DM invite already checked during preparation', () => {
     const notification = {
       meta: {},

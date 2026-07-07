@@ -33,6 +33,7 @@ import {
   useIsAdmin,
 } from '../../ui';
 import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
+import { getChannelActionCapabilities, getChannelHost } from '../../ui/utils';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 // Utility functions
@@ -252,6 +253,54 @@ export function MembersList({
           onPressGoToProfile={handlePressGoToProfile}
         />
       ) : null}
+    </View>
+  );
+}
+
+// ChannelHost - displays the ship that hosts a channel
+
+export function ChannelHost({ channel }: { channel: db.Channel }) {
+  const currentUserId = useCurrentUserId();
+  const { navigation } = useRootNavigation();
+
+  const hostId = useMemo(() => {
+    if (!channel.groupId) {
+      return null;
+    }
+    try {
+      return getChannelHost(channel, currentUserId);
+    } catch {
+      return null;
+    }
+  }, [channel, currentUserId]);
+
+  const handlePress = useCallback(
+    (contactId: string) => {
+      navigation.navigate('UserProfile', { userId: contactId });
+    },
+    [navigation]
+  );
+
+  if (!hostId) {
+    return null;
+  }
+
+  return (
+    <View paddingHorizontal={'$l'}>
+      <PaddedBlock width="100%" gap="$l" paddingBottom="$xl">
+        <TlonText.Text size="$label/m" color="$tertiaryText">
+          Host
+        </TlonText.Text>
+        <ContactListItem
+          size="$3xl"
+          height="auto"
+          padding={0}
+          showNickname
+          contactId={hostId}
+          onPress={handlePress}
+          testID="ChannelHost"
+        />
+      </PaddedBlock>
     </View>
   );
 }
@@ -516,7 +565,9 @@ export function LeaveActionsSection({
     entityType === 'group'
       ? group?.currentUserIsHost
       : channel?.currentUserIsHost ?? false;
-  const canLeave = !isHost;
+  const channelActionCapabilities = getChannelActionCapabilities(channel);
+  const canLeave =
+    !isHost && (entityType !== 'channel' || channelActionCapabilities.canLeave);
   const canDelete = isHost || (entityType === 'channel' && currentUserIsAdmin);
 
   const chatTitle =
@@ -596,7 +647,7 @@ export function LeaveActionsSection({
   const deleteDescription =
     entityType === 'group'
       ? 'This action cannot be undone.'
-      : 'This action cannot be undone. All messages in this channel will be permanently deleted.';
+      : channelActionCapabilities.deleteDescription;
 
   return (
     <View paddingHorizontal={'$l'}>

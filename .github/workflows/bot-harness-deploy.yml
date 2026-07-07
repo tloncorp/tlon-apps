@@ -1,0 +1,202 @@
+name: Restart Bot Ships
+
+# Restarts the hosted bot ship pods so they pick up plugin changes.
+# Pushes to develop touching bot plugin source restart the internal ships;
+# tag-based / external restarts are workflow_dispatch-only, a deliberate human
+# action decoupled from the develop -> master release sync cadence.
+
+on:
+  push:
+    branches: [develop]
+    # Runtime inputs of the deployed plugins only — docs, tests, and the dev
+    # harness don't warrant a ship restart. (Production pulls the develop
+    # branch ref at restart, so a missed trigger self-heals on the next one.)
+    #
+    # Deliberately NOT watching packages/api or packages/tlon-skill: the
+    # deployed OpenClaw plugin resolves its workspace:^ deps to *published npm
+    # versions* (resolve-workspace-deps.mjs --registry), so develop merges
+    # to those packages change nothing on ships — dep changes reach
+    # production via an npm publish followed by a restart.
+    paths:
+      - "packages/openclaw/src/**"
+      - "packages/openclaw/index.ts"
+      - "packages/openclaw/setup-entry.ts"
+      - "packages/openclaw/setup-api.ts"
+      - "packages/openclaw/package.json"
+      - "packages/openclaw/openclaw.plugin.json"
+      - "packages/openclaw/tsconfig.json"
+      - "packages/openclaw/scripts/**"
+      - "packages/hermes-tlon-adapter/__init__.py"
+      - "packages/hermes-tlon-adapter/adapter.py"
+      - "packages/hermes-tlon-adapter/approval.py"
+      - "packages/hermes-tlon-adapter/attention.py"
+      - "packages/hermes-tlon-adapter/channel_access.py"
+      - "packages/hermes-tlon-adapter/history.py"
+      - "packages/hermes-tlon-adapter/image_search.py"
+      - "packages/hermes-tlon-adapter/mention.py"
+      - "packages/hermes-tlon-adapter/owner_listen.py"
+      - "packages/hermes-tlon-adapter/presence.py"
+      - "packages/hermes-tlon-adapter/telemetry.py"
+      - "packages/hermes-tlon-adapter/tlon_api.py"
+      - "packages/hermes-tlon-adapter/tlon_tool.py"
+      - "packages/hermes-tlon-adapter/version.py"
+      - "packages/hermes-tlon-adapter/plugin.yaml"
+      - "packages/hermes-tlon-adapter/prompts/**"
+      - "packages/hermes-tlon-adapter/requirements.txt"
+      - "packages/hermes-tlon-adapter/package.json"
+  workflow_dispatch:
+    inputs:
+      selector:
+        description: "How to choose ships to restart"
+        required: true
+        type: choice
+        options:
+          - prespecified-tag
+          - free-tag
+          - external
+      tag:
+        description: "Prespecified tag (used when selector = prespecified-tag)"
+        required: false
+        type: choice
+        options:
+          - tlon-internal
+          - hermes
+      free_tag:
+        description: "Free-entry tag (used when selector = free-tag)"
+        required: false
+        type: string
+
+jobs:
+  restart-ships:
+    name: Restart Ships
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deploy credentials
+        id: creds
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "::warning::GCP_SA_KEY secret is not set; skipping ship restart"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Authenticate to Google Cloud
+        if: steps.creds.outputs.present == 'true'
+        uses: google-github-actions/setup-gcloud@v0.3.0
+        with:
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          project_id: prod-f0181862
+
+      - name: Get GKE credentials
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+          gcloud container clusters get-credentials us-east5-cluster1 --zone us-east5 --project prod-f0181862
+
+      - name: Set up kubeconfig for OVH cluster
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > "$HOME/.kube/ovh.config"
+
+      - name: Install tools
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          sudo apt-get install -y -qq jq
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Determine selection
+        id: filter
+        if: steps.creds.outputs.present == 'true'
+        # Dispatch inputs are passed via env, never interpolated into the
+        # script body, so a malicious free_tag value can't be evaluated by the
+        # shell. This step emits only plain data (mode + raw tag); the jq
+        # expression is built downstream with --arg so the tag stays data.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SELECTOR: ${{ inputs.selector }}
+          TAG_INPUT: ${{ inputs.tag }}
+          FREE_TAG_INPUT: ${{ inputs.free_tag }}
+        run: |
+          if [ "$EVENT_NAME" != "workflow_dispatch" ]; then
+            # Push to develop: restart internal ships by tag.
+            MODE="by-tag"
+            TAG="tlon-internal"
+            echo "Restarting ships tagged tlon-internal (push trigger)"
+          else
+            case "$SELECTOR" in
+              prespecified-tag)
+                MODE="by-tag"
+                TAG="$TAG_INPUT"
+                if [ -z "$TAG" ]; then
+                  echo "::error::selector=prespecified-tag requires the 'tag' input"
+                  exit 1
+                fi
+                echo "Restarting ships tagged $TAG"
+                ;;
+              free-tag)
+                MODE="by-tag"
+                TAG="$FREE_TAG_INPUT"
+                if [ -z "$TAG" ]; then
+                  echo "::error::selector=free-tag requires the 'free_tag' input"
+                  exit 1
+                fi
+                # Defense in depth: keep the tag to a sane charset. The jq
+                # --arg downstream already neutralizes it as data; this just
+                # rejects obviously bogus values early.
+                case "$TAG" in
+                  *[!A-Za-z0-9._-]*)
+                    echo "::error::free_tag may only contain A-Z a-z 0-9 . _ -"
+                    exit 1
+                    ;;
+                esac
+                echo "Restarting ships tagged $TAG"
+                ;;
+              external)
+                MODE="external"
+                TAG=""
+                echo "Restarting external ships (internal: false)"
+                ;;
+              *)
+                echo "::error::unknown selector: $SELECTOR"
+                exit 1
+                ;;
+            esac
+          fi
+
+          # Emit plain data only — no shell/jq code crosses the step boundary.
+          {
+            echo "mode=$MODE"
+            echo "tag<<EOF"
+            echo "$TAG"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restart ships
+        if: steps.creds.outputs.present == 'true'
+        # Outputs from the previous step arrive via env, not interpolation.
+        # The tag is fed to jq with --arg, so it is treated as a string value
+        # and never parsed as part of the filter program.
+        env:
+          MODE: ${{ steps.filter.outputs.mode }}
+          TAG: ${{ steps.filter.outputs.tag }}
+        run: |
+          if [ "$MODE" = "external" ]; then
+            JQ_FILTER='.items[] | select(.spec.internal != true) | .metadata.name'
+          else
+            JQ_FILTER='.items[] | select((.spec.tags // []) | index($tag)) | .metadata.name'
+          fi
+
+          export KUBECONFIG="$HOME/.kube/config:$HOME/.kube/ovh.config"
+
+          for ctx in gke_prod-f0181862_us-east5_us-east5-cluster1 ovh-oregon-1 ovh-oregon-2 ovh-oregon-3; do
+            echo "=== Restarting ships in context: $ctx ==="
+            kubectl --context "$ctx" get ships -n tlon -ojson \
+              | jq -r --arg tag "$TAG" "$JQ_FILTER" \
+              | xargs -P 8 -I {} sh -c 'kubectl --context "'"$ctx"'" rollout restart sts {} -n tlon || true'
+            wait
+          done

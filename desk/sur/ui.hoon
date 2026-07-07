@@ -134,6 +134,7 @@
 +$  a-pins
   $%  [%add =whom]
       [%del =whom]
+      [%set-order order=(list whom)]
   ==
 ::
 +$  vita-enabled  ?

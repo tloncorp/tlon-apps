@@ -3,8 +3,11 @@ node_modules
 .pnpm-store/
 .DS_Store
 /packages/hermes-tlon-adapter/.env
+/packages/tlon-bot-e2e/.env
 __pycache__/
 *.py[cod]
+/scripts/onboarding-sandbox/.sandbox-prompts
+/scripts/onboarding-sandbox/.sandbox-intro.md
 /rus/
 ops
 bin
