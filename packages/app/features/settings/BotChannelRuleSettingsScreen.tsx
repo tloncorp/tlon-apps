@@ -188,18 +188,37 @@ export function BotChannelRuleSettingsScreen(props: Props) {
       // Never create a rule from a subordinate control — only the enable
       // switch may bring a channel's rule into existence.
       if (!rule) return;
+      // Tapping the already-selected access mode changes nothing — don't let
+      // it convert an inherited rule into an explicit one.
+      if (
+        next.mode !== undefined &&
+        next.mode === currentRule.mode &&
+        next.allowedShips === undefined
+      ) {
+        return;
+      }
       // Editing the access mode or allowlist makes the allowlist explicit, so
       // drop the inherited flag; a model-only edit leaves it intact so the
-      // channel keeps following defaultAuthorizedShips.
+      // channel keeps following defaultAuthorizedShips. When an inherited rule
+      // becomes explicit, materialize the allowlist from the live defaults —
+      // the snapshot stored on the rule can predate an edit to
+      // defaultAuthorizedShips made in this same form.
       const editsAccess =
         next.mode !== undefined || next.allowedShips !== undefined;
+      const base =
+        editsAccess && currentRule.inheritsDefaultShips
+          ? {
+              ...currentRule,
+              allowedShips: draft.draft.chat.defaultAuthorizedShips,
+            }
+          : currentRule;
       setRule({
-        ...currentRule,
+        ...base,
         ...(editsAccess ? { inheritsDefaultShips: false } : {}),
         ...next,
       });
     },
-    [rule, setRule, currentRule]
+    [rule, setRule, currentRule, draft.draft.chat.defaultAuthorizedShips]
   );
 
   const handleBack = useCallback(() => {
