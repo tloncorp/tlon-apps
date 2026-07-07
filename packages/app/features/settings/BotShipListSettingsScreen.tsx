@@ -7,7 +7,7 @@ import {
   Text,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -72,6 +72,13 @@ export function BotShipListSettingsScreen(props: Props) {
   // until useSyncBotSettingsDraft replaces it.
   const ready = draft.initialized && draft.scopeKey === queries.ship;
   const [pendingShip, setPendingShip] = useState('');
+
+  // The desktop settings drawer keeps this screen mounted across list
+  // switches; clear the pending input when the list param changes so a ship
+  // half-typed for one list can't be committed to another.
+  useEffect(() => {
+    setPendingShip('');
+  }, [list]);
 
   const value = draft.draft.chat[list];
   const ships = useMemo(() => normalizeShipList(value), [value]);
