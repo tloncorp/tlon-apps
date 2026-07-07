@@ -172,13 +172,19 @@ export function BotShipListSettingsScreen(props: Props) {
 
   const handleSelectShip = useCallback(
     (shipId: string) => {
+      // Guard against a selection landing after the draft scope changed
+      // (e.g. account switch) — writing then would be from the wrong scope.
+      if (!ready) {
+        setPickerOpen(false);
+        return;
+      }
       const ship = normalizeShip(shipId);
       if (ship && !ships.includes(ship)) {
         commitShips([...ships, ship]);
       }
       setPickerOpen(false);
     },
-    [ships, commitShips]
+    [ready, ships, commitShips]
   );
 
   const removeShip = useCallback(
@@ -239,7 +245,7 @@ export function BotShipListSettingsScreen(props: Props) {
         </SettingsContentScrollView>
       )}
       <ShipPickerSheet
-        open={pickerOpen}
+        open={ready && pickerOpen}
         onOpenChange={setPickerOpen}
         subtitle={meta.addSubtitle}
         disabledIds={ships}
