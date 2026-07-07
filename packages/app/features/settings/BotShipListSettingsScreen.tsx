@@ -189,7 +189,7 @@ export function BotShipListSettingsScreen(props: Props) {
   );
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
+    <View flex={1} backgroundColor="$background">
       <ScreenHeader
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
