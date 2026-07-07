@@ -12,7 +12,7 @@
   =/  fail=log-event:l
     [%fail %error ~[leaf+"test fail"] ~[leaf+"test stacktrace"]]
   ;<  caz=(list card)  bind:m
-    (do-poke log-action+!>(`a-log:l`[%log fail ~]))
+    (do-poke log-action-1+!>(`a-log:l`[%log fail ~]))
   =/  =log-item:l
     [now.bowl fail]
   =/  =log-data:l
@@ -23,7 +23,7 @@
   ::
   ?>  ?=([[%pass *] ~] caz)
   =/  card=card:agent:gall  i.caz
-  ?>  ?=([%pass [%posthog ~] %arvo %k %fard *] card)
+  ?>  ?=([%pass [%send %posthog ~] %arvo %k %fard *] card)
   ::  compare fard args value
   ::
   ;<  ~  bind:m
