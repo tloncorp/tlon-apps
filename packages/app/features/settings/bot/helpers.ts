@@ -274,7 +274,9 @@ export const normalizeTlonbotConfig = (
 // A restricted channel that follows defaultAuthorizedShips. The allowlist is
 // prefilled for display, but the flag makes the save path omit allowedShips so
 // the channel keeps inheriting the (current and future) defaults.
-const inheritedDraft = (defaultAuthorizedShips: string[]): ChannelRuleDraft => ({
+const inheritedDraft = (
+  defaultAuthorizedShips: string[]
+): ChannelRuleDraft => ({
   mode: 'allowlist',
   allowedShips: formatShipList(defaultAuthorizedShips || []),
   inheritsDefaultShips: true,

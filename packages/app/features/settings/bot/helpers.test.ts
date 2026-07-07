@@ -132,9 +132,9 @@ describe('provider config', () => {
     expect(summary).not.toContain('secret');
     // short keys are masked entirely
     expect(safeKeySummary(config, 'openai')).toBe('••••');
-    expect(safeKeySummary(config, 'anthropic'.replace('anthropic', 'missing'))).toBe(
-      'Not set'
-    );
+    expect(
+      safeKeySummary(config, 'anthropic'.replace('anthropic', 'missing'))
+    ).toBe('Not set');
     expect(safeKeySummary(config, 'basic')).toBe('Included');
   });
 
