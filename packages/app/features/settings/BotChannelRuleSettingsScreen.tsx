@@ -449,6 +449,9 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                 selected={isCustomModel}
                 disabled={controlsDisabled || !hasCustomProviderKey}
                 onPress={() => {
+                  // Already on a custom override — re-tapping shouldn't reset it
+                  // to the first provider and clear the chosen model.
+                  if (isCustomModel) return;
                   const provider =
                     availableProviders.find(
                       (option) => option.id !== BASIC_PROVIDER_ID
@@ -481,6 +484,9 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                           label={provider.label}
                           disabled={controlsDisabled}
                           onPress={() => {
+                            // Re-tapping the current provider must not clear the
+                            // already-selected override model.
+                            if (provider.id === overrideProvider) return;
                             setValidationError(null);
                             patch({
                               modelOverrideProvider: provider.id,
