@@ -394,6 +394,14 @@ class HookTests(unittest.TestCase):
         )
         self.assertEqual(self.rec.get("~alice").tool_runs[0].status, "error")
 
+    def test_post_tool_call_failure_without_error_type_is_error(self):
+        # A non-ok status must record as 'error' even when Hermes omits an
+        # error_type, not fall through to 'completed'.
+        lens.handle_post_tool_call_lens(
+            **self._kwargs(tool_name="t", tool_call_id="x", status="error")
+        )
+        self.assertEqual(self.rec.get("~alice").tool_runs[0].status, "error")
+
     def test_post_api_request_captures_model(self):
         lens.handle_post_api_request_lens(
             **self._kwargs(model="hermes-3", provider="nous")

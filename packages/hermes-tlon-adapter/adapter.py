@@ -2107,24 +2107,31 @@ class TlonAdapter(BasePlatformAdapter):
     ) -> None:
         if not self._lens.enabled:
             return
-        conversation_kind = "dm" if is_dm else "channel"
-        run = LensRun(
-            lens_id=str(uuid.uuid4()),
-            message_id=message.message_id,
-            chat_type=conversation_kind,
-            trigger=_lens_trigger(dispatch_reason),
-            conversation_kind=conversation_kind,
-            run_kind=_lens_run_kind(dispatch_reason),
-            author_ship=normalize_ship(message.user_id) or None,
-            conversation_id=message.chat_id,
-            received_at=_epoch_ms(message.sent_at),
-            preview=message.text or None,
-            thread_messages=1 if message.reply_to_message_id else 0,
-            emits_telemetry=self._telemetry.enabled,
-        )
-        run.set_status("dispatching")
-        self._lens.begin(message.chat_id, run)
-        await self._lens.push(message.chat_id)
+        # The lens is a non-essential observability sink; a bug in its
+        # accounting must never break message dispatch. Poke failures are
+        # already swallowed by TlonLensSync.push — this guards the rest.
+        try:
+            conversation_kind = "dm" if is_dm else "channel"
+            run = LensRun(
+                lens_id=str(uuid.uuid4()),
+                message_id=message.message_id,
+                chat_type=conversation_kind,
+                trigger=_lens_trigger(dispatch_reason),
+                conversation_kind=conversation_kind,
+                run_kind=_lens_run_kind(dispatch_reason),
+                author_ship=normalize_ship(message.user_id) or None,
+                conversation_id=message.chat_id,
+                received_at=_epoch_ms(message.sent_at),
+                preview=message.text or None,
+                thread_messages=1 if message.reply_to_message_id else 0,
+                emits_telemetry=self._telemetry.enabled,
+            )
+            run.set_status("dispatching")
+            self._lens.begin(message.chat_id, run)
+            await self._lens.push(message.chat_id)
+        except Exception as exc:
+            logger.warning("[tlon] context-lens begin failed: %s", exc)
+            self._telemetry.error("context_lens", exc, operation="begin")
 
     async def on_processing_complete(self, event: MessageEvent, outcome: Any) -> None:
         await self._computing_presence.stop_run(

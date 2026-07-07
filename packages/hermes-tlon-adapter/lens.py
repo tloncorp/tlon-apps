@@ -748,7 +748,10 @@ def handle_post_tool_call_lens(**kwargs: Any) -> None:
         return
     tool_name = str(kwargs.get("tool_name") or "").strip() or "unknown"
     status = str(kwargs.get("status") or "").lower()
-    error = str(kwargs.get("error_type") or "") if status not in ("", "ok") else ""
+    # A non-ok status is a failure even if Hermes gives us no error_type, so key
+    # the terminal tool status off `status`, not just the presence of an error.
+    failed = status not in ("", "ok")
+    error = str(kwargs.get("error_type") or "") if failed else ""
     try:
         duration_ms: Optional[int] = int(kwargs.get("duration_ms") or 0) or None
     except (TypeError, ValueError):
@@ -760,7 +763,7 @@ def handle_post_tool_call_lens(**kwargs: Any) -> None:
         duration_ms=duration_ms,
         result_summary=_summarize_value(kwargs.get("result")),
         error=error or None,
-        status="error" if error else "completed",
+        status="error" if failed else "completed",
     )
 
 
