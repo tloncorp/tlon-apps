@@ -19,7 +19,7 @@ RUN apt-get update \
     unzip \
   && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g pnpm@9.15.9
+RUN npm install -g pnpm@11.9.0
 
 RUN curl -fsSL https://bun.sh/install | bash
 
