@@ -426,6 +426,46 @@
   =/  f=flag:n  (nb-flag our.bowl 'Private NB' 1)
   ;<  *  b  (set-src ~bus)
   (ex-fail (do-poke-drain %notes-command !>(`command:n`[%notebook f [%member-join ~]])))
+::  ====  test-group-edit-revoked-rejects  ====
+::  A group member recorded as %editor must lose write access when their group
+::  access is revoked. se-can-edit re-checks the group's live can-read, since
+::  the members map isn't pruned on revocation (recheck-group-access only kicks
+::  subscriptions). Regression for the Codex P1 finding.
+::
+++  test-group-edit-revoked-rejects
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  gf=flag:n  [~zod 'grp']
+  ::  mock the group can-read GATE scry: ~bus permitted.
+  =/  can-read-allow=scry
+    |=  pax=path
+    ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)  ~
+    `!>(|=([who=ship =nest:n] =(who ~bus)))
+  ::  revoked: can-read denies everyone (host self-shortcuts in group-can-read).
+  =/  can-read-deny=scry
+    |=  pax=path
+    ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)  ~
+    `!>(|=([who=ship =nest:n] |))
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate can-read-allow)
+  ;<  *  b  (poke-a [%create-group-notebook 'GNB' gf ~])
+  =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
+  ::  ~bus joins while group access holds → recorded %editor
+  ;<  *  b  (set-src ~bus)
+  ;<  jz=(list card)  b
+    (do-poke-drain %notes-command-1 !>(`command:v1:n`[`@uv`0v1 [%notebook f [%member-join ~]]]))
+  ;<  ~  b  (ex-cards-ne jz)
+  ::  with access, ~bus can create a note
+  ;<  ez=(list card)  b
+    (do-poke-drain %notes-command-1 !>(`command:v1:n`[`@uv`0v2 [%notebook f [%create-note 2 'T' 'B']]]))
+  ;<  ~  b  (ex-cards-ne ez)
+  ::  revoke ~bus's group access; the same edit must now be rejected
+  ;<  ~  b  (set-scry-gate can-read-deny)
+  ;<  *  b  (set-src ~bus)
+  (ex-fail (do-poke-drain %notes-command !>(`command:n`[%notebook f [%create-note 2 'T2' 'B2']])))
 ::  ====  test-create-folder-at-root  ====
 ::
 ++  test-create-folder-at-root

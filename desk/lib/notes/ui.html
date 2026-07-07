@@ -4646,28 +4646,34 @@ function flushSaveBeacon() {
   if (!activeNoteId || !dirty || saving || conflictActive || historyViewing) return;
   const n = notes[activeNoteId];
   if (!n) return;
+  // note actions are notebook-scoped (see pokeNotebook), so we need the flag
+  if (!activeNotebookFlag) return;
   const title = document.getElementById("note-title-input").value.trim() || "Untitled";
   const body = document.getElementById("editor").value;
   const nb = notebooks[n.notebookId];
   const isLocal = nb && SHIP && nb.host.replace(/^~/, "") === SHIP.replace(/^~/, "");
   const sentRev = isLocal ? savedRevision : 0;
-  const items = [];
-  const updateAction = { "update-note": { notebookId: n.notebookId, noteId: activeNoteId, bodyMd: body, expectedRevision: sentRev } };
-  if (activeNotebookFlag) updateAction._flag = activeNotebookFlag;
-  items.push({ id: msgId++, action: "poke", ship: SHIP.replace("~",""), app: "notes", mark: "notes-action", json: updateAction });
-  if (title !== n.title) {
-    const renameAction = { "rename-note": { notebookId: n.notebookId, noteId: activeNoteId, title } };
-    if (activeNotebookFlag) renameAction._flag = activeNotebookFlag;
-    items.push({ id: msgId++, action: "poke", ship: SHIP.replace("~",""), app: "notes", mark: "notes-action", json: renameAction });
+  // Build the same v1 a-notes actions the normal save path sends (see
+  // pokeNoteAction) and POST them to the v1 API with keepalive so they survive
+  // the unload. Sent per-action, fire-and-forget — we can't await an ack as the
+  // page is going away; the conflict banner on next visit handles any drift.
+  const noteAction = (inner) => ({
+    type: "notebook",
+    flag: activeNotebookFlag,
+    action: { type: "note", id: activeNoteId, action: inner },
+  });
+  const actions = [noteAction({ type: "update", body, expectedRevision: sentRev })];
+  if (title !== n.title) actions.push(noteAction({ type: "rename", title }));
+  for (const action of actions) {
+    try {
+      fetch(`${BASE_URL}/notes/~/v1`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: generateRequestId(), action }),
+        keepalive: true,
+      });
+    } catch (_) { /* page is closing — nothing to do */ }
   }
-  try {
-    fetch(`${BASE_URL}/~/channel/${channelId}`, {
-      method: "PUT", credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(items),
-      keepalive: true,
-    });
-  } catch (_) { /* page is closing — nothing to do */ }
 }
 
 // Save when the tab is being backgrounded or closed. visibilitychange

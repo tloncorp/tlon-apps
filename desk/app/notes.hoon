@@ -1726,14 +1726,21 @@
       !=(~ (~(get by members.notebook-state) who))
     (group-can-read u.grp flag who)
   ::
+  ::  +se-can-edit: write gate. Requires an %owner/%editor role AND, for
+  ::  group-mode notebooks, live group read access. The members map isn't
+  ::  pruned when a member's group access is revoked (+recheck-group-access
+  ::  only kicks subscriptions), so a stale %editor entry alone must not
+  ::  authorize writes — mirror +se-can-view and re-check the group.
+  ::
   ++  se-can-edit
     |=  who=ship
     ^-  ?
     =/  r=(unit role:n)
       (~(get by members.notebook-state) who)
     ?~  r  |
-    ?|  =(u.r %owner)
-        =(u.r %editor)
+    ?&  ?|(=(u.r %owner) =(u.r %editor))
+        ?~  grp=group.notebook-state  &
+        (group-can-read u.grp flag who)
     ==
   ::
   ++  se-is-owner
