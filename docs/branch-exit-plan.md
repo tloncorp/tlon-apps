@@ -66,12 +66,15 @@ Parser rules (shared by steps 1/2/3/5): accepts `https://(join|invite).tlon.io/<
   1. browser → page     GET /<token>
   2. page → bait        fetch invite metadata (title, image, group preview)
   3. page → KV          log {hmac(ip), device_class, os_major, token, ts}  TTL ~4h
-  4. page → browser     render OG preview + CTA
-                        (stateless: no cookies, no storage, no third-party JS)
-  5. user taps CTA      — user gesture, required for clipboard write —
-       iOS:             JS writes CLIPBOARD_PAYLOAD(token), then → App Store
-       Android:         → Play Store URL with referrer=REFERRER_PAYLOAD(token)
-       desktop:         → link's $desktop_url if known, else https://tlon.network/lure/<token>
+  4. server routing     iOS → render page (stateless: no cookies/storage, first-
+                        party scripts only; user-content images allowed)
+                        Android → 307 intent://<host>/<token> (app if installed,
+                        else Play with referrer=REFERRER_PAYLOAD)
+                        desktop → 307 $desktop_url, default tlon.network/lure/<token>
+                        [verified parity: production pages only iOS; others 307]
+  5. iOS CTA tap        — user gesture — copy CLIPBOARD_PAYLOAD → "Invite Copied"
+                        → App Store. no scheme attempt (Safari alerts on
+                        not-installed devices, which production never shows)
   6. install → first open
   7. app runs the recovery cascade (1.1)
        on cascade miss: POST /deferred-match → KV lookup by hmac(ip) → token | null
@@ -189,13 +192,14 @@ Host-agnostic handler for `GET /:token+` over config `SERVED_DOMAINS = ['join.tl
 
 - **Routing**: `vercel.json` rewrites `/:token*` → page function, excluding `/api/*` and `/.well-known/*`. Merge into the existing cron + CORS config.
 - **Token shapes**: `0v…` single segment; legacy multi-segment `~ship/name` (join full path as the token); `dm-~ship` alias → generic "DM this person" landing (no bait metadata exists).
-- **Metadata**: `GET https://loshut-lonreg.tlon.network/lure/<token>/metadata` (shape: `ProviderMetadataResponse.fields` — see `deeplinks.ts:38–51`). Compose OG title/description like `lib/branchApi.ts:126–167` (reuse copy + `OPEN_GRAPH_IMAGE_URL`). `invitedGroupDeleted: true` → "group no longer exists" page. Unknown token → branded fallback (no 404). Brief server-side caching only (be gentle on ~loshut-lonreg); never client storage. **Degradation**: metadata fetch failure ≠ unknown token — on bait error/timeout, render the generic invite page with a fully working CTA (clipboard/referrer need no metadata) and serve stale-from-cache when available; an ~loshut outage must not break invite onboarding.
-- **CTA routing** (user gesture — required for clipboard):
-  - iOS UA: `navigator.clipboard.writeText(CLIPBOARD_PAYLOAD(token))` → `location = APP_STORE_URL`.
-  - Android UA: `location = 'https://play.google.com/store/apps/details?id=<APP_ID>&referrer=' + encodeURIComponent(REFERRER_PAYLOAD(token))`.
-  - Desktop: link's `$desktop_url` if known, else `https://tlon.network/lure/<token>`.
-  - `CLIPBOARD_PAYLOAD` / `REFERRER_PAYLOAD` are config templates (finalized by T1/T2; safe defaults: plain `https://join.tlon.io/<token>` clipboard, raw-token referrer). DISCOVER the app's default `app.link` subdomain from the Branch dashboard for the clipboard payload option.
-- **Statelessness**: per ground rule 3. No third-party requests at all.
+- **Metadata — Branch-parity record model**: a **durable per-token record in KV** mirrors Branch's link record. Written at mint (`api/inviteLink.ts` → `writeInviteRecord`), **proactively push-updated** by bait's existing `%bait-update` / `%bait-update-group` flow — `branch-update.hoon` now dual-writes: POST `{token, fields}` to `api/inviteUpdate` (Bearer = bait's `branch-secret`; server merges fields and recomputes OG) alongside its Branch PUT. Pages serve straight from the record — no render-time ship dependency; durability semantics identical to Branch (records survive bait outages/breaches). The live bait fetch (`GET ${INVITE_PROVIDER}/lure/<token>/metadata`, shape per `deeplinks.ts:38–51`) survives only as **lazy backfill** for legacy tokens minted before records existed; a successful backfill writes the record. Same OG copy as `lib/branchApi.ts:126–167`. Unknown token or `dm-*` alias → branded fallback (no 404), and any metadata miss still renders a generic page with a fully working CTA. Env: `INVITE_UPDATE_SECRET` must equal bait's `branch-secret` (so the desk thread needed no new plumbing). Accepted parity trade: deleted groups keep rendering their last record, exactly as Branch did.
+- **Per-platform routing — parity contract, verified against the live Branch-served domain (2026-07-07)**: only iOS renders a page; Android and desktop are server-side 307s.
+  - iOS UA: page with "Download App" CTA → on tap (user gesture, required for clipboard): `clipboard.writeText(CLIPBOARD_PAYLOAD(token))` → "Invite Copied" state → `location = APP_STORE_URL`. **No custom-scheme attempt** — on not-installed devices (the dominant case) `location = scheme://` triggers Safari's "address is invalid" alert, which production never shows. Accepted edge: an installed-app user who reaches the page (webview contexts) lands in the App Store instead of the app.
+  - Android UA: 307 → `intent://<host>/<token>#Intent;scheme=io.tlon.groups;package=<pkg>;S.browser_fallback_url=<encoded play url with referrer>;S.market_referrer=<REFERRER_PAYLOAD>;end` — opens the app if installed, else Play with the referrer. Mirrors production, whose intent carries `market_referrer=link_click_id=…` (T2's format question, answered from the redirect capture).
+  - Desktop: 307 → the link's `$desktop_url` if known, else `https://tlon.network/lure/<token>` (production also redirects server-side; desktop users never see a page).
+  - The iOS page renders the production deepview layout: Tlon header, group icon (image, or color-square fallback with `~` glyph via `foregroundFromBackground`), "You're invited to join Tlon via / {group} / by {inviter}" (+ personal-invite variant), and the paste-permission caveat line, with icons inlined as SVG (no Branch/CDN assets).
+  - `CLIPBOARD_PAYLOAD` / `REFERRER_PAYLOAD` remain config templates (safe defaults: plain `https://join.tlon.io/<token>` clipboard, raw-token referrer).
+- **Statelessness**: per ground rule 3 — no cookies/storage, no third-party scripts/styles/fonts/fetch. User-content images (group icons, avatars, Tlon logo assets on GCS) are allowed, matching production.
 - **Matcher click log**: on **CTA tap** (beacon before the store redirect — never on render: link-preview fetchers and accidental opens would pollute the uniqueness constraint and suppress real matches), write to Vercel KV/Upstash (add the dependency): `{key: hmac_sha256(SECRET, normalized_ip), device_class: iphone|ipad|android_phone|android_tablet, os_major, token, ts}`, TTL 4h. Normalize before hashing: IPv4 exact; IPv6 → /64 prefix (privacy extensions rotate the low bits). Never store raw IP.
 - **Analytics**: server-side PostHog via existing `lib/logger.ts`, as **two immutable events** correlated by a per-request `pageViewId` (UUID held in page JS memory only — no client storage): `Invite Page View {token, platform, pageViewId, analyticsSource: 'page'}` at render, and `Invite Page CTA Click {token, platform, pageViewId}` from the CTA beacon (the same beacon that writes the matcher KV). Property parity with `api/branchClicks.ts` (geo/platform/os/browser) including `?short-redirect=<code>` → `fromShortcode`.
 - **Well-knowns on every served domain**: `/.well-known/apple-app-site-association` (appID `<TEAMID>.io.tlon.groups` — DISCOVER team ID + any preview/debug bundle ids from the iOS project) and `/.well-known/assetlinks.json` (package + SHA-256 signing certs — DISCOVER from Play console). `Content-Type: application/json`, no redirect, no auth.
@@ -324,7 +328,7 @@ Prereqs: gate C + P2.3 binary dominant (old binaries lose deferred on new-domain
 - `api/checkLink.ts`: reimplement as bait metadata existence check (200 iff `GET /lure/<token>/metadata` resolves).
 - Delete `lib/branchApi.ts`, `api/branchClicks.ts`. [HUMAN] remove the webhook config in the Branch dashboard.
 - landscape-apps: delete api2 helpers in `packages/api/src/client/branch.ts` (`fetchBranchApi`, `getDeepLink`, `getBranchLinkMeta`, `getDmLink`) and the enrichment fallback `deeplinks.ts:132–150`; keep types + `extractLureMetadata`. `createDeepLink`/`getLinkFromInviteService` work unchanged.
-- Delete `desk/ted/branch-update.hoon`; confirm `widgets.hoon` dm-links render as plain invite URLs.
+- `desk/ted/branch-update.hoon` now dual-writes on every `%bait-update` / `%bait-update-group`: it POSTs the changed fields to our `api/inviteUpdate` (Bearer = bait's `branch-secret`) **and** performs the original Branch GET/merge/PUT. At P3, remove only the Branch half (the GET/merge/PUT flow, the hardcoded live key, `branch-url`) — the first-party push, the bait.hoon fard invocations (~:322, ~:350), and the `branch-secret` scry all stay; they are what keeps our invite records proactively fresh. Optionally rename the thread (`invite-update.hoon`). Confirm `widgets.hoon` dm-links render as plain invite URLs.
 - Secrets: remove `BRANCH_KEY_*`/`VITE_BRANCH_*` from the four workflows; drop `BRANCH_DOMAIN` env (fold into `INVITE_DOMAINS`); serverless Vercel env `BRANCH_*`/`TEST_BRANCH_*` → `MINT_DOMAIN`; remove `VITE_BRANCH_*` typings from `apps/tlon-web/src/env.d.ts` (web has no other Branch surface — inbound web attribution is `?inviteToken`).
 
 ### P3.3 [HUMAN · gate B′] decommission
