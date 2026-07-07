@@ -1,7 +1,21 @@
 export interface WaitForOptions {
   timeoutMs: number;
   intervalMs?: number;
+  /**
+   * Upper bound on a single poll attempt. Without it, one hung connection
+   * (e.g. a container that accepts TCP but never responds) blocks the poll
+   * loop past its overall deadline.
+   */
+  attemptTimeoutMs?: number;
   description: string;
+}
+
+export const DEFAULT_ATTEMPT_TIMEOUT_MS = 10_000;
+
+export function attemptSignal(opts: WaitForOptions): AbortSignal {
+  return AbortSignal.timeout(
+    opts.attemptTimeoutMs ?? DEFAULT_ATTEMPT_TIMEOUT_MS
+  );
 }
 
 export async function waitFor<T>(
@@ -32,7 +46,7 @@ export async function waitForHttpOk(
   opts: WaitForOptions
 ): Promise<void> {
   await waitFor(async () => {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: attemptSignal(opts) });
     return response.ok;
   }, opts);
 }
@@ -47,6 +61,7 @@ export async function waitForShipLogin(
       method: 'POST',
       body: new URLSearchParams({ password: code }),
       redirect: 'manual',
+      signal: attemptSignal(opts),
     });
     const cookie = response.headers.get('set-cookie') ?? '';
     return response.ok || cookie.includes('urbauth');

@@ -7,6 +7,7 @@ import {
   getCurrentUserId,
   getGroup,
   getGroups,
+  getPostWithReplies,
   getSettings,
   inviteGroupMembers,
   joinGroup,
@@ -17,7 +18,6 @@ import {
 } from '@tloncorp/api';
 import type { Story } from '@tloncorp/api';
 import { markdownToStory } from '@tloncorp/api/client/markdown';
-import { da, scot } from '@urbit/aura';
 
 import { randomId, requireEnv } from '../runtime/util.js';
 import { sleep } from '../runtime/waiters.js';
@@ -240,19 +240,17 @@ export class TlonActorClient {
       });
     });
 
-    return (
-      (await this.findAuthoredPost(
-        params.channelId,
-        params.content,
-        sentAt
-      )) ?? {
-        channelId: params.channelId,
-        id: `${this.shipName}/${scot('ud', da.fromUnix(sentAt))}`,
-        authorId: this.shipName,
-        text: storyInputText(params.content),
-        sentAt,
-      }
+    const ref = await this.findAuthoredPost(
+      params.channelId,
+      params.content,
+      sentAt
     );
+    if (!ref) {
+      // A fabricated fallback id would only match ship state for DM writs
+      // (client-chosen ids); group channel post ids are host-assigned.
+      throw new Error(missingAuthoredPostMessage(params, this.shipName));
+    }
+    return ref;
   }
 
   async replyToPost(params: {
@@ -278,13 +276,13 @@ export class TlonActorClient {
       });
     });
 
-    return {
-      channelId: params.channelId,
-      id: `${this.shipName}/${scot('ud', da.fromUnix(sentAt))}`,
-      authorId: this.shipName,
-      text: storyInputText(params.content),
-      sentAt,
-    };
+    const ref = await this.findAuthoredReply(params, sentAt);
+    if (!ref) {
+      // See sendChannelPost: group channel reply ids are host-assigned, so a
+      // locally constructed fallback id would not match ship state.
+      throw new Error(missingAuthoredPostMessage(params, this.shipName, true));
+    }
+    return ref;
   }
 
   async createGroupWithChannel(params: {
@@ -527,6 +525,78 @@ export class TlonActorClient {
     }
     return null;
   }
+
+  private async findAuthoredReply(
+    params: {
+      channelId: string;
+      parentId: string;
+      parentAuthor: string;
+      content: StoryInput;
+    },
+    sentAt: number
+  ): Promise<PostRef | null> {
+    const expected = storyInputText(params.content);
+    if (!expected) {
+      return null;
+    }
+    const started = Date.now();
+    while (Date.now() - started < 15_000) {
+      await sleep(500);
+      let parent: unknown;
+      try {
+        parent = await this.withClient(async () =>
+          getPostWithReplies({
+            postId: params.parentId,
+            channelId: params.channelId,
+            authorId: normalizeShip(params.parentAuthor),
+          })
+        );
+      } catch {
+        continue;
+      }
+      const replies = ((parent as { replies?: unknown[] }).replies ?? []).map(
+        postFromApi
+      );
+      const found = replies.find((reply) => {
+        return (
+          reply.authorId === this.shipName &&
+          (reply.sentAt == null || reply.sentAt >= sentAt - 2_000) &&
+          reply.text.includes(expected)
+        );
+      });
+      if (found?.id) {
+        return {
+          channelId: params.channelId,
+          id: found.id,
+          authorId: this.shipName,
+          text: found.text,
+          sentAt: found.sentAt,
+          sequenceNum: found.sequenceNum,
+        };
+      }
+    }
+    return null;
+  }
+}
+
+function missingAuthoredPostMessage(
+  params: { channelId: string; content: StoryInput },
+  author: string,
+  isReply = false
+): string {
+  const kind = isReply ? 'reply' : 'post';
+  const expected = storyInputText(params.content);
+  if (!expected) {
+    return (
+      `Cannot resolve the id of a text-less ${kind} in ${params.channelId}; ` +
+      `include identifiable text content.`
+    );
+  }
+  return (
+    `Sent a ${kind} to ${params.channelId} but could not find it on the ship ` +
+    `(author ${author}, text ${JSON.stringify(expected.slice(0, 80))}); ` +
+    `refusing to fabricate a ${kind} id.`
+  );
 }
 
 export function actorFromEnv(prefix: string): TlonActorClient {

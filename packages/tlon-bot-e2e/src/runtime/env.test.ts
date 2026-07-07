@@ -70,7 +70,8 @@ describe('tlon-bot-e2e env file loader', () => {
       TLON_BOT_E2E_SUITE=common
       TLON_BOT_E2E_SCENARIO_PARTITIONS=baseline
       FAKE_SHIP_CACHE_DIR="/tmp/tlon cache"
-      BRAVE_API_KEY=abc#def
+      BRAVE_API_KEY="abc#def"
+      TLONBOT_TOKEN=abc#def
       TEST_STORAGE_BUCKET=bucket-name # inline comment
       TEST_STORAGE_SECRET_KEY='quoted secret'
     `);
@@ -88,6 +89,7 @@ describe('tlon-bot-e2e env file loader', () => {
         'TLON_BOT_E2E_SCENARIO_PARTITIONS',
         'FAKE_SHIP_CACHE_DIR',
         'BRAVE_API_KEY',
+        'TLONBOT_TOKEN',
         'TEST_STORAGE_BUCKET',
       ],
       skipped: ['TEST_STORAGE_SECRET_KEY'],
@@ -96,7 +98,10 @@ describe('tlon-bot-e2e env file loader', () => {
     expect(targetEnv.TLON_BOT_E2E_SUITE).toBe('common');
     expect(targetEnv.TLON_BOT_E2E_SCENARIO_PARTITIONS).toBe('baseline');
     expect(targetEnv.FAKE_SHIP_CACHE_DIR).toBe('/tmp/tlon cache');
+    // Standard dotenv semantics: quoting preserves '#'; unquoted '#' starts
+    // an inline comment even without preceding whitespace.
     expect(targetEnv.BRAVE_API_KEY).toBe('abc#def');
+    expect(targetEnv.TLONBOT_TOKEN).toBe('abc');
     expect(targetEnv.TEST_STORAGE_BUCKET).toBe('bucket-name');
     expect(targetEnv.TEST_STORAGE_SECRET_KEY).toBe('from-shell');
   });

@@ -1,4 +1,5 @@
 import type {
+  BotDriver,
   ModelAuxiliaryCallKind,
   ModelScript,
 } from '../../drivers/types.js';
@@ -142,12 +143,25 @@ function maxExpectedCallCount(script: ModelScript): number {
   );
 }
 
+export type BenignModelCallPredicate = (call: ReceivedCall) => boolean;
+
+/**
+ * Predicate for the driver's own background model calls (e.g. OpenClaw
+ * heartbeat polls). Drivers without benign background calls filter nothing.
+ */
+export function benignModelCallPredicate(
+  driver: Pick<BotDriver, 'isBenignModelCall'>
+): BenignModelCallPredicate {
+  return (call) => driver.isBenignModelCall?.(call) ?? false;
+}
+
 export async function expectNoModelCalls(
   fakeModel: FakeModelClient,
-  key?: string
+  key?: string,
+  isBenign: BenignModelCallPredicate = () => false
 ): Promise<void> {
   const calls = (await fakeModel.received(key)).filter(
-    (call) => !isBenignBackgroundModelCall(call)
+    (call) => !isBenign(call)
   );
   if (calls.length > 0) {
     const scope = key ? ` for ${key}` : '';
@@ -161,12 +175,6 @@ export async function expectNoModelCalls(
         `.`
     );
   }
-}
-
-export function isBenignBackgroundModelCall(call: ReceivedCall): boolean {
-  return (
-    call.key === null && call.userText.startsWith('[OpenClaw heartbeat poll]')
-  );
 }
 
 function assertAllAdvertisedTools(

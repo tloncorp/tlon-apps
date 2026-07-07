@@ -1,4 +1,8 @@
-import type { FakeModelClient, Step } from '../fake-model/index.js';
+import type {
+  FakeModelClient,
+  ReceivedCall,
+  Step,
+} from '../fake-model/index.js';
 
 export type DriverName = 'hermes' | 'openclaw';
 
@@ -123,6 +127,12 @@ export interface BotDriver {
     compose: ComposeHandle
   ): Promise<string>;
   afterComposeDown?(ctx: RuntimeContext): Promise<void>;
+  /**
+   * True for background model calls the bot makes on its own schedule (e.g.
+   * OpenClaw heartbeat polls) that negative "no model call" assertions should
+   * ignore. Omitting it means the driver has no benign background calls.
+   */
+  isBenignModelCall?(call: ReceivedCall): boolean;
   model: ModelScriptAdapter;
 }
 

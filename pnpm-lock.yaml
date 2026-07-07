@@ -1338,6 +1338,9 @@ importers:
       '@urbit/aura':
         specifier: ^3.0.0
         version: 3.0.0
+      dotenv:
+        specifier: ^17.2.4
+        version: 17.4.2
     devDependencies:
       '@types/node':
         specifier: ^25.4.0

@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
+import { openclawDriver } from '../drivers/openclaw.js';
 import type { ModelScript } from '../drivers/types.js';
 import { FakeModelClient, createFakeModelServer } from '../fake-model/index.js';
 import type { FakeModelServerListener } from '../fake-model/server-core.mjs';
 import {
+  benignModelCallPredicate,
   expectModelExpectations,
   expectNoModelCalls,
   registerModelScript,
@@ -463,7 +465,7 @@ describe('shared model script helpers', () => {
     );
   });
 
-  test('ignores OpenClaw heartbeat background model calls in negative assertions', async () => {
+  test('ignores driver-declared benign background model calls in negative assertions', async () => {
     await postChatAllowFailure(server.baseUrl, '[OpenClaw heartbeat poll]', {
       messages: [
         { role: 'user', content: '[OpenClaw heartbeat poll]' },
@@ -475,7 +477,19 @@ describe('shared model script helpers', () => {
       ],
     });
 
-    await expect(expectNoModelCalls(fakeModel)).resolves.toBeUndefined();
+    // Without a driver predicate the shared layer filters nothing.
+    await expect(expectNoModelCalls(fakeModel)).rejects.toThrow(
+      /Expected no model calls, got 1/
+    );
+
+    // The OpenClaw driver classifies its own heartbeat polls as benign.
+    await expect(
+      expectNoModelCalls(
+        fakeModel,
+        undefined,
+        benignModelCallPredicate(openclawDriver)
+      )
+    ).resolves.toBeUndefined();
   });
 });
 

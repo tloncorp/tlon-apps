@@ -1,3 +1,4 @@
+import { parse as parseDotenvContents } from 'dotenv';
 import { readFile } from 'node:fs/promises';
 
 const BASE_ENV_ALLOWLIST = new Set([
@@ -194,13 +195,29 @@ export function findDisallowedEnvKeys(
     .sort();
 }
 
+/**
+ * Strict wrapper around dotenv's parser. dotenv owns value semantics (quotes,
+ * escapes, comments); the line scan preserves the loader's fail-fast posture,
+ * which dotenv alone does not provide: malformed lines are rejected instead of
+ * silently ignored, and every key is reported with its line number so the
+ * unknown-key and duplicate-key checks can point at the offending line.
+ */
 function parseEnvFile(contents: string, envFilePath: string): ParsedEnvEntry[] {
-  const entries: ParsedEnvEntry[] = [];
-  const lines = contents
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .split('\n');
-  lines.forEach((rawLine, index) => {
+  const normalized = contents.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const values = parseDotenvContents(normalized);
+  return scanEnvFileKeys(normalized, envFilePath).map(({ key, line }) => ({
+    key,
+    line,
+    value: values[key] ?? '',
+  }));
+}
+
+function scanEnvFileKeys(
+  contents: string,
+  envFilePath: string
+): Array<{ key: string; line: number }> {
+  const keys: Array<{ key: string; line: number }> = [];
+  contents.split('\n').forEach((rawLine, index) => {
     const lineNumber = index + 1;
     let line = rawLine.trim();
     if (line.length === 0 || line.startsWith('#')) {
@@ -209,97 +226,13 @@ function parseEnvFile(contents: string, envFilePath: string): ParsedEnvEntry[] {
     if (line.startsWith('export ')) {
       line = line.slice('export '.length).trimStart();
     }
-
-    const separator = line.indexOf('=');
-    if (separator < 1) {
+    const match = /^([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line);
+    if (!match) {
       throw new Error(
         `Invalid .env line ${lineNumber} in ${envFilePath}: expected KEY=VALUE.`
       );
     }
-
-    const key = line.slice(0, separator).trim();
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
-      throw new Error(
-        `Invalid .env key ${key} in ${envFilePath}:${lineNumber}.`
-      );
-    }
-
-    const rawValue = line.slice(separator + 1).trimStart();
-    entries.push({
-      key,
-      value: parseEnvValue(rawValue, envFilePath, lineNumber),
-      line: lineNumber,
-    });
+    keys.push({ key: match[1], line: lineNumber });
   });
-  return entries;
-}
-
-function parseEnvValue(
-  rawValue: string,
-  envFilePath: string,
-  lineNumber: number
-): string {
-  const quote = rawValue[0];
-  if (quote === '"' || quote === "'") {
-    return parseQuotedValue(rawValue, quote, envFilePath, lineNumber);
-  }
-
-  let value = rawValue;
-  for (let index = 0; index < rawValue.length; index += 1) {
-    if (
-      rawValue[index] === '#' &&
-      (index === 0 || /\s/.test(rawValue[index - 1] ?? ''))
-    ) {
-      value = rawValue.slice(0, index);
-      break;
-    }
-  }
-  return value.trimEnd();
-}
-
-function parseQuotedValue(
-  rawValue: string,
-  quote: '"' | "'",
-  envFilePath: string,
-  lineNumber: number
-): string {
-  let value = '';
-  let escaped = false;
-  for (let index = 1; index < rawValue.length; index += 1) {
-    const character = rawValue[index];
-    if (quote === '"' && escaped) {
-      value += decodeDoubleQuotedEscape(character);
-      escaped = false;
-      continue;
-    }
-    if (quote === '"' && character === '\\') {
-      escaped = true;
-      continue;
-    }
-    if (character === quote) {
-      const rest = rawValue.slice(index + 1).trim();
-      if (rest.length > 0 && !rest.startsWith('#')) {
-        throw new Error(
-          `Unexpected content after quoted value in ${envFilePath}:${lineNumber}.`
-        );
-      }
-      return value;
-    }
-    value += character;
-  }
-
-  throw new Error(`Unterminated quoted value in ${envFilePath}:${lineNumber}.`);
-}
-
-function decodeDoubleQuotedEscape(character: string): string {
-  switch (character) {
-    case 'n':
-      return '\n';
-    case 'r':
-      return '\r';
-    case 't':
-      return '\t';
-    default:
-      return character;
-  }
+  return keys;
 }

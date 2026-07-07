@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import {
+  attemptSignal,
   waitFor,
   waitForHttpOk,
   waitForShipLogin,
@@ -156,6 +157,14 @@ export const openclawDriver: BotDriver = {
     await assertOpenClawContainerEnv(ctx, compose);
   },
 
+  isBenignModelCall(call) {
+    // OpenClaw polls the model on its own heartbeat schedule; those unkeyed
+    // calls are background noise for negative "no model call" assertions.
+    return (
+      call.key === null && call.userText.startsWith('[OpenClaw heartbeat poll]')
+    );
+  },
+
   model: {
     replyText(text) {
       return {
@@ -250,21 +259,21 @@ async function waitForOpenClawBaseServices(ctx: RuntimeContext): Promise<void> {
 
 async function waitForOpenClawGateway(ctx: RuntimeContext): Promise<void> {
   const gateway = requiredGateway(ctx);
-  await waitFor(
-    async () => {
-      const response = await fetch(`${gateway.hostBaseUrl}/`);
-      if (!response.ok) {
-        return false;
-      }
-      const text = await response.text();
-      return /openclaw/i.test(text);
-    },
-    {
-      timeoutMs: 300_000,
-      intervalMs: 2_000,
-      description: 'OpenClaw gateway HTTP readiness',
+  const opts = {
+    timeoutMs: 300_000,
+    intervalMs: 2_000,
+    description: 'OpenClaw gateway HTTP readiness',
+  };
+  await waitFor(async () => {
+    const response = await fetch(`${gateway.hostBaseUrl}/`, {
+      signal: attemptSignal(opts),
+    });
+    if (!response.ok) {
+      return false;
     }
-  );
+    const text = await response.text();
+    return /openclaw/i.test(text);
+  }, opts);
 }
 
 async function waitForOpenClawSse(

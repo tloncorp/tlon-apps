@@ -57,7 +57,8 @@
   },
   "dependencies": {
     "@tloncorp/api": "workspace:*",
-    "@urbit/aura": "^3.0.0"
+    "@urbit/aura": "^3.0.0",
+    "dotenv": "^17.2.4"
   },
   "devDependencies": {
     "@types/node": "^25.4.0",

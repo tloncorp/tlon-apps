@@ -17,9 +17,10 @@ import {
   withSettingsEntry,
 } from './isolation.js';
 import {
+  type BenignModelCallPredicate,
+  benignModelCallPredicate,
   expectModelExpectations,
   expectNoModelCalls,
-  isBenignBackgroundModelCall,
   registerModelScript,
 } from './model.js';
 
@@ -29,7 +30,7 @@ const BOT_REPLY_WAIT_MS = 90_000;
 const LOOP_TIMEOUT_MARGIN_MS = 60_000;
 
 export const commonScenarios: readonly SharedScenario[] = [
-  testScenario('connectivity', {}, async ({ ctx, actors }) => {
+  testScenario('connectivity', {}, async ({ ctx, driver, actors }) => {
     await actors.bot.state.connect();
     await actors.owner.state.connect();
     await actors.thirdParty.state.connect();
@@ -49,7 +50,10 @@ export const commonScenarios: readonly SharedScenario[] = [
       throw new Error('Expected bot settings bucket to be readable.');
     }
 
-    await expectNoModelCallsAfterSettle(ctx.fakeModel);
+    await expectNoModelCallsAfterSettle(
+      ctx.fakeModel,
+      benignModelCallPredicate(driver)
+    );
   }),
 
   testScenario('owner-dm-text-reply', {}, async ({ ctx, driver, actors }) => {
@@ -104,7 +108,7 @@ export const commonScenarios: readonly SharedScenario[] = [
   testScenario(
     'unauthorized-third-party-dm-ignored',
     {},
-    async ({ ctx, actors }) => {
+    async ({ ctx, driver, actors }) => {
       const key = scenarioKey('unauthorized');
       const baseline = await actors.thirdParty.state.latestSequenceFrom(
         actors.bot.ship,
@@ -115,7 +119,11 @@ export const commonScenarios: readonly SharedScenario[] = [
         `[tlon-test:${key}] Unauthorized sender should not reach the model.`
       );
       await expectNoDirectReply(actors.thirdParty, actors.bot.ship, baseline);
-      await expectNoModelCalls(ctx.fakeModel);
+      await expectNoModelCalls(
+        ctx.fakeModel,
+        undefined,
+        benignModelCallPredicate(driver)
+      );
     }
   ),
 
@@ -192,23 +200,28 @@ export const commonScenarios: readonly SharedScenario[] = [
   testScenario(
     'owner-listen-channel-plain-owner-post-skipped-when-off',
     {},
-    async ({ ctx, actors }) => {
+    async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await withSettingsEntry(actors, 'ownerListenEnabled', false);
       const key = scenarioKey('owner-listen-plain-off');
+      const isBenign = benignModelCallPredicate(driver);
       const baseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
         actors.bot.ship
       );
-      const modelBaseline = await modelCallCount(ctx.fakeModel);
+      const modelBaseline = await modelCallCount(ctx.fakeModel, isBenign);
 
       await actors.owner.sendChannelPost({
         channelId: fixture.channelId,
         content: `[tlon-test:${key}] Plain owner post should not wake the bot.`,
       });
 
-      await expectNoNewModelCallsAfterSettle(ctx.fakeModel, modelBaseline);
+      await expectNoNewModelCallsAfterSettle(
+        ctx.fakeModel,
+        isBenign,
+        modelBaseline
+      );
       await expectNoBotChannelReply(
         actors.owner,
         fixture.channelId,
@@ -257,25 +270,30 @@ export const commonScenarios: readonly SharedScenario[] = [
   testScenario(
     'owner-listen-channel-plain-owner-post-skipped-when-muted',
     {},
-    async ({ ctx, actors }) => {
+    async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await withSettingsEntry(actors, 'ownerListenDisabledChannels', [
         fixture.channelId,
       ]);
       const key = scenarioKey('owner-listen-muted-plain');
+      const isBenign = benignModelCallPredicate(driver);
       const baseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
         actors.bot.ship
       );
-      const modelBaseline = await modelCallCount(ctx.fakeModel);
+      const modelBaseline = await modelCallCount(ctx.fakeModel, isBenign);
 
       await actors.owner.sendChannelPost({
         channelId: fixture.channelId,
         content: `[tlon-test:${key}] Plain owner post in muted channel should not wake the bot.`,
       });
 
-      await expectNoNewModelCallsAfterSettle(ctx.fakeModel, modelBaseline);
+      await expectNoNewModelCallsAfterSettle(
+        ctx.fakeModel,
+        isBenign,
+        modelBaseline
+      );
       await expectNoBotChannelReply(
         actors.owner,
         fixture.channelId,
@@ -326,7 +344,7 @@ export const commonScenarios: readonly SharedScenario[] = [
   testScenario(
     'owner-listen-all-off-command-persists',
     {},
-    async ({ ctx, actors }) => {
+    async ({ ctx, driver, actors }) => {
       await withSettingsEntry(actors, 'ownerListenEnabled', true);
 
       const result = await actors.owner.prompt('/owner-listen all off', {
@@ -335,14 +353,17 @@ export const commonScenarios: readonly SharedScenario[] = [
 
       expectPromptSuccess(result, 'Global owner-listen is now off');
       await waitForSettingsEntries(actors, { ownerListenEnabled: false });
-      await expectNoModelCallsAfterSettle(ctx.fakeModel);
+      await expectNoModelCallsAfterSettle(
+        ctx.fakeModel,
+        benignModelCallPredicate(driver)
+      );
     }
   ),
 
   testScenario(
     'owner-listen-all-on-command-persists',
     {},
-    async ({ ctx, actors }) => {
+    async ({ ctx, driver, actors }) => {
       await withSettingsEntry(actors, 'ownerListenEnabled', false);
 
       const result = await actors.owner.prompt('/owner-listen all on', {
@@ -351,7 +372,10 @@ export const commonScenarios: readonly SharedScenario[] = [
 
       expectPromptSuccess(result, 'Global owner-listen is now on');
       await waitForSettingsEntries(actors, { ownerListenEnabled: true });
-      await expectNoModelCallsAfterSettle(ctx.fakeModel);
+      await expectNoModelCallsAfterSettle(
+        ctx.fakeModel,
+        benignModelCallPredicate(driver)
+      );
     }
   ),
 
@@ -416,7 +440,11 @@ export const commonScenarios: readonly SharedScenario[] = [
         fixture.channelId,
         actors.bot.ship
       );
-      const droppedModelBaseline = await modelCallCount(ctx.fakeModel);
+      const isBenign = benignModelCallPredicate(driver);
+      const droppedModelBaseline = await modelCallCount(
+        ctx.fakeModel,
+        isBenign
+      );
       await actors.thirdParty.sendChannelPost({
         channelId: fixture.channelId,
         content: storyWithMention(
@@ -427,6 +455,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       });
       await expectNoNewModelCallsAfterSettle(
         ctx.fakeModel,
+        isBenign,
         droppedModelBaseline
       );
       await expectNoBotChannelReply(
@@ -564,21 +593,21 @@ async function waitForModelCalls(
   );
 }
 
-async function modelCallCount(fakeModel: FakeModelClient): Promise<number> {
-  return (await fakeModel.received()).filter(
-    (call) => !isBenignBackgroundModelCall(call)
-  ).length;
+async function modelCallCount(
+  fakeModel: FakeModelClient,
+  isBenign: BenignModelCallPredicate
+): Promise<number> {
+  return (await fakeModel.received()).filter((call) => !isBenign(call)).length;
 }
 
 async function expectNoNewModelCallsAfterSettle(
   fakeModel: FakeModelClient,
+  isBenign: BenignModelCallPredicate,
   baselineCount: number,
   settleMs = NEGATIVE_SETTLE_MS
 ): Promise<void> {
   await sleep(settleMs);
-  const calls = (await fakeModel.received()).filter(
-    (call) => !isBenignBackgroundModelCall(call)
-  );
+  const calls = (await fakeModel.received()).filter((call) => !isBenign(call));
   if (calls.length !== baselineCount) {
     const newCalls = calls.slice(baselineCount);
     const summary = newCalls
@@ -596,10 +625,11 @@ async function expectNoNewModelCallsAfterSettle(
 
 async function expectNoModelCallsAfterSettle(
   fakeModel: FakeModelClient,
+  isBenign: BenignModelCallPredicate,
   settleMs = NEGATIVE_SETTLE_MS
 ): Promise<void> {
   await sleep(settleMs);
-  await expectNoModelCalls(fakeModel);
+  await expectNoModelCalls(fakeModel, undefined, isBenign);
 }
 
 async function botNickname(actor: ScenarioActor): Promise<string> {
