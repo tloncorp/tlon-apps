@@ -1,5 +1,5 @@
 /-  n=notes
-/+  notes-json
+/=  notes-json  /lib/notes/json
 |_  =response:n
 ++  grad  %noun
 ++  grab

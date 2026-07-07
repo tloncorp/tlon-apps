@@ -8,7 +8,8 @@
 ::  harness with no cross-agent sign exchange.
 ::
 /-  n=notes
-/+  *test-agent, notes-json
+/+  *test-agent
+/=  notes-json  /lib/notes/json
 /=  notes-agent  /app/notes
 |%
 ++  dap  %notes

@@ -2,7 +2,7 @@
 ::    POST body JSON: {"requestId": "0v...", "action": <a-notes JSON>}
 ::
 /-  n=notes
-/+  notes-json
+/=  notes-json  /lib/notes/json
 |_  =action:v1:n
 ++  grad  %noun
 ++  grab

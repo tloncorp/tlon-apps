@@ -1,10 +1,18 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
 /-  n=notes, mcp-proxy
-/+  default-agent, dbug, verb, notes-json
-/=  ui            /lib/notes-ui
-/=  share-page    /lib/notes-share
-/=  openapi-spec  /lib/notes-openapi
+/+  default-agent, dbug, verb
+/=  notes-json  /lib/notes/json
+::  static web assets, imported straight from files and served as-is. The
+::  agent sets each response's content-type explicitly (see below), so the
+::  import marks only need to carry the raw bytes.
+/*  ui-index        %html  /lib/notes/ui/html
+/*  share-page      %html  /lib/notes/share/html
+/*  openapi-spec    %json  /lib/notes/openapi/json
+/*  manifest        %json  /lib/notes/manifest/json
+/*  service-worker  %js    /lib/notes/service-worker/js
+/*  favicon-svg     %svg   /lib/notes/favicon/svg
+/*  icon-svg        %svg   /lib/notes/icon/svg
 ::
 |%
 +$  card  card:agent:gall
@@ -438,7 +446,7 @@
   ::  channel into agent state. JSON only because %mcp-proxy parses
   ::  cached specs with de:json:html and doesn't accept YAML.
   ?:  =("/notes/openapi.json" url-path)
-    (give-http eyre-id 200 'application/json' json:openapi-spec)
+    (give-http eyre-id 200 'application/json' (en:json:html openapi-spec))
   ::  v1 HTTP API: POST /notes/~/v1, GET /notes/~/v1/request/<uv>,
   ::  GET /notes/~/v1/notebooks[...] + /notes/~/v1/invites (read surface)
   ?:  =("/notes/~/v1" url-path)
@@ -460,14 +468,14 @@
   ::  /notes/ so the SW can control the app's URL space.
   =/  asset=(unit [body=@t ct=@t])
     ?:  =("/notes/manifest.json" url-path)
-      `[manifest:ui 'application/manifest+json']
+      `[(en:json:html manifest) 'application/manifest+json']
     ?:  =("/notes/sw.js" url-path)
       ::  text/javascript is required by some browsers for SW registration.
-      `[service-worker:ui 'text/javascript']
+      `[service-worker 'text/javascript']
     ?:  =("/notes/icon.svg" url-path)
-      `[icon-svg:ui 'image/svg+xml']
+      `[icon-svg 'image/svg+xml']
     ?:  =("/notes/favicon.svg" url-path)
-      `[favicon-svg:ui 'image/svg+xml']
+      `[favicon-svg 'image/svg+xml']
     ~
   ::  /notes/pub/~ship/name/{note-id} → serve archived published HTML
   =/  pub-html=(unit @t)
@@ -492,7 +500,7 @@
     ?^  asset       body.u.asset
     ?^  pub-html    u.pub-html
     ?^  share-html  u.share-html
-    index:ui
+    ui-index
   =/  ct=@t
     ?^  asset  ct.u.asset
     'text/html'
@@ -845,7 +853,7 @@
   ?+  pole  ~
     ::  /x/ui — serve the frontend
       [%x %ui ~]
-    ``html+!>(index:ui)
+    ``html+!>(ui-index)
     ::  /x/v0/notebooks — list all notebooks (cross-cutting, no flag)
       [%x %v0 %notebooks ~]
     =/  summaries=(list notebook-summary:n)

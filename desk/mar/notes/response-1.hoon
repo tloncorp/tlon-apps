@@ -3,7 +3,7 @@
 ::    body of POST /notes/~/v1 (or its GET /request/<uv> follow-up).
 ::
 /-  n=notes
-/+  notes-json
+/=  notes-json  /lib/notes/json
 |_  =response:v1:n
 ++  grad  %noun
 ++  grab
