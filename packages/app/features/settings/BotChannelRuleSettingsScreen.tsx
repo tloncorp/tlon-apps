@@ -107,8 +107,14 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     if (!group) {
       return initialGroupJoined;
     }
+    // Until the moon's channel listing has loaded, membership is unknown —
+    // keep the value captured at navigation time rather than reading the empty
+    // fallback as "not joined" and flipping a joined channel to read-only.
+    if (queries.moonChannelsQuery.data === undefined) {
+      return initialGroupJoined;
+    }
     return hasGroupMembership(
-      queries.moonChannelsQuery.data ?? {},
+      queries.moonChannelsQuery.data,
       parsed.host,
       group
     );
