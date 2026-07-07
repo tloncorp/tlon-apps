@@ -338,7 +338,7 @@ export function BotChannelRulesScreen(props: Props) {
                 return (
                   <YStack key={groupKey} gap="$m">
                     <XStack
-                      alignItems="flex-end"
+                      alignItems="center"
                       justifyContent="space-between"
                       gap="$l"
                       paddingHorizontal="$s"
@@ -363,6 +363,7 @@ export function BotChannelRulesScreen(props: Props) {
                       {!isGroupMember ? (
                         <Button
                           preset="secondaryOutline"
+                          size="small"
                           label={isJoining ? 'Joining…' : 'Join'}
                           disabled={isJoining || !canJoinGroup}
                           onPress={() =>
