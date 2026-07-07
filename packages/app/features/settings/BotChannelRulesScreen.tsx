@@ -340,9 +340,17 @@ export function BotChannelRulesScreen(props: Props) {
             ) : (
               filteredGroups.map((group) => {
                 const groupKey = `${group.host}/${group.group}`;
+                // The moon's live channel listing lags/omits groups it's a
+                // member of (sync, perms), so also treat a group as joined when
+                // the bot already has saved rules for channels in it — it can't
+                // be configured for a group it isn't in.
+                const isConfiguredMember = group.channels.some((channel) =>
+                  Boolean(baselineDrafts[channel.key])
+                );
                 const isGroupMember =
                   group.group !== 'unknown' &&
-                  hasGroupMembership(moonChannels, group.host, group.group);
+                  (hasGroupMembership(moonChannels, group.host, group.group) ||
+                    isConfiguredMember);
                 const canJoinGroup =
                   membershipsLoaded &&
                   !isGroupMember &&
