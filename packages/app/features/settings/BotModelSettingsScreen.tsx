@@ -79,7 +79,10 @@ export function BotModelSettingsScreen(props: Props) {
   );
 
   const handleBack = useCallback(() => {
+    // Don't enforce model selection while the draft is still loading (its
+    // values are the empty store defaults), or Back gets stuck on the spinner.
     if (
+      ready &&
       mode === 'default' &&
       modelValues.provider !== BASIC_PROVIDER_ID &&
       !modelValues.model
@@ -88,7 +91,7 @@ export function BotModelSettingsScreen(props: Props) {
       return;
     }
     props.navigation.goBack();
-  }, [mode, modelValues, props.navigation]);
+  }, [ready, mode, modelValues, props.navigation]);
 
   const setModel = useCallback(
     (provider: string, model: string) => {
@@ -233,14 +236,17 @@ export function BotModelSettingsScreen(props: Props) {
                       <SelectableRow
                         label={option.label}
                         selected={modelValues.provider === option.id}
-                        onPress={() =>
+                        onPress={() => {
+                          // Re-tapping the current provider must not wipe the
+                          // selected model and force a reselect.
+                          if (option.id === modelValues.provider) return;
                           setModel(
                             option.id,
                             option.id === BASIC_PROVIDER_ID
                               ? BASIC_DEFAULT_MODEL
                               : ''
-                          )
-                        }
+                          );
+                        }}
                       />
                       {index < availableProviders.length - 1 ? (
                         <BotSettingsDivider />
