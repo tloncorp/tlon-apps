@@ -243,7 +243,7 @@ describe('tlonbot config', () => {
     });
   });
 
-  it('omits allowedShips for inherited channels so they follow the defaults', () => {
+  it('omits the rule for inherited channels but keeps them monitored', () => {
     const config = buildConfigFromChatValues({
       dmAllowlist: '',
       defaultAuthorizedShips: '~zod, ~bus',
@@ -251,7 +251,8 @@ describe('tlonbot config', () => {
       autoAcceptDmInvites: false,
       autoDiscoverChannels: false,
       channelRuleDrafts: {
-        // inherited: written without allowedShips (backend keeps inheriting)
+        // inherited: no channelRules entry (the backend infers restricted +
+        // defaultAuthorizedShips from groupChannels), but still monitored
         'chat/~zod/general': {
           mode: 'allowlist',
           allowedShips: '~nec',
@@ -264,13 +265,16 @@ describe('tlonbot config', () => {
         },
       },
     });
-    expect(config.channelRules['chat/~zod/general']).toEqual({
-      mode: 'restricted',
-    });
+    // inherited channel: no rule (so it can't fail the "allowedShips required"
+    // schema and truly follows the defaults), but present in groupChannels
+    expect(config.channelRules['chat/~zod/general']).toBeUndefined();
+    expect(config.groupChannels).toContain('chat/~zod/general');
+    // explicit channel: a rule with an allowedShips list
     expect(config.channelRules['chat/~zod/private']).toEqual({
       mode: 'restricted',
       allowedShips: ['~mel'],
     });
+    expect(config.groupChannels).toContain('chat/~zod/private');
   });
 
   it('builds a config payload from chat form values', () => {

@@ -15,10 +15,11 @@ export type ChannelRuleDraft = {
   modelOverrideProvider?: string;
   modelOverride?: string;
   // True for a channel that has no explicit server rule and therefore inherits
-  // defaultAuthorizedShips. `allowedShips` holds a snapshot for display, but the
-  // save path rederives it from the current defaults so a later change to
-  // defaultAuthorizedShips isn't frozen out. Cleared once the user edits the
-  // rule explicitly (see setRule in BotChannelRuleSettingsScreen).
+  // defaultAuthorizedShips. `allowedShips` holds the current defaults as a
+  // display snapshot; the save path writes NO channelRules entry for it (it
+  // stays only in groupChannels) so it keeps following the defaults. Cleared
+  // once the user edits the rule explicitly (see setRule in
+  // BotChannelRuleSettingsScreen).
   inheritsDefaultShips?: boolean;
 };
 
@@ -412,33 +413,36 @@ export const haveChannelModelEntriesChanged = (
 export const buildConfigFromChatValues = (
   values: ChatFormValues
 ): TlawnConfig => {
+  // Inherited channels carry no explicit rule: the backend infers restricted +
+  // defaultAuthorizedShips from their mere presence in groupChannels. We must
+  // NOT emit a channelRules entry for them — the config schema requires
+  // allowedShips on every rule (so an omitted list fails validation), and an
+  // explicit list would freeze them instead of following the defaults. So skip
+  // them in channelRules but keep them in groupChannels so they stay monitored.
   const channelRules = Object.fromEntries(
-    Object.entries(values.channelRuleDrafts).map(([key, rule]) => {
-      const normalizedKey = normalizeChannelRuleKey(key);
-      const mode = toBackendMode(rule.mode);
-      // Inherited channels are written without allowedShips so the backend keeps
-      // applying defaultAuthorizedShips (following future changes) instead of
-      // freezing the current list.
-      if (rule.mode === 'allowlist' && rule.inheritsDefaultShips) {
-        return [normalizedKey, { mode }];
-      }
-      return [
-        normalizedKey,
+    Object.entries(values.channelRuleDrafts)
+      .filter(
+        ([, rule]) => !(rule.mode === 'allowlist' && rule.inheritsDefaultShips)
+      )
+      .map(([key, rule]) => [
+        normalizeChannelRuleKey(key),
         {
-          mode,
+          mode: toBackendMode(rule.mode),
           allowedShips:
             rule.mode === 'allowlist'
               ? normalizeShipList(rule.allowedShips)
               : [],
         },
-      ];
-    })
+      ])
+  );
+  const groupChannels = Array.from(
+    new Set(Object.keys(values.channelRuleDrafts).map(normalizeChannelRuleKey))
   );
   return {
     dmAllowlist: normalizeShipList(values.dmAllowlist),
     defaultAuthorizedShips: normalizeShipList(values.defaultAuthorizedShips),
     channelRules,
-    groupChannels: Object.keys(channelRules),
+    groupChannels,
     groupInviteAllowlist: normalizeShipList(values.groupInviteAllowlist),
     autoAcceptDmInvites: values.autoAcceptDmInvites,
     autoDiscoverChannels: values.autoDiscoverChannels,
