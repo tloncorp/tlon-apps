@@ -204,10 +204,6 @@
 ::      partial responses
 ?>  ?=(%finished -.client-response)
 ?:  =(200 status-code.response-header.client-response)
-  %-  %-  slog 
-    =*  full-file  full-file.client-response
-    ?~  full-file  ~
-    ~[leaf+"otel-response:" `@t`q.data.u.full-file]
   (pure:m !>(`client-response))
 =*  status-code  status-code.response-header.client-response
 %-  %-  slog 
