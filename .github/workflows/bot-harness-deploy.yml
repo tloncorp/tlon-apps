@@ -26,7 +26,6 @@ on:
       - "packages/openclaw/openclaw.plugin.json"
       - "packages/openclaw/tsconfig.json"
       - "packages/openclaw/scripts/**"
-      - "packages/openclaw/.npmrc"
       - "packages/hermes-tlon-adapter/__init__.py"
       - "packages/hermes-tlon-adapter/adapter.py"
       - "packages/hermes-tlon-adapter/approval.py"

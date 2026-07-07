@@ -3,12 +3,12 @@ import { Icon, Pressable } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Platform } from 'react-native';
-import { TamaguiWebElement, XStack } from 'tamagui';
+import { Platform, Switch } from 'react-native';
+import { TamaguiWebElement, View, XStack } from 'tamagui';
 
 import { useSheetCloseAfterAnimation } from '../../hooks/useSheetCloseAfterAnimation';
 import type { ActionGroup } from '../ActionSheet';
-import { createActionGroups } from '../ActionSheet';
+import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { NotesActionMenu } from './NotesActions';
@@ -122,20 +122,32 @@ export function FolderTreeRow({
 
 export function NoteRow({
   canEdit,
+  isPublished,
   note,
+  publishDisabled,
+  publishedUrl,
   selected = false,
   onDelete,
   onMove,
   onPress,
+  onPublish,
   onRename,
+  onUnpublish,
+  onViewPublished,
 }: {
   canEdit: boolean;
+  isPublished: boolean;
   note: db.NotesNote;
+  publishDisabled: boolean;
+  publishedUrl?: string | null;
   selected?: boolean;
   onDelete: () => void;
   onMove: () => void;
   onPress: () => void;
+  onPublish: () => void;
   onRename: () => void;
+  onUnpublish: () => void;
+  onViewPublished?: () => void;
 }) {
   const updatedAt = noteTimestampMs(note.updatedAt ?? note.createdAt);
   const bodyPreview = getNoteBodyPreview(note.bodyMd);
@@ -166,6 +178,60 @@ export function NoteRow({
       },
     ]
   );
+  // Rendered outside NotesActionGroupList's dismiss-on-press wrapper: the
+  // sheet stays open, so the switch flips and the published-note actions
+  // appear in place instead of the sheet vanishing mid-operation.
+  const publishSection = (
+    <ActionSheet.ActionGroup accent="neutral">
+      <ActionSheet.Action
+        action={{
+          title: 'Publish to web',
+          description: isPublished ? publishedUrl ?? undefined : undefined,
+          startIcon: 'EyeOpen',
+          // Visual-only: the row press drives the toggle. Letting the Switch
+          // handle taps double-fires with the row action, and its taps get
+          // eaten by the sheet's pan gesture on Android (see
+          // ChannelPermissions.tsx for the same workaround).
+          endIcon: (
+            <View pointerEvents="none">
+              <Switch value={isPublished} disabled={publishDisabled} />
+            </View>
+          ),
+          action: isPublished ? onUnpublish : onPublish,
+          disabled: publishDisabled,
+        }}
+        testID={`NotesPublishToggleAction-${note.noteId}`}
+      />
+      {isPublished ? (
+        <ActionSheet.Action
+          action={{
+            title: 'Update published note',
+            startIcon: 'Refresh',
+            action: onPublish,
+            disabled: publishDisabled,
+          }}
+          testID={`NotesPublishNoteAction-${note.noteId}`}
+        />
+      ) : null}
+      {isPublished && publishedUrl ? (
+        <ActionSheet.CopyAction
+          action={{ title: 'Copy link', startIcon: 'Copy' }}
+          copyText={publishedUrl}
+          testID={`NotesCopyPublishedNoteAction-${note.noteId}`}
+        />
+      ) : null}
+      {isPublished && publishedUrl && onViewPublished ? (
+        <ActionSheet.Action
+          action={{
+            title: 'View published note',
+            startIcon: 'Link',
+            action: onViewPublished,
+          }}
+          testID={`NotesViewPublishedNoteAction-${note.noteId}`}
+        />
+      ) : null}
+    </ActionSheet.ActionGroup>
+  );
   const { actionsMenu, rowActionProps } = useRowActions({
     actionGroups,
     canEdit,
@@ -174,6 +240,7 @@ export function NoteRow({
       title: note.title || 'Untitled',
       subtitle: bodyPreview || 'Note',
     },
+    bottomContent: publishSection,
   });
 
   return (
@@ -215,6 +282,7 @@ function useRowActions({
   actionGroups,
   canEdit,
   header,
+  bottomContent,
 }: {
   actionGroups: ActionGroup[];
   canEdit: boolean;
@@ -223,6 +291,7 @@ function useRowActions({
     subtitle?: string;
     title: string;
   };
+  bottomContent?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -285,6 +354,7 @@ function useRowActions({
           open={open}
           onAction={handleAction}
           onOpenChange={handleOpenChange}
+          bottomContent={bottomContent}
           trigger={actionsTrigger}
         />
       ) : null,

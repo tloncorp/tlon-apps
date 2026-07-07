@@ -233,7 +233,7 @@ async function downloadMedia({
         const fileUri = localUri.startsWith('file://')
           ? localUri
           : `file://${localUri}`;
-        await MediaLibrary.saveToLibraryAsync(fileUri);
+        await MediaLibrary.Asset.create(fileUri);
         Alert.alert('Success', `${Noun} saved to your photos!`);
       } catch (saveError) {
         logger.trackError(`Failed to save ${noun} to library`, {

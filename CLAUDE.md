@@ -247,7 +247,7 @@ To identify which component to modify:
 
 ### Windows Development
 
-Several `package.json` scripts use Unix shell tools (`rm -rf`, `cp -R`, `mkdir -p`). `.npmrc` routes pnpm's `script-shell` through `${TLON_SHELL-/bin/bash}` so those scripts work everywhere:
+Several `package.json` scripts use Unix shell tools (`rm -rf`, `cp -R`, `mkdir -p`). `pnpm-workspace.yaml` routes pnpm's `scriptShell` through `${TLON_SHELL-/bin/bash}` so those scripts work everywhere:
 
 -   **macOS/Linux**: nothing to do — `TLON_SHELL` is unset and pnpm falls back to `/bin/bash`.
 -   **Windows**: install [Git for Windows](https://git-scm.com/download/win), then point pnpm at its bash:
