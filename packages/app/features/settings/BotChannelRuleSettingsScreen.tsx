@@ -289,7 +289,20 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                 disabled={readOnly}
                 onCheckedChange={(checked) => {
                   setValidationError(null);
-                  setRule(checked ? currentRule : undefined);
+                  if (!checked) {
+                    setRule(undefined);
+                    return;
+                  }
+                  // A newly enabled channel defaults to restricted, inheriting
+                  // defaultAuthorizedShips — not the open placeholder that
+                  // currentRule falls back to when no rule exists yet.
+                  setRule(
+                    rule ?? {
+                      mode: 'allowlist',
+                      allowedShips: draft.draft.chat.defaultAuthorizedShips,
+                      inheritsDefaultShips: true,
+                    }
+                  );
                 }}
               />
             </BotSettingsSection>
