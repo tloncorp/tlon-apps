@@ -7,7 +7,7 @@ import {
   Text,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -84,6 +84,15 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   const [pendingShip, setPendingShip] = useState('');
   const [modelSearch, setModelSearch] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // The desktop settings drawer keeps this screen mounted across channel
+  // switches; clear per-channel input state when the channel param changes so
+  // a half-typed ship or search doesn't leak into another channel's editor.
+  useEffect(() => {
+    setPendingShip('');
+    setModelSearch('');
+    setValidationError(null);
+  }, [channelKey]);
 
   const rule = draft.draft.chat.channelRuleDrafts[channelKey];
   const currentRule: ChannelRuleDraft = useMemo(
