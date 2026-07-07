@@ -2065,41 +2065,49 @@ class TlonAdapter(BasePlatformAdapter):
             dispatch_reason=dispatch_reason,
         )
         await self._begin_lens_run(message, is_dm=is_dm, dispatch_reason=dispatch_reason)
-        # Thread context flows for DMs too, so the bot replies inside a DM
-        # thread instead of the main conversation.
-        reply_context = message.reply_to_message_id
-        source = self.build_source(
-            chat_id=message.chat_id,
-            chat_name=message.chat_name,
-            chat_type=message.chat_type,
-            user_id=message.user_id,
-            user_name=message.user_name,
-            thread_id=reply_context,
-            message_id=message.message_id,
-        )
-        prepared = prepared_media or PreparedMedia()
-        event_kwargs = {
-            "text": message.text,
-            "message_type": _message_type_member(prepared.message_type),
-            "source": source,
-            "raw_message": message.raw,
-            "message_id": message.message_id,
-            "reply_to_message_id": reply_context,
-            "timestamp": message.sent_at,
-            "media_urls": list(prepared.media_urls),
-            "media_types": list(prepared.media_types),
-        }
         try:
-            event = MessageEvent(**event_kwargs)
-        except TypeError:
-            # Keeps older Hermes test doubles and runtimes from failing before
-            # they pick up the native media fields.
-            media_urls = event_kwargs.pop("media_urls")
-            media_types = event_kwargs.pop("media_types")
-            event = MessageEvent(**event_kwargs)
-            setattr(event, "media_urls", media_urls)
-            setattr(event, "media_types", media_types)
-        await self.handle_message(event)
+            # Thread context flows for DMs too, so the bot replies inside a DM
+            # thread instead of the main conversation.
+            reply_context = message.reply_to_message_id
+            source = self.build_source(
+                chat_id=message.chat_id,
+                chat_name=message.chat_name,
+                chat_type=message.chat_type,
+                user_id=message.user_id,
+                user_name=message.user_name,
+                thread_id=reply_context,
+                message_id=message.message_id,
+            )
+            prepared = prepared_media or PreparedMedia()
+            event_kwargs = {
+                "text": message.text,
+                "message_type": _message_type_member(prepared.message_type),
+                "source": source,
+                "raw_message": message.raw,
+                "message_id": message.message_id,
+                "reply_to_message_id": reply_context,
+                "timestamp": message.sent_at,
+                "media_urls": list(prepared.media_urls),
+                "media_types": list(prepared.media_types),
+            }
+            try:
+                event = MessageEvent(**event_kwargs)
+            except TypeError:
+                # Keeps older Hermes test doubles and runtimes from failing
+                # before they pick up the native media fields.
+                media_urls = event_kwargs.pop("media_urls")
+                media_types = event_kwargs.pop("media_types")
+                event = MessageEvent(**event_kwargs)
+                setattr(event, "media_urls", media_urls)
+                setattr(event, "media_types", media_types)
+            await self.handle_message(event)
+        except Exception:
+            # Dispatch raised before on_processing_complete could finalize the
+            # run (e.g. _route_stream_event catches and skips handle_message
+            # errors). Close it out as an error so the lens UI shows a terminal
+            # state and the run doesn't leak until the next prune.
+            await self._finish_lens_run_on_error(message.chat_id)
+            raise
 
     async def on_processing_start(self, event: MessageEvent) -> None:
         await self._computing_presence.refresh_run(
@@ -2141,6 +2149,16 @@ class TlonAdapter(BasePlatformAdapter):
         except Exception as exc:
             logger.warning("[tlon] context-lens begin failed: %s", exc)
             self._telemetry.error("context_lens", exc, operation="begin")
+
+    async def _finish_lens_run_on_error(self, conversation_id: str) -> None:
+        if not self._lens.enabled:
+            return
+        try:
+            # finish() no-ops if the run already reached a terminal state and
+            # was popped (e.g. on_processing_complete ran before the raise).
+            await self._lens.finish(conversation_id, status="error")
+        except Exception as exc:
+            logger.warning("[tlon] context-lens error-finish failed: %s", exc)
 
     async def on_processing_complete(self, event: MessageEvent, outcome: Any) -> None:
         await self._computing_presence.stop_run(

@@ -261,6 +261,25 @@ class SyncSequencingTests(unittest.TestCase):
         self.assertEqual(r.delivered_message_count, 0)
         self.assertEqual(r.error, "boom")
 
+    def test_finish_as_error_pushes_final_once(self):
+        cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
+        sync = lens.TlonLensSync(cfg, client_factory=FakeClient)
+        rec = lens.TlonLensRecorder(sync)
+
+        async def scenario():
+            await sync.start()
+            rec.begin("~alice", make_run())
+            await rec.finish("~alice", status="error")
+            # A second finish (e.g. dispatch raised after a normal finish) is a
+            # no-op — the run was already popped.
+            await rec.finish("~alice", status="error")
+
+        run(scenario())
+        entries = FakeClient.instances[0].entries()
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["entry"]["payload"]["lens"]["status"], "error")
+        self.assertTrue(entries[0]["entry"]["final"])
+
     def test_configure_poked_once(self):
         cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
         sync = lens.TlonLensSync(cfg, client_factory=FakeClient)
