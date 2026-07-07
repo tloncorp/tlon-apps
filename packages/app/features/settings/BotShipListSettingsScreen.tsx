@@ -1,22 +1,18 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  Button,
-  Icon,
-  LoadingSpinner,
-  Pressable,
-  Text,
-  useIsWindowNarrow,
-} from '@tloncorp/ui';
+import { LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { Platform } from 'react-native';
+import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
 import {
-  BotSettingsDivider,
-  BotSettingsSection,
-  EmptyRowText,
-} from './bot/BotSettingsUI';
+  ActionSheet,
+  ContactBook,
+  ContactList,
+  ScreenHeader,
+  SettingsContentScrollView,
+} from '../../ui';
+import { Badge } from '../../ui/components/Badge';
 import {
   formatShipList,
   normalizeShip,
@@ -37,24 +33,100 @@ export type BotShipListKind =
 
 const shipListMeta: Record<
   BotShipListKind,
-  { title: string; listTitle: string; description: string }
+  { title: string; listTitle: string; description: string; addSubtitle: string }
 > = {
   dmAllowlist: {
     title: 'DM allowlist',
     listTitle: 'Allowed users',
     description: 'Users on the allowlist can DM Tlonbot directly.',
+    addSubtitle: 'Select a contact or enter any @p to allow DMs.',
   },
   defaultAuthorizedShips: {
     title: 'Authorized users',
     listTitle: 'Authorized users',
     description: 'Authorized users can always interact with Tlonbot.',
+    addSubtitle: 'Select a contact or enter any @p to authorize.',
   },
   groupInviteAllowlist: {
     title: 'Can invite to groups',
     listTitle: 'Invite allowlist',
     description: 'These users can invite Tlonbot to groups.',
+    addSubtitle: 'Select a contact or enter any @p to allow group invites.',
   },
 };
+
+// A ship picker sheet mirroring the DM contact picker: a searchable ContactBook
+// that also accepts any typed @p (ContactBook synthesizes a fallback contact
+// for a valid patp). Bottom sheet on narrow, dialog on wide, like CreateChat.
+function ShipPickerSheet({
+  open,
+  onOpenChange,
+  subtitle,
+  disabledIds,
+  onSelect,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  subtitle: string;
+  disabledIds: string[];
+  onSelect: (shipId: string) => void;
+}) {
+  const isWindowNarrow = useIsWindowNarrow();
+  const [scrolling, setScrolling] = useState(false);
+  // Let the drag handle (not the list) own the pan gesture on Android so the
+  // nested ContactBook can scroll.
+  const enableContentPanningGesture = useMemo(
+    () => (Platform.OS === 'android' ? false : undefined),
+    []
+  );
+
+  const body = (
+    <YStack flex={1} gap="$l" $sm={{ paddingHorizontal: '$xl' }}>
+      <ActionSheet.SimpleHeader title="Add a user" subtitle={subtitle} />
+      <ContactBook
+        searchable
+        autoFocus={!isWindowNarrow}
+        searchPlaceholder="Filter by nickname or @p"
+        onSelect={onSelect}
+        onScrollChange={setScrolling}
+        disabledIds={disabledIds}
+        disabledReason="Already on this list"
+        maxHeight={isWindowNarrow ? undefined : 500}
+      />
+    </YStack>
+  );
+
+  if (isWindowNarrow) {
+    return (
+      <ActionSheet
+        open={open}
+        onOpenChange={onOpenChange}
+        moveOnKeyboardChange
+        snapPoints={[90]}
+        snapPointsMode="percent"
+        disableDrag={scrolling}
+        enableContentPanningGesture={enableContentPanningGesture}
+        hasScrollableContent
+      >
+        {body}
+      </ActionSheet>
+    );
+  }
+
+  return (
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      mode="dialog"
+      closeButton
+      dialogContentProps={{ height: 'auto', maxHeight: 1200, width: 600 }}
+    >
+      <View flex={1} padding="$m">
+        {body}
+      </View>
+    </ActionSheet>
+  );
+}
 
 export function BotShipListSettingsScreen(props: Props) {
   const { list } = props.route.params;
@@ -71,13 +143,13 @@ export function BotShipListSettingsScreen(props: Props) {
   // accounts the store can still hold the previous ship's (initialized) draft
   // until useSyncBotSettingsDraft replaces it.
   const ready = draft.initialized && draft.scopeKey === queries.ship;
-  const [pendingShip, setPendingShip] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  // The desktop settings drawer keeps this screen mounted across list
-  // switches; clear the pending input when the list param changes so a ship
-  // half-typed for one list can't be committed to another.
+  // The desktop settings drawer keeps this screen mounted across list switches;
+  // close the picker when the list param changes so it can't add to the wrong
+  // list.
   useEffect(() => {
-    setPendingShip('');
+    setPickerOpen(false);
   }, [list]);
 
   const value = draft.draft.chat[list];
@@ -98,15 +170,23 @@ export function BotShipListSettingsScreen(props: Props) {
     [draft, list]
   );
 
-  const addPendingShip = useCallback(() => {
-    if (!ready) return;
-    const ship = normalizeShip(pendingShip);
-    if (!ship) return;
-    if (!ships.includes(ship)) {
-      commitShips([...ships, ship]);
-    }
-    setPendingShip('');
-  }, [ready, pendingShip, ships, commitShips]);
+  const handleSelectShip = useCallback(
+    (shipId: string) => {
+      const ship = normalizeShip(shipId);
+      if (ship && !ships.includes(ship)) {
+        commitShips([...ships, ship]);
+      }
+      setPickerOpen(false);
+    },
+    [ships, commitShips]
+  );
+
+  const removeShip = useCallback(
+    (ship: string) => {
+      commitShips(ships.filter((entry) => entry !== ship));
+    },
+    [ships, commitShips]
+  );
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
@@ -114,6 +194,14 @@ export function BotShipListSettingsScreen(props: Props) {
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title={meta.title}
+        rightControls={
+          ready ? (
+            <ScreenHeader.IconButton
+              type="Add"
+              onPress={() => setPickerOpen(true)}
+            />
+          ) : undefined
+        }
       />
       {!ready ? (
         <View flex={1} alignItems="center" justifyContent="center">
@@ -125,83 +213,39 @@ export function BotShipListSettingsScreen(props: Props) {
           paddingTop="$l"
           safeAreaBottomOffset={24}
         >
-          <YStack gap="$2xl" paddingBottom="$2xl">
-            <YStack gap="$m">
-              <Text
-                size="$label/m"
-                color="$secondaryText"
-                paddingHorizontal="$s"
-              >
-                Add a user
-              </Text>
-              <XStack gap="$m" alignItems="center">
-                <View flex={1}>
-                  <TextInput
-                    value={pendingShip}
-                    placeholder="~zod, ~nec"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    onChangeText={setPendingShip}
-                    onSubmitEditing={addPendingShip}
-                    returnKeyType="done"
+          <YStack gap="$l" paddingBottom="$2xl">
+            <Text size="$label/m" color="$secondaryText" paddingHorizontal="$s">
+              {meta.description}
+            </Text>
+            {ships.length === 0 ? (
+              <View alignItems="center" paddingTop="$xl">
+                <Text color="$secondaryText">No users on this list.</Text>
+              </View>
+            ) : (
+              <ContactList borderWidth={0}>
+                {ships.map((ship) => (
+                  <ContactList.Item
+                    key={ship}
+                    contactId={ship}
+                    showNickname
+                    showUserId
+                    showEndContent
+                    endContent={<Badge text="Remove" type="neutral" />}
+                    onPress={() => removeShip(ship)}
                   />
-                </View>
-                <Button
-                  preset="secondary"
-                  label="Add"
-                  disabled={!pendingShip.trim()}
-                  onPress={addPendingShip}
-                />
-              </XStack>
-              <Text
-                size="$label/s"
-                color="$secondaryText"
-                paddingHorizontal="$s"
-              >
-                Provide any @p.
-              </Text>
-            </YStack>
-
-            <BotSettingsSection
-              title={meta.listTitle}
-              description={meta.description}
-            >
-              {ships.length === 0 ? (
-                <EmptyRowText>No users on this list.</EmptyRowText>
-              ) : (
-                ships.map((ship, index) => (
-                  <YStack key={ship}>
-                    <XStack
-                      minHeight={56}
-                      alignItems="center"
-                      gap="$l"
-                      paddingHorizontal="$l"
-                      paddingVertical="$m"
-                    >
-                      <Text
-                        flex={1}
-                        size="$label/l"
-                        color="$primaryText"
-                        numberOfLines={1}
-                      >
-                        {ship}
-                      </Text>
-                      <Pressable
-                        onPress={() =>
-                          commitShips(ships.filter((entry) => entry !== ship))
-                        }
-                      >
-                        <Icon type="Close" size="$m" color="$secondaryText" />
-                      </Pressable>
-                    </XStack>
-                    {index < ships.length - 1 ? <BotSettingsDivider /> : null}
-                  </YStack>
-                ))
-              )}
-            </BotSettingsSection>
+                ))}
+              </ContactList>
+            )}
           </YStack>
         </SettingsContentScrollView>
       )}
+      <ShipPickerSheet
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        subtitle={meta.addSubtitle}
+        disabledIds={ships}
+        onSelect={handleSelectShip}
+      />
     </View>
   );
 }
