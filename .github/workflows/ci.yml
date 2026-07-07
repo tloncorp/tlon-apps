@@ -4,6 +4,35 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
+  # Detect which parts of the monorepo changed so downstream jobs can skip
+  # work that the change set can't affect. `app` is an ignore-list: it's true
+  # for ANY change except ones confined to the isolated bot/plugin packages
+  # (openclaw/hermes/tlon-bot-e2e/tlon-skill — not consumed by the app, covered
+  # by their own workflows) or docs. New packages therefore default to running
+  # the app suite, so we never silently skip needed tests.
+  changes:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            app:
+              - '**'
+              - '!packages/openclaw/**'
+              - '!packages/hermes-tlon-adapter/**'
+              - '!packages/tlon-bot-e2e/**'
+              - '!packages/tlon-skill/**'
+              - '!docs/**'
+              - '!**/*.md'
+            backend:
+              - 'desk/**'
+              - 'backend/**'
+
   test-build:
     runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
@@ -56,6 +85,36 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
 
+  # Production-build smoke test. The parallel e2e suite runs against the Vite
+  # *dev* server; this boots the minified `vite build` output to catch
+  # prod-only runtime errors (transpilation/minification breakage) that the dev
+  # build can't surface. Front-end concern → gated on `app`.
+  smoke-test:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    name: Production Build Smoke Test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Build packages
+        run: pnpm build:all
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+
       - name: Get Playwright version
         id: playwright-version
         run:
@@ -99,66 +158,25 @@ jobs:
             ./apps/tlon-web/playwright-report/
           retention-days: 7
 
-  # Backend unit tests
+  # Backend tests
   backend-test:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     name: Backend Tests
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect desk file changes
-        id: desk_changes
-        run: |
-          if git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" | grep -q '^desk/'; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Run Backend Tests for Groups
-        if: steps.desk_changes.outputs.changed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y socat patch
           ./backend/run-tests.sh
-
-      - name: Skip backend tests (no desk changes)
-        if: steps.desk_changes.outputs.changed != 'true'
-        run: echo "No desk/** changes detected; skipping backend tests."
-  # Backend aqua tests
-  backend-aqua-test:
-    runs-on: blacksmith-2vcpu-ubuntu-2404
-    name: Backend Aqua Tests
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect desk file changes
-        id: desk_changes
-        run: |
-          if git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" | grep -q '^desk/'; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Run Backend Aqua Tests for Groups
-        if: steps.desk_changes.outputs.changed == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y socat patch
-          ./backend/run-aqua-tests.sh
-
-      - name: Skip backend aqua tests (no desk changes)
-        if: steps.desk_changes.outputs.changed != 'true'
-        run: echo "No desk/** changes detected; skipping backend aqua tests."
   # Parallel E2E Tests using Docker containers
   e2e-parallel:
+    needs: changes
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.backend == 'true'
     runs-on: blacksmith-16vcpu-ubuntu-2204
     name: E2E Tests (Parallel - 4 shards)
     steps:

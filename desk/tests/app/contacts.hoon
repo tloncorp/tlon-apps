@@ -31,6 +31,12 @@
   %-  malt
   ^-  (list (pair @tas value))
   ~[nickname+text/nickname bio+text/'The good ship']
+::
+++  ex-cage
+  |=  [actual=cage expected=cage]
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (ex-equal !>(p.actual) !>(p.expected))
+  (ex-equal q.actual q.expected)
 ::  +test-poke-0-anon: v0 delete the profile
 ::
 ++  test-poke-0-anon
@@ -136,11 +142,9 @@
   ::
   ;<  peek=(unit (unit cage))  b
     (get-peek /x/v1/self)
-  =/  cag  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  cag
-    !>  contact-1+!>(con)
+    %+  ex-cage  (need (need peek))
+    contact-1+!>(con)
   ::  change groups
   ::
   ;<  caz=(list card)  b
@@ -165,10 +169,8 @@
   ::
   ;<  peek=(unit (unit cage))  b
     (get-peek /x/v1/self)
-  =/  cag  (need (need peek))
-  %+  ex-equal
-  !>  cag
-  !>  contact-1+!>(`contact`(~(del by con) %bio))
+  %+  ex-cage  (need (need peek))
+  contact-1+!>(`contact`(~(del by con) %bio))
 ::  +test-poke-meet-0: v0 meet a peer
 ::
 ++  test-poke-0-meet
@@ -253,9 +255,7 @@
   ;<  peek=(unit (unit cage))  b
     (get-peek /x/v1/self)
   =/  cag  (need (need peek))
-  %+  ex-equal
-  !>(cag)
-  !>(contact-1+!>(`contact`~))
+  (ex-cage cag contact-1+!>(`contact`~))
 ::  +test-poke-self: change the profile
 ::
 ++  test-poke-self
@@ -333,11 +333,9 @@
   ::  peek page in the book: new contact page is found
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/book/id/0v1)
-  =/  =cage  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  [%contact-page-0 q.cage]
-    !>  [%contact-page-0 !>(mypage)]
+    %+  ex-cage  (need (need peek))
+    [%contact-page-0 !>(mypage)]
   ::  fail to create duplicate page
   ::
   %-  ex-fail  (do-poke contact-action-1+!>([%page id+0v1 con-1]))
@@ -385,10 +383,8 @@
   ::  peek page in the book: new contact page is found
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/book/id/0v1)
-  =/  =cage  (need (need peek))
-  %+  ex-equal
-  !>  [%contact-page-0 q.cage]
-  !>  [%contact-page-0 !>(mypage)]
+  %+  ex-cage  (need (need peek))
+  [%contact-page-0 !>(mypage)]
   ::  delete favourite groups
   ::
 ::
@@ -424,11 +420,9 @@
   ::  ~sun appears in peers
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/peer/~sun)
-  =/  cag=cage  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  cag
-    !>  contact-foreign-0+!>(`foreign`[[now.bowl con-sun] %want])
+    %+  ex-cage  (need (need peek))
+    contact-foreign-0+!>(`foreign`[[now.bowl con-sun] %want])
   ;<  ~  b  (set-src ~sun)
   ::  meet ~sun a second time: a no-op
   ::
@@ -465,11 +459,9 @@
   ::  ~sun appears in peers
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/peer/~sun)
-  =/  cag=cage  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  cag
-    !>  contact-foreign-0+!>(`foreign`[~ %want])
+    %+  ex-cage  (need (need peek))
+    contact-foreign-0+!>(`foreign`[~ %want])
   ::  ~sun publishes his contact
   ::
   ;<  ~  b  (set-src ~sun)
@@ -492,18 +484,14 @@
   ::  ~sun's contact book page is updated
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/book/~sun)
-  =/  cag=cage  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  cag
-    !>  [%contact-page-0 !>(`page:c`[con-sun con-mod])]
+    %+  ex-cage  (need (need peek))
+    [%contact-page-0 !>(`page:c`[con-sun con-mod])]
   ::  and his effective contact is changed
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/contact/~sun)
-  =/  cag=cage  (need (need peek))
-  %+  ex-equal
-  !>  cag
-  !>  contact-1+!>((contact-uni:c con-sun con-mod))
+  %+  ex-cage  (need (need peek))
+  contact-1+!>((contact-uni:c con-sun con-mod))
 ::
 ++  test-poke-page-wipe
   %-  eval-mare
@@ -537,11 +525,9 @@
   ::  ~sun appears in peers
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/peer/~sun)
-  =/  cag=cage  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  cag
-    !>  contact-foreign-0+!>(`foreign`[[now.bowl con-sun] %want])
+    %+  ex-cage  (need (need peek))
+    contact-foreign-0+!>(`foreign`[[now.bowl con-sun] %want])
   ;<  ~  b  (set-src ~sun)
   ::  ~sun is added to contacts
   ::
@@ -566,27 +552,21 @@
   ::  despite the edit, ~sun peer contact is unchanged
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/peer/~sun)
-  =/  cag=cage  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  cag
-    !>  contact-foreign-0+!>(`foreign`[[now.bowl con-sun] %want])
+    %+  ex-cage  (need (need peek))
+    contact-foreign-0+!>(`foreign`[[now.bowl con-sun] %want])
   ::  however, ~sun's contact book page is changed
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/book/~sun)
-  =/  cag=cage  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  cag
-    !>  [%contact-page-0 !>(`page:c`[con-sun con-mod])]
+    %+  ex-cage  (need (need peek))
+    [%contact-page-0 !>(`page:c`[con-sun con-mod])]
   ::  and his effective contact is changed
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/contact/~sun)
-  =/  cag=cage  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  cag
-    !>  contact-1+!>((contact-uni:c con-sun con-mod))
+    %+  ex-cage  (need (need peek))
+    contact-1+!>((contact-uni:c con-sun con-mod))
   ::  ~sun contact page is deleted
   ::
   ;<  caz=(list card)  b  (do-poke contact-action-1+!>([%wipe ~[~sun]]))
@@ -598,16 +578,14 @@
   ::  ~sun contact page is removed
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/book/~sun)
-  =/  cag  (need (need peek))
-  ;<  ~  b  (ex-equal !>(cag) !>(contact-page-0+!>(*page:c)))
+  ;<  ~  b
+    (ex-cage (need (need peek)) contact-page-0+!>(*page:c))
   :: (ex-equal !>(2) !>(2))
   ::  despite the removal, ~sun peer contact is unchanged
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/peer/~sun)
-  =/  cag=cage  (need (need peek))
-  %+  ex-equal
-  !>  cag
-  !>  contact-foreign-0+!>(`foreign`[[now.bowl con-sun] %want])
+  %+  ex-cage  (need (need peek))
+  contact-foreign-0+!>(`foreign`[[now.bowl con-sun] %want])
 ::
 ++  test-poke-drop
   %-  eval-mare
@@ -641,11 +619,9 @@
   ::  ~sun appears in peers
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/peer/~sun)
-  =/  cag=cage  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  cag
-    !>  contact-foreign-0+!>(`foreign`[[now.bowl con-sun] %want])
+    %+  ex-cage  (need (need peek))
+    contact-foreign-0+!>(`foreign`[[now.bowl con-sun] %want])
   ;<  ~  b  (set-src ~sun)
   ::  ~sun is added to contacts
   ::
@@ -687,10 +663,8 @@
   ::  but his contact is not modified
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/book/~sun)
-  =/  cag=cage  (need (need peek))
-  %+  ex-equal
-  !>  cag
-  !>  contact-page-0+!>(`page:c`[con-sun con-mod])
+  %+  ex-cage  (need (need peek))
+  contact-page-0+!>(`page:c`[con-sun con-mod])
 ::  +test-poke-snub: test snubbing a peer
 ::
 ::    scenario
@@ -739,10 +713,8 @@
   ::  ~sun is still found in peers
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/peer/~sun)
-  =/  cag=cage  (need (need peek))
-  %+  ex-equal
-  !>  cag
-  !>  contact-foreign-0+!>(`foreign`[[now.bowl con-sun] ~])
+  %+  ex-cage  (need (need peek))
+  contact-foreign-0+!>(`foreign`[[now.bowl con-sun] ~])
 ::  +test-pub-profile
 ::
 ::    scenario
@@ -854,19 +826,15 @@
   ::  ~sun's profile is unchanged
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/peer/~sun)
-  =/  cag=cage  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  cag
-    !>  contact-foreign-0+!>(`foreign`[[now.bowl con] %want])
+    %+  ex-cage  (need (need peek))
+    contact-foreign-0+!>(`foreign`[[now.bowl con] %want])
   ;<  caz=(list card)  b
     (do-agent /contact [~sun %contacts] %fact contact-update-1+!>([%full (add now.bowl tick) mod]))
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/peer/~sun)
-  =/  cag=cage  (need (need peek))
   ;<  ~  b
-    %+  ex-equal
-    !>  cag
-    !>  contact-foreign-0+!>(`foreign`[[(add now.bowl tick) mod] %want])
+    %+  ex-cage  (need (need peek))
+    contact-foreign-0+!>(`foreign`[[(add now.bowl tick) mod] %want])
   ;<  caz=(list card)  b
     (do-agent /contact [~sun %contacts] %kick ~)
   %+  ex-cards  caz
@@ -983,18 +951,16 @@
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/book/id/0v1)
   =/  cag=cage  (need (need peek))
   ;<  ~  b
-  %+  ex-equal
-  !>  cag
-  !>  contact-page-0+!>(`page:c`[~ con-1])
+  %+  ex-cage  cag
+  contact-page-0+!>(`page:c`[~ con-1])
   ::
   ;<  peek=(unit (unit cage))  b  (get-peek /u/v1/book/id/0v2)
   ;<  ~  b  (ex-equal q:(need (need peek)) !>(&))
   ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/book/id/0v2)
   =/  cag=cage  (need (need peek))
   :: ;<  ~  b
-  %+  ex-equal
-  !>  cag
-  !>  contact-page-0+!>(`page:c`[~ con-2])
+  %+  ex-cage  cag
+  contact-page-0+!>(`page:c`[~ con-2])
 ::
 ++  test-peek-all
   %-  eval-mare

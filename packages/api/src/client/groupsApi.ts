@@ -332,6 +332,18 @@ export const pinItem = async (itemId: string) => {
   });
 };
 
+export const setPinnedItemOrder = async (itemIds: string[]) => {
+  return await poke({
+    app: 'groups-ui',
+    mark: 'ui-action',
+    json: {
+      pins: {
+        'set-order': itemIds,
+      },
+    },
+  });
+};
+
 export const getChannelPreview = async (
   channelId: string
 ): Promise<db.Channel | null> => {
@@ -484,7 +496,7 @@ export const updateGroupMeta = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -507,7 +519,7 @@ export const deleteGroup = async (groupId: string) => {
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -546,7 +558,7 @@ export const addNavSection = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -637,7 +649,7 @@ export const addChannelToNavSection = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -718,7 +730,7 @@ export const addChannelToGroup = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -1247,19 +1259,41 @@ export type GroupUpdate =
 export const subscribeGroups = async (
   eventHandler: (update: GroupUpdate) => void
 ) => {
-  // Subscribe to v1/groups for all group updates (v9 response format)
-  subscribe<ub.V1GroupResponse>(
+  const handleRawGroupsEvent = (
+    rawEvent: ub.V1GroupResponse,
+    shouldHandleUpdate = (_update: GroupUpdate) => true
+  ) => {
+    const update = toV1GroupsUpdate(rawEvent);
+    if (update && shouldHandleUpdate(update)) {
+      eventHandler(update);
+    }
+  };
+
+  // v1/groups is the baseline stream for group updates. Older backends do not
+  // expose /v2/groups, so keep normal r-group updates on v1.
+  void subscribe<ub.V1GroupResponse>(
     { app: 'groups', path: '/v1/groups' },
     (rawEvent) => {
-      const update = toV1GroupsUpdate(rawEvent);
-      if (update) {
-        eventHandler(update);
-      }
+      handleRawGroupsEvent(rawEvent);
     }
   );
 
+  // v2/groups adds active-channel membership deltas for third-party channel
+  // hosts like %notes. It can bad-watch-path on older backends; in that case
+  // v1 still carries normal group updates and init/group sync cover membership.
+  void subscribe<ub.V1GroupResponse>(
+    { app: 'groups', path: '/v2/groups' },
+    (rawEvent) => {
+      if ('r-group' in rawEvent && 'active-channel' in rawEvent['r-group']) {
+        handleRawGroupsEvent(rawEvent);
+      }
+    }
+  ).catch((err) => {
+    logger.log('v2 groups subscription unavailable', err);
+  });
+
   // Subscribe to v1/foreigns for foreign group updates
-  subscribe(
+  void subscribe(
     { app: 'groups', path: '/v1/foreigns' },
     (rawEvent: ub.Foreigns) => {
       logger.log('foreignsUpdateEvent', rawEvent);
@@ -1531,6 +1565,17 @@ export const toV1GroupsUpdate = (
     }
   }
 
+  // Per-nest active-channels (membership) delta, delivered on the /v2/groups
+  // stream when a third-party agent (e.g. %notes) reports a join/leave.
+  // Reconciles membership the same way as a real channel join/leave; lets a
+  // second same-ship client learn it without a full sync.
+  if ('active-channel' in event) {
+    const { nest, joined } = event['active-channel'];
+    return joined
+      ? { type: 'joinChannel', channelId: nest, groupId }
+      : { type: 'leaveChannel', channelId: nest };
+  }
+
   // Handle section/zone operations
   if ('section' in event) {
     const sectionData = event.section;
@@ -1636,22 +1681,23 @@ const extractFlaggedPosts = (
 
 export function toClientGroupsV7(
   groups: Record<string, ub.GroupV7>,
-  isJoined: boolean
+  isJoined: boolean,
+  currentUserId = getCurrentUserId()
 ) {
   if (!groups) {
     return [];
   }
   return Object.entries(groups).map(([id, group]) => {
-    return toClientGroupV7(id, group, isJoined);
+    return toClientGroupV7(id, group, isJoined, currentUserId);
   });
 }
 
 export function toClientGroupV7(
   id: string,
   group: ub.GroupV7,
-  isJoined: boolean
+  isJoined: boolean,
+  currentUserId = getCurrentUserId()
 ): db.Group {
-  const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupId(id);
   const rolesById: Record<string, db.GroupRole> = {};
   const flaggedPosts: db.GroupFlaggedPosts[] = extractFlaggedPosts(
@@ -1787,6 +1833,7 @@ export function toClientGroupV7(
           channels: group.channels,
           groupId: id,
           currentUserRoles,
+          currentUserId,
         })
       : [],
   };
@@ -1824,9 +1871,9 @@ const toForeignsGroupsUpdate = (foreignsEvent: ub.Foreigns): GroupUpdate => {
 
 export function toClientGroupFromForeign(
   id: string,
-  foreign: ub.Foreign
+  foreign: ub.Foreign,
+  currentUserId = getCurrentUserId()
 ): db.Group {
-  const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupId(id);
   const privacy = extractGroupPrivacy(foreign.preview);
   const joinStatus = getJoinStatusFromForeign(foreign);
@@ -1848,11 +1895,12 @@ export function toClientGroupFromForeign(
 }
 
 export function toClientGroupsFromForeigns(
-  foreigns: Record<string, ub.Foreign>
+  foreigns: Record<string, ub.Foreign>,
+  currentUserId = getCurrentUserId()
 ) {
   if (!foreigns) return [];
   return Object.entries(foreigns).map(([id, foreign]) =>
-    toClientGroupFromForeign(id, foreign)
+    toClientGroupFromForeign(id, foreign, currentUserId)
   );
 }
 
@@ -1892,13 +1940,15 @@ function toClientChannels({
   channels,
   groupId,
   currentUserRoles = [],
+  currentUserId = getCurrentUserId(),
 }: {
   channels: Record<string, ub.GroupChannel | ub.GroupChannelV7>;
   groupId: string;
   currentUserRoles?: string[];
+  currentUserId?: string;
 }): db.Channel[] {
   return Object.entries(channels).map(([id, channel]) =>
-    toClientChannel({ id, channel, groupId, currentUserRoles })
+    toClientChannel({ id, channel, groupId, currentUserRoles, currentUserId })
   );
 }
 
@@ -1907,11 +1957,13 @@ function toClientChannel({
   channel,
   groupId,
   currentUserRoles = [],
+  currentUserId = getCurrentUserId(),
 }: {
   id: string;
   channel: ub.GroupChannel | ub.GroupChannelV7;
   groupId: string;
   currentUserRoles?: string[];
+  currentUserId?: string;
 }): db.Channel {
   const { description, channelContentConfiguration } =
     StructuredChannelDescriptionPayload.decode(channel.meta.description);
@@ -1921,7 +1973,6 @@ function toClientChannel({
     roleId,
   }));
 
-  const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupChannelId(id);
 
   // Determine currentUserIsMember based on read permissions

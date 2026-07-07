@@ -375,6 +375,29 @@
         ?~  pins  [whom.a-pins.action]~
         ?:  =(i.pins whom.a-pins.action)  pins
         [i.pins $(pins t.pins)]
+      ::
+          %set-order
+        ::  reorder, in place, only the pins the payload names: build the
+        ::  requested sequence (payload that is already pinned, deduped), then
+        ::  walk the current order substituting the next requested item at each
+        ::  named slot and leaving omitted pins where they are
+        ::
+        =/  cur=(set whom:u)  (sy pins)
+        =/  want=(list whom:u)
+          =/  ord=(list whom:u)  order.a-pins.action
+          =|  seen=(set whom:u)
+          |-  ^-  (list whom:u)
+          ?~  ord  ~
+          ?:  ?|((~(has in seen) i.ord) !(~(has in cur) i.ord))
+            $(ord t.ord)
+          [i.ord $(seen (~(put in seen) i.ord), ord t.ord)]
+        =/  want-set=(set whom:u)  (sy want)
+        |-  ^-  (list whom:u)
+        ?~  pins  ~
+        ?.  (~(has in want-set) i.pins)
+          [i.pins $(pins t.pins)]
+        ?~  want  $(pins t.pins)
+        [i.want $(pins t.pins, want t.want)]
       ==
     ::TODO  eventually, give %fact if that changed anything
     cor

@@ -263,6 +263,22 @@ export const channelSortPreference = createStorageItem<ChannelSortPreference>({
   defaultValue: 'recency',
 });
 
+export type NotesNoteDraft = {
+  title: string;
+  body: string;
+  baseRevision: number;
+  stashedAt: number;
+};
+
+/** Crash insurance for the notes editor: drafts stashed between autosave
+ * cycles, keyed by `${notebookFlag}/${noteId}`. Cleared once saved. */
+export const notesNoteDrafts = createStorageItem<
+  Record<string, NotesNoteDraft>
+>({
+  key: 'notesNoteDrafts',
+  defaultValue: {},
+});
+
 export const invitation = createStorageItem<Lure | null>({
   key: 'lure',
   defaultValue: null,
@@ -285,6 +301,17 @@ export const shipInfo = createStorageItem<ShipInfo | null>({
 export const featureFlags = createStorageItem<any>({
   key: 'featureFlags',
   defaultValue: null,
+});
+
+export const contextLensGatewayUrl = createStorageItem<string | null>({
+  key: 'contextLensGatewayUrl',
+  defaultValue: null,
+});
+
+export const contextLensGatewayToken = createStorageItem<string | null>({
+  key: 'contextLensGatewayToken',
+  defaultValue: null,
+  isSecure: true,
 });
 
 export const eulaAgreed = createStorageItem<boolean>({

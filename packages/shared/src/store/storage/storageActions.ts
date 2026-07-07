@@ -10,6 +10,7 @@ import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { AnalyticsEvent } from '../../domain';
+import { getLocalFileSize } from './getLocalFileSize';
 import { setUploadState } from './storageUploadState';
 import {
   getExtensionFromMimeType,
@@ -77,6 +78,17 @@ function getSaveFormat(mimeType?: string): SaveFormat {
   return SaveFormat.JPEG;
 }
 
+function getSaveFormatMimeType(format: SaveFormat): string {
+  switch (format) {
+    case SaveFormat.PNG:
+      return 'image/png';
+    case SaveFormat.WEBP:
+      return 'image/webp';
+    default:
+      return 'image/jpeg';
+  }
+}
+
 export async function uploadAsset(
   intent: Attachment.UploadIntent,
   isWeb = false
@@ -104,7 +116,12 @@ export async function uploadAsset(
     case 'fileUri': {
       await uploadAssetWithLifecycle(intent, isWeb, {
         async prepareAsset() {
-          return { uri: intent.localUri };
+          return {
+            uri: intent.localUri,
+            size: intent.size,
+            mimeType: intent.mimeType,
+            name: intent.name,
+          };
         },
       });
       break;
@@ -197,7 +214,9 @@ async function uploadImageAsset(
       const asset = uploadIntent.asset;
       logger.log('resizing asset', asset.uri);
       let resizedAsset = asset;
-      const originalMimeType = asset.mimeType;
+      // manipulateAsync re-encodes to `format`, so the upload mime must track
+      // the output (e.g. HEIC is saved as JPEG), not the original asset mime.
+      let uploadMimeType = asset.mimeType;
       // Only resize when we know it's a non-gif image. If mimeType is missing
       // or non-image, upload the original bytes — re-encoding through the
       // canvas-backed manipulator would clobber the format (e.g. animated
@@ -221,10 +240,11 @@ async function uploadImageAsset(
             format,
           }
         );
+        uploadMimeType = getSaveFormatMimeType(format);
       }
       return {
         ...resizedAsset,
-        mimeType: originalMimeType,
+        mimeType: uploadMimeType,
       };
     },
   });
@@ -232,7 +252,11 @@ async function uploadImageAsset(
 
 export const performUpload = async (
   params:
-    | (Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string })
+    | (Pick<RNFile, 'uri' | 'height' | 'width'> & {
+        mimeType?: string;
+        size?: number;
+        name?: string;
+      })
     | File,
   isWeb = false
 ) => {
@@ -248,30 +272,30 @@ export const performUpload = async (
     throw new Error('unable to upload: missing storage configuration');
   }
 
-  const { blob, fileName, contentType, sourceUri } = await (async () => {
+  const { size, fileName, contentType, sourceUri } = await (async () => {
     if (params instanceof File) {
       return {
-        blob: params,
+        size: params.size,
         fileName: params.name,
         contentType: params.type,
         sourceUri: URL.createObjectURL(params),
       };
     } else {
-      const response = await fetch(params.uri);
-      const blob = await response.blob();
-
-      const contentType = blob.type;
+      // fileUri intents use -1 when the source didn't report a size.
+      const size =
+        params.size != null && params.size >= 0
+          ? params.size
+          : await getLocalFileSize(params.uri);
+      const contentType = params.mimeType || 'application/octet-stream';
       const baseFileName =
-        params.uri.split('/').pop()?.split('?')[0] || 'image';
-      const extension = getExtensionFromMimeType(
-        params.mimeType || contentType
-      );
+        params.name || params.uri.split('/').pop()?.split('?')[0] || 'image';
+      const extension = getExtensionFromMimeType(contentType);
       const fileName = baseFileName.includes('.')
         ? baseFileName
         : `${baseFileName}${extension}`;
 
       return {
-        blob,
+        size,
         fileName,
         contentType,
         sourceUri: params.uri,
@@ -279,7 +303,7 @@ export const performUpload = async (
     }
   })();
 
-  logger.log('fetched file', fileName, contentType, blob.size);
+  logger.log('fetched file', fileName, contentType, size);
 
   const fileKey = `${desig(getCurrentUserId())}/${desig(
     render('da', da.fromUnix(new Date().getTime()))
@@ -288,7 +312,7 @@ export const performUpload = async (
 
   if (hasHostingUploadCreds(config, credentials)) {
     const { hostedUrl, uploadUrl } = await getMemexUpload({
-      contentLength: blob.size,
+      contentLength: size,
       contentType,
       fileName: fileKey,
     });

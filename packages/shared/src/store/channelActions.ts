@@ -5,14 +5,20 @@ import {
 } from '@tloncorp/api';
 import { TimeoutError } from '@tloncorp/api';
 import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
+import { isEqual } from 'lodash';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
+import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
+const NOTES_CHANNEL_LISTING_ATTEMPTS = 5;
+const NOTES_CHANNEL_LISTING_DELAY_MS = 250;
+
+class NotesChannelListingUnverifiedError extends Error {}
 
 export async function createChannel({
   groupId,
@@ -42,7 +48,6 @@ export async function createChannel({
     return createNotesChannel({
       groupId,
       title,
-      description: rawDescription,
       readers,
     });
   }
@@ -109,163 +114,134 @@ export async function createChannel({
   return newChannel;
 }
 
-interface NotesNotebookEntry {
-  host: string;
-  flagName: string;
-  notebook: { id: number; title: string };
-}
-
 async function createNotesChannel({
   groupId,
   title,
-  description,
-  readers,
+  readers = [],
 }: {
   groupId: string;
   title: string;
-  description?: string;
-  readers: string[];
+  readers?: string[];
 }): Promise<db.Channel> {
-  const currentUserId = api.getCurrentUserId();
-
-  // Snapshot the set of locally-hosted notebook flags so we can identify the
-  // freshly-created one after the poke. The %notes agent assigns the flag,
-  // so we can't precompute it.
-  const before = await scryNotesNotebooks();
-  const beforeOurs = new Set(
-    before.filter((n) => n.host === currentUserId).map((n) => n.flagName)
-  );
-
-  await api.poke({
-    app: 'notes',
-    mark: 'notes-action',
-    json: { type: 'create-notebook', title },
-  });
-
-  const newEntry = await pollForNewNotebook({
-    currentUserId,
-    title,
-    excluded: beforeOurs,
-  });
-
-  if (!newEntry) {
-    throw new Error('Failed to create notes notebook');
-  }
-
-  const channelId = `notes/${newEntry.host}/${newEntry.flagName}`;
-  const flag = `${newEntry.host}/${newEntry.flagName}`;
-
-  logger.trackEvent(
-    AnalyticsEvent.ActionCreateChannel,
-    logic.getModelAnalytics({
-      channel: { id: channelId, type: 'notes' },
-      group: { id: groupId },
-    })
-  );
-
-  // Default new notebooks to public so any group member can join. We don't
-  // yet propagate group membership to the notebook's per-member ACL, so
-  // private would lock everyone but the owner out.
+  // Create the notebook via the %notes HTTP API, which returns the
+  // server-assigned flag synchronously in the response body — no polling, no
+  // forced-public visibility hack. Binding it to this group makes the notebook
+  // a group channel: read permission defers to the group's can-read, and
+  // %groups auto-joins/leaves members via the channel-host convention.
+  //
+  // `readers` (the group role-ids the channel is restricted to) is forwarded
+  // so the %notes host registers the group channel with the correct reader
+  // roles — empty means group-wide readable. Dropping it would create every
+  // notes channel open, defeating the group's can-read gate.
+  const [groupHost, groupName] = groupId.split('/');
+  let createdNotebookFlag: api.NotesFlag | null = null;
+  let insertedChannelId: string | null = null;
   try {
-    await api.poke({
-      app: 'notes',
-      mark: 'notes-action',
-      json: {
-        type: 'notebook',
-        flag,
-        action: { type: 'visibility', visibility: 'public' },
-      },
-    });
-  } catch (e) {
-    logger.error('Failed to set notebook visibility to public', e);
-  }
-
-  // Pick a section to add this channel to. Tlon-created groups conventionally
-  // have a 'default' section, but we'll prefer whatever the first section is
-  // if the group looks different.
-  const group = await db.getGroup({ id: groupId });
-  const sectionId =
-    group?.navSections?.[0]?.sectionId ??
-    group?.navSections?.[0]?.id ??
-    'default';
-
-  const newChannel: db.Channel = {
-    id: channelId,
-    title,
-    description,
-    type: 'notes',
-    groupId,
-    addedToGroupAt: Date.now(),
-    currentUserIsMember: true,
-    currentUserIsHost: true,
-    contentConfiguration: channelContentConfigurationForChannelType('notes'),
-    lastPostSequenceNum: 0,
-  };
-
-  await db.insertChannels([newChannel]);
-
-  try {
-    await api.addChannelListingToGroup({
-      channelId,
-      groupId,
-      sectionId,
-      meta: {
-        title,
-        description: description ?? '',
-        image: '',
-        cover: '',
-      },
+    const summary = await api.notes.createGroupNotebook({
+      title,
+      group: { host: groupHost, flagName: groupName },
       readers,
-      join: true,
     });
-  } catch (e) {
-    await db.deleteChannels([channelId]);
-    logger.error('addChannelListingToGroup failed for notes channel', e);
-    throw new Error(`Failed to add notes channel to group: ${channelId}`);
-  }
 
-  return newChannel;
+    createdNotebookFlag = { host: summary.host, name: summary.flagName };
+    const channelId = `notes/${summary.host}/${summary.flagName}`;
+    logger.trackEvent(
+      AnalyticsEvent.ActionCreateChannel,
+      logic.getModelAnalytics({
+        channel: { id: channelId, type: 'notes' },
+        group: { id: groupId },
+      })
+    );
+
+    const newChannel = await waitForNotesChannelListing(groupId, channelId);
+    await db.insertChannels([newChannel]);
+    insertedChannelId = newChannel.id;
+    await db.insertChannelPerms([
+      {
+        channelId: newChannel.id,
+        readers:
+          newChannel.readerRoles?.map(
+            (role: { roleId: string }) => role.roleId
+          ) ?? [],
+        writers:
+          newChannel.writerRoles?.map(
+            (role: { roleId: string }) => role.roleId
+          ) ?? [],
+      },
+    ]);
+
+    syncNotesNotebook(createdNotebookFlag).catch((e) => {
+      logger.error('Failed to sync notes notebook after channel create', e);
+    });
+
+    return newChannel;
+  } catch (e) {
+    if (insertedChannelId) {
+      try {
+        await db.deleteChannels([insertedChannelId]);
+      } catch (rollbackError) {
+        logger.error(
+          'Failed to roll back local notes channel create',
+          rollbackError
+        );
+      }
+    }
+    if (
+      createdNotebookFlag &&
+      !(e instanceof NotesChannelListingUnverifiedError)
+    ) {
+      try {
+        await api.deleteNotesNotebookStrict(createdNotebookFlag);
+      } catch (rollbackError) {
+        logger.error(
+          'Failed to roll back notes notebook create',
+          rollbackError
+        );
+      }
+    }
+    logger.error('Failed to add notes channel', e);
+    throw new Error(`Failed to add notes channel to group`);
+  }
 }
 
-async function scryNotesNotebooks(): Promise<NotesNotebookEntry[]> {
-  try {
-    const data = await api.scry<NotesNotebookEntry[]>({
-      app: 'notes',
-      path: '/v0/notebooks',
-    });
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    logger.error('scry /v0/notebooks failed', e);
-    return [];
+async function waitForNotesChannelListing(groupId: string, channelId: string) {
+  let lastGroupReadSucceeded = false;
+
+  for (
+    let attempt = 1;
+    attempt <= NOTES_CHANNEL_LISTING_ATTEMPTS;
+    attempt += 1
+  ) {
+    try {
+      const group = await api.getGroup(groupId);
+      const listedChannel = group.channels?.find(
+        (channel) => channel.id === channelId
+      );
+      if (listedChannel) {
+        return listedChannel;
+      }
+      lastGroupReadSucceeded = true;
+    } catch {
+      lastGroupReadSucceeded = false;
+    }
+
+    if (attempt < NOTES_CHANNEL_LISTING_ATTEMPTS) {
+      await wait(NOTES_CHANNEL_LISTING_DELAY_MS);
+    }
   }
+
+  if (lastGroupReadSucceeded) {
+    throw new Error(`Notes channel listing did not appear: ${channelId}`);
+  }
+  throw new NotesChannelListingUnverifiedError(
+    `Could not verify notes channel listing: ${channelId}`
+  );
 }
 
-async function pollForNewNotebook({
-  currentUserId,
-  title,
-  excluded,
-  attempts = 8,
-  delayMs = 250,
-}: {
-  currentUserId: string;
-  title: string;
-  excluded: Set<string>;
-  attempts?: number;
-  delayMs?: number;
-}): Promise<NotesNotebookEntry | null> {
-  for (let i = 0; i < attempts; i++) {
-    const all = await scryNotesNotebooks();
-    const ours = all.filter((n) => n.host === currentUserId);
-    // Prefer an exact title match among new entries, otherwise just any new
-    // entry (handles the rare case where the title was sanitized/transformed
-    // by the agent).
-    const fresh = ours.filter((n) => !excluded.has(n.flagName));
-    const match =
-      fresh.find((n) => n.notebook.title === title) ?? fresh[0] ?? null;
-    if (match) return match;
-    await new Promise((r) => setTimeout(r, delayMs));
-  }
-  return null;
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 /**
@@ -341,18 +317,12 @@ export async function deleteChannel({
   // don't leak orphans. The agent rejects the delete if we're not the host,
   // which is fine — the listing is already gone from the group either way.
   if (channelId.startsWith('notes/')) {
-    const [, host, name] = channelId.split('/');
-    if (host && name) {
+    const flag = api.parseNotesChannelId(channelId);
+    if (flag) {
+      const notebookFlag = api.formatNotesFlag(flag);
+      await db.deleteNotesNotebook(notebookFlag);
       try {
-        await api.poke({
-          app: 'notes',
-          mark: 'notes-action',
-          json: {
-            type: 'notebook',
-            flag: `${host}/${name}`,
-            action: { type: 'delete' },
-          },
-        });
+        await api.deleteNotesNotebookStrict(flag);
       } catch (e) {
         logger.error('Failed to delete notebook in %notes', e);
       }
@@ -580,6 +550,109 @@ export async function unpinItem(pin: db.Pin) {
     console.error('Failed to unpin item', e);
     // rollback optimistic update
     db.insertPinnedItem(pin);
+  }
+}
+
+// Slot-preserving reorder, matching the backend %set-order semantics and the
+// frontend mergeVisibleOrderIntoFull: reorder only the ids `desired` names
+// (∩ currently pinned, de-duped) into the slots they currently occupy, leaving
+// any omitted pinned id fixed in place.
+function normalizeOrder(desired: string[], current: db.Pin[]): string[] {
+  const order = [...current]
+    .sort((a, b) => a.index - b.index)
+    .map((p) => p.itemId);
+  const pinnedSet = new Set(order);
+  const wanted = [...new Set(desired)].filter((id) => pinnedSet.has(id));
+  const wantedSet = new Set(wanted);
+  let w = 0;
+  return order.map((id) => (wantedSet.has(id) ? wanted[w++] : id));
+}
+
+// Persist a reorder of the pinned items. Optimistically writes the new order,
+// pokes the backend, and re-asserts on success so a stale in-flight sync can't
+// leave the UI reverted. Never throws — returns true on success, false on
+// failure (after a best-effort backend reconcile) so drag handlers can roll
+// back their optimistic UI.
+//
+// The optimistic local write and the backend poke take *different* orders:
+//   - `optimisticOrder` is the full merged pin order (incl. hidden pins in a
+//     filtered view) and is what we write locally.
+//   - `backendOrder` is only the ids the user actually reordered in the visible
+//     subset. We send just those to `%set-order` so the backend leaves hidden
+//     pins in their current server-side slots. Sending the full order would name
+//     hidden pins too, and could move a hidden pin a peer reordered on another
+//     device back to this client's stale slot.
+// For full-list surfaces the visible set *is* the full set, so both are equal.
+export async function reorderPinnedItems({
+  optimisticOrder,
+  backendOrder,
+}: {
+  optimisticOrder: string[];
+  backendOrder: string[];
+}): Promise<boolean> {
+  const before = await db.getPinnedItems();
+  const previousOrder = [...before]
+    .sort((a, b) => a.index - b.index)
+    .map((p) => p.itemId);
+  const normalized = normalizeOrder(optimisticOrder, before);
+
+  if (isEqual(previousOrder, normalized)) {
+    return true; // no-op drop
+  }
+
+  await db.setPinnedItemsOrder(normalized); // optimistic (full local order)
+
+  // Backend payload: only the reordered visible ids, deduped and intersected
+  // with the current pinned set — never expanded back to the full order.
+  const pinnedSet = new Set(before.map((p) => p.itemId));
+  const backendPayload = [...new Set(backendOrder)].filter((id) =>
+    pinnedSet.has(id)
+  );
+
+  try {
+    await api.setPinnedItemOrder(backendPayload);
+    // Re-assert after success: a sync whose scry predated the poke may have
+    // written a newer order locally mid-flight. Re-normalize against the current
+    // local set and write again so our reorder isn't reverted.
+    //
+    // Invariant: anything that defers to the backend's authority — the poke AND
+    // this reassert — operates on the visible-only `backendPayload`, NOT the full
+    // `optimisticOrder`. Re-asserting the full order would re-name hidden pins and
+    // could drag a hidden pin a mid-poke sync just moved back to this client's
+    // stale slot. Only the optimistic write above is the full merged order.
+    const after = await db.getPinnedItems();
+    await db.setPinnedItemsOrder(normalizeOrder(backendPayload, after));
+    return true;
+  } catch (e) {
+    console.error('Failed to reorder pinned items', e);
+    // Best-effort reconcile to the authoritative backend order. The scry usually
+    // fails for the same reason the poke did, so guard it and always return false.
+    try {
+      const items = await api.getPinnedItems();
+      if (items.length === 0) {
+        // Authoritative snapshot is empty — clear local pins. `insertPinnedItems([])`
+        // is a no-op, so use the explicit clear (targeted to this reconcile path,
+        // not a global insertPinnedItems behavior change).
+        await db.clearPinnedItems();
+      } else {
+        await db.insertPinnedItems(items);
+      }
+    } catch (reconcileErr) {
+      console.error(
+        'Failed to reconcile pins after reorder failure',
+        reconcileErr
+      );
+      // Local-only fallback: undo our optimistic write, but only if nothing else
+      // changed local pins meanwhile (don't clobber a concurrent sync).
+      const current = await db.getPinnedItems();
+      const currentOrder = [...current]
+        .sort((a, b) => a.index - b.index)
+        .map((p) => p.itemId);
+      if (isEqual(currentOrder, normalized)) {
+        await db.setPinnedItemsOrder(previousOrder);
+      }
+    }
+    return false;
   }
 }
 
@@ -842,11 +915,15 @@ export async function leaveGroupChannel(channelId: string) {
   await db.updateChannel({ id: channelId, currentUserIsMember: false });
 
   try {
-    await api.leaveChannel(channelId);
+    if (api.parseNotesChannelId(channelId)) {
+      await api.leaveNotesChannel(channelId);
+    } else {
+      await api.leaveChannel(channelId);
+    }
   } catch (e) {
     console.error('Failed to leave channel', e);
     // Only rollback on actual errors (not TimeoutError)
-    // The backend will send a leaveChannelSuccess event if it did succeed
+    // If the leave did succeed, %groups will confirm via an active-channel delta
     if (!(e instanceof TimeoutError)) {
       await db.updateChannel({ id: channelId, currentUserIsMember: true });
     }
@@ -874,7 +951,11 @@ export async function joinGroupChannel({
   });
 
   try {
-    await api.joinChannel(channelId, groupId);
+    if (api.parseNotesChannelId(channelId)) {
+      await api.joinNotesChannel(channelId);
+    } else {
+      await api.joinChannel(channelId, groupId);
+    }
   } catch (e) {
     // rollback on failure
     logger.error('Failed to join group channel');

@@ -8,6 +8,8 @@ import { execFileSync, spawn } from 'node:child_process';
 
 type LiveToolTraceOptions = {
   composeFile: string;
+  composeFiles?: string[];
+  projectName?: string;
   sinceIso: string;
   label?: string;
 };
@@ -32,19 +34,24 @@ export function getContainerLogsSince(
   composeFile: string,
   sinceIso: string
 ): string {
+  const composeFiles = resolveComposeFiles(composeFile);
   const output = execFileSync(
     'docker',
     [
       'compose',
-      '-f',
-      composeFile,
+      ...composeFileArgs(composeFiles),
       'logs',
       '--no-color',
       '--since',
       sinceIso,
       'openclaw',
     ],
-    { encoding: 'utf-8', timeout: 10_000, cwd: process.cwd() }
+    {
+      encoding: 'utf-8',
+      timeout: 10_000,
+      cwd: process.cwd(),
+      env: composeEnv(),
+    }
   );
   return output;
 }
@@ -130,12 +137,15 @@ function recordTraceLine(
 export function startLiveToolTrace(
   options: LiveToolTraceOptions
 ): LiveToolTraceHandle {
+  const composeFiles = resolveComposeFiles(
+    options.composeFile,
+    options.composeFiles
+  );
   const child = spawn(
     'docker',
     [
       'compose',
-      '-f',
-      options.composeFile,
+      ...composeFileArgs(composeFiles),
       'logs',
       '--no-color',
       '--since',
@@ -145,6 +155,7 @@ export function startLiveToolTrace(
     ],
     {
       cwd: process.cwd(),
+      env: composeEnv(options.projectName),
       stdio: ['ignore', 'pipe', 'pipe'],
     }
   );
@@ -262,4 +273,42 @@ export function toolWasInvoked(logs: string, toolName: string): boolean {
   return new RegExp(
     `embedded run tool (?:start|end):.*\\btool=${escaped}\\b`
   ).test(logs);
+}
+
+function composeFileArgs(files: string[]): string[] {
+  return files.flatMap((file) => ['-f', file]);
+}
+
+function resolveComposeFiles(
+  composeFile: string,
+  explicitFiles?: string[]
+): string[] {
+  if (explicitFiles?.length) {
+    return explicitFiles;
+  }
+
+  const rawFiles = process.env.TEST_COMPOSE_FILES;
+  if (rawFiles) {
+    try {
+      const parsed = JSON.parse(rawFiles) as unknown;
+      if (
+        Array.isArray(parsed) &&
+        parsed.every((value) => typeof value === 'string' && value.length > 0)
+      ) {
+        return parsed;
+      }
+    } catch {
+      // Fall back to the legacy single-file path below.
+    }
+  }
+
+  return [composeFile];
+}
+
+function composeEnv(projectName?: string): NodeJS.ProcessEnv {
+  const name =
+    projectName ??
+    process.env.TEST_COMPOSE_PROJECT_NAME ??
+    process.env.COMPOSE_PROJECT_NAME;
+  return name ? { ...process.env, COMPOSE_PROJECT_NAME: name } : process.env;
 }

@@ -16,15 +16,18 @@ import { Popover, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
+import { useChatVolumeOptions } from '../contexts/chatOptions/useChatVolumeOptions';
 import * as utils from '../utils';
 import {
   Action,
   ActionGroup,
   ActionSheet,
+  DESKTOP_FLYOUT_MIN_WIDTH,
   createActionGroups,
+  desktopFlyoutContentProps,
+  desktopFlyoutPopoverProps,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
-import { useNotificationLevelOptions } from './NotificationLevelSelector';
 
 function getNotificationTitle(
   volumeSettings: { level: ub.NotificationLevel } | null | undefined,
@@ -176,9 +179,7 @@ export function GroupOptionsSheetLoader({
       <Popover
         open={open}
         onOpenChange={(open) => onOpenChange(open, false)}
-        placement="top-end"
-        allowFlip
-        offset={-12}
+        {...desktopFlyoutPopoverProps}
       >
         <Popover.Trigger
           asChild
@@ -187,15 +188,7 @@ export function GroupOptionsSheetLoader({
         >
           {trigger}
         </Popover.Trigger>
-        <Popover.Content
-          elevate
-          zIndex={1000000}
-          position="relative"
-          borderColor="$border"
-          borderWidth={1}
-          padding={1}
-          backgroundColor="$background"
-        >
+        <Popover.Content {...desktopFlyoutContentProps}>
           {pane === 'notifications' ? (
             <NotificationsSheetContent
               chatTitle={title}
@@ -567,9 +560,7 @@ const ChannelOptionsSheetLoader = memo(
         <Popover
           open={open}
           onOpenChange={(open) => onOpenChange(open, false)}
-          placement="top-end"
-          allowFlip
-          offset={-12}
+          {...desktopFlyoutPopoverProps}
         >
           <Popover.Trigger
             asChild
@@ -578,14 +569,7 @@ const ChannelOptionsSheetLoader = memo(
           >
             {trigger}
           </Popover.Trigger>
-          <Popover.Content
-            elevate
-            zIndex={1000000}
-            position="relative"
-            borderColor="$border"
-            borderWidth={1}
-            padding={1}
-          >
+          <Popover.Content {...desktopFlyoutContentProps}>
             {pane === 'notifications' ? (
               <NotificationsSheetContent
                 chatTitle={chatTitle}
@@ -649,10 +633,14 @@ export function ChannelOptionsSheetContent({
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
 
   const currentUserIsChannelHost = channel.currentUserIsHost ?? false;
+  const channelActionCapabilities = utils.getChannelActionCapabilities(channel);
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
-  const canMarkRead = !(channel.unread?.count === 0);
+  // third-party channels (e.g. notes) have no %channels/%activity unreads, so
+  // mark-read doesn't apply
+  const canMarkRead =
+    !(channel.unread?.count === 0) && !ub.isThirdPartyChannel(channel.id);
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
   const handlePressGroupDetails = useCallback(() => {
@@ -751,14 +739,15 @@ export function ChannelOptionsSheetContent({
             disabled: true,
           },
         ],
-        !currentUserIsChannelHost && [
-          'negative',
-          {
-            title: group ? `Leave channel` : 'Leave chat',
-            endIcon: 'LogOut',
-            action: wrappedAction.bind(null, leaveChannel),
-          },
-        ]
+        !currentUserIsChannelHost &&
+          channelActionCapabilities.canLeave && [
+            'negative',
+            {
+              title: group ? `Leave channel` : 'Leave chat',
+              endIcon: 'LogOut',
+              action: wrappedAction.bind(null, leaveChannel),
+            },
+          ]
       ),
     [
       notificationTitle,
@@ -777,6 +766,7 @@ export function ChannelOptionsSheetContent({
       hooksPreview,
       onPressChannelTemplate,
       currentUserIsChannelHost,
+      channelActionCapabilities.canLeave,
       leaveChannel,
     ]
   );
@@ -823,6 +813,8 @@ export function ChatOptionsSheetContent({
   icon?: ReactElement;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
+  const isDesktopFlyout = isWeb && !isWindowNarrow;
+
   return (
     <>
       {isWindowNarrow && (
@@ -836,7 +828,15 @@ export function ChatOptionsSheetContent({
           </ActionSheet.ActionContent>
         </ActionSheet.Header>
       )}
-      <ActionSheet.Content width={isWindowNarrow ? '100%' : 240}>
+      <ActionSheet.Content
+        width={
+          isDesktopFlyout
+            ? DESKTOP_FLYOUT_MIN_WIDTH
+            : isWindowNarrow
+              ? '100%'
+              : 240
+        }
+      >
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
       </ActionSheet.Content>
     </>
@@ -851,33 +851,18 @@ function NotificationsSheetContent({
   onPressBack: () => void;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
-  const { updateVolume, group, channel } = useChatOptions();
-  const { data: currentChannelVolume } = store.useChannelVolumeLevel(
-    channel?.id ?? ''
-  );
-  const { data: currentGroupVolume } = store.useGroupVolumeLevel(
-    group?.id ?? ''
-  );
-  const currentVolumeLevel = channel?.id
-    ? currentChannelVolume
-    : currentGroupVolume;
-
-  // Use shared hook with 'loud' level for channel/group overrides
-  const notificationOptions = useNotificationLevelOptions({
-    includeLoud: true,
-    shortDescriptions: true,
-  });
+  const { currentLevel, options, updateVolume } = useChatVolumeOptions();
 
   const notificationActions = useMemo(
     () =>
       createActionGroups([
         'neutral',
-        ...notificationOptions.map(
+        ...options.map(
           ({ title, value }): Action => ({
             title,
-            accent: currentVolumeLevel === value ? 'positive' : 'neutral',
+            accent: currentLevel === value ? 'positive' : 'neutral',
             action: () => updateVolume(value),
-            endIcon: currentVolumeLevel === value ? 'Checkmark' : undefined,
+            endIcon: currentLevel === value ? 'Checkmark' : undefined,
           })
         ),
         !isWindowNarrow && {
@@ -886,13 +871,7 @@ function NotificationsSheetContent({
           startIcon: 'ChevronLeft',
         },
       ]),
-    [
-      currentVolumeLevel,
-      updateVolume,
-      isWindowNarrow,
-      onPressBack,
-      notificationOptions,
-    ]
+    [currentLevel, updateVolume, isWindowNarrow, onPressBack, options]
   );
   return (
     <ChatOptionsSheetContent

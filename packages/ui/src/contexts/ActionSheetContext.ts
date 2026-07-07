@@ -4,6 +4,7 @@ import { createContext } from 'react';
 // Used to automatically fix issues with Pressable in ActionSheets on Android
 export const ActionSheetContext = createContext<{
   isInsideSheet: boolean;
+  mode?: 'sheet' | 'dialog' | 'popover';
 }>({
   isInsideSheet: false,
 });

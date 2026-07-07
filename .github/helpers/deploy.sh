@@ -14,7 +14,12 @@ ship=$3
 zone=$4
 project=$5
 ref=${6:-"develop"}
-folder=$ship/$desk
+# The GCE instance name ($ship) and the pier folder on that instance usually
+# match, but can diverge (e.g. a moon whose folder is its full patp while the
+# instance is a truncated name). Optional 7th arg overrides the folder name;
+# defaults to $ship to keep existing callers unchanged.
+pier=${7:-$ship}
+folder=$pier/$desk
 
 echo "Deploying $desk from $ref of $repo to $ship in $zone of $project"
 set -e
@@ -40,6 +45,20 @@ fi
 
 # Package the assembled, self-contained desk.
 tar czf "$workdir/desk.tgz" -C "$workdir" assembled
+
+# --- Speed up the IAP tunnel ------------------------------------------------
+# gcloud's IAP TCP forwarding is a single-threaded Python websocket proxy. With
+# NumPy available its upload path is dramatically faster (gcloud prints a
+# warning recommending this). The whole assembled desk is shipped UP through
+# this tunnel, so without NumPy the scp below takes ~4 min. CLOUDSDK_PYTHON_-
+# SITEPACKAGES lets gcloud's bundled interpreter see the system-installed numpy.
+export CLOUDSDK_PYTHON_SITEPACKAGES=1
+if ! python3 -c 'import numpy' >/dev/null 2>&1; then
+  echo "Installing NumPy to speed up the IAP tunnel..."
+  pip3 install --user numpy \
+    || pip3 install --user --break-system-packages numpy \
+    || echo "WARNING: NumPy install failed; tunnel upload will be slow."
+fi
 
 # --- SSH key setup ----------------------------------------------------------
 sshpriv=$(mktemp "${TMPDIR:-/tmp/}ssh.XXXXXXXXX")
