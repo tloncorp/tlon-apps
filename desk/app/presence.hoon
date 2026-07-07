@@ -636,7 +636,19 @@
     =*  topic    i.t.t.wire
     =*  context  t.t.t.wire
     =*  key      [context ship topic]
-    ::TODO  no-op if we didn't have it anyway
+    ::  every %set arms its own expiry timer without cancelling prior ones,
+    ::  so a stale timer may fire while fresher %sets keep the entry alive.
+    ::  only delete once the entry has actually expired.
+    ::
+    =/  tos  (~(gut by places) context *topics)
+    =/  pes  (~(gut by tos) topic *people)
+    ?~  pre=(~(get by pes) ship)
+      [~ this]
+    =/  end=@da
+      %+  add  since.u.pre
+      (fall timeout.u.pre (default-timeout topic))
+    ?:  (gth end now.bowl)
+      [~ this]
     =.  places   (del-presence places key)
     [[(give-response %gone key)]~ this]
   ==
