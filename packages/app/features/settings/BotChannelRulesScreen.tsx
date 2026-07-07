@@ -239,7 +239,7 @@ export function BotChannelRulesScreen(props: Props) {
           paddingTop="$l"
           safeAreaBottomOffset={24}
         >
-          <YStack gap="$2xl" paddingBottom="$2xl">
+          <YStack gap="$l" paddingBottom="$2xl">
             <TextInput
               icon="Search"
               placeholder="Filter by name"
@@ -287,7 +287,7 @@ export function BotChannelRulesScreen(props: Props) {
                   paddingHorizontal="$l"
                   paddingVertical="$m"
                 >
-                  <YStack flex={1} minWidth={0}>
+                  <YStack flex={1} minWidth={0} gap="$l">
                     <Text size="$label/l" color="$primaryText">
                       Disable everywhere
                     </Text>
@@ -307,6 +307,7 @@ export function BotChannelRulesScreen(props: Props) {
                         ? 'secondaryOutline'
                         : 'destructive'
                     }
+                    size="small"
                     label={canUndoDisableEverywhere ? 'Undo' : 'Disable all'}
                     disabled={!canUndoDisableEverywhere && allChannelsDisabled}
                     onPress={handleDisableEverywhereToggle}

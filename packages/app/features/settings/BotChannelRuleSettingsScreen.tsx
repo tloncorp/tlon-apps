@@ -309,15 +309,6 @@ export function BotChannelRuleSettingsScreen(props: Props) {
           safeAreaBottomOffset={24}
         >
           <YStack gap="$2xl" paddingBottom="$2xl">
-            <YStack paddingHorizontal="$s" gap="$2xs">
-              <Text size="$label/xl" fontWeight="600" numberOfLines={1}>
-                {channelLabel}
-              </Text>
-              <Text size="$label/s" color="$secondaryText" numberOfLines={1}>
-                {channelKey}
-              </Text>
-            </YStack>
-
             <BotSettingsSection
               description={
                 !groupJoined
