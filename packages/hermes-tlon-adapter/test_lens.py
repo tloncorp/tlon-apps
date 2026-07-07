@@ -251,6 +251,16 @@ class SyncSequencingTests(unittest.TestCase):
         self.assertEqual(client.entries()[-1]["entry"]["payload"]["lens"]["status"], "completed")
         self.assertTrue(client.closed)
 
+    def test_delivery_failure_flags_run(self):
+        cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
+        rec = lens.TlonLensRecorder(lens.TlonLensSync(cfg, client_factory=FakeClient))
+        rec.begin("~alice", make_run())
+        rec.record_delivery_failure("~alice", error="boom")
+        r = rec.get("~alice")
+        self.assertTrue(r.delivery_failed)
+        self.assertEqual(r.delivered_message_count, 0)
+        self.assertEqual(r.error, "boom")
+
     def test_configure_poked_once(self):
         cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
         sync = lens.TlonLensSync(cfg, client_factory=FakeClient)

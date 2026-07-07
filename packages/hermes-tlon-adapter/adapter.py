@@ -509,8 +509,17 @@ def _lens_run_kind(dispatch_reason: str) -> str:
     return "owner_listen" if dispatch_reason == "owner-listen" else "conversation"
 
 
-def _lens_final_status(processing_outcome: Optional[str], *, delivered: bool) -> str:
+def _lens_final_status(
+    processing_outcome: Optional[str],
+    *,
+    delivered: bool,
+    delivery_failed: bool = False,
+) -> str:
     """Map (outcome, delivery) onto the terminal ContextLensStatus."""
+    # A send that Hermes produced but the CLI failed to deliver is an error,
+    # even if the processing outcome itself was a "success".
+    if delivery_failed:
+        return "error"
     if delivered:
         return "completed"
     if processing_outcome == "failure":
@@ -2145,9 +2154,14 @@ class TlonAdapter(BasePlatformAdapter):
         )
         existing = self._lens.get(event.source.chat_id)
         delivered = bool(existing and existing.delivered_message_count > 0)
+        delivery_failed = bool(existing and existing.delivery_failed)
         await self._lens.finish(
             event.source.chat_id,
-            status=_lens_final_status(processing_outcome, delivered=delivered),
+            status=_lens_final_status(
+                processing_outcome,
+                delivered=delivered,
+                delivery_failed=delivery_failed,
+            ),
         )
 
     @staticmethod
@@ -2217,6 +2231,12 @@ class TlonAdapter(BasePlatformAdapter):
                     preview=content or None,
                     chunk_index=None,
                 ),
+            )
+        else:
+            # A produced-but-undelivered reply is a delivery failure, not a
+            # no_reply; record it so the run finalizes as an error.
+            self._lens.record_delivery_failure(
+                chat_id, error=(result.stderr or "").strip() or "delivery failed"
             )
 
         raw_response = {

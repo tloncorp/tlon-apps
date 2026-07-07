@@ -249,6 +249,7 @@ class LensRun:
     timeout_ms: Optional[int] = None
     timed_out: bool = False
     delivered_message_count: int = 0
+    delivery_failed: bool = False
 
     def touch(self) -> None:
         self.updated_at = _now_ms()
@@ -626,6 +627,16 @@ class TlonLensRecorder:
         if run is not None:
             run.record_output(output)
             run.delivered_message_count += 1
+
+    def record_delivery_failure(
+        self, conversation_id: str, error: Optional[str] = None
+    ) -> None:
+        run = self._runs.get(conversation_id)
+        if run is not None:
+            run.delivery_failed = True
+            if error and not run.error:
+                run.error = error
+            run.touch()
 
     def set_status(
         self, conversation_id: str, status: str, error: Optional[str] = None
