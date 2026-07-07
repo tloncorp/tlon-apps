@@ -113,41 +113,50 @@ run_click="$click -t $TIMEOUT -b $vere -i - -kp"
 # Mount %base
 echo "Mounting base..."
 $run_click $pier <<EOF
-=/  m  (strand ,vase)
-;<  =bowl  bind:m  get-bowl
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%base))
-;<  ~  bind:m  (sleep ~s0)
-=/  =path
-  [(scot %p our.bowl) %base (scot %da now.bowl) ~]
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %base]))
-(pure:m !>(%ok))
+=/  m  (strand ,vase)  
+;<  =bowl  bind:m  get-bowl  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%base))  
+;<  ~  bind:m  (sleep ~s0)  
+=/  =path  
+  [(scot %p our.bowl) %base (scot %da now.bowl) ~]  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %base]))  
+(pure:m !>(%ok))  
 EOF
 
 # Unmount and mount %groups
 echo "Mounting groups..."
 $run_click $pier <<EOF
-=/  m  (strand ,vase)
-;<  =bowl  bind:m  get-bowl
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%groups))
-;<  ~  bind:m  (sleep ~s0)
-=/  =path
-  [(scot %p our.bowl) %groups (scot %da now.bowl) ~]
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %groups]))
-(pure:m !>(%ok))
+=/  m  (strand ,vase)  
+;<  =bowl  bind:m  get-bowl  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%groups))  
+;<  ~  bind:m  (sleep ~s0)  
+=/  =path  
+  [(scot %p our.bowl) %groups (scot %da now.bowl) ~]  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %groups]))  
+(pure:m !>(%ok))  
 EOF
 
 # Insert the jammed pill
+
 if [ ! -f "${pier}/groups/${pill_name}.jam" ]
 then
   cp $pill ${pier}/groups/${pill_name}.jam
 fi
 
+patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
+rm -f $pier/base/lib/strandio.hoon.rej
+rm -f $pier/base/lib/strandio.hoon.orig
+
+patch -f $pier/base/sur/aquarium.hoon `dirname $0`/aqua-sur.patch
+rm -f $pier/base/sur/aquarium.hoon.rej
+rm -f $pier/base/sur/aquarium.hoon.orig
+
 echo "Updating base desk..."
 $run_click $pier <<EOF
-=/  m  (strand ,vase)
-;<  our=ship  bind:m  get-our
-;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%base |]))
-(pure:m !>(%ok))
+=/  m  (strand ,vase)  
+;<  our=ship  bind:m  get-our  
+;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%base |]))  
+(pure:m !>(%ok))  
 EOF
 
 # TODO: We should figure out the source ship for this file and delete it
@@ -159,19 +168,19 @@ rsync -r desk/ $pier/groups
 rsync -r --delete desk/tests/ $pier/groups/tests
 
 result=$( $run_click $pier <<EOF
-=/  m  (strand ,vase)
-;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)
-(pure:m !>(hash))
+=/  m  (strand ,vase)  
+;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
+(pure:m !>(hash))  
 EOF
 )
 desk_hash_a=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 
 echo "Updating groups desk"
 ${run_click} $pier <<EOF
-=/  m  (strand ,vase)
-;<  our=ship  bind:m  get-our
-;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%groups |]))
-(pure:m !>(%ok))
+=/  m  (strand ,vase)  
+;<  our=ship  bind:m  get-our  
+;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%groups |]))  
+(pure:m !>(%ok))  
 EOF
 
 sleep 3
@@ -179,9 +188,9 @@ echo "Awaiting desk update..."
 await_ship
 
 result=$( $run_click $pier <<EOF
-=/  m  (strand ,vase)
-;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)
-(pure:m !>(hash))
+=/  m  (strand ,vase)  
+;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
+(pure:m !>(hash))  
 EOF
 )
 desk_hash_b=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
@@ -196,17 +205,17 @@ fi
 # Run the unit tests
 echo "Running unit tests..."
 result=$( $run_click $pier <<EOF
-=/  m  (strand ,vase)
-;<  =bowl  bind:m  get-bowl
-=/  tests=path
-  [(scot %p our.bowl) %groups (scot %da now.bowl) %tests ~]
-;<  =thread-result  bind:m
-  (await-thread %test !>(\`tests))
-?:  ?=(%| -.thread-result)
-  %-  (slog %thread-fail p.thread-result)
-  (pure:m !>(|))
-=+  !<(ok=? p.thread-result)
-(pure:m !>(ok))
+=/  m  (strand ,vase)  
+;<  =bowl  bind:m  get-bowl  
+=/  tests=path  
+  [(scot %p our.bowl) %groups (scot %da now.bowl) %tests ~]  
+;<  =thread-result  bind:m  
+  (await-thread %test !>(\`tests))  
+?:  ?=(%| -.thread-result)  
+  %-  (slog %thread-fail p.thread-result)  
+  (pure:m !>(|))  
+=+  !<(ok=? p.thread-result)  
+(pure:m !>(ok))  
 EOF
 )
 
@@ -223,42 +232,42 @@ fi
 
 echo "Starting %aqua..."
 ${run_click} $pier "/lib/pill/hoon"<<EOF
-=/  m  (strand ,vase)
-;<  =bowl  bind:m  get-bowl
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-nuke+!>([%aqua |]))
-=+  .^(=cone:clay %cx /(scot %p p.byk.bowl)//(scot %da now.bowl)/domes)
-=/  =dome:clay  (~(gut by cone) [p.byk.bowl %base] *dome:clay)
-;<  ~      bind:m  (sleep ~s0)
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-rein+!>([%base (~(put by ren.dome) %aqua &)]))
-=+  pill-path=/(scot %p p.byk.bowl)/groups/(scot %da now.bowl)/${pill_name}/jam
-=+  .^(pil=@ %cx pill-path)
-=/  pill  ;;(pill:pill (cue pil))
-;<  ~  bind:m  (poke [our.bowl %aqua] pill+!>(pill))
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-rm+!>(pill-path))
-(pure:m !>(%ok))
+=/  m  (strand ,vase)  
+;<  =bowl  bind:m  get-bowl    
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-nuke+!>([%aqua |]))  
+=+  .^(=cone:clay %cx /(scot %p p.byk.bowl)//(scot %da now.bowl)/domes)  
+=/  =dome:clay  (~(gut by cone) [p.byk.bowl %base] *dome:clay)  
+;<  ~      bind:m  (sleep ~s0)  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-rein+!>([%base (~(put by ren.dome) %aqua &)]))  
+=+  pill-path=/(scot %p p.byk.bowl)/groups/(scot %da now.bowl)/${pill_name}/jam  
+=+  .^(pil=@ %cx pill-path)  
+=/  pill  ;;(pill:pill (cue pil))  
+;<  ~  bind:m  (poke [our.bowl %aqua] pill+!>(pill))  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-rm+!>(pill-path))  
+(pure:m !>(%ok))  
 EOF
 
 echo "Preparing aqua snapshot..."
 result=$( $run_click $pier <<EOF
-=/  m  (strand ,vase)
-;<  =bowl  bind:m  get-bowl
-=+  tid=~.ci-ph-fleet
-=/  args
-  [\`%ci-aqua-tests ~[~zod ~nec ~bud ~wes ~dem ~fen ~loshut-lonreg ~rivfur-livmet] &]
-=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-fleet !>(\`args)])
-;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])
-;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)
-;<  =cage  bind:m  (take-fact /awaiting/[tid])
-;<  ~      bind:m  (take-kick /awaiting/[tid])
-=/  thread-result=(each vase [term tang])
-  ?+  p.cage  ~|([%strange-thread-result p.cage %ph-test tid] !!)
-    %thread-done  [%& q.cage]
-    %thread-fail  [%| !<([term tang] q.cage)]
-  ==
-?:  ?=(%| -.thread-result)
-  %-  (slog %thread-fail p.thread-result)
-  (pure:m !>(|))
-(pure:m !>(&))
+=/  m  (strand ,vase)  
+;<  =bowl  bind:m  get-bowl  
+=+  tid=~.ci-ph-fleet  
+=/  args  
+  [\`%ci-aqua-tests ~[~zod ~nec ~bud ~wes ~dem ~fen ~loshut-lonreg ~rivfur-livmet] &]  
+=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-fleet !>(\`args)])  
+;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
+;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
+;<  =cage  bind:m  (take-fact /awaiting/[tid])  
+;<  ~      bind:m  (take-kick /awaiting/[tid])  
+=/  thread-result=(each vase [term tang])  
+  ?+  p.cage  ~|([%strange-thread-result p.cage %ph-test tid] !!)  
+    %thread-done  [%& q.cage]  
+    %thread-fail  [%| !<([term tang] q.cage)]  
+  ==  
+?:  ?=(%| -.thread-result)  
+  %-  (slog %thread-fail p.thread-result)  
+  (pure:m !>(|))  
+(pure:m !>(&))  
 EOF
 )
 
@@ -275,28 +284,28 @@ fi
 #
 echo "Running tests..."
 result=$( $run_click $pier <<EOF
-=/  m  (strand ,vase)
-;<  =bowl  bind:m  get-bowl
-=/  ph-tests=path
-  [(scot %p our.bowl) %groups (scot %da now.bowl) %tests %ph ~]
-=/  args
-  [\`ph-tests %ci-aqua-tests]
-=+  tid=~.ci-ph-test
-=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-test !>(\`args)])
-;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])
-;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)
-;<  =cage  bind:m  (take-fact /awaiting/[tid])
-;<  ~      bind:m  (take-kick /awaiting/[tid])
-=/  thread-result=(each vase [term tang])
-  ?+  p.cage  ~|([%strange-thread-result p.cage %ph-test tid] !!)
-    %thread-done  [%& q.cage]
-    %thread-fail  [%| !<([term tang] q.cage)]
-  ==
-?:  ?=(%| -.thread-result)
-  %-  (slog %thread-fail p.thread-result)
-  (pure:m !>(|))
-=+  !<(ok=? p.thread-result)
-(pure:m !>(ok))
+=/  m  (strand ,vase)  
+;<  =bowl  bind:m  get-bowl  
+=/  ph-tests=path  
+  [(scot %p our.bowl) %groups (scot %da now.bowl) %tests %ph ~]  
+=/  args  
+  [\`ph-tests %ci-aqua-tests]  
+=+  tid=~.ci-ph-test  
+=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-test !>(\`args)])  
+;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
+;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
+;<  =cage  bind:m  (take-fact /awaiting/[tid])  
+;<  ~      bind:m  (take-kick /awaiting/[tid])  
+=/  thread-result=(each vase [term tang])  
+  ?+  p.cage  ~|([%strange-thread-result p.cage %ph-test tid] !!)  
+    %thread-done  [%& q.cage]  
+    %thread-fail  [%| !<([term tang] q.cage)]  
+  ==  
+?:  ?=(%| -.thread-result)  
+  %-  (slog %thread-fail p.thread-result)  
+  (pure:m !>(|))  
+=+  !<(ok=? p.thread-result)  
+(pure:m !>(ok))  
 EOF
 )
 
