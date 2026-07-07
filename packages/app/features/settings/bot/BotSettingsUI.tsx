@@ -8,6 +8,7 @@ import {
 } from '@tloncorp/ui';
 import { PropsWithChildren, ReactNode } from 'react';
 import { Switch } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
 import { ImageAvatar } from '../../../ui/components/Avatar';
@@ -191,25 +192,19 @@ export function BotIdentityHeader({
   subtitle,
   avatarUrl,
   ready,
-  pending,
   restarting,
 }: {
   title: string;
   subtitle: string;
   avatarUrl?: string;
   ready: boolean;
-  pending?: boolean;
   restarting?: boolean;
 }) {
-  const statusText = restarting
-    ? 'Restarting…'
-    : pending
-      ? 'Pending'
-      : ready
-        ? 'Online'
-        : 'Starting';
-  const statusType =
-    restarting || pending ? 'warning' : ready ? 'positive' : 'neutral';
+  // Reflects the bot's runtime status only. Unsaved edits are surfaced by the
+  // Apply bar, so they don't belong in this badge (a "Pending" badge there just
+  // duplicates the bar and reads like the bot itself is unhealthy).
+  const statusText = restarting ? 'Restarting…' : ready ? 'Online' : 'Starting';
+  const statusType = restarting ? 'warning' : ready ? 'positive' : 'neutral';
 
   return (
     <XStack alignItems="center" gap="$l" paddingHorizontal="$s">
@@ -263,6 +258,8 @@ export function ApplyChangesBar({
   onDiscard: () => void;
   onApply: () => void;
 }) {
+  const insets = useSafeAreaInsets();
+
   if (changeCount === 0 && !error && !applying) {
     return null;
   }
@@ -273,35 +270,26 @@ export function ApplyChangesBar({
       borderColor="$border"
       backgroundColor="$background"
       paddingHorizontal="$l"
-      paddingVertical="$m"
+      paddingTop="$m"
+      paddingBottom={insets.bottom}
       gap="$m"
     >
-      <XStack alignItems="center" gap="$l">
-        {applying ? <LoadingSpinner size="small" /> : null}
-        <YStack flex={1} minWidth={0}>
-          <Text size="$label/m" fontWeight="500" numberOfLines={1}>
-            {applying
-              ? 'Restarting gateway…'
-              : `${changeCount} pending ${changeCount === 1 ? 'change' : 'changes'}`}
-          </Text>
-          <Text size="$label/s" color="$secondaryText" numberOfLines={1}>
-            {applying
-              ? 'Tlonbot is briefly offline'
-              : error ?? labels.join(' · ')}
-          </Text>
+      {applying ? <LoadingSpinner size="small" /> : null}
+      {!applying ? (
+        <YStack gap="$m">
+          <Button
+            preset="secondaryOutline"
+            label="Discard"
+            onPress={onDiscard}
+          />
+          <Button
+            preset="primary"
+            label={`Apply ${changeCount} Change${changeCount > 1 ? 's' : ''}`}
+            disabled={disabled}
+            onPress={onApply}
+          />
         </YStack>
-        {!applying ? (
-          <XStack gap="$m">
-            <Button preset="minimal" label="Discard" onPress={onDiscard} />
-            <Button
-              preset="primary"
-              label="Apply"
-              disabled={disabled}
-              onPress={onApply}
-            />
-          </XStack>
-        ) : null}
-      </XStack>
+      ) : null}
     </YStack>
   );
 }
