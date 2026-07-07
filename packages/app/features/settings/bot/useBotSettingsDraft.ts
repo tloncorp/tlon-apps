@@ -12,6 +12,7 @@ import {
   getErrorMessage,
   getModelFormValues,
   haveChannelModelEntriesChanged,
+  normalizeChannelRuleKey,
   toChatFormValues,
 } from './helpers';
 import {
@@ -403,16 +404,36 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
               'Could not load the latest channel rules. Please try again.'
             );
           }
-          const mergedRules = { ...refetchedSettings.data.channelRules };
+          // Server data can carry legacy un-normalized keys (zod/general);
+          // normalize them so the dirty-key updates/deletes below hit the same
+          // entries instead of leaving a stale duplicate behind.
+          const mergedRules: typeof nextRules = {};
+          Object.entries(refetchedSettings.data.channelRules ?? {}).forEach(
+            ([key, serverRule]) => {
+              mergedRules[normalizeChannelRuleKey(key)] = serverRule;
+            }
+          );
+          const removedRuleKeys = new Set<string>();
           dirtyRuleKeys.forEach((key) => {
             if (nextRules[key] !== undefined) {
               mergedRules[key] = nextRules[key];
             } else {
               delete mergedRules[key];
+              removedRuleKeys.add(key);
+            }
+          });
+          // groupChannels can list monitored channels that have no explicit
+          // rule (fully inherited); keep them so the bot doesn't stop
+          // monitoring them, dropping only the channels this draft disabled.
+          const mergedGroupChannels = new Set(Object.keys(mergedRules));
+          (refetchedSettings.data.groupChannels ?? []).forEach((key) => {
+            const normalized = normalizeChannelRuleKey(key);
+            if (!removedRuleKeys.has(normalized)) {
+              mergedGroupChannels.add(normalized);
             }
           });
           config.channelRules = mergedRules;
-          config.groupChannels = Object.keys(mergedRules);
+          config.groupChannels = [...mergedGroupChannels];
         }
 
         // Only rewrite model overrides for channels whose override actually
