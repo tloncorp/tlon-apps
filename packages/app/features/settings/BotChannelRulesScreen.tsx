@@ -12,7 +12,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
+import {
+  ScreenHeader,
+  SettingsContentScrollView,
+  Tabs,
+  TextInput,
+} from '../../ui';
 import {
   BotSettingsDivider,
   BotSettingsErrorText,
@@ -240,24 +245,26 @@ export function BotChannelRulesScreen(props: Props) {
               placeholder="Search channels"
               onChangeText={setSearch}
             />
-            <XStack gap="$m">
-              <View flex={1}>
-                <Button
-                  preset={!enabledOnly ? 'secondary' : 'minimal'}
-                  label="All"
-                  centered
-                  onPress={() => setEnabledOnly(false)}
-                />
-              </View>
-              <View flex={1}>
-                <Button
-                  preset={enabledOnly ? 'secondary' : 'minimal'}
-                  label="Enabled"
-                  centered
-                  onPress={() => setEnabledOnly(true)}
-                />
-              </View>
-            </XStack>
+            <Tabs>
+              <Tabs.Tab
+                name="all"
+                activeTab={enabledOnly ? 'enabled' : 'all'}
+                onTabPress={() => setEnabledOnly(false)}
+              >
+                <Tabs.Title cursor="pointer" active={!enabledOnly}>
+                  All
+                </Tabs.Title>
+              </Tabs.Tab>
+              <Tabs.Tab
+                name="enabled"
+                activeTab={enabledOnly ? 'enabled' : 'all'}
+                onTabPress={() => setEnabledOnly(true)}
+              >
+                <Tabs.Title cursor="pointer" active={enabledOnly}>
+                  Enabled
+                </Tabs.Title>
+              </Tabs.Tab>
+            </Tabs>
 
             {enabledOnly ? (
               <BotSettingsSection>
@@ -343,9 +350,9 @@ export function BotChannelRulesScreen(props: Props) {
                       gap="$l"
                       paddingHorizontal="$s"
                     >
-                      <YStack flex={1} minWidth={0}>
+                      <YStack flex={1} minWidth={0} gap="$l">
                         <Text
-                          size="$label/m"
+                          size="$label/l"
                           fontWeight="500"
                           color="$primaryText"
                           numberOfLines={1}
