@@ -4,9 +4,7 @@ import { createDevLogger } from '@tloncorp/shared';
 import {
   Button,
   ConfirmDialog,
-  Icon,
   LoadingSpinner,
-  Pressable,
   Text,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
@@ -15,10 +13,10 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
-import { Badge } from '../../ui/components/Badge';
 import {
   BotSettingsDivider,
   BotSettingsErrorText,
+  BotSettingsRow,
   BotSettingsSection,
 } from './bot/BotSettingsUI';
 import { BASIC_PROVIDER_ID, providerLabel } from './bot/constants';
@@ -400,11 +398,20 @@ export function BotChannelRulesScreen(props: Props) {
 
                         return (
                           <YStack key={channel.key}>
-                            <Pressable
-                              // Until the moon's memberships load we can't tell
-                              // whether this group is joined, and the route
-                              // param would wrongly open the editor read-only —
-                              // hold navigation for known groups until then.
+                            <BotSettingsRow
+                              label={channel.label}
+                              description={channel.key}
+                              value={
+                                isEnabled
+                                  ? modelLabel === 'Default'
+                                    ? accessLabel
+                                    : `${accessLabel} · ${modelLabel}`
+                                  : 'Off'
+                              }
+                              pending={pending}
+                              // Hold navigation for known groups until the moon
+                              // memberships load, so the editor doesn't open in
+                              // the wrong read-only state.
                               disabled={
                                 !membershipsLoaded && group.group !== 'unknown'
                               }
@@ -420,65 +427,7 @@ export function BotChannelRulesScreen(props: Props) {
                                   }
                                 )
                               }
-                              pressStyle={{
-                                backgroundColor: '$secondaryBackground',
-                              }}
-                            >
-                              <XStack
-                                minHeight={56}
-                                alignItems="center"
-                                gap="$l"
-                                paddingHorizontal="$l"
-                                paddingVertical="$m"
-                              >
-                                <YStack flex={1} minWidth={0} gap="$2xs">
-                                  <Text
-                                    size="$label/l"
-                                    color={
-                                      isEnabled
-                                        ? '$primaryText'
-                                        : '$secondaryText'
-                                    }
-                                    numberOfLines={1}
-                                  >
-                                    {channel.label}
-                                  </Text>
-                                  <Text
-                                    size="$label/s"
-                                    color="$secondaryText"
-                                    numberOfLines={1}
-                                  >
-                                    {channel.key}
-                                  </Text>
-                                  {isEnabled ? (
-                                    <XStack gap="$s" marginTop="$2xs">
-                                      <Badge
-                                        text={accessLabel}
-                                        type="neutral"
-                                        size="micro"
-                                      />
-                                      <Badge
-                                        text={modelLabel}
-                                        type="neutral"
-                                        size="micro"
-                                      />
-                                    </XStack>
-                                  ) : null}
-                                </YStack>
-                                {pending ? (
-                                  <Badge
-                                    text="Pending"
-                                    type="warning"
-                                    size="micro"
-                                  />
-                                ) : null}
-                                <Icon
-                                  type="ChevronRight"
-                                  size="$m"
-                                  color="$tertiaryText"
-                                />
-                              </XStack>
-                            </Pressable>
+                            />
                             {index < group.channels.length - 1 ? (
                               <BotSettingsDivider />
                             ) : null}
