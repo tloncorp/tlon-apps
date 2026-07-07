@@ -40,7 +40,7 @@ case $OSTYPE in
     esac ;;
 esac
 
-pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2-408k.pill"
+pill_download_url="https://bootstrap.urbit.org/groups-v11-3-0-408k.pill"
 
 #archive=`basename $download_url`
 pill=`basename $pill_download_url`
