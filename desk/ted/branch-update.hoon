@@ -22,6 +22,45 @@
 ::
 =+  invite-url=`@t`(rap 3 base-url '/' token ~)
 ;<  =bowl:strand  bind:m  get-bowl:io
+::  push the update to the invite service's first-party record.
+::  non-fatal: the branch update below proceeds regardless.
+::
+;<  branch-secret=@t  bind:m  (scry:io @t %gx /bait/branch-secret/noun)
+=/  push-body=json
+  =/  update-fields=(map @t json)
+    (~(run by fields.update) |=(=@t s+t))
+  %-  pairs:enjs:format
+  ~[['token' s+token] ['fields' o+update-fields]]
+=/  push=request:http
+  :*  %'POST'
+      'https://serverless-infra.vercel.app/api/inviteUpdate'
+      :~  ['content-type' 'application/json']
+          ['authorization' (cat 3 'Bearer ' branch-secret)]
+      ==
+      `(as-octs:mimes:html (en:json:html push-body))
+  ==
+;<  =client-response:iris  bind:m  (send-request-retry push)
+;<  ~  bind:m
+  =/  n  (strand ,~)
+  ^-  form:n
+  ?:  ?&  ?=(%finished -.client-response)
+          =(200 status-code.response-header.client-response)
+      ==
+    (pure:n ~)
+  =/  code=tape
+    ?:  ?=(%finished -.client-response)
+      "http {<status-code.response-header.client-response>}"
+    "no response"
+  =/  =log-event:logs
+    :*  %tell
+        %crit
+        'failed to push invite metadata to invite service'
+        token
+        leaf+code
+        ''
+        ~
+    ==
+  (poke:io [our.bowl %logs] log-action+!>([%log log-event ~]))
 ::  read deep link metadata
 ::
 =/  read=request:http
