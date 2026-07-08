@@ -73,6 +73,9 @@ export default ({ mode }: { mode: string }) => {
       return [
         basicSsl() as Plugin,
         react({
+          babel: {
+            plugins: ['babel-plugin-react-compiler'],
+          },
           jsxImportSource: wdyrJsxImportSource,
         }) as PluginOption[],
       ];
