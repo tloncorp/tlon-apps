@@ -437,12 +437,26 @@ export function NotesNoteDetail({
 
   useEffect(() => {
     if (!autoFocusTitle || !selectedNoteRowId || !canEdit) return;
+    if (isPreviewing) {
+      // The title is a locked display field in preview mode, so renaming
+      // needs the editor. Leaving preview re-runs this effect with the
+      // editable input mounted, and the focus below can land.
+      setPreviewMode(false);
+      return;
+    }
     const timeout = setTimeout(() => {
       titleInputRef.current?.focus();
       onTitleAutoFocused?.();
     });
     return () => clearTimeout(timeout);
-  }, [autoFocusTitle, canEdit, onTitleAutoFocused, selectedNoteRowId]);
+  }, [
+    autoFocusTitle,
+    canEdit,
+    isPreviewing,
+    onTitleAutoFocused,
+    selectedNoteRowId,
+    setPreviewMode,
+  ]);
 
   // All saves go through one chain so each rebases onto the revision the
   // previous save produced instead of racing the backend revision check.
