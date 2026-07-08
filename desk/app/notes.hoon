@@ -1189,9 +1189,10 @@
   [%give %fact [/v0/inbox/stream]~ notes-inbox-update+!>(`u-inbox:n`[%notebooks-changed ~])]
 ::  +cleanup-requests: evict in-flight request records that have terminated.
 ::  Rules (match channels-server in tlon-apps PR 5334):
-::    - keep if no terminal result yet, or status is %pending
+::    - keep if no terminal result yet (still in flight, no final-at)
 ::    - keep if no final-at timestamp yet (defensive — shouldn't happen)
-::    - drop unconditionally past 24h
+::    - drop unconditionally past 24h (incl. timed-out %pending, which
+::      carries a final-at set at the timeout — see +finalize-pending)
 ::    - %ok / %no-change: drop after 5m
 ::    - %error: drop only after the client has fetched it
 ::
@@ -1200,7 +1201,7 @@
   ^-  requests:v1:n
   %-  ~(rep by requests)
   |=  [[id=request-id:v1:n req=incoming-request:v1:n] out=requests:v1:n]
-  ?:  |(?=(~ result.req) ?=([~ %pending *] result.req))
+  ?:  ?=(~ result.req)
     (~(put by out) id req)
   ?~  final-at.req  (~(put by out) id req)
   ?:  (gth (sub now u.final-at.req) ~d1)
@@ -1273,9 +1274,12 @@
     cor
   =/  body=response-body:v1:n  [%pending poke-status.u.req]
   =/  =response:v1:n  [rid body]
+  ::  stamp final-at at the timeout so a never-answered pending request
+  ::  (e.g. offline remote host) ages out in +cleanup-requests instead of
+  ::  living in state forever.
   =.  requests
     %+  ~(put by requests)  rid
-    u.req(result `body)
+    u.req(result `body, final-at `now.bowl)
   =.  cor
     %-  give
     [%fact ~[/v1/request/(scot %uv rid)] notes-response-1+!>(response)]
@@ -1825,6 +1829,15 @@
       %+  skip  ~(tap by published)
       |=  [k=[=flag:n note-id=@ud] v=@t]
       =(flag.k flag)
+    ::  group-mode: remove the channel listing from %groups (mirror of the
+    ::  %add in se-create-notebook) so the group stops listing / bookkeeping
+    ::  a notebook that no longer exists on the host
+    =?  se-core  ?=(^ group.notebook-state)
+      =/  action=group-channel-del:n
+        [%group u.group.notebook-state %channel [%notes flag] %del ~]
+      =/  =dock  [our.bowl %groups]
+      =/  =wire  /notes/(scot %p ship.flag)/[name.flag]/delete
+      (emit %pass wire %agent dock %poke group-action-4+!>(action))
     ::  group affiliation, history and visibility live in notebook-state,
     ::  deleted with the book via the gone flag
     =.  se-core  (se-update [%deleted ~])
@@ -2009,6 +2022,15 @@
         %-  ~(rep in del-nids)
         |=  [n=@ud acc=_notes.notebook-state]
         (~(del by acc) n)
+      ::  drop history + published copies for every removed note too
+      =.  history.notebook-state
+        %-  ~(rep in del-nids)
+        |=  [n=@ud acc=_history.notebook-state]
+        (~(del by acc) n)
+      =.  published
+        %-  ~(rep in del-nids)
+        |=  [n=@ud acc=_published]
+        (~(del by acc) [flag n])
       (se-update [%folder fid [%deleted ~]])
     ::  non-recursive: fail if has children
     =/  children=(list @ud)
@@ -2127,6 +2149,10 @@
       (~(got by notes.notebook-state) nid)
     =.  notes.notebook-state
       (~(del by notes.notebook-state) nid)
+    ::  drop archived revision history and any published copy so a deleted
+    ::  note can't be recovered via /x/v0/history or /notes/pub/.../nid
+    =.  history.notebook-state  (~(del by history.notebook-state) nid)
+    =.  published  (~(del by published) [flag nid])
     (se-update [%note nid [%deleted ~]])
   ::
   ++  se-update-note

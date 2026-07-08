@@ -780,6 +780,50 @@
   ;<  ~  b  (ex-cards-ne caz)
   ;<  caz=(list card)  b  (poke-a [%notebook f [%note 3 [%update 'v3' 1]]])
   (ex-cards-ne caz)
+::  ====  test-delete-note-clears-history  ====
+::  Deleting a note must drop its archived revision history, so a deleted
+::  note can't be recovered via the history read path (Codex regression).
+::
+++  test-delete-note-clears-history
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  *  b  (poke-a [%notebook f [%create-note 2 'Note' 'v1']])
+  ::  update archives the prior revision — history[3] now has one entry
+  ;<  *  b  (poke-a [%notebook f [%note 3 [%update 'v2' 0]]])
+  ;<  ~  b  (ex-history-len f 3 1)
+  ;<  *  b  (poke-a [%notebook f [%note 3 [%delete ~]]])
+  (ex-history-len f 3 0)
+::  ====  test-delete-group-notebook-removes-channel  ====
+::  Deleting a group-mode notebook must poke %groups to remove the channel
+::  (mirror of the %add on create), so the group stops listing it (Codex).
+::
+++  test-delete-group-notebook-removes-channel
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  gf=flag:n  [~zod 'grp']
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-group-notebook 'GNB' gf ~])
+  =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%delete ~]])
+  |=  s2=state
+  ?.  (has-poke-mark caz %group-action-4)
+    |+['group-notebook delete did not poke %groups']~
+  =/  van=(unit vase)  (find-poke-vase caz %group-action-4)
+  ?~  van
+    |+['no group-action-4 poke vase found']~
+  ::  !< nest-checks the payload against the %group … %channel … %del shape;
+  ::  a different group action (e.g. the %add) would fail to extract here.
+  =+  !<(group-channel-del:n u.van)
+  &+[~ s2]
 ::  ====  test-update-note-mismatched-revision-rejects  ====
 ::  Stale expected-revision crashes; note still readable after.
 ::

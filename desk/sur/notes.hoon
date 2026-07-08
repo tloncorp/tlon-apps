@@ -52,6 +52,17 @@
       %add
       channel=group-channel
   ==
+::  %group action to remove the notes channel from a group (mirror of
+::  group-create's %add), sent when a group-mode notebook is deleted.
+::
++$  group-channel-del
+  $:  %group
+      =flag
+      %channel
+      =nest
+      %del
+      ~
+  ==
 ::  $folder: directory node inside a notebook
 ::
 +$  folder
