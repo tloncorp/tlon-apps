@@ -332,7 +332,7 @@
   ^-  (quip card _state)
   =.  rec  ?^(rec rec (~(get by records) id))
   ?~  rec  [~ state]
-  %-  (~(tell l our.bowl dap.bowl `for.u.rec `-.id) %info ~['registration revoked' why])
+  %-  (~(tell l bowl `for.u.rec `-.id) %info ~['registration revoked' why])
   :-  [(give-status for.u.rec id why %gone ~)]~
   =?  attested  ?=(%done -.status.u.rec)
     %.  sig.full.status.u.rec
@@ -357,7 +357,7 @@
   =/  tat=attestation
     (attest [our now]:bowl for.rec id proof)
   =.  status.rec  [%done tat]
-  %-  (~(tell l our.bowl dap.bowl `for.rec `-.id) %info ['registration completed']~)
+  %-  (~(tell l bowl `for.rec `-.id) %info ['registration completed']~)
   :-  [(give-status for.rec id 'registration completed' status.rec)]~
   %_  state
     records   (~(put by records) id rec)
