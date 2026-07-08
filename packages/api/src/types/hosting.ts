@@ -77,6 +77,18 @@ export interface TlawnProviderConfigInfo {
 export interface TlawnModelEntry {
   provider: string;
   model: string;
+  primary?: boolean;
+  channels?: string[];
+}
+
+export interface TlawnChannelModelOverride {
+  provider: string;
+  model: string;
+  channels: string[];
+}
+
+export interface TlawnChannelModelsUpdate {
+  models: TlawnChannelModelOverride[];
 }
 
 export interface TlawnPrimaryModelUpdate {
@@ -100,12 +112,36 @@ export interface TlawnBotInfo {
 export interface TlawnConfig {
   dmAllowlist: string[];
   defaultAuthorizedShips: string[];
-  channelRules: Record<string, { mode: string; allowedShips: string[] }>;
+  // `allowedShips` is optional: a restricted rule that omits it inherits
+  // `defaultAuthorizedShips` on the backend, so the field is absent (not `[]`)
+  // when a channel follows the defaults.
+  channelRules: Record<string, { mode: string; allowedShips?: string[] }>;
   groupChannels: string[];
   groupInviteAllowlist: string[];
   autoAcceptDmInvites: boolean;
   autoDiscoverChannels: boolean;
 }
+
+export interface TlawnChatConfigUpdate {
+  config: Partial<TlawnConfig>;
+  channelModels?: TlawnChannelModelsUpdate;
+}
+
+export interface TlawnChatConfigInfo {
+  config: TlawnConfig;
+  providerConfig: TlawnProviderConfigInfo;
+}
+
+export interface TlawnChannelGroupEntry {
+  title?: string;
+  channels: Record<string, string>;
+}
+
+/** host ship -> group name -> group entry */
+export type TlawnChannelGroups = Record<
+  string,
+  Record<string, TlawnChannelGroupEntry>
+>;
 
 export interface TlawnOAuthGrant {
   connected: boolean;
