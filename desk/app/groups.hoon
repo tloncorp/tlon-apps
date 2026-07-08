@@ -157,7 +157,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
-      log   ~(. logs [our.bowl dap.bowl /logs])
+      log   ~(. logs [bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     %-  step:un:guard
@@ -198,7 +198,7 @@
     %-  step:un:guard
     ^-  (quip card _this)
     :_  this
-    [(unsafe:guard (~(on-fail logs our.bowl dap.bowl /logs) term tang))]~
+    [(unsafe:guard (~(on-fail logs bowl /logs) term tang))]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -240,14 +240,14 @@
     |=  [vol=volume:logs =echo:logs =tang]
     =/  =card
       %-  unsafe:guard
-      (~(fail logs our.bowl dap.bowl /logs) vol echo tang deez)
+      (~(fail logs bowl /logs) vol echo tang deez)
     (emit card)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs]
     =/  =card
       %-  unsafe:guard
-      (~(tell logs our.bowl dap.bowl /logs) vol echo deez)
+      (~(tell logs bowl /logs) vol echo deez)
     (emit card)
   ::
   ++  deez

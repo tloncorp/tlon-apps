@@ -112,12 +112,12 @@
   ++  fail
     |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our.bowl dap.bowl /logs) vol echo tang log-data)
+    (~(fail logs bowl /logs) vol echo tang log-data)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
     %-  link
-    (~(tell logs our.bowl dap.bowl /logs) vol echo (weld ^log-data log-data))
+    (~(tell logs bowl /logs) vol echo (weld ^log-data log-data))
   ::  +deez: log message details
   ::
   :: ++  deez
@@ -704,5 +704,5 @@
   |=  [=term =tang]
   ^-  (quip card _this)
   :_  this
-  [(~(on-fail logs our.bowl dap.bowl /logs) term tang)]~
+  [(~(on-fail logs bowl /logs) term tang)]~
 --

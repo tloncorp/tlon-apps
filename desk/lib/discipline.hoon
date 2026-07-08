@@ -123,7 +123,7 @@
 ::
 ++  helper
   |_  [=bowl:gall marks=(map mark type)]
-  ++  log  ~(. logs our.bowl dap.bowl /~/discipline/logs)
+  ++  log  ~(. logs bowl /~/discipline/logs)
   ::  +inner-bowl: bowl without /~/discipline subs
   ::
   ++  inner-bowl
