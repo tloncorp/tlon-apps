@@ -2,6 +2,8 @@
 ::
 /+  l=logs
 /+  default-agent, dbug
+/=  ted-posthog    /ted/posthog
+/=  ted-send-otel  /ted/send-otel
 ::
 /*  commit  %txt  /commit/txt
 ::
