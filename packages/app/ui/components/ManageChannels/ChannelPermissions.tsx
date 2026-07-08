@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { Icon, IconButton, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
-import { useFormContext } from 'react-hook-form';
+import { useFormContext, useWatch } from 'react-hook-form';
 import { Platform, Switch } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
@@ -104,10 +104,10 @@ export function PermissionTable({
 }: {
   groupRoles: db.GroupRole[];
 }) {
-  const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
-  const isPrivate = watch('isPrivate');
-  const readers = watch('readers');
-  const writers = watch('writers');
+  const { control, setValue } = useFormContext<ChannelPrivacyFormSchema>();
+  const isPrivate = useWatch({ control, name: 'isPrivate' });
+  const readers = useWatch({ control, name: 'readers' });
+  const writers = useWatch({ control, name: 'writers' });
 
   const displayedRoles = useMemo(() => {
     // Use the union of readers and writers so writer-only roles remain visible
