@@ -1,4 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// Enables native portals (react-native-teleport) so tamagui portals teleport the
+// native views while keeping the React tree in place, preserving context. This
+// import-time side effect configures the backend before any PortalProvider renders.
+import '@tamagui/native/setup-teleport';
 import PlatformState from '@tloncorp/app';
 import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';

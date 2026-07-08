@@ -210,6 +210,9 @@ importers:
       '@simform_solutions/react-native-audio-waveform':
         specifier: ^2.1.6
         version: 2.1.6(patch_hash=af72fc5c183530a26f093004261c71c1d7797475d7beeb6d52b5f10a55a5cee2)(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      '@tamagui/native':
+        specifier: 2.4.2
+        version: 2.4.2(react@19.2.3)
       '@tamagui/react-native-media-driver':
         specifier: 2.4.2
         version: 2.4.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -411,6 +414,9 @@ importers:
       react-native-svg:
         specifier: 15.15.4
         version: 15.15.4(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-teleport:
+        specifier: 1.1.10
+        version: 1.1.10(react-dom@19.2.3(react@19.2.3))(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-transformer-text-input:
         specifier: ^0.4.1
         version: 0.4.1(react-native-worklets@0.8.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3)(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -11560,6 +11566,13 @@ packages:
     resolution: {integrity: sha512-boT/vIRgj6zZKBpfTPJJiYWMbZE9duBMOwPK6kCSTgxsS947IFMOq9OgIFkpWZTB7t229H24pDRkh3W9ZK/J1A==}
     peerDependencies:
       react: 19.2.3
+      react-native: 0.85.3
+
+  react-native-teleport@1.1.10:
+    resolution: {integrity: sha512-dd95Ni4wcD7o9uXZ2WHksWKH0OSlXKV6/AvJVKm4FXUxaWTj+0DCd3dey+7zB72t/UkEBwGoXFM2g5QMXwj68Q==}
+    peerDependencies:
+      react: 19.2.3
+      react-dom: 19.2.3
       react-native: 0.85.3
 
   react-native-transformer-text-input@0.4.1:
@@ -26585,6 +26598,12 @@ snapshots:
       react: 19.2.3
       react-native: 0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3)
       warn-once: 0.1.1
+
+  react-native-teleport@1.1.10(react-dom@19.2.3(react@19.2.3))(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
+    dependencies:
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      react-native: 0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3)
 
   react-native-transformer-text-input@0.4.1(react-native-worklets@0.8.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3)(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:
