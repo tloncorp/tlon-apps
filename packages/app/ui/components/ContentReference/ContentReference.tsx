@@ -273,7 +273,11 @@ export function GroupReferenceLoaderComponent({
   const { useGroup } = useRequests();
   const { onPressGroupRef } = useNavigation();
   const { data: group, isLoading, isError, error } = useGroup(groupId);
-  const onPress = useBoundHandler(group, onPressGroupRef);
+  const onPress = useBoundHandler(group, (g?: db.Group) => {
+    if (g) {
+      onPressGroupRef?.(g);
+    }
+  });
 
   return (
     <GroupReference

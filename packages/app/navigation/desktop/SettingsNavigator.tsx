@@ -131,37 +131,49 @@ export const SettingsNavigator = () => {
         name="SettingsEmpty"
         component={EmptySettingsScreen}
       />
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <SettingsDrawer.Screen name="Theme" component={ThemeScreen} />
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <SettingsDrawer.Screen name="AppInfo" component={AppInfoScreen} />
       <SettingsDrawer.Screen
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
         name="PushNotificationSettings"
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
         component={PushNotificationSettingsScreen}
       />
       <SettingsDrawer.Screen
         name="BlockedUsers"
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
         component={BlockedUsersScreen}
       />
       <SettingsDrawer.Screen
         name="ManageAccount"
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
         component={ManageAccountScreen}
       />
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <SettingsDrawer.Screen name="BotSettings" component={BotSettingsScreen} />
       <SettingsDrawer.Screen
         name="BotMcpSettings"
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
         component={BotMcpSettingsScreen}
       />
       <SettingsDrawer.Screen
         name="BotOtherSettings"
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
         component={BotOtherSettingsScreen}
       />
       <SettingsDrawer.Screen
         name="FeatureFlags"
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
         component={FeatureFlagScreen}
       />
       <SettingsDrawer.Screen
         name="PrivacySettings"
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
         component={PrivacySettingsScreen}
       />
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <SettingsDrawer.Screen name="WompWomp" component={UserBugReportScreen} />
     </SettingsDrawer.Navigator>
   );

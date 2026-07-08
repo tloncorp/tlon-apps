@@ -50,9 +50,17 @@ function inspectShardOutputs() {
   const invalidShards = [];
 
   for (let shard = 1; shard <= TOTAL_SHARDS; shard++) {
-    const shardResultsDir = path.join(PROJECT_ROOT, RESULTS_DIR, `shard-${shard}`);
+    const shardResultsDir = path.join(
+      PROJECT_ROOT,
+      RESULTS_DIR,
+      `shard-${shard}`
+    );
     const junitPath = path.join(shardResultsDir, 'junit.xml');
-    const shardReportDir = path.join(PROJECT_ROOT, RESULTS_DIR, `shard-${shard}-report`);
+    const shardReportDir = path.join(
+      PROJECT_ROOT,
+      RESULTS_DIR,
+      `shard-${shard}-report`
+    );
     const errors = [];
     let blobReportCount = 0;
 
@@ -100,7 +108,12 @@ function mergeJUnitReports(existingShards) {
   let maxTime = 0; // Use max time since shards run in parallel
 
   for (const shard of existingShards) {
-    const junitPath = path.join(PROJECT_ROOT, RESULTS_DIR, `shard-${shard}`, 'junit.xml');
+    const junitPath = path.join(
+      PROJECT_ROOT,
+      RESULTS_DIR,
+      `shard-${shard}`,
+      'junit.xml'
+    );
     if (fs.existsSync(junitPath)) {
       const content = fs.readFileSync(junitPath, 'utf8');
 
@@ -134,7 +147,11 @@ function mergeJUnitReports(existingShards) {
   </testsuite>
 </testsuites>`;
 
-    const mergedJunitPath = path.join(PROJECT_ROOT, RESULTS_DIR, 'junit-merged.xml');
+    const mergedJunitPath = path.join(
+      PROJECT_ROOT,
+      RESULTS_DIR,
+      'junit-merged.xml'
+    );
     fs.writeFileSync(mergedJunitPath, mergedJUnit);
     logSuccess(`JUnit reports merged: ${mergedJunitPath}`);
 
@@ -154,9 +171,11 @@ function mergeHTMLReports(existingShards) {
   logInfo('Merging Playwright blob reports...');
 
   // Blob reports are stored directly in shard-N-report directories
-  const shardReports = existingShards.map(shard =>
-    path.join(PROJECT_ROOT, RESULTS_DIR, `shard-${shard}-report`)
-  ).filter(dir => fs.existsSync(dir));
+  const shardReports = existingShards
+    .map((shard) =>
+      path.join(PROJECT_ROOT, RESULTS_DIR, `shard-${shard}-report`)
+    )
+    .filter((dir) => fs.existsSync(dir));
 
   if (shardReports.length === 0) {
     logWarning('No blob reports found to merge');
@@ -191,7 +210,9 @@ function mergeHTMLReports(existingShards) {
       }
     }
 
-    const blobFiles = fs.readdirSync(blobDir).filter((file) => file.endsWith('.zip'));
+    const blobFiles = fs
+      .readdirSync(blobDir)
+      .filter((file) => file.endsWith('.zip'));
     if (blobFiles.length === 0) {
       logError(`No Playwright blob report zips found in ${blobDir}`);
       return false;
@@ -258,11 +279,15 @@ export default {
 </head>
 <body>
   <h1>E2E Test Results - All Shards</h1>
-  ${existingShards.map(shard => `
+  ${existingShards
+    .map(
+      (shard) => `
     <a class="shard-link" href="shard-${shard}/index.html">
       View Shard ${shard} Results
     </a>
-  `).join('')}
+  `
+    )
+    .join('')}
 </body>
 </html>`;
 
@@ -287,7 +312,11 @@ function copyTestArtifacts(existingShards) {
   let totalArtifacts = 0;
 
   for (const shard of existingShards) {
-    const shardResultsDir = path.join(PROJECT_ROOT, RESULTS_DIR, `shard-${shard}`);
+    const shardResultsDir = path.join(
+      PROJECT_ROOT,
+      RESULTS_DIR,
+      `shard-${shard}`
+    );
 
     if (fs.existsSync(shardResultsDir)) {
       // Copy all non-XML files as artifacts
@@ -296,7 +325,10 @@ function copyTestArtifacts(existingShards) {
       for (const file of files) {
         if (file.isDirectory() || !file.name.endsWith('.xml')) {
           const sourcePath = path.join(shardResultsDir, file.name);
-          const destPath = path.join(artifactsDir, `shard-${shard}-${file.name}`);
+          const destPath = path.join(
+            artifactsDir,
+            `shard-${shard}-${file.name}`
+          );
 
           if (file.isDirectory()) {
             fs.cpSync(sourcePath, destPath, { recursive: true });
@@ -359,7 +391,10 @@ async function main() {
 
   // Provide instructions for viewing HTML report
   log('\nTo view HTML report:', colors.dim);
-  log(`  npx playwright show-report ${RESULTS_DIR}/merged-report`, colors.bright);
+  log(
+    `  npx playwright show-report ${RESULTS_DIR}/merged-report`,
+    colors.bright
+  );
 
   // Exit with error if there were test failures
   if (invalidShards.length > 0) {
@@ -377,7 +412,10 @@ async function main() {
     process.exit(1);
   }
 
-  if (junitStats && (junitStats.totalFailures > 0 || junitStats.totalErrors > 0)) {
+  if (
+    junitStats &&
+    (junitStats.totalFailures > 0 || junitStats.totalErrors > 0)
+  ) {
     logError('\nTests failed! Check the report for details.');
     process.exit(1);
   }
@@ -386,7 +424,7 @@ async function main() {
 }
 
 // Run the merge
-main().catch(error => {
+main().catch((error) => {
   logError(`Unexpected error: ${error.message}`);
   console.error(error);
   process.exit(1);

@@ -101,6 +101,7 @@ export function OnboardingStack() {
         component={TlonLoginScreen}
       />
       <OnboardingStackNavigator.Screen
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
         name="TlonLoginLegacy"
         component={TlonLoginLegacy}
       />

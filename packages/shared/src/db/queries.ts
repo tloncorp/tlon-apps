@@ -1204,8 +1204,8 @@ export const getChats = createReadQuery(
       type: 'group',
       pin: g.pin,
       timestamp: g.haveInvite
-        ? g.unread?.updatedAt ?? 0
-        : g.lastPostAt ?? g.unread?.updatedAt ?? 0,
+        ? (g.unread?.updatedAt ?? 0)
+        : (g.lastPostAt ?? g.unread?.updatedAt ?? 0),
       volumeSettings: g.volumeSettings,
       unreadCount: g.unread?.count ?? 0,
       group: g,

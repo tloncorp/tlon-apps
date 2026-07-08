@@ -92,7 +92,7 @@ export function NotesTreePane({
             publishDisabled={publishDisabled}
             publishedUrl={
               isNotePublished(row.note.noteId)
-                ? getPublishedNoteUrl?.(row.note) ?? null
+                ? (getPublishedNoteUrl?.(row.note) ?? null)
                 : null
             }
             selected={selectedNoteId === row.note.noteId}

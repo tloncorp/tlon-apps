@@ -436,7 +436,7 @@ function shouldReportHarnessDebug(event: DiagnosticCandidate, type: string) {
   return (
     Boolean(
       stringField(event, 'sessionKey') ??
-        stringAttribute(attributes, 'sessionKey')
+      stringAttribute(attributes, 'sessionKey')
     ) &&
     (level === 'warn' || level === 'warning' || level === 'error')
   );

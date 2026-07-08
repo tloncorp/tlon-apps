@@ -108,9 +108,9 @@ function hasUsableOriginalMessage(approval: PendingApproval): boolean {
   const message = approval.originalMessage;
   return Boolean(
     message &&
-      typeof message.messageId === 'string' &&
-      typeof message.messageText === 'string' &&
-      typeof message.timestamp === 'number'
+    typeof message.messageId === 'string' &&
+    typeof message.messageText === 'string' &&
+    typeof message.timestamp === 'number'
   );
 }
 

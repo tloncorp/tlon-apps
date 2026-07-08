@@ -179,7 +179,7 @@ export function ChannelHeader({
   }, [channel, currentUserId]);
 
   const titleText = useMemo(() => {
-    return preferProvidedTitle ? title : chatTitle ?? title;
+    return preferProvidedTitle ? title : (chatTitle ?? title);
   }, [chatTitle, preferProvidedTitle, title]);
 
   const subtitleText = useMemo(() => {

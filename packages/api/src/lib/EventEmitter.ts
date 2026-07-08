@@ -6,13 +6,17 @@ export type EventMapForEmitter<Emitter extends TypedEventEmitter> =
   Emitter extends TypedEventEmitter<infer M> ? M : never;
 
 export interface TypedEventEmitter<EventMap extends AnyEventMap = AnyEventMap> {
-  on<E extends keyof EventMap>(event: E, callback: EventMap[E]): this;
-  off<E extends keyof EventMap>(event: E, callback: EventMap[E]): this;
+  // Phantom marker giving `EventMap` a covariant reference position so
+  // `EventMapForEmitter`'s `infer M` extracts the exact map from interfaces
+  // that extend this one. Never assigned at runtime.
+  readonly __eventMap?: EventMap;
+  on<E extends keyof EventMap>(event: E, callback: EventMap[E]): void;
+  off<E extends keyof EventMap>(event: E, callback: EventMap[E]): void;
 }
 
-export class EventEmitter<EventMap extends AnyEventMap = AnyEventMap>
-  implements TypedEventEmitter<EventMap>
-{
+export class EventEmitter<
+  EventMap extends AnyEventMap = AnyEventMap,
+> implements TypedEventEmitter<EventMap> {
   private listeners: Partial<{
     [E in keyof EventMap]: Array<EventMap[E]>;
   }> = {};

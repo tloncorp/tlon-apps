@@ -339,7 +339,7 @@ export function startChatListSettleMeasurement(trigger: ChatSettleTrigger) {
       measurement.networkInternetReachable = state.isInternetReachable ?? null;
       measurement.cellularGeneration =
         state.type === 'cellular'
-          ? state.details.cellularGeneration ?? null
+          ? (state.details.cellularGeneration ?? null)
           : null;
     }
   });
@@ -540,7 +540,9 @@ export function reportChatListNativeCacheResult({
   activeMeasurement.nativeCacheParseMs = parseMs ?? null;
   activeMeasurement.nativeCacheInsertMs = insertMs ?? null;
   activeMeasurement.nativeCacheTotalMs = totalMs ?? null;
-  activeMeasurement.cacheUnreadTargets = applied ? unreadTargets ?? null : null;
+  activeMeasurement.cacheUnreadTargets = applied
+    ? (unreadTargets ?? null)
+    : null;
   activeMeasurement.cacheUnreadTargetsMatched = null;
 }
 

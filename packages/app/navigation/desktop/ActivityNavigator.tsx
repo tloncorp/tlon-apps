@@ -118,7 +118,9 @@ export const ActivityNavigator = () => {
         name="GroupSettings"
         component={GroupSettingsStack}
       />
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <ActivityDrawer.Screen name="UserProfile" component={UserProfileScreen} />
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <ActivityDrawer.Screen name="EditProfile" component={EditProfileScreen} />
     </ActivityDrawer.Navigator>
   );

@@ -33,7 +33,6 @@ import React, {
 } from 'react';
 import {
   LayoutChangeEvent,
-  ListRenderItem,
   View as RNView,
   StyleProp,
   ViewStyle,
@@ -270,7 +269,12 @@ const Scroller = forwardRef(
       };
     }, [theme.background.val]);
 
-    const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
+    const listRenderItem = useCallback<
+      (opts: {
+        item: PostWithNeighbors;
+        index: number;
+      }) => React.ReactElement | null
+    >(
       ({ item: { post, newer, older, ...rest }, index }) => {
         const previousItem = inverted ? older : newer;
         const nextItem = inverted ? newer : older;

@@ -8,9 +8,9 @@ import { migrate } from 'drizzle-orm/op-sqlite/migrator';
 
 import { SQLiteConnection } from './sqliteConnection';
 
-export class OPSQLite$SQLiteConnection
-  implements SQLiteConnection<OPSQLiteDatabase<Schema>>
-{
+export class OPSQLite$SQLiteConnection implements SQLiteConnection<
+  OPSQLiteDatabase<Schema>
+> {
   constructor(private connection: DB) {}
 
   async execute(query: string): Promise<void> {

@@ -63,7 +63,7 @@ const DMS_COMMAND_HELP: Record<string, string> = {
 };
 
 function getDmsHelp(command?: string): string {
-  return command ? DMS_COMMAND_HELP[command] ?? DMS_HELP : DMS_HELP;
+  return command ? (DMS_COMMAND_HELP[command] ?? DMS_HELP) : DMS_HELP;
 }
 
 function firstDmSendFlagIndex(args: string[]): number {

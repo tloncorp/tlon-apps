@@ -4,9 +4,9 @@
   "main": "index.ts",
   "private": true,
   "scripts": {
-    "lint": "eslint ./",
-    "lint:fix": "eslint ./ --fix --quiet",
-    "lint:format": "prettier ./ --write",
+    "lint": "oxlint ./",
+    "lint:fix": "oxlint ./ --fix --quiet",
+    "lint:format": "oxfmt ./",
     "test": "vitest --watch false",
     "tsc": "tsc --noEmit"
   },

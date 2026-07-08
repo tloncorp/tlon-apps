@@ -484,7 +484,7 @@ async function prependMentionToDraft(
   const existingDocContent = draft?.content ?? [];
   const [firstBlock, ...restBlocks] = existingDocContent;
   const firstParagraphContent =
-    firstBlock?.type === 'paragraph' ? firstBlock.content ?? [] : [];
+    firstBlock?.type === 'paragraph' ? (firstBlock.content ?? []) : [];
 
   const nextFirstParagraph: JSONContent = {
     type: 'paragraph',

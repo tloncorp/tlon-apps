@@ -102,7 +102,7 @@ function resolveReplyId(
   replyToId?: string | null,
   threadId?: string | number | null
 ) {
-  return replyToId ?? threadId ? String(replyToId ?? threadId) : undefined;
+  return (replyToId ?? threadId) ? String(replyToId ?? threadId) : undefined;
 }
 
 type OutboundLensTarget = {

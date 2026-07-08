@@ -277,7 +277,7 @@ export function VoiceMemoBlock({
         ? progress.duration
         : 0;
     const duration =
-      loadedDuration > 0 ? loadedDuration : block.voiceMemo.duration ?? 0;
+      loadedDuration > 0 ? loadedDuration : (block.voiceMemo.duration ?? 0);
     if (duration === 0 || width <= 0) {
       return;
     }
@@ -954,7 +954,9 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   table: TableBlock,
 };
 
-type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
+type BlockSettings<T extends ComponentType<any>> = Partial<
+  ComponentProps<T>
+> & {
   wrapperProps?: Partial<ComponentProps<typeof BlockWrapper>>;
 };
 

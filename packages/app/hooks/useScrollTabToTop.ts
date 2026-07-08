@@ -21,7 +21,7 @@ export function scrollContainerToTop(node: ScrollableNode | null | undefined) {
     typeof node.scrollTo === 'function' ||
     typeof node.scrollToOffset === 'function'
       ? node
-      : node.getScrollResponder?.() ?? node;
+      : (node.getScrollResponder?.() ?? node);
 
   if (typeof scrollable.scrollToTop === 'function') {
     scrollable.scrollToTop();
