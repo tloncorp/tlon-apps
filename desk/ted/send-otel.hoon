@@ -19,8 +19,8 @@
     %s  (frond 'stringValue' s+p.val)
     %n  (frond 'intValue' s+p.val)
     %b  (frond 'boolValue' b+p.val)
-    %a  a+(turn p.val json-val-to-attr)
-    %o  o+(~(run by p.val) json-val-to-attr)
+    %a  (frond 'arrayValue' a+(turn p.val json-val-to-attr))
+    %o  (frond 'kvlistValue' o+(~(run by p.val) json-val-to-attr))
   ==
 ::  +json-obj-to-attrs: convert flattened json object to otel attributes list
 ::
