@@ -2,10 +2,8 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  type OpenClawPluginApi,
-  defineChannelPluginEntry,
-} from 'openclaw/plugin-sdk/core';
+import { defineBundledChannelEntry } from 'openclaw/plugin-sdk/channel-entry-contract';
+import { type OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 import {
   onDiagnosticEvent,
   onInternalDiagnosticEvent,
@@ -927,12 +925,19 @@ function installTelemetryDiagnosticObservers(
   });
 }
 
-const tlonEntry = defineChannelPluginEntry({
+export default defineBundledChannelEntry({
   id: 'tlon',
   name: 'Tlon',
   description: 'Tlon/Urbit channel plugin',
-  plugin: tlonPlugin,
-  setRuntime: setTlonRuntime,
+  importMetaUrl: import.meta.url,
+  plugin: {
+    specifier: './src/channel.js',
+    exportName: 'tlonPlugin',
+  },
+  runtime: {
+    specifier: './src/runtime.js',
+    exportName: 'setTlonRuntime',
+  },
   registerFull(api) {
     // ── Gateway-status liveness integration ───────────────────
     //
@@ -1619,9 +1624,3 @@ const tlonEntry = defineChannelPluginEntry({
     });
   },
 });
-
-export default {
-  ...tlonEntry,
-  kind: 'bundled-channel-entry' as const,
-  loadChannelPlugin: () => tlonPlugin,
-};
