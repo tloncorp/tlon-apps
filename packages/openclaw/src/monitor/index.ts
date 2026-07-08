@@ -145,7 +145,6 @@ import {
   tlonDeliveryContext,
 } from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
-import { probeWebSearchBootStatus } from './web-search-status.js';
 import {
   type ParsedCite,
   extractCites,
@@ -159,6 +158,7 @@ import {
   shouldEngageInGroup,
   stripBotMention,
 } from './utils.js';
+import { probeWebSearchBootStatus } from './web-search-status.js';
 
 // Local structural types — @tloncorp/api defines these internally but
 // does not export them from its public entrypoint.

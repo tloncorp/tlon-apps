@@ -52,9 +52,7 @@ export function probeWebSearchBootStatus(params: {
       ].sort();
     } catch (error) {
       probeError =
-        error instanceof Error
-          ? error.message || String(error)
-          : String(error);
+        error instanceof Error ? error.message || String(error) : String(error);
     }
   }
 
