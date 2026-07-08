@@ -106,22 +106,4 @@
     %-  su
     (perk %trace %dbug %info %warn %error %fatal ~)
   --
-++  conv
-  |%
-  ++  v0
-    |%
-    ++  volume
-      |%
-      ++  v1
-        |=  =volume:^v0
-        ^-  volume:^v1
-        ?-  volume
-          %dbug  %dbug
-          %info  %info
-          %warn  %warn
-          %crit  %error
-        ==
-      --
-    --
-  --
 --

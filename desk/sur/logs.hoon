@@ -29,16 +29,4 @@
       [%set-otel url=(unit @t)]
   ==
 ++  v1  .
-++  v0
-  |%
-  +$  volume  ?(%dbug %info %warn %crit)
-  +$  log-event
-    $%  [%fail desc=term trace=tang]
-        [%tell vol=volume =echo]
-    ==
-  +$  a-log
-    $%  [%log event=log-event data=log-data]
-        [%set-posthog vol=(unit volume)]
-    ==
-  --
 --

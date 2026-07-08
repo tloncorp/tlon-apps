@@ -94,7 +94,7 @@
   +$  state-0  ~
   +$  state-1
     $:  %1
-          posthog=(unit volume:v0:l)
+          posthog=(unit volume-0)
     ==
   +$  state-2  current-state
   ::
@@ -103,7 +103,18 @@
   ++  state-1-to-2
     |=  =state-1
     ^-  state-2
-    [%2 (bind posthog.state-1 v1:volume:v0:conv:l) ~]
+    [%2 (bind posthog.state-1 volume-0-to-1) ~]
+  ::
+  +$  volume-0  ?(%dbug %info %warn %crit)
+  ++  volume-0-to-1
+    |=  vol=volume-0
+    ^-  volume:v1:l
+    ?-  vol
+      %dbug  %dbug
+      %info  %info
+      %warn  %warn
+      %crit  %error
+    ==
   --
 ::
 ++  poke
