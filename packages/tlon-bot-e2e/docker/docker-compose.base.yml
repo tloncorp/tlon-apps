@@ -1,0 +1,157 @@
+services:
+  fake-model:
+    image: node:22-bookworm-slim
+    working_dir: /workspace/tlon-apps/packages/tlon-bot-e2e
+    command: ["node", "src/fake-model/server.mjs"]
+    volumes:
+      - ${REPO_ROOT:?REPO_ROOT is required}:/workspace/tlon-apps:ro
+    expose:
+      - "4000"
+    ports:
+      - "${FAKE_MODEL_PORT:?FAKE_MODEL_PORT is required}:4000"
+
+  ships:
+    image: ubuntu:22.04
+    command:
+      - bash
+      - -c
+      - |
+        set -euo pipefail
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update
+        apt-get install -y --no-install-recommends ca-certificates curl xz-utils coreutils
+        rm -rf /var/lib/apt/lists/*
+
+        cd /data
+        mkdir -p /cache
+
+        echo "==> fake ships runtime pin"
+        echo "    vere pin: vere-v4.5"
+        echo "    pier generation: 27"
+        echo "    zod code: lidlut-tabwed-pillex-ridrup"
+        echo "    ten code: lapseg-nolmel-riswen-hopryc"
+        echo "    mug code: ravsut-bolryd-hapsum-pastul"
+
+        artifact() {
+          log() { echo "$@" >&2; }
+          local name="$1"
+          local url="$2"
+          local expected_kind="$3"
+          local expected_digest="$4"
+          local expected_size="$5"
+          local path="/cache/$$name"
+          local tmp="/cache/.$$name.tmp"
+
+          log "==> artifact $$name"
+          log "    url: $$url"
+          if [ -f "$$path" ]; then
+            log "    cache: hit ($$path)"
+          else
+            log "    cache: miss ($$path)"
+            rm -f "$$tmp"
+            if ! curl -fSL --retry 3 --retry-delay 2 --retry-all-errors "$$url" -o "$$tmp"; then
+              log "ERROR: failed to download $$name from $$url"
+              exit 1
+            fi
+            mv "$$tmp" "$$path"
+          fi
+
+          local actual_size
+          actual_size="$$(wc -c < "$$path" | tr -d ' ')"
+          log "    size: $$actual_size bytes"
+          if [ -n "$$expected_size" ] && [ "$$actual_size" != "$$expected_size" ]; then
+            log "ERROR: $$name size mismatch: expected $$expected_size got $$actual_size"
+            exit 1
+          fi
+
+          if [ "$$expected_kind" = "md5" ]; then
+            local actual_md5
+            actual_md5="$$(md5sum "$$path" | awk '{print $$1}')"
+            log "    md5: $$actual_md5"
+            if [ "$$actual_md5" != "$$expected_digest" ]; then
+              log "ERROR: $$name md5 mismatch: expected $$expected_digest got $$actual_md5"
+              exit 1
+            fi
+          elif [ "$$expected_kind" = "sha256" ]; then
+            local actual_sha256
+            actual_sha256="$$(sha256sum "$$path" | awk '{print $$1}')"
+            log "    sha256: $$actual_sha256"
+            if [ "$$actual_sha256" != "$$expected_digest" ]; then
+              log "ERROR: $$name sha256 mismatch: expected $$expected_digest got $$actual_sha256"
+              exit 1
+            fi
+          else
+            log "    checksum: skipped"
+          fi
+
+          echo "$$path"
+        }
+
+        zod_archive="$$(artifact \
+          rube-zod27.tgz \
+          https://bootstrap.urbit.org/rube-zod27.tgz \
+          md5 \
+          6e3f322f441fcd942590470b10b7cea5 \
+          283602626)"
+        ten_archive="$$(artifact \
+          rube-ten27.tgz \
+          https://bootstrap.urbit.org/rube-ten27.tgz \
+          md5 \
+          b3ec907c2a851cff05a4676806836ded \
+          283381725)"
+        mug_archive="$$(artifact \
+          rube-mug27.tgz \
+          https://bootstrap.urbit.org/rube-mug27.tgz \
+          md5 \
+          b378f62ec7a95a243d5d88976193ad1a \
+          284181858)"
+        vere_archive="$$(artifact \
+          linux-x86_64-vere-v4.5.tgz \
+          https://github.com/urbit/vere/releases/download/vere-v4.5/linux-x86_64.tgz \
+          sha256 \
+          bf7a30aad0a820bf217f3f81239b1029d16f11ba5274d45067d811489f817eed \
+          9728849)"
+
+        if [ ! -d zod ]; then
+          echo "==> Extracting zod"
+          tar xzf "$$zod_archive" || { echo "ERROR: failed to extract zod"; exit 1; }
+        else
+          echo "==> zod pier already extracted"
+        fi
+        if [ ! -d ten ]; then
+          echo "==> Extracting ten"
+          tar xzf "$$ten_archive" || { echo "ERROR: failed to extract ten"; exit 1; }
+        else
+          echo "==> ten pier already extracted"
+        fi
+        if [ ! -d mug ]; then
+          echo "==> Extracting mug"
+          tar xzf "$$mug_archive" || { echo "ERROR: failed to extract mug"; exit 1; }
+        else
+          echo "==> mug pier already extracted"
+        fi
+
+        if ! ls -1 vere-*-linux-x86_64 >/dev/null 2>&1; then
+          echo "==> Extracting vere"
+          tar xzf "$$vere_archive" || { echo "ERROR: failed to extract vere"; exit 1; }
+        else
+          echo "==> vere already extracted"
+        fi
+        VERE="$$(ls -1 vere-*-linux-x86_64 | head -1)"
+        chmod +x "$$VERE"
+        echo "==> Using vere: $$VERE"
+        echo "==> Starting ships"
+        ./"$$VERE" -t --loom 31 --http-port 8080 zod &
+        ./"$$VERE" -t --loom 31 --http-port 8081 ten &
+        ./"$$VERE" -t --loom 31 --http-port 8082 mug
+    volumes:
+      - ships-data:/data
+      - ${FAKE_SHIP_CACHE_DIR:-fake-ship-cache}:/cache
+    ports:
+      - "${ZOD_PORT:?ZOD_PORT is required}:8080"
+      - "${TEN_PORT:?TEN_PORT is required}:8081"
+      - "${MUG_PORT:?MUG_PORT is required}:8082"
+
+volumes:
+  ships-data:
+  fake-ship-cache:

@@ -2906,6 +2906,51 @@ PODS:
   - sqlite3 (3.50.4):
     - sqlite3/common (= 3.50.4)
   - sqlite3/common (3.50.4)
+  - Teleport (1.1.10):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Teleport/common (= 1.1.10)
+    - Yoga
+  - Teleport/common (1.1.10):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - tentap (0.5.21):
     - hermes-engine
     - RCTRequired
@@ -3081,6 +3126,7 @@ DEPENDENCIES:
   - RNTransformerTextInput (from `../../../node_modules/react-native-transformer-text-input`)
   - RNWorklets (from `../../../node_modules/react-native-worklets`)
   - sqlite3 (~> 3.50.3)
+  - Teleport (from `../../../node_modules/react-native-teleport`)
   - "tentap (from `../../../node_modules/@10play/tentap-editor`)"
   - UMAppLoader (from `../../../node_modules/unimodules-app-loader/ios`)
   - Yoga (from `../../../node_modules/react-native/ReactCommon/yoga`)
@@ -3413,6 +3459,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native-transformer-text-input"
   RNWorklets:
     :path: "../../../node_modules/react-native-worklets"
+  Teleport:
+    :path: "../../../node_modules/react-native-teleport"
   tentap:
     :path: "../../../node_modules/@10play/tentap-editor"
   UMAppLoader:
@@ -3598,6 +3646,7 @@ SPEC CHECKSUMS:
   SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
   Sentry: d587a8fe91ca13503ecd69a1905f3e8a0fcf61be
   sqlite3: 73513155ec6979715d3904ef53a8d68892d4032b
+  Teleport: 93c496febe89d55968f170f14f0a87b473a550ed
   tentap: 0487c6ec16b6d50255ccf1e00b17535fc11b890e
   UMAppLoader: 6cb9f7f40f458bab7fbf7d8a4a4c95aa8016ce0b
   Yoga: c30c859b7e9b75e547b600b486fe33165f60de00
