@@ -1,7 +1,7 @@
 ::  logs: gather log events and submit reports
 ::
 /+  l=logs
-/+  default-agent
+/+  default-agent, dbug
 ::
 /*  commit  %txt  /commit/txt
 ::
@@ -16,9 +16,10 @@
   ::
   ++  commit  ?~(^commit 'unknown' -.^commit)
   --
+%-  agent:dbug
+^-  agent:gall
 =|  current-state
 =*  state  -
-^-  agent:gall
 =<
   |_  =bowl:gall
   +*  this  .

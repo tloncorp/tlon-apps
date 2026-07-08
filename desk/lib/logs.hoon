@@ -99,6 +99,21 @@
       ==
     ==
   --
+++  dejs
+  =,  dejs:format
+  |%
+  ++  a-log
+    ^-  $-(json a-log:v1)
+    ::  %log variant unsupported
+    %-  of
+    :~  set-volume+(mu volume)
+        set-otel+(mu so)
+    ==
+  ++  volume
+    ^-  $-(json volume:v1)
+    %-  su
+    (perk %trace %dbug %info %warn %error %fatal ~)
+  --
 ++  conv
   |%
   ++  v0
