@@ -3,7 +3,6 @@
 /-  spider
 /+  io=strandio, l=logs
 ::
-=+  otel-provider-url='http://alloy.alloy.svc.cluster.local:4318/v1/logs'
 =+  retry=3
 =+  retry-delay=~s5
 ::
@@ -94,7 +93,7 @@
       ::TODO per-agent criticality setting
       :: %-  pairs
       :: :~  'key'^'service.criticality'
-      ::     'value'^(frond 'stringValue' s+'urbit')
+      ::     'value'^(frond 'stringValue' s+'medium')
       :: ==
     ::
   ==
@@ -165,7 +164,6 @@
     (turn echo.event.log-item (cury wash [0 80]))
   :-  %s
   (crip (zing (join "\0a" lines)))
-::  unix epoch milisecond time to nanoseconds
 =/  log-record=json
   %-  pairs
   :~  'timeUnixNano'^timestamp
