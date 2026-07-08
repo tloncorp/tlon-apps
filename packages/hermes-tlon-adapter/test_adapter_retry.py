@@ -348,6 +348,21 @@ class RetryHandlerTests(unittest.TestCase):
         )
         self.assertEqual(len(second), 1)
 
+    def test_dedup_slot_held_when_dispatch_raises(self):
+        # Once committed to dispatching, a raise mid-dispatch must NOT release
+        # the slot — otherwise a duplicate fact could start a second run.
+        adapter = self.make_adapter()
+        self.seed_recent(adapter, retryable_lens())
+
+        async def boom(event):
+            raise RuntimeError("dispatch blew up")
+
+        adapter.handle_message = boom
+        fact = {"retry-requested": {"id": "LX", "requester": "~mug"}}
+        with self.assertRaises(RuntimeError):
+            asyncio.run(adapter._handle_steward_event(fact))
+        self.assertIn("LX", adapter._retry_dedup)
+
 
 if __name__ == "__main__":
     unittest.main()

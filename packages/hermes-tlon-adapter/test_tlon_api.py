@@ -452,7 +452,11 @@ class TlonSSEClientTests(unittest.TestCase):
         self.assertNotIn(3, client._subscriptions)
         self.assertNotIn(3, client._optional_subscriptions)
 
-    def test_optional_subscription_quit_is_skipped_not_raised(self):
+    def test_optional_subscription_quit_forces_reconnect(self):
+        # `optional` only suppresses the initial unavailability. Once the
+        # subscription is established, a quit must raise so the stream
+        # reconnects and re-subscribes — otherwise the adapter goes
+        # permanently deaf to (e.g.) owner Retry facts.
         cfg = tlon_api.TlonConfig.from_env(
             env={
                 "TLON_NODE_URL": "https://zod.tlon.network",
@@ -466,13 +470,12 @@ class TlonSSEClientTests(unittest.TestCase):
         client._last_acked_event_id = 100
 
         async def run():
-            result = await client._parse_sse_payload(
-                'id: 25\ndata: {"id":4,"response":"quit"}\n\n'
-            )
-            self.assertIsNone(result)
+            with self.assertRaisesRegex(ConnectionError, "subscription quit.*steward"):
+                await client._parse_sse_payload(
+                    'id: 25\ndata: {"id":4,"response":"quit"}\n\n'
+                )
 
         asyncio.run(run())
-        self.assertNotIn(4, client._subscriptions)
 
     def test_non_graceful_close_abandons_channel_without_unsubscribing(self):
         cfg = tlon_api.TlonConfig.from_env(

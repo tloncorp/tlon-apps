@@ -1094,13 +1094,11 @@ class TlonSSEClient:
         if response == "quit":
             if sub_id in self._subscriptions:
                 app, path = self._subscriptions[sub_id]
-                if sub_id in self._optional_subscriptions:
-                    logger.warning(
-                        "[tlon] optional subscription quit for %s %s", app, path
-                    )
-                    self._subscriptions.pop(sub_id, None)
-                    self._optional_subscriptions.discard(sub_id)
-                    return None
+                # `optional` only suppresses the *initial* unavailability (the
+                # subscribe-nack branch above). A quit means the subscription
+                # WAS established and has now dropped (e.g. an agent/desk
+                # reload), so force the reconnect path to re-subscribe rather
+                # than silently going deaf to future facts.
                 raise ConnectionError(f"Tlon subscription quit for {app} {path}")
             return None
 

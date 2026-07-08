@@ -2310,9 +2310,11 @@ class TlonAdapter(BasePlatformAdapter):
                     dispatch.sender_ship,
                 )
                 return
-            await self._dispatch_retry(dispatch, retry_of=lens_id)
-            # Keep the dedup slot so a repeat fact within the window is a no-op.
+            # Committed to dispatching (past every refusal path): hold the
+            # dedup slot even if the dispatch itself raises, so a duplicate
+            # fact or double-tap within the window can't start a second run.
             keep_reservation = True
+            await self._dispatch_retry(dispatch, retry_of=lens_id)
         finally:
             if not keep_reservation:
                 self._retry_dedup.pop(lens_id, None)
