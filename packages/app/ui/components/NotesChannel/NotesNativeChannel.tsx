@@ -848,7 +848,7 @@ export function NotesNativeChannel({
       ) : (
         <NotesNoteDetail
           autoFocusTitle={focusTitleNoteId === selectedNoteId}
-          headerActionsPlacement="inline"
+          headerActionsPlacement="channel-header"
           noteId={selectedNoteId}
           notebookFlag={notebookFlag}
           onDraftChange={handleNoteDraftChange}
