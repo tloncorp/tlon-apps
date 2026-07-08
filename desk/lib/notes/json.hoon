@@ -2,11 +2,6 @@
 ::
 /-  n=notes
 |%
-::  +da-to-unix: convert @da to unix seconds
-++  da-to-unix
-  |=  da=@da
-  ^-  @ud
-  (div (sub da ~1970.1.1) ~s1)
 ::  +enjs: encode notes types to JSON
 ::
 ++  enjs
@@ -21,8 +16,8 @@
         ::  rootFolderId is deterministically id+1 (set by se-create-notebook)
         'rootFolderId'^(numb +(id.nb))
         'createdBy'^s+(scot %p created-by.nb)
-        'createdAt'^(numb (da-to-unix created-at.nb))
-        'updatedAt'^(numb (da-to-unix updated-at.nb))
+        'createdAt'^(numb (unt:chrono:userlib created-at.nb))
+        'updatedAt'^(numb (unt:chrono:userlib updated-at.nb))
         'updatedBy'^s+(scot %p updated-by.nb)
     ==
   ::
@@ -35,8 +30,8 @@
         'name'^s+name.fld
         'parentFolderId'^?~(parent-folder-id.fld ~ (numb u.parent-folder-id.fld))
         'createdBy'^s+(scot %p created-by.fld)
-        'createdAt'^(numb (da-to-unix created-at.fld))
-        'updatedAt'^(numb (da-to-unix updated-at.fld))
+        'createdAt'^(numb (unt:chrono:userlib created-at.fld))
+        'updatedAt'^(numb (unt:chrono:userlib updated-at.fld))
         'updatedBy'^s+(scot %p updated-by.fld)
     ==
   ::
@@ -51,9 +46,9 @@
         'slug'^?~(slug.nt ~ s+u.slug.nt)
         'bodyMd'^s+body-md.nt
         'createdBy'^s+(scot %p created-by.nt)
-        'createdAt'^(numb (da-to-unix created-at.nt))
+        'createdAt'^(numb (unt:chrono:userlib created-at.nt))
         'updatedBy'^s+(scot %p updated-by.nt)
-        'updatedAt'^(numb (da-to-unix updated-at.nt))
+        'updatedAt'^(numb (unt:chrono:userlib updated-at.nt))
         'revision'^(numb revision.nt)
     ==
   ::  +note-revision: archived prior version of a note
@@ -63,7 +58,7 @@
     ^-  json
     %-  pairs
     :~  'rev'^(numb rev.nr)
-        'at'^(numb (da-to-unix at.nr))
+        'at'^(numb (unt:chrono:userlib at.nr))
         'author'^s+(scot %p author.nr)
         'title'^s+title.nr
         'bodyMd'^s+body-md.nr
@@ -254,7 +249,7 @@
     :~  'host'^s+(scot %p ship.flag.ir)
         'flagName'^s+name.flag.ir
         'from'^s+(scot %p from.invite-info.ir)
-        'sentAt'^(numb (da-to-unix sent-at.invite-info.ir))
+        'sentAt'^(numb (unt:chrono:userlib sent-at.invite-info.ir))
         'title'^s+title.invite-info.ir
     ==
   ::  +invite-records: encode (list invite-record)
@@ -338,7 +333,7 @@
       :~  'type'^s+'update'
           'host'^s+(scot %p ship.flag.res)
           'flagName'^s+name.flag.res
-          'time'^(numb (da-to-unix time.update.res))
+          'time'^(numb (unt:chrono:userlib time.update.res))
           'update'^(u-notebook flag.res u-notebook.update.res)
       ==
         %snapshot
@@ -445,7 +440,7 @@
         ::  encode update.time + raw u-notebook (no flag; caller knows it)
         %-  pairs
         :~  'type'^s+'ok'
-            'time'^(numb (da-to-unix time.update.bod))
+            'time'^(numb (unt:chrono:userlib time.update.bod))
             'update'^(u-notebook-bare u-notebook.update.bod)
         ==
       ::
