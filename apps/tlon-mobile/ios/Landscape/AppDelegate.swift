@@ -4,6 +4,7 @@ import ReactAppDependencyProvider
 internal import Expo
 import Firebase
 import RNBranch
+import react_native_paste_input
 
 @main
 class AppDelegate: ExpoAppDelegate {
@@ -43,6 +44,8 @@ class AppDelegate: ExpoAppDelegate {
 
     reactNativeDelegate = delegate
     reactNativeFactory = factory
+
+    PasteInputModule.setup(factory.rootViewFactory)
 
     window = UIWindow(frame: UIScreen.main.bounds)
 
