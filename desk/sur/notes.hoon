@@ -135,7 +135,6 @@
       history=(map note-id=@ud (list note-revision))
   ==
 ::  Actions (client → agent)
-::  ============================================================
 ::
 ::  $a-notes: top-level client actions.
 ::  notebook-scoped actions are routed via [%notebook =flag =a-notebook].
@@ -202,7 +201,6 @@
       [%restore rev=@ud]
   ==
 ::  Commands (poke surface — actor authenticated via src.bowl)
-::  ============================================================
 ::
 ::  $c-notes: tagged union of cross-ship messages.
 ::  %notify-invite — host pokes invitee with a pending invite (carries title
@@ -239,7 +237,6 @@
       [%member-leave ~]
   ==
 ::  Updates (agent → subscriber)
-::  ============================================================
 ::
 +$  u-notebook
   $%  [%created =notebook =visibility]
@@ -283,7 +280,6 @@
       [%notebooks-changed ~]
   ==
 ::  Responses (subscription facts)
-::  ============================================================
 ::
 ::  $r-notes: facts pushed to subscribers on /v0/notes/~ship/name/stream
 ::  %snapshot carries visibility so subscribers can seed their local cache.
@@ -304,7 +300,6 @@
       [%sub =time init=_|]
   ==
 ::  Scry response types — typed marks for peek endpoints
-::  ============================================================
 ::
 ::  $notebook-summary: one item from /v0/notebooks (carries flag + visibility)
 ::
@@ -328,7 +323,6 @@
 +$  command   c-notes
 +$  response  r-notes
 ::  v1: HTTP / request-id surface
-::  ============================================================
 ::
 ::  Wraps a-notes / c-notes / r-notes / update with a correlating
 ::  request-id so the client gets a typed terminal response keyed to
@@ -421,7 +415,6 @@
   +$  requests-13  (map request-id incoming-request-13)
   --
 ::  Versioned state — newest first
-::  ============================================================
 ::
 ::  state-14: notebook-state gains optional `group` for group-channel mode.
 ::

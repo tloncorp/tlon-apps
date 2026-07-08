@@ -6,13 +6,13 @@
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
 ::  import marks only need to carry the raw bytes.
-/*  ui-index        %html  /lib/notes/ui/html
-/*  share-page      %html  /lib/notes/share/html
-/*  openapi-spec    %json  /lib/notes/openapi/json
-/*  manifest        %json  /lib/notes/manifest/json
-/*  service-worker  %js    /lib/notes/service-worker/js
-/*  favicon-svg     %svg   /lib/notes/favicon/svg
-/*  icon-svg        %svg   /lib/notes/icon/svg
+/*  ui-index        %html  /app/notes/ui/html
+/*  share-page      %html  /app/notes/share/html
+/*  openapi-spec    %json  /app/notes/openapi/json
+/*  manifest        %json  /app/notes/manifest/json
+/*  service-worker  %js    /app/notes/service-worker/js
+/*  favicon-svg     %svg   /app/notes/favicon/svg
+/*  icon-svg        %svg   /app/notes/icon/svg
 ::
 |%
 +$  card  card:agent:gall
@@ -345,15 +345,6 @@
   |^
   ?+  mark  ~|(bad-mark+mark !!)
       %handle-http-request
-    ::  Normalize src.bowl to our.bowl for the rest of the http path.
-    ::  Eyre sets src to a synthetic '<random>--<host>' guest @p for
-    ::  unauthenticated browser sessions, which then fails downstream
-    ::  permission checks like +se-is-owner even when the caller has a
-    ::  valid X-Api-Key (or eyre session). The api-key IS the host's
-    ::  capability and a valid session IS into our ship, so once the
-    ::  request authorizes inside +handle-v1-post the effective actor
-    ::  is our.bowl regardless of which @p eyre put in src.
-    =.  bowl  bowl(src our.bowl)
     (serve-http !<([eyre-id=@ta =inbound-request:eyre] vase))
   ::
       %notes-action
@@ -426,10 +417,6 @@
     =.  rid-counter  +(rid-counter)
     (leave-remote-v1 rid flag)
   ==
-  ::  no |^ arms remain — the invite/join helpers used to live here but
-  ::  moved to the top level so +dispatch-v1-action (called by both this
-  ::  arm and +handle-v1-post) can reach them.
-  ::
   --
 ::  +serve-http: dispatch an HTTP request to the right responder.
 ::  Order: v1 API → PWA static assets → published note → share redirect → UI fallback.
@@ -520,6 +507,10 @@
   ^+  cor
   ?.  (request-authorized inbound-request)
     (http-error eyre-id 401 'unauthorized')
+  ::  auth verified — act as the host. eyre gives an X-Api-Key or guest
+  ::  browser session a non-host src.bowl; a valid api-key / session IS the
+  ::  host's capability, so the effective actor for the action is our.bowl.
+  =.  src.bowl  our.bowl
   ?~  body.request.inbound-request
     (http-error eyre-id 400 'missing body')
   ?~  jon=(de:json:html q.u.body.request.inbound-request)
@@ -778,6 +769,8 @@
   ^+  cor
   ?.  (request-authorized inbound-request)
     (http-error eyre-id 401 'unauthorized')
+  ::  auth verified — act as the host (see +handle-v1-post)
+  =.  src.bowl  our.bowl
   =/  pax=path  (stab (crip (weld "/" (slag 12 url-path))))
   =/  obj=(map @t json)
     =/  jon=(unit json)
@@ -1024,7 +1017,7 @@
       (finalize-pending rid)
     ==
   ~|(bad-arvo-sign+wire !!)
-::  ====  utility arms  ====
+::  utility arms
 ::
 ::  +slugify: convert a title cord + numeric suffix into a valid @tas term.
 ::  Algorithm:
@@ -1084,11 +1077,8 @@
     ?.  &(?=(^ base) (gte i.base '0') (lte i.base '9'))
       base
     (weld "n-" base)
-  ::  step 7: build suffix string (strip dots from scot %ud)
-  =/  raw-suf=tape  (trip (scot %ud suffix))
-  =/  suf-tape=tape
-    %+  skim  raw-suf
-    |=(c=@t !=(c '.'))
+  ::  step 7: suffix string (a-co renders the number without dot separators)
+  =/  suf-tape=tape  (a-co:co suffix)
   =/  slug=tape  (weld (weld prefixed "-") suf-tape)
   `@tas`(crip slug)
 ::  +a-notebook-to-c-notebook: convert a-notebook to c-notebook (same shape except %restore)
@@ -1221,7 +1211,7 @@
     (~(put by out) id req)
   ?:  fetched.req  out
   (~(put by out) id req)
-::  ====  HTTP / request-id helpers  ====
+::  HTTP / request-id helpers
 ::
 ::  +give-http: emit a complete HTTP response on the eyre-id's response
 ::  path — header (status + content-type), body, and the closing kick.
@@ -1317,8 +1307,8 @@
   ^+  cor
   %-  give
   [%fact [/v0/inbox/stream]~ notes-inbox-update+!>(`u-inbox:n`[%invite-removed flag])]
-::  ====  Invite / join handlers (moved out of +poke's |^ so dispatch-v1-action
-::        and the v0 %notes-action poke arm share one implementation)  ====
+::  invite / join handlers — shared by +dispatch-v1-action and the v0
+::  %notes-action poke arm, so they live at the top level.
 ::
 ::  +send-v1-request: shared wire setup for any cross-ship request-id call.
 ::  Emits the three cards that every v1 cross-ship flow needs (subscribe
@@ -1433,7 +1423,7 @@
   ?.  (~(has by invites) flag)  cor
   =.  invites  (~(del by invites) flag)
   (give-inbox-removed flag)
-::  ====  v1 action dispatch + HTTP auth helpers  ====
+::  v1 action dispatch + HTTP auth helpers
 ::
 ::  +get-api-key-header: case-insensitive lookup of x-api-key in the
 ::  inbound HTTP request headers. Returns ~ if absent.
@@ -1593,7 +1583,7 @@
       (finalize-request rid [%no-change ~])
     ==
   ==
-::  ====  se-core: server/host core  ====
+::  se-core: server/host core
 ::
 ++  se-core
   |_  $:  =flag:n
@@ -2322,7 +2312,7 @@
       `note
     ~
   --
-::  ====  no-core: subscriber/client core  ====
+::  no-core: subscriber/client core
 ::
 ++  no-core
   |_  [=flag:n =net:n =notebook-state:n gone=_|]

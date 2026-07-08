@@ -12,6 +12,96 @@
 /=  notes-agent  /app/notes
 |%
 ++  dap  %notes
+::  Self-poke draining, notes-specific. Lives here (not in /lib/test-agent)
+::  because re-delivering self-directed pokes in-harness can't reproduce Gall's
+::  real move/effect ordering in the general case — it's only sound for %notes,
+::  whose local actions loop back through a single self-poke. See +do-poke-drain.
+::
+::  +drain-self-pokes: re-deliver self-directed %poke cards through on-poke,
+::  recursively until fixpoint or depth=16. A "self-poke" matches
+::  [%pass * %agent [our.bowl dap.bowl] %poke *].
+::
+++  drain-self-pokes
+  |=  [pending=(list card) acc=(list card) st=state depth=@ud]
+  ^-  (each [(list card) state] (list tank))
+  ?:  =(depth 16)  [%& acc st]
+  ::  find self-pokes in pending
+  =/  self-pokes=(list card)
+    %+  skim  pending
+    |=  =card
+    ?.  ?=([%pass * %agent * %poke *] card)  |
+    ?&  =(our.bowl.st ship.q.card)
+        =(dap.bowl.st name.q.card)
+    ==
+  ?~  self-pokes  [%& acc st]
+  ::  process self-pokes one at a time via helper
+  (drain-loop self-pokes ~ acc st depth)
+::  +drain-loop: deliver one self-poke at a time, tail-recurse into drain-self-pokes
+::
+++  drain-loop
+  |=  [queue=(list card) next-pending=(list card) acc=(list card) st=state depth=@ud]
+  ^-  (each [(list card) state] (list tank))
+  ?~  queue
+    (drain-self-pokes next-pending acc st +(depth))
+  =*  sp  i.queue
+  ?>  ?=([%pass * %agent * %poke *] sp)
+  =/  mk=mark  p.cage.task.q.sp
+  =/  mv=vase  q.cage.task.q.sp
+  =/  pb=bowl:gall  bowl.st(src our.bowl.st)
+  =/  toon-res=toon
+    %+  mock
+      [. !=((~(on-poke agent.st pb) mk mv))]
+    |=  [ref=* pax=*]
+    ^-  (unit (unit *))
+    ?>  ?=(^ ref)
+    ?>  =(hoon-version -.ref)
+    =+  ;;(pax=path pax)
+    =/  rv=(unit vase)  (scry.st pax)
+    %.  ?~(rv ~ ``q.u.rv)
+    =+  !<(typ=type [-:!>(*type) +.ref])
+    same
+  ?.  ?=(%0 -.toon-res)
+    [%| ~[leaf+"self-poke failed or blocked"]]
+  =/  pair=[(list card) agent:gall]
+    !<([(list card) agent:gall] [-:!>(*[(list card) agent:gall]) p.toon-res])
+  =^  new-caz=(list card)  agent.st  pair
+  =.  st  st(bowl (play-cards bowl.st new-caz))
+  (drain-loop t.queue (welp next-pending new-caz) (welp acc new-caz) st depth)
+::  +do-poke-drain: like +do-poke, but simulates Gall's move loopback by
+::  re-delivering any self-directed %poke cards until fixpoint. %notes routes
+::  local actions through a self-poke and only mutates state on the redelivered
+::  event, so callers that inspect state after a poke must use this.
+::
+++  do-poke-drain
+  |=  [=mark =vase]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  base-caz=(list card)  bind:m
+    %-  do
+    |=  s=state
+    (~(on-poke agent.s bowl.s) mark vase)
+  |=  s=state
+  =/  res=(each [(list card) state] (list tank))
+    (drain-self-pokes base-caz base-caz s 0)
+  ?:  ?=(%| -.res)  [%| p.res]
+  &+[-.p.res +.p.res]
+::  +do-agent-drain: like +do-agent, but drains self-directed %poke cards
+::  emitted by the on-agent handler (see +do-poke-drain).
+::
+++  do-agent-drain
+  |=  [=wire =gill:gall =sign:agent:gall]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  base-caz=(list card)  bind:m
+    %-  do
+    |=  s=state
+    =.  bowl.s  (play-sign bowl.s wire gill sign)
+    (~(on-agent agent.s bowl.s(src p.gill)) wire sign)
+  |=  s=state
+  =/  res=(each [(list card) state] (list tank))
+    (drain-self-pokes base-caz base-caz s 0)
+  ?:  ?=(%| -.res)  [%| p.res]
+  &+[-.p.res +.p.res]
 ::  +poke-a: poke via %notes-action with a-notes value
 ::
 ++  poke-a
