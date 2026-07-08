@@ -827,9 +827,7 @@ export function NotesNoteDetail({
         keyboardShouldPersistTaps="handled"
         scrollEnabled={!useWebEditorPane}
         contentContainerStyle={
-          useWebEditorPane
-            ? { flexGrow: 1, height: '100%' }
-            : { flexGrow: 1 }
+          useWebEditorPane ? { flexGrow: 1, height: '100%' } : { flexGrow: 1 }
         }
         onScroll={handleScroll}
         onScrollBeginDrag={handleScrollBeginDrag}
