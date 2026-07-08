@@ -11,7 +11,7 @@ import {
 } from '@tloncorp/ui';
 import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, useTheme } from 'tamagui';
 
@@ -96,7 +96,6 @@ export function EditProfileScreenView(props: Props) {
     control,
     handleSubmit,
     reset,
-    watch,
     formState: { isDirty, isValid },
   } = useForm({
     mode: 'onChange',
@@ -109,7 +108,7 @@ export function EditProfileScreenView(props: Props) {
     },
   });
 
-  const currentSigilColor = watch('sigilColor');
+  const currentSigilColor = useWatch({ control, name: 'sigilColor' });
 
   useEffect(() => {
     reset({

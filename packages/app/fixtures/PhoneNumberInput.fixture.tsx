@@ -1,5 +1,5 @@
 import { Text } from '@tloncorp/ui';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { YStack } from 'tamagui';
 
 import { PhoneNumberInput } from '../ui/components/Form/PhoneNumberInput';
@@ -10,7 +10,7 @@ function PhoneNumberInputFixture() {
     mode: 'onChange',
     defaultValues: { phoneNumber: '' },
   });
-  const value = form.watch('phoneNumber');
+  const value = useWatch({ control: form.control, name: 'phoneNumber' });
 
   return (
     <FixtureWrapper fillWidth safeArea>
