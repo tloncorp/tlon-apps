@@ -24,14 +24,6 @@
       [%tell vol echo]
     (pass event log-data)
   ::
-  ++  tell-lazy
-    |=  [vol=volume echo=$_(|.(*echo)) =log-data]
-    ~>  %spin.['logs-tell-lazy']
-    ^-  card:agent:gall
-    =/  event=$>(%tell log-event)
-      [%tell vol (echo)]
-    (pass event log-data)
-  ::
   ++  pass
     |=  [event=log-event data=log-data]
     ^-  card:agent:gall
@@ -85,8 +77,8 @@
       =-  ?>(?=(%o -.-) -)
       %-  pairs:enjs
       :~  type/s+event-type
-          message/(tang echo.e)
           volume/s+vol.e
+          message/(tang echo.e)
           stacktrace/(tang tang.e)
       ==
     ::
@@ -94,8 +86,8 @@
       =-  ?>(?=(%o -.-) -)
       %-  pairs:enjs
       :~  type/s+event-type
-          message/(tang echo.e)
           volume/s+vol.e
+          message/(tang echo.e)
       ==
     ==
   --

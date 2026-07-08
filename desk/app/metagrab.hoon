@@ -498,7 +498,6 @@
   |=  [=wire =sign:agent:gall]
   ?:  =(/logs wire)  [~ this]
   %-  (tell:l %error 'unexpected on-agent' (spat wire) -.sign ~)
-  ~&  [dap.bowl %unexpected-on-agent wire=wire]
   [~ this]
 ::
 ++  on-peek

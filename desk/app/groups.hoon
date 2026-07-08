@@ -250,13 +250,6 @@
       (~(tell logs our.bowl dap.bowl /logs) vol echo deez)
     (emit card)
   ::
-  ::++  tell-lazy
-  ::  |=  [vol=volume:logs echo=$_(|.(*echo:logs))]
-  ::  =/  =card
-  ::    (~(tell logs our.bowl dap.bowl /logs) vol echo deez)
-  ::  (emit card)
-  ::  +deez: log message details
-  ::
   ++  deez
     ~>  %spin.['deez']
     ^-  (list (pair @t json))
