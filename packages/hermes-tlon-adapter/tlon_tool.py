@@ -23,6 +23,7 @@ ALLOWED_TLON_COMMANDS = frozenset(
         "hooks",
         "messages",
         "notebook",
+        "notes",
         "posts",
         "settings",
         "upload",
@@ -48,7 +49,9 @@ SEND_OPERATIONS = {
 
 TLON_TOOL_DESCRIPTION = (
     "Tlon/Urbit CLI for reading data and administration: activity, channels, "
-    "contacts, groups, messages, posts, settings, upload, expose, hooks. "
+    "contacts, groups, messages, notes, posts, settings, upload, expose, hooks. "
+    "Use the notes commands to manage %notes notebooks (Markdown notes at "
+    "notes/~host/name nests). "
     "The bot node has its own Tlon profile; when the configured owner asks "
     "to change the bot nickname, avatar, bio, status, or cover image, use "
     "contacts update-profile. For avatars/covers, upload a direct raster "
@@ -100,7 +103,7 @@ TLON_TOOL_SCHEMA = {
                     "instead) EXCEPT image sends: 'posts send <target> "
                     "[caption] --image <uploaded-url>' is allowed anywhere — "
                     "upload first with 'upload <direct-image-url>'. 'notebook' "
-                    "is blocked."
+                    "is removed; use 'notes' commands for %notes notebooks."
                 ),
             }
         },
@@ -274,8 +277,10 @@ def check_tlon_tool_command(
     action = command_args[1] if len(command_args) > 1 else ""
     if subcommand == "notebook":
         return (
-            "Blocked: notebook posting is not available through this tool. Use "
-            "channel posts instead."
+            "Blocked: the notebook command is removed (the %diary backend no "
+            "longer exists). Use the 'tlon notes' commands to manage %notes "
+            "notebooks instead, e.g. 'notes list' or 'notes note-create "
+            'notes/~host/name root "Title" --markdown file.md\'.'
         )
     if (
         (subcommand, action) in SEND_OPERATIONS

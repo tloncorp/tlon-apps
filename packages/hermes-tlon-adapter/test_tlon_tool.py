@@ -18,6 +18,30 @@ package.__path__ = [str(PACKAGE_DIR)]
 sys.modules[PACKAGE_NAME] = package
 
 
+# Minimal stand-ins for the gateway package so ``adapter`` imports at module
+# load. Only the names ``adapter`` binds are needed; ``block_tlon_session_tool``
+# never instantiates the adapter, so trivial classes suffice.
+class _StubBasePlatformAdapter:
+    def __init__(self, *args, **kwargs):
+        pass
+
+
+gateway = types.ModuleType("gateway")
+gateway_config = types.ModuleType("gateway.config")
+gateway_config.Platform = type("Platform", (), {})
+gateway_config.PlatformConfig = type("PlatformConfig", (), {})
+gateway_platforms = types.ModuleType("gateway.platforms")
+gateway_base = types.ModuleType("gateway.platforms.base")
+gateway_base.BasePlatformAdapter = _StubBasePlatformAdapter
+gateway_base.MessageEvent = type("MessageEvent", (), {})
+gateway_base.MessageType = type("MessageType", (), {"TEXT": "text"})
+gateway_base.SendResult = type("SendResult", (), {})
+sys.modules["gateway"] = gateway
+sys.modules["gateway.config"] = gateway_config
+sys.modules["gateway.platforms"] = gateway_platforms
+sys.modules["gateway.platforms.base"] = gateway_base
+
+
 def load_module(name):
     module_name = f"{PACKAGE_NAME}.{name}"
     spec = importlib.util.spec_from_file_location(module_name, PACKAGE_DIR / f"{name}.py")
@@ -29,6 +53,7 @@ def load_module(name):
 
 tlon_api = load_module("tlon_api")
 tlon_tool = load_module("tlon_tool")
+adapter_mod = load_module("adapter")
 
 
 class TlonToolGuardTests(unittest.TestCase):
@@ -120,6 +145,34 @@ class TlonToolGuardTests(unittest.TestCase):
         blocked = tlon_tool.check_tlon_tool_command(args)
         self.assertIsNotNone(blocked)
         self.assertIn("notebook", blocked.lower())
+        # The redirect must point at the replacement, not the removed backend.
+        self.assertIn("notes", blocked.lower())
+
+    def test_allows_notes_read_and_write_commands(self):
+        # %notes replaced the removed %diary/notebook backend; reads and writes
+        # both pass the tool guard (owner gating happens at the session level).
+        for command in (
+            "notes list",
+            "notes note notes/~zod/docs 12",
+            'notes note-create notes/~zod/docs root "Title" --markdown post.md',
+            "notes note-update notes/~zod/docs 12 --body new.md",
+            "notes note-delete notes/~zod/docs 12",
+        ):
+            with self.subTest(command=command):
+                args, error = tlon_tool.split_tlon_command(command)
+                self.assertIsNone(error)
+                self.assertIsNone(tlon_tool.check_tlon_tool_command(args))
+
+    def test_notes_writes_not_caught_by_current_conversation_block(self):
+        # notes never targets a chat conversation, so the send block (which
+        # protects the current chat) must not fire even when a chat is active.
+        args, error = tlon_tool.split_tlon_command(
+            'notes note-create notes/~zod/docs root "Title" --stdin'
+        )
+        self.assertIsNone(error)
+        self.assertIsNone(
+            tlon_tool.check_tlon_tool_command(args, session_chat_id="chat/~zod/general")
+        )
 
     def test_allows_read_and_admin_commands(self):
         for command in (
@@ -200,6 +253,9 @@ class TlonToolGuardTests(unittest.TestCase):
         blocked = tlon_tool.check_tlon_tool_command(args)
         self.assertIsNotNone(blocked)
         self.assertIn("Unknown tlon subcommand", blocked)
+        # The block advertises the allowlist, which now includes notes.
+        self.assertIn("Allowed:", blocked)
+        self.assertIn("notes", blocked)
 
     def test_normalizes_global_help_and_version_aliases(self):
         self.assertEqual(tlon_tool.normalize_global_command_args(["help"]), ["--help"])
@@ -237,6 +293,33 @@ class TlonToolExecutionTests(unittest.TestCase):
         self.assertEqual(payload["stdout"], "~zod\n")
         self.assertEqual(calls[0][0], ("tlon-test", "contacts", "self"))
         self.assertEqual(calls[0][1]["TLON_NODE_URL"], "https://zod.tlon.network")
+
+    def test_execute_tlon_tool_runs_notes_command(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout):
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="[]\n")
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": "notes list"},
+                config=cfg,
+                runner=runner,
+            )
+
+        payload = json.loads(asyncio.run(run()))
+
+        self.assertTrue(payload["success"])
+        self.assertEqual(calls[0], ("tlon-test", "notes", "list"))
 
     def test_execute_tlon_tool_does_not_run_blocked_command(self):
         async def runner(command, env, timeout):
@@ -353,6 +436,48 @@ class TlonSkillPathTests(unittest.TestCase):
                 tlon_tool.resolve_tlon_skill_path({"TLON_SKILL_DIR": str(skill_dir)}),
                 skill,
             )
+
+
+class TlonSessionGateTests(unittest.TestCase):
+    """The `tlon` tool is owner-only in Tlon chat sessions.
+
+    Enforcement lives in ``block_tlon_session_tool`` and is arg-independent — it
+    gates the whole tool before any command is parsed, so every ``notes``
+    subcommand (read or write) inherits the gate. These cases prove that for a
+    notes write, mirroring the existing send-block coverage.
+    """
+
+    NOTES_WRITE = {"command": 'notes note-create notes/~pen/docs root "T" --stdin'}
+
+    def test_blocks_notes_write_for_non_owner(self):
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "HERMES_SESSION_USER_ID": "~mug",
+                "TLON_OWNER_SHIP": "~pen",
+            },
+            clear=True,
+        ):
+            block = adapter_mod.block_tlon_session_tool("tlon", self.NOTES_WRITE)
+
+        self.assertIsNotNone(block)
+        self.assertEqual(block["action"], "block")
+        self.assertIn("owner-only", block["message"])
+
+    def test_allows_notes_write_for_owner(self):
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "HERMES_SESSION_USER_ID": "~pen",
+                "TLON_OWNER_SHIP": "~pen",
+            },
+            clear=True,
+        ):
+            block = adapter_mod.block_tlon_session_tool("tlon", self.NOTES_WRITE)
+
+        self.assertIsNone(block)
 
 
 if __name__ == "__main__":
