@@ -140,13 +140,7 @@
   ?.  ?=(%log -.a-log)  etc
   =*  event  event.a-log
   =*  data   data.a-log
-  =/  vol=volume:logs
-    ?-  -.event
-      %fail  vol.event
-      %tell  vol.event
-    ==
-  ::
-  =+  val=(volume-val:logs vol)
+  =+  val=(volume-val:logs vol.event)
   ?:  (lth val (volume-val:logs volume))
     etc
   =/  =echo:logs
@@ -158,7 +152,7 @@
         %tell  
       [leaf+"[{<our.bowl>}/{<dap.bowl>}]" echo.event]
     ==
-  %-  %-  %*(. slog pri (volume-pri:logs vol))
+  %-  %-  %*(. slog pri (volume-pri:logs vol.event))
     echo
   etc
 ::
