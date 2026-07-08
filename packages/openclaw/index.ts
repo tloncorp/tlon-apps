@@ -927,7 +927,7 @@ function installTelemetryDiagnosticObservers(
   });
 }
 
-export default defineChannelPluginEntry({
+const tlonEntry = defineChannelPluginEntry({
   id: 'tlon',
   name: 'Tlon',
   description: 'Tlon/Urbit channel plugin',
@@ -1619,3 +1619,9 @@ export default defineChannelPluginEntry({
     });
   },
 });
+
+export default {
+  ...tlonEntry,
+  kind: 'bundled-channel-entry' as const,
+  loadChannelPlugin: () => tlonPlugin,
+};
