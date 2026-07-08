@@ -67,7 +67,7 @@
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="https" android:host="join.tlon.io"/>
         <data android:scheme="https" android:host="sa96e-alternate.app.link"/>
-        <data android:scheme="https" android:host="serverless-infra-git-db-invite-page-service-tlon.vercel.app"/>
+        <data android:scheme="https" android:host="serverless-infra.vercel.app"/>
       </intent-filter>
     </activity>
   </application>

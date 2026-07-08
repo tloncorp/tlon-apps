@@ -18,7 +18,7 @@
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "preview",
-        "BRANCH_DOMAIN_TEST": "serverless-infra-git-db-invite-page-service-tlon.vercel.app",
+        "BRANCH_DOMAIN_TEST": "serverless-infra.vercel.app",
         "NOTIFY_PROVIDER": "wannec-dozzod-marnus",
         "NOTIFY_SERVICE": "tlon-preview-release"
       },
@@ -55,7 +55,7 @@
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "preview",
-        "BRANCH_DOMAIN_TEST": "serverless-infra-git-db-invite-page-service-tlon.vercel.app",
+        "BRANCH_DOMAIN_TEST": "serverless-infra.vercel.app",
         "NOTIFY_PROVIDER": "wannec-dozzod-marnus",
         "NOTIFY_SERVICE": "tlon-preview-release"
       },

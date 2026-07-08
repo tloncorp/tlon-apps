@@ -19,7 +19,7 @@ describe('parseInviteDeepLink', () => {
     });
     expect(
       parseInviteDeepLink(
-        'https://serverless-infra-git-db-invite-page-service-tlon.vercel.app/0vabc',
+        'https://serverless-infra.vercel.app/0vabc',
         options
       )
     ).toEqual({
