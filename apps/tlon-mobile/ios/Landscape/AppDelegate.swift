@@ -45,8 +45,6 @@ class AppDelegate: ExpoAppDelegate {
     reactNativeDelegate = delegate
     reactNativeFactory = factory
 
-    PasteInputModule.setup(factory.rootViewFactory)
-
     window = UIWindow(frame: UIScreen.main.bounds)
 
     factory.startReactNative(
@@ -54,6 +52,10 @@ class AppDelegate: ExpoAppDelegate {
       in: window,
       launchOptions: launchOptions
     )
+
+    // Must run after startReactNative, which is what populates the factory's
+    // rootViewFactory host that the paste module hooks into.
+    PasteInputModule.setup(factory.rootViewFactory)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
