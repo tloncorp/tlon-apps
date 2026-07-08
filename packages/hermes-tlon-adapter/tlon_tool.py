@@ -51,8 +51,9 @@ TLON_TOOL_DESCRIPTION = (
     "Tlon/Urbit CLI for reading data and administration: activity, channels, "
     "contacts, groups, messages, notes, posts, settings, upload, expose, hooks. "
     "Use the notes commands to manage %notes notebooks (Markdown notes at "
-    "notes/~host/name nests). For notes bodies, use --body/--markdown files; "
-    "--stdin is blocked because Hermes cannot pipe stdin into the CLI process. "
+    "notes/~host/name nests). For notes bodies, use --body <file> "
+    "(note-create also accepts --markdown <file>); --stdin is blocked because "
+    "Hermes cannot pipe stdin into the CLI process. "
     "The bot node has its own Tlon profile; when the configured owner asks "
     "to change the bot nickname, avatar, bio, status, or cover image, use "
     "contacts update-profile. For avatars/covers, upload a direct raster "
@@ -105,7 +106,8 @@ TLON_TOOL_SCHEMA = {
                     "[caption] --image <uploaded-url>' is allowed anywhere — "
                     "upload first with 'upload <direct-image-url>'. 'notebook' "
                     "is removed; use 'notes' commands for %notes notebooks. "
-                    "For notes bodies, use --body/--markdown files, not --stdin."
+                    "For notes bodies, use --body <file>; note-create also "
+                    "accepts --markdown <file>. Do not use --stdin."
                 ),
             }
         },
@@ -292,7 +294,7 @@ def check_tlon_tool_command(
         return (
             "Blocked: notes --stdin is not available through this tool because "
             "Hermes cannot pipe stdin into the tlon CLI process. Write the "
-            "Markdown body to a file and use --body <file> or --markdown <file>."
+            "Markdown body to a file and use --body <file>."
         )
     if (
         (subcommand, action) in SEND_OPERATIONS

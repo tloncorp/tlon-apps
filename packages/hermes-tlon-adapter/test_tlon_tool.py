@@ -187,7 +187,7 @@ class TlonToolGuardTests(unittest.TestCase):
                 blocked = tlon_tool.check_tlon_tool_command(args)
                 self.assertIsNotNone(blocked)
                 self.assertIn("--stdin", blocked)
-                self.assertIn("--markdown", blocked)
+                self.assertIn("--body", blocked)
 
     def test_allows_read_and_admin_commands(self):
         for command in (
