@@ -509,8 +509,21 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(pending["messagePreview"], "(DM invite - no message yet)")
         self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
 
-    def test_invite_from_allowed_ship_is_auto_accepted(self):
+    def test_invite_from_env_allowed_ship_left_pending_when_flag_off(self):
+        # OpenClaw parity: only the owner bypasses autoAcceptDmInvites. An
+        # env-allowlisted ship's invite is left pending (not accepted, not
+        # queued, not marked processed) while the flag is off.
         adapter = self.make_adapter({"allowed_users": ["~ten"]})
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertNotIn("~ten", adapter._processed_dm_invites)
+
+    def test_invite_from_env_allowed_ship_auto_accepted_when_flag_on(self):
+        adapter = self.make_adapter({"allowed_users": ["~ten"]})
+        adapter._auto_accept_dm_invites = True
 
         self.dispatches(adapter, ["~ten"], dm=True)
 

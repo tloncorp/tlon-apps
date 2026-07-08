@@ -122,7 +122,7 @@ The adapter is the single gate. It declares `enforces_own_access_policy` to Herm
 
 Unknown ships are not silently dropped — they queue for owner approval:
 
--   a **DM invite** from an unknown ship queues with a `(DM invite - no message yet)` preview (pending invites are also picked up by scry at connect and after every SSE reconnect, so invites that arrived while the gateway was down are not lost). A ship already on `dmAllowlist` auto-accepts natively without queuing when `autoAcceptDmInvites` is on; with it off (the default), the invite is left pending in Tlon rather than re-queued as a fresh approval — see [Settings-Key Parity](#settings-key-parity-dashboard--openclaw) below
+-   a **DM invite** from an unknown ship queues with a `(DM invite - no message yet)` preview (pending invites are also picked up by scry at connect and after every SSE reconnect, so invites that arrived while the gateway was down are not lost). An already-allowlisted ship (env allowlists or the `dmAllowlist` settings key) auto-accepts natively without queuing when `autoAcceptDmInvites` is on; with it off (the default), the invite is left pending in Tlon rather than re-queued as a fresh approval. Only the owner's invite bypasses the toggle — see [Settings-Key Parity](#settings-key-parity-dashboard--openclaw) below
 -   a **DM message** from an unapproved ship in an accepted conversation queues with the message preview and is replayed after approval
 -   an **unauthorized mention** in a restricted group channel queues a channel request; approval grants that ship access in that channel and replays the mention (with channel context)
 -   a **group invite** from an unapproved inviter queues a group request; approval joins the group (`tlon groups accept-invite`) and pulls the group's channels into the monitored set so the bot is addressable there. Invites are detected live via a `groups /v1/foreigns` subscription and caught up by scrying `/groups-ui/v7/init` at connect. The owner ship and `TLON_GROUP_INVITE_ALLOWLIST` (settings key `groupInviteAllowlist`) auto-accept; rejection leaves the invite untouched in Tlon.
@@ -178,7 +178,7 @@ State lives in the ship's `%settings` store under desk `moltbot`, bucket `tlon`,
 
 ## Settings-Key Parity (Dashboard / OpenClaw)
 
-solaris (the hosting backend behind the Tlon web dashboard and in-app bot settings) writes seven `%settings` keys under desk `moltbot`, bucket `tlon`. Hermes reads all seven, so a dashboard/in-app edit takes effect on a Hermes bot the same as it would on an OpenClaw bot:
+Tlon's hosting service (the backend behind the web dashboard and in-app bot settings for hosted bots) writes seven `%settings` keys under desk `moltbot`, bucket `tlon`. Hermes reads all seven, so a dashboard/in-app edit takes effect on a Hermes bot the same as it would on an OpenClaw bot:
 
 | key                      | effect                                                                                                      |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------- |
@@ -187,17 +187,18 @@ solaris (the hosting backend behind the Tlon web dashboard and in-app bot settin
 | `groupChannels`          | extra monitored channels, additive to `TLON_CHANNELS`                                                       |
 | `groupInviteAllowlist`   | inviters whose group invites auto-accept                                                                    |
 | `defaultAuthorizedShips` | global fallback `allowedShips` for restricted channels whose rule doesn't pin its own list                  |
-| `autoAcceptDmInvites`    | whether a `dmAllowlist` ship's native DM invite auto-accepts (default off)                                  |
+| `autoAcceptDmInvites`    | whether an allowlisted ship's native DM invite auto-accepts (default off; owner always accepts)             |
 | `autoDiscoverChannels`   | whether an inbound message in an unmonitored `chat/`/`heap/` channel starts monitoring it (default off)     |
 
 All seven load on connect, hot-reload live via the `%settings` subscription (no restart needed), and re-sync after every SSE reconnect. `autoAcceptDmInvites`/`autoDiscoverChannels` are read as strict booleans — a non-boolean or missing value falls back to the default (`autoAcceptDmInvites` to `false`; `autoDiscoverChannels` to the `TLON_AUTO_DISCOVER` seed) rather than being truthy-coerced. `defaultAuthorizedShips` accepts only string ship entries; non-string list items are dropped, not coerced.
 
-**Read the current key, not OpenClaw's legacy duplicate.** OpenClaw historically also has an `autoDiscover` key; solaris writes `autoDiscoverChannels`, and that is the only one Hermes reads.
+The `autoAcceptDmInvites` gate follows OpenClaw exactly: only the **owner's** invite bypasses the toggle; every other allowlisted ship — env `TLON_ALLOWED_USERS`/`TLON_ALLOW_ALL_USERS`/`TLON_DM_ALLOWLIST` or the settings-store `dmAllowlist` — is gated, and a gated-off invite is left pending in Tlon (not queued as a fresh approval; the ship is already approved). Unknown ships queue for owner approval regardless of the flag.
+
+**Read the current key, not OpenClaw's legacy duplicate.** OpenClaw historically also has an `autoDiscover` key; the hosting dashboard writes `autoDiscoverChannels`, and that is the only one Hermes reads.
 
 ### Divergences from OpenClaw (intentional)
 
 -   **Auto-discover default and scope.** Hermes defaults `autoDiscoverChannels`/`TLON_AUTO_DISCOVER` to **off** (OpenClaw's setup wizard defaults it on), staying conservative/deny-by-default. Scope is also narrower: a reactive per-message check that only adds `chat/`/`heap/` channels the bot is already a member of, versus OpenClaw's proactive discovery of every channel across every joined group on connect. Broadening to that proactive scope is a larger change and out of scope here.
--   **DM auto-accept trust boundary.** `autoAcceptDmInvites` only gates ships approved via the **settings-store** `dmAllowlist`. Ships trusted through the owner, `TLON_ALLOWED_USERS`/`TLON_ALLOW_ALL_USERS`, or the **env** `TLON_DM_ALLOWLIST` always auto-accept their native DM invite regardless of the flag — this is deliberate so operator-configured env trust keeps working, and is a Hermes-specific divergence, not OpenClaw parity. With the flag off, a `dmAllowlist`-approved ship's invite is left pending in Tlon (not queued as a fresh approval) — matching OpenClaw, which only queues invites from ships _not_ on the effective allowlist.
 -   **Known limitation:** a ship queued as unknown and _later_ added to `dmAllowlist` via the dashboard is not retroactively auto-accepted from its pending native invite — it stays marked processed (which survives SSE reconnects) until the owner runs `/allow`, or the gateway fully restarts. A restart's re-scan does correctly accept it at that point; a pure invite approval is cleared (no dangling `/pending` card), while one enriched with a queued message is kept so `/allow` can still replay that message.
 
 ### What the dashboard can and can't edit

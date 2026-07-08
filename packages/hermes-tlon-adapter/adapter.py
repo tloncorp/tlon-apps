@@ -1830,24 +1830,24 @@ class TlonAdapter(BasePlatformAdapter):
         await self._persist_pending_approvals()
 
     async def _handle_dm_invite(self, ship: str) -> bool:
-        """Decide the fate of one native DM invite.
+        """Decide the fate of one native DM invite (OpenClaw semantics:
+        owner always accepts; every other allowlisted ship is gated by
+        ``autoAcceptDmInvites``; unknown ships queue for approval).
 
         Returns True for terminal outcomes (accepted / queued /
         ignored-by-policy) and False for the "left pending" no-op, so the
         caller knows whether to mark the ship processed.
         """
-        if self.tlon_config.user_allowed(ship, is_dm=True):
-            # Owner + env allowed_users/allow_all/dm_allowlist: always accept
-            # (operator trust), regardless of autoAcceptDmInvites.
+        if self._is_owner(ship):
             return await self._accept_dm_invite(ship)
-        store_allowed = ship in self._settings_dm_allowlist
-        if self._auto_accept_dm_invites and store_allowed:
-            return await self._accept_dm_invite(ship)
-        if store_allowed:
-            # Already approved in the settings-store dmAllowlist, but
-            # auto-accept is off: leave the native invite pending. Do NOT
-            # queue (OpenClaw parity — an already-allowlisted inviter is a
-            # no-op, not a fresh approval request) and do NOT mark processed.
+        if self._user_authorized(ship, is_dm=True):
+            if self._auto_accept_dm_invites:
+                return await self._accept_dm_invite(ship)
+            # Authorized (env allowlists or the settings-store dmAllowlist)
+            # but auto-accept is off: leave the native invite pending. Do
+            # NOT queue (an already-approved inviter is a no-op, not a fresh
+            # approval request) and do NOT mark processed, so a later
+            # autoAcceptDmInvites=true reload / re-scan can still accept it.
             return False
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring DM invite from unauthorized %s", ship)

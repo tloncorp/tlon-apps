@@ -23,8 +23,8 @@ from .owner_listen import canonicalize_nest
 from .tlon_api import normalize_ship
 
 SETTINGS_KEY_CHANNEL_RULES = "channelRules"
-# The current key; solaris writes this one. OpenClaw also has a legacy
-# duplicate "autoDiscover" key — deliberately not read here.
+# The current key, the one Tlon's hosting dashboard writes. OpenClaw also
+# has a legacy duplicate "autoDiscover" key — deliberately not read here.
 SETTINGS_KEY_AUTO_DISCOVER_CHANNELS = "autoDiscoverChannels"
 
 CHANNEL_ACCESS_USAGE = (
