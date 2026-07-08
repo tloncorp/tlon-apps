@@ -107,7 +107,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         },
         priorityToken: options.priorityToken,
       };
-      console.log(`setting deeplink lure`, nextLure);
+      logger.log('setting deeplink lure', nextLure);
       lastSetLureIdRef.current = invite.id;
       setState({
         ...nextLure,
