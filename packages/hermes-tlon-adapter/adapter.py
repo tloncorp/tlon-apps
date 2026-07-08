@@ -2246,10 +2246,12 @@ class TlonAdapter(BasePlatformAdapter):
         # the run from the message (badge / message actions), matching
         # OpenClaw. Only when a run is active for this conversation.
         lens_blob = self._lens_reference_blob(chat_id)
-        # Own the send timestamp so we can derive the post id (~author/<@da of
-        # sent>) ourselves — the client resolves lens outputs by author + sent
-        # time, and only the value we hand the CLI is knowable here.
-        sent_at_ms = int(time.time() * 1000)
+        # Only override the send time — and derive the lens output id from it
+        # (~author/<@da of sent>, how the client resolves outputs) — when we're
+        # actually stamping a lens output. Passing --sent-at on every send
+        # would let an older `tlon` binary (which doesn't know the flag) fold
+        # it into the message body; gate it exactly like --blob above.
+        sent_at_ms = int(time.time() * 1000) if lens_blob is not None else None
         with cli_context("delivery", conversation=chat_id):
             if is_thread_reply:
                 # parentAuthor: honor what Hermes passes; otherwise the CLI
@@ -2270,17 +2272,19 @@ class TlonAdapter(BasePlatformAdapter):
                 )
         self._telemetry.record_delivery(chat_id, content=content, success=result.success)
         if result.success:
-            self._lens.record_output(
-                chat_id,
-                LensOutput(
-                    message_id=format_post_id(self.tlon_config.ship_name, sent_at_ms),
-                    conversation_id=chat_id,
-                    kind="dm" if normalize_ship(chat_id) == chat_id else "channel",
-                    sent_at=sent_at_ms,
-                    preview=content or None,
-                    chunk_index=None,
-                ),
-            )
+            # sent_at_ms is set iff there's an active run to stamp (see above).
+            if sent_at_ms is not None:
+                self._lens.record_output(
+                    chat_id,
+                    LensOutput(
+                        message_id=format_post_id(self.tlon_config.ship_name, sent_at_ms),
+                        conversation_id=chat_id,
+                        kind="dm" if normalize_ship(chat_id) == chat_id else "channel",
+                        sent_at=sent_at_ms,
+                        preview=content or None,
+                        chunk_index=None,
+                    ),
+                )
         else:
             # A produced-but-undelivered reply is a delivery failure, not a
             # no_reply; record it so the run finalizes as an error.

@@ -776,6 +776,7 @@ class AdapterAttentionTests(unittest.TestCase):
 
         async def record_message(chat_id, text, *, blob=None, sent_at=None):
             captured["blob"] = blob
+            captured["sent_at"] = sent_at
             return tlon_api.TlonSendResult(
                 success=True, command=("tlon-test",), message_id="post-id"
             )
@@ -784,6 +785,9 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter._cli.send_message = record_message
         asyncio.run(adapter.send("chat/~pen/general", "hi"))
         self.assertIsNone(captured["blob"])
+        # No lens output to stamp → no --sent-at override (keeps older `tlon`
+        # binaries from folding an unknown flag into the message body).
+        self.assertIsNone(captured["sent_at"])
 
     def test_nickname_fetch_failure_keeps_ship_and_alias_wakes(self):
         adapter = self.make_adapter({"allowed_users": ["~mug"], "bot_mentions": ["arvo"]})
