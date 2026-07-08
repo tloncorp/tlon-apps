@@ -75,6 +75,7 @@ from .media import PreparedMedia, prepare_inbound_media, render_content_with_blo
 from .mention import (
     BotMentionMatcher,
     build_bot_mention_terms,
+    extract_profile_avatar,
     extract_profile_nickname,
 )
 from .owner_listen import (
@@ -542,6 +543,8 @@ class TlonAdapter(BasePlatformAdapter):
         self._seen_order: list[str] = []
         self._monitored_channels = set(self.tlon_config.channels)
         self._mention_matcher = self._build_mention_matcher()
+        self._bot_nickname: str = ""
+        self._bot_avatar: str = ""
         self._participated_threads: set[str] = set()
         self._known_bot_consecutive_by_channel: dict[str, int] = {}
         self._owner_listen = self._owner_listen_env_defaults()
@@ -587,7 +590,7 @@ class TlonAdapter(BasePlatformAdapter):
                 {"adapterVersion": adapter_version, "adapterFingerprint": fingerprint}
             )
             set_active_telemetry(self._telemetry)
-            await self._load_bot_nickname()
+            await self._load_bot_profile()
             await self._load_settings_state()
             await self._process_pending_dm_invites()
             await self._process_pending_group_invites()
@@ -1526,20 +1529,49 @@ class TlonAdapter(BasePlatformAdapter):
         if not result.success:
             logger.warning("[tlon] control command reply failed: %s", result.error)
 
-    async def _load_bot_nickname(self) -> None:
+    async def _load_bot_profile(self) -> None:
         if self._sse is None:
             return
         try:
             profile = await self._sse.scry("/contacts/v1/self.json")
-            nickname = extract_profile_nickname(profile)
         except Exception as exc:
-            logger.debug("[tlon] could not fetch self profile nickname: %s", exc)
+            logger.debug("[tlon] could not fetch self profile: %s", exc)
             return
-        if not nickname:
-            logger.debug("[tlon] self profile nickname is empty")
+        if not isinstance(profile, dict):
             return
-        self._mention_matcher = self._build_mention_matcher(nickname=nickname)
-        logger.info("[tlon] loaded bot nickname for wake detection: %s", nickname)
+        self._apply_self_contact(profile)
+
+    def _apply_self_contact(self, contact: Any) -> None:
+        """Reconcile bot nickname/avatar state from a self contact map.
+
+        Shared by the boot/reconnect scry and live `contacts /v1/news` %self
+        facts. Both carry the full contact map, so an absent nickname means the
+        nickname is cleared — rebuild the matcher to drop the stale wake term."""
+        nickname = extract_profile_nickname(contact)
+        avatar = extract_profile_avatar(contact)
+        if nickname != self._bot_nickname:
+            self._bot_nickname = nickname
+            self._mention_matcher = self._build_mention_matcher(nickname=nickname)
+            if nickname:
+                logger.info("[tlon] bot nickname for wake detection: %s", nickname)
+            else:
+                logger.info(
+                    "[tlon] bot nickname cleared; waking on ship id and aliases only"
+                )
+        if avatar != self._bot_avatar:
+            self._bot_avatar = avatar
+            logger.info("[tlon] bot avatar %s", "updated" if avatar else "cleared")
+
+    def _handle_contacts_event(self, raw: Any) -> None:
+        if not isinstance(raw, dict):
+            return
+        self_update = raw.get("self")
+        if not isinstance(self_update, dict):
+            return
+        contact = self_update.get("contact")
+        if not isinstance(contact, dict):
+            return
+        self._apply_self_contact(contact)
 
     async def _start_gateway_status(self) -> None:
         try:
@@ -1563,6 +1595,7 @@ class TlonAdapter(BasePlatformAdapter):
         await self._sse.subscribe("chat", "/v3")
         await self._sse.subscribe("settings", f"/desk/{SETTINGS_DESK}")
         await self._sse.subscribe("groups", "/v1/foreigns")
+        await self._sse.subscribe("contacts", "/v1/news")
 
     async def _close_sse(self, *, graceful: bool = True) -> None:
         if self._sse is not None:
@@ -1580,6 +1613,9 @@ class TlonAdapter(BasePlatformAdapter):
                     # Settings events do not replay, so re-sync owner-listen
                     # state after every reconnect.
                     await self._load_settings_state()
+                    # Contacts facts do not replay either; catch up on renames
+                    # (or clears) missed while disconnected.
+                    await self._load_bot_profile()
                 assert self._sse is not None
                 async for event in self._sse.events():
                     if not self._running:
@@ -1613,6 +1649,8 @@ class TlonAdapter(BasePlatformAdapter):
                 self._handle_settings_event(event.json)
             elif event.app == "groups":
                 await self._handle_foreigns(event.json)
+            elif event.app == "contacts":
+                self._handle_contacts_event(event.json)
         except asyncio.CancelledError:
             raise
         except Exception as exc:

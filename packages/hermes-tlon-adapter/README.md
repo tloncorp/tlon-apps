@@ -108,7 +108,7 @@ TLON_GATEWAY_STATUS_OWNER=~friend # optional override; defaults to TLON_OWNER_SH
 
 The adapter also accepts the older `TLON_SHIP_*`, `TLON_URL/TLON_SHIP/TLON_CODE`, and `URBIT_*` aliases and passes them through to the CLI, so it works with the credential resolver in `@tloncorp/tlon-skill`.
 
-Group attention is deterministic and happens before the model runs. Messages from allowed users dispatch when they mention the node id, bare node id, an alias in `TLON_BOT_MENTIONS`, or the node profile nickname fetched at startup. Nickname lookup failures are non-fatal; the adapter falls back to node id, bare node id, and configured aliases.
+Group attention is deterministic and happens before the model runs. Messages from allowed users dispatch when they mention the node id, bare node id, an alias in `TLON_BOT_MENTIONS`, or the node profile nickname. The nickname is fetched at startup and tracked live via a `contacts /v1/news` subscription: renaming the bot (including during onboarding) updates the wake terms without a restart, clearing the nickname drops that term, and the profile is re-synced after each SSE reconnect. Nickname lookup failures are non-fatal; the adapter falls back to node id, bare node id, and configured aliases.
 
 `TLON_FREE_RESPONSE_CHANNELS` and `TLON_REQUIRE_MENTION=false` allow unmentioned group messages to dispatch for the owner, explicitly allowed users, or all users when `TLON_ALLOW_ALL_USERS=true`. `TLON_DM_ALLOWLIST` is additive for DMs and does not grant group-channel access.
 
