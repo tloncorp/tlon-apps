@@ -1,5 +1,3 @@
-import { da } from '@urbit/aura';
-
 import {
   DIARY_REMOVED,
   NOTES_CHANNEL_CONTENT_UNSUPPORTED,
@@ -33,6 +31,8 @@ Send options:
   --blob <json>        Attach a post-blob JSON array (e.g. an a2ui entry)
   --image <url>        Attach an image (direct png/jpeg/gif/webp URL, e.g. from
                        'tlon upload'); message becomes an optional caption
+  --sent-at <ms>       Override the send timestamp (unix ms); the post id
+                       derives from it. Applies to send and reply.
 
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
@@ -44,9 +44,9 @@ Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] (message optional with --image)',
+  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--sent-at <ms>] (message optional with --image)',
   reply:
-    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>]',
+    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>] [--sent-at <ms>]',
   react: 'Usage: tlon posts react <channel> <post-id> <emoji>',
   unreact: 'Usage: tlon posts unreact <channel> <post-id>',
   edit: 'Usage: tlon posts edit <channel> <post-id> <message>',
@@ -65,8 +65,8 @@ export const POSTS_REACT_HELP = POSTS_COMMAND_HELP.react;
 const POSTS_EDIT_REMOVED_FLAGS_MESSAGE =
   'tlon posts edit no longer supports --title/--image/--content (notebook-only affordances). Edit the message text directly; use `tlon notes` for %notes content.';
 
-const POST_REPLY_OPTION_FLAGS = ['author', 'blob'] as const;
-const POST_SEND_OPTION_FLAGS = ['blob', 'image'] as const;
+const POST_REPLY_OPTION_FLAGS = ['author', 'blob', 'sent-at'] as const;
+const POST_SEND_OPTION_FLAGS = ['blob', 'image', 'sent-at'] as const;
 
 export interface PostReactionInput {
   channelId: string;
@@ -173,6 +173,7 @@ type ParsedPostsArgs =
       message: string;
       imageUrl?: string;
       blob?: string;
+      sentAt?: number;
     }
   | {
       kind: 'reply';
@@ -181,6 +182,7 @@ type ParsedPostsArgs =
       message: string;
       parentAuthor?: string;
       blob?: string;
+      sentAt?: number;
     }
   | { kind: 'react'; channelId: string; postId: string; emoji: string }
   | { kind: 'unreact'; channelId: string; postId: string }
@@ -205,12 +207,20 @@ function formatPostId(postId: string): string {
   return formatUd(extractNumericId(postId));
 }
 
-// The lens/consumer-facing id for a just-sent post: `~author/<@ud of the send
-// @da>`. This matches how the api stamps the post id and how the client
-// resolves a reply (by author + sent time), so callers scraping stdout can
-// navigate to it. Compute from the same sentAt handed to the send call.
-function referenceId(authorId: string, sentAt: number): string {
-  return `${authorId}/${formatUd(da.fromUnix(sentAt).toString())}`;
+// Optional `--sent-at <unix-ms>`: overrides the send timestamp so a caller
+// (e.g. the Hermes adapter) controls the post's `sent` — and can therefore
+// derive the post id (~author/<@da of sent>) itself without scraping output.
+function validatedSentAt(args: string[], help: string): number | undefined {
+  const idx = args.indexOf('--sent-at');
+  if (idx === -1) {
+    return undefined;
+  }
+  const raw = args[idx + 1];
+  const ms = Number(raw);
+  if (!raw || !Number.isInteger(ms) || ms <= 0) {
+    throw usageError(help);
+  }
+  return ms;
 }
 
 function wantsHelp(args: string[]): boolean {
@@ -410,7 +420,15 @@ function parseArgs(args: string[]): ParsedPostsArgs {
         throw usageError(POSTS_COMMAND_HELP.send);
       }
       const blob = validatedBlobFlag(args);
-      return { kind: 'send', channelId: args[1], message, imageUrl, blob };
+      const sentAt = validatedSentAt(args, POSTS_COMMAND_HELP.send);
+      return {
+        kind: 'send',
+        channelId: args[1],
+        message,
+        imageUrl,
+        blob,
+        sentAt,
+      };
     }
     case 'reply': {
       const channelId = args[1];
@@ -425,7 +443,16 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       }
       const parentAuthor = authorIdx !== -1 ? args[authorIdx + 1] : undefined;
       const blob = validatedBlobFlag(args, POSTS_COMMAND_HELP.reply);
-      return { kind: 'reply', channelId, postId, message, parentAuthor, blob };
+      const sentAt = validatedSentAt(args, POSTS_COMMAND_HELP.reply);
+      return {
+        kind: 'reply',
+        channelId,
+        postId,
+        message,
+        parentAuthor,
+        blob,
+        sentAt,
+      };
     }
     case 'react': {
       const [, channelId, postId, emoji] = args;
@@ -524,9 +551,10 @@ async function sendPost(
     message: string;
     imageUrl?: string;
     blob?: string;
+    sentAt?: number;
   },
   deps: PostsDeps
-): Promise<string> {
+): Promise<void> {
   // Image block first, caption after — matches how the apps compose
   // attachment posts.
   const imageVerse = parsed.imageUrl
@@ -537,16 +565,13 @@ async function sendPost(
     ...(parsed.message ? markdownToStory(parsed.message) : []),
   ];
 
-  const authorId = deps.getCurrentUserId();
-  const sentAt = deps.now();
   await deps.postsApi.sendPost({
     channelId: parsed.channelId,
-    authorId,
-    sentAt,
+    authorId: deps.getCurrentUserId(),
+    sentAt: parsed.sentAt ?? deps.now(),
     content,
     blob: parsed.blob,
   });
-  return referenceId(authorId, sentAt);
 }
 
 async function sendReply(
@@ -556,11 +581,11 @@ async function sendReply(
     message: string;
     parentAuthor?: string;
     blob?: string;
+    sentAt?: number;
   },
   deps: PostsDeps
-): Promise<string> {
+): Promise<void> {
   const authorId = deps.getCurrentUserId();
-  const sentAt = deps.now();
   await deps.postsApi.sendReply({
     channelId: parsed.channelId,
     parentId: formatPostId(parsed.postId),
@@ -570,11 +595,10 @@ async function sendReply(
       parsed.parentAuthor
     ),
     content: markdownToStory(parsed.message),
-    sentAt,
+    sentAt: parsed.sentAt ?? deps.now(),
     authorId,
     blob: parsed.blob,
   });
-  return referenceId(authorId, sentAt);
 }
 
 // Fetch existing post to preserve metadata during edits. Returns null on any
@@ -643,18 +667,14 @@ export async function run(args: string[], deps: PostsDeps): Promise<number> {
     await deps.authenticate(postTargetApps(parsed.kind, parsed.channelId));
 
     switch (parsed.kind) {
-      case 'send': {
-        const id = await sendPost(parsed, deps);
+      case 'send':
+        await sendPost(parsed, deps);
         writeLine(deps.stdout, '✓ Message sent');
-        writeLine(deps.stdout, `postId=${id}`);
         return 0;
-      }
-      case 'reply': {
-        const id = await sendReply(parsed, deps);
+      case 'reply':
+        await sendReply(parsed, deps);
         writeLine(deps.stdout, '✓ Reply sent');
-        writeLine(deps.stdout, `postId=${id}`);
         return 0;
-      }
       case 'react':
         await reactToPost(parsed, deps);
         writeLine(deps.stdout, '✓ Reaction added');

@@ -280,7 +280,7 @@ describe('posts send', () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(context.stdout()).toMatch(/^✓ Message sent\npostId=~nec\/[\d.]+\n$/);
+    expect(context.stdout()).toBe('✓ Message sent\n');
     expect(context.stderr()).toBe('');
     expect(context.calls.authenticateApps).toEqual([['channels']]);
     expect(context.calls.sendPost).toEqual([
@@ -344,6 +344,27 @@ describe('posts send', () => {
     expect(context.calls.sendPost[0].blob).toBe('[{"type":"a2ui"}]');
   });
 
+  it('honors --sent-at over the clock', async () => {
+    const context = makeDeps({ now: 999 });
+    await run(
+      ['send', 'chat/~host/channel', 'hi', '--sent-at', '1234'],
+      context.deps
+    );
+    expect(context.calls.sendPost[0].sentAt).toBe(1234);
+    // and it does not leak into the message text
+    expect(context.calls.sendPost[0].content).toEqual([{ inline: ['hi'] }]);
+  });
+
+  it('rejects a non-positive --sent-at', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'hi', '--sent-at', 'nope'],
+      context.deps
+    );
+    expect(exitCode).toBe(1);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
   it('wraps image fetch failures as a stable command error after auth', async () => {
     const context = makeDeps({
       buildImageVerse: async () => {
@@ -404,7 +425,7 @@ describe('posts reply', () => {
     );
 
     expect(exitCode).toBe(0);
-    expect(context.stdout()).toMatch(/^✓ Reply sent\npostId=~nec\/[\d.]+\n$/);
+    expect(context.stdout()).toBe('✓ Reply sent\n');
     expect(context.calls.authenticateApps).toEqual([['channels']]);
     expect(context.calls.sendReply).toEqual([
       {

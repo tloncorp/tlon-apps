@@ -137,6 +137,7 @@ from .tlon_api import (
     TlonGatewayStatus,
     TlonIncomingMessage,
     TlonSSEClient,
+    format_post_id,
     normalize_ship,
     parse_channel_message,
     parse_dm_message,
@@ -498,11 +499,18 @@ _LENS_TRIGGER_MAP = {
     "mention": "mention",
     "owner-listen": "owner-listen",
     "participated-thread": "thread",
-    "approved": "dm",
+    # A free (unprompted) channel response has no dedicated trigger in the
+    # shared taxonomy; OpenClaw's channel path likewise falls through to
+    # "unknown". Mapped explicitly so it reads as intentional, not an omission.
+    "free-response": "unknown",
 }
 
 
-def _lens_trigger(dispatch_reason: str) -> str:
+def _lens_trigger(dispatch_reason: str, *, is_dm: bool) -> str:
+    # Approvals replay either a DM request or a group post, so resolve by
+    # conversation kind rather than assuming DM.
+    if dispatch_reason == "approved":
+        return "dm" if is_dm else "mention"
     return _LENS_TRIGGER_MAP.get(dispatch_reason, "unknown")
 
 
@@ -2134,7 +2142,7 @@ class TlonAdapter(BasePlatformAdapter):
                 lens_id=str(uuid.uuid4()),
                 message_id=message.message_id,
                 chat_type=conversation_kind,
-                trigger=_lens_trigger(dispatch_reason),
+                trigger=_lens_trigger(dispatch_reason, is_dm=is_dm),
                 conversation_kind=conversation_kind,
                 run_kind=_lens_run_kind(dispatch_reason),
                 author_ship=normalize_ship(message.user_id) or None,
@@ -2238,6 +2246,10 @@ class TlonAdapter(BasePlatformAdapter):
         # the run from the message (badge / message actions), matching
         # OpenClaw. Only when a run is active for this conversation.
         lens_blob = self._lens_reference_blob(chat_id)
+        # Own the send timestamp so we can derive the post id (~author/<@da of
+        # sent>) ourselves — the client resolves lens outputs by author + sent
+        # time, and only the value we hand the CLI is knowable here.
+        sent_at_ms = int(time.time() * 1000)
         with cli_context("delivery", conversation=chat_id):
             if is_thread_reply:
                 # parentAuthor: honor what Hermes passes; otherwise the CLI
@@ -2250,20 +2262,21 @@ class TlonAdapter(BasePlatformAdapter):
                     content,
                     parent_author=parent_author,
                     blob=lens_blob,
+                    sent_at=sent_at_ms,
                 )
             else:
                 result = await self._cli.send_message(
-                    chat_id, content, blob=lens_blob
+                    chat_id, content, blob=lens_blob, sent_at=sent_at_ms
                 )
         self._telemetry.record_delivery(chat_id, content=content, success=result.success)
         if result.success:
             self._lens.record_output(
                 chat_id,
                 LensOutput(
-                    message_id=str(result.message_id or ""),
+                    message_id=format_post_id(self.tlon_config.ship_name, sent_at_ms),
                     conversation_id=chat_id,
                     kind="dm" if normalize_ship(chat_id) == chat_id else "channel",
-                    sent_at=int(time.time() * 1000),
+                    sent_at=sent_at_ms,
                     preview=content or None,
                     chunk_index=None,
                 ),

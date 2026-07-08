@@ -176,14 +176,14 @@ class FakeSSE:
 
 
 class FakeCLI:
-    async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None):
+    async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
         return tlon_api.TlonSendResult(
             success=True,
             command=("tlon-test", "posts", "reply"),
             message_id="reply-id",
         )
 
-    async def send_message(self, chat_id, text, *, blob=None):
+    async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
         return tlon_api.TlonSendResult(
             success=True,
             command=("tlon-test", "posts", "send"),
@@ -670,11 +670,11 @@ class AdapterAttentionTests(unittest.TestCase):
                 self.sends = []
                 self.thread_replies = []
 
-            async def send_message(self, chat_id, text, *, blob=None):
+            async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
                 self.sends.append((chat_id, text))
                 return await super().send_message(chat_id, text)
 
-            async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None):
+            async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
                 self.thread_replies.append((chat_id, post_id, text))
                 return await super().send_reply(
                     chat_id, post_id, text, parent_author=parent_author
@@ -713,7 +713,7 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter._cli = FakeCLI()
         recorded = []
 
-        async def record_reply(chat_id, post_id, text, *, parent_author=None, blob=None):
+        async def record_reply(chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
             recorded.append(post_id)
             return tlon_api.TlonSendResult(
                 success=True, command=("tlon-test",), message_id="reply-id"
@@ -732,8 +732,9 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter._lens_sync._ready = True
         captured = {}
 
-        async def record_message(chat_id, text, *, blob=None):
+        async def record_message(chat_id, text, *, blob=None, sent_at=None):
             captured["blob"] = blob
+            captured["sent_at"] = sent_at
             return tlon_api.TlonSendResult(
                 success=True, command=("tlon-test",), message_id="post-id"
             )
@@ -755,6 +756,15 @@ class AdapterAttentionTests(unittest.TestCase):
         self.assertEqual(entry["type"], "tlon-context-lens")
         self.assertEqual(entry["lensId"], "L42")
         self.assertEqual(entry["botShip"], "~pen")
+        # The adapter owns the send time and derives the output id from it —
+        # the same value it hands the CLI, so both agree.
+        self.assertIsNotNone(captured["sent_at"])
+        output = adapter._lens.get("chat/~pen/general").outputs[0]
+        self.assertEqual(
+            output.message_id,
+            tlon_api.format_post_id("~pen", captured["sent_at"]),
+        )
+        self.assertEqual(output.sent_at, captured["sent_at"])
 
     def test_send_without_active_lens_run_omits_blob(self):
         adapter = self.make_adapter(
@@ -764,7 +774,7 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter._lens_sync._ready = True
         captured = {"blob": "unset"}
 
-        async def record_message(chat_id, text, *, blob=None):
+        async def record_message(chat_id, text, *, blob=None, sent_at=None):
             captured["blob"] = blob
             return tlon_api.TlonSendResult(
                 success=True, command=("tlon-test",), message_id="post-id"
@@ -1013,6 +1023,22 @@ class AdapterAttentionTests(unittest.TestCase):
         self.assertIsNotNone(block)
         self.assertEqual(block["action"], "block")
         self.assertIn("owner-only", block["message"])
+
+
+class LensTriggerMapTests(unittest.TestCase):
+    def test_maps_dispatch_reasons_to_valid_triggers(self):
+        t = adapter_mod._lens_trigger
+        self.assertEqual(t("dm", is_dm=True), "dm")
+        self.assertEqual(t("mention", is_dm=False), "mention")
+        self.assertEqual(t("participated-thread", is_dm=False), "thread")
+        self.assertEqual(t("owner-listen", is_dm=False), "owner-listen")
+        # free-response is a real dispatch reason with no dedicated trigger.
+        self.assertEqual(t("free-response", is_dm=False), "unknown")
+
+    def test_approved_resolves_by_conversation_kind(self):
+        t = adapter_mod._lens_trigger
+        self.assertEqual(t("approved", is_dm=True), "dm")
+        self.assertEqual(t("approved", is_dm=False), "mention")
 
 
 if __name__ == "__main__":
