@@ -167,12 +167,27 @@ class TlonToolGuardTests(unittest.TestCase):
         # notes never targets a chat conversation, so the send block (which
         # protects the current chat) must not fire even when a chat is active.
         args, error = tlon_tool.split_tlon_command(
-            'notes note-create notes/~zod/docs root "Title" --stdin'
+            'notes note-create notes/~zod/docs root "Title" --markdown post.md'
         )
         self.assertIsNone(error)
         self.assertIsNone(
             tlon_tool.check_tlon_tool_command(args, session_chat_id="chat/~zod/general")
         )
+
+    def test_blocks_notes_stdin_content_source(self):
+        # Hermes only passes argv to the tlon subprocess; it cannot stream a
+        # Markdown body on stdin. File-backed notes writes remain allowed.
+        for command in (
+            'notes note-create notes/~zod/docs root "Title" --stdin',
+            "notes note-update notes/~zod/docs 12 --stdin",
+        ):
+            with self.subTest(command=command):
+                args, error = tlon_tool.split_tlon_command(command)
+                self.assertIsNone(error)
+                blocked = tlon_tool.check_tlon_tool_command(args)
+                self.assertIsNotNone(blocked)
+                self.assertIn("--stdin", blocked)
+                self.assertIn("--markdown", blocked)
 
     def test_allows_read_and_admin_commands(self):
         for command in (
@@ -447,7 +462,9 @@ class TlonSessionGateTests(unittest.TestCase):
     notes write, mirroring the existing send-block coverage.
     """
 
-    NOTES_WRITE = {"command": 'notes note-create notes/~pen/docs root "T" --stdin'}
+    NOTES_WRITE = {
+        "command": 'notes note-create notes/~pen/docs root "T" --markdown body.md'
+    }
 
     def test_blocks_notes_write_for_non_owner(self):
         with patch.dict(

@@ -51,7 +51,8 @@ TLON_TOOL_DESCRIPTION = (
     "Tlon/Urbit CLI for reading data and administration: activity, channels, "
     "contacts, groups, messages, notes, posts, settings, upload, expose, hooks. "
     "Use the notes commands to manage %notes notebooks (Markdown notes at "
-    "notes/~host/name nests). "
+    "notes/~host/name nests). For notes bodies, use --body/--markdown files; "
+    "--stdin is blocked because Hermes cannot pipe stdin into the CLI process. "
     "The bot node has its own Tlon profile; when the configured owner asks "
     "to change the bot nickname, avatar, bio, status, or cover image, use "
     "contacts update-profile. For avatars/covers, upload a direct raster "
@@ -103,7 +104,8 @@ TLON_TOOL_SCHEMA = {
                     "instead) EXCEPT image sends: 'posts send <target> "
                     "[caption] --image <uploaded-url>' is allowed anywhere — "
                     "upload first with 'upload <direct-image-url>'. 'notebook' "
-                    "is removed; use 'notes' commands for %notes notebooks."
+                    "is removed; use 'notes' commands for %notes notebooks. "
+                    "For notes bodies, use --body/--markdown files, not --stdin."
                 ),
             }
         },
@@ -236,6 +238,10 @@ def _has_image_flag(args: Sequence[str]) -> bool:
     )
 
 
+def _has_stdin_flag(args: Sequence[str]) -> bool:
+    return any(str(arg) == "--stdin" for arg in args)
+
+
 def _send_targets_current_conversation(
     args: Sequence[str],
     sub_idx: int,
@@ -281,6 +287,12 @@ def check_tlon_tool_command(
             "longer exists). Use the 'tlon notes' commands to manage %notes "
             "notebooks instead, e.g. 'notes list' or 'notes note-create "
             'notes/~host/name root "Title" --markdown file.md\'.'
+        )
+    if subcommand == "notes" and _has_stdin_flag(args[sub_idx:]):
+        return (
+            "Blocked: notes --stdin is not available through this tool because "
+            "Hermes cannot pipe stdin into the tlon CLI process. Write the "
+            "Markdown body to a file and use --body <file> or --markdown <file>."
         )
     if (
         (subcommand, action) in SEND_OPERATIONS
