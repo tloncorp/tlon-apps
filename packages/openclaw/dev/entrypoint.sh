@@ -128,7 +128,7 @@ if [ -f "$CONFIG_PATH" ]; then
     .plugins.load.paths |= map(
       if . == "/workspace/openclaw-tlon" then "/workspace/tlon" else . end
     )
-    | .plugins.allow = (.plugins.allow // []) + ["@tloncorp/openclaw"]
+    | .plugins.allow = (.plugins.allow // []) + ["tlon"]
     | .plugins.allow |= unique
   ' "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
 
