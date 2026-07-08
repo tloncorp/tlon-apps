@@ -5,10 +5,15 @@
   "expo": {
     "autolinking": {
       "ios": {
-        "buildFromSource": ["expo-background-task", "expo-image-manipulator"]
+        "buildFromSource": [
+          "expo-background-task",
+          "expo-image-manipulator"
+        ]
       },
       "android": {
-        "buildFromSource": ["expo-background-task"]
+        "buildFromSource": [
+          "expo-background-task"
+        ]
       }
     }
   },
@@ -89,40 +94,40 @@
     "classnames": "^2.3.2",
     "dotenv-expand": "^11.0.6",
     "drizzle-orm": "0.39.3",
-    "expo": "~57.0.1",
+    "expo": "~57.0.4",
     "expo-application": "~57.0.0",
-    "expo-asset": "~57.0.2",
+    "expo-asset": "~57.0.3",
     "expo-audio": "~57.0.0",
-    "expo-background-fetch": "~57.0.1",
-    "expo-background-task": "~57.0.1",
+    "expo-background-fetch": "~57.0.2",
+    "expo-background-task": "~57.0.2",
     "expo-battery": "~57.0.0",
     "expo-blob": "~57.0.0",
     "expo-blur": "~57.0.0",
     "expo-clipboard": "~57.0.0",
-    "expo-constants": "~57.0.2",
+    "expo-constants": "~57.0.3",
     "expo-contacts": "~57.0.0",
-    "expo-dev-client": "~57.0.4",
+    "expo-dev-client": "~57.0.5",
     "expo-device": "~57.0.0",
     "expo-document-picker": "~57.0.0",
     "expo-file-system": "~57.0.0",
     "expo-haptics": "~57.0.0",
     "expo-image": "~57.0.0",
-    "expo-image-manipulator": "~57.0.1",
-    "expo-image-picker": "~57.0.1",
+    "expo-image-manipulator": "~57.0.2",
+    "expo-image-picker": "~57.0.2",
     "expo-linear-gradient": "~57.0.0",
     "expo-localization": "~57.0.0",
     "expo-mail-composer": "~57.0.0",
-    "expo-media-library": "~57.0.0",
-    "expo-notifications": "~57.0.2",
+    "expo-media-library": "~57.0.1",
+    "expo-notifications": "~57.0.3",
     "expo-secure-store": "~57.0.0",
     "expo-sensors": "~57.0.1",
-    "expo-linking": "~57.0.1",
+    "expo-linking": "~57.0.2",
     "expo-share-intent": "8.0.0",
     "expo-sms": "~57.0.0",
     "expo-speech-recognition": "~56.0.0",
-    "expo-splash-screen": "~57.0.1",
+    "expo-splash-screen": "~57.0.2",
     "expo-status-bar": "~57.0.0",
-    "expo-task-manager": "~57.0.1",
+    "expo-task-manager": "~57.0.2",
     "expo-video": "~57.0.0",
     "immer": "^9.0.12",
     "libphonenumber-js": "^1.11.18",
