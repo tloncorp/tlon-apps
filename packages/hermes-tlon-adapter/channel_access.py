@@ -17,12 +17,15 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Optional
+from typing import Any, Iterable, Mapping, Optional
 
 from .owner_listen import canonicalize_nest
 from .tlon_api import normalize_ship
 
 SETTINGS_KEY_CHANNEL_RULES = "channelRules"
+# The current key; solaris writes this one. OpenClaw also has a legacy
+# duplicate "autoDiscover" key — deliberately not read here.
+SETTINGS_KEY_AUTO_DISCOVER_CHANNELS = "autoDiscoverChannels"
 
 CHANNEL_ACCESS_USAGE = (
     "Usage: /channel-access [open|restricted|status|list] [<channel-nest>]"
@@ -92,6 +95,37 @@ def channel_allowed_ships(
     return frozenset(
         normalize_ship(str(ship or "")) for ship in ships if str(ship or "").strip()
     )
+
+
+def effective_allowed_ships(
+    rules: Mapping[str, Mapping[str, Any]],
+    nest: str,
+    defaults: Iterable[str],
+) -> frozenset[str]:
+    """Allowed ships for a restricted channel, falling back to
+    ``defaultAuthorizedShips`` when the rule doesn't pin its own list.
+
+    Three distinct ``allowedShips`` cases (do not lump malformed in with
+    nullish — a corrupt rule must fail closed, not broaden access):
+    - missing / no rule / ``allowedShips is None`` -> inherit ``defaults``
+      (OpenClaw's ``rule?.allowedShips ?? defaultShips``).
+    - list-valued (incl. ``[]``) -> use the explicit list; ``[]`` blocks all.
+    - explicit non-list, non-null garbage -> fail closed (empty set).
+    An invalid/malformed ``nest`` also fails closed, matching
+    ``channel_allowed_ships``.
+    """
+    canonical = canonicalize_nest(nest)
+    if canonical is None:
+        return frozenset()
+    rule = rules.get(canonical)
+    if isinstance(rule, Mapping) and "allowedShips" in rule:
+        ships = rule.get("allowedShips")
+        if isinstance(ships, list):
+            return channel_allowed_ships(rules, nest)
+        if ships is None:
+            return frozenset(defaults)
+        return frozenset()
+    return frozenset(defaults)
 
 
 def set_channel_mode(

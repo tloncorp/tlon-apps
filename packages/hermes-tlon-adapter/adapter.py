@@ -30,6 +30,8 @@ from gateway.platforms.base import (
 
 from .approval import (
     DM_INVITE_PREVIEW,
+    SETTINGS_KEY_AUTO_ACCEPT_DM_INVITES,
+    SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS,
     SETTINGS_KEY_DM_ALLOWLIST,
     SETTINGS_KEY_GROUP_INVITE_ALLOWLIST,
     SETTINGS_KEY_PENDING_APPROVALS,
@@ -50,17 +52,20 @@ from .approval import (
     parse_dm_allowlist,
     parse_foreigns,
     parse_pending_approvals,
+    parse_ship_list,
     prune_expired,
     remove_approval,
     serialize_blob,
+    settings_bool,
 )
 from .attention import AttentionFacts, resolve_attention
 from .channel_access import (
+    SETTINGS_KEY_AUTO_DISCOVER_CHANNELS,
     SETTINGS_KEY_CHANNEL_RULES,
     add_channel_allowed_ship,
     apply_channel_access_command,
     channel_access_command_args,
-    channel_allowed_ships,
+    effective_allowed_ships,
     is_channel_access_command,
     is_channel_open,
     parse_channel_rules,
@@ -555,6 +560,12 @@ class TlonAdapter(BasePlatformAdapter):
         self._channel_rules: dict[str, dict[str, Any]] = {}
         self._processed_dm_invites: set[str] = set()
         self._processed_group_invites: set[str] = set()
+        # defaultAuthorizedShips/autoAcceptDmInvites/autoDiscoverChannels: no
+        # env equivalent for the ships default (store-only), env-seeded
+        # default for auto-discover, and no env knob for auto-accept.
+        self._settings_default_authorized_ships: set[str] = set()
+        self._auto_accept_dm_invites: bool = False
+        self._auto_discover: bool = self.tlon_config.auto_discover
 
     async def connect(self) -> bool:
         if not AIOHTTP_AVAILABLE:
@@ -733,16 +744,30 @@ class TlonAdapter(BasePlatformAdapter):
                 bucket.get(SETTINGS_KEY_GROUP_INVITE_ALLOWLIST)
             )
         self._channel_rules = parse_channel_rules(bucket.get(SETTINGS_KEY_CHANNEL_RULES))
+        self._settings_default_authorized_ships = parse_ship_list(
+            bucket.get(SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS)
+        )
+        self._auto_accept_dm_invites = settings_bool(
+            bucket.get(SETTINGS_KEY_AUTO_ACCEPT_DM_INVITES), False
+        )
+        self._auto_discover = settings_bool(
+            bucket.get(SETTINGS_KEY_AUTO_DISCOVER_CHANNELS),
+            self.tlon_config.auto_discover,
+        )
         self._settings_loaded = True
         logger.info(
             "[tlon] settings loaded: owner-listen=%s muted=%s enabled-channels=%s "
-            "pending-approvals=%d approved-dms=%d channel-rules=%d",
+            "pending-approvals=%d approved-dms=%d channel-rules=%d "
+            "default-authorized-ships=%d auto-accept-dm-invites=%s auto-discover=%s",
             self._owner_listen.enabled,
             sorted(self._owner_listen.disabled_channels),
             sorted(self._owner_listen.enabled_channels),
             len(self._pending_approvals),
             len(self._settings_dm_allowlist),
             len(self._channel_rules),
+            len(self._settings_default_authorized_ships),
+            self._auto_accept_dm_invites,
+            self._auto_discover,
         )
 
     async def _persist_settings_entry(self, key: str, value: Any) -> bool:
@@ -757,7 +782,7 @@ class TlonAdapter(BasePlatformAdapter):
             self._telemetry.error("settings", exc, operation="persist", key=key)
             return False
 
-    def _handle_settings_event(self, raw: Any) -> None:
+    async def _handle_settings_event(self, raw: Any) -> None:
         """Hot-reload owner-listen state from live %settings updates.
 
         Covers writes from outside this process (Landscape, an OpenClaw
@@ -766,6 +791,22 @@ class TlonAdapter(BasePlatformAdapter):
         """
         event = parse_settings_event(raw)
         if event is None:
+            return
+        if event.key == SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS:
+            self._settings_default_authorized_ships = parse_ship_list(event.value)
+            return
+        if event.key == SETTINGS_KEY_AUTO_ACCEPT_DM_INVITES:
+            was_on = self._auto_accept_dm_invites
+            self._auto_accept_dm_invites = settings_bool(event.value, False)
+            if self._auto_accept_dm_invites and not was_on:
+                # Left-pending allowlisted invites become eligible now; accept
+                # them promptly instead of waiting for the next reconnect.
+                await self._process_pending_dm_invites()
+            return
+        if event.key == SETTINGS_KEY_AUTO_DISCOVER_CHANNELS:
+            self._auto_discover = settings_bool(
+                event.value, self.tlon_config.auto_discover
+            )
             return
         if event.key == SETTINGS_KEY_GROUP_CHANNELS:
             new_channels = (
@@ -820,8 +861,9 @@ class TlonAdapter(BasePlatformAdapter):
         """Env/owner authorization plus settings-store grants.
 
         DMs: the approved-senders set (``dmAllowlist``). Channels: an *open*
-        channel admits any ship, and per-channel ``allowedShips`` admit
-        approved mentioners.
+        channel admits any ship, and per-channel ``allowedShips`` (falling
+        back to ``defaultAuthorizedShips`` when the rule doesn't pin its own
+        list) admit approved mentioners.
         """
         if self.tlon_config.user_allowed(ship, is_dm=is_dm):
             return True
@@ -831,7 +873,10 @@ class TlonAdapter(BasePlatformAdapter):
         if nest:
             if is_channel_open(self._channel_rules, nest):
                 return True
-            if normalized in channel_allowed_ships(self._channel_rules, nest):
+            allowed = effective_allowed_ships(
+                self._channel_rules, nest, self._settings_default_authorized_ships
+            )
+            if normalized in allowed:
                 return True
         return False
 
@@ -1580,6 +1625,17 @@ class TlonAdapter(BasePlatformAdapter):
                     # Settings events do not replay, so re-sync owner-listen
                     # state after every reconnect.
                     await self._load_settings_state()
+                    # Native DM invites are likewise missed while disconnected
+                    # (an unknown ship, a now-allowlisted ship, or a flag flip
+                    # that happened during the outage). Catch up, but don't let
+                    # a failure here masquerade as a stream error and cycle
+                    # reconnects.
+                    try:
+                        await self._process_pending_dm_invites()
+                    except Exception as exc:
+                        logger.warning(
+                            "[tlon] reconnect invite catch-up failed: %s", exc
+                        )
                 assert self._sse is not None
                 async for event in self._sse.events():
                     if not self._running:
@@ -1610,7 +1666,7 @@ class TlonAdapter(BasePlatformAdapter):
             elif event.app == "chat":
                 await self._handle_dm_event(event.json)
             elif event.app == "settings":
-                self._handle_settings_event(event.json)
+                await self._handle_settings_event(event.json)
             elif event.app == "groups":
                 await self._handle_foreigns(event.json)
         except asyncio.CancelledError:
@@ -1626,7 +1682,7 @@ class TlonAdapter(BasePlatformAdapter):
         if not isinstance(nest, str) or not nest:
             return
         if nest not in self._monitored_channels:
-            if self.tlon_config.auto_discover and (nest.startswith("chat/") or nest.startswith("heap/")):
+            if self._auto_discover and (nest.startswith("chat/") or nest.startswith("heap/")):
                 self._monitored_channels.add(nest)
                 logger.info("[tlon] auto-discovered channel %s", nest)
             else:
@@ -1730,28 +1786,78 @@ class TlonAdapter(BasePlatformAdapter):
                 continue
             if ship in self._processed_dm_invites:
                 continue
-            self._processed_dm_invites.add(ship)
-            await self._handle_dm_invite(ship)
+            # Only mark processed on a terminal outcome (accepted / queued /
+            # ignored-by-policy). A "left pending" no-op must not be marked,
+            # so a later autoAcceptDmInvites=true reload/re-scan can still
+            # accept it.
+            if await self._handle_dm_invite(ship):
+                self._processed_dm_invites.add(ship)
 
-    async def _handle_dm_invite(self, ship: str) -> None:
-        if self._user_authorized(ship, is_dm=True):
-            with cli_context("invite_rsvp"):
-                result = await self._cli.run_command(("dms", "accept", ship))
-            if result.success:
-                logger.info("[tlon] auto-accepted DM invite from %s", ship)
-            else:
-                logger.warning(
-                    "[tlon] failed to accept DM invite from %s: %s", ship, result.error
-                )
+    async def _accept_dm_invite(self, ship: str) -> bool:
+        with cli_context("invite_rsvp"):
+            result = await self._cli.run_command(("dms", "accept", ship))
+        if result.success:
+            logger.info("[tlon] auto-accepted DM invite from %s", ship)
+            await self._clear_pending_dm_approval(ship)
+        else:
+            logger.warning(
+                "[tlon] failed to accept DM invite from %s: %s", ship, result.error
+            )
+        return result.success
+
+    async def _clear_pending_dm_approval(self, ship: str) -> None:
+        """Drop a stale invite-only 'dm' approval for a just-accepted ship.
+
+        A ship can be auto-accepted while a 'dm' approval for it is still
+        queued (queued while unknown, later allowlisted, then accepted by a
+        re-scan). Leaving that approval behind would show a stale /pending
+        card whose /allow would just redo the already-completed accept.
+
+        Only a pure invite sentinel is cleared. A 'dm' approval that carries
+        an ``originalMessage`` (queued from a real message, or an invite
+        approval later enriched by one — dm approvals dedup by ship) must
+        survive: its /allow still does meaningful work, replaying the queued
+        message.
+        """
+        match = find_duplicate(
+            self._pending_approvals, {"type": "dm", "requestingShip": ship}
+        )
+        if match is None or match.get("originalMessage"):
             return
+        self._pending_approvals = remove_approval(
+            self._pending_approvals, approval_id(match)
+        )
+        await self._persist_pending_approvals()
+
+    async def _handle_dm_invite(self, ship: str) -> bool:
+        """Decide the fate of one native DM invite.
+
+        Returns True for terminal outcomes (accepted / queued /
+        ignored-by-policy) and False for the "left pending" no-op, so the
+        caller knows whether to mark the ship processed.
+        """
+        if self.tlon_config.user_allowed(ship, is_dm=True):
+            # Owner + env allowed_users/allow_all/dm_allowlist: always accept
+            # (operator trust), regardless of autoAcceptDmInvites.
+            return await self._accept_dm_invite(ship)
+        store_allowed = ship in self._settings_dm_allowlist
+        if self._auto_accept_dm_invites and store_allowed:
+            return await self._accept_dm_invite(ship)
+        if store_allowed:
+            # Already approved in the settings-store dmAllowlist, but
+            # auto-accept is off: leave the native invite pending. Do NOT
+            # queue (OpenClaw parity — an already-allowlisted inviter is a
+            # no-op, not a fresh approval request) and do NOT mark processed.
+            return False
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring DM invite from unauthorized %s", ship)
-            return
+            return True
         await self._queue_approval(
             approval_kind="dm",
             requesting_ship=ship,
             message_preview=DM_INVITE_PREVIEW,
         )
+        return True
 
     async def _process_pending_dm_invites(self) -> None:
         """Catch DM invites that arrived while the gateway was down."""
