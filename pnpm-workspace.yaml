@@ -18,6 +18,14 @@ verifyDepsBeforeRun: false
 # TLON_SHELL to their Git bash; everywhere else it falls back to /bin/bash.
 scriptShell: ${TLON_SHELL-/bin/bash}
 
+autoInstallPeers: false
+
+peerDependencyRules:
+  ignoreMissing:
+    # Peer of app-builder-lib, only required for the Windows "squirrel"
+    # target; our Windows builds use nsis.
+    - electron-builder-squirrel-windows
+
 patchedDependencies:
   "@types/testing-library__jest-dom": patches/@types__testing-library__jest-dom@5.14.5.patch
   "@urbit/http-api": patches/@urbit__http-api@3.2.0-dev.patch
