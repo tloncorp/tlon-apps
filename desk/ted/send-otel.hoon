@@ -79,10 +79,6 @@
   :-  %a 
   :~  %-  pairs
       :~  'key'^s+'service.name'
-          ::  remove the leading '/' because grafana will append service
-          ::  name with a leading slash to service namespace to
-          ::  construct the final service name.
-          ::
           'value'^(frond 'stringValue' s+(spat origin))
       ==
     ::
