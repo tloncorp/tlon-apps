@@ -487,17 +487,13 @@ export async function runApplySteps<T>(
 
 type ChannelRulesMap = TlawnConfig['channelRules'];
 
-// Rebuild the full channelRules map to send under the backend's replace
+// Rebuild the full channelRules map to send under Solaris's replacement
 // semantics: start from the latest server rules, then overlay the user's dirty
 // per-channel edits (a key mapped to `undefined` in nextRules is a delete).
-//
-// Server rules are normalized (legacy zod/general keys) so dirty-key
-// updates/deletes hit the same entry instead of leaving a stale duplicate. And
-// an inherited channel — allowlist with no explicit allowedShips — is dropped:
-// it carries no rule (it follows defaults via groupChannels), and echoing one
-// back serializes as `{mode:'allowlist'}`, which the CRD rejects (allowedShips
-// is required on every rule). This mirrors buildConfigFromChatValues, which
-// likewise never emits inherited rules into channelRules.
+// Every retained rule is monitored (Solaris derives groupChannels from these
+// keys), so no rule is dropped. Server keys are normalized (legacy zod/general)
+// so a dirty-key update/delete hits the same entry rather than leaving a stale
+// duplicate behind.
 export const mergeChannelRules = (
   serverRules: ChannelRulesMap | undefined,
   nextRules: ChannelRulesMap,
@@ -505,12 +501,6 @@ export const mergeChannelRules = (
 ): ChannelRulesMap => {
   const merged: ChannelRulesMap = {};
   Object.entries(serverRules ?? {}).forEach(([key, serverRule]) => {
-    if (
-      serverRule.mode === 'allowlist' &&
-      serverRule.allowedShips === undefined
-    ) {
-      return;
-    }
     merged[normalizeChannelRuleKey(key)] = serverRule;
   });
   dirtyRuleKeys.forEach((key) => {

@@ -524,19 +524,13 @@ describe('channel grouping', () => {
 });
 
 describe('mergeChannelRules', () => {
-  it('drops inherited server rules (allowlist, no allowedShips) so the CRD is not sent an allowedShips-less rule', () => {
+  it('keeps every server rule (each is a monitored channel) when nothing is dirty', () => {
     const serverRules = {
-      'chat/~zod/inherited': { mode: 'allowlist' as const },
-      'chat/~zod/explicit': {
-        mode: 'allowlist' as const,
-        allowedShips: ['~bus'],
-      },
+      'chat/~zod/one': { mode: 'allowlist' as const, allowedShips: ['~bus'] },
+      'chat/~zod/two': { mode: 'open' as const, allowedShips: [] },
     };
     const merged = mergeChannelRules(serverRules, {}, []);
-    expect(merged).toEqual({
-      'chat/~zod/explicit': { mode: 'allowlist', allowedShips: ['~bus'] },
-    });
-    expect(merged['chat/~zod/inherited']).toBeUndefined();
+    expect(merged).toEqual(serverRules);
   });
 
   it('keeps an explicit block-all rule (allowlist with empty allowedShips)', () => {

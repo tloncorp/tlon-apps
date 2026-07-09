@@ -13,7 +13,6 @@ import {
   getModelFormValues,
   haveChannelModelEntriesChanged,
   mergeChannelRules,
-  normalizeChannelRuleKey,
   runApplySteps,
   toChatFormValues,
 } from './helpers';
@@ -379,26 +378,37 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           nextValues.chat.channelRuleDrafts
         );
 
-        // The merge preserves overrides for channels this draft never touched,
-        // so it must run against fresh server data (reused refetch, aborts on
-        // failure).
+        // The override merge preserves entries for channels this draft never
+        // touched, so it must run against fresh server data (reused refetch,
+        // aborts on failure).
         const providerConfigForMerge = channelModelsChanged
           ? await getFreshProviderConfig()
           : queries.providerConfig;
 
-        // Send only the fields the user actually changed. The backend merges
-        // config partially, so writing the whole payload would clobber a
-        // concurrent change to a field this draft never touched.
-        const fullConfig = buildConfigFromChatValues(nextValues.chat);
-        // pending.channelRules is also true for model-override-only edits (the
-        // override fields live in channelRuleDrafts), and a real rule edit must
-        // not resend the whole map (that clobbers a concurrent change to another
-        // channel). Diff the built rule payloads per channel; override moves go
-        // via channelModels, not here.
+        // The chat-config PUT is replacement-style: Solaris rebuilds the whole
+        // config from the body and resets any omitted field to its default (and
+        // derives groupChannels from channelRules keys). So we always send the
+        // COMPLETE config. Refetch the latest server state and take each field
+        // the user didn't change from it, so a concurrent edit to an untouched
+        // field isn't clobbered.
+        const refetched = await queries.configQuery.refetch();
+        if (!refetched.isSuccess || !refetched.data) {
+          throw new Error(
+            'Could not load the latest chat configuration. Please try again.'
+          );
+        }
+        const server = refetched.data;
+        const draftConfig = buildConfigFromChatValues(nextValues.chat);
+
+        // Merge channelRules per-channel: start from the server rules and overlay
+        // only the channels the user actually changed (a removed channel is
+        // deleted), so a concurrent edit to another channel survives. Diffing the
+        // built payloads keeps model-override-only edits (which also flip
+        // pending.channelRules, but travel via channelModels) out of this map.
         const baselineRules = buildConfigFromChatValues(
           draft.baseline.chat
         ).channelRules;
-        const nextRules = fullConfig.channelRules;
+        const nextRules = draftConfig.channelRules;
         const dirtyRuleKeys = [
           ...new Set([
             ...Object.keys(baselineRules),
@@ -409,64 +419,33 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
             stableStringify(baselineRules[key]) !==
             stableStringify(nextRules[key])
         );
-        // Inherited channels carry no channelRules entry, so enabling/disabling
-        // one shows up only as a groupChannels (monitored-set) change — track it
-        // separately from rule-payload changes or those saves get dropped.
-        const baselineGroupChannels = new Set(
-          buildConfigFromChatValues(draft.baseline.chat).groupChannels
+        const channelRules = mergeChannelRules(
+          server.channelRules,
+          nextRules,
+          dirtyRuleKeys
         );
-        const nextGroupChannels = new Set(fullConfig.groupChannels);
-        const groupChannelsChanged =
-          baselineGroupChannels.size !== nextGroupChannels.size ||
-          [...nextGroupChannels].some((key) => !baselineGroupChannels.has(key));
-        const config: Partial<typeof fullConfig> = {};
-        if (draft.pending.dmAllowlist) {
-          config.dmAllowlist = fullConfig.dmAllowlist;
-        }
-        if (draft.pending.defaultAuthorizedShips) {
-          config.defaultAuthorizedShips = fullConfig.defaultAuthorizedShips;
-        }
-        if (draft.pending.groupInviteAllowlist) {
-          config.groupInviteAllowlist = fullConfig.groupInviteAllowlist;
-        }
-        if (draft.pending.autoAcceptDmInvites) {
-          config.autoAcceptDmInvites = fullConfig.autoAcceptDmInvites;
-        }
-        if (draft.pending.autoDiscoverChannels) {
-          config.autoDiscoverChannels = fullConfig.autoDiscoverChannels;
-        }
-        if (dirtyRuleKeys.length > 0 || groupChannelsChanged) {
-          // Merge onto the latest server config so concurrent edits to other
-          // channels aren't overwritten by our stale full map.
-          const refetchedSettings = await queries.configQuery.refetch();
-          if (!refetchedSettings.isSuccess || !refetchedSettings.data) {
-            throw new Error(
-              'Could not load the latest channel rules. Please try again.'
-            );
-          }
-          if (dirtyRuleKeys.length > 0) {
-            config.channelRules = mergeChannelRules(
-              refetchedSettings.data.channelRules,
-              nextRules,
-              dirtyRuleKeys
-            );
-          }
-          // Apply the user's enable/disable delta to the server's monitored set
-          // so inherited-only toggles (no channelRules entry) still save, while
-          // concurrent changes to other channels are preserved.
-          const mergedGroupChannels = new Set(
-            (refetchedSettings.data.groupChannels ?? []).map(
-              normalizeChannelRuleKey
-            )
-          );
-          baselineGroupChannels.forEach((key) => {
-            if (!nextGroupChannels.has(key)) mergedGroupChannels.delete(key);
-          });
-          nextGroupChannels.forEach((key) => {
-            if (!baselineGroupChannels.has(key)) mergedGroupChannels.add(key);
-          });
-          config.groupChannels = [...mergedGroupChannels];
-        }
+
+        const config: Partial<typeof draftConfig> = {
+          dmAllowlist: draft.pending.dmAllowlist
+            ? draftConfig.dmAllowlist
+            : server.dmAllowlist,
+          defaultAuthorizedShips: draft.pending.defaultAuthorizedShips
+            ? draftConfig.defaultAuthorizedShips
+            : server.defaultAuthorizedShips,
+          groupInviteAllowlist: draft.pending.groupInviteAllowlist
+            ? draftConfig.groupInviteAllowlist
+            : server.groupInviteAllowlist,
+          autoAcceptDmInvites: draft.pending.autoAcceptDmInvites
+            ? draftConfig.autoAcceptDmInvites
+            : server.autoAcceptDmInvites,
+          autoDiscoverChannels: draft.pending.autoDiscoverChannels
+            ? draftConfig.autoDiscoverChannels
+            : server.autoDiscoverChannels,
+          channelRules,
+          // Solaris derives groupChannels from channelRules keys and ignores this
+          // field; send the mirrored value so the payload is self-consistent.
+          groupChannels: Object.keys(channelRules),
+        };
 
         // Only rewrite model overrides for channels whose override actually
         // changed. Passing just the dirty channels lets the merge preserve the
