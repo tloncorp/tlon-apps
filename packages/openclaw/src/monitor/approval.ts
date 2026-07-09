@@ -718,18 +718,24 @@ export function buildPendingApprovalsA2UIBlob(
 export function buildPendingApprovalsResponse(
   approvals: PendingApproval[],
   ctx: DisplayContext | undefined,
-  serializeBlob: (blob: TlonA2UIBlob) => string | undefined
+  serializeBlob: (blob: TlonA2UIBlob) => string | undefined,
+  onError?: (error: unknown) => void
 ): { text: string; mode: 'text' } | { text: string; mode: 'ui'; blob: string } {
   const text = formatPendingList(approvals, ctx);
   if (!shouldUsePendingApprovalsA2UI(approvals)) {
     return { text, mode: 'text' };
   }
 
-  const blob = buildPendingApprovalsA2UIBlob(approvals, ctx);
-  const serialized = blob ? serializeBlob(blob) : undefined;
-  return serialized
-    ? { text, blob: serialized, mode: 'ui' }
-    : { text, mode: 'text' };
+  try {
+    const blob = buildPendingApprovalsA2UIBlob(approvals, ctx);
+    const serialized = blob ? serializeBlob(blob) : undefined;
+    return serialized
+      ? { text, blob: serialized, mode: 'ui' }
+      : { text, mode: 'text' };
+  } catch (error) {
+    onError?.(error);
+    return { text, mode: 'text' };
+  }
 }
 
 // ============================================================================

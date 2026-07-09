@@ -2058,6 +2058,11 @@ export async function monitorTlonProvider(
               );
               return undefined;
             }
+          },
+          (err) => {
+            runtime.error?.(
+              `[tlon] Failed to build pending approvals A2UI blob: ${String(err)}`
+            );
           }
         );
 

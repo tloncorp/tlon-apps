@@ -602,6 +602,29 @@ describe('buildPendingApprovalsResponse', () => {
     expect(response.mode).toBe('text');
     expect(response.text).toContain('Zod (~zod)');
   });
+
+  it('falls back to text when display values make the card invalid', () => {
+    let serializeCalled = false;
+    let fallbackError: unknown;
+    const response = buildPendingApprovalsResponse(
+      [approval],
+      {
+        ...ctx,
+        contactNames: new Map([['~zod', 'Z'.repeat(1_001)]]),
+      },
+      () => {
+        serializeCalled = true;
+        return 'serialized-card';
+      },
+      (error) => {
+        fallbackError = error;
+      }
+    );
+
+    expect(response.mode).toBe('text');
+    expect(serializeCalled).toBe(false);
+    expect(fallbackError).toBeInstanceOf(Error);
+  });
 });
 
 describe('formatApprovalConfirmation', () => {
