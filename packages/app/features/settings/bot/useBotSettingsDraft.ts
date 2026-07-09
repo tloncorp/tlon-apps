@@ -13,6 +13,8 @@ import {
   getModelFormValues,
   haveChannelModelEntriesChanged,
   mergeChannelRules,
+  normalizeProviderConfig,
+  normalizeTlonbotConfig,
   runApplySteps,
   toChatFormValues,
 } from './helpers';
@@ -269,30 +271,49 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
   const [applyError, setApplyError] = useState<string | null>(null);
 
   const applyChanges = useCallback(async () => {
-    if (!queries.ship || !draft.hasChanges || applying) return;
+    // Never apply a draft scoped to a different ship: the module-level store can
+    // still hold a previous account's unapplied edits (see resetBotSettingsDraft,
+    // wired into logout) before this account's queries have synced.
+    if (
+      !queries.ship ||
+      draft.scopeKey !== queries.ship ||
+      !draft.hasChanges ||
+      applying
+    ) {
+      return;
+    }
     const nextValues = draft.draft;
     // Screen-level validation can be bypassed (hardware back, drawer
     // navigation), so re-check the invariants that would silently persist a
-    // broken config: a non-basic provider needs a concrete model, for both the
-    // default model and any per-channel override.
-    if (
-      (draft.pending.modelProvider ||
-        draft.pending.model ||
-        draft.pending.fallbacks) &&
-      nextValues.model.provider !== BASIC_PROVIDER_ID &&
-      !nextValues.model.model
-    ) {
-      setApplyError('Select a default model before applying.');
-      return;
+    // broken config. The primary model needs a provider, and a non-basic
+    // provider also needs a concrete model. Only validate the primary when it's
+    // actually dirty — a fallbacks-only change sends the server's primary.
+    if (draft.pending.modelProvider || draft.pending.model) {
+      if (!nextValues.model.provider) {
+        setApplyError(
+          'Select a provider for the default model before applying.'
+        );
+        return;
+      }
+      if (
+        nextValues.model.provider !== BASIC_PROVIDER_ID &&
+        !nextValues.model.model
+      ) {
+        setApplyError('Select a default model before applying.');
+        return;
+      }
     }
     if (draft.pending.channelRules) {
-      // A model override needs both a provider and a model; a row with only one
-      // (including a Basic provider with no model) is silently dropped by the
-      // merge path, so reject it here rather than marking it applied.
+      // A model override needs a provider, and a non-basic provider also needs a
+      // model (Basic has no model picker — it's pinned on save). A provider-less
+      // row with a stale model, or a non-basic provider with no model, is
+      // dropped by the merge path, so reject it here rather than marking it
+      // applied.
       const incompleteOverride = Object.values(
         nextValues.chat.channelRuleDrafts
       ).some(
         (rule) =>
+          rule.modelOverrideProvider !== BASIC_PROVIDER_ID &&
           Boolean(rule.modelOverrideProvider) !== Boolean(rule.modelOverride)
       );
       if (incompleteOverride) {
@@ -324,7 +345,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
       // sections pending instead of re-reporting (and re-writing) work that
       // already succeeded.
       const steps: {
-        run: () => Promise<void>;
+        run: () => Promise<Partial<BotSettingsDraftValues> | void>;
         commit: Partial<BotSettingsDraftValues>;
       }[] = [];
 
@@ -352,7 +373,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
             );
             const primaryDirty =
               draft.pending.modelProvider || draft.pending.model;
-            await mutations.savePrimaryModel.mutateAsync({
+            const saved = await mutations.savePrimaryModel.mutateAsync({
               provider: primaryDirty
                 ? nextValues.model.provider
                 : serverModel.provider,
@@ -361,6 +382,12 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
                 ? nextValues.model.fallbacks
                 : serverModel.fallbacks,
             });
+            // Commit what the server actually stored (merged untouched fields,
+            // Basic pinned to its default) rather than the draft snapshot, so a
+            // later failing step doesn't leave a stale model shown.
+            return {
+              model: getModelFormValues(normalizeProviderConfig(saved)),
+            };
           },
           commit: { model: nextValues.model },
         });
@@ -487,11 +514,23 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
             : {}),
         });
 
+        // Normalize like configQuery does so the cache and the committed
+        // baseline match what a later refetch would yield.
+        const savedConfig = normalizeTlonbotConfig(result.config);
+        const savedProviderConfig = normalizeProviderConfig(
+          result.providerConfig
+        );
         mutations.queryClient.setQueryData(
           ['tlonbot', 'settings', queries.ship],
-          result.config
+          savedConfig
         );
         mutations.setProviderConfig(result.providerConfig);
+        // Commit the server-accepted chat state (which can include channels
+        // another client added and the merge preserved) rather than the draft
+        // snapshot, so those aren't hidden until the next remount/refetch.
+        return {
+          chat: toChatFormValues(savedConfig, savedProviderConfig),
+        };
       };
       if (chatConfigDirty) {
         steps.push({ run: chatConfigStep, commit: { chat: nextValues.chat } });

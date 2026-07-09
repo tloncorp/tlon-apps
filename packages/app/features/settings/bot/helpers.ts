@@ -474,14 +474,18 @@ export const buildConfigFromChatValues = (
 // write 400s) leaves only the unwritten sections pending, without re-reporting
 // (or needlessly re-writing) work that already landed on the server. onCommit
 // receives just that section's patch so the caller can advance the baseline
-// while preserving the still-unsaved sections' edits.
+// while preserving the still-unsaved sections' edits. A step's `run` may return
+// a patch to commit the state the server actually accepted (e.g. a merged or
+// normalized value) instead of the static `commit` fallback — important when a
+// later step then fails, since a committed section is not re-synced from the
+// server until every section is applied.
 export async function runApplySteps<T>(
-  steps: { run: () => Promise<void>; commit: Partial<T> }[],
+  steps: { run: () => Promise<Partial<T> | void>; commit: Partial<T> }[],
   onCommit: (patch: Partial<T>) => void
 ): Promise<void> {
   for (const step of steps) {
-    await step.run();
-    onCommit(step.commit);
+    const saved = await step.run();
+    onCommit(saved ?? step.commit);
   }
 }
 

@@ -622,6 +622,26 @@ describe('runApplySteps', () => {
     expect(patches).toEqual([{ nickname: 'new' }, { model: 'new' }]);
   });
 
+  it('commits the patch returned by run (server-accepted state) over the static fallback', async () => {
+    const patches: Partial<Snap>[] = [];
+    await runApplySteps<Snap>(
+      [
+        // run returns the actually-saved value, overriding the static commit
+        {
+          run: async () => ({ model: 'server-merged' }),
+          commit: { model: 'draft' },
+        },
+        // run returns void -> falls back to the static commit
+        { run: async () => {}, commit: { chat: 'draft-chat' } },
+      ],
+      (patch) => patches.push(patch)
+    );
+    expect(patches).toEqual([
+      { model: 'server-merged' },
+      { chat: 'draft-chat' },
+    ]);
+  });
+
   it('emits only the patches for steps that succeeded before a failure, then rethrows', async () => {
     const patches: Partial<Snap>[] = [];
     const laterRun = vi.fn();
