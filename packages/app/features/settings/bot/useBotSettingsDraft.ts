@@ -509,7 +509,8 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         const channelRules = mergeChannelRules(
           server.channelRules,
           nextRules,
-          dirtyRuleKeys
+          dirtyRuleKeys,
+          server.groupChannels
         );
 
         const config: Partial<typeof draftConfig> = {

@@ -550,12 +550,42 @@ describe('mergeChannelRules', () => {
       // explicitly added this session (dirty) -> included
       'chat/~zod/added': { mode: 'allowlist' as const, allowedShips: ['~nec'] },
     };
-    const merged = mergeChannelRules(serverRules, nextRules, [
-      'chat/~zod/added',
-    ]);
+    const merged = mergeChannelRules(
+      serverRules,
+      nextRules,
+      ['chat/~zod/added'],
+      // server still monitors /one but NOT /removed -> /removed stays dropped
+      ['chat/~zod/one']
+    );
     expect(merged).toEqual({
       'chat/~zod/one': { mode: 'open', allowedShips: [] },
       'chat/~zod/added': { mode: 'allowlist', allowedShips: ['~nec'] },
+    });
+  });
+
+  it('carries forward a monitored channel the server lists in groupChannels but not channelRules', () => {
+    // legacy/inherited groupChannels-only monitored channel: not in
+    // server.channelRules, not dirty, but still in server.groupChannels — an
+    // unrelated save must not drop it from the monitored set.
+    const serverRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+    };
+    const nextRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+      'chat/~zod/inherited': {
+        mode: 'allowlist' as const,
+        allowedShips: ['~bus'],
+      },
+    };
+    const merged = mergeChannelRules(
+      serverRules,
+      nextRules,
+      [],
+      ['chat/~zod/one', 'chat/~zod/inherited']
+    );
+    expect(merged).toEqual({
+      'chat/~zod/one': { mode: 'open', allowedShips: [] },
+      'chat/~zod/inherited': { mode: 'allowlist', allowedShips: ['~bus'] },
     });
   });
 
