@@ -13,6 +13,7 @@ import {
   getModelFormValues,
   haveChannelModelEntriesChanged,
   mergeChannelRules,
+  normalizeChannelRuleKey,
   normalizeProviderConfig,
   normalizeTlonbotConfig,
   runApplySteps,
@@ -410,15 +411,60 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         draft.pending.autoDiscoverChannels ||
         draft.pending.channelRules;
       const chatConfigStep = async () => {
-        const channelModelsChanged = haveChannelModelEntriesChanged(
-          draft.baseline.chat.channelRuleDrafts,
-          nextValues.chat.channelRuleDrafts
+        const baselineDrafts = draft.baseline.chat.channelRuleDrafts;
+        const nextDrafts = nextValues.chat.channelRuleDrafts;
+        const allChannelKeys = [
+          ...new Set([
+            ...Object.keys(baselineDrafts),
+            ...Object.keys(nextDrafts),
+          ]),
+        ];
+
+        // Per-channel model-override signature. Basic has no model picker (its
+        // model is pinned on save), so a Basic override is real even with an
+        // empty model — sign it distinctly so a to/from-Basic change registers
+        // instead of collapsing to "no override".
+        const overrideSig = (rule?: ChannelRuleDraft) => {
+          const provider = rule?.modelOverrideProvider;
+          if (!provider) return '';
+          if (provider === BASIC_PROVIDER_ID) return provider;
+          return rule?.modelOverride ? `${provider} ${rule.modelOverride}` : '';
+        };
+        // Enabling/disabling a channel also resets its override: a channel
+        // enabled with no override must clear any (hidden) server-side override,
+        // and a disabled channel drops its override.
+        const monitoringToggled = (key: string) =>
+          Boolean(baselineDrafts[key]) !== Boolean(nextDrafts[key]);
+        const dirtyChannelKeys = new Set(
+          allChannelKeys.filter(
+            (key) =>
+              overrideSig(baselineDrafts[key]) !==
+                overrideSig(nextDrafts[key]) || monitoringToggled(key)
+          )
         );
+        const channelModelsChanged = haveChannelModelEntriesChanged(
+          baselineDrafts,
+          nextDrafts
+        );
+        // A monitoring toggle on a channel that has a server-side override must
+        // still send channelModels (to clear/reset it) even when no draft
+        // override field changed.
+        const serverOverrideChannels = new Set(
+          (queries.providerConfig.models ?? []).flatMap((model) =>
+            (model.channels ?? []).map(normalizeChannelRuleKey)
+          )
+        );
+        const clearsHiddenOverride = allChannelKeys.some(
+          (key) =>
+            monitoringToggled(key) &&
+            serverOverrideChannels.has(normalizeChannelRuleKey(key))
+        );
+        const sendChannelModels = channelModelsChanged || clearsHiddenOverride;
 
         // The override merge preserves entries for channels this draft never
         // touched, so it must run against fresh server data (reused refetch,
         // aborts on failure).
-        const providerConfigForMerge = channelModelsChanged
+        const providerConfigForMerge = sendChannelModels
           ? await getFreshProviderConfig()
           : queries.providerConfig;
 
@@ -438,23 +484,21 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         const draftConfig = buildConfigFromChatValues(nextValues.chat);
 
         // Merge channelRules per-channel: start from the server rules and overlay
-        // only the channels the user actually changed (a removed channel is
-        // deleted), so a concurrent edit to another channel survives. Diffing the
-        // built payloads keeps model-override-only edits (which also flip
-        // pending.channelRules, but travel via channelModels) out of this map.
-        const baselineRules = buildConfigFromChatValues(
-          draft.baseline.chat
-        ).channelRules;
+        // only the channels whose ACCESS rule the user actually changed, so a
+        // concurrent edit to another channel survives. Sign the draft's access
+        // intent (monitoring + mode + allowlist), which — unlike diffing the
+        // materialized rules — excludes model-override-only edits (they travel
+        // via channelModels) and excludes inherited channels re-materialized only
+        // because the global defaults changed (not a per-channel edit, and
+        // overlaying them would clobber a concurrent per-channel change).
         const nextRules = draftConfig.channelRules;
-        const dirtyRuleKeys = [
-          ...new Set([
-            ...Object.keys(baselineRules),
-            ...Object.keys(nextRules),
-          ]),
-        ].filter(
-          (key) =>
-            stableStringify(baselineRules[key]) !==
-            stableStringify(nextRules[key])
+        const ruleSig = (rule?: ChannelRuleDraft) => {
+          if (!rule) return '';
+          if (rule.inheritsDefaultShips) return `${rule.mode}:inherited`;
+          return `${rule.mode}:${rule.allowedShips}`;
+        };
+        const dirtyRuleKeys = allChannelKeys.filter(
+          (key) => ruleSig(baselineDrafts[key]) !== ruleSig(nextDrafts[key])
         );
         const channelRules = mergeChannelRules(
           server.channelRules,
@@ -484,26 +528,9 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           groupChannels: Object.keys(channelRules),
         };
 
-        // Only rewrite model overrides for channels whose override actually
-        // changed. Passing just the dirty channels lets the merge preserve the
-        // refetched server value for every other (including visible but
-        // untouched) channel instead of the stale draft snapshot.
-        const overrideSig = (rule?: ChannelRuleDraft) =>
-          rule?.modelOverrideProvider && rule?.modelOverride
-            ? `${rule.modelOverrideProvider} ${rule.modelOverride}`
-            : '';
-        const baselineChannelDrafts = draft.baseline.chat.channelRuleDrafts;
-        const nextChannelDrafts = nextValues.chat.channelRuleDrafts;
-        const dirtyChannelKeys = new Set(
-          [
-            ...Object.keys(baselineChannelDrafts),
-            ...Object.keys(nextChannelDrafts),
-          ].filter(
-            (key) =>
-              overrideSig(baselineChannelDrafts[key]) !==
-              overrideSig(nextChannelDrafts[key])
-          )
-        );
+        // Pass just the dirty channels to the override merge so it preserves the
+        // refetched server value for every untouched channel; a dirty channel
+        // with no override clears any (hidden) server-side override for it.
         const pickDirty = (drafts: Record<string, ChannelRuleDraft>) =>
           Object.fromEntries(
             Object.entries(drafts).filter(([key]) => dirtyChannelKeys.has(key))
@@ -511,13 +538,13 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
 
         const result = await api.setTlawnChatConfig(queries.ship, {
           config,
-          ...(channelModelsChanged
+          ...(sendChannelModels
             ? {
                 channelModels: {
                   models: buildMergedChannelModelEntries(
                     providerConfigForMerge,
-                    pickDirty(baselineChannelDrafts),
-                    pickDirty(nextChannelDrafts)
+                    pickDirty(baselineDrafts),
+                    pickDirty(nextDrafts)
                   ),
                 },
               }

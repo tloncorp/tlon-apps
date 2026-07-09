@@ -493,14 +493,13 @@ type ChannelRulesMap = TlawnConfig['channelRules'];
 
 // Rebuild the full channelRules map to send under Solaris's replacement
 // semantics. Start from the latest server rules (preserving channels another
-// client added concurrently), then ensure every channel the draft still
-// monitors is present — a monitored channel the server dropped from
-// channelRules (e.g. a groupChannels-only entry that buildChannelRuleDrafts
-// materialized) must not be lost just because the user didn't touch it. Finally
-// overlay the user's dirty per-channel edits (a key mapped to `undefined` in
-// nextRules is a delete). Server keys are normalized (legacy zod/general) so a
-// dirty-key update/delete hits the same entry rather than leaving a stale
-// duplicate.
+// client changed or added concurrently), then overlay only the channels whose
+// rule the user actually edited (a dirty key mapped to `undefined` in nextRules
+// is a delete). A channel the user didn't touch is left at the server's value —
+// so a channel another client removed is NOT resurrected, and an explicit
+// add/edit still applies via its dirty key. Server keys are normalized (legacy
+// zod/general) so a dirty-key update/delete hits the same entry rather than
+// leaving a stale duplicate.
 export const mergeChannelRules = (
   serverRules: ChannelRulesMap | undefined,
   nextRules: ChannelRulesMap,
@@ -509,13 +508,6 @@ export const mergeChannelRules = (
   const merged: ChannelRulesMap = {};
   Object.entries(serverRules ?? {}).forEach(([key, serverRule]) => {
     merged[normalizeChannelRuleKey(key)] = serverRule;
-  });
-  // Fill in monitored channels the draft has but the server base lacks, without
-  // overwriting a concurrent server value the user didn't touch.
-  Object.entries(nextRules).forEach(([key, rule]) => {
-    if (merged[key] === undefined) {
-      merged[key] = rule;
-    }
   });
   dirtyRuleKeys.forEach((key) => {
     if (nextRules[key] !== undefined) {

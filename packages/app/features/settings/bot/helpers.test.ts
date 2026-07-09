@@ -533,24 +533,29 @@ describe('mergeChannelRules', () => {
     expect(merged).toEqual(serverRules);
   });
 
-  it('preserves a draft-monitored channel the server base lacks, even when not dirty', () => {
-    // e.g. a groupChannels-only entry buildChannelRuleDrafts materialized: it's
-    // in nextRules but not in server.channelRules and the user never touched it.
-    // Saving an unrelated setting must not drop it from the monitored set.
+  it('does not resurrect a channel the server removed unless it is a dirty add', () => {
+    // A channel the user did NOT touch that the server no longer has (another
+    // client removed it) must stay removed — only an explicit add (dirty key)
+    // re-introduces a channel the server lacks.
     const serverRules = {
       'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
     };
     const nextRules = {
       'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
-      'chat/~zod/monitored': {
+      // present in the draft but server-removed and not dirty -> stays dropped
+      'chat/~zod/removed': {
         mode: 'allowlist' as const,
         allowedShips: ['~bus'],
       },
+      // explicitly added this session (dirty) -> included
+      'chat/~zod/added': { mode: 'allowlist' as const, allowedShips: ['~nec'] },
     };
-    const merged = mergeChannelRules(serverRules, nextRules, []);
+    const merged = mergeChannelRules(serverRules, nextRules, [
+      'chat/~zod/added',
+    ]);
     expect(merged).toEqual({
       'chat/~zod/one': { mode: 'open', allowedShips: [] },
-      'chat/~zod/monitored': { mode: 'allowlist', allowedShips: ['~bus'] },
+      'chat/~zod/added': { mode: 'allowlist', allowedShips: ['~nec'] },
     });
   });
 
