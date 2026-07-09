@@ -189,9 +189,12 @@ export const safeKeySummary = (
   return key.length > 4 ? `••••${key.slice(-4)}` : '••••';
 };
 
-// A user without a custom openrouter key falls back to the shared "basic"
-// default key, which is itself an openrouter key. Show those entries as the
-// Basic provider so users don't see a provider they never configured.
+// Basic is now persisted as its own backend provider (see toBackendModel), so a
+// stored `basic` entry displays as Basic directly. This heuristic additionally
+// covers legacy configs written before that: an openrouter/minimax-m3 entry
+// with no custom openrouter key is the shared hosted default key, which the
+// backend still honors as Basic — show it as Basic rather than as an openrouter
+// provider the user never configured.
 export const toDisplayProviderId = (
   config: TlawnProviderConfigInfo | undefined,
   providerId: string
@@ -339,12 +342,21 @@ export const toChatFormValues = (
     : {},
 });
 
-// Inverse of toDisplayProviderId: "basic" is a display-only alias for the
-// shared openrouter default key, so anything picked as Basic must be written
-// back with the real backend provider or the hosting API can reject it (or
-// persist an override the gateway can't run).
-export const toBackendProviderId = (providerId: string): string =>
-  providerId === BASIC_PROVIDER_ID ? 'openrouter' : providerId;
+// Normalize a picked (provider, model) pair for persistence. "basic" is a real
+// backend provider — Solaris provisions the shared hosted default key when a
+// config selects it (tloncorp/ylem#3180) — so it is written as-is, not remapped
+// to openrouter. It has no model picker, so pin its model to the fixed default
+// (matching the backend's `basicDefaultModel`). Persisting `basic` explicitly
+// keeps it distinct from openrouter even when the user also has their own
+// openrouter key; toDisplayProviderId still reads legacy openrouter/minimax
+// configs as Basic for backward compatibility.
+export const toBackendModel = (
+  provider: string,
+  model: string
+): { provider: string; model: string } => ({
+  provider,
+  model: provider === BASIC_PROVIDER_ID ? BASIC_DEFAULT_MODEL : model,
+});
 
 export const buildChannelModelEntries = (
   drafts: Record<string, ChannelRuleDraft>
@@ -352,8 +364,10 @@ export const buildChannelModelEntries = (
   Object.entries(drafts)
     .filter(([, rule]) => rule.modelOverrideProvider && rule.modelOverride)
     .map(([channel, rule]) => ({
-      provider: toBackendProviderId(rule.modelOverrideProvider || ''),
-      model: rule.modelOverride || '',
+      ...toBackendModel(
+        rule.modelOverrideProvider || '',
+        rule.modelOverride || ''
+      ),
       channels: [normalizeChannelRuleKey(channel)],
     }));
 

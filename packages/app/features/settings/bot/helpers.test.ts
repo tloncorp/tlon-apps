@@ -19,6 +19,7 @@ import {
   parseChannelRuleKey,
   resolveGroupFull,
   safeKeySummary,
+  toBackendModel,
   toDisplayProviderId,
   validateProviderKey,
 } from './helpers';
@@ -364,7 +365,7 @@ describe('channel model overrides', () => {
     ]);
   });
 
-  it('writes Basic overrides back as the openrouter backend provider', () => {
+  it('writes Basic overrides back as the basic provider with the fixed default model', () => {
     const entries = buildChannelModelEntries({
       'chat/~zod/general': {
         mode: 'open',
@@ -375,11 +376,36 @@ describe('channel model overrides', () => {
     });
     expect(entries).toEqual([
       {
-        provider: 'openrouter',
-        model: 'some/model',
+        provider: 'basic',
+        model: 'minimax/minimax-m3',
         channels: ['chat/~zod/general'],
       },
     ]);
+  });
+});
+
+describe('toBackendModel', () => {
+  it('persists basic as its own provider and pins the model to the default', () => {
+    expect(toBackendModel('basic', '')).toEqual({
+      provider: 'basic',
+      model: 'minimax/minimax-m3',
+    });
+    // a stale/leftover model on a Basic pick is ignored
+    expect(toBackendModel('basic', 'anthropic/claude-1')).toEqual({
+      provider: 'basic',
+      model: 'minimax/minimax-m3',
+    });
+  });
+
+  it('passes real providers and their models through unchanged', () => {
+    expect(toBackendModel('anthropic', 'claude-1')).toEqual({
+      provider: 'anthropic',
+      model: 'claude-1',
+    });
+    expect(toBackendModel('openrouter', 'some/model')).toEqual({
+      provider: 'openrouter',
+      model: 'some/model',
+    });
   });
 });
 
