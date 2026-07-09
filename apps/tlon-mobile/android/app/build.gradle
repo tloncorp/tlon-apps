@@ -132,7 +132,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
-        versionName "9.2.0"
+        versionName "9.3.0"
     }
     compileOptions {
         coreLibraryDesugaringEnabled true

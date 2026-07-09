@@ -1,14 +1,19 @@
 {
   "name": "tlon-mobile",
-  "version": "9.2.0",
+  "version": "9.3.0",
   "private": true,
   "expo": {
     "autolinking": {
       "ios": {
-        "buildFromSource": ["expo-background-task", "expo-image-manipulator"]
+        "buildFromSource": [
+          "expo-background-task",
+          "expo-image-manipulator"
+        ]
       },
       "android": {
-        "buildFromSource": ["expo-background-task"]
+        "buildFromSource": [
+          "expo-background-task"
+        ]
       }
     }
   },
