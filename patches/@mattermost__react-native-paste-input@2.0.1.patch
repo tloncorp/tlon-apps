@@ -1,0 +1,36 @@
+diff --git a/ios/PasteInputModule.mm b/ios/PasteInputModule.mm
+index 59ff531dea109fb0d37d3e5382ca8276ae1a0b7a..1a1ad0a64d4de5894bcfc3ff2fa1f3c86da3cb35 100644
+--- a/ios/PasteInputModule.mm
++++ b/ios/PasteInputModule.mm
+@@ -42,6 +42,7 @@ @interface PasteInputModule ()
+ @end
+ 
+ static id _reactHost = nil;
++static RCTRootViewFactory *_rootViewFactory = nil;
+ 
+ @implementation PasteInputModule
+ 
+@@ -56,6 +57,10 @@ + (void)setup:(RCTRootViewFactory *)rootViewFactory
+ {
+ #ifdef RCT_NEW_ARCH_ENABLED
+     _reactHost = rootViewFactory.reactHost;
++    // Under Expo (bridgeless) the RCTHost is created lazily when the first surface
++    // mounts, which happens AFTER +setup: runs — so reactHost is nil here. Keep the
++    // factory so getSurfacePresenter can re-read reactHost once it's populated.
++    _rootViewFactory = rootViewFactory;
+ #endif
+ }
+ 
+@@ -173,6 +178,12 @@ - (void)removeListeners:(double)count
+ - (nullable id)getSurfacePresenter
+ {
+ #ifdef RCT_NEW_ARCH_ENABLED
++    // The RCTHost is created lazily by the root view factory when the first surface
++    // mounts (after +setup: runs), so re-read it from the factory at lookup time
++    // rather than relying on the value captured during setup.
++    if (!_reactHost && _rootViewFactory) {
++        _reactHost = _rootViewFactory.reactHost;
++    }
+     // Try bridgeless mode first (if reactHost is set)
+     if (_reactHost) {
+         return [_reactHost performSelector:@selector(surfacePresenter)];
