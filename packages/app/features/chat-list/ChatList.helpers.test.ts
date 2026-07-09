@@ -7,6 +7,7 @@ import {
   buildChatListItems,
   getChatKey,
   isSectionHeader,
+  splitPinnedSection,
 } from './ChatList.helpers';
 
 function makeUnpinnedGroup(id: string): db.Chat {
@@ -115,5 +116,31 @@ describe('buildChatListItems', () => {
       (item) => isSectionHeader(item) && item.title === 'All'
     );
     expect(allHeaderIndex).toBe(1 + pinned.length);
+  });
+});
+
+describe('splitPinnedSection', () => {
+  it('extracts the pinned chats and leaves the rest as the FlashList data', () => {
+    const { pinned: extracted, rest } = splitPinnedSection(afterPinHydrates);
+
+    // Pinned chats come out for the ListHeaderComponent block...
+    expect(extracted).toEqual(pinned);
+    // ...and the FlashList rest contains only non-pinned sections (no pinned rows).
+    expect(rest).toEqual([{ title: 'All', data: unpinned }]);
+    const restItems = buildChatListItems(rest);
+    for (const chat of pinned) {
+      expect(restItems).not.toContainEqual(chat);
+    }
+    // maintainVisibleContentPosition behavior is unchanged on the rest list.
+    expect(
+      buildChatListFlashListProps({ data: rest, disableScrollAnchoring: true })
+        .maintainVisibleContentPosition
+    ).toEqual({ disabled: true });
+  });
+
+  it('returns no pinned chats when there is no pinned section (e.g. search)', () => {
+    const { pinned: extracted, rest } = splitPinnedSection(initial);
+    expect(extracted).toEqual([]);
+    expect(rest).toEqual(initial);
   });
 });

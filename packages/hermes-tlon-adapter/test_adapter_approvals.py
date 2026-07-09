@@ -286,6 +286,19 @@ class AdapterApprovalTests(unittest.TestCase):
         asyncio.run(handler(raw))
         return events
 
+    def apply_settings_event(self, adapter, event):
+        asyncio.run(adapter._handle_settings_event(event))
+
+    def reconnect(self, adapter):
+        """Simulate the _run_stream reconnect sequence: settings reload then
+        the pending-DM-invite catch-up scan."""
+
+        async def run():
+            await adapter._load_settings_state()
+            await adapter._process_pending_dm_invites()
+
+        asyncio.run(run())
+
     # ── deny-by-default + queueing ───────────────────────────────────────
 
     def test_unknown_dm_queues_approval_with_card(self):
@@ -414,6 +427,55 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(events, [])
         self.assertEqual(adapter._pending_approvals, [])
 
+    # ── defaultAuthorizedShips (TLON-6090) ──────────────────────────────
+
+    def test_default_authorized_ships_grants_channel_access_without_rule(self):
+        adapter = self.make_adapter()
+        adapter._settings_default_authorized_ships = {"~ten"}
+
+        events = self.dispatches(adapter, channel_event("~pen are you there?"))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_default_authorized_ships_does_not_grant_dm_access(self):
+        adapter = self.make_adapter()
+        adapter._settings_default_authorized_ships = {"~ten"}
+
+        events = self.dispatches(adapter, dm_event("hi bot"), dm=True)
+
+        self.assertEqual(events, [])
+        self.assertEqual(len(adapter._pending_approvals), 1)
+
+    def test_default_authorized_ships_ignored_when_rule_pins_allowed_ships(self):
+        adapter = self.make_adapter()
+        adapter._settings_default_authorized_ships = {"~ten"}
+        adapter._channel_rules = {"chat/~pen/general": {"allowedShips": ["~bus"]}}
+
+        events = self.dispatches(adapter, channel_event("~pen are you there?"))
+
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._pending_approvals[0]["type"], "channel")
+
+    def test_default_authorized_ships_used_when_rule_omits_allowed_ships(self):
+        adapter = self.make_adapter()
+        adapter._settings_default_authorized_ships = {"~ten"}
+        adapter._channel_rules = {"chat/~pen/general": {"mode": "restricted"}}
+
+        events = self.dispatches(adapter, channel_event("~pen are you there?"))
+
+        self.assertEqual(len(events), 1)
+
+    def test_open_channel_still_open_regardless_of_defaults(self):
+        adapter = self.make_adapter()
+        adapter._settings_default_authorized_ships = set()
+        adapter._channel_rules = {"chat/~pen/general": {"mode": "open"}}
+
+        events = self.dispatches(adapter, channel_event("~pen are you there?"))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(adapter._pending_approvals, [])
+
     def test_duplicate_dm_updates_without_renotify_within_cooldown(self):
         adapter = self.make_adapter()
 
@@ -447,8 +509,21 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(pending["messagePreview"], "(DM invite - no message yet)")
         self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
 
-    def test_invite_from_allowed_ship_is_auto_accepted(self):
+    def test_invite_from_env_allowed_ship_left_pending_when_flag_off(self):
+        # OpenClaw parity: only the owner bypasses autoAcceptDmInvites. An
+        # env-allowlisted ship's invite is left pending (not accepted, not
+        # queued, not marked processed) while the flag is off.
         adapter = self.make_adapter({"allowed_users": ["~ten"]})
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertNotIn("~ten", adapter._processed_dm_invites)
+
+    def test_invite_from_env_allowed_ship_auto_accepted_when_flag_on(self):
+        adapter = self.make_adapter({"allowed_users": ["~ten"]})
+        adapter._auto_accept_dm_invites = True
 
         self.dispatches(adapter, ["~ten"], dm=True)
 
@@ -464,6 +539,320 @@ class AdapterApprovalTests(unittest.TestCase):
 
         self.assertEqual(len(adapter._pending_approvals), 1)
         self.assertEqual(len(adapter._cli.notifications()), 1)
+
+    def test_owner_invite_always_accepted_flag_irrelevant(self):
+        adapter = self.make_adapter()
+        adapter._auto_accept_dm_invites = False
+
+        self.dispatches(adapter, ["~mug"], dm=True)
+
+        self.assertIn(("dms", "accept", "~mug"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_unknown_ship_with_owner_queues_and_marks_processed(self):
+        adapter = self.make_adapter()
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+
+    # ── autoAcceptDmInvites (TLON-6090) ─────────────────────────────────
+
+    def test_flag_off_store_allowlisted_invite_left_pending(self):
+        adapter = self.make_adapter()
+        adapter._auto_accept_dm_invites = False
+        adapter._settings_dm_allowlist = {"~ten"}
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertNotIn("~ten", adapter._processed_dm_invites)
+
+    def test_flag_on_store_allowlisted_invite_auto_accepted(self):
+        adapter = self.make_adapter()
+        adapter._auto_accept_dm_invites = True
+        adapter._settings_dm_allowlist = {"~ten"}
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+    def test_reload_then_accept_via_settings_event(self):
+        adapter = self.make_adapter()
+        adapter._settings_dm_allowlist = {"~ten"}
+        adapter._auto_accept_dm_invites = False
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertNotIn("~ten", adapter._processed_dm_invites)
+
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+        self.apply_settings_event(
+            adapter,
+            {
+                "settings-event": {
+                    "put-entry": {
+                        "desk": "moltbot",
+                        "bucket-key": "tlon",
+                        "entry-key": "autoAcceptDmInvites",
+                        "value": True,
+                    }
+                }
+            },
+        )
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+    def test_reconnect_catchup_invite_missed_while_down_flag_already_true(self):
+        adapter = self.make_adapter()
+        # "Flag already true" means the persisted store has it true (an
+        # in-memory-only override would be clobbered by the settings reload
+        # this test exercises).
+        adapter._sse.payloads["/settings/all"] = {
+            "all": {
+                "moltbot": {
+                    "tlon": {
+                        "dmAllowlist": ["~ten"],
+                        "autoAcceptDmInvites": True,
+                    }
+                }
+            }
+        }
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+
+        self.reconnect(adapter)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+    def test_reconnect_catchup_flag_flipped_while_down(self):
+        adapter = self.make_adapter()
+        adapter._auto_accept_dm_invites = False
+        adapter._sse.payloads["/settings/all"] = {
+            "all": {
+                "moltbot": {
+                    "tlon": {
+                        "dmAllowlist": ["~ten"],
+                        "autoAcceptDmInvites": True,
+                    }
+                }
+            }
+        }
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+
+        self.reconnect(adapter)
+
+        self.assertTrue(adapter._auto_accept_dm_invites)
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+    def test_reconnect_catchup_idempotence(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/settings/all"] = {
+            "all": {
+                "moltbot": {
+                    "tlon": {
+                        "dmAllowlist": ["~ten"],
+                        "autoAcceptDmInvites": True,
+                    }
+                }
+            }
+        }
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+
+        self.reconnect(adapter)
+        self.reconnect(adapter)
+
+        self.assertEqual(
+            adapter._cli.commands.count(("dms", "accept", "~ten")), 1
+        )
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_failed_accept_is_retriable(self):
+        class FailingAcceptCLI(FakeCLI):
+            async def run_command(self, args):
+                self.commands.append(tuple(args))
+                if tuple(args[:2]) == ("dms", "accept"):
+                    return tlon_api.TlonSendResult(
+                        success=False,
+                        command=("tlon-test", *args),
+                        error="rsvp failed",
+                    )
+                return tlon_api.TlonSendResult(
+                    success=True, command=("tlon-test", *args), stdout="ok\n"
+                )
+
+        adapter = self.make_adapter()
+        adapter._cli = FailingAcceptCLI()
+        adapter._auto_accept_dm_invites = True
+        adapter._settings_dm_allowlist = {"~ten"}
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertNotIn("~ten", adapter._processed_dm_invites)
+
+        # A later scan retries the still-unprocessed ship.
+        adapter._cli = FakeCLI()
+        self.dispatches(adapter, ["~ten"], dm=True)
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+    def test_narrowed_scope_queued_then_allowlisted_not_retroactively_accepted(self):
+        adapter = self.make_adapter()
+
+        # Unknown ship: queues and marks processed.
+        self.dispatches(adapter, ["~ten"], dm=True)
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+        # Owner adds it to dmAllowlist with the flag already on; the ship is
+        # still in _processed_dm_invites, so the settings-event branch's
+        # re-scan (and any later re-scan) skips it.
+        self.apply_settings_event(
+            adapter,
+            {
+                "settings-event": {
+                    "put-entry": {
+                        "desk": "moltbot",
+                        "bucket-key": "tlon",
+                        "entry-key": "autoAcceptDmInvites",
+                        "value": True,
+                    }
+                }
+            },
+        )
+        self.apply_settings_event(
+            adapter,
+            {
+                "settings-event": {
+                    "put-entry": {
+                        "desk": "moltbot",
+                        "bucket-key": "tlon",
+                        "entry-key": "dmAllowlist",
+                        "value": ["~ten"],
+                    }
+                }
+            },
+        )
+
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(len(adapter._pending_approvals), 1)  # no duplicate
+
+        # A later re-scan / repeat invite event still skips it.
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+        asyncio.run(adapter._process_pending_dm_invites())
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(len(adapter._pending_approvals), 1)
+
+    def test_restart_recovery_accepts_and_clears_stale_approval(self):
+        adapter = self.make_adapter()
+
+        # Unknown ship: queues and marks processed.
+        self.dispatches(adapter, ["~ten"], dm=True)
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        queued_id = adapter._pending_approvals[0]["id"]
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+        # Owner adds it to dmAllowlist with the flag on (narrowed-scope
+        # limitation: no retroactive accept while still processed).
+        adapter._settings_dm_allowlist = {"~ten"}
+        adapter._auto_accept_dm_invites = True
+
+        # Simulate the relevant effect of a full disconnect()/connect()
+        # restart: the processed set is cleared and a fresh reconnect
+        # sequence re-scans, reloading the still-queued approval from the
+        # bucket along with the now-allowlisted dmAllowlist/flag.
+        adapter._processed_dm_invites.clear()
+        adapter._sse.payloads["/settings/all"] = {
+            "all": {
+                "moltbot": {
+                    "tlon": {
+                        "dmAllowlist": ["~ten"],
+                        "autoAcceptDmInvites": True,
+                        "pendingApprovals": json.dumps(adapter._pending_approvals),
+                    }
+                }
+            }
+        }
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+
+        self.reconnect(adapter)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+        persisted = adapter._sse.settings_writes("pendingApprovals")
+        self.assertTrue(persisted)
+        self.assertEqual(persisted[-1], [])
+        self.assertNotIn(
+            queued_id, [a["id"] for a in adapter._pending_approvals]
+        )
+
+    def test_accept_clears_only_matching_dm_approval_type_scoped(self):
+        adapter = self.make_adapter()
+        adapter._pending_approvals = [
+            {
+                "id": "d1",
+                "type": "dm",
+                "requestingShip": "~ten",
+                "timestamp": 1,
+            },
+            {
+                "id": "c1",
+                "type": "channel",
+                "requestingShip": "~ten",
+                "channelNest": "chat/~pen/general",
+                "timestamp": 1,
+            },
+        ]
+        adapter._auto_accept_dm_invites = True
+        adapter._settings_dm_allowlist = {"~ten"}
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        remaining = [a["id"] for a in adapter._pending_approvals]
+        self.assertEqual(remaining, ["c1"])
+
+    def test_accept_with_no_queued_approval_persists_nothing(self):
+        adapter = self.make_adapter()
+        adapter._auto_accept_dm_invites = True
+        adapter._settings_dm_allowlist = {"~ten"}
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._sse.settings_writes("pendingApprovals"), [])
+
+    def test_accept_preserves_dm_message_approval_awaiting_replay(self):
+        adapter = self.make_adapter()
+
+        # A real DM message from unknown ~ten queues a 'dm' approval carrying
+        # originalMessage for post-approval replay.
+        self.dispatches(adapter, dm_event("hi bot, help me"), dm=True)
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertIn("originalMessage", adapter._pending_approvals[0])
+
+        # The ship is later allowlisted via the dashboard and its native
+        # invite auto-accepts — the message approval must NOT be swept away,
+        # or the queued message would silently never replay.
+        adapter._settings_dm_allowlist = {"~ten"}
+        adapter._auto_accept_dm_invites = True
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertEqual(
+            adapter._pending_approvals[0]["messagePreview"], "hi bot, help me"
+        )
 
     # ── group invites ────────────────────────────────────────────────────
 
@@ -962,7 +1351,8 @@ class AdapterApprovalTests(unittest.TestCase):
 
     def test_settings_event_hot_reloads_approval_state(self):
         adapter = self.make_adapter()
-        adapter._handle_settings_event(
+        self.apply_settings_event(
+            adapter,
             {
                 "settings-event": {
                     "put-entry": {
@@ -972,11 +1362,12 @@ class AdapterApprovalTests(unittest.TestCase):
                         "value": ["~bus"],
                     }
                 }
-            }
+            },
         )
         self.assertEqual(adapter._settings_dm_allowlist, {"~bus"})
 
-        adapter._handle_settings_event(
+        self.apply_settings_event(
+            adapter,
             {
                 "put-entry": {
                     "desk": "moltbot",
@@ -984,7 +1375,7 @@ class AdapterApprovalTests(unittest.TestCase):
                     "entry-key": "channelRules",
                     "value": {"chat/~pen/general": {"mode": "open"}},
                 }
-            }
+            },
         )
         self.assertTrue(
             adapter_mod.is_channel_open(adapter._channel_rules, "chat/~pen/general")

@@ -2,7 +2,7 @@ FROM node:22-bookworm-slim
 
 RUN apt-get update && apt-get install -y git curl gettext-base unzip && apt-get install -y git curl jq && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g pnpm@9.15.9
+RUN npm install -g pnpm@11.9.0
 
 # Install OpenClaw globally
 RUN npm install -g openclaw@2026.5.28
