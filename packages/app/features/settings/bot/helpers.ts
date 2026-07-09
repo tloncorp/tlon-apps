@@ -14,12 +14,12 @@ export type ChannelRuleDraft = {
   allowedShips: string;
   modelOverrideProvider?: string;
   modelOverride?: string;
-  // True for a channel that has no explicit server rule and therefore inherits
-  // defaultAuthorizedShips. `allowedShips` holds the current defaults as a
-  // display snapshot; the save path writes NO channelRules entry for it (it
-  // stays only in groupChannels) so it keeps following the defaults. Cleared
-  // once the user edits the rule explicitly (see setRule in
-  // BotChannelRuleSettingsScreen).
+  // True for a channel presented as "following defaultAuthorizedShips" rather
+  // than a custom list. `allowedShips` holds the defaults as a display snapshot;
+  // on save the current defaults are materialized into the rule's allowedShips
+  // (Solaris can't store a follow-the-defaults rule — see
+  // buildConfigFromChatValues). Cleared once the user edits the rule explicitly
+  // (see setRule in BotChannelRuleSettingsScreen).
   inheritsDefaultShips?: boolean;
 };
 
@@ -428,31 +428,32 @@ export const haveChannelModelEntriesChanged = (
 export const buildConfigFromChatValues = (
   values: ChatFormValues
 ): TlawnConfig => {
-  // Inherited channels carry no explicit rule: the backend infers allowlist +
-  // defaultAuthorizedShips from their mere presence in groupChannels. We must
-  // NOT emit a channelRules entry for them — the config schema requires
-  // allowedShips on every rule (so an omitted list fails validation), and an
-  // explicit list would freeze them instead of following the defaults. So skip
-  // them in channelRules but keep them in groupChannels so they stay monitored.
+  // Every monitored channel must have an explicit channelRules entry: Solaris
+  // derives groupChannels from `Map.keys channelRules` and ignores the payload's
+  // groupChannels, so a channel with no rule is not monitored. It also requires
+  // allowedShips on every rule. So materialize each channel — an inherited
+  // channel snapshots the CURRENT defaultAuthorizedShips into its allowedShips
+  // (it can't "follow" the defaults through this endpoint); an explicit allowlist
+  // keeps its own list; an open channel sends an empty list.
   const channelRules = Object.fromEntries(
-    Object.entries(values.channelRuleDrafts)
-      .filter(
-        ([, rule]) => !(rule.mode === 'allowlist' && rule.inheritsDefaultShips)
-      )
-      .map(([key, rule]) => [
-        normalizeChannelRuleKey(key),
-        {
-          mode: toBackendMode(rule.mode),
-          allowedShips:
-            rule.mode === 'allowlist'
-              ? normalizeShipList(rule.allowedShips)
-              : [],
-        },
-      ])
+    Object.entries(values.channelRuleDrafts).map(([key, rule]) => [
+      normalizeChannelRuleKey(key),
+      {
+        mode: toBackendMode(rule.mode),
+        allowedShips:
+          rule.mode === 'allowlist'
+            ? normalizeShipList(
+                rule.inheritsDefaultShips
+                  ? values.defaultAuthorizedShips
+                  : rule.allowedShips
+              )
+            : [],
+      },
+    ])
   );
-  const groupChannels = Array.from(
-    new Set(Object.keys(values.channelRuleDrafts).map(normalizeChannelRuleKey))
-  );
+  // Mirror Solaris (groupChannels = channelRules keys) so a channel is monitored
+  // iff it has a rule.
+  const groupChannels = Object.keys(channelRules);
   return {
     dmAllowlist: normalizeShipList(values.dmAllowlist),
     defaultAuthorizedShips: normalizeShipList(values.defaultAuthorizedShips),
