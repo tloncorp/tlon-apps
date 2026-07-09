@@ -1040,7 +1040,11 @@ export async function monitorTlonProvider(
           `[tlon] Using autoAcceptGroupInvites from settings store: ${effectiveAutoAcceptGroupInvites}`
         );
       }
-      if (currentSettings.groupInviteAllowlist?.length) {
+      // An explicit empty settings list is authoritative (the admin cleared the
+      // allowlist), not a signal to fall back to the file config — otherwise
+      // clearing it in the form would keep auto-accepting invites from the old
+      // file list. Only `undefined` (never set) defers to the file value.
+      if (currentSettings.groupInviteAllowlist !== undefined) {
         effectiveGroupInviteAllowlist = currentSettings.groupInviteAllowlist;
         runtime.log?.(
           `[tlon] Using groupInviteAllowlist from settings store: ${effectiveGroupInviteAllowlist.join(', ')}`
@@ -4324,12 +4328,11 @@ export async function monitorTlonProvider(
           );
         }
 
-        // Update group invite allowlist
+        // Update group invite allowlist. An explicit empty list is authoritative
+        // (the admin cleared it) — don't fall back to the file list, or clearing
+        // the allowlist would keep auto-accepting invites from the old entries.
         if (newSettings.groupInviteAllowlist !== undefined) {
-          effectiveGroupInviteAllowlist =
-            newSettings.groupInviteAllowlist.length > 0
-              ? newSettings.groupInviteAllowlist
-              : account.groupInviteAllowlist;
+          effectiveGroupInviteAllowlist = newSettings.groupInviteAllowlist;
           runtime.log?.(
             `[tlon] Settings: groupInviteAllowlist updated to ${effectiveGroupInviteAllowlist.join(', ')}`
           );

@@ -344,6 +344,10 @@ export function parseSettingsResponse(raw: unknown): TlonSettingsStore {
       typeof settings.autoDiscover === 'boolean'
         ? settings.autoDiscover
         : undefined,
+    autoDiscoverChannels:
+      typeof settings.autoDiscoverChannels === 'boolean'
+        ? settings.autoDiscoverChannels
+        : undefined,
     showModelSig:
       typeof settings.showModelSig === 'boolean'
         ? settings.showModelSig
@@ -535,6 +539,10 @@ export function applySettingsUpdate(
       break;
     case 'autoDiscover':
       next.autoDiscover = typeof value === 'boolean' ? value : undefined;
+      break;
+    case 'autoDiscoverChannels':
+      next.autoDiscoverChannels =
+        typeof value === 'boolean' ? value : undefined;
       break;
     case 'showModelSig':
       next.showModelSig = typeof value === 'boolean' ? value : undefined;
