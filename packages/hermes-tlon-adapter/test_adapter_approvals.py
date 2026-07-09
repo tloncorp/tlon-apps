@@ -192,6 +192,10 @@ def dm_event(
     return {"whom": whom, "id": msg_id, "response": {"add": {"essay": essay}}}
 
 
+def bot_author(ship="~bot"):
+    return {"ship": ship, "nickname": "Loop Bot", "avatar": ""}
+
+
 class FakeSSE:
     def __init__(self, payloads=None):
         self.payloads = payloads or {}
@@ -1164,6 +1168,341 @@ class AdapterApprovalTests(unittest.TestCase):
             adapter, channel_event("~pen thanks!", post_id="170.150")
         )
         self.assertEqual(len(follow_up), 1)
+
+    def test_channel_bot_approval_replay_counts_loop_safety(self):
+        adapter = self.make_adapter({"max_consecutive_bot_responses": 1})
+
+        self.dispatches(
+            adapter,
+            channel_event("~pen bot a", author=bot_author("~bot-a"), post_id="a1"),
+        )
+        request_a = adapter._pending_approvals[0]["id"]
+        replayed = self.dispatches(
+            adapter,
+            dm_event(f"/allow {request_a}", author="~mug", whom="~mug", msg_id="allow-a"),
+            dm=True,
+        )
+
+        self.assertEqual(len(replayed), 1)
+        self.assertEqual(replayed[0].text, "bot a")
+        self.assertIn("~bot-a", adapter._known_bot_ships)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+        self.assertEqual(
+            adapter._pending_bot_cap_addendum["chat/~pen/general"],
+            ("~bot-a", "a1"),
+        )
+
+        self.dispatches(
+            adapter,
+            channel_event("~pen bot b", author=bot_author("~bot-b"), post_id="b1"),
+        )
+        request_b = adapter._pending_approvals[0]["id"]
+        dropped = self.dispatches(
+            adapter,
+            dm_event(f"/allow {request_b}", author="~mug", whom="~mug", msg_id="allow-b"),
+            dm=True,
+        )
+
+        self.assertEqual(dropped, [])
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 2)
+        self.assertIn("group:chat/~pen/general:b1", adapter._seen_ids)
+
+    def test_repeated_unauthorized_bot_mentions_count_once_at_replay(self):
+        adapter = self.make_adapter({"max_consecutive_bot_responses": 3})
+
+        self.dispatches(
+            adapter,
+            channel_event("~pen first", author=bot_author(), post_id="m1"),
+        )
+        self.dispatches(
+            adapter,
+            channel_event("~pen second", author=bot_author(), post_id="m2"),
+        )
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["originalMessage"]["messageId"], "m2")
+
+        events = self.dispatches(
+            adapter,
+            dm_event(f"/allow {pending['id']}", author="~mug", whom="~mug"),
+            dm=True,
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "second")
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+    def test_unauthorized_human_reset_waits_until_replay(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+
+        initial = self.dispatches(
+            adapter,
+            channel_event("bot one", author=bot_author(), post_id="b1"),
+        )
+        self.assertEqual(len(initial), 1)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+        self.dispatches(
+            adapter,
+            channel_event("~pen reset please", author="~ten", post_id="h1"),
+        )
+        self.assertEqual(len(adapter._pending_approvals), 1)
+
+        before_approval = self.dispatches(
+            adapter,
+            channel_event("bot two", author=bot_author(), post_id="b2"),
+        )
+        self.assertEqual(before_approval, [])
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 2)
+
+        request_id = adapter._pending_approvals[0]["id"]
+        replayed_human = self.dispatches(
+            adapter,
+            dm_event(f"/allow {request_id}", author="~mug", whom="~mug"),
+            dm=True,
+        )
+        self.assertEqual(len(replayed_human), 1)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 0)
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        after_reset = self.dispatches(
+            adapter,
+            channel_event("bot three", author=bot_author(), post_id="b3"),
+        )
+        self.assertEqual(len(after_reset), 1)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+    def test_over_cap_replay_marks_seen_and_skips_media_prep(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._known_bot_consecutive_by_channel["chat/~pen/general"] = 1
+        approval = {
+            "id": "drop1",
+            "type": "channel",
+            "requestingShip": "~bot",
+            "channelNest": "chat/~pen/general",
+            "originalMessage": {
+                "messageId": "drop-message",
+                "messageText": "over cap",
+                "timestamp": 1000,
+                "authorIsBot": True,
+            },
+        }
+        events = []
+        prepare_calls = 0
+
+        async def record(event):
+            events.append(event)
+
+        async def fake_prepare(message, text):
+            nonlocal prepare_calls
+            prepare_calls += 1
+            return text, adapter_mod.PreparedMedia()
+
+        adapter.handle_message = record
+        with patch.object(adapter, "_prepare_dispatch_payload", fake_prepare):
+            asyncio.run(adapter._replay_approved_message(approval))
+
+        self.assertEqual(events, [])
+        self.assertEqual(prepare_calls, 0)
+        self.assertIn("group:chat/~pen/general:drop-message", adapter._seen_ids)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 2)
+
+        redelivered = self.dispatches(
+            adapter,
+            channel_event(
+                "bot repeats",
+                author=bot_author(),
+                post_id="drop-message",
+            ),
+        )
+        self.assertEqual(redelivered, [])
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 2)
+
+    def test_already_seen_replay_does_not_redispatch_or_count(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 3,
+            }
+        )
+
+        live = self.dispatches(
+            adapter,
+            channel_event("live first", author=bot_author(), post_id="live-1"),
+        )
+        self.assertEqual(len(live), 1)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+        events = []
+        prepare_calls = 0
+
+        async def record(event):
+            events.append(event)
+
+        async def fake_prepare(message, text):
+            nonlocal prepare_calls
+            prepare_calls += 1
+            return text, adapter_mod.PreparedMedia()
+
+        adapter.handle_message = record
+        with patch.object(adapter, "_prepare_dispatch_payload", fake_prepare):
+            asyncio.run(
+                adapter._replay_approved_message(
+                    {
+                        "id": "seen1",
+                        "type": "channel",
+                        "requestingShip": "~bot",
+                        "channelNest": "chat/~pen/general",
+                        "originalMessage": {
+                            "messageId": "live-1",
+                            "messageText": "live first",
+                            "timestamp": 1000,
+                            "authorIsBot": True,
+                        },
+                    }
+                )
+            )
+
+        self.assertEqual(events, [])
+        self.assertEqual(prepare_calls, 0)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+    def test_channel_approval_persists_learned_bot_status(self):
+        adapter = self.make_adapter({"max_consecutive_bot_responses": 1})
+
+        # Learn the ship from an unmentioned bot-meta message (drops at the
+        # attention gate, so no approval is queued for it).
+        self.dispatches(
+            adapter,
+            channel_event("just chatting", author=bot_author(), post_id="learn-1"),
+        )
+        self.assertIn("~bot", adapter._known_bot_ships)
+        self.assertEqual(adapter._pending_approvals, [])
+
+        # The mention that queues the approval carries a plain string author.
+        self.dispatches(
+            adapter,
+            channel_event("~pen hello", author="~bot", post_id="plain-1"),
+        )
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        approval = adapter._pending_approvals[0]
+        self.assertTrue(approval["originalMessage"]["authorIsBot"])
+
+        # Restart before /allow: a fresh adapter (empty learned set) must
+        # still replay it as a bot dispatch.
+        fresh = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        fresh.handle_message = record
+        asyncio.run(fresh._replay_approved_message(approval))
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("~bot", fresh._known_bot_ships)
+        self.assertEqual(fresh._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+    def test_replay_payload_round_trips_author_is_bot(self):
+        adapter = self.make_adapter({"allowed_users": ["~bot"]})
+        bot_message = tlon_api.TlonIncomingMessage(
+            chat_id="chat/~pen/general",
+            chat_name="general",
+            chat_type="group",
+            user_id="~bot",
+            user_name="~bot",
+            text="hello",
+            message_id="m1",
+            reply_to_message_id=None,
+            sent_at=tlon_api._datetime_from_ms(1000),
+            raw={},
+            author_is_bot=True,
+        )
+        human_message = tlon_api.TlonIncomingMessage(
+            chat_id="chat/~pen/general",
+            chat_name="general",
+            chat_type="group",
+            user_id="~ten",
+            user_name="~ten",
+            text="hello",
+            message_id="m2",
+            reply_to_message_id=None,
+            sent_at=tlon_api._datetime_from_ms(1000),
+            raw={},
+        )
+
+        bot_payload = adapter._original_message_payload(bot_message)
+        human_payload = adapter._original_message_payload(human_message)
+        self.assertTrue(bot_payload["authorIsBot"])
+        self.assertNotIn("authorIsBot", human_payload)
+
+        fresh = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        fresh.handle_message = record
+        asyncio.run(
+            fresh._replay_approved_message(
+                {
+                    "id": "persisted-channel",
+                    "type": "channel",
+                    "requestingShip": "~bot",
+                    "channelNest": "chat/~pen/general",
+                    "originalMessage": bot_payload,
+                }
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("~bot", fresh._known_bot_ships)
+        self.assertEqual(fresh._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+        dm_fresh = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "dm_allowlist": ["~bot"],
+            }
+        )
+        dm_payload = dict(bot_payload)
+        dm_payload["messageId"] = "dm-1"
+        dm_fresh.handle_message = record
+        asyncio.run(
+            dm_fresh._replay_approved_message(
+                {
+                    "id": "persisted-dm",
+                    "type": "dm",
+                    "requestingShip": "~bot",
+                    "originalMessage": dm_payload,
+                }
+            )
+        )
+        self.assertEqual(dm_fresh._known_bot_ships, set())
+        self.assertEqual(dm_fresh._known_bot_consecutive_by_channel, {})
 
     def test_channel_access_open_admits_everyone(self):
         adapter = self.make_adapter()

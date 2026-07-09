@@ -191,6 +191,53 @@ class FakeCLI:
         )
 
 
+def bot_author(ship="~bot"):
+    return {"ship": ship, "nickname": "Loop Bot", "avatar": ""}
+
+
+def loop_cap_addendum(ship="~bot"):
+    return (
+        "\n\n---\n_This is my last response to "
+        f"{ship} for now. To continue our conversation, "
+        "someone will need to mention me._"
+    )
+
+
+class RecordingCLI(FakeCLI):
+    def __init__(self, results=None):
+        self.sends = []
+        self.thread_replies = []
+        self.results = list(results or [])
+
+    def _next_result(self):
+        if self.results:
+            return self.results.pop(0)
+        return tlon_api.TlonSendResult(
+            success=True,
+            command=("tlon-test", "posts", "send"),
+            message_id="post-id",
+        )
+
+    async def send_message(self, chat_id, text):
+        self.sends.append((chat_id, text))
+        return self._next_result()
+
+    async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+        self.thread_replies.append((chat_id, post_id, text, parent_author))
+        result = self._next_result()
+        if result.command == ():
+            return tlon_api.TlonSendResult(
+                success=result.success,
+                command=("tlon-test", "posts", "reply"),
+                stdout=result.stdout,
+                stderr=result.stderr,
+                returncode=result.returncode,
+                message_id=result.message_id,
+                error=result.error,
+            )
+        return result
+
+
 class HermesToolPermissionSnapshotTests(unittest.TestCase):
     def _with_fake_hermes_config(
         self,
@@ -631,6 +678,322 @@ class AdapterAttentionTests(unittest.TestCase):
         self.assertEqual(duplicate, [])
         self.assertEqual(adapter._known_bot_consecutive_by_channel, {"chat/~pen/general": 1})
 
+    def test_dynamic_bot_meta_detection_caps_without_static_list(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+
+        first = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("bot one", author=bot_author(), post_id="1"),
+            )
+        )
+        second = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("bot two", author=bot_author(), post_id="2"),
+            )
+        )
+
+        self.assertEqual(len(first), 1)
+        self.assertEqual(second, [])
+        self.assertIn("~bot", adapter._known_bot_ships)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel, {"chat/~pen/general": 2})
+
+    def test_dynamic_bot_detection_sticks_across_author_shapes(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+
+        first = asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="1"))
+        )
+        second = asyncio.run(
+            self.dispatches(adapter, channel_event("bot two", author="~bot", post_id="2"))
+        )
+
+        self.assertEqual(len(first), 1)
+        self.assertEqual(second, [])
+        self.assertIn("~bot", adapter._known_bot_ships)
+
+    def test_bot_meta_detection_runs_before_attention_gate(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("not addressed", author=bot_author(), post_id="1"),
+            )
+        )
+
+        self.assertEqual(events, [])
+        self.assertIn("~bot", adapter._known_bot_ships)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel, {})
+
+    def test_final_allowed_bot_reply_gets_addendum_once(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 2,
+            }
+        )
+        adapter._cli = RecordingCLI()
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+        asyncio.run(adapter.send("chat/~pen/general", "first reply", reply_to="m1"))
+        self.assertEqual(adapter._cli.sends[-1][1], "first reply")
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot two", author=bot_author(), post_id="m2"))
+        )
+        asyncio.run(adapter.send("chat/~pen/general", "second reply", reply_to="m2"))
+        self.assertEqual(
+            adapter._cli.sends[-1][1],
+            "second reply" + loop_cap_addendum("~bot"),
+        )
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        asyncio.run(adapter.send("chat/~pen/general", "clean follow-up", reply_to="m2"))
+        self.assertEqual(adapter._cli.sends[-1][1], "clean follow-up")
+
+    def test_bot_cap_addendum_survives_timeout_retry_and_clears_on_terminal_failure(self):
+        timeout = tlon_api.TlonSendResult(
+            success=False,
+            command=("tlon-test", "posts", "send"),
+            returncode=124,
+            error="timeout",
+        )
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI(results=[timeout])
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+        first = asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="m1"))
+        self.assertFalse(first.success)
+        self.assertTrue(first.retryable)
+        self.assertIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+        self.assertEqual(adapter._cli.sends[-1][1], "reply" + loop_cap_addendum("~bot"))
+
+        retry = asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="m1"))
+        self.assertTrue(retry.success)
+        self.assertEqual(adapter._cli.sends[-1][1], "reply" + loop_cap_addendum("~bot"))
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        terminal = tlon_api.TlonSendResult(
+            success=False,
+            command=("tlon-test", "posts", "send"),
+            returncode=1,
+            error="failed",
+        )
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI(results=[terminal])
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+        failed = asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="m1"))
+        self.assertFalse(failed.success)
+        self.assertFalse(failed.retryable)
+        self.assertEqual(adapter._cli.sends[-1][1], "reply" + loop_cap_addendum("~bot"))
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        asyncio.run(adapter.send("chat/~pen/general", "clean", reply_to="m1"))
+        self.assertEqual(adapter._cli.sends[-1][1], "clean")
+
+    def test_mismatched_reply_to_does_not_consume_addendum_marker(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI()
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+
+        asyncio.run(adapter.send("chat/~pen/general", "wrong", reply_to="other"))
+        asyncio.run(adapter.send("chat/~pen/general", "missing"))
+        self.assertEqual(adapter._cli.sends[-2][1], "wrong")
+        self.assertEqual(adapter._cli.sends[-1][1], "missing")
+        self.assertEqual(
+            adapter._pending_bot_cap_addendum["chat/~pen/general"],
+            ("~bot", "m1"),
+        )
+
+        asyncio.run(adapter.send("chat/~pen/general", "right", reply_to="m1"))
+        self.assertEqual(adapter._cli.sends[-1][1], "right" + loop_cap_addendum("~bot"))
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+    def test_stale_send_completion_does_not_clear_newer_marker(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        release = None
+        sent = []
+
+        class BlockingCLI(FakeCLI):
+            async def send_message(self, chat_id, text):
+                sent.append((chat_id, text))
+                await release
+                return tlon_api.TlonSendResult(
+                    success=True,
+                    command=("tlon-test", "posts", "send"),
+                    message_id="post-id",
+                )
+
+        async def run():
+            nonlocal release
+            release = asyncio.get_running_loop().create_future()
+            adapter._cli = BlockingCLI()
+            await self.dispatches(
+                adapter,
+                channel_event("bot one", author=bot_author(), post_id="m1"),
+            )
+            task = asyncio.create_task(
+                adapter.send("chat/~pen/general", "old reply", reply_to="m1")
+            )
+            await asyncio.sleep(0)
+            adapter._pending_bot_cap_addendum["chat/~pen/general"] = ("~bot", "m2")
+            release.set_result(None)
+            await task
+            adapter._cli = RecordingCLI()
+            await adapter.send("chat/~pen/general", "new reply", reply_to="m2")
+
+        asyncio.run(run())
+
+        self.assertEqual(sent[0][1], "old reply" + loop_cap_addendum("~bot"))
+        self.assertEqual(
+            adapter._cli.sends[-1][1],
+            "new reply" + loop_cap_addendum("~bot"),
+        )
+
+    def test_static_list_bot_gets_addendum(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "known_bot_users": ["~bot"],
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI()
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author="~bot", post_id="m1"))
+        )
+        asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="m1"))
+
+        self.assertEqual(adapter._cli.sends[-1][1], "reply" + loop_cap_addendum("~bot"))
+
+    def test_human_reset_clears_pending_addendum(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot", "~mug"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI()
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+        self.assertIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("human reset", author="~mug", post_id="m2"))
+        )
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 0)
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        asyncio.run(adapter.send("chat/~pen/general", "clean", reply_to="m1"))
+        self.assertEqual(adapter._cli.sends[-1][1], "clean")
+
+    def test_zero_loop_cap_is_unlimited_without_addendum(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 0,
+            }
+        )
+
+        for idx in range(5):
+            events = asyncio.run(
+                self.dispatches(
+                    adapter,
+                    channel_event(
+                        f"bot {idx}",
+                        author=bot_author(),
+                        post_id=f"m{idx}",
+                    ),
+                )
+            )
+            self.assertEqual(len(events), 1)
+
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 5)
+        self.assertEqual(adapter._pending_bot_cap_addendum, {})
+
+    def test_addendum_respects_max_message_length(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI()
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+        asyncio.run(
+            adapter.send(
+                "chat/~pen/general",
+                "x" * adapter.MAX_MESSAGE_LENGTH,
+                reply_to="m1",
+            )
+        )
+
+        delivered = adapter._cli.sends[-1][1]
+        self.assertLessEqual(len(delivered), adapter.MAX_MESSAGE_LENGTH)
+        self.assertTrue(delivered.endswith(loop_cap_addendum("~bot")))
+
     def test_dm_behavior_stays_outside_group_loop_cap(self):
         adapter = self.make_adapter(
             {
@@ -639,28 +1002,36 @@ class AdapterAttentionTests(unittest.TestCase):
                 "max_consecutive_bot_responses": 1,
             }
         )
-        message = tlon_api.TlonIncomingMessage(
-            chat_id="~bot",
-            chat_name="~bot",
-            chat_type="dm",
-            user_id="~bot",
-            user_name="~bot",
-            text="hello",
-            message_id="dm-1",
-            reply_to_message_id=None,
-            sent_at=tlon_api._datetime_from_ms(1000),
-            raw={},
-        )
+        # Drive the real DM handler (not _dispatch_message directly) so the
+        # no-bot-learning assertion actually exercises _handle_dm_event.
+        dm_event = {
+            "whom": "~bot",
+            "id": "dm-1",
+            "response": {
+                "add": {
+                    "essay": {
+                        "author": bot_author(),
+                        "sent": 1000,
+                        "content": [{"inline": ["hello"]}],
+                    }
+                }
+            },
+        }
         events = []
 
         async def record(event):
             events.append(event)
 
         adapter.handle_message = record
-        asyncio.run(adapter._dispatch_message(message, is_dm=True))
+        asyncio.run(adapter._handle_dm_event(dm_event))
+        adapter._cli = RecordingCLI()
+        adapter._pending_bot_cap_addendum["chat/~pen/general"] = ("~bot", "dm-1")
+        asyncio.run(adapter.send("~bot", "dm reply", reply_to="dm-1"))
 
         self.assertEqual(len(events), 1)
         self.assertEqual(adapter._known_bot_consecutive_by_channel, {})
+        self.assertEqual(adapter._known_bot_ships, set())
+        self.assertEqual(adapter._cli.sends[-1][1], "dm reply")
 
     def test_group_reply_is_top_level_unless_thread_metadata(self):
         adapter = self.make_adapter({"allowed_users": ["~mug"]})
