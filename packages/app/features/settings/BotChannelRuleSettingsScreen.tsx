@@ -7,6 +7,7 @@ import {
   Text,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
+import { valid } from '@urbit/aura';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
@@ -102,6 +103,14 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   }, [channelKey]);
 
   const rule = draft.draft.chat.channelRuleDrafts[channelKey];
+  const baselineRule = draft.baseline.chat.channelRuleDrafts[channelKey];
+  // Once a disable is applied (the channel leaves the saved baseline), forget
+  // the pre-disable snapshot — otherwise re-enabling later (screen still mounted
+  // in the drawer) would restore the stale rule instead of the current default.
+  useEffect(() => {
+    if (!baselineRule) disabledRuleRef.current = undefined;
+  }, [baselineRule]);
+
   const currentRule: ChannelRuleDraft = useMemo(
     () => rule ?? { mode: 'open', allowedShips: '' },
     [rule]
@@ -281,6 +290,13 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   const addPendingShip = useCallback(() => {
     const ship = normalizeShip(pendingShip);
     if (!ship) return;
+    // normalizeShip only adds a leading ~; reject anything that isn't a real
+    // @p so Apply can't send a malformed allowedShips entry (e.g. "foo!").
+    if (!valid('p', ship)) {
+      setValidationError(`"${pendingShip.trim()}" is not a valid ship name.`);
+      return;
+    }
+    setValidationError(null);
     if (!allowedShips.includes(ship)) {
       patch({ allowedShips: formatShipList([...allowedShips, ship]) });
     }
@@ -356,8 +372,6 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                   // the saved rule for an already-configured channel; only a
                   // genuinely new channel falls back to the default allowlist
                   // that inherits defaultAuthorizedShips.
-                  const baselineRule =
-                    draft.baseline.chat.channelRuleDrafts[channelKey];
                   setRule(
                     rule ??
                       disabledRuleRef.current ??
