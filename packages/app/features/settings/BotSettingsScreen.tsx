@@ -114,6 +114,19 @@ export function BotSettingsScreen(props: Props) {
       option.id !== BASIC_PROVIDER_ID &&
       Boolean(queries.providerConfig.keys?.[option.id])
   );
+  // Keep the Default model section reachable even when the key backing a custom
+  // model was removed: provider keys and model choices are stored separately, so
+  // hiding it would strand the bot on an unusable model with no way to switch
+  // back to Basic or clear fallbacks.
+  const showModelSection =
+    hasCustomProviderKey ||
+    draft.model.provider !== BASIC_PROVIDER_ID ||
+    draft.model.fallbacks.length > 0;
+  // The provider-key endpoint is user-level and stays usable even when the bot's
+  // own config/nickname queries are erroring (e.g. the gateway can't start until
+  // a bad key is replaced). Gate the API-key rows on provider-config readiness
+  // alone, not the full settingsReady, so that recovery path isn't blocked.
+  const providerKeysReady = queries.providerConfigQuery.isSuccess;
 
   const connectionsCount = useMemo(
     () =>
@@ -169,7 +182,7 @@ export function BotSettingsScreen(props: Props) {
             />
           </BotSettingsSection>
 
-          {hasCustomProviderKey ? (
+          {showModelSection ? (
             <BotSettingsSection title="Default model">
               <BotSettingsRow
                 label="Provider"
@@ -212,7 +225,7 @@ export function BotSettingsScreen(props: Props) {
                   label={option.label}
                   value={safeKeySummary(queries.providerConfig, option.id)}
                   icon="Lock"
-                  disabled={controlsReadOnly}
+                  disabled={applying || !providerKeysReady}
                   onPress={() =>
                     navigate('BotApiKeySettings', { provider: option.id })
                   }
@@ -369,14 +382,21 @@ function NicknameField({
   const [value, setValue] = useState(nickname);
   const [error, setError] = useState<string | null>(null);
   const isEditingRef = useRef(false);
+  const prevPendingRef = useRef(pending);
 
-  // Adopt external changes (server sync, discard) — but never while the user
-  // is typing, or a background refetch would wipe their in-progress input.
+  // Adopt external changes to the nickname. Normally we skip this while the user
+  // is typing so a background refetch can't wipe in-progress input — but when a
+  // pending edit is cleared (Discard/Apply), adopt it even if the field is still
+  // focused, and end the edit session. Otherwise a discarded edit would linger
+  // in the input and get re-committed on the next blur.
   useEffect(() => {
-    if (!isEditingRef.current) {
+    const pendingCleared = prevPendingRef.current && !pending;
+    prevPendingRef.current = pending;
+    if (!isEditingRef.current || pendingCleared) {
+      isEditingRef.current = false;
       setValue(nickname);
     }
-  }, [nickname]);
+  }, [nickname, pending]);
 
   const commit = useCallback(() => {
     isEditingRef.current = false;

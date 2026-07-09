@@ -25,7 +25,6 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     clearDeepLink();
     clearTelemetry();
     clearSessionStorageItems();
-    resetBotSettingsDraft();
     store.updateSession(null);
     store.clearSyncStartLock();
     cancelNodeResumeNudge();
