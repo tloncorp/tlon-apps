@@ -96,7 +96,7 @@ TLON_OWNER_LISTEN_DISABLED_CHANNELS=
 TLON_OWNER_LISTEN_ENABLED_CHANNELS=
 TLON_CONTEXT_MESSAGES=20
 TLON_KNOWN_BOT_USERS=~other-bot
-TLON_MAX_CONSECUTIVE_BOT_RESPONSES=2
+TLON_MAX_CONSECUTIVE_BOT_RESPONSES=3
 TLON_CLI=tlon
 TLON_SSE_READ_TIMEOUT_SECONDS=60
 TLON_SKILL_PATH=/path/to/tlon-skill/SKILL.md # optional explicit plugin-skill path
@@ -157,7 +157,7 @@ Open mode still requires a mention (use `TLON_FREE_RESPONSE_CHANNELS` for unment
 
 A restricted channel whose rule has no explicit `allowedShips` (including channels with no rule at all) falls back to the settings key `defaultAuthorizedShips` — a global list of ships pre-authorized in every restricted channel, mirroring OpenClaw. An explicit `allowedShips` list on the rule — even an empty one, which blocks everyone — always wins over the default. `defaultAuthorizedShips` grants channel access only; it does not authorize DMs (use `dmAllowlist`/`TLON_DM_ALLOWLIST` for that).
 
-`TLON_KNOWN_BOT_USERS` enables channel-scoped loop protection for group messages. Explicit mentions from known bots still count toward `TLON_MAX_CONSECUTIVE_BOT_RESPONSES`; human dispatches reset the counter.
+Group-channel bot-loop protection is on by default for messages whose channel author is bot metadata. `TLON_KNOWN_BOT_USERS` supplements that dynamic detection for bots that still post with plain ship-string authors. Consecutive bot dispatches are capped by `TLON_MAX_CONSECUTIVE_BOT_RESPONSES` (default 3; set `0` for unlimited), the final allowed reply includes a "mention me to continue" addendum, and human dispatches reset the counter.
 
 ## Owner-Listen
 

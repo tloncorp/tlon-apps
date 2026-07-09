@@ -551,7 +551,9 @@ class TlonAdapter(BasePlatformAdapter):
         self._bot_nickname: str = ""
         self._bot_avatar: str = ""
         self._participated_threads: set[str] = set()
+        self._known_bot_ships: set[str] = set()
         self._known_bot_consecutive_by_channel: dict[str, int] = {}
+        self._pending_bot_cap_addendum: dict[str, tuple[str, str]] = {}
         self._owner_listen = self._owner_listen_env_defaults()
         self._settings_group_channels: set[str] = set()
         self._settings_loaded = False
@@ -674,7 +676,9 @@ class TlonAdapter(BasePlatformAdapter):
         self._seen_ids.clear()
         self._seen_order.clear()
         self._participated_threads.clear()
+        self._known_bot_ships.clear()
         self._known_bot_consecutive_by_channel.clear()
+        self._pending_bot_cap_addendum.clear()
         self._processed_dm_invites.clear()
         self._processed_group_invites.clear()
         self._telemetry.flush()
@@ -894,6 +898,8 @@ class TlonAdapter(BasePlatformAdapter):
             payload["messageContent"] = message.content
         if message.blob:
             payload["blob"] = message.blob
+        if message.author_is_bot:
+            payload["authorIsBot"] = True
         if message.reply_to_message_id:
             payload["parentId"] = message.reply_to_message_id
             payload["isThreadReply"] = True
@@ -1234,9 +1240,12 @@ class TlonAdapter(BasePlatformAdapter):
             raw={"approvalReplay": approval_id(approval), "originalMessage": original},
             content=original.get("messageContent"),
             blob=blob,
+            author_is_bot=bool(original.get("authorIsBot")),
         )
-        dispatch_text, prepared_media = await self._prepare_dispatch_payload(message, text)
         if is_dm:
+            dispatch_text, prepared_media = await self._prepare_dispatch_payload(
+                message, text
+            )
             await self._dispatch_message(
                 replace(message, text=dispatch_text),
                 is_dm=True,
@@ -1244,10 +1253,18 @@ class TlonAdapter(BasePlatformAdapter):
                 prepared_media=prepared_media,
             )
             return
+        if message.author_is_bot:
+            self._learn_known_bot_ship(message.user_id)
+        if not self._mark_seen(message):
+            return
+        if not self._passes_group_loop_safety(message):
+            return
+        dispatch_text, prepared_media = await self._prepare_dispatch_payload(message, text)
         dispatch_text = await self._with_group_context(message, dispatch_text, "approved")
         await self._dispatch_message(
             replace(message, text=dispatch_text),
             is_dm=False,
+            mark_seen=False,
             dispatch_reason="approved",
             prepared_media=prepared_media,
         )
@@ -1729,6 +1746,8 @@ class TlonAdapter(BasePlatformAdapter):
         message = parse_channel_message(raw, self_ship=self.tlon_config.ship_name)
         if message is None:
             return
+        if message.author_is_bot:
+            self._learn_known_bot_ship(message.user_id)
 
         is_mentioned = self._mention_matcher.mentioned(message.text)
         clean_text = (
@@ -2072,27 +2091,41 @@ class TlonAdapter(BasePlatformAdapter):
             return False
         return self._thread_key(message.chat_id, message.reply_to_message_id) in self._participated_threads
 
-    def _passes_group_loop_safety(self, message: TlonIncomingMessage) -> bool:
-        known_bots = self.tlon_config.known_bot_users
-        if not known_bots:
-            return True
+    def _learn_known_bot_ship(self, ship: str) -> None:
+        sender = normalize_ship(ship)
+        if not sender or sender in self._known_bot_ships:
+            return
+        self._known_bot_ships.add(sender)
+        logger.info("[tlon] learned bot ship from channel author metadata: %s", sender)
 
+    def _passes_group_loop_safety(self, message: TlonIncomingMessage) -> bool:
         channel = message.chat_id
         sender = normalize_ship(message.user_id)
-        if sender in known_bots:
-            count = self._known_bot_consecutive_by_channel.get(channel, 0) + 1
-            self._known_bot_consecutive_by_channel[channel] = count
-            if count > self.tlon_config.max_consecutive_bot_responses:
-                logger.info(
-                    "[tlon] dropping known-bot message from %s in %s after %s consecutive dispatch attempts",
-                    sender,
-                    channel,
-                    count,
-                )
-                return False
+        is_known_bot = (
+            message.author_is_bot
+            or sender in self._known_bot_ships
+            or sender in self.tlon_config.known_bot_users
+        )
+        if not is_known_bot:
+            self._known_bot_consecutive_by_channel[channel] = 0
+            self._pending_bot_cap_addendum.pop(channel, None)
             return True
 
-        self._known_bot_consecutive_by_channel[channel] = 0
+        count = self._known_bot_consecutive_by_channel.get(channel, 0) + 1
+        self._known_bot_consecutive_by_channel[channel] = count
+        limit = self.tlon_config.max_consecutive_bot_responses
+        if limit <= 0:
+            return True
+        if count > limit:
+            logger.info(
+                "[tlon] dropping known-bot message from %s in %s after %s consecutive dispatch attempts",
+                sender,
+                channel,
+                count,
+            )
+            return False
+        if count == limit:
+            self._pending_bot_cap_addendum[channel] = (sender, message.message_id)
         return True
 
     async def _dispatch_message(
@@ -2202,7 +2235,15 @@ class TlonAdapter(BasePlatformAdapter):
         reply_to: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> SendResult:
-        content = (content or "")[: self.MAX_MESSAGE_LENGTH]
+        pending = self._pending_bot_cap_addendum.get(chat_id)
+        addendum = ""
+        if pending and reply_to and str(reply_to) == pending[1]:
+            addendum = (
+                "\n\n---\n_This is my last response to "
+                f"{pending[0]} for now. To continue our conversation, "
+                "someone will need to mention me._"
+            )
+        content = (content or "")[: self.MAX_MESSAGE_LENGTH - len(addendum)] + addendum
         metadata = metadata or {}
         # Core anchors every reply to the triggering message (reply_to), but
         # Tlon conversations are linear: reply top-level unless the
@@ -2237,6 +2278,9 @@ class TlonAdapter(BasePlatformAdapter):
         }
         if result.success and is_thread_reply and thread_parent:
             self._participated_threads.add(self._thread_key(chat_id, thread_parent))
+        if addendum and (result.success or result.returncode != 124):
+            if self._pending_bot_cap_addendum.get(chat_id) == pending:
+                self._pending_bot_cap_addendum.pop(chat_id, None)
         return SendResult(
             success=result.success,
             message_id=result.message_id,

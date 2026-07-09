@@ -143,6 +143,27 @@ class TlonConfigTests(unittest.TestCase):
         self.assertEqual(cfg.known_bot_users, frozenset({"~bot", "~other-bot"}))
         self.assertEqual(cfg.max_consecutive_bot_responses, 3)
 
+    def test_loop_cap_defaults_to_three_and_allows_zero(self):
+        required = {
+            "node_url": "https://zod.tlon.network",
+            "node_id": "~zod",
+            "access_code": "code",
+        }
+
+        default_cfg = tlon_api.TlonConfig.from_env(extra=required, env={})
+        env_zero = tlon_api.TlonConfig.from_env(
+            extra=required,
+            env={"TLON_MAX_CONSECUTIVE_BOT_RESPONSES": "0"},
+        )
+        extra_zero = tlon_api.TlonConfig.from_env(
+            extra={**required, "max_consecutive_bot_responses": 0},
+            env={},
+        )
+
+        self.assertEqual(default_cfg.max_consecutive_bot_responses, 3)
+        self.assertEqual(env_zero.max_consecutive_bot_responses, 0)
+        self.assertEqual(extra_zero.max_consecutive_bot_responses, 0)
+
     def test_dm_allowlist_is_additive_and_free_response_is_guarded(self):
         cfg = tlon_api.TlonConfig.from_env(
             env={
@@ -763,6 +784,12 @@ class MessageParsingTests(unittest.TestCase):
         self.assertIsNotNone(message)
         self.assertEqual(message.user_id, "~nec")
         self.assertEqual(message.user_name, "~nec")
+        self.assertTrue(message.author_is_bot)
+
+    def test_author_is_bot_meta_rejects_mappings_without_ship(self):
+        self.assertTrue(tlon_api.author_is_bot_meta({"ship": "~nec", "nickname": "Bot"}))
+        self.assertFalse(tlon_api.author_is_bot_meta({"nickname": "Bot"}))
+        self.assertFalse(tlon_api.author_is_bot_meta("~nec"))
 
     def test_parse_channel_message_preserves_blob_and_allows_blob_only(self):
         blob = json.dumps(
@@ -844,6 +871,44 @@ class MessageParsingTests(unittest.TestCase):
         self.assertEqual(message.reply_to_message_id, "root")
         self.assertEqual(message.blob, blob)
 
+    def test_parse_channel_reply_accepts_reply_essay_bot_author(self):
+        raw = {
+            "nest": "chat/~zod/general",
+            "response": {
+                "post": {
+                    "id": "root",
+                    "r-post": {
+                        "reply": {
+                            "id": "170.142",
+                            "r-reply": {
+                                "set": {
+                                    "seal": {"parent-id": "root"},
+                                    "reply-essay": {
+                                        "author": {
+                                            "ship": "~nec",
+                                            "nickname": "Test Bot",
+                                            "avatar": "",
+                                        },
+                                        "sent": 1000,
+                                        "content": [{"inline": [{"ship": "~zod"}, " hi"]}],
+                                    },
+                                }
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        message = tlon_api.parse_channel_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertEqual(message.message_id, "170.142")
+        self.assertEqual(message.reply_to_message_id, "root")
+        self.assertEqual(message.user_id, "~nec")
+        self.assertEqual(message.text, "~zod hi")
+        self.assertTrue(message.author_is_bot)
+
     def test_old_substring_mention_helpers_are_removed(self):
         self.assertFalse(hasattr(tlon_api, "bot_mentioned"))
         self.assertFalse(hasattr(tlon_api, "strip_bot_mentions"))
@@ -870,7 +935,28 @@ class MessageParsingTests(unittest.TestCase):
         self.assertEqual(message.chat_id, "~nec")
         self.assertEqual(message.chat_type, "dm")
         self.assertEqual(message.text, "hello")
+        self.assertFalse(message.author_is_bot)
         self.assertIsNone(own)
+
+    def test_parse_dm_message_records_bot_profile_author(self):
+        raw = {
+            "whom": "~nec",
+            "id": "170.141",
+            "response": {
+                "add": {
+                    "essay": {
+                        "author": {"ship": "~nec", "nickname": "Bot", "avatar": ""},
+                        "sent": 1000,
+                        "content": [{"inline": ["hello"]}],
+                    }
+                }
+            },
+        }
+
+        message = tlon_api.parse_dm_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertTrue(message.author_is_bot)
 
     def test_parse_dm_message_allows_blob_only(self):
         blob = json.dumps(

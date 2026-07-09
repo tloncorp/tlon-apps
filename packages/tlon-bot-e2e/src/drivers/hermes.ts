@@ -220,7 +220,7 @@ async function assertHermesConfig(
     ctx.composeEnv.TLON_KNOWN_BOT_USERS ?? ''
   ).split(',');
   const expectedLoopLimit = Number(
-    ctx.composeEnv.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '2'
+    ctx.composeEnv.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '3'
   );
 
   expectConfig(model.provider === 'custom', 'model.provider must be custom');
@@ -467,7 +467,7 @@ function normalizeShip(ship: string): string {
 }
 
 function sharedLoopLimitEnv(): string {
-  const raw = process.env.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '2';
+  const raw = process.env.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '3';
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(
