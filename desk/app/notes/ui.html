@@ -5364,16 +5364,22 @@ async function createFolder() {
   const name = document.getElementById("m-name")?.value?.trim();
   const parentVal = document.getElementById("m-parent")?.value;
   if (!name) return;
-  document.getElementById("modal-backdrop").classList.remove("open");
 
-  // Find root folder if no parent selected
+  // `parent` is required by the API; to create a top-level folder we pass the
+  // notebook's root folder id. Resolve it before closing the modal so a
+  // failure to resolve leaves the user's input intact.
   let parentFolderId = parentVal ? parseInt(parentVal) : null;
   if (!parentFolderId) {
     const rootFolder = Object.values(folders).find(f => f.name === "/");
     parentFolderId = rootFolder ? rootFolder.id : null;
   }
+  if (!parentFolderId) {
+    alert("Couldn't find a parent folder for the new folder. Try reloading the notebook.");
+    return;
+  }
 
-  await pokeNotebook({ type: "create-folder", parent: parentFolderId || null, name });
+  document.getElementById("modal-backdrop").classList.remove("open");
+  await pokeNotebook({ type: "create-folder", parent: parentFolderId, name });
   setTimeout(() => loadFolders(), 300);
 }
 
@@ -5647,7 +5653,8 @@ async function loadS3Config() {
         }
         try {
           const j = JSON.parse(text);
-          console.log(`[notes] storage scry ${path} (${dt}ms):`, j);
+          // don't log the body — /credentials contains S3 secretAccessKey
+          console.log(`[notes] storage scry ${path} (${dt}ms)`);
           return j;
         } catch {
           console.warn(`[notes] storage scry ${path}: non-JSON body (${dt}ms):`, text.slice(0, 200));
