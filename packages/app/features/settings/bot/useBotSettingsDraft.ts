@@ -393,11 +393,17 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
                 ? nextValues.model.fallbacks
                 : serverModel.fallbacks,
             });
+            const savedProviderConfig = normalizeProviderConfig(saved);
+            // The save returns the full post-save provider config; adopt it as
+            // the cached fresh config so the later channelModels merge (in the
+            // chat step of this same apply) works from the newest snapshot —
+            // an override another client added while this ran isn't dropped.
+            freshProviderConfig = savedProviderConfig;
             // Commit what the server actually stored (merged untouched fields,
             // Basic pinned to its default) rather than the draft snapshot, so a
             // later failing step doesn't leave a stale model shown.
             return {
-              model: getModelFormValues(normalizeProviderConfig(saved)),
+              model: getModelFormValues(savedProviderConfig),
             };
           },
           commit: { model: nextValues.model },
