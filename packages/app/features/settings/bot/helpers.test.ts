@@ -113,14 +113,26 @@ describe('provider config', () => {
       models: [],
       defaultKeys: { basic: { key: 'x' } },
     });
-    expect(toDisplayProviderId(config, 'openrouter')).toBe('basic');
+    // only the shared default MODEL on openrouter maps to Basic
+    expect(
+      toDisplayProviderId(config, 'openrouter', 'minimax/minimax-m3')
+    ).toBe('basic');
+    // a custom openrouter model must stay openrouter (else a save would pin it
+    // to minimax and silently rewrite the user's real model)
+    expect(
+      toDisplayProviderId(config, 'openrouter', 'anthropic/claude-3.5')
+    ).toBe('openrouter');
+    // with a personal openrouter key, even the default model stays openrouter
     expect(
       toDisplayProviderId(
         { ...config, keys: { openrouter: 'sk-or-abc' } },
-        'openrouter'
+        'openrouter',
+        'minimax/minimax-m3'
       )
     ).toBe('openrouter');
-    expect(toDisplayProviderId(config, 'anthropic')).toBe('anthropic');
+    expect(toDisplayProviderId(config, 'anthropic', 'claude-1')).toBe(
+      'anthropic'
+    );
   });
 
   it('redacts stored keys instead of rendering them in full', () => {
@@ -220,7 +232,8 @@ describe('tlonbot config', () => {
         models: [
           {
             provider: 'openrouter',
-            model: 'some/model',
+            // the shared default model on openrouter (no user key) reads as Basic
+            model: 'minimax/minimax-m3',
             channels: ['chat/~zod/general'],
           },
         ],
@@ -230,7 +243,7 @@ describe('tlonbot config', () => {
       mode: 'allowlist',
       allowedShips: '~nec',
       modelOverrideProvider: 'basic',
-      modelOverride: 'some/model',
+      modelOverride: 'minimax/minimax-m3',
     });
     // a group channel with no explicit rule defaults to an allowlist with the
     // default authorized ships (flagged inherited), not an open channel
@@ -388,6 +401,36 @@ describe('channel model overrides', () => {
         channels: ['chat/~zod/general'],
       },
     ]);
+  });
+
+  it('keeps a Basic override that has no model (Basic has no model picker)', () => {
+    const entries = buildChannelModelEntries({
+      'chat/~zod/general': {
+        mode: 'open',
+        allowedShips: '',
+        modelOverrideProvider: 'basic',
+        modelOverride: '',
+      },
+    });
+    expect(entries).toEqual([
+      {
+        provider: 'basic',
+        model: 'minimax/minimax-m3',
+        channels: ['chat/~zod/general'],
+      },
+    ]);
+  });
+
+  it('still drops a non-Basic override missing its model', () => {
+    const entries = buildChannelModelEntries({
+      'chat/~zod/general': {
+        mode: 'open',
+        allowedShips: '',
+        modelOverrideProvider: 'anthropic',
+        modelOverride: '',
+      },
+    });
+    expect(entries).toEqual([]);
   });
 });
 

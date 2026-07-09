@@ -191,16 +191,20 @@ export const safeKeySummary = (
 
 // Basic is now persisted as its own backend provider (see toBackendModel), so a
 // stored `basic` entry displays as Basic directly. This heuristic additionally
-// covers legacy configs written before that: an openrouter/minimax-m3 entry
-// with no custom openrouter key is the shared hosted default key, which the
-// backend still honors as Basic — show it as Basic rather than as an openrouter
-// provider the user never configured.
+// covers legacy configs written before that: an openrouter entry running the
+// shared hosted default model (`BASIC_DEFAULT_MODEL`) with no custom openrouter
+// key is the Basic default key, so show it as Basic. It must be gated on the
+// model — a custom openrouter model (primary, fallback, or channel override)
+// must NOT be relabeled Basic, or a later save (toBackendModel) would pin it to
+// minimax-m3 and silently rewrite the user's real model.
 export const toDisplayProviderId = (
   config: TlawnProviderConfigInfo | undefined,
-  providerId: string
+  providerId: string,
+  model?: string
 ): string => {
   if (
     providerId === 'openrouter' &&
+    model === BASIC_DEFAULT_MODEL &&
     !config?.keys?.openrouter &&
     config?.defaultKeys?.[BASIC_PROVIDER_ID]
   ) {
@@ -225,13 +229,13 @@ export const getModelFormValues = (
     };
   }
   return {
-    provider: toDisplayProviderId(config, primary.provider),
+    provider: toDisplayProviderId(config, primary.provider, primary.model),
     model: primary.model,
     fallbacks:
       config?.models
         ?.filter((model) => !model.primary && !model.channels?.length)
         .map((model) => ({
-          provider: toDisplayProviderId(config, model.provider),
+          provider: toDisplayProviderId(config, model.provider, model.model),
           model: model.model,
         })) ?? [],
   };
@@ -320,7 +324,8 @@ export const buildChannelRuleDrafts = (
         ...draft,
         modelOverrideProvider: toDisplayProviderId(
           providerConfig,
-          model.provider
+          model.provider,
+          model.model
         ),
         modelOverride: model.model,
       };
@@ -363,7 +368,14 @@ export const buildChannelModelEntries = (
   drafts: Record<string, ChannelRuleDraft>
 ): TlawnChannelModelOverride[] =>
   Object.entries(drafts)
-    .filter(([, rule]) => rule.modelOverrideProvider && rule.modelOverride)
+    // A complete override needs a provider and a model — except Basic, which has
+    // no model picker (toBackendModel pins it to the fixed default), so a Basic
+    // override with an empty model is still valid and must not be dropped.
+    .filter(
+      ([, rule]) =>
+        rule.modelOverrideProvider &&
+        (rule.modelOverride || rule.modelOverrideProvider === BASIC_PROVIDER_ID)
+    )
     .map(([channel, rule]) => ({
       ...toBackendModel(
         rule.modelOverrideProvider || '',
