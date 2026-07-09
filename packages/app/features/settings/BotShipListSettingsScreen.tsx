@@ -147,10 +147,12 @@ export function BotShipListSettingsScreen(props: Props) {
 
   // The desktop settings drawer keeps this screen mounted across list switches;
   // close the picker when the list param changes so it can't add to the wrong
-  // list.
+  // list, and when the scope goes unready (e.g. account switch) so a picker
+  // opened in the previous scope doesn't reopen and edit the new one once it
+  // syncs.
   useEffect(() => {
     setPickerOpen(false);
-  }, [list]);
+  }, [list, ready]);
 
   const value = draft.draft.chat[list];
   const ships = useMemo(() => normalizeShipList(value), [value]);
@@ -159,12 +161,19 @@ export function BotShipListSettingsScreen(props: Props) {
     props.navigation.goBack();
   }, [props.navigation]);
 
-  const commitShips = useCallback(
-    (nextShips: string[]) => {
-      const nextValue = formatShipList(nextShips);
+  // Compute the next list from the CURRENT draft inside the updater, not a
+  // captured render value, so two quick edits (e.g. removing two ships before a
+  // re-render) don't each start from the same stale list and clobber each other.
+  const updateShips = useCallback(
+    (transform: (currentShips: string[]) => string[]) => {
       draft.commitDraft((current) => ({
         ...current,
-        chat: { ...current.chat, [list]: nextValue },
+        chat: {
+          ...current.chat,
+          [list]: formatShipList(
+            transform(normalizeShipList(current.chat[list]))
+          ),
+        },
       }));
     },
     [draft, list]
@@ -179,19 +188,21 @@ export function BotShipListSettingsScreen(props: Props) {
         return;
       }
       const ship = normalizeShip(shipId);
-      if (ship && !ships.includes(ship)) {
-        commitShips([...ships, ship]);
+      if (ship) {
+        updateShips((current) =>
+          current.includes(ship) ? current : [...current, ship]
+        );
       }
       setPickerOpen(false);
     },
-    [ready, ships, commitShips]
+    [ready, updateShips]
   );
 
   const removeShip = useCallback(
     (ship: string) => {
-      commitShips(ships.filter((entry) => entry !== ship));
+      updateShips((current) => current.filter((entry) => entry !== ship));
     },
-    [ships, commitShips]
+    [updateShips]
   );
 
   return (
