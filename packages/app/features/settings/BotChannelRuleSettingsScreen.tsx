@@ -7,7 +7,7 @@ import {
   Text,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -85,6 +85,12 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   const [modelSearch, setModelSearch] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  // Remember the rule as it was when the channel was last disabled, so a
+  // canceling off→on toggle restores the exact settings (allowlist, mode, model
+  // override) the user had — including unsaved edits — instead of resetting to
+  // the inherited default. Reset when the channel param changes (see below).
+  const disabledRuleRef = useRef<ChannelRuleDraft | undefined>(undefined);
+
   // The desktop settings drawer keeps this screen mounted across channel
   // switches; clear per-channel input state when the channel param changes so
   // a half-typed ship or search doesn't leak into another channel's editor.
@@ -92,6 +98,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     setPendingShip('');
     setModelSearch('');
     setValidationError(null);
+    disabledRuleRef.current = undefined;
   }, [channelKey]);
 
   const rule = draft.draft.chat.channelRuleDrafts[channelKey];
@@ -339,18 +346,26 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                 onCheckedChange={(checked) => {
                   setValidationError(null);
                   if (!checked) {
+                    // Stash the current settings so re-enabling can restore them
+                    // rather than discarding an allowlist/override on a cancel.
+                    disabledRuleRef.current = rule;
                     setRule(undefined);
                     return;
                   }
-                  // A newly enabled channel defaults to restricted, inheriting
-                  // defaultAuthorizedShips — not the open placeholder that
-                  // currentRule falls back to when no rule exists yet.
+                  // Restore the just-disabled rule (unsaved edits included), then
+                  // the saved rule for an already-configured channel; only a
+                  // genuinely new channel falls back to the restricted default
+                  // that inherits defaultAuthorizedShips.
+                  const baselineRule =
+                    draft.baseline.chat.channelRuleDrafts[channelKey];
                   setRule(
-                    rule ?? {
-                      mode: 'allowlist',
-                      allowedShips: draft.draft.chat.defaultAuthorizedShips,
-                      inheritsDefaultShips: true,
-                    }
+                    rule ??
+                      disabledRuleRef.current ??
+                      baselineRule ?? {
+                        mode: 'allowlist',
+                        allowedShips: draft.draft.chat.defaultAuthorizedShips,
+                        inheritsDefaultShips: true,
+                      }
                   );
                 }}
               />
