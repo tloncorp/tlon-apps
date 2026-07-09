@@ -276,8 +276,15 @@ export async function fetchParentPostHistoryEntry(
       return null;
     }
 
+    const author =
+      typeof essay?.author === 'string'
+        ? essay.author
+        : typeof essay?.author?.ship === 'string'
+          ? essay.author.ship
+          : 'unknown';
+
     return {
-      author: typeof essay?.author === 'string' ? essay.author : 'unknown',
+      author,
       content,
       timestamp: essay?.sent || Date.now(),
       id: seal?.id || parentId,

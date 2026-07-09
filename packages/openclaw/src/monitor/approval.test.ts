@@ -1,6 +1,6 @@
+import { A2UI } from '@tloncorp/api';
 import { describe, expect, it } from 'vitest';
 
-import { A2UI } from '../urbit/a2ui.js';
 import {
   APPROVAL_TTL_MS,
   type DisplayContext,
@@ -273,6 +273,7 @@ describe('buildApprovalA2UIBlob', () => {
           messageContent: [],
           timestamp: 1,
           parentId: '170.141.184.600',
+          parentAuthorId: '~host',
         },
       },
       ctx
@@ -288,6 +289,7 @@ describe('buildApprovalA2UIBlob', () => {
       '"channelId":"chat/~host/general"'
     );
     expect(JSON.stringify(channel)).toContain('"parentId":"170.141.184.600"');
+    expect(JSON.stringify(channel)).toContain('"parentAuthorId":"~host"');
     expect(JSON.stringify(channel)).toContain('"groupId":"~host/cool-group"');
   });
 

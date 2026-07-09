@@ -282,6 +282,29 @@ describe('fetchParentPostHistoryEntry', () => {
       id: '170.141.184.507.939.843.704.966.283.402.546.249.728',
     });
   });
+
+  it('extracts a parent author from a bot profile', async () => {
+    const api = {
+      scry: async () => ({
+        post: {
+          essay: {
+            author: { ship: '~nec', nickname: 'Nec' },
+            sent: 123,
+            content: [{ inline: ['Parent post'] }],
+          },
+          seal: { id: '170.141.184.507' },
+        },
+      }),
+    };
+
+    const entry = await fetchParentPostHistoryEntry(
+      api,
+      'chat/~ship/general',
+      '170141184507'
+    );
+
+    expect(entry?.author).toBe('~nec');
+  });
 });
 
 describe('retainThreadContextMessages', () => {

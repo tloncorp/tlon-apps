@@ -1,3 +1,4 @@
+import { A2UI } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 
 /**
@@ -8,7 +9,6 @@ import { randomUUID } from 'node:crypto';
  * (/allow, /reject, /ban).
  */
 import { APPROVAL_TTL_MS, type PendingApproval } from '../settings.js';
-import { A2UI } from '../urbit/a2ui.js';
 import { type TlonA2UIBlob, makeA2UIBlob } from '../urbit/blob.js';
 
 export type { PendingApproval };
@@ -33,6 +33,7 @@ export type CreateApprovalParams = {
     messageContent: unknown;
     timestamp: number;
     parentId?: string;
+    parentAuthorId?: string;
     isThreadReply?: boolean;
     blob?: string;
   };
@@ -515,6 +516,7 @@ function approvalSourceTarget(
     postId: messageId,
     authorId: approval.requestingShip,
     parentId: approval.originalMessage?.parentId,
+    parentAuthorId: approval.originalMessage?.parentAuthorId,
   };
 
   if (approval.type === 'dm') {

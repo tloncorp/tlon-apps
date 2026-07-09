@@ -28,6 +28,7 @@ export type PendingApproval = {
     messageContent: unknown;
     timestamp: number;
     parentId?: string;
+    parentAuthorId?: string;
     isThreadReply?: boolean;
     blob?: string;
   };

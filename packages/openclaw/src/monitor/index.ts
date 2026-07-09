@@ -114,6 +114,7 @@ import {
   buildThreadContextMessage,
   cacheMessage,
   fetchChannelHistory,
+  fetchParentPostHistoryEntry,
   fetchThreadContextHistory,
   getChannelHistory,
   lookupCachedMessage,
@@ -3747,6 +3748,19 @@ export async function monitorTlonProvider(
             if (!normalizedAllowed.includes(senderShip)) {
               // If owner is configured, queue approval request
               if (effectiveOwnerShip) {
+                const parentEntry = parentId
+                  ? lookupCachedMessage(nest, parentId) ??
+                    (await fetchParentPostHistoryEntry(
+                      api,
+                      nest,
+                      parentId,
+                      runtime
+                    ))
+                  : undefined;
+                const parentAuthorId =
+                  parentEntry?.author && parentEntry.author !== 'unknown'
+                    ? normalizeShip(parentEntry.author)
+                    : undefined;
                 const approval = createPendingApproval(
                   {
                     type: 'channel',
@@ -3759,6 +3773,7 @@ export async function monitorTlonProvider(
                       messageContent: content.content,
                       timestamp: content.sent || Date.now(),
                       parentId: parentId ?? undefined,
+                      parentAuthorId,
                       isThreadReply,
                       blob: content.blob ?? undefined,
                     },
@@ -4100,6 +4115,11 @@ export async function monitorTlonProvider(
                   messageText,
                   messageContent: dmContent.content,
                   timestamp: dmContent.sent || Date.now(),
+                  parentId: dmReplyParentId,
+                  parentAuthorId: dmReplyParentId
+                    ? lookupCachedMessage(dmCacheKey, dmReplyParentId)?.author
+                    : undefined,
+                  isThreadReply: isDmThreadReply,
                   blob: dmContent.blob ?? undefined,
                 },
               },
