@@ -94,7 +94,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   // Remember the rule as it was when the channel was last disabled, so a
   // canceling off→on toggle restores the exact settings (allowlist, mode, model
   // override) the user had — including unsaved edits — instead of resetting to
-  // the inherited default. Reset when the channel param or ship changes (below).
+  // the default allowlist. Reset when the channel param or ship changes (below).
   const disabledRuleRef = useRef<ChannelRuleDraft | undefined>(undefined);
 
   const [routeGroupJoined, setRouteGroupJoined] = useState(initialGroupJoined);
@@ -212,12 +212,6 @@ export function BotChannelRuleSettingsScreen(props: Props) {
             mode: nextRule.mode,
             allowedShips: nextRule.allowedShips,
           };
-          // Preserve the inherited-defaults flag; `patch` clears it when the
-          // access mode or allowlist is actually edited, so a model-only change
-          // keeps the channel following defaultAuthorizedShips.
-          if (nextRule.inheritsDefaultShips) {
-            normalized.inheritsDefaultShips = true;
-          }
           if (nextRule.modelOverrideProvider) {
             normalized.modelOverrideProvider = nextRule.modelOverrideProvider;
           }
@@ -242,37 +236,9 @@ export function BotChannelRuleSettingsScreen(props: Props) {
       // Never create a rule from a subordinate control — only the enable
       // switch may bring a channel's rule into existence.
       if (!rule) return;
-      // Tapping the already-selected access mode changes nothing — don't let
-      // it convert an inherited rule into an explicit one.
-      if (
-        next.mode !== undefined &&
-        next.mode === currentRule.mode &&
-        next.allowedShips === undefined
-      ) {
-        return;
-      }
-      // Editing the access mode or allowlist makes the allowlist explicit, so
-      // drop the inherited flag; a model-only edit leaves it intact so the
-      // channel keeps following defaultAuthorizedShips. When an inherited rule
-      // becomes explicit, materialize the allowlist from the live defaults —
-      // the snapshot stored on the rule can predate an edit to
-      // defaultAuthorizedShips made in this same form.
-      const editsAccess =
-        next.mode !== undefined || next.allowedShips !== undefined;
-      const base =
-        editsAccess && currentRule.inheritsDefaultShips
-          ? {
-              ...currentRule,
-              allowedShips: draft.draft.chat.defaultAuthorizedShips,
-            }
-          : currentRule;
-      setRule({
-        ...base,
-        ...(editsAccess ? { inheritsDefaultShips: false } : {}),
-        ...next,
-      });
+      setRule({ ...currentRule, ...next });
     },
-    [rule, setRule, currentRule, draft.draft.chat.defaultAuthorizedShips]
+    [rule, setRule, currentRule]
   );
 
   const handleBack = useCallback(() => {
@@ -287,22 +253,11 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     props.navigation.goBack();
   }, [rule, props.navigation]);
 
-  // While the rule inherits defaults, show (and edit from) the live
-  // defaultAuthorizedShips rather than the snapshot stored on the rule — an
-  // add/remove makes the list explicit via patch, and it must start from the
-  // current defaults, not a stale copy captured when the draft was built.
+  // The rule always carries an explicit allowlist (a newly-enabled channel is
+  // seeded with a snapshot of the current defaults); show and edit that list.
   const allowedShips = useMemo(
-    () =>
-      normalizeShipList(
-        currentRule.inheritsDefaultShips
-          ? draft.draft.chat.defaultAuthorizedShips
-          : currentRule.allowedShips
-      ),
-    [
-      currentRule.inheritsDefaultShips,
-      currentRule.allowedShips,
-      draft.draft.chat.defaultAuthorizedShips,
-    ]
+    () => normalizeShipList(currentRule.allowedShips),
+    [currentRule.allowedShips]
   );
 
   const addPendingShip = useCallback(() => {
@@ -387,16 +342,15 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                     return;
                   }
                   // Restore the just-disabled rule (unsaved edits included), then
-                  // the saved rule for an already-configured channel; only a
-                  // genuinely new channel falls back to the default allowlist
-                  // that inherits defaultAuthorizedShips.
+                  // the saved rule for an already-configured channel; a genuinely
+                  // new channel is seeded with an explicit snapshot of the current
+                  // default authorized ships (editable from there).
                   setRule(
                     rule ??
                       disabledRuleRef.current ??
                       baselineRule ?? {
                         mode: 'allowlist',
                         allowedShips: draft.draft.chat.defaultAuthorizedShips,
-                        inheritsDefaultShips: true,
                       }
                   );
                 }}
@@ -623,13 +577,12 @@ export function BotChannelRuleSettingsScreen(props: Props) {
               disabled={controlsDisabled}
               onPress={() => {
                 setValidationError(null);
-                // The default is an allowlist inheriting defaultAuthorizedShips
-                // — not open. Restore that (and drop any model override) rather
-                // than widening the channel to every member.
+                // Reset to an allowlist of the current default authorized ships
+                // (an explicit snapshot) and drop any model override — not open,
+                // which would widen the channel to every member.
                 setRule({
                   mode: 'allowlist',
                   allowedShips: draft.draft.chat.defaultAuthorizedShips,
-                  inheritsDefaultShips: true,
                 });
               }}
             />
