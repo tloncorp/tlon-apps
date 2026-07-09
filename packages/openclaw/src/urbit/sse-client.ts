@@ -293,7 +293,9 @@ export class UrbitSSEClient {
         // descriptive error before aborting; don't fan out the raw
         // AbortError too.
         this.suppressNextStreamErrorFanout = false;
-        this.logger.log?.(`[SSE] Stream torn down by watchdog: ${String(error)}`);
+        this.logger.log?.(
+          `[SSE] Stream torn down by watchdog: ${String(error)}`
+        );
         return;
       }
       if (!this.aborted) {
