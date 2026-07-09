@@ -1119,8 +1119,8 @@
   ::  history should now have 3 entries (v1, v2, v3 archived)
   (ex-history-len f 3 3)
 ::  ====  test-accept-invite  ====
-::  Seed a state-8 with an invite for a remote flag; accept clears the invite
-::  and emits a join-remote card.
+::  Seed a state-14 with an invite for a remote flag; accept clears the
+::  invite and emits a join-remote card.
 ::
 ++  test-accept-invite
   %-  eval-mare
@@ -1129,24 +1129,19 @@
   ^-  form:m
   ;<  ~  b  init-zod
   ;<  =bowl:gall  b  get-bowl
-  ::  build a state-8 with one invite pre-seeded; load migrates to state-10.
-  ::  The invite flag [~bus '5'] is not in books, so after migration its
-  ::  name is preserved as a bare atom cast to @tas.
-  =/  v9-flag=flag-v9:n  [~bus '5']
-  =/  inv=(map flag-v9:n invite-info:n)
-    (~(put by *(map flag-v9:n invite-info:n)) v9-flag [~bus now.bowl 'RemoteNB'])
-  =/  s8=state-8:n  [%8 ~ 0 ~ ~ inv ~]
-  ;<  *  b  (do-load notes-agent `!>(s8))
-  ::  after migration, invite key is [~bus `@tas`'5']
-  =/  remote-flag=flag:n  [~bus `@tas`'5']
+  =/  remote-flag=flag:n  [~bus 'remote-nb']
+  =/  inv=(map flag:n invite-info:n)
+    (~(put by *(map flag:n invite-info:n)) remote-flag [~bus now.bowl 'RemoteNB'])
+  =/  s14=state-14:n  [%14 ~ 0 ~ inv ~ ~]
+  ;<  *  b  (do-load notes-agent `!>(s14))
   ::  accept: fires join-remote (emits a card) and removes invite
   ;<  caz=(list card)  b  (poke-a [%accept-invite remote-flag])
   ;<  ~  b  (ex-cards-ne caz)
   ::  invites map is now empty
   ;<  sv=vase  b  get-save
-  =/  s10-after=state-14:n  !<(state-14:n sv)
+  =/  s14-after=state-14:n  !<(state-14:n sv)
   |=  s=state
-  ?.  =(~ invites.s10-after)
+  ?.  =(~ invites.s14-after)
     |+['expected empty invites map after accept-invite']~
   &+[~ s]
 ::  ====  test-decline-invite  ====
@@ -1158,380 +1153,17 @@
   ^-  form:m
   ;<  ~  b  init-zod
   ;<  =bowl:gall  b  get-bowl
-  =/  v9-flag=flag-v9:n  [~bus '5']
-  =/  inv=(map flag-v9:n invite-info:n)
-    (~(put by *(map flag-v9:n invite-info:n)) v9-flag [~bus now.bowl 'RemoteNB'])
-  =/  s8=state-8:n  [%8 ~ 0 ~ ~ inv ~]
-  ;<  *  b  (do-load notes-agent `!>(s8))
-  =/  remote-flag=flag:n  [~bus `@tas`'5']
+  =/  remote-flag=flag:n  [~bus 'remote-nb']
+  =/  inv=(map flag:n invite-info:n)
+    (~(put by *(map flag:n invite-info:n)) remote-flag [~bus now.bowl 'RemoteNB'])
+  =/  s14=state-14:n  [%14 ~ 0 ~ inv ~ ~]
+  ;<  *  b  (do-load notes-agent `!>(s14))
   ;<  *  b  (poke-a [%decline-invite remote-flag])
   ;<  sv=vase  b  get-save
-  =/  s10-after=state-14:n  !<(state-14:n sv)
+  =/  s14-after=state-14:n  !<(state-14:n sv)
   |=  s=state
-  ?.  =(~ invites.s10-after)
+  ?.  =(~ invites.s14-after)
     |+['expected empty invites map after decline-invite']~
-  &+[~ s]
-::  ====  test-migrate-state-7-to-10  ====
-::  Hand-built state-7 through on-load; result tag must be %10.
-::  - updated-by backfilled on notebook from created-by
-::  - pub log truncated to empty
-::  - invites preserved in state-10
-::  - history migrated into per-notebook-state
-::  - flag name slugified: 'S7-NB' + nid=1 → 's7-nb-1'
-::
-++  test-migrate-state-7-to-10
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  init-zod
-  ::  Build state-7 with old-shape entities (notebook-v0, folder-v0)
-  =/  nb=notebook-v0:n  [1 'S7-NB' ~zod *@da *@da]
-  =/  rf=folder-v0:n    [2 1 '/' ~ ~zod *@da *@da]
-  =/  mbrs=notebook-members:n
-    (~(put by *notebook-members:n) ~zod %owner)
-  =/  nb-s=notebook-state-v0:n
-    [nb mbrs (~(put by *(map @ud folder-v0:n)) 2 rf) ~]
-  =/  f=flag-v9:n  [~zod '1']
-  =/  empty-bks  *(map flag-v9:n [net=net-v0:n notebook-state=notebook-state-v0:n])
-  =/  bks  (~(put by empty-bks) f [[%pub *] nb-s])
-  =/  empty-hist  *(map [=flag-v9:n note-id=@ud] (list note-revision:n))
-  =/  hist  (~(put by empty-hist) [[f 99]] ~[[0 *@da ~zod 'old' 'old-body']])
-  =/  inv=(map flag-v9:n invite-info:n)
-    (~(put by *(map flag-v9:n invite-info:n)) [~bus '3'] [~bus *@da 'invite'])
-  =/  s7=state-7:n
-    [%7 bks 2 ~ ~ inv hist]
-  ;<  *  b  (do-load notes-agent `!>(s7))
-  ;<  sv=vase  b  get-save
-  ;<  ~  b  (ex-equal !>(;;(@ -.q.sv)) !>(`@`%14))
-  =/  s10=state-14:n  !<(state-14:n sv)
-  ::  expected slug for [~zod '1'] with title 'S7-NB' nid=1 → 's7-nb-1'
-  =/  new-f=flag:n  [~zod (slugify-test 'S7-NB' 1)]
-  |=  s=state
-  ::  invites preserved at top level
-  ?.  =(1 ~(wyt by invites.s10))
-    |+['expected invites preserved after state-7→10 migration']~
-  ::  pub log truncated; notebook reachable under new slug
-  =/  entry=[=net:n =notebook-state:n]  (~(got by books.s10) new-f)
-  ?.  ?=(%pub -.net.entry)
-    |+['expected %pub net']~
-  ?.  =(~ (tap:log-on:n log.net.entry))
-    |+['expected empty pub log after state-7→10 migration']~
-  ::  history migrated into per-notebook-state (one entry keyed by 99)
-  ?.  =(1 ~(wyt by history.notebook-state.entry))
-    |+['expected per-notebook history after state-7→10 migration']~
-  &+[~ s]
-::  ====  test-migrate-state-6-to-10  ====
-::
-++  test-migrate-state-6-to-10
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  init-zod
-  =/  s6=state-6:n  [%6 ~ 0 ~ ~ ~]
-  ;<  *  b  (do-load notes-agent `!>(s6))
-  ;<  sv=vase  b  get-save
-  (ex-equal !>(;;(@ -.q.sv)) !>(`@`%14))
-::  ====  test-migrate-state-6-preserves-notebook  ====
-::  state-6 with one notebook migrates and the notebook is reachable.
-::  After migration title 'Migrated' + nid=1 → slug 'migrated-1'.
-::
-++  test-migrate-state-6-preserves-notebook
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  init-zod
-  =/  nb=notebook-v0:n  [1 'Migrated' ~zod *@da *@da]
-  =/  rf=folder-v0:n    [2 1 '/' ~ ~zod *@da *@da]
-  =/  mbrs=notebook-members:n
-    (~(put by *notebook-members:n) ~zod %owner)
-  =/  nb-s=notebook-state-v0:n
-    [nb mbrs (~(put by *(map @ud folder-v0:n)) 2 rf) ~]
-  =/  f=flag-v9:n  [~zod '1']
-  =/  empty-bks  *(map flag-v9:n [net=net-v0:n notebook-state=notebook-state-v0:n])
-  =/  bks  (~(put by empty-bks) f [[%pub *] nb-s])
-  =/  s6=state-6:n  [%6 bks 2 ~ ~ ~]
-  ;<  *  b  (do-load notes-agent `!>(s6))
-  ::  notebook now lives under slug 'migrated-1'
-  =/  new-slug=@tas  (slugify-test 'Migrated' 1)
-  ;<  nb-cag=cage  b  (got-peek /x/v0/notebook/(scot %p ~zod)/[new-slug])
-  (ex-mark nb-cag %notes-notebook)
-::  ====  test-migrate-state-3-to-10  ====
-::
-++  test-migrate-state-3-to-10
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  init-zod
-  =/  nb=notebook-v0:n  [1 'S3-NB' ~zod *@da *@da]
-  =/  rf=folder-v0:n    [2 1 '/' ~ ~zod *@da *@da]
-  =/  mbrs=notebook-members:n
-    (~(put by *notebook-members:n) ~zod %owner)
-  =/  nb-s=notebook-state-v0:n
-    [nb mbrs (~(put by *(map @ud folder-v0:n)) 2 rf) ~]
-  =/  f=flag-v9:n  [~zod '1']
-  =/  empty-bks  *(map flag-v9:n [net=net-v0:n notebook-state=notebook-state-v0:n])
-  =/  bks  (~(put by empty-bks) f [[%pub *] nb-s])
-  =/  s3=state-3:n  [%3 bks 2 ~]
-  ;<  *  b  (do-load notes-agent `!>(s3))
-  ;<  sv=vase  b  get-save
-  (ex-equal !>(;;(@ -.q.sv)) !>(`@`%14))
-::  ====  test-migrate-state-2-to-10  ====
-::  state-2 published (bare @ud key) is dropped; published in state-10 is empty.
-::
-++  test-migrate-state-2-to-10
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  init-zod
-  =/  nb=notebook-v0:n  [1 'S2-NB' ~zod *@da *@da]
-  =/  rf=folder-v0:n    [2 1 '/' ~ ~zod *@da *@da]
-  =/  mbrs=notebook-members:n
-    (~(put by *notebook-members:n) ~zod %owner)
-  =/  nb-s=notebook-state-v0:n
-    [nb mbrs (~(put by *(map @ud folder-v0:n)) 2 rf) ~]
-  =/  f=flag-v9:n  [~zod '1']
-  =/  empty-bks  *(map flag-v9:n [net=net-v0:n notebook-state=notebook-state-v0:n])
-  =/  bks  (~(put by empty-bks) f [[%pub *] nb-s])
-  =/  s2=state-2:n
-    [%2 bks 2 (~(put by *(map @ud @t)) 1 '<h1>Old</h1>')]
-  ;<  *  b  (do-load notes-agent `!>(s2))
-  ;<  sv=vase  b  get-save
-  ;<  ~  b  (ex-equal !>(;;(@ -.q.sv)) !>(`@`%14))
-  ;<  pub=cage  b  (got-peek /x/v0/published)
-  ;<  ~  b  (ex-mark pub %notes-published)
-  |=  s=state
-  =/  items  !<((list published-record:n) q.pub)
-  ?.  =(~ items)
-    |+['expected empty published list after state-2 migration']~
-  &+[~ s]
-::  ====  test-migrate-state-1-to-10  ====
-::  ====  test-migrate-state-1-to-10  ====
-::  Hand-built state-1 with one notebook, two folders (root + child), one note,
-::  and two members. After load: state-10 with slugified flag and every inner
-::  field preserved or backfilled per the per-step migration chain:
-::    state-7→8 backfills updated-by on notebook + folders from created-by;
-::      notes keep their own updated-by.
-::    state-7→8 also re-initializes %pub log to empty.
-::    state-8→9 defaults visibility to %private when not provided.
-::    state-9→10 rewrites flag name from raw atom '1' to slug 's1-nb-1'.
-::
-++  test-migrate-state-1-to-10
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  init-zod
-  =/  nb=notebook-v0:n  [1 'S1-NB' ~zod *@da *@da]
-  =/  rf=folder-v0:n    [2 1 '/' ~ ~zod *@da *@da]
-  =/  cf=folder-v0:n    [3 1 'Drafts' `2 ~zod *@da *@da]
-  =/  nt=note:n
-    :*  4  1  2  'Hello'  ~  'hello-body'
-        ~zod  *@da  ~bus  *@da  7
-    ==
-  =/  mbrs=notebook-members:n
-    =|  m0=notebook-members:n
-    =.  m0  (~(put by m0) ~zod %owner)
-    =.  m0  (~(put by m0) ~bus %editor)
-    m0
-  =/  fldmap=(map @ud folder-v0:n)
-    =|  m0=(map @ud folder-v0:n)
-    =.  m0  (~(put by m0) 2 rf)
-    =.  m0  (~(put by m0) 3 cf)
-    m0
-  =/  ntmap=(map @ud note:n)
-    (~(put by *(map @ud note:n)) 4 nt)
-  =/  nb-s=notebook-state-v0:n  [nb mbrs fldmap ntmap]
-  =/  f=flag-v9:n  [~zod '1']
-  =/  empty-bks  *(map flag-v9:n [net=net-v0:n notebook-state=notebook-state-v0:n])
-  =/  bks  (~(put by empty-bks) f [[%pub *] nb-s])
-  =/  s1=state-1:n  [%1 bks 4]
-  ;<  *  b  (do-load notes-agent `!>(s1))
-  ;<  sv=vase  b  get-save
-  ;<  ~  b  (ex-equal !>(;;(@ -.q.sv)) !>(`@`%14))
-  =/  s13=state-14:n  !<(state-14:n sv)
-  =/  new-f=flag:n  [~zod (slugify-test 'S1-NB' 1)]
-  |=  s=state
-  ::  exactly one notebook in books, under the new slug; old key gone
-  ?.  =(1 ~(wyt by books.s13))
-    |+['expected single notebook in books']~
-  ?.  (~(has by books.s13) new-f)
-    |+['expected new slugified flag present']~
-  ?.  !(~(has by books.s13) [~zod `@tas`'1'])
-    |+['expected old flag-v9 key gone']~
-  ::  next-id preserved; cross-cutting maps empty
-  ?.  =(4 next-id.s13)
-    |+['expected next-id preserved at 4']~
-  ?.  =(~ published.s13)
-    |+['expected published empty']~
-  ?.  =(~ invites.s13)
-    |+['expected invites empty']~
-  ::  drill into the migrated notebook entry
-  =/  entry=[=net:n =notebook-state:n]  (~(got by books.s13) new-f)
-  ::  net=%pub (log re-initialized empty during state-7→8)
-  ?.  ?=([%pub *] net.entry)
-    |+['expected net=%pub']~
-  =/  migrated-nb-s=notebook-state:n  notebook-state.entry
-  ::  notebook: id/title/created-by preserved; updated-by backfilled from created-by
-  ?.  =(1 id.notebook.migrated-nb-s)
-    |+['expected notebook id=1 preserved']~
-  ?.  =('S1-NB' title.notebook.migrated-nb-s)
-    |+['expected notebook title preserved']~
-  ?.  =(~zod created-by.notebook.migrated-nb-s)
-    |+['expected notebook created-by preserved']~
-  ?.  =(~zod updated-by.notebook.migrated-nb-s)
-    |+['expected notebook updated-by backfilled from created-by']~
-  ::  visibility defaults to %private during state-8→9
-  ?.  =(%private visibility.migrated-nb-s)
-    |+['expected visibility=%private default']~
-  ::  history map empty (state-1 had no history)
-  ?.  =(~ history.migrated-nb-s)
-    |+['expected empty history']~
-  ::  members preserved verbatim
-  ?.  =(2 ~(wyt by members.migrated-nb-s))
-    |+['expected 2 members preserved']~
-  ?.  =(%owner (~(got by members.migrated-nb-s) ~zod))
-    |+['expected ~zod still owner']~
-  ?.  =(%editor (~(got by members.migrated-nb-s) ~bus))
-    |+['expected ~bus still editor']~
-  ::  folders: both root + child present; updated-by backfilled
-  ?.  =(2 ~(wyt by folders.migrated-nb-s))
-    |+['expected 2 folders']~
-  =/  mig-rf=folder:n  (~(got by folders.migrated-nb-s) 2)
-  ?.  =(1 notebook-id.mig-rf)
-    |+['expected root folder notebook-id=1']~
-  ?.  =('/' name.mig-rf)
-    |+['expected root folder name preserved']~
-  ?.  =(~ parent-folder-id.mig-rf)
-    |+['expected root folder parent=~']~
-  ?.  =(~zod updated-by.mig-rf)
-    |+['expected root folder updated-by backfilled']~
-  =/  mig-cf=folder:n  (~(got by folders.migrated-nb-s) 3)
-  ?.  =(`2 parent-folder-id.mig-cf)
-    |+['expected child folder parent=2 preserved']~
-  ?.  =('Drafts' name.mig-cf)
-    |+['expected child folder name preserved']~
-  ?.  =(~zod updated-by.mig-cf)
-    |+['expected child folder updated-by backfilled']~
-  ::  note: every field intact; its existing updated-by (~bus) preserved
-  ?.  =(1 ~(wyt by notes.migrated-nb-s))
-    |+['expected 1 note']~
-  =/  mig-nt=note:n  (~(got by notes.migrated-nb-s) 4)
-  ?.  =(2 folder-id.mig-nt)
-    |+['expected note folder-id=2 preserved']~
-  ?.  =('Hello' title.mig-nt)
-    |+['expected note title preserved']~
-  ?.  =('hello-body' body-md.mig-nt)
-    |+['expected note body preserved']~
-  ?.  =(~zod created-by.mig-nt)
-    |+['expected note created-by preserved']~
-  ?.  =(~bus updated-by.mig-nt)
-    |+['expected note updated-by preserved (~bus)']~
-  ?.  =(7 revision.mig-nt)
-    |+['expected note revision preserved at 7']~
-  &+[~ s]
-::  ====  test-migrate-state-4-backfills-updated-by  ====
-::  state-4: notebook and folders lack updated-by; migration backfills from created-by.
-::  After migration to state-10, flag 'S4-NB' + nid=1 → 's4-nb-1'.
-::
-++  test-migrate-state-4-backfills-updated-by
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  init-zod
-  =/  nb=notebook-v0:n  [1 'S4-NB' ~nec *@da *@da]
-  =/  rf=folder-v0:n    [2 1 '/' ~ ~nec *@da *@da]
-  =/  cf=folder-v0:n    [3 1 'Child' `2 ~nec *@da *@da]
-  =/  nt=note:n
-    :*  4  1  2  'MyNote'  ~  'body'
-        ~nec  *@da  ~bus  *@da  0
-    ==
-  =/  mbrs=notebook-members:n
-    (~(put by *notebook-members:n) ~nec %owner)
-  =/  fldmap  *(map @ud folder-v0:n)
-  =.  fldmap  (~(put by fldmap) 2 rf)
-  =.  fldmap  (~(put by fldmap) 3 cf)
-  =/  ntmap=(map @ud note:n)
-    (~(put by *(map @ud note:n)) 4 nt)
-  =/  nb-s=notebook-state-v0:n
-    [nb mbrs fldmap ntmap]
-  =/  f=flag-v9:n  [~zod '1']
-  =/  empty-bks  *(map flag-v9:n [net=net-v0:n notebook-state=notebook-state-v0:n])
-  =/  bks  (~(put by empty-bks) f [[%pub *] nb-s])
-  =/  s4=state-4:n  [%4 bks 4 ~ ~]
-  ;<  *  b  (do-load notes-agent `!>(s4))
-  ;<  sv=vase  b  get-save
-  ;<  ~  b  (ex-equal !>(;;(@ -.q.sv)) !>(`@`%14))
-  =/  s10=state-14:n  !<(state-14:n sv)
-  =/  new-f=flag:n  [~zod (slugify-test 'S4-NB' 1)]
-  =/  entry=[=net:n =notebook-state:n]  (~(got by books.s10) new-f)
-  =/  migrated-nb-s=notebook-state:n  notebook-state.entry
-  |=  s=state
-  ?.  =(~nec updated-by.notebook.migrated-nb-s)
-    |+['expected notebook updated-by backfilled from created-by']~
-  =/  mig-rf=folder:n  (~(got by folders.migrated-nb-s) 2)
-  ?.  =(~nec updated-by.mig-rf)
-    |+['expected root folder updated-by backfilled']~
-  =/  mig-cf=folder:n  (~(got by folders.migrated-nb-s) 3)
-  ?.  =(~nec updated-by.mig-cf)
-    |+['expected child folder updated-by backfilled']~
-  =/  mig-nt=note:n  (~(got by notes.migrated-nb-s) 4)
-  ?.  =(~bus updated-by.mig-nt)
-    |+['expected note updated-by preserved (~bus)']~
-  &+[~ s]
-::  ====  test-migrate-state-8-to-10  ====
-::  Hand-built state-8 with one notebook, top-level visibilities and history.
-::  After load: state-10, visibility + history embedded in notebook-state,
-::  top-level visibilities/history gone.
-::  Flag 'S8-NB' + nid=1 → slug 's8-nb-1'.
-::
-++  test-migrate-state-8-to-10
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  init-zod
-  =/  f=flag-v9:n  [~zod '1']
-  ::  build a minimal notebook-state-v8 entry
-  =/  nb=notebook:n  [1 'S8-NB' ~zod *@da *@da ~zod]
-  =/  rf=folder:n    [2 1 '/' ~ ~zod *@da *@da ~zod]
-  =/  mbrs=notebook-members:n
-    (~(put by *notebook-members:n) ~zod %owner)
-  =/  fldmap=(map @ud folder:n)
-    (~(put by *(map @ud folder:n)) 2 rf)
-  =/  nbs8=notebook-state-v8:n  [nb mbrs fldmap ~]
-  ::  top-level visibility + history
-  =/  vis-map=(map flag-v9:n visibility:n)
-    (~(put by *(map flag-v9:n visibility:n)) f %public)
-  =/  rev=note-revision:n  [0 *@da ~zod 'old' 'old-body']
-  =/  hist-key=[=flag-v9:n note-id=@ud]  [f 5]
-  =/  hist-map=(map [=flag-v9:n note-id=@ud] (list note-revision:n))
-    (~(put by *(map [=flag-v9:n note-id=@ud] (list note-revision:n))) hist-key ~[rev])
-  =/  empty-bks  *(map flag-v9:n [net=net:n notebook-state-v8=notebook-state-v8:n])
-  =/  bks  (~(put by empty-bks) f [[%pub *log:n] nbs8])
-  =/  s8=state-8:n  [%8 bks 2 ~ vis-map ~ hist-map]
-  ;<  *  b  (do-load notes-agent `!>(s8))
-  ;<  sv=vase  b  get-save
-  ;<  ~  b  (ex-equal !>(;;(@ -.q.sv)) !>(`@`%14))
-  =/  s10=state-14:n  !<(state-14:n sv)
-  =/  new-f=flag:n  [~zod (slugify-test 'S8-NB' 1)]
-  =/  entry=[=net:n =notebook-state:n]  (~(got by books.s10) new-f)
-  |=  s=state
-  ::  visibility embedded in notebook-state
-  ?.  =(%public visibility.notebook-state.entry)
-    |+['expected visibility=%public in notebook-state after state-8→10']~
-  ::  history embedded in notebook-state, keyed by note-id=5
-  ?.  =(1 ~(wyt by history.notebook-state.entry))
-    |+['expected 1 history entry in notebook-state after state-8→10']~
-  =/  revs=(list note-revision:n)
-    (fall (~(get by history.notebook-state.entry) 5) ~)
-  ?.  =(`(list note-revision:n)`~[rev] revs)
-    |+['expected correct history revision after state-8→10']~
   &+[~ s]
 ::  ====  JSON wire-format tests  ============================================
 ::  These hit notes-json directly without booting the agent. They guard the
@@ -1786,68 +1418,6 @@
   =/  expected=action:n
     [%notebook [~zod %foo] [%create-folder 2 'subdir']]
   (ex-equal !>(parsed) !>(expected))
-::  ====  test-migrate-state-9-to-10  ====
-::  Hand-built state-9 with two notebooks: one local, one subscriber.
-::  After load: state-10 with re-slugged flags.
-::  Local:  flag-v9 [~zod '11'] title='My First' nid=11 → 'my-first-11'
-::  Remote: flag-v9 [~bus '22'] title='Bar Book' nid=22 → 'bar-book-22'
-::
-++  test-migrate-state-9-to-10
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  init-zod
-  ::  build local notebook (hosted by us)
-  =/  nb-local=notebook:n  [11 'My First' ~zod *@da *@da ~zod]
-  =/  rf-local=folder:n    [12 11 '/' ~ ~zod *@da *@da ~zod]
-  =/  mbrs-local=members:n
-    (~(put by *members:n) ~zod %owner)
-  =/  flds-local=(map @ud folder:n)
-    (~(put by *(map @ud folder:n)) 12 rf-local)
-  =/  nbs-local=notebook-state-13:n
-    [nb-local mbrs-local %private flds-local ~ ~]
-  ::  build subscriber notebook (hosted by ~bus)
-  =/  nb-remote=notebook:n  [22 'Bar Book' ~bus *@da *@da ~bus]
-  =/  rf-remote=folder:n    [23 22 '/' ~ ~bus *@da *@da ~bus]
-  =/  flds-remote=(map @ud folder:n)
-    (~(put by *(map @ud folder:n)) 23 rf-remote)
-  =/  nbs-remote=notebook-state-13:n
-    [nb-remote *members:n %private flds-remote ~ ~]
-  ::  state-9 books map uses flag-v9
-  =/  fl-local=flag-v9:n   [~zod '11']
-  =/  fl-remote=flag-v9:n  [~bus '22']
-  =/  net-local=net:n   [%pub *log:n]
-  =/  net-remote=net:n  [%sub *@da |]
-  =/  bks=(map flag-v9:n [=net:n notebook-state=notebook-state-13:n])
-    =/  m0=(map flag-v9:n [=net:n notebook-state=notebook-state-13:n])  ~
-    =.  m0  (~(put by m0) fl-local [net-local nbs-local])
-    =.  m0  (~(put by m0) fl-remote [net-remote nbs-remote])
-    m0
-  ::  also populate a published entry keyed by fl-local
-  =/  pub-map=(map [=flag-v9:n note-id=@ud] @t)
-    (~(put by *(map [=flag-v9:n note-id=@ud] @t)) [fl-local 99] '<h1>Hi</h1>')
-  =/  s9=state-9:n  [%9 bks 23 pub-map ~]
-  ;<  *  b  (do-load notes-agent `!>(s9))
-  ;<  sv=vase  b  get-save
-  ;<  ~  b  (ex-equal !>(;;(@ -.q.sv)) !>(`@`%14))
-  =/  s10=state-14:n  !<(state-14:n sv)
-  ::  expected new flags after slugify
-  =/  new-fl-local=flag:n   [~zod (slugify-test 'My First' 11)]
-  =/  new-fl-remote=flag:n  [~bus (slugify-test 'Bar Book' 22)]
-  |=  s=state
-  ::  both notebooks must be reachable under new flags
-  ?.  (~(has by books.s10) new-fl-local)
-    |+['expected local notebook under new slug after 9→10 migration']~
-  ?.  (~(has by books.s10) new-fl-remote)
-    |+['expected remote notebook under new slug after 9→10 migration']~
-  ::  published entry re-keyed to new local flag
-  ?.  (~(has by published.s10) [new-fl-local 99])
-    |+['expected published entry re-keyed after 9→10 migration']~
-  ::  old flags must be gone
-  ?.  !(~(has by books.s10) [~zod `@tas`'11'])
-    |+['expected old flag-v9 key gone after 9→10 migration']~
-  &+[~ s]
 ::  ====  v1 / request-id surface tests  ====================================
 ::
 ::  ====  test-v1-create-notebook-returns-summary  ====

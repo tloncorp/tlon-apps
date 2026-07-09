@@ -11,8 +11,6 @@
 ::  $flag: global notebook identity (ship + slug term)
 ::
 +$  flag  [=ship name=@tas]
-::  $flag-v9: legacy flag type used by state-1..9 (name was @t cord)
-+$  flag-v9  [=ship name=@t]
 ::  $notebook: top-level container
 ::
 +$  notebook
@@ -110,14 +108,6 @@
   $%  [%folder name=@t children=(list import-node)]
       [%note title=@t body-md=@t]
   ==
-::  $notebook-state-v8: notebook-state shape used by state-8 books map
-::
-+$  notebook-state-v8
-  $:  =notebook
-      notebook-members=notebook-members
-      folders=(map @ud folder)
-      notes=(map @ud note)
-  ==
 ::  $notebook-state: all data for a single notebook (state-14+).
 ::  group: optional Tlon group affiliation. When set, the notebook is a group
 ::  channel — read permission defers to the group's can-read. Set once at
@@ -133,17 +123,6 @@
       notes=(map @ud note)
       history=(map note-id=@ud (list note-revision))
       group=(unit flag)
-  ==
-::  $notebook-state-13: frozen pre-group notebook-state, embedded by states
-::  9..12 books maps and their migration arms (group arrived in state-14).
-::
-+$  notebook-state-13
-  $:  =notebook
-      =members
-      =visibility
-      folders=(map @ud folder)
-      notes=(map @ud note)
-      history=(map note-id=@ud (list note-revision))
   ==
 ::  Actions (client → agent)
 ::
@@ -398,34 +377,6 @@
         fetched=?
     ==
   +$  requests  (map request-id incoming-request)
-  ::  Frozen request chain for states 11–12. Identical to the live chain
-  ::  above except %snapshot carries notebook-state-13 (pre-group). states
-  ::  11/12 transitively embed notebook-state via r-notes %snapshot
-  ::  inside the requests map, so the old states must freeze this chain too —
-  ::  freezing books alone left requests pointing at the group-bearing
-  ::  notebook-state and broke loads of any on-disk state with a stored
-  ::  snapshot in requests.
-  +$  r-notes-13
-    $%  [%snapshot =flag =visibility notebook-state=notebook-state-13]
-        [%update =flag =update]
-    ==
-  +$  response-body-13
-    $%  [%no-change ~]
-        [%ok r-notes=r-notes-13]
-        [%notebook summary=notebook-summary]
-        [%api-key key=(unit @t)]
-        [%error type=action-error message=tang]
-        [%pending status=poke-status]
-    ==
-  +$  incoming-request-13
-    $:  id=request-id
-        http-id=(unit @ta)
-        =poke-status
-        result=(unit response-body-13)
-        final-at=(unit @da)
-        fetched=?
-    ==
-  +$  requests-13  (map request-id incoming-request-13)
   --
 ::  Versioned state — newest first
 ::
@@ -442,170 +393,5 @@
   ==
 ::
 +$  state  state-14
-::  state-12: adds api-key for the X-Api-Key HTTP auth bypass.
-::
-+$  state-12
-  $:  %12
-      books=(map flag [=net notebook-state=notebook-state-13])
-      next-id=@ud
-      published=(map [=flag note-id=@ud] @t)
-      invites=(map flag invite-info)
-      requests=requests-13:v1
-      api-key=(unit @t)
-  ==
-::  state-11: adds requests map for HTTP / request-id correlation
-::
-+$  state-11
-  $:  %11
-      books=(map flag [=net notebook-state=notebook-state-13])
-      next-id=@ud
-      published=(map [=flag note-id=@ud] @t)
-      invites=(map flag invite-info)
-      requests=requests-13:v1
-  ==
-::  state-10: flag.name tightened to @tas slug (no requests map)
-::
-+$  state-10
-  $:  %10
-      books=(map flag [=net notebook-state=notebook-state-13])
-      next-id=@ud
-      published=(map [=flag note-id=@ud] @t)
-      invites=(map flag invite-info)
-  ==
-::  state-9: visibility + history moved per-notebook; members renamed.
-::  Uses flag-v9 (name=@t) in map keys — stored atoms weren't valid @tas.
-::
-+$  state-9
-  $:  %9
-      books=(map flag-v9 [=net notebook-state=notebook-state-13])
-      next-id=@ud
-      published=(map [=flag-v9 note-id=@ud] @t)
-      invites=(map flag-v9 invite-info)
-  ==
-::  state-8: adds updated-by, u-notebook log; visibilities + history at top level
-::
-+$  state-8
-  $:  %8
-      books=(map flag-v9 [=net =notebook-state-v8])
-      next-id=@ud
-      published=(map [=flag-v9 note-id=@ud] @t)
-      visibilities=(map flag-v9 visibility)
-      invites=(map flag-v9 invite-info)
-      history=(map [=flag-v9 note-id=@ud] (list note-revision))
-  ==
-::  Legacy entity types — for migrating states 0-7 which lack updated-by
-::  on notebook and folder.
-::
-+$  notebook-v0
-  $:  id=@ud
-      title=@t
-      created-by=ship
-      created-at=@da
-      updated-at=@da
-  ==
-::
-+$  folder-v0
-  $:  id=@ud
-      notebook-id=@ud
-      name=@t
-      parent-folder-id=(unit @ud)
-      created-by=ship
-      created-at=@da
-      updated-at=@da
-  ==
-::
-+$  notebook-state-v0
-  $:  notebook=notebook-v0
-      notebook-members=notebook-members
-      folders=(map @ud folder-v0)
-      notes=(map @ud note)
-  ==
-::  net-v0: old log used raw u-notes (flat), not u-notebook
-::
-+$  net-v0
-  $%  [%pub log=*]
-      [%sub =time init=_|]
-  ==
-::  invite-info-5: invite from state-5 (lacks title)
-::
-+$  invite-info-5  [from=ship sent-at=@da]
-::  state-7: master current state (pre-refactor).
-::  Uses net-v0 (log=*) since the on-disk log has u-notes entries (old flat type).
-::  Uses notebook-state-v0 since notebook and folder lacked updated-by.
-::
-+$  state-7
-  $:  %7
-      books=(map flag-v9 [net=net-v0 notebook-state=notebook-state-v0])
-      next-id=@ud
-      published=(map [=flag-v9 note-id=@ud] @t)
-      visibilities=(map flag-v9 visibility)
-      invites=(map flag-v9 invite-info)
-      history=(map [=flag-v9 note-id=@ud] (list note-revision))
-  ==
-::  state-6: invites carry notebook title.
-::  Also uses v0 types for books.
-::
-+$  state-6
-  $:  %6
-      books=(map flag-v9 [net=net-v0 notebook-state=notebook-state-v0])
-      next-id=@ud
-      published=(map [=flag-v9 note-id=@ud] @t)
-      visibilities=(map flag-v9 visibility)
-      invites=(map flag-v9 invite-info)
-  ==
-::  state-5: pending invites with shape [from sent-at] — kept for migration
-::
-+$  state-5
-  $:  %5
-      books=(map flag-v9 [net=net-v0 notebook-state=notebook-state-v0])
-      next-id=@ud
-      published=(map [=flag-v9 note-id=@ud] @t)
-      visibilities=(map flag-v9 visibility)
-      invites=(map flag-v9 invite-info-5)
-  ==
-::  state-4: adds per-notebook visibility
-::
-+$  state-4
-  $:  %4
-      books=(map flag-v9 [net=net-v0 notebook-state=notebook-state-v0])
-      next-id=@ud
-      published=(map [=flag-v9 note-id=@ud] @t)
-      visibilities=(map flag-v9 visibility)
-  ==
-::  state-3: published keyed by (flag, note-id)
-::
-+$  state-3
-  $:  %3
-      books=(map flag-v9 [net=net-v0 notebook-state=notebook-state-v0])
-      next-id=@ud
-      published=(map [=flag-v9 note-id=@ud] @t)
-  ==
-::  state-2: adds published notes cache keyed only by note-id
-::
-+$  state-2
-  $:  %2
-      books=(map flag-v9 [net=net-v0 notebook-state=notebook-state-v0])
-      next-id=@ud
-      published=(map @ud @t)
-  ==
-::  state-1: dual-mode host/subscriber state
-::
-+$  state-1
-  $:  %1
-      books=(map flag-v9 [net=net-v0 notebook-state=notebook-state-v0])
-      next-id=@ud
-  ==
-::  state-0: legacy single-player state (kept for migration)
-::
-+$  state-0
-  $:  %0
-      notebooks=(map @ud notebook-v0)
-      folders=(map @ud folder-v0)
-      notes=(map @ud note)
-      members=(map @ud notebook-members)
-      next-id=@ud
-      updates=*
-      next-update-id=@ud
-  ==
 ::
 --

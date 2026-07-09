@@ -106,31 +106,18 @@
       ::  when the fleet/roles change (see +recheck-group-access).
       [%pass /groups %agent [our.bowl %groups] %watch /v1/groups]
   ==
-::  +load: migrate old state to current state-10 via linear per-step chain.
-::  Pattern: |^ kelt with =? chain + per-step arms (tloncorp/homestead style).
+::  +load: groups-hosted %notes always initializes fresh (channels suspends
+::  any standalone %notes desk and force-starts ours via kiln rein), so no
+::  pre-existing on-disk save is ever migrated in-place here. state-14 is the
+::  sole base state — decode directly.
 ::
 ++  load
-  |^  |=  =vase
+  |=  =vase
   ^+  cor
-  =+  !<(old=any-state vase)
-  =?  old  ?=(%1 -.old)  (state-1-to-2 old)
-  =?  old  ?=(%2 -.old)  (state-2-to-3 old)
-  =?  old  ?=(%3 -.old)  (state-3-to-4 old)
-  =?  old  ?=(%4 -.old)  (state-4-to-5 old)
-  =?  old  ?=(%5 -.old)  (state-5-to-6 old)
-  =?  old  ?=(%6 -.old)  (state-6-to-7 old)
-  =?  old  ?=(%7 -.old)  (state-7-to-8 old)
-  =?  old  ?=(%8 -.old)  (state-8-to-9 old)
-  =?  old  ?=(%9 -.old)  (state-9-to-10 old)
-  =?  old  ?=(%10 -.old)  (state-10-to-11 old)
-  =?  old  ?=(%11 -.old)  (state-11-to-12 old)
-  =?  old  ?=(%12 -.old)  (state-12-to-14 old)
-  ?>  ?=(%14 -.old)
-  =.  state  old
-  ::  ships migrating from state-11 land here with api-key=~; mint one
-  ::  so the bypass is usable out of the box. Operators can rotate or
-  ::  clear afterward.
-  =?  api-key.state  ?=(~ api-key.state)  `(scot %uv eny.bowl)
+  =.  state  !<(state-14:n vase)
+  ::  NB: no api-key mint here. +on-init mints one on fresh install; at load
+  ::  an empty api-key means an operator ran %clear-api-key, and re-minting
+  ::  would silently re-enable the X-Api-Key bypass they disabled.
   ::  (re)establish the %groups watch for revocation. idempotent: skip if a
   ::  subscription on this wire already exists (e.g. fresh installs from +init).
   =?  cor  !(~(has by wex.bowl) [/groups our.bowl %groups])
@@ -139,197 +126,6 @@
   ::  each cleanup pass is a no-op on an empty/clean requests map)
   %-  emit
   [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)]
-  ::
-  +$  any-state
-    $%  state-14:n
-        state-12:n
-        state-11:n
-        state-10:n
-        state-9:n
-        state-8:n
-        state-7:n
-        state-6:n
-        state-5:n
-        state-4:n
-        state-3:n
-        state-2:n
-        state-1:n
-    ==
-  ::
-  ++  state-1-to-2
-    ~>  %spin.['state-1-to-2']
-    |=  s=state-1:n
-    ^-  state-2:n
-    [%2 books.s next-id.s ~]
-  ::
-  ++  state-2-to-3
-    ~>  %spin.['state-2-to-3']
-    |=  s=state-2:n
-    ^-  state-3:n
-    [%3 books.s next-id.s ~]
-  ::
-  ++  state-3-to-4
-    ~>  %spin.['state-3-to-4']
-    |=  s=state-3:n
-    ^-  state-4:n
-    [%4 books.s next-id.s published.s ~]
-  ::
-  ++  state-4-to-5
-    ~>  %spin.['state-4-to-5']
-    |=  s=state-4:n
-    ^-  state-5:n
-    [%5 books.s next-id.s published.s visibilities.s ~]
-  ::
-  ++  state-5-to-6
-    ~>  %spin.['state-5-to-6']
-    |=  s=state-5:n
-    ^-  state-6:n
-    =/  new-invites=(map flag-v9:n invite-info:n)
-      %-  ~(run by invites.s)
-      |=  ii=invite-info-5:n
-      ^-  invite-info:n
-      [from.ii sent-at.ii '']
-    [%6 books.s next-id.s published.s visibilities.s new-invites]
-  ::
-  ++  state-6-to-7
-    ~>  %spin.['state-6-to-7']
-    |=  s=state-6:n
-    ^-  state-7:n
-    [%7 books.s next-id.s published.s visibilities.s invites.s ~]
-  ::
-  ++  state-7-to-8
-    ~>  %spin.['state-7-to-8']
-    |=  s=state-7:n
-    ^-  state-8:n
-    =/  new-books=(map flag-v9:n [=net:n =notebook-state-v8:n])
-      %-  ~(run by books.s)
-      |=  [net=net-v0:n old-nbs=notebook-state-v0:n]
-      =/  =notebook:n
-        :*  id.notebook.old-nbs  title.notebook.old-nbs
-            created-by.notebook.old-nbs  created-at.notebook.old-nbs
-            updated-at.notebook.old-nbs  created-by.notebook.old-nbs
-        ==
-      =/  new-folders=(map @ud folder:n)
-        %-  ~(run by folders.old-nbs)
-        |=  fld=folder-v0:n
-        :*  id.fld  notebook-id.fld  name.fld  parent-folder-id.fld
-            created-by.fld  created-at.fld  updated-at.fld  created-by.fld
-        ==
-      =/  new-net=net:n
-        ?-  -.net
-          %pub  [%pub *log:n]
-          %sub  [%sub time.net init.net]
-        ==
-      [new-net [notebook notebook-members.old-nbs new-folders notes.old-nbs]]
-    [%8 new-books next-id.s published.s visibilities.s invites.s history.s]
-  ::
-  ++  state-8-to-9
-    ~>  %spin.['state-8-to-9']
-    |=  s=state-8:n
-    ^-  state-9:n
-    =/  new-books=(map flag-v9:n [=net:n notebook-state=notebook-state-13:n])
-      %-  ~(urn by books.s)
-      |=  [f=flag-v9:n [=net:n old-nbs=notebook-state-v8:n]]
-      =/  nb-hist=(map @ud (list note-revision:n))
-        %-  malt
-        %+  murn  ~(tap by history.s)
-        |=  [[kf=flag-v9:n nid=@ud] v=(list note-revision:n)]
-        ?.  =(kf f)  ~
-        `[nid v]
-      =/  new-nbs=notebook-state-13:n
-        :*  notebook.old-nbs
-            notebook-members.old-nbs
-            (fall (~(get by visibilities.s) f) %private)
-            folders.old-nbs
-            notes.old-nbs
-            nb-hist
-        ==
-      [net new-nbs]
-    [%9 new-books next-id.s published.s invites.s]
-  ::
-  ++  state-9-to-10
-    ~>  %spin.['state-9-to-10']
-    |=  s=state-9:n
-    ^-  state-10:n
-    =/  xlat=(map flag-v9:n flag:n)
-      %-  malt
-      %+  turn  ~(tap by books.s)
-      |=  [f=flag-v9:n [* notebook-state=notebook-state-13:n]]
-      =/  new-name=@tas  (slugify [title id]:notebook.notebook-state)
-      [f [ship.f new-name]]
-    =/  new-books=(map flag:n [=net:n notebook-state=notebook-state-13:n])
-      %-  malt
-      %+  turn  ~(tap by books.s)
-      |=  [f=flag-v9:n entry=[=net:n notebook-state=notebook-state-13:n]]
-      =/  =flag:n  (~(got by xlat) f)
-      [flag entry]
-    =/  new-pub=(map [=flag:n note-id=@ud] @t)
-      %-  malt
-      %+  turn  ~(tap by published.s)
-      |=  [[f=flag-v9:n nid=@ud] html=@t]
-      =/  =flag:n  (fall (~(get by xlat) f) [ship.f `@tas`name.f])
-      [[flag nid] html]
-    =/  new-invites=(map flag:n invite-info:n)
-      %-  malt
-      %+  turn  ~(tap by invites.s)
-      |=  [f=flag-v9:n info=invite-info:n]
-      =/  =flag:n  (fall (~(get by xlat) f) [ship.f `@tas`name.f])
-      [flag info]
-    [%10 new-books next-id.s new-pub new-invites]
-  ::
-  ++  state-10-to-11
-    ~>  %spin.['state-10-to-11']
-    |=  s=state-10:n
-    ^-  state-11:n
-    [%11 books.s next-id.s published.s invites.s ~]
-  ::
-  ++  state-11-to-12
-    ~>  %spin.['state-11-to-12']
-    |=  s=state-11:n
-    ^-  state-12:n
-    [%12 books.s next-id.s published.s invites.s requests.s ~]
-  ::  state-12-to-14: widen each notebook-state with group=~ (pre-existing
-  ::  notebooks have no group affiliation; group is set only via
-  ::  create-in-group). The on-disk log is untouched (it embeds $notebook,
-  ::  not $notebook-state). notebook-state appears in two places: the books
-  ::  map AND any stored %snapshot inside the requests map (r-notes), so both
-  ::  must be widened — state-12 already froze both via notebook-state-13 /
-  ::  requests-13, so the widen bodies are unchanged from the old
-  ::  state-13-to-14 step.
-  ::
-  ++  state-12-to-14
-    ~>  %spin.['state-12-to-14']
-    |=  s=state-12:n
-    ^-  state-14:n
-    =/  widen-nbs
-      |=  nbs=notebook-state-13:n
-      ^-  notebook-state:n
-      :*  notebook.nbs  members.nbs  visibility.nbs
-          folders.nbs  notes.nbs  history.nbs  ~
-      ==
-    =/  new-books=(map flag:n [=net:n =notebook-state:n])
-      %-  ~(run by books.s)
-      |=  [=net:n nbs=notebook-state-13:n]
-      [net (widen-nbs nbs)]
-    =/  new-requests=requests:v1:n
-      %-  ~(run by requests.s)
-      |=  req=incoming-request-13:v1:n
-      ^-  incoming-request:v1:n
-      :*  id.req
-          http-id.req
-          poke-status.req
-          ::  widen any stored %snapshot's notebook-state with group=~
-          %+  bind  result.req
-          |=  rb=response-body-13:v1:n
-          ^-  response-body:v1:n
-          ?.  ?=([%ok %snapshot *] rb)  rb
-          =/  snap  r-notes.rb
-          [%ok %snapshot flag.snap visibility.snap (widen-nbs notebook-state.snap)]
-          final-at.req
-          fetched.req
-      ==
-    [%14 new-books next-id.s published.s invites.s new-requests api-key.s]
-  --
 ::
 ++  poke
   |=  [=mark =vase]
