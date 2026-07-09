@@ -43,13 +43,15 @@ export function BotApiKeySettingsScreen(props: Props) {
   // The desktop settings drawer keeps this screen mounted across provider
   // switches, so clear the pasted key and related state when the provider
   // param changes — an unsaved key must never carry over to (and be saved
-  // against) a different provider.
+  // against) a different provider. Also reset on a hosting-account switch: the
+  // save/remove mutations rebind to the new hostingUserId, so a stale pasted
+  // key or open remove dialog must not act on the new account.
   useEffect(() => {
     setKey('');
     setShowKey(false);
     setValidationError(null);
     setConfirmRemove(false);
-  }, [providerId]);
+  }, [providerId, queries.hostingUserId]);
 
   const provider = useMemo(
     () => PROVIDER_OPTIONS.find((option) => option.id === providerId),
