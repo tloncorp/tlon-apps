@@ -4,6 +4,7 @@ import ReactAppDependencyProvider
 internal import Expo
 import Firebase
 import RNBranch
+import react_native_paste_input
 
 @main
 class AppDelegate: ExpoAppDelegate {
@@ -51,6 +52,10 @@ class AppDelegate: ExpoAppDelegate {
       in: window,
       launchOptions: launchOptions
     )
+
+    // Must run after startReactNative, which is what populates the factory's
+    // rootViewFactory host that the paste module hooks into.
+    PasteInputModule.setup(factory.rootViewFactory)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
