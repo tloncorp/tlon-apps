@@ -18,10 +18,7 @@ describe('parseInviteDeepLink', () => {
       token: '0vxyz',
     });
     expect(
-      parseInviteDeepLink(
-        'https://serverless-infra.vercel.app/0vabc',
-        options
-      )
+      parseInviteDeepLink('https://serverless-infra.vercel.app/0vabc', options)
     ).toEqual({
       type: 'lure',
       token: '0vabc',
