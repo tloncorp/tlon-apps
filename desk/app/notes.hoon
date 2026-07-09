@@ -1,7 +1,7 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
 /-  n=notes, mcp-proxy
-/+  default-agent, dbug, verb
+/+  default-agent, dbug, verb, server
 /=  notes-json  /lib/notes/json
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
@@ -424,63 +424,77 @@
 ++  serve-http
   |=  [eyre-id=@ta =inbound-request:eyre]
   ^+  cor
-  =/  url-tape=tape  (trip url.request.inbound-request)
-  =/  url-path=tape  (strip-query url-tape)
+  ::  parse the URL exactly once, with the zuse URL grammar (apat splits
+  ::  path segments + a trailing file extension off the last segment;
+  ::  yque splits the query string into key/value pairs). Every branch
+  ::  below dispatches on the parsed `site` segment list / `ext` / `args`
+  ::  — no raw string prefixes or hardcoded scag/slag lengths.
+  =/  =request-line:server
+    (parse-request-line:server url.request.inbound-request)
+  =*  site  site.request-line
+  =*  ext   ext.request-line
+  =*  args  args.request-line
   =/  method=@tas  method.request.inbound-request
   ::  openapi spec — served public so an MCP proxy can fetch it without
   ::  having to invent an auth scheme. The spec is metadata, not a side
   ::  channel into agent state. JSON only because %mcp-proxy parses
   ::  cached specs with de:json:html and doesn't accept YAML.
-  ?:  =("/notes/openapi.json" url-path)
+  ?:  &(=(site ~[%notes %openapi]) =(ext `%json))
     (give-http eyre-id 200 'application/json' (en:json:html openapi-spec))
   ::  v1 HTTP API: POST /notes/~/v1, GET /notes/~/v1/request/<uv>,
   ::  GET /notes/~/v1/notebooks[...] + /notes/~/v1/invites (read surface)
-  ?:  =("/notes/~/v1" url-path)
+  ?:  =(site ~[%notes %~.~ %v1])
     ?:  =(%'POST' method)  (handle-v1-post eyre-id inbound-request)
     (http-error eyre-id 405 'method not allowed')
-  ?:  =("/notes/~/v1/request/" (scag 20 url-path))
-    ?:  =(%'GET' method)  (handle-v1-get-request eyre-id (slag 20 url-path) inbound-request)
-    (http-error eyre-id 405 'method not allowed')
-  ?:  =("/notes/~/v1/" (scag 12 url-path))
+  ?:  ?=([%notes %~.~ %v1 %request @ ~] site)
+    ?.  =(%'GET' method)
+      (http-error eyre-id 405 'method not allowed')
+    ::  the @uv rid carries dots; apat mistook its trailing dot-group for a
+    ::  file extension and split it off, so glue the ext back on before
+    ::  handing the rid down.
+    =/  rid-knot=@t
+      ?~  ext  i.t.t.t.t.site
+      (rap 3 i.t.t.t.t.site '.' u.ext ~)
+    (handle-v1-get-request eyre-id rid-knot inbound-request)
+  ?:  ?=([%notes %~.~ %v1 *] site)
+    =/  pax=(list @t)  t.t.t.site
     ::  other /notes/~/v1/* — GET reads, POST/PATCH/DELETE first-class writes
-    ?:  =(%'GET' method)     (handle-v1-read eyre-id url-path inbound-request)
+    ?:  =(%'GET' method)  (handle-v1-read eyre-id pax inbound-request)
     ::  vere's runtime HTTP server rejects PATCH (400 before reaching the
     ::  agent), so note-body updates use PUT.
     ?:  ?=(?(%'POST' %'PUT' %'DELETE') method)
-      (handle-v1-write eyre-id method url-path inbound-request)
+      =/  recursive=?
+        %+  lien  args
+        |=  [key=@t value=@t]
+        &(=(key 'recursive') =(value 'true'))
+      (handle-v1-write eyre-id method pax recursive inbound-request)
     (http-error eyre-id 405 'method not allowed')
   ::  PWA-related static assets: manifest, service worker, icons.
   ::  Each returns [body content-type] or ~. Served scoped under
   ::  /notes/ so the SW can control the app's URL space.
   =/  asset=(unit [body=@t ct=@t])
-    ?:  =("/notes/manifest.json" url-path)
+    ?:  &(=(site ~[%notes %manifest]) =(ext `%json))
       `[(en:json:html manifest) 'application/manifest+json']
-    ?:  =("/notes/sw.js" url-path)
+    ?:  &(=(site ~[%notes %sw]) =(ext `%js))
       ::  text/javascript is required by some browsers for SW registration.
       `[service-worker 'text/javascript']
-    ?:  =("/notes/icon.svg" url-path)
+    ?:  &(=(site ~[%notes %icon]) =(ext `%svg))
       `[icon-svg 'image/svg+xml']
-    ?:  =("/notes/favicon.svg" url-path)
+    ?:  &(=(site ~[%notes %favicon]) =(ext `%svg))
       `[favicon-svg 'image/svg+xml']
     ~
   ::  /notes/pub/~ship/name/{note-id} → serve archived published HTML
   =/  pub-html=(unit @t)
-    ?.  =("/notes/pub/" (scag 11 url-tape))  ~
-    =/  path-only=tape  (strip-query (slag 11 url-tape))
-    =/  pax=path  (stab (crip (weld "/" path-only)))
-    ?.  ?=([@ @ @ ~] pax)  ~
-    ?~  ship-u=(slaw %p i.pax)  ~
-    ?~  nid-u=(slaw %ud i.t.t.pax)  ~
+    ?.  ?=([%notes %pub @ @ @ ~] site)  ~
+    ?~  ship-u=(slaw %p i.t.t.site)  ~
+    ?~  nid-u=(slaw %ud i.t.t.t.t.site)  ~
     ?:  =(0 u.nid-u)  ~
-    =/  =flag:n  [u.ship-u `@tas`i.t.pax]
+    =/  =flag:n  [u.ship-u `@tas`i.t.t.t.site]
     (~(get by published) [flag u.nid-u])
   ::  /notes/share/~ship/name → serve the share-redirect page
   =/  share-html=(unit @t)
-    ?.  =("/notes/share/" (scag 13 url-tape))  ~
-    =/  path-only=tape  (strip-query (slag 13 url-tape))
-    =/  pax=path  (stab (crip (weld "/" path-only)))
-    ?.  ?=([@ @ ~] pax)  ~
-    ?~  (slaw %p i.pax)  ~
+    ?.  ?=([%notes %share @ @ ~] site)  ~
+    ?~  (slaw %p i.t.t.site)  ~
     `share-page
   =/  body=@t
     ?^  asset       body.u.asset
@@ -550,14 +564,11 @@
 ::  guessed (or sniffed) the rid.
 ::
 ++  handle-v1-get-request
-  |=  [eyre-id=@ta path-rest=tape =inbound-request:eyre]
+  |=  [eyre-id=@ta rid-knot=@t =inbound-request:eyre]
   ^+  cor
   ?.  (request-authorized inbound-request)
     (http-error eyre-id 401 'unauthorized')
-  =/  pax=path  (stab (crip (weld "/" path-rest)))
-  ?.  ?=([@ ~] pax)
-    (http-error eyre-id 404 'bad path')
-  =/  rid=request-id:v1:n  (slav %uv i.pax)
+  =/  rid=request-id:v1:n  (slav %uv ;;(@ta rid-knot))
   ?~  req=(~(get by requests) rid)
     (http-error eyre-id 404 'request not found')
   =/  body=response-body:v1:n
@@ -611,13 +622,15 @@
 ::    /notes/~/v1/invites
 ::
 ++  handle-v1-read
-  |=  [eyre-id=@ta url-path=tape =inbound-request:eyre]
+  |=  [eyre-id=@ta pax=(list @t) =inbound-request:eyre]
   ^+  cor
   ?.  (request-authorized inbound-request)
     (http-error eyre-id 401 'unauthorized')
-  ::  strip "/notes/~/v1/" (12 chars) → remaining path segments
-  =/  pax=path  (stab (crip (weld "/" (slag 12 url-path))))
-  ?+    pax  (http-error eyre-id 404 'unknown read path')
+  ::  serve-http already stripped "/notes/~/v1/" — pax is the remaining
+  ::  path segments, parsed once via apat:de-purl:html. Retype (not
+  ::  reparse) to `path` for the existing knot-typed switch/lookups below.
+  =/  =path  ;;(path pax)
+  ?+    path  (http-error eyre-id 404 'unknown read path')
       [%notebooks ~]
     (give-json-response eyre-id read-notebooks-json)
   ::
@@ -625,10 +638,10 @@
     (give-json-response eyre-id read-invites-json)
   ::
       [%notebooks @ @ *]
-    =/  =flag:n  [(slav %p i.t.pax) `@tas`i.t.t.pax]
+    =/  =flag:n  [(slav %p i.t.path) `@tas`i.t.t.path]
     ?~  (~(get by books) flag)
       (http-error eyre-id 404 'notebook not found')
-    ?~  jon=(no-read-json:(no-abed:no-core flag) t.t.t.pax)
+    ?~  jon=(no-read-json:(no-abed:no-core flag) t.t.t.path)
       (http-error eyre-id 404 'not found')
     (give-json-response eyre-id u.jon)
   ==
@@ -765,27 +778,23 @@
 ::  always minted server-side here (no envelope to carry one).
 ::
 ++  handle-v1-write
-  |=  [eyre-id=@ta method=@tas url-path=tape =inbound-request:eyre]
+  |=  [eyre-id=@ta method=@tas pax=(list @t) recursive=? =inbound-request:eyre]
   ^+  cor
   ?.  (request-authorized inbound-request)
     (http-error eyre-id 401 'unauthorized')
   ::  auth verified — act as the host (see +handle-v1-post)
   =.  src.bowl  our.bowl
-  =/  pax=path  (stab (crip (weld "/" (slag 12 url-path))))
   =/  obj=(map @t json)
     =/  jon=(unit json)
       ?~  body.request.inbound-request  ~
       (de:json:html q.u.body.request.inbound-request)
     ?.  ?&(?=(^ jon) ?=([%o *] u.jon))  ~
     p.u.jon
-  ::  parse ?recursive=true from the original query string (url-path is
-  ::  already stripped). Only meaningful for DELETE /folders/{id}.
-  =/  recursive=?
-    =/  url-tape=tape  (trip url.request.inbound-request)
-    =/  qi=(unit @ud)  (find "?" url-tape)
-    ?~  qi  |
-    ?=(^ (find "recursive=true" (slag +(u.qi) url-tape)))
-  ?~  act=(build-write-action method pax obj recursive)
+  ::  pax is already the parsed path tail from serve-http; retype (not
+  ::  reparse) to `path` for +build-write-action's existing knot-typed
+  ::  matching. recursive (?recursive=true) is likewise parsed once in
+  ::  serve-http, from the query args yque split out.
+  ?~  act=(build-write-action method ;;(path pax) obj recursive)
     (http-error eyre-id 400 'unsupported write — check method, path, and required fields')
   =/  rid=request-id:v1:n  `@uv`(mix eny.bowl rid-counter)
   =.  rid-counter  +(rid-counter)
@@ -1097,14 +1106,6 @@
   |=  =flag:n
   ^-  (unit [=net:n =notebook-state:n])
   (~(get by books) flag)
-::  +strip-query: drop any query string from a URL tape (returns path portion only)
-::
-++  strip-query
-  |=  url=tape
-  ^-  tape
-  =/  qi=(unit @ud)  (find "?" url)
-  ?~  qi  url
-  (scag u.qi url)
 ::  +group-can-read: ask our LOCAL %groups replica whether `who` may read the
 ::  [%notes flag] nest in group `grp`. Mirrors +can-read in tlon's
 ::  channel-utils: scry the bulk `can-read` GATE (%gx, not %gu — %groups only
