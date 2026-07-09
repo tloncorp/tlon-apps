@@ -10,6 +10,7 @@ import {
   groupChannelEntries,
   hasGroupMembership,
   haveChannelModelEntriesChanged,
+  mergeChannelRules,
   normalizeChannelRuleKey,
   normalizeMoonName,
   normalizeProviderConfig,
@@ -518,6 +519,84 @@ describe('channel grouping', () => {
   it('checks group membership by host and group name', () => {
     expect(hasGroupMembership(groups, 'zod', 'my-group')).toBe(true);
     expect(hasGroupMembership(groups, '~zod', 'other')).toBe(false);
+  });
+});
+
+describe('mergeChannelRules', () => {
+  it('drops inherited server rules (restricted, no allowedShips) so the CRD is not sent an allowedShips-less rule', () => {
+    const serverRules = {
+      'chat/~zod/inherited': { mode: 'restricted' as const },
+      'chat/~zod/explicit': {
+        mode: 'restricted' as const,
+        allowedShips: ['~bus'],
+      },
+    };
+    const merged = mergeChannelRules(serverRules, {}, []);
+    expect(merged).toEqual({
+      'chat/~zod/explicit': { mode: 'restricted', allowedShips: ['~bus'] },
+    });
+    expect(merged['chat/~zod/inherited']).toBeUndefined();
+  });
+
+  it('keeps an explicit block-all rule (restricted with empty allowedShips)', () => {
+    const serverRules = {
+      'chat/~zod/blocked': { mode: 'restricted' as const, allowedShips: [] },
+    };
+    const merged = mergeChannelRules(serverRules, {}, []);
+    expect(merged['chat/~zod/blocked']).toEqual({
+      mode: 'restricted',
+      allowedShips: [],
+    });
+  });
+
+  it('overlays dirty edits and preserves untouched server rules', () => {
+    const serverRules = {
+      'chat/~zod/other': { mode: 'open' as const, allowedShips: [] },
+    };
+    const nextRules = {
+      'chat/~zod/edited': {
+        mode: 'restricted' as const,
+        allowedShips: ['~bus'],
+      },
+    };
+    const merged = mergeChannelRules(serverRules, nextRules, [
+      'chat/~zod/edited',
+    ]);
+    expect(merged).toEqual({
+      'chat/~zod/other': { mode: 'open', allowedShips: [] },
+      'chat/~zod/edited': { mode: 'restricted', allowedShips: ['~bus'] },
+    });
+  });
+
+  it('deletes a rule whose dirty key is absent from nextRules (channel reset to inherited)', () => {
+    const serverRules = {
+      'chat/~zod/reset': {
+        mode: 'restricted' as const,
+        allowedShips: ['~bus'],
+      },
+    };
+    const merged = mergeChannelRules(serverRules, {}, ['chat/~zod/reset']);
+    expect(merged['chat/~zod/reset']).toBeUndefined();
+  });
+
+  it('normalizes legacy un-normalized server keys before overlaying dirty edits', () => {
+    const serverRules = {
+      'zod/general': { mode: 'restricted' as const, allowedShips: ['~bus'] },
+    };
+    const nextRules = {
+      'chat/~zod/general': {
+        mode: 'open' as const,
+        allowedShips: [],
+      },
+    };
+    const merged = mergeChannelRules(serverRules, nextRules, [
+      'chat/~zod/general',
+    ]);
+    // The normalized key is updated in place — no stale duplicate under the
+    // legacy key.
+    expect(merged).toEqual({
+      'chat/~zod/general': { mode: 'open', allowedShips: [] },
+    });
   });
 });
 

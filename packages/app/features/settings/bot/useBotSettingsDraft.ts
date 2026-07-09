@@ -12,6 +12,7 @@ import {
   getErrorMessage,
   getModelFormValues,
   haveChannelModelEntriesChanged,
+  mergeChannelRules,
   normalizeChannelRuleKey,
   toChatFormValues,
 } from './helpers';
@@ -414,23 +415,11 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
             );
           }
           if (dirtyRuleKeys.length > 0) {
-            // Server data can carry legacy un-normalized keys (zod/general);
-            // normalize them so the dirty-key updates/deletes hit the same
-            // entries instead of leaving a stale duplicate behind.
-            const mergedRules: typeof nextRules = {};
-            Object.entries(refetchedSettings.data.channelRules ?? {}).forEach(
-              ([key, serverRule]) => {
-                mergedRules[normalizeChannelRuleKey(key)] = serverRule;
-              }
+            config.channelRules = mergeChannelRules(
+              refetchedSettings.data.channelRules,
+              nextRules,
+              dirtyRuleKeys
             );
-            dirtyRuleKeys.forEach((key) => {
-              if (nextRules[key] !== undefined) {
-                mergedRules[key] = nextRules[key];
-              } else {
-                delete mergedRules[key];
-              }
-            });
-            config.channelRules = mergedRules;
           }
           // Apply the user's enable/disable delta to the server's monitored set
           // so inherited-only toggles (no channelRules entry) still save, while

@@ -468,6 +468,44 @@ export const buildConfigFromChatValues = (
   };
 };
 
+type ChannelRulesMap = TlawnConfig['channelRules'];
+
+// Rebuild the full channelRules map to send under the backend's replace
+// semantics: start from the latest server rules, then overlay the user's dirty
+// per-channel edits (a key mapped to `undefined` in nextRules is a delete).
+//
+// Server rules are normalized (legacy zod/general keys) so dirty-key
+// updates/deletes hit the same entry instead of leaving a stale duplicate. And
+// an inherited channel — restricted with no explicit allowedShips — is dropped:
+// it carries no rule (it follows defaults via groupChannels), and echoing one
+// back serializes as `{mode:'restricted'}`, which the CRD rejects (allowedShips
+// is required on every rule). This mirrors buildConfigFromChatValues, which
+// likewise never emits inherited rules into channelRules.
+export const mergeChannelRules = (
+  serverRules: ChannelRulesMap | undefined,
+  nextRules: ChannelRulesMap,
+  dirtyRuleKeys: string[]
+): ChannelRulesMap => {
+  const merged: ChannelRulesMap = {};
+  Object.entries(serverRules ?? {}).forEach(([key, serverRule]) => {
+    if (
+      serverRule.mode === 'restricted' &&
+      serverRule.allowedShips === undefined
+    ) {
+      return;
+    }
+    merged[normalizeChannelRuleKey(key)] = serverRule;
+  });
+  dirtyRuleKeys.forEach((key) => {
+    if (nextRules[key] !== undefined) {
+      merged[key] = nextRules[key];
+    } else {
+      delete merged[key];
+    }
+  });
+  return merged;
+};
+
 export const groupChannelEntries = (
   rawGroups: TlawnChannelGroups,
   drafts: Record<string, ChannelRuleDraft>
