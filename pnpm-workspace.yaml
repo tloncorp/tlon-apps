@@ -43,6 +43,7 @@ patchedDependencies:
   expo-background-task: patches/expo-background-task@56.0.19.patch
   '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
   '@tamagui/build@2.4.2': patches/@tamagui__build@2.4.2.patch
+  '@expo/require-utils@56.1.3': patches/@expo__require-utils@56.1.3.patch
 
 allowUnusedPatches: false
 

@@ -16,6 +16,7 @@
   "importOrderSortSpecifiers": true,
   "sortPackageJson": false,
   "ignorePatterns": [
+    "**/mockServiceWorker.js",
     "*.css",
     "*.html",
     "*.jsonc",
