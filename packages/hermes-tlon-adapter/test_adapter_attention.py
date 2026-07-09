@@ -218,11 +218,13 @@ class RecordingCLI(FakeCLI):
             message_id="post-id",
         )
 
-    async def send_message(self, chat_id, text):
+    async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
         self.sends.append((chat_id, text))
         return self._next_result()
 
-    async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+    async def send_reply(
+        self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None
+    ):
         self.thread_replies.append((chat_id, post_id, text, parent_author))
         result = self._next_result()
         if result.command == ():
@@ -867,7 +869,7 @@ class AdapterAttentionTests(unittest.TestCase):
         sent = []
 
         class BlockingCLI(FakeCLI):
-            async def send_message(self, chat_id, text):
+            async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
                 sent.append((chat_id, text))
                 await release
                 return tlon_api.TlonSendResult(
