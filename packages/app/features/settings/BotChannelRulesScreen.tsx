@@ -144,11 +144,16 @@ export function BotChannelRulesScreen(props: Props) {
     if (!allChannelsDisabled) setDisableEverywhereSnapshot(null);
   }, [allChannelsDisabled]);
 
-  // The snapshot holds the previous ship's channel rules; clear it when the
-  // ship changes so Undo can't write another account's rules into a new draft
-  // that also happens to have all channels disabled.
+  // Clear ship-scoped local state when the ship changes (desktop drawer keeps
+  // this screen mounted across account switches): the disable-everywhere
+  // snapshot holds the previous ship's rules, and a pending join confirmation
+  // (joinTarget) points at the previous ship's group — confirming it after a
+  // switch would join that group from the new account.
   useEffect(() => {
     setDisableEverywhereSnapshot(null);
+    setJoinTarget(null);
+    setJoinError(null);
+    setJoiningGroups({});
   }, [queries.ship]);
 
   const replaceDrafts = useCallback(

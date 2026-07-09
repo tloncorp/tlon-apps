@@ -86,6 +86,20 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   const [modelSearch, setModelSearch] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  // The route's groupJoined was computed for the ship active at navigation. If
+  // the desktop drawer keeps this screen mounted across a ship switch, that
+  // value is stale for the new ship, so stop trusting it and let membership be
+  // re-derived from the new ship's moon listing. (Only drop it on a genuine
+  // ship→ship transition, not the initial resolve.)
+  const [routeGroupJoined, setRouteGroupJoined] = useState(initialGroupJoined);
+  const shipRef = useRef(queries.ship);
+  useEffect(() => {
+    if (shipRef.current && queries.ship && shipRef.current !== queries.ship) {
+      setRouteGroupJoined(false);
+    }
+    shipRef.current = queries.ship;
+  }, [queries.ship]);
+
   // Remember the rule as it was when the channel was last disabled, so a
   // canceling off→on toggle restores the exact settings (allowlist, mode, model
   // override) the user had — including unsaved edits — instead of resetting to
@@ -124,15 +138,12 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     // an existing baseline rule means it's a member (the moon's live listing
     // lags/omits joined groups). Also trust the navigation-time value, which
     // already factors this in for the whole group.
-    if (
-      draft.baseline.chat.channelRuleDrafts[channelKey] ||
-      initialGroupJoined
-    ) {
+    if (draft.baseline.chat.channelRuleDrafts[channelKey] || routeGroupJoined) {
       return true;
     }
     const parsed = parseChannelRuleKey(channelKey);
     if (!parsed || !queries.channelsQuery.data) {
-      return initialGroupJoined;
+      return routeGroupJoined;
     }
     const group = resolveGroupForChannel(
       queries.channelsQuery.data,
@@ -140,13 +151,13 @@ export function BotChannelRuleSettingsScreen(props: Props) {
       parsed.channelId
     );
     if (!group) {
-      return initialGroupJoined;
+      return routeGroupJoined;
     }
     // Until the moon's channel listing has loaded, membership is unknown —
     // keep the value captured at navigation time rather than reading the empty
     // fallback as "not joined" and flipping a joined channel to read-only.
     if (queries.moonChannelsQuery.data === undefined) {
-      return initialGroupJoined;
+      return routeGroupJoined;
     }
     return hasGroupMembership(
       queries.moonChannelsQuery.data,
@@ -155,7 +166,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     );
   }, [
     channelKey,
-    initialGroupJoined,
+    routeGroupJoined,
     draft.baseline.chat.channelRuleDrafts,
     queries.channelsQuery.data,
     queries.moonChannelsQuery.data,
