@@ -494,13 +494,10 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         // concurrent edit to another channel survives. Sign the draft's access
         // intent (monitoring + mode + allowlist), which — unlike diffing the
         // materialized rules — excludes model-override-only edits (they travel
-        // via channelModels) and excludes inherited channels re-materialized only
-        // because the global defaults changed (not a per-channel edit, and
-        // overlaying them would clobber a concurrent per-channel change).
+        // via channelModels).
         const nextRules = draftConfig.channelRules;
         const ruleSig = (rule?: ChannelRuleDraft) => {
           if (!rule) return '';
-          if (rule.inheritsDefaultShips) return `${rule.mode}:inherited`;
           return `${rule.mode}:${rule.allowedShips}`;
         };
         const dirtyRuleKeys = allChannelKeys.filter(
