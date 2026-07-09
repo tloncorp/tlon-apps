@@ -298,9 +298,13 @@ export function useBotSettingsMutations() {
     mutationFn: (update: ModelFormValues) => {
       // A row with a provider but no model (or vice versa) is incomplete. Fail
       // rather than silently dropping it, so the caller doesn't mark a fallback
-      // change as applied while the server actually saved nothing for it.
+      // change as applied while the server actually saved nothing for it. Basic
+      // is exempt: it has no model picker (toBackendModel pins the fixed default),
+      // so a Basic fallback with an empty model is complete.
       const hasPartialFallback = update.fallbacks.some(
-        (fallback) => Boolean(fallback.provider) !== Boolean(fallback.model)
+        (fallback) =>
+          fallback.provider !== BASIC_PROVIDER_ID &&
+          Boolean(fallback.provider) !== Boolean(fallback.model)
       );
       if (hasPartialFallback) {
         throw new Error(
@@ -315,7 +319,11 @@ export function useBotSettingsMutations() {
       return api.setTlawnPrimaryModel(hostingUserId, {
         ...toBackendModel(update.provider, update.model),
         fallbacks: update.fallbacks
-          .filter((fallback) => fallback.provider && fallback.model)
+          .filter(
+            (fallback) =>
+              fallback.provider &&
+              (fallback.model || fallback.provider === BASIC_PROVIDER_ID)
+          )
           .map((fallback) => toBackendModel(fallback.provider, fallback.model)),
       });
     },
