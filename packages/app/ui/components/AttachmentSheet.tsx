@@ -6,13 +6,7 @@ import {
 } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
-import {
-  ComponentRef,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { ComponentRef, useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
