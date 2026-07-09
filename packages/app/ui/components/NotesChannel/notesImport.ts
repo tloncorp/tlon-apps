@@ -96,36 +96,30 @@ function selectNotesImportSourcesFromWeb(
     }
 
     let settled = false;
-    const cleanup = () => {
-      window.removeEventListener('focus', handleFocus);
-      input.remove();
-    };
     const settle = (value: NotesImportSource[] | null) => {
       if (settled) return;
       settled = true;
-      cleanup();
+      input.remove();
       resolve(value);
     };
-    const handleFocus = () => {
-      window.setTimeout(() => {
-        if (!input.files || input.files.length === 0) {
-          settle(null);
-        }
-      }, 300);
-    };
 
+    // Dismissal must be detected via the `cancel` event, never via a
+    // window-refocus timeout: after a folder pick the browser keeps
+    // `input.files` empty until the user accepts its upload-confirmation
+    // dialog, which arrives long after the window regains focus.
+    input.oncancel = () => settle(null);
     input.onchange = () => {
       const files = Array.from(input.files ?? []);
       readNotesImportSourcesFromFiles(files)
         .then(settle)
         .catch((e) => {
-          cleanup();
+          settled = true;
+          input.remove();
           reject(e);
         });
     };
 
     document.body.appendChild(input);
-    window.addEventListener('focus', handleFocus);
     input.click();
   });
 }

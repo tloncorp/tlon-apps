@@ -407,14 +407,14 @@ export function NotesNativeChannel({
     isDragImportActive,
     isImportingNotes,
   } = useNotesImportController({
-    activeFolderId,
+    activeFolderId: folderId ?? null,
     canDropImportNotes,
     canEdit,
     folders,
     notebookFlag,
     notes,
     rootFolderId,
-    selectedFolderId: selectedFolderId ?? activeFolderId,
+    selectedFolderId,
     setError,
   });
 
