@@ -3,10 +3,13 @@ import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { ToastProvider } from '@tloncorp/ui';
 import { PropsWithChildren } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  SafeAreaProvider,
+  initialWindowMetrics,
+} from 'react-native-safe-area-context';
 
 import { ShipProvider } from '../contexts/ship';
-import { LoadingSpinner, PortalProvider, StoreProvider, View } from '../ui';
+import { LoadingSpinner, StoreProvider, View } from '../ui';
 import { ContentReferenceLoaderProvider } from '../ui/components/ContentReference/ContentReference';
 import { ComponentsKitProvider } from '../ui/contexts/componentsKits/ComponentsKitProvider';
 import { NowPlayingProvider } from '../ui/contexts/nowPlaying';
@@ -68,17 +71,11 @@ function UIProviderStack({
 }>) {
   return (
     <TamaguiProvider defaultTheme={tamaguiState?.defaultTheme ?? 'light'}>
-      <SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <BottomSheetModalProvider>
             <ContentReferenceLoaderProvider>
-              <ComponentsKitProvider>
-                {/*
-                  Android mobile does not proxy portal contexts, so any providers
-                  used by portaled components must be *above* the PortalProvider
-                */}
-                <PortalProvider>{children}</PortalProvider>
-              </ComponentsKitProvider>
+              <ComponentsKitProvider>{children}</ComponentsKitProvider>
             </ContentReferenceLoaderProvider>
           </BottomSheetModalProvider>
         </GestureHandlerRootView>

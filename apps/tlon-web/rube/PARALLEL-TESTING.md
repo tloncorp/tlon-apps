@@ -335,7 +335,7 @@ e2e-parallel:
 **Key files:**
 
 -   `rube/parallel-runner.sh`: Orchestrates container lifecycle, manages ports, handles cleanup
--   `rube/Dockerfile`: Ubuntu 22.04 base with Node 20, pnpm, Playwright, pre-baked ship archives
+-   `rube/Dockerfile`: Node base image with pnpm, Playwright, pre-baked ship archives
 -   `rube/index.ts`: Test runner modified to support `RUBE_WORKSPACE` env var and optional ships
 -   `rube/merge-reports.js`: Combines blob reports and JUnit XML from all shards
 -   `playwright.config.ts`: Blob reporter for sharded runs, filters optional ships from webServers

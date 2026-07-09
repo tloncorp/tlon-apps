@@ -26,6 +26,8 @@ from .tlon_api import normalize_ship
 SETTINGS_KEY_PENDING_APPROVALS = "pendingApprovals"
 SETTINGS_KEY_DM_ALLOWLIST = "dmAllowlist"
 SETTINGS_KEY_GROUP_INVITE_ALLOWLIST = "groupInviteAllowlist"
+SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS = "defaultAuthorizedShips"
+SETTINGS_KEY_AUTO_ACCEPT_DM_INVITES = "autoAcceptDmInvites"
 
 APPROVAL_TTL_MS = 48 * 60 * 60 * 1000
 DM_INVITE_PREVIEW = "(DM invite - no message yet)"
@@ -245,6 +247,33 @@ def parse_dm_allowlist(value: Any) -> set[str]:
         if ship:
             result.add(ship)
     return result
+
+
+def parse_ship_list(value: Any) -> set[str]:
+    """Strict ship-list parser: only string list entries are accepted.
+
+    Unlike ``parse_dm_allowlist`` (which coerces any item through ``str()``),
+    non-string entries are ignored rather than coerced, so malformed settings
+    data (e.g. ``[7]``) cannot silently broaden authorization.
+    """
+    if not isinstance(value, list):
+        return set()
+    result: set[str] = set()
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        ship = normalize_ship(item)
+        if ship:
+            result.add(ship)
+    return result
+
+
+def settings_bool(value: Any, default: bool) -> bool:
+    """Typed boolean coercion for %settings values: only a genuine bool is
+    accepted; anything else (strings, numbers, None from a del-entry) falls
+    back to ``default`` rather than being truthy-coerced (``bool("false")``
+    is ``True``)."""
+    return value if isinstance(value, bool) else default
 
 
 # ── owner commands ───────────────────────────────────────────────────────

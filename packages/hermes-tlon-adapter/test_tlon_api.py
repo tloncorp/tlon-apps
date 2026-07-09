@@ -820,6 +820,35 @@ class MessageParsingTests(unittest.TestCase):
         self.assertEqual(message.text, "~zod hello")
         self.assertEqual(message.content, [{"inline": [{"ship": "~zod"}, " hello"]}])
 
+    def test_parse_channel_message_accepts_bot_profile_author(self):
+        raw = {
+            "nest": "chat/~zod/general",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "set": {
+                            "essay": {
+                                "author": {
+                                    "ship": "~nec",
+                                    "nickname": "Test Bot",
+                                    "avatar": "",
+                                },
+                                "sent": 1000,
+                                "content": [{"inline": [{"ship": "~zod"}, " hello"]}],
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        message = tlon_api.parse_channel_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertEqual(message.user_id, "~nec")
+        self.assertEqual(message.user_name, "~nec")
+
     def test_parse_channel_message_preserves_blob_and_allows_blob_only(self):
         blob = json.dumps(
             [

@@ -793,7 +793,7 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter = self.make_adapter({"allowed_users": ["~mug"], "bot_mentions": ["arvo"]})
         adapter._sse = FakeSSE(error=RuntimeError("not ready"))
 
-        asyncio.run(adapter._load_bot_nickname())
+        asyncio.run(adapter._load_bot_profile())
 
         self.assertTrue(adapter._mention_matcher.mentioned("~pen hello"))
         self.assertTrue(adapter._mention_matcher.mentioned("arvo hello"))
@@ -802,11 +802,216 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter = self.make_adapter({"allowed_users": ["~mug"]})
         adapter._sse = FakeSSE(payload={"nickname": {"value": "Jon"}})
 
-        asyncio.run(adapter._load_bot_nickname())
+        asyncio.run(adapter._load_bot_profile())
         events = asyncio.run(self.dispatches(adapter, channel_event("jon, hello")))
 
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].text, "hello")
+
+    # ── contacts tracking (live nickname/avatar via /v1/news) ────────────
+
+    @staticmethod
+    def _self_fact(contact):
+        return {"self": {"contact": contact}}
+
+    def test_contacts_self_fact_adds_nickname_wake(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+        events = asyncio.run(self.dispatches(adapter, channel_event("jon, hello")))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "hello")
+
+    def test_contacts_self_fact_rename_replaces_old_term(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Arvo"}})
+        )
+
+        new_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("arvo, hello", post_id="170.142"))
+        )
+        self.assertEqual(len(new_wake), 1)
+
+        old_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("jon, hello", post_id="170.143"))
+        )
+        self.assertEqual(len(old_wake), 0)
+
+        ship_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("~pen hello", post_id="170.144"))
+        )
+        self.assertEqual(len(ship_wake), 1)
+
+    def test_contacts_self_fact_clear_removes_nickname_term(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "bot_mentions": ["arvo"]}
+        )
+
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+        # Full contact map with no nickname key == nickname cleared.
+        adapter._handle_contacts_event(self._self_fact({}))
+
+        old_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("jon, hello", post_id="170.142"))
+        )
+        self.assertEqual(len(old_wake), 0)
+
+        alias_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("arvo, hello", post_id="170.143"))
+        )
+        self.assertEqual(len(alias_wake), 1)
+
+        ship_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("~pen hello", post_id="170.144"))
+        )
+        self.assertEqual(len(ship_wake), 1)
+
+    def test_contacts_non_self_and_malformed_facts_are_inert(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+        matcher = adapter._mention_matcher
+
+        for raw in (
+            {"peer": {"who": "~zod", "contact": {"nickname": {"value": "Zod"}}}},
+            {"page": {"kip": "~zod", "contact": {}, "mod": {}}},
+            {"wipe": {"kip": "~zod"}},
+            "not-a-dict",
+            {"self": {}},
+            {"self": {"contact": "bogus"}},
+        ):
+            adapter._handle_contacts_event(raw)
+            self.assertIs(adapter._mention_matcher, matcher)
+
+    def test_contacts_self_fact_avatar_only_change(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+        matcher = adapter._mention_matcher
+
+        # Full map: unchanged nickname + new avatar. Nickname must stay set,
+        # so the matcher object is untouched while _bot_avatar updates.
+        adapter._handle_contacts_event(
+            self._self_fact(
+                {
+                    "nickname": {"type": "text", "value": "Jon"},
+                    "avatar": {"type": "look", "value": "https://example/a.png"},
+                }
+            )
+        )
+        self.assertIs(adapter._mention_matcher, matcher)
+        self.assertEqual(adapter._bot_avatar, "https://example/a.png")
+
+        # A second identical fact is a no-op.
+        adapter._handle_contacts_event(
+            self._self_fact(
+                {
+                    "nickname": {"type": "text", "value": "Jon"},
+                    "avatar": {"type": "look", "value": "https://example/a.png"},
+                }
+            )
+        )
+        self.assertIs(adapter._mention_matcher, matcher)
+        self.assertEqual(adapter._bot_avatar, "https://example/a.png")
+
+    def test_route_stream_event_dispatches_contacts_app(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        payload = self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+
+        asyncio.run(
+            adapter._route_stream_event(
+                types.SimpleNamespace(app="contacts", json=payload)
+            )
+        )
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("jon, hello")))
+        self.assertEqual(len(events), 1)
+
+    def test_load_bot_profile_clears_stale_nickname(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+
+        # Reconnect catch-up: an empty (but present) contact map clears.
+        adapter._sse = FakeSSE(payload={})
+        asyncio.run(adapter._load_bot_profile())
+
+        old_wake = asyncio.run(self.dispatches(adapter, channel_event("jon, hello")))
+        self.assertEqual(len(old_wake), 0)
+
+    def test_connect_sse_subscribes_contacts_news(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        subscriptions = []
+
+        class RecordingSSE:
+            def __init__(self, config):
+                pass
+
+            async def authenticate(self):
+                return "cookie"
+
+            async def open(self):
+                return None
+
+            async def subscribe(self, app, path):
+                subscriptions.append((app, path))
+                return len(subscriptions)
+
+        with patch.object(adapter_mod, "TlonSSEClient", RecordingSSE):
+            asyncio.run(adapter._connect_sse())
+
+        # The contacts subscription is added alongside — not in place of — the
+        # pre-existing four.
+        self.assertEqual(
+            subscriptions,
+            [
+                ("channels", "/v2"),
+                ("chat", "/v3"),
+                ("settings", f"/desk/{adapter_mod.SETTINGS_DESK}"),
+                ("groups", "/v1/foreigns"),
+                ("contacts", "/v1/news"),
+            ],
+        )
+
+    def test_stream_resync_branch_reloads_profile(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._sse = None
+        calls = []
+
+        class ResyncSSE:
+            async def events(self):
+                adapter._running = False
+                if False:  # pragma: no cover - makes events() an async generator
+                    yield None
+
+        async def fake_connect():
+            adapter._sse = ResyncSSE()
+
+        async def record_settings():
+            calls.append("settings")
+
+        async def record_profile():
+            calls.append("profile")
+
+        with patch.object(adapter, "_connect_sse", fake_connect), patch.object(
+            adapter, "_load_settings_state", record_settings
+        ), patch.object(adapter, "_load_bot_profile", record_profile):
+            asyncio.run(adapter._run_stream())
+
+        self.assertEqual(calls, ["settings", "profile"])
 
     def test_env_enablement_seeds_owner_dm_as_home_channel(self):
         with patch.dict(
