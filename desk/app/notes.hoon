@@ -388,7 +388,7 @@
       =*  flag  flag.cmd
       ?>  =(ship.flag our.bowl)
       ?>  (~(has by books) flag)
-      se-abet:(se-poke-v1:(se-abed:se-core flag) rid [flag c-notebook.cmd])
+      se-abet:(se-poke-v1:(se-abed:se-core flag) rid c-notebook.cmd)
     ==
   ::
       %group-channel-join
@@ -1383,8 +1383,7 @@
   ?>  =(ship.flag our.bowl)
   =/  entry=[* =notebook-state:n]  (~(got by books) flag)
   =.  cor
-    =/  cmd=c-cmd:n  [flag [%invite who]]
-    se-abet:(se-poke:(se-abed:se-core flag) cmd)
+    se-abet:(se-poke:(se-abed:se-core flag) [%invite who])
   =/  cmd1=command:v1:n
     [rid [%notify-invite flag title.notebook.notebook-state.entry]]
   (send-v1-request rid who flag cmd1)
@@ -1656,12 +1655,12 @@
   ::  emits the terminal response-update on the per-request host path.
   ::
   ++  se-poke-v1
-    |=  [req-id=request-id:v1:n cmd=c-cmd:n]
+    |=  [req-id=request-id:v1:n =c-notebook:n]
     ^+  se-core
     =.  rid  req-id
     =.  last-update  ~
     =.  finalized  |
-    =.  se-core  (se-poke cmd)
+    =.  se-core  (se-poke c-notebook)
     se-emit-final-response
   ::  +se-emit-final-response: emit response-update on the request path.
   ::  Skipped if rid is 0 (non-v1 flow) or already explicitly finalized.
@@ -1788,40 +1787,37 @@
   ::  +se-poke: dispatch a c-notes command to the right handler
   ::
   ++  se-poke
-    |=  cmd=c-cmd:n
+    |=  =c-notebook:n
     ^+  se-core
-    ?-  -.c-notebook.cmd
-        %rename            (se-rename-notebook cmd)
-        %delete            (se-delete-notebook cmd)
-        %visibility        (se-set-visibility cmd)
-        %invite            (se-invite cmd)
-        %create-folder     (se-create-folder cmd)
-        %folder            (se-dispatch-folder cmd)
-        %create-note       (se-create-note cmd)
-        %note              (se-dispatch-note cmd)
-        %batch-import      (se-batch-import cmd)
-        %batch-import-tree  (se-batch-import-tree cmd)
-        %member-join       (se-member-join cmd)
-        %member-leave      (se-member-leave cmd)
+    ?-  -.c-notebook
+        %rename             (se-rename-notebook +.c-notebook)
+        %delete             se-delete-notebook
+        %visibility         (se-set-visibility +.c-notebook)
+        %invite             (se-invite +.c-notebook)
+        %create-folder      (se-create-folder +.c-notebook)
+        %folder             (se-dispatch-folder +.c-notebook)
+        %create-note        (se-create-note +.c-notebook)
+        %note               (se-dispatch-note +.c-notebook)
+        %batch-import       (se-batch-import +.c-notebook)
+        %batch-import-tree  (se-batch-import-tree +.c-notebook)
+        %member-join        se-member-join
+        %member-leave       se-member-leave
     ==
   ::
   ++  se-rename-notebook
-    |=  cmd=c-cmd:n
+    |=  title=@t
     ^+  se-core
-    ?>  ?=(%rename -.c-notebook.cmd)
     ?>  (se-is-owner src.bowl)
     =.  notebook.notebook-state
       %_  notebook.notebook-state
-        title       title.c-notebook.cmd
+        title       title
         updated-at  now.bowl
         updated-by  src.bowl
       ==
     (se-update [%updated notebook.notebook-state])
   ::
   ++  se-delete-notebook
-    |=  cmd=c-cmd:n
     ^+  se-core
-    ?>  ?=(%delete -.c-notebook.cmd)
     ?>  (se-is-owner src.bowl)
     ::  clean up published entries for this notebook
     =.  published
@@ -1844,19 +1840,16 @@
     se-core(gone &)
   ::
   ++  se-set-visibility
-    |=  cmd=c-cmd:n
+    |=  vis=visibility:n
     ^+  se-core
-    ?>  ?=(%visibility -.c-notebook.cmd)
     ?>  (se-is-owner src.bowl)
-    =.  visibility.notebook-state  visibility.c-notebook.cmd
-    (se-update [%visibility visibility.c-notebook.cmd])
+    =.  visibility.notebook-state  vis
+    (se-update [%visibility vis])
   ::
   ++  se-invite
-    |=  cmd=c-cmd:n
+    |=  who=ship
     ^+  se-core
-    ?>  ?=(%invite -.c-notebook.cmd)
     ?>  (se-is-owner src.bowl)
-    =*  who  who.c-notebook.cmd
     ?:  (~(has by members.notebook-state) who)
       se-core
     =.  members.notebook-state
@@ -1864,9 +1857,7 @@
     (se-update [%member-joined who %editor])
   ::
   ++  se-member-join
-    |=  cmd=c-cmd:n
     ^+  se-core
-    ?>  ?=(%member-join -.c-notebook.cmd)
     ::  Access check — one of three cases:
     ::    non-group private: src must already be in the members map
     ::    non-group public:  anyone is welcome — no check needed
@@ -1884,37 +1875,33 @@
     (se-update [%member-joined src.bowl %editor])
   ::
   ++  se-member-leave
-    |=  cmd=c-cmd:n
     ^+  se-core
-    ?>  ?=(%member-leave -.c-notebook.cmd)
     =.  members.notebook-state
       (~(del by members.notebook-state) src.bowl)
     (se-update [%member-left src.bowl])
   ::
   ++  se-dispatch-folder
-    |=  cmd=c-cmd:n
+    |=  [id=@ud =a-folder:n]
     ^+  se-core
-    ?>  ?=(%folder -.c-notebook.cmd)
-    ?-  -.a-folder.c-notebook.cmd
-      %rename  (se-rename-folder cmd)
-      %move    (se-move-folder cmd)
-      %delete  (se-delete-folder cmd)
-      %update  (se-update-folder cmd)
+    ?-  -.a-folder
+      %rename  (se-rename-folder id +.a-folder)
+      %move    (se-move-folder id +.a-folder)
+      %delete  (se-delete-folder id +.a-folder)
+      %update  (se-update-folder id +.a-folder)
     ==
   ::
   ++  se-dispatch-note
-    |=  cmd=c-cmd:n
+    |=  [id=@ud =a-note:n]
     ^+  se-core
-    ?>  ?=(%note -.c-notebook.cmd)
-    ?-  -.a-note.c-notebook.cmd
-      %rename   (se-rename-note cmd)
-      %move     (se-move-note cmd)
-      %delete   (se-delete-note cmd)
-      %update   (se-update-note cmd)
-      %modify   (se-modify-note cmd)
-      %publish  se-core  ::  handled pre-dispatch (local-only)
+    ?-  -.a-note
+      %rename     (se-rename-note id +.a-note)
+      %move       (se-move-note id +.a-note)
+      %delete     (se-delete-note id +.a-note)
+      %update     (se-update-note id +.a-note)
+      %modify     (se-modify-note id +.a-note)
+      %publish    se-core  ::  handled pre-dispatch (local-only)
       %unpublish  se-core
-      %restore  (se-restore-note cmd)
+      %restore    (se-restore-note id +.a-note)
     ==
   ::  +se-create-folder: bug-prone callers (LLMs, raw pokes) frequently
   ::  omit `parent` — the type allows ~, but a folder with parent=~ is
@@ -1925,44 +1912,38 @@
   ::  loudly instead of producing a dangling reference.
   ::
   ++  se-create-folder
-    |=  cmd=c-cmd:n
+    |=  [parent=(unit @ud) name=@t]
     ^+  se-core
-    ?>  ?=(%create-folder -.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
     =/  parent-id=@ud
-      ?^  parent.c-notebook.cmd  u.parent.c-notebook.cmd
+      ?^  parent  u.parent
       +(id.notebook.notebook-state)
     ?>  (~(has by folders.notebook-state) parent-id)
     =/  fid=@ud  +(next-id)
     =.  next-id  fid
     =/  =folder:n
-      [fid id.notebook.notebook-state name.c-notebook.cmd `parent-id [src now now src]:bowl]
+      [fid id.notebook.notebook-state name `parent-id [src now now src]:bowl]
     =.  folders.notebook-state
       (~(put by folders.notebook-state) fid folder)
     (se-update [%folder fid [%created folder]])
   ::
   ++  se-rename-folder
-    |=  cmd=c-cmd:n
+    |=  [id=@ud name=@t]
     ^+  se-core
-    ?>  ?=(%folder -.c-notebook.cmd)
-    ?>  ?=(%rename -.a-folder.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
-    =*  fid  id.c-notebook.cmd
+    =*  fid  id
     =/  fld=folder:n
       (~(got by folders.notebook-state) fid)
-    =.  fld  fld(name name.a-folder.c-notebook.cmd, updated-at now.bowl, updated-by src.bowl)
+    =.  fld  fld(name name, updated-at now.bowl, updated-by src.bowl)
     =.  folders.notebook-state
       (~(put by folders.notebook-state) fid fld)
     (se-update [%folder fid [%updated fld]])
   ::
   ++  se-move-folder
-    |=  cmd=c-cmd:n
+    |=  [id=@ud new-parent=@ud]
     ^+  se-core
-    ?>  ?=(%folder -.c-notebook.cmd)
-    ?>  ?=(%move -.a-folder.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
-    =*  fid  id.c-notebook.cmd
-    =*  new-parent  new-parent.a-folder.c-notebook.cmd
+    =*  fid  id
     =/  fld=folder:n
       (~(got by folders.notebook-state) fid)
     =/  subtree=(set @ud)
@@ -1977,39 +1958,34 @@
   ::  caller bug (clearer than emitting a phantom "updated" fact).
   ::
   ++  se-update-folder
-    |=  cmd=c-cmd:n
+    |=  [id=@ud name=(unit @t) parent=(unit @ud)]
     ^+  se-core
-    ?>  ?=(%folder -.c-notebook.cmd)
-    ?>  ?=(%update -.a-folder.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
-    =*  fid  id.c-notebook.cmd
-    =*  upd  a-folder.c-notebook.cmd
-    ?>  |(?=(^ name.upd) ?=(^ parent.upd))
+    =*  fid  id
+    ?>  |(?=(^ name) ?=(^ parent))
     =/  fld=folder:n
       (~(got by folders.notebook-state) fid)
-    =?  fld  ?=(^ name.upd)
-      fld(name u.name.upd)
-    =?  fld  ?=(^ parent.upd)
+    =?  fld  ?=(^ name)
+      fld(name u.name)
+    =?  fld  ?=(^ parent)
       =/  subtree=(set @ud)  (se-subtree-folder-ids fid)
-      ?<  (~(has in subtree) u.parent.upd)
-      ?>  (~(has by folders.notebook-state) u.parent.upd)
-      fld(parent-folder-id `u.parent.upd)
+      ?<  (~(has in subtree) u.parent)
+      ?>  (~(has by folders.notebook-state) u.parent)
+      fld(parent-folder-id `u.parent)
     =.  fld  fld(updated-at now.bowl, updated-by src.bowl)
     =.  folders.notebook-state
       (~(put by folders.notebook-state) fid fld)
     (se-update [%folder fid [%updated fld]])
   ::
   ++  se-delete-folder
-    |=  cmd=c-cmd:n
+    |=  [id=@ud recursive=?]
     ^+  se-core
-    ?>  ?=(%folder -.c-notebook.cmd)
-    ?>  ?=(%delete -.a-folder.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
-    =*  fid  id.c-notebook.cmd
+    =*  fid  id
     =/  fld=folder:n
       (~(got by folders.notebook-state) fid)
     ?>  ?=(^ parent-folder-id.fld)
-    ?:  recursive.a-folder.c-notebook.cmd
+    ?:  recursive
       =/  del-fids=(set @ud)
         (se-subtree-folder-ids fid)
       =/  del-nids=(set @ud)
@@ -2044,11 +2020,10 @@
     (se-update [%folder fid [%deleted ~]])
   ::
   ++  se-create-note
-    |=  cmd=c-cmd:n
+    |=  [folder=@ud title=@t body=@t]
     ^+  se-core
-    ?>  ?=(%create-note -.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
-    =*  fid  folder.c-notebook.cmd
+    =*  fid  folder
     =/  fld=folder:n
       (~(got by folders.notebook-state) fid)
     =/  nid=@ud  +(next-id)
@@ -2057,9 +2032,9 @@
       :*  nid
           id.notebook.notebook-state
           fid
-          title.c-notebook.cmd
+          title
           ~
-          body.c-notebook.cmd
+          body
           src.bowl
           now.bowl
           src.bowl
@@ -2071,12 +2046,10 @@
     (se-update [%note nid [%created note]])
   ::
   ++  se-rename-note
-    |=  cmd=c-cmd:n
+    |=  [id=@ud title=@t]
     ^+  se-core
-    ?>  ?=(%note -.c-notebook.cmd)
-    ?>  ?=(%rename -.a-note.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
-    =*  nid  id.c-notebook.cmd
+    =*  nid  id
     =/  =note:n  (~(got by notes.notebook-state) nid)
     ::  Title changes do NOT bump revision. The revision counter tracks
     ::  body-md only — that's what optimistic concurrency on update-note
@@ -2085,7 +2058,7 @@
     ::  rev+1 while the client believed it was still at rev.
     =.  note
       %_  note
-        title       title.a-note.c-notebook.cmd
+        title       title
         updated-by  src.bowl
         updated-at  now.bowl
       ==
@@ -2094,18 +2067,16 @@
     (se-update [%note nid [%updated note]])
   ::
   ++  se-move-note
-    |=  cmd=c-cmd:n
+    |=  [id=@ud folder=@ud]
     ^+  se-core
-    ?>  ?=(%note -.c-notebook.cmd)
-    ?>  ?=(%move -.a-note.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
-    =*  nid  id.c-notebook.cmd
+    =*  nid  id
     =/  =note:n  (~(got by notes.notebook-state) nid)
     ::  Move does NOT bump revision; same reasoning as rename — body-md
     ::  is the only field that drives optimistic concurrency.
     =.  note
       %_  note
-        folder-id   folder.a-note.c-notebook.cmd
+        folder-id   folder
         updated-by  src.bowl
         updated-at  now.bowl
       ==
@@ -2119,32 +2090,27 @@
   ::  exclusive to content edits.
   ::
   ++  se-modify-note
-    |=  cmd=c-cmd:n
+    |=  [id=@ud title=(unit @t) folder=(unit @ud)]
     ^+  se-core
-    ?>  ?=(%note -.c-notebook.cmd)
-    ?>  ?=(%modify -.a-note.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
-    =*  nid  id.c-notebook.cmd
-    =*  upd  a-note.c-notebook.cmd
-    ?>  |(?=(^ title.upd) ?=(^ folder.upd))
+    =*  nid  id
+    ?>  |(?=(^ title) ?=(^ folder))
     =/  =note:n  (~(got by notes.notebook-state) nid)
-    =?  note  ?=(^ title.upd)
-      note(title u.title.upd)
-    =?  note  ?=(^ folder.upd)
-      ?>  (~(has by folders.notebook-state) u.folder.upd)
-      note(folder-id u.folder.upd)
+    =?  note  ?=(^ title)
+      note(title u.title)
+    =?  note  ?=(^ folder)
+      ?>  (~(has by folders.notebook-state) u.folder)
+      note(folder-id u.folder)
     =.  note  note(updated-at now.bowl, updated-by src.bowl)
     =.  notes.notebook-state
       (~(put by notes.notebook-state) nid note)
     (se-update [%note nid [%updated note]])
   ::
   ++  se-delete-note
-    |=  cmd=c-cmd:n
+    |=  [id=@ud ~]
     ^+  se-core
-    ?>  ?=(%note -.c-notebook.cmd)
-    ?>  ?=(%delete -.a-note.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
-    =*  nid  id.c-notebook.cmd
+    =*  nid  id
     =/  =note:n
       (~(got by notes.notebook-state) nid)
     =.  notes.notebook-state
@@ -2156,19 +2122,17 @@
     (se-update [%note nid [%deleted ~]])
   ::
   ++  se-update-note
-    |=  cmd=c-cmd:n
+    |=  [id=@ud body=@t expected-revision=@ud]
     ^+  se-core
-    ?>  ?=(%note -.c-notebook.cmd)
-    ?>  ?=(%update -.a-note.c-notebook.cmd)
-    =*  nid  id.c-notebook.cmd
+    =*  nid  id
     =/  =note:n
       (~(got by notes.notebook-state) nid)
     ?>  (se-can-edit src.bowl)
     ::  strict optimistic concurrency check (no force-update sentinel)
-    ?:  !=(revision.note expected-revision.a-note.c-notebook.cmd)
+    ?:  !=(revision.note expected-revision)
       ~|(%revision-mismatch !!)
     ::  no-op early-out: body unchanged
-    ?:  =(body-md.note body.a-note.c-notebook.cmd)
+    ?:  =(body-md.note body)
       se-core
     ::  archive the prior revision into per-notebook history
     =/  prior=note-revision:n
@@ -2184,7 +2148,7 @@
       (~(put by history.notebook-state) nid [prior existing])
     =.  note
       %_  note
-        body-md     body.a-note.c-notebook.cmd
+        body-md     body
         updated-by  src.bowl
         updated-at  now.bowl
         revision    +(revision.note)
@@ -2199,11 +2163,9 @@
   ::  This is simply an update with the archived body, respecting current revision.
   ::
   ++  se-restore-note
-    |=  cmd=c-cmd:n
+    |=  [id=@ud rev=@ud]
     ^+  se-core
-    ?>  ?=(%note -.c-notebook.cmd)
-    ?>  ?=(%restore -.a-note.c-notebook.cmd)
-    =*  nid  id.c-notebook.cmd
+    =*  nid  id
     =/  =note:n
       (~(got by notes.notebook-state) nid)
     ?>  (se-can-edit src.bowl)
@@ -2213,19 +2175,18 @@
     =/  found=(unit note-revision:n)
       |-
       ?~  revs  ~
-      ?:  =(rev.i.revs rev.a-note.c-notebook.cmd)
+      ?:  =(rev.i.revs rev)
         `i.revs
       $(revs t.revs)
     ?>  ?=(^ found)
     ::  apply as a normal update with current revision as expected
-    (se-update-note `c-cmd:n`[flag [%note nid [%update body-md.u.found revision.note]]])
+    (se-update-note nid body-md.u.found revision.note)
   ::
   ++  se-batch-import
-    |=  cmd=c-cmd:n
+    |=  [folder=@ud notes=(list [title=@t body=@t])]
     ^+  se-core
-    ?>  ?=(%batch-import -.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
-    =/  items=(list [title=@t body=@t])  notes.c-notebook.cmd
+    =/  items=(list [title=@t body=@t])  notes
     |-  ^+  se-core
     ?~  items  se-core
     =/  nid=@ud  +(next-id)
@@ -2233,7 +2194,7 @@
     =/  =note:n
       :*  nid
           id.notebook.notebook-state
-          folder.c-notebook.cmd
+          folder
           title.i.items
           ~
           body.i.items
@@ -2249,14 +2210,13 @@
     $(items t.items, se-core se-core)
   ::
   ++  se-batch-import-tree
-    |=  cmd=c-cmd:n
+    |=  [parent=@ud tree=(list import-node:n)]
     ^+  se-core
-    ?>  ?=(%batch-import-tree -.c-notebook.cmd)
     ?>  (se-can-edit src.bowl)
-    =/  items=(list import-node:n)  tree.c-notebook.cmd
+    =/  items=(list import-node:n)  tree
     =*  nid-nb  id.notebook.notebook-state
     =|  stack=(list [remaining=(list import-node:n) folder-id=@ud])
-    =/  fid=@ud  parent.c-notebook.cmd
+    =/  fid=@ud  parent
     |-  ^+  se-core
     ?~  items
       ?~  stack

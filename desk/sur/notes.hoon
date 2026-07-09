@@ -223,10 +223,12 @@
   $%  [%notify-invite =flag title=@t]
       [%notebook =flag =c-notebook]
   ==
-::  $c-cmd: internal shape used by se-poke and the per-arm handlers.
-::  Conceptually `command for a specific notebook` — the flag carries
-::  routing context, c-notebook carries the verb. Not a wire type;
-::  c-notes %notebook arm peels into this on the way in.
+::  $c-cmd: `command for a specific notebook` — the flag carries routing
+::  context, c-notebook carries the verb. Not a wire type; c-notes
+::  %notebook arm peels into this on the way in. se-core's arms now take
+::  the flag from door context (se-abed) and the c-notebook payload
+::  directly, so this shape isn't threaded through se-poke anymore —
+::  kept here in case other code still wants the combined shape.
 ::
 +$  c-cmd  [=flag =c-notebook]
 ::  $c-notebook: notebook-scoped commands. Mirrors a-notebook minus
