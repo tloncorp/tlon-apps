@@ -141,8 +141,9 @@ export function useNotesImportController({
 
   const runImport = useMutableCallback(
     async (
-      readSources: () => Promise<NotesImportSource[] | null>,
-      { latchWhileReading = false }: { latchWhileReading?: boolean } = {}
+      readSources: (
+        onSourcesChosen: () => void
+      ) => Promise<NotesImportSource[] | null>
     ) => {
       const targetRootFolderId = getNotesImportTargetFolderId({
         activeFolderId,
@@ -166,17 +167,14 @@ export function useNotesImportController({
 
       setError(null);
       setImportNotice(null);
-      // Drop imports latch before reading: reading dropped files takes real
-      // time and nothing else blocks a second drop meanwhile. Picker imports
-      // must not latch until sources resolve — an empty webkitdirectory pick
-      // fires neither `change` nor `cancel`, so its promise can stay pending
-      // forever (the modal file dialog blocks re-entry during that phase
-      // instead).
-      if (latchWhileReading) {
-        setImportLatch(true);
-      }
       try {
-        const sources = await readSources();
+        // The reader latches via the callback as soon as a concrete selection
+        // exists (files dropped, or a picker committed) so a second action
+        // can't start a concurrent import while contents are being read. The
+        // latch can't simply be set up front: an empty webkitdirectory pick
+        // fires neither `change` nor `cancel`, so an unlatched pending picker
+        // has to stay harmless.
+        const sources = await readSources(() => setImportLatch(true));
         if (!sources) {
           return;
         }
@@ -195,11 +193,15 @@ export function useNotesImportController({
   );
 
   const importFiles = useMutableCallback(() => {
-    void runImport(() => selectNotesImportSources('files'));
+    void runImport((onSourcesChosen) =>
+      selectNotesImportSources('files', { onFilesChosen: onSourcesChosen })
+    );
   });
 
   const importFolder = useMutableCallback(() => {
-    void runImport(() => selectNotesImportSources('folder'));
+    void runImport((onSourcesChosen) =>
+      selectNotesImportSources('folder', { onFilesChosen: onSourcesChosen })
+    );
   });
 
   const prepareImportDragEvent = useMutableCallback((event: DragEvent) => {
@@ -237,10 +239,10 @@ export function useNotesImportController({
     if (!prepareImportDragEvent(event)) return;
     dragImportDepthRef.current = 0;
     setIsDragImportActive(false);
-    void runImport(
-      () => readNotesImportSourcesFromDataTransfer(event.dataTransfer),
-      { latchWhileReading: true }
-    );
+    void runImport((onSourcesChosen) => {
+      onSourcesChosen();
+      return readNotesImportSourcesFromDataTransfer(event.dataTransfer);
+    });
   });
 
   const dropImportProps = useMemo(

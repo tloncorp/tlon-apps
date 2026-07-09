@@ -67,12 +67,21 @@ export function canSelectNotesImportSources(mode: NotesImportMode) {
   );
 }
 
+export type NotesImportSelectOptions = {
+  // Fires as soon as the user has committed to a concrete selection, before
+  // any file contents are read. Lets callers latch their in-flight state for
+  // the (potentially slow) read phase without gating on the picker promise,
+  // which may never settle (see the empty-directory note below).
+  onFilesChosen?: () => void;
+};
+
 export async function selectNotesImportSources(
-  mode: NotesImportMode
+  mode: NotesImportMode,
+  options: NotesImportSelectOptions = {}
 ): Promise<NotesImportSource[] | null> {
   return canSelectNotesImportSourcesFromWeb()
-    ? selectNotesImportSourcesFromWeb(mode)
-    : selectNotesImportSourcesFromNative(mode);
+    ? selectNotesImportSourcesFromWeb(mode, options)
+    : selectNotesImportSourcesFromNative(mode, options);
 }
 
 function canSelectNotesImportSourcesFromWeb() {
@@ -80,7 +89,8 @@ function canSelectNotesImportSourcesFromWeb() {
 }
 
 function selectNotesImportSourcesFromWeb(
-  mode: NotesImportMode
+  mode: NotesImportMode,
+  options: NotesImportSelectOptions = {}
 ): Promise<NotesImportSource[] | null> {
   if (!canSelectNotesImportSourcesFromWeb()) {
     return Promise.resolve(null);
@@ -111,6 +121,8 @@ function selectNotesImportSourcesFromWeb(
     // this promise may never settle — callers must not gate UI on it.
     input.oncancel = () => settle(null);
     input.onchange = () => {
+      if (settled) return;
+      options.onFilesChosen?.();
       const files = Array.from(input.files ?? []);
       readNotesImportSourcesFromFiles(files)
         .then(settle)
@@ -445,9 +457,12 @@ function canSelectNotesImportFolderFromNative() {
   return typeof ExpoDirectory.pickDirectoryAsync === 'function';
 }
 
-async function selectNotesImportSourcesFromNative(mode: NotesImportMode) {
+async function selectNotesImportSourcesFromNative(
+  mode: NotesImportMode,
+  options: NotesImportSelectOptions = {}
+) {
   if (mode === 'folder') {
-    return selectNotesImportFolderFromNative();
+    return selectNotesImportFolderFromNative(options);
   }
 
   const result = await DocumentPicker.getDocumentAsync({
@@ -458,17 +473,21 @@ async function selectNotesImportSourcesFromNative(mode: NotesImportMode) {
 
   if (result.assets == null || result.assets.length === 0) return null;
 
+  options.onFilesChosen?.();
   return readNotesImportSourcesFromDocumentPickerAssets(
     result.assets,
     FileSystem.readAsStringAsync
   );
 }
 
-async function selectNotesImportFolderFromNative() {
+async function selectNotesImportFolderFromNative(
+  options: NotesImportSelectOptions = {}
+) {
   if (!canSelectNotesImportFolderFromNative()) return null;
 
   try {
     const directory = await ExpoDirectory.pickDirectoryAsync();
+    options.onFilesChosen?.();
     return readNotesImportSourcesFromNativeDirectory(directory);
   } catch (e) {
     if (isPickerCancelError(e)) {

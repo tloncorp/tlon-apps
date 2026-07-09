@@ -240,8 +240,9 @@ describe('notes import helpers', () => {
 
   test('web folder picker keeps waiting while the browser upload confirmation is open', async () => {
     const inputs = stubWebPickerDocument();
+    const onFilesChosen = vi.fn();
 
-    const promise = selectNotesImportSources('folder');
+    const promise = selectNotesImportSources('folder', { onFilesChosen });
     const input = inputs[0];
     expect(input.attributes.webkitdirectory).toBe('');
     expect(input.click).toHaveBeenCalled();
@@ -255,6 +256,7 @@ describe('notes import helpers', () => {
     // null in this window, silently discarding the pick (TLON-6117).
     await new Promise((resolve) => setTimeout(resolve, 350));
     expect(settledEarly).toBe(false);
+    expect(onFilesChosen).not.toHaveBeenCalled();
 
     input.files = [
       {
@@ -269,6 +271,9 @@ describe('notes import helpers', () => {
       },
     ];
     input.onchange?.();
+    // The chosen callback fires synchronously with the change event, before
+    // any file contents have been read.
+    expect(onFilesChosen).toHaveBeenCalledTimes(1);
 
     await expect(promise).resolves.toEqual([
       source('Vault/Alpha.md', '# Alpha'),
@@ -279,8 +284,9 @@ describe('notes import helpers', () => {
 
   test('web picker resolves null when the user cancels the dialog', async () => {
     const inputs = stubWebPickerDocument();
+    const onFilesChosen = vi.fn();
 
-    const promise = selectNotesImportSources('files');
+    const promise = selectNotesImportSources('files', { onFilesChosen });
     const input = inputs[0];
     expect(input.attributes.webkitdirectory).toBeUndefined();
 
@@ -288,6 +294,9 @@ describe('notes import helpers', () => {
 
     await expect(promise).resolves.toBeNull();
     expect(input.remove).toHaveBeenCalled();
+    // A late change event after cancel must not report a chosen selection.
+    input.onchange?.();
+    expect(onFilesChosen).not.toHaveBeenCalled();
   });
 
   test('selects native markdown and text files', async () => {
