@@ -99,6 +99,15 @@ export function BotChannelRulesScreen(props: Props) {
     () => groupChannelEntries(rawGroups, drafts),
     [rawGroups, drafts]
   );
+  // Membership must be inferred from a group's FULL channel set, not the
+  // search/enabled-filtered view — a saved rule on a hidden channel still proves
+  // the bot is in the group. Look the unfiltered group up by key when rendering
+  // the (filtered) rows.
+  const groupsByKey = useMemo(() => {
+    const map = new Map<string, (typeof groups)[number]>();
+    groups.forEach((group) => map.set(`${group.host}/${group.group}`, group));
+    return map;
+  }, [groups]);
 
   const filteredGroups = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -134,6 +143,13 @@ export function BotChannelRulesScreen(props: Props) {
   useEffect(() => {
     if (!allChannelsDisabled) setDisableEverywhereSnapshot(null);
   }, [allChannelsDisabled]);
+
+  // The snapshot holds the previous ship's channel rules; clear it when the
+  // ship changes so Undo can't write another account's rules into a new draft
+  // that also happens to have all channels disabled.
+  useEffect(() => {
+    setDisableEverywhereSnapshot(null);
+  }, [queries.ship]);
 
   const replaceDrafts = useCallback(
     (channelRuleDrafts: Record<string, ChannelRuleDraft>) => {
@@ -344,9 +360,9 @@ export function BotChannelRulesScreen(props: Props) {
                 // member of (sync, perms), so also treat a group as joined when
                 // the bot already has saved rules for channels in it — it can't
                 // be configured for a group it isn't in.
-                const isConfiguredMember = group.channels.some((channel) =>
-                  Boolean(baselineDrafts[channel.key])
-                );
+                const isConfiguredMember = (
+                  groupsByKey.get(groupKey)?.channels ?? group.channels
+                ).some((channel) => Boolean(baselineDrafts[channel.key]));
                 const isGroupMember =
                   group.group !== 'unknown' &&
                   (hasGroupMembership(moonChannels, group.host, group.group) ||
