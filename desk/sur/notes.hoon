@@ -118,7 +118,7 @@
       folders=(map @ud folder)
       notes=(map @ud note)
   ==
-::  $notebook-state: all data for a single notebook (state-13+).
+::  $notebook-state: all data for a single notebook (state-14+).
 ::  group: optional Tlon group affiliation. When set, the notebook is a group
 ::  channel — read permission defers to the group's can-read. Set once at
 ::  create (host) and propagated to subscribers via the %snapshot. Lives on
@@ -135,7 +135,7 @@
       group=(unit flag)
   ==
 ::  $notebook-state-13: frozen pre-group notebook-state, embedded by states
-::  9..13 books maps and their migration arms (group arrived in state-14).
+::  9..12 books maps and their migration arms (group arrived in state-14).
 ::
 +$  notebook-state-13
   $:  =notebook
@@ -398,9 +398,9 @@
         fetched=?
     ==
   +$  requests  (map request-id incoming-request)
-  ::  Frozen request chain for states 11–13. Identical to the live chain
-  ::  above except %snapshot carries notebook-state-13 (pre-group). state-13
-  ::  (and 11/12) transitively embed notebook-state via r-notes %snapshot
+  ::  Frozen request chain for states 11–12. Identical to the live chain
+  ::  above except %snapshot carries notebook-state-13 (pre-group). states
+  ::  11/12 transitively embed notebook-state via r-notes %snapshot
   ::  inside the requests map, so the old states must freeze this chain too —
   ::  freezing books alone left requests pointing at the group-bearing
   ::  notebook-state and broke loads of any on-disk state with a stored
@@ -439,23 +439,9 @@
       invites=(map flag invite-info)
       requests=requests:v1
       api-key=(unit @t)
-      rid-counter=@ud
   ==
 ::
 +$  state  state-14
-::  state-13: adds rid-counter (unique synthesized request-ids). Deployed
-::  without group — group arrived in state-14 (on notebook-state).
-::
-+$  state-13
-  $:  %13
-      books=(map flag [=net notebook-state=notebook-state-13])
-      next-id=@ud
-      published=(map [=flag note-id=@ud] @t)
-      invites=(map flag invite-info)
-      requests=requests-13:v1
-      api-key=(unit @t)
-      rid-counter=@ud
-  ==
 ::  state-12: adds api-key for the X-Api-Key HTTP auth bypass.
 ::
 +$  state-12

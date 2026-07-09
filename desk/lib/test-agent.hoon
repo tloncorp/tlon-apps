@@ -36,7 +36,7 @@
 +$  card   $+(card card:agent:gall)
 +$  scry   $-(path (unit vase))
 ::
-+$  state       [=agent =bowl =scry]                    ::  passed continuously
++$  state       [=agent =bowl =scry advance-eny=?]      ::  passed continuously
 ++  form-raw    |$  [a]  $-(state (output-raw a))       ::  continuation
 ++  output-raw  |$  [a]  (each [out=a =state] tang)     ::  continue or fail
 ::
@@ -67,7 +67,9 @@
   =/  m  (mare ,~)
   |=  f=form:m
   ^-  tang
-  =/  res  (f %*(. *state agent skeleton))
+  ::  advance-eny is off by default (bunt of ? is &, so set it explicitly):
+  ::  suites opt in via +set-advance-eny. see +do.
+  =/  res  (f %*(. *state agent skeleton, advance-eny |))
   ?:  ?=(%& -.res)  ~
   ::NOTE  in rare cases, execution may crash in such a way that the resulting
   ::      trace is empty. make sure we catch that here so the /ted/test will
@@ -149,6 +151,11 @@
   =/  m  (mare ,(list card))
   ^-  form:m
   |=  s=state
+  ::  when advance-eny is set, advance entropy per event as arvo does, so
+  ::  ids an agent derives from eny (e.g. synthesized request-ids) are
+  ::  unique across events. off by default: several suites pin eny to a
+  ::  literal to predict the exact token/nonce an agent mints from it.
+  =?  eny.bowl.s  advance-eny.s  (shaz eny.bowl.s)
   =;  result=(each [(list card) agent:gall] (list tank))
     ?:  ?=(%| -.result)
       |+p.result
@@ -356,6 +363,18 @@
   ^-  form:m
   |=  s=state
   &+[~ s(scry f)]
+::
+::  +set-advance-eny: opt in to per-event entropy advancement (see +do).
+::  agents that synthesize ids from bowl.eny need this so events don't
+::  collide; suites that predict a minted token from a pinned eny leave it
+::  off (the default).
+::
+++  set-advance-eny
+  |=  advance=?
+  =/  m  (mare ,~)
+  ^-  form:m
+  |=  s=state
+  &+[~ s(advance-eny advance)]
 ::
 ++  do-as  ::  temporary src.bowl
   |=  who=ship

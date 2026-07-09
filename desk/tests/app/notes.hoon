@@ -248,6 +248,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~zod)))
+  ::  notes derives request-ids from bowl.eny; advance eny per event so
+  ::  ids don't collide across events (real arvo behaves this way).
+  ;<  ~  bind:m  (set-advance-eny &)
   ;<  *  bind:m  (do-init dap notes-agent)
   (pure:m ~)
 ::  +nb-flag: flag for notebook with title+nid under ship who

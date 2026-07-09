@@ -124,8 +124,7 @@
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
-  =?  old  ?=(%12 -.old)  (state-12-to-13 old)
-  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
+  =?  old  ?=(%12 -.old)  (state-12-to-14 old)
   ?>  ?=(%14 -.old)
   =.  state  old
   ::  ships migrating from state-11 land here with api-key=~; mint one
@@ -143,7 +142,6 @@
   ::
   +$  any-state
     $%  state-14:n
-        state-13:n
         state-12:n
         state-11:n
         state-10:n
@@ -290,24 +288,18 @@
     |=  s=state-11:n
     ^-  state-12:n
     [%12 books.s next-id.s published.s invites.s requests.s ~]
-  ::  state-12-to-13: adds rid-counter (0). books pass through unchanged
-  ::  (state-13 still uses the pre-group notebook-state-13).
-  ::
-  ++  state-12-to-13
-    ~>  %spin.['state-12-to-13']
-    |=  s=state-12:n
-    ^-  state-13:n
-    [%13 books.s next-id.s published.s invites.s requests.s api-key.s 0]
-  ::  state-13-to-14: widen each notebook-state with group=~ (pre-existing
+  ::  state-12-to-14: widen each notebook-state with group=~ (pre-existing
   ::  notebooks have no group affiliation; group is set only via
   ::  create-in-group). The on-disk log is untouched (it embeds $notebook,
   ::  not $notebook-state). notebook-state appears in two places: the books
   ::  map AND any stored %snapshot inside the requests map (r-notes), so both
-  ::  must be widened — state-13 froze both via notebook-state-13 / requests-13.
+  ::  must be widened — state-12 already froze both via notebook-state-13 /
+  ::  requests-13, so the widen bodies are unchanged from the old
+  ::  state-13-to-14 step.
   ::
-  ++  state-13-to-14
-    ~>  %spin.['state-13-to-14']
-    |=  s=state-13:n
+  ++  state-12-to-14
+    ~>  %spin.['state-12-to-14']
+    |=  s=state-12:n
     ^-  state-14:n
     =/  widen-nbs
       |=  nbs=notebook-state-13:n
@@ -336,7 +328,7 @@
           final-at.req
           fetched.req
       ==
-    [%14 new-books next-id.s published.s invites.s new-requests api-key.s rid-counter.s]
+    [%14 new-books next-id.s published.s invites.s new-requests api-key.s]
   --
 ::
 ++  poke
@@ -349,15 +341,12 @@
   ::
       %notes-action
     ::  Legacy mark — funnel through the v1 request/response loop so
-    ::  there's a single dispatch path. Synthesizes a fresh @uv that
-    ::  mixes bowl.eny with a monotonic counter; the counter guards
-    ::  against test-agent (which doesn't advance eny between events).
-    ::  Callers that don't track responses (tests, ad-hoc dojo pokes)
-    ::  just ignore the resulting fact on /v1/request/<uv>.
+    ::  there's a single dispatch path. Synthesizes a fresh @uv from
+    ::  bowl.eny. Callers that don't track responses (tests, ad-hoc
+    ::  dojo pokes) just ignore the resulting fact on /v1/request/<uv>.
     ?>  =(our.bowl src.bowl)
     =+  !<(act=action:n vase)
-    =/  rid=request-id:v1:n  `@uv`(mix eny.bowl rid-counter)
-    =.  rid-counter  +(rid-counter)
+    =/  rid=request-id:v1:n  `@uv`eny.bowl
     (dispatch-v1-action [rid act])
   ::
       %notes-action-1
@@ -400,8 +389,7 @@
     =/  =flag:n  [host.nest.j name.nest.j]
     ?:  =(our.bowl ship.flag)  cor
     ?:  (~(has by books) flag)  cor
-    =/  rid=request-id:v1:n  `@uv`(mix eny.bowl rid-counter)
-    =.  rid-counter  +(rid-counter)
+    =/  rid=request-id:v1:n  `@uv`eny.bowl
     (join-remote-v1 rid flag)
   ::
       %group-channel-leave
@@ -413,8 +401,7 @@
     =/  =flag:n  [host.nest.l name.nest.l]
     ?:  =(our.bowl ship.flag)  cor
     ?.  (~(has by books) flag)  cor
-    =/  rid=request-id:v1:n  `@uv`(mix eny.bowl rid-counter)
-    =.  rid-counter  +(rid-counter)
+    =/  rid=request-id:v1:n  `@uv`eny.bowl
     (leave-remote-v1 rid flag)
   ==
   --
@@ -543,10 +530,9 @@
   =/  rid=request-id:v1:n
     =/  rj=(unit json)  (~(get by p.u.jon) 'requestId')
     ?.  ?&(?=(^ rj) ?=([%s *] u.rj))
-      `@uv`(mix eny.bowl rid-counter)
+      `@uv`eny.bowl
     =/  parsed=(each @uv tang)  (mule |.((slav %uv p.u.rj)))
-    ?:(?=(%& -.parsed) p.parsed `@uv`(mix eny.bowl rid-counter))
-  =.  rid-counter  +(rid-counter)
+    ?:(?=(%& -.parsed) p.parsed `@uv`eny.bowl)
   ::  register with eyre-id so the in-flight HTTP request is tracked
   =.  requests
     %+  ~(put by requests)  rid
@@ -792,8 +778,7 @@
   ::  serve-http, from the query args yque split out.
   ?~  act=(build-write-action method ;;(path pax) obj recursive)
     (http-error eyre-id 400 'unsupported write — check method, path, and required fields')
-  =/  rid=request-id:v1:n  `@uv`(mix eny.bowl rid-counter)
-  =.  rid-counter  +(rid-counter)
+  =/  rid=request-id:v1:n  `@uv`eny.bowl
   =.  requests  (~(put by requests) rid [rid `eyre-id %sending ~ ~ |])
   (dispatch-v1-action [rid u.act])
 ::
