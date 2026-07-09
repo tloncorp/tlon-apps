@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import time
+import uuid
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -115,6 +116,18 @@ from .telemetry import (
     handle_post_tool_call_telemetry,
     set_active_telemetry,
 )
+from .lens import (
+    LensOutput,
+    LensRun,
+    TlonLensRecorder,
+    TlonLensSync,
+    clear_active_recorder,
+    context_lens_reference_blob,
+    handle_post_api_request_lens,
+    handle_post_tool_call_lens,
+    handle_pre_tool_call_lens,
+    set_active_recorder,
+)
 from .version import (
     content_fingerprint,
     format_version_reply,
@@ -130,6 +143,7 @@ from .tlon_api import (
     TlonGatewayStatus,
     TlonIncomingMessage,
     TlonSSEClient,
+    format_post_id,
     normalize_ship,
     parse_channel_message,
     parse_dm_message,
@@ -484,6 +498,62 @@ def _processing_outcome_value(outcome: Any) -> Optional[str]:
     return None
 
 
+# Maps the adapter's dispatch_reason (attention.py / approval flow) onto the
+# ContextLensTrigger union the client renders (context-lens.ts).
+_LENS_TRIGGER_MAP = {
+    "dm": "dm",
+    "mention": "mention",
+    "owner-listen": "owner-listen",
+    "participated-thread": "thread",
+    # A free (unprompted) channel response has no dedicated trigger in the
+    # shared taxonomy; OpenClaw's channel path likewise falls through to
+    # "unknown". Mapped explicitly so it reads as intentional, not an omission.
+    "free-response": "unknown",
+}
+
+
+def _lens_trigger(dispatch_reason: str, *, is_dm: bool) -> str:
+    # Approvals replay either a DM request or a group post, so resolve by
+    # conversation kind rather than assuming DM.
+    if dispatch_reason == "approved":
+        return "dm" if is_dm else "mention"
+    return _LENS_TRIGGER_MAP.get(dispatch_reason, "unknown")
+
+
+def _lens_run_kind(dispatch_reason: str) -> str:
+    return "owner_listen" if dispatch_reason == "owner-listen" else "conversation"
+
+
+def _lens_final_status(
+    processing_outcome: Optional[str],
+    *,
+    delivered: bool,
+    delivery_failed: bool = False,
+) -> str:
+    """Map (outcome, delivery) onto the terminal ContextLensStatus."""
+    # A send that Hermes produced but the CLI failed to deliver is an error,
+    # even if the processing outcome itself was a "success".
+    if delivery_failed:
+        return "error"
+    if delivered:
+        return "completed"
+    if processing_outcome == "failure":
+        return "error"
+    if processing_outcome == "cancelled":
+        return "aborted"
+    return "no_reply"
+
+
+def _epoch_ms(value: Any) -> Optional[int]:
+    ts = getattr(value, "timestamp", None)
+    if callable(ts):
+        try:
+            return int(value.timestamp() * 1000)
+        except Exception:
+            return None
+    return None
+
+
 def _cli_available(cli: str | None = None) -> bool:
     candidate = cli or os.getenv("TLON_CLI", "tlon")
     if not candidate:
@@ -538,6 +608,13 @@ class TlonAdapter(BasePlatformAdapter):
                 "gateway_status", exc, operation=operation
             ),
         )
+        self._lens_sync = TlonLensSync(
+            self.tlon_config,
+            on_error=lambda operation, exc: self._telemetry.error(
+                "context_lens", exc, operation=operation
+            ),
+        )
+        self._lens = TlonLensRecorder(self._lens_sync)
         self._computing_presence = TlonComputingPresenceTracker(
             reporter=TlonComputingPresenceReporter(self.tlon_config),
             on_error=lambda action, exc: self._telemetry.error(
@@ -606,6 +683,7 @@ class TlonAdapter(BasePlatformAdapter):
             await self._process_pending_dm_invites()
             await self._process_pending_group_invites()
             await self._start_gateway_status()
+            await self._start_lens()
             self._stream_task = asyncio.create_task(self._run_stream())
             self._computing_presence.bind_loop(asyncio.get_running_loop())
             set_active_computing_presence_tracker(self._computing_presence)
@@ -661,8 +739,10 @@ class TlonAdapter(BasePlatformAdapter):
             self._connected_at = 0.0
         clear_active_telemetry(self._telemetry)
         clear_active_computing_presence_tracker(self._computing_presence)
+        clear_active_recorder(self._lens)
         await self._computing_presence.close()
         await self._stop_gateway_status("shutdown")
+        await self._stop_lens()
         if self._stream_task is not None:
             self._stream_task.cancel()
             try:
@@ -1631,6 +1711,22 @@ class TlonAdapter(BasePlatformAdapter):
         except Exception as exc:
             logger.warning("[tlon] gateway-status shutdown failed: %s", exc)
 
+    async def _start_lens(self) -> None:
+        try:
+            started = await self._lens_sync.start()
+        except Exception as exc:
+            logger.warning("[tlon] context-lens activation failed: %s", exc)
+            self._telemetry.error("context_lens", exc, operation="start")
+            return
+        if started:
+            set_active_recorder(self._lens)
+
+    async def _stop_lens(self) -> None:
+        try:
+            await self._lens_sync.stop()
+        except Exception as exc:
+            logger.warning("[tlon] context-lens shutdown failed: %s", exc)
+
     async def _connect_sse(self) -> None:
         await self._close_sse()
         self._sse = TlonSSEClient(self.tlon_config)
@@ -2121,41 +2217,50 @@ class TlonAdapter(BasePlatformAdapter):
             sender_role="owner" if self._is_owner(message.user_id) else "user",
             dispatch_reason=dispatch_reason,
         )
-        # Thread context flows for DMs too, so the bot replies inside a DM
-        # thread instead of the main conversation.
-        reply_context = message.reply_to_message_id
-        source = self.build_source(
-            chat_id=message.chat_id,
-            chat_name=message.chat_name,
-            chat_type=message.chat_type,
-            user_id=message.user_id,
-            user_name=message.user_name,
-            thread_id=reply_context,
-            message_id=message.message_id,
-        )
-        prepared = prepared_media or PreparedMedia()
-        event_kwargs = {
-            "text": message.text,
-            "message_type": _message_type_member(prepared.message_type),
-            "source": source,
-            "raw_message": message.raw,
-            "message_id": message.message_id,
-            "reply_to_message_id": reply_context,
-            "timestamp": message.sent_at,
-            "media_urls": list(prepared.media_urls),
-            "media_types": list(prepared.media_types),
-        }
+        await self._begin_lens_run(message, is_dm=is_dm, dispatch_reason=dispatch_reason)
         try:
-            event = MessageEvent(**event_kwargs)
-        except TypeError:
-            # Keeps older Hermes test doubles and runtimes from failing before
-            # they pick up the native media fields.
-            media_urls = event_kwargs.pop("media_urls")
-            media_types = event_kwargs.pop("media_types")
-            event = MessageEvent(**event_kwargs)
-            setattr(event, "media_urls", media_urls)
-            setattr(event, "media_types", media_types)
-        await self.handle_message(event)
+            # Thread context flows for DMs too, so the bot replies inside a DM
+            # thread instead of the main conversation.
+            reply_context = message.reply_to_message_id
+            source = self.build_source(
+                chat_id=message.chat_id,
+                chat_name=message.chat_name,
+                chat_type=message.chat_type,
+                user_id=message.user_id,
+                user_name=message.user_name,
+                thread_id=reply_context,
+                message_id=message.message_id,
+            )
+            prepared = prepared_media or PreparedMedia()
+            event_kwargs = {
+                "text": message.text,
+                "message_type": _message_type_member(prepared.message_type),
+                "source": source,
+                "raw_message": message.raw,
+                "message_id": message.message_id,
+                "reply_to_message_id": reply_context,
+                "timestamp": message.sent_at,
+                "media_urls": list(prepared.media_urls),
+                "media_types": list(prepared.media_types),
+            }
+            try:
+                event = MessageEvent(**event_kwargs)
+            except TypeError:
+                # Keeps older Hermes test doubles and runtimes from failing
+                # before they pick up the native media fields.
+                media_urls = event_kwargs.pop("media_urls")
+                media_types = event_kwargs.pop("media_types")
+                event = MessageEvent(**event_kwargs)
+                setattr(event, "media_urls", media_urls)
+                setattr(event, "media_types", media_types)
+            await self.handle_message(event)
+        except Exception:
+            # Dispatch raised before on_processing_complete could finalize the
+            # run (e.g. _route_stream_event catches and skips handle_message
+            # errors). Close it out as an error so the lens UI shows a terminal
+            # state and the run doesn't leak until the next prune.
+            await self._finish_lens_run_on_error(message.chat_id)
+            raise
 
     async def on_processing_start(self, event: MessageEvent) -> None:
         await self._computing_presence.refresh_run(
@@ -2163,14 +2268,81 @@ class TlonAdapter(BasePlatformAdapter):
             run_id=self._presence_run_id(event),
         )
 
+    async def _begin_lens_run(
+        self,
+        message: TlonIncomingMessage,
+        *,
+        is_dm: bool,
+        dispatch_reason: str,
+    ) -> None:
+        if not self._lens.active:
+            return
+        # The lens is a non-essential observability sink; a bug in its
+        # accounting must never break message dispatch. Poke failures are
+        # already swallowed by TlonLensSync.push — this guards the rest.
+        try:
+            conversation_kind = "dm" if is_dm else "channel"
+            run = LensRun(
+                lens_id=str(uuid.uuid4()),
+                message_id=message.message_id,
+                chat_type=conversation_kind,
+                trigger=_lens_trigger(dispatch_reason, is_dm=is_dm),
+                conversation_kind=conversation_kind,
+                run_kind=_lens_run_kind(dispatch_reason),
+                author_ship=normalize_ship(message.user_id) or None,
+                conversation_id=message.chat_id,
+                received_at=_epoch_ms(message.sent_at),
+                preview=message.text or None,
+                thread_messages=1 if message.reply_to_message_id else 0,
+                emits_telemetry=self._telemetry.enabled,
+            )
+            run.set_status("dispatching")
+            self._lens.begin(message.chat_id, run)
+            await self._lens.push(message.chat_id)
+        except Exception as exc:
+            logger.warning("[tlon] context-lens begin failed: %s", exc)
+            self._telemetry.error("context_lens", exc, operation="begin")
+
+    def _lens_reference_blob(self, conversation_id: str) -> Optional[str]:
+        if not self._lens.active:
+            return None
+        run = self._lens.get(conversation_id)
+        if run is None:
+            return None
+        return context_lens_reference_blob(
+            run.lens_id, normalize_ship(self.tlon_config.ship_name) or None
+        )
+
+    async def _finish_lens_run_on_error(self, conversation_id: str) -> None:
+        if not self._lens.active:
+            return
+        try:
+            # finish() no-ops if the run already reached a terminal state and
+            # was popped (e.g. on_processing_complete ran before the raise).
+            await self._lens.finish(conversation_id, status="error")
+        except Exception as exc:
+            logger.warning("[tlon] context-lens error-finish failed: %s", exc)
+
     async def on_processing_complete(self, event: MessageEvent, outcome: Any) -> None:
         await self._computing_presence.stop_run(
             conversation_id=event.source.chat_id,
             run_id=self._presence_run_id(event),
         )
+        processing_outcome = _processing_outcome_value(outcome)
         self._telemetry.finish_reply(
             event.source.chat_id,
-            processing_outcome=_processing_outcome_value(outcome),
+            processing_outcome=processing_outcome,
+        )
+        existing = self._lens.get(event.source.chat_id)
+        delivered = bool(existing and existing.delivered_message_count > 0)
+        delivery_failed = bool(existing and existing.delivery_failed)
+        await self._lens.finish(
+            event.source.chat_id,
+            status=_lens_final_status(
+                processing_outcome,
+                delivered=delivered,
+                delivery_failed=delivery_failed,
+            ),
         )
 
     @staticmethod
@@ -2214,6 +2386,16 @@ class TlonAdapter(BasePlatformAdapter):
         if thread_parent is None and self.tlon_config.reply_in_thread:
             thread_parent = reply_to
         is_thread_reply = bool(thread_parent)
+        # Stamp the reply with a pointer to its lens run so the client can open
+        # the run from the message (badge / message actions), matching
+        # OpenClaw. Only when a run is active for this conversation.
+        lens_blob = self._lens_reference_blob(chat_id)
+        # Only override the send time — and derive the lens output id from it
+        # (~author/<@da of sent>, how the client resolves outputs) — when we're
+        # actually stamping a lens output. Passing --sent-at on every send
+        # would let an older `tlon` binary (which doesn't know the flag) fold
+        # it into the message body; gate it exactly like --blob above.
+        sent_at_ms = int(time.time() * 1000) if lens_blob is not None else None
         with cli_context("delivery", conversation=chat_id):
             if is_thread_reply:
                 # parentAuthor: honor what Hermes passes; otherwise the CLI
@@ -2225,10 +2407,34 @@ class TlonAdapter(BasePlatformAdapter):
                     thread_parent,
                     content,
                     parent_author=parent_author,
+                    blob=lens_blob,
+                    sent_at=sent_at_ms,
                 )
             else:
-                result = await self._cli.send_message(chat_id, content)
+                result = await self._cli.send_message(
+                    chat_id, content, blob=lens_blob, sent_at=sent_at_ms
+                )
         self._telemetry.record_delivery(chat_id, content=content, success=result.success)
+        if result.success:
+            # sent_at_ms is set iff there's an active run to stamp (see above).
+            if sent_at_ms is not None:
+                self._lens.record_output(
+                    chat_id,
+                    LensOutput(
+                        message_id=format_post_id(self.tlon_config.ship_name, sent_at_ms),
+                        conversation_id=chat_id,
+                        kind="dm" if normalize_ship(chat_id) == chat_id else "channel",
+                        sent_at=sent_at_ms,
+                        preview=content or None,
+                        chunk_index=None,
+                    ),
+                )
+        else:
+            # A produced-but-undelivered reply is a delivery failure, not a
+            # no_reply; record it so the run finalizes as an error.
+            self._lens.record_delivery_failure(
+                chat_id, error=(result.stderr or "").strip() or "delivery failed"
+            )
 
         raw_response = {
             "stdout": result.stdout,
@@ -2409,10 +2615,13 @@ async def _standalone_send(
 
 def register(ctx) -> None:
     ctx.register_hook("pre_tool_call", handle_pre_tool_call)
+    ctx.register_hook("pre_tool_call", handle_pre_tool_call_lens)
     ctx.register_hook("pre_tool_call", block_tlon_session_tool)
     ctx.register_hook("post_api_request", handle_post_api_request)
     ctx.register_hook("post_api_request", handle_post_api_request_telemetry)
+    ctx.register_hook("post_api_request", handle_post_api_request_lens)
     ctx.register_hook("post_tool_call", handle_post_tool_call_telemetry)
+    ctx.register_hook("post_tool_call", handle_post_tool_call_lens)
 
     ctx.register_tool(
         name="tlon",

@@ -561,6 +561,42 @@ class TlonCLITests(unittest.TestCase):
         self.assertEqual(calls[0][1]["TLON_ACCESS_CODE"], "code")
         self.assertEqual(calls[0][1]["TLON_URL"], "https://zod.tlon.network")
 
+    def test_send_and_reply_forward_sent_at(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout):
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="✓ Message sent\n")
+
+        async def run():
+            cli = tlon_api.TlonCLI(cfg, runner=runner)
+            await cli.send_message("chat/~zod/general", "hi", sent_at=1234)
+            await cli.send_reply("~nec", "170.141", "hi", sent_at=5678)
+
+        asyncio.run(run())
+        self.assertEqual(calls[0][-2:], ("--sent-at", "1234"))
+        self.assertEqual(calls[1][-2:], ("--sent-at", "5678"))
+
+    def test_format_post_id_round_trips_through_da(self):
+        # da.fromUnix round-trips via aura's da.toUnix; the id is
+        # ~author/<dotted @ud>.
+        pid = tlon_api.format_post_id("bot", 1_700_000_000_000)
+        ship, _, ud = pid.partition("/")
+        self.assertEqual(ship, "~bot")
+        self.assertIn(".", ud)
+        da = int(ud.replace(".", ""))
+        offset = (1 << 64) // 2000
+        back = round((offset + (da - tlon_api._DA_UNIX_EPOCH)) * 1000 / (1 << 64))
+        self.assertEqual(back, 1_700_000_000_000)
+
     def test_run_command_uses_same_runner_and_env(self):
         calls = []
         cfg = tlon_api.TlonConfig.from_env(
