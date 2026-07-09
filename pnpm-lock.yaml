@@ -30,6 +30,7 @@ overrides:
 patchedDependencies:
   '@10play/tentap-editor': cf3371718a2a37f20b200bf7554c58574e7eac08d881102fef86d353e743b2b3
   '@gorhom/bottom-sheet': 19cd5e0683f069b1119d662ee476d31448ec23ff1700b6895fe3f4e0b93b2882
+  '@mattermost/react-native-paste-input@2.0.1': 313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d
   '@simform_solutions/react-native-audio-waveform': af72fc5c183530a26f093004261c71c1d7797475d7beeb6d52b5f10a55a5cee2
   '@types/testing-library__jest-dom': cf4e4e793d22cd793da0c584ea39f50bf28a9b3e80d42a7169122bc40c8b02a9
   '@urbit/http-api': b3f0e6b79865d1bf96f3ed52e0670722d9d3386f33432f37eda868452f3f8d96
@@ -162,6 +163,9 @@ importers:
       '@gorhom/bottom-sheet':
         specifier: ^5.2.14
         version: 5.2.14(patch_hash=19cd5e0683f069b1119d662ee476d31448ec23ff1700b6895fe3f4e0b93b2882)(17372c8af7b44ad4846371102ed92367)
+      '@mattermost/react-native-paste-input':
+        specifier: 2.0.1
+        version: 2.0.1(patch_hash=313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d)(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@op-engineering/op-sqlite':
         specifier: 15.2.5
         version: 15.2.5(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -1019,6 +1023,9 @@ importers:
       '@emoji-mart/data':
         specifier: ^1.1.2
         version: 1.1.2
+      '@mattermost/react-native-paste-input':
+        specifier: 2.0.1
+        version: 2.0.1(patch_hash=313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d)(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@tloncorp/api':
         specifier: workspace:*
         version: link:../api
@@ -3394,6 +3401,12 @@ packages:
   '@malept/flatpak-bundler@0.4.0':
     resolution: {integrity: sha512-9QOtNffcOF/c1seMCDnjckb3R9WHcG34tky+FHpNKKCW0wc/scYLwMtO+ptyGUfMW0/b/n4qRiALlaFHc9Oj7Q==}
     engines: {node: '>= 10.0.0'}
+
+  '@mattermost/react-native-paste-input@2.0.1':
+    resolution: {integrity: sha512-Q9zjXvjwxVQ1M8ylxr9Y+wUpG7xb1wW4u+I34oPvF3etTyBrGtVyA4Bt7Xphgc29eW6wQFUxTIbzZc3E6W2MQg==}
+    peerDependencies:
+      react: 19.2.3
+      react-native: 0.85.3
 
   '@microsoft/fetch-event-source@2.0.1':
     resolution: {integrity: sha512-W6CLUJ2eBMw3Rec70qrsEW0jOm/3twwJv21mrmj2yORiaVmVYGS4sSS5yUwvQc1ZlDLYGPnClVWmUUMagKNsfA==}
@@ -16722,6 +16735,11 @@ snapshots:
       tmp-promise: 3.0.3
     transitivePeerDependencies:
       - supports-color
+
+  '@mattermost/react-native-paste-input@2.0.1(patch_hash=313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d)(react-native@0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      react: 19.2.3
+      react-native: 0.85.3(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.85.3)(@types/react@19.2.17)(react@19.2.3)
 
   '@microsoft/fetch-event-source@2.0.1': {}
 

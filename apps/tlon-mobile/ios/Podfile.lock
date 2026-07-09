@@ -1878,6 +1878,28 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - react-native-paste-input (2.0.1):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-safe-area-context (5.7.0):
     - hermes-engine
     - RCTRequired
@@ -3012,6 +3034,7 @@ DEPENDENCIES:
   - "react-native-cookies (from `../../../node_modules/@react-native-cookies/cookies`)"
   - react-native-get-random-values (from `../../../node_modules/react-native-get-random-values`)
   - "react-native-netinfo (from `../../../node_modules/@react-native-community/netinfo`)"
+  - "react-native-paste-input (from `../../../node_modules/@mattermost/react-native-paste-input`)"
   - react-native-safe-area-context (from `../../../node_modules/react-native-safe-area-context`)
   - "react-native-skia (from `../../../node_modules/@shopify/react-native-skia`)"
   - react-native-webview (from `../../../node_modules/react-native-webview`)
@@ -3293,6 +3316,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native-get-random-values"
   react-native-netinfo:
     :path: "../../../node_modules/@react-native-community/netinfo"
+  react-native-paste-input:
+    :path: "../../../node_modules/@mattermost/react-native-paste-input"
   react-native-safe-area-context:
     :path: "../../../node_modules/react-native-safe-area-context"
   react-native-skia:
@@ -3469,7 +3494,7 @@ SPEC CHECKSUMS:
   FirebaseSharedSwift: 3d1e448b7202e36821a492941c84592d1308ea14
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
-  hermes-engine: 5a3f43e98cc1ba4e066932e8af269dec169571ea
+  hermes-engine: 1e84033f643387415eb686494bd2eee7ec6b9016
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
@@ -3486,7 +3511,7 @@ SPEC CHECKSUMS:
   React: e2dc35338068bbd299c66f043ae0d7f25de8499e
   React-callinvoker: 28b25d21b124c26cebaea713ba7d801b9351dc48
   React-Core: 02ed7d2ffb70437bdf2aba074a13078a7b0b9ff0
-  React-Core-prebuilt: ede6f6a78271f01ad48318e6d7ecd60b67af8e75
+  React-Core-prebuilt: 82c3c473990f1e2ba57ba54aa6da5a79aced91e9
   React-CoreModules: b3a5a42dadcde3b5d47b325bd912eb2ced89e146
   React-cxxreact: fe8f88dda044e5905e99a00f41b7a874c3908716
   React-debug: 9af1e96a6069c996e3d9f1e493603e74bc9f1593
@@ -3521,6 +3546,7 @@ SPEC CHECKSUMS:
   react-native-cookies: d648ab7025833b977c0b19e142503034f5f29411
   react-native-get-random-values: d16467cf726c618e9c7a8c3c39c31faa2244bbba
   react-native-netinfo: a05f9b897e76ad24b53f615fed1cbb731932363d
+  react-native-paste-input: 55e08aa0f7893d454350c074d6944b0fbd7a7672
   react-native-safe-area-context: ba7283e541a5f57c6b27a7e33f2c40b8977888c0
   react-native-skia: ebef3d06fcc4838d53310e7a47625aafa8061216
   react-native-webview: 2a4da2e03d3ec2c731c4d1a389cb86aaa4902167
@@ -3557,7 +3583,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 25c9c516839be2c5e3d3344f95dc7da5f7e63fc2
   ReactCodegen: 5b2b5c009cec17b5e848bde3bc067c339009390d
   ReactCommon: 7dfc3250793bf36cf221096ff59e1179e13eef7f
-  ReactNativeDependencies: 3561acaa3d149b0786233796beae6d70927c3dcc
+  ReactNativeDependencies: bd320ddc5ffab6eee966a739c6cefbd5abcd7461
   recaptcha-enterprise-react-native: 15b27d8db2ccd8ebce5e11b5c41b66a29cb1d7bb
   RecaptchaEnterprise: 2d06f415c94253c3e92214a4d1472b5875442cdc
   RecaptchaEnterpriseSDK: 2fd06a12a27f943c24f643f8814404a27cc74288
