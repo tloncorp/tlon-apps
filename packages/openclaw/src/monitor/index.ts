@@ -412,6 +412,7 @@ export async function monitorTlonProvider(
     extra?: {
       errorKind?: string | null;
       attempt?: number | null;
+      downMs?: number | null;
     }
   ) => {
     telemetry?.capturePluginError({
@@ -423,6 +424,7 @@ export async function monitorTlonProvider(
       errorKind: extra?.errorKind ?? classifyPluginError(error),
       errorText: formatTlonTelemetryErrorText(error),
       attempt: extra?.attempt ?? null,
+      downMs: extra?.downMs ?? null,
     });
   };
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
@@ -473,6 +475,30 @@ export async function monitorTlonProvider(
     }
   }
 
+  // Map a subscription's gall app (+ path where one app carries several
+  // subscriptions) onto the telemetry error-source vocabulary.
+  const subscriptionErrorSource = (
+    app: string,
+    path: string
+  ): TlonPluginErrorSource => {
+    switch (app) {
+      case 'chat':
+        return 'chat_firehose';
+      case 'channels':
+        return 'channels_firehose';
+      case 'contacts':
+        return 'contacts_subscription';
+      case 'steward':
+        return 'steward_subscription';
+      case 'groups':
+        return path === '/v1/foreigns'
+          ? 'foreigns_subscription'
+          : 'groups_ui_subscription';
+      default:
+        return 'settings_refresh';
+    }
+  };
+
   let api: UrbitSSEClient | null = null;
   let cookie: string;
   try {
@@ -490,6 +516,73 @@ export async function monitorTlonProvider(
         const newCookie = await authenticateWithRetry(5, 're_auth');
         client.updateCookie(newCookie);
         runtime.log?.('[tlon] Re-authentication successful');
+      },
+      // A dead inbound subscription means silently lost messages (incident
+      // 2026-07-07: chat firehose died for 5.5h with zero telemetry), so
+      // surface recovery progress to PostHog. Sampled: first failure, then
+      // every 5th, plus a marker event once the subscription recovers.
+      onSubscriptionRecovery: (event) => {
+        const source = subscriptionErrorSource(event.app, event.path);
+        if (event.phase === 'retrying') {
+          if (event.attempt === 1 || event.attempt % 5 === 0) {
+            capturePluginError(source, event.error ?? 'resubscribe failed', {
+              errorKind: 'resubscribe_failed',
+              attempt: event.attempt,
+              downMs: event.downMs,
+            });
+          }
+          return;
+        }
+        runtime.log?.(
+          `[tlon] Subscription ${event.app}${event.path} ${event.phase} after ${event.attempt} failed attempt(s), down ${event.downMs}ms`
+        );
+        if (event.attempt > 0) {
+          capturePluginError(
+            source,
+            `subscription recovered (${event.phase}) after ${event.attempt} failed attempt(s)`,
+            {
+              errorKind: 'resubscribe_recovered',
+              attempt: event.attempt,
+              downMs: event.downMs,
+            }
+          );
+        }
+      },
+      // Stream-level drops/stalls/reconnects. Distinct from per-subscription
+      // recovery above: this is the whole SSE channel going down. Without it,
+      // a stream that drops and cleanly reconnects (or a watchdog-detected
+      // hung socket) is invisible in PostHog — only stdout.
+      onStreamRecovery: (event) => {
+        if (event.phase === 'reconnected') {
+          if (event.attempt > 0 || (event.downtimeMs ?? 0) > 0) {
+            capturePluginError(
+              'sse_stream',
+              `SSE stream reconnected after ${event.attempt} attempt(s)`,
+              {
+                errorKind: 'stream_reconnected',
+                attempt: event.attempt,
+                downMs: event.downtimeMs ?? null,
+              }
+            );
+          }
+          return;
+        }
+        if (event.phase === 'watchdog_stale') {
+          capturePluginError(
+            'sse_stream',
+            `SSE stream stale (${event.idleMs}ms idle); forcing reconnect`,
+            { errorKind: 'stream_stale', downMs: event.idleMs ?? null }
+          );
+          return;
+        }
+        // reconnect_failed — sample like the subscription retries.
+        if (event.attempt === 1 || event.attempt % 5 === 0) {
+          capturePluginError(
+            'sse_stream',
+            event.error ?? 'stream reconnect failed',
+            { errorKind: 'stream_reconnect_failed', attempt: event.attempt }
+          );
+        }
       },
     });
   } catch (error) {
@@ -720,6 +813,7 @@ export async function monitorTlonProvider(
             errorKind: report.event.errorKind ?? null,
             errorText: report.event.errorText,
             attempt: report.event.attempt ?? null,
+            downMs: report.event.downMs ?? null,
           });
           break;
         case 'telemetry':
@@ -3996,6 +4090,11 @@ export async function monitorTlonProvider(
           runtime.error?.(`[tlon] Channels firehose error: ${String(error)}`);
         },
         quit: () => {
+          capturePluginError(
+            'channels_firehose',
+            'channels firehose quit received; resubscribing',
+            { errorKind: 'quit' }
+          );
           runtime.log?.(
             '[tlon] Channels firehose quit received, SSE client will resubscribe'
           );
@@ -4013,6 +4112,11 @@ export async function monitorTlonProvider(
           runtime.error?.(`[tlon] Chat firehose error: ${String(error)}`);
         },
         quit: () => {
+          capturePluginError(
+            'chat_firehose',
+            'chat firehose quit received; resubscribing',
+            { errorKind: 'quit' }
+          );
           runtime.log?.(
             '[tlon] Chat firehose quit received, SSE client will resubscribe'
           );
@@ -4211,11 +4315,17 @@ export async function monitorTlonProvider(
               });
             },
             err: (error) => {
+              capturePluginError('steward_subscription', error);
               runtime.error?.(
                 `[tlon] Steward lens subscription error: ${String(error)}`
               );
             },
             quit: () => {
+              capturePluginError(
+                'steward_subscription',
+                'steward lens quit received; resubscribing',
+                { errorKind: 'quit' }
+              );
               runtime.log?.(
                 '[tlon] Steward lens quit received, SSE client will resubscribe'
               );

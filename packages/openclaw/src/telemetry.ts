@@ -440,7 +440,9 @@ export type TlonPluginErrorSource =
   | 'contacts_subscription'
   | 'groups_ui_subscription'
   | 'foreigns_subscription'
-  | 'settings_refresh';
+  | 'steward_subscription'
+  | 'settings_refresh'
+  | 'sse_stream';
 
 export type TlonPluginErrorEvent = {
   harness: TlonHarnessName;
@@ -451,6 +453,12 @@ export type TlonPluginErrorEvent = {
   errorKind: string | null;
   errorText: string;
   attempt: number | null;
+  /**
+   * For recoverable subscription/stream failures: how long inbound has been
+   * (or was) down, in ms. Lets PostHog aggregate outage duration rather than
+   * just failure counts.
+   */
+  downMs: number | null;
 };
 
 export type TlonTelemetryErrorEvent = {
@@ -1642,6 +1650,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           errorKind: event.errorKind,
           errorText: event.errorText,
           attempt: event.attempt,
+          downMs: event.downMs,
         },
         { omitNullish: true }
       ),
@@ -1952,6 +1961,7 @@ export type TlonPluginErrorReportInput = {
   errorKind?: string | null;
   errorText: string;
   attempt?: number | null;
+  downMs?: number | null;
 };
 
 export type TlonTelemetryErrorReportInput = {
