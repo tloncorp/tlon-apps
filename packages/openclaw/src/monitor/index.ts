@@ -114,6 +114,7 @@ import {
   buildThreadContextMessage,
   cacheMessage,
   fetchChannelHistory,
+  fetchParentPostAuthor,
   fetchThreadContextHistory,
   getChannelHistory,
   lookupCachedMessage,
@@ -974,7 +975,13 @@ export async function monitorTlonProvider(
       ctx: DisplayContext
     ): string | undefined {
       try {
-        return serializeBlobField(buildApprovalA2UIBlob(approval, ctx));
+        return serializeBlobField(
+          buildApprovalA2UIBlob(approval, ctx, {
+            // Source messages live on the bot's account. A separate owner may
+            // not have the corresponding DM or group channel in local state.
+            includeSourceNavigation: effectiveOwnerShip === botShipName,
+          })
+        );
       } catch (err) {
         runtime.error?.(
           `[tlon] Failed to build approval A2UI blob: ${String(err)}`
@@ -3747,6 +3754,17 @@ export async function monitorTlonProvider(
             if (!normalizedAllowed.includes(senderShip)) {
               // If owner is configured, queue approval request
               if (effectiveOwnerShip) {
+                const cachedParentAuthor = parentId
+                  ? lookupCachedMessage(nest, parentId)?.author
+                  : undefined;
+                const parentAuthor = parentId
+                  ? cachedParentAuthor && cachedParentAuthor !== 'unknown'
+                    ? cachedParentAuthor
+                    : await fetchParentPostAuthor(api, nest, parentId, runtime)
+                  : null;
+                const parentAuthorId = parentAuthor
+                  ? normalizeShip(parentAuthor)
+                  : undefined;
                 const approval = createPendingApproval(
                   {
                     type: 'channel',
@@ -3759,6 +3777,7 @@ export async function monitorTlonProvider(
                       messageContent: content.content,
                       timestamp: content.sent || Date.now(),
                       parentId: parentId ?? undefined,
+                      parentAuthorId,
                       isThreadReply,
                       blob: content.blob ?? undefined,
                     },
@@ -4100,6 +4119,11 @@ export async function monitorTlonProvider(
                   messageText,
                   messageContent: dmContent.content,
                   timestamp: dmContent.sent || Date.now(),
+                  parentId: dmReplyParentId,
+                  parentAuthorId: dmReplyParentId
+                    ? lookupCachedMessage(dmCacheKey, dmReplyParentId)?.author
+                    : undefined,
+                  isThreadReply: isDmThreadReply,
                   blob: dmContent.blob ?? undefined,
                 },
               },

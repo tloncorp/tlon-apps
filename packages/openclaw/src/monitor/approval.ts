@@ -33,6 +33,7 @@ export type CreateApprovalParams = {
     messageContent: unknown;
     timestamp: number;
     parentId?: string;
+    parentAuthorId?: string;
     isThreadReply?: boolean;
     blob?: string;
   };
@@ -66,6 +67,10 @@ export type DisplayContext = {
   channelGroups?: Map<string, string>;
   /** Map from group flag (~host/name) to human-readable group title */
   groupNames?: Map<string, string>;
+};
+
+export type ApprovalA2UIOptions = {
+  includeSourceNavigation?: boolean;
 };
 
 function displayShipName(ship: string, ctx?: DisplayContext): string {
@@ -225,6 +230,7 @@ type ApprovalA2UIParams = {
   groupName?: string;
   groupFlag?: string;
   groupTitle?: string;
+  sourceTarget?: A2UI.NavigationTarget;
 };
 
 function approvalRequesterName(params: ApprovalA2UIParams): string {
@@ -320,12 +326,14 @@ function buildApprovalA2UIBlobFromParams(
   const contextLines = approvalContextLines(params);
   const contextIds = contextLines.map((_, index) => `context${index}`);
   const copy = approvalCopy(params);
+  const actionChildren = ['allow', 'reject', 'ban'];
   const bodyChildren = [
     'eyebrow',
     'title',
     'titleDivider',
     ...contextIds,
     ...(copy ? ['copy'] : []),
+    ...(params.sourceTarget ? ['sourceAction'] : []),
     'divider',
     'details',
     'actions',
@@ -347,6 +355,9 @@ function buildApprovalA2UIBlobFromParams(
           text: copy,
         },
       ]
+    : [];
+  const sourceActionComponents: A2UI.Component[] = params.sourceTarget
+    ? [{ id: 'sourceAction', component: 'Row', children: ['viewMessage'] }]
     : [];
 
   const components: A2UI.Component[] = [
@@ -371,6 +382,7 @@ function buildApprovalA2UIBlobFromParams(
     { id: 'titleDivider', component: 'Divider' },
     ...contextComponents,
     ...copyComponents,
+    ...sourceActionComponents,
     { id: 'divider', component: 'Divider' },
     {
       id: 'details',
@@ -386,8 +398,29 @@ function buildApprovalA2UIBlobFromParams(
     {
       id: 'actions',
       component: 'Row',
-      children: ['allow', 'reject', 'ban'],
+      children: actionChildren,
     },
+    ...(params.sourceTarget
+      ? [
+          {
+            id: 'viewMessage',
+            component: 'Button',
+            variant: 'secondary',
+            child: 'viewMessageLabel',
+            action: {
+              event: {
+                name: A2UI.action.navigate,
+                context: { target: params.sourceTarget },
+              },
+            },
+          } as const,
+          {
+            id: 'viewMessageLabel',
+            component: 'Text',
+            text: 'View message',
+          } as const,
+        ]
+      : []),
     {
       id: 'allow',
       component: 'Button',
@@ -473,9 +506,45 @@ function displayGroupForApproval(
   return titleOverride || ctx?.groupNames?.get(flag) || flag;
 }
 
-export function buildApprovalA2UIBlob(
+function approvalSourceTarget(
   approval: PendingApproval,
   ctx?: DisplayContext
+): A2UI.NavigationTarget | undefined {
+  const messageId = approval.originalMessage?.messageId;
+  if (!messageId) {
+    return undefined;
+  }
+
+  const base = {
+    type: 'message' as const,
+    postId: messageId,
+    authorId: approval.requestingShip,
+    parentId: approval.originalMessage?.parentId,
+    parentAuthorId: approval.originalMessage?.parentAuthorId,
+  };
+
+  if (approval.type === 'dm') {
+    return {
+      ...base,
+      channelId: approval.requestingShip,
+    };
+  }
+
+  if (approval.type === 'channel' && approval.channelNest) {
+    return {
+      ...base,
+      channelId: approval.channelNest,
+      groupId: ctx?.channelGroups?.get(approval.channelNest),
+    };
+  }
+
+  return undefined;
+}
+
+export function buildApprovalA2UIBlob(
+  approval: PendingApproval,
+  ctx?: DisplayContext,
+  options: ApprovalA2UIOptions = {}
 ): TlonA2UIBlob {
   return buildApprovalA2UIBlobFromParams({
     type: approval.type,
@@ -494,6 +563,10 @@ export function buildApprovalA2UIBlob(
       approval.groupTitle,
       ctx
     ),
+    sourceTarget:
+      options.includeSourceNavigation === false
+        ? undefined
+        : approvalSourceTarget(approval, ctx),
   });
 }
 

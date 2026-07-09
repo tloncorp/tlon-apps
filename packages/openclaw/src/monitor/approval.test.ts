@@ -245,6 +245,107 @@ describe('buildApprovalA2UIBlob', () => {
     }
   });
 
+  it('adds view message navigation for dm and channel approvals with source messages', () => {
+    const dm = buildApprovalA2UIBlob({
+      id: 'da1b2',
+      type: 'dm',
+      requestingShip: '~sampel-palnet',
+      timestamp: 1,
+      messagePreview: 'Hello, I would like to chat with your bot.',
+      originalMessage: {
+        messageId: '170.141.184.507',
+        messageText: 'Hello, I would like to chat with your bot.',
+        messageContent: [],
+        timestamp: 1,
+      },
+    });
+    const channel = buildApprovalA2UIBlob(
+      {
+        id: 'c3d4e',
+        type: 'channel',
+        requestingShip: '~littel-wolfur',
+        channelNest: 'chat/~host/general',
+        timestamp: 1,
+        messagePreview: '@bot can you review this build before I merge?',
+        originalMessage: {
+          messageId: '170.141.184.621',
+          messageText: '@bot can you review this build before I merge?',
+          messageContent: [],
+          timestamp: 1,
+          parentId: '170.141.184.600',
+          parentAuthorId: '~host',
+        },
+      },
+      ctx
+    );
+
+    expect(A2UI.validateBlobEntry(dm)).toBe(true);
+    expect(A2UI.validateBlobEntry(channel)).toBe(true);
+    expect(JSON.stringify(dm)).toContain('View message');
+    expect(JSON.stringify(dm)).toContain('"name":"tlon.navigate"');
+    expect(JSON.stringify(dm)).toContain('"channelId":"~sampel-palnet"');
+    expect(JSON.stringify(dm)).toContain('"postId":"170.141.184.507"');
+    expect(JSON.stringify(channel)).toContain(
+      '"channelId":"chat/~host/general"'
+    );
+    expect(JSON.stringify(channel)).toContain('"parentId":"170.141.184.600"');
+    expect(JSON.stringify(channel)).toContain('"parentAuthorId":"~host"');
+    expect(JSON.stringify(channel)).toContain('"groupId":"~host/cool-group"');
+  });
+
+  it('hides source navigation when the notification recipient cannot see the bot source', () => {
+    const sourceMessage = {
+      messageId: '170.141.184.507',
+      messageText: 'Please let me in',
+      messageContent: [],
+      timestamp: 1,
+    };
+    const dm = buildApprovalA2UIBlob(
+      {
+        id: 'da1b2',
+        type: 'dm',
+        requestingShip: '~sampel-palnet',
+        timestamp: 1,
+        originalMessage: sourceMessage,
+      },
+      undefined,
+      { includeSourceNavigation: false }
+    );
+    const channel = buildApprovalA2UIBlob(
+      {
+        id: 'c3d4e',
+        type: 'channel',
+        requestingShip: '~littel-wolfur',
+        channelNest: 'chat/~host/general',
+        timestamp: 1,
+        originalMessage: sourceMessage,
+      },
+      ctx,
+      { includeSourceNavigation: false }
+    );
+
+    for (const approval of [dm, channel]) {
+      expect(A2UI.validateBlobEntry(approval)).toBe(true);
+      expect(JSON.stringify(approval)).not.toContain('View message');
+      expect(JSON.stringify(approval)).not.toContain('tlon.navigate');
+    }
+  });
+
+  it('does not add view message navigation to group invites', () => {
+    const approval = buildApprovalA2UIBlob({
+      id: 'g5f6a',
+      type: 'group',
+      requestingShip: '~robin-dasler',
+      groupFlag: '~robin-dasler/garden-club',
+      groupTitle: 'Garden Club',
+      timestamp: 1,
+    });
+
+    expect(A2UI.validateBlobEntry(approval)).toBe(true);
+    expect(JSON.stringify(approval)).not.toContain('View message');
+    expect(JSON.stringify(approval)).not.toContain('tlon.navigate');
+  });
+
   it('formats the visible notification text by request type', () => {
     expect(
       formatApprovalRequestNotification(
