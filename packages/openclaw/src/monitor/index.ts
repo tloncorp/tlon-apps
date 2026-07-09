@@ -23,6 +23,7 @@ import {
   createContextLensRegistry,
   unbindContextLensFromSession,
 } from '../context-lens.js';
+import { scheduleCronSnapshot } from '../cron-telemetry.js';
 import {
   getEffectiveOwnerShip,
   setEffectiveOwnerShip,
@@ -65,6 +66,7 @@ import {
   type TlonPluginErrorSource,
   createTlonTelemetry,
   formatTlonTelemetryErrorText,
+  setCronTelemetryReporter,
   setDebugTelemetryReporter,
   setErrorTelemetryReporter,
   setOutboundRouteReporter,
@@ -698,6 +700,28 @@ export async function monitorTlonProvider(
         ownerShip: event.ownerShip ?? currentTelemetryOwnerShip(),
         botShip: event.botShip || botShipName,
       });
+    });
+    // Bridge cron lifecycle/run telemetry from the global `cron_changed` hook
+    // to this account's telemetry client. Cron jobs are gateway-global, so
+    // events are attributed to this account's owner (same last-writer-wins
+    // semantics as the other global-hook reporters above).
+    setCronTelemetryReporter((report) => {
+      const identity = {
+        accountId: account.accountId,
+        ownerShip: currentTelemetryOwnerShip(),
+        botShip: botShipName,
+      };
+      switch (report.kind) {
+        case 'jobChanged':
+          telemetry?.captureCronJobChanged({ ...report.event, ...identity });
+          break;
+        case 'run':
+          telemetry?.captureCronRun({ ...report.event, ...identity });
+          break;
+        case 'snapshot':
+          telemetry?.captureCronSnapshot({ ...report.event, ...identity });
+          break;
+      }
     });
     setErrorTelemetryReporter((report) => {
       switch (report.kind) {
@@ -4858,6 +4882,13 @@ export async function monitorTlonProvider(
         autoDiscoverChannels: effectiveAutoDiscoverChannels,
         ownerListenEnabled: effectiveOwnerListenEnabled,
       });
+      // Boot-time cron job-count snapshot (daily container restarts make this
+      // a daily gauge). Retries internally: the cron service accessor is
+      // published by the gateway_start hook, which can race this connect.
+      scheduleCronSnapshot({
+        onError: (error) =>
+          runtime.error?.(`[tlon] Cron snapshot failed: ${String(error)}`),
+      });
 
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
@@ -4996,6 +5027,7 @@ export async function monitorTlonProvider(
       setSessionTelemetryReporter(null);
       setDebugTelemetryReporter(null);
       setErrorTelemetryReporter(null);
+      setCronTelemetryReporter(null);
       await telemetry?.close();
       try {
         await api?.close();

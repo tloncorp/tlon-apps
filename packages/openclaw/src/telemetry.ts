@@ -332,6 +332,70 @@ export type TlonSessionTelemetryReport =
   | { kind: 'watchdog'; event: TlonSessionWatchdogEvent }
   | { kind: 'recovery'; event: TlonSessionRecoveryEvent };
 
+/**
+ * Cron observability. Fed by the gateway-global `cron_changed` hook (see
+ * src/cron-telemetry.ts), so events carry schedule metadata only — never the
+ * job's prompt text (`payload.text`) or the run's output (`summary`).
+ */
+export type TlonCronScheduleFields = {
+  scheduleKind: string | null;
+  scheduleExpr: string | null;
+  scheduleTz: string | null;
+  scheduleEveryMs: number | null;
+  scheduleAt: string | null;
+};
+
+export type TlonCronCountFields = {
+  activeCronJobCount: number | null;
+  totalCronJobCount: number | null;
+};
+
+export type TlonCronJobChangedEvent = TlonCronScheduleFields &
+  TlonCronCountFields & {
+    accountId: string | null;
+    ownerShip: string | null;
+    botShip: string;
+    cronAction: 'added' | 'updated' | 'removed';
+    jobId: string;
+    jobName: string | null;
+    agentId: string | null;
+    enabled: boolean | null;
+    wakeMode: string | null;
+    payloadKind: string | null;
+    sessionTargetKind: string | null;
+  };
+
+export type TlonCronRunEvent = TlonCronScheduleFields & {
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  jobId: string;
+  jobName: string | null;
+  agentId: string | null;
+  runId: string | null;
+  status: string;
+  cronError: string | null;
+  durationMs: number | null;
+  runAtMs: number | null;
+  nextRunAtMs: number | null;
+  delivered: boolean | null;
+  deliveryStatus: string | null;
+  deliveryError: string | null;
+  model: string | null;
+  provider: string | null;
+  payloadKind: string | null;
+  sessionTargetKind: string | null;
+};
+
+export type TlonCronSnapshotEvent = TlonCronCountFields & {
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  scheduleKindCronCount: number | null;
+  scheduleKindEveryCount: number | null;
+  scheduleKindAtCount: number | null;
+};
+
 export type TlonHarnessErrorScope =
   | 'harness'
   | 'model'
@@ -471,6 +535,9 @@ export interface TlonTelemetryClient {
   captureHarnessDebug(event: TlonHarnessDebugEvent): void;
   capturePluginError(event: TlonPluginErrorEvent): void;
   captureTelemetryError(event: TlonTelemetryErrorEvent): void;
+  captureCronJobChanged(event: TlonCronJobChangedEvent): void;
+  captureCronRun(event: TlonCronRunEvent): void;
+  captureCronSnapshot(event: TlonCronSnapshotEvent): void;
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
       ownerShip?: string | null;
@@ -492,6 +559,9 @@ const TLON_PLUGIN_ERROR_EVENT = 'TlonBot Plugin Error';
 const TLON_TELEMETRY_ERROR_EVENT = 'TlonBot Telemetry Error';
 const TLON_HEARTBEAT_NUDGE_EVENT = 'TlonBot Heartbeat Nudge Sent';
 const TLON_HEARTBEAT_REENGAGED_EVENT = 'TlonBot Heartbeat Nudge Reengaged';
+const TLON_CRON_JOB_CHANGED_EVENT = 'TlonBot Cron Job Changed';
+const TLON_CRON_RUN_EVENT = 'TlonBot Cron Run';
+const TLON_CRON_SNAPSHOT_EVENT = 'TlonBot Cron Snapshot';
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
 const TOOL_TRACE_TTL_MS = 60 * 60 * 1000;
 const MAX_TOOL_CALLS_PER_SESSION = 200;
@@ -1460,6 +1530,124 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
+  private cronCountPersonProps(
+    event: TlonCronCountFields
+  ): Record<string, unknown> {
+    if (event.activeCronJobCount == null && event.totalCronJobCount == null) {
+      return {};
+    }
+    return {
+      $set: {
+        tlonCronActiveJobCount: event.activeCronJobCount,
+        tlonCronTotalJobCount: event.totalCronJobCount,
+        tlonCronCountsUpdatedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  captureCronJobChanged(event: TlonCronJobChangedEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_CRON_JOB_CHANGED_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          agentId: event.agentId,
+          cronAction: event.cronAction,
+          jobId: event.jobId,
+          jobName: event.jobName,
+          enabled: event.enabled,
+          wakeMode: event.wakeMode,
+          payloadKind: event.payloadKind,
+          sessionTargetKind: event.sessionTargetKind,
+          scheduleKind: event.scheduleKind,
+          scheduleExpr: event.scheduleExpr,
+          scheduleTz: event.scheduleTz,
+          scheduleEveryMs: event.scheduleEveryMs,
+          scheduleAt: event.scheduleAt,
+          activeCronJobCount: event.activeCronJobCount,
+          totalCronJobCount: event.totalCronJobCount,
+          ...this.cronCountPersonProps(event),
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureCronRun(event: TlonCronRunEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_CRON_RUN_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          agentId: event.agentId,
+          jobId: event.jobId,
+          jobName: event.jobName,
+          runId: event.runId,
+          status: event.status,
+          cronError: event.cronError,
+          durationMs: event.durationMs,
+          runAtMs: event.runAtMs,
+          nextRunAtMs: event.nextRunAtMs,
+          delivered: event.delivered,
+          deliveryStatus: event.deliveryStatus,
+          deliveryError: event.deliveryError,
+          model: event.model,
+          provider: event.provider,
+          payloadKind: event.payloadKind,
+          sessionTargetKind: event.sessionTargetKind,
+          scheduleKind: event.scheduleKind,
+          scheduleExpr: event.scheduleExpr,
+          scheduleTz: event.scheduleTz,
+          scheduleEveryMs: event.scheduleEveryMs,
+          scheduleAt: event.scheduleAt,
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureCronSnapshot(event: TlonCronSnapshotEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_CRON_SNAPSHOT_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          activeCronJobCount: event.activeCronJobCount,
+          totalCronJobCount: event.totalCronJobCount,
+          scheduleKindCronCount: event.scheduleKindCronCount,
+          scheduleKindEveryCount: event.scheduleKindEveryCount,
+          scheduleKindAtCount: event.scheduleKindAtCount,
+          ...this.cronCountPersonProps(event),
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
       ownerShip?: string | null;
@@ -1799,6 +1987,26 @@ export type ErrorTelemetryReporter = (
 ) => void;
 export type DebugTelemetryReporter = (event: TlonHarnessDebugEvent) => void;
 
+export type TlonCronJobChangedReportInput = Omit<
+  TlonCronJobChangedEvent,
+  'accountId' | 'ownerShip' | 'botShip'
+>;
+export type TlonCronRunReportInput = Omit<
+  TlonCronRunEvent,
+  'accountId' | 'ownerShip' | 'botShip'
+>;
+export type TlonCronSnapshotReportInput = Omit<
+  TlonCronSnapshotEvent,
+  'accountId' | 'ownerShip' | 'botShip'
+>;
+
+export type TlonCronTelemetryReport =
+  | { kind: 'jobChanged'; event: TlonCronJobChangedReportInput }
+  | { kind: 'run'; event: TlonCronRunReportInput }
+  | { kind: 'snapshot'; event: TlonCronSnapshotReportInput };
+
+export type CronTelemetryReporter = (report: TlonCronTelemetryReport) => void;
+
 export type TlonSessionLifecycleReportInput = {
   lifecycleEvent: 'session_start' | 'session_end';
   sessionKey?: string | null;
@@ -1965,6 +2173,9 @@ const errorTelemetryReporterSlot = sharedSlot<ErrorTelemetryReporter>(
 const debugTelemetryReporterSlot = sharedSlot<DebugTelemetryReporter>(
   'telemetry.debugTelemetryReporter'
 );
+const cronTelemetryReporterSlot = sharedSlot<CronTelemetryReporter>(
+  'telemetry.cronTelemetryReporter'
+);
 
 export function setOutboundRouteReporter(
   reporter: OutboundRouteReporter | null
@@ -1992,6 +2203,26 @@ export function setDebugTelemetryReporter(
   reporter: DebugTelemetryReporter | null
 ): void {
   debugTelemetryReporterSlot.set(reporter);
+}
+
+export function setCronTelemetryReporter(
+  reporter: CronTelemetryReporter | null
+): void {
+  cronTelemetryReporterSlot.set(reporter);
+}
+
+export function reportCronJobChanged(
+  event: TlonCronJobChangedReportInput
+): void {
+  cronTelemetryReporterSlot.get()?.({ kind: 'jobChanged', event });
+}
+
+export function reportCronRun(event: TlonCronRunReportInput): void {
+  cronTelemetryReporterSlot.get()?.({ kind: 'run', event });
+}
+
+export function reportCronSnapshot(event: TlonCronSnapshotReportInput): void {
+  cronTelemetryReporterSlot.get()?.({ kind: 'snapshot', event });
 }
 
 function optionalString(value: string | null | undefined): string | null {

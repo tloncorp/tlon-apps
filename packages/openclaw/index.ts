@@ -23,6 +23,10 @@ import {
   scheduleBackgroundContextLensFinalization,
 } from './src/context-lens.js';
 import {
+  handleCronChangedEvent,
+  setCronServiceAccessor,
+} from './src/cron-telemetry.js';
+import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
@@ -1382,6 +1386,39 @@ export default defineChannelPluginEntry({
           });
         },
       });
+    });
+
+    // ── Cron observability ──────────────────────────────────────────────
+    // `cron_changed` is a gateway-global hook; owner/bot identity is injected
+    // by the monitor's cron reporter (setCronTelemetryReporter). The
+    // gateway_start handler publishes the cron service accessor so the monitor
+    // can emit its boot-time job-count snapshot without a hook context.
+    api.on('gateway_start', (_event, ctx) => {
+      if (ctx.getCron) {
+        setCronServiceAccessor(ctx.getCron);
+      }
+    });
+
+    api.on('cron_changed', async (event, ctx) => {
+      try {
+        await handleCronChangedEvent(event, ctx);
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] Telemetry observer failed (cron_changed:${event.action}): ${String(error)}`
+        );
+        try {
+          reportTelemetryError({
+            telemetrySource: 'cron_changed',
+            sourceEventName: event.action,
+            errorKind: error instanceof Error ? error.name : typeof error,
+            errorText: formatTlonTelemetryErrorText(error),
+          });
+        } catch (reportError) {
+          api.logger.warn(
+            `[tlon] Telemetry error reporting failed: ${String(reportError)}`
+          );
+        }
+      }
     });
 
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
