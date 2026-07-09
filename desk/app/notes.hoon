@@ -1098,7 +1098,10 @@
 ++  group-can-read
   |=  [grp=flag:n =flag:n who=ship]
   ^-  ?
-  ?:  =(our.bowl who)  &
+  ::  short-circuit only for the notebook's own host/owner — NOT for
+  ::  our.bowl, which on a subscriber is the local reader and must still be
+  ::  checked against the group so a revoked subscriber is denied.
+  ?:  =(ship.flag who)  &
   (group-can-read-raw grp flag who)
 ::  +group-can-read-raw: the bare can-read scry, no self-shortcut. Crashes if
 ::  the group isn't synced locally — callers that can't tolerate a crash must
@@ -1129,6 +1132,11 @@
   ?~  entry=(get-book flag)  |
   ?~  grp=group.notebook-state.u.entry
     !=(~ (~(get by members.notebook-state.u.entry) who))
+  ::  group mode: consult the group's live can-read. A not-yet-synced group
+  ::  is transient (access can't be determined yet) — treat as viewable,
+  ::  mirroring +no-agent's revocation logic, so we only hide/deny on a real
+  ::  revocation rather than a replication gap.
+  ?.  (group-synced u.grp)  &
   (group-can-read u.grp flag who)
 ::  +recheck-group-access: a fact arrived for group `changed`, so read
 ::  permissions there may have shifted. Re-run can-read for every remote
@@ -2680,7 +2688,10 @@
   ++  no-peek
     |=  [kind=@ rest=*]
     ^-  (unit (unit cage))
-    ?>  ?=(^ (~(get by members.notebook-state) src.bowl))
+    ::  read gate: group-mode notebooks re-check the group's live can-read
+    ::  (the members map isn't pruned on revocation), non-group use the
+    ::  members map. Mirrors +se-can-view / +se-can-edit.
+    ?>  (can-view-flag flag src.bowl)
     ?+  kind  ~
         %notebook
       =/  nd=notebook-detail:n  [flag notebook.notebook-state visibility.notebook-state]
