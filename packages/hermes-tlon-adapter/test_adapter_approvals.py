@@ -1380,6 +1380,47 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(prepare_calls, 0)
         self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
 
+    def test_channel_approval_persists_learned_bot_status(self):
+        adapter = self.make_adapter({"max_consecutive_bot_responses": 1})
+
+        # Learn the ship from an unmentioned bot-meta message (drops at the
+        # attention gate, so no approval is queued for it).
+        self.dispatches(
+            adapter,
+            channel_event("just chatting", author=bot_author(), post_id="learn-1"),
+        )
+        self.assertIn("~bot", adapter._known_bot_ships)
+        self.assertEqual(adapter._pending_approvals, [])
+
+        # The mention that queues the approval carries a plain string author.
+        self.dispatches(
+            adapter,
+            channel_event("~pen hello", author="~bot", post_id="plain-1"),
+        )
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        approval = adapter._pending_approvals[0]
+        self.assertTrue(approval["originalMessage"]["authorIsBot"])
+
+        # Restart before /allow: a fresh adapter (empty learned set) must
+        # still replay it as a bot dispatch.
+        fresh = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        fresh.handle_message = record
+        asyncio.run(fresh._replay_approved_message(approval))
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("~bot", fresh._known_bot_ships)
+        self.assertEqual(fresh._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
     def test_replay_payload_round_trips_author_is_bot(self):
         adapter = self.make_adapter({"allowed_users": ["~bot"]})
         bot_message = tlon_api.TlonIncomingMessage(

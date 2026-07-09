@@ -145,6 +145,19 @@ def _parse_non_negative_int(value: Any, default: int) -> int:
     return parsed if parsed >= 0 else default
 
 
+def _parse_strict_non_negative_int(value: Any, default: int) -> int:
+    """Reject non-integral values instead of truncating them. Needed where 0
+    is a meaningful sentinel: "0.5" must fall back to the default, not
+    truncate to 0 (OpenClaw's schema likewise requires an integer)."""
+    try:
+        parsed = float(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+    if not parsed.is_integer():
+        return default
+    return int(parsed) if parsed >= 0 else default
+
+
 def _format_da_from_unix_millis(value: float) -> str:
     dt = datetime.fromtimestamp(value / 1000.0, tz=timezone.utc)
     return f"~{dt.year}.{dt.month}.{dt.day}..{dt.hour:02d}.{dt.minute:02d}.{dt.second:02d}"
@@ -306,7 +319,7 @@ class TlonConfig:
                 ("known_bot_users",),
             )
         )
-        max_consecutive_bot_responses = _parse_non_negative_int(
+        max_consecutive_bot_responses = _parse_strict_non_negative_int(
             _env_or_extra(
                 env,
                 ("TLON_MAX_CONSECUTIVE_BOT_RESPONSES",),

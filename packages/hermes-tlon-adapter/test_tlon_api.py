@@ -164,6 +164,26 @@ class TlonConfigTests(unittest.TestCase):
         self.assertEqual(env_zero.max_consecutive_bot_responses, 0)
         self.assertEqual(extra_zero.max_consecutive_bot_responses, 0)
 
+    def test_loop_cap_rejects_fractional_values(self):
+        required = {
+            "node_url": "https://zod.tlon.network",
+            "node_id": "~zod",
+            "access_code": "code",
+        }
+
+        # "0.5" must not truncate to the 0 = unlimited sentinel.
+        env_fraction = tlon_api.TlonConfig.from_env(
+            extra=required,
+            env={"TLON_MAX_CONSECUTIVE_BOT_RESPONSES": "0.5"},
+        )
+        extra_fraction = tlon_api.TlonConfig.from_env(
+            extra={**required, "max_consecutive_bot_responses": 2.5},
+            env={},
+        )
+
+        self.assertEqual(env_fraction.max_consecutive_bot_responses, 3)
+        self.assertEqual(extra_fraction.max_consecutive_bot_responses, 3)
+
     def test_dm_allowlist_is_additive_and_free_response_is_guarded(self):
         cfg = tlon_api.TlonConfig.from_env(
             env={

@@ -929,6 +929,12 @@ class TlonAdapter(BasePlatformAdapter):
             return
         original = self._original_message_payload(message)
         original["messageText"] = clean_text
+        if normalize_ship(message.user_id) in self._known_bot_ships:
+            # The triggering message may carry a plain-string author even
+            # though the ship was already learned as a bot, and the learned
+            # set is lost on restart — persist the status so a post-restart
+            # replay still counts against the loop cap.
+            original["authorIsBot"] = True
         await self._queue_approval(
             approval_kind="channel",
             requesting_ship=message.user_id,
