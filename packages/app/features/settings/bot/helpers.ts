@@ -468,22 +468,20 @@ export const buildConfigFromChatValues = (
   };
 };
 
-// Run ordered apply steps, advancing a committed snapshot after each success
-// and pushing it via onCommit. If a step throws, the snapshots from earlier
-// steps stay committed and the error propagates — so a mid-sequence failure
-// (e.g. the nickname saves but the model write 400s) leaves only the unwritten
-// sections pending, instead of re-reporting (and needlessly re-writing) work
-// that already landed on the server.
+// Run ordered apply steps, committing each section's patch as soon as its write
+// lands. If a step throws, the earlier steps stay committed and the error
+// propagates — so a mid-sequence failure (e.g. the nickname saves but the model
+// write 400s) leaves only the unwritten sections pending, without re-reporting
+// (or needlessly re-writing) work that already landed on the server. onCommit
+// receives just that section's patch so the caller can advance the baseline
+// while preserving the still-unsaved sections' edits.
 export async function runApplySteps<T>(
-  initial: T,
   steps: { run: () => Promise<void>; commit: Partial<T> }[],
-  onCommit: (snapshot: T) => void
+  onCommit: (patch: Partial<T>) => void
 ): Promise<void> {
-  let committed = initial;
   for (const step of steps) {
     await step.run();
-    committed = { ...committed, ...step.commit };
-    onCommit(committed);
+    onCommit(step.commit);
   }
 }
 

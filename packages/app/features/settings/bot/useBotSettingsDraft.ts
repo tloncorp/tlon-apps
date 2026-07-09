@@ -90,7 +90,7 @@ interface BotSettingsDraftStore {
     updater: (draft: BotSettingsDraftValues) => BotSettingsDraftValues
   ) => void;
   discardChanges: () => void;
-  markApplied: (values?: BotSettingsDraftValues) => void;
+  commitSection: (patch: Partial<BotSettingsDraftValues>) => void;
 }
 
 // Draft state lives in a module-level store because the bot settings flow
@@ -136,10 +136,16 @@ export const useBotSettingsDraftStore = create<BotSettingsDraftStore>(
       const current = get();
       set({ draft: clone(current.baseline) });
     },
-    markApplied: (values) => {
+    // Advance the baseline for a section that just saved, and normalize that
+    // section of the draft to match (e.g. a trimmed nickname). Only the patched
+    // section is touched — a partial apply where a later section fails leaves
+    // the still-unsaved sections' edits in the draft so the user can retry.
+    commitSection: (patch) => {
       const current = get();
-      const nextBaseline = clone(values ?? current.draft);
-      set({ baseline: nextBaseline, draft: clone(nextBaseline) });
+      set({
+        baseline: clone({ ...current.baseline, ...patch }),
+        draft: clone({ ...current.draft, ...patch }),
+      });
     },
   })
 );
@@ -512,7 +518,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         steps.push({ run: chatConfigStep, commit: { chat: nextValues.chat } });
       }
 
-      await runApplySteps(draft.baseline, steps, draft.markApplied);
+      await runApplySteps(steps, draft.commitSection);
       // The gateway restarts after a chat-config save; refresh readiness so
       // the status badge reflects it.
       queries.readyQuery.refetch();

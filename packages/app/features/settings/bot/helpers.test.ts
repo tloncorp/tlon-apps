@@ -603,13 +603,11 @@ describe('mergeChannelRules', () => {
 
 describe('runApplySteps', () => {
   type Snap = { nickname: string; model: string; chat: string };
-  const initial: Snap = { nickname: 'old', model: 'old', chat: 'old' };
 
-  it('runs steps in order and commits a cumulative snapshot after each success', async () => {
+  it('runs steps in order and emits each section patch after its success', async () => {
     const order: string[] = [];
-    const commits: Snap[] = [];
-    await runApplySteps(
-      initial,
+    const patches: Partial<Snap>[] = [];
+    await runApplySteps<Snap>(
       [
         {
           run: async () => {
@@ -624,21 +622,17 @@ describe('runApplySteps', () => {
           commit: { model: 'new' },
         },
       ],
-      (snap) => commits.push({ ...snap })
+      (patch) => patches.push(patch)
     );
     expect(order).toEqual(['nickname', 'model']);
-    expect(commits).toEqual([
-      { nickname: 'new', model: 'old', chat: 'old' },
-      { nickname: 'new', model: 'new', chat: 'old' },
-    ]);
+    expect(patches).toEqual([{ nickname: 'new' }, { model: 'new' }]);
   });
 
-  it('commits only the steps that succeeded before a failure, then rethrows', async () => {
-    const commits: Snap[] = [];
+  it('emits only the patches for steps that succeeded before a failure, then rethrows', async () => {
+    const patches: Partial<Snap>[] = [];
     const laterRun = vi.fn();
     await expect(
-      runApplySteps(
-        initial,
+      runApplySteps<Snap>(
         [
           { run: async () => {}, commit: { nickname: 'new' } },
           {
@@ -649,19 +643,51 @@ describe('runApplySteps', () => {
           },
           { run: laterRun, commit: { chat: 'new' } },
         ],
-        (snap) => commits.push({ ...snap })
+        (patch) => patches.push(patch)
       )
     ).rejects.toThrow('boom');
-    // Only the first step advanced the snapshot; the failing step and the one
-    // after it never committed, and the later step never ran.
-    expect(commits).toEqual([{ nickname: 'new', model: 'old', chat: 'old' }]);
+    // Only the first step committed; the failing step and the one after it did
+    // not, and the later step never ran.
+    expect(patches).toEqual([{ nickname: 'new' }]);
     expect(laterRun).not.toHaveBeenCalled();
   });
 
   it('does nothing for an empty step list', async () => {
     const onCommit = vi.fn();
-    await runApplySteps(initial, [], onCommit);
+    await runApplySteps<Snap>([], onCommit);
     expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('preserves unsaved sections when a later step fails (section patches merged into baseline+draft)', async () => {
+    // Mirror the store's commitSection: merge each patch into both baseline and
+    // draft. After a partial failure the unsaved sections must keep their draft
+    // edits (so the user can retry) while the saved section is no longer dirty.
+    let baseline: Snap = { nickname: 'old', model: 'old', chat: 'old' };
+    let draft: Snap = { nickname: 'new-nick', model: 'new-model', chat: 'old' };
+    const commitSection = (patch: Partial<Snap>) => {
+      baseline = { ...baseline, ...patch };
+      draft = { ...draft, ...patch };
+    };
+    await expect(
+      runApplySteps<Snap>(
+        [
+          { run: async () => {}, commit: { nickname: 'new-nick' } },
+          {
+            run: async () => {
+              throw new Error('model save failed');
+            },
+            commit: { model: 'new-model' },
+          },
+        ],
+        commitSection
+      )
+    ).rejects.toThrow('model save failed');
+    // nickname saved -> no longer pending
+    expect(baseline.nickname).toBe('new-nick');
+    expect(draft.nickname).toBe('new-nick');
+    // model failed -> still pending AND still retryable (edit preserved)
+    expect(baseline.model).toBe('old');
+    expect(draft.model).toBe('new-model');
   });
 });
 
