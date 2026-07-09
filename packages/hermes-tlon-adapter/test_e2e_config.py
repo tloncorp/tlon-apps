@@ -58,3 +58,24 @@ class HermesE2EConfigTests(unittest.TestCase):
         self.assertEqual(config["tlon"]["known_bot_users"], "~mug")
         self.assertEqual(config["tlon"]["max_consecutive_bot_responses"], 2)
         self.assertEqual(config["platforms"]["tlon"]["home_channel"]["chat_id"], "~ten")
+
+    def test_loop_cap_default_is_three(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            write_config.write_config(
+                home,
+                {
+                    "HERMES_HOME": str(home),
+                    "TERMINAL_CWD": str(home),
+                    "TLON_HOME_CHANNEL": "~ten",
+                    "HERMES_MODEL_PROVIDER": "custom",
+                    "HERMES_MODEL": "tlon-test-scripted",
+                    "HERMES_MODEL_BASE_URL": "http://fake-model:4000/v1",
+                    "HERMES_MODEL_API_KEY": "no-key-required",
+                    "HERMES_MODEL_API_MODE": "chat_completions",
+                },
+            )
+
+            config = read_config(home / "config.yaml")
+
+        self.assertEqual(config["tlon"]["max_consecutive_bot_responses"], 3)

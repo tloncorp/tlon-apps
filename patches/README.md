@@ -296,3 +296,48 @@ Removal:
 Remove this hunk once [expo/expo#47432](https://github.com/expo/expo/pull/47432)
 (or an equivalent converter fix in `expo-modules-core`) ships in the Expo SDK
 version we're on.
+
+## @mattermost/react-native-paste-input@2.0.1
+
+Local patch:
+`patches/@mattermost__react-native-paste-input@2.0.1.patch`
+
+### iOS paste never registers under Expo bridgeless
+
+Why:
+On iOS with the New Architecture (bridgeless), the library's paste interception
+silently never installs, so pasting an image into a `PasteInput` does nothing —
+`onPaste` never fires and no "Paste" option appears for image-only clipboard
+contents. `PasteInputModule` captures `reactHost` once in `+setup:`, but the
+base `RCTRootViewFactory` creates the `RCTHost` lazily on the first surface
+mount, which under Expo happens after our `AppDelegate` calls
+`PasteInputModule.setup(factory.rootViewFactory)`. So `reactHost` is nil when
+setup captures it, the Fabric surface presenter can't be resolved, the backing
+`UITextView` is never found, and the `paste:`/`canPerformAction:` swizzle is
+never applied.
+
+What it does:
+Keeps the `rootViewFactory` and re-reads `reactHost` from it lazily in
+`getSurfacePresenter` — by the time a `PasteInput` mounts, the host exists.
+No-op on setups where `reactHost` is already populated at setup time.
+
+Upstream:
+- fix submitted: [mattermost/react-native-paste-input#56](https://github.com/mattermost/react-native-paste-input/pull/56)
+
+Validation:
+- Rebuild the iOS app so the native patch is compiled in
+- Focus a chat composer, put an image on the pasteboard (e.g.
+  `xcrun simctl pbsync host <udid>` with a PNG on the Mac clipboard), and paste:
+  the image attaches (previously nothing happened and no "Paste" option showed)
+
+Removal:
+Remove once [mattermost/react-native-paste-input#56](https://github.com/mattermost/react-native-paste-input/pull/56)
+(or an equivalent host-resolution fix) ships in a released version we depend on.
+
+Note:
+This carries only the iOS native fix. `findNodeHandle` (upstream
+[#55](https://github.com/mattermost/react-native-paste-input/pull/55)) is
+intentionally NOT included — on RN 0.85 the input's `__nativeTag` is populated,
+so that change is unnecessary here and the lazy-host fix alone restores paste.
+Android image paste is a separate, still-open limitation (the context-menu path
+only reads `item.uri`) and is not patched here.
