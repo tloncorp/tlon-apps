@@ -14,6 +14,7 @@ import {
   haveChannelModelEntriesChanged,
   mergeChannelRules,
   normalizeChannelRuleKey,
+  runApplySteps,
   toChatFormValues,
 } from './helpers';
 import {
@@ -313,37 +314,60 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         return freshProviderConfig;
       };
 
+      // Each section commits to the baseline as soon as its write lands (see
+      // runApplySteps), so a mid-sequence failure leaves only the unwritten
+      // sections pending instead of re-reporting (and re-writing) work that
+      // already succeeded.
+      const steps: {
+        run: () => Promise<void>;
+        commit: Partial<BotSettingsDraftValues>;
+      }[] = [];
+
       if (draft.pending.nickname) {
-        await mutations.updateNickname.mutateAsync(nextValues.nickname.trim());
+        const nickname = nextValues.nickname.trim();
+        steps.push({
+          run: async () => {
+            await mutations.updateNickname.mutateAsync(nickname);
+          },
+          commit: { nickname },
+        });
       }
       if (
         draft.pending.modelProvider ||
         draft.pending.model ||
         draft.pending.fallbacks
       ) {
-        // Merge against the latest server model config so editing only the
-        // primary model (or only the fallbacks) doesn't write the other's stale
-        // value back and clobber a concurrent change.
-        const serverModel = getModelFormValues(await getFreshProviderConfig());
-        const primaryDirty = draft.pending.modelProvider || draft.pending.model;
-        await mutations.savePrimaryModel.mutateAsync({
-          provider: primaryDirty
-            ? nextValues.model.provider
-            : serverModel.provider,
-          model: primaryDirty ? nextValues.model.model : serverModel.model,
-          fallbacks: draft.pending.fallbacks
-            ? nextValues.model.fallbacks
-            : serverModel.fallbacks,
+        steps.push({
+          // Merge against the latest server model config so editing only the
+          // primary model (or only the fallbacks) doesn't write the other's
+          // stale value back and clobber a concurrent change.
+          run: async () => {
+            const serverModel = getModelFormValues(
+              await getFreshProviderConfig()
+            );
+            const primaryDirty =
+              draft.pending.modelProvider || draft.pending.model;
+            await mutations.savePrimaryModel.mutateAsync({
+              provider: primaryDirty
+                ? nextValues.model.provider
+                : serverModel.provider,
+              model: primaryDirty ? nextValues.model.model : serverModel.model,
+              fallbacks: draft.pending.fallbacks
+                ? nextValues.model.fallbacks
+                : serverModel.fallbacks,
+            });
+          },
+          commit: { model: nextValues.model },
         });
       }
-      if (
+      const chatConfigDirty =
         draft.pending.dmAllowlist ||
         draft.pending.defaultAuthorizedShips ||
         draft.pending.groupInviteAllowlist ||
         draft.pending.autoAcceptDmInvites ||
         draft.pending.autoDiscoverChannels ||
-        draft.pending.channelRules
-      ) {
+        draft.pending.channelRules;
+      const chatConfigStep = async () => {
         const channelModelsChanged = haveChannelModelEntriesChanged(
           draft.baseline.chat.channelRuleDrafts,
           nextValues.chat.channelRuleDrafts
@@ -483,11 +507,12 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           result.config
         );
         mutations.setProviderConfig(result.providerConfig);
+      };
+      if (chatConfigDirty) {
+        steps.push({ run: chatConfigStep, commit: { chat: nextValues.chat } });
       }
-      draft.markApplied({
-        ...nextValues,
-        nickname: nextValues.nickname.trim(),
-      });
+
+      await runApplySteps(draft.baseline, steps, draft.markApplied);
       // The gateway restarts after a chat-config save; refresh readiness so
       // the status badge reflects it.
       queries.readyQuery.refetch();

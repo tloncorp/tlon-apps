@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildChannelModelEntries,
@@ -19,6 +19,7 @@ import {
   normalizeTlonbotConfig,
   parseChannelRuleKey,
   resolveGroupFull,
+  runApplySteps,
   safeKeySummary,
   toBackendModel,
   toDisplayProviderId,
@@ -597,6 +598,70 @@ describe('mergeChannelRules', () => {
     expect(merged).toEqual({
       'chat/~zod/general': { mode: 'open', allowedShips: [] },
     });
+  });
+});
+
+describe('runApplySteps', () => {
+  type Snap = { nickname: string; model: string; chat: string };
+  const initial: Snap = { nickname: 'old', model: 'old', chat: 'old' };
+
+  it('runs steps in order and commits a cumulative snapshot after each success', async () => {
+    const order: string[] = [];
+    const commits: Snap[] = [];
+    await runApplySteps(
+      initial,
+      [
+        {
+          run: async () => {
+            order.push('nickname');
+          },
+          commit: { nickname: 'new' },
+        },
+        {
+          run: async () => {
+            order.push('model');
+          },
+          commit: { model: 'new' },
+        },
+      ],
+      (snap) => commits.push({ ...snap })
+    );
+    expect(order).toEqual(['nickname', 'model']);
+    expect(commits).toEqual([
+      { nickname: 'new', model: 'old', chat: 'old' },
+      { nickname: 'new', model: 'new', chat: 'old' },
+    ]);
+  });
+
+  it('commits only the steps that succeeded before a failure, then rethrows', async () => {
+    const commits: Snap[] = [];
+    const laterRun = vi.fn();
+    await expect(
+      runApplySteps(
+        initial,
+        [
+          { run: async () => {}, commit: { nickname: 'new' } },
+          {
+            run: async () => {
+              throw new Error('boom');
+            },
+            commit: { model: 'new' },
+          },
+          { run: laterRun, commit: { chat: 'new' } },
+        ],
+        (snap) => commits.push({ ...snap })
+      )
+    ).rejects.toThrow('boom');
+    // Only the first step advanced the snapshot; the failing step and the one
+    // after it never committed, and the later step never ran.
+    expect(commits).toEqual([{ nickname: 'new', model: 'old', chat: 'old' }]);
+    expect(laterRun).not.toHaveBeenCalled();
+  });
+
+  it('does nothing for an empty step list', async () => {
+    const onCommit = vi.fn();
+    await runApplySteps(initial, [], onCommit);
+    expect(onCommit).not.toHaveBeenCalled();
   });
 });
 

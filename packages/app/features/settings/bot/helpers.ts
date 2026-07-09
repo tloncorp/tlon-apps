@@ -468,6 +468,25 @@ export const buildConfigFromChatValues = (
   };
 };
 
+// Run ordered apply steps, advancing a committed snapshot after each success
+// and pushing it via onCommit. If a step throws, the snapshots from earlier
+// steps stay committed and the error propagates — so a mid-sequence failure
+// (e.g. the nickname saves but the model write 400s) leaves only the unwritten
+// sections pending, instead of re-reporting (and needlessly re-writing) work
+// that already landed on the server.
+export async function runApplySteps<T>(
+  initial: T,
+  steps: { run: () => Promise<void>; commit: Partial<T> }[],
+  onCommit: (snapshot: T) => void
+): Promise<void> {
+  let committed = initial;
+  for (const step of steps) {
+    await step.run();
+    committed = { ...committed, ...step.commit };
+    onCommit(committed);
+  }
+}
+
 type ChannelRulesMap = TlawnConfig['channelRules'];
 
 // Rebuild the full channelRules map to send under the backend's replace
