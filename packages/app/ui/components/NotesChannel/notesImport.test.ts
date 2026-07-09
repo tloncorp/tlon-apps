@@ -87,7 +87,11 @@ type FakeWebPickerInput = {
   attributes: Record<string, string>;
   click: () => void;
   files:
-    | { name: string; webkitRelativePath?: string; text: () => Promise<string> }[]
+    | {
+        name: string;
+        webkitRelativePath?: string;
+        text: () => Promise<string>;
+      }[]
     | null;
   multiple: boolean;
   onchange: (() => void) | null;
