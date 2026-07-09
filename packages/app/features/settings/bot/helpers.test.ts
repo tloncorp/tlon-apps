@@ -533,6 +533,40 @@ describe('mergeChannelRules', () => {
     expect(merged).toEqual(serverRules);
   });
 
+  it('preserves a draft-monitored channel the server base lacks, even when not dirty', () => {
+    // e.g. a groupChannels-only entry buildChannelRuleDrafts materialized: it's
+    // in nextRules but not in server.channelRules and the user never touched it.
+    // Saving an unrelated setting must not drop it from the monitored set.
+    const serverRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+    };
+    const nextRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+      'chat/~zod/monitored': {
+        mode: 'allowlist' as const,
+        allowedShips: ['~bus'],
+      },
+    };
+    const merged = mergeChannelRules(serverRules, nextRules, []);
+    expect(merged).toEqual({
+      'chat/~zod/one': { mode: 'open', allowedShips: [] },
+      'chat/~zod/monitored': { mode: 'allowlist', allowedShips: ['~bus'] },
+    });
+  });
+
+  it('does not overwrite a concurrent server value for an untouched channel', () => {
+    // server has a newer value (another client edited it); the draft's stale
+    // copy must not clobber it when the user didn't touch that channel.
+    const serverRules = {
+      'chat/~zod/one': { mode: 'allowlist' as const, allowedShips: ['~new'] },
+    };
+    const nextRules = {
+      'chat/~zod/one': { mode: 'allowlist' as const, allowedShips: ['~stale'] },
+    };
+    const merged = mergeChannelRules(serverRules, nextRules, []);
+    expect(merged['chat/~zod/one'].allowedShips).toEqual(['~new']);
+  });
+
   it('keeps an explicit block-all rule (allowlist with empty allowedShips)', () => {
     const serverRules = {
       'chat/~zod/blocked': { mode: 'allowlist' as const, allowedShips: [] },

@@ -492,12 +492,15 @@ export async function runApplySteps<T>(
 type ChannelRulesMap = TlawnConfig['channelRules'];
 
 // Rebuild the full channelRules map to send under Solaris's replacement
-// semantics: start from the latest server rules, then overlay the user's dirty
-// per-channel edits (a key mapped to `undefined` in nextRules is a delete).
-// Every retained rule is monitored (Solaris derives groupChannels from these
-// keys), so no rule is dropped. Server keys are normalized (legacy zod/general)
-// so a dirty-key update/delete hits the same entry rather than leaving a stale
-// duplicate behind.
+// semantics. Start from the latest server rules (preserving channels another
+// client added concurrently), then ensure every channel the draft still
+// monitors is present — a monitored channel the server dropped from
+// channelRules (e.g. a groupChannels-only entry that buildChannelRuleDrafts
+// materialized) must not be lost just because the user didn't touch it. Finally
+// overlay the user's dirty per-channel edits (a key mapped to `undefined` in
+// nextRules is a delete). Server keys are normalized (legacy zod/general) so a
+// dirty-key update/delete hits the same entry rather than leaving a stale
+// duplicate.
 export const mergeChannelRules = (
   serverRules: ChannelRulesMap | undefined,
   nextRules: ChannelRulesMap,
@@ -506,6 +509,13 @@ export const mergeChannelRules = (
   const merged: ChannelRulesMap = {};
   Object.entries(serverRules ?? {}).forEach(([key, serverRule]) => {
     merged[normalizeChannelRuleKey(key)] = serverRule;
+  });
+  // Fill in monitored channels the draft has but the server base lacks, without
+  // overwriting a concurrent server value the user didn't touch.
+  Object.entries(nextRules).forEach(([key, rule]) => {
+    if (merged[key] === undefined) {
+      merged[key] = rule;
+    }
   });
   dirtyRuleKeys.forEach((key) => {
     if (nextRules[key] !== undefined) {

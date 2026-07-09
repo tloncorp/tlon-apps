@@ -239,6 +239,15 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
       configQuery.isSuccess &&
       nicknameQuery.isSuccess
   );
+  // syncServerValues drops a fresh server snapshot while the user has local
+  // edits (so a refetch can't clobber them). If that snapshot changed an
+  // untouched section and the user then discards/applies their edit, the query
+  // data won't change again, so the effect wouldn't re-run and the baseline
+  // would stay stale. Re-run when local edits clear so the latest server values
+  // are adopted.
+  const hasLocalChanges = useBotSettingsDraftStore(
+    (state) => state.initialized && !valuesEqual(state.baseline, state.draft)
+  );
 
   useEffect(() => {
     if (!ready) return;
@@ -254,6 +263,7 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
     providerConfig,
     configQuery.data,
     nicknameQuery.data,
+    hasLocalChanges,
   ]);
 
   return ready;
