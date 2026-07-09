@@ -179,14 +179,16 @@ describe('tlonbot config', () => {
       },
     });
     expect(config.dmAllowlist).toEqual([]);
-    expect(config.channelRules['chat/~zod/general'].mode).toBe('restricted');
+    // a legacy `restricted` value canonicalizes to `allowlist` (the backend's
+    // real vocabulary), never silently to `open`
+    expect(config.channelRules['chat/~zod/general'].mode).toBe('allowlist');
     expect(config.channelRules['chat/~zod/general'].allowedShips).toEqual([
       '~nec',
     ]);
     expect(config.channelRules['chat/~zod/random'].mode).toBe('open');
-    // anything that isn't an explicit `open` stays restricted, so a rule never
-    // silently loses its allowlist on round-trip
-    expect(config.channelRules['chat/~zod/unknown'].mode).toBe('restricted');
+    // anything that isn't an explicit `open` becomes `allowlist`, so a rule
+    // never silently loses its allowlist on round-trip
+    expect(config.channelRules['chat/~zod/unknown'].mode).toBe('allowlist');
     // an explicit empty allowlist is preserved (block-all), not widened
     expect(config.channelRules['chat/~zod/unknown'].allowedShips).toEqual([]);
     // an omitted allowedShips is preserved as omitted (inherits defaults), not
@@ -202,9 +204,10 @@ describe('tlonbot config', () => {
       normalizeTlonbotConfig({
         defaultAuthorizedShips: ['~bus'],
         channelRules: {
+          // legacy `restricted` values still read as an allowlist
           'zod/general': { mode: 'restricted', allowedShips: ['nec'] },
-          // explicit restricted rule with omitted allowedShips -> inherited
-          'zod/inherited': { mode: 'restricted' } as {
+          // a rule with omitted allowedShips -> inherited
+          'zod/inherited': { mode: 'allowlist' } as {
             mode: string;
             allowedShips: string[];
           },
@@ -229,14 +232,14 @@ describe('tlonbot config', () => {
       modelOverrideProvider: 'basic',
       modelOverride: 'some/model',
     });
-    // a group channel with no explicit rule defaults to restricted with the
+    // a group channel with no explicit rule defaults to an allowlist with the
     // default authorized ships (flagged inherited), not an open channel
     expect(drafts['chat/~zod/random']).toEqual({
       mode: 'allowlist',
       allowedShips: '~bus',
       inheritsDefaultShips: true,
     });
-    // an explicit restricted rule that omits allowedShips is also inherited
+    // a rule that omits allowedShips is also inherited
     expect(drafts['chat/~zod/inherited']).toEqual({
       mode: 'allowlist',
       allowedShips: '~bus',
@@ -252,7 +255,7 @@ describe('tlonbot config', () => {
       autoAcceptDmInvites: false,
       autoDiscoverChannels: false,
       channelRuleDrafts: {
-        // inherited: no channelRules entry (the backend infers restricted +
+        // inherited: no channelRules entry (the backend infers allowlist +
         // defaultAuthorizedShips from groupChannels), but still monitored
         'chat/~zod/general': {
           mode: 'allowlist',
@@ -272,7 +275,7 @@ describe('tlonbot config', () => {
     expect(config.groupChannels).toContain('chat/~zod/general');
     // explicit channel: a rule with an allowedShips list
     expect(config.channelRules['chat/~zod/private']).toEqual({
-      mode: 'restricted',
+      mode: 'allowlist',
       allowedShips: ['~mel'],
     });
     expect(config.groupChannels).toContain('chat/~zod/private');
@@ -291,9 +294,9 @@ describe('tlonbot config', () => {
       },
     });
     expect(config.dmAllowlist).toEqual(['~zod', '~nec']);
-    // the `allowlist` draft mode is written back as the backend's `restricted`
+    // the `allowlist` draft mode is written back as the backend's `allowlist`
     expect(config.channelRules['chat/~zod/general']).toEqual({
-      mode: 'restricted',
+      mode: 'allowlist',
       allowedShips: ['~nec', '~bus'],
     });
     // open channels drop their allowlists

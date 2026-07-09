@@ -239,16 +239,17 @@ export const getModelFormValues = (
 
 // --- tlonbot config utilities ---
 
-// The backend stores channel authorization as `restricted | open` and treats a
-// missing mode as restricted. The settings UI models the restricted state as an
-// `allowlist` draft. Translate between the two vocabularies so that reading a
-// restricted rule never presents (and then saves) it as open, silently dropping
-// the restriction.
+// Solaris stores channel authorization as `allowlist | open` and normalizes any
+// other mode value to `open` — dropping the restriction (see
+// normalizeChannelRules in ylem's Solaris/API/Tlawn.hs). So the wire vocabulary
+// is `allowlist | open`, matching the UI's own draft modes: toBackendMode is a
+// straight pass-through, kept as the single wire-mode boundary. toDraftMode
+// stays tolerant of anything that isn't `open` (legacy `restricted`, unknown
+// values) so an old config reads as an allowlist rather than silently as open.
 export const toDraftMode = (mode: string | undefined): 'open' | 'allowlist' =>
   mode === 'open' ? 'open' : 'allowlist';
 
-export const toBackendMode = (mode: 'open' | 'allowlist'): string =>
-  mode === 'allowlist' ? 'restricted' : 'open';
+export const toBackendMode = (mode: 'open' | 'allowlist'): string => mode;
 
 export const normalizeTlonbotConfig = (
   raw: Partial<TlawnConfig> | null | undefined
@@ -261,10 +262,10 @@ export const normalizeTlonbotConfig = (
       Object.entries(raw?.channelRules ?? {}).map(([key, rule]) => {
         const mode = toBackendMode(toDraftMode(rule?.mode));
         // Preserve an omitted allowedShips (undefined) rather than materializing
-        // it: the backend treats a restricted rule without allowedShips as
-        // inheriting defaultAuthorizedShips, and buildChannelRuleDrafts needs
-        // that distinction to keep the rule following the defaults. An explicit
-        // [] (block-all) is kept as-is.
+        // it: an allowlist rule without allowedShips inherits
+        // defaultAuthorizedShips, and buildChannelRuleDrafts needs that
+        // distinction to keep the rule following the defaults. An explicit []
+        // (block-all) is kept as-is.
         return [key, { mode, allowedShips: rule?.allowedShips }];
       })
     ),
@@ -275,7 +276,7 @@ export const normalizeTlonbotConfig = (
   };
 };
 
-// A restricted channel that follows defaultAuthorizedShips. The allowlist is
+// An allowlist channel that follows defaultAuthorizedShips. The allowlist is
 // prefilled for display, but the flag makes the save path omit allowedShips so
 // the channel keeps inheriting the (current and future) defaults.
 const inheritedDraft = (
@@ -292,11 +293,11 @@ export const buildChannelRuleDrafts = (
 ): Record<string, ChannelRuleDraft> => {
   const drafts: Record<string, ChannelRuleDraft> = {};
   Object.entries(config.channelRules || {}).forEach(([key, rule]) => {
-    // A restricted rule with no explicit allowedShips inherits
+    // An allowlist rule with no explicit allowedShips inherits
     // defaultAuthorizedShips on the backend; flag it so a save keeps it
     // following the defaults instead of freezing the current list.
     drafts[normalizeChannelRuleKey(key)] =
-      rule.mode === 'restricted' && rule.allowedShips === undefined
+      rule.mode === 'allowlist' && rule.allowedShips === undefined
         ? inheritedDraft(config.defaultAuthorizedShips)
         : {
             mode: toDraftMode(rule.mode),
@@ -306,7 +307,7 @@ export const buildChannelRuleDrafts = (
   (config.groupChannels || []).forEach((key) => {
     const channelKey = normalizeChannelRuleKey(key);
     if (!drafts[channelKey]) {
-      // No explicit rule at all — same inherited-restricted default.
+      // No explicit rule at all — same inherited-allowlist default.
       drafts[channelKey] = inheritedDraft(config.defaultAuthorizedShips);
     }
   });
@@ -427,7 +428,7 @@ export const haveChannelModelEntriesChanged = (
 export const buildConfigFromChatValues = (
   values: ChatFormValues
 ): TlawnConfig => {
-  // Inherited channels carry no explicit rule: the backend infers restricted +
+  // Inherited channels carry no explicit rule: the backend infers allowlist +
   // defaultAuthorizedShips from their mere presence in groupChannels. We must
   // NOT emit a channelRules entry for them — the config schema requires
   // allowedShips on every rule (so an omitted list fails validation), and an
