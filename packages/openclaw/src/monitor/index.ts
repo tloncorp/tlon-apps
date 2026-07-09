@@ -151,6 +151,7 @@ import {
   extractMessageText,
   formatModelName,
   isBotMentioned,
+  isChannelRestricted,
   isDmAllowed,
   isOwnerListenSlashCommand,
   isSummarizationRequest,
@@ -236,7 +237,10 @@ export type MonitorTlonOpts = {
 };
 
 type ChannelAuthorization = {
-  mode?: 'restricted' | 'open';
+  // "allowlist" is what the app saves (and Solaris stores); "restricted" is the
+  // legacy value still written by the approval flow. Both gate senders; only
+  // "open" is unrestricted. See isChannelRestricted.
+  mode?: 'restricted' | 'allowlist' | 'open';
   allowedShips?: string[];
 };
 
@@ -333,7 +337,7 @@ function resolveChannelAuthorization(
   cfg: OpenClawConfig,
   channelNest: string,
   settings?: TlonSettingsStore
-): { mode: 'restricted' | 'open'; allowedShips: string[] } {
+): { mode: 'restricted' | 'allowlist' | 'open'; allowedShips: string[] } {
   const tlonConfig = cfg.channels?.tlon as
     | {
         authorization?: { channelRules?: Record<string, ChannelAuthorization> };
@@ -1482,7 +1486,7 @@ export async function monitorTlonProvider(
       const normalizedShip = normalizeShip(ship);
       const channelRules = currentSettings.channelRules ?? {};
       const rule = channelRules[channelNest] ?? {
-        mode: 'restricted',
+        mode: 'allowlist',
         allowedShips: [],
       };
       const allowedShips = [...(rule.allowedShips ?? [])]; // Clone to avoid mutation
@@ -3590,7 +3594,7 @@ export async function monitorTlonProvider(
             nest,
             currentSettings
           );
-          if (mode === 'restricted') {
+          if (isChannelRestricted(mode)) {
             const normalizedAllowed = allowedShips.map(normalizeShip);
             if (!normalizedAllowed.includes(senderShip)) {
               // If owner is configured, queue approval request

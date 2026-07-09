@@ -49,7 +49,7 @@ export type TlonSettingsStore = {
   channelRules?: Record<
     string,
     {
-      mode?: 'restricted' | 'open';
+      mode?: 'restricted' | 'allowlist' | 'open';
       allowedShips?: string[];
     }
   >;
@@ -230,7 +230,10 @@ function formatSettingsUpdateValueForLog(key: string, value: unknown): string {
 function parseChannelRules(
   value: unknown
 ):
-  | Record<string, { mode?: 'restricted' | 'open'; allowedShips?: string[] }>
+  | Record<
+      string,
+      { mode?: 'restricted' | 'allowlist' | 'open'; allowedShips?: string[] }
+    >
   | undefined {
   if (!value) {
     return undefined;
@@ -407,7 +410,7 @@ function isChannelRulesObject(
   val: unknown
 ): val is Record<
   string,
-  { mode?: 'restricted' | 'open'; allowedShips?: string[] }
+  { mode?: 'restricted' | 'allowlist' | 'open'; allowedShips?: string[] }
 > {
   if (!val || typeof val !== 'object' || Array.isArray(val)) {
     return false;
