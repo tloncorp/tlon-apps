@@ -12,7 +12,6 @@ import { useCallback, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import {
-  BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
   BASIC_PROVIDER_MODEL,
   EMPTY_PROVIDER_CONFIG,
@@ -25,7 +24,7 @@ import {
   normalizeMoonName,
   normalizeProviderConfig,
   normalizeTlonbotConfig,
-  toBackendProviderId,
+  toBackendModel,
 } from './helpers';
 
 /**
@@ -308,24 +307,16 @@ export function useBotSettingsMutations() {
           'Select both a provider and a model for each fallback, or remove it.'
         );
       }
-      // The form works in display provider ids, where "basic" aliases the
-      // shared openrouter default key; translate back to backend ids so the
-      // hosting API never receives the display-only value. Basic has no model
-      // picker (and applyChanges skips the empty-model guard for it), so pin its
-      // model to the fixed default rather than persisting whatever empty/stale
-      // value the form happened to carry under openrouter.
-      const backendModel = (provider: string, model: string) =>
-        provider === BASIC_PROVIDER_ID ? BASIC_DEFAULT_MODEL : model;
+      // toBackendModel persists "basic" as its own provider (Basic has no model
+      // picker, so it pins the fixed default) and passes real providers through
+      // unchanged. applyChanges skips the empty-model guard for Basic, so this
+      // is also what prevents a provider-only switch to Basic from persisting an
+      // empty/stale model.
       return api.setTlawnPrimaryModel(hostingUserId, {
-        provider: toBackendProviderId(update.provider),
-        model: backendModel(update.provider, update.model),
+        ...toBackendModel(update.provider, update.model),
         fallbacks: update.fallbacks
           .filter((fallback) => fallback.provider && fallback.model)
-          .map((fallback) => ({
-            ...fallback,
-            provider: toBackendProviderId(fallback.provider),
-            model: backendModel(fallback.provider, fallback.model),
-          })),
+          .map((fallback) => toBackendModel(fallback.provider, fallback.model)),
       });
     },
     onSuccess: setProviderConfig,
