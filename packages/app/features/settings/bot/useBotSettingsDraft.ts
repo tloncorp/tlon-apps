@@ -446,11 +446,24 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
           baselineDrafts,
           nextDrafts
         );
+        const hasMonitoringToggle = allChannelKeys.some(monitoringToggled);
+
+        // Fresh provider config is needed to (a) merge overrides for channels
+        // this draft didn't touch and (b) detect a server-side override on a
+        // channel the user just toggled (another client may have added it after
+        // we hydrated). Both need up-to-date data, so refetch when either
+        // applies — deciding the hidden-override case from the stale cache could
+        // miss a newly-added override and leave it hidden.
+        const providerConfigForMerge =
+          channelModelsChanged || hasMonitoringToggle
+            ? await getFreshProviderConfig()
+            : queries.providerConfig;
+
         // A monitoring toggle on a channel that has a server-side override must
         // still send channelModels (to clear/reset it) even when no draft
         // override field changed.
         const serverOverrideChannels = new Set(
-          (queries.providerConfig.models ?? []).flatMap((model) =>
+          (providerConfigForMerge.models ?? []).flatMap((model) =>
             (model.channels ?? []).map(normalizeChannelRuleKey)
           )
         );
@@ -460,13 +473,6 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
             serverOverrideChannels.has(normalizeChannelRuleKey(key))
         );
         const sendChannelModels = channelModelsChanged || clearsHiddenOverride;
-
-        // The override merge preserves entries for channels this draft never
-        // touched, so it must run against fresh server data (reused refetch,
-        // aborts on failure).
-        const providerConfigForMerge = sendChannelModels
-          ? await getFreshProviderConfig()
-          : queries.providerConfig;
 
         // The chat-config PUT is replacement-style: Solaris rebuilds the whole
         // config from the body and resets any omitted field to its default (and
