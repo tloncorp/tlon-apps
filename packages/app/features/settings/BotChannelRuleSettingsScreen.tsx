@@ -354,7 +354,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                   }
                   // Restore the just-disabled rule (unsaved edits included), then
                   // the saved rule for an already-configured channel; only a
-                  // genuinely new channel falls back to the restricted default
+                  // genuinely new channel falls back to the default allowlist
                   // that inherits defaultAuthorizedShips.
                   const baselineRule =
                     draft.baseline.chat.channelRuleDrafts[channelKey];
@@ -591,8 +591,8 @@ export function BotChannelRuleSettingsScreen(props: Props) {
               disabled={controlsDisabled}
               onPress={() => {
                 setValidationError(null);
-                // The default is restricted, inheriting defaultAuthorizedShips —
-                // not open. Restore that (and drop any model override) rather
+                // The default is an allowlist inheriting defaultAuthorizedShips
+                // — not open. Restore that (and drop any model override) rather
                 // than widening the channel to every member.
                 setRule({
                   mode: 'allowlist',
