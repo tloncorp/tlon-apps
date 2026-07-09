@@ -76,6 +76,11 @@
   |=  [=mark =vase]
   =/  m  (mare ,(list card))
   ^-  form:m
+  ::  advance eny before the event: %notes synthesizes request-ids from
+  ::  bowl.eny, and the harness (correctly) doesn't touch eny between events,
+  ::  so without this successive pokes in one test would mint the same id.
+  ::  done here rather than in test-agent so the shared harness stays pristine.
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny (shaz eny.bowl))))
   ;<  base-caz=(list card)  bind:m
     %-  do
     |=  s=state
@@ -92,6 +97,9 @@
   |=  [=wire =gill:gall =sign:agent:gall]
   =/  m  (mare ,(list card))
   ^-  form:m
+  ::  advance eny per event (see +do-poke-drain) — on-agent can also mint
+  ::  request-ids (e.g. join-remote responses).
+  ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(eny (shaz eny.bowl))))
   ;<  base-caz=(list card)  bind:m
     %-  do
     |=  s=state
@@ -248,9 +256,6 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~zod)))
-  ::  notes derives request-ids from bowl.eny; advance eny per event so
-  ::  ids don't collide across events (real arvo behaves this way).
-  ;<  ~  bind:m  (set-advance-eny &)
   ;<  *  bind:m  (do-init dap notes-agent)
   (pure:m ~)
 ::  +nb-flag: flag for notebook with title+nid under ship who
