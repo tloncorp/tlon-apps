@@ -52,14 +52,10 @@ export function useNotesImportController({
 
   const importNotesFromSources = useMutableCallback(
     async (
-      sources: NotesImportSource[] | null,
+      sources: NotesImportSource[],
       targetRootFolderId: number,
       importNotebookFlag: string
     ) => {
-      if (!sources) {
-        return;
-      }
-
       const importItems = buildNotesImportItems(sources);
       if (importItems.length === 0) {
         setImportNotice('No markdown or text files found.');
@@ -159,21 +155,31 @@ export function useNotesImportController({
 
       setError(null);
       setImportNotice(null);
-      setIsImportingNotes(true);
       try {
-        await importNotesFromSources(
-          await readSources(),
-          targetRootFolderId,
-          notebookFlag
-        );
+        // Read sources before latching the importing state: an empty
+        // webkitdirectory pick fires neither `change` nor `cancel`, so the
+        // picker promise can stay pending forever and must not leave the
+        // import actions disabled when it does.
+        const sources = await readSources();
+        if (!sources) {
+          return;
+        }
+        setIsImportingNotes(true);
+        try {
+          await importNotesFromSources(
+            sources,
+            targetRootFolderId,
+            notebookFlag
+          );
+        } finally {
+          setIsImportingNotes(false);
+        }
       } catch (e) {
         const message = errorMessage(e, 'Failed to import notes');
         trackNotesActionError('import notes', e, message, {
           targetRootFolderId,
         });
         setError(message);
-      } finally {
-        setIsImportingNotes(false);
       }
     }
   );

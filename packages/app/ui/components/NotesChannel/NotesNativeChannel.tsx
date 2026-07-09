@@ -414,7 +414,10 @@ export function NotesNativeChannel({
     notebookFlag,
     notes,
     rootFolderId,
-    selectedFolderId,
+    // Selection is only visible context in the split layout; on stacked
+    // navigation openFolder leaves it behind as stale state after the user
+    // backs out of the pushed folder screen.
+    selectedFolderId: useDesktopSplit ? selectedFolderId : null,
     setError,
   });
 

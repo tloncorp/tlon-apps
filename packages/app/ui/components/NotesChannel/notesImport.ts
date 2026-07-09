@@ -106,7 +106,9 @@ function selectNotesImportSourcesFromWeb(
     // Dismissal must be detected via the `cancel` event, never via a
     // window-refocus timeout: after a folder pick the browser keeps
     // `input.files` empty until the user accepts its upload-confirmation
-    // dialog, which arrives long after the window regains focus.
+    // dialog, which arrives long after the window regains focus. Chromium
+    // fires neither `change` nor `cancel` for an empty-directory pick, so
+    // this promise may never settle — callers must not gate UI on it.
     input.oncancel = () => settle(null);
     input.onchange = () => {
       const files = Array.from(input.files ?? []);
