@@ -251,7 +251,7 @@ class FakeCLI:
             stdout=self.version_stdout,
         )
 
-    async def send_message(self, chat_id, text):
+    async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
         self.messages.append((chat_id, text))
         return tlon_api.TlonSendResult(
             success=True,
@@ -259,7 +259,7 @@ class FakeCLI:
             message_id="post-id",
         )
 
-    async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+    async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
         self.replies.append((chat_id, post_id, text, parent_author))
         return tlon_api.TlonSendResult(
             success=True,
@@ -291,6 +291,9 @@ class AdapterOwnerListenTests(unittest.TestCase):
         handler = adapter._handle_dm_event if dm else adapter._handle_channel_event
         asyncio.run(handler(raw))
         return events
+
+    def apply_settings_event(self, adapter, event):
+        asyncio.run(adapter._handle_settings_event(event))
 
     # ── owner-listen attention ───────────────────────────────────────────
 
@@ -542,7 +545,7 @@ class AdapterOwnerListenTests(unittest.TestCase):
                 self.replies = []
                 self.instances.append(self)
 
-            async def send_message(self, chat_id, text):
+            async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
                 self.messages.append((chat_id, text))
                 return tlon_api.TlonSendResult(
                     success=True,
@@ -550,7 +553,7 @@ class AdapterOwnerListenTests(unittest.TestCase):
                     message_id="top-id",
                 )
 
-            async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+            async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
                 self.replies.append((chat_id, post_id, text, parent_author))
                 return tlon_api.TlonSendResult(
                     success=True,
@@ -683,6 +686,210 @@ class AdapterOwnerListenTests(unittest.TestCase):
         self.assertTrue(adapter._owner_listen.enabled)
         self.assertEqual(adapter._owner_listen.disabled_channels, {"chat/~pen/general"})
         self.assertEqual(adapter._owner_listen.enabled_channels, set())
+
+    # ── TLON-6090: defaultAuthorizedShips / autoAcceptDmInvites /
+    #    autoDiscoverChannels settings-key parity ─────────────────────────
+
+    def test_settings_load_reads_the_three_new_keys(self):
+        adapter = self.make_adapter({})
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {
+                    "all": {
+                        "moltbot": {
+                            "tlon": {
+                                "defaultAuthorizedShips": ["~ten", "~bus"],
+                                "autoAcceptDmInvites": True,
+                                "autoDiscoverChannels": True,
+                            }
+                        }
+                    }
+                }
+            }
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        self.assertEqual(
+            adapter._settings_default_authorized_ships, {"~ten", "~bus"}
+        )
+        self.assertTrue(adapter._auto_accept_dm_invites)
+        self.assertTrue(adapter._auto_discover)
+
+    def test_settings_load_absent_keys_keep_seeded_defaults(self):
+        adapter = self.make_adapter({"auto_discover": "true"})
+        adapter._auto_accept_dm_invites = True  # simulate a prior load
+        adapter._settings_default_authorized_ships = {"~stale"}
+        adapter._sse = FakeSSE(payloads={"/settings/all": {"all": {"moltbot": {"tlon": {}}}}})
+
+        asyncio.run(adapter._load_settings_state())
+
+        # defaultAuthorizedShips has no env seed: reverts to empty, not stale.
+        self.assertEqual(adapter._settings_default_authorized_ships, set())
+        # autoAcceptDmInvites has no env seed: reverts to False, not stale True.
+        self.assertFalse(adapter._auto_accept_dm_invites)
+        # autoDiscoverChannels reverts to the env seed (true here), not False.
+        self.assertTrue(adapter._auto_discover)
+
+    def test_settings_load_invalid_typed_values_fall_back_to_default(self):
+        adapter = self.make_adapter({"auto_discover": "true"})
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {
+                    "all": {
+                        "moltbot": {
+                            "tlon": {
+                                "autoAcceptDmInvites": "false",  # truthy string, not bool
+                                "autoDiscoverChannels": 0,
+                                "defaultAuthorizedShips": [7, "~zod"],
+                            }
+                        }
+                    }
+                }
+            }
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        # "false" is not a genuine bool -> falls back to the default (False),
+        # not coerced to True via bool("false").
+        self.assertFalse(adapter._auto_accept_dm_invites)
+        # 0 is not a genuine bool -> falls back to the env seed (True).
+        self.assertTrue(adapter._auto_discover)
+        # Non-string entries are dropped, not coerced.
+        self.assertEqual(adapter._settings_default_authorized_ships, {"~zod"})
+
+    def test_settings_reload_after_key_disappears_reverts_to_default(self):
+        adapter = self.make_adapter({})
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {
+                    "all": {
+                        "moltbot": {
+                            "tlon": {
+                                "autoAcceptDmInvites": True,
+                                "defaultAuthorizedShips": ["~ten"],
+                            }
+                        }
+                    }
+                }
+            }
+        )
+        asyncio.run(adapter._load_settings_state())
+        self.assertTrue(adapter._auto_accept_dm_invites)
+        self.assertEqual(adapter._settings_default_authorized_ships, {"~ten"})
+
+        # Reconnect: the bucket no longer has the keys (deleted while down).
+        adapter._sse = FakeSSE(
+            payloads={"/settings/all": {"all": {"moltbot": {"tlon": {}}}}}
+        )
+        asyncio.run(adapter._load_settings_state())
+
+        self.assertFalse(adapter._auto_accept_dm_invites)
+        self.assertEqual(adapter._settings_default_authorized_ships, set())
+
+    def test_settings_event_del_entry_reverts_new_keys(self):
+        adapter = self.make_adapter({"auto_discover": "true"})
+
+        self.apply_settings_event(
+            adapter, self.put_entry_event("autoAcceptDmInvites", True)
+        )
+        self.apply_settings_event(
+            adapter, self.put_entry_event("autoDiscoverChannels", False)
+        )
+        self.assertTrue(adapter._auto_accept_dm_invites)
+        self.assertFalse(adapter._auto_discover)
+
+        def del_entry(key):
+            return {
+                "settings-event": {
+                    "del-entry": {
+                        "desk": "moltbot",
+                        "bucket-key": "tlon",
+                        "entry-key": key,
+                    }
+                }
+            }
+
+        self.apply_settings_event(adapter, del_entry("autoAcceptDmInvites"))
+        self.apply_settings_event(adapter, del_entry("autoDiscoverChannels"))
+
+        self.assertFalse(adapter._auto_accept_dm_invites)
+        # Reverts to the env seed (true), not unconditionally False.
+        self.assertTrue(adapter._auto_discover)
+
+    def test_settings_event_hot_reloads_default_authorized_ships(self):
+        adapter = self.make_adapter({})
+
+        self.apply_settings_event(
+            adapter, self.put_entry_event("defaultAuthorizedShips", ["~ten"])
+        )
+        self.assertEqual(adapter._settings_default_authorized_ships, {"~ten"})
+
+        # Unrelated key updates leave it untouched.
+        self.apply_settings_event(
+            adapter, self.put_entry_event("groupChannels", ["chat/~bus/dock"])
+        )
+        self.assertEqual(adapter._settings_default_authorized_ships, {"~ten"})
+
+    def test_settings_event_hot_reloads_auto_discover_channels(self):
+        adapter = self.make_adapter({"auto_discover": "false"})
+        self.assertFalse(adapter._auto_discover)
+
+        self.apply_settings_event(
+            adapter, self.put_entry_event("autoDiscoverChannels", True)
+        )
+        self.assertTrue(adapter._auto_discover)
+
+        self.apply_settings_event(
+            adapter, self.put_entry_event("autoDiscoverChannels", False)
+        )
+        self.assertFalse(adapter._auto_discover)
+
+    def test_auto_discover_channels_store_true_overrides_env_false(self):
+        adapter = self.make_adapter({"auto_discover": "false"})
+        self.apply_settings_event(
+            adapter, self.put_entry_event("autoDiscoverChannels", True)
+        )
+
+        events = self.dispatches(
+            adapter, channel_event("hi", nest="chat/~mug/new-spot")
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("chat/~mug/new-spot", adapter._monitored_channels)
+
+    def test_auto_discover_channels_store_false_overrides_env_true(self):
+        adapter = self.make_adapter({"auto_discover": "true"})
+        self.apply_settings_event(
+            adapter, self.put_entry_event("autoDiscoverChannels", False)
+        )
+
+        events = self.dispatches(
+            adapter, channel_event("hi", nest="chat/~mug/new-spot")
+        )
+
+        self.assertEqual(events, [])
+        self.assertNotIn("chat/~mug/new-spot", adapter._monitored_channels)
+
+    def test_auto_discover_toggle_off_does_not_unmonitor_discovered_channel(self):
+        adapter = self.make_adapter({"auto_discover": "true"})
+
+        discovered = self.dispatches(
+            adapter, channel_event("hi", nest="chat/~mug/new-spot")
+        )
+        self.assertEqual(len(discovered), 1)
+        self.assertIn("chat/~mug/new-spot", adapter._monitored_channels)
+
+        self.apply_settings_event(
+            adapter, self.put_entry_event("autoDiscoverChannels", False)
+        )
+
+        still_dispatches = self.dispatches(
+            adapter, channel_event("hi again", nest="chat/~mug/new-spot", post_id="2")
+        )
+        self.assertEqual(len(still_dispatches), 1)
+        self.assertIn("chat/~mug/new-spot", adapter._monitored_channels)
 
     def test_failed_persistence_warns_owner_but_applies_in_memory(self):
         adapter = self.make_adapter({})
@@ -1003,12 +1210,13 @@ class AdapterOwnerListenTests(unittest.TestCase):
         adapter = self.make_adapter({})
 
         heard = self.dispatches(adapter, channel_event("hello", post_id="1"))
-        adapter._handle_settings_event(
-            self.put_entry_event("ownerListenDisabledChannels", ["chat/~pen/general"])
+        self.apply_settings_event(
+            adapter,
+            self.put_entry_event("ownerListenDisabledChannels", ["chat/~pen/general"]),
         )
         muted = self.dispatches(adapter, channel_event("hello again", post_id="2"))
-        adapter._handle_settings_event(
-            self.put_entry_event("ownerListenDisabledChannels", [])
+        self.apply_settings_event(
+            adapter, self.put_entry_event("ownerListenDisabledChannels", [])
         )
         unmuted = self.dispatches(adapter, channel_event("third time", post_id="3"))
 
@@ -1019,10 +1227,13 @@ class AdapterOwnerListenTests(unittest.TestCase):
     def test_settings_del_entry_reverts_to_env_default(self):
         adapter = self.make_adapter({"owner_listen": "false"})
 
-        adapter._handle_settings_event(self.put_entry_event("ownerListenEnabled", True))
+        self.apply_settings_event(
+            adapter, self.put_entry_event("ownerListenEnabled", True)
+        )
         self.assertTrue(adapter._owner_listen.enabled)
 
-        adapter._handle_settings_event(
+        self.apply_settings_event(
+            adapter,
             {
                 "settings-event": {
                     "del-entry": {
@@ -1031,21 +1242,22 @@ class AdapterOwnerListenTests(unittest.TestCase):
                         "entry-key": "ownerListenEnabled",
                     }
                 }
-            }
+            },
         )
         self.assertFalse(adapter._owner_listen.enabled)
 
     def test_settings_event_updates_monitored_group_channels(self):
         adapter = self.make_adapter({})
 
-        adapter._handle_settings_event(
-            self.put_entry_event("groupChannels", ["chat/~ten/lounge", "chat/~bus/dock"])
+        self.apply_settings_event(
+            adapter,
+            self.put_entry_event("groupChannels", ["chat/~ten/lounge", "chat/~bus/dock"]),
         )
         self.assertIn("chat/~ten/lounge", adapter._monitored_channels)
         self.assertIn("chat/~bus/dock", adapter._monitored_channels)
 
-        adapter._handle_settings_event(
-            self.put_entry_event("groupChannels", ["chat/~ten/lounge"])
+        self.apply_settings_event(
+            adapter, self.put_entry_event("groupChannels", ["chat/~ten/lounge"])
         )
         self.assertIn("chat/~ten/lounge", adapter._monitored_channels)
         self.assertNotIn("chat/~bus/dock", adapter._monitored_channels)
@@ -1053,17 +1265,18 @@ class AdapterOwnerListenTests(unittest.TestCase):
     def test_settings_event_never_drops_env_channels(self):
         adapter = self.make_adapter({})
 
-        adapter._handle_settings_event(
-            self.put_entry_event("groupChannels", ["chat/~pen/general"])
+        self.apply_settings_event(
+            adapter, self.put_entry_event("groupChannels", ["chat/~pen/general"])
         )
-        adapter._handle_settings_event(self.put_entry_event("groupChannels", []))
+        self.apply_settings_event(adapter, self.put_entry_event("groupChannels", []))
 
         self.assertIn("chat/~pen/general", adapter._monitored_channels)
 
     def test_settings_event_ignores_other_buckets(self):
         adapter = self.make_adapter({})
 
-        adapter._handle_settings_event(
+        self.apply_settings_event(
+            adapter,
             {
                 "settings-event": {
                     "put-entry": {
@@ -1073,7 +1286,7 @@ class AdapterOwnerListenTests(unittest.TestCase):
                         "value": False,
                     }
                 }
-            }
+            },
         )
 
         self.assertTrue(adapter._owner_listen.enabled)

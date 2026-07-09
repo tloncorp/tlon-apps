@@ -23,9 +23,16 @@ cd "$(dirname "$0")/.."
 # Load .env file if present (for OPENROUTER_API_KEY, TLONBOT_TOKEN, etc.)
 # Test-specific variables (TLON_SHIP, TLON_CODE, etc.) are overridden below
 if [ -f .env ]; then
-  set -a
-  eval "$(grep -v '^#' .env | grep -v '^$' | sed 's/~/\\~/g')"
-  set +a
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ""|\#*) continue ;;
+    esac
+    key="${line%%=*}"
+    value="${line#*=}"
+    if [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && [ -z "${!key+x}" ]; then
+      export "$key=$value"
+    fi
+  done < .env
 fi
 
 # Force the integration suite onto the scripted fake-model. The .env load
@@ -48,6 +55,17 @@ TEN_URL="http://localhost:$TEN_PORT"
 TEN_CODE="lapseg-nolmel-riswen-hopryc"
 MUG_URL="http://localhost:$MUG_PORT"
 MUG_CODE="ravsut-bolryd-hapsum-pastul"
+
+# Force the OpenClaw gateway container onto fakezod. The host-side Vitest
+# process uses localhost URLs later; the container must use the compose service
+# name instead. This must happen after loading .env and before docker compose
+# starts `openclaw`, otherwise local dev TLON_* credentials can leak into the
+# integration gateway.
+export TLON_URL="http://ships:8080"
+export TLON_SHIP="~zod"
+export TLON_CODE="$ZOD_CODE"
+export TLON_OWNER_SHIP="~ten"
+export TLON_DM_ALLOWLIST="~ten"
 
 # Gateway port can be overridden via env var (matches docker-compose.test.yml)
 GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18789}"
@@ -134,7 +152,7 @@ check_urbit_ready() {
   curl -sf -c - -X POST "$url/~/login" -d "password=$code" 2>/dev/null | grep -q "urbauth"
 }
 
-echo "==> Waiting for ~zod (port 8080)..."
+echo "==> Waiting for ~zod (port $ZOD_PORT)..."
 for i in $(seq 1 60); do
   if check_urbit_ready "$ZOD_URL" "$ZOD_CODE"; then
     echo "~zod ready"
@@ -148,7 +166,7 @@ for i in $(seq 1 60); do
   sleep 3
 done
 
-echo "==> Waiting for ~ten (port 8081)..."
+echo "==> Waiting for ~ten (port $TEN_PORT)..."
 for i in $(seq 1 60); do
   if check_urbit_ready "$TEN_URL" "$TEN_CODE"; then
     echo "~ten ready"
@@ -162,7 +180,7 @@ for i in $(seq 1 60); do
   sleep 3
 done
 
-echo "==> Waiting for ~mug (port 8082)..."
+echo "==> Waiting for ~mug (port $MUG_PORT)..."
 for i in $(seq 1 60); do
   if check_urbit_ready "$MUG_URL" "$MUG_CODE"; then
     echo "~mug ready"

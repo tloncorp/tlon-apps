@@ -177,6 +177,10 @@ class RetryHandlerTests(unittest.TestCase):
             adapter = adapter_mod.TlonAdapter(PlatformConfig(extra=base))
         adapter._sse = FakeSSE(payloads=payloads)
         adapter._settings_loaded = True
+        # Simulate a started lens sync that verified %steward at startup, so
+        # begin/stamp are active (production receives retry facts only when
+        # %steward is present, i.e. the startup probe passed).
+        adapter._lens_sync._ready = True
         return adapter
 
     def handle(self, adapter, fact):
@@ -345,6 +349,21 @@ class RetryHandlerTests(unittest.TestCase):
             adapter, {"retry-requested": {"id": "LX", "requester": "~mug"}}
         )
         self.assertEqual(len(second), 1)
+
+    def test_dedup_slot_held_when_dispatch_raises(self):
+        # Once committed to dispatching, a raise mid-dispatch must NOT release
+        # the slot — otherwise a duplicate fact could start a second run.
+        adapter = self.make_adapter()
+        self.seed_recent(adapter, retryable_lens())
+
+        async def boom(event):
+            raise RuntimeError("dispatch blew up")
+
+        adapter.handle_message = boom
+        fact = {"retry-requested": {"id": "LX", "requester": "~mug"}}
+        with self.assertRaises(RuntimeError):
+            asyncio.run(adapter._handle_steward_event(fact))
+        self.assertIn("LX", adapter._retry_dedup)
 
 
 if __name__ == "__main__":

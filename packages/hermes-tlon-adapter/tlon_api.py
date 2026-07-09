@@ -44,6 +44,36 @@ def bare_ship(ship: str) -> str:
     return normalize_ship(ship).lstrip("~")
 
 
+# @da (Urbit date) conversion, matching @urbit/aura's da.fromUnix so a post id
+# we compute here round-trips through the client's da.toUnix.
+_DA_UNIX_EPOCH = 170_141_184_475_152_167_957_503_069_145_530_368_000  # @ud ~1970.1.1
+_DA_SECOND = 1 << 64  # @ud ~s1
+
+
+def unix_ms_to_da(ms: int) -> int:
+    return _DA_UNIX_EPOCH + (int(ms) * _DA_SECOND) // 1000
+
+
+def _dotted_ud(value: int) -> str:
+    """Render a bare @ud as Hoon's dotted decimal (groups of 3 from the right)."""
+    digits = str(value)
+    groups: list[str] = []
+    while len(digits) > 3:
+        groups.insert(0, digits[-3:])
+        digits = digits[:-3]
+    groups.insert(0, digits)
+    return ".".join(groups)
+
+
+def format_post_id(ship: str, sent_at_ms: int) -> str:
+    """A post's id: ``~author/<@ud of da.fromUnix(sent)>``.
+
+    Mirrors how the api stamps a post id and how the client resolves a message
+    (by author + send time), computed from the exact ``sent`` the CLI used.
+    """
+    return f"{normalize_ship(ship)}/{_dotted_ud(unix_ms_to_da(sent_at_ms))}"
+
+
 def parse_bool(value: Any) -> bool:
     return str(value or "").strip().lower() in TRUE_VALUES
 
@@ -665,8 +695,20 @@ class TlonCLI:
         self._runner = runner or self._run_subprocess
         self._observer = observer
 
-    async def send_message(self, chat_id: str, text: str) -> TlonSendResult:
-        return await self._run(("posts", "send", chat_id, text))
+    async def send_message(
+        self,
+        chat_id: str,
+        text: str,
+        *,
+        blob: str | None = None,
+        sent_at: int | None = None,
+    ) -> TlonSendResult:
+        args: list[str] = ["posts", "send", chat_id, text]
+        if blob:
+            args.extend(["--blob", blob])
+        if sent_at is not None:
+            args.extend(["--sent-at", str(sent_at)])
+        return await self._run(tuple(args))
 
     async def send_reply(
         self,
@@ -675,10 +717,16 @@ class TlonCLI:
         text: str,
         *,
         parent_author: str | None = None,
+        blob: str | None = None,
+        sent_at: int | None = None,
     ) -> TlonSendResult:
         args: list[str] = ["posts", "reply", chat_id, post_id, text]
         if parent_author:
             args.extend(["--author", normalize_ship(parent_author)])
+        if blob:
+            args.extend(["--blob", blob])
+        if sent_at is not None:
+            args.extend(["--sent-at", str(sent_at)])
         return await self._run(tuple(args))
 
     async def run_command(self, args: Sequence[str]) -> TlonSendResult:
@@ -1055,13 +1103,11 @@ class TlonSSEClient:
         if response == "quit":
             if sub_id in self._subscriptions:
                 app, path = self._subscriptions[sub_id]
-                if sub_id in self._optional_subscriptions:
-                    logger.warning(
-                        "[tlon] optional subscription quit for %s %s", app, path
-                    )
-                    self._subscriptions.pop(sub_id, None)
-                    self._optional_subscriptions.discard(sub_id)
-                    return None
+                # `optional` only suppresses the *initial* unavailability (the
+                # subscribe-nack branch above). A quit means the subscription
+                # WAS established and has now dropped (e.g. an agent/desk
+                # reload), so force the reconnect path to re-subscribe rather
+                # than silently going deaf to future facts.
                 raise ConnectionError(f"Tlon subscription quit for {app} {path}")
             return None
 
@@ -1355,6 +1401,13 @@ def _extract_block_text(block: dict[str, Any]) -> str:
     return ""
 
 
+def extract_author_ship(author: Any) -> str:
+    """Extract a normalized ship from a string or BotProfile-shaped author."""
+    if isinstance(author, Mapping):
+        return normalize_ship(str(author.get("ship") or ""))
+    return normalize_ship(str(author or ""))
+
+
 def parse_channel_message(
     event: Any,
     *,
@@ -1395,7 +1448,7 @@ def parse_channel_message(
     if not isinstance(content, dict):
         return None
 
-    sender = normalize_ship(str(content.get("author") or ""))
+    sender = extract_author_ship(content.get("author"))
     if not sender or sender == normalize_ship(self_ship):
         return None
 
@@ -1464,7 +1517,7 @@ def parse_dm_message(
     if not isinstance(content, dict):
         return None
 
-    sender = normalize_ship(str(content.get("author") or ""))
+    sender = extract_author_ship(content.get("author"))
     if not sender or sender == normalize_ship(self_ship):
         return None
 

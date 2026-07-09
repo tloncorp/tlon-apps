@@ -178,14 +178,14 @@ class FakeSSE:
 
 
 class FakeCLI:
-    async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+    async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
         return tlon_api.TlonSendResult(
             success=True,
             command=("tlon-test", "posts", "reply"),
             message_id="reply-id",
         )
 
-    async def send_message(self, chat_id, text):
+    async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
         return tlon_api.TlonSendResult(
             success=True,
             command=("tlon-test", "posts", "send"),
@@ -672,11 +672,11 @@ class AdapterAttentionTests(unittest.TestCase):
                 self.sends = []
                 self.thread_replies = []
 
-            async def send_message(self, chat_id, text):
+            async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
                 self.sends.append((chat_id, text))
                 return await super().send_message(chat_id, text)
 
-            async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+            async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
                 self.thread_replies.append((chat_id, post_id, text))
                 return await super().send_reply(
                     chat_id, post_id, text, parent_author=parent_author
@@ -715,7 +715,7 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter._cli = FakeCLI()
         recorded = []
 
-        async def record_reply(chat_id, post_id, text, *, parent_author=None):
+        async def record_reply(chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
             recorded.append(post_id)
             return tlon_api.TlonSendResult(
                 success=True, command=("tlon-test",), message_id="reply-id"
@@ -725,11 +725,77 @@ class AdapterAttentionTests(unittest.TestCase):
         asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="170.141"))
         self.assertEqual(recorded, ["170.141"])
 
+    def test_send_stamps_active_lens_run(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        self.assertTrue(adapter._lens.enabled)
+        # Simulate a started sync that verified %steward at startup.
+        adapter._lens_sync._ready = True
+        captured = {}
+
+        async def record_message(chat_id, text, *, blob=None, sent_at=None):
+            captured["blob"] = blob
+            captured["sent_at"] = sent_at
+            return tlon_api.TlonSendResult(
+                success=True, command=("tlon-test",), message_id="post-id"
+            )
+
+        adapter._cli = FakeCLI()
+        adapter._cli.send_message = record_message
+        adapter._lens.begin(
+            "chat/~pen/general",
+            adapter_mod.LensRun(
+                lens_id="L42",
+                message_id="m",
+                chat_type="channel",
+                trigger="mention",
+                conversation_kind="channel",
+            ),
+        )
+        asyncio.run(adapter.send("chat/~pen/general", "hi"))
+        entry = json.loads(captured["blob"])[0]
+        self.assertEqual(entry["type"], "tlon-context-lens")
+        self.assertEqual(entry["lensId"], "L42")
+        self.assertEqual(entry["botShip"], "~pen")
+        # The adapter owns the send time and derives the output id from it —
+        # the same value it hands the CLI, so both agree.
+        self.assertIsNotNone(captured["sent_at"])
+        output = adapter._lens.get("chat/~pen/general").outputs[0]
+        self.assertEqual(
+            output.message_id,
+            tlon_api.format_post_id("~pen", captured["sent_at"]),
+        )
+        self.assertEqual(output.sent_at, captured["sent_at"])
+
+    def test_send_without_active_lens_run_omits_blob(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        # Active sync, but no run began for this conversation → no stamp.
+        adapter._lens_sync._ready = True
+        captured = {"blob": "unset"}
+
+        async def record_message(chat_id, text, *, blob=None, sent_at=None):
+            captured["blob"] = blob
+            captured["sent_at"] = sent_at
+            return tlon_api.TlonSendResult(
+                success=True, command=("tlon-test",), message_id="post-id"
+            )
+
+        adapter._cli = FakeCLI()
+        adapter._cli.send_message = record_message
+        asyncio.run(adapter.send("chat/~pen/general", "hi"))
+        self.assertIsNone(captured["blob"])
+        # No lens output to stamp → no --sent-at override (keeps older `tlon`
+        # binaries from folding an unknown flag into the message body).
+        self.assertIsNone(captured["sent_at"])
+
     def test_nickname_fetch_failure_keeps_ship_and_alias_wakes(self):
         adapter = self.make_adapter({"allowed_users": ["~mug"], "bot_mentions": ["arvo"]})
         adapter._sse = FakeSSE(error=RuntimeError("not ready"))
 
-        asyncio.run(adapter._load_bot_nickname())
+        asyncio.run(adapter._load_bot_profile())
 
         self.assertTrue(adapter._mention_matcher.mentioned("~pen hello"))
         self.assertTrue(adapter._mention_matcher.mentioned("arvo hello"))
@@ -738,11 +804,216 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter = self.make_adapter({"allowed_users": ["~mug"]})
         adapter._sse = FakeSSE(payload={"nickname": {"value": "Jon"}})
 
-        asyncio.run(adapter._load_bot_nickname())
+        asyncio.run(adapter._load_bot_profile())
         events = asyncio.run(self.dispatches(adapter, channel_event("jon, hello")))
 
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].text, "hello")
+
+    # ── contacts tracking (live nickname/avatar via /v1/news) ────────────
+
+    @staticmethod
+    def _self_fact(contact):
+        return {"self": {"contact": contact}}
+
+    def test_contacts_self_fact_adds_nickname_wake(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+        events = asyncio.run(self.dispatches(adapter, channel_event("jon, hello")))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "hello")
+
+    def test_contacts_self_fact_rename_replaces_old_term(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Arvo"}})
+        )
+
+        new_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("arvo, hello", post_id="170.142"))
+        )
+        self.assertEqual(len(new_wake), 1)
+
+        old_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("jon, hello", post_id="170.143"))
+        )
+        self.assertEqual(len(old_wake), 0)
+
+        ship_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("~pen hello", post_id="170.144"))
+        )
+        self.assertEqual(len(ship_wake), 1)
+
+    def test_contacts_self_fact_clear_removes_nickname_term(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "bot_mentions": ["arvo"]}
+        )
+
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+        # Full contact map with no nickname key == nickname cleared.
+        adapter._handle_contacts_event(self._self_fact({}))
+
+        old_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("jon, hello", post_id="170.142"))
+        )
+        self.assertEqual(len(old_wake), 0)
+
+        alias_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("arvo, hello", post_id="170.143"))
+        )
+        self.assertEqual(len(alias_wake), 1)
+
+        ship_wake = asyncio.run(
+            self.dispatches(adapter, channel_event("~pen hello", post_id="170.144"))
+        )
+        self.assertEqual(len(ship_wake), 1)
+
+    def test_contacts_non_self_and_malformed_facts_are_inert(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+        matcher = adapter._mention_matcher
+
+        for raw in (
+            {"peer": {"who": "~zod", "contact": {"nickname": {"value": "Zod"}}}},
+            {"page": {"kip": "~zod", "contact": {}, "mod": {}}},
+            {"wipe": {"kip": "~zod"}},
+            "not-a-dict",
+            {"self": {}},
+            {"self": {"contact": "bogus"}},
+        ):
+            adapter._handle_contacts_event(raw)
+            self.assertIs(adapter._mention_matcher, matcher)
+
+    def test_contacts_self_fact_avatar_only_change(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+        matcher = adapter._mention_matcher
+
+        # Full map: unchanged nickname + new avatar. Nickname must stay set,
+        # so the matcher object is untouched while _bot_avatar updates.
+        adapter._handle_contacts_event(
+            self._self_fact(
+                {
+                    "nickname": {"type": "text", "value": "Jon"},
+                    "avatar": {"type": "look", "value": "https://example/a.png"},
+                }
+            )
+        )
+        self.assertIs(adapter._mention_matcher, matcher)
+        self.assertEqual(adapter._bot_avatar, "https://example/a.png")
+
+        # A second identical fact is a no-op.
+        adapter._handle_contacts_event(
+            self._self_fact(
+                {
+                    "nickname": {"type": "text", "value": "Jon"},
+                    "avatar": {"type": "look", "value": "https://example/a.png"},
+                }
+            )
+        )
+        self.assertIs(adapter._mention_matcher, matcher)
+        self.assertEqual(adapter._bot_avatar, "https://example/a.png")
+
+    def test_route_stream_event_dispatches_contacts_app(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        payload = self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+
+        asyncio.run(
+            adapter._route_stream_event(
+                types.SimpleNamespace(app="contacts", json=payload)
+            )
+        )
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("jon, hello")))
+        self.assertEqual(len(events), 1)
+
+    def test_load_bot_profile_clears_stale_nickname(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._handle_contacts_event(
+            self._self_fact({"nickname": {"type": "text", "value": "Jon"}})
+        )
+
+        # Reconnect catch-up: an empty (but present) contact map clears.
+        adapter._sse = FakeSSE(payload={})
+        asyncio.run(adapter._load_bot_profile())
+
+        old_wake = asyncio.run(self.dispatches(adapter, channel_event("jon, hello")))
+        self.assertEqual(len(old_wake), 0)
+
+    def test_connect_sse_subscribes_contacts_news(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        subscriptions = []
+
+        class RecordingSSE:
+            def __init__(self, config):
+                pass
+
+            async def authenticate(self):
+                return "cookie"
+
+            async def open(self):
+                return None
+
+            async def subscribe(self, app, path):
+                subscriptions.append((app, path))
+                return len(subscriptions)
+
+        with patch.object(adapter_mod, "TlonSSEClient", RecordingSSE):
+            asyncio.run(adapter._connect_sse())
+
+        # The contacts subscription is added alongside — not in place of — the
+        # pre-existing four.
+        self.assertEqual(
+            subscriptions,
+            [
+                ("channels", "/v2"),
+                ("chat", "/v3"),
+                ("settings", f"/desk/{adapter_mod.SETTINGS_DESK}"),
+                ("groups", "/v1/foreigns"),
+                ("contacts", "/v1/news"),
+            ],
+        )
+
+    def test_stream_resync_branch_reloads_profile(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._sse = None
+        calls = []
+
+        class ResyncSSE:
+            async def events(self):
+                adapter._running = False
+                if False:  # pragma: no cover - makes events() an async generator
+                    yield None
+
+        async def fake_connect():
+            adapter._sse = ResyncSSE()
+
+        async def record_settings():
+            calls.append("settings")
+
+        async def record_profile():
+            calls.append("profile")
+
+        with patch.object(adapter, "_connect_sse", fake_connect), patch.object(
+            adapter, "_load_settings_state", record_settings
+        ), patch.object(adapter, "_load_bot_profile", record_profile):
+            asyncio.run(adapter._run_stream())
+
+        self.assertEqual(calls, ["settings", "profile"])
 
     def test_env_enablement_seeds_owner_dm_as_home_channel(self):
         with patch.dict(
@@ -963,6 +1234,22 @@ class AdapterAttentionTests(unittest.TestCase):
         self.assertIsNotNone(block)
         self.assertEqual(block["action"], "block")
         self.assertIn("owner-only", block["message"])
+
+
+class LensTriggerMapTests(unittest.TestCase):
+    def test_maps_dispatch_reasons_to_valid_triggers(self):
+        t = adapter_mod._lens_trigger
+        self.assertEqual(t("dm", is_dm=True), "dm")
+        self.assertEqual(t("mention", is_dm=False), "mention")
+        self.assertEqual(t("participated-thread", is_dm=False), "thread")
+        self.assertEqual(t("owner-listen", is_dm=False), "owner-listen")
+        # free-response is a real dispatch reason with no dedicated trigger.
+        self.assertEqual(t("free-response", is_dm=False), "unknown")
+
+    def test_approved_resolves_by_conversation_kind(self):
+        t = adapter_mod._lens_trigger
+        self.assertEqual(t("approved", is_dm=True), "dm")
+        self.assertEqual(t("approved", is_dm=False), "mention")
 
 
 if __name__ == "__main__":

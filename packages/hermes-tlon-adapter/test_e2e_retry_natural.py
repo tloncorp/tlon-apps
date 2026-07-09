@@ -182,6 +182,9 @@ def make_adapter(store_path, extra=None, payloads=None):
         adapter = adapter_mod.TlonAdapter(PlatformConfig(extra=base))
     adapter._sse = FakeSSE(payloads=payloads)
     adapter._settings_loaded = True
+    # Simulate a started lens sync that verified %steward at startup, so the
+    # begin/stamp path is active (see TlonLensSync.start()).
+    adapter._lens_sync._ready = True
     return adapter
 
 

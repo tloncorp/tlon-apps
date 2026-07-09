@@ -363,6 +363,17 @@ export const BottomSheetWrapper = forwardRef<
       [dismissOnSnapToBottom, onOpenChange]
     );
 
+    // Gorhom skips onChange(-1) when the sheet is dismissed before its open
+    // animation finishes (e.g. a backdrop tap mid-animation), so
+    // handleSheetChanges alone can leave `open` stuck at true. onDismiss fires
+    // on every modal dismissal path; if the parent still thinks the sheet is
+    // open at that point, sync it so the next open isn't a no-op.
+    const handleModalDismiss = useCallback(() => {
+      if (open) {
+        onOpenChange(false);
+      }
+    }, [open, onOpenChange]);
+
     const renderBackdrop = useCallback(
       (props: any) =>
         showOverlay ? (
@@ -467,6 +478,7 @@ export const BottomSheetWrapper = forwardRef<
           ref={bottomSheetModalRef}
           accessibilityViewIsModal={true}
           stackBehavior={stackBehavior}
+          onDismiss={handleModalDismiss}
           {...commonProps}
           {...commonOverrides}
         >

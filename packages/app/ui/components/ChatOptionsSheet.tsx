@@ -22,7 +22,10 @@ import {
   Action,
   ActionGroup,
   ActionSheet,
+  DESKTOP_FLYOUT_MIN_WIDTH,
   createActionGroups,
+  desktopFlyoutContentProps,
+  desktopFlyoutPopoverProps,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
 
@@ -176,9 +179,7 @@ export function GroupOptionsSheetLoader({
       <Popover
         open={open}
         onOpenChange={(open) => onOpenChange(open, false)}
-        placement="top-end"
-        allowFlip
-        offset={-12}
+        {...desktopFlyoutPopoverProps}
       >
         <Popover.Trigger
           asChild
@@ -187,15 +188,7 @@ export function GroupOptionsSheetLoader({
         >
           {trigger}
         </Popover.Trigger>
-        <Popover.Content
-          elevate
-          zIndex={1000000}
-          position="relative"
-          borderColor="$border"
-          borderWidth={1}
-          padding={1}
-          backgroundColor="$background"
-        >
+        <Popover.Content {...desktopFlyoutContentProps}>
           {pane === 'notifications' ? (
             <NotificationsSheetContent
               chatTitle={title}
@@ -567,9 +560,7 @@ const ChannelOptionsSheetLoader = memo(
         <Popover
           open={open}
           onOpenChange={(open) => onOpenChange(open, false)}
-          placement="top-end"
-          allowFlip
-          offset={-12}
+          {...desktopFlyoutPopoverProps}
         >
           <Popover.Trigger
             asChild
@@ -578,14 +569,7 @@ const ChannelOptionsSheetLoader = memo(
           >
             {trigger}
           </Popover.Trigger>
-          <Popover.Content
-            elevate
-            zIndex={1000000}
-            position="relative"
-            borderColor="$border"
-            borderWidth={1}
-            padding={1}
-          >
+          <Popover.Content {...desktopFlyoutContentProps}>
             {pane === 'notifications' ? (
               <NotificationsSheetContent
                 chatTitle={chatTitle}
@@ -649,6 +633,7 @@ export function ChannelOptionsSheetContent({
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
 
   const currentUserIsChannelHost = channel.currentUserIsHost ?? false;
+  const channelActionCapabilities = utils.getChannelActionCapabilities(channel);
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
@@ -754,14 +739,15 @@ export function ChannelOptionsSheetContent({
             disabled: true,
           },
         ],
-        !currentUserIsChannelHost && [
-          'negative',
-          {
-            title: group ? `Leave channel` : 'Leave chat',
-            endIcon: 'LogOut',
-            action: wrappedAction.bind(null, leaveChannel),
-          },
-        ]
+        !currentUserIsChannelHost &&
+          channelActionCapabilities.canLeave && [
+            'negative',
+            {
+              title: group ? `Leave channel` : 'Leave chat',
+              endIcon: 'LogOut',
+              action: wrappedAction.bind(null, leaveChannel),
+            },
+          ]
       ),
     [
       notificationTitle,
@@ -780,6 +766,7 @@ export function ChannelOptionsSheetContent({
       hooksPreview,
       onPressChannelTemplate,
       currentUserIsChannelHost,
+      channelActionCapabilities.canLeave,
       leaveChannel,
     ]
   );
@@ -826,6 +813,8 @@ export function ChatOptionsSheetContent({
   icon?: ReactElement;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
+  const isDesktopFlyout = isWeb && !isWindowNarrow;
+
   return (
     <>
       {isWindowNarrow && (
@@ -839,7 +828,15 @@ export function ChatOptionsSheetContent({
           </ActionSheet.ActionContent>
         </ActionSheet.Header>
       )}
-      <ActionSheet.Content width={isWindowNarrow ? '100%' : 240}>
+      <ActionSheet.Content
+        width={
+          isDesktopFlyout
+            ? DESKTOP_FLYOUT_MIN_WIDTH
+            : isWindowNarrow
+              ? '100%'
+              : 240
+        }
+      >
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
       </ActionSheet.Content>
     </>

@@ -1087,6 +1087,168 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   }),
 }));
 
+export type NotesVisibility = 'public' | 'private';
+export type NotesRole = 'owner' | 'editor' | 'viewer';
+
+export const notesNotebooks = sqliteTable(
+  'notes_notebooks',
+  {
+    id: text('id').primaryKey(),
+    host: text('host').notNull(),
+    flagName: text('flag_name').notNull(),
+    notebookId: integer('notebook_id').notNull(),
+    title: text('title').notNull(),
+    visibility: text('visibility').$type<NotesVisibility>(),
+    rootFolderId: integer('root_folder_id'),
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at'),
+    updatedBy: text('updated_by'),
+    updatedAt: timestamp('updated_at'),
+    syncedAt: timestamp('synced_at'),
+    lastOpenedAt: timestamp('last_opened_at'),
+    currentUserRole: text('current_user_role').$type<NotesRole>(),
+  },
+  (table) => ({
+    hostFlagNameIndex: uniqueIndex('notes_notebooks_host_flag_name_index').on(
+      table.host,
+      table.flagName
+    ),
+    updatedAtIndex: index('notes_notebooks_updated_at_index').on(
+      table.updatedAt
+    ),
+  })
+);
+
+export const notesNotebooksRelations = relations(
+  notesNotebooks,
+  ({ many }) => ({
+    folders: many(notesFolders),
+    notes: many(notesNotes),
+    members: many(notesMembers),
+  })
+);
+
+export const notesFolders = sqliteTable(
+  'notes_folders',
+  {
+    id: text('id').primaryKey(),
+    notebookFlag: text('notebook_flag')
+      .references(() => notesNotebooks.id, { onDelete: 'cascade' })
+      .notNull(),
+    folderId: integer('folder_id').notNull(),
+    notebookId: integer('notebook_id').notNull(),
+    name: text('name').notNull(),
+    parentFolderId: integer('parent_folder_id'),
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at'),
+    updatedBy: text('updated_by'),
+    updatedAt: timestamp('updated_at'),
+    syncedAt: timestamp('synced_at'),
+  },
+  (table) => ({
+    notebookFlagIndex: index('notes_folders_notebook_flag_index').on(
+      table.notebookFlag
+    ),
+    notebookParentIndex: index('notes_folders_notebook_parent_index').on(
+      table.notebookFlag,
+      table.parentFolderId
+    ),
+    notebookFolderIdIndex: uniqueIndex(
+      'notes_folders_notebook_folder_id_index'
+    ).on(table.notebookFlag, table.folderId),
+  })
+);
+
+export const notesFoldersRelations = relations(
+  notesFolders,
+  ({ one, many }) => ({
+    notebook: one(notesNotebooks, {
+      fields: [notesFolders.notebookFlag],
+      references: [notesNotebooks.id],
+    }),
+    notes: many(notesNotes),
+  })
+);
+
+export const notesNotes = sqliteTable(
+  'notes_notes',
+  {
+    id: text('id').primaryKey(),
+    notebookFlag: text('notebook_flag')
+      .references(() => notesNotebooks.id, { onDelete: 'cascade' })
+      .notNull(),
+    noteId: integer('note_id').notNull(),
+    notebookId: integer('notebook_id').notNull(),
+    folderId: integer('folder_id').notNull(),
+    title: text('title').notNull(),
+    slug: text('slug'),
+    bodyMd: text('body_md').notNull(),
+    createdBy: text('created_by'),
+    createdAt: timestamp('created_at'),
+    updatedBy: text('updated_by'),
+    updatedAt: timestamp('updated_at'),
+    revision: integer('revision').notNull(),
+    syncedAt: timestamp('synced_at'),
+  },
+  (table) => ({
+    notebookFlagIndex: index('notes_notes_notebook_flag_index').on(
+      table.notebookFlag
+    ),
+    notebookFolderIndex: index('notes_notes_notebook_folder_index').on(
+      table.notebookFlag,
+      table.folderId
+    ),
+    notebookUpdatedAtIndex: index('notes_notes_notebook_updated_at_index').on(
+      table.notebookFlag,
+      table.updatedAt
+    ),
+    notebookNoteIdIndex: uniqueIndex('notes_notes_notebook_note_id_index').on(
+      table.notebookFlag,
+      table.noteId
+    ),
+  })
+);
+
+export const notesNotesRelations = relations(notesNotes, ({ one }) => ({
+  notebook: one(notesNotebooks, {
+    fields: [notesNotes.notebookFlag],
+    references: [notesNotebooks.id],
+  }),
+  folder: one(notesFolders, {
+    fields: [notesNotes.notebookFlag, notesNotes.folderId],
+    references: [notesFolders.notebookFlag, notesFolders.folderId],
+  }),
+}));
+
+export const notesMembers = sqliteTable(
+  'notes_members',
+  {
+    notebookFlag: text('notebook_flag')
+      .references(() => notesNotebooks.id, { onDelete: 'cascade' })
+      .notNull(),
+    contactId: text('contact_id').notNull(),
+    role: text('role').$type<NotesRole | null>(),
+    syncedAt: timestamp('synced_at'),
+  },
+  (table) => ({
+    pk: primaryKey({
+      columns: [table.notebookFlag, table.contactId, table.role],
+    }),
+    contactIdIndex: index('notes_members_contact_id_index').on(table.contactId),
+  })
+);
+
+export const notesMembersRelations = relations(notesMembers, ({ one }) => ({
+  notebook: one(notesNotebooks, {
+    fields: [notesMembers.notebookFlag],
+    references: [notesNotebooks.id],
+  }),
+  contact: one(contacts, {
+    fields: [notesMembers.contactId],
+    references: [contacts.id],
+  }),
+}));
+
 export type PostDeliveryStatus = ApiPostDeliveryStatus;
 
 export const posts = sqliteTable(

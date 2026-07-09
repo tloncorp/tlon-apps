@@ -73,6 +73,9 @@ RETRYABLE_STATUSES: frozenset[str] = frozenset(
 _STEWARD_APP = "steward"
 _CONFIGURE_MARK = "steward-action-1"
 _LENS_MARK = "steward-lens-action-1"
+# Existence probe: a %steward lens scry that any installed agent answers (and
+# our own ship is always allowed to peek). A ship without %steward nacks it.
+_STEWARD_PROBE_PATH = "/steward/v1/lens/recent"
 
 
 def _now_ms() -> int:
@@ -267,6 +270,7 @@ class LensRun:
     timeout_ms: Optional[int] = None
     timed_out: bool = False
     delivered_message_count: int = 0
+    delivery_failed: bool = False
 
     def touch(self) -> None:
         self.updated_at = _now_ms()
@@ -483,6 +487,26 @@ def build_lens_payload(lens: dict[str, Any]) -> dict[str, Any]:
         "lens": skeleton,
         "truncated": True,
     }
+
+
+def context_lens_reference_blob(
+    lens_id: str, bot_ship: Optional[str] = None
+) -> str:
+    """Post-blob field pointing a delivered reply at its lens run.
+
+    Mirrors ``serializeContextLensReferenceBlob`` (openclaw/urbit/blob.ts): a
+    JSON array with a single ``tlon-context-lens`` entry. The client's
+    ``getContextLensStamp`` reads this off ``post.blob`` to surface the
+    per-message lens entry point (badge / message actions).
+    """
+    entry: dict[str, Any] = {
+        "type": "tlon-context-lens",
+        "version": 1,
+        "lensId": lens_id,
+    }
+    if bot_ship:
+        entry["botShip"] = bot_ship
+    return json.dumps([entry], separators=(",", ":"))
 
 
 def _cap_retry_seed(seed: Mapping[str, Any]) -> dict[str, Any]:
@@ -758,6 +782,10 @@ class TlonLensSync:
         self._client_factory = client_factory
         self._client: Optional[TlonSSEClient] = None
         self._configured = False
+        # Set once start() confirms %steward is installed; gates begin/stamp so
+        # we never poke into the void or stamp replies with lens IDs whose runs
+        # were never stored (a badge the client can't load).
+        self._ready = False
         self._on_error = on_error
         # Serialize pokes so a run's partial/final ordering is preserved.
         self._queue: asyncio.Lock = asyncio.Lock()
@@ -765,6 +793,11 @@ class TlonLensSync:
     @property
     def enabled(self) -> bool:
         return bool(self.config.context_lens_enabled and self.owner)
+
+    @property
+    def active(self) -> bool:
+        """Enabled AND a live sync that verified %steward at startup."""
+        return self.enabled and self._ready
 
     def _report_error(self, operation: str, exc: BaseException) -> None:
         if self._on_error is None:
@@ -790,11 +823,31 @@ class TlonLensSync:
             await self._safe_close_client()
             self._client = None
             raise
+        # Verify %steward is installed before trusting pokes or stamping
+        # replies (mirrors OpenClaw gating the lens on the /v1/lens subscribe,
+        # which a ship without the agent nacks).
+        if not await self._steward_installed(client):
+            logger.info(
+                "[tlon] context-lens skipped: steward agent not reachable"
+            )
+            await self._safe_close_client()
+            self._client = None
+            return False
+        self._ready = True
         logger.info("[tlon] context-lens sync active (owner=%s)", self.owner)
         return True
 
+    async def _steward_installed(self, client: TlonSSEClient) -> bool:
+        try:
+            await client.scry(_STEWARD_PROBE_PATH)
+            return True
+        except Exception as exc:
+            logger.debug("[tlon] context-lens steward probe failed: %s", exc)
+            return False
+
     async def stop(self) -> None:
         self._configured = False
+        self._ready = False
         await self._safe_close_client()
         self._client = None
 
@@ -856,6 +909,10 @@ class TlonLensRecorder:
     @property
     def enabled(self) -> bool:
         return self._sync.enabled
+
+    @property
+    def active(self) -> bool:
+        return self._sync.active
 
     @property
     def owner(self) -> str:
@@ -926,6 +983,16 @@ class TlonLensRecorder:
         if run is not None:
             run.record_output(output)
             run.delivered_message_count += 1
+
+    def record_delivery_failure(
+        self, conversation_id: str, error: Optional[str] = None
+    ) -> None:
+        run = self._runs.get(conversation_id)
+        if run is not None:
+            run.delivery_failed = True
+            if error and not run.error:
+                run.error = error
+            run.touch()
 
     def set_status(
         self, conversation_id: str, status: str, error: Optional[str] = None
@@ -1056,7 +1123,10 @@ def handle_post_tool_call_lens(**kwargs: Any) -> None:
         return
     tool_name = str(kwargs.get("tool_name") or "").strip() or "unknown"
     status = str(kwargs.get("status") or "").lower()
-    error = str(kwargs.get("error_type") or "") if status not in ("", "ok") else ""
+    # A non-ok status is a failure even if Hermes gives us no error_type, so key
+    # the terminal tool status off `status`, not just the presence of an error.
+    failed = status not in ("", "ok")
+    error = str(kwargs.get("error_type") or "") if failed else ""
     try:
         duration_ms: Optional[int] = int(kwargs.get("duration_ms") or 0) or None
     except (TypeError, ValueError):
@@ -1068,7 +1138,7 @@ def handle_post_tool_call_lens(**kwargs: Any) -> None:
         duration_ms=duration_ms,
         result_summary=_summarize_value(kwargs.get("result")),
         error=error or None,
-        status="error" if error else "completed",
+        status="error" if failed else "completed",
     )
 
 

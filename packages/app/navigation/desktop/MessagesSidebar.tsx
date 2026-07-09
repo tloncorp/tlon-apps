@@ -202,9 +202,11 @@ export const MessagesSidebar = memo(
                   </>
                 }
               />
-              {chats && chats.unpinned.length ? (
+              {chats &&
+              displayData.some((section) => section.data.length > 0) ? (
                 <ChatList
                   data={displayData}
+                  allPinnedChats={resolvedChats.pinned}
                   onPressItem={onPressChat}
                   disableScrollAnchoring
                   scrollerTestID="MessagesSidebarChatScroller"

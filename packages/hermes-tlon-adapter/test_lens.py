@@ -54,6 +54,8 @@ class FakeClient:
         self.opened = False
         self.closed = False
         self.fail_on_mark = None
+        self.scries = []
+        self.steward_missing = False
         FakeClient.instances.append(self)
 
     async def authenticate(self):
@@ -69,6 +71,12 @@ class FakeClient:
         if self.fail_on_mark == mark:
             raise RuntimeError(f"poke {mark} failed")
         self.pokes.append((app, mark, payload))
+
+    async def scry(self, path):
+        self.scries.append(path)
+        if self.steward_missing:
+            raise ConnectionError(f"scry {path} failed: no such agent")
+        return {"recent": []}
 
     def marks(self):
         return [mark for _app, mark, _payload in self.pokes]
@@ -211,6 +219,20 @@ class TruncationTests(unittest.TestCase):
             len(json.dumps(payload, separators=(",", ":"))), lens.MAX_PAYLOAD_CHARS
         )
 
+    def test_reference_blob_shape(self):
+        # Mirrors serializeContextLensReferenceBlob (openclaw/urbit/blob.ts):
+        # a JSON array with a single tlon-context-lens entry.
+        blob = json.loads(lens.context_lens_reference_blob("L9", "~bot"))
+        self.assertEqual(
+            blob,
+            [{"type": "tlon-context-lens", "version": 1, "lensId": "L9", "botShip": "~bot"}],
+        )
+
+    def test_reference_blob_omits_bot_ship_when_absent(self):
+        blob = json.loads(lens.context_lens_reference_blob("L9"))
+        self.assertNotIn("botShip", blob[0])
+        self.assertEqual(blob[0]["lensId"], "L9")
+
     def test_small_payload_not_truncated(self):
         payload = lens.build_lens_payload(make_run().to_context_lens())
         self.assertNotIn("truncated", payload)
@@ -220,6 +242,42 @@ class TruncationTests(unittest.TestCase):
 class SyncSequencingTests(unittest.TestCase):
     def setUp(self):
         FakeClient.instances.clear()
+
+    def test_start_probes_steward_and_activates(self):
+        cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
+        sync = lens.TlonLensSync(cfg, client_factory=FakeClient)
+
+        async def scenario():
+            self.assertTrue(await sync.start())
+            self.assertTrue(sync.active)
+
+        run(scenario())
+        client = FakeClient.instances[-1]
+        self.assertIn(lens._STEWARD_PROBE_PATH, client.scries)
+
+    def test_start_returns_false_when_steward_missing(self):
+        cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
+
+        def factory(config):
+            client = FakeClient(config)
+            client.steward_missing = True
+            return client
+
+        sync = lens.TlonLensSync(cfg, client_factory=factory)
+        rec = lens.TlonLensRecorder(sync)
+
+        async def scenario():
+            self.assertFalse(await sync.start())
+            self.assertFalse(sync.active)
+            # Inactive sync: begin stores nothing and a push is a no-op.
+            rec.begin("~alice", make_run())
+            await rec.push("~alice")
+
+        run(scenario())
+        client = FakeClient.instances[-1]
+        self.assertIn(lens._STEWARD_PROBE_PATH, client.scries)
+        self.assertTrue(client.closed)
+        self.assertEqual(client.entries(), [])
 
     def test_configure_precedes_entry_and_final_last(self):
         cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
@@ -251,6 +309,35 @@ class SyncSequencingTests(unittest.TestCase):
         self.assertEqual(finals, [False, True])
         self.assertEqual(client.entries()[-1]["entry"]["payload"]["lens"]["status"], "completed")
         self.assertTrue(client.closed)
+
+    def test_delivery_failure_flags_run(self):
+        cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
+        rec = lens.TlonLensRecorder(lens.TlonLensSync(cfg, client_factory=FakeClient))
+        rec.begin("~alice", make_run())
+        rec.record_delivery_failure("~alice", error="boom")
+        r = rec.get("~alice")
+        self.assertTrue(r.delivery_failed)
+        self.assertEqual(r.delivered_message_count, 0)
+        self.assertEqual(r.error, "boom")
+
+    def test_finish_as_error_pushes_final_once(self):
+        cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
+        sync = lens.TlonLensSync(cfg, client_factory=FakeClient)
+        rec = lens.TlonLensRecorder(sync)
+
+        async def scenario():
+            await sync.start()
+            rec.begin("~alice", make_run())
+            await rec.finish("~alice", status="error")
+            # A second finish (e.g. dispatch raised after a normal finish) is a
+            # no-op — the run was already popped.
+            await rec.finish("~alice", status="error")
+
+        run(scenario())
+        entries = FakeClient.instances[0].entries()
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["entry"]["payload"]["lens"]["status"], "error")
+        self.assertTrue(entries[0]["entry"]["final"])
 
     def test_configure_poked_once(self):
         cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
@@ -392,6 +479,14 @@ class HookTests(unittest.TestCase):
     def test_post_tool_call_error_status(self):
         lens.handle_post_tool_call_lens(
             **self._kwargs(tool_name="t", tool_call_id="x", status="error", error_type="Boom")
+        )
+        self.assertEqual(self.rec.get("~alice").tool_runs[0].status, "error")
+
+    def test_post_tool_call_failure_without_error_type_is_error(self):
+        # A non-ok status must record as 'error' even when Hermes omits an
+        # error_type, not fall through to 'completed'.
+        lens.handle_post_tool_call_lens(
+            **self._kwargs(tool_name="t", tool_call_id="x", status="error")
         )
         self.assertEqual(self.rec.get("~alice").tool_runs[0].status, "error")
 

@@ -14,7 +14,12 @@ ship=$3
 zone=$4
 project=$5
 ref=${6:-"develop"}
-folder=$ship/$desk
+# The GCE instance name ($ship) and the pier folder on that instance usually
+# match, but can diverge (e.g. a moon whose folder is its full patp while the
+# instance is a truncated name). Optional 7th arg overrides the folder name;
+# defaults to $ship to keep existing callers unchanged.
+pier=${7:-$ship}
+folder=$pier/$desk
 
 echo "Deploying $desk from $ref of $repo to $ship in $zone of $project"
 set -e

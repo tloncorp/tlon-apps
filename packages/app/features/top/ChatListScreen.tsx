@@ -452,6 +452,7 @@ export function ChatListScreenView({
                 ) : (
                   <ChatList
                     data={displayData}
+                    allPinnedChats={resolvedChats.pinned}
                     onPressItem={onPressChat}
                     onLoad={handleChatListLoad}
                     scrollRef={chatListRef}

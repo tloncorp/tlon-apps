@@ -144,16 +144,18 @@ class FakeCLI:
             return self.results.pop(0)
         return self.results[0] if self.results else cli_result()
 
-    async def send_message(self, chat_id, content):
-        self.sent.append(("message", chat_id, content))
+    async def send_message(self, chat_id, content, *, blob=None, sent_at=None):
+        self.sent.append(("message", chat_id, content, blob, sent_at))
         return self._next()
 
-    async def send_reply(self, chat_id, parent, content, *, parent_author=None):
-        self.sent.append(("reply", chat_id, content))
+    async def send_reply(
+        self, chat_id, parent, content, *, parent_author=None, blob=None, sent_at=None
+    ):
+        self.sent.append(("reply", chat_id, content, blob, sent_at))
         return self._next()
 
 
-def make_adapter(results=None):
+def make_adapter(results=None, extra=None):
     base = {
         "node_url": "https://pen.tlon.network",
         "node_id": "~pen",
@@ -161,6 +163,7 @@ def make_adapter(results=None):
         "channels": ["chat/~pen/general"],
         "owner_ship": "~mug",
     }
+    base.update(extra or {})
     with patch.dict("os.environ", {}, clear=True):
         adapter = adapter_mod.TlonAdapter(PlatformConfig(extra=base))
     adapter._cli = FakeCLI(results=results)
@@ -193,14 +196,35 @@ class ChunkingTests(unittest.TestCase):
         self.assertEqual(result.continuation_message_ids, ("m1", "m2"))
 
     def test_multi_chunk_lens_outputs_carry_chunk_index(self):
+        # Outputs are recorded only when a chunk is stamped with its lens
+        # reference, so run with the lens active and a live run in place.
         adapter = make_adapter(
-            [cli_result(message_id=f"m{i}") for i in range(1, 3)]
+            [cli_result(message_id=f"m{i}") for i in range(1, 3)],
+            extra={"context_lens": True},
         )
+        adapter._lens._sync._ready = True  # steward verified at startup
         adapter.MAX_MESSAGE_LENGTH = 10
+        run = lens.LensRun(
+            lens_id="L1",
+            message_id="m1",
+            chat_type="dm",
+            trigger="dm",
+            conversation_kind="dm",
+            conversation_id="~alice",
+            author_ship="~alice",
+        )
+        adapter._lens._runs["~alice"] = run
         recorded = []
         adapter._lens.record_output = lambda chat_id, output: recorded.append(output)
         asyncio.run(adapter.send("~alice", "a" * 15))
         self.assertEqual([o.chunk_index for o in recorded], [0, 1])
+        # Every chunk is its own post: each carries the run's lens-ref blob
+        # and its own --sent-at (the output id derives from it).
+        blobs = [entry[3] for entry in adapter._cli.sent]
+        sent_ats = [entry[4] for entry in adapter._cli.sent]
+        self.assertTrue(all(b and "tlon-context-lens" in b for b in blobs))
+        self.assertTrue(all(t is not None for t in sent_ats))
+        self.assertEqual([o.sent_at for o in recorded], sent_ats)
 
     def test_partial_chunk_failure_reports_delivered_prefix(self):
         # Second chunk fails after the first landed: report success so the
