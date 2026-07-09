@@ -309,8 +309,10 @@ export function NotesNativeChannel({
     setFocusTitleNoteId(null);
   });
 
+  // Deliberately does not touch selectedFolderId: the pushed folder screen is
+  // its own component instance, and a selection recorded here would outlive
+  // the visit as invisible state that redirects imports after backing out.
   const openFolder = useMutableCallback((folder: db.NotesFolder) => {
-    setSelectedFolderId(folder.folderId);
     navigation.dispatch(
       StackActions.push('NotesFolder', {
         channelId,
