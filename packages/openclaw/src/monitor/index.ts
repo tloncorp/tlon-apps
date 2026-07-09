@@ -158,6 +158,7 @@ import {
   shouldEngageInGroup,
   stripBotMention,
 } from './utils.js';
+import { probeWebSearchBootStatus } from './web-search-status.js';
 
 // Local structural types — @tloncorp/api defines these internally but
 // does not export them from its public entrypoint.
@@ -4842,6 +4843,23 @@ export async function monitorTlonProvider(
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      const webSearchRuntime = core.webSearch;
+      const webSearchStatus = probeWebSearchBootStatus({
+        searchConfig: cfg.tools?.web?.search,
+        listProviders:
+          typeof webSearchRuntime?.listProviders === 'function'
+            ? () => webSearchRuntime.listProviders()
+            : undefined,
+      });
+      if (!webSearchStatus.webSearchAvailable) {
+        runtime.error?.(
+          `[tlon] web_search unavailable at gateway boot: enabled=${webSearchStatus.webSearchEnabled}, providers=[${webSearchStatus.webSearchProviders.join(', ')}]${
+            webSearchStatus.webSearchProbeError
+              ? `, probeError=${webSearchStatus.webSearchProbeError}`
+              : ''
+          }`
+        );
+      }
       telemetry?.captureGatewayConnected({
         ownerShip: effectiveOwnerShip,
         botShip: botShipName,
@@ -4857,6 +4875,7 @@ export async function monitorTlonProvider(
         pendingApprovalCount: pendingApprovals.length,
         autoDiscoverChannels: effectiveAutoDiscoverChannels,
         ownerListenEnabled: effectiveOwnerListenEnabled,
+        ...webSearchStatus,
       });
 
       // Periodically refresh channel discovery

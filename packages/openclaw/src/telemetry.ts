@@ -196,6 +196,15 @@ export type TlonGatewayConnectedEvent = {
   pendingApprovalCount: number;
   autoDiscoverChannels: boolean;
   ownerListenEnabled: boolean;
+  // Boot-time web_search status (see monitor/web-search-status.ts). Rides on
+  // this event so fleet monitors catch capability loss at provision time —
+  // a failed provider-plugin install disables web_search silently otherwise.
+  webSearchEnabled: boolean;
+  webSearchConfiguredProvider: string | null;
+  webSearchProviders: string[];
+  webSearchProviderCount: number;
+  webSearchAvailable: boolean;
+  webSearchProbeError: string | null;
 };
 
 export type TlonReplyTelemetryResult = {
@@ -1053,6 +1062,12 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         pendingApprovalCount: event.pendingApprovalCount,
         autoDiscoverChannels: event.autoDiscoverChannels,
         ownerListenEnabled: event.ownerListenEnabled,
+        webSearchEnabled: event.webSearchEnabled,
+        webSearchConfiguredProvider: event.webSearchConfiguredProvider,
+        webSearchProviders: event.webSearchProviders,
+        webSearchProviderCount: event.webSearchProviderCount,
+        webSearchAvailable: event.webSearchAvailable,
+        webSearchProbeError: event.webSearchProbeError,
       }),
     });
   }
