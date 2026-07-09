@@ -1,36 +1,39 @@
 diff --git a/ios/PasteInputModule.mm b/ios/PasteInputModule.mm
-index 59ff531dea109fb0d37d3e5382ca8276ae1a0b7a..1a1ad0a64d4de5894bcfc3ff2fa1f3c86da3cb35 100644
+index 59ff531dea109fb0d37d3e5382ca8276ae1a0b7a..5e124330bd6ebe8ea6f4e8867218c88ab51b97e7 100644
 --- a/ios/PasteInputModule.mm
 +++ b/ios/PasteInputModule.mm
-@@ -42,6 +42,7 @@ @interface PasteInputModule ()
+@@ -41,7 +41,7 @@ @interface PasteInputModule ()
+ @property (nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *registrationGenerations;
  @end
  
- static id _reactHost = nil;
+-static id _reactHost = nil;
 +static RCTRootViewFactory *_rootViewFactory = nil;
  
  @implementation PasteInputModule
  
-@@ -56,6 +57,10 @@ + (void)setup:(RCTRootViewFactory *)rootViewFactory
+@@ -55,7 +55,10 @@ + (BOOL)requiresMainQueueSetup
+ + (void)setup:(RCTRootViewFactory *)rootViewFactory
  {
  #ifdef RCT_NEW_ARCH_ENABLED
-     _reactHost = rootViewFactory.reactHost;
+-    _reactHost = rootViewFactory.reactHost;
 +    // Under Expo (bridgeless) the RCTHost is created lazily when the first surface
-+    // mounts, which happens AFTER +setup: runs — so reactHost is nil here. Keep the
-+    // factory so getSurfacePresenter can re-read reactHost once it's populated.
++    // mounts, which happens AFTER +setup: runs. Keep the factory and read
++    // reactHost from it at lookup time instead of capturing a nil value here.
 +    _rootViewFactory = rootViewFactory;
  #endif
  }
  
-@@ -173,6 +178,12 @@ - (void)removeListeners:(double)count
+@@ -173,9 +176,11 @@ - (void)removeListeners:(double)count
  - (nullable id)getSurfacePresenter
  {
  #ifdef RCT_NEW_ARCH_ENABLED
-+    // The RCTHost is created lazily by the root view factory when the first surface
-+    // mounts (after +setup: runs), so re-read it from the factory at lookup time
-+    // rather than relying on the value captured during setup.
-+    if (!_reactHost && _rootViewFactory) {
-+        _reactHost = _rootViewFactory.reactHost;
-+    }
++    // Read the host fresh from the factory (see +setup: for why it's not cached).
++    id reactHost = _rootViewFactory.reactHost;
      // Try bridgeless mode first (if reactHost is set)
-     if (_reactHost) {
-         return [_reactHost performSelector:@selector(surfacePresenter)];
+-    if (_reactHost) {
+-        return [_reactHost performSelector:@selector(surfacePresenter)];
++    if (reactHost) {
++        return [reactHost performSelector:@selector(surfacePresenter)];
+     }
+     // Fallback to bridge mode (Fabric with bridge enabled)
+     else if (self.bridge) {
