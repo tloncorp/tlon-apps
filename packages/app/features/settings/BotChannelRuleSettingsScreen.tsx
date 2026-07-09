@@ -91,30 +91,37 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   // value is stale for the new ship, so stop trusting it and let membership be
   // re-derived from the new ship's moon listing. (Only drop it on a genuine
   // ship→ship transition, not the initial resolve.)
+  // Remember the rule as it was when the channel was last disabled, so a
+  // canceling off→on toggle restores the exact settings (allowlist, mode, model
+  // override) the user had — including unsaved edits — instead of resetting to
+  // the inherited default. Reset when the channel param or ship changes (below).
+  const disabledRuleRef = useRef<ChannelRuleDraft | undefined>(undefined);
+
   const [routeGroupJoined, setRouteGroupJoined] = useState(initialGroupJoined);
   const shipRef = useRef(queries.ship);
   useEffect(() => {
     if (shipRef.current && queries.ship && shipRef.current !== queries.ship) {
       setRouteGroupJoined(false);
+      // The pre-disable snapshot belongs to the previous ship; drop it so
+      // re-enabling on the new ship doesn't copy the old ship's rule.
+      disabledRuleRef.current = undefined;
     }
     shipRef.current = queries.ship;
   }, [queries.ship]);
 
-  // Remember the rule as it was when the channel was last disabled, so a
-  // canceling off→on toggle restores the exact settings (allowlist, mode, model
-  // override) the user had — including unsaved edits — instead of resetting to
-  // the inherited default. Reset when the channel param changes (see below).
-  const disabledRuleRef = useRef<ChannelRuleDraft | undefined>(undefined);
-
   // The desktop settings drawer keeps this screen mounted across channel
   // switches; clear per-channel input state when the channel param changes so
   // a half-typed ship or search doesn't leak into another channel's editor.
+  // Also re-seed routeGroupJoined from the new channel's route param, or the
+  // previous channel's membership value would bypass the read-only guard for a
+  // group the bot may not have joined.
   useEffect(() => {
     setPendingShip('');
     setModelSearch('');
     setValidationError(null);
     disabledRuleRef.current = undefined;
-  }, [channelKey]);
+    setRouteGroupJoined(initialGroupJoined);
+  }, [channelKey, initialGroupJoined]);
 
   const rule = draft.draft.chat.channelRuleDrafts[channelKey];
   const baselineRule = draft.baseline.chat.channelRuleDrafts[channelKey];
