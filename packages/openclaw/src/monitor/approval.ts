@@ -69,6 +69,10 @@ export type DisplayContext = {
   groupNames?: Map<string, string>;
 };
 
+export type ApprovalA2UIOptions = {
+  includeSourceNavigation?: boolean;
+};
+
 function displayShipName(ship: string, ctx?: DisplayContext): string {
   return ctx?.contactNames?.get(ship) || ship;
 }
@@ -539,7 +543,8 @@ function approvalSourceTarget(
 
 export function buildApprovalA2UIBlob(
   approval: PendingApproval,
-  ctx?: DisplayContext
+  ctx?: DisplayContext,
+  options: ApprovalA2UIOptions = {}
 ): TlonA2UIBlob {
   return buildApprovalA2UIBlobFromParams({
     type: approval.type,
@@ -558,7 +563,10 @@ export function buildApprovalA2UIBlob(
       approval.groupTitle,
       ctx
     ),
-    sourceTarget: approvalSourceTarget(approval, ctx),
+    sourceTarget:
+      options.includeSourceNavigation === false
+        ? undefined
+        : approvalSourceTarget(approval, ctx),
   });
 }
 

@@ -293,6 +293,44 @@ describe('buildApprovalA2UIBlob', () => {
     expect(JSON.stringify(channel)).toContain('"groupId":"~host/cool-group"');
   });
 
+  it('hides source navigation when the notification recipient cannot see the bot source', () => {
+    const sourceMessage = {
+      messageId: '170.141.184.507',
+      messageText: 'Please let me in',
+      messageContent: [],
+      timestamp: 1,
+    };
+    const dm = buildApprovalA2UIBlob(
+      {
+        id: 'da1b2',
+        type: 'dm',
+        requestingShip: '~sampel-palnet',
+        timestamp: 1,
+        originalMessage: sourceMessage,
+      },
+      undefined,
+      { includeSourceNavigation: false }
+    );
+    const channel = buildApprovalA2UIBlob(
+      {
+        id: 'c3d4e',
+        type: 'channel',
+        requestingShip: '~littel-wolfur',
+        channelNest: 'chat/~host/general',
+        timestamp: 1,
+        originalMessage: sourceMessage,
+      },
+      ctx,
+      { includeSourceNavigation: false }
+    );
+
+    for (const approval of [dm, channel]) {
+      expect(A2UI.validateBlobEntry(approval)).toBe(true);
+      expect(JSON.stringify(approval)).not.toContain('View message');
+      expect(JSON.stringify(approval)).not.toContain('tlon.navigate');
+    }
+  });
+
   it('does not add view message navigation to group invites', () => {
     const approval = buildApprovalA2UIBlob({
       id: 'g5f6a',

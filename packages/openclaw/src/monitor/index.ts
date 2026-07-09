@@ -114,7 +114,7 @@ import {
   buildThreadContextMessage,
   cacheMessage,
   fetchChannelHistory,
-  fetchParentPostHistoryEntry,
+  fetchParentPostAuthor,
   fetchThreadContextHistory,
   getChannelHistory,
   lookupCachedMessage,
@@ -975,7 +975,13 @@ export async function monitorTlonProvider(
       ctx: DisplayContext
     ): string | undefined {
       try {
-        return serializeBlobField(buildApprovalA2UIBlob(approval, ctx));
+        return serializeBlobField(
+          buildApprovalA2UIBlob(approval, ctx, {
+            // Source messages live on the bot's account. A separate owner may
+            // not have the corresponding DM or group channel in local state.
+            includeSourceNavigation: effectiveOwnerShip === botShipName,
+          })
+        );
       } catch (err) {
         runtime.error?.(
           `[tlon] Failed to build approval A2UI blob: ${String(err)}`
@@ -3748,19 +3754,17 @@ export async function monitorTlonProvider(
             if (!normalizedAllowed.includes(senderShip)) {
               // If owner is configured, queue approval request
               if (effectiveOwnerShip) {
-                const parentEntry = parentId
-                  ? lookupCachedMessage(nest, parentId) ??
-                    (await fetchParentPostHistoryEntry(
-                      api,
-                      nest,
-                      parentId,
-                      runtime
-                    ))
+                const cachedParentAuthor = parentId
+                  ? lookupCachedMessage(nest, parentId)?.author
                   : undefined;
-                const parentAuthorId =
-                  parentEntry?.author && parentEntry.author !== 'unknown'
-                    ? normalizeShip(parentEntry.author)
-                    : undefined;
+                const parentAuthor = parentId
+                  ? cachedParentAuthor && cachedParentAuthor !== 'unknown'
+                    ? cachedParentAuthor
+                    : await fetchParentPostAuthor(api, nest, parentId, runtime)
+                  : null;
+                const parentAuthorId = parentAuthor
+                  ? normalizeShip(parentAuthor)
+                  : undefined;
                 const approval = createPendingApproval(
                   {
                     type: 'channel',

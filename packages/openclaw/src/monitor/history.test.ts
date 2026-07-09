@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   type TlonHistoryEntry,
   buildThreadContextMessage,
+  fetchParentPostAuthor,
   fetchParentPostHistoryEntry,
   renderHistoryContent,
   retainThreadContextMessages,
@@ -197,6 +198,30 @@ describe('renderHistoryContent', () => {
 });
 
 describe('fetchParentPostHistoryEntry', () => {
+  it('extracts an author from a media-only parent post', async () => {
+    const api = {
+      scry: async () => ({
+        post: {
+          essay: {
+            author: { ship: '~nec', nickname: 'Nec' },
+            sent: 123,
+            content: [],
+            blob: '[{"type":"file","version":1}]',
+          },
+          seal: { id: '170.141.184.507' },
+        },
+      }),
+    };
+
+    const author = await fetchParentPostAuthor(
+      api,
+      'chat/~ship/general',
+      '170141184507'
+    );
+
+    expect(author).toBe('~nec');
+  });
+
   it('extracts parent post text from memo-shaped post payloads', async () => {
     const api = {
       scry: async () => ({
