@@ -174,6 +174,28 @@ describe('provider config', () => {
     expect(values.model).toBe('claude-1');
     expect(values.fallbacks).toEqual([{ provider: 'openai', model: 'gpt-x' }]);
   });
+
+  it('treats the first non-channel model as primary when none is flagged', () => {
+    // legacy shape: {provider, model} entries with no `primary` flag
+    const values = getModelFormValues({
+      keys: { anthropic: 'sk-ant-xxx' },
+      defaultKeys: {},
+      models: [
+        { provider: 'anthropic', model: 'claude-1' },
+        { provider: 'openai', model: 'gpt-x' },
+        {
+          provider: 'anthropic',
+          model: 'channel-model',
+          channels: ['chat/~zod/general'],
+        },
+      ],
+    });
+    // first non-channel model is the primary (not a fall-through to Basic)
+    expect(values.provider).toBe('anthropic');
+    expect(values.model).toBe('claude-1');
+    // the remaining non-channel model becomes a fallback (not duplicated)
+    expect(values.fallbacks).toEqual([{ provider: 'openai', model: 'gpt-x' }]);
+  });
 });
 
 describe('tlonbot config', () => {

@@ -216,9 +216,13 @@ export const toDisplayProviderId = (
 export const getModelFormValues = (
   config: TlawnProviderConfigInfo | undefined
 ): ModelFormValues => {
-  const primary = config?.models?.find(
-    (model) => model.primary && !model.channels?.length
-  );
+  // `primary` is optional and older configs omit it entirely; when no entry is
+  // flagged, treat the first non-channel model as the primary rather than
+  // falling through to Basic (which would replace a real primary on save).
+  const nonChannelModels =
+    config?.models?.filter((model) => !model.channels?.length) ?? [];
+  const primary =
+    nonChannelModels.find((model) => model.primary) ?? nonChannelModels[0];
   if (!primary) {
     return {
       provider: BASIC_PROVIDER_ID,
@@ -231,13 +235,12 @@ export const getModelFormValues = (
   return {
     provider: toDisplayProviderId(config, primary.provider, primary.model),
     model: primary.model,
-    fallbacks:
-      config?.models
-        ?.filter((model) => !model.primary && !model.channels?.length)
-        .map((model) => ({
-          provider: toDisplayProviderId(config, model.provider, model.model),
-          model: model.model,
-        })) ?? [],
+    fallbacks: nonChannelModels
+      .filter((model) => model !== primary)
+      .map((model) => ({
+        provider: toDisplayProviderId(config, model.provider, model.model),
+        model: model.model,
+      })),
   };
 };
 
