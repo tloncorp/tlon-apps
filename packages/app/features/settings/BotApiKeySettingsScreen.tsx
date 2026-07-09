@@ -85,6 +85,13 @@ export function BotApiKeySettingsScreen(props: Props) {
   const handleRemove = useCallback(async () => {
     try {
       await deleteProviderKey.mutateAsync({ provider: providerId });
+      // Clear any typed replacement key and close the dialog: otherwise a
+      // just-removed secret stays visible and Save stays enabled, so a stray tap
+      // could immediately write the credential back.
+      setKey('');
+      setShowKey(false);
+      setValidationError(null);
+      setConfirmRemove(false);
     } catch {
       // surfaced via deleteProviderKey.error below
     }
