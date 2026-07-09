@@ -653,15 +653,13 @@
   |=  [obj=(map @t json) key=@t]
   ^-  (unit @t)
   ?~  v=(~(get by obj) key)  ~
-  ?.  ?=([%s *] u.v)  ~
-  `p.u.v
+  (mole |.((so:dejs:format u.v)))
 ::
 ++  field-ud
   |=  [obj=(map @t json) key=@t]
   ^-  (unit @ud)
   ?~  v=(~(get by obj) key)  ~
-  ?.  ?=([%n *] u.v)  ~
-  (rush p.u.v dem)
+  (mole |.((ni:dejs:format u.v)))
 ::  +field-flag: read a flag object {host, flagName} from a JSON body field.
 ::  ~ if absent or malformed (so callers can treat it as optional).
 ::
@@ -669,15 +667,14 @@
   |=  [obj=(map @t json) key=@t]
   ^-  (unit flag:n)
   ?~  v=(~(get by obj) key)  ~
-  ?.  ?=([%o *] u.v)  ~
-  =/  host-j  (~(get by p.u.v) 'host')
-  =/  name-j  (~(get by p.u.v) 'flagName')
-  ?~  host-j  ~
-  ?~  name-j  ~
-  ?.  ?=([%s *] u.host-j)  ~
-  ?.  ?=([%s *] u.name-j)  ~
-  ?~  host=(slaw %p p.u.host-j)  ~
-  `[u.host `@tas`p.u.name-j]
+  %-  mole  |.
+  =/  raw
+    %.  u.v
+    %-  ot:dejs:format
+    :~  ['host' (su:dejs:format ;~(pfix sig fed:ag))]
+        ['flagName' so:dejs:format]
+    ==
+  `flag:n`[-.raw `@tas`+.raw]
 ::  +field-readers: read a JSON array of role-id strings into (set @tas).
 ::  absent / malformed / non-string elements → dropped; absent field or
 ::  empty array → empty set (open channel). role-ids are reinterpreted as
@@ -692,9 +689,8 @@
   %+  murn  p.u.v
   |=  j=json
   ^-  (unit @tas)
-  ?.  ?=([%s *] j)  ~
-  =/  r=@tas  `@tas``@`p.j
-  `r
+  ?~  s=(mole |.((so:dejs:format j)))  ~
+  ``@tas``@`u.s
 ::  +build-write-action: translate a REST write (method + path segments +
 ::  json body) into an a-notes action, or ~ if the shape isn't recognized
 ::  / required fields are missing. These are the "first-class" convenience
