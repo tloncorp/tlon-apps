@@ -11,16 +11,13 @@ import { BASIC_DEFAULT_MODEL, BASIC_PROVIDER_ID } from './constants';
 
 export type ChannelRuleDraft = {
   mode: 'open' | 'allowlist';
+  // Always an explicit list. Solaris can't persist a "follow the defaults" rule
+  // (it requires and materializes allowedShips), so a newly-enabled channel is
+  // seeded with a snapshot of the current defaultAuthorizedShips that the user
+  // edits directly — there is no inherited/follows-defaults state.
   allowedShips: string;
   modelOverrideProvider?: string;
   modelOverride?: string;
-  // True for a channel presented as "following defaultAuthorizedShips" rather
-  // than a custom list. `allowedShips` holds the defaults as a display snapshot;
-  // on save the current defaults are materialized into the rule's allowedShips
-  // (Solaris can't store a follow-the-defaults rule — see
-  // buildConfigFromChatValues). Cleared once the user edits the rule explicitly
-  // (see setRule in BotChannelRuleSettingsScreen).
-  inheritsDefaultShips?: boolean;
 };
 
 export type ChatFormValues = {
@@ -283,15 +280,15 @@ export const normalizeTlonbotConfig = (
   };
 };
 
-// An allowlist channel that follows defaultAuthorizedShips. The allowlist is
-// prefilled for display, but the flag makes the save path omit allowedShips so
-// the channel keeps inheriting the (current and future) defaults.
-const inheritedDraft = (
+// A newly-enabled allowlist channel: seeded with an explicit snapshot of the
+// current defaultAuthorizedShips (the user edits it from there). Also used when
+// the server rule/monitored channel has no explicit allowedShips, so it reads as
+// a concrete editable list rather than a hidden "follows defaults" state.
+const defaultAllowlistDraft = (
   defaultAuthorizedShips: string[]
 ): ChannelRuleDraft => ({
   mode: 'allowlist',
   allowedShips: formatShipList(defaultAuthorizedShips || []),
-  inheritsDefaultShips: true,
 });
 
 export const buildChannelRuleDrafts = (
@@ -300,12 +297,11 @@ export const buildChannelRuleDrafts = (
 ): Record<string, ChannelRuleDraft> => {
   const drafts: Record<string, ChannelRuleDraft> = {};
   Object.entries(config.channelRules || {}).forEach(([key, rule]) => {
-    // An allowlist rule with no explicit allowedShips inherits
-    // defaultAuthorizedShips on the backend; flag it so a save keeps it
-    // following the defaults instead of freezing the current list.
+    // A rule with no explicit allowedShips (legacy "follows defaults" shape)
+    // reads as an explicit snapshot of the current defaults.
     drafts[normalizeChannelRuleKey(key)] =
       rule.mode === 'allowlist' && rule.allowedShips === undefined
-        ? inheritedDraft(config.defaultAuthorizedShips)
+        ? defaultAllowlistDraft(config.defaultAuthorizedShips)
         : {
             mode: toDraftMode(rule.mode),
             allowedShips: formatShipList(rule.allowedShips || []),
@@ -314,8 +310,8 @@ export const buildChannelRuleDrafts = (
   (config.groupChannels || []).forEach((key) => {
     const channelKey = normalizeChannelRuleKey(key);
     if (!drafts[channelKey]) {
-      // No explicit rule at all — same inherited-allowlist default.
-      drafts[channelKey] = inheritedDraft(config.defaultAuthorizedShips);
+      // Monitored with no explicit rule — show the current defaults explicitly.
+      drafts[channelKey] = defaultAllowlistDraft(config.defaultAuthorizedShips);
     }
   });
   providerConfig?.models?.forEach((model) => {
@@ -445,24 +441,16 @@ export const buildConfigFromChatValues = (
 ): TlawnConfig => {
   // Every monitored channel must have an explicit channelRules entry: Solaris
   // derives groupChannels from `Map.keys channelRules` and ignores the payload's
-  // groupChannels, so a channel with no rule is not monitored. It also requires
-  // allowedShips on every rule. So materialize each channel — an inherited
-  // channel snapshots the CURRENT defaultAuthorizedShips into its allowedShips
-  // (it can't "follow" the defaults through this endpoint); an explicit allowlist
-  // keeps its own list; an open channel sends an empty list.
+  // groupChannels, so a channel with no rule is not monitored, and it requires
+  // allowedShips on every rule. Each allowlist channel carries its own explicit
+  // list (no inherited/follows-defaults state); an open channel sends [].
   const channelRules = Object.fromEntries(
     Object.entries(values.channelRuleDrafts).map(([key, rule]) => [
       normalizeChannelRuleKey(key),
       {
         mode: toBackendMode(rule.mode),
         allowedShips:
-          rule.mode === 'allowlist'
-            ? normalizeShipList(
-                rule.inheritsDefaultShips
-                  ? values.defaultAuthorizedShips
-                  : rule.allowedShips
-              )
-            : [],
+          rule.mode === 'allowlist' ? normalizeShipList(rule.allowedShips) : [],
       },
     ])
   );

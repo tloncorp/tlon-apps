@@ -240,7 +240,7 @@ describe('tlonbot config', () => {
         channelRules: {
           // legacy `restricted` values still read as an allowlist
           'zod/general': { mode: 'restricted', allowedShips: ['nec'] },
-          // a rule with omitted allowedShips -> inherited
+          // a rule with omitted allowedShips reads as an explicit defaults snapshot
           'zod/inherited': { mode: 'allowlist' } as {
             mode: string;
             allowedShips: string[];
@@ -267,22 +267,20 @@ describe('tlonbot config', () => {
       modelOverrideProvider: 'basic',
       modelOverride: 'minimax/minimax-m3',
     });
-    // a group channel with no explicit rule defaults to an allowlist with the
-    // default authorized ships (flagged inherited), not an open channel
+    // a group channel with no explicit rule reads as an explicit snapshot of the
+    // default authorized ships (no inherited flag), not an open channel
     expect(drafts['chat/~zod/random']).toEqual({
       mode: 'allowlist',
       allowedShips: '~bus',
-      inheritsDefaultShips: true,
     });
-    // a rule that omits allowedShips is also inherited
+    // a rule that omits allowedShips also reads as the defaults snapshot
     expect(drafts['chat/~zod/inherited']).toEqual({
       mode: 'allowlist',
       allowedShips: '~bus',
-      inheritsDefaultShips: true,
     });
   });
 
-  it('materializes inherited channels into channelRules from the current defaults', () => {
+  it('saves each monitored channel with its own explicit allowlist', () => {
     const config = buildConfigFromChatValues({
       dmAllowlist: '',
       defaultAuthorizedShips: '~zod, ~bus',
@@ -290,29 +288,24 @@ describe('tlonbot config', () => {
       autoAcceptDmInvites: false,
       autoDiscoverChannels: false,
       channelRuleDrafts: {
-        // inherited: snapshot the CURRENT defaults (not the stale display value
-        // on the draft), since Solaris can't store a follow-the-defaults rule
+        // each allowlist channel carries its own explicit list — there is no
+        // follows-defaults state, so this is saved as-is (not re-materialized
+        // from the current defaultAuthorizedShips)
         'chat/~zod/general': {
           mode: 'allowlist',
           allowedShips: '~nec',
-          inheritsDefaultShips: true,
         },
-        // an explicitly edited rule keeps its own allowlist
         'chat/~zod/private': {
           mode: 'allowlist',
           allowedShips: '~mel',
         },
       },
     });
-    // inherited channel: an explicit rule with the current defaults materialized
-    // (a channel with no rule would not be monitored — groupChannels is derived
-    // from channelRules keys server-side)
     expect(config.channelRules['chat/~zod/general']).toEqual({
       mode: 'allowlist',
-      allowedShips: ['~zod', '~bus'],
+      allowedShips: ['~nec'],
     });
     expect(config.groupChannels).toContain('chat/~zod/general');
-    // explicit channel: a rule with its own allowedShips list
     expect(config.channelRules['chat/~zod/private']).toEqual({
       mode: 'allowlist',
       allowedShips: ['~mel'],
