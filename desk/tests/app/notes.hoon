@@ -570,7 +570,7 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'NB'])
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ;<  caz=(list card)  b  (poke-a [%notebook f [%create-folder `2 'Docs']])
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%create-folder 2 'Docs']])
   ;<  ~  b  (ex-cards-ne caz)
   ;<  fld=cage  b  (peek-fld f 3)
   (ex-mark fld %notes-folder)
@@ -586,34 +586,11 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'NB'])
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'Docs']])
-  ;<  caz=(list card)  b  (poke-a [%notebook f [%create-folder `3 'Sub']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'Docs']])
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%create-folder 3 'Sub']])
   ;<  ~  b  (ex-cards-ne caz)
   ;<  sub=cage  b  (peek-fld f 4)
   (ex-mark sub %notes-folder)
-::  ====  test-create-folder-null-parent-uses-root  ====
-::  parent=~ resolves to the notebook's root (nb.id + 1 = 2). After
-::  notebook id=1 + root id=2, the new folder gets fid=3 with parent=2.
-::
-++  test-create-folder-null-parent-uses-root
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  init-zod
-  ;<  =bowl:gall  b  get-bowl
-  ;<  *  b  (poke-a [%create-notebook 'NB'])
-  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-folder ~ 'Orphan?']])
-  ;<  sv=vase  b  get-save
-  =/  s=state-14:n  !<(state-14:n sv)
-  |=  s2=state
-  ?~  entry=(~(get by books.s) f)  |+['notebook missing']~
-  ?~  fld=(~(get by folders.notebook-state.u.entry) 3)
-    |+['folder fid=3 not created']~
-  ?.  =(`2 parent-folder-id.u.fld)
-    |+~[(crip "expected parent=2 (root), got {<parent-folder-id.u.fld>}")]
-  &+[~ s2]
 ::  ====  test-create-folder-bad-parent-rejected  ====
 ::  parent points at an id that doesn't exist → crash. ex-fail ensures
 ::  the poke failed AND folders.notebook-state is unchanged.
@@ -627,7 +604,7 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'NB'])
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ;<  ~  b  (ex-fail (poke-a [%notebook f [%create-folder `999 'Bad']]))
+  ;<  ~  b  (ex-fail (poke-a [%notebook f [%create-folder 999 'Bad']]))
   ;<  sv=vase  b  get-save
   =/  s=state-14:n  !<(state-14:n sv)
   |=  s2=state
@@ -646,7 +623,7 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'NB'])
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'OldName']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'OldName']])
   ;<  caz=(list card)  b  (poke-a [%notebook f [%folder 3 [%rename 'NewName']]])
   (ex-cards-ne caz)
 ::  ====  test-move-folder  ====
@@ -661,8 +638,8 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'NB'])
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'FolderA']])
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'FolderB']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'FolderA']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'FolderB']])
   ;<  caz=(list card)  b  (poke-a [%notebook f [%folder 4 [%move 3]]])
   (ex-cards-ne caz)
 ::  ====  test-delete-empty-folder-succeeds  ====
@@ -676,7 +653,7 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'NB'])
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'Empty']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'Empty']])
   ;<  caz=(list card)  b  (poke-a [%notebook f [%folder 3 [%delete %.n]]])
   ;<  ~  b  (ex-cards-ne caz)
   ;<  res=(unit (unit cage))  b
@@ -694,7 +671,7 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'NB'])
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'HasNote']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'HasNote']])
   ;<  *  b  (poke-a [%notebook f [%create-note 3 'Note' 'body']])
   (ex-fail (poke-a [%notebook f [%folder 3 [%delete %.n]]]))
 ::  ====  test-delete-nonempty-folder-recursive-succeeds  ====
@@ -708,7 +685,7 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'NB'])
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'HasNote']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'HasNote']])
   ;<  *  b  (poke-a [%notebook f [%create-note 3 'Note' 'body']])
   ;<  caz=(list card)  b  (poke-a [%notebook f [%folder 3 [%delete %.y]]])
   ;<  ~  b  (ex-cards-ne caz)
@@ -761,9 +738,9 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'NB'])
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'FolderA']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'FolderA']])
   ;<  *  b  (poke-a [%notebook f [%create-note 3 'MyNote' 'body']])
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'FolderB']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'FolderB']])
   ;<  caz=(list card)  b  (poke-a [%notebook f [%note 4 [%move 5]]])
   (ex-cards-ne caz)
 ::  ====  test-update-note-matching-revision-succeeds  ====
@@ -1762,8 +1739,10 @@
         ==
     ==
   (ex-equal !>(parsed) !>(expected))
-::  ====  test-json-decode-create-folder  ====
-::  parent is (unit @ud); null in JSON → ~ in Hoon.
+::  ====  test-json-decode-create-folder-no-parent  ====
+::  parent is required; a create-folder without it must fail to decode
+::  (the HTTP boundary turns that into a 400) rather than silently
+::  defaulting a parent.
 ::
 ++  test-json-decode-create-folder-no-parent
   %-  eval-mare
@@ -1772,7 +1751,6 @@
   =/  inner=json
     %-  mk-obj
     :~  ['type' [%s 'create-folder']]
-        ['parent' ~]
         ['name' [%s 'docs']]
     ==
   =/  jon=json
@@ -1781,10 +1759,11 @@
         ['flag' [%s '~zod/foo']]
         ['action' inner]
     ==
-  =/  parsed=action:n  (action:dejs:notes-json jon)
-  =/  expected=action:n
-    [%notebook [~zod %foo] [%create-folder ~ 'docs']]
-  (ex-equal !>(parsed) !>(expected))
+  |=  s2=state
+  =/  res  (mule |.((action:dejs:notes-json jon)))
+  ?:  ?=(%& -.res)
+    |+['expected create-folder decode to fail without parent']~
+  &+[~ s2]
 ::  ====  test-json-decode-create-folder-with-parent  ====
 ::
 ++  test-json-decode-create-folder-with-parent
@@ -1805,7 +1784,7 @@
     ==
   =/  parsed=action:n  (action:dejs:notes-json jon)
   =/  expected=action:n
-    [%notebook [~zod %foo] [%create-folder `2 'subdir']]
+    [%notebook [~zod %foo] [%create-folder 2 'subdir']]
   (ex-equal !>(parsed) !>(expected))
 ::  ====  test-migrate-state-9-to-10  ====
 ::  Hand-built state-9 with two notebooks: one local, one subscriber.
@@ -2047,8 +2026,8 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'PutFld'])
   =/  f=flag:n  (nb-flag our.bowl 'PutFld' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'A']])
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'B']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'A']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'B']])
   ;<  sv0=vase  b  get-save
   =/  s0=state-14:n  !<(state-14:n sv0)
   =/  key=@t  ?~(api-key.s0 '' u.api-key.s0)
@@ -2082,7 +2061,7 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'PutNote'])
   =/  f=flag:n  (nb-flag our.bowl 'PutNote' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'sub']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'sub']])
   ;<  *  b  (poke-a [%notebook f [%create-note 2 'old' 'b']])
   ;<  sv0=vase  b  get-save
   =/  s0=state-14:n  !<(state-14:n sv0)
@@ -2116,8 +2095,8 @@
   ;<  =bowl:gall  b  get-bowl
   ;<  *  b  (poke-a [%create-notebook 'DelFld'])
   =/  f=flag:n  (nb-flag our.bowl 'DelFld' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-folder `2 'A']])
-  ;<  *  b  (poke-a [%notebook f [%create-folder `3 'leaf']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'A']])
+  ;<  *  b  (poke-a [%notebook f [%create-folder 3 'leaf']])
   ;<  sv0=vase  b  get-save
   =/  s0=state-14:n  !<(state-14:n sv0)
   =/  key=@t  ?~(api-key.s0 '' u.api-key.s0)

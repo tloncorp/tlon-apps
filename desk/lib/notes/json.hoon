@@ -581,7 +581,7 @@
       [%invite ((ot ~[['who' (su ;~(pfix sig fed:ag))]]) jon)]
         %'create-folder'
       :-  %create-folder
-      ((ot ~[['parent' (mu ni)] ['name' so]]) jon)
+      ((ot ~[['parent' ni] ['name' so]]) jon)
         %'folder'
       :-  %folder
       ((ot ~[['id' ni] ['action' a-folder]]) jon)

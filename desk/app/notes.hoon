@@ -715,7 +715,8 @@
     ::  `{name}` (notebook slug) — mcp-proxy flattens path + body into a
     ::  single tool input, and a colliding `name` would conflate the two.
     ?~  fname=(field-cord obj 'folderName')  ~
-    `[%notebook flag [%create-folder (field-ud obj 'parent') u.fname]]
+    ?~  parent=(field-ud obj 'parent')  ~
+    `[%notebook flag [%create-folder u.parent u.fname]]
   ::
       [%'PUT' [%folders @ ~]]
     ?>  ?=([%folders @ ~] sub)
@@ -1885,26 +1886,23 @@
       %unpublish  se-core
       %restore    (se-restore-note id +.a-note)
     ==
-  ::  +se-create-folder: bug-prone callers (LLMs, raw pokes) frequently
-  ::  omit `parent` — the type allows ~, but a folder with parent=~ is
-  ::  structurally identical to the root and shows up as an orphan
-  ::  sibling. We resolve ~ to the notebook's root (root-id = nb.id + 1,
-  ::  a deterministic invariant from se-create-notebook), and require the
-  ::  resolved parent to actually exist so a bad explicit id crashes
-  ::  loudly instead of producing a dangling reference.
+  ::  +se-create-folder: `parent` is required (a concrete folder id). The
+  ::  boundary enforces this — the JSON decoder rejects a missing/null
+  ::  parent (400) and the REST builder returns ~ for it — so the core
+  ::  never has to guess a caller's intent. To create at the notebook root
+  ::  the caller passes the root folder's id (nb.id + 1, present in the
+  ::  folders map and in listings). We still assert the parent exists so a
+  ::  bad id crashes loudly instead of producing a dangling reference.
   ::
   ++  se-create-folder
-    |=  [parent=(unit @ud) name=@t]
+    |=  [parent=@ud name=@t]
     ^+  se-core
     ?>  (se-can-edit src.bowl)
-    =/  parent-id=@ud
-      ?^  parent  u.parent
-      +(id.notebook.notebook-state)
-    ?>  (~(has by folders.notebook-state) parent-id)
+    ?>  (~(has by folders.notebook-state) parent)
     =/  fid=@ud  +(next-id)
     =.  next-id  fid
     =/  =folder:n
-      [fid id.notebook.notebook-state name `parent-id [src now now src]:bowl]
+      [fid id.notebook.notebook-state name `parent [src now now src]:bowl]
     =.  folders.notebook-state
       (~(put by folders.notebook-state) fid folder)
     (se-update [%folder fid [%created folder]])
