@@ -154,9 +154,10 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       });
 
       const invite = await getMetadataFromInviteToken(parsed.token);
-      if (!invite && lastSetLureIdRef.current === parsed.token) {
-        // a richer lure (e.g. from the Branch callback) landed for this token
-        // while we were fetching — don't clobber it with an id-only fallback
+      if (lastSetLureIdRef.current === parsed.token) {
+        // a lure for this token landed while we were fetching — typically the
+        // Branch callback's payload, which is at least as rich and carries a
+        // priority token this set would otherwise clobber
         return true;
       }
       setInviteLure(
