@@ -262,6 +262,7 @@ export const HomeSidebar = memo(
                 ) : (
                   <ChatList
                     data={displayData}
+                    allPinnedChats={resolvedChats.pinned}
                     onPressItem={onPressChat}
                     disableScrollAnchoring
                     scrollerTestID="HomeSidebarChatScroller"

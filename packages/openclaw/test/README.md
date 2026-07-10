@@ -9,22 +9,32 @@ Integration tests for the Tlon plugin. These tests prompt the bot via DM and ver
 Starts ephemeral fakezod ships (~zod, ~ten, ~mug), runs tests, then cleans up:
 
 ```bash
+pnpm test:integration:shared
+```
+
+This is the shared-harness replacement path used by CI. It runs the common
+shared OpenClaw scenarios and then the package-local `test/cases/*.test.ts`
+files against the same shared Docker runtime.
+
+The legacy package-local runner remains available as:
+
+```bash
 pnpm test:integration
 ```
 
 Capture the full run output to a file:
 
 ```bash
-pnpm test:integration 2>&1 | tee full-suite-run.txt
+pnpm test:integration:shared 2>&1 | tee full-suite-run.txt
 ```
 
 Run a specific test file:
 
 ```bash
-pnpm test:integration test/cases/07-security.test.ts
+pnpm test:integration:shared:package -- test/cases/07-security.test.ts
 ```
 
-This is what CI uses. Requires:
+The legacy `pnpm test:integration` runner requires:
 - `OPENROUTER_API_KEY` in `.env` (or as environment variable)
 - Optional: tlonbot repo cloned next to the tlon-apps monorepo root (override with `TLONBOT_DIR`) for local prompt files (otherwise fetches from GitHub using `TLONBOT_TOKEN`)
 

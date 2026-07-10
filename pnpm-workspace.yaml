@@ -1,3 +1,98 @@
 packages:
   - "packages/*"
   - "apps/*"
+
+# pnpm 11 reads its settings from this file only (not .npmrc or the
+# package.json "pnpm" field).
+nodeLinker: hoisted
+engineStrict: true
+
+# Don't auto-install on pnpm run/exec when the workspace looks out of sync.
+# The rube Docker image installs a subset of workspace manifests with
+# --ignore-scripts before copying full sources; an implicit install there
+# would re-run without that flag and trigger native postinstalls.
+verifyDepsBeforeRun: false
+
+# Run package.json scripts through bash (they use bash-isms like rm -rf).
+# pnpm expands the ${VAR-default} fallback in this file. Windows devs set
+# TLON_SHELL to their Git bash; everywhere else it falls back to /bin/bash.
+scriptShell: ${TLON_SHELL-/bin/bash}
+
+autoInstallPeers: false
+
+peerDependencyRules:
+  ignoreMissing:
+    # Peer of app-builder-lib, only required for the Windows "squirrel"
+    # target; our Windows builds use nsis.
+    - electron-builder-squirrel-windows
+
+patchedDependencies:
+  "@types/testing-library__jest-dom": patches/@types__testing-library__jest-dom@5.14.5.patch
+  "@urbit/http-api": patches/@urbit__http-api@3.2.0-dev.patch
+  tailwind-rn: patches/tailwind-rn@4.2.0.patch
+  any-ascii: patches/any-ascii@0.3.2.patch
+  react-cosmos: patches/react-cosmos@7.2.0.patch
+  "@10play/tentap-editor": patches/@10play__tentap-editor@0.5.21.patch
+  drizzle-orm: patches/drizzle-orm@0.39.3.patch
+  react-native-country-codes-picker: patches/react-native-country-codes-picker@2.3.5.patch
+  "@simform_solutions/react-native-audio-waveform": patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch
+  "@gorhom/bottom-sheet": patches/@gorhom__bottom-sheet@5.2.14.patch
+  react-native-reanimated: patches/react-native-reanimated@4.3.1.patch
+  react-native-gesture-handler: patches/react-native-gesture-handler@2.31.2.patch
+  expo-image-manipulator: patches/expo-image-manipulator@56.0.19.patch
+  expo-background-task: patches/expo-background-task@56.0.19.patch
+  '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
+
+allowUnusedPatches: false
+
+blockExoticSubdeps: true
+
+# pnpm 11 defaults minimumReleaseAge to ~24h, which quarantines any freshly
+# published dependency and makes installs time-dependent. Disabled to match
+# pnpm 9 behavior.
+minimumReleaseAge: 0
+
+overrides:
+  # electron-builder's @electron/rebuild pins this to a git commit; the
+  # registry publishes the same version, and a registry resolution is required
+  # by blockExoticSubdeps.
+  "@electron/node-gyp": 10.2.0-electron.1
+  typescript: ~5.9.2
+  "@10play/tentap-editor": 0.5.21
+  "@tiptap/suggestion": 2.6.0
+  "@tiptap/extension-mention": 2.6.0
+  "@tiptap/extension-hard-break": 2.6.0
+  "@urbit/http-api": 3.2.0-dev
+  "@urbit/api": 2.2.0
+  prosemirror-model: 1.19.3
+  prosemirror-view: 1.33.4
+  prosemirror-state: 1.4.3
+  "@tiptap/pm": 2.6.6
+  react: 19.2.3
+  react-dom: 19.2.3
+  react-test-renderer: 19.2.3
+  react-native: 0.85.3
+  "@types/react": ~19.2.0
+  react-native-reanimated: 4.3.1
+  react-native-gesture-handler: ~2.31.1
+  get-intrinsic: 1.2.4
+  esbuild: 0.27.3
+
+allowBuilds:
+  "@firebase/util": true
+  "@google/genai": true
+  "@sentry/cli": true
+  "@shopify/react-native-skia": true
+  "@swc/core": true
+  "@tloncorp/mock-http-api": true
+  better-sqlite3: true
+  core-js: true
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  koffi: true
+  msw: true
+  openclaw: true
+  protobufjs: true
+  tree-sitter-bash: true
+  unrs-resolver: true

@@ -85,17 +85,16 @@
 ::  +l: specialized wrapper for logging library
 ::
 ++  l
-  |_  [our=@p for=(unit @p) kind=(unit @t)]
+  |_  [=bowl:gall for=(unit @p) kind=(unit @t)]
   ++  fail
-    ::TODO  maybe always slog the trace?
-    |=  [desc=term trace=tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our /logs) desc trace deez)
+    (~(fail logs bowl /logs) vol echo tang deez)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
     %-  link
-    (~(tell logs our /logs) volume echo deez)
+    (~(tell logs bowl /logs) volume echo deez)
   ::
   ++  deez  ::  details, log metadata
     ^-  (list [@t json])
@@ -333,7 +332,7 @@
   ^-  (quip card _state)
   =.  rec  ?^(rec rec (~(get by records) id))
   ?~  rec  [~ state]
-  %-  (~(tell l our.bowl `for.u.rec `-.id) %info ~['registration revoked' why])
+  %-  (~(tell l bowl `for.u.rec `-.id) %info ~['registration revoked' why])
   :-  [(give-status for.u.rec id why %gone ~)]~
   =?  attested  ?=(%done -.status.u.rec)
     %.  sig.full.status.u.rec
@@ -358,7 +357,7 @@
   =/  tat=attestation
     (attest [our now]:bowl for.rec id proof)
   =.  status.rec  [%done tat]
-  %-  (~(tell l our.bowl `for.rec `-.id) %info ['registration completed']~)
+  %-  (~(tell l bowl `for.rec `-.id) %info ['registration completed']~)
   :-  [(give-status for.rec id 'registration completed' status.rec)]~
   %_  state
     records   (~(put by records) id rec)
@@ -478,7 +477,7 @@
 ^-  agent:gall
 |_  =bowl:gall
 +*  this     .
-    l        log(our our.bowl)
+    l        log(bowl bowl)
     phone    ~(. ^phone phone-api)
     twitter  ~(. ^twitter bowl twitter-api)
 ::
@@ -876,7 +875,7 @@
       ::
       ~&  [dap.bowl %no-such-sig sig=`@uw`u.sig in=u.aid]
       %.  fof
-      %+  tell:l  %crit
+      %+  tell:l  %error
       ~['bad bookkeeping' 'failed to look up signature' (scot %uw u.sig)]
     ::
         [%lookup @ ~]
@@ -919,8 +918,7 @@
     =.  kind.log  `i.t.wire
     ?>  ?=([%behn %wake *] sign)
     ?^  error.sign
-      %-  (slog dap.bowl 'wake failed' u.error.sign)
-      %-  (fail:l %wake 'verifier wake failed' u.error.sign)
+      %-  (fail:l %error ~['verifier wake failed'] u.error.sign)
       [~ this]
     =/  id=identifier  (need (wire-id t.wire))
     =/  start=@da      (slav %da i.t.t.t.wire)
@@ -1233,7 +1231,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:l term tang)
-  %-  (slog (rap 3 dap.bowl ' +on-fail: %' term ~) tang)
-  [~ this]
+  :_  this
+  [(~(on-fail logs bowl /logs) term tang)]~
 --

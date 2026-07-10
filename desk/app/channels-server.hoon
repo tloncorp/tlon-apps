@@ -56,7 +56,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
-      log   ~(. logs [our.bowl /logs])
+      log   ~(. logs [bowl /logs])
       cor   ~(. +> [bowl ~ ~])
   ++  on-init
     %-  step:un:guard
@@ -96,9 +96,8 @@
     |=  [=term =tang]
     %-  step:un:guard
     ^-  (quip card _this)
-    %-  (slog term tang)
     :_  this
-    [(unsafe:guard (fail:log term tang ~))]~
+    [(unsafe:guard (~(on-fail logs bowl /logs) term tang))]~
   ::
   ++  on-agent
     %-  on-agent:guard
@@ -126,7 +125,7 @@
 ++  emit-late  |=(=card cor(cards-late [card cards-late]))
 ++  emil-late  |=(caz=(list card) cor(cards-late (welp (flop caz) cards-late)))
 ++  give  |=(=gift:guard (emit %give gift))
-++  log   ~(. logs [our.bowl /logs])
+++  log   ~(. logs [bowl /logs])
 ++  safe-watch
   |=  [=wire =dock =path]
   ~>  %spin.['safe-watch']

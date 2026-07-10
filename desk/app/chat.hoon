@@ -197,7 +197,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
-      log   ~(. logs [our.bowl /logs])
+      log   ~(. logs [bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
     %-  step:un:guard
@@ -238,7 +238,7 @@
     |=  [=term =tang]
     ^-  (quip card:agent:gall _this)
     :_  this
-    [(fail:log term tang ~)]~
+    [(~(on-fail logs bowl /logs) term tang)]~
   ::
   ++  on-agent
     %-  on-agent:guard
@@ -258,9 +258,8 @@
   --
 |_  [=bowl:gall cards=(list card)]
 +*  wood  ~(. wood-lib [bowl wood-state])
-    log   ~(. logs [our.bowl /logs])
+    log   ~(. logs [bowl /logs])
     ol    (kol gte)
-    log      ~(. logs [our.bowl /logs])
     tell-log  (cork tell:log unsafe:guard)
     fail-log  (cork fail:log unsafe:guard)
 ++  abet  [(flop cards) state]
@@ -2081,7 +2080,7 @@
     =/  response=(unit response:writs:c)
       (diff-to-response diff pact.club)
     ?~  response
-      =.  cor  (emit (tell-log %crit ~['+diff-to-response miss (cu)'] ~))
+      =.  cor  (emit (tell-log %error ~['+diff-to-response miss (cu)'] ~))
       cu-core
     =/  old-response-3=[whom:v3:cv response:writs:v3:cv]
       :-  whom
@@ -2602,7 +2601,7 @@
     =/  response=(unit response:writs:c)
       (diff-to-response diff pact.dm)
     ?~  response
-      =.  cor  (emit (tell-log %crit ~['+diff-to-response miss (di)'] ~))
+      =.  cor  (emit (tell-log %error ~['+diff-to-response miss (di)'] ~))
       di-core
     =/  old-response-3=[whom:v3:cv response:writs:v3:cv]
       :-  whom
@@ -2863,7 +2862,7 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  di-core
       =.  cor
-        (emit (fail-log %poke-ack [leaf+"failed to {(trip i.wire)}" u.p.sign] ~))
+        (emit (fail-log %error ~[leaf+"failed to {(trip i.wire)}"] u.p.sign ~))
       di-core
     ::
         [%proxy *]

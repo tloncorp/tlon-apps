@@ -18,6 +18,7 @@
 imports:
   base: desk-deps/
   landscape: desk-deps/
+  mcp: desk-deps/
 
 # %base (urbit/urbit) dev dependencies.
 git module base:
@@ -62,4 +63,17 @@ git module landscape:
     - desk/mar/docket-0.hoon
     - desk/sur/docket.hoon
     - desk/sur/settings.hoon
+  export: desk
+
+# %mcp (tloncorp/mcp) types for %notes' self-registration with a local
+# %mcp-proxy. %notes pokes %mcp-proxy-action (see +register-with-mcp-proxy in
+# app/notes.hoon), which needs the %mcp-proxy-action mark + its sur. Vendored
+# rather than committed so the types track upstream. No 408 tag yet; pinned to
+# the master commit (supports [%zuse 409] [%zuse 408]).
+git module mcp:
+  url: https://github.com/tloncorp/mcp.git
+  rev: 03630c712a0a2f3f23a39e710e1b92b8b8da077d
+  pick:
+    - desk/mar/mcp-proxy-action.hoon
+    - desk/sur/mcp-proxy.hoon
   export: desk

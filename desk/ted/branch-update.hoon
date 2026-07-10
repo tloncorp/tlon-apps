@@ -38,7 +38,7 @@
 ?.  =(200 status-code.response-header.client-response)
   =/  =log-event:logs
     :*  %tell
-        %crit
+        %error
         'failed to read lure invite branch metadata'
         token
         leaf+"http {<status-code>}"
@@ -49,7 +49,7 @@
     ==
   ;<  =bowl:strand  bind:m  get-bowl:io
   ;<  ~  bind:m
-    (poke:io [our.bowl %logs] log-action+!>([%log log-event ~]))
+    (poke:io [our.bowl %logs] log-action-1+!>([%log log-event ~]))
   (pure:m !>(`(crip "failed to read link metadata: HTTP {<status-code>}")))
 ?>  ?=(^ full-file.client-response)
 =/  metadata=(unit json)  (de:json:html q.data.u.full-file.client-response)
@@ -98,7 +98,7 @@
 ?.  =(200 status-code.response-header.client-response)
   =/  =log-event:logs
     :*  %tell
-        %crit
+        %error
         'failed to update lure invite branch metadata'
         token
         leaf+"http {<status-code>}"
@@ -108,7 +108,7 @@
         ~
     ==
   ;<  ~  bind:m
-    (poke:io [our.bowl %logs] log-action+!>([%log log-event ~]))
+    (poke:io [our.bowl %logs] log-action-1+!>([%log log-event ~]))
   (pure:m !>(`(crip "failed to update link metadata: {<status-code>}")))
 (pure:m !>(~))
 ::
