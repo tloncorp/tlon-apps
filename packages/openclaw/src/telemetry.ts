@@ -352,7 +352,8 @@ export type TlonSessionTelemetryReport =
 /**
  * Cron observability. Fed by the gateway-global `cron_changed` hook (see
  * src/cron-telemetry.ts), so events carry schedule metadata only — never the
- * job's prompt text (`payload.text`) or the run's output (`summary`).
+ * job's prompt text (`payload.text`), an on-exit schedule's watched command/cwd,
+ * or the run's output (`summary`).
  */
 export type TlonCronScheduleFields = {
   scheduleKind: string | null;
@@ -411,6 +412,7 @@ export type TlonCronSnapshotEvent = TlonCronCountFields & {
   scheduleKindCronCount: number | null;
   scheduleKindEveryCount: number | null;
   scheduleKindAtCount: number | null;
+  scheduleKindOnExitCount: number | null;
 };
 
 export type TlonHarnessErrorScope =
@@ -1771,6 +1773,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           scheduleKindCronCount: event.scheduleKindCronCount,
           scheduleKindEveryCount: event.scheduleKindEveryCount,
           scheduleKindAtCount: event.scheduleKindAtCount,
+          scheduleKindOnExitCount: event.scheduleKindOnExitCount,
           ...this.cronCountPersonProps(event),
         },
         { omitNullish: true }

@@ -23,6 +23,7 @@ import {
   scheduleBackgroundContextLensFinalization,
 } from './src/context-lens.js';
 import {
+  clearCronServiceAccessor,
   handleCronChangedEvent,
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
@@ -1399,6 +1400,7 @@ export default defineChannelPluginEntry({
         setCronServiceAccessor(ctx.getCron);
       }
     });
+    api.on('gateway_stop', clearCronServiceAccessor);
 
     api.on('cron_changed', async (event, ctx) => {
       try {

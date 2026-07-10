@@ -1914,19 +1914,21 @@ describe('cron telemetry capture', () => {
       ownerShip: '~zod',
       botShip: '~nec',
       activeCronJobCount: 2,
-      totalCronJobCount: 3,
+      totalCronJobCount: 4,
       scheduleKindCronCount: 1,
       scheduleKindEveryCount: 1,
       scheduleKindAtCount: 1,
+      scheduleKindOnExitCount: 1,
     });
 
     const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
     expect(call.event).toBe('TlonBot Cron Snapshot');
     expect(call.properties.activeCronJobCount).toBe(2);
     expect(call.properties.scheduleKindEveryCount).toBe(1);
+    expect(call.properties.scheduleKindOnExitCount).toBe(1);
     expect(call.properties.$set).toEqual({
       tlonCronActiveJobCount: 2,
-      tlonCronTotalJobCount: 3,
+      tlonCronTotalJobCount: 4,
       tlonCronCountsUpdatedAt: expect.any(String),
     });
   });
@@ -1974,6 +1976,7 @@ describe('cron telemetry capture', () => {
       scheduleKindCronCount: 1,
       scheduleKindEveryCount: 0,
       scheduleKindAtCount: 0,
+      scheduleKindOnExitCount: 0,
     });
     expect(reporter).toHaveBeenCalledWith({
       kind: 'snapshot',

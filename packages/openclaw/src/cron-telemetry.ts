@@ -12,9 +12,10 @@
  * - `TlonBot Cron Snapshot` once per boot (from the monitor, after connect),
  *   reconciling counts that drift when change events are missed.
  *
- * Privacy: job snapshots carry the literal prompt (`payload.text`) and run
- * results carry agent output (`summary`). Neither is ever forwarded — only
- * schedule metadata, status, and error text (truncated) leave the process.
+ * Privacy: job snapshots carry the literal prompt (`payload.text`), on-exit
+ * schedules carry their watched command/cwd, and run results carry agent output
+ * (`summary`). None are forwarded — only schedule metadata, status, and error
+ * text (truncated) leave the process.
  */
 import type {
   PluginHookCronChangedEvent,
@@ -40,6 +41,20 @@ const SNAPSHOT_RETRY_DELAY_MS = 20_000;
 
 type CronServiceAccessor = () => PluginHookGatewayCronService | undefined;
 
+// OpenClaw 2026.5.28 predates event-driven `on-exit` schedules, while this
+// plugin's peer range also permits newer hosts that expose them. Keep the
+// pinned SDK for development and add only the newer runtime projection here.
+// The command and cwd are intentionally never included in telemetry.
+type ForwardCompatibleCronSchedule =
+  | NonNullable<PluginHookGatewayCronJob['schedule']>
+  | { kind: 'on-exit'; command?: string; cwd?: string };
+
+function forwardCompatibleCronSchedule(
+  job: PluginHookGatewayCronJob | undefined
+): ForwardCompatibleCronSchedule | undefined {
+  return job?.schedule as ForwardCompatibleCronSchedule | undefined;
+}
+
 /**
  * The cron service is only reachable through gateway hook contexts
  * (`gateway_start`, `cron_changed`), but the boot snapshot is emitted from the
@@ -53,6 +68,10 @@ export function setCronServiceAccessor(
   accessor: CronServiceAccessor | null
 ): void {
   cronServiceAccessorSlot.set(accessor);
+}
+
+export function clearCronServiceAccessor(): void {
+  cronServiceAccessorSlot.set(null);
 }
 
 function optionalString(value: string | null | undefined): string | null {
@@ -110,7 +129,7 @@ export function cronScheduleFields(
     scheduleEveryMs: null,
     scheduleAt: null,
   };
-  const schedule = job?.schedule;
+  const schedule = forwardCompatibleCronSchedule(job);
   if (!schedule) {
     return empty;
   }
@@ -134,6 +153,11 @@ export function cronScheduleFields(
         scheduleKind: 'at',
         scheduleAt: optionalString(schedule.at),
       };
+    case 'on-exit':
+      return {
+        ...empty,
+        scheduleKind: 'on-exit',
+      };
     default:
       return empty;
   }
@@ -145,17 +169,19 @@ export function summarizeCronJobs(jobs: PluginHookGatewayCronJob[]): {
   scheduleKindCronCount: number;
   scheduleKindEveryCount: number;
   scheduleKindAtCount: number;
+  scheduleKindOnExitCount: number;
 } {
   let active = 0;
   let cronKind = 0;
   let everyKind = 0;
   let atKind = 0;
+  let onExitKind = 0;
   for (const job of jobs) {
     // `enabled` is optional on the hook projection; jobs default to enabled.
     if (job.enabled !== false) {
       active += 1;
     }
-    switch (job.schedule?.kind) {
+    switch (forwardCompatibleCronSchedule(job)?.kind) {
       case 'cron':
         cronKind += 1;
         break;
@@ -165,6 +191,9 @@ export function summarizeCronJobs(jobs: PluginHookGatewayCronJob[]): {
       case 'at':
         atKind += 1;
         break;
+      case 'on-exit':
+        onExitKind += 1;
+        break;
     }
   }
   return {
@@ -173,6 +202,7 @@ export function summarizeCronJobs(jobs: PluginHookGatewayCronJob[]): {
     scheduleKindCronCount: cronKind,
     scheduleKindEveryCount: everyKind,
     scheduleKindAtCount: atKind,
+    scheduleKindOnExitCount: onExitKind,
   };
 }
 
@@ -302,23 +332,32 @@ export async function emitCronSnapshot(): Promise<boolean> {
 export function scheduleCronSnapshot(opts?: {
   onError?: (error: unknown) => void;
 }): void {
+  const retry = (retriesLeft: number) => {
+    if (retriesLeft <= 0) {
+      return;
+    }
+    const timer = setTimeout(
+      () => attempt(retriesLeft - 1),
+      SNAPSHOT_RETRY_DELAY_MS
+    );
+    timer.unref?.();
+  };
   const attempt = (retriesLeft: number) => {
     emitCronSnapshot()
       .then((emitted) => {
-        if (!emitted && retriesLeft > 0) {
-          const timer = setTimeout(
-            () => attempt(retriesLeft - 1),
-            SNAPSHOT_RETRY_DELAY_MS
-          );
-          timer.unref?.();
+        if (!emitted) {
+          retry(retriesLeft);
         }
       })
-      .catch((error) => opts?.onError?.(error));
+      .catch((error) => {
+        opts?.onError?.(error);
+        retry(retriesLeft);
+      });
   };
   attempt(1);
 }
 
 export const _testing = {
-  clearCronServiceAccessor: () => cronServiceAccessorSlot.set(null),
+  clearCronServiceAccessor,
   getSnapshotRetryDelayMs: () => SNAPSHOT_RETRY_DELAY_MS,
 };
