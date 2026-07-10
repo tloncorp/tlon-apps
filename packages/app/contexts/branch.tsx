@@ -192,17 +192,17 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       ) {
         return true;
       }
-      if (isAuthenticatedRef.current) {
-        intakeRef.current = { token: parsed.token, phase: 'fetching' };
-      } else {
-        // signed-out taps paint an id-only lure before the fetch so signup
-        // params carry the token even while metadata is slow — nothing can
-        // consume it pre-auth, and the settle below refreshes an applied
-        // id-only copy with real metadata. signed-in keeps the bare fetch
-        // claim: painting early would let the redeem consume and clear the
-        // invite before its metadata lands
+      // signed-out taps paint an id-only lure before the fetch so signup
+      // params carry the token even while metadata is slow. the fetch claim
+      // below then overrides the paint's applied slot: "signed out" here can
+      // also be auth that has not hydrated yet, and if ship state loads
+      // mid-fetch the listener consumes the paint as a no-op — the soft
+      // clear preserves a fetching slot, so the settle still re-applies
+      // with metadata and live auth
+      if (!isAuthenticatedRef.current) {
         setInviteLure({ id: parsed.token, shouldAutoJoin: true }, { source });
       }
+      intakeRef.current = { token: parsed.token, phase: 'fetching' };
 
       logger.trackEvent('Detected Branch-Independent Invite Link', {
         inviteId: parsed.token,
