@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
 
-import { parseInviteDeepLink } from './deeplinks';
+import { getMetadataFromInviteToken, parseInviteDeepLink } from './deeplinks';
 
 const options = {
   branchDomain: 'custom.branch.test',
@@ -74,5 +74,55 @@ describe('parseInviteDeepLink', () => {
     expect(
       parseInviteDeepLink('https://join.tlon.io/not-a-token', options)
     ).toBeNull();
+  });
+});
+
+describe('getMetadataFromInviteToken', () => {
+  const realFetch = globalThis.fetch;
+
+  const stubProvider = (fields: Record<string, string>) => {
+    // getConstants reads window[tlonEnv] and references window bare, which
+    // only exists in app runtimes
+    (globalThis as any).window = {
+      tlonEnv: {
+        INVITE_PROVIDER: 'https://provider.test',
+        BRANCH_DOMAIN: 'join.tlon.io',
+        BRANCH_KEY: 'key',
+      },
+    };
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ fields }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })) as typeof fetch;
+  };
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    delete (globalThis as any).window;
+  });
+
+  test('accepts personal invites minted with an empty invitedGroupId', async () => {
+    stubProvider({
+      inviteType: 'user',
+      invitedGroupId: '',
+      inviterUserId: '~zod',
+      inviterNickname: 'Zod',
+    });
+
+    const invite = await getMetadataFromInviteToken('0vpersonal');
+    expect(invite?.inviterUserId).toBe('~zod');
+    expect(invite?.inviteType).toBe('user');
+  });
+
+  test('still rejects group invites without a group id', async () => {
+    stubProvider({
+      inviteType: 'group',
+      invitedGroupId: '',
+      inviterUserId: '~zod',
+      inviterNickname: 'Zod',
+    });
+
+    expect(await getMetadataFromInviteToken('0vgroupless')).toBeNull();
   });
 });

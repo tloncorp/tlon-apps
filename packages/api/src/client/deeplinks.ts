@@ -130,8 +130,11 @@ export async function getMetadataFromInviteToken(token: string) {
 
   if (
     !responseMeta.fields ||
-    !responseMeta.fields.invitedGroupId ||
-    !responseMeta.fields.inviterUserId
+    !responseMeta.fields.inviterUserId ||
+    // personal invites mint with an empty invitedGroupId (same acceptance
+    // rule as the invite service's mint endpoint)
+    (!responseMeta.fields.invitedGroupId &&
+      responseMeta.fields.inviteType !== 'user')
   ) {
     return null;
   }
