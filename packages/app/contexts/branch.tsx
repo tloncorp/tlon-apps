@@ -170,7 +170,13 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         return true;
       }
 
-      if (handledInviteTokenRef.current === parsed.token) {
+      const alreadyApplied = lastSetLureIdRef.current;
+      if (
+        handledInviteTokenRef.current === parsed.token &&
+        // a completed id-only apply (provider outage at tap time) may be
+        // refreshable now — let a re-tap through to fetch again
+        !(alreadyApplied?.id === parsed.token && !alreadyApplied.hasMetadata)
+      ) {
         return true;
       }
       handledInviteTokenRef.current = parsed.token;
@@ -194,16 +200,17 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       }
       // getMetadataFromInviteToken self-derives flag-style tokens, so the
       // id-only fallback is reachable only for 0v tokens without metadata
+      // (setInviteLure computes shouldAutoJoin from live auth state)
       setInviteLure(
         invite ?? {
           id: parsed.token,
-          shouldAutoJoin: !isAuthenticated,
+          shouldAutoJoin: !isAuthenticatedRef.current,
         },
         { source }
       );
       return true;
     },
-    [isAuthenticated, setInviteLure]
+    [setInviteLure]
   );
 
   useEffect(() => {
@@ -281,7 +288,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
                 {
                   ...extractLureMetadata(params),
                   id: lureId,
-                  shouldAutoJoin: !isAuthenticated,
+                  shouldAutoJoin: !isAuthenticatedRef.current,
                 },
                 {
                   priorityToken: params.token as string | undefined,
@@ -372,7 +379,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       unsubscribe();
       linkingSubscription.remove();
     };
-  }, [goToChannel, handleInviteUrl, isAuthenticated, setInviteLure]);
+  }, [goToChannel, handleInviteUrl, setInviteLure]);
 
   const setLure = setInviteLure;
 
