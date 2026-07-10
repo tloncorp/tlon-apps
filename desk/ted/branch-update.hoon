@@ -1,7 +1,7 @@
 ::  branch: update a lure invite deep link in branch.io
 ::
 /-  spider, reel
-/+  io=strandio, logs
+/+  io=strandio, logs, libstrand=strand
 ::
 =+  branch-key='key_live_hubypwhuxR6vkwKfdozyRoamErouusXi'
 =+  branch-url='https://api2.branch.io/v1/url'
@@ -155,23 +155,16 @@
   |=  =request:http
   =/  m  (strand client-response:iris)
   ^-  form:m
-  =|  response=client-response:iris
-  |-
-  ?:  =(0 retry)
-    (pure:m response)
-  ;<  ~  bind:m  (send-request:io request)
-  ;<  =client-response:iris  bind:m  take-client-response:io
-  ?>  ?=(%finished -.client-response)
-  ?:  =(200 status-code.response-header.client-response)
-    (pure:m client-response)
-  =*  status-code  status-code.response-header.client-response
-  ;<  ~  bind:m  (sleep:io retry-delay)
-  $(retry (dec retry), response client-response)
+  ;<  rep=(unit client-response:iris)  bind:m  (send-request-soft request)
+  ?~  rep
+    (strand-fail:libstrand %http-request-cancelled ~)
+  (pure:m u.rep)
 ::  +send-request-soft: request that must never fail the strand
 ::
-::    the invite-service push is best-effort: a runtime cancellation or
-::    exhausted retries return ~ so the branch update below still runs,
-::    where take-client-response would fail the whole thread on %cancel
+::    returns ~ when the runtime cancels the request and retries are
+::    exhausted. the invite-service push treats that as a logged miss so
+::    the branch update still runs; send-request-retry converts it into
+::    a thread failure for the branch calls that keep hard semantics
 ::
 ++  send-request-soft
   |=  =request:http

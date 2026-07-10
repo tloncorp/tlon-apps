@@ -134,7 +134,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
 
       if (parsed.type === 'wer') {
         const deepLinkPath = getPathFromWer(parsed.wer);
-        console.debug('detected non-Branch deep link:', deepLinkPath);
+        logger.log('detected non-Branch deep link:', deepLinkPath);
         setState({
           deepLinkPath,
           lure: undefined,
