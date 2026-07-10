@@ -576,6 +576,61 @@ describe('posts react', () => {
       postAuthor: '~nec',
     });
   });
+
+  it('passes --parent through for thread-reply reactions', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['react', 'chat/~host/channel', '170142', '🔥', '--parent', '170141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.addReaction).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        postId: '170.142',
+        emoji: '🔥',
+        our: '~nec',
+        postAuthor: '~nec',
+        parentId: '170.141',
+      },
+    ]);
+  });
+
+  it('rejects a --parent value that is itself an option token', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['react', 'chat/~host/channel', '170141', '🔥', '--parent', '--bogus'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects a duplicate --parent flag', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      [
+        'react',
+        'chat/~host/channel',
+        '170142',
+        '🔥',
+        '--parent',
+        '170141',
+        '--parent',
+        '170140',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
+    expectNoAuthOrApi(context);
+  });
 });
 
 describe('posts unreact', () => {
@@ -639,6 +694,59 @@ describe('posts unreact', () => {
     expect(exitCode).toBe(1);
     expect(context.stdout()).toBe('');
     expect(context.stderr()).toBe('Error: remove failed\n');
+  });
+
+  it('passes --parent through for thread-reply reaction removal', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      ['unreact', 'chat/~host/channel', '170142', '--parent', '170141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.removeReaction).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        postId: '170.142',
+        our: '~bus',
+        postAuthor: '~bus',
+        parentId: '170.141',
+      },
+    ]);
+  });
+
+  it('rejects a --parent value that is itself an option token', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      ['unreact', 'chat/~host/channel', '170141', '--parent', '--bogus'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.unreact}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects a duplicate --parent flag', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      [
+        'unreact',
+        'chat/~host/channel',
+        '170142',
+        '--parent',
+        '170141',
+        '--parent',
+        '170140',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.unreact}\n`);
+    expectNoAuthOrApi(context);
   });
 });
 

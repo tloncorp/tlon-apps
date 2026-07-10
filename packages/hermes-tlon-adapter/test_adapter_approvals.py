@@ -270,6 +270,9 @@ class AdapterApprovalTests(unittest.TestCase):
             "access_code": "code",
             "channels": ["chat/~pen/general"],
             "owner_ship": "~mug",
+            # Approval replay assertions are independent of the reaction id
+            # envelope (covered by test_adapter_reactions).
+            "reaction_level": "off",
         }
         base.update(extra or {})
         with patch.dict(os.environ, {}, clear=True):
