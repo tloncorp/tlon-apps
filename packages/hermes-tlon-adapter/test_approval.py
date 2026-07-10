@@ -137,6 +137,25 @@ class CodecTests(unittest.TestCase):
         )
         self.assertEqual(approval.parse_dm_allowlist("nope"), set())
 
+    def test_parse_ship_list_ignores_non_string_entries(self):
+        # Unlike parse_dm_allowlist, non-string items are dropped rather than
+        # coerced (a malformed settings value must not broaden authorization).
+        self.assertEqual(
+            approval.parse_ship_list([7, "~zod", "", None, "bus"]),
+            {"~zod", "~bus"},
+        )
+        self.assertEqual(approval.parse_ship_list("nope"), set())
+        self.assertEqual(approval.parse_ship_list(None), set())
+
+    def test_settings_bool_only_accepts_genuine_booleans(self):
+        self.assertTrue(approval.settings_bool(True, False))
+        self.assertFalse(approval.settings_bool(False, True))
+        self.assertFalse(approval.settings_bool("false", False))
+        self.assertTrue(approval.settings_bool("false", True))
+        self.assertEqual(approval.settings_bool(1, False), False)
+        self.assertEqual(approval.settings_bool(None, True), True)
+        self.assertEqual(approval.settings_bool({}, False), False)
+
 
 def foreign(from_ship, *, valid=True, title="Project Space", time=1):
     return {

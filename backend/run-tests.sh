@@ -10,10 +10,10 @@ vere_ver="vere-v4.5"
 arch=`uname -m`
 
 case $OSTYPE in
-  linux* )  
+  linux* )
     platform=linux
     case $arch in
-      x86_64 ) 
+      x86_64 )
         # urbit_bin_url="$urbit_bin_url/linux-x86_64/latest"
         urbit_bin_url="$urbit_bin_url/$vere_ver-linux-x86_64"
         arch=x86_64
@@ -27,12 +27,12 @@ case $OSTYPE in
   darwin* )
     platform=macos
     case $arch in
-      x86_64 ) 
+      x86_64 )
         # urbit_bin_url="$urbit_bin_url/macos-x86_64/latest"
         urbit_bin_url="$urbit_bin_url/$vere_ver-macos-x86_64"
         arch=x86_64
         ;;
-      arm64  ) 
+      arm64  )
         # urbit_bin_url="$urbit_bin_url/macos-aarch64/latest"
         urbit_bin_url="$urbit_bin_url/$vere_ver-macos-aarch64"
         arch=aarch64
@@ -40,7 +40,7 @@ case $OSTYPE in
     esac ;;
 esac
 
-pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2-408k.pill"
+pill_download_url="https://bootstrap.urbit.org/groups-v11-3-0-408k.pill"
 
 #archive=`basename $download_url`
 pill=`basename $pill_download_url`
@@ -143,14 +143,6 @@ then
   cp $pill ${pier}/groups/${pill_name}.jam
 fi
 
-patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
-rm -f $pier/base/lib/strandio.hoon.rej
-rm -f $pier/base/lib/strandio.hoon.orig
-
-patch -f $pier/base/sur/aquarium.hoon `dirname $0`/aqua-sur.patch
-rm -f $pier/base/sur/aquarium.hoon.rej
-rm -f $pier/base/sur/aquarium.hoon.orig
-
 echo "Updating base desk..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
@@ -162,8 +154,18 @@ EOF
 # TODO: We should figure out the source ship for this file and delete it
 rm -f $pier/groups/tests/lib/diary-graph.hoon
 
-# Update the groups desk
-rsync -r desk/ $pier/groups
+# Update the groups desk. Assemble the full desk (desk-deps/ vendored deps +
+# desk/ source) and overlay it onto the pill's groups desk. The pill provides a
+# bootable base; the assembled tree brings in peru-vendored deps (e.g.
+# sur/mcp-proxy) that live only in desk-deps/. Overlaid without --delete so the
+# pill's own artifacts (the jammed pill used by the aqua tests) are preserved.
+assembled=$(mktemp -d)
+./scripts/assemble-desk.sh "$assembled"
+# assemble-desk stamps the git hash into commit.txt; keep the 'development'
+# placeholder the logs test (/tests/app/logs) asserts on instead.
+cp desk/commit.txt "$assembled/commit.txt"
+rsync -r "$assembled"/ $pier/groups
+rm -rf "$assembled"
 
 rsync -r --delete desk/tests/ $pier/groups/tests
 

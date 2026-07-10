@@ -33,15 +33,23 @@ def build_bot_mention_terms(
     return tuple(result)
 
 
-def extract_profile_nickname(profile: Any) -> str:
+def _extract_profile_value(profile: Any, key: str) -> str:
     if not isinstance(profile, dict):
         return ""
-    nickname = profile.get("nickname")
-    if isinstance(nickname, dict):
-        value = nickname.get("value")
+    field = profile.get(key)
+    if isinstance(field, dict):
+        value = field.get("value")
     else:
-        value = nickname
+        value = field
     return str(value or "").strip()
+
+
+def extract_profile_nickname(profile: Any) -> str:
+    return _extract_profile_value(profile, "nickname")
+
+
+def extract_profile_avatar(profile: Any) -> str:
+    return _extract_profile_value(profile, "avatar")
 
 
 class BotMentionMatcher:

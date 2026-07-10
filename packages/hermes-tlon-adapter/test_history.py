@@ -134,6 +134,21 @@ class ParseChannelHistoryTests(unittest.TestCase):
         self.assertEqual(entries[0].content, "")
         self.assertEqual(entries[0].blob, blob)
 
+    def test_bot_profile_author_is_normalized_to_ship(self):
+        payload = outline_payload(
+            (
+                {"ship": "~mug", "nickname": "Test Bot", "avatar": ""},
+                "from bot profile",
+                1000,
+                "1",
+            ),
+        )
+
+        entries = history.parse_channel_history(payload)
+
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].author, "~mug")
+
     def test_non_dict_payload(self):
         self.assertEqual(history.parse_channel_history(None), [])
         self.assertEqual(history.parse_channel_history("nope"), [])
