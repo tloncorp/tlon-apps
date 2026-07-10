@@ -239,7 +239,6 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
           });
 
           if (lureId) {
-            handledInviteTokenRef.current = lureId;
             // Link had a lure field embedded
             logger.log('detected lure link:', lureId);
             if (
@@ -264,6 +263,9 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
                   source: 'branch',
                 }
               );
+              // only mark handled once the lure is applied — a failed
+              // extraction must leave the linking path free to fetch
+              handledInviteTokenRef.current = lureId;
             } catch (e) {
               logger.trackError(AnalyticsEvent.InviteError, {
                 error: e,
@@ -311,8 +313,19 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     // Check for saved lure
     (async () => {
       const nextLure = await storage.invitation.getValue();
-      if (nextLure && handledInviteTokenRef.current == null) {
+      const savedId = nextLure?.lure?.id ?? null;
+      // restore unless a lure was already applied this session. a launch url
+      // for the same token marks it handled before its fetch resolves — the
+      // cached copy is the richer interim state, and marking it applied keeps
+      // a failed fetch from clobbering it with an id-only fallback
+      if (
+        nextLure &&
+        lastSetLureIdRef.current == null &&
+        (handledInviteTokenRef.current == null ||
+          handledInviteTokenRef.current === savedId)
+      ) {
         console.debug('[branch] Detected saved lure:', nextLure.lure);
+        lastSetLureIdRef.current = savedId;
         setState({
           ...nextLure,
           deepLinkPath: undefined,
