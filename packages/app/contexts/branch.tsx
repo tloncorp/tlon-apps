@@ -396,7 +396,12 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
 
   const clearLure = useCallback(() => {
     console.debug('[branch] Clearing lure state');
-    intakeRef.current = null;
+    // consuming the applied lure must not kill an in-flight fetch — that
+    // slot belongs to a newer link the user tapped (e.g. a cold start via
+    // a fresh invite while a stale persisted one gets redeemed and cleared)
+    if (intakeRef.current?.phase !== 'fetching') {
+      intakeRef.current = null;
+    }
     inviteClearedRef.current = true;
     setState((curr) => ({
       ...curr,
