@@ -341,49 +341,51 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     // consumed it (or after logout cleared it)
     if (!initialUrlHandledRef.current) {
       initialUrlHandledRef.current = true;
-      Linking.getInitialURL()
-        .then((url) => {
+      (async () => {
+        // the saved-lure restore must not race the launch url: a cold-start
+        // url claims the intake slot (and a wer link sets the tombstone)
+        // synchronously before handleInviteUrl's first await, so by the time
+        // the restore below decides, fresher intent is already visible
+        try {
+          const url = await Linking.getInitialURL();
           if (url) {
             void handleInviteUrl(url, 'expo_linking');
           }
-        })
-        .catch((error) => {
+        } catch (error) {
           logger.trackError(AnalyticsEvent.InviteError, {
             error,
             context: 'Failed to get initial URL',
           });
-        });
+        }
+
+        const nextLure = await storage.invitation.getValue();
+        // restore only when the intake slot is free. a launch url that
+        // claimed the slot is fresher intent for the same token too — its
+        // settle paints the fetched result (or its fallback) itself, while
+        // restoring over the fetch would mark the slot applied and let the
+        // redeem's soft clear cancel the refresh mid-flight
+        if (
+          nextLure?.lure &&
+          !inviteClearedRef.current &&
+          intakeRef.current == null
+        ) {
+          console.debug('[branch] Detected saved lure:', nextLure.lure);
+          intakeRef.current = {
+            token: nextLure.lure.id,
+            phase: 'applied',
+            hasMetadata: inviteHasMetadata(nextLure.lure),
+          };
+          setState({
+            ...nextLure,
+            deepLinkPath: undefined,
+          });
+        }
+      })();
     }
 
     const linkingSubscription = Linking.addEventListener('url', (event) => {
       void handleInviteUrl(event.url, 'expo_linking');
     });
-
-    // Check for saved lure
-    (async () => {
-      const nextLure = await storage.invitation.getValue();
-      // restore only when the intake slot is free. a launch url that claimed
-      // the slot first is fresher intent for the same token too — its settle
-      // paints the fetched result (or its fallback) itself, while restoring
-      // over the fetch would mark the slot applied and let the redeem's soft
-      // clear cancel the refresh mid-flight
-      if (
-        nextLure?.lure &&
-        !inviteClearedRef.current &&
-        intakeRef.current == null
-      ) {
-        console.debug('[branch] Detected saved lure:', nextLure.lure);
-        intakeRef.current = {
-          token: nextLure.lure.id,
-          phase: 'applied',
-          hasMetadata: inviteHasMetadata(nextLure.lure),
-        };
-        setState({
-          ...nextLure,
-          deepLinkPath: undefined,
-        });
-      }
-    })();
 
     return () => {
       console.debug('[branch] Unsubscribing from Branch listener');
