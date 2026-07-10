@@ -91,13 +91,13 @@ import {
   type DisplayContext,
   type PendingApproval,
   buildApprovalA2UIBlob,
+  buildPendingApprovalsResponse,
   createPendingApproval,
   emojiToApprovalAction,
   findPendingApproval,
   formatApprovalConfirmation,
   formatApprovalRequestNotification,
   formatBlockedList,
-  formatPendingList,
   isExpired,
   normalizeNotificationId,
   pruneExpired,
@@ -114,6 +114,7 @@ import {
   buildThreadContextMessage,
   cacheMessage,
   fetchChannelHistory,
+  fetchParentPostAuthor,
   fetchThreadContextHistory,
   getChannelHistory,
   lookupCachedMessage,
@@ -974,7 +975,13 @@ export async function monitorTlonProvider(
       ctx: DisplayContext
     ): string | undefined {
       try {
-        return serializeBlobField(buildApprovalA2UIBlob(approval, ctx));
+        return serializeBlobField(
+          buildApprovalA2UIBlob(approval, ctx, {
+            // Source messages live on the bot's account. A separate owner may
+            // not have the corresponding DM or group channel in local state.
+            includeSourceNavigation: effectiveOwnerShip === botShipName,
+          })
+        );
       } catch (err) {
         runtime.error?.(
           `[tlon] Failed to build approval A2UI blob: ${String(err)}`
@@ -1732,6 +1739,34 @@ export async function monitorTlonProvider(
       }
     }
 
+    function getReplyBlob(payload: ReplyPayload): string | undefined {
+      const blob = (payload.channelData?.tlon as { blob?: unknown } | undefined)
+        ?.blob;
+      return typeof blob === 'string' ? blob : undefined;
+    }
+
+    // Merge serialized post-blob fields (each a JSON array of entries) into one,
+    // so a reply can carry both an a2ui card and a context-lens reference.
+    function combineBlobFields(
+      ...fields: Array<string | undefined>
+    ): string | undefined {
+      const entries: unknown[] = [];
+      for (const field of fields) {
+        if (!field) {
+          continue;
+        }
+        try {
+          const parsed = JSON.parse(field);
+          if (Array.isArray(parsed)) {
+            entries.push(...parsed);
+          }
+        } catch {
+          // Skip a malformed blob field rather than dropping the whole message.
+        }
+      }
+      return entries.length > 0 ? JSON.stringify(entries) : undefined;
+    }
+
     // Regex to match block directives in agent responses
     // Format: [BLOCK_USER: ~ship-name | reason for blocking]
     const blockDirectiveRegex = /\[BLOCK_USER:\s*(~[\w-]+)\s*\|\s*(.+?)\]/g;
@@ -2007,8 +2042,38 @@ export async function monitorTlonProvider(
         return executeApprovalAction(approval, action);
       },
 
-      async getPendingList() {
-        return formatPendingList(pendingApprovals, buildDisplayContext());
+      async getPendingApprovalsReply() {
+        pendingApprovals = pruneExpired(pendingApprovals);
+        await savePendingApprovals();
+
+        const pending = buildPendingApprovalsResponse(
+          pendingApprovals,
+          buildDisplayContext(),
+          (blob) => {
+            try {
+              return serializeBlobField(blob);
+            } catch (err) {
+              runtime.error?.(
+                `[tlon] Failed to serialize pending approvals A2UI blob: ${String(err)}`
+              );
+              return undefined;
+            }
+          },
+          (err) => {
+            runtime.error?.(
+              `[tlon] Failed to build pending approvals A2UI blob: ${String(err)}`
+            );
+          }
+        );
+
+        if (pending.mode === 'ui') {
+          return {
+            text: pending.text,
+            channelData: { tlon: { blob: pending.blob } },
+          };
+        }
+
+        return { text: pending.text };
       },
 
       async getBlockedList() {
@@ -3154,8 +3219,9 @@ export async function monitorTlonProvider(
                   },
                   deliver: async (payload: ReplyPayload) => {
                     contextLenses.setStatus(lens.lensId, 'delivering');
-                    let replyText = payload.text;
-                    if (!replyText) {
+                    const blob = getReplyBlob(payload);
+                    let replyText = payload.text ?? '';
+                    if (!replyText && !blob) {
                       const hasMedia = Array.isArray(payload.mediaUrls)
                         ? payload.mediaUrls.length > 0
                         : Boolean(payload.mediaUrl);
@@ -3168,18 +3234,20 @@ export async function monitorTlonProvider(
                     }
 
                     // Process any block directives in the response (strips them from text)
-                    replyText = await processBlockDirectives(
-                      replyText,
-                      senderShip
-                    );
-                    if (!replyText) {
+                    if (replyText) {
+                      replyText = await processBlockDirectives(
+                        replyText,
+                        senderShip
+                      );
+                    }
+                    if (!replyText && !blob) {
                       recordDeliverySkip('block_directive_only');
                       return;
                     } // Response was only a directive
 
                     // Use settings store value if set, otherwise fall back to file config
                     const showSignature = effectiveShowModelSig;
-                    if (showSignature) {
+                    if (showSignature && replyText) {
                       const modelCfg = cfg.agents?.defaults?.model;
                       const modelInfo =
                         selectedModel ||
@@ -3222,8 +3290,9 @@ export async function monitorTlonProvider(
 
                     sendAttemptCount += 1;
                     let outputMessageId: string | null = null;
-                    const contextLensBlob = buildContextLensReferenceBlobField(
-                      lens.lensId
+                    const replyBlob = combineBlobFields(
+                      blob,
+                      buildContextLensReferenceBlobField(lens.lensId)
                     );
                     if (isGroup && groupChannel) {
                       // Send to any channel type (chat, heap, diary) using the nest directly
@@ -3233,7 +3302,7 @@ export async function monitorTlonProvider(
                         nest: groupChannel,
                         story: markdownToStory(replyText),
                         replyToId: deliverParentId ?? undefined,
-                        blob: contextLensBlob,
+                        blob: replyBlob,
                       });
                       outputMessageId = result.messageId;
                       // Track thread participation for future replies without mention
@@ -3252,7 +3321,7 @@ export async function monitorTlonProvider(
                         replyToId: deliverParentId
                           ? String(deliverParentId)
                           : undefined,
-                        blob: contextLensBlob,
+                        blob: replyBlob,
                       });
                       outputMessageId = result.messageId;
                     }
@@ -3690,6 +3759,17 @@ export async function monitorTlonProvider(
             if (!normalizedAllowed.includes(senderShip)) {
               // If owner is configured, queue approval request
               if (effectiveOwnerShip) {
+                const cachedParentAuthor = parentId
+                  ? lookupCachedMessage(nest, parentId)?.author
+                  : undefined;
+                const parentAuthor = parentId
+                  ? cachedParentAuthor && cachedParentAuthor !== 'unknown'
+                    ? cachedParentAuthor
+                    : await fetchParentPostAuthor(api, nest, parentId, runtime)
+                  : null;
+                const parentAuthorId = parentAuthor
+                  ? normalizeShip(parentAuthor)
+                  : undefined;
                 const approval = createPendingApproval(
                   {
                     type: 'channel',
@@ -3702,6 +3782,7 @@ export async function monitorTlonProvider(
                       messageContent: content.content,
                       timestamp: content.sent || Date.now(),
                       parentId: parentId ?? undefined,
+                      parentAuthorId,
                       isThreadReply,
                       blob: content.blob ?? undefined,
                     },
@@ -4043,6 +4124,11 @@ export async function monitorTlonProvider(
                   messageText,
                   messageContent: dmContent.content,
                   timestamp: dmContent.sent || Date.now(),
+                  parentId: dmReplyParentId,
+                  parentAuthorId: dmReplyParentId
+                    ? lookupCachedMessage(dmCacheKey, dmReplyParentId)?.author
+                    : undefined,
+                  isThreadReply: isDmThreadReply,
                   blob: dmContent.blob ?? undefined,
                 },
               },
