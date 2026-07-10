@@ -91,6 +91,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated } = useShip();
   const handledInviteTokenRef = useRef<string | null>(null);
   const lastSetLureIdRef = useRef<string | null>(null);
+  const initialUrlHandledRef = useRef(false);
 
   const { goToChannel } = useGroupNavigation();
 
@@ -135,6 +136,10 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       if (parsed.type === 'wer') {
         const deepLinkPath = getPathFromWer(parsed.wer);
         logger.log('detected non-Branch deep link:', deepLinkPath);
+        // this clears the lure, so the dedupe refs must not keep swallowing
+        // a re-tap of an invite that no longer has state
+        handledInviteTokenRef.current = null;
+        lastSetLureIdRef.current = null;
         setState({
           deepLinkPath,
           lure: undefined,
@@ -154,6 +159,10 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       });
 
       const invite = await getMetadataFromInviteToken(parsed.token);
+      if (handledInviteTokenRef.current !== parsed.token) {
+        // a newer invite link superseded this one while we were fetching
+        return true;
+      }
       if (lastSetLureIdRef.current === parsed.token) {
         // a lure for this token landed while we were fetching — typically the
         // Branch callback's payload, which is at least as rich and carries a
@@ -276,18 +285,24 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       },
     });
 
-    Linking.getInitialURL()
-      .then((url) => {
-        if (url) {
-          void handleInviteUrl(url, 'expo_linking');
-        }
-      })
-      .catch((error) => {
-        logger.trackError(AnalyticsEvent.InviteError, {
-          error,
-          context: 'Failed to get initial URL',
+    // once per provider lifetime: the effect re-runs on auth changes, and a
+    // second read would replay the launch url as a fresh invite after signup
+    // consumed it (or after logout cleared it)
+    if (!initialUrlHandledRef.current) {
+      initialUrlHandledRef.current = true;
+      Linking.getInitialURL()
+        .then((url) => {
+          if (url) {
+            void handleInviteUrl(url, 'expo_linking');
+          }
+        })
+        .catch((error) => {
+          logger.trackError(AnalyticsEvent.InviteError, {
+            error,
+            context: 'Failed to get initial URL',
+          });
         });
-      });
+    }
 
     const linkingSubscription = Linking.addEventListener('url', (event) => {
       void handleInviteUrl(event.url, 'expo_linking');
