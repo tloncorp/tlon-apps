@@ -61,7 +61,7 @@ describe('getOwnContextLensStamp', () => {
     ).toBeNull();
   });
 
-  it('rejects lens metadata stamped onto another author\'s post', () => {
+  it("rejects lens metadata stamped onto another author's post", () => {
     expect(
       getOwnContextLensStamp(
         { authorId: '~nec', blob } as Parameters<
