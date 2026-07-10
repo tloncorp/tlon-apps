@@ -18,6 +18,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   userInterfaceStyle: 'automatic',
   scheme: appScheme,
+  runtimeVersion: {
+    policy: 'fingerprint',
+  },
   buildCacheProvider:
     process.env.TLON_EAS_CACHE_DISABLED === '1' ? undefined : 'eas',
   extra: {
@@ -63,7 +66,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     forceSplashSequence: process.env.FORCE_SPLASH_SEQUENCE,
   },
   ios: {
-    runtimeVersion: '4.0.2',
     // demo builds triggered by GitHub require this to be explicitly set rather than handled
     // elsewhere
     bundleIdentifier: ['demo', 'e2e'].includes(process.env.EAS_BUILD_PROFILE!)
@@ -74,7 +76,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   android: {
-    runtimeVersion: '4.0.2',
     blockedPermissions: [
       'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
     ],

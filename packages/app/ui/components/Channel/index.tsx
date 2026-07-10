@@ -275,7 +275,6 @@ interface ChannelProps {
   goToContextLensRuns?: () => void;
   goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   goToUserProfile: (userId: string) => void;
-  goToChannelDetails?: (groupId: string, channelId: string) => void;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
@@ -322,7 +321,6 @@ export function Channel({
   goToPost,
   goToDm,
   goToUserProfile,
-  goToChannelDetails,
   goToGroupSettings,
   onScrollEndReached,
   onScrollStartReached,
@@ -364,7 +362,6 @@ export function Channel({
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
-  const isGroupAdmin = utils.useIsAdmin(channel.groupId ?? '', currentUserId);
   const collectionRef = useRef<PostCollectionHandle>(null);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
@@ -426,6 +423,8 @@ export function Channel({
     childThreadUnreadActivityKnown,
     hasChildThreadUnreadActivity,
   });
+  const shouldShowPostLoading =
+    channel.type !== 'notes' && Boolean(isLoadingPosts);
 
   useEffect(() => {
     const clearShowTimeout = () => {
@@ -441,7 +440,7 @@ export function Channel({
       }
     };
 
-    if (isLoadingPosts) {
+    if (shouldShowPostLoading) {
       clearHideTimeout();
       if (showHeaderLoading || headerLoadingShowTimeoutRef.current) {
         return;
@@ -473,7 +472,7 @@ export function Channel({
       setShowHeaderLoading(false);
       headerLoadingHideTimeoutRef.current = null;
     }, hideDelay);
-  }, [isLoadingPosts, showHeaderLoading]);
+  }, [shouldShowPostLoading, showHeaderLoading]);
 
   useEffect(() => {
     return () => {
@@ -690,6 +689,7 @@ export function Channel({
     toggleContextLens,
     clearSelectedContextLensMessage,
     inspectContextLensPost,
+    openContextLensForPost,
   } = useContextLensController({ channel });
 
   const backgroundColor = getVariableValue(useTheme().background);
@@ -749,40 +749,38 @@ export function Channel({
                   >
                     <ChannelHeaderItemsProvider>
                       <>
-                        {channel.type !== 'notes' && (
-                          <ChannelHeader
-                            channel={channel}
-                            group={group}
-                            title={title ?? ''}
-                            description={''}
-                            goBack={
-                              isNarrow ||
-                              draftInputPresentationMode === 'fullscreen'
-                                ? handleGoBack
-                                : undefined
-                            }
-                            goToChatDetails={goToChatDetails}
-                            goToProfile={handleGoToProfile}
-                            goToSearch={goToSearch}
-                            onToggleContextLens={
-                              contextLensAvailable
-                                ? isNarrow && goToContextLensRuns
-                                  ? goToContextLensRuns
-                                  : toggleContextLens
-                                : undefined
-                            }
-                            contextLensOpen={
-                              contextLensAvailable && contextLensOpen
-                            }
-                            contextLensActive={contextLensActive}
-                            showSpinner={showHeaderLoading}
-                            showSearchButton={
-                              channel.type === 'chat' ||
-                              channel.type === 'dm' ||
-                              channel.type === 'groupDm'
-                            }
-                          />
-                        )}
+                        <ChannelHeader
+                          channel={channel}
+                          group={group}
+                          title={title ?? ''}
+                          description={''}
+                          goBack={
+                            isNarrow ||
+                            draftInputPresentationMode === 'fullscreen'
+                              ? handleGoBack
+                              : undefined
+                          }
+                          goToChatDetails={goToChatDetails}
+                          goToProfile={handleGoToProfile}
+                          goToSearch={goToSearch}
+                          onToggleContextLens={
+                            contextLensAvailable
+                              ? isNarrow && goToContextLensRuns
+                                ? goToContextLensRuns
+                                : toggleContextLens
+                              : undefined
+                          }
+                          contextLensOpen={
+                            contextLensAvailable && contextLensOpen
+                          }
+                          contextLensActive={contextLensActive}
+                          showSpinner={showHeaderLoading}
+                          showSearchButton={
+                            channel.type === 'chat' ||
+                            channel.type === 'dm' ||
+                            channel.type === 'groupDm'
+                          }
+                        />
                         {shouldShowPinnedPostBanner && (
                           <PinnedPostBanner
                             channel={channel}
@@ -820,6 +818,17 @@ export function Channel({
                                         contextLensAvailable && contextLensOpen
                                           ? inspectContextLensPost
                                           : undefined,
+                                      openContextLensForPost:
+                                        contextLensAvailable && !isNarrow
+                                          ? openContextLensForPost
+                                          : undefined,
+                                      contextLensSelectedPostId:
+                                        contextLensAvailable &&
+                                        contextLensOpen &&
+                                        !isNarrow
+                                          ? selectedContextLensMessage?.id ??
+                                            null
+                                          : null,
                                       goToBotRun:
                                         contextLensAvailable && isNarrow
                                           ? goToContextLensRun
@@ -827,7 +836,7 @@ export function Channel({
                                       hasNewerPosts,
                                       hasOlderPosts,
                                       initialChannelUnread,
-                                      isLoadingPosts: isLoadingPosts ?? false,
+                                      isLoadingPosts: shouldShowPostLoading,
                                       loadPostsError,
                                       onPressDelete,
                                       onPressRetrySend,

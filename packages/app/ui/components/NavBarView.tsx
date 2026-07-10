@@ -10,12 +10,15 @@ export const NavBarView = ({
   navigateToHome,
   navigateToNotifications,
   navigateToContacts,
+  onPressActiveTab,
   currentRoute,
   currentUserId,
 }: {
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToContacts?: () => void;
+  // Called when the tab that's already active is tapped again (scroll to top).
+  onPressActiveTab?: () => void;
   currentRoute: string;
   currentUserId: string;
   showContactsTab?: boolean;
@@ -26,6 +29,13 @@ export const NavBarView = ({
       return routeName.includes(currentRoute);
     }
     return currentRoute === routeName;
+  };
+  const pressTab = (routeName: string, navigate?: () => void) => {
+    if (isRouteActive(routeName) && onPressActiveTab) {
+      onPressActiveTab();
+    } else {
+      navigate?.();
+    }
   };
   const haveUnreadUnseenActivity = store.useHaveUnreadUnseenActivity();
   const isWindowNarrow = useIsWindowNarrow();
@@ -58,19 +68,19 @@ export const NavBarView = ({
         activeType="HomeFilled"
         isActive={isRouteActive('ChatList')}
         hasUnreads={false}
-        onPress={navigateToHome}
+        onPress={() => pressTab('ChatList', navigateToHome)}
       />
       <NavIcon
         type="Notifications"
         activeType="NotificationsFilled"
         hasUnreads={haveUnreadUnseenActivity}
         isActive={isRouteActive('Activity')}
-        onPress={navigateToNotifications}
+        onPress={() => pressTab('Activity', navigateToNotifications)}
       />
       <AvatarNavIcon
         id={currentUserId}
         focused={isRouteActive('Contacts')}
-        onPress={navigateToContacts}
+        onPress={() => pressTab('Contacts', navigateToContacts)}
         onLongPress={openStatusSheet}
       />
       {showStatusSheet && (

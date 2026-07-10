@@ -388,17 +388,6 @@ export default function ChannelScreen(props: Props) {
     }
   }, [group, navigationRef]);
 
-  const handleGoToChannelDetails = useCallback(
-    (groupId: string, channelId: string) => {
-      navigationRef.current.navigate('ChatDetails', {
-        chatType: 'channel',
-        chatId: channelId,
-        groupId,
-      });
-    },
-    [navigationRef]
-  );
-
   const initialChat = useMemo(
     () =>
       ({
@@ -445,7 +434,6 @@ export default function ChannelScreen(props: Props) {
           goToContextLensRun={navigateToContextLensRun}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
-          goToChannelDetails={handleGoToChannelDetails}
           goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}

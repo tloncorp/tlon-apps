@@ -260,7 +260,7 @@
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
-    log   ~(. logs [our.bowl /logs])
+    log   ~(. logs [bowl /logs])
 ++  on-init
   ^-  (quip card _this)
   :_  this
@@ -428,7 +428,7 @@
       ?~  p.sign  :_(this [(tell:log %dbug ~['local sub ack ok' >wire<] ~)]~)
       %-  (slog (rap 3 dap.bowl ' rejected by local for ' (spat wire) ~) u.p.sign)
       :_  this
-      [(tell:log %warn ['local sub nacked' >wire=wire< u.p.sign] ~)]~
+      [(fail:log %warn ~['local sub nacked' >wire=wire<] u.p.sign ~)]~
     ::
         %fact
       ?.  ?=(%activity-update-4 p.cage.sign)
@@ -475,11 +475,7 @@
         [(tell:log %dbug ~['context poke acked' >src.bowl< >context<] ~)]~
       %-  (slog (rap 3 dap.bowl ': poke-nacked by ' (scot %p src.bowl) ~) u.p.sign)
       :_  this
-      =-  [(tell:log %warn - ~)]~
-      :*  'context poke nacked'
-          >[src=src.bowl context=context]<
-          u.p.sign
-      ==
+      [(fail:log %warn ~['context poke nacked' >[src=src.bowl context=context]<] u.p.sign ~)]~
     ::
         %kick
       ::  resubscribe after brief wait, prevent hot-looping
@@ -513,10 +509,10 @@
       =.  tries  (~(put by tries) [src.bowl context] try)
       :_  this
       :~  (await-setup (add now.bowl (mul try ~m5)) `[src.bowl context])
-          =-  (tell:log %warn - ~)
+          =-  (fail:log %warn - u.p.sign ~)
           :*  'context sub nacked, will retry'
               >[src=src.bowl context=context try=try]<
-              u.p.sign
+              ~
           ==
       ==
     ::
@@ -636,7 +632,19 @@
     =*  topic    i.t.t.wire
     =*  context  t.t.t.wire
     =*  key      [context ship topic]
-    ::TODO  no-op if we didn't have it anyway
+    ::  every %set arms its own expiry timer without cancelling prior ones,
+    ::  so a stale timer may fire while fresher %sets keep the entry alive.
+    ::  only delete once the entry has actually expired.
+    ::
+    =/  tos  (~(gut by places) context *topics)
+    =/  pes  (~(gut by tos) topic *people)
+    ?~  pre=(~(get by pes) ship)
+      [~ this]
+    =/  end=@da
+      %+  add  since.u.pre
+      (fall timeout.u.pre (default-timeout topic))
+    ?:  (gth end now.bowl)
+      [~ this]
     =.  places   (del-presence places key)
     [[(give-response %gone key)]~ this]
   ==
@@ -645,8 +653,8 @@
   |=  [=term =tang]
   ^-  (quip card _this)
   ::TODO  want to ~(del in want) if ?=(%fact term) but don't know the wire...
-  %.  [~ this]
-  (slog (rap 3 dap.bowl ': +on-fail: ' term ~) tang)
+  :_  this
+  [(~(on-fail logs bowl /logs) term tang)]~
 ::
 ++  on-peek
   |=  =path

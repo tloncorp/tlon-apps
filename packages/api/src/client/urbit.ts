@@ -675,8 +675,7 @@ export async function scry<T>({
   }
 }
 
-// Authenticated JSON request to an arbitrary ship path (first-class agent
-// HTTP APIs, e.g. the %notes /notes/~/v1 REST surface). Reauths once on 403.
+// Authenticated JSON request to an arbitrary ship path. Reauths once on 403.
 export async function requestJson<T = any>(
   path: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
@@ -688,6 +687,7 @@ export async function requestJson<T = any>(
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
+
   try {
     return await config.client.requestJson<T>(path, method, body);
   } catch (res) {
@@ -695,7 +695,8 @@ export async function requestJson<T = any>(
       await reauth();
       return await config.client.requestJson<T>(path, method, body);
     }
-    throw new BadResponseError(res?.status ?? 0, await responseErrorBody(res));
+    const errorBody = await responseErrorBody(res);
+    throw new BadResponseError(res?.status ?? 0, errorBody);
   }
 }
 

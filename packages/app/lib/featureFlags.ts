@@ -21,11 +21,6 @@ export const featureMeta = {
     label: 'Enable Markdown mode for notebook posts',
     onlyTlon: true,
   },
-  contextLens: {
-    default: false,
-    label: 'Enable bot context lens panel',
-    onlyTlon: false,
-  },
 } satisfies Record<
   string,
   { default: boolean; label: string; onlyTlon: boolean }

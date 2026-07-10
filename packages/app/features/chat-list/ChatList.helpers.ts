@@ -5,6 +5,8 @@ import type { SectionedChatData } from '../../hooks/useFilteredChats';
 export type SectionHeaderData = { type: 'sectionHeader'; title: string };
 export type ChatListItemData = db.Chat | SectionHeaderData;
 
+export const PINNED_SECTION_TITLE = 'Pinned';
+
 export function buildChatListItems(
   data: SectionedChatData
 ): ChatListItemData[] {
@@ -12,6 +14,28 @@ export function buildChatListItems(
     { title: section.title, type: 'sectionHeader' },
     ...section.data,
   ]);
+}
+
+/**
+ * Split the sectioned chat data into the pinned chats (rendered as a sortable
+ * `ListHeaderComponent` block, TLON-5948) and the remaining sections (which
+ * feed the virtualized `FlashList`). When searching there is no pinned section,
+ * so `pinned` is empty and `rest` is the single search-results section.
+ */
+export function splitPinnedSection(data: SectionedChatData): {
+  pinned: db.Chat[];
+  rest: SectionedChatData;
+} {
+  const pinned: db.Chat[] = [];
+  const rest: SectionedChatData = [];
+  for (const section of data) {
+    if (section.title === PINNED_SECTION_TITLE) {
+      pinned.push(...section.data);
+    } else {
+      rest.push(section);
+    }
+  }
+  return { pinned, rest };
 }
 
 export function isSectionHeader(
