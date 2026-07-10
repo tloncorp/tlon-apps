@@ -1,16 +1,14 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
-  ActionSheet,
-  ContactBook,
   ContactList,
   ScreenHeader,
   SettingsContentScrollView,
+  ShipPickerSheet,
 } from '../../ui';
 import { Badge } from '../../ui/components/Badge';
 import {
@@ -54,79 +52,6 @@ const shipListMeta: Record<
     addSubtitle: 'Select a contact or enter any @p to allow group invites.',
   },
 };
-
-// A ship picker sheet mirroring the DM contact picker: a searchable ContactBook
-// that also accepts any typed @p (ContactBook synthesizes a fallback contact
-// for a valid patp). Bottom sheet on narrow, dialog on wide, like CreateChat.
-function ShipPickerSheet({
-  open,
-  onOpenChange,
-  subtitle,
-  disabledIds,
-  onSelect,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  subtitle: string;
-  disabledIds: string[];
-  onSelect: (shipId: string) => void;
-}) {
-  const isWindowNarrow = useIsWindowNarrow();
-  const [scrolling, setScrolling] = useState(false);
-  // Let the drag handle (not the list) own the pan gesture on Android so the
-  // nested ContactBook can scroll.
-  const enableContentPanningGesture = useMemo(
-    () => (Platform.OS === 'android' ? false : undefined),
-    []
-  );
-
-  const body = (
-    <YStack flex={1} gap="$l" $sm={{ paddingHorizontal: '$xl' }}>
-      <ActionSheet.SimpleHeader title="Add a user" subtitle={subtitle} />
-      <ContactBook
-        searchable
-        autoFocus={!isWindowNarrow}
-        searchPlaceholder="Filter by nickname or @p"
-        onSelect={onSelect}
-        onScrollChange={setScrolling}
-        disabledIds={disabledIds}
-        disabledReason="Already on this list"
-        maxHeight={isWindowNarrow ? undefined : 500}
-      />
-    </YStack>
-  );
-
-  if (isWindowNarrow) {
-    return (
-      <ActionSheet
-        open={open}
-        onOpenChange={onOpenChange}
-        moveOnKeyboardChange
-        snapPoints={[90]}
-        snapPointsMode="percent"
-        disableDrag={scrolling}
-        enableContentPanningGesture={enableContentPanningGesture}
-        hasScrollableContent
-      >
-        {body}
-      </ActionSheet>
-    );
-  }
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      mode="dialog"
-      closeButton
-      dialogContentProps={{ height: 'auto', maxHeight: 1200, width: 600 }}
-    >
-      <View flex={1} padding="$m">
-        {body}
-      </View>
-    </ActionSheet>
-  );
-}
 
 export function BotShipListSettingsScreen(props: Props) {
   const { list } = props.route.params;
