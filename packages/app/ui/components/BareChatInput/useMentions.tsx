@@ -282,13 +282,24 @@ export const useMentions = ({
       start: mentionStartIndex,
       end: mentionStartIndex + mentionDisplay.length,
     };
-    const replacementEnd = Math.max(replacedTextEnd, newMention.end);
+    const replacementDelta =
+      mentionDisplay.length + 1 - (replacedTextEnd - mentionStartIndex);
 
     setMentions((prev) => [
-      ...prev.filter(
-        (mention) =>
-          mention.end <= mentionStartIndex || mention.start >= replacementEnd
-      ),
+      ...prev
+        .filter(
+          (mention) =>
+            mention.end <= mentionStartIndex || mention.start >= replacedTextEnd
+        )
+        .map((mention) =>
+          mention.start >= replacedTextEnd
+            ? {
+                ...mention,
+                start: mention.start + replacementDelta,
+                end: mention.end + replacementDelta,
+              }
+            : mention
+        ),
       newMention,
     ]);
     setIsMentionModeActive(false);
