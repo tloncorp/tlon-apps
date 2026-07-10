@@ -120,6 +120,14 @@ export function NotesNativeChannel({
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isFocused = useIsFocused();
   const { shipUrl } = useShip();
+  // Browser web never sets shipUrl in the ship context (only the native and
+  // desktop login flows do). The web app is served by the ship itself, so
+  // published paths resolve against the current origin.
+  const publishedUrlBase =
+    shipUrl ||
+    (Platform.OS === 'web' && typeof window !== 'undefined'
+      ? window.location.origin
+      : null);
   const isWindowNarrow = useIsWindowNarrow();
   const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
@@ -213,16 +221,16 @@ export function NotesNativeChannel({
 
       return publishedNoteUrl(
         publishedNotePath(notebookFlag, note.noteId),
-        shipUrl
+        publishedUrlBase
       );
     },
-    [notebookFlag, shipUrl]
+    [notebookFlag, publishedUrlBase]
   );
   const getPublishedNoteShareUrl = useMemo(
     () => (publishedPath: string) => {
-      return publishedNoteUrl(publishedPath, shipUrl);
+      return publishedNoteUrl(publishedPath, publishedUrlBase);
     },
-    [shipUrl]
+    [publishedUrlBase]
   );
   const handleNoteDraftChange = useMutableCallback(
     (draft: NotesNoteDraftSnapshot | null) => {
@@ -512,6 +520,7 @@ export function NotesNativeChannel({
     setPublishingAction('publish');
     try {
       let publishedUrl: string | null = null;
+      let published = false;
       await runAction('Failed to publish note', async () => {
         const content = getNotePublishContent(note);
         const publishedPath = await publishNotebookNote({
@@ -522,6 +531,7 @@ export function NotesNativeChannel({
         });
         await refetchPublishedNotes();
         publishedUrl = getPublishedNoteShareUrl(publishedPath);
+        published = true;
       });
 
       if (publishedUrl) {
@@ -539,6 +549,10 @@ export function NotesNativeChannel({
           trackNotesActionError('copy published note link', e, message);
           setError(message);
         }
+      } else if (published) {
+        // No share URL could be built; the publish itself still succeeded,
+        // so don't leave the user without feedback.
+        showToast({ message: 'Published note.', duration: 2000 });
       }
     } finally {
       setPublishingAction(null);
@@ -550,13 +564,18 @@ export function NotesNativeChannel({
 
     setPublishingAction('unpublish');
     try {
+      let unpublished = false;
       await runAction('Failed to unpublish note', async () => {
         await unpublishNotebookNote({
           notebookFlag,
           noteId: note.noteId,
         });
         await refetchPublishedNotes();
+        unpublished = true;
       });
+      if (unpublished) {
+        showToast({ message: 'Unpublished note.', duration: 2000 });
+      }
     } finally {
       setPublishingAction(null);
     }
@@ -848,7 +867,7 @@ export function NotesNativeChannel({
       ) : (
         <NotesNoteDetail
           autoFocusTitle={focusTitleNoteId === selectedNoteId}
-          headerActionsPlacement="inline"
+          headerActionsPlacement="channel-header"
           noteId={selectedNoteId}
           notebookFlag={notebookFlag}
           onDraftChange={handleNoteDraftChange}

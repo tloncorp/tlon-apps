@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Optional, Sequence
 
 from .media import render_content_with_blob
-from .tlon_api import extract_message_text, normalize_ship
+from .tlon_api import extract_author_ship, extract_message_text
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ def _entry_from_content(content: Any, seal: Any, fallback_id: Any = None) -> Opt
     except (TypeError, ValueError):
         timestamp = 0.0
     return HistoryEntry(
-        author=normalize_ship(str(content.get("author") or "")) or "unknown",
+        author=extract_author_ship(content.get("author")) or "unknown",
         content=text,
         timestamp=timestamp,
         post_id=post_id,

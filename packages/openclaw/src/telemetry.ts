@@ -196,6 +196,15 @@ export type TlonGatewayConnectedEvent = {
   pendingApprovalCount: number;
   autoDiscoverChannels: boolean;
   ownerListenEnabled: boolean;
+  // Boot-time web_search status (see monitor/web-search-status.ts). Rides on
+  // this event so fleet monitors catch capability loss at provision time —
+  // a failed provider-plugin install disables web_search silently otherwise.
+  webSearchEnabled: boolean;
+  webSearchConfiguredProvider: string | null;
+  webSearchProviders: string[];
+  webSearchProviderCount: number;
+  webSearchAvailable: boolean;
+  webSearchProbeError: string | null;
 };
 
 export type TlonReplyTelemetryResult = {
@@ -431,7 +440,9 @@ export type TlonPluginErrorSource =
   | 'contacts_subscription'
   | 'groups_ui_subscription'
   | 'foreigns_subscription'
-  | 'settings_refresh';
+  | 'steward_subscription'
+  | 'settings_refresh'
+  | 'sse_stream';
 
 export type TlonPluginErrorEvent = {
   harness: TlonHarnessName;
@@ -442,6 +453,12 @@ export type TlonPluginErrorEvent = {
   errorKind: string | null;
   errorText: string;
   attempt: number | null;
+  /**
+   * For recoverable subscription/stream failures: how long inbound has been
+   * (or was) down, in ms. Lets PostHog aggregate outage duration rather than
+   * just failure counts.
+   */
+  downMs: number | null;
 };
 
 export type TlonTelemetryErrorEvent = {
@@ -1053,6 +1070,12 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         pendingApprovalCount: event.pendingApprovalCount,
         autoDiscoverChannels: event.autoDiscoverChannels,
         ownerListenEnabled: event.ownerListenEnabled,
+        webSearchEnabled: event.webSearchEnabled,
+        webSearchConfiguredProvider: event.webSearchConfiguredProvider,
+        webSearchProviders: event.webSearchProviders,
+        webSearchProviderCount: event.webSearchProviderCount,
+        webSearchAvailable: event.webSearchAvailable,
+        webSearchProbeError: event.webSearchProbeError,
       }),
     });
   }
@@ -1627,6 +1650,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           errorKind: event.errorKind,
           errorText: event.errorText,
           attempt: event.attempt,
+          downMs: event.downMs,
         },
         { omitNullish: true }
       ),
@@ -1937,6 +1961,7 @@ export type TlonPluginErrorReportInput = {
   errorKind?: string | null;
   errorText: string;
   attempt?: number | null;
+  downMs?: number | null;
 };
 
 export type TlonTelemetryErrorReportInput = {

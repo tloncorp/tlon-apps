@@ -1265,6 +1265,7 @@ export const getChats = createReadQuery(
     'groupUnreads',
     'threadUnreads',
     'volumeSettings',
+    'pins',
   ]
 );
 
@@ -2523,9 +2524,11 @@ export const getGroupUnread = createReadQuery(
   'getGroupUnread',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
     if (!groupId) return Promise.resolve(null);
-    return ctx.db.query.groupUnreads.findFirst({
-      where: and(eq($groupUnreads.groupId, groupId)),
-    });
+    return (
+      (await ctx.db.query.groupUnreads.findFirst({
+        where: and(eq($groupUnreads.groupId, groupId)),
+      })) ?? null
+    );
   },
   ['groupUnreads']
 );
@@ -2533,9 +2536,11 @@ export const getGroupUnread = createReadQuery(
 export const getBaseUnread = createReadQuery(
   'getBaseUnread',
   async (ctx: QueryCtx) => {
-    return ctx.db.query.baseUnreads.findFirst({
-      where: eq($baseUnreads.id, BASE_UNREADS_SINGLETON_KEY),
-    });
+    return (
+      (await ctx.db.query.baseUnreads.findFirst({
+        where: eq($baseUnreads.id, BASE_UNREADS_SINGLETON_KEY),
+      })) ?? null
+    );
   },
   ['baseUnreads']
 );
@@ -5946,6 +5951,27 @@ export const insertPinnedItems = createWriteQuery(
   ['pins', 'groups']
 );
 
+// Rewrites each pin's index to its position in `orderedItemIds`. Expects the
+// full, unique local pin set (see reorderPinnedItems / normalizeOrder); only
+// rows whose ids appear in the list are updated.
+export const setPinnedItemsOrder = createWriteQuery(
+  'setPinnedItemsOrder',
+  async (orderedItemIds: string[], ctx: QueryCtx) => {
+    return withTransactionCtx(
+      { ...ctx, meta: { ...ctx.meta, label: 'pins' } },
+      async (txCtx) => {
+        for (let i = 0; i < orderedItemIds.length; i++) {
+          await txCtx.db
+            .update($pins)
+            .set({ index: i })
+            .where(eq($pins.itemId, orderedItemIds[i]));
+        }
+      }
+    );
+  },
+  ['pins']
+);
+
 export const insertPinnedItem = createWriteQuery(
   'insertPinnedItem',
   async (
@@ -5977,6 +6003,20 @@ export const deletePinnedItem = createWriteQuery(
   'deletePinnedItem',
   async ({ itemId }: { itemId: string }, ctx: QueryCtx) => {
     return ctx.db.delete($pins).where(eq($pins.itemId, itemId));
+  },
+  ['pins', 'groups', 'channels']
+);
+
+// Delete every pinned item. Unlike `insertPinnedItems([])` (a no-op), this is an
+// explicit clear — used by the reorder failure reconcile when the authoritative
+// backend snapshot is empty. Emits the same effects as the single-pin mutators
+// (`insertPinnedItem`/`deletePinnedItem`): some read paths surface pin state via
+// group/channel query deps (e.g. `getGroup` reads `pin`), so clearing pins must
+// invalidate those too, not just `pins`.
+export const clearPinnedItems = createWriteQuery(
+  'clearPinnedItems',
+  async (ctx: QueryCtx) => {
+    return ctx.db.delete($pins);
   },
   ['pins', 'groups', 'channels']
 );

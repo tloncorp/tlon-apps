@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { Icon, Pressable } from '@tloncorp/ui';
+import { Icon, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -186,7 +186,6 @@ export function NoteRow({
       <ActionSheet.Action
         action={{
           title: 'Publish to web',
-          description: isPublished ? publishedUrl ?? undefined : undefined,
           startIcon: 'EyeOpen',
           // Visual-only: the row press drives the toggle. Letting the Switch
           // handle taps double-fires with the row action, and its taps get
@@ -303,6 +302,7 @@ function useRowActions({
       setOpen(true);
     }
   };
+  const isWindowNarrow = useIsWindowNarrow();
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (nextOpen) {
@@ -338,9 +338,16 @@ function useRowActions({
         paddingHorizontal="$xs"
         paddingVertical="$xs"
         marginRight="$-xs"
+        role="button"
+        testID="NotesRowOverflowTrigger"
         onPress={(event) => {
           event.stopPropagation();
-          setOpen((currentOpen) => !currentOpen);
+          // In popover mode (wide web) the menu's Popover.Trigger wrapper
+          // toggles the open state itself; toggling here too would cancel
+          // it out. In sheet mode the trigger renders bare, so it's on us.
+          if (isWindowNarrow) {
+            setOpen((currentOpen) => !currentOpen);
+          }
         }}
       />
     ) : null;

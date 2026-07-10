@@ -6,6 +6,8 @@ import {
   type DisplayContext,
   type PendingApproval,
   buildApprovalA2UIBlob,
+  buildPendingApprovalsA2UIBlob,
+  buildPendingApprovalsResponse,
   createPendingApproval,
   emojiToApprovalAction,
   findPendingApproval,
@@ -243,6 +245,107 @@ describe('buildApprovalA2UIBlob', () => {
     }
   });
 
+  it('adds view message navigation for dm and channel approvals with source messages', () => {
+    const dm = buildApprovalA2UIBlob({
+      id: 'da1b2',
+      type: 'dm',
+      requestingShip: '~sampel-palnet',
+      timestamp: 1,
+      messagePreview: 'Hello, I would like to chat with your bot.',
+      originalMessage: {
+        messageId: '170.141.184.507',
+        messageText: 'Hello, I would like to chat with your bot.',
+        messageContent: [],
+        timestamp: 1,
+      },
+    });
+    const channel = buildApprovalA2UIBlob(
+      {
+        id: 'c3d4e',
+        type: 'channel',
+        requestingShip: '~littel-wolfur',
+        channelNest: 'chat/~host/general',
+        timestamp: 1,
+        messagePreview: '@bot can you review this build before I merge?',
+        originalMessage: {
+          messageId: '170.141.184.621',
+          messageText: '@bot can you review this build before I merge?',
+          messageContent: [],
+          timestamp: 1,
+          parentId: '170.141.184.600',
+          parentAuthorId: '~host',
+        },
+      },
+      ctx
+    );
+
+    expect(A2UI.validateBlobEntry(dm)).toBe(true);
+    expect(A2UI.validateBlobEntry(channel)).toBe(true);
+    expect(JSON.stringify(dm)).toContain('View message');
+    expect(JSON.stringify(dm)).toContain('"name":"tlon.navigate"');
+    expect(JSON.stringify(dm)).toContain('"channelId":"~sampel-palnet"');
+    expect(JSON.stringify(dm)).toContain('"postId":"170.141.184.507"');
+    expect(JSON.stringify(channel)).toContain(
+      '"channelId":"chat/~host/general"'
+    );
+    expect(JSON.stringify(channel)).toContain('"parentId":"170.141.184.600"');
+    expect(JSON.stringify(channel)).toContain('"parentAuthorId":"~host"');
+    expect(JSON.stringify(channel)).toContain('"groupId":"~host/cool-group"');
+  });
+
+  it('hides source navigation when the notification recipient cannot see the bot source', () => {
+    const sourceMessage = {
+      messageId: '170.141.184.507',
+      messageText: 'Please let me in',
+      messageContent: [],
+      timestamp: 1,
+    };
+    const dm = buildApprovalA2UIBlob(
+      {
+        id: 'da1b2',
+        type: 'dm',
+        requestingShip: '~sampel-palnet',
+        timestamp: 1,
+        originalMessage: sourceMessage,
+      },
+      undefined,
+      { includeSourceNavigation: false }
+    );
+    const channel = buildApprovalA2UIBlob(
+      {
+        id: 'c3d4e',
+        type: 'channel',
+        requestingShip: '~littel-wolfur',
+        channelNest: 'chat/~host/general',
+        timestamp: 1,
+        originalMessage: sourceMessage,
+      },
+      ctx,
+      { includeSourceNavigation: false }
+    );
+
+    for (const approval of [dm, channel]) {
+      expect(A2UI.validateBlobEntry(approval)).toBe(true);
+      expect(JSON.stringify(approval)).not.toContain('View message');
+      expect(JSON.stringify(approval)).not.toContain('tlon.navigate');
+    }
+  });
+
+  it('does not add view message navigation to group invites', () => {
+    const approval = buildApprovalA2UIBlob({
+      id: 'g5f6a',
+      type: 'group',
+      requestingShip: '~robin-dasler',
+      groupFlag: '~robin-dasler/garden-club',
+      groupTitle: 'Garden Club',
+      timestamp: 1,
+    });
+
+    expect(A2UI.validateBlobEntry(approval)).toBe(true);
+    expect(JSON.stringify(approval)).not.toContain('View message');
+    expect(JSON.stringify(approval)).not.toContain('tlon.navigate');
+  });
+
   it('formats the visible notification text by request type', () => {
     expect(
       formatApprovalRequestNotification(
@@ -396,6 +499,131 @@ describe('buildApprovalA2UIBlob', () => {
     expect(text).toContain('Let the bot join ~robin-dasler/private-garden?');
     expect(text).toContain('Group: ~robin-dasler/private-garden');
     expect(text).not.toContain('this group');
+  });
+});
+
+describe('buildPendingApprovalsA2UIBlob', () => {
+  it('builds a pending requests card with actions for each approval', () => {
+    const blob = buildPendingApprovalsA2UIBlob(
+      [
+        {
+          id: 'da1b2',
+          type: 'dm',
+          requestingShip: '~zod',
+          messagePreview: 'Can you help me find the launch notes?',
+          timestamp: Date.now(),
+        },
+        {
+          id: 'cc3d4',
+          type: 'channel',
+          requestingShip: '~sampel-palnet',
+          channelNest: 'chat/~host/general',
+          timestamp: Date.now(),
+        },
+      ],
+      ctx
+    );
+
+    expect(blob).toBeDefined();
+    expect(A2UI.validateBlobEntry(blob)).toBe(true);
+    const text = JSON.stringify(blob);
+    expect(text).toContain('2 approval requests');
+    expect(text).toContain('DM from Zod');
+    expect(text).toContain('Sender: Zod (~zod)');
+    expect(text).toContain('Message: ');
+    expect(text).toContain('Channel access for Sam Palnet');
+    expect(text).toContain(
+      'Channel: General in Garden Club (chat/~host/general)'
+    );
+    expect(text).toContain('/allow da1b2');
+    expect(text).toContain('/reject cc3d4');
+    expect(text).toContain('/ban cc3d4');
+  });
+
+  it('omits the card when there are no active approvals', () => {
+    expect(buildPendingApprovalsA2UIBlob([], ctx)).toBeUndefined();
+    expect(
+      buildPendingApprovalsA2UIBlob(
+        [
+          {
+            id: 'da1b2',
+            type: 'dm',
+            requestingShip: '~zod',
+            timestamp: Date.now() - APPROVAL_TTL_MS - 1,
+          },
+        ],
+        ctx
+      )
+    ).toBeUndefined();
+  });
+
+  it('omits the card for five or more active approvals', () => {
+    const approvals = Array.from({ length: 5 }, (_, index) => ({
+      id: `d${index}`,
+      type: 'dm' as const,
+      requestingShip: `~ship${index}`,
+      timestamp: Date.now(),
+    }));
+
+    expect(buildPendingApprovalsA2UIBlob(approvals, ctx)).toBeUndefined();
+  });
+});
+
+describe('buildPendingApprovalsResponse', () => {
+  const approval: PendingApproval = {
+    id: 'da1b2',
+    type: 'dm',
+    requestingShip: '~zod',
+    timestamp: Date.now(),
+  };
+
+  it('keeps a text fallback when returning an A2UI card', () => {
+    const response = buildPendingApprovalsResponse(
+      [approval],
+      ctx,
+      () => 'serialized-card'
+    );
+
+    expect(response).toMatchObject({
+      mode: 'ui',
+      blob: 'serialized-card',
+    });
+    expect(response.text).toContain('Zod (~zod)');
+    expect(response.text).toContain('/allow');
+  });
+
+  it('falls back to text when the card cannot be serialized', () => {
+    const response = buildPendingApprovalsResponse(
+      [approval],
+      ctx,
+      () => undefined
+    );
+
+    expect(response.mode).toBe('text');
+    expect(response.text).toContain('Zod (~zod)');
+  });
+
+  it('falls back to text when display values make the card invalid', () => {
+    let serializeCalled = false;
+    let fallbackError: unknown;
+    const response = buildPendingApprovalsResponse(
+      [approval],
+      {
+        ...ctx,
+        contactNames: new Map([['~zod', 'Z'.repeat(1_001)]]),
+      },
+      () => {
+        serializeCalled = true;
+        return 'serialized-card';
+      },
+      (error) => {
+        fallbackError = error;
+      }
+    );
+
+    expect(response.mode).toBe('text');
+    expect(serializeCalled).toBe(false);
+    expect(fallbackError).toBeInstanceOf(Error);
   });
 });
 
