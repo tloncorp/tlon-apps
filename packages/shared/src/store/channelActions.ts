@@ -569,10 +569,11 @@ function normalizeOrder(desired: string[], current: db.Pin[]): string[] {
 }
 
 // Persist a reorder of the pinned items. Optimistically writes the new order,
-// pokes the backend, and re-asserts on success so a stale in-flight sync can't
-// leave the UI reverted. Never throws — returns true on success, false on
-// failure (after a best-effort backend reconcile) so drag handlers can roll
-// back their optimistic UI.
+// pokes the backend, and re-asserts any order it keeps so a stale in-flight sync
+// can't leave the UI reverted. Returns true when the local order should be kept
+// and false after a failed poke has been reconciled/rolled back. The temporary
+// `keepLocalOrderOnError` option lets callers treat the backend sync as
+// best-effort while `%set-order` rolls out across the fleet.
 //
 // The optimistic local write and the backend poke take *different* orders:
 //   - `optimisticOrder` is the full merged pin order (incl. hidden pins in a
@@ -586,9 +587,11 @@ function normalizeOrder(desired: string[], current: db.Pin[]): string[] {
 export async function reorderPinnedItems({
   optimisticOrder,
   backendOrder,
+  keepLocalOrderOnError = false,
 }: {
   optimisticOrder: string[];
   backendOrder: string[];
+  keepLocalOrderOnError?: boolean;
 }): Promise<boolean> {
   const before = await db.getPinnedItems();
   const previousOrder = [...before]
@@ -624,6 +627,15 @@ export async function reorderPinnedItems({
     await db.setPinnedItemsOrder(normalizeOrder(backendPayload, after));
     return true;
   } catch (e) {
+    if (keepLocalOrderOnError) {
+      // An older groups-ui rejects `%set-order`. Keep the durable local write,
+      // but still re-assert the visible reorder in case a pin sync landed while
+      // the best-effort poke was in flight.
+      const after = await db.getPinnedItems();
+      await db.setPinnedItemsOrder(normalizeOrder(backendPayload, after));
+      return true;
+    }
+
     console.error('Failed to reorder pinned items', e);
     // Best-effort reconcile to the authoritative backend order. The scry usually
     // fails for the same reason the poke did, so guard it and always return false.
