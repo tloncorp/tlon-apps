@@ -7,7 +7,7 @@ import {
   toPostReplyData,
   toPostsData,
 } from '../client/postsApi';
-import { poke, subscribeOnce } from '../client/urbit';
+import { poke, scry, subscribeOnce } from '../client/urbit';
 import type { Post } from '../types/models';
 import * as ub from '../urbit';
 import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
@@ -22,14 +22,33 @@ vi.mock('../client/urbit', async () => {
     ...actual,
     subscribeOnce: vi.fn(),
     poke: vi.fn(),
+    scry: vi.fn(),
   };
 });
 
-test('sendPost routes a DM to a bot moon through the vouched path', async () => {
+// directory in which ~sampel-palnet has registered ~doznec-sampel-palnet
+// as a bot in its published profile
+const directoryWithBot = {
+  '~sampel-palnet': {
+    isContact: false,
+    contact: {
+      bots: {
+        type: 'text',
+        value: JSON.stringify({
+          '~doznec-sampel-palnet': { nickname: 'Helper' },
+        }),
+      },
+    },
+    mod: {},
+  },
+};
+
+test('sendPost routes a DM to a registered bot moon through the vouched path', async () => {
   vi.mocked(poke).mockReset();
   vi.mocked(poke).mockResolvedValue(undefined as never);
+  vi.mocked(scry).mockResolvedValue(directoryWithBot as never);
   await sendPost({
-    channelId: '~doznec-sampel-palnet', // a moon
+    channelId: '~doznec-sampel-palnet', // a registered bot moon
     authorId: '~bus',
     sentAt: 1701275662689,
     content: [{ inline: ['hi bot'] }],
@@ -44,15 +63,33 @@ test('sendPost routes a DM to a bot moon through the vouched path', async () => 
   expect(arg.json.as).toBe('~doznec-sampel-palnet');
 });
 
+test('sendPost sends a normal DM to a moon that is not a registered bot', async () => {
+  vi.mocked(poke).mockReset();
+  vi.mocked(poke).mockResolvedValue(undefined as never);
+  // sponsor has no bots field: a real, running moon
+  vi.mocked(scry).mockResolvedValue({} as never);
+  await sendPost({
+    channelId: '~doznec-sampel-palnet',
+    authorId: '~bus',
+    sentAt: 1701275662689,
+    content: [{ inline: ['hi moon'] }],
+  });
+  const arg = vi.mocked(poke).mock.calls[0][0] as { mark: string };
+  expect(arg.mark).not.toBe('chat-dm-vouched-action-2');
+});
+
 test('sendPost sends a normal DM to a non-moon peer', async () => {
   vi.mocked(poke).mockReset();
   vi.mocked(poke).mockResolvedValue(undefined as never);
+  vi.mocked(scry).mockReset();
   await sendPost({
-    channelId: '~bus', // a comet/planet, not a moon
+    channelId: '~bus', // a planet, not a moon
     authorId: '~zod',
     sentAt: 1701275662689,
     content: [{ inline: ['hi'] }],
   });
+  // clan check short-circuits: no directory scry for non-moons
+  expect(scry).not.toHaveBeenCalled();
   const arg = vi.mocked(poke).mock.calls[0][0] as { mark: string };
   expect(arg.mark).not.toBe('chat-dm-vouched-action-2');
 });

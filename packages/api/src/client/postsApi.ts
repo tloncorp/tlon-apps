@@ -1,4 +1,4 @@
-import { da, p, render } from '@urbit/aura';
+import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
 import { createDevLogger } from '../lib/logger';
@@ -42,6 +42,7 @@ import {
   udToDate,
   with404Handler,
 } from './apiUtils';
+import { isRegisteredBot } from './contactsApi';
 import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { referenceLookupId } from './references';
 import { poke, scry, subscribeOnce } from './urbit';
@@ -169,10 +170,12 @@ export const sendPost = async ({
 
   const author = toAuthor(authorId, botProfile);
 
-  // A DM to a bot moon can't be delivered peer-to-peer (the moon isn't
-  // running), so route it through the vouched path to the moon's host, which
-  // hands it to the bot and files it under the [moon, us] conversation.
-  if (channelType === 'dm' && p.clan(channelId) === 'earl') {
+  // A DM to a registered bot moon can't be delivered peer-to-peer (the moon
+  // isn't running), so route it through the vouched path to the moon's host.
+  // The conversation stays a normal DM keyed by the moon; only delivery
+  // differs. Moons NOT registered as bots (i.e. real, running moons) take
+  // the normal path.
+  if (channelType === 'dm' && (await isRegisteredBot(channelId))) {
     await sendVouchedDm({
       as: channelId,
       authorId,

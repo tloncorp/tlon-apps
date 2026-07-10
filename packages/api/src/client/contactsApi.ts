@@ -100,6 +100,33 @@ export const parseBotProfiles = (
 };
 
 /**
+ * True when `ship` is a bot moon registered in its sponsor's published
+ * profile (the `bots` convention field). This is the client-side signal to
+ * route DMs through the vouched path — a real, running moon that isn't
+ * registered as a bot gets normal peer-to-peer DMs.
+ */
+export const isRegisteredBot = async (ship: string): Promise<boolean> => {
+  try {
+    if (p.clan(ship) !== 'earl') {
+      return false;
+    }
+    const host = p.sein(ship);
+    const directory = await scry<ub.ContactDirectoryScryResult>({
+      app: 'contacts',
+      path: '/v1/directory',
+    });
+    const entry = directory?.[host];
+    if (!entry) {
+      return false;
+    }
+    const bots = readBotsField(entry.contact);
+    return Object.keys(bots).some((id) => normalizeMoonId(id) === ship);
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Register (or update) a bot moon in the current ship's published profile so
  * peers can resolve the bot via the `bots` convention field (see
  * parseBotProfiles). Reads the current profile first and merges, preserving

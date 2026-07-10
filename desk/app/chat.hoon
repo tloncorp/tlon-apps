@@ -187,11 +187,11 @@
         last-updated=(list [=whom:c =time])  ::  newest first, one-per-whom
         old-chats=(map flag:v2:cv chat:v2:cv)  :: for migration
         old-pins=(list whom:v2:cv)
-        ::  vouched DMs: experimental parallel store for "virtual identity"
-        ::  (bot/moon) conversations, keyed by [bot-moon human]. Kept separate
-        ::  from .dms so the normal DM path is untouched. .as is the moon, .who
-        ::  the human; both ships store under the same key.
-        vouched-dms=(map [as=ship who=ship] dm:v7:cv)
+        ::  routing bookkeeping for "virtual identity" (bot moon) dms. the
+        ::  conversation itself is a normal entry in .dms keyed by the moon;
+        ::  this map only records that delivery for .vouched goes to .host
+        ::  (its sponsor) instead of the (non-running) moon itself.
+        vouched-dms=(map vouched=@p host=@p)
     ==
   +$  sent-id
     $@  time             ::  top-level msg
@@ -937,11 +937,46 @@
     =/  va=vouched-action:dm:c  p.rail
     ?.  =(src.bowl our.bowl)
       ~|("%chat-dm-vouched-action-2 only allowed from self" !!)
-    (dv-take-action as.va action.va)
+    ::  hosting the bot: relay outbound to the human. the conversation
+    ::  state lives with the bot runner, not in our dms.
+    ?:  &(!=(as.va our.bowl) (vouches-for:utils our.bowl as.va))
+      %-  emit
+      :*  %pass  /vouched-dm/(scot %p as.va)/(scot %p p.action.va)
+          %agent  [p.action.va dap.bowl]
+          %poke  chat-dm-vouched-diff-2+[as.va q.action.va]
+      ==
+    ::  we are the human: record where to route delivery for this moon,
+    ::  then run the normal dm machinery with the moon as the partner.
+    ~|  %vouched-dm-not-a-moon
+    ?>  ?=(%earl (clan:title as.va))
+    ~|  %vouched-dm-partner-mismatch
+    ?>  =(as.va p.action.va)
+    =.  vouched-dms  (~(put by vouched-dms) as.va (^sein:title as.va))
+    $(rail [%chat-dm-action-2 action.va])
   ::
       %chat-dm-vouched-diff-2
     =/  vd=vouched-diff:dm:c  p.rail
-    (dv-take-diff as.vd diff.vd)
+    =*  as  as.vd
+    ::  we host bot .as: validate the sender owns the writs it sent, then
+    ::  relay to the bot runner via /vouched-dm. no dm state on the host.
+    ?:  &(!=(as our.bowl) (vouches-for:utils our.bowl as))
+      =/  owner=ship
+        ?-  -.q.diff.vd
+          %del    p.p.diff.vd
+          %reply  ?:  ?=(%del -.delta.q.diff.vd)
+                    p.id.q.diff.vd
+                  (get-ship-dr delta.q.diff.vd)
+          ?(%add %add-react %del-react)  (get-ship-dw q.diff.vd)
+        ==
+      ~|  %vouched-dm-writ-not-owned-by-sender
+      ?>  (vouches-for:utils src.bowl owner)
+      (emit %give %fact ~[/vouched-dm] chat-dm-vouched-diff-2+vd)
+    ::  the bot's host speaking as its moon to us: ingest as a normal dm
+    ::  keyed by the moon.
+    ?:  (vouches-for:utils src.bowl as)
+      =.  vouched-dms  (~(put by vouched-dms) as src.bowl)
+      di-abet:(di-take-counter:(di-abed-soft:di-core as) diff.vd)
+    ~|  %vouched-dm-diff-failed-vouch  !!
   ::
       %chat-dm-action-1
     =*  old-action=action:dm:v6:cv  p.rail
@@ -1187,6 +1222,13 @@
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
     %-  (slog 'Failed to send activity' u.p.sign)
+    cor
+  ::
+      [%vouched-dm as=@ who=@ ~]
+    ::  ack for a hosted-bot outbound relay (see %chat-dm-vouched-action-2)
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf/"vouched dm relay {(trip as.pole)} -> {(trip who.pole)} failed" u.p.sign)
     cor
   ::
       [%said *]
@@ -2555,6 +2597,8 @@
 ++  di-core
   |_  [=ship =dm:c gone=_|]
   +*  di-pact  ~(. pac pact.dm)
+      ::  set when .ship is a vouched moon: the host to route delivery to
+      di-vouched  (~(get by vouched-dms) ship)
   ++  di-core  .
   ++  di-abet
     =?  last-updated  |(gone !(~(has by dms) ship))
@@ -2637,7 +2681,12 @@
       [[p.p q.p] q.id.q]:diff
     =?  di-core  ?=(%invited net.dm)
       (di-send-rsvp &)
-    =.  cor  (emit (proxy:di-pass diff))
+    ::  a vouched moon isn't running: deliver to its host, which relays
+    ::  to the bot runner
+    =.  cor
+      =/  vouched  di-vouched
+      ?~  vouched  (emit (proxy:di-pass diff))
+      (emit (proxy-vouched:di-pass u.vouched diff))
     di-core
   ::
   ++  di-archive
@@ -2701,9 +2750,12 @@
       ?~  moj=(kill:em react.delta.q.diff)  q.diff
       q.diff(react.delta u.moj)
     ::
-    =/  =wire  /contacts/(scot %p ship)
-    =/  =rail  contact-action-1+`action:contacts`[%meet ~[ship]]
-    =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke rail)
+    ::  a vouched moon never runs; its profile comes from the host's
+    ::  published bot profile, so don't %meet (avoids a dead retry loop)
+    =?  cor  ?=(~ di-vouched)
+      =/  =wire  /contacts/(scot %p ship)
+      =/  =rail  contact-action-1+`action:contacts`[%meet ~[ship]]
+      (emit %pass wire %agent [our.bowl %contacts] %poke rail)
     =/  old-unread  di-unread
     =/  had=(unit [=time writ=(may:c writ:c)])
       (get:di-pact p.diff)
@@ -2833,11 +2885,15 @@
     ~>  %spin.['di-send-rsvp']
     ^+  di-core
     ?>  from-self
-    =?  cor  ?&  !=(ship our.bowl)  ::  avoid self-proxy infinite loop
+    ::  a vouched moon isn't running: skip the network handshake entirely.
+    ::  local net state still transitions, and the host needs no rsvp.
+    =?  cor  ?&  ?=(~ di-vouched)
+                 !=(ship our.bowl)  ::  avoid self-proxy infinite loop
                  (can-poke:neg bowl [ship dap.bowl])
              ==
       (emit (proxy-rsvp:di-pass ok))
-    =.  cor  (emit (unsafe:guard (initiate:neg [ship dap.bowl])))
+    =?  cor  ?=(~ di-vouched)
+      (emit (unsafe:guard (initiate:neg [ship dap.bowl])))
     ?.  ok
       ::  reject or leave the dm
       ::
@@ -2846,7 +2902,7 @@
         =.  dms  (~(del by dms) ship)
         give-invites
       di-core(gone &)
-    =.  cor
+    =?  cor  ?=(~ di-vouched)  ::  never %meet a vouched moon
       %^  emit  %pass  /contacts/(scot %p ship)
       [%agent [our.bowl %contacts] %poke contact-action-1+[%meet ~[ship]]]
     ?.  =(%invited net.dm)  di-core  ::TMI
@@ -2865,7 +2921,9 @@
     ~>  %spin.['di-receive-rsvp']
     ^+  di-core
     ?<  from-self
-    ?>  =(ship src.bowl)
+    ::  the partner themselves, or the host speaking for a vouched moon
+    ::  (the implicit accept in +di-take-counter fires on the host's diffs)
+    ?>  (vouches-for:utils src.bowl ship)
     =+  net=net.dm  ::TMI
     ?.  ok
       ?:  ?=(%invited net)
@@ -2881,7 +2939,7 @@
     ?.  ?=(%inviting net)  di-core
     ::  received rsvp accept: meet the ship, post a notice
     ::
-    =.  cor
+    =?  cor  ?=(~ di-vouched)  ::  never %meet a vouched moon
       %^  emit  %pass  /contacts/(scot %p ship)
       [%agent [our.bowl %contacts] %poke contact-action-1+[%meet ~[ship]]]
     =.  net.dm  %done
@@ -2930,6 +2988,13 @@
         :-  `id
         (~(put by sends) [%ship ship] queue)
       ?~  p.sign  di-core
+      ::  vouched delivery goes to the (running, modern) host, so the
+      ::  archaic-protocol fallback below never applies.
+      ::
+      =/  vouched  di-vouched
+      ?^  vouched
+        %-  (slog leaf/"Failed vouched dm to {<ship>} via {<u.vouched>}" u.p.sign)
+        di-core
       ::  if we already tried hard, this is the end of the road.
       ::
       ?:  ?=([%archaic ~] t.wire)
@@ -3104,93 +3169,14 @@
       ::NOTE  static wire important for ordering guarantees and preventing flow
       ::      proliferation, see also +di-proxy
       (poke-them /proxy/diff chat-dm-diff-2+diff)
+    ::  +proxy-vouched: deliver to a vouched moon via its host.
+    ::  same static wire as +proxy so ack handling stays uniform.
+    ++  proxy-vouched
+      |=  [host=@p =diff:dm:c]
+      ~>  %spin.['proxy-vouched']
+      (pass /proxy/diff [host dap.bowl] %poke chat-dm-vouched-diff-2+[ship diff])
     --
   --
-::  +dv-core: experimental "vouched" DM core for virtual identities (bots).
-::
-::    Parallels +di-core but operates on .vouched-dms keyed by [as=moon
-::    who=human], leaving the normal DM path untouched. Reuses the message
-::    store (+reduce:pac); skips the invite handshake / activity / unread
-::    bookkeeping for now (experimental).
-::
-++  dv-core
-  |_  [as=ship who=ship =dm:c]
-  +*  dv-pact  ~(. pac pact.dm)
-  ++  dv-core  .
-  ++  dv-abed
-    |=  [a=ship w=ship]
-    ~>  %spin.['dv-abed']
-    =/  d=dm:c  (~(gut by vouched-dms) [a w] [*pact:c *remark:c %done %.n])
-    dv-core(as a, who w, dm d)
-  ++  dv-abet
-    =.  vouched-dms  (~(put by vouched-dms) [as who] dm)
-    cor
-  ++  dv-wire  `wire`/vouched-dm/(scot %p as)/(scot %p who)
-  ::  from the human's side the moon IS the conversation, so surface vouched
-  ::  writs as a normal DM keyed by .as on the /v4 firehose the client reads.
-  ++  dv-area        `path`/dm/(scot %p as)
-  ++  dv-area-writs  `path`/dm/(scot %p as)/writs
-  ++  dv-give-writs-diff
-    |=  =diff:writs:c
-    ~>  %spin.['dv-give-writs-diff']
-    ^+  dv-core
-    =/  =whom:c  [%ship as]
-    =/  response=(unit response:writs:c)
-      (diff-to-response diff pact.dm)
-    ?~  response  dv-core
-    =.  cor
-      =/  =rail  writ-response-4+[whom u.response]
-      (emit %give %fact ~[/v4 v4+dv-area v4+dv-area-writs] rail)
-    dv-core
-  ++  dv-ingest
-    |=  =diff:dm:c
-    ~>  %spin.['dv-ingest']
-    ^+  dv-core
-    =.  pact.dm  (reduce:dv-pact now.bowl from-self diff)
-    ::  if we're the human in this conversation, publish it to our own client
-    ::  as a DM with the moon; the host side instead streams to /vouched-dm.
-    ?.  =(who our.bowl)  dv-core
-    (dv-give-writs-diff diff)
-  ++  dv-proxy
-    |=  [dest=ship =diff:dm:c]
-    ~>  %spin.['dv-proxy']
-    ^+  dv-core
-    =.  dv-core  (dv-ingest diff)
-    =.  cor
-      %-  emit
-      :*  %pass  dv-wire  %agent  [dest dap.bowl]
-          %poke  chat-dm-vouched-diff-2+[as diff]
-      ==
-    dv-core
-  --
-::  +dv-take-action: handle a self-poked vouched dm action.
-::
-++  dv-take-action
-  |=  [as=ship =action:dm:c]
-  ~>  %spin.['dv-take-action']
-  ^+  cor
-  ?:  (vouches-for:utils our.bowl as)
-    ::  we host bot .as (or .as is us): speak as it to the human p.action
-    dv-abet:(dv-proxy:(dv-abed:dv-core as p.action) p.action q.action)
-  ::  otherwise we're the human DMing bot .as: route to its owner
-  ?>  ?=(%earl (clan:title as))
-  dv-abet:(dv-proxy:(dv-abed:dv-core as our.bowl) (^sein:title as) q.action)
-::  +dv-take-diff: handle a vouched dm diff received over the network.
-::
-++  dv-take-diff
-  |=  [as=ship =diff:dm:c]
-  ~>  %spin.['dv-take-diff']
-  ^+  cor
-  ?:  (vouches-for:utils our.bowl as)
-    ::  inbound to our bot .as from the human src.bowl: store and stream it to
-    ::  the host's local subscribers (the bot). On inbound the writ's author is
-    ::  the human, so [as diff] carries who+content without a new mark.
-    =.  cor  (emit %give %fact ~[/vouched-dm] chat-dm-vouched-diff-2+[as diff])
-    dv-abet:(dv-ingest:(dv-abed:dv-core as src.bowl) diff)
-  ?:  (vouches-for:utils src.bowl as)
-    ::  a reply from src's bot .as to us (the human)
-    dv-abet:(dv-ingest:(dv-abed:dv-core as our.bowl) diff)
-  ~|  %vouched-dm-diff-failed-vouch  !!
 ::  a bug caused us to hear one last gossip about a club we left. this
 ::  leaves us in a bad state where we have a club, but we're not in it.
 ::  to fix we simply remove any invalid clubs

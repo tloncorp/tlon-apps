@@ -6,22 +6,39 @@
 ::  ~doznec-sampel-palnet is a real moon sponsored by ~sampel-palnet.
 ++  moon  ~doznec-sampel-palnet
 ++  owner  ~sampel-palnet
-::  a planet posting as its own bot moon routes the diff to the human
-++  test-vouched-dm-owner-reply
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ;<  *  bind:m  (do-init dap agent)
-  ;<  *  bind:m  (set-scry-gate scries)
-  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our owner, src owner)))
-  ;<  bw=bowl  bind:m  get-bowl
-  =/  =diff:dm:c  (dm-message moon now.bw [%inline ~['hi from bot']])
-  ;<  caz=(list card)  bind:m
-    (do-poke %chat-dm-vouched-action-2 !>(`vouched-action:dm:c`[moon ~bus diff]))
-  %+  ex-cards  caz
-  :~  %+  ex-poke  /vouched-dm/(scot %p moon)/(scot %p ~bus)
-      [[~bus dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+::  a dm-message with a correctly-authored essay (unlike +dm-message,
+::  which hardcodes ~zod as the author)
+++  vouched-message
+  |=  [author=ship =time =verse:ch]
+  ^-  diff:dm:c
+  [[author time] %add [[~[verse] author time] chat+/ ~ ~] `time]
+::  the five writ-response facts +di-give-writs-diff emits for an %add
+++  ex-writ-facts
+  |=  [author=ship =time =verse:ch seq=@ud]
+  ^-  (list $-(card tang))
+  =/  =whom:c  [%ship moon]
+  =/  =essay:c  [[~[verse] author time] chat+/ ~ ~]
+  =/  =response:writs:c  [[author time] %add essay seq time]
+  =/  old-response-3=[whom:v3:cv response:writs:v3:cv]
+    :-  whom
+    %-  v3:response-writs:v5:cc
+    (v5:response-writs:v7:cc response)
+  =/  old-response-4=[whom:v4:cv response:writs:v4:cv]
+    [whom (v4:response-writs:v7:cc response)]
+  =/  old-response-5=[whom:v5:cv response:writs:v5:cv]
+    [whom (v5:response-writs:v7:cc response)]
+  =/  old-response-6=[whom:c response:writs:v6:cv]
+    [whom (v6:response-writs:v7:cc response)]
+  =/  mp=@ta  (scot %p moon)
+  :~  (ex-fact ~[/ /dm/[mp] /dm/[mp]/writs] writ-response+!>(old-response-3))
+      (ex-fact ~[/v1 /v1/dm/[mp] /v1/dm/[mp]/writs] writ-response-1+!>(old-response-4))
+      (ex-fact ~[/v2 /v2/dm/[mp] /v2/dm/[mp]/writs] writ-response-2+!>(old-response-5))
+      (ex-fact ~[/v3 /v3/dm/[mp] /v3/dm/[mp]/writs] writ-response-3+!>(old-response-6))
+      (ex-fact ~[/v4 /v4/dm/[mp] /v4/dm/[mp]/writs] writ-response-4+!>([whom response]))
   ==
-::  a human DMing a bot moon routes the diff to the moon's owner (sein)
+::  a human DMs a bot moon: the conversation is a normal dm keyed by the
+::  moon (normal facts), with delivery routed to the moon's host. a
+::  follow-up send through the plain dm-action path routes the same way.
 ++  test-vouched-dm-human-send
   %-  eval-mare
   =/  m  (mare ,~)
@@ -29,35 +46,89 @@
   ;<  *  bind:m  (set-scry-gate scries)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~bus, src ~bus)))
   ;<  bw=bowl  bind:m  get-bowl
-  =/  =diff:dm:c  (dm-message ~bus now.bw [%inline ~['hi bot']])
+  =/  =verse:ch  [%inline ~['hi bot']]
+  =/  =diff:dm:c  (vouched-message ~bus now.bw verse)
   ;<  caz=(list card)  bind:m
-    (do-poke %chat-dm-vouched-action-2 !>(`vouched-action:dm:c`[moon moon diff]))
-  ::  as the human, we also surface the conversation to our own client as a DM
-  ::  keyed by the moon (on the /v4 firehose), then proxy to the moon's owner.
-  =/  mp=@ta  (scot %p moon)
+    %+  do-poke  %chat-dm-vouched-action-2
+    !>(`vouched-action:dm:c`[moon moon diff])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    %+  welp  (ex-writ-facts ~bus now.bw verse 1)
+    :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
+        [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+    ==
+  ::  a second message through the PLAIN dm path still routes to the host
+  ::
+  ;<  *  bind:m  (wait ~s1)
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  diff-2=diff:dm:c  (vouched-message ~bus now.bw verse)
+  ;<  caz=(list card)  bind:m
+    (do-poke %chat-dm-action-2 !>(`action:dm:c`[moon diff-2]))
+  =/  =whom:c  [%ship moon]
   %+  ex-cards  caz
-  :~  (ex-fact-paths ~[/v4 ~[%v4 %dm mp] ~[%v4 %dm mp %writs]])
-      %+  ex-poke  /vouched-dm/(scot %p moon)/(scot %p ~bus)
-      [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+  %+  welp
+    ::  recency moved, so this send updates the unread summary
+    :~  (ex-fact ~[/unreads] %chat-unread-update !>([whom [now.bw 0 ~ ~]]))
+    ==
+  %+  welp  (ex-writ-facts ~bus now.bw verse 2)
+  :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
+      [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff-2])]
   ==
-::  the host stores an inbound vouched dm and streams it to local subscribers
-++  test-vouched-dm-inbound
+::  the host relays its bot's outbound message to the human, keeping no
+::  dm state of its own
+++  test-vouched-dm-host-relay-outbound
   %-  eval-mare
   =/  m  (mare ,~)
   ;<  *  bind:m  (do-init dap agent)
   ;<  *  bind:m  (set-scry-gate scries)
-  ::  we are the moon's host (sein), receiving from the human ~bus
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our owner, src owner)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =diff:dm:c  (vouched-message moon now.bw [%inline ~['hi from bot']])
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %chat-dm-vouched-action-2
+    !>(`vouched-action:dm:c`[moon ~bus diff])
+  %+  ex-cards  caz
+  :~  %+  ex-poke  /vouched-dm/(scot %p moon)/(scot %p ~bus)
+      [[~bus dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+  ==
+::  the host relays an inbound vouched dm to the bot runner via /vouched-dm
+++  test-vouched-dm-host-relay-inbound
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our owner, src ~bus)))
   ;<  bw=bowl  bind:m  get-bowl
-  =/  =diff:dm:c  (dm-message ~bus now.bw [%inline ~['hi bot']])
+  =/  =diff:dm:c  (vouched-message ~bus now.bw [%inline ~['hi bot']])
   ;<  caz=(list card)  bind:m
-    (do-poke %chat-dm-vouched-diff-2 !>(`vouched-diff:dm:c`[moon diff]))
+    %+  do-poke  %chat-dm-vouched-diff-2
+    !>(`vouched-diff:dm:c`[moon diff])
   %+  ex-cards  caz
   :~  %^    ex-fact
         ~[/vouched-dm]
       %chat-dm-vouched-diff-2
     !>(`vouched-diff:dm:c`[moon diff])
   ==
+::  a bot-initiated dm arrives as a normal dm invite keyed by the moon
+++  test-vouched-dm-human-receive
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~bus, src owner)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =verse:ch  [%inline ~['hi human']]
+  =/  =diff:dm:c  (vouched-message moon now.bw verse)
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %chat-dm-vouched-diff-2
+    !>(`vouched-diff:dm:c`[moon diff])
+  =/  invite-action=action:activity  [%add %dm-invite [%ship moon]]
+  %+  ex-cards  caz
+  %+  welp
+    :~  (ex-poke /activity/submit [~bus %activity] activity-action-1+!>(invite-action))
+        (ex-fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(`(set ship)`(silt ~[moon])))
+    ==
+  (ex-writ-facts moon now.bw verse 1)
 ::  a vouched diff from a ship that does not sponsor the moon is rejected
 ++  test-vouched-dm-rejects-unvouched
   %-  eval-mare
@@ -66,7 +137,7 @@
   ;<  *  bind:m  (set-scry-gate scries)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~bus, src ~ten)))
   ;<  bw=bowl  bind:m  get-bowl
-  =/  =diff:dm:c  (dm-message moon now.bw [%inline ~['spoof']])
+  =/  =diff:dm:c  (vouched-message moon now.bw [%inline ~['spoof']])
   %-  ex-fail
   (do-poke %chat-dm-vouched-diff-2 !>(`vouched-diff:dm:c`[moon diff]))
 ++  test-dm-notification-clearing
