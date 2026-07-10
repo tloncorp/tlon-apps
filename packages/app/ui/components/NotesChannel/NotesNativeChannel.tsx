@@ -132,7 +132,6 @@ export function NotesNativeChannel({
   const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
   const notebookSidebarSourceId = `${channelId}/${folderId ?? 'root'}`;
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderParentId, setNewFolderParentId] = useState<number | null>(
@@ -184,6 +183,18 @@ export function NotesNativeChannel({
       notebookFlag,
       enabled: Boolean(notebookFlag),
     });
+
+  // Derived, never stored: the selected folder is the folder of the note
+  // selected in the split pane — the only selection the tree makes visible.
+  // Storing it separately let side effects (folder opens, moves) leave stale
+  // invisible state behind that silently redirected imports.
+  const selectedFolderId = useMemo(
+    () =>
+      selectedNoteId !== null
+        ? notes.find((note) => note.noteId === selectedNoteId)?.folderId ?? null
+        : null,
+    [notes, selectedNoteId]
+  );
 
   const canImportFiles = canEdit && canSelectNotesImportSources('files');
   const canImportFolder = canEdit && canSelectNotesImportSources('folder');
@@ -261,13 +272,6 @@ export function NotesNativeChannel({
   });
   const selectNoteInPane = useMutableCallback((noteId: number | null) => {
     setSelectedNoteId(noteId);
-    const note =
-      noteId !== null
-        ? notes.find((candidate) => candidate.noteId === noteId)
-        : null;
-    if (note) {
-      setSelectedFolderId(note.folderId);
-    }
   });
 
   useEffect(() => {
@@ -318,7 +322,6 @@ export function NotesNativeChannel({
   });
 
   const openFolder = useMutableCallback((folder: db.NotesFolder) => {
-    setSelectedFolderId(folder.folderId);
     navigation.dispatch(
       StackActions.push('NotesFolder', {
         channelId,
@@ -353,7 +356,6 @@ export function NotesNativeChannel({
     if (!targetFolderId) return;
     setIsCreatingNote(true);
     await runAction('Failed to create note', async () => {
-      setSelectedFolderId(targetFolderId);
       const note = await createNotebookNote({
         notebookFlag,
         folderId: targetFolderId,
@@ -415,14 +417,16 @@ export function NotesNativeChannel({
     isDragImportActive,
     isImportingNotes,
   } = useNotesImportController({
-    activeFolderId,
+    activeFolderId: folderId ?? null,
     canDropImportNotes,
     canEdit,
     folders,
     notebookFlag,
     notes,
     rootFolderId,
-    selectedFolderId: selectedFolderId ?? activeFolderId,
+    // Selection (the split pane's viewed note) is only visible in the split
+    // layout; stacked navigation shows no selection to target.
+    selectedFolderId: useDesktopSplit ? selectedFolderId : null,
     setError,
   });
 
@@ -450,7 +454,6 @@ export function NotesNativeChannel({
                 noteId: note.noteId,
                 folderId,
               });
-              setSelectedFolderId(folderId);
               setError(null);
               showToast({
                 message: `Moved note to ${destinationLabel}`,
@@ -590,10 +593,6 @@ export function NotesNativeChannel({
 
   const updateSelectionAfterFolderDelete = useMutableCallback(
     (deletedFolderIds: Set<number>) => {
-      if (selectedFolderId !== null && deletedFolderIds.has(selectedFolderId)) {
-        setSelectedFolderId(null);
-      }
-
       if (selectedNoteId === null) {
         return;
       }
@@ -708,7 +707,6 @@ export function NotesNativeChannel({
                 folder,
                 parentFolderId,
               });
-              setSelectedFolderId(folder.folderId);
               setError(null);
               showToast({
                 message: `Moved folder to ${destinationLabel}`,
