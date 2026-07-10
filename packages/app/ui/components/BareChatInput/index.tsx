@@ -398,16 +398,28 @@ function BareChatInput(
 
   const onMentionSelect = useCallback(
     (option: MentionOption) => {
-      const newText = handleSelectMention(option, controlledText);
+      const selectionResult = handleSelectMention(option, controlledText);
 
-      if (!newText) {
+      if (!selectionResult) {
         return;
       }
 
-      setControlledText(newText);
+      setControlledText(selectionResult.text);
 
-      // Force focus back to input after mention selection
+      // Force focus back to input after mention selection.
       inputRef.current?.focus();
+
+      if (!isWeb) {
+        requestAnimationFrame(() => {
+          inputRef.current?.setNativeProps({
+            text: selectionResult.text,
+            selection: {
+              start: selectionResult.cursorPosition,
+              end: selectionResult.cursorPosition,
+            },
+          });
+        });
+      }
     },
     [handleSelectMention, controlledText]
   );
