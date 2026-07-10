@@ -248,6 +248,19 @@ export function isGroupInviteAllowed(
     .some((ship) => ship === normalizedInviter);
 }
 
+/**
+ * Whether a channel's authorization mode gates senders against an allowlist.
+ *
+ * SECURITY: Fail-closed — a channel is access-controlled unless its mode is
+ * explicitly "open". "allowlist" (what the app saves and Solaris stores),
+ * legacy "restricted", and any unrecognized or missing value all count as
+ * restricted. Enforcing only on "restricted" (as before) let an allowlisted
+ * channel saved from the settings form fall through to open.
+ */
+export function isChannelRestricted(mode: string | undefined): boolean {
+  return mode !== 'open';
+}
+
 // Helper to recursively extract text from inline content
 function extractInlineText(items: any[]): string {
   return items

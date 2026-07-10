@@ -249,7 +249,7 @@ class FakeCLI:
             stdout=self.version_stdout,
         )
 
-    async def send_message(self, chat_id, text):
+    async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
         self.messages.append((chat_id, text))
         return tlon_api.TlonSendResult(
             success=True,
@@ -257,7 +257,7 @@ class FakeCLI:
             message_id="post-id",
         )
 
-    async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+    async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
         self.replies.append((chat_id, post_id, text, parent_author))
         return tlon_api.TlonSendResult(
             success=True,
@@ -543,7 +543,7 @@ class AdapterOwnerListenTests(unittest.TestCase):
                 self.replies = []
                 self.instances.append(self)
 
-            async def send_message(self, chat_id, text):
+            async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
                 self.messages.append((chat_id, text))
                 return tlon_api.TlonSendResult(
                     success=True,
@@ -551,7 +551,7 @@ class AdapterOwnerListenTests(unittest.TestCase):
                     message_id="top-id",
                 )
 
-            async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+            async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
                 self.replies.append((chat_id, post_id, text, parent_author))
                 return tlon_api.TlonSendResult(
                     success=True,

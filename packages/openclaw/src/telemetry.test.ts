@@ -538,6 +538,12 @@ describe('telemetry tool tracking', () => {
       pendingApprovalCount: 4,
       autoDiscoverChannels: true,
       ownerListenEnabled: true,
+      webSearchEnabled: true,
+      webSearchConfiguredProvider: 'brave',
+      webSearchProviders: ['brave'],
+      webSearchProviderCount: 1,
+      webSearchAvailable: true,
+      webSearchProbeError: null,
     });
 
     expect(postHogMocks.capture).toHaveBeenCalledWith({
@@ -557,6 +563,12 @@ describe('telemetry tool tracking', () => {
         pendingApprovalCount: 4,
         autoDiscoverChannels: true,
         ownerListenEnabled: true,
+        webSearchEnabled: true,
+        webSearchConfiguredProvider: 'brave',
+        webSearchProviders: ['brave'],
+        webSearchProviderCount: 1,
+        webSearchAvailable: true,
+        webSearchProbeError: null,
       }),
     });
   });
