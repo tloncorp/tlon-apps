@@ -34,6 +34,13 @@ type ContextValue = State & {
   clearDeepLink: () => void;
 };
 
+// the invite intake owns one token at a time: either a fetch is in
+// flight for it, or a lure for it has been applied (with known
+// metadata quality)
+type InviteIntake =
+  | { token: string; phase: 'fetching' }
+  | { token: string; phase: 'applied'; hasMetadata: boolean };
+
 const INITIAL_STATE: State = {
   deepLinkPath: undefined,
   lure: undefined,
@@ -89,11 +96,9 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
   const [{ deepLinkPath, lure, priorityToken }, setState] =
     useState(INITIAL_STATE);
   const { isAuthenticated } = useShip();
-  const handledInviteTokenRef = useRef<string | null>(null);
-  const lastSetLureIdRef = useRef<{
-    id: string;
-    hasMetadata: boolean;
-  } | null>(null);
+  // later arrivals claim the intake slot; earlier fetches that lost it
+  // drop their results
+  const intakeRef = useRef<InviteIntake | null>(null);
   const initialUrlHandledRef = useRef(false);
   // auth is read at apply time: a cold-start fetch can begin while
   // ShipProvider still reports unauthenticated and resolve after login
@@ -122,14 +127,14 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         priorityToken: options.priorityToken,
       };
       logger.log('setting deeplink lure', nextLure);
-      lastSetLureIdRef.current = {
-        id: invite.id,
+      // claim the intake slot: an in-flight url fetch for an older invite
+      // drops its result instead of overwriting this one (e.g. a pasted
+      // invite racing a slow link fetch)
+      intakeRef.current = {
+        token: invite.id,
+        phase: 'applied',
         hasMetadata: inviteHasMetadata(invite),
       };
-      // claim the handled token too, so an in-flight url fetch for an older
-      // invite drops its result instead of overwriting this one (e.g. a
-      // pasted invite racing a slow link fetch)
-      handledInviteTokenRef.current = invite.id;
       setState({
         ...nextLure,
         deepLinkPath: undefined,
@@ -156,11 +161,10 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       if (parsed.type === 'wer') {
         const deepLinkPath = getPathFromWer(parsed.wer);
         logger.log('detected non-Branch deep link:', deepLinkPath);
-        // this clears the lure, so the dedupe refs must not keep swallowing
-        // a re-tap of an invite that no longer has state — and the persisted
-        // copy must go too, or the storage check restores it on the next run
-        handledInviteTokenRef.current = null;
-        lastSetLureIdRef.current = null;
+        // clearing the lure releases the intake slot (a re-tap of the old
+        // invite must not be swallowed) and the persisted copy (the storage
+        // check must not restore it on the next run)
+        intakeRef.current = null;
         storage.invitation.resetValue();
         setState({
           deepLinkPath,
@@ -170,16 +174,16 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         return true;
       }
 
-      const alreadyApplied = lastSetLureIdRef.current;
+      const intake = intakeRef.current;
       if (
-        handledInviteTokenRef.current === parsed.token &&
-        // a completed id-only apply (provider outage at tap time) may be
-        // refreshable now — let a re-tap through to fetch again
-        !(alreadyApplied?.id === parsed.token && !alreadyApplied.hasMetadata)
+        intake?.token === parsed.token &&
+        // an applied id-only copy (provider outage at tap time) is the one
+        // state a re-tap should refresh rather than dedupe away
+        !(intake.phase === 'applied' && !intake.hasMetadata)
       ) {
         return true;
       }
-      handledInviteTokenRef.current = parsed.token;
+      intakeRef.current = { token: parsed.token, phase: 'fetching' };
 
       logger.trackEvent('Detected Branch-Independent Invite Link', {
         inviteId: parsed.token,
@@ -187,15 +191,17 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       });
 
       const invite = await getMetadataFromInviteToken(parsed.token);
-      if (handledInviteTokenRef.current !== parsed.token) {
-        // a newer invite link superseded this one while we were fetching
+      // assert: the ref may have been reassigned during the await, which
+      // control-flow narrowing does not see
+      const settled = intakeRef.current as InviteIntake | null;
+      if (settled?.token !== parsed.token) {
+        // a newer invite claimed the slot while we were fetching
         return true;
       }
-      const applied = lastSetLureIdRef.current;
-      if (applied?.id === parsed.token && (applied.hasMetadata || !invite)) {
-        // a lure for this token already applied while we were fetching — keep
-        // it unless ours is the first real metadata (refreshing an id-only
-        // copy persisted during a provider outage)
+      if (settled.phase === 'applied' && (settled.hasMetadata || !invite)) {
+        // a lure for this token already applied while we were fetching —
+        // keep it unless ours is the first real metadata (refreshing an
+        // id-only copy persisted during a provider outage)
         return true;
       }
       // getMetadataFromInviteToken self-derives flag-style tokens, so the
@@ -304,12 +310,11 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
             }
           } else if (params.wer) {
             // Link had a wer (deep link) field embedded — same reset as the
-            // parsed wer path: clearing the lure must also release the dedupe
-            // refs and the persisted invitation
+            // parsed wer path: clearing the lure releases the intake slot
+            // and the persisted invitation
             const deepLinkPath = getPathFromWer(params.wer as string);
             console.debug('detected deep link:', deepLinkPath);
-            handledInviteTokenRef.current = null;
-            lastSetLureIdRef.current = null;
+            intakeRef.current = null;
             storage.invitation.resetValue();
             setState({
               deepLinkPath,
@@ -348,23 +353,21 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     (async () => {
       const nextLure = await storage.invitation.getValue();
       const savedId = nextLure?.lure?.id ?? null;
-      // restore unless a lure was already applied this session. a launch url
-      // for the same token marks it handled before its fetch resolves — the
-      // cached copy is the richer interim state, and marking it applied keeps
-      // a failed fetch from clobbering it with an id-only fallback
+      const intake = intakeRef.current;
+      // restore when the intake slot is free, or when the launch url for
+      // this same token is still fetching — the cache is the richer interim
+      // state, and recording its metadata quality keeps a failed fetch from
+      // clobbering it while letting a successful one refresh an id-only copy
       if (
         nextLure &&
         savedId &&
-        lastSetLureIdRef.current == null &&
-        (handledInviteTokenRef.current == null ||
-          handledInviteTokenRef.current === savedId)
+        (intake == null ||
+          (intake.token === savedId && intake.phase === 'fetching'))
       ) {
         console.debug('[branch] Detected saved lure:', nextLure.lure);
-        // record what the cache actually holds: an id-only copy persisted
-        // during a provider outage must not block the in-flight fetch from
-        // applying real metadata
-        lastSetLureIdRef.current = {
-          id: savedId,
+        intakeRef.current = {
+          token: savedId,
+          phase: 'applied',
           hasMetadata: nextLure.lure ? inviteHasMetadata(nextLure.lure) : false,
         };
         setState({
@@ -385,8 +388,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
 
   const clearLure = useCallback(() => {
     console.debug('[branch] Clearing lure state');
-    handledInviteTokenRef.current = null;
-    lastSetLureIdRef.current = null;
+    intakeRef.current = null;
     setState((curr) => ({
       ...curr,
       lure: undefined,
