@@ -380,7 +380,21 @@
   --
 ::  Versioned state — newest first
 ::
+::  state-15: drops the vestigial rid-counter — request-ids are minted
+::  directly from bowl.eny (unique per event), so the counter is dead weight.
+::
++$  state-15
+  $:  %15
+      books=(map flag [=net =notebook-state])
+      next-id=@ud
+      published=(map [=flag note-id=@ud] @t)
+      invites=(map flag invite-info)
+      requests=requests:v1
+      api-key=(unit @t)
+  ==
 ::  state-14: notebook-state gains optional `group` for group-channel mode.
+::  Carried rid-counter (dropped in state-15). Deployed, so a real migration
+::  target — ships that took the 14 transition load through +state-14-to-15.
 ::
 +$  state-14
   $:  %14
@@ -390,8 +404,9 @@
       invites=(map flag invite-info)
       requests=requests:v1
       api-key=(unit @t)
+      rid-counter=@ud
   ==
 ::
-+$  state  state-14
++$  state  state-15
 ::
 --

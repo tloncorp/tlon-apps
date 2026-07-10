@@ -16,7 +16,7 @@
 ::
 |%
 +$  card  card:agent:gall
-+$  current-state  state-14:n
++$  current-state  state-15:n
 --
 ::
 =|  current-state
@@ -106,15 +106,21 @@
       ::  when the fleet/roles change (see +recheck-group-access).
       [%pass /groups %agent [our.bowl %groups] %watch /v1/groups]
   ==
-::  +load: groups-hosted %notes always initializes fresh (channels suspends
-::  any standalone %notes desk and force-starts ours via kiln rein), so no
-::  pre-existing on-disk save is ever migrated in-place here. state-14 is the
-::  sole base state — decode directly.
+::  +load: state-15 is current. The only supported prior state is state-14
+::  (ships that took the 14 transition) — it carried the now-removed
+::  rid-counter, so we migrate it. Older standalone states aren't supported
+::  (alpha, tiny install base): they land here and fail to mold, which is an
+::  acceptable reset. groups-hosted %notes otherwise inits fresh (channels
+::  suspends any standalone %notes desk and force-starts ours via kiln rein).
 ::
 ++  load
   |=  =vase
   ^+  cor
-  =.  state  !<(state-14:n vase)
+  |^
+  =+  !<(old=any-state vase)
+  =?  old  ?=(%14 -.old)  (state-14-to-15 old)
+  ?>  ?=(%15 -.old)
+  =.  state  old
   ::  NB: no api-key mint here. +on-init mints one on fresh install; at load
   ::  an empty api-key means an operator ran %clear-api-key, and re-minting
   ::  would silently re-enable the X-Api-Key bypass they disabled.
@@ -122,10 +128,29 @@
   ::  subscription on this wire already exists (e.g. fresh installs from +init).
   =?  cor  !(~(has by wex.bowl) [/groups our.bowl %groups])
     (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
-  ::  start request cleanup timer (idempotent: stacking timers is fine,
-  ::  each cleanup pass is a no-op on an empty/clean requests map)
-  %-  emit
-  [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)]
+  ::  re-establish the eyre binding for the HTTP surface. +init binds /notes,
+  ::  but a re-homed agent reaches +load WITHOUT +init (e.g. %groups reins
+  ::  %notes over a suspended standalone desk, whose eyre binding was torn
+  ::  down), so without this the HTTP + MCP surface 404/500s. Re-connecting an
+  ::  already-bound path is harmless — eyre's %bound ack is ignored in +arvo.
+  ::  Also (re)start the request cleanup timer (stacking timers is fine).
+  %-  emil
+  :~  [%pass /eyre/notes %arvo %e %connect [~ /notes] %notes]
+      [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)]
+  ==
+  ::
+  +$  any-state
+    $%  state-15:n
+        state-14:n
+    ==
+  ::  state-14-to-15: drop the vestigial rid-counter; all other fields carry.
+  ::
+  ++  state-14-to-15
+    ~>  %spin.['state-14-to-15']
+    |=  s=state-14:n
+    ^-  state-15:n
+    [%15 books.s next-id.s published.s invites.s requests.s api-key.s]
+  --
 ::
 ++  poke
   |=  [=mark =vase]
@@ -763,11 +788,11 @@
     ?.  (~(has by books) flag)  cor
     =/  rid=request-id:v1:n  (slav %uv id.pole)
     no-abet:(no-agent-req-poke:(no-abed:no-core flag) rid sign)
-  ::  /mcp/{register,refresh} — pokes to %mcp-proxy from
+  ::  /mcp/{remove,register,refresh} — pokes to %mcp-proxy from
   ::  +register-with-mcp-proxy. Fire-and-forget: log nacks so the user
   ::  knows registration didn't take, ignore success acks.
   ::
-      [%mcp ?(%register %refresh) ~]
+      [%mcp ?(%remove %register %refresh) ~]
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
@@ -1278,6 +1303,18 @@
         schema-url=`schema-url
     ==
   =/  refresh=action:mcp-proxy  [%refresh-spec %notes]
+  ::  %mcp-proxy's %add-server is a no-op when %notes is already registered,
+  ::  so a re-register would otherwise keep a stale upstream — old api-key and,
+  ::  worse, a cached session cookie that makes calls fail with "bad session
+  ::  auth" instead of using our x-api-key. %remove-server first (clears the
+  ::  cookie + config) so %add-server installs a clean config every time.
+  =/  remove=action:mcp-proxy  [%remove-server %notes]
+  =.  cor
+    %-  emit
+    :*  %pass  /mcp/remove
+        %agent  [our.bowl %mcp-proxy]
+        %poke   mcp-proxy-action+!>(remove)
+    ==
   =.  cor
     %-  emit
     :*  %pass  /mcp/register
