@@ -362,24 +362,21 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     // Check for saved lure
     (async () => {
       const nextLure = await storage.invitation.getValue();
-      const savedId = nextLure?.lure?.id ?? null;
-      const intake = intakeRef.current;
-      // restore when the intake slot is free, or when the launch url for
-      // this same token is still fetching — the cache is the richer interim
-      // state, and recording its metadata quality keeps a failed fetch from
-      // clobbering it while letting a successful one refresh an id-only copy
+      // restore only when the intake slot is free. a launch url that claimed
+      // the slot first is fresher intent for the same token too — its settle
+      // paints the fetched result (or its fallback) itself, while restoring
+      // over the fetch would mark the slot applied and let the redeem's soft
+      // clear cancel the refresh mid-flight
       if (
-        nextLure &&
-        savedId &&
+        nextLure?.lure &&
         !inviteClearedRef.current &&
-        (intake == null ||
-          (intake.token === savedId && intake.phase === 'fetching'))
+        intakeRef.current == null
       ) {
         console.debug('[branch] Detected saved lure:', nextLure.lure);
         intakeRef.current = {
-          token: savedId,
+          token: nextLure.lure.id,
           phase: 'applied',
-          hasMetadata: nextLure.lure ? inviteHasMetadata(nextLure.lure) : false,
+          hasMetadata: inviteHasMetadata(nextLure.lure),
         };
         setState({
           ...nextLure,
