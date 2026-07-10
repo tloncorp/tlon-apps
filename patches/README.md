@@ -297,42 +297,47 @@ Remove this hunk once [expo/expo#47432](https://github.com/expo/expo/pull/47432)
 (or an equivalent converter fix in `expo-modules-core`) ships in the Expo SDK
 version we're on.
 
-## @tamagui/web@2.4.0
-
-Why:
-tamagui removed its undocumented `unset` style value in 2.x (upstream
-`86d0cfe95` — `chore: remove undocumented unset style value`). We use `"unset"`
-in ~56 places to mean "no value here" (e.g. `backgroundColor="unset"`,
-`aspectRatio="unset"`). On web `unset` is a valid CSS keyword and still renders,
-but on native `propMapper` now passes it straight to the React Native style and
-RN throws on strict props — `aspectRatio` redboxes with "aspectRatio must
-either be a number, a ratio string or `auto`. You passed: unset".
-
-What it does:
-Patches the two native `propMapper` variants
-(`dist/{cjs,esm}/helpers/propMapper.native.js`) to drop a prop whose value is
-`"unset"` (`if (value === "unset") return;`). The prop then falls back to the
-property's initial value (transparent / auto / 0) and overrides styled-component
-defaults the same way the value did before. The web bundles are intentionally
-left unpatched, since `unset` is a valid CSS keyword there.
+## @mattermost/react-native-paste-input@2.0.1
 
 Local patch:
-`patches/@tamagui__web@2.4.0.patch`
+`patches/@mattermost__react-native-paste-input@2.0.1.patch`
+
+### iOS paste never registers under Expo bridgeless
+
+Why:
+On iOS with the New Architecture (bridgeless), the library's paste interception
+silently never installs, so pasting an image into a `PasteInput` does nothing —
+`onPaste` never fires and no "Paste" option appears for image-only clipboard
+contents. `PasteInputModule` captures `reactHost` once in `+setup:`, but the
+base `RCTRootViewFactory` creates the `RCTHost` lazily on the first surface
+mount, which under Expo happens after our `AppDelegate` calls
+`PasteInputModule.setup(factory.rootViewFactory)`. So `reactHost` is nil when
+setup captures it, the Fabric surface presenter can't be resolved, the backing
+`UITextView` is never found, and the `paste:`/`canPerformAction:` swizzle is
+never applied.
+
+What it does:
+Keeps the `rootViewFactory` and re-reads `reactHost` from it lazily in
+`getSurfacePresenter` — by the time a `PasteInput` mounts, the host exists.
+No-op on setups where `reactHost` is already populated at setup time.
 
 Upstream:
-- removed deliberately in `tamagui/tamagui@86d0cfe95`; the configurable `unset`
-  feature is not coming back
-- native parity fix proposed upstream ("drop `unset` on native instead of
-  crashing"): `tamagui/tamagui#4053`
+- fix submitted: [mattermost/react-native-paste-input#56](https://github.com/mattermost/react-native-paste-input/pull/56)
 
 Validation:
-- Rebuild the mobile app so the patched bundle is picked up
-- Open a post with an image, the Activity feed, and a content reference and
-  confirm there's no `aspectRatio ... You passed: unset` redbox
-- Confirm `node_modules/@tamagui/web/dist/esm/helpers/propMapper.native.js`
-  contains `if (value === "unset") return;`
+- Rebuild the iOS app so the native patch is compiled in
+- Focus a chat composer, put an image on the pasteboard (e.g.
+  `xcrun simctl pbsync host <udid>` with a PNG on the Mac clipboard), and paste:
+  the image attaches (previously nothing happened and no "Paste" option showed)
 
 Removal:
-Remove this patch once either the upstream native fix lands in a tamagui version
-we use, or we migrate all `"unset"` style usages to explicit values
-(`transparent` / `undefined` / `auto`) so nothing relies on the dropped value.
+Remove once [mattermost/react-native-paste-input#56](https://github.com/mattermost/react-native-paste-input/pull/56)
+(or an equivalent host-resolution fix) ships in a released version we depend on.
+
+Note:
+This carries only the iOS native fix. `findNodeHandle` (upstream
+[#55](https://github.com/mattermost/react-native-paste-input/pull/55)) is
+intentionally NOT included — on RN 0.85 the input's `__nativeTag` is populated,
+so that change is unnecessary here and the lazy-host fix alone restores paste.
+Android image paste is a separate, still-open limitation (the context-menu path
+only reads `item.uri`) and is not patched here.

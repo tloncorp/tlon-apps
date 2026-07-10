@@ -344,6 +344,27 @@ describe('posts send', () => {
     expect(context.calls.sendPost[0].blob).toBe('[{"type":"a2ui"}]');
   });
 
+  it('honors --sent-at over the clock', async () => {
+    const context = makeDeps({ now: 999 });
+    await run(
+      ['send', 'chat/~host/channel', 'hi', '--sent-at', '1234'],
+      context.deps
+    );
+    expect(context.calls.sendPost[0].sentAt).toBe(1234);
+    // and it does not leak into the message text
+    expect(context.calls.sendPost[0].content).toEqual([{ inline: ['hi'] }]);
+  });
+
+  it('rejects a non-positive --sent-at', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'hi', '--sent-at', 'nope'],
+      context.deps
+    );
+    expect(exitCode).toBe(1);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
   it('wraps image fetch failures as a stable command error after auth', async () => {
     const context = makeDeps({
       buildImageVerse: async () => {
@@ -426,6 +447,40 @@ describe('posts reply', () => {
     );
 
     expect(context.calls.sendReply[0].parentAuthor).toBe('~bus');
+  });
+
+  it('stamps a validated --blob without folding it into the message', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      [
+        'reply',
+        'chat/~host/channel',
+        '170.141',
+        'hello there',
+        '--blob',
+        '[{"type":"tlon-context-lens","lensId":"L1"}]',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendReply[0].content).toEqual([
+      { inline: ['hello there'] },
+    ]);
+    expect(context.calls.sendReply[0].blob).toBe(
+      '[{"type":"tlon-context-lens","lensId":"L1"}]'
+    );
+  });
+
+  it('rejects a malformed reply --blob', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['reply', 'chat/~host/channel', '170.141', 'hi', '--blob', '{"a":1}'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.sendReply).toEqual([]);
   });
 
   it('defaults the parent author to a one-to-one DM target', async () => {

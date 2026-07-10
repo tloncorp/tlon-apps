@@ -81,6 +81,21 @@ class BotMentionMatcherTests(unittest.TestCase):
         self.assertEqual(mention.extract_profile_nickname({"nickname": "Mr Arvo"}), "Mr Arvo")
         self.assertEqual(mention.extract_profile_nickname({"nickname": {"value": ""}}), "")
 
+    def test_extract_profile_avatar(self):
+        self.assertEqual(
+            mention.extract_profile_avatar(
+                {"avatar": {"type": "look", "value": "https://example/a.png"}}
+            ),
+            "https://example/a.png",
+        )
+        self.assertEqual(
+            mention.extract_profile_avatar({"avatar": "https://example/a.png"}),
+            "https://example/a.png",
+        )
+        self.assertEqual(mention.extract_profile_avatar({}), "")
+        self.assertEqual(mention.extract_profile_avatar({"avatar": {"type": "null"}}), "")
+        self.assertEqual(mention.extract_profile_avatar("not-a-dict"), "")
+
 
 if __name__ == "__main__":
     unittest.main()

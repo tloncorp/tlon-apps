@@ -237,18 +237,7 @@ purge_shared_caches() {
 
 step_pnpm_install() {
   cd "$WT_DIR"
-  local rc=0
-  pnpm install --prefer-offline --frozen-lockfile || rc=$?
-  # pnpm exits non-zero when a patch fails to apply, even if all packages
-  # installed. Verify by checking key paths.
-  if [[ $rc -ne 0 ]]; then
-    if [[ -d "node_modules/.pnpm" && -d "node_modules/expo" ]]; then
-      echo "[pnpm_install] rc=$rc but install appears complete — treating as success (likely a patch-apply warning)"
-      return 0
-    fi
-    echo "[pnpm_install] rc=$rc and key packages missing — real failure"
-    return $rc
-  fi
+  pnpm install --prefer-offline --frozen-lockfile
 }
 
 step_patch_eas_provider() {
