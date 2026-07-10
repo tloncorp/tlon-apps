@@ -71,6 +71,7 @@ from .channel_access import (
     is_channel_open,
     parse_channel_rules,
 )
+from .cite import resolve_cites
 from .history import (
     build_channel_context,
     build_thread_context,
@@ -167,6 +168,7 @@ from .tlon_tool import (
 logger = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF_SECONDS = (2, 5, 10, 30, 60)
+CITE_RESOLUTION_BUDGET_SECONDS = 5.0
 RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000
 REQUIRED_ENV = [
     "TLON_NODE_URL",
@@ -2131,6 +2133,20 @@ class TlonAdapter(BasePlatformAdapter):
         message: TlonIncomingMessage,
         text: str,
     ) -> tuple[str, PreparedMedia]:
+        cite_block = ""
+        if self._sse is not None and message.content:
+            try:
+                cite_block = await asyncio.wait_for(
+                    resolve_cites(self._sse.scry, message.content),
+                    CITE_RESOLUTION_BUDGET_SECONDS,
+                )
+            except (Exception, asyncio.TimeoutError) as exc:
+                logger.debug(
+                    "[tlon] cite resolution failed for %s: %s",
+                    message.message_id,
+                    exc,
+                )
+                self._telemetry.error("cite_resolve", exc)
         try:
             prepared = await prepare_inbound_media(message.content, message.blob)
         except Exception as exc:
@@ -2140,13 +2156,16 @@ class TlonAdapter(BasePlatformAdapter):
                 exc,
             )
             self._telemetry.error("media_prepare", exc)
-            return text, PreparedMedia()
+            prepared = PreparedMedia()
         if not prepared.text_prefix:
-            return text, prepared
-        body = str(text or "").strip()
-        dispatch_text = (
-            f"{prepared.text_prefix}\n{body}" if body else prepared.text_prefix
-        )
+            dispatch_text = text
+        else:
+            body = str(text or "").strip()
+            dispatch_text = (
+                f"{prepared.text_prefix}\n{body}" if body else prepared.text_prefix
+            )
+        if cite_block:
+            dispatch_text = f"{cite_block}\n\n{dispatch_text}"
         return dispatch_text, prepared
 
     async def _with_group_context(
