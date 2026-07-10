@@ -273,6 +273,12 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
                   asUrl.searchParams.get('startDraft')
                 );
                 if (channelId) {
+                  // opening a channel is fresher intent than a pending
+                  // invite fetch — release the slot so a late provider
+                  // response drops instead of yanking navigation away
+                  if (intakeRef.current?.phase === 'fetching') {
+                    intakeRef.current = null;
+                  }
                   goToChannel(channelId, { startDraft });
                 }
                 break;
