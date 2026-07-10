@@ -192,7 +192,17 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       ) {
         return true;
       }
-      intakeRef.current = { token: parsed.token, phase: 'fetching' };
+      if (isAuthenticatedRef.current) {
+        intakeRef.current = { token: parsed.token, phase: 'fetching' };
+      } else {
+        // signed-out taps paint an id-only lure before the fetch so signup
+        // params carry the token even while metadata is slow — nothing can
+        // consume it pre-auth, and the settle below refreshes an applied
+        // id-only copy with real metadata. signed-in keeps the bare fetch
+        // claim: painting early would let the redeem consume and clear the
+        // invite before its metadata lands
+        setInviteLure({ id: parsed.token, shouldAutoJoin: true }, { source });
+      }
 
       logger.trackEvent('Detected Branch-Independent Invite Link', {
         inviteId: parsed.token,
