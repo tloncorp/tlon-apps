@@ -13,6 +13,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -109,7 +110,9 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
   // ShipProvider still reports unauthenticated and resolve after login
   // state loads — the closure value would mark the invite pre-signup
   const isAuthenticatedRef = useRef(isAuthenticated);
-  useEffect(() => {
+  // layout effect: flushes synchronously with the commit, so a fetch
+  // settling right after an auth change cannot read the previous value
+  useLayoutEffect(() => {
     isAuthenticatedRef.current = isAuthenticated;
   }, [isAuthenticated]);
 
