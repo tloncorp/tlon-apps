@@ -19,14 +19,14 @@ describe('resolveTlonSourceReplyDeliveryMode', () => {
     expect(
       resolveTlonSourceReplyDeliveryMode({
         isGroup: false,
-        messages: { visibleReplies: 'message_tool_only' },
+        messages: { visibleReplies: 'message_tool' },
       })
     ).toBeUndefined();
   });
 
   it('applies group-only policy only to groups', () => {
     const messages = {
-      groupChat: { visibleReplies: 'message_tool_only' as const },
+      groupChat: { visibleReplies: 'message_tool' as const },
     };
 
     expect(
