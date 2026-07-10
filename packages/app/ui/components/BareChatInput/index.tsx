@@ -55,7 +55,9 @@ import {
 } from '../MessageInput/MessageInputBase';
 import { hydrateEditPost } from '../MessageInput/helpers';
 import type { DraftInputHandle } from '../draftInputs/shared';
+import { PasteableTextInput } from './PasteableTextInput';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
+import { PastedFile, attachPastedImageFiles } from './pastedImage';
 import {
   MentionOption,
   createMentionRoleOptions,
@@ -334,6 +336,13 @@ function BareChatInput(
   const lastProcessedRef = useRef('');
   const mentionRef = useRef<MentionController>(null);
 
+  const handlePasteFiles = useCallback(
+    (files: PastedFile[]) => {
+      void attachPastedImageFiles(files, addAttachment);
+    },
+    [addAttachment]
+  );
+
   const handleTextChange = useCallback(
     (newText: string) => {
       const oldText = controlledText;
@@ -389,16 +398,28 @@ function BareChatInput(
 
   const onMentionSelect = useCallback(
     (option: MentionOption) => {
-      const newText = handleSelectMention(option, controlledText);
+      const selectionResult = handleSelectMention(option, controlledText);
 
-      if (!newText) {
+      if (!selectionResult) {
         return;
       }
 
-      setControlledText(newText);
+      setControlledText(selectionResult.text);
 
-      // Force focus back to input after mention selection
+      // Force focus back to input after mention selection.
       inputRef.current?.focus();
+
+      if (!isWeb) {
+        requestAnimationFrame(() => {
+          inputRef.current?.setNativeProps({
+            text: selectionResult.text,
+            selection: {
+              start: selectionResult.cursorPosition,
+              end: selectionResult.cursorPosition,
+            },
+          });
+        });
+      }
     },
     [handleSelectMention, controlledText]
   );
@@ -925,7 +946,7 @@ function BareChatInput(
         {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
         <View position="relative">
-          <TextInput
+          <PasteableTextInput
             testID="MessageInput"
             ref={inputRef}
             value={isWeb ? controlledText : undefined}
@@ -935,6 +956,7 @@ function BareChatInput(
             onBlur={handleBlur}
             onFocus={handleFocus}
             onKeyPress={handleKeyPress}
+            onPasteFiles={isWeb ? undefined : handlePasteFiles}
             multiline
             placeholder={placeholder}
             {...(!isWeb ? placeholderTextColor : {})}
@@ -971,7 +993,7 @@ function BareChatInput(
                 textColor="$primaryText"
               />
             )}
-          </TextInput>
+          </PasteableTextInput>
           {isWeb && !!controlledText && mentions.length > 0 && (
             <View
               height={inputHeight}

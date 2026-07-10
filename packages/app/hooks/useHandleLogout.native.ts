@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
+import { resetBotSettingsDraft } from '../features/settings/bot/useBotSettingsDraft';
 import { cancelNodeResumeNudge } from '../lib/notifications';
 import { useClearTelemetryConfig } from './useTelemetry';
 
@@ -27,6 +28,7 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     store.updateSession(null);
     store.clearSyncStartLock();
     cancelNodeResumeNudge();
+    resetBotSettingsDraft();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
       return;

@@ -235,6 +235,36 @@ describe('Settings: parseSettingsResponse', () => {
   });
 });
 
+describe('Settings: autoDiscoverChannels', () => {
+  it('parses autoDiscoverChannels (the key the monitor consumes)', () => {
+    expect(
+      parseSettingsResponse({ tlon: { autoDiscoverChannels: true } })
+        .autoDiscoverChannels
+    ).toBe(true);
+    expect(
+      parseSettingsResponse({ tlon: { autoDiscoverChannels: false } })
+        .autoDiscoverChannels
+    ).toBe(false);
+    expect(
+      parseSettingsResponse({ tlon: { autoDiscoverChannels: 'nope' } })
+        .autoDiscoverChannels
+    ).toBeUndefined();
+  });
+
+  it('hot-updates autoDiscoverChannels', () => {
+    expect(
+      applySettingsUpdate({}, 'autoDiscoverChannels', true).autoDiscoverChannels
+    ).toBe(true);
+    expect(
+      applySettingsUpdate(
+        { autoDiscoverChannels: true },
+        'autoDiscoverChannels',
+        false
+      ).autoDiscoverChannels
+    ).toBe(false);
+  });
+});
+
 describe('Settings: applySettingsUpdate', () => {
   it('updates lastOwnerMessageAt with number value', () => {
     const result = applySettingsUpdate({}, 'lastOwnerMessageAt', 1700000000000);
