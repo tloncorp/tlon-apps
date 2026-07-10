@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Pressable } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { SizableText, XStack } from 'tamagui';
 
-import { useCurrentUserId } from '../../../contexts/appDataContext';
 import { getOwnContextLensStamp } from './lensPost';
 import { useContextLensAvailable } from './useContextLensStore';
 
@@ -15,10 +15,10 @@ export function ContextLensBadge({
   onPress?: (post: db.Post) => void;
 }) {
   const available = useContextLensAvailable();
-  const currentUserId = useCurrentUserId();
+  const { data: ownedBotShips } = store.useContextLensBotShips();
   const stamp = useMemo(
-    () => getOwnContextLensStamp(post, currentUserId),
-    [currentUserId, post]
+    () => getOwnContextLensStamp(post, ownedBotShips ?? []),
+    [ownedBotShips, post]
   );
 
   if (!available || !stamp) {

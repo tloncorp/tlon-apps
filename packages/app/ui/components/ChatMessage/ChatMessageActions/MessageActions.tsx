@@ -49,15 +49,15 @@ export default function MessageActions({
   postActionIds: ChannelAction.Id[];
 }) {
   const contextLensAvailable = useContextLensAvailable();
-  const currentUserId = useCurrentUserId();
+  const { data: ownedBotShips } = store.useContextLensBotShips();
   const showViewBotRun = useMemo(
     () =>
       Boolean(
         contextLensAvailable &&
           onViewBotRun &&
-          getOwnContextLensStamp(post, currentUserId)
+          getOwnContextLensStamp(post, ownedBotShips ?? [])
       ),
-    [contextLensAvailable, currentUserId, onViewBotRun, post]
+    [contextLensAvailable, onViewBotRun, ownedBotShips, post]
   );
 
   // arbitrary width that looks reasonable given labels

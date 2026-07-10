@@ -39,24 +39,35 @@ describe('getOwnContextLensStamp', () => {
     },
   ]);
 
-  it('returns lens metadata for a post authored by the current ship', () => {
+  it('returns lens metadata for a post authored by an owned hosted bot', () => {
     expect(
       getOwnContextLensStamp(
         { authorId: '~zod', blob } as Parameters<
           typeof getOwnContextLensStamp
         >[0],
-        '~zod'
+        ['~zod']
       )
     ).toEqual({ lensId: 'lens-123', botShip: '~zod' });
   });
 
-  it('rejects lens metadata on a post authored by another ship', () => {
+  it('rejects lens metadata from a bot the user does not own', () => {
+    expect(
+      getOwnContextLensStamp(
+        { authorId: '~zod', blob } as Parameters<
+          typeof getOwnContextLensStamp
+        >[0],
+        ['~nec']
+      )
+    ).toBeNull();
+  });
+
+  it('rejects lens metadata stamped onto another author\'s post', () => {
     expect(
       getOwnContextLensStamp(
         { authorId: '~nec', blob } as Parameters<
           typeof getOwnContextLensStamp
         >[0],
-        '~zod'
+        ['~zod']
       )
     ).toBeNull();
   });
