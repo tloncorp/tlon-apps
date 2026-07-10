@@ -28,6 +28,7 @@ export type PendingApproval = {
     messageContent: unknown;
     timestamp: number;
     parentId?: string;
+    parentAuthorId?: string;
     isThreadReply?: boolean;
     blob?: string;
   };
@@ -49,7 +50,7 @@ export type TlonSettingsStore = {
   channelRules?: Record<
     string,
     {
-      mode?: 'restricted' | 'open';
+      mode?: 'restricted' | 'allowlist' | 'open';
       allowedShips?: string[];
     }
   >;
@@ -230,7 +231,10 @@ function formatSettingsUpdateValueForLog(key: string, value: unknown): string {
 function parseChannelRules(
   value: unknown
 ):
-  | Record<string, { mode?: 'restricted' | 'open'; allowedShips?: string[] }>
+  | Record<
+      string,
+      { mode?: 'restricted' | 'allowlist' | 'open'; allowedShips?: string[] }
+    >
   | undefined {
   if (!value) {
     return undefined;
@@ -341,6 +345,10 @@ export function parseSettingsResponse(raw: unknown): TlonSettingsStore {
       typeof settings.autoDiscover === 'boolean'
         ? settings.autoDiscover
         : undefined,
+    autoDiscoverChannels:
+      typeof settings.autoDiscoverChannels === 'boolean'
+        ? settings.autoDiscoverChannels
+        : undefined,
     showModelSig:
       typeof settings.showModelSig === 'boolean'
         ? settings.showModelSig
@@ -407,7 +415,7 @@ function isChannelRulesObject(
   val: unknown
 ): val is Record<
   string,
-  { mode?: 'restricted' | 'open'; allowedShips?: string[] }
+  { mode?: 'restricted' | 'allowlist' | 'open'; allowedShips?: string[] }
 > {
   if (!val || typeof val !== 'object' || Array.isArray(val)) {
     return false;
@@ -532,6 +540,10 @@ export function applySettingsUpdate(
       break;
     case 'autoDiscover':
       next.autoDiscover = typeof value === 'boolean' ? value : undefined;
+      break;
+    case 'autoDiscoverChannels':
+      next.autoDiscoverChannels =
+        typeof value === 'boolean' ? value : undefined;
       break;
     case 'showModelSig':
       next.showModelSig = typeof value === 'boolean' ? value : undefined;

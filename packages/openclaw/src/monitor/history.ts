@@ -34,6 +34,16 @@ export type TlonHistoryEntry = {
 
 export const MAX_THREAD_CONTEXT_MESSAGES = 20;
 
+type ParentPostEssay = {
+  author?: string | { ship?: string };
+  content?: unknown;
+  sent?: number;
+};
+
+type ParentPostSeal = {
+  id?: string;
+};
+
 function normalizeMessageId(id: string | number | undefined | null): string {
   return String(id ?? '').replace(/\./g, '');
 }
@@ -252,15 +262,12 @@ export async function fetchThreadHistory(
   }
 }
 
-/**
- * Fetch the parent post body for a thread.
- */
-export async function fetchParentPostHistoryEntry(
+async function fetchParentPost(
   api: { scry: (path: string) => Promise<unknown> },
   channelNest: string,
   parentId: string,
   runtime?: RuntimeEnv
-): Promise<TlonHistoryEntry | null> {
+): Promise<{ essay: ParentPostEssay; seal?: ParentPostSeal } | null> {
   try {
     // Mirrors resolveCiteContent: channels +on-peek matches `[%post time=@ ~]`, mark goes in `.json` extension.
     const scryPath = `/channels/v4/${channelNest}/posts/post/${formatUd(parentId)}.json`;
@@ -270,24 +277,67 @@ export async function fetchParentPostHistoryEntry(
     const post = data?.post ?? data;
     const essay = post?.essay || post?.memo || post?.['r-post']?.set?.essay;
     const seal = post?.seal || post?.['r-post']?.set?.seal;
-    const content = extractMessageText(essay?.content || []);
-    if (!content) {
-      runtime?.log?.(`[tlon] Parent post has no text content: ${parentId}`);
-      return null;
-    }
-
-    return {
-      author: typeof essay?.author === 'string' ? essay.author : 'unknown',
-      content,
-      timestamp: essay?.sent || Date.now(),
-      id: seal?.id || parentId,
-    };
+    return essay ? { essay, seal } : null;
   } catch (error: any) {
     runtime?.log?.(
       `[tlon] Error fetching parent post: ${error?.message ?? String(error)}`
     );
     return null;
   }
+}
+
+function parentPostAuthor(essay?: ParentPostEssay): string | null {
+  if (typeof essay?.author === 'string') {
+    return essay.author;
+  }
+  if (typeof essay?.author?.ship === 'string') {
+    return essay.author.ship;
+  }
+  return null;
+}
+
+/**
+ * Fetch a parent post's author without requiring text content.
+ */
+export async function fetchParentPostAuthor(
+  api: { scry: (path: string) => Promise<unknown> },
+  channelNest: string,
+  parentId: string,
+  runtime?: RuntimeEnv
+): Promise<string | null> {
+  const parentPost = await fetchParentPost(api, channelNest, parentId, runtime);
+  return parentPostAuthor(parentPost?.essay);
+}
+
+/**
+ * Fetch the parent post body for a thread.
+ */
+export async function fetchParentPostHistoryEntry(
+  api: { scry: (path: string) => Promise<unknown> },
+  channelNest: string,
+  parentId: string,
+  runtime?: RuntimeEnv
+): Promise<TlonHistoryEntry | null> {
+  const parentPost = await fetchParentPost(api, channelNest, parentId, runtime);
+  if (!parentPost) {
+    return null;
+  }
+
+  const { essay, seal } = parentPost;
+  const content = extractMessageText(essay.content || []);
+  if (!content) {
+    runtime?.log?.(`[tlon] Parent post has no text content: ${parentId}`);
+    return null;
+  }
+
+  const author = parentPostAuthor(essay) ?? 'unknown';
+
+  return {
+    author,
+    content,
+    timestamp: essay.sent || Date.now(),
+    id: seal?.id || parentId,
+  };
 }
 
 export function retainThreadContextMessages(

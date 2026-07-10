@@ -67,7 +67,7 @@ def render_config(env: Mapping[str, str | None]) -> dict[str, object]:
         "tlon": {
             "known_bot_users": _clean(env, "TLON_KNOWN_BOT_USERS"),
             "max_consecutive_bot_responses": int(
-                _clean(env, "TLON_MAX_CONSECUTIVE_BOT_RESPONSES", "2")
+                _clean(env, "TLON_MAX_CONSECUTIVE_BOT_RESPONSES", "3")
             ),
         },
         "terminal": {

@@ -55,7 +55,9 @@ import {
 } from '../MessageInput/MessageInputBase';
 import { hydrateEditPost } from '../MessageInput/helpers';
 import type { DraftInputHandle } from '../draftInputs/shared';
+import { PasteableTextInput } from './PasteableTextInput';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
+import { PastedFile, attachPastedImageFiles } from './pastedImage';
 import {
   MentionOption,
   createMentionRoleOptions,
@@ -333,6 +335,13 @@ function BareChatInput(
 
   const lastProcessedRef = useRef('');
   const mentionRef = useRef<MentionController>(null);
+
+  const handlePasteFiles = useCallback(
+    (files: PastedFile[]) => {
+      void attachPastedImageFiles(files, addAttachment);
+    },
+    [addAttachment]
+  );
 
   const handleTextChange = useCallback(
     (newText: string) => {
@@ -937,7 +946,7 @@ function BareChatInput(
         {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
         <View position="relative">
-          <TextInput
+          <PasteableTextInput
             testID="MessageInput"
             ref={inputRef}
             value={isWeb ? controlledText : undefined}
@@ -947,6 +956,7 @@ function BareChatInput(
             onBlur={handleBlur}
             onFocus={handleFocus}
             onKeyPress={handleKeyPress}
+            onPasteFiles={isWeb ? undefined : handlePasteFiles}
             multiline
             placeholder={placeholder}
             {...(!isWeb ? placeholderTextColor : {})}
@@ -983,7 +993,7 @@ function BareChatInput(
                 textColor="$primaryText"
               />
             )}
-          </TextInput>
+          </PasteableTextInput>
           {isWeb && !!controlledText && mentions.length > 0 && (
             <View
               height={inputHeight}

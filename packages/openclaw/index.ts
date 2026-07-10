@@ -1564,7 +1564,7 @@ export default defineChannelPluginEntry({
         if ('error' in result) {
           return { text: result.error };
         }
-        return { text: await result.bridge.getPendingList() };
+        return await result.bridge.getPendingApprovalsReply();
       },
     });
 

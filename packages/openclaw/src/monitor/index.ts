@@ -91,13 +91,13 @@ import {
   type DisplayContext,
   type PendingApproval,
   buildApprovalA2UIBlob,
+  buildPendingApprovalsResponse,
   createPendingApproval,
   emojiToApprovalAction,
   findPendingApproval,
   formatApprovalConfirmation,
   formatApprovalRequestNotification,
   formatBlockedList,
-  formatPendingList,
   isExpired,
   normalizeNotificationId,
   pruneExpired,
@@ -114,6 +114,7 @@ import {
   buildThreadContextMessage,
   cacheMessage,
   fetchChannelHistory,
+  fetchParentPostAuthor,
   fetchThreadContextHistory,
   getChannelHistory,
   lookupCachedMessage,
@@ -151,6 +152,7 @@ import {
   extractMessageText,
   formatModelName,
   isBotMentioned,
+  isChannelRestricted,
   isDmAllowed,
   isOwnerListenSlashCommand,
   isSummarizationRequest,
@@ -158,6 +160,7 @@ import {
   shouldEngageInGroup,
   stripBotMention,
 } from './utils.js';
+import { probeWebSearchBootStatus } from './web-search-status.js';
 
 // Local structural types — @tloncorp/api defines these internally but
 // does not export them from its public entrypoint.
@@ -236,7 +239,10 @@ export type MonitorTlonOpts = {
 };
 
 type ChannelAuthorization = {
-  mode?: 'restricted' | 'open';
+  // "allowlist" is what the app saves (and Solaris stores); "restricted" is the
+  // legacy value still written by the approval flow. Both gate senders; only
+  // "open" is unrestricted. See isChannelRestricted.
+  mode?: 'restricted' | 'allowlist' | 'open';
   allowedShips?: string[];
 };
 
@@ -333,7 +339,7 @@ function resolveChannelAuthorization(
   cfg: OpenClawConfig,
   channelNest: string,
   settings?: TlonSettingsStore
-): { mode: 'restricted' | 'open'; allowedShips: string[] } {
+): { mode: 'restricted' | 'allowlist' | 'open'; allowedShips: string[] } {
   const tlonConfig = cfg.channels?.tlon as
     | {
         authorization?: { channelRules?: Record<string, ChannelAuthorization> };
@@ -411,6 +417,7 @@ export async function monitorTlonProvider(
     extra?: {
       errorKind?: string | null;
       attempt?: number | null;
+      downMs?: number | null;
     }
   ) => {
     telemetry?.capturePluginError({
@@ -422,6 +429,7 @@ export async function monitorTlonProvider(
       errorKind: extra?.errorKind ?? classifyPluginError(error),
       errorText: formatTlonTelemetryErrorText(error),
       attempt: extra?.attempt ?? null,
+      downMs: extra?.downMs ?? null,
     });
   };
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
@@ -472,6 +480,30 @@ export async function monitorTlonProvider(
     }
   }
 
+  // Map a subscription's gall app (+ path where one app carries several
+  // subscriptions) onto the telemetry error-source vocabulary.
+  const subscriptionErrorSource = (
+    app: string,
+    path: string
+  ): TlonPluginErrorSource => {
+    switch (app) {
+      case 'chat':
+        return 'chat_firehose';
+      case 'channels':
+        return 'channels_firehose';
+      case 'contacts':
+        return 'contacts_subscription';
+      case 'steward':
+        return 'steward_subscription';
+      case 'groups':
+        return path === '/v1/foreigns'
+          ? 'foreigns_subscription'
+          : 'groups_ui_subscription';
+      default:
+        return 'settings_refresh';
+    }
+  };
+
   let api: UrbitSSEClient | null = null;
   let cookie: string;
   try {
@@ -489,6 +521,73 @@ export async function monitorTlonProvider(
         const newCookie = await authenticateWithRetry(5, 're_auth');
         client.updateCookie(newCookie);
         runtime.log?.('[tlon] Re-authentication successful');
+      },
+      // A dead inbound subscription means silently lost messages (incident
+      // 2026-07-07: chat firehose died for 5.5h with zero telemetry), so
+      // surface recovery progress to PostHog. Sampled: first failure, then
+      // every 5th, plus a marker event once the subscription recovers.
+      onSubscriptionRecovery: (event) => {
+        const source = subscriptionErrorSource(event.app, event.path);
+        if (event.phase === 'retrying') {
+          if (event.attempt === 1 || event.attempt % 5 === 0) {
+            capturePluginError(source, event.error ?? 'resubscribe failed', {
+              errorKind: 'resubscribe_failed',
+              attempt: event.attempt,
+              downMs: event.downMs,
+            });
+          }
+          return;
+        }
+        runtime.log?.(
+          `[tlon] Subscription ${event.app}${event.path} ${event.phase} after ${event.attempt} failed attempt(s), down ${event.downMs}ms`
+        );
+        if (event.attempt > 0) {
+          capturePluginError(
+            source,
+            `subscription recovered (${event.phase}) after ${event.attempt} failed attempt(s)`,
+            {
+              errorKind: 'resubscribe_recovered',
+              attempt: event.attempt,
+              downMs: event.downMs,
+            }
+          );
+        }
+      },
+      // Stream-level drops/stalls/reconnects. Distinct from per-subscription
+      // recovery above: this is the whole SSE channel going down. Without it,
+      // a stream that drops and cleanly reconnects (or a watchdog-detected
+      // hung socket) is invisible in PostHog — only stdout.
+      onStreamRecovery: (event) => {
+        if (event.phase === 'reconnected') {
+          if (event.attempt > 0 || (event.downtimeMs ?? 0) > 0) {
+            capturePluginError(
+              'sse_stream',
+              `SSE stream reconnected after ${event.attempt} attempt(s)`,
+              {
+                errorKind: 'stream_reconnected',
+                attempt: event.attempt,
+                downMs: event.downtimeMs ?? null,
+              }
+            );
+          }
+          return;
+        }
+        if (event.phase === 'watchdog_stale') {
+          capturePluginError(
+            'sse_stream',
+            `SSE stream stale (${event.idleMs}ms idle); forcing reconnect`,
+            { errorKind: 'stream_stale', downMs: event.idleMs ?? null }
+          );
+          return;
+        }
+        // reconnect_failed — sample like the subscription retries.
+        if (event.attempt === 1 || event.attempt % 5 === 0) {
+          capturePluginError(
+            'sse_stream',
+            event.error ?? 'stream reconnect failed',
+            { errorKind: 'stream_reconnect_failed', attempt: event.attempt }
+          );
+        }
       },
     });
   } catch (error) {
@@ -719,6 +818,7 @@ export async function monitorTlonProvider(
             errorKind: report.event.errorKind ?? null,
             errorText: report.event.errorText,
             attempt: report.event.attempt ?? null,
+            downMs: report.event.downMs ?? null,
           });
           break;
         case 'telemetry':
@@ -879,7 +979,13 @@ export async function monitorTlonProvider(
       ctx: DisplayContext
     ): string | undefined {
       try {
-        return serializeBlobField(buildApprovalA2UIBlob(approval, ctx));
+        return serializeBlobField(
+          buildApprovalA2UIBlob(approval, ctx, {
+            // Source messages live on the bot's account. A separate owner may
+            // not have the corresponding DM or group channel in local state.
+            includeSourceNavigation: effectiveOwnerShip === botShipName,
+          })
+        );
       } catch (err) {
         runtime.error?.(
           `[tlon] Failed to build approval A2UI blob: ${String(err)}`
@@ -1036,7 +1142,11 @@ export async function monitorTlonProvider(
           `[tlon] Using autoAcceptGroupInvites from settings store: ${effectiveAutoAcceptGroupInvites}`
         );
       }
-      if (currentSettings.groupInviteAllowlist?.length) {
+      // An explicit empty settings list is authoritative (the admin cleared the
+      // allowlist), not a signal to fall back to the file config — otherwise
+      // clearing it in the form would keep auto-accepting invites from the old
+      // file list. Only `undefined` (never set) defers to the file value.
+      if (currentSettings.groupInviteAllowlist !== undefined) {
         effectiveGroupInviteAllowlist = currentSettings.groupInviteAllowlist;
         runtime.log?.(
           `[tlon] Using groupInviteAllowlist from settings store: ${effectiveGroupInviteAllowlist.join(', ')}`
@@ -1482,7 +1592,7 @@ export async function monitorTlonProvider(
       const normalizedShip = normalizeShip(ship);
       const channelRules = currentSettings.channelRules ?? {};
       const rule = channelRules[channelNest] ?? {
-        mode: 'restricted',
+        mode: 'allowlist',
         allowedShips: [],
       };
       const allowedShips = [...(rule.allowedShips ?? [])]; // Clone to avoid mutation
@@ -1635,6 +1745,34 @@ export async function monitorTlonProvider(
         );
         return undefined;
       }
+    }
+
+    function getReplyBlob(payload: ReplyPayload): string | undefined {
+      const blob = (payload.channelData?.tlon as { blob?: unknown } | undefined)
+        ?.blob;
+      return typeof blob === 'string' ? blob : undefined;
+    }
+
+    // Merge serialized post-blob fields (each a JSON array of entries) into one,
+    // so a reply can carry both an a2ui card and a context-lens reference.
+    function combineBlobFields(
+      ...fields: Array<string | undefined>
+    ): string | undefined {
+      const entries: unknown[] = [];
+      for (const field of fields) {
+        if (!field) {
+          continue;
+        }
+        try {
+          const parsed = JSON.parse(field);
+          if (Array.isArray(parsed)) {
+            entries.push(...parsed);
+          }
+        } catch {
+          // Skip a malformed blob field rather than dropping the whole message.
+        }
+      }
+      return entries.length > 0 ? JSON.stringify(entries) : undefined;
     }
 
     // Regex to match block directives in agent responses
@@ -1912,8 +2050,38 @@ export async function monitorTlonProvider(
         return executeApprovalAction(approval, action);
       },
 
-      async getPendingList() {
-        return formatPendingList(pendingApprovals, buildDisplayContext());
+      async getPendingApprovalsReply() {
+        pendingApprovals = pruneExpired(pendingApprovals);
+        await savePendingApprovals();
+
+        const pending = buildPendingApprovalsResponse(
+          pendingApprovals,
+          buildDisplayContext(),
+          (blob) => {
+            try {
+              return serializeBlobField(blob);
+            } catch (err) {
+              runtime.error?.(
+                `[tlon] Failed to serialize pending approvals A2UI blob: ${String(err)}`
+              );
+              return undefined;
+            }
+          },
+          (err) => {
+            runtime.error?.(
+              `[tlon] Failed to build pending approvals A2UI blob: ${String(err)}`
+            );
+          }
+        );
+
+        if (pending.mode === 'ui') {
+          return {
+            text: pending.text,
+            channelData: { tlon: { blob: pending.blob } },
+          };
+        }
+
+        return { text: pending.text };
       },
 
       async getBlockedList() {
@@ -3059,8 +3227,9 @@ export async function monitorTlonProvider(
                   },
                   deliver: async (payload: ReplyPayload) => {
                     contextLenses.setStatus(lens.lensId, 'delivering');
-                    let replyText = payload.text;
-                    if (!replyText) {
+                    const blob = getReplyBlob(payload);
+                    let replyText = payload.text ?? '';
+                    if (!replyText && !blob) {
                       const hasMedia = Array.isArray(payload.mediaUrls)
                         ? payload.mediaUrls.length > 0
                         : Boolean(payload.mediaUrl);
@@ -3073,18 +3242,20 @@ export async function monitorTlonProvider(
                     }
 
                     // Process any block directives in the response (strips them from text)
-                    replyText = await processBlockDirectives(
-                      replyText,
-                      senderShip
-                    );
-                    if (!replyText) {
+                    if (replyText) {
+                      replyText = await processBlockDirectives(
+                        replyText,
+                        senderShip
+                      );
+                    }
+                    if (!replyText && !blob) {
                       recordDeliverySkip('block_directive_only');
                       return;
                     } // Response was only a directive
 
                     // Use settings store value if set, otherwise fall back to file config
                     const showSignature = effectiveShowModelSig;
-                    if (showSignature) {
+                    if (showSignature && replyText) {
                       const modelCfg = cfg.agents?.defaults?.model;
                       const modelInfo =
                         selectedModel ||
@@ -3127,8 +3298,9 @@ export async function monitorTlonProvider(
 
                     sendAttemptCount += 1;
                     let outputMessageId: string | null = null;
-                    const contextLensBlob = buildContextLensReferenceBlobField(
-                      lens.lensId
+                    const replyBlob = combineBlobFields(
+                      blob,
+                      buildContextLensReferenceBlobField(lens.lensId)
                     );
                     if (isGroup && groupChannel) {
                       // Send to any channel type (chat, heap, diary) using the nest directly
@@ -3138,7 +3310,7 @@ export async function monitorTlonProvider(
                         nest: groupChannel,
                         story: markdownToStory(replyText),
                         replyToId: deliverParentId ?? undefined,
-                        blob: contextLensBlob,
+                        blob: replyBlob,
                       });
                       outputMessageId = result.messageId;
                       // Track thread participation for future replies without mention
@@ -3157,7 +3329,7 @@ export async function monitorTlonProvider(
                         replyToId: deliverParentId
                           ? String(deliverParentId)
                           : undefined,
-                        blob: contextLensBlob,
+                        blob: replyBlob,
                       });
                       outputMessageId = result.messageId;
                     }
@@ -3590,11 +3762,22 @@ export async function monitorTlonProvider(
             nest,
             currentSettings
           );
-          if (mode === 'restricted') {
+          if (isChannelRestricted(mode)) {
             const normalizedAllowed = allowedShips.map(normalizeShip);
             if (!normalizedAllowed.includes(senderShip)) {
               // If owner is configured, queue approval request
               if (effectiveOwnerShip) {
+                const cachedParentAuthor = parentId
+                  ? lookupCachedMessage(nest, parentId)?.author
+                  : undefined;
+                const parentAuthor = parentId
+                  ? cachedParentAuthor && cachedParentAuthor !== 'unknown'
+                    ? cachedParentAuthor
+                    : await fetchParentPostAuthor(api, nest, parentId, runtime)
+                  : null;
+                const parentAuthorId = parentAuthor
+                  ? normalizeShip(parentAuthor)
+                  : undefined;
                 const approval = createPendingApproval(
                   {
                     type: 'channel',
@@ -3607,6 +3790,7 @@ export async function monitorTlonProvider(
                       messageContent: content.content,
                       timestamp: content.sent || Date.now(),
                       parentId: parentId ?? undefined,
+                      parentAuthorId,
                       isThreadReply,
                       blob: content.blob ?? undefined,
                     },
@@ -3948,6 +4132,11 @@ export async function monitorTlonProvider(
                   messageText,
                   messageContent: dmContent.content,
                   timestamp: dmContent.sent || Date.now(),
+                  parentId: dmReplyParentId,
+                  parentAuthorId: dmReplyParentId
+                    ? lookupCachedMessage(dmCacheKey, dmReplyParentId)?.author
+                    : undefined,
+                  isThreadReply: isDmThreadReply,
                   blob: dmContent.blob ?? undefined,
                 },
               },
@@ -3995,6 +4184,11 @@ export async function monitorTlonProvider(
           runtime.error?.(`[tlon] Channels firehose error: ${String(error)}`);
         },
         quit: () => {
+          capturePluginError(
+            'channels_firehose',
+            'channels firehose quit received; resubscribing',
+            { errorKind: 'quit' }
+          );
           runtime.log?.(
             '[tlon] Channels firehose quit received, SSE client will resubscribe'
           );
@@ -4012,6 +4206,11 @@ export async function monitorTlonProvider(
           runtime.error?.(`[tlon] Chat firehose error: ${String(error)}`);
         },
         quit: () => {
+          capturePluginError(
+            'chat_firehose',
+            'chat firehose quit received; resubscribing',
+            { errorKind: 'quit' }
+          );
           runtime.log?.(
             '[tlon] Chat firehose quit received, SSE client will resubscribe'
           );
@@ -4210,11 +4409,17 @@ export async function monitorTlonProvider(
               });
             },
             err: (error) => {
+              capturePluginError('steward_subscription', error);
               runtime.error?.(
                 `[tlon] Steward lens subscription error: ${String(error)}`
               );
             },
             quit: () => {
+              capturePluginError(
+                'steward_subscription',
+                'steward lens quit received; resubscribing',
+                { errorKind: 'quit' }
+              );
               runtime.log?.(
                 '[tlon] Steward lens quit received, SSE client will resubscribe'
               );
@@ -4320,12 +4525,11 @@ export async function monitorTlonProvider(
           );
         }
 
-        // Update group invite allowlist
+        // Update group invite allowlist. An explicit empty list is authoritative
+        // (the admin cleared it) — don't fall back to the file list, or clearing
+        // the allowlist would keep auto-accepting invites from the old entries.
         if (newSettings.groupInviteAllowlist !== undefined) {
-          effectiveGroupInviteAllowlist =
-            newSettings.groupInviteAllowlist.length > 0
-              ? newSettings.groupInviteAllowlist
-              : account.groupInviteAllowlist;
+          effectiveGroupInviteAllowlist = newSettings.groupInviteAllowlist;
           runtime.log?.(
             `[tlon] Settings: groupInviteAllowlist updated to ${effectiveGroupInviteAllowlist.join(', ')}`
           );
@@ -4842,6 +5046,23 @@ export async function monitorTlonProvider(
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      const webSearchRuntime = core.webSearch;
+      const webSearchStatus = probeWebSearchBootStatus({
+        searchConfig: cfg.tools?.web?.search,
+        listProviders:
+          typeof webSearchRuntime?.listProviders === 'function'
+            ? () => webSearchRuntime.listProviders()
+            : undefined,
+      });
+      if (!webSearchStatus.webSearchAvailable) {
+        runtime.error?.(
+          `[tlon] web_search unavailable at gateway boot: enabled=${webSearchStatus.webSearchEnabled}, providers=[${webSearchStatus.webSearchProviders.join(', ')}]${
+            webSearchStatus.webSearchProbeError
+              ? `, probeError=${webSearchStatus.webSearchProbeError}`
+              : ''
+          }`
+        );
+      }
       telemetry?.captureGatewayConnected({
         ownerShip: effectiveOwnerShip,
         botShip: botShipName,
@@ -4857,6 +5078,7 @@ export async function monitorTlonProvider(
         pendingApprovalCount: pendingApprovals.length,
         autoDiscoverChannels: effectiveAutoDiscoverChannels,
         ownerListenEnabled: effectiveOwnerListenEnabled,
+        ...webSearchStatus,
       });
 
       // Periodically refresh channel discovery
