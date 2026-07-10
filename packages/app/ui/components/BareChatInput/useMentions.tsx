@@ -285,23 +285,28 @@ export const useMentions = ({
     const replacementDelta =
       mentionDisplay.length + 1 - (replacedTextEnd - mentionStartIndex);
 
-    setMentions((prev) => [
-      ...prev
-        .filter(
-          (mention) =>
-            mention.end <= mentionStartIndex || mention.start >= replacedTextEnd
-        )
-        .map((mention) =>
-          mention.start >= replacedTextEnd
-            ? {
-                ...mention,
-                start: mention.start + replacementDelta,
-                end: mention.end + replacementDelta,
-              }
-            : mention
-        ),
-      newMention,
-    ]);
+    // Keep the array sorted by position: downstream serialization
+    // (textAndMentionsToContent/processLine) consumes mentions in array order.
+    setMentions((prev) =>
+      [
+        ...prev
+          .filter(
+            (mention) =>
+              mention.end <= mentionStartIndex ||
+              mention.start >= replacedTextEnd
+          )
+          .map((mention) =>
+            mention.start >= replacedTextEnd
+              ? {
+                  ...mention,
+                  start: mention.start + replacementDelta,
+                  end: mention.end + replacementDelta,
+                }
+              : mention
+          ),
+        newMention,
+      ].sort((a, b) => a.start - b.start)
+    );
     setIsMentionModeActive(false);
     setMentionStartIndex(null);
     setMentionSearchText('');
