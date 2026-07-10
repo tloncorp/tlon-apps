@@ -110,6 +110,10 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       };
       logger.log('setting deeplink lure', nextLure);
       lastSetLureIdRef.current = invite.id;
+      // claim the handled token too, so an in-flight url fetch for an older
+      // invite drops its result instead of overwriting this one (e.g. a
+      // pasted invite racing a slow link fetch)
+      handledInviteTokenRef.current = invite.id;
       setState({
         ...nextLure,
         deepLinkPath: undefined,
@@ -137,9 +141,11 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         const deepLinkPath = getPathFromWer(parsed.wer);
         logger.log('detected non-Branch deep link:', deepLinkPath);
         // this clears the lure, so the dedupe refs must not keep swallowing
-        // a re-tap of an invite that no longer has state
+        // a re-tap of an invite that no longer has state — and the persisted
+        // copy must go too, or the storage check restores it on the next run
         handledInviteTokenRef.current = null;
         lastSetLureIdRef.current = null;
+        storage.invitation.resetValue();
         setState({
           deepLinkPath,
           lure: undefined,
@@ -169,13 +175,18 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         // priority token this set would otherwise clobber
         return true;
       }
-      setInviteLure(
-        invite ?? {
-          id: parsed.token,
-          shouldAutoJoin: !isAuthenticated,
-        },
-        { source }
-      );
+      const fallback: AppInvite = {
+        id: parsed.token,
+        shouldAutoJoin: !isAuthenticated,
+      };
+      if (parsed.token.includes('/')) {
+        // flag-style v1 lures carry the inviter and group in the token —
+        // same derivation as extractLureMetadata's slash-lure fallback
+        const [ship] = parsed.token.split('/');
+        fallback.inviterUserId = ship;
+        fallback.invitedGroupId = parsed.token;
+      }
+      setInviteLure(invite ?? fallback, { source });
       return true;
     },
     [isAuthenticated, setInviteLure]
@@ -263,9 +274,6 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
                   source: 'branch',
                 }
               );
-              // only mark handled once the lure is applied — a failed
-              // extraction must leave the linking path free to fetch
-              handledInviteTokenRef.current = lureId;
             } catch (e) {
               logger.trackError(AnalyticsEvent.InviteError, {
                 error: e,
