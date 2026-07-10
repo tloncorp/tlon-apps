@@ -39,17 +39,17 @@
       ==
       `(as-octs:mimes:html (en:json:html push-body))
   ==
-;<  =client-response:iris  bind:m  (send-request-retry push)
+;<  rep=(unit client-response:iris)  bind:m  (send-request-soft push)
 ;<  ~  bind:m
   =/  n  (strand ,~)
   ^-  form:n
-  ?:  ?&  ?=(%finished -.client-response)
-          =(200 status-code.response-header.client-response)
+  ?:  ?&  ?=([~ %finished *] rep)
+          =(200 status-code.response-header.u.rep)
       ==
     (pure:n ~)
   =/  code=tape
-    ?:  ?=(%finished -.client-response)
-      "http {<status-code.response-header.client-response>}"
+    ?:  ?=([~ %finished *] rep)
+      "http {<status-code.response-header.u.rep>}"
     "no response"
   =/  =log-event:logs
     :*  %tell
@@ -59,7 +59,7 @@
         leaf+code
         ~
     ==
-  (poke:io [our.bowl %logs] log-action-1+!>([%log log-event ~]))
+  (poke:io [our.bowl %logs] log-action+!>([%log log-event ~]))
 ::  read deep link metadata
 ::
 =/  read=request:http
@@ -87,7 +87,7 @@
     ==
   ;<  =bowl:strand  bind:m  get-bowl:io
   ;<  ~  bind:m
-    (poke:io [our.bowl %logs] log-action-1+!>([%log log-event ~]))
+    (poke:io [our.bowl %logs] log-action+!>([%log log-event ~]))
   (pure:m !>(`(crip "failed to read link metadata: HTTP {<status-code>}")))
 ?>  ?=(^ full-file.client-response)
 =/  metadata=(unit json)  (de:json:html q.data.u.full-file.client-response)
@@ -146,7 +146,7 @@
         ~
     ==
   ;<  ~  bind:m
-    (poke:io [our.bowl %logs] log-action-1+!>([%log log-event ~]))
+    (poke:io [our.bowl %logs] log-action+!>([%log log-event ~]))
   (pure:m !>(`(crip "failed to update link metadata: {<status-code>}")))
 (pure:m !>(~))
 ::
@@ -166,4 +166,26 @@
   =*  status-code  status-code.response-header.client-response
   ;<  ~  bind:m  (sleep:io retry-delay)
   $(retry (dec retry), response client-response)
+::  +send-request-soft: request that must never fail the strand
+::
+::    the invite-service push is best-effort: a runtime cancellation or
+::    exhausted retries return ~ so the branch update below still runs,
+::    where take-client-response would fail the whole thread on %cancel
+::
+++  send-request-soft
+  |=  =request:http
+  =/  m  (strand (unit client-response:iris))
+  ^-  form:m
+  =/  tries  retry
+  |-
+  ;<  ~  bind:m  (send-request:io request)
+  ;<  rep=(unit client-response:iris)  bind:m  take-maybe-response:io
+  ?:  ?&  ?=([~ %finished *] rep)
+          =(200 status-code.response-header.u.rep)
+      ==
+    (pure:m rep)
+  ?:  (lte tries 1)
+    (pure:m rep)
+  ;<  ~  bind:m  (sleep:io retry-delay)
+  $(tries (dec tries))
 --
