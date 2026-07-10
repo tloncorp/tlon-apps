@@ -152,6 +152,7 @@ import {
   extractMessageText,
   formatModelName,
   isBotMentioned,
+  isChannelRestricted,
   isDmAllowed,
   isOwnerListenSlashCommand,
   isSummarizationRequest,
@@ -238,7 +239,10 @@ export type MonitorTlonOpts = {
 };
 
 type ChannelAuthorization = {
-  mode?: 'restricted' | 'open';
+  // "allowlist" is what the app saves (and Solaris stores); "restricted" is the
+  // legacy value still written by the approval flow. Both gate senders; only
+  // "open" is unrestricted. See isChannelRestricted.
+  mode?: 'restricted' | 'allowlist' | 'open';
   allowedShips?: string[];
 };
 
@@ -335,7 +339,7 @@ function resolveChannelAuthorization(
   cfg: OpenClawConfig,
   channelNest: string,
   settings?: TlonSettingsStore
-): { mode: 'restricted' | 'open'; allowedShips: string[] } {
+): { mode: 'restricted' | 'allowlist' | 'open'; allowedShips: string[] } {
   const tlonConfig = cfg.channels?.tlon as
     | {
         authorization?: { channelRules?: Record<string, ChannelAuthorization> };
@@ -1138,7 +1142,11 @@ export async function monitorTlonProvider(
           `[tlon] Using autoAcceptGroupInvites from settings store: ${effectiveAutoAcceptGroupInvites}`
         );
       }
-      if (currentSettings.groupInviteAllowlist?.length) {
+      // An explicit empty settings list is authoritative (the admin cleared the
+      // allowlist), not a signal to fall back to the file config — otherwise
+      // clearing it in the form would keep auto-accepting invites from the old
+      // file list. Only `undefined` (never set) defers to the file value.
+      if (currentSettings.groupInviteAllowlist !== undefined) {
         effectiveGroupInviteAllowlist = currentSettings.groupInviteAllowlist;
         runtime.log?.(
           `[tlon] Using groupInviteAllowlist from settings store: ${effectiveGroupInviteAllowlist.join(', ')}`
@@ -1584,7 +1592,7 @@ export async function monitorTlonProvider(
       const normalizedShip = normalizeShip(ship);
       const channelRules = currentSettings.channelRules ?? {};
       const rule = channelRules[channelNest] ?? {
-        mode: 'restricted',
+        mode: 'allowlist',
         allowedShips: [],
       };
       const allowedShips = [...(rule.allowedShips ?? [])]; // Clone to avoid mutation
@@ -3754,7 +3762,7 @@ export async function monitorTlonProvider(
             nest,
             currentSettings
           );
-          if (mode === 'restricted') {
+          if (isChannelRestricted(mode)) {
             const normalizedAllowed = allowedShips.map(normalizeShip);
             if (!normalizedAllowed.includes(senderShip)) {
               // If owner is configured, queue approval request
@@ -4517,12 +4525,11 @@ export async function monitorTlonProvider(
           );
         }
 
-        // Update group invite allowlist
+        // Update group invite allowlist. An explicit empty list is authoritative
+        // (the admin cleared it) — don't fall back to the file list, or clearing
+        // the allowlist would keep auto-accepting invites from the old entries.
         if (newSettings.groupInviteAllowlist !== undefined) {
-          effectiveGroupInviteAllowlist =
-            newSettings.groupInviteAllowlist.length > 0
-              ? newSettings.groupInviteAllowlist
-              : account.groupInviteAllowlist;
+          effectiveGroupInviteAllowlist = newSettings.groupInviteAllowlist;
           runtime.log?.(
             `[tlon] Settings: groupInviteAllowlist updated to ${effectiveGroupInviteAllowlist.join(', ')}`
           );
