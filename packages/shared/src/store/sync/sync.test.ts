@@ -81,7 +81,7 @@ vi.mock('../lure', () => ({
   },
 }));
 
-const outputData = [
+const outputData: db.Pin[] = [
   {
     type: 'groupDm',
     index: 0,
@@ -116,6 +116,54 @@ test('syncs pins', async () => {
     (a, b) => a.index - b.index
   );
   expect(savedItems).toEqual(outputData);
+});
+
+test('syncs pin membership without replacing a pending local order', async () => {
+  setScryOutput(inputData);
+  let storedOrder: string[] | null = [inputData[2], inputData[0]];
+  const getPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'getValue')
+    .mockImplementation(async () => storedOrder);
+  const setPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'setValue')
+    .mockImplementation(async (value) => {
+      storedOrder = typeof value === 'function' ? value(storedOrder) : value;
+    });
+
+  await syncPinnedItems();
+
+  const savedItems = (await db.getPinnedItems()).sort(
+    (a, b) => a.index - b.index
+  );
+  expect(savedItems).toEqual([
+    { ...outputData[2], index: 0 },
+    outputData[1],
+    { ...outputData[0], index: 2 },
+  ]);
+  expect(storedOrder).toEqual([inputData[2], inputData[1], inputData[0]]);
+  getPendingOrder.mockRestore();
+  setPendingOrder.mockRestore();
+});
+
+test('clears pins when a pending local order receives an empty server snapshot', async () => {
+  await db.insertPinnedItems(outputData);
+  setScryOutput([]);
+  let storedOrder: string[] | null = inputData;
+  const getPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'getValue')
+    .mockImplementation(async () => storedOrder);
+  const setPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'setValue')
+    .mockImplementation(async (value) => {
+      storedOrder = typeof value === 'function' ? value(storedOrder) : value;
+    });
+
+  await syncPinnedItems();
+
+  expect(await db.getPinnedItems()).toEqual([]);
+  expect(storedOrder).toEqual([]);
+  getPendingOrder.mockRestore();
+  setPendingOrder.mockRestore();
 });
 
 // TLON-5606: after a user clears a failed send, `syncChannelWithBackoff`
@@ -554,12 +602,22 @@ const testGroupData: db.Group = {
 // });
 
 test('syncs init data', async () => {
+  let storedOrder: string[] | null = [...rawGroupsInitData.pins].reverse();
+  const getPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'getValue')
+    .mockImplementation(async () => storedOrder);
+  const setPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'setValue')
+    .mockImplementation(async (value) => {
+      storedOrder = typeof value === 'function' ? value(storedOrder) : value;
+    });
   setScryOutput(rawGroupsInitData);
   await syncInitData();
   const groups = await db.getGroups({});
   expect(groups.length).toEqual(Object.values(groupsInitData.groups).length);
-  const pins = await db.getPinnedItems();
+  const pins = (await db.getPinnedItems()).sort((a, b) => a.index - b.index);
   expect(pins.length).toEqual(groupsInitData.pins.length);
+  expect(pins.map((pin) => pin.itemId)).toEqual(storedOrder);
   const dmsAndClubs = await getClient()
     ?.select({ count: $.count() })
     .from(db.schema.channels)
@@ -573,6 +631,8 @@ test('syncs init data', async () => {
     groupsInitData.chat.dms.length +
       Object.keys(groupsInitData.chat.clubs).length
   );
+  getPendingOrder.mockRestore();
+  setPendingOrder.mockRestore();
 });
 
 test('syncs last posts', async () => {

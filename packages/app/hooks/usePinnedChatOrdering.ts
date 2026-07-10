@@ -64,6 +64,10 @@ export function usePinnedChatOrdering({
       return store.reorderPinnedItems({
         optimisticOrder: newFull,
         backendOrder: newVisibleOrder,
+        // TODO: Remove this override once `%set-order` is deployed fleet-wide.
+        // Until then, older groups-ui desks reject the best-effort server poke;
+        // the order remains persisted in the local database.
+        keepLocalOrderOnError: true,
       });
     },
     [fullOrder, visibleIds]

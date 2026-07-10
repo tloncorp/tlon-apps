@@ -31,6 +31,7 @@ import {
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
+import { applyPinnedItemOrder } from '../pinnedItemOrder';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import { getSession, setSession, updateSession } from '../session';
@@ -47,6 +48,34 @@ import { updateLastActivityTime } from './updateLastActivityTime';
 // see something new, we refetch init data. Fallback in case we miss
 // something over %channels or %groups
 const joinedGroupsAndChannels = new Set<string>();
+
+// TODO: Remove with `pendingPinnedItemsOrder` after `%set-order` is deployed
+// fleet-wide. Until then, merge stale server membership into the pending local
+// order instead of allowing startup/foreground sync to undo a failed reorder.
+const persistSyncedPinnedItems = async (
+  pinnedItems: db.Pin[],
+  queryCtx?: QueryCtx
+) => {
+  if ((await db.pendingPinnedItemsOrder.getValue(true)) == null) {
+    return db.insertPinnedItems(pinnedItems, queryCtx);
+  }
+
+  let mergedPinnedItems = pinnedItems;
+  let hasPendingOrder = true;
+  await db.pendingPinnedItemsOrder.setValue((pendingOrder) => {
+    if (pendingOrder == null) {
+      hasPendingOrder = false;
+      return null;
+    }
+    mergedPinnedItems = applyPinnedItemOrder(pendingOrder, pinnedItems);
+    return mergedPinnedItems.map((pin) => pin.itemId);
+  });
+
+  if (hasPendingOrder && mergedPinnedItems.length === 0) {
+    return db.clearPinnedItems(queryCtx);
+  }
+  return db.insertPinnedItems(mergedPinnedItems, queryCtx);
+};
 
 export const syncInitData = async (
   syncCtx?: SyncCtx,
@@ -79,9 +108,9 @@ export const syncInitData = async (
       ctx: queryCtx,
     }).then(() => logger.crumb('persisted unreads'));
 
-    await db
-      .insertPinnedItems(initData.pins, queryCtx)
-      .then(() => logger.crumb('inserted pinned items'));
+    await persistSyncedPinnedItems(initData.pins, queryCtx).then(() =>
+      logger.crumb('inserted pinned items')
+    );
 
     // Store hidden post IDs to apply after posts are synced
     // This avoids the race condition where IDs arrive before posts exist
@@ -720,7 +749,7 @@ export const syncPinnedItems = async (ctx?: SyncCtx) => {
     api.getPinnedItems()
   );
   logger.log('got pinned items from api', pinnedItems.length);
-  await db.insertPinnedItems(pinnedItems);
+  await persistSyncedPinnedItems(pinnedItems);
 };
 
 export const syncGroups = async (ctx?: SyncCtx) => {

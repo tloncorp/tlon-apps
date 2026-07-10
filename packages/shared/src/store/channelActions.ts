@@ -13,6 +13,7 @@ import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { syncNotesNotebook } from './notesActions';
+import { normalizePinnedItemOrder } from './pinnedItemOrder';
 
 const logger = createDevLogger('ChannelActions', false);
 const NOTES_CHANNEL_LISTING_ATTEMPTS = 5;
@@ -553,26 +554,12 @@ export async function unpinItem(pin: db.Pin) {
   }
 }
 
-// Slot-preserving reorder, matching the backend %set-order semantics and the
-// frontend mergeVisibleOrderIntoFull: reorder only the ids `desired` names
-// (∩ currently pinned, de-duped) into the slots they currently occupy, leaving
-// any omitted pinned id fixed in place.
-function normalizeOrder(desired: string[], current: db.Pin[]): string[] {
-  const order = [...current]
-    .sort((a, b) => a.index - b.index)
-    .map((p) => p.itemId);
-  const pinnedSet = new Set(order);
-  const wanted = [...new Set(desired)].filter((id) => pinnedSet.has(id));
-  const wantedSet = new Set(wanted);
-  let w = 0;
-  return order.map((id) => (wantedSet.has(id) ? wanted[w++] : id));
-}
-
 // Persist a reorder of the pinned items. Optimistically writes the new order,
-// pokes the backend, and re-asserts on success so a stale in-flight sync can't
-// leave the UI reverted. Never throws — returns true on success, false on
-// failure (after a best-effort backend reconcile) so drag handlers can roll
-// back their optimistic UI.
+// pokes the backend, and re-asserts any order it keeps so a stale in-flight sync
+// can't leave the UI reverted. Returns true when the local order should be kept
+// and false after a failed poke has been reconciled/rolled back. The temporary
+// `keepLocalOrderOnError` option lets callers treat the backend sync as
+// best-effort while `%set-order` rolls out across the fleet.
 //
 // The optimistic local write and the backend poke take *different* orders:
 //   - `optimisticOrder` is the full merged pin order (incl. hidden pins in a
@@ -586,20 +573,26 @@ function normalizeOrder(desired: string[], current: db.Pin[]): string[] {
 export async function reorderPinnedItems({
   optimisticOrder,
   backendOrder,
+  keepLocalOrderOnError = false,
 }: {
   optimisticOrder: string[];
   backendOrder: string[];
+  keepLocalOrderOnError?: boolean;
 }): Promise<boolean> {
   const before = await db.getPinnedItems();
   const previousOrder = [...before]
     .sort((a, b) => a.index - b.index)
     .map((p) => p.itemId);
-  const normalized = normalizeOrder(optimisticOrder, before);
+  const normalized = normalizePinnedItemOrder(optimisticOrder, before);
 
   if (isEqual(previousOrder, normalized)) {
     return true; // no-op drop
   }
 
+  if (keepLocalOrderOnError) {
+    // Persist the rollout-era local authority before attempting server sync.
+    await db.pendingPinnedItemsOrder.setValue(normalized);
+  }
   await db.setPinnedItemsOrder(normalized); // optimistic (full local order)
 
   // Backend payload: only the reordered visible ids, deduped and intersected
@@ -621,9 +614,24 @@ export async function reorderPinnedItems({
     // could drag a hidden pin a mid-poke sync just moved back to this client's
     // stale slot. Only the optimistic write above is the full merged order.
     const after = await db.getPinnedItems();
-    await db.setPinnedItemsOrder(normalizeOrder(backendPayload, after));
+    const keptOrder = normalizePinnedItemOrder(backendPayload, after);
+    if (keepLocalOrderOnError) {
+      await db.pendingPinnedItemsOrder.setValue(keptOrder);
+    }
+    await db.setPinnedItemsOrder(keptOrder);
     return true;
   } catch (e) {
+    if (keepLocalOrderOnError) {
+      // An older groups-ui rejects `%set-order`. Keep the durable local write,
+      // but still re-assert the visible reorder in case a pin sync landed while
+      // the best-effort poke was in flight.
+      const after = await db.getPinnedItems();
+      const keptOrder = normalizePinnedItemOrder(backendPayload, after);
+      await db.pendingPinnedItemsOrder.setValue(keptOrder);
+      await db.setPinnedItemsOrder(keptOrder);
+      return true;
+    }
+
     console.error('Failed to reorder pinned items', e);
     // Best-effort reconcile to the authoritative backend order. The scry usually
     // fails for the same reason the poke did, so guard it and always return false.

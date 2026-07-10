@@ -6008,11 +6008,10 @@ export const deletePinnedItem = createWriteQuery(
 );
 
 // Delete every pinned item. Unlike `insertPinnedItems([])` (a no-op), this is an
-// explicit clear — used by the reorder failure reconcile when the authoritative
-// backend snapshot is empty. Emits the same effects as the single-pin mutators
-// (`insertPinnedItem`/`deletePinnedItem`): some read paths surface pin state via
-// group/channel query deps (e.g. `getGroup` reads `pin`), so clearing pins must
-// invalidate those too, not just `pins`.
+// explicit clear — used when an authoritative pin snapshot is empty. Emits the
+// same effects as the single-pin mutators (`insertPinnedItem`/`deletePinnedItem`):
+// some read paths surface pin state via group/channel query deps (e.g. `getGroup`
+// reads `pin`), so clearing pins must invalidate those too, not just `pins`.
 export const clearPinnedItems = createWriteQuery(
   'clearPinnedItems',
   async (ctx: QueryCtx) => {
