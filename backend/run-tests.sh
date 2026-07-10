@@ -175,7 +175,16 @@ result=$( $run_click $pier <<EOF
 (pure:m !>(hash))  
 EOF
 )
-desk_hash_a=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
+# match only a hash-shaped response — sed without -n passes non-matching
+# output (e.g. a transient scry failure) through, which would false-pass
+# the hash comparisons below
+desk_hash_a=`echo $result | sed -n 's/^\[0 %avow 0 %noun \(0x[0-9a-f.]*\)\]$/\1/p'`
+if [ -z "$desk_hash_a" ]
+then
+  echo "Failed to read desk hash ❌"
+  kill -TERM $vere_pid
+  exit 1
+fi
 
 echo "Updating groups desk"
 ${run_click} $pier <<EOF
@@ -200,7 +209,7 @@ do
 (pure:m !>(hash))  
 EOF
 )
-  desk_hash_b=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
+  desk_hash_b=`echo $result | sed -n 's/^\[0 %avow 0 %noun \(0x[0-9a-f.]*\)\]$/\1/p'`
   if [ -n "$desk_hash_b" ] && [ "$desk_hash_a" != "$desk_hash_b" ]
   then
     break
