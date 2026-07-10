@@ -148,6 +148,9 @@ describe('getMetadataFromInviteToken', () => {
     expect(invite?.invitedGroupId).toBe('~zod/gardening');
 
     expect(await getMetadataFromInviteToken('0vplain')).toBeNull();
+    // raw query tokens bypass the parser — the derivation validates itself
+    expect(await getMetadataFromInviteToken('~zod/foo/bar')).toBeNull();
+    expect(await getMetadataFromInviteToken('not-a-ship/team')).toBeNull();
   });
 
   test('still rejects group invites without a group id', async () => {

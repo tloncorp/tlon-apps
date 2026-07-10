@@ -88,11 +88,23 @@ export async function getInviteLinkMeta({
   return getMetadataFromInviteToken(token);
 }
 
+// group flags are exactly (pair ship term): a valid @p, one slash, and a
+// term-shaped name. shared by the parser and the fallback derivation —
+// some callers (e.g. useInviteParam) pass raw query tokens that never go
+// through parseInviteDeepLink, so the derivation must validate for itself
+function validFlagToken(token: string): boolean {
+  if (!/^~[a-z-]+\/[a-z][a-z0-9-]*$/.test(token)) {
+    return false;
+  }
+  const [ship] = token.split('/');
+  return valid('p', ship);
+}
+
 // flag-style v1 lures carry the inviter and group in the token itself —
 // the same derivation extractLureMetadata applies to slash lures, used
 // here whenever the provider has no first-party metadata for the token
 function flagTokenFallback(token: string): AppInvite | null {
-  if (!token.includes('/')) {
+  if (!validFlagToken(token)) {
     return null;
   }
   const [ship] = token.split('/');
@@ -246,12 +258,8 @@ function getTokenFromPath(pathname: string) {
     return path;
   }
 
-  // group flags are exactly (pair ship term): a valid @p, one slash, and a
-  // term-shaped name — anything looser would flow into the fallback
-  // derivation as a garbage invite
-  if (/^~[a-z-]+\/[a-z][a-z0-9-]*$/.test(path)) {
-    const [ship] = path.split('/');
-    return valid('p', ship) ? path : null;
+  if (path.startsWith('~')) {
+    return validFlagToken(path) ? path : null;
   }
 
   return null;
