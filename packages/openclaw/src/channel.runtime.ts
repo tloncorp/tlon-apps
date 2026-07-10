@@ -229,7 +229,11 @@ export const tlonRuntimeOutbound: Pick<
           });
           return result;
         }
-        const target = resolveOutboundLensTarget(account, fromShip, parsed.nest);
+        const target = resolveOutboundLensTarget(
+          account,
+          fromShip,
+          parsed.nest
+        );
         const result = await sendChannelPost({
           fromShip,
           nest: parsed.nest,
@@ -297,7 +301,11 @@ export const tlonRuntimeOutbound: Pick<
           });
           return result;
         }
-        const target = resolveOutboundLensTarget(account, fromShip, parsed.nest);
+        const target = resolveOutboundLensTarget(
+          account,
+          fromShip,
+          parsed.nest
+        );
         const result = await sendChannelPost({
           fromShip,
           nest: parsed.nest,

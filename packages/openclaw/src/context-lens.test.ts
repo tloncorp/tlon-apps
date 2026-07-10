@@ -520,9 +520,7 @@ describe('context lens registry', () => {
       expect(resolved?.registry).toBe(registry);
 
       // Conversations without an active foreground run resolve to null.
-      expect(
-        getActiveForegroundContextLensForConversation('~zod')
-      ).toBeNull();
+      expect(getActiveForegroundContextLensForConversation('~zod')).toBeNull();
       expect(getActiveForegroundContextLensForConversation('')).toBeNull();
 
       // The resolved registry records the tool-driven post as a run output.
