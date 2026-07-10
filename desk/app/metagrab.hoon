@@ -452,7 +452,13 @@
       :-  (give-response (~(get ju await) url) now.bowl %300 nex)
       this(await (~(del by await) url))
     ::TODO  deduplicate with %handle-http-request somehow?
+    =+  redir-max=10
+    =+  orig-nex=u.nex
     |-  ^-  (quip card _this)
+    ?.  (gth redir-max 0)
+      %-  (tell:l %warn 'maximum redirects exceeded' orig-nex ~)
+      :-  (give-response (~(get ju await) url) now.bowl %300 nex)
+      this(await (~(del by await) url))
     ::  move awaiters over to the next target
     ::
     =.  await
@@ -476,7 +482,7 @@
     ?:  ?&  ?=([%300 ~ @] wat.u.entry)
             ?=(^ (de-purl:html u.nex.wat.u.entry))
         ==
-      $(u.nex u.nex.wat.u.entry)
+      $(u.nex u.nex.wat.u.entry, redir-max (dec redir-max))
     ::  otherwise, serve the response from cache
     ::
     [(give-response (~(get ju await) u.nex) u.entry) this]
