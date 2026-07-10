@@ -31,7 +31,7 @@ type State = Lure & {
 
 type ContextValue = State & {
   setLure: (invite: AppInvite) => void;
-  clearLure: () => void;
+  clearLure: (options?: { preserveFetching?: boolean }) => void;
   clearDeepLink: () => void;
 };
 
@@ -397,22 +397,28 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
 
   const setLure = setInviteLure;
 
-  const clearLure = useCallback(() => {
-    console.debug('[branch] Clearing lure state');
-    // consuming the applied lure must not kill an in-flight fetch — that
-    // slot belongs to a newer link the user tapped (e.g. a cold start via
-    // a fresh invite while a stale persisted one gets redeemed and cleared)
-    if (intakeRef.current?.phase !== 'fetching') {
-      intakeRef.current = null;
-    }
-    inviteClearedRef.current = true;
-    setState((curr) => ({
-      ...curr,
-      lure: undefined,
-      priorityToken: undefined,
-    }));
-    storage.invitation.resetValue();
-  }, []);
+  const clearLure = useCallback(
+    (options: { preserveFetching?: boolean } = {}) => {
+      console.debug('[branch] Clearing lure state');
+      // the redeem path passes preserveFetching: an in-flight fetch there is
+      // newer intent (a fresh tap racing the redeem of a stale invite). hard
+      // clears — logout — cancel it, so the next account cannot inherit a
+      // fetch that settles after the wipe
+      if (
+        !(options.preserveFetching && intakeRef.current?.phase === 'fetching')
+      ) {
+        intakeRef.current = null;
+      }
+      inviteClearedRef.current = true;
+      setState((curr) => ({
+        ...curr,
+        lure: undefined,
+        priorityToken: undefined,
+      }));
+      storage.invitation.resetValue();
+    },
+    []
+  );
 
   const clearDeepLink = useCallback(() => {
     console.debug('[branch] Clearing deep link state');
