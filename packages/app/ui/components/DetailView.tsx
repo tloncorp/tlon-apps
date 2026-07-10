@@ -23,6 +23,7 @@ export interface DetailViewProps {
   onPressRetry?: (post: db.Post) => Promise<void>;
   onPressDelete: (post: db.Post) => void;
   inspectContextLensPost?: (post: db.Post) => void;
+  onOpenContextLens?: (post: db.Post) => void;
   onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;
@@ -45,6 +46,7 @@ export const DetailView = ({
   onPressRetry,
   onPressDelete,
   inspectContextLensPost,
+  onOpenContextLens,
   onGoToBotRun,
   setActiveMessage,
   activeMessage,
@@ -129,6 +131,7 @@ export const DetailView = ({
         onPressRetry={onPressRetry}
         onPressDelete={onPressDelete}
         onPressPost={inspectContextLensPost}
+        onOpenContextLens={onOpenContextLens}
         onGoToBotRun={onGoToBotRun}
         highlightPostId={highlightPostId}
         firstUnreadId={

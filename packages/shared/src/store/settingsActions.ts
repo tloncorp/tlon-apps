@@ -252,6 +252,34 @@ export async function updateContextLensEnabled(value: boolean) {
   }
 }
 
+// One-time migration for the context lens toggle, which moved from the
+// client-local feature-flag store (`storage.featureFlags.contextLens`) to the
+// synced %settings store (`contextLensEnabled`). Adopt a user's old local
+// value once, then drop the stale key so this never runs again. Must run after
+// syncSettings so getSettings() reflects the authoritative synced value.
+export async function migrateLegacyContextLensFlag() {
+  let flags: Record<string, unknown> | null = null;
+  try {
+    flags = await db.storage.featureFlags.getValue();
+  } catch (e) {
+    return;
+  }
+  if (!flags || typeof flags !== 'object' || !('contextLens' in flags)) {
+    return;
+  }
+
+  // Only adopt the legacy value when the synced setting has never been set, so
+  // we don't resurrect a toggle the user later disabled on another device.
+  const existing = await db.getSettings();
+  if (flags.contextLens === true && existing?.contextLensEnabled == null) {
+    await updateContextLensEnabled(true);
+  }
+
+  const rest = { ...flags };
+  delete rest.contextLens;
+  await db.storage.featureFlags.setValue(rest);
+}
+
 export async function updatePendingMemberDismissal(
   dismissal: db.PendingMemberDismissal
 ) {
