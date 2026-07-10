@@ -45,6 +45,7 @@ import {
   type TlonDiagnosticLogAttributes,
   type TlonSessionDiagnosticReportInput,
   formatTlonTelemetryErrorText,
+  recordCronRunAttribution,
   recordToolCall,
   reportHarnessDebug,
   reportHarnessError,
@@ -1522,8 +1523,34 @@ export default defineChannelPluginEntry({
         publishContextLensEvent('created', background.lens);
       }
     };
-    api.on('agent_turn_prepare', (_event, ctx) => ensureCronContextLens(ctx));
-    api.on('model_call_started', (_event, ctx) => ensureCronContextLens(ctx));
+    // Record cron attribution independently of the context lens so low-level
+    // model/harness/run failures can bypass the inbound-session telemetry gate
+    // and retain their detailed diagnostic fields. The lifecycle hook remains
+    // the authoritative source for the final cron outcome.
+    const onCronAgentHook = (ctx: {
+      sessionKey?: string;
+      trigger?: string;
+      jobId?: string;
+      runId?: string;
+    }) => {
+      if (ctx.trigger === 'cron') {
+        safeTelemetryObserver({
+          logger: api.logger,
+          telemetrySource: 'cron_run_attribution',
+          sessionKey: ctx.sessionKey,
+          runId: ctx.runId,
+          run: () =>
+            recordCronRunAttribution({
+              sessionKey: ctx.sessionKey,
+              runId: ctx.runId,
+              jobId: ctx.jobId,
+            }),
+        });
+      }
+      ensureCronContextLens(ctx);
+    };
+    api.on('agent_turn_prepare', (_event, ctx) => onCronAgentHook(ctx));
+    api.on('model_call_started', (_event, ctx) => onCronAgentHook(ctx));
 
     // Background lenses normally finalize on tool-result idle; agent_end
     // re-arms the window so runs that end with model output (no trailing
