@@ -67,6 +67,16 @@ describe('parseInviteDeepLink', () => {
     });
   });
 
+  test('rejects flag tokens whose ship is not a valid @p', () => {
+    expect(
+      parseInviteDeepLink('https://join.tlon.io/~not-a-ship/team')
+    ).toBeNull();
+    expect(parseInviteDeepLink('https://join.tlon.io/~zod/team')).toEqual({
+      type: 'lure',
+      token: '~zod/team',
+    });
+  });
+
   test('ignores unrelated links and malformed tokens', () => {
     expect(
       parseInviteDeepLink('https://example.com/0vabc', options)

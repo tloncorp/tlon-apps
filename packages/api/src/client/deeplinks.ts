@@ -1,3 +1,5 @@
+import { valid } from '@urbit/aura';
+
 import { AppInvite, getBranchLinkMeta, isLureMeta } from '../client/branch';
 import { createDevLogger } from '../lib/logger';
 import { getConstants } from '../types/constants';
@@ -245,7 +247,10 @@ function getTokenFromPath(pathname: string) {
   }
 
   if (/^~[a-z-]+\/[^/]+(?:\/[^/]+)*$/i.test(path)) {
-    return path;
+    // flag tokens must name a real ship — the fallback derivation would
+    // otherwise route signup into an invite with a garbage inviter
+    const [ship] = path.split('/');
+    return valid('p', ship) ? path : null;
   }
 
   return null;

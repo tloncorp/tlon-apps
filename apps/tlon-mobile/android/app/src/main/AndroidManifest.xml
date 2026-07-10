@@ -68,6 +68,7 @@
         <data android:scheme="https" android:host="join.tlon.io"/>
         <data android:scheme="https" android:host="sa96e-alternate.app.link"/>
         <data android:scheme="https" android:host="serverless-infra.vercel.app"/>
+        <data android:scheme="https" android:host="invite.tlon.io"/>
       </intent-filter>
     </activity>
   </application>

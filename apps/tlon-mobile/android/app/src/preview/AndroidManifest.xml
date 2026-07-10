@@ -28,6 +28,7 @@
                 <data android:scheme="https" android:host="sa96e.test-app.link"/>
                 <data android:scheme="https" android:host="sa96e-alternate.test-app.link"/>
                 <data android:scheme="https" android:host="serverless-infra.vercel.app"/>
+        <data android:scheme="https" android:host="invite.tlon.io"/>
             </intent-filter>
         </activity>
     </application>    

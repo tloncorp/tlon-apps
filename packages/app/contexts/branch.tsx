@@ -279,9 +279,14 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
               });
             }
           } else if (params.wer) {
-            // Link had a wer (deep link) field embedded
+            // Link had a wer (deep link) field embedded — same reset as the
+            // parsed wer path: clearing the lure must also release the dedupe
+            // refs and the persisted invitation
             const deepLinkPath = getPathFromWer(params.wer as string);
             console.debug('detected deep link:', deepLinkPath);
+            handledInviteTokenRef.current = null;
+            lastSetLureIdRef.current = null;
+            storage.invitation.resetValue();
             setState({
               deepLinkPath,
               lure: undefined,
