@@ -468,6 +468,68 @@ export const buildConfigFromChatValues = (
   };
 };
 
+// Run ordered apply steps, committing each section's patch as soon as its write
+// lands. If a step throws, the earlier steps stay committed and the error
+// propagates — so a mid-sequence failure (e.g. the nickname saves but the model
+// write 400s) leaves only the unwritten sections pending, without re-reporting
+// (or needlessly re-writing) work that already landed on the server. onCommit
+// receives just that section's patch so the caller can advance the baseline
+// while preserving the still-unsaved sections' edits. A step's `run` may return
+// a patch to commit the state the server actually accepted (e.g. a merged or
+// normalized value) instead of the static `commit` fallback — important when a
+// later step then fails, since a committed section is not re-synced from the
+// server until every section is applied.
+export async function runApplySteps<T>(
+  steps: { run: () => Promise<Partial<T> | void>; commit: Partial<T> }[],
+  onCommit: (patch: Partial<T>) => void
+): Promise<void> {
+  for (const step of steps) {
+    const saved = await step.run();
+    onCommit(saved ?? step.commit);
+  }
+}
+
+type ChannelRulesMap = TlawnConfig['channelRules'];
+
+// Rebuild the full channelRules map to send under Solaris's replacement
+// semantics. Start from the latest server rules (preserving channels another
+// client changed or added concurrently). Then carry forward any channel the
+// draft monitors that the server lists in groupChannels but not in channelRules
+// (a legacy/inherited groupChannels-only monitored channel) so an unrelated save
+// doesn't drop it — while a channel the server dropped from BOTH channelRules
+// and groupChannels is treated as concurrently removed and NOT resurrected.
+// Finally overlay the channels whose rule the user actually edited (a dirty key
+// mapped to `undefined` in nextRules is a delete). Server keys are normalized
+// (legacy zod/general) so a dirty-key update/delete hits the same entry rather
+// than leaving a stale duplicate.
+export const mergeChannelRules = (
+  serverRules: ChannelRulesMap | undefined,
+  nextRules: ChannelRulesMap,
+  dirtyRuleKeys: string[],
+  serverGroupChannels: string[] = []
+): ChannelRulesMap => {
+  const merged: ChannelRulesMap = {};
+  Object.entries(serverRules ?? {}).forEach(([key, serverRule]) => {
+    merged[normalizeChannelRuleKey(key)] = serverRule;
+  });
+  const serverMonitored = new Set(
+    serverGroupChannels.map(normalizeChannelRuleKey)
+  );
+  Object.entries(nextRules).forEach(([key, rule]) => {
+    if (merged[key] === undefined && serverMonitored.has(key)) {
+      merged[key] = rule;
+    }
+  });
+  dirtyRuleKeys.forEach((key) => {
+    if (nextRules[key] !== undefined) {
+      merged[key] = nextRules[key];
+    } else {
+      delete merged[key];
+    }
+  });
+  return merged;
+};
+
 export const groupChannelEntries = (
   rawGroups: TlawnChannelGroups,
   drafts: Record<string, ChannelRuleDraft>

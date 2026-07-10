@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildChannelModelEntries,
@@ -10,6 +10,7 @@ import {
   groupChannelEntries,
   hasGroupMembership,
   haveChannelModelEntriesChanged,
+  mergeChannelRules,
   normalizeChannelRuleKey,
   normalizeMoonName,
   normalizeProviderConfig,
@@ -18,6 +19,7 @@ import {
   normalizeTlonbotConfig,
   parseChannelRuleKey,
   resolveGroupFull,
+  runApplySteps,
   safeKeySummary,
   toBackendModel,
   toDisplayProviderId,
@@ -518,6 +520,257 @@ describe('channel grouping', () => {
   it('checks group membership by host and group name', () => {
     expect(hasGroupMembership(groups, 'zod', 'my-group')).toBe(true);
     expect(hasGroupMembership(groups, '~zod', 'other')).toBe(false);
+  });
+});
+
+describe('mergeChannelRules', () => {
+  it('keeps every server rule (each is a monitored channel) when nothing is dirty', () => {
+    const serverRules = {
+      'chat/~zod/one': { mode: 'allowlist' as const, allowedShips: ['~bus'] },
+      'chat/~zod/two': { mode: 'open' as const, allowedShips: [] },
+    };
+    const merged = mergeChannelRules(serverRules, {}, []);
+    expect(merged).toEqual(serverRules);
+  });
+
+  it('does not resurrect a channel the server removed unless it is a dirty add', () => {
+    // A channel the user did NOT touch that the server no longer has (another
+    // client removed it) must stay removed — only an explicit add (dirty key)
+    // re-introduces a channel the server lacks.
+    const serverRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+    };
+    const nextRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+      // present in the draft but server-removed and not dirty -> stays dropped
+      'chat/~zod/removed': {
+        mode: 'allowlist' as const,
+        allowedShips: ['~bus'],
+      },
+      // explicitly added this session (dirty) -> included
+      'chat/~zod/added': { mode: 'allowlist' as const, allowedShips: ['~nec'] },
+    };
+    const merged = mergeChannelRules(
+      serverRules,
+      nextRules,
+      ['chat/~zod/added'],
+      // server still monitors /one but NOT /removed -> /removed stays dropped
+      ['chat/~zod/one']
+    );
+    expect(merged).toEqual({
+      'chat/~zod/one': { mode: 'open', allowedShips: [] },
+      'chat/~zod/added': { mode: 'allowlist', allowedShips: ['~nec'] },
+    });
+  });
+
+  it('carries forward a monitored channel the server lists in groupChannels but not channelRules', () => {
+    // legacy/inherited groupChannels-only monitored channel: not in
+    // server.channelRules, not dirty, but still in server.groupChannels — an
+    // unrelated save must not drop it from the monitored set.
+    const serverRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+    };
+    const nextRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+      'chat/~zod/inherited': {
+        mode: 'allowlist' as const,
+        allowedShips: ['~bus'],
+      },
+    };
+    const merged = mergeChannelRules(
+      serverRules,
+      nextRules,
+      [],
+      ['chat/~zod/one', 'chat/~zod/inherited']
+    );
+    expect(merged).toEqual({
+      'chat/~zod/one': { mode: 'open', allowedShips: [] },
+      'chat/~zod/inherited': { mode: 'allowlist', allowedShips: ['~bus'] },
+    });
+  });
+
+  it('does not overwrite a concurrent server value for an untouched channel', () => {
+    // server has a newer value (another client edited it); the draft's stale
+    // copy must not clobber it when the user didn't touch that channel.
+    const serverRules = {
+      'chat/~zod/one': { mode: 'allowlist' as const, allowedShips: ['~new'] },
+    };
+    const nextRules = {
+      'chat/~zod/one': { mode: 'allowlist' as const, allowedShips: ['~stale'] },
+    };
+    const merged = mergeChannelRules(serverRules, nextRules, []);
+    expect(merged['chat/~zod/one'].allowedShips).toEqual(['~new']);
+  });
+
+  it('keeps an explicit block-all rule (allowlist with empty allowedShips)', () => {
+    const serverRules = {
+      'chat/~zod/blocked': { mode: 'allowlist' as const, allowedShips: [] },
+    };
+    const merged = mergeChannelRules(serverRules, {}, []);
+    expect(merged['chat/~zod/blocked']).toEqual({
+      mode: 'allowlist',
+      allowedShips: [],
+    });
+  });
+
+  it('overlays dirty edits and preserves untouched server rules', () => {
+    const serverRules = {
+      'chat/~zod/other': { mode: 'open' as const, allowedShips: [] },
+    };
+    const nextRules = {
+      'chat/~zod/edited': {
+        mode: 'allowlist' as const,
+        allowedShips: ['~bus'],
+      },
+    };
+    const merged = mergeChannelRules(serverRules, nextRules, [
+      'chat/~zod/edited',
+    ]);
+    expect(merged).toEqual({
+      'chat/~zod/other': { mode: 'open', allowedShips: [] },
+      'chat/~zod/edited': { mode: 'allowlist', allowedShips: ['~bus'] },
+    });
+  });
+
+  it('deletes a rule whose dirty key is absent from nextRules (channel reset to inherited)', () => {
+    const serverRules = {
+      'chat/~zod/reset': {
+        mode: 'allowlist' as const,
+        allowedShips: ['~bus'],
+      },
+    };
+    const merged = mergeChannelRules(serverRules, {}, ['chat/~zod/reset']);
+    expect(merged['chat/~zod/reset']).toBeUndefined();
+  });
+
+  it('normalizes legacy un-normalized server keys before overlaying dirty edits', () => {
+    const serverRules = {
+      'zod/general': { mode: 'allowlist' as const, allowedShips: ['~bus'] },
+    };
+    const nextRules = {
+      'chat/~zod/general': {
+        mode: 'open' as const,
+        allowedShips: [],
+      },
+    };
+    const merged = mergeChannelRules(serverRules, nextRules, [
+      'chat/~zod/general',
+    ]);
+    // The normalized key is updated in place — no stale duplicate under the
+    // legacy key.
+    expect(merged).toEqual({
+      'chat/~zod/general': { mode: 'open', allowedShips: [] },
+    });
+  });
+});
+
+describe('runApplySteps', () => {
+  type Snap = { nickname: string; model: string; chat: string };
+
+  it('runs steps in order and emits each section patch after its success', async () => {
+    const order: string[] = [];
+    const patches: Partial<Snap>[] = [];
+    await runApplySteps<Snap>(
+      [
+        {
+          run: async () => {
+            order.push('nickname');
+          },
+          commit: { nickname: 'new' },
+        },
+        {
+          run: async () => {
+            order.push('model');
+          },
+          commit: { model: 'new' },
+        },
+      ],
+      (patch) => patches.push(patch)
+    );
+    expect(order).toEqual(['nickname', 'model']);
+    expect(patches).toEqual([{ nickname: 'new' }, { model: 'new' }]);
+  });
+
+  it('commits the patch returned by run (server-accepted state) over the static fallback', async () => {
+    const patches: Partial<Snap>[] = [];
+    await runApplySteps<Snap>(
+      [
+        // run returns the actually-saved value, overriding the static commit
+        {
+          run: async () => ({ model: 'server-merged' }),
+          commit: { model: 'draft' },
+        },
+        // run returns void -> falls back to the static commit
+        { run: async () => {}, commit: { chat: 'draft-chat' } },
+      ],
+      (patch) => patches.push(patch)
+    );
+    expect(patches).toEqual([
+      { model: 'server-merged' },
+      { chat: 'draft-chat' },
+    ]);
+  });
+
+  it('emits only the patches for steps that succeeded before a failure, then rethrows', async () => {
+    const patches: Partial<Snap>[] = [];
+    const laterRun = vi.fn();
+    await expect(
+      runApplySteps<Snap>(
+        [
+          { run: async () => {}, commit: { nickname: 'new' } },
+          {
+            run: async () => {
+              throw new Error('boom');
+            },
+            commit: { model: 'new' },
+          },
+          { run: laterRun, commit: { chat: 'new' } },
+        ],
+        (patch) => patches.push(patch)
+      )
+    ).rejects.toThrow('boom');
+    // Only the first step committed; the failing step and the one after it did
+    // not, and the later step never ran.
+    expect(patches).toEqual([{ nickname: 'new' }]);
+    expect(laterRun).not.toHaveBeenCalled();
+  });
+
+  it('does nothing for an empty step list', async () => {
+    const onCommit = vi.fn();
+    await runApplySteps<Snap>([], onCommit);
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('preserves unsaved sections when a later step fails (section patches merged into baseline+draft)', async () => {
+    // Mirror the store's commitSection: merge each patch into both baseline and
+    // draft. After a partial failure the unsaved sections must keep their draft
+    // edits (so the user can retry) while the saved section is no longer dirty.
+    let baseline: Snap = { nickname: 'old', model: 'old', chat: 'old' };
+    let draft: Snap = { nickname: 'new-nick', model: 'new-model', chat: 'old' };
+    const commitSection = (patch: Partial<Snap>) => {
+      baseline = { ...baseline, ...patch };
+      draft = { ...draft, ...patch };
+    };
+    await expect(
+      runApplySteps<Snap>(
+        [
+          { run: async () => {}, commit: { nickname: 'new-nick' } },
+          {
+            run: async () => {
+              throw new Error('model save failed');
+            },
+            commit: { model: 'new-model' },
+          },
+        ],
+        commitSection
+      )
+    ).rejects.toThrow('model save failed');
+    // nickname saved -> no longer pending
+    expect(baseline.nickname).toBe('new-nick');
+    expect(draft.nickname).toBe('new-nick');
+    // model failed -> still pending AND still retryable (edit preserved)
+    expect(baseline.model).toBe('old');
+    expect(draft.model).toBe('new-model');
   });
 });
 
