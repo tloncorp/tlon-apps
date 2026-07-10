@@ -86,6 +86,22 @@ export async function getInviteLinkMeta({
   return getMetadataFromInviteToken(token);
 }
 
+// flag-style v1 lures carry the inviter and group in the token itself —
+// the same derivation extractLureMetadata applies to slash lures, used
+// here whenever the provider has no first-party metadata for the token
+function flagTokenFallback(token: string): AppInvite | null {
+  if (!token.includes('/')) {
+    return null;
+  }
+  const [ship] = token.split('/');
+  return {
+    id: token,
+    shouldAutoJoin: true,
+    inviterUserId: ship,
+    invitedGroupId: token,
+  };
+}
+
 export async function getMetadataFromInviteToken(token: string) {
   const env = getConstants();
   logger.log('getting metadata for invite token', {
@@ -109,7 +125,7 @@ export async function getMetadataFromInviteToken(token: string) {
     });
   }
   if (!providerResponse?.ok) {
-    return null;
+    return flagTokenFallback(token);
   }
 
   let responseMeta: ProviderMetadataResponse | null = null;
@@ -125,7 +141,7 @@ export async function getMetadataFromInviteToken(token: string) {
       inviteToken: token,
       errorMessage: e.toString(),
     });
-    return null;
+    return flagTokenFallback(token);
   }
 
   if (
@@ -136,7 +152,7 @@ export async function getMetadataFromInviteToken(token: string) {
     (!responseMeta.fields.invitedGroupId &&
       responseMeta.fields.inviteType !== 'user')
   ) {
-    return null;
+    return flagTokenFallback(token);
   }
 
   const metadata: AppInvite = {

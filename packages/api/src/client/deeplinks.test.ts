@@ -115,6 +115,24 @@ describe('getMetadataFromInviteToken', () => {
     expect(invite?.inviteType).toBe('user');
   });
 
+  test('derives flag-style tokens when the provider has no metadata', async () => {
+    (globalThis as any).window = {
+      tlonEnv: {
+        INVITE_PROVIDER: 'https://provider.test',
+        BRANCH_DOMAIN: 'join.tlon.io',
+        BRANCH_KEY: 'key',
+      },
+    };
+    globalThis.fetch = (async () =>
+      new Response('not found', { status: 404 })) as typeof fetch;
+
+    const invite = await getMetadataFromInviteToken('~zod/gardening');
+    expect(invite?.inviterUserId).toBe('~zod');
+    expect(invite?.invitedGroupId).toBe('~zod/gardening');
+
+    expect(await getMetadataFromInviteToken('0vplain')).toBeNull();
+  });
+
   test('still rejects group invites without a group id', async () => {
     stubProvider({
       inviteType: 'group',

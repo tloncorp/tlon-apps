@@ -175,18 +175,15 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         // priority token this set would otherwise clobber
         return true;
       }
-      const fallback: AppInvite = {
-        id: parsed.token,
-        shouldAutoJoin: !isAuthenticated,
-      };
-      if (parsed.token.includes('/')) {
-        // flag-style v1 lures carry the inviter and group in the token —
-        // same derivation as extractLureMetadata's slash-lure fallback
-        const [ship] = parsed.token.split('/');
-        fallback.inviterUserId = ship;
-        fallback.invitedGroupId = parsed.token;
-      }
-      setInviteLure(invite ?? fallback, { source });
+      // getMetadataFromInviteToken self-derives flag-style tokens, so the
+      // id-only fallback is reachable only for 0v tokens without metadata
+      setInviteLure(
+        invite ?? {
+          id: parsed.token,
+          shouldAutoJoin: !isAuthenticated,
+        },
+        { source }
+      );
       return true;
     },
     [isAuthenticated, setInviteLure]
