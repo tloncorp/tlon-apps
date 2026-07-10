@@ -100,6 +100,11 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
   // drop their results
   const intakeRef = useRef<InviteIntake | null>(null);
   const initialUrlHandledRef = useRef(false);
+  // storage resets are fire-and-forget, so a mount-time restore read can
+  // win the race and return a value a wer link or clearLure just wiped —
+  // once anything clears the invite this session, in-memory state is
+  // authoritative and restores are off
+  const inviteClearedRef = useRef(false);
   // auth is read at apply time: a cold-start fetch can begin while
   // ShipProvider still reports unauthenticated and resolve after login
   // state loads — the closure value would mark the invite pre-signup
@@ -165,6 +170,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         // invite must not be swallowed) and the persisted copy (the storage
         // check must not restore it on the next run)
         intakeRef.current = null;
+        inviteClearedRef.current = true;
         storage.invitation.resetValue();
         setState({
           deepLinkPath,
@@ -315,6 +321,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
             const deepLinkPath = getPathFromWer(params.wer as string);
             console.debug('detected deep link:', deepLinkPath);
             intakeRef.current = null;
+            inviteClearedRef.current = true;
             storage.invitation.resetValue();
             setState({
               deepLinkPath,
@@ -361,6 +368,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       if (
         nextLure &&
         savedId &&
+        !inviteClearedRef.current &&
         (intake == null ||
           (intake.token === savedId && intake.phase === 'fetching'))
       ) {
@@ -389,6 +397,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
   const clearLure = useCallback(() => {
     console.debug('[branch] Clearing lure state');
     intakeRef.current = null;
+    inviteClearedRef.current = true;
     setState((curr) => ({
       ...curr,
       lure: undefined,
