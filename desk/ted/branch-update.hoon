@@ -52,12 +52,11 @@
       "http {<status-code.response-header.u.rep>}"
     "no response"
   =/  =log-event:logs
-    :*  %tell
-        %error
-        'failed to push invite metadata to invite service'
-        token
+    :-  %tell
+    :-  %warn
+    :~  leaf+"failed to push invite metadata to invite service"
+        leaf+"token: {(trip token)}"
         leaf+code
-        ~
     ==
   (poke:io [our.bowl %logs] log-action+!>([%log log-event ~]))
 ::  read deep link metadata
@@ -74,16 +73,17 @@
 ?>  ?=(%finished -.client-response)
 =*  status-code  status-code.response-header.client-response
 ?.  =(200 status-code.response-header.client-response)
+  =/  body=tape
+    ?^  full-file.client-response
+      (trip `@t`q.data.u.full-file.client-response)
+    ""
   =/  =log-event:logs
-    :*  %tell
-        %error
-        'failed to read lure invite branch metadata'
-        token
+    :-  %tell
+    :-  %warn
+    :~  leaf+"failed to read lure invite branch metadata"
+        leaf+"token: {(trip token)}"
         leaf+"http {<status-code>}"
-        ?^  full-file.client-response
-          `@t`q.data.u.full-file.client-response
-        ''
-        ~
+        leaf+body
     ==
   ;<  =bowl:strand  bind:m  get-bowl:io
   ;<  ~  bind:m
@@ -134,16 +134,17 @@
 ?>  ?=(%finished -.client-response)
 =*  status-code  status-code.response-header.client-response
 ?.  =(200 status-code.response-header.client-response)
+  =/  body=tape
+    ?^  full-file.client-response
+      (trip `@t`q.data.u.full-file.client-response)
+    ""
   =/  =log-event:logs
-    :*  %tell
-        %error
-        'failed to update lure invite branch metadata'
-        token
+    :-  %tell
+    :-  %warn
+    :~  leaf+"failed to update lure invite branch metadata"
+        leaf+"token: {(trip token)}"
         leaf+"http {<status-code>}"
-        ?^  full-file.client-response
-          `@t`q.data.u.full-file.client-response
-        ''
-        ~
+        leaf+body
     ==
   ;<  ~  bind:m
     (poke:io [our.bowl %logs] log-action+!>([%log log-event ~]))
