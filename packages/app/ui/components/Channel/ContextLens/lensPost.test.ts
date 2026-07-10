@@ -1,7 +1,7 @@
 import { da, scot } from '@urbit/aura';
 import { describe, expect, it } from 'vitest';
 
-import { parseLensMessageId } from './lensPost';
+import { getOwnContextLensStamp, parseLensMessageId } from './lensPost';
 
 // mirrors the gateway's formatSentAt (src/urbit/send.ts)
 function gatewayMessageId(ship: string, sentAt: number) {
@@ -26,5 +26,38 @@ describe('parseLensMessageId', () => {
     expect(parseLensMessageId('~malmur-halmex/')).toBeNull();
     expect(parseLensMessageId('~malmur-halmex/not-a-number')).toBeNull();
     expect(parseLensMessageId('~malmur-halmex/0')).toBeNull();
+  });
+});
+
+describe('getOwnContextLensStamp', () => {
+  const blob = JSON.stringify([
+    {
+      type: 'tlon-context-lens',
+      version: 1,
+      lensId: 'lens-123',
+      botShip: '~zod',
+    },
+  ]);
+
+  it('returns lens metadata for a post authored by the current ship', () => {
+    expect(
+      getOwnContextLensStamp(
+        { authorId: '~zod', blob } as Parameters<
+          typeof getOwnContextLensStamp
+        >[0],
+        '~zod'
+      )
+    ).toEqual({ lensId: 'lens-123', botShip: '~zod' });
+  });
+
+  it('rejects lens metadata on a post authored by another ship', () => {
+    expect(
+      getOwnContextLensStamp(
+        { authorId: '~nec', blob } as Parameters<
+          typeof getOwnContextLensStamp
+        >[0],
+        '~zod'
+      )
+    ).toBeNull();
   });
 });

@@ -3,7 +3,8 @@ import { Pressable } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { SizableText, XStack } from 'tamagui';
 
-import { getContextLensStamp } from './lensPost';
+import { useCurrentUserId } from '../../../contexts/appDataContext';
+import { getOwnContextLensStamp } from './lensPost';
 import { useContextLensAvailable } from './useContextLensStore';
 
 export function ContextLensBadge({
@@ -14,7 +15,11 @@ export function ContextLensBadge({
   onPress?: (post: db.Post) => void;
 }) {
   const available = useContextLensAvailable();
-  const stamp = useMemo(() => getContextLensStamp(post), [post]);
+  const currentUserId = useCurrentUserId();
+  const stamp = useMemo(
+    () => getOwnContextLensStamp(post, currentUserId),
+    [currentUserId, post]
+  );
 
   if (!available || !stamp) {
     return null;

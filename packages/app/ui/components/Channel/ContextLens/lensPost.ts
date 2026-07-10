@@ -50,3 +50,13 @@ export function getContextLensStamp(post: db.Post): ContextLensStamp | null {
     botShip: entry.botShip ?? post.authorId ?? null,
   };
 }
+
+export function getOwnContextLensStamp(
+  post: db.Post,
+  currentUserId: string
+): ContextLensStamp | null {
+  if (post.authorId !== currentUserId) {
+    return null;
+  }
+  return getContextLensStamp(post);
+}

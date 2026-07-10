@@ -16,7 +16,7 @@ import { useAttachmentContext } from '../../../contexts/attachment';
 import { useChannelContext } from '../../../contexts/channel';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
-import { getContextLensStamp } from '../../Channel/ContextLens/lensPost';
+import { getOwnContextLensStamp } from '../../Channel/ContextLens/lensPost';
 import { useContextLensAvailable } from '../../Channel/ContextLens/useContextLensStore';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
 import {
@@ -49,12 +49,15 @@ export default function MessageActions({
   postActionIds: ChannelAction.Id[];
 }) {
   const contextLensAvailable = useContextLensAvailable();
+  const currentUserId = useCurrentUserId();
   const showViewBotRun = useMemo(
     () =>
       Boolean(
-        contextLensAvailable && onViewBotRun && getContextLensStamp(post)
+        contextLensAvailable &&
+          onViewBotRun &&
+          getOwnContextLensStamp(post, currentUserId)
       ),
-    [contextLensAvailable, onViewBotRun, post]
+    [contextLensAvailable, currentUserId, onViewBotRun, post]
   );
 
   // arbitrary width that looks reasonable given labels
