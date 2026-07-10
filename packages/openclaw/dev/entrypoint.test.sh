@@ -80,7 +80,7 @@ TLON_CONFIG_DM_ALLOWLIST="${TLON_DM_ALLOWLIST:-~ten}"
 TLON_CONFIG_DM_ALLOWLIST_JSON="$(printf '%s' "$TLON_CONFIG_DM_ALLOWLIST" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
 DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON='["web_fetch","web_search","image_search","read","cron","tlon","message"]'
 OPENCLAW_CONFIG_TOOLS_ALLOW_JSON="${OPENCLAW_TEST_TOOLS_ALLOW_JSON:-$DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON}"
-TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES="${TLON_MAX_CONSECUTIVE_BOT_RESPONSES:-2}"
+TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES="${TLON_MAX_CONSECUTIVE_BOT_RESPONSES:-3}"
 
 if ! printf '%s' "$OPENCLAW_CONFIG_TOOLS_ALLOW_JSON" | jq -e 'type == "array" and all(.[]; type == "string")' >/dev/null; then
   echo "FATAL: OPENCLAW_TEST_TOOLS_ALLOW_JSON must be a JSON array of strings"
@@ -244,7 +244,7 @@ fi
 if [ -n "$BRAVE_API_KEY" ]; then
   echo "==> Patching config: adding Brave search API key..."
   jq --arg key "$BRAVE_API_KEY" \
-    '.tools.web.search = {"provider": "brave", "apiKey": $key}
+    '.tools.web.search = {"enabled": true, "provider": "brave", "apiKey": $key}
     | .plugins.allow += ["brave"]
     | .plugins.entries.brave = {"enabled": true, "config": {"webSearch": {"apiKey": $key}}}' \
     "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \

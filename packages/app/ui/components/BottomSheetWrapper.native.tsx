@@ -159,6 +159,14 @@ export const BottomSheetWrapper = forwardRef<
      * sheet transitions.
      */
     const isProgrammaticChange = useRef(false);
+    /**
+     * Whether `handleSheetChanges` already observed the closed state (index -1)
+     * for the current dismissal. `handleModalDismiss` is only a fallback for the
+     * case where gorhom skips `onChange(-1)`; if that callback already ran, it
+     * made the open/skip decision and `handleModalDismiss` must not report the
+     * close a second time.
+     */
+    const reachedClosedIndex = useRef(false);
     // Default-path callers (unmountOnClose=false) start mounted=true regardless
     // of `open`, mirroring today's render-immediately behavior. Opt-in callers
     // start mounted === open.
@@ -348,6 +356,7 @@ export const BottomSheetWrapper = forwardRef<
       (index: number) => {
         // When sheet is closed (index -1), handle cleanup and callbacks
         if (index === -1) {
+          reachedClosedIndex.current = true;
           // Only notify parent if dismissOnSnapToBottom is true and it's user-initiated
           if (dismissOnSnapToBottom && !isProgrammaticChange.current) {
             onOpenChange(false);
@@ -355,6 +364,7 @@ export const BottomSheetWrapper = forwardRef<
           // Reset flag when reaching closed state
           isProgrammaticChange.current = false;
         } else if (index >= 0) {
+          reachedClosedIndex.current = false;
           // Reset flag when sheet reaches any open snap point
           // This ensures the flag only protects the specific operation that set it
           isProgrammaticChange.current = false;
@@ -369,6 +379,21 @@ export const BottomSheetWrapper = forwardRef<
     // on every modal dismissal path; if the parent still thinks the sheet is
     // open at that point, sync it so the next open isn't a no-op.
     const handleModalDismiss = useCallback(() => {
+      // If handleSheetChanges already saw index -1 for this dismissal, it has
+      // already decided whether to report the close (respecting the
+      // programmatic-change flag). Reporting again here would double-fire
+      // onOpenChange(false) for programmatic dismissals and, since the flag was
+      // consumed by handleSheetChanges, this fallback can no longer tell such a
+      // dismissal apart — spuriously closing the parent (e.g. clobbering a
+      // nested-sheet handoff).
+      if (reachedClosedIndex.current) {
+        reachedClosedIndex.current = false;
+        return;
+      }
+      // Fallback for when gorhom skips onChange(-1) (dismiss mid-open-animation).
+      // A programmatic close sets `open` false first, so it no-ops here; only a
+      // user dismiss reaches this with the parent still open, and we sync it so
+      // the sheet can reopen.
       if (open) {
         onOpenChange(false);
       }

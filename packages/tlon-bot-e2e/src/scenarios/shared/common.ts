@@ -749,7 +749,7 @@ function knownBotLoopLimit(ctx: RuntimeContext): number {
   const raw =
     ctx.testMetadata?.tlonMaxConsecutiveBotResponses ??
     process.env.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ??
-    '2';
+    '3';
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(

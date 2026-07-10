@@ -19,17 +19,17 @@
 ::  |l: logging core
 ::
 ++  l
-  |_  [our=ship flow=(unit @t) details=(list (pair @t json))]
+  |_  [=bowl:gall flow=(unit @t) details=(list (pair @t json))]
   ++  fail
-    |=  [desc=term trace=tang]
+    |=  [vol=volume:logs =echo:logs =tang =log-data:logs]
     =/  =card
-      (~(fail logs our /logs) desc trace deez)
+      (~(fail logs bowl /logs) vol echo tang (weld log-data deez))
     (link card)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
     =/  =card
-      (~(tell logs our /logs) vol echo (weld log-data deez))
+      (~(tell logs bowl /logs) vol echo (weld log-data deez))
     (link card)
   ::  +deez: log message details
   ::
@@ -55,7 +55,7 @@
 |_  =bowl:gall
 +*  this  .
     def   ~(. (default-agent this %.n) bowl)
-    log   ~(. l [our.bowl ~ ~])
+    log   ~(. l [bowl ~ ~])
 ::
 ++  on-init
   :_  this
@@ -172,13 +172,13 @@
             'lure-joiner'^s+joiner
         ==
       `this
-    %-  %^  tell:log  %crit
-        u.p.sign
-      :~  'event'^s+'DM Invite Fail'
-          'flow'^s+'lure'
-          'lure-id'^s+token
-          'lure-joiner'^s+joiner
-      ==
+    %-  %:  fail:log  %error  ~['DM invite failed']
+          u.p.sign
+        :~  'event'^s+'DM Invite Fail'
+            'flow'^s+'lure'
+            'lure-id'^s+token
+            'lure-joiner'^s+joiner
+        ==  ==
     `this
   ::
       %watch-ack  `this
@@ -194,7 +194,7 @@
       :~  'lure-id'^s+token.bite
           'lure-joiner'^s+(scot %p joiner.bite)
       ==
-    =+  log=~(. l our.bowl `'lure' details)
+    =+  log=~(. l bowl `'lure' details)
     =>
       |%
       ++  tell
@@ -207,11 +207,11 @@
     =^  caz=(list card)  this
       =*  dm-event  'DM Invite Fail'
       ?~  inviter=(~(get by fields.metadata.bite) %'inviterUserId')
-        %-  %^  tell  %crit  dm-event
+        %-  %^  tell  %error  dm-event
             ~['inviter field missing in lure bite']
         `this
       ?.  =((slav %p u.inviter) our.bowl)
-        %-  %^  tell  %crit  dm-event
+        %-  %^  tell  %error  dm-event
             ~[leaf+"inviter {<u.inviter>} is foreign"]
         `this
       =/  wir=^wire  /dm/(scot %p joiner.bite)/[token.bite]
@@ -268,8 +268,8 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:log term tang)
-  `this
+  :_  this
+  [(~(on-fail logs bowl /logs) term tang)]~
 ::
 ++  on-leave
   |=  =path
