@@ -246,9 +246,10 @@ function getTokenFromPath(pathname: string) {
     return path;
   }
 
-  if (/^~[a-z-]+\/[^/]+(?:\/[^/]+)*$/i.test(path)) {
-    // flag tokens must name a real ship — the fallback derivation would
-    // otherwise route signup into an invite with a garbage inviter
+  // group flags are exactly (pair ship term): a valid @p, one slash, and a
+  // term-shaped name — anything looser would flow into the fallback
+  // derivation as a garbage invite
+  if (/^~[a-z-]+\/[a-z][a-z0-9-]*$/.test(path)) {
     const [ship] = path.split('/');
     return valid('p', ship) ? path : null;
   }

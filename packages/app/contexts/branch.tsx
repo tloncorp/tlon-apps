@@ -90,8 +90,21 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     useState(INITIAL_STATE);
   const { isAuthenticated } = useShip();
   const handledInviteTokenRef = useRef<string | null>(null);
-  const lastSetLureIdRef = useRef<string | null>(null);
+  const lastSetLureIdRef = useRef<{
+    id: string;
+    hasMetadata: boolean;
+  } | null>(null);
   const initialUrlHandledRef = useRef(false);
+  // auth is read at apply time: a cold-start fetch can begin while
+  // ShipProvider still reports unauthenticated and resolve after login
+  // state loads — the closure value would mark the invite pre-signup
+  const isAuthenticatedRef = useRef(isAuthenticated);
+  useEffect(() => {
+    isAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated]);
+
+  const inviteHasMetadata = (invite: AppInvite) =>
+    Boolean(invite.inviterUserId || invite.invitedGroupId || invite.inviteType);
 
   const { goToChannel } = useGroupNavigation();
 
@@ -104,12 +117,15 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         lure: {
           ...invite,
           // if not already authenticated, we should run Lure's invite auto-join capability after signing in
-          shouldAutoJoin: !isAuthenticated,
+          shouldAutoJoin: !isAuthenticatedRef.current,
         },
         priorityToken: options.priorityToken,
       };
       logger.log('setting deeplink lure', nextLure);
-      lastSetLureIdRef.current = invite.id;
+      lastSetLureIdRef.current = {
+        id: invite.id,
+        hasMetadata: inviteHasMetadata(invite),
+      };
       // claim the handled token too, so an in-flight url fetch for an older
       // invite drops its result instead of overwriting this one (e.g. a
       // pasted invite racing a slow link fetch)
@@ -127,7 +143,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         });
       });
     },
-    [isAuthenticated]
+    []
   );
 
   const handleInviteUrl = useCallback(
@@ -169,10 +185,11 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         // a newer invite link superseded this one while we were fetching
         return true;
       }
-      if (lastSetLureIdRef.current === parsed.token) {
-        // a lure for this token landed while we were fetching — typically the
-        // Branch callback's payload, which is at least as rich and carries a
-        // priority token this set would otherwise clobber
+      const applied = lastSetLureIdRef.current;
+      if (applied?.id === parsed.token && (applied.hasMetadata || !invite)) {
+        // a lure for this token already applied while we were fetching — keep
+        // it unless ours is the first real metadata (refreshing an id-only
+        // copy persisted during a provider outage)
         return true;
       }
       // getMetadataFromInviteToken self-derives flag-style tokens, so the
@@ -330,12 +347,19 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       // a failed fetch from clobbering it with an id-only fallback
       if (
         nextLure &&
+        savedId &&
         lastSetLureIdRef.current == null &&
         (handledInviteTokenRef.current == null ||
           handledInviteTokenRef.current === savedId)
       ) {
         console.debug('[branch] Detected saved lure:', nextLure.lure);
-        lastSetLureIdRef.current = savedId;
+        // record what the cache actually holds: an id-only copy persisted
+        // during a provider outage must not block the in-flight fetch from
+        // applying real metadata
+        lastSetLureIdRef.current = {
+          id: savedId,
+          hasMetadata: nextLure.lure ? inviteHasMetadata(nextLure.lure) : false,
+        };
         setState({
           ...nextLure,
           deepLinkPath: undefined,

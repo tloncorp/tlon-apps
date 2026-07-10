@@ -25,7 +25,14 @@ describe('parseInviteDeepLink', () => {
     });
   });
 
-  test('parses legacy multi-segment invite tokens', () => {
+  test('rejects paths that are not exact ship/term flags', () => {
+    expect(parseInviteDeepLink('https://join.tlon.io/~zod/foo/bar')).toBeNull();
+    expect(
+      parseInviteDeepLink('https://join.tlon.io/~zod/Bad%20Name')
+    ).toBeNull();
+  });
+
+  test('parses legacy flag invite tokens', () => {
     expect(
       parseInviteDeepLink('https://join.tlon.io/~zod/team', options)
     ).toEqual({
