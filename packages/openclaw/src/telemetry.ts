@@ -46,6 +46,23 @@ type HarnessDebugSnapshotRecord = {
   lastContextEngineMessage: string | null;
 };
 
+type CronRunAttributionRecord = {
+  // Run ids observed to belong to a cron run in this session, mapped to their
+  // cron job id (null when the gateway did not expose one). Matching by run id
+  // prevents a later interactive run in the same main session from inheriting
+  // cron attribution.
+  runIds: Map<string, string | null>;
+  // The cron hook can fire before a run id is assigned. Preserve that signal
+  // so a run-id-less failure in the same session can still be attributed.
+  sawCronWithoutRunId: boolean;
+  // Job id from this record's latest run-id-less cron signal. Reset even when
+  // the signal omits a job id so an earlier run's id cannot bleed forward.
+  runlessJobId: string | null;
+  updatedAt: number;
+};
+
+type CronRunAttribution = { cronJobId: string | null };
+
 export type TlonHarnessName = 'openclaw' | 'hermes';
 type ReplyDispatchKind = 'tool' | 'block' | 'final';
 type ReplyDispatchCounts = Partial<Record<ReplyDispatchKind, number>>;
@@ -196,6 +213,15 @@ export type TlonGatewayConnectedEvent = {
   pendingApprovalCount: number;
   autoDiscoverChannels: boolean;
   ownerListenEnabled: boolean;
+  // Boot-time web_search status (see monitor/web-search-status.ts). Rides on
+  // this event so fleet monitors catch capability loss at provision time —
+  // a failed provider-plugin install disables web_search silently otherwise.
+  webSearchEnabled: boolean;
+  webSearchConfiguredProvider: string | null;
+  webSearchProviders: string[];
+  webSearchProviderCount: number;
+  webSearchAvailable: boolean;
+  webSearchProbeError: string | null;
 };
 
 export type TlonReplyTelemetryResult = {
@@ -332,6 +358,72 @@ export type TlonSessionTelemetryReport =
   | { kind: 'watchdog'; event: TlonSessionWatchdogEvent }
   | { kind: 'recovery'; event: TlonSessionRecoveryEvent };
 
+/**
+ * Cron observability. Fed by the gateway-global `cron_changed` hook (see
+ * src/cron-telemetry.ts), so events carry schedule metadata only — never the
+ * job's prompt text (`payload.text`), an on-exit schedule's watched command/cwd,
+ * or the run's output (`summary`).
+ */
+export type TlonCronScheduleFields = {
+  scheduleKind: string | null;
+  scheduleExpr: string | null;
+  scheduleTz: string | null;
+  scheduleEveryMs: number | null;
+  scheduleAt: string | null;
+};
+
+export type TlonCronCountFields = {
+  activeCronJobCount: number | null;
+  totalCronJobCount: number | null;
+};
+
+export type TlonCronJobChangedEvent = TlonCronScheduleFields &
+  TlonCronCountFields & {
+    accountId: string | null;
+    ownerShip: string | null;
+    botShip: string;
+    cronAction: 'added' | 'updated' | 'removed';
+    jobId: string;
+    jobName: string | null;
+    agentId: string | null;
+    enabled: boolean | null;
+    wakeMode: string | null;
+    payloadKind: string | null;
+    sessionTargetKind: string | null;
+  };
+
+export type TlonCronRunEvent = TlonCronScheduleFields & {
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  jobId: string;
+  jobName: string | null;
+  agentId: string | null;
+  runId: string | null;
+  status: string;
+  cronError: string | null;
+  durationMs: number | null;
+  runAtMs: number | null;
+  nextRunAtMs: number | null;
+  delivered: boolean | null;
+  deliveryStatus: string | null;
+  deliveryError: string | null;
+  model: string | null;
+  provider: string | null;
+  payloadKind: string | null;
+  sessionTargetKind: string | null;
+};
+
+export type TlonCronSnapshotEvent = TlonCronCountFields & {
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  scheduleKindCronCount: number | null;
+  scheduleKindEveryCount: number | null;
+  scheduleKindAtCount: number | null;
+  scheduleKindOnExitCount: number | null;
+};
+
 export type TlonHarnessErrorScope =
   | 'harness'
   | 'model'
@@ -365,6 +457,11 @@ export type TlonHarnessErrorEvent = {
   failureKind: string | null;
   durationMs: number | null;
   errorText: string | null;
+  // Set only for model/harness/run failures positively correlated with a cron
+  // run. These fields complement the authoritative `TlonBot Cron Run` event
+  // with lower-level harness diagnostics.
+  isCron: boolean;
+  cronJobId: string | null;
 };
 
 export type TlonHarnessDebugEvent = TlonHarnessDebugSnapshotFields & {
@@ -431,7 +528,9 @@ export type TlonPluginErrorSource =
   | 'contacts_subscription'
   | 'groups_ui_subscription'
   | 'foreigns_subscription'
-  | 'settings_refresh';
+  | 'steward_subscription'
+  | 'settings_refresh'
+  | 'sse_stream';
 
 export type TlonPluginErrorEvent = {
   harness: TlonHarnessName;
@@ -442,6 +541,12 @@ export type TlonPluginErrorEvent = {
   errorKind: string | null;
   errorText: string;
   attempt: number | null;
+  /**
+   * For recoverable subscription/stream failures: how long inbound has been
+   * (or was) down, in ms. Lets PostHog aggregate outage duration rather than
+   * just failure counts.
+   */
+  downMs: number | null;
 };
 
 export type TlonTelemetryErrorEvent = {
@@ -471,6 +576,9 @@ export interface TlonTelemetryClient {
   captureHarnessDebug(event: TlonHarnessDebugEvent): void;
   capturePluginError(event: TlonPluginErrorEvent): void;
   captureTelemetryError(event: TlonTelemetryErrorEvent): void;
+  captureCronJobChanged(event: TlonCronJobChangedEvent): void;
+  captureCronRun(event: TlonCronRunEvent): void;
+  captureCronSnapshot(event: TlonCronSnapshotEvent): void;
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
       ownerShip?: string | null;
@@ -492,6 +600,9 @@ const TLON_PLUGIN_ERROR_EVENT = 'TlonBot Plugin Error';
 const TLON_TELEMETRY_ERROR_EVENT = 'TlonBot Telemetry Error';
 const TLON_HEARTBEAT_NUDGE_EVENT = 'TlonBot Heartbeat Nudge Sent';
 const TLON_HEARTBEAT_REENGAGED_EVENT = 'TlonBot Heartbeat Nudge Reengaged';
+const TLON_CRON_JOB_CHANGED_EVENT = 'TlonBot Cron Job Changed';
+const TLON_CRON_RUN_EVENT = 'TlonBot Cron Run';
+const TLON_CRON_SNAPSHOT_EVENT = 'TlonBot Cron Snapshot';
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
 const TOOL_TRACE_TTL_MS = 60 * 60 * 1000;
 const MAX_TOOL_CALLS_PER_SESSION = 200;
@@ -501,6 +612,17 @@ const SESSION_CONTEXT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_SESSION_CONTEXTS = 5_000;
 const HARNESS_DEBUG_SNAPSHOT_TTL_MS = 60 * 60 * 1000;
 const MAX_HARNESS_DEBUG_SNAPSHOTS = 5_000;
+const CRON_RUN_ATTRIBUTION_TTL_MS = 60 * 60 * 1000;
+const MAX_CRON_RUN_ATTRIBUTION_SESSIONS = 5_000;
+const MAX_CRON_RUN_IDS_PER_SESSION = 50;
+// Restrict cron attribution to errors representing a failed gateway/model run.
+// Tool/runtime/plugin diagnostics remain in their existing streams and should
+// not independently count as a failed cron run.
+const CRON_GATEWAY_ERROR_SCOPES = new Set<TlonHarnessErrorScope>([
+  'model',
+  'harness',
+  'run',
+]);
 const toolCallsBySession = sharedMap<string, ToolSessionTrace>(
   'telemetry.toolCallsBySession'
 );
@@ -512,6 +634,10 @@ const harnessDebugSnapshotsBySessionKey = sharedMap<
   string,
   HarnessDebugSnapshotRecord
 >('telemetry.harnessDebugSnapshotsBySessionKey');
+const cronRunAttributionBySessionKey = sharedMap<
+  string,
+  CronRunAttributionRecord
+>('telemetry.cronRunAttributionBySessionKey');
 
 function cleanupToolCalls(now = Date.now()): void {
   for (const [sessionKey, trace] of toolCallsBySession) {
@@ -645,6 +771,99 @@ function cleanupSessionContexts(now = Date.now()): void {
     }
     sessionContextsBySessionKey.delete(oldestKey);
   }
+}
+
+function cleanupCronRunAttribution(now = Date.now()): void {
+  for (const [sessionKey, record] of cronRunAttributionBySessionKey) {
+    if (now - record.updatedAt > CRON_RUN_ATTRIBUTION_TTL_MS) {
+      cronRunAttributionBySessionKey.delete(sessionKey);
+    }
+  }
+
+  while (
+    cronRunAttributionBySessionKey.size > MAX_CRON_RUN_ATTRIBUTION_SESSIONS
+  ) {
+    const oldestKey = [...cronRunAttributionBySessionKey.entries()].sort(
+      (a, b) => a[1].updatedAt - b[1].updatedAt
+    )[0]?.[0];
+    if (!oldestKey) {
+      break;
+    }
+    cronRunAttributionBySessionKey.delete(oldestKey);
+  }
+}
+
+/**
+ * Remember that an agent run was triggered by cron so lower-level diagnostic
+ * events can be correlated with LB's authoritative cron lifecycle telemetry.
+ * Safe to call from both agent hooks for the same run.
+ */
+export function recordCronRunAttribution(params: {
+  sessionKey?: string | null;
+  runId?: string | null;
+  jobId?: string | null;
+}): void {
+  const sessionKey = optionalString(params.sessionKey);
+  if (!sessionKey) {
+    return;
+  }
+
+  const now = Date.now();
+  cleanupCronRunAttribution(now);
+
+  const record = cronRunAttributionBySessionKey.get(sessionKey) ?? {
+    runIds: new Map<string, string | null>(),
+    sawCronWithoutRunId: false,
+    runlessJobId: null,
+    updatedAt: now,
+  };
+  record.updatedAt = now;
+
+  const jobId = optionalString(params.jobId);
+  const runId = optionalString(params.runId);
+  if (runId) {
+    record.runIds.set(runId, jobId ?? record.runIds.get(runId) ?? null);
+    while (record.runIds.size > MAX_CRON_RUN_IDS_PER_SESSION) {
+      const oldestRunId = record.runIds.keys().next().value;
+      if (oldestRunId === undefined) {
+        break;
+      }
+      record.runIds.delete(oldestRunId);
+    }
+  } else {
+    record.sawCronWithoutRunId = true;
+    record.runlessJobId = jobId;
+  }
+
+  cronRunAttributionBySessionKey.set(sessionKey, record);
+}
+
+function lookupCronRunAttribution(
+  sessionKey: string | null,
+  runId: string | null
+): CronRunAttribution | null {
+  const normalizedSessionKey = optionalString(sessionKey);
+  if (!normalizedSessionKey) {
+    return null;
+  }
+
+  cleanupCronRunAttribution();
+  const record = cronRunAttributionBySessionKey.get(normalizedSessionKey);
+  if (!record) {
+    return null;
+  }
+  // Reads deliberately do not refresh the TTL. The attribution window is
+  // measured from the last cron hook, not from unrelated session activity.
+
+  if (runId) {
+    return record.runIds.has(runId)
+      ? { cronJobId: record.runIds.get(runId) ?? null }
+      : null;
+  }
+
+  // Only match a run-id-less failure to a run-id-less cron signal. If a later
+  // diagnostic has a run id, exact matching above is required.
+  return record.sawCronWithoutRunId ? { cronJobId: record.runlessJobId } : null;
 }
 
 function cleanupHarnessDebugSnapshots(now = Date.now()): void {
@@ -1053,6 +1272,12 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         pendingApprovalCount: event.pendingApprovalCount,
         autoDiscoverChannels: event.autoDiscoverChannels,
         ownerListenEnabled: event.ownerListenEnabled,
+        webSearchEnabled: event.webSearchEnabled,
+        webSearchConfiguredProvider: event.webSearchConfiguredProvider,
+        webSearchProviders: event.webSearchProviders,
+        webSearchProviderCount: event.webSearchProviderCount,
+        webSearchAvailable: event.webSearchAvailable,
+        webSearchProbeError: event.webSearchProbeError,
       }),
     });
   }
@@ -1460,6 +1685,125 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
+  private cronCountPersonProps(
+    event: TlonCronCountFields
+  ): Record<string, unknown> {
+    if (event.activeCronJobCount == null && event.totalCronJobCount == null) {
+      return {};
+    }
+    return {
+      $set: {
+        tlonCronActiveJobCount: event.activeCronJobCount,
+        tlonCronTotalJobCount: event.totalCronJobCount,
+        tlonCronCountsUpdatedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  captureCronJobChanged(event: TlonCronJobChangedEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_CRON_JOB_CHANGED_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          agentId: event.agentId,
+          cronAction: event.cronAction,
+          jobId: event.jobId,
+          jobName: event.jobName,
+          enabled: event.enabled,
+          wakeMode: event.wakeMode,
+          payloadKind: event.payloadKind,
+          sessionTargetKind: event.sessionTargetKind,
+          scheduleKind: event.scheduleKind,
+          scheduleExpr: event.scheduleExpr,
+          scheduleTz: event.scheduleTz,
+          scheduleEveryMs: event.scheduleEveryMs,
+          scheduleAt: event.scheduleAt,
+          activeCronJobCount: event.activeCronJobCount,
+          totalCronJobCount: event.totalCronJobCount,
+          ...this.cronCountPersonProps(event),
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureCronRun(event: TlonCronRunEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_CRON_RUN_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          agentId: event.agentId,
+          jobId: event.jobId,
+          jobName: event.jobName,
+          runId: event.runId,
+          status: event.status,
+          cronError: event.cronError,
+          durationMs: event.durationMs,
+          runAtMs: event.runAtMs,
+          nextRunAtMs: event.nextRunAtMs,
+          delivered: event.delivered,
+          deliveryStatus: event.deliveryStatus,
+          deliveryError: event.deliveryError,
+          model: event.model,
+          provider: event.provider,
+          payloadKind: event.payloadKind,
+          sessionTargetKind: event.sessionTargetKind,
+          scheduleKind: event.scheduleKind,
+          scheduleExpr: event.scheduleExpr,
+          scheduleTz: event.scheduleTz,
+          scheduleEveryMs: event.scheduleEveryMs,
+          scheduleAt: event.scheduleAt,
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureCronSnapshot(event: TlonCronSnapshotEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_CRON_SNAPSHOT_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          activeCronJobCount: event.activeCronJobCount,
+          totalCronJobCount: event.totalCronJobCount,
+          scheduleKindCronCount: event.scheduleKindCronCount,
+          scheduleKindEveryCount: event.scheduleKindEveryCount,
+          scheduleKindAtCount: event.scheduleKindAtCount,
+          scheduleKindOnExitCount: event.scheduleKindOnExitCount,
+          ...this.cronCountPersonProps(event),
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
       ownerShip?: string | null;
@@ -1515,6 +1859,8 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           failureKind: event.failureKind,
           durationMs: event.durationMs,
           errorText: event.errorText,
+          isCron: event.isCron,
+          cronJobId: event.cronJobId,
         },
         { omitNullish: true }
       ),
@@ -1627,6 +1973,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           errorKind: event.errorKind,
           errorText: event.errorText,
           attempt: event.attempt,
+          downMs: event.downMs,
         },
         { omitNullish: true }
       ),
@@ -1799,6 +2146,26 @@ export type ErrorTelemetryReporter = (
 ) => void;
 export type DebugTelemetryReporter = (event: TlonHarnessDebugEvent) => void;
 
+export type TlonCronJobChangedReportInput = Omit<
+  TlonCronJobChangedEvent,
+  'accountId' | 'ownerShip' | 'botShip'
+>;
+export type TlonCronRunReportInput = Omit<
+  TlonCronRunEvent,
+  'accountId' | 'ownerShip' | 'botShip'
+>;
+export type TlonCronSnapshotReportInput = Omit<
+  TlonCronSnapshotEvent,
+  'accountId' | 'ownerShip' | 'botShip'
+>;
+
+export type TlonCronTelemetryReport =
+  | { kind: 'jobChanged'; event: TlonCronJobChangedReportInput }
+  | { kind: 'run'; event: TlonCronRunReportInput }
+  | { kind: 'snapshot'; event: TlonCronSnapshotReportInput };
+
+export type CronTelemetryReporter = (report: TlonCronTelemetryReport) => void;
+
 export type TlonSessionLifecycleReportInput = {
   lifecycleEvent: 'session_start' | 'session_end';
   sessionKey?: string | null;
@@ -1937,6 +2304,7 @@ export type TlonPluginErrorReportInput = {
   errorKind?: string | null;
   errorText: string;
   attempt?: number | null;
+  downMs?: number | null;
 };
 
 export type TlonTelemetryErrorReportInput = {
@@ -1965,6 +2333,9 @@ const errorTelemetryReporterSlot = sharedSlot<ErrorTelemetryReporter>(
 const debugTelemetryReporterSlot = sharedSlot<DebugTelemetryReporter>(
   'telemetry.debugTelemetryReporter'
 );
+const cronTelemetryReporterSlot = sharedSlot<CronTelemetryReporter>(
+  'telemetry.cronTelemetryReporter'
+);
 
 export function setOutboundRouteReporter(
   reporter: OutboundRouteReporter | null
@@ -1992,6 +2363,26 @@ export function setDebugTelemetryReporter(
   reporter: DebugTelemetryReporter | null
 ): void {
   debugTelemetryReporterSlot.set(reporter);
+}
+
+export function setCronTelemetryReporter(
+  reporter: CronTelemetryReporter | null
+): void {
+  cronTelemetryReporterSlot.set(reporter);
+}
+
+export function reportCronJobChanged(
+  event: TlonCronJobChangedReportInput
+): void {
+  cronTelemetryReporterSlot.get()?.({ kind: 'jobChanged', event });
+}
+
+export function reportCronRun(event: TlonCronRunReportInput): void {
+  cronTelemetryReporterSlot.get()?.({ kind: 'run', event });
+}
+
+export function reportCronSnapshot(event: TlonCronSnapshotReportInput): void {
+  cronTelemetryReporterSlot.get()?.({ kind: 'snapshot', event });
 }
 
 function optionalString(value: string | null | undefined): string | null {
@@ -2098,7 +2489,21 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
         agentId: event.agentId,
       })
     : null;
-  if (!context && event.sessionKey) {
+
+  const sessionKey = context?.sessionKey ?? optionalString(event.sessionKey);
+  // Correlate using the diagnostic's own run id. The emitted run id may fall
+  // back to a remembered interactive run, which must not influence whether a
+  // run-id-less cron diagnostic matches a run-id-less cron signal.
+  const diagnosticRunId = optionalString(event.runId);
+  const runId = diagnosticRunId ?? context?.runId ?? null;
+  const cronAttribution = CRON_GATEWAY_ERROR_SCOPES.has(event.errorScope)
+    ? lookupCronRunAttribution(sessionKey, diagnosticRunId)
+    : null;
+
+  // Cron runs have no inbound Tlon reply, so they normally lack the remembered
+  // session context required for harness telemetry. A positively correlated
+  // cron error bypasses that gate so its full low-level diagnostic is emitted.
+  if (!context && event.sessionKey && !cronAttribution) {
     return;
   }
 
@@ -2108,9 +2513,9 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
       harness: 'openclaw',
       harnessEventType: event.harnessEventType,
       errorScope: event.errorScope,
-      sessionKey: context?.sessionKey ?? null,
+      sessionKey,
       sessionId: context?.sessionId ?? optionalString(event.sessionId),
-      runId: optionalString(event.runId) ?? context?.runId ?? null,
+      runId,
       accountId: context?.accountId ?? optionalString(event.accountId),
       agentId: optionalString(event.agentId) ?? context?.agentId ?? null,
       ownerShip: context?.ownerShip ?? optionalString(event.ownerShip),
@@ -2126,6 +2531,8 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
       failureKind: optionalString(event.failureKind),
       durationMs: optionalNumber(event.durationMs),
       errorText: optionalErrorText(event.errorText),
+      isCron: cronAttribution != null,
+      cronJobId: cronAttribution?.cronJobId ?? null,
     },
   });
 }
@@ -2353,6 +2760,7 @@ export const _testing = {
   clearToolCalls: () => toolCallsBySession.clear(),
   clearSessionContexts: () => sessionContextsBySessionKey.clear(),
   clearHarnessDebugSnapshots: () => harnessDebugSnapshotsBySessionKey.clear(),
+  clearCronRunAttribution: () => cronRunAttributionBySessionKey.clear(),
   getReplyTraceTtlMs: () => REPLY_TRACE_TTL_MS,
   getToolTraceTtlMs: () => TOOL_TRACE_TTL_MS,
 };

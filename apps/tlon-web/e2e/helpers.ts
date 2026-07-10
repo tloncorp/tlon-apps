@@ -852,7 +852,22 @@ export async function createChannel(
   await fillFormField(page, 'ChannelTitleInput', title);
 
   if (type === 'notebook') {
-    await page.getByText('Notebook', { exact: true }).click();
+    // When the %notes desk is installed, the create-channel sheet relabels the
+    // legacy diary type to 'Bulletin' and gives the 'Notebook' label to the new
+    // native %notes type. These tests exercise the diary type, so select
+    // 'Bulletin' when it's present (notes desk installed) and fall back to
+    // 'Notebook' otherwise. The label depends on an async desk probe, so wait
+    // for 'Bulletin' to settle before falling back.
+    const bulletin = page.getByText('Bulletin', { exact: true });
+    const bulletinShown = await bulletin
+      .waitFor({ state: 'visible', timeout: 10000 })
+      .then(() => true)
+      .catch(() => false);
+    if (bulletinShown) {
+      await bulletin.click();
+    } else {
+      await page.getByText('Notebook', { exact: true }).click();
+    }
   } else if (type === 'gallery') {
     await page.getByText('Gallery', { exact: true }).click();
   }

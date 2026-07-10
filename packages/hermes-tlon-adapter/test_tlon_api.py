@@ -143,6 +143,47 @@ class TlonConfigTests(unittest.TestCase):
         self.assertEqual(cfg.known_bot_users, frozenset({"~bot", "~other-bot"}))
         self.assertEqual(cfg.max_consecutive_bot_responses, 3)
 
+    def test_loop_cap_defaults_to_three_and_allows_zero(self):
+        required = {
+            "node_url": "https://zod.tlon.network",
+            "node_id": "~zod",
+            "access_code": "code",
+        }
+
+        default_cfg = tlon_api.TlonConfig.from_env(extra=required, env={})
+        env_zero = tlon_api.TlonConfig.from_env(
+            extra=required,
+            env={"TLON_MAX_CONSECUTIVE_BOT_RESPONSES": "0"},
+        )
+        extra_zero = tlon_api.TlonConfig.from_env(
+            extra={**required, "max_consecutive_bot_responses": 0},
+            env={},
+        )
+
+        self.assertEqual(default_cfg.max_consecutive_bot_responses, 3)
+        self.assertEqual(env_zero.max_consecutive_bot_responses, 0)
+        self.assertEqual(extra_zero.max_consecutive_bot_responses, 0)
+
+    def test_loop_cap_rejects_fractional_values(self):
+        required = {
+            "node_url": "https://zod.tlon.network",
+            "node_id": "~zod",
+            "access_code": "code",
+        }
+
+        # "0.5" must not truncate to the 0 = unlimited sentinel.
+        env_fraction = tlon_api.TlonConfig.from_env(
+            extra=required,
+            env={"TLON_MAX_CONSECUTIVE_BOT_RESPONSES": "0.5"},
+        )
+        extra_fraction = tlon_api.TlonConfig.from_env(
+            extra={**required, "max_consecutive_bot_responses": 2.5},
+            env={},
+        )
+
+        self.assertEqual(env_fraction.max_consecutive_bot_responses, 3)
+        self.assertEqual(extra_fraction.max_consecutive_bot_responses, 3)
+
     def test_dm_allowlist_is_additive_and_free_response_is_guarded(self):
         cfg = tlon_api.TlonConfig.from_env(
             env={
@@ -561,6 +602,42 @@ class TlonCLITests(unittest.TestCase):
         self.assertEqual(calls[0][1]["TLON_ACCESS_CODE"], "code")
         self.assertEqual(calls[0][1]["TLON_URL"], "https://zod.tlon.network")
 
+    def test_send_and_reply_forward_sent_at(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout):
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="✓ Message sent\n")
+
+        async def run():
+            cli = tlon_api.TlonCLI(cfg, runner=runner)
+            await cli.send_message("chat/~zod/general", "hi", sent_at=1234)
+            await cli.send_reply("~nec", "170.141", "hi", sent_at=5678)
+
+        asyncio.run(run())
+        self.assertEqual(calls[0][-2:], ("--sent-at", "1234"))
+        self.assertEqual(calls[1][-2:], ("--sent-at", "5678"))
+
+    def test_format_post_id_round_trips_through_da(self):
+        # da.fromUnix round-trips via aura's da.toUnix; the id is
+        # ~author/<dotted @ud>.
+        pid = tlon_api.format_post_id("bot", 1_700_000_000_000)
+        ship, _, ud = pid.partition("/")
+        self.assertEqual(ship, "~bot")
+        self.assertIn(".", ud)
+        da = int(ud.replace(".", ""))
+        offset = (1 << 64) // 2000
+        back = round((offset + (da - tlon_api._DA_UNIX_EPOCH)) * 1000 / (1 << 64))
+        self.assertEqual(back, 1_700_000_000_000)
+
     def test_run_command_uses_same_runner_and_env(self):
         calls = []
         cfg = tlon_api.TlonConfig.from_env(
@@ -763,6 +840,12 @@ class MessageParsingTests(unittest.TestCase):
         self.assertIsNotNone(message)
         self.assertEqual(message.user_id, "~nec")
         self.assertEqual(message.user_name, "~nec")
+        self.assertTrue(message.author_is_bot)
+
+    def test_author_is_bot_meta_rejects_mappings_without_ship(self):
+        self.assertTrue(tlon_api.author_is_bot_meta({"ship": "~nec", "nickname": "Bot"}))
+        self.assertFalse(tlon_api.author_is_bot_meta({"nickname": "Bot"}))
+        self.assertFalse(tlon_api.author_is_bot_meta("~nec"))
 
     def test_parse_channel_message_preserves_blob_and_allows_blob_only(self):
         blob = json.dumps(
@@ -844,6 +927,44 @@ class MessageParsingTests(unittest.TestCase):
         self.assertEqual(message.reply_to_message_id, "root")
         self.assertEqual(message.blob, blob)
 
+    def test_parse_channel_reply_accepts_reply_essay_bot_author(self):
+        raw = {
+            "nest": "chat/~zod/general",
+            "response": {
+                "post": {
+                    "id": "root",
+                    "r-post": {
+                        "reply": {
+                            "id": "170.142",
+                            "r-reply": {
+                                "set": {
+                                    "seal": {"parent-id": "root"},
+                                    "reply-essay": {
+                                        "author": {
+                                            "ship": "~nec",
+                                            "nickname": "Test Bot",
+                                            "avatar": "",
+                                        },
+                                        "sent": 1000,
+                                        "content": [{"inline": [{"ship": "~zod"}, " hi"]}],
+                                    },
+                                }
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        message = tlon_api.parse_channel_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertEqual(message.message_id, "170.142")
+        self.assertEqual(message.reply_to_message_id, "root")
+        self.assertEqual(message.user_id, "~nec")
+        self.assertEqual(message.text, "~zod hi")
+        self.assertTrue(message.author_is_bot)
+
     def test_old_substring_mention_helpers_are_removed(self):
         self.assertFalse(hasattr(tlon_api, "bot_mentioned"))
         self.assertFalse(hasattr(tlon_api, "strip_bot_mentions"))
@@ -870,7 +991,28 @@ class MessageParsingTests(unittest.TestCase):
         self.assertEqual(message.chat_id, "~nec")
         self.assertEqual(message.chat_type, "dm")
         self.assertEqual(message.text, "hello")
+        self.assertFalse(message.author_is_bot)
         self.assertIsNone(own)
+
+    def test_parse_dm_message_records_bot_profile_author(self):
+        raw = {
+            "whom": "~nec",
+            "id": "170.141",
+            "response": {
+                "add": {
+                    "essay": {
+                        "author": {"ship": "~nec", "nickname": "Bot", "avatar": ""},
+                        "sent": 1000,
+                        "content": [{"inline": ["hello"]}],
+                    }
+                }
+            },
+        }
+
+        message = tlon_api.parse_dm_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertTrue(message.author_is_bot)
 
     def test_parse_dm_message_allows_blob_only(self):
         blob = json.dumps(
