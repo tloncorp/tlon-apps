@@ -9,7 +9,7 @@ import {
 } from 'react-native-safe-area-context';
 
 import { ShipProvider } from '../contexts/ship';
-import { LoadingSpinner, PortalProvider, StoreProvider, View } from '../ui';
+import { LoadingSpinner, StoreProvider, View } from '../ui';
 import { ContentReferenceLoaderProvider } from '../ui/components/ContentReference/ContentReference';
 import { ComponentsKitProvider } from '../ui/contexts/componentsKits/ComponentsKitProvider';
 import { NowPlayingProvider } from '../ui/contexts/nowPlaying';
@@ -75,13 +75,7 @@ function UIProviderStack({
         <GestureHandlerRootView style={{ flex: 1 }}>
           <BottomSheetModalProvider>
             <ContentReferenceLoaderProvider>
-              <ComponentsKitProvider>
-                {/*
-                  Android mobile does not proxy portal contexts, so any providers
-                  used by portaled components must be *above* the PortalProvider
-                */}
-                <PortalProvider>{children}</PortalProvider>
-              </ComponentsKitProvider>
+              <ComponentsKitProvider>{children}</ComponentsKitProvider>
             </ContentReferenceLoaderProvider>
           </BottomSheetModalProvider>
         </GestureHandlerRootView>

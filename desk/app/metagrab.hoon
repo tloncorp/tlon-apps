@@ -231,17 +231,16 @@
   [%200 %page meta]
 ::
 ++  l
-  |_  [our=@p url=(unit @t)]
+  |_  [=bowl:gall url=(unit @t)]
   ++  fail
-    ::TODO  maybe always slog the trace?
-    |=  [desc=term trace=tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our /logs) desc trace deez)
+    (~(fail logs bowl /logs) vol echo tang deez)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
     %-  link
-    (~(tell logs our /logs) volume echo deez)
+    (~(tell logs bowl /logs) volume echo deez)
   ::
   ++  deez
     ^-  (list [@t json])
@@ -269,7 +268,7 @@
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
-    l     log(our our.bowl)
+    l     log(bowl bowl)
 ::
 ++  on-save  !>(state)
 ::
@@ -381,7 +380,7 @@
       [%eyre %bind ~]
     ?>  ?=(%bound +<.sign)
     ?:  accepted.sign  [~ this]
-    %-  (tell:l %crit 'failed to eyre-bind' ~)
+    %-  (tell:l %error 'failed to eyre-bind' ~)
     %-  (slog dap.bowl 'failed to eyre-bind' ~)
     [~ this]
   ::
@@ -498,8 +497,7 @@
 ++  on-agent
   |=  [=wire =sign:agent:gall]
   ?:  =(/logs wire)  [~ this]
-  %-  (tell:l %crit 'unexpected on-agent' (spat wire) -.sign ~)
-  ~&  [dap.bowl %unexpected-on-agent wire=wire]
+  %-  (tell:l %error 'unexpected on-agent' (spat wire) -.sign ~)
   [~ this]
 ::
 ++  on-peek
@@ -511,7 +509,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:l term tang)
-  %-  (slog dap.bowl '+on-fail' term tang)
-  [~ this]
+  :_  this
+  [(~(on-fail logs bowl /logs) term tang)]~
 --

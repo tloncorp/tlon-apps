@@ -1,0 +1,452 @@
+asyncapi: 3.0.0
+info:
+  title: Notes Subscription Streams
+  version: 1.0.0
+  description: |
+    Event-driven companion to `openapi.yaml`. Describes the live data
+    streams the browser subscribes to via Eyre's SSE channel.
+
+    **Transport.** Every subscription rides a single per-tab Eyre
+    channel:
+
+    1. The client opens `EventSource('/~/channel/{channelId}')` to
+       establish the SSE stream.
+    2. To start receiving facts on a logical Urbit path, the client
+       PUTs `[{ id, action: "subscribe", ship: "<host>", app: "notes",
+       path: "<path>" }]` to the same channel URL. The `id` is a
+       client-side monotonic counter.
+    3. Each fact arrives on the SSE stream as a JSON object with
+       `subscription: <id>`, `json: <payload>`. The `<payload>` shapes
+       are documented per channel below.
+
+    Closing the EventSource (or a PUT with `action: "unsubscribe",
+     subscription: <id>`) tears down the watch.
+defaultContentType: application/json
+servers:
+  notesShip:
+    host: "localhost:8082"
+    pathname: "/~/channel/{channelId}"
+    protocol: https
+    protocolVersion: "1.1"
+    description: |
+      Eyre channel endpoint. Authenticated with the same `urbauth-<patp>`
+      cookie used for the v1 HTTP API. `channelId` is a client-chosen
+      random string scoping one set of subscriptions.
+    variables:
+      channelId:
+        description: Client-generated unique channel identifier.
+        default: "abcdef1234567890"
+channels:
+  notesStream:
+    address: "/v0/notes/{host}/{name}/stream"
+    title: Notebook event stream
+    description: |
+      Per-notebook stream. On subscribe the agent sends one snapshot
+      (carrying current visibility) then forwards every applied
+      `u-notebook` mutation as a `RNotesUpdate` until the client
+      unsubscribes.
+
+      Local-only — the agent gates this path on `from-self`.
+    parameters:
+      host:
+        description: Host ship of the notebook (URL-encoded `@p`, e.g. `~zod`).
+      name:
+        description: Notebook slug (`@tas`).
+    messages:
+      rNotesSnapshot:
+        $ref: "#/components/messages/RNotesSnapshot"
+      rNotesUpdate:
+        $ref: "#/components/messages/RNotesUpdate"
+  inboxStream:
+    address: "/v0/inbox/stream"
+    title: Cross-cutting inbox / notebook-list stream
+    description: |
+      One subscription, three event types: pending-invite delivered,
+      pending-invite cleared, and a "notebooks changed, re-scry" ping.
+      Used by the sidebar to refresh itself without re-querying every
+      notebook on each change.
+    messages:
+      inboxInviteReceived:
+        $ref: "#/components/messages/InboxInviteReceived"
+      inboxInviteRemoved:
+        $ref: "#/components/messages/InboxInviteRemoved"
+      inboxNotebooksChanged:
+        $ref: "#/components/messages/InboxNotebooksChanged"
+  requestStream:
+    address: "/v1/request/{requestId}"
+    title: Per-request response stream (v1)
+    description: |
+      Companion to `POST /notes/~/v1` — only useful when the POST
+      returned `body.type === "pending"` because the per-request 20s
+      timeout fired before the host's response-update arrived.
+      Subscribing replays the current state (if terminal) and pushes
+      a single terminal `response` when it lands.
+
+      The subscriber-side fact path the agent emits on; not the
+      host-side `/v1/notes/{flag}/request/{requester}/{uv}` path
+      (which is agent-to-agent only).
+    parameters:
+      requestId:
+        description: Same `@uv` you sent in the original POST body.
+    messages:
+      response:
+        $ref: "#/components/messages/Response"
+operations:
+  receiveNotesStream:
+    action: receive
+    channel:
+      $ref: "#/channels/notesStream"
+    summary: Subscribe to a notebook's event stream
+    description: |
+      Client side: `EventSource` reads facts pushed to this Urbit
+      path. The agent emits one snapshot at subscribe time, then
+      every applied `u-notebook` mutation.
+    messages:
+      - $ref: "#/channels/notesStream/messages/rNotesSnapshot"
+      - $ref: "#/channels/notesStream/messages/rNotesUpdate"
+  receiveInboxStream:
+    action: receive
+    channel:
+      $ref: "#/channels/inboxStream"
+    summary: Subscribe to the cross-cutting inbox stream
+    messages:
+      - $ref: "#/channels/inboxStream/messages/inboxInviteReceived"
+      - $ref: "#/channels/inboxStream/messages/inboxInviteRemoved"
+      - $ref: "#/channels/inboxStream/messages/inboxNotebooksChanged"
+  receiveRequestStream:
+    action: receive
+    channel:
+      $ref: "#/channels/requestStream"
+    summary: Subscribe to a single request's terminal response
+    description: |
+      Only needed when the original POST returned `pending`.
+    messages:
+      - $ref: "#/channels/requestStream/messages/response"
+
+components:
+  messages:
+    RNotesSnapshot:
+      name: rNotesSnapshot
+      title: Notebook snapshot
+      summary: Sent once at subscribe time so the client can seed visibility.
+      payload:
+        $ref: "#/components/schemas/RSnapshot"
+    RNotesUpdate:
+      name: rNotesUpdate
+      title: Notebook mutation
+      summary: A `u-notebook` change applied by the host.
+      payload:
+        $ref: "#/components/schemas/RUpdate"
+    InboxInviteReceived:
+      name: inboxInviteReceived
+      title: Pending invite delivered
+      payload:
+        type: object
+        required: [type, update]
+        properties:
+          type:
+            type: string
+            enum: [update]
+          update:
+            type: object
+            required: [type, host, flagName, from, sentAt, title]
+            properties:
+              type: { type: string, enum: [invite-received] }
+              host: { type: string }
+              flagName: { type: string }
+              from: { type: string, description: Inviting ship. }
+              sentAt: { type: integer, description: Unix seconds. }
+              title: { type: string }
+    InboxInviteRemoved:
+      name: inboxInviteRemoved
+      title: Pending invite cleared
+      payload:
+        type: object
+        required: [type, update]
+        properties:
+          type:
+            type: string
+            enum: [update]
+          update:
+            type: object
+            required: [type, host, flagName]
+            properties:
+              type: { type: string, enum: [invite-removed] }
+              host: { type: string }
+              flagName: { type: string }
+    InboxNotebooksChanged:
+      name: inboxNotebooksChanged
+      title: Notebook list changed (re-scry hint)
+      payload:
+        type: object
+        required: [type, update]
+        properties:
+          type:
+            type: string
+            enum: [update]
+          update:
+            type: object
+            required: [type]
+            properties:
+              type: { type: string, enum: [notebooks-changed] }
+    Response:
+      name: response
+      title: Terminal request response
+      summary: |
+        Same shape as the HTTP `Response` schema in openapi.yaml.
+      payload:
+        $ref: "#/components/schemas/Response"
+
+  schemas:
+    # Mirror of openapi.yaml schemas. Kept self-contained so this spec
+    # can be consumed by code-generators that don't follow cross-file
+    # $refs. Source of truth is the agent's lib/notes-json encoder.
+    RSnapshot:
+      type: object
+      required: [type, host, flagName, visibility]
+      properties:
+        type: { type: string, enum: [snapshot] }
+        host: { type: string, example: "~zod" }
+        flagName: { type: string, example: "my-notebook-1" }
+        visibility:
+          type: string
+          enum: [public, private]
+    RUpdate:
+      type: object
+      required: [type, host, flagName, time, update]
+      properties:
+        type: { type: string, enum: [update] }
+        host: { type: string }
+        flagName: { type: string }
+        time: { type: integer, description: Unix seconds. }
+        update: { $ref: "#/components/schemas/UNotebook" }
+    Notebook:
+      type: object
+      required: [id, title, createdBy, createdAt, updatedAt, updatedBy]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        createdBy: { type: string }
+        createdAt: { type: integer }
+        updatedAt: { type: integer }
+        updatedBy: { type: string }
+    Folder:
+      type: object
+      required: [id, notebookId, name, parentFolderId, createdBy, createdAt, updatedAt, updatedBy]
+      properties:
+        id: { type: integer }
+        notebookId: { type: integer }
+        name: { type: string }
+        parentFolderId:
+          type: [integer, "null"]
+        createdBy: { type: string }
+        createdAt: { type: integer }
+        updatedAt: { type: integer }
+        updatedBy: { type: string }
+    Note:
+      type: object
+      required: [id, notebookId, folderId, title, slug, bodyMd, createdBy, createdAt, updatedBy, updatedAt, revision]
+      properties:
+        id: { type: integer }
+        notebookId: { type: integer }
+        folderId: { type: integer }
+        title: { type: string }
+        slug:
+          type: [string, "null"]
+        bodyMd: { type: string }
+        createdBy: { type: string }
+        createdAt: { type: integer }
+        updatedBy: { type: string }
+        updatedAt: { type: integer }
+        revision: { type: integer }
+    NoteRevision:
+      type: object
+      required: [rev, at, author, title, bodyMd]
+      properties:
+        rev: { type: integer }
+        at: { type: integer }
+        author: { type: string }
+        title: { type: string }
+        bodyMd: { type: string }
+    UNotebook:
+      oneOf:
+        - $ref: "#/components/schemas/UNbCreated"
+        - $ref: "#/components/schemas/UNbUpdated"
+        - $ref: "#/components/schemas/UNbDeleted"
+        - $ref: "#/components/schemas/UNbVisibilityChanged"
+        - $ref: "#/components/schemas/UMemberJoined"
+        - $ref: "#/components/schemas/UMemberLeft"
+        - $ref: "#/components/schemas/UFolderUpdate"
+        - $ref: "#/components/schemas/UNoteUpdate"
+      discriminator: type
+    UNbCreated:
+      type: object
+      required: [type, host, flagName, notebook, visibility]
+      properties:
+        type: { type: string, enum: [notebook-created] }
+        host: { type: string }
+        flagName: { type: string }
+        notebook: { $ref: "#/components/schemas/Notebook" }
+        visibility: { type: string, enum: [public, private] }
+    UNbUpdated:
+      type: object
+      required: [type, host, flagName, notebook]
+      properties:
+        type: { type: string, enum: [notebook-updated] }
+        host: { type: string }
+        flagName: { type: string }
+        notebook: { $ref: "#/components/schemas/Notebook" }
+    UNbDeleted:
+      type: object
+      required: [type, host, flagName]
+      properties:
+        type: { type: string, enum: [notebook-deleted] }
+        host: { type: string }
+        flagName: { type: string }
+    UNbVisibilityChanged:
+      type: object
+      required: [type, host, flagName, visibility]
+      properties:
+        type: { type: string, enum: [notebook-visibility-changed] }
+        host: { type: string }
+        flagName: { type: string }
+        visibility: { type: string, enum: [public, private] }
+    UMemberJoined:
+      type: object
+      required: [type, host, flagName, who, role]
+      properties:
+        type: { type: string, enum: [member-joined] }
+        host: { type: string }
+        flagName: { type: string }
+        who: { type: string }
+        role:
+          type: string
+          enum: [owner, editor, viewer]
+    UMemberLeft:
+      type: object
+      required: [type, host, flagName, who]
+      properties:
+        type: { type: string, enum: [member-left] }
+        host: { type: string }
+        flagName: { type: string }
+        who: { type: string }
+    UFolderUpdate:
+      type: object
+      required: [type, host, flagName, folderUpdate]
+      properties:
+        type: { type: string, enum: [folder-update] }
+        host: { type: string }
+        flagName: { type: string }
+        folderUpdate: { $ref: "#/components/schemas/UFolder" }
+    UNoteUpdate:
+      type: object
+      required: [type, host, flagName, noteUpdate]
+      properties:
+        type: { type: string, enum: [note-update] }
+        host: { type: string }
+        flagName: { type: string }
+        noteUpdate: { $ref: "#/components/schemas/UNote" }
+    UFolder:
+      oneOf:
+        - type: object
+          required: [type, id, folder]
+          properties:
+            type: { type: string, enum: [folder-created] }
+            id: { type: integer }
+            folder: { $ref: "#/components/schemas/Folder" }
+        - type: object
+          required: [type, id, folder]
+          properties:
+            type: { type: string, enum: [folder-updated] }
+            id: { type: integer }
+            folder: { $ref: "#/components/schemas/Folder" }
+        - type: object
+          required: [type, id]
+          properties:
+            type: { type: string, enum: [folder-deleted] }
+            id: { type: integer }
+      discriminator: type
+    UNote:
+      oneOf:
+        - type: object
+          required: [type, id, note]
+          properties:
+            type: { type: string, enum: [note-created] }
+            id: { type: integer }
+            note: { $ref: "#/components/schemas/Note" }
+        - type: object
+          required: [type, id, note]
+          properties:
+            type: { type: string, enum: [note-updated] }
+            id: { type: integer }
+            note: { $ref: "#/components/schemas/Note" }
+        - type: object
+          required: [type, id]
+          properties:
+            type: { type: string, enum: [note-deleted] }
+            id: { type: integer }
+        - type: object
+          required: [type, id, html]
+          properties:
+            type: { type: string, enum: [note-published] }
+            id: { type: integer }
+            html: { type: string }
+        - type: object
+          required: [type, id]
+          properties:
+            type: { type: string, enum: [note-unpublished] }
+            id: { type: integer }
+        - type: object
+          required: [type, id, revision]
+          properties:
+            type: { type: string, enum: [note-history-archived] }
+            id: { type: integer }
+            revision: { $ref: "#/components/schemas/NoteRevision" }
+      discriminator: type
+    Response:
+      type: object
+      required: [requestId, body]
+      properties:
+        requestId:
+          type: string
+          pattern: "^0v[0-9a-v.]+$"
+          example: "0v3.1k7gh.j5b2m.r8nq9"
+        body:
+          oneOf:
+            - type: object
+              required: [type, response]
+              properties:
+                type: { type: string, enum: [ok] }
+                response:
+                  oneOf:
+                    - $ref: "#/components/schemas/RSnapshot"
+                    - $ref: "#/components/schemas/RUpdate"
+                  discriminator: type
+            - type: object
+              required: [type]
+              properties:
+                type: { type: string, enum: [no-change] }
+            - type: object
+              required: [type, errorType, message]
+              properties:
+                type: { type: string, enum: [error] }
+                errorType:
+                  type: string
+                  enum:
+                    - not-authorized
+                    - not-found
+                    - invalid-name
+                    - conflict
+                    - request-too-large
+                    - unknown
+                message:
+                  type: array
+                  items: { type: string }
+            - type: object
+              required: [type, status]
+              properties:
+                type: { type: string, enum: [pending] }
+                status:
+                  type: string
+                  enum: [sending, acked, nacked]
+          discriminator: type

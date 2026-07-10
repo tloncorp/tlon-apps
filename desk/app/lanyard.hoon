@@ -191,17 +191,16 @@
   --
 ::
 ++  lo
-  |_  [our=@p host=(unit @p) kind=(unit @t)]
+  |_  [=bowl:gall host=(unit @p) kind=(unit @t)]
   ++  fail
-    ::TODO  maybe always slog the trace?
-    |=  [desc=term trace=tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our /logs) desc trace deez)
+    (~(fail logs bowl /logs) vol echo tang deez)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
     %-  link
-    (~(tell logs our /logs) volume echo deez)
+    (~(tell logs bowl /logs) volume echo deez)
   ::
   ++  deez
     ^-  (list [@t json])
@@ -232,7 +231,7 @@
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
-    lo    log(our our.bowl)
+    lo    log(bowl bowl)
 ::
 ++  on-save  !>(state)
 ++  on-init
@@ -458,7 +457,7 @@
         ::
         %.  [~ this]
         ?~  p.sign  same
-        (tell:lo %info 'invite-url poke-nacked' u.p.sign)
+        (fail:lo %info ~['invite-url poke-nacked'] u.p.sign)
       ?~  p.sign
         ::  the command is being processed, we'll get updates as facts
         ::  on our subscription
@@ -470,7 +469,7 @@
       ::  resubscribe to get the full state again.
       ::TODO  and bubble action failure up to the client
       %-  (slog 'lanyard: poke-nacked' u.p.sign)
-      %-  (tell:lo %warn 'poke-nacked' u.p.sign)
+      %-  (fail:lo %warn ~['poke-nacked'] u.p.sign)
       ::
       :_  this
       =/  =dock  [host %verifier]
@@ -482,7 +481,7 @@
       ?~  p.sign  [~ this]
       ::TODO  track verifier connection status?
       ::      or say "should never happen" because of version negotiation?
-      %-  (tell:lo %warn 'verifier subscription nacked' u.p.sign)
+      %-  (fail:lo %warn ~['verifier subscription nacked'] u.p.sign)
       %-  (slog 'failed verifier sub' >host< u.p.sign)
       [~ this]
     ::
@@ -630,7 +629,7 @@
       [%contacts %set ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  [~ this]
-    %-  (tell:lo %crit 'failed to update contacts' u.p.sign)
+    %-  (fail:lo %error ~['failed to update contacts'] u.p.sign)
     %-  (slog (cat 3 dap.bowl ': failed to update contacts') u.p.sign)
     [~ this]
   ==
@@ -765,7 +764,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:lo term tang)
-  %-  (slog (rap 3 dap.bowl ' +on-fail: %' term ~) tang)
-  [~ this]
+  :_  this
+  [(~(on-fail logs bowl /logs) term tang)]~
 --
