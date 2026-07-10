@@ -692,6 +692,24 @@ class ReactionState:
         entries.update(current)
         return transitions
 
+    def forget_entry(
+        self, chat_type: str, chat_id: str, post_id: str, wire_key: str
+    ) -> None:
+        """Drop one committed entry so a later snapshot re-emits it as an add.
+
+        Snapshots commit before their transitions are handled, so when an
+        added reaction's target classification is unresolved (exact scry
+        failure), the entry must be forgotten — otherwise a redelivered or
+        later diff treats it as already-seen and a reaction on the bot's own
+        post is permanently misfiled as a passive note.
+        """
+        posts = self._conversations.get(self._conversation_key(chat_type, chat_id))
+        if not posts:
+            return
+        entries = posts.get(str(post_id))
+        if entries:
+            entries.pop(wire_key, None)
+
     def apply_dm_delta(self, reaction: TlonReaction) -> list[TlonReaction]:
         entries = self._post_entries("dm", reaction.chat_id, reaction.post_id)
         if reaction.added:
@@ -2133,6 +2151,23 @@ class TlonAdapter(BasePlatformAdapter):
                 dispatch_reason="reaction",
             )
             return
+
+        # An unresolved channel classification (scry failed, or the payload
+        # had no decodable author) must stay retryable: the snapshot already
+        # committed this entry, so without forgetting it a later reacts diff
+        # on the post is a no-op and an own-post reaction would be lost as a
+        # passive note forever. Forgetting the entry makes the next diff
+        # re-emit the add and retry exact classification once the scry
+        # recovers. Resolved non-own targets are final — no rollback.
+        if reaction.added and not is_dm:
+            author = str(getattr(target, "author", "") or "")
+            if target is None or not author or author == "unknown":
+                self._reaction_state.forget_entry(
+                    reaction.chat_type,
+                    reaction.chat_id,
+                    reaction.post_id,
+                    reaction.wire_key,
+                )
 
         self._queue_reaction_note(reaction, target)
 

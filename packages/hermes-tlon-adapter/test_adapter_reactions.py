@@ -389,6 +389,44 @@ class AdapterReactionTests(unittest.TestCase):
         )
         self.assertEqual(len(calls), 2)
 
+    def test_unresolved_own_post_reaction_retries_after_scry_recovery(self):
+        # Codex PR review P2: the snapshot commits before its transitions are
+        # handled, so an added reaction whose exact scry fails must be
+        # forgotten from state — otherwise redelivery of the same reacts map
+        # is a no-op diff and the own-post reaction is permanently misfiled
+        # as a passive note even after the scry recovers.
+        payload = {
+            "essay": {"author": "~pen", "sent": 1, "content": [{"inline": ["pre-startup"]}]},
+            "seal": {"id": "170.141"},
+        }
+        adapter = self.make_adapter()
+        adapter._sse = RecordingSSE(error=RuntimeError("temporary"))
+        snapshot = channel_reacts({"~mug": "👍"})
+        self.assertEqual(asyncio.run(self.channel_events(adapter, snapshot)), [])
+        self.assertEqual(
+            len(adapter._pending_reaction_notes["group:chat/~pen/general"]), 1
+        )
+
+        adapter._sse.error = None
+        adapter._sse.payload = payload
+        events = asyncio.run(self.channel_events(adapter, snapshot))
+        self.assertEqual(len(events), 1)
+        self.assertIn("👍", events[0].text)
+        self.assertEqual(len(adapter._sse.paths), 2)
+
+        # A resolved non-own target is final: the identical snapshot a third
+        # time must not re-dispatch or re-scry (no rollback for real authors).
+        other_payload = {
+            "essay": {"author": "~mug", "sent": 1, "content": [{"inline": ["hers"]}]},
+            "seal": {"id": "170.150"},
+        }
+        settled = self.make_adapter()
+        settled._sse = RecordingSSE(other_payload)
+        other_snapshot = channel_reacts({"~nec": "🔥"}, post_id="170.150")
+        asyncio.run(self.channel_events(settled, other_snapshot))
+        self.assertEqual(asyncio.run(self.channel_events(settled, other_snapshot)), [])
+        self.assertEqual(len(settled._sse.paths), 1)
+
     def test_exact_scry_partial_payload_not_cached_negative(self):
         # M4: an exact scry that has text but no decodable author cannot
         # classify ownership, so it must not be cached as a durable "not own

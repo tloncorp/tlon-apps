@@ -1,4 +1,31 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
+
+// Mock the api package before importing dms so the test never loads
+// packages/api/dist (which may be stale or absent in CI); every dms function
+// under test takes injected deps, so the real implementations are never used.
+mock.module('@tloncorp/api', () => ({
+  // dms.ts value imports
+  addReaction: async () => undefined,
+  deletePost: async () => undefined,
+  getCurrentUserId: () => '~zod',
+  removeReaction: async () => undefined,
+  respondToDMInvite: async () => undefined,
+  sendPost: async () => undefined,
+  sendReply: async () => undefined,
+  // api-client.ts value imports (transitive via ./api-client)
+  Urbit: class {
+    cookie = '';
+    nodeId = '';
+
+    constructor(readonly url: string) {}
+  },
+  client: { cookie: '' },
+  configureClient: async () => undefined,
+  internalRemoveClient: () => undefined,
+  preSig: (ship: string) => (ship.startsWith('~') ? ship : `~${ship}`),
+  scry: async () => undefined,
+  subscribe: async () => 0,
+}));
 
 function loadDms() {
   return import('./dms');
