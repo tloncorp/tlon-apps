@@ -1,5 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Switch } from 'react-native';
@@ -13,7 +14,6 @@ import {
   View,
   XStack,
   triggerHaptic,
-  useStore,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PrivacySettings'>;
@@ -27,7 +27,6 @@ interface PrivacyState {
 }
 
 export function PrivacySettingsScreen(props: Props) {
-  const store = useStore();
   const phoneAttest = store.useCurrentUserPhoneAttestation();
   const telemetry = useTelemetry();
   const { data: settings } = store.useSettings();
@@ -81,7 +80,7 @@ export function PrivacySettingsScreen(props: Props) {
       triggerHaptic('error');
       setState((prev) => ({ ...prev, phoneDiscoverable: !nextDiscoveryState }));
     }
-  }, [phoneAttest, state.phoneDiscoverable, store]);
+  }, [phoneAttest, state.phoneDiscoverable]);
 
   const toggleSetTelemetry = useCallback(() => {
     const nextDisabledState = !state.telemetryDisabled;
@@ -98,7 +97,7 @@ export function PrivacySettingsScreen(props: Props) {
       triggerHaptic('error');
       setState((prev) => ({ ...prev, disableNicknames: !nextValue }));
     }
-  }, [state.disableNicknames, store]);
+  }, [state.disableNicknames]);
 
   const toggleDisableAvatars = useCallback(async () => {
     const nextValue = !state.disableAvatars;
@@ -109,7 +108,7 @@ export function PrivacySettingsScreen(props: Props) {
       triggerHaptic('error');
       setState((prev) => ({ ...prev, disableAvatars: !nextValue }));
     }
-  }, [state.disableAvatars, store]);
+  }, [state.disableAvatars]);
 
   const toggleDisableTlonInfraEnhancement = useCallback(async () => {
     const nextValue = !state.disableTlonInfraEnhancement;
@@ -120,7 +119,7 @@ export function PrivacySettingsScreen(props: Props) {
       triggerHaptic('error');
       setState((prev) => ({ ...prev, disableAvatars: !nextValue }));
     }
-  }, [state.disableTlonInfraEnhancement, store]);
+  }, [state.disableTlonInfraEnhancement]);
 
   const isWindowNarrow = useIsWindowNarrow();
 

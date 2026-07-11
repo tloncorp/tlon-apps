@@ -1,9 +1,8 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { invokeContactsMatchedHandler } from '@tloncorp/shared/store';
 import { useCallback, useRef, useState } from 'react';
-
-import { useStore } from '../ui/contexts/storeContext';
 
 const logger = createDevLogger('useContactDiscovery', false);
 
@@ -22,7 +21,6 @@ const logger = createDevLogger('useContactDiscovery', false);
  * it directly.
  */
 export function useContactDiscovery() {
-  const storeContext = useStore();
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [discoveredMatches, setDiscoveredMatches] = useState<
     db.SystemContact[]
@@ -32,42 +30,39 @@ export function useContactDiscovery() {
   }> | null>(null);
   const hasShownMatchesRef = useRef(false);
 
-  const runDiscovery = useCallback(
-    async (contacts: db.SystemContact[]) => {
-      setIsDiscovering(true);
-      // Reset per-run state so a re-fired discovery doesn't inherit the
-      // "matches already shown" flag from a previous run.
-      hasShownMatchesRef.current = false;
-      const promise = storeContext.syncContactDiscovery(undefined, {
-        invokeHandler: false,
-      });
-      pendingDiscoveryRef.current = promise;
-      try {
-        const { newMatches } = await promise;
-        // Bail if a newer run has superseded us — its results are
-        // authoritative, and ours would clobber state.
-        if (pendingDiscoveryRef.current !== promise) return;
-        if (newMatches.length > 0) {
-          const matchedPhones = new Set(newMatches.map(([phone]) => phone));
-          const matched = contacts.filter(
-            (c) => c.phoneNumber && matchedPhones.has(c.phoneNumber)
-          );
-          setDiscoveredMatches(matched);
-          hasShownMatchesRef.current = true;
-        }
-      } catch (err) {
-        if (pendingDiscoveryRef.current !== promise) return;
-        logger.trackError('Foreground contact discovery failed', {
-          error: err instanceof Error ? err : undefined,
-        });
-      } finally {
-        if (pendingDiscoveryRef.current === promise) {
-          setIsDiscovering(false);
-        }
+  const runDiscovery = useCallback(async (contacts: db.SystemContact[]) => {
+    setIsDiscovering(true);
+    // Reset per-run state so a re-fired discovery doesn't inherit the
+    // "matches already shown" flag from a previous run.
+    hasShownMatchesRef.current = false;
+    const promise = store.syncContactDiscovery(undefined, {
+      invokeHandler: false,
+    });
+    pendingDiscoveryRef.current = promise;
+    try {
+      const { newMatches } = await promise;
+      // Bail if a newer run has superseded us — its results are
+      // authoritative, and ours would clobber state.
+      if (pendingDiscoveryRef.current !== promise) return;
+      if (newMatches.length > 0) {
+        const matchedPhones = new Set(newMatches.map(([phone]) => phone));
+        const matched = contacts.filter(
+          (c) => c.phoneNumber && matchedPhones.has(c.phoneNumber)
+        );
+        setDiscoveredMatches(matched);
+        hasShownMatchesRef.current = true;
       }
-    },
-    [storeContext]
-  );
+    } catch (err) {
+      if (pendingDiscoveryRef.current !== promise) return;
+      logger.trackError('Foreground contact discovery failed', {
+        error: err instanceof Error ? err : undefined,
+      });
+    } finally {
+      if (pendingDiscoveryRef.current === promise) {
+        setIsDiscovering(false);
+      }
+    }
+  }, []);
 
   const notifyPendingMatches = useCallback(() => {
     const pending = pendingDiscoveryRef.current;

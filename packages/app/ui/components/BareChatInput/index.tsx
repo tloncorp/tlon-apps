@@ -11,6 +11,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import {
   HEADER_HEIGHT,
   LoadingSpinner,
@@ -43,7 +44,6 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
-import { useStore } from '../../contexts/storeContext';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
@@ -247,7 +247,6 @@ function BareChatInput(
 ) {
   const { bottom, top } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const store = useStore();
   const maxInputHeightBasic = useMemo(
     () => height - HEADER_HEIGHT - bottom - top,
     [height, bottom, top]

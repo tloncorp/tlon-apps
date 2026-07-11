@@ -34,7 +34,6 @@ import { useCurrentUserId } from '../contexts/appDataContext';
 import { useAttachmentContext } from '../contexts/attachment';
 import { ChannelProvider } from '../contexts/channel';
 import { NavigationProvider } from '../contexts/navigation';
-import { useStore } from '../contexts/storeContext';
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
@@ -544,7 +543,6 @@ function useMarkThreadAsReadEffect(
     hasThreadUnreadActivity: boolean;
   } | null
 ) {
-  const store = useStore();
   const shouldMarkRead = opts?.shouldMarkRead ?? false;
   const latestReplyId = opts?.mostRecentlyReceivedReply?.id ?? null;
   const hasThreadUnreadActivity = opts?.hasThreadUnreadActivity ?? false;
@@ -578,7 +576,7 @@ function useMarkThreadAsReadEffect(
       });
     }, 150);
     return () => clearTimeout(timeoutId);
-  }, [shouldMarkRead, hasThreadUnreadActivity, latestReplyId, store]);
+  }, [shouldMarkRead, hasThreadUnreadActivity, latestReplyId]);
 }
 
 function SinglePostView({
@@ -622,7 +620,6 @@ function SinglePostView({
 }) {
   const groupMembers = group?.members ?? [];
   const groupRoles = group?.roles ?? [];
-  const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
   const isUserActive = useIsUserActive();

@@ -1,6 +1,7 @@
 import { makePrettyDay } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
+import * as store from '@tloncorp/shared/store';
 import {
   Button,
   Icon,
@@ -13,7 +14,6 @@ import { useMemo } from 'react';
 import { Linking } from 'react-native';
 import { XStack, XStackProps, YStack, styled } from 'tamagui';
 
-import { useStore } from '../contexts/storeContext';
 import { HiddenPhoneDisplay } from './Profile/HiddenPhoneDisplay';
 
 type SigStatus = 'initial' | 'loading' | 'verified' | 'invalid' | 'errored';
@@ -28,7 +28,6 @@ export function AttestationPane({
   const [revoking, setRevoking] = useState(false);
   const [sigStatus, setSigStatus] = useState<SigStatus>('initial');
   const [error, setError] = useState<Error | null>(null);
-  const store = useStore();
 
   useEffect(() => {
     async function run() {
@@ -75,7 +74,6 @@ export function AttestationPane({
     attestation.status,
     currentUserId,
     sigStatus,
-    store,
   ]);
 
   const handleViewTweet = useCallback(() => {
@@ -95,7 +93,7 @@ export function AttestationPane({
     } finally {
       setRevoking(false);
     }
-  }, [attestation, store]);
+  }, [attestation]);
 
   const handleRetry = useCallback(() => {
     if (sigStatus === 'errored') {

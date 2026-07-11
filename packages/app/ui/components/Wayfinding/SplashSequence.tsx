@@ -75,7 +75,6 @@ import {
   useAttachmentContext,
   useMappedImageAttachments,
 } from '../../contexts/attachment';
-import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import AttachmentSheet from '../AttachmentSheet';
 import { Field, TextInput, TextInputRef } from '../Form';
@@ -144,7 +143,6 @@ function SplashSequenceComponent(props: {
   hostingBotEnabled?: boolean;
   splashSequenceMode?: db.ShipInfo['splashSequenceMode'];
 }) {
-  const store = useStore();
   const canUpload = useCanUpload();
   const tlonbotRevivalSetup = db.tlonbotRevivalSetup.useValue();
   const [currentPane, setCurrentPane] = React.useState(
@@ -770,7 +768,7 @@ function SplashSequenceComponent(props: {
     } else {
       await store.completeWayfindingSplash();
     }
-  }, [isRevivalSplash, shouldDeferTlonbotSetup, store]);
+  }, [isRevivalSplash, shouldDeferTlonbotSetup]);
 
   const handleSplashCompleted = useCallback(async () => {
     if (finishingSplash) return;
@@ -2464,7 +2462,6 @@ export function InvitePane(props: {
   inviteSystemContacts?: InviteSystemContactsFn;
   isCompleting?: boolean;
 }) {
-  const storeContext = useStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteContacts, setShowInviteContacts] = useState(false);
   const [sysContacts, setSysContacts] = useState<db.SystemContact[]>([]);
@@ -2487,7 +2484,7 @@ export function InvitePane(props: {
     let syncedContacts: db.SystemContact[] = [];
     try {
       setIsProcessing(true);
-      syncedContacts = await storeContext.syncSystemContacts();
+      syncedContacts = await store.syncSystemContacts();
       setSysContacts(syncedContacts);
       if (syncedContacts.length === 0) {
         logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
@@ -2508,7 +2505,7 @@ export function InvitePane(props: {
     if (syncedContacts.length > 0) {
       void runDiscovery(syncedContacts);
     }
-  }, [storeContext, runDiscovery]);
+  }, [runDiscovery]);
 
   const handleActionPress = useCallback(() => {
     notifyPendingMatches();
