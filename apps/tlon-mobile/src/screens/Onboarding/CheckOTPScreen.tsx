@@ -4,13 +4,7 @@ import {
   useLureMetadata,
   useSignupParams,
 } from '@tloncorp/app/contexts/branch';
-import {
-  ScreenHeader,
-  TlonText,
-  View,
-  YStack,
-  useStore,
-} from '@tloncorp/app/ui';
+import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   AnalyticsEvent,
@@ -18,6 +12,7 @@ import {
   createDevLogger,
 } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
@@ -40,7 +35,6 @@ const PHONE_CODE_LENGTH = 6;
 const logger = createDevLogger('CheckOTP', true);
 
 export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
-  const store = useStore();
   const [otp, setOtp] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,7 +124,6 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       recaptcha,
       signupParams.lureId,
       signupParams.priorityToken,
-      store,
     ]
   );
 
