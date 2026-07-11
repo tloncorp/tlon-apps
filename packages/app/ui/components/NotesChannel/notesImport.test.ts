@@ -1,6 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory as ExpoDirectory } from 'expo-file-system';
-import * as FileSystem from 'expo-file-system/legacy';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
@@ -16,13 +15,20 @@ vi.mock('expo-document-picker', () => ({
   getDocumentAsync: vi.fn(),
 }));
 
-vi.mock('expo-file-system/legacy', () => ({
-  readAsStringAsync: vi.fn(),
-}));
+const readFileText = vi.hoisted(() => vi.fn());
 
 vi.mock('expo-file-system', () => ({
   Directory: {
     pickDirectoryAsync: vi.fn(),
+  },
+  File: class {
+    uri: string;
+    constructor(uri: string) {
+      this.uri = uri;
+    }
+    text() {
+      return readFileText(this.uri);
+    }
   },
 }));
 
@@ -330,7 +336,7 @@ describe('notes import helpers', () => {
         },
       ],
     });
-    vi.mocked(FileSystem.readAsStringAsync).mockImplementation(async (uri) =>
+    readFileText.mockImplementation(async (uri) =>
       uri.endsWith('plan.md') ? '# Plan' : 'Memo body'
     );
 
@@ -341,7 +347,7 @@ describe('notes import helpers', () => {
       multiple: true,
       type: '*/*',
     });
-    expect(FileSystem.readAsStringAsync).toHaveBeenCalledTimes(2);
+    expect(readFileText).toHaveBeenCalledTimes(2);
     expect(sources).toEqual([
       source('Plan.md', '# Plan'),
       source('Memo.txt', 'Memo body'),
