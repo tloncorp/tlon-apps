@@ -1,0 +1,25 @@
+{
+  "name": "@tloncorp/claude-tlon-channel",
+  "version": "0.1.0",
+  "description": "Claude Code plugin: attach a local Claude Code session to Tlon channels, threads, and DMs via an MCP channel server",
+  "type": "module",
+  "private": true,
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "tsc": "pnpm typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.9"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "tlon": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/server.js"],
+      "env": {
+        "TLON_URL": "${TLON_URL}",
+        "TLON_SHIP": "${TLON_SHIP}",
+        "TLON_CODE": "${TLON_CODE}",
+        "TLON_CLI": "${TLON_CLI}",
+        "TLON_ATTACH": "${TLON_ATTACH}"
+      }
+    }
+  }
+}
