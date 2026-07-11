@@ -6,6 +6,9 @@ const connect = require('connect');
 const { spawn } = require('child_process');
 const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 const { FileStore } = require('metro-cache');
+const {
+  getBundleModeMetroConfig,
+} = require('react-native-worklets/bundleMode');
 
 const nonInlinedRequires = require('./metro-non-inlined-requires');
 
@@ -181,4 +184,7 @@ function openDrizzleStudio(dbPath) {
   );
 }
 
-module.exports = mergeConfig(baseConfig, config);
+// Wrap the fully-merged config: getBundleModeMetroConfig mutates
+// serializer/resolver/transformer in place (composing with the existing
+// resolveRequest and getTransformOptions), so it must run after mergeConfig.
+module.exports = getBundleModeMetroConfig(mergeConfig(baseConfig, config));
