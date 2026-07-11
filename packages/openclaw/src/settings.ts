@@ -37,6 +37,22 @@ export type PendingApproval = {
   notificationMessageId?: string;
 };
 
+/**
+ * A scope claimed by an external handler (e.g. a local Claude Code session
+ * attached via the claude-tlon-channel plugin). While a claim is unexpired,
+ * the monitor skips inbound messages in that scope so the external handler
+ * can respond instead. Scope grammar:
+ *   ~ship                        one-to-one DM
+ *   chat/~host/slug              whole group channel
+ *   chat/~host/slug/<post-id>    single thread (top-level post id)
+ */
+export type ExternalClaim = {
+  scope: string;
+  holder: string;
+  /** Epoch ms; claims past this are ignored (crash-safety TTL) */
+  expiresAt: number;
+};
+
 export type TlonSettingsStore = {
   groupChannels?: string[];
   dmAllowlist?: string[];
@@ -77,6 +93,8 @@ export type TlonSettingsStore = {
   ownerListenEnabled?: boolean;
   /** Channels opted out of owner-listen even when the global toggle is on. */
   ownerListenDisabledChannels?: string[];
+  /** Scopes temporarily claimed by external handlers (see ExternalClaim). */
+  externalClaims?: ExternalClaim[];
 };
 
 export type TlonSettingsState = {
@@ -408,7 +426,47 @@ export function parseSettingsResponse(raw: unknown): TlonSettingsStore {
           (x): x is string => typeof x === 'string'
         )
       : undefined,
+    externalClaims: parseExternalClaims(settings.externalClaims),
   };
+}
+
+/**
+ * Parse externalClaims — handles both JSON string and array formats
+ * (settings-store stores complex objects as JSON strings). Expiry is checked
+ * at message time, not parse time, since the parsed value can live in memory
+ * long past a claim's TTL.
+ */
+export function parseExternalClaims(
+  value: unknown
+): ExternalClaim[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  let parsed: unknown = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return undefined;
+    }
+  }
+
+  if (!Array.isArray(parsed)) {
+    return undefined;
+  }
+
+  return parsed.filter((item): item is ExternalClaim => {
+    if (!item || typeof item !== 'object') {
+      return false;
+    }
+    const claim = item as Record<string, unknown>;
+    return (
+      typeof claim.scope === 'string' &&
+      typeof claim.holder === 'string' &&
+      typeof claim.expiresAt === 'number'
+    );
+  });
 }
 
 function isChannelRulesObject(
@@ -604,6 +662,9 @@ export function applySettingsUpdate(
       next.ownerListenDisabledChannels = Array.isArray(value)
         ? value.filter((x): x is string => typeof x === 'string')
         : undefined;
+      break;
+    case 'externalClaims':
+      next.externalClaims = parseExternalClaims(value);
       break;
   }
 

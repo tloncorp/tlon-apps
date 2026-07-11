@@ -152,6 +152,7 @@ import {
   type ParsedCite,
   extractCites,
   extractMessageText,
+  findExternalClaim,
   formatModelName,
   isBotMentioned,
   isChannelRestricted,
@@ -2281,6 +2282,21 @@ export async function monitorTlonProvider(
       // Used for reactions: agent sees no thread context (so it responds), but
       // the reply is still delivered as a thread reply.
       const deliverParentId = params.replyParentId ?? parentId;
+
+      // An external handler (e.g. a local Claude Code session attached via
+      // the claude-tlon-channel plugin) may have claimed this scope in the
+      // settings store; while the claim is live, it responds instead of us.
+      const externalClaim = findExternalClaim(
+        settingsManager.current.externalClaims,
+        { isGroup, channelNest, parentId, senderShip },
+        Date.now()
+      );
+      if (externalClaim) {
+        runtime.log?.(
+          `[tlon] Skipping message ${messageId}: scope ${externalClaim.scope} claimed by external handler "${externalClaim.holder}"`
+        );
+        return;
+      }
       const groupChannel = channelNest; // For compatibility
       let messageText = sanitizeMessageText(params.messageText);
       const rawMessageText = messageText; // Preserve original before any modifications
