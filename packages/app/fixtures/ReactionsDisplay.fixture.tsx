@@ -3,15 +3,9 @@ import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
 import { type PropsWithChildren } from 'react';
 
-import {
-  AppDataContextProvider,
-  RequestsProvider,
-  ScrollView,
-  View,
-} from '../ui';
+import { AppDataContextProvider, ScrollView, View } from '../ui';
 import { ReactionsDisplay } from '../ui/components/ChatMessage/ReactionsDisplay';
 import { FixtureWrapper } from './FixtureWrapper';
-import { useChannel, useGroup, usePostReference } from './contentHelpers';
 import {
   brianContact,
   createFakePost,
@@ -72,16 +66,9 @@ function FixtureSection({
 function ReactionsFixtureWrapper({ children }: PropsWithChildren<object>) {
   return (
     <FixtureWrapper fillWidth fillHeight>
-      {/* @ts-expect-error don't care */}
-      <RequestsProvider
-        useChannel={useChannel}
-        useGroup={useGroup}
-        usePostReference={usePostReference}
-      >
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
-          {children}
-        </ScrollView>
-      </RequestsProvider>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        {children}
+      </ScrollView>
     </FixtureWrapper>
   );
 }

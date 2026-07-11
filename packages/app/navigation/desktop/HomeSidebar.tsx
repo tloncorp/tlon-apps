@@ -31,7 +31,6 @@ import {
   InviteUsersSheet,
   MobileAppPromoBanner,
   NavigationProvider,
-  RequestsProvider,
   ScreenHeader,
   View,
   useGlobalSearch,
@@ -275,17 +274,10 @@ export const HomeSidebar = memo(
     useRenderCount('HomeSidebar');
 
     return (
-      <RequestsProvider
-        usePostReference={store.usePostReference}
-        useChannel={store.useChannelPreview}
-        usePost={store.usePostWithRelations}
-        useApp={db.appInfo.useValue}
-        useGroup={store.useGroupPreview}
+      <ChatOptionsProvider
+        {...useChatSettingsNavigation()}
+        onPressInvite={handlePressInvite}
       >
-        <ChatOptionsProvider
-          {...useChatSettingsNavigation()}
-          onPressInvite={handlePressInvite}
-        >
           <NavigationProvider focusedChannelId={focusedChannelId}>
             <View userSelect="none" flex={1} position="relative">
               <ScreenHeader
@@ -355,8 +347,7 @@ export const HomeSidebar = memo(
               <SplashModal open={showSplash} setOpen={() => {}} />
             </View>
           </NavigationProvider>
-        </ChatOptionsProvider>
-      </RequestsProvider>
+      </ChatOptionsProvider>
     );
   }
 );
