@@ -2,7 +2,6 @@ import { NavigationProp, useNavigation } from '@react-navigation/native';
 import * as api from '@tloncorp/api';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
-import { useStore } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
@@ -11,6 +10,7 @@ import {
 } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { clearHostingNativeCookie } from '../lib/hostingAuth';
@@ -20,7 +20,6 @@ import { OnboardingStackParamList } from '../types';
 const logger = createDevLogger('useOnboardingHelpers', true);
 
 export function useOnboardingHelpers() {
-  const store = useStore();
   const navigation = useNavigation<NavigationProp<OnboardingStackParamList>>();
   const signupContext = useSignupContext();
   const configureUrbitClient = useConfigureUrbitClient();
@@ -42,7 +41,7 @@ export function useOnboardingHelpers() {
     if (!accountIssue) {
       navigation.navigate('GettingNodeReadyScreen', { waitType: 'Unknown' });
     }
-  }, [navigation, store]);
+  }, [navigation]);
 
   const reviveLoggedInSession = useCallback(async () => {
     const hostingUserId = await db.hostingUserId.getValue();
@@ -67,7 +66,7 @@ export function useOnboardingHelpers() {
 
     navigation.navigate('GettingNodeReadyScreen', { waitType: 'Unknown' });
     return true;
-  }, [navigation, store]);
+  }, [navigation]);
 
   const handleRevivalOnboarding = useCallback(
     async (inputShipInfo?: db.ShipInfo) => {
@@ -126,7 +125,7 @@ export function useOnboardingHelpers() {
         });
       }
     },
-    [configureUrbitClient, navigation, ship, shipUrl, signupContext, store]
+    [configureUrbitClient, navigation, ship, shipUrl, signupContext]
   );
 
   const handleLogin = useCallback(
@@ -228,7 +227,7 @@ export function useOnboardingHelpers() {
         handleRevivalOnboarding(nextShipInfo);
       }
     },
-    [handleRevivalOnboarding, navigation, setShip, signupContext, store]
+    [handleRevivalOnboarding, navigation, setShip, signupContext]
   );
 
   return {

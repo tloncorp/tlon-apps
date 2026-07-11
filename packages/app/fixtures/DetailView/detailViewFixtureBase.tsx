@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 
-import { AppDataContextProvider, StoreProvider } from '../../ui';
+import { AppDataContextProvider } from '../../ui';
 import { PostScreenView } from '../../ui';
 import { FixtureWrapper } from '../FixtureWrapper';
 import * as content from '../contentHelpers';
@@ -29,29 +29,25 @@ export const DetailViewFixture = ({
 }) => {
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <StoreProvider>
-        <AppDataContextProvider
-          contacts={Object.values(content.exampleContacts)}
-        >
-          <PostScreenView
-            parentPost={{
-              ...post,
-              ...replyData,
-              channelId: channel.id,
-              channel,
-            }}
-            channel={channel}
-            group={group || null}
-            onPressRetry={async () => {}}
-            onPressDelete={() => {}}
-            negotiationMatch={true}
-            goBack={() => {}}
-            handleGoToUserProfile={() => {}}
-            onGroupAction={() => {}}
-            goToDm={() => {}}
-          />
-        </AppDataContextProvider>
-      </StoreProvider>
+      <AppDataContextProvider contacts={Object.values(content.exampleContacts)}>
+        <PostScreenView
+          parentPost={{
+            ...post,
+            ...replyData,
+            channelId: channel.id,
+            channel,
+          }}
+          channel={channel}
+          group={group || null}
+          onPressRetry={async () => {}}
+          onPressDelete={() => {}}
+          negotiationMatch={true}
+          goBack={() => {}}
+          handleGoToUserProfile={() => {}}
+          onGroupAction={() => {}}
+          goToDm={() => {}}
+        />
+      </AppDataContextProvider>
     </FixtureWrapper>
   );
 };

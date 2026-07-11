@@ -2424,6 +2424,8 @@ export function InvitePane(props: {
   onActionPress: () => void;
   inviteSystemContacts?: InviteSystemContactsFn;
   isCompleting?: boolean;
+  syncSystemContacts?: typeof store.syncSystemContacts;
+  syncContactDiscovery?: typeof store.syncContactDiscovery;
 }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteContacts, setShowInviteContacts] = useState(false);
@@ -2433,7 +2435,7 @@ export function InvitePane(props: {
     discoveredMatches,
     runDiscovery,
     notifyPendingMatches,
-  } = useContactDiscovery();
+  } = useContactDiscovery(props.syncContactDiscovery);
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
 
@@ -2447,7 +2449,9 @@ export function InvitePane(props: {
     let syncedContacts: db.SystemContact[] = [];
     try {
       setIsProcessing(true);
-      syncedContacts = await store.syncSystemContacts();
+      syncedContacts = await (
+        props.syncSystemContacts ?? store.syncSystemContacts
+      )();
       setSysContacts(syncedContacts);
       if (syncedContacts.length === 0) {
         logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
@@ -2468,7 +2472,7 @@ export function InvitePane(props: {
     if (syncedContacts.length > 0) {
       void runDiscovery(syncedContacts);
     }
-  }, [runDiscovery]);
+  }, [runDiscovery, props.syncSystemContacts]);
 
   const handleActionPress = useCallback(() => {
     notifyPendingMatches();

@@ -5,10 +5,10 @@ import {
   TlonText,
   View,
   YStack,
-  useStore,
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
+import * as store from '@tloncorp/shared/store';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -30,7 +30,6 @@ export const RequestPhoneVerifyScreen = ({
   navigation,
   route: { params },
 }: Props) => {
-  const store = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
 
