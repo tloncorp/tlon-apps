@@ -27,7 +27,6 @@ import {
   InviteUsersSheet,
   MobileAppPromoBanner,
   NavigationProvider,
-  RequestsProvider,
   ScreenHeader,
   View,
   useGlobalSearch,
@@ -205,88 +204,80 @@ export const HomeSidebar = memo(
     useRenderCount('HomeSidebar');
 
     return (
-      <RequestsProvider
-        usePostReference={store.usePostReference}
-        useChannel={store.useChannelPreview}
-        usePost={store.usePostWithRelations}
-        useApp={db.appInfo.useValue}
-        useGroup={store.useGroupPreview}
+      <ChatOptionsProvider
+        {...useChatSettingsNavigation()}
+        onPressInvite={handlePressInvite}
       >
-        <ChatOptionsProvider
-          {...useChatSettingsNavigation()}
-          onPressInvite={handlePressInvite}
-        >
-          <NavigationProvider focusedChannelId={focusedChannelId}>
-            <View userSelect="none" flex={1} position="relative">
-              <ScreenHeader
-                title={'Home'}
-                subtitle={syncSubtitle}
-                loadingSubtitle={loadingSubtitle}
-                showSubtitle={true}
-                testID="HomeSidebarHeader"
-                rightControls={
-                  <>
-                    <ScreenHeader.IconButton
-                      type="Search"
-                      onPress={handleSearch}
-                    />
-                    <CreateChatSheet
-                      ref={createChatSheetRef}
-                      trigger={<ScreenHeader.IconButton type="Add" />}
-                    />
-                  </>
-                }
-              />
-              <View flex={1}>
-                {chats && noChats ? (
-                  <View
-                    padding="$xl"
-                    margin="$xl"
-                    borderRadius="$m"
-                    backgroundColor="$positiveBackground"
-                    justifyContent="center"
-                  >
-                    <Text fontSize="$l">Welcome to Tlon</Text>
-                    <Text fontSize="$s" marginTop="$m">
-                      This is Tlon, an app for messaging friends and
-                      constructing communities.
-                    </Text>
-                    <Text fontSize="$s" marginTop="$m">
-                      To get started, click the &quot;
-                      <Text fontWeight="$xl" fontSize="$l">
-                        +
-                      </Text>
-                      &quot; button above to create a new chat.
-                    </Text>
-                  </View>
-                ) : (
-                  <ChatList
-                    data={displayData}
-                    allPinnedChats={resolvedChats.pinned}
-                    onPressItem={onPressChat}
-                    disableScrollAnchoring
-                    scrollerTestID="HomeSidebarChatScroller"
+        <NavigationProvider focusedChannelId={focusedChannelId}>
+          <View userSelect="none" flex={1} position="relative">
+            <ScreenHeader
+              title={'Home'}
+              subtitle={syncSubtitle}
+              loadingSubtitle={loadingSubtitle}
+              showSubtitle={true}
+              testID="HomeSidebarHeader"
+              rightControls={
+                <>
+                  <ScreenHeader.IconButton
+                    type="Search"
+                    onPress={handleSearch}
                   />
-                )}
-              </View>
-              <MobileAppPromoBanner />
-              <GroupPreviewSheet
-                open={!!selectedGroup}
-                onOpenChange={handleGroupPreviewSheetOpenChange}
-                group={selectedGroup ?? undefined}
-                onActionComplete={handleGroupAction}
-              />
-              <InviteUsersSheet
-                open={inviteSheetGroup !== null}
-                onOpenChange={handleInviteSheetOpenChange}
-                onInviteComplete={() => setInviteSheetGroup(null)}
-                groupId={inviteSheetGroup ?? undefined}
-              />
-              <SplashModal open={showSplash} setOpen={() => {}} />
+                  <CreateChatSheet
+                    ref={createChatSheetRef}
+                    trigger={<ScreenHeader.IconButton type="Add" />}
+                  />
+                </>
+              }
+            />
+            <View flex={1}>
+              {chats && noChats ? (
+                <View
+                  padding="$xl"
+                  margin="$xl"
+                  borderRadius="$m"
+                  backgroundColor="$positiveBackground"
+                  justifyContent="center"
+                >
+                  <Text fontSize="$l">Welcome to Tlon</Text>
+                  <Text fontSize="$s" marginTop="$m">
+                    This is Tlon, an app for messaging friends and constructing
+                    communities.
+                  </Text>
+                  <Text fontSize="$s" marginTop="$m">
+                    To get started, click the &quot;
+                    <Text fontWeight="$xl" fontSize="$l">
+                      +
+                    </Text>
+                    &quot; button above to create a new chat.
+                  </Text>
+                </View>
+              ) : (
+                <ChatList
+                  data={displayData}
+                  allPinnedChats={resolvedChats.pinned}
+                  onPressItem={onPressChat}
+                  disableScrollAnchoring
+                  scrollerTestID="HomeSidebarChatScroller"
+                />
+              )}
             </View>
-          </NavigationProvider>
-        </ChatOptionsProvider>
-      </RequestsProvider>
+            <MobileAppPromoBanner />
+            <GroupPreviewSheet
+              open={!!selectedGroup}
+              onOpenChange={handleGroupPreviewSheetOpenChange}
+              group={selectedGroup ?? undefined}
+              onActionComplete={handleGroupAction}
+            />
+            <InviteUsersSheet
+              open={inviteSheetGroup !== null}
+              onOpenChange={handleInviteSheetOpenChange}
+              onInviteComplete={() => setInviteSheetGroup(null)}
+              groupId={inviteSheetGroup ?? undefined}
+            />
+            <SplashModal open={showSplash} setOpen={() => {}} />
+          </View>
+        </NavigationProvider>
+      </ChatOptionsProvider>
     );
   }
 );

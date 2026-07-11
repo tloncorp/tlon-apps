@@ -1,9 +1,8 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { invokeContactsMatchedHandler } from '@tloncorp/shared/store';
 import { useCallback, useRef, useState } from 'react';
-
-import { useStore } from '../ui/contexts/storeContext';
 
 const logger = createDevLogger('useContactDiscovery', false);
 
@@ -21,8 +20,9 @@ const logger = createDevLogger('useContactDiscovery', false);
  * suppress the handler; when it hasn't, `notifyPendingMatches` invokes
  * it directly.
  */
-export function useContactDiscovery() {
-  const storeContext = useStore();
+export function useContactDiscovery(
+  syncContactDiscovery: typeof store.syncContactDiscovery = store.syncContactDiscovery
+) {
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [discoveredMatches, setDiscoveredMatches] = useState<
     db.SystemContact[]
@@ -38,7 +38,7 @@ export function useContactDiscovery() {
       // Reset per-run state so a re-fired discovery doesn't inherit the
       // "matches already shown" flag from a previous run.
       hasShownMatchesRef.current = false;
-      const promise = storeContext.syncContactDiscovery(undefined, {
+      const promise = syncContactDiscovery(undefined, {
         invokeHandler: false,
       });
       pendingDiscoveryRef.current = promise;
@@ -66,7 +66,7 @@ export function useContactDiscovery() {
         }
       }
     },
-    [storeContext]
+    [syncContactDiscovery]
   );
 
   const notifyPendingMatches = useCallback(() => {

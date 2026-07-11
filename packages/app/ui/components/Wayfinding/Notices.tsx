@@ -1,10 +1,10 @@
 import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 import { Circle, View, XStack, YStack, isWeb, styled } from 'tamagui';
 
-import { useStore } from '../../contexts/storeContext';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 
 const NoticeContainer = styled(YStack, {
@@ -119,7 +119,6 @@ function EmptyPersonalNotebook() {
 }
 
 function GroupChannels(props: { group: db.Group }) {
-  const store = useStore();
   const { data: wayfindingStatus } = store.useWayfindingCompletion();
 
   if (wayfindingStatus?.completedPersonalGroupTutorial ?? true) {
@@ -246,7 +245,6 @@ export function BotMentionTooltip() {
 }
 
 export function CollectionInputTooltip(props: { channelId: string }) {
-  const store = useStore();
   const shouldShow = store.useShowCollectionAddTooltip(props.channelId);
 
   if (!shouldShow) {
@@ -275,7 +273,6 @@ export function CollectionInputTooltip(props: { channelId: string }) {
 }
 
 export function NotebookInputTooltip(props: { channelId: string }) {
-  const store = useStore();
   const shouldShow = store.useShowNotebookAddTooltip(props.channelId);
 
   if (!shouldShow) {

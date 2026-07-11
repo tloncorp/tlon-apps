@@ -85,7 +85,6 @@ export * from './contexts/channel';
 export * from './contexts/appDataContext';
 export * from './contexts/attachment';
 export * from './contexts/requests';
-export * from './contexts/storeContext';
 export { PostCollectionContext } from './contexts/postCollection';
 export * from './tamagui.config';
 export * from './utils';

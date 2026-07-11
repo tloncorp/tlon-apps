@@ -1,9 +1,9 @@
+import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
-import { useStore } from '../../contexts/storeContext';
 import BareChatInput from '../BareChatInput';
 import { DraftInputContext } from './shared';
 
@@ -12,7 +12,6 @@ export function ChatInput({
 }: {
   draftInputContext: DraftInputContext;
 }) {
-  const store = useStore();
   const {
     channel,
     clearDraft,

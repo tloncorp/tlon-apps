@@ -1,13 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  ScreenHeader,
-  TlonText,
-  View,
-  YStack,
-  useStore,
-} from '@tloncorp/app/ui';
+import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 
 import { OTPInput } from '../../components/OnboardingInputs';
@@ -22,7 +17,6 @@ const PHONE_CODE_LENGTH = 6;
 const logger = createDevLogger('CheckVerifyScreen', true);
 
 export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
-  const store = useStore();
   const [code, setCode] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -56,13 +50,7 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
 
       setIsSubmitting(false);
     },
-    [
-      checkAccountStatusAndNavigate,
-      navigation,
-      params.mode,
-      signupContext,
-      store,
-    ]
+    [checkAccountStatusAndNavigate, navigation, params.mode, signupContext]
   );
 
   const handleCodeChanged = useCallback(
