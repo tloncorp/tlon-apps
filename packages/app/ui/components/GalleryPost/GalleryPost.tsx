@@ -9,6 +9,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { parsePostBlob } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { omit } from '@tloncorp/shared/utils';
 import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { differenceInDays } from 'date-fns';
@@ -27,7 +28,6 @@ import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
 import type { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useRequests } from '../../contexts/requests';
-import { useStore } from '../../contexts/storeContext';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -294,7 +294,6 @@ export function GalleryPostFooter({
   onPressRetry?: () => void;
 } & ComponentProps<typeof XStack>) {
   const isWindowNarrow = useIsWindowNarrow();
-  const store = useStore();
   const retryVerb = useMemo(() => {
     if (isWindowNarrow) {
       return 'Tap';

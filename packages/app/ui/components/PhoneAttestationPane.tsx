@@ -1,13 +1,13 @@
 import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
+import * as store from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { View, YStack } from 'tamagui';
 
-import { useStore } from '../contexts/storeContext';
 import { AttestationPane } from './AttestationPane';
 import { OTPInput } from './Form/OTPInput';
 import { PhoneNumberInput } from './Form/PhoneNumberInput';
@@ -70,7 +70,6 @@ type PhoneFormData = {
 };
 
 function SubmitPhoneNumPane(props: { attestation: db.Attestation | null }) {
-  const store = useStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
 
@@ -104,7 +103,7 @@ function SubmitPhoneNumPane(props: { attestation: db.Attestation | null }) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [phoneForm, store]);
+  }, [phoneForm]);
 
   return (
     <YStack gap="$2xl">
@@ -144,7 +143,6 @@ function SubmitPhoneNumPane(props: { attestation: db.Attestation | null }) {
 
 const PHONE_CODE_LENGTH = 6;
 function ConfirmPhoneNumPane(props: { attestation: db.Attestation }) {
-  const store = useStore();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [otp, setOtp] = useState<string[]>([]);
@@ -170,7 +168,7 @@ function ConfirmPhoneNumPane(props: { attestation: db.Attestation }) {
         setIsSubmitting(false);
       }
     },
-    [props.attestation.value, store]
+    [props.attestation.value]
   );
 
   const handleCodeChanged = useCallback(
@@ -185,7 +183,7 @@ function ConfirmPhoneNumPane(props: { attestation: db.Attestation }) {
 
   const handleRevoke = useCallback(() => {
     store.revokeAttestation(props.attestation);
-  }, [props.attestation, store]);
+  }, [props.attestation]);
 
   return (
     <YStack>
