@@ -1,37 +1,20 @@
-import * as db from '@tloncorp/shared/db';
 import { PropsWithChildren, useEffect, useState } from 'react';
 
 import { setupDb, useMigrations } from '../lib/nativeDb';
-import { group } from './fakeData';
 
 // Cosmos renders components that read the local SQLite database through the
-// statically imported store hooks. Boot the (in-memory) database, run
-// migrations, and seed it with the shared fixture data so those hooks return
-// something. No urbit client is configured — writes and syncs fail fast, and
-// reads of unseeded data resolve empty.
-async function seed() {
-  try {
-    await db.insertGroups({ groups: [group] });
-  } catch (e) {
-    console.warn('cosmos: failed to seed fixture data', e);
-  }
-}
-
-function MigrateAndSeed({ children }: PropsWithChildren) {
+// statically imported store hooks. On native, cosmos runs inside the dev
+// client and setupDb opens the app's persistent database — so run migrations
+// to make it readable, but don't seed fixture data into it (a dev session's
+// real data lives there). The web variant seeds its in-memory database.
+function Migrate({ children }: PropsWithChildren) {
   const { success, error } = useMigrations();
-  const [seeded, setSeeded] = useState(false);
-
-  useEffect(() => {
-    if (success) {
-      seed().then(() => setSeeded(true));
-    }
-  }, [success]);
 
   if (error) {
     console.warn('cosmos: migrations failed', error);
     return children;
   }
-  return seeded ? children : null;
+  return success ? children : null;
 }
 
 export function CosmosDbProvider({ children }: PropsWithChildren) {
@@ -41,5 +24,5 @@ export function CosmosDbProvider({ children }: PropsWithChildren) {
     setupDb().then(() => setReady(true));
   }, []);
 
-  return ready ? <MigrateAndSeed>{children}</MigrateAndSeed> : null;
+  return ready ? <Migrate>{children}</Migrate> : null;
 }

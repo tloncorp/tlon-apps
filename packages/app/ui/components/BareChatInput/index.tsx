@@ -658,7 +658,7 @@ function BareChatInput(
     }
 
     prevUrlsRef.current = currentUrls;
-  }, [debouncedText, store, addAttachment, removeAttachment]);
+  }, [debouncedText, addAttachment, removeAttachment]);
 
   const adjustInputHeightProgrammatically = useCallback(() => {
     if (!isWeb || !inputRef.current) {
