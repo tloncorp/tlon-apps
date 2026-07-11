@@ -8,6 +8,7 @@ import {
   TaskInlineData,
   TextInlineData,
 } from '@tloncorp/shared/logic';
+import { useGroupPreview } from '@tloncorp/shared/store';
 import { RawText, Text } from '@tloncorp/ui';
 import React, {
   PropsWithChildren,
@@ -20,7 +21,6 @@ import { ColorTokens, styled } from 'tamagui';
 
 import { useChannelContext } from '../../contexts/channel';
 import { useNavigation } from '../../contexts/navigation';
-import { useRequests } from '../../contexts/requests';
 import { ALL_MENTION_ID } from '../BareChatInput/useMentions';
 import { useContactName } from '../ContactNameV2';
 import { useContentContext } from './contentUtils';
@@ -88,9 +88,8 @@ export function InlineGroupMention({
 }: PropsWithChildren<{
   inline: GroupMentionInlineData;
 }>) {
-  const { useGroup } = useRequests();
   const channel = useChannelContext();
-  const { data: group } = useGroup(channel.groupId ?? '');
+  const { data: group } = useGroupPreview(channel.groupId ?? '');
   const { onGoToGroupSettings } = useNavigation();
   const handlePress = useCallback(() => {
     onGoToGroupSettings?.();
