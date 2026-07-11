@@ -2,16 +2,18 @@ import * as db from '@tloncorp/shared/db';
 import { PropsWithChildren, useEffect, useState } from 'react';
 
 import { setupDb, useMigrations } from '../lib/webDb';
+import { fixturePosts } from './contentHelpers';
 import { group } from './fakeData';
 
 // Cosmos renders components that read the local SQLite database through the
-// statically imported store hooks. Boot the (in-memory) database, run
+// statically imported store hooks. Boot the in-memory web database, run
 // migrations, and seed it with the shared fixture data so those hooks return
 // something. No urbit client is configured — writes and syncs fail fast, and
 // reads of unseeded data resolve empty.
 async function seed() {
   try {
     await db.insertGroups({ groups: [group] });
+    await db.insertChannelPosts({ posts: fixturePosts });
   } catch (e) {
     console.warn('cosmos: failed to seed fixture data', e);
   }
