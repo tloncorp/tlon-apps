@@ -410,9 +410,12 @@ function BareChatInput(
       inputRef.current?.focus();
 
       if (!isWeb) {
+        // Only set the selection here — the input's text on native is driven
+        // by the TextWithMentions children. Setting `text` via setNativeProps
+        // would be *prepended* to the child text by RCTBaseTextInputShadowView,
+        // duplicating the message.
         requestAnimationFrame(() => {
           inputRef.current?.setNativeProps({
-            text: selectionResult.text,
             selection: {
               start: selectionResult.cursorPosition,
               end: selectionResult.cursorPosition,
