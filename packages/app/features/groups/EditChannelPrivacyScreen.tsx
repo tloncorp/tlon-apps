@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { ScrollView, View, YStack } from 'tamagui';
 
 import { useChannelEditScreen } from '../../hooks/useChannelEditScreen';
@@ -47,7 +47,7 @@ export function EditChannelPrivacyScreen(props: Props) {
     },
   });
 
-  const isPrivate = form.watch('isPrivate');
+  const isPrivate = useWatch({ control: form.control, name: 'isPrivate' });
   const { isDirty } = form.formState;
   const channelIdRef = useRef(channel?.id);
 
