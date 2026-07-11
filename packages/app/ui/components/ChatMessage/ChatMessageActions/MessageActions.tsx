@@ -378,9 +378,27 @@ export async function handleAction({
     case 'copyRef':
       await Clipboard.setStringAsync(logic.getPostReferencePath(post));
       break;
-    case 'copyText':
-      await Clipboard.setStringAsync(post.textContent ?? '');
+    case 'copyText': {
+      // post.textContent is a single-line preview (line breaks collapsed to
+      // spaces), so re-derive plaintext from the full content to keep them.
+      let text: string;
+      try {
+        text = logic.plaintextPreviewOf(
+          logic.convertContent(post.content, post.blob),
+          {
+            ...logic.PlaintextPreviewConfig.defaultConfig,
+            // Keep clipboard text free of synthetic "(Ref)" markers.
+            includeRefTag: false,
+          }
+        );
+      } catch (e) {
+        // convertContent throws on unrecognized block types (e.g. content
+        // written by a newer client); fall back to the stored preview.
+        text = post.textContent ?? '';
+      }
+      await Clipboard.setStringAsync(text);
       break;
+    }
     case 'delete':
       store.deletePost({ post });
       break;
