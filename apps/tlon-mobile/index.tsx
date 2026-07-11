@@ -1,12 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// Enables native portals (react-native-teleport) so tamagui portals teleport the
+// native views while keeping the React tree in place, preserving context. This
+// import-time side effect configures the backend before any PortalProvider renders.
+import '@tamagui/native/setup-teleport';
 import PlatformState from '@tloncorp/app';
 import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 // Setup custom dev menu items
 import '@tloncorp/app/lib/devMenuItems';
+import { initializeNotifications } from '@tloncorp/app/lib/notifications';
 import { setStorage } from '@tloncorp/app/ui';
 import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+// Runs createTamagui() before the UI barrel reads design tokens at import time.
+import '@tloncorp/ui/config';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
 import { useEffect, useRef } from 'react';
@@ -20,6 +27,7 @@ import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
 import { useDbReady } from './src/hooks/useDbReady';
+import { initializeBackgroundSync } from './src/lib/backgroundSync';
 import utilities from './tailwind.json';
 
 // Extend BigInt so serialization will never crash in JSON.parse
@@ -37,6 +45,10 @@ configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
   strict: false,
 });
+
+// Eager module init. Runs at the entry so it isn't deferred by inline requires.
+initializeBackgroundSync();
+initializeNotifications();
 
 const UrbitModule =
   Platform.OS !== 'web' ? TurboModuleRegistry.get('UrbitModule') : null;

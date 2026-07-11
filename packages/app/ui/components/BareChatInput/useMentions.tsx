@@ -24,6 +24,11 @@ export interface MentionOption {
   contact?: db.Contact;
 }
 
+export interface MentionSelectionResult {
+  text: string;
+  cursorPosition: number;
+}
+
 export function getMentionPriority(member: db.ChatMember): number {
   const { contact } = member;
   if (!contact) {
@@ -268,6 +273,8 @@ export const useMentions = ({
       mentionStartIndex + (mentionSearchText?.length || 0) + 1
     );
 
+    const replacedTextEnd =
+      mentionStartIndex + (mentionSearchText?.length || 0) + 1;
     const newText = beforeMention + mentionDisplay + ' ' + afterMention;
     const newMention: Mention = {
       id: option.id,
@@ -275,21 +282,55 @@ export const useMentions = ({
       start: mentionStartIndex,
       end: mentionStartIndex + mentionDisplay.length,
     };
+    const replacementDelta =
+      mentionDisplay.length + 1 - (replacedTextEnd - mentionStartIndex);
 
-    setMentions((prev) => [...prev, newMention]);
+    // Keep the array sorted by position: downstream serialization
+    // (textAndMentionsToContent/processLine) consumes mentions in array order.
+    setMentions((prev) =>
+      [
+        ...prev
+          .filter(
+            (mention) =>
+              mention.end <= mentionStartIndex ||
+              mention.start >= replacedTextEnd
+          )
+          .map((mention) =>
+            mention.start >= replacedTextEnd
+              ? {
+                  ...mention,
+                  start: mention.start + replacementDelta,
+                  end: mention.end + replacementDelta,
+                }
+              : mention
+          ),
+        newMention,
+      ].sort((a, b) => a.start - b.start)
+    );
     setIsMentionModeActive(false);
     setMentionStartIndex(null);
     setMentionSearchText('');
     setWasDismissedByEscape(false);
     setLastDismissedTriggerIndex(null);
 
-    return newText;
+    return {
+      text: newText,
+      cursorPosition: beforeMention.length + mentionDisplay.length + 1,
+    };
   };
 
   const handleMentionEscape = () => {
     setIsMentionModeActive(false);
     setWasDismissedByEscape(true);
     setLastDismissedTriggerIndex(mentionStartIndex);
+  };
+
+  // Light dismiss for gestures like tapping outside the popup. Unlike
+  // handleMentionEscape (which "poisons" the current trigger index so the
+  // popup doesn't reopen as the user keeps typing), this just hides the
+  // popup; the next keystroke re-evaluates the mention trigger normally.
+  const handleMentionSoftDismiss = () => {
+    setIsMentionModeActive(false);
   };
 
   const resetMentionMode = () => {
@@ -311,6 +352,7 @@ export const useMentions = ({
     isMentionModeActive,
     setIsMentionModeActive,
     handleMentionEscape,
+    handleMentionSoftDismiss,
     hasMentionCandidates,
     resetMentionMode,
   };

@@ -118,6 +118,13 @@ export const syncInitData = async (
   }
 };
 
+async function syncAddedGroupChannel(channel: db.Channel) {
+  if (!channel.groupId) return;
+
+  await syncGroup(channel.groupId, undefined, { force: true });
+  await syncUnreads();
+}
+
 function initializeJoinedSet({
   channelUnreads,
   groupUnreads,
@@ -1189,10 +1196,7 @@ export async function handleGroupUpdate(
     }
     case 'addChannel': {
       await db.insertChannels([update.channel], ctx);
-      if (update.channel.groupId) {
-        await syncGroup(update.channel.groupId, undefined, { force: true });
-        await syncUnreads();
-      }
+      await syncAddedGroupChannel(update.channel);
       break;
     }
     case 'updateChannel': {

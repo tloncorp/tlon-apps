@@ -14,6 +14,9 @@ import {
 import type {
   HostingHeartBeatCode,
   TlawnBotInfo,
+  TlawnChannelGroups,
+  TlawnChatConfigInfo,
+  TlawnChatConfigUpdate,
   TlawnConfig,
   TlawnOAuthProvider,
   TlawnOAuthStartRequest,
@@ -27,6 +30,12 @@ import type {
 export type {
   HostingHeartBeatCode,
   TlawnBotInfo,
+  TlawnChannelGroupEntry,
+  TlawnChannelGroups,
+  TlawnChannelModelOverride,
+  TlawnChannelModelsUpdate,
+  TlawnChatConfigInfo,
+  TlawnChatConfigUpdate,
   TlawnConfig,
   TlawnModelEntry,
   TlawnOAuthGrant,
@@ -532,6 +541,83 @@ export async function setTlawnConfig(
   return hostingFetch<TlawnConfig>(
     `/v1/tlawn/ships/${ship}/config`,
     jsonInit('PUT', config)
+  );
+}
+
+/**
+ * Read the tlonbot config from the ship's urbit settings store. Unlike
+ * `getTlawnConfig`, this reflects what the running bot actually sees. Fields
+ * may be missing if the bot has never been configured, so the result is
+ * partial and callers should normalize.
+ */
+export async function getTlawnSettings(
+  ship: string
+): Promise<Partial<TlawnConfig>> {
+  return hostingFetch<Partial<TlawnConfig>>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/settings`
+  );
+}
+
+/**
+ * Update the tlonbot chat config and (optionally) per-channel model overrides
+ * in one request. The backend validates the overrides before persisting and
+ * restarts the tlawn gateway after a successful write.
+ */
+export async function setTlawnChatConfig(
+  ship: string,
+  update: TlawnChatConfigUpdate
+): Promise<TlawnChatConfigInfo> {
+  return hostingFetch<TlawnChatConfigInfo>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/chat-config`,
+    jsonInit('PUT', update)
+  );
+}
+
+/**
+ * List group chat channels available to the ship (or, when `moon` is given,
+ * to the tlonbot moon).
+ */
+export async function getTlawnChannels(
+  ship: string,
+  moon?: string | null
+): Promise<TlawnChannelGroups> {
+  const query = moon ? `?moon=${encodeURIComponent(moon)}` : '';
+  return hostingFetch<TlawnChannelGroups>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/channels${query}`
+  );
+}
+
+export async function getTlawnMoon(ship: string): Promise<string | null> {
+  return fetchNullableString(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/moon`
+  );
+}
+
+/** Allow the tlonbot moon to join a group by adding it to the group's cordon. */
+export async function addTlawnToCordon(
+  ship: string,
+  group: string,
+  moon: string
+): Promise<void> {
+  const query = `?group=${encodeURIComponent(group)}&moon=${encodeURIComponent(moon)}`;
+  await fetchVoid(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/add-to-cordon${query}`,
+    { method: 'POST' }
+  );
+}
+
+/** Join a group as the tlonbot moon. */
+export async function joinTlawnGroup(
+  ship: string,
+  group: string,
+  moon: string
+): Promise<void> {
+  const query = `?group=${encodeURIComponent(group)}&moon=${encodeURIComponent(moon)}`;
+  await fetchVoid(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/join${query}`,
+    {
+      method: 'POST',
+    }
   );
 }
 

@@ -51,6 +51,19 @@ export type RootStackParamList = {
     groupId?: string;
     selectedPostId?: string | null;
   };
+  NotesDetail: {
+    channelId: string;
+    focusTitle?: boolean;
+    groupId?: string;
+    noteId: number;
+    startInEdit?: boolean;
+  };
+  NotesFolder: {
+    channelId: string;
+    folderId: number;
+    folderTitle?: string;
+    groupId?: string;
+  };
   MediaViewer: {
     mediaType: 'image' | 'video';
     uri?: string;
@@ -65,6 +78,17 @@ export type RootStackParamList = {
   BotSettings: undefined;
   BotMcpSettings: undefined;
   BotOtherSettings: undefined;
+  BotModelSettings: { mode: 'default' | 'fallbacks' };
+  BotApiKeySettings: { provider: string };
+  BotShipListSettings: {
+    list: 'dmAllowlist' | 'defaultAuthorizedShips' | 'groupInviteAllowlist';
+  };
+  BotChannelRulesSettings: undefined;
+  BotChannelRuleSettings: {
+    channelKey: string;
+    channelLabel: string;
+    groupJoined: boolean;
+  };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -163,6 +187,11 @@ export type SettingsDrawerParamList = Pick<
   | 'BotSettings'
   | 'BotMcpSettings'
   | 'BotOtherSettings'
+  | 'BotModelSettings'
+  | 'BotApiKeySettings'
+  | 'BotShipListSettings'
+  | 'BotChannelRulesSettings'
+  | 'BotChannelRuleSettings'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
@@ -175,6 +204,8 @@ export type ChannelStackParamList = {
   GroupSettings: RootStackParamList['GroupSettings'];
   ChannelSearch: RootStackParamList['ChannelSearch'];
   Post: RootStackParamList['Post'];
+  NotesDetail: RootStackParamList['NotesDetail'];
+  NotesFolder: RootStackParamList['NotesFolder'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
@@ -187,6 +218,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'GroupSettings'
   | 'ChannelSearch'
   | 'Post'
+  | 'NotesDetail'
+  | 'NotesFolder'
   | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'
