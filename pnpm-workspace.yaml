@@ -41,6 +41,7 @@ patchedDependencies:
   react-native-gesture-handler: patches/react-native-gesture-handler@2.32.0.patch
   expo-image-manipulator: patches/expo-image-manipulator@57.0.1.patch
   expo-background-task: patches/expo-background-task@57.0.1.patch
+  '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
 
 allowUnusedPatches: false
 

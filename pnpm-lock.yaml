@@ -30,6 +30,7 @@ overrides:
 patchedDependencies:
   '@10play/tentap-editor': cf3371718a2a37f20b200bf7554c58574e7eac08d881102fef86d353e743b2b3
   '@gorhom/bottom-sheet': 19cd5e0683f069b1119d662ee476d31448ec23ff1700b6895fe3f4e0b93b2882
+  '@mattermost/react-native-paste-input@2.0.1': 313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d
   '@simform_solutions/react-native-audio-waveform': af72fc5c183530a26f093004261c71c1d7797475d7beeb6d52b5f10a55a5cee2
   '@types/testing-library__jest-dom': cf4e4e793d22cd793da0c584ea39f50bf28a9b3e80d42a7169122bc40c8b02a9
   '@urbit/http-api': b3f0e6b79865d1bf96f3ed52e0670722d9d3386f33432f37eda868452f3f8d96
@@ -162,6 +163,9 @@ importers:
       '@gorhom/bottom-sheet':
         specifier: ^5.2.14
         version: 5.2.14(patch_hash=19cd5e0683f069b1119d662ee476d31448ec23ff1700b6895fe3f4e0b93b2882)(fe8de7ce48f2ede16528dba1b2000c30)
+      '@mattermost/react-native-paste-input':
+        specifier: 2.0.1
+        version: 2.0.1(patch_hash=313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d)(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@op-engineering/op-sqlite':
         specifier: 15.2.5
         version: 15.2.5(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -1019,6 +1023,9 @@ importers:
       '@emoji-mart/data':
         specifier: ^1.1.2
         version: 1.1.2
+      '@mattermost/react-native-paste-input':
+        specifier: 2.0.1
+        version: 2.0.1(patch_hash=313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d)(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@tloncorp/api':
         specifier: workspace:*
         version: link:../api
@@ -3387,6 +3394,12 @@ packages:
   '@malept/flatpak-bundler@0.4.0':
     resolution: {integrity: sha512-9QOtNffcOF/c1seMCDnjckb3R9WHcG34tky+FHpNKKCW0wc/scYLwMtO+ptyGUfMW0/b/n4qRiALlaFHc9Oj7Q==}
     engines: {node: '>= 10.0.0'}
+
+  '@mattermost/react-native-paste-input@2.0.1':
+    resolution: {integrity: sha512-Q9zjXvjwxVQ1M8ylxr9Y+wUpG7xb1wW4u+I34oPvF3etTyBrGtVyA4Bt7Xphgc29eW6wQFUxTIbzZc3E6W2MQg==}
+    peerDependencies:
+      react: 19.2.3
+      react-native: 0.86.0
 
   '@microsoft/fetch-event-source@2.0.1':
     resolution: {integrity: sha512-W6CLUJ2eBMw3Rec70qrsEW0jOm/3twwJv21mrmj2yORiaVmVYGS4sSS5yUwvQc1ZlDLYGPnClVWmUUMagKNsfA==}
@@ -15436,7 +15449,7 @@ snapshots:
       make-fetch-happen: 10.2.1
       nopt: 6.0.0
       proc-log: 2.0.1
-      semver: 7.8.5
+      semver: 7.7.3
       tar: 6.2.1
       which: 2.0.2
     transitivePeerDependencies:
@@ -15475,7 +15488,7 @@ snapshots:
       node-api-version: 0.2.1
       ora: 5.4.1
       read-binary-file-arch: 1.0.6
-      semver: 7.8.5
+      semver: 7.7.3
       tar: 6.2.1
       yargs: 17.7.2
     transitivePeerDependencies:
@@ -15682,7 +15695,7 @@ snapshots:
       progress: 2.0.3
       prompts: 2.4.2
       resolve-from: 5.0.0
-      semver: 7.8.5
+      semver: 7.7.3
       send: 0.19.2
       slugify: 1.6.6
       stacktrace-parser: 0.1.11
@@ -15721,7 +15734,7 @@ snapshots:
       getenv: 2.0.0
       glob: 10.5.0
       resolve-from: 5.0.0
-      semver: 7.8.5
+      semver: 7.7.3
       slash: 3.0.0
       slugify: 1.6.6
       xcode: 3.0.1
@@ -15780,7 +15793,7 @@ snapshots:
       getenv: 2.0.0
       glob: 13.0.6
       resolve-workspace-root: 2.0.0
-      semver: 7.8.5
+      semver: 7.7.3
       slugify: 1.6.6
     transitivePeerDependencies:
       - supports-color
@@ -15828,7 +15841,7 @@ snapshots:
       ignore: 5.3.2
       minimatch: 10.2.5
       resolve-from: 5.0.0
-      semver: 7.8.5
+      semver: 7.7.3
     transitivePeerDependencies:
       - supports-color
 
@@ -15840,7 +15853,7 @@ snapshots:
       getenv: 2.0.0
       jimp-compact: 0.16.1
       parse-png: 2.1.0
-      semver: 7.8.5
+      semver: 7.7.3
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -15980,7 +15993,7 @@ snapshots:
       debug: 4.4.3
       expo-modules-autolinking: 57.0.5(typescript@5.9.3)
       resolve-from: 5.0.0
-      semver: 7.8.5
+      semver: 7.7.3
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -16723,6 +16736,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@mattermost/react-native-paste-input@2.0.1(patch_hash=313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d)(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      react: 19.2.3
+      react-native: 0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3)
+
   '@microsoft/fetch-event-source@2.0.1': {}
 
   '@mistralai/mistralai@2.2.5':
@@ -16912,7 +16930,7 @@ snapshots:
   '@npmcli/fs@2.1.2':
     dependencies:
       '@gar/promisify': 1.1.3
-      semver: 7.8.5
+      semver: 7.7.3
 
   '@npmcli/move-file@2.0.1':
     dependencies:
@@ -21135,7 +21153,7 @@ snapshots:
       edit-json-file: 1.8.1
       globby: 13.2.2
       js-yaml: 4.1.1
-      semver: 7.8.5
+      semver: 7.7.3
       table: 6.9.0
       type-fest: 4.41.0
 
@@ -23219,7 +23237,7 @@ snapshots:
       es6-error: 4.1.1
       matcher: 3.0.0
       roarr: 2.15.4
-      semver: 7.8.5
+      semver: 7.7.3
       serialize-error: 7.0.1
     optional: true
 
@@ -23822,7 +23840,7 @@ snapshots:
       '@babel/parser': 7.29.7
       '@istanbuljs/schema': 0.1.3
       istanbul-lib-coverage: 3.2.2
-      semver: 7.8.5
+      semver: 7.7.3
     transitivePeerDependencies:
       - supports-color
 
@@ -24660,7 +24678,7 @@ snapshots:
 
   make-dir@4.0.0:
     dependencies:
-      semver: 7.8.5
+      semver: 7.7.3
 
   make-fetch-happen@10.2.1:
     dependencies:
@@ -25445,7 +25463,7 @@ snapshots:
 
   node-abi@3.87.0:
     dependencies:
-      semver: 7.8.5
+      semver: 7.7.3
 
   node-addon-api@1.7.2:
     optional: true
@@ -25454,7 +25472,7 @@ snapshots:
 
   node-api-version@0.2.1:
     dependencies:
-      semver: 7.8.5
+      semver: 7.7.3
 
   node-domexception@1.0.0: {}
 
@@ -25517,7 +25535,7 @@ snapshots:
     dependencies:
       hosted-git-info: 7.0.2
       proc-log: 4.2.0
-      semver: 7.8.5
+      semver: 7.7.3
       validate-npm-package-name: 5.0.1
 
   npm-run-path@4.0.1:

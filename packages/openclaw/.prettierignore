@@ -1,0 +1,9 @@
+# Preserve the existing formatting of legacy documentation and support files.
+SECURITY-AUDIT.md
+SECURITY.md
+openclaw.plugin.json
+scripts/generate-channel-configs.mjs
+scripts/generate-version.js
+scripts/prepare-publish-package.js
+scripts/resolve-workspace-deps.mjs
+test/README.md

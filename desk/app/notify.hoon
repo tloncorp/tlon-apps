@@ -170,16 +170,16 @@
 ::  +log: specialized wrapper for logging library
 ::
 ++  log
-  |_  our=@p
+  |_  =bowl:gall
   ++  fail
-    |=  [desc=term trace=tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our /logs) desc trace ~)
+    (~(fail logs bowl /logs) vol echo tang ~)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
     %-  link
-    (~(tell logs our /logs) volume echo ~)
+    (~(tell logs bowl /logs) volume echo ~)
   ::
   ++  link  ::  construct accumulator
     |=  cad=card
@@ -198,7 +198,7 @@
 =<
   |_  =bowl:gall
   +*  this  .
-      l     ~(. log our.bowl)
+      l     ~(. log bowl)
       def   ~(. (default-agent this %|) bowl)
       do    ~(. +> bowl)
       io    ~(. agentio bowl)
@@ -558,7 +558,7 @@
           `this
         =+  !<(=update:v9:av q.cage.sign)
         ?.  ?=(%read -.update)
-          %-  (tell:l %crit (crip "unexpected fact {<-.update>}") ~)
+          %-  (tell:l %error (crip "unexpected fact {<-.update>}") ~)
           `this
         ?^  unread.activity-summary.update
           `this
@@ -615,7 +615,7 @@
           `this
         =/  =tang
           ['notify watch-nack' >wire< u.p.sign]
-        ((tell:l %crit tang) ((slog tang) `this))
+        ((fail:l %error ~['notify watch-nack' >wire<] u.p.sign) ((slog tang) `this))
       ==
     ::
     ::  subscription from provider to client
@@ -644,7 +644,7 @@
           ~[(leave-path:pass [src.bowl %notify] /notify/(scot %p src.bowl)/[service])]
         =/  =tang
           ['notify watch-nack' >wire< u.p.sign]
-        %-  (tell:l %crit tang)
+        %-  (fail:l %error ~['notify watch-nack' >wire<] u.p.sign)
         %-  (slog tang)
         :_  this
         ::  attempt watching old path for compatibility with old clients
@@ -703,7 +703,7 @@
       =*  status  status-code.response-header.res
       ?:  =(200 status)  `this
       =;  =tang
-        %-  (tell:l %crit tang)
+        %-  (tell:l %error tang)
         ((slog tang) `this)
       :-  leaf/"Error sending notfication, status: {(scow %ud status)}"
       ?~  full-file.res  ~
@@ -723,7 +723,8 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
-    ((fail:l term tang) `this)
+    :_  this
+    [(~(on-fail logs bowl /logs) term tang)]~
   --
 |_  bowl=bowl:gall
 ::

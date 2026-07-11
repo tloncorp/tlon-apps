@@ -67,6 +67,7 @@ export * from './components/ScreenHeader';
 export * from './components/SearchBar';
 export * from './components/SettingsContentScrollView';
 export * from './components/SettingsScreenView';
+export * from './components/ShipPickerSheet';
 export * from './components/StoppedNodePushSheet';
 export * from './components/Tabs';
 export * from './components/TwtitterAttestationPane';
