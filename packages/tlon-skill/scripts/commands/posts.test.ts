@@ -631,6 +631,19 @@ describe('posts react', () => {
     expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
     expectNoAuthOrApi(context);
   });
+
+  it('rejects an omitted emoji that lets --parent fill the emoji slot', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['react', 'chat/~host/chan', '170.142', '--parent', '170.141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
+    expectNoAuthOrApi(context);
+  });
 });
 
 describe('posts unreact', () => {
@@ -740,6 +753,19 @@ describe('posts unreact', () => {
         '--parent',
         '170140',
       ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.unreact}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects an omitted id that lets --parent fill the id slot', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      ['unreact', 'chat/~host/chan', '--parent', '170.141'],
       context.deps
     );
 

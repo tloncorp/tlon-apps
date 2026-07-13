@@ -600,6 +600,17 @@ class AdapterReactionTests(unittest.TestCase):
         self.assertIsNone(adapter._message_cache.lookup("chat/~pen/general", "170.141"))
         self.assertEqual(len(adapter._reaction_state._conversations), 0)
 
+    def test_reaction_hint_uses_bare_subcommands(self):
+        # The model-facing tlon tool takes the SUBCOMMAND at argument zero; a
+        # leading `tlon` binary token is rejected, so the hint must omit it.
+        for level in ("minimal", "extensive"):
+            hint = adapter_mod._reaction_platform_hint(level)
+            self.assertIn('posts react <nest> <post-id> "<emoji>"', hint)
+            self.assertIn('dms react <ship> <message-id> "<emoji>"', hint)
+            self.assertNotIn("tlon posts react", hint)
+            self.assertNotIn("tlon dms react", hint)
+        self.assertEqual(adapter_mod._reaction_platform_hint("off"), "")
+
 
 if __name__ == "__main__":
     unittest.main()

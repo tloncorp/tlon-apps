@@ -86,7 +86,7 @@ function isDmsMessageHelpLiteral(args: string[]): boolean {
   return false;
 }
 
-function validateDmsArgs(args: string[]): void {
+export function validateDmsArgs(args: string[]): void {
   const command = args[0];
   if (!command || !DMS_COMMAND_HELP[command]) {
     printUsageAndExit(DMS_HELP);
@@ -123,11 +123,17 @@ function validateDmsArgs(args: string[]): void {
     case 'react': {
       if (!args[1] || !args[2] || !args[3])
         printUsageAndExit(DMS_COMMAND_HELP.react);
+      // A positional slot filled by an option token (e.g. `--parent` swallowed
+      // into the emoji slot when the emoji is omitted) is a usage error.
+      if (positionalIsOption(args, 3))
+        printUsageAndExit(DMS_COMMAND_HELP.react);
       reactionParent(args, DMS_COMMAND_HELP.react);
       return;
     }
     case 'unreact':
       if (!args[1] || !args[2]) printUsageAndExit(DMS_COMMAND_HELP.unreact);
+      if (positionalIsOption(args, 2))
+        printUsageAndExit(DMS_COMMAND_HELP.unreact);
       reactionParent(args, DMS_COMMAND_HELP.unreact);
       return;
     case 'delete': {
@@ -158,6 +164,16 @@ export function parsePostId(postId: string): { id: string; authorId?: string } {
     return { id, authorId: normalizeShip(author) };
   }
   return { id: postId };
+}
+
+// True when any positional slot 1..count is an option token (starts with
+// `--`). Guards against a flag being swallowed into a positional slot (e.g.
+// an omitted emoji letting `--parent` land in the react slot).
+function positionalIsOption(args: string[], count: number): boolean {
+  for (let i = 1; i <= count; i += 1) {
+    if (args[i]?.startsWith('--')) return true;
+  }
+  return false;
 }
 
 export function reactionParent(

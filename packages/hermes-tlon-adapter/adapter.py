@@ -3204,8 +3204,8 @@ def _reaction_platform_hint(level: str) -> str:
     return (
         f" Reactions are enabled for Tlon in {level.upper()} mode. {guidance} "
         "Message ids and thread roots appear in […] markers. For channels use "
-        "'tlon posts react <nest> <post-id> \"<emoji>\"'; for one-to-one DMs use "
-        "'tlon dms react <ship> <message-id> \"<emoji>\"'. For a thread reply add "
+        "'posts react <nest> <post-id> \"<emoji>\"'; for one-to-one DMs use "
+        "'dms react <ship> <message-id> \"<emoji>\"'. For a thread reply add "
         "'--parent <thread-root-id>'; use unreact to remove your reaction. Non-owner "
         "sessions may react only in the current conversation."
     )

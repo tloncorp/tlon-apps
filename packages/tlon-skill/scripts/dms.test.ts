@@ -79,6 +79,33 @@ describe('dms thread reaction parents', () => {
     }
   });
 
+  it('rejects an option token in a positional react/unreact slot before API work', async () => {
+    const dms = await loadDms();
+    const originalExit = process.exit;
+    const originalError = console.error;
+    const cases = [
+      // Emoji omitted: `--parent` would otherwise fill the react slot.
+      ['react', '~mug', '~pen/170.142', '--parent', '~pen/170.141'],
+      // Id omitted: `--parent` would otherwise fill the message-id slot.
+      ['unreact', '~mug', '--parent', '~pen/170.141'],
+    ];
+    for (const args of cases) {
+      const exitCodes: (number | undefined)[] = [];
+      process.exit = ((code?: number) => {
+        exitCodes.push(code);
+        throw new Error('exit');
+      }) as typeof process.exit;
+      console.error = () => {};
+      try {
+        expect(() => dms.validateDmsArgs(args)).toThrow();
+        expect(exitCodes).toEqual([1]);
+      } finally {
+        process.exit = originalExit;
+        console.error = originalError;
+      }
+    }
+  });
+
   it('passes parentId and parentAuthorId for react and unreact', async () => {
     const dms = await loadDms();
     const added: Record<string, unknown>[] = [];

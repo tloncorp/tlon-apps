@@ -482,6 +482,15 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       if (!channelId || !postId || !emoji) {
         throw usageError(POSTS_COMMAND_HELP.react);
       }
+      // A positional slot filled by an option token (e.g. `--parent` swallowed
+      // into the emoji slot when the emoji is omitted) is a usage error.
+      if (
+        channelId.startsWith('--') ||
+        postId.startsWith('--') ||
+        emoji.startsWith('--')
+      ) {
+        throw usageError(POSTS_COMMAND_HELP.react);
+      }
       return {
         kind: 'react',
         channelId,
@@ -493,6 +502,9 @@ function parseArgs(args: string[]): ParsedPostsArgs {
     case 'unreact': {
       const [, channelId, postId] = args;
       if (!channelId || !postId) {
+        throw usageError(POSTS_COMMAND_HELP.unreact);
+      }
+      if (channelId.startsWith('--') || postId.startsWith('--')) {
         throw usageError(POSTS_COMMAND_HELP.unreact);
       }
       return {

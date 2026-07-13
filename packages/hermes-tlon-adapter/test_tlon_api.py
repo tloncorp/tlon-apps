@@ -1207,6 +1207,49 @@ class ReactionParsingTests(unittest.TestCase):
             )
         )
 
+    def test_bot_reaction_author_allows_null_nickname(self):
+        # nickname is wire type `(unit @t)`: a bot profile without a nickname
+        # serializes null, which must not drop the reaction or reject a snapshot.
+        add = {
+            "whom": "~mug",
+            "id": "~zod/170.141",
+            "response": {
+                "add-react": {
+                    "author": {"ship": "~bot", "nickname": None, "avatar": None},
+                    "react": {"any": "👍"},
+                }
+            },
+        }
+        reaction = tlon_api.parse_dm_reaction(add, self_ship="~zod")
+        self.assertIsNotNone(reaction)
+        self.assertEqual(reaction.reactor, "~bot")
+        self.assertTrue(reaction.reactor_is_bot)
+        self.assertEqual(reaction.emoji, "👍")
+
+        raw = {
+            "nest": "chat/~zod/general",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "reacts": {
+                            "~mug": "👍",
+                            "~bot/": {
+                                "ship": "~bot",
+                                "nickname": None,
+                                "avatar": None,
+                                "react": {"any": "🔥"},
+                            },
+                        }
+                    },
+                }
+            },
+        }
+        snapshot = tlon_api.parse_channel_reacts_snapshot(raw)
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot.entries["~mug"], ("👍", "~mug", False))
+        self.assertEqual(snapshot.entries["~bot/"], ("🔥", "~bot", True))
+
     def test_include_self_preserves_author_without_changing_dm_partner(self):
         channel = tlon_api.parse_channel_message(
             {

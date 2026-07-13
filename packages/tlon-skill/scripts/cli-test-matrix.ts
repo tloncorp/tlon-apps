@@ -952,6 +952,16 @@ export const REACTION_PARENT_CASES: CliCase[] = [
     ],
     'Usage: tlon dms unreact'
   ),
+  usageErrorCase(
+    'posts react rejects --parent swallowed into the omitted emoji slot',
+    ['posts', 'react', 'chat/~host/channel', '170.142', '--parent', '170.141'],
+    'Usage: tlon posts react'
+  ),
+  usageErrorCase(
+    'dms react rejects --parent swallowed into the omitted emoji slot',
+    ['dms', 'react', '~zod', '~zod/170.142', '--parent', '~zod/170.141'],
+    'Usage: tlon dms react'
+  ),
   authRequiredCase('posts react with --parent reaches auth', [
     'posts',
     'react',

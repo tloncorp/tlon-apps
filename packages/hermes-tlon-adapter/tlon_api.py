@@ -1458,10 +1458,13 @@ def _reaction_author(author: Any) -> tuple[str, str, bool]:
         return author, normalize_ship(author), False
     if isinstance(author, Mapping):
         ship = normalize_ship(str(author.get("ship") or ""))
+        if not ship:
+            raise ValueError("bot reaction author is missing ship")
+        # nickname is wire type `(unit @t)`: null/missing is legal for bot
+        # profiles without a nickname, so fall back to an empty suffix.
         nickname = author.get("nickname")
-        if not ship or not isinstance(nickname, str):
-            raise ValueError("bot reaction author is missing ship or nickname")
-        return f"{author.get('ship')}/{nickname}", ship, True
+        suffix = nickname if isinstance(nickname, str) else ""
+        return f"{author.get('ship')}/{suffix}", ship, True
     raise ValueError("reaction author is not a ship or bot identity")
 
 
