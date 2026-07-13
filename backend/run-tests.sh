@@ -175,7 +175,7 @@ result=$( $run_click $pier <<EOF
 (pure:m !>(hash))  
 EOF
 )
-desk_hash_a=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
+desk_hash_a=`echo $result | sed -n 's/\[0 %avow 0 %noun \(.*\)\]/\1/p'`
 
 echo "Updating groups desk"
 ${run_click} $pier <<EOF
@@ -195,9 +195,9 @@ result=$( $run_click $pier <<EOF
 (pure:m !>(hash))  
 EOF
 )
-desk_hash_b=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
+desk_hash_b=`echo $result | sed -n 's/\[0 %avow 0 %noun \(.*\)\]/\1/p'`
 
-if [ $desk_hash_a == $desk_hash_b ]
+if [ "$desk_hash_a" == "$desk_hash_b" ]
 then
   echo "Desk upgrade failed ❌"
   kill -TERM $vere_pid
