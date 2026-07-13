@@ -62,13 +62,23 @@ const persistSyncedPinnedItems = async (
 
   let mergedPinnedItems = pinnedItems;
   let hasPendingOrder = true;
+  const incomingOrder = [...pinnedItems]
+    .sort((a, b) => a.index - b.index)
+    .map((pin) => pin.itemId);
   await db.pendingPinnedItemsOrder.setValue((pendingOrder) => {
     if (pendingOrder == null) {
       hasPendingOrder = false;
       return null;
     }
     mergedPinnedItems = applyPinnedItemOrder(pendingOrder, pinnedItems);
-    return mergedPinnedItems.map((pin) => pin.itemId);
+    const mergedOrder = mergedPinnedItems.map((pin) => pin.itemId);
+    if (_.isEqual(incomingOrder, mergedOrder)) {
+      // The backend now reflects the local compatibility order. Retire it so
+      // later snapshots (including reorders from another device) are accepted.
+      mergedPinnedItems = pinnedItems;
+      return null;
+    }
+    return mergedOrder;
   });
 
   if (hasPendingOrder && mergedPinnedItems.length === 0) {

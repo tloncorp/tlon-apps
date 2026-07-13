@@ -5952,8 +5952,8 @@ export const insertPinnedItems = createWriteQuery(
 );
 
 // Rewrites each pin's index to its position in `orderedItemIds`. Expects the
-// full, unique local pin set (see reorderPinnedItems / normalizeOrder); only
-// rows whose ids appear in the list are updated.
+// full, unique local pin set (see reorderPinnedItems /
+// normalizePinnedItemOrder); only rows whose ids appear in the list are updated.
 export const setPinnedItemsOrder = createWriteQuery(
   'setPinnedItemsOrder',
   async (orderedItemIds: string[], ctx: QueryCtx) => {

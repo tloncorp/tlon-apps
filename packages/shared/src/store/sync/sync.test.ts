@@ -145,6 +145,38 @@ test('syncs pin membership without replacing a pending local order', async () =>
   setPendingOrder.mockRestore();
 });
 
+test('clears a confirmed pending order and accepts later server reorders', async () => {
+  let storedOrder: string[] | null = [...inputData].reverse();
+  const getPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'getValue')
+    .mockImplementation(async () => storedOrder);
+  const setPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'setValue')
+    .mockImplementation(async (value) => {
+      storedOrder = typeof value === 'function' ? value(storedOrder) : value;
+    });
+
+  setScryOutput([...inputData].reverse());
+  await syncPinnedItems();
+  expect(storedOrder).toBeNull();
+  expect(
+    (await db.getPinnedItems())
+      .sort((a, b) => a.index - b.index)
+      .map((pin) => pin.itemId)
+  ).toEqual([...inputData].reverse());
+
+  setScryOutput(inputData);
+  await syncPinnedItems();
+  expect(
+    (await db.getPinnedItems())
+      .sort((a, b) => a.index - b.index)
+      .map((pin) => pin.itemId)
+  ).toEqual(inputData);
+
+  getPendingOrder.mockRestore();
+  setPendingOrder.mockRestore();
+});
+
 test('clears pins when a pending local order receives an empty server snapshot', async () => {
   await db.insertPinnedItems(outputData);
   setScryOutput([]);
@@ -161,7 +193,7 @@ test('clears pins when a pending local order receives an empty server snapshot',
   await syncPinnedItems();
 
   expect(await db.getPinnedItems()).toEqual([]);
-  expect(storedOrder).toEqual([]);
+  expect(storedOrder).toBeNull();
   getPendingOrder.mockRestore();
   setPendingOrder.mockRestore();
 });

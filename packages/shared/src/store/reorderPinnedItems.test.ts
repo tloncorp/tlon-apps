@@ -4,6 +4,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import * as db from '../db';
 import { setupDatabaseTestSuite } from '../test/helpers';
 import { reorderPinnedItems } from './channelActions';
+import { isUnsupportedPinnedItemOrderError } from './pinnedItemOrder';
 
 setupDatabaseTestSuite();
 
@@ -33,18 +34,29 @@ function lastPokeSetOrder(): string[] {
   return last.json.pins['set-order'];
 }
 
+const unsupportedSetOrderNack =
+  "gall: poke-as cast fail :groups-ui [a=%json b=%ui-action]\n[%bad-key 'set-order']\n[%key 'pins']\n/sys/vane/gall/hoon:<[1.047 27].[1.047 45]>\n";
+
+test('identifies only the old-desk set-order conversion failure', () => {
+  expect(isUnsupportedPinnedItemOrderError(unsupportedSetOrderNack)).toBe(true);
+  expect(
+    isUnsupportedPinnedItemOrderError(
+      "gall: poke-as cast fail :groups-ui [a=%json b=%ui-action]\n[%bad-key 'other-action']\n[%key 'pins']"
+    )
+  ).toBe(false);
+  expect(isUnsupportedPinnedItemOrderError(new Error('network down'))).toBe(
+    false
+  );
+});
+
 test('reorderPinnedItems writes the full optimistic order locally but pokes only the reordered visible ids', async () => {
   await seedPins(['C', 'A', 'B']);
-  const setPendingOrder = vi
-    .spyOn(db.pendingPinnedItemsOrder, 'setValue')
-    .mockResolvedValue();
 
   // Filtered view: C is hidden; the visible subset [A, B] is reordered to [B, A],
   // which the caller has already merged into the full order [C, B, A].
   const ok = await reorderPinnedItems({
     optimisticOrder: ['C', 'B', 'A'],
     backendOrder: ['B', 'A'],
-    keepLocalOrderOnError: true,
   });
 
   expect(ok).toBe(true);
@@ -53,8 +65,6 @@ test('reorderPinnedItems writes the full optimistic order locally but pokes only
   // The backend poke carries ONLY the visible ids — never the full order — so
   // %set-order leaves the omitted (hidden) pins in their current server slots.
   expect(lastPokeSetOrder()).toEqual(['B', 'A']);
-  expect(setPendingOrder).toHaveBeenLastCalledWith(['C', 'B', 'A']);
-  setPendingOrder.mockRestore();
 });
 
 test('reorderPinnedItems omits hidden pins from the backend payload (stale-hidden-pin safety)', async () => {
@@ -104,32 +114,36 @@ test('reorderPinnedItems reasserts only the visible ids when a sync lands mid-po
   expect(lastPokeSetOrder()).toEqual(['B', 'A']);
 });
 
-test('reorderPinnedItems can keep the local order when a rollout-era poke fails', async () => {
+test('reorderPinnedItems keeps the local order for the old-desk conversion failure', async () => {
   await seedPins(['H', 'A', 'B']);
   let orderSeenBeforePoke: string[] = [];
   let pendingOrderSeenBeforePoke: string[] = [];
+  let storedOrder: string[] | null = null;
+  const getPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'getValue')
+    .mockImplementation(async () => storedOrder);
   const setPendingOrder = vi
     .spyOn(db.pendingPinnedItemsOrder, 'setValue')
-    .mockResolvedValue();
+    .mockImplementation(async (value) => {
+      storedOrder = typeof value === 'function' ? value(storedOrder) : value;
+    });
 
   vi.mocked(poke).mockImplementationOnce(async () => {
     orderSeenBeforePoke = await currentOrder();
-    pendingOrderSeenBeforePoke = setPendingOrder.mock.calls.at(
-      -1
-    )?.[0] as string[];
+    pendingOrderSeenBeforePoke = storedOrder ?? [];
     // Simulate a stale pin sync landing while the unsupported poke is in flight.
     await db.insertPinnedItems([
       { type: 'group' as const, index: 0, itemId: 'A' },
       { type: 'group' as const, index: 1, itemId: 'H' },
       { type: 'group' as const, index: 2, itemId: 'B' },
     ]);
-    throw new Error('unsupported set-order action');
+    throw unsupportedSetOrderNack;
   });
 
   const ok = await reorderPinnedItems({
     optimisticOrder: ['H', 'B', 'A'],
     backendOrder: ['B', 'A'],
-    keepLocalOrderOnError: true,
+    keepLocalOrderOnUnsupportedBackend: true,
   });
 
   // The full order is durably written before the best-effort server poke.
@@ -143,6 +157,33 @@ test('reorderPinnedItems can keep the local order when a rollout-era poke fails'
   expect(scry).not.toHaveBeenCalled();
   expect(setPendingOrder).toHaveBeenNthCalledWith(1, ['H', 'B', 'A']);
   expect(setPendingOrder).toHaveBeenLastCalledWith(['B', 'H', 'A']);
+  expect(storedOrder).toEqual(['B', 'H', 'A']);
+  getPendingOrder.mockRestore();
+  setPendingOrder.mockRestore();
+});
+
+test('reorderPinnedItems clears pending state and reconciles transient failures', async () => {
+  await seedPins(['C', 'A', 'B']);
+  let storedOrder: string[] | null = null;
+  const setPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'setValue')
+    .mockImplementation(async (value) => {
+      storedOrder = typeof value === 'function' ? value(storedOrder) : value;
+    });
+  vi.mocked(poke).mockRejectedValueOnce(new Error('network down'));
+  vi.mocked(scry).mockResolvedValueOnce(['A', 'B', 'C']);
+
+  const ok = await reorderPinnedItems({
+    optimisticOrder: ['C', 'B', 'A'],
+    backendOrder: ['B', 'A'],
+    keepLocalOrderOnUnsupportedBackend: true,
+  });
+
+  expect(ok).toBe(false);
+  expect(await currentOrder()).toEqual(['A', 'B', 'C']);
+  expect(setPendingOrder).toHaveBeenNthCalledWith(1, ['C', 'B', 'A']);
+  expect(setPendingOrder).toHaveBeenLastCalledWith(null);
+  expect(storedOrder).toBeNull();
   setPendingOrder.mockRestore();
 });
 

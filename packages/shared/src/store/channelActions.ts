@@ -13,7 +13,10 @@ import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { syncNotesNotebook } from './notesActions';
-import { normalizePinnedItemOrder } from './pinnedItemOrder';
+import {
+  isUnsupportedPinnedItemOrderError,
+  normalizePinnedItemOrder,
+} from './pinnedItemOrder';
 
 const logger = createDevLogger('ChannelActions', false);
 const NOTES_CHANNEL_LISTING_ATTEMPTS = 5;
@@ -558,8 +561,9 @@ export async function unpinItem(pin: db.Pin) {
 // pokes the backend, and re-asserts any order it keeps so a stale in-flight sync
 // can't leave the UI reverted. Returns true when the local order should be kept
 // and false after a failed poke has been reconciled/rolled back. The temporary
-// `keepLocalOrderOnError` option lets callers treat the backend sync as
-// best-effort while `%set-order` rolls out across the fleet.
+// `keepLocalOrderOnUnsupportedBackend` option preserves the local order only
+// for the specific Gall conversion error returned by a pre-`%set-order` desk.
+// Transport failures and unrelated backend errors remain authoritative.
 //
 // The optimistic local write and the backend poke take *different* orders:
 //   - `optimisticOrder` is the full merged pin order (incl. hidden pins in a
@@ -573,11 +577,11 @@ export async function unpinItem(pin: db.Pin) {
 export async function reorderPinnedItems({
   optimisticOrder,
   backendOrder,
-  keepLocalOrderOnError = false,
+  keepLocalOrderOnUnsupportedBackend = false,
 }: {
   optimisticOrder: string[];
   backendOrder: string[];
-  keepLocalOrderOnError?: boolean;
+  keepLocalOrderOnUnsupportedBackend?: boolean;
 }): Promise<boolean> {
   const before = await db.getPinnedItems();
   const previousOrder = [...before]
@@ -589,7 +593,7 @@ export async function reorderPinnedItems({
     return true; // no-op drop
   }
 
-  if (keepLocalOrderOnError) {
+  if (keepLocalOrderOnUnsupportedBackend) {
     // Persist the rollout-era local authority before attempting server sync.
     await db.pendingPinnedItemsOrder.setValue(normalized);
   }
@@ -615,13 +619,16 @@ export async function reorderPinnedItems({
     // stale slot. Only the optimistic write above is the full merged order.
     const after = await db.getPinnedItems();
     const keptOrder = normalizePinnedItemOrder(backendPayload, after);
-    if (keepLocalOrderOnError) {
+    if (keepLocalOrderOnUnsupportedBackend) {
       await db.pendingPinnedItemsOrder.setValue(keptOrder);
     }
     await db.setPinnedItemsOrder(keptOrder);
     return true;
   } catch (e) {
-    if (keepLocalOrderOnError) {
+    if (
+      keepLocalOrderOnUnsupportedBackend &&
+      isUnsupportedPinnedItemOrderError(e)
+    ) {
       // An older groups-ui rejects `%set-order`. Keep the durable local write,
       // but still re-assert the visible reorder in case a pin sync landed while
       // the best-effort poke was in flight.
@@ -630,6 +637,12 @@ export async function reorderPinnedItems({
       await db.pendingPinnedItemsOrder.setValue(keptOrder);
       await db.setPinnedItemsOrder(keptOrder);
       return true;
+    }
+
+    if (keepLocalOrderOnUnsupportedBackend) {
+      // This was not the old-desk conversion failure. Stop treating the local
+      // order as authoritative before reconciling the server snapshot below.
+      await db.pendingPinnedItemsOrder.setValue(null);
     }
 
     console.error('Failed to reorder pinned items', e);
