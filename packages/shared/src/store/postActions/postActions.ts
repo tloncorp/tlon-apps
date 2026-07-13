@@ -803,17 +803,18 @@ export async function deletePost({ post }: { post: db.Post }) {
     // forever (TLON-5911). Re-read first: the sequenced echo may have landed
     // during the delete round trip, in which case the normal tombstone path
     // applies. Scoped to top-level rows (replies don't flow through the
-    // pending merge layer) and to shapes with no live send flow —
-    // `enqueued` / `pending` rows still converge via the delivery machinery.
-    const settledPost = await db.getPost({ postId: post.id });
+    // pending merge layer) and to acknowledged sends that are safe to remove.
+    // In-flight `enqueued` / `pending` rows remain stored, while the pending
+    // read queries treat their settled deletion as inert.
+    const latestPost = await db.getPost({ postId: post.id });
     if (
-      settledPost &&
-      !settledPost.parentId &&
-      settledPost.sequenceNum === 0 &&
-      (settledPost.deliveryStatus === 'sent' ||
-        settledPost.deliveryStatus === 'needs_verification')
+      latestPost &&
+      !latestPost.parentId &&
+      latestPost.sequenceNum === 0 &&
+      (latestPost.deliveryStatus === 'sent' ||
+        latestPost.deliveryStatus === 'needs_verification')
     ) {
-      await clearUnsentPost(settledPost);
+      await clearUnsentPost(latestPost);
     }
   } catch (e) {
     console.error('Failed to delete post', e);

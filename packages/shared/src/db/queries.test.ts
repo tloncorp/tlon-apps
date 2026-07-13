@@ -1216,7 +1216,7 @@ describe('getPendingPosts', () => {
     expect(ids).not.toContain(failedCleared.id);
   });
 
-  test('includes deleted markPostSent / needs_verification rows so the remount path still has a tombstone source', async () => {
+  test('includes deleted markPostSent / needs_verification rows while the delete is not settled', async () => {
     await queries.insertChannels([{ id: channelId, type: 'chat' }]);
     // `markPostSent` catch-up: server already acknowledged, sequenced
     // `addPost` hasn't arrived yet, and the user deleted in the gap.
@@ -1225,6 +1225,7 @@ describe('getPendingPosts', () => {
       deliveryStatus: 'sent',
       sequenceNum: 0,
       isDeleted: true,
+      deleteStatus: null,
     });
     // `needs_verification` may also have reached the server.
     const verifyCleared = await seedPost({
@@ -1232,6 +1233,7 @@ describe('getPendingPosts', () => {
       deliveryStatus: 'needs_verification',
       sequenceNum: 0,
       isDeleted: true,
+      deleteStatus: 'pending',
     });
     const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
     expect(ids).toEqual(
@@ -1246,17 +1248,34 @@ describe('getPendingPosts', () => {
       deliveryStatus: 'enqueued',
       sequenceNum: 0,
       isDeleted: true,
+      deleteStatus: null,
     });
     const pendingCleared = await seedPost({
       id: 'pending-cleared',
       deliveryStatus: 'pending',
       sequenceNum: 0,
       isDeleted: true,
+      deleteStatus: 'pending',
     });
     const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
     expect(ids).toEqual(
       expect.arrayContaining([enqueuedCleared.id, pendingCleared.id])
     );
+  });
+
+  test('excludes settled deleted rows without deleting them from storage', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const settled = await seedPost({
+      id: 'settled-delete',
+      deliveryStatus: 'sent',
+      sequenceNum: 0,
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+
+    const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
+    expect(ids).not.toContain(settled.id);
+    expect(await queries.getPost({ postId: settled.id })).toBeTruthy();
   });
 
   test('excludes confirmed rows (null deliveryStatus) regardless of isDeleted', async () => {
@@ -1289,134 +1308,6 @@ describe('getPendingPosts', () => {
     });
     const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
     expect(ids).not.toContain(reply.id);
-  });
-});
-
-// TLON-5911: `clearGhostPosts` sweeps rows whose send was acknowledged but
-// never sequenced and whose delete the server confirmed — no sequenced
-// `addPost` will ever replace them, so they'd otherwise tombstone at the
-// bottom of chat scrollers forever.
-describe('clearGhostPosts', () => {
-  const channelId = 'ghost-sweep-channel';
-  const authorId = '~zod';
-  let seedCounter = 0;
-
-  async function seedPost(overrides: Partial<Post>): Promise<Post> {
-    const t = Date.now() + seedCounter++;
-    const base: Post = {
-      id: `ghost-${overrides.sentAt ?? t}-${Math.random()}`,
-      type: 'chat',
-      channelId,
-      authorId,
-      sentAt: t,
-      receivedAt: t,
-      sequenceNum: 0,
-      content: JSON.stringify([{ inline: ['seed'] }]),
-      syncedAt: t,
-      ...overrides,
-    } as Post;
-    await queries.insertChannelPosts({ posts: [base] });
-    return base;
-  }
-
-  test('removes confirmed-delete ghosts and repoints the channel head; leaves every other shape alone', async () => {
-    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
-
-    const confirmed = await seedPost({
-      id: 'confirmed-post',
-      sequenceNum: 5,
-      deliveryStatus: null,
-    });
-    // Confirmed tombstone: renders in place, must survive.
-    const confirmedTombstone = await seedPost({
-      id: 'confirmed-tombstone',
-      sequenceNum: 6,
-      deliveryStatus: null,
-      isDeleted: true,
-    });
-    // Delete still in flight: outcome unknown, must survive.
-    const deleteInFlight = await seedPost({
-      id: 'delete-in-flight',
-      deliveryStatus: 'sent',
-      isDeleted: true,
-      deleteStatus: 'pending',
-    });
-    // Send still in flight (delete already confirmed): delivery polling via
-    // `getDeliveryPendingPosts` must still be able to reconcile the original
-    // send, so the sweep must not touch it.
-    const sendInFlight = await seedPost({
-      id: 'send-in-flight',
-      deliveryStatus: 'enqueued',
-      isDeleted: true,
-      deleteStatus: 'sent',
-    });
-    // Deleted but not yet delete-confirmed sent row: the normal tombstone
-    // window, must survive.
-    const sentCatchUp = await seedPost({
-      id: 'sent-catchup',
-      deliveryStatus: 'sent',
-      isDeleted: true,
-    });
-    // Reply ghosts are out of scope for the sweep (they don't flow through
-    // the pending merge layer).
-    const replyGhost = await seedPost({
-      id: 'reply-ghost',
-      type: 'reply',
-      parentId: confirmed.id,
-      deliveryStatus: 'sent',
-      isDeleted: true,
-      deleteStatus: 'sent',
-    });
-    // The actual ghost: acknowledged send, never sequenced, delete confirmed.
-    const ghost = await seedPost({
-      id: 'ghost',
-      deliveryStatus: 'sent',
-      isDeleted: true,
-      deleteStatus: 'sent',
-    });
-
-    // Simulate the stale head state a lingering ghost can leave behind.
-    await queries.updateChannel({ id: channelId, lastPostId: null });
-
-    await queries.clearGhostPosts();
-
-    const remaining = (
-      await getClient()!
-        .select({ id: schema.posts.id })
-        .from(schema.posts)
-        .where($.eq(schema.posts.channelId, channelId))
-    ).map((r) => r.id);
-    expect(remaining).not.toContain(ghost.id);
-    expect(remaining).toEqual(
-      expect.arrayContaining([
-        confirmed.id,
-        confirmedTombstone.id,
-        deleteInFlight.id,
-        sendInFlight.id,
-        sentCatchUp.id,
-        replyGhost.id,
-      ])
-    );
-
-    // Channel head repointed to the newest remaining previewable post.
-    const chan = await queries.getChannel({ id: channelId });
-    expect(chan!.lastPostId).toBe(confirmed.id);
-  });
-
-  test('is a no-op when there are no ghosts', async () => {
-    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
-    const post = await seedPost({
-      id: 'plain-post',
-      sequenceNum: 3,
-      deliveryStatus: null,
-    });
-
-    await queries.clearGhostPosts();
-
-    const row = await getClient()!.query.posts.findFirst({
-      where: (posts, { eq }) => eq(posts.id, post.id),
-    });
-    expect(row).toBeTruthy();
   });
 });
 
@@ -2017,7 +1908,7 @@ describe('getDeliveryPendingPosts', () => {
     return base;
   }
 
-  test('includes enqueued and pending rows regardless of isDeleted', async () => {
+  test('includes enqueued and pending rows while their delete is not settled', async () => {
     await queries.insertChannels([{ id: channelId, type: 'chat' }]);
     const enqueuedLive = await seedPost({
       id: 'enq-live',
@@ -2028,6 +1919,7 @@ describe('getDeliveryPendingPosts', () => {
       id: 'enq-cleared',
       deliveryStatus: 'enqueued',
       isDeleted: true,
+      deleteStatus: null,
     });
     const pendingLive = await seedPost({
       id: 'pend-live',
@@ -2038,6 +1930,7 @@ describe('getDeliveryPendingPosts', () => {
       id: 'pend-cleared',
       deliveryStatus: 'pending',
       isDeleted: true,
+      deleteStatus: 'pending',
     });
 
     const ids = (await queries.getDeliveryPendingPosts(channelId)).map(
@@ -2108,6 +2001,37 @@ describe('getDeliveryPendingPosts', () => {
       (p) => p.id
     );
     expect(ids).toContain(catchUp.id);
+  });
+
+  test('excludes settled deleted rows across delivery states without deleting them', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const enqueued = await seedPost({
+      id: 'settled-enqueued',
+      deliveryStatus: 'enqueued',
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+    const pending = await seedPost({
+      id: 'settled-pending',
+      deliveryStatus: 'pending',
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+    const sent = await seedPost({
+      id: 'settled-sent',
+      deliveryStatus: 'sent',
+      sequenceNum: 0,
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+
+    const ids = (await queries.getDeliveryPendingPosts(channelId)).map(
+      (p) => p.id
+    );
+    expect(ids).not.toContain(enqueued.id);
+    expect(ids).not.toContain(pending.id);
+    expect(ids).not.toContain(sent.id);
+    expect(await queries.getPost({ postId: sent.id })).toBeTruthy();
   });
 
   test('excludes sequenced sent rows (the sequenced addPost has already reconciled the row)', async () => {

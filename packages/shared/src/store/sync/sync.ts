@@ -2152,13 +2152,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       logger.trackError('sync start: changes sync failed', { error })
     );
 
-    // Repair ghost tombstones (deleted, never-sequenced sends whose delete
-    // the server already confirmed) left behind before `deletePost` learned
-    // to clear them — see db.clearGhostPosts / TLON-5911. Local-DB only.
-    db.clearGhostPosts().catch((error) =>
-      logger.trackError('sync start: ghost post cleanup failed', { error })
-    );
-
     // brief delay to let syncSince queue first (it requires a storage item read before
     // it hits the sync queue)
     const isE2eRun = (globalThis as any).TLON_IS_E2E === true;
