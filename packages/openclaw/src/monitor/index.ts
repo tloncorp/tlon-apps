@@ -148,6 +148,7 @@ import {
   tlonDeliveryContext,
 } from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
+import { resolveTlonSourceReplyDeliveryMode } from './source-reply-delivery.js';
 import {
   type ParsedCite,
   extractCites,
@@ -3139,11 +3140,10 @@ export async function monitorTlonProvider(
           })
         : undefined;
 
-      const hasExplicitVisibleReplyPolicy =
-        cfg.messages?.visibleReplies !== undefined ||
-        cfg.messages?.groupChat?.visibleReplies !== undefined;
-      const sourceReplyDeliveryMode =
-        isGroup && !hasExplicitVisibleReplyPolicy ? 'automatic' : undefined;
+      const sourceReplyDeliveryMode = resolveTlonSourceReplyDeliveryMode({
+        isGroup,
+        messages: cfg.messages,
+      });
 
       const replyOptions: NonNullable<
         Parameters<
