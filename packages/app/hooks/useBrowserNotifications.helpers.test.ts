@@ -166,6 +166,21 @@ describe('getBrowserNotificationCopy', () => {
     });
     expect(copy.body).not.toBe('New message');
   });
+
+  it('uses invite copy for dm-invite activity instead of the message fallback', () => {
+    expect(
+      getBrowserNotificationCopy({
+        activityType: 'dm-invite',
+        channelTitle: '',
+        contactName: 'Alice',
+        contentText: '',
+        reactValue: '',
+      })
+    ).toEqual({
+      title: 'Alice',
+      body: 'Invited you to chat',
+    });
+  });
 });
 
 describe('navigateToBrowserNotificationTarget', () => {

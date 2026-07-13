@@ -183,6 +183,31 @@ function useResetToGroup() {
   };
 }
 
+function useResetToGroupInvite() {
+  const reset = useTypedReset();
+  const isWindowNarrow = useIsWindowNarrow();
+
+  return async function resetToGroupInvite(groupId: string) {
+    if (isWindowNarrow) {
+      // matches the mobile push-notification tap: chat list with the invited
+      // group's preview sheet open (see groupInvitePreviewRouteStack)
+      reset([
+        {
+          name: 'ChatList',
+          params: {
+            previewGroupId: groupId,
+            previewGroupFromInviteNotification: true,
+          },
+        },
+      ]);
+    } else {
+      // desktop has no group-preview route; land on the chat list where the
+      // invite is surfaced
+      reset([{ name: 'Home', params: { screen: 'ChatList' } }]);
+    }
+  };
+}
+
 function useNavigateToChannel() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
@@ -477,6 +502,7 @@ export function useRootNavigation() {
   const navigateBackFromPost = useNavigateBackFromPost();
   const navigateToPost = useNavigateToPost();
   const resetToGroup = useResetToGroup();
+  const resetToGroupInvite = useResetToGroupInvite();
   const resetToDm = useResetToDm();
   const resetToPost = useResetToPost();
 
@@ -490,6 +516,7 @@ export function useRootNavigation() {
       navigateToChatDetails,
       navigateToChatVolume,
       resetToGroup,
+      resetToGroupInvite,
       resetToChannel,
       resetToDm,
       resetToPost,
@@ -507,6 +534,7 @@ export function useRootNavigation() {
       navigateToGroup,
       navigateToPost,
       resetToGroup,
+      resetToGroupInvite,
       resetToChannel,
       resetToDm,
       resetToPost,

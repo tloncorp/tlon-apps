@@ -121,6 +121,7 @@ export function getBrowserNotificationCopy({
         ? 'reply'
         : null;
   const isReact = activityType === 'react';
+  const isDmInvite = activityType === 'dm-invite';
 
   let title = flaggedKind
     ? `Flagged ${flaggedKind}`
@@ -129,7 +130,10 @@ export function getBrowserNotificationCopy({
     ? `${contactName} flagged a ${flaggedKind} in your group`
     : isReact
       ? `${contactName} reacted${reactValue ? ` ${reactValue}` : ''} to your post`
-      : contentText || 'New message';
+      : isDmInvite
+        ? // the title already names the inviter (DM titles are the counterparty)
+          'Invited you to chat'
+        : contentText || 'New message';
 
   if (groupTitle) {
     title = `${title} in ${groupTitle}`;

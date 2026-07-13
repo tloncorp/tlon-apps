@@ -191,19 +191,30 @@ async function getContactName(
   });
 }
 
-// Group join requests have a groupId but no channelId; clicking routes to the
-// group instead of a channel.
-async function showGroupAskNotification(
-  activityEvent: db.ActivityEvent,
-  notificationKey: string,
-  disableNicknames: boolean,
-  shouldSuppressNotification: () => boolean,
-  resetToGroupRef: { current: (groupId: string) => Promise<void> }
-) {
+// Group join requests and group invites have a groupId but no channelId;
+// clicking routes to the group (join requests) or the chat list where the
+// invite is surfaced (invites).
+async function showGroupNotification({
+  activityEvent,
+  notificationKey,
+  disableNicknames,
+  shouldSuppressNotification,
+  fallbackTitle,
+  getBody,
+  navigateOnClick,
+}: {
+  activityEvent: db.ActivityEvent;
+  notificationKey: string;
+  disableNicknames: boolean;
+  shouldSuppressNotification: () => boolean;
+  fallbackTitle: string;
+  getBody: (contactName: string) => string;
+  navigateOnClick: (groupId: string) => void;
+}) {
   const groupId = activityEvent.groupId;
   if (!groupId) {
-    logger.error('No group ID in group-ask activity event:', activityEvent);
-    return;
+    logger.error('No group ID in group activity event:', activityEvent);
+    return false;
   }
 
   const group = await db.getGroup({ id: groupId });
@@ -216,17 +227,14 @@ async function showGroupAskNotification(
     return false;
   }
 
-  const notification = new window.Notification(
-    group?.title ?? 'Group join request',
-    {
-      body: `${contactName} is requesting to join`,
-      tag: notificationKey,
-    }
-  );
+  const notification = new window.Notification(group?.title ?? fallbackTitle, {
+    body: getBody(contactName),
+    tag: notificationKey,
+  });
 
   notification.onclick = () => {
     window.focus();
-    resetToGroupRef.current(groupId);
+    navigateOnClick(groupId);
     notification.close();
   };
 
@@ -247,9 +255,11 @@ export default function useBrowserNotifications() {
   const isElectron = useIsElectron();
   const isAppForegrounded = useIsAppForegroundedAcrossTabs(!isElectron);
   const { disableNicknames } = useCalm();
-  const { resetToChannel, resetToGroup, resetToPost } = useRootNavigation();
+  const { resetToChannel, resetToGroup, resetToGroupInvite, resetToPost } =
+    useRootNavigation();
   const resetToChannelRef = useMutableRef(resetToChannel);
   const resetToGroupRef = useMutableRef(resetToGroup);
+  const resetToGroupInviteRef = useMutableRef(resetToGroupInvite);
   const resetToPostRef = useMutableRef(resetToPost);
 
   const showActivityNotification = useCallback(
@@ -274,14 +284,26 @@ export default function useBrowserNotifications() {
       inFlightNotifications.current.add(notificationKey);
 
       try {
-        if (activityEvent.type === 'group-ask') {
-          const didNotify = await showGroupAskNotification(
+        if (
+          activityEvent.type === 'group-ask' ||
+          activityEvent.type === 'group-invite'
+        ) {
+          const isAsk = activityEvent.type === 'group-ask';
+          const didNotify = await showGroupNotification({
             activityEvent,
             notificationKey,
             disableNicknames,
-            isAppForegrounded,
-            resetToGroupRef
-          );
+            shouldSuppressNotification: isAppForegrounded,
+            fallbackTitle: isAsk ? 'Group join request' : 'Group invitation',
+            getBody: (contactName) =>
+              isAsk
+                ? `${contactName} is requesting to join`
+                : `${contactName} invited you to join`,
+            navigateOnClick: (groupId) =>
+              isAsk
+                ? resetToGroupRef.current(groupId)
+                : resetToGroupInviteRef.current(groupId),
+          });
           if (didNotify) {
             rememberProcessedNotification(
               processedNotifications,
@@ -374,6 +396,7 @@ export default function useBrowserNotifications() {
       isAppForegrounded,
       resetToChannelRef,
       resetToGroupRef,
+      resetToGroupInviteRef,
       resetToPostRef,
     ]
   );
@@ -387,18 +410,23 @@ export default function useBrowserNotifications() {
     let subscriptionId: number | null = null;
 
     api
-      .subscribeToActivity((event: api.ActivityEvent) => {
-        if (event.type !== 'addActivityEvent') {
-          return;
-        }
+      .subscribeToActivity(
+        (event: api.ActivityEvent) => {
+          if (event.type !== 'addActivityEvent') {
+            return;
+          }
 
-        const activityEvent =
-          event.events.find((e) => e.bucketId === 'all') ?? event.events[0];
+          const activityEvent =
+            event.events.find((e) => e.bucketId === 'all') ?? event.events[0];
 
-        if (activityEvent?.shouldNotify) {
-          showActivityNotification(activityEvent);
-        }
-      })
+          if (activityEvent?.shouldNotify) {
+            showActivityNotification(activityEvent);
+          }
+        },
+        // dm-invite/group-invite events notify by default but aren't part of
+        // the converted feed stream; opt in here (see toActivityEvent)
+        { includeInvites: true }
+      )
       .then((id) => {
         if (cancelled) {
           // effect already cleaned up before the subscription landed
