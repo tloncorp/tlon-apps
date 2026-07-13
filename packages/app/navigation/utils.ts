@@ -114,6 +114,37 @@ function useResetToChannel() {
   );
 }
 
+function useResetToPost() {
+  const navigation = useNavigation();
+  const navigationRef = logic.useMutableRef(navigation);
+  const reset = useTypedReset();
+  const isWindowNarrow = useIsWindowNarrow();
+  const { lastOpenTab } = useGlobalSearch();
+
+  return useCallback(
+    function resetToPost(postParams: RootStackParamList['Post']) {
+      if (isWindowNarrow) {
+        const screenName = screenNameFromChannelId(postParams.channelId);
+        reset([
+          { name: 'ChatList' },
+          {
+            name: screenName,
+            params: {
+              channelId: postParams.channelId,
+              groupId: postParams.groupId,
+            },
+          },
+          { name: 'Post', params: postParams },
+        ]);
+      } else {
+        const tab = getTab(navigationRef.current, lastOpenTab);
+        reset([getDesktopPostRoute(tab, postParams)]);
+      }
+    },
+    [isWindowNarrow, lastOpenTab, navigationRef, reset]
+  );
+}
+
 function useResetToDm() {
   const resetToChannel = useResetToChannel();
 
@@ -447,6 +478,7 @@ export function useRootNavigation() {
   const navigateToPost = useNavigateToPost();
   const resetToGroup = useResetToGroup();
   const resetToDm = useResetToDm();
+  const resetToPost = useResetToPost();
 
   return useMemo(
     () => ({
@@ -460,6 +492,7 @@ export function useRootNavigation() {
       resetToGroup,
       resetToChannel,
       resetToDm,
+      resetToPost,
       navigateBack,
       navigateToBotSettings,
     }),
@@ -476,6 +509,7 @@ export function useRootNavigation() {
       resetToGroup,
       resetToChannel,
       resetToDm,
+      resetToPost,
     ]
   );
 }

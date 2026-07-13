@@ -6,6 +6,10 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { useRootNavigation } from '../navigation/utils';
 import { reactDisplayValue } from '../ui/components/Activity/ActivitySummaryMessage';
+import {
+  getBrowserNotificationCopy,
+  navigateToBrowserNotificationTarget,
+} from './useBrowserNotifications.helpers';
 import { useIsElectron } from './useIsElectron';
 
 const logger = createDevLogger('useBrowserNotifications', false);
@@ -79,9 +83,10 @@ async function showGroupAskNotification(
 export default function useBrowserNotifications() {
   const processedNotifications = useRef<Set<string>>(new Set());
   const isElectron = useIsElectron();
-  const { resetToChannel, resetToGroup } = useRootNavigation();
+  const { resetToChannel, resetToGroup, resetToPost } = useRootNavigation();
   const resetToChannelRef = useMutableRef(resetToChannel);
   const resetToGroupRef = useMutableRef(resetToGroup);
+  const resetToPostRef = useMutableRef(resetToPost);
 
   const showActivityNotification = useCallback(
     async (activityEvent: db.ActivityEvent) => {
@@ -134,25 +139,19 @@ export default function useBrowserNotifications() {
           : '';
         const contentText =
           !isReact && activityEvent.content
-            ? getTextContent(activityEvent.content as api.PostContent)
+            ? getTextContent(activityEvent.content as api.PostContent) ?? ''
             : '';
-
-        let title = channel.title ?? contactName ?? 'New message';
-        let body = isReact
-          ? `${contactName} reacted${reactValue ? ` ${reactValue}` : ''} to your post`
-          : contentText || 'New message';
-
-        if (activityEvent.groupId) {
-          const group = await db.getGroup({ id: activityEvent.groupId });
-          if (group) {
-            title = `${title} in ${group.title}`;
-            if (!isReact) {
-              body = contentText
-                ? `${contactName ?? 'Someone'}: ${contentText}`
-                : `New message in ${group.title}`;
-            }
-          }
-        }
+        const group = activityEvent.groupId
+          ? await db.getGroup({ id: activityEvent.groupId })
+          : null;
+        const { title, body } = getBrowserNotificationCopy({
+          activityType: activityEvent.type,
+          channelTitle: channel.title,
+          contactName,
+          contentText,
+          groupTitle: group?.title,
+          reactValue,
+        });
 
         const notification = new window.Notification(title, {
           body,
@@ -161,9 +160,19 @@ export default function useBrowserNotifications() {
 
         notification.onclick = () => {
           window.focus();
-          resetToChannelRef.current(channelId, {
-            groupId: channel.groupId ?? undefined,
-          });
+          navigateToBrowserNotificationTarget(
+            {
+              channelId,
+              groupId: channel.groupId ?? activityEvent.groupId ?? undefined,
+              parentAuthorId: activityEvent.parentAuthorId,
+              parentId: activityEvent.parentId,
+              postId: activityEvent.postId,
+            },
+            {
+              resetToChannel: resetToChannelRef.current,
+              resetToPost: resetToPostRef.current,
+            }
+          );
           notification.close();
         };
       } catch (error) {
@@ -173,7 +182,7 @@ export default function useBrowserNotifications() {
         );
       }
     },
-    [resetToChannelRef, resetToGroupRef]
+    [resetToChannelRef, resetToGroupRef, resetToPostRef]
   );
 
   useEffect(() => {
