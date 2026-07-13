@@ -109,12 +109,24 @@ interface CreateChatFormContentProps {
 }
 
 interface JoinGroupByIdPaneProps {
+  open: boolean;
   close: () => void;
 }
 
-const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
+const JoinGroupByIdPane = ({ open, close }: JoinGroupByIdPaneProps) => {
   const [groupCode, setGroupCode] = useState('');
   const { isCodeValid, state, actions } = useGroupSearch(groupCode);
+
+  const { resetSearch } = actions;
+
+  // the sheet stays mounted after first open, so clear stale search results
+  // when it closes
+  useEffect(() => {
+    if (!open) {
+      setGroupCode('');
+      resetSearch();
+    }
+  }, [open, resetSearch]);
 
   const handleActionComplete = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -194,9 +206,11 @@ const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
 
 const JoinGroupFormContent = ({
   chatType,
+  open,
   close,
 }: {
   chatType: ChatType;
+  open: boolean;
   close: () => void;
 }) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
@@ -206,7 +220,7 @@ const JoinGroupFormContent = ({
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
       <ActionSheet.ContentBlock>
-        <JoinGroupByIdPane close={close} />
+        <JoinGroupByIdPane open={open} close={close} />
       </ActionSheet.ContentBlock>
     </YStack>
   );
@@ -425,6 +439,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         <View flex={1}>
           <JoinGroupFormContent
             chatType={chatType}
+            open={step === 'createJoinGroup'}
             close={() => setStep('initial')}
           />
         </View>
@@ -620,6 +635,7 @@ export function JoinGroupSheet({
       <YStack flex={1} paddingBottom={bottom}>
         <JoinGroupFormContent
           chatType="joinGroup"
+          open={open}
           close={() => onOpenChange(false)}
         />
       </YStack>
