@@ -15,14 +15,21 @@ jobs:
   changes:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     outputs:
-      app: ${{ steps.filter.outputs.app }}
+      app: ${{ steps.filter-app.outputs.app }}
       backend: ${{ steps.filter.outputs.backend }}
       bots: ${{ steps.filter.outputs.bots }}
     steps:
-      - name: Filter changed paths
+      # An ignore-list filter only works with predicate-quantifier `every`:
+      # a file counts only if it matches every pattern — `**` AND each `!`
+      # exclusion. Under the default `some`, `**` matches everything and the
+      # exclusions are dead letters (the pre-#6128 gating had this bug).
+      # The quantifier is step-wide and `every` would break the positive
+      # OR-lists below, so `app` gets its own step.
+      - name: Filter changed paths (app ignore-list)
         uses: dorny/paths-filter@v3
-        id: filter
+        id: filter-app
         with:
+          predicate-quantifier: 'every'
           filters: |
             app:
               - '**'
@@ -32,6 +39,11 @@ jobs:
               - '!packages/tlon-skill/**'
               - '!docs/**'
               - '!**/*.md'
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
             backend:
               - 'desk/**'
               - 'backend/**'
@@ -41,12 +53,15 @@ jobs:
               - 'packages/tlon-bot-e2e/**'
               - 'packages/tlon-skill/**'
 
-  # The app-wide suite. Skipped when a PR only touches the bot/plugin packages
-  # or docs; a skipped run still satisfies the `test-build` required status
-  # check (GitHub treats jobs skipped via `if:` as passing).
+  # The app-wide suite and the repo's required status check. Skipped only when
+  # the filter positively reported app == 'false' (bot-/docs-only PRs); a
+  # skipped run still satisfies the required check. Written `!= 'false'`
+  # rather than `== 'true'` to fail closed: if the changes job errors, its
+  # outputs are empty and a plain `== 'true'` gate would skip this job —
+  # letting the PR merge with no tests run.
   test-build:
     needs: changes
-    if: needs.changes.outputs.app == 'true'
+    if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - name: Checkout
