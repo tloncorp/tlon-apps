@@ -208,6 +208,10 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         });
       }
       intakeRef.current = { token: parsed.token, phase: 'fetching' };
+      // snapshot the persisted copy now: consuming a painted lure mid-fetch
+      // soft-clears storage, and the provider-failure fallback below wants
+      // the cache as it existed when this tap arrived
+      const cachedLure = storage.invitation.getValue().catch(() => null);
 
       logger.trackEvent('Detected Branch-Independent Invite Link', {
         inviteId: parsed.token,
@@ -219,7 +223,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         // the provider gave nothing for this token — a same-token copy
         // persisted by an earlier session may still carry the metadata
         // needed to redeem or navigate, which beats the id-only fallback
-        const saved = await storage.invitation.getValue();
+        const saved = await cachedLure;
         if (saved?.lure?.id === parsed.token && inviteHasMetadata(saved.lure)) {
           invite = saved.lure;
         }
