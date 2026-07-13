@@ -185,10 +185,10 @@ def parse_parent_post(payload: Any, parent_id: str) -> Optional[HistoryEntry]:
 
 
 def parse_exact_reply(payload: Any, reply_id: str) -> Optional[HistoryEntry]:
-    """Decode channel-reply-2's one reply object, not a reply collection."""
+    """Decode channel-reply-2's memo or reply-essay object, not a reply collection."""
     if not isinstance(payload, dict):
         return None
-    memo = payload.get("memo")
+    memo = payload.get("memo") or payload.get("reply-essay")
     seal = payload.get("seal")
     return _entry_from_content(memo, seal, fallback_id=reply_id)
 
