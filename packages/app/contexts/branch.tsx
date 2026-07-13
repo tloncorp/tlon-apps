@@ -193,14 +193,19 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         return true;
       }
       // signed-out taps paint an id-only lure before the fetch so signup
-      // params carry the token even while metadata is slow. the fetch claim
-      // below then overrides the paint's applied slot: "signed out" here can
-      // also be auth that has not hydrated yet, and if ship state loads
-      // mid-fetch the listener consumes the paint as a no-op — the soft
-      // clear preserves a fetching slot, so the settle still re-applies
-      // with metadata and live auth
+      // params carry the token even while metadata is slow. the paint is
+      // in-memory only: persisting the bare copy would clobber same-token
+      // cached metadata that the provider-failure fallback below reads
+      // back. "signed out" here can also be auth that has not hydrated
+      // yet — if ship state loads mid-fetch the listener consumes the
+      // paint as a no-op, the soft clear preserves the fetching slot, and
+      // the settle re-applies with metadata and live auth
       if (!isAuthenticatedRef.current) {
-        setInviteLure({ id: parsed.token, shouldAutoJoin: true }, { source });
+        setState({
+          lure: { id: parsed.token, shouldAutoJoin: true },
+          priorityToken: undefined,
+          deepLinkPath: undefined,
+        });
       }
       intakeRef.current = { token: parsed.token, phase: 'fetching' };
 
