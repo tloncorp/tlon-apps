@@ -1,16 +1,13 @@
 import * as api from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { getTextContent } from '@tloncorp/shared/logic';
+import { getTextContent, useMutableRef } from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useRef } from 'react';
 
-const logger = createDevLogger('useBrowserNotifications', false);
+import { useRootNavigation } from '../navigation/utils';
+import { useIsElectron } from './useIsElectron';
 
-interface NotificationData {
-  type: string;
-  channelId?: string;
-  groupId?: string;
-}
+const logger = createDevLogger('useBrowserNotifications', false);
 
 function canUseBrowserNotifications() {
   return (
@@ -26,13 +23,36 @@ function hasNotificationPermission() {
   );
 }
 
-export default function useBrowserNotifications(isClientReady: boolean) {
+function isAppForegrounded() {
+  return (
+    typeof document !== 'undefined' &&
+    document.visibilityState === 'visible' &&
+    document.hasFocus()
+  );
+}
+
+/**
+ * Shows browser notifications for incoming activity. Electron gets native
+ * notifications via useDesktopNotifications instead, so this bails there.
+ *
+ * Must be mounted inside the NavigationContainer (clicking a notification
+ * navigates to the source channel), and only once the client is configured
+ * and syncing.
+ */
+export default function useBrowserNotifications() {
   const processedNotifications = useRef<Set<string>>(new Set());
-  const subscribedRef = useRef(false);
+  const isElectron = useIsElectron();
+  const { resetToChannel } = useRootNavigation();
+  const resetToChannelRef = useMutableRef(resetToChannel);
 
   const showActivityNotification = useCallback(
     async (activityEvent: db.ActivityEvent) => {
-      if (!canUseBrowserNotifications()) {
+      if (!hasNotificationPermission()) {
+        return;
+      }
+
+      if (isAppForegrounded()) {
+        // the user is already looking at the app
         return;
       }
 
@@ -48,19 +68,14 @@ export default function useBrowserNotifications(isClientReady: boolean) {
         );
       }
 
-      if (!hasNotificationPermission()) {
-        return;
-      }
-
-      if (!activityEvent.channelId) {
+      const channelId = activityEvent.channelId;
+      if (!channelId) {
         logger.error('No channel ID in activity event:', activityEvent);
         return;
       }
 
       try {
-        const channel = await db.getChannelWithRelations({
-          id: activityEvent.channelId,
-        });
+        const channel = await db.getChannelWithRelations({ id: channelId });
         if (!channel) {
           return;
         }
@@ -90,15 +105,14 @@ export default function useBrowserNotifications(isClientReady: boolean) {
         const notification = new window.Notification(title, {
           body,
           tag: notificationKey,
-          data: {
-            type: 'channel',
-            channelId: activityEvent.channelId,
-            groupId: channel.groupId ?? undefined,
-          } satisfies NotificationData,
         });
 
         notification.onclick = () => {
           window.focus();
+          resetToChannelRef.current(channelId, {
+            groupId: channel.groupId ?? undefined,
+          });
+          notification.close();
         };
       } catch (error) {
         logger.error(
@@ -107,38 +121,47 @@ export default function useBrowserNotifications(isClientReady: boolean) {
         );
       }
     },
-    []
+    [resetToChannelRef]
   );
 
   useEffect(() => {
-    if (
-      !isClientReady ||
-      subscribedRef.current ||
-      !canUseBrowserNotifications()
-    ) {
+    if (isElectron || !canUseBrowserNotifications()) {
       return;
     }
 
-    subscribedRef.current = true;
+    let cancelled = false;
+    let subscriptionId: number | null = null;
 
-    const handleActivityEvent = (event: api.ActivityEvent) => {
-      if (event.type !== 'addActivityEvent') {
-        return;
-      }
+    api
+      .subscribeToActivity((event: api.ActivityEvent) => {
+        if (event.type !== 'addActivityEvent') {
+          return;
+        }
 
-      const activityEvent =
-        event.events.find((e) => e.bucketId === 'all') ?? event.events[0];
+        const activityEvent =
+          event.events.find((e) => e.bucketId === 'all') ?? event.events[0];
 
-      if (activityEvent?.shouldNotify) {
-        showActivityNotification(activityEvent);
+        if (activityEvent?.shouldNotify) {
+          showActivityNotification(activityEvent);
+        }
+      })
+      .then((id) => {
+        if (cancelled) {
+          // effect already cleaned up before the subscription landed
+          api.unsubscribe(id);
+        } else {
+          subscriptionId = id;
+        }
+      })
+      .catch((e) => {
+        logger.error('Error subscribing to browser notification activity', e);
+      });
+
+    return () => {
+      cancelled = true;
+      if (subscriptionId != null) {
+        api.unsubscribe(subscriptionId);
       }
     };
-
-    try {
-      api.subscribeToActivity(handleActivityEvent);
-    } catch (error) {
-      subscribedRef.current = false;
-      logger.error('Error subscribing to browser notification activity', error);
-    }
-  }, [isClientReady, showActivityNotification]);
+  }, [isElectron, showActivityNotification]);
 }

@@ -151,6 +151,14 @@ const extractNestedRouteDesktop = (state: any) => {
   return null;
 };
 
+// Needs to render inside the NavigationContainer so notification clicks can
+// navigate. AppRoutes only mounts once the client is ready (post-splash on
+// web, post-clientReady in Electron), and the hook itself no-ops in Electron.
+function BrowserNotifications() {
+  useBrowserNotifications();
+  return null;
+}
+
 function AppRoutes() {
   useFindSuggestedContacts();
   const contactsQuery = store.useContacts();
@@ -357,6 +365,7 @@ function AppRoutes() {
           navigationInChildEnabled
         >
           <ForwardPostSheetProvider>
+            <BrowserNotifications />
             <BasePathNavigator isMobile={true} />
           </ForwardPostSheetProvider>
         </NavigationContainer>
@@ -378,6 +387,7 @@ function AppRoutes() {
           navigationInChildEnabled
         >
           <ForwardPostSheetProvider>
+            <BrowserNotifications />
             <BasePathNavigator isMobile={false} />
           </ForwardPostSheetProvider>
         </NavigationContainer>
@@ -470,7 +480,6 @@ function ConnectedWebApp() {
   const session = store.useCurrentSession();
   const hasSyncedRef = React.useRef(false);
   const telemetry = useTelemetry();
-  useBrowserNotifications(dbIsLoaded);
 
   const isNewSignup = useMemo(() => {
     return logic.detectWebSignup();

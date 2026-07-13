@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { isElectron } from './useIsElectron';
+
 type BrowserNotificationPermission = NotificationPermission | 'unsupported';
 
+function browserNotificationsSupported() {
+  // Electron uses native desktop notifications (useDesktopNotifications), so
+  // browser notifications are not offered there.
+  return (
+    typeof window !== 'undefined' &&
+    window.isSecureContext &&
+    'Notification' in window &&
+    !isElectron()
+  );
+}
+
 function getBrowserNotificationPermission(): BrowserNotificationPermission {
-  if (
-    typeof window === 'undefined' ||
-    !window.isSecureContext ||
-    !('Notification' in window)
-  ) {
+  if (!browserNotificationsSupported()) {
     return 'unsupported';
   }
 
@@ -24,11 +33,7 @@ export function useBrowserNotificationPermission() {
   }, []);
 
   const requestPermission = useCallback(async () => {
-    if (
-      typeof window === 'undefined' ||
-      !window.isSecureContext ||
-      !('Notification' in window)
-    ) {
+    if (!browserNotificationsSupported()) {
       setPermission('unsupported');
       return 'unsupported';
     }
