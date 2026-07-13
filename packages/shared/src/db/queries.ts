@@ -4622,6 +4622,41 @@ export const getPendingPosts = createReadQuery(
 );
 
 /**
+ * Hard-delete "ghost" tombstones: top-level rows whose send was acknowledged
+ * but never sequenced (`deliveryStatus` set, `sequenceNum === 0`) and whose
+ * delete was confirmed by the server (`deleteStatus: 'sent'`). No sequenced
+ * `addPost` will ever replace such a row, so it would otherwise sit in the
+ * pending merge layer as an `isDeleted` tombstone pinned to the bottom of
+ * chat-style scrollers indefinitely (TLON-5911). `deletePost` now clears
+ * these at delete time; this sweep repairs rows poisoned before that fix.
+ */
+export const clearGhostPosts = createWriteQuery(
+  'clearGhostPosts',
+  async (ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      const ghosts = await txCtx.db
+        .delete($posts)
+        .where(
+          and(
+            eq($posts.isDeleted, true),
+            eq($posts.sequenceNum, 0),
+            isNull($posts.parentId),
+            isNotNull($posts.deliveryStatus),
+            eq($posts.deleteStatus, 'sent')
+          )
+        )
+        .returning({ channelId: $posts.channelId });
+      const channelIds = [...new Set(ghosts.map((g) => g.channelId))];
+      for (const channelId of channelIds) {
+        await recomputeChannelLastPost({ channelId }, txCtx);
+      }
+      return ghosts.length;
+    });
+  },
+  ['posts', 'channels']
+);
+
+/**
  * Rows that are still in-flight from the sender's perspective, used by
  * `syncChannelWithBackoff` to decide whether delivery polling should
  * continue. Unlike `getPendingPosts` (UI merge input), this does NOT

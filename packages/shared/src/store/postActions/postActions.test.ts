@@ -1442,3 +1442,110 @@ describe('clearing a failed optimistic post', () => {
     expect(parentAfter!.replyContactIds).toEqual(['~alfa', '~bravo']);
   });
 });
+
+// TLON-5911: deleting a server-acknowledged-but-unsequenced send
+// (`deliveryStatus: 'sent'`, `sequenceNum: 0`). Once the server confirms the
+// delete, the sequenced `addPost` that would normally replace the cached row
+// is never coming, so the row must be hard-deleted — otherwise it survives as
+// an `isDeleted` tombstone that `mergePendingPosts` sorts unconfirmed-first,
+// i.e. pinned to the bottom of the chat scroller indefinitely.
+describe('deleting a sent-but-unsequenced post', () => {
+  beforeEach(async () => {
+    await db.insertChannels([
+      db.buildChannel({ id: TEST_CHANNEL, type: 'chat' }),
+    ]);
+    vi.mocked(poke).mockResolvedValue(0);
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+  });
+
+  afterEach(() => {
+    vi.mocked(poke).mockClear();
+    updateSession(null);
+  });
+
+  async function seedSentUnsequencedPost(): Promise<db.Post> {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const post = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 0,
+      content: [{ inline: [friendlyUniqueString()] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [post] });
+    return post;
+  }
+
+  test('deletePost() sends the server delete, then hard-deletes the unsequenced row', async () => {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const previous = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 5,
+      content: [{ inline: ['previous previewable post'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [previous] });
+
+    const post = await seedSentUnsequencedPost();
+    expect((await db.getPendingPosts(TEST_CHANNEL)).map((p) => p.id)).toContain(
+      post.id
+    );
+
+    await deletePost({ post });
+
+    // Unlike the failed-optimistic short-circuit, the row may exist on the
+    // server, so the delete round trip must happen.
+    expect(poke).toHaveBeenCalled();
+
+    // Once the server confirms, the row is gone — no ghost tombstone left in
+    // the DB or the pending merge layer.
+    expect(await fetchPost(post.id)).toBeUndefined();
+    const pending = await db.getPendingPosts(TEST_CHANNEL);
+    expect(pending.map((p) => p.id)).not.toContain(post.id);
+    const merged = mergePendingPosts({
+      newPosts: [],
+      pendingPosts: pending,
+      existingPosts: [],
+      deletedPosts: {},
+      hasNewest: true,
+    });
+    expect(merged.map((p) => p.id)).not.toContain(post.id);
+
+    // Channel preview repoints to the newest remaining previewable post.
+    const chan = await db.getChannel({ id: TEST_CHANNEL });
+    expect(chan!.lastPostId).toBe(previous.id);
+  });
+
+  test('deletePost() keeps the normal tombstone when the sequenced echo lands during the delete round trip', async () => {
+    const post = await seedSentUnsequencedPost();
+    vi.mocked(poke).mockImplementationOnce(async () => {
+      // The sequenced addPost catches up mid-flight: the row is no longer
+      // unsequenced by the time the delete is acknowledged.
+      await db.updatePost({ id: post.id, sequenceNum: 42 });
+      return 0;
+    });
+
+    await deletePost({ post });
+
+    const rowAfter = await fetchPost(post.id);
+    expect(rowAfter).toBeTruthy();
+    expect(rowAfter!.isDeleted).toBe(true);
+    expect(rowAfter!.sequenceNum).toBe(42);
+  });
+
+  test('deletePost() failure rolls back and does NOT hard-delete the row', async () => {
+    const post = await seedSentUnsequencedPost();
+    vi.mocked(poke).mockRejectedValueOnce(new Error('nack'));
+
+    await deletePost({ post });
+
+    const rowAfter = await fetchPost(post.id);
+    expect(rowAfter).toBeTruthy();
+    expect(rowAfter!.isDeleted).toBeFalsy();
+    expect(rowAfter!.deliveryStatus).toBe('sent');
+    expect(rowAfter!.deleteStatus).toBe('failed');
+  });
+});

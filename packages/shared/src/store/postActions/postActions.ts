@@ -793,6 +793,28 @@ export async function deletePost({ post }: { post: db.Post }) {
         : api.deletePost(post.channelId, post.id, post.authorId)
     );
     await db.updatePost({ id: post.id, deleteStatus: 'sent' });
+
+    // If the row is still a server-acknowledged-but-unsequenced send
+    // (`deliveryStatus: 'sent'`, `sequenceNum === 0`), the server just
+    // confirmed the delete, so the sequenced `addPost` that would normally
+    // replace this cached row is never coming. Without this, the row survives
+    // as an `isDeleted` tombstone that `mergePendingPosts` sorts
+    // unconfirmed-first — i.e. pinned to the bottom of chat-style scrollers
+    // forever (TLON-5911). Re-read first: the sequenced echo may have landed
+    // during the delete round trip, in which case the normal tombstone path
+    // applies. Scoped to top-level rows (replies don't flow through the
+    // pending merge layer) and to shapes with no live send flow —
+    // `enqueued` / `pending` rows still converge via the delivery machinery.
+    const settledPost = await db.getPost({ postId: post.id });
+    if (
+      settledPost &&
+      !settledPost.parentId &&
+      settledPost.sequenceNum === 0 &&
+      (settledPost.deliveryStatus === 'sent' ||
+        settledPost.deliveryStatus === 'needs_verification')
+    ) {
+      await clearUnsentPost(settledPost);
+    }
   } catch (e) {
     console.error('Failed to delete post', e);
 

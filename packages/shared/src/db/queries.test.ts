@@ -1292,6 +1292,124 @@ describe('getPendingPosts', () => {
   });
 });
 
+// TLON-5911: `clearGhostPosts` sweeps rows whose send was acknowledged but
+// never sequenced and whose delete the server confirmed — no sequenced
+// `addPost` will ever replace them, so they'd otherwise tombstone at the
+// bottom of chat scrollers forever.
+describe('clearGhostPosts', () => {
+  const channelId = 'ghost-sweep-channel';
+  const authorId = '~zod';
+  let seedCounter = 0;
+
+  async function seedPost(overrides: Partial<Post>): Promise<Post> {
+    const t = Date.now() + seedCounter++;
+    const base: Post = {
+      id: `ghost-${overrides.sentAt ?? t}-${Math.random()}`,
+      type: 'chat',
+      channelId,
+      authorId,
+      sentAt: t,
+      receivedAt: t,
+      sequenceNum: 0,
+      content: JSON.stringify([{ inline: ['seed'] }]),
+      syncedAt: t,
+      ...overrides,
+    } as Post;
+    await queries.insertChannelPosts({ posts: [base] });
+    return base;
+  }
+
+  test('removes confirmed-delete ghosts and repoints the channel head; leaves every other shape alone', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+
+    const confirmed = await seedPost({
+      id: 'confirmed-post',
+      sequenceNum: 5,
+      deliveryStatus: null,
+    });
+    // Confirmed tombstone: renders in place, must survive.
+    const confirmedTombstone = await seedPost({
+      id: 'confirmed-tombstone',
+      sequenceNum: 6,
+      deliveryStatus: null,
+      isDeleted: true,
+    });
+    // Delete still in flight: outcome unknown, must survive.
+    const deleteInFlight = await seedPost({
+      id: 'delete-in-flight',
+      deliveryStatus: 'sent',
+      isDeleted: true,
+      deleteStatus: 'pending',
+    });
+    // Deleted but not yet delete-confirmed sent row: the normal tombstone
+    // window, must survive.
+    const sentCatchUp = await seedPost({
+      id: 'sent-catchup',
+      deliveryStatus: 'sent',
+      isDeleted: true,
+    });
+    // Reply ghosts are out of scope for the sweep (they don't flow through
+    // the pending merge layer).
+    const replyGhost = await seedPost({
+      id: 'reply-ghost',
+      type: 'reply',
+      parentId: confirmed.id,
+      deliveryStatus: 'sent',
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+    // The actual ghost: acknowledged send, never sequenced, delete confirmed.
+    const ghost = await seedPost({
+      id: 'ghost',
+      deliveryStatus: 'sent',
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+
+    // Simulate the stale head state a lingering ghost can leave behind.
+    await queries.updateChannel({ id: channelId, lastPostId: null });
+
+    await queries.clearGhostPosts();
+
+    const remaining = (
+      await getClient()!
+        .select({ id: schema.posts.id })
+        .from(schema.posts)
+        .where($.eq(schema.posts.channelId, channelId))
+    ).map((r) => r.id);
+    expect(remaining).not.toContain(ghost.id);
+    expect(remaining).toEqual(
+      expect.arrayContaining([
+        confirmed.id,
+        confirmedTombstone.id,
+        deleteInFlight.id,
+        sentCatchUp.id,
+        replyGhost.id,
+      ])
+    );
+
+    // Channel head repointed to the newest remaining previewable post.
+    const chan = await queries.getChannel({ id: channelId });
+    expect(chan!.lastPostId).toBe(confirmed.id);
+  });
+
+  test('is a no-op when there are no ghosts', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const post = await seedPost({
+      id: 'plain-post',
+      sequenceNum: 3,
+      deliveryStatus: null,
+    });
+
+    await queries.clearGhostPosts();
+
+    const row = await getClient()!.query.posts.findFirst({
+      where: (posts, { eq }) => eq(posts.id, post.id),
+    });
+    expect(row).toBeTruthy();
+  });
+});
+
 // TLON-5606: `undoOptimisticReplyBump` must undo a single optimistic reply
 // add without clobbering server-sourced reply summary state. Two regimes:
 // complete local cache → full recompute; partial local cache → decrement
