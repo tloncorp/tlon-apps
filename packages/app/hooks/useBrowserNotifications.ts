@@ -6,7 +6,9 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { useRootNavigation } from '../navigation/utils';
 import { reactDisplayValue } from '../ui/components/Activity/ActivitySummaryMessage';
+import { useCalm } from '../ui/contexts/appDataContext';
 import {
+  getBrowserNotificationContactName,
   getBrowserNotificationCopy,
   navigateToBrowserNotificationTarget,
 } from './useBrowserNotifications.helpers';
@@ -36,9 +38,16 @@ function isAppForegrounded() {
   );
 }
 
-async function getContactName(contactId: string | null | undefined) {
+async function getContactName(
+  contactId: string | null | undefined,
+  disableNicknames: boolean
+) {
   const contact = contactId ? await db.getContact({ id: contactId }) : null;
-  return contact?.nickname ?? contactId ?? 'Unknown';
+  return getBrowserNotificationContactName({
+    contact,
+    contactId,
+    disableNicknames,
+  });
 }
 
 // Group join requests have a groupId but no channelId; clicking routes to the
@@ -46,6 +55,7 @@ async function getContactName(contactId: string | null | undefined) {
 async function showGroupAskNotification(
   activityEvent: db.ActivityEvent,
   notificationKey: string,
+  disableNicknames: boolean,
   resetToGroupRef: { current: (groupId: string) => Promise<void> }
 ) {
   const groupId = activityEvent.groupId;
@@ -55,7 +65,10 @@ async function showGroupAskNotification(
   }
 
   const group = await db.getGroup({ id: groupId });
-  const contactName = await getContactName(activityEvent.groupEventUserId);
+  const contactName = await getContactName(
+    activityEvent.groupEventUserId,
+    disableNicknames
+  );
 
   const notification = new window.Notification(
     group?.title ?? 'Group join request',
@@ -83,6 +96,7 @@ async function showGroupAskNotification(
 export default function useBrowserNotifications() {
   const processedNotifications = useRef<Set<string>>(new Set());
   const isElectron = useIsElectron();
+  const { disableNicknames } = useCalm();
   const { resetToChannel, resetToGroup, resetToPost } = useRootNavigation();
   const resetToChannelRef = useMutableRef(resetToChannel);
   const resetToGroupRef = useMutableRef(resetToGroup);
@@ -116,6 +130,7 @@ export default function useBrowserNotifications() {
           await showGroupAskNotification(
             activityEvent,
             notificationKey,
+            disableNicknames,
             resetToGroupRef
           );
           return;
@@ -132,7 +147,10 @@ export default function useBrowserNotifications() {
           return;
         }
 
-        const contactName = await getContactName(activityEvent.authorId);
+        const contactName = await getContactName(
+          activityEvent.authorId,
+          disableNicknames
+        );
         const isReact = activityEvent.type === 'react';
         const reactValue = isReact
           ? reactDisplayValue(activityEvent.content)
@@ -182,7 +200,7 @@ export default function useBrowserNotifications() {
         );
       }
     },
-    [resetToChannelRef, resetToGroupRef, resetToPostRef]
+    [disableNicknames, resetToChannelRef, resetToGroupRef, resetToPostRef]
   );
 
   useEffect(() => {

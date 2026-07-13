@@ -1,9 +1,42 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  getBrowserNotificationContactName,
   getBrowserNotificationCopy,
   navigateToBrowserNotificationTarget,
 } from './useBrowserNotifications.helpers';
+
+describe('getBrowserNotificationContactName', () => {
+  const contact = {
+    id: '~ravmel-ropdyl',
+    nickname: 'galen',
+    bio: null,
+    color: null,
+    avatarImage: null,
+    status: null,
+    coverImage: null,
+  };
+
+  it('uses a contact nickname when Calm nickname suppression is disabled', () => {
+    expect(
+      getBrowserNotificationContactName({
+        contact,
+        contactId: contact.id,
+        disableNicknames: false,
+      })
+    ).toBe('galen');
+  });
+
+  it('uses the contact ID when Calm nickname suppression is enabled', () => {
+    expect(
+      getBrowserNotificationContactName({
+        contact,
+        contactId: contact.id,
+        disableNicknames: true,
+      })
+    ).toBe('~ravmel-ropdyl');
+  });
+});
 
 describe('getBrowserNotificationCopy', () => {
   it('falls back to the contact name when a DM title is empty', () => {
@@ -68,7 +101,7 @@ describe('navigateToBrowserNotificationTarget', () => {
     expect(resetToChannel).not.toHaveBeenCalled();
   });
 
-  it('keeps parentless activity routed to its channel', () => {
+  it('routes parentless activity to its channel and focuses the target post', () => {
     const resetToChannel = vi.fn();
     const resetToPost = vi.fn();
 
@@ -83,6 +116,7 @@ describe('navigateToBrowserNotificationTarget', () => {
 
     expect(resetToChannel).toHaveBeenCalledWith('chat/~zod/general', {
       groupId: '~zod/tlon',
+      selectedPostId: '~bus/2',
     });
     expect(resetToPost).not.toHaveBeenCalled();
   });

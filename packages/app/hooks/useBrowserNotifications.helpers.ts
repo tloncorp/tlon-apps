@@ -1,3 +1,31 @@
+import type * as db from '@tloncorp/shared/db';
+
+import { resolveContactNameProps } from '../ui/components/contactNameResolver';
+
+type BrowserNotificationContactNameInput = {
+  contact: db.Contact | null;
+  contactId?: string | null;
+  disableNicknames: boolean;
+};
+
+export function getBrowserNotificationContactName({
+  contact,
+  contactId,
+  disableNicknames,
+}: BrowserNotificationContactNameInput) {
+  if (!contactId) {
+    return 'Unknown';
+  }
+
+  return (
+    resolveContactNameProps({
+      contact,
+      contactId,
+      calmDisableNicknames: disableNicknames,
+    }).children || contactId
+  );
+}
+
 type BrowserNotificationCopyInput = {
   activityType: string;
   channelTitle?: string | null;
@@ -51,7 +79,7 @@ type BrowserNotificationTargetInput = {
 };
 
 type BrowserNotificationNavigationTarget =
-  | { type: 'channel' }
+  | { type: 'channel'; selectedPostId?: string }
   | {
       type: 'thread';
       parentAuthorId: string;
@@ -65,7 +93,7 @@ function getBrowserNotificationNavigationTarget({
   postId,
 }: BrowserNotificationTargetInput): BrowserNotificationNavigationTarget {
   if (!parentId) {
-    return { type: 'channel' };
+    return { type: 'channel', selectedPostId: postId ?? undefined };
   }
 
   return {
@@ -82,7 +110,10 @@ type BrowserNotificationNavigationInput = BrowserNotificationTargetInput & {
 };
 
 type BrowserNotificationNavigationActions = {
-  resetToChannel: (channelId: string, options: { groupId?: string }) => void;
+  resetToChannel: (
+    channelId: string,
+    options: { groupId?: string; selectedPostId?: string }
+  ) => void;
   resetToPost: (post: {
     postId: string;
     authorId: string;
@@ -110,5 +141,8 @@ export function navigateToBrowserNotificationTarget(
     return;
   }
 
-  actions.resetToChannel(input.channelId, { groupId });
+  actions.resetToChannel(input.channelId, {
+    groupId,
+    selectedPostId: target.selectedPostId,
+  });
 }

@@ -1,4 +1,8 @@
-import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
+import {
+  isDmChannelId,
+  isGroupDmChannelId,
+  parseNotesChannelId,
+} from '@tloncorp/api/client';
 
 // Pure, side-effect-light navigation route helpers.
 //
@@ -96,8 +100,11 @@ export function getDesktopPostRoute(
   }
 ) {
   const screen = screenNameFromChannelId(postParams.channelId);
+  // Notes channels always open under Home, where the notebook sidebar and
+  // channel takeover providers are mounted.
+  const resolvedTab = parseNotesChannelId(postParams.channelId) ? 'Home' : tab;
   return {
-    name: tab,
+    name: resolvedTab,
     params: {
       screen,
       pop: true,

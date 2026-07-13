@@ -173,6 +173,16 @@ describe('getDesktopPostRoute', () => {
     expect(route.params.screen).toBe('GroupDM');
   });
 
+  test('notes channel -> Home even when the last open tab is Messages', () => {
+    const route = getDesktopPostRoute('Messages', {
+      ...base,
+      channelId: 'notes/~zod/blog',
+      groupId: '~zod/tlon',
+    });
+    expect(route.name).toBe('Home');
+    expect(route.params.screen).toBe('Channel');
+  });
+
   test('selectedPostId is threaded onto both wrapper and nested Post params', () => {
     const route = getDesktopPostRoute('Home', {
       ...base,
