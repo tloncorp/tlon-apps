@@ -268,6 +268,13 @@ When writing or modifying bash scripts, ensure compatibility with both macOS and
 -   Test scripts on both macOS and Linux when possible
 -   Use portable command options (e.g., `grep -E` instead of `egrep`)
 
+## Pull Requests
+
+When creating a PR, structure the body with the repo's PR template
+(`.github/pull_request_template.md`): Summary / Changes / How did I test? /
+Risks and impact / Rollback plan / Screenshots. `gh pr create` does not apply
+the template automatically — fill it in explicitly.
+
 ## Pre-PR Cleanup
 
 Before finalizing a PR, do a focused pass on your own diff:
