@@ -219,14 +219,19 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       });
 
       let invite = await getMetadataFromInviteToken(parsed.token);
-      if (!invite) {
-        // the provider gave nothing for this token — a same-token copy
-        // persisted by an earlier session may still carry the metadata
-        // needed to redeem or navigate, which beats the id-only fallback
-        const saved = await cachedLure;
-        if (saved?.lure?.id === parsed.token && inviteHasMetadata(saved.lure)) {
-          invite = saved.lure;
-        }
+      // a same-token copy persisted by an earlier session still matters:
+      // its metadata beats the id-only fallback when the provider gives
+      // nothing, and its priority token (branch links persist one; direct
+      // urls cannot carry it) must survive the re-tap either way
+      const saved = await cachedLure;
+      const sameTokenSaved = saved?.lure?.id === parsed.token;
+      if (
+        !invite &&
+        sameTokenSaved &&
+        saved?.lure &&
+        inviteHasMetadata(saved.lure)
+      ) {
+        invite = saved.lure;
       }
       // assert: the ref may have been reassigned during the awaits, which
       // control-flow narrowing does not see
@@ -241,7 +246,10 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         // id-only copy persisted during a provider outage)
         return true;
       }
-      setInviteLure(invite ?? { id: parsed.token }, { source });
+      setInviteLure(invite ?? { id: parsed.token }, {
+        source,
+        priorityToken: sameTokenSaved ? saved?.priorityToken : undefined,
+      });
       return true;
     },
     [applyWerDeepLink, setInviteLure]
