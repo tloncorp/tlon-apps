@@ -948,26 +948,30 @@ export class Urbit {
   }> {
     const { app, path, timeout } = params;
     const signal = timeout ? createTimeoutSignal(timeout) : undefined;
-    const response = await this.fetchFn(
-      `${this.url}/~/scry/${app}${path}.json`,
-      {
-        ...this.fetchOptions,
-        signal,
+    try {
+      const response = await this.fetchFn(
+        `${this.url}/~/scry/${app}${path}.json`,
+        {
+          ...this.fetchOptions,
+          signal,
+        }
+      );
+
+      if (!response.ok) {
+        return Promise.reject(response);
       }
-    );
-    signal?.cleanup();
 
-    if (!response.ok) {
-      return Promise.reject(response);
+      // read the body while the timeout is still armed; see thread()
+      const result = await response.json();
+      const responseSize = response.headers.get('content-length');
+      return {
+        responseStatus: response.status,
+        responseSizeInBytes: Number(responseSize),
+        result,
+      };
+    } finally {
+      signal?.cleanup();
     }
-
-    const result = await response.json();
-    const responseSize = response.headers.get('content-length');
-    return {
-      responseStatus: response.status,
-      responseSizeInBytes: Number(responseSize),
-      result,
-    };
   }
 
   async scryNoun(params: Scry): Promise<Noun> {
@@ -1065,17 +1069,28 @@ export class Urbit {
 
     const signal = timeout ? createTimeoutSignal(timeout) : undefined;
 
-    const result = await this.fetchFn(
-      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
-      {
-        ...this.fetchOptions,
-        signal,
-        method: 'POST',
-        body: JSON.stringify(body),
-      }
-    );
-    signal?.cleanup();
-    return result;
+    try {
+      const result = await this.fetchFn(
+        `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
+        {
+          ...this.fetchOptions,
+          signal,
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      );
+      // Buffer the body while the timeout is still armed. fetch resolves when
+      // response headers arrive, so an un-timed body read afterwards can hang
+      // indefinitely if the browser stalls the stream (seen on Brave).
+      const responseBody = await result.text();
+      return new Response(responseBody.length > 0 ? responseBody : null, {
+        status: result.status,
+        statusText: result.statusText,
+        headers: result.headers,
+      });
+    } finally {
+      signal?.cleanup();
+    }
   }
 
   async getSpinHints(): Promise<string> {
@@ -1143,23 +1158,27 @@ export class Urbit {
       };
     }
 
-    // Make the request
-    const response = await this.fetchFn(`${this.url}${path}`, requestOptions);
-    signal?.cleanup();
+    try {
+      // Make the request
+      const response = await this.fetchFn(`${this.url}${path}`, requestOptions);
 
-    // Handle response
-    if (!response.ok) {
-      return Promise.reject(response);
-    }
+      // Handle response
+      if (!response.ok) {
+        return Promise.reject(response);
+      }
 
-    // Determine response type and parse accordingly
-    const contentType = response.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
-      return response.json();
-    } else if (contentType?.includes('text/')) {
-      return response.text() as unknown as T;
-    } else {
-      return response.blob() as unknown as T;
+      // Determine response type and parse accordingly, reading the body while
+      // the timeout is still armed; see thread()
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        return await response.json();
+      } else if (contentType?.includes('text/')) {
+        return (await response.text()) as unknown as T;
+      } else {
+        return (await response.blob()) as unknown as T;
+      }
+    } finally {
+      signal?.cleanup();
     }
   }
 

@@ -445,6 +445,20 @@ export const createGroup = async ({
 
     return toClientGroupV7(group.id, result, true);
   } catch (err) {
+    // The create thread may have completed on the ship even though the
+    // response never made it back to us (e.g. Brave stalling the response
+    // body, a dropped connection). Check before reporting failure.
+    try {
+      const createdGroup = await getGroup(group.id);
+      logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
+        context: 'group-create-thread response lost, recovered via scry',
+        errorMessage: err.message,
+      });
+      return createdGroup;
+    } catch {
+      // fall through to the original error
+    }
+
     if (err instanceof BadResponseError) {
       logger.trackEvent('Create Group Error', {
         severity: AnalyticsSeverity.Critical,
