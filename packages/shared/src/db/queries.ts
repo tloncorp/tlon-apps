@@ -4179,6 +4179,31 @@ export const deletePost = createWriteQuery(
   ['posts']
 );
 
+/**
+ * Delete an acknowledged optimistic top-level post only while it is still
+ * unsequenced. Keeping the state guard in the DELETE predicate closes the
+ * race where a sequenced addPost echo updates the row between a read and a
+ * later unconditional delete.
+ */
+export const deleteUnsequencedAcknowledgedPost = createWriteQuery(
+  'deleteUnsequencedAcknowledgedPost',
+  async (postId: string, ctx: QueryCtx) => {
+    const deleted = await ctx.db
+      .delete($posts)
+      .where(
+        and(
+          eq($posts.id, postId),
+          eq($posts.sequenceNum, 0),
+          isNull($posts.parentId),
+          inArray($posts.deliveryStatus, ['sent', 'needs_verification'])
+        )
+      )
+      .returning();
+    return deleted[0] ?? null;
+  },
+  ['posts']
+);
+
 export const markPostAsDeleted = createWriteQuery(
   'markPostAsDeleted',
   async (postId: string, ctx: QueryCtx) => {

@@ -1311,6 +1311,54 @@ describe('getPendingPosts', () => {
   });
 });
 
+describe('deleteUnsequencedAcknowledgedPost', () => {
+  const channelId = 'conditional-delete-channel';
+
+  async function seedPost(id: string, overrides: Partial<Post> = {}) {
+    const post = {
+      id,
+      type: 'chat',
+      channelId,
+      authorId: '~zod',
+      sentAt: Date.now(),
+      receivedAt: Date.now(),
+      sequenceNum: 0,
+      deliveryStatus: 'sent',
+      content: JSON.stringify([{ inline: ['seed'] }]),
+      syncedAt: Date.now(),
+      ...overrides,
+    } as Post;
+    await queries.insertChannelPosts({ posts: [post] });
+    return post;
+  }
+
+  test('deletes and returns an acknowledged row while it is still unsequenced', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const post = await seedPost('still-unsequenced');
+
+    const deleted = await queries.deleteUnsequencedAcknowledgedPost(post.id);
+
+    expect(deleted?.id).toBe(post.id);
+    expect(await queries.getPost({ postId: post.id })).toBeNull();
+  });
+
+  test('preserves the row when a sequenced echo wins the race', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const post = await seedPost('sequenced-before-delete');
+    // This update represents the addPost echo landing after the caller chose
+    // the hard-delete path but before SQLite executes the guarded DELETE.
+    await queries.updatePost({ id: post.id, sequenceNum: 42 });
+
+    const deleted = await queries.deleteUnsequencedAcknowledgedPost(post.id);
+
+    expect(deleted).toBeNull();
+    expect(await queries.getPost({ postId: post.id })).toMatchObject({
+      id: post.id,
+      sequenceNum: 42,
+    });
+  });
+});
+
 // TLON-5606: `undoOptimisticReplyBump` must undo a single optimistic reply
 // add without clobbering server-sourced reply summary state. Two regimes:
 // complete local cache → full recompute; partial local cache → decrement

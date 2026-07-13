@@ -718,6 +718,10 @@ function isUnsentOptimisticRow(post: db.Post): boolean {
 async function clearUnsentPost(post: db.Post) {
   deleteFromChannelPosts(post);
   await db.deletePost(post.id);
+  await finishHardDeletedPost(post);
+}
+
+async function finishHardDeletedPost(post: db.Post) {
   removeFromChannelPosts(post);
   if (post.parentId) {
     // Optimistic reply creation bumps the parent's replyCount / replyTime /
@@ -796,27 +800,13 @@ export async function deletePost({ post }: { post: db.Post }) {
     );
     await db.updatePost({ id: post.id, deleteStatus: 'sent' });
 
-    // If the row is still a server-acknowledged-but-unsequenced send
-    // (`deliveryStatus: 'sent'`, `sequenceNum === 0`), the server just
-    // confirmed the delete, so the sequenced `addPost` that would normally
-    // replace this cached row is never coming. Without this, the row survives
-    // as an `isDeleted` tombstone that `mergePendingPosts` sorts
-    // unconfirmed-first — i.e. pinned to the bottom of chat-style scrollers
-    // forever (TLON-5911). Re-read first: the sequenced echo may have landed
-    // during the delete round trip, in which case the normal tombstone path
-    // applies. Scoped to top-level rows (replies don't flow through the
-    // pending merge layer) and to acknowledged sends that are safe to remove.
-    // In-flight `enqueued` / `pending` rows remain stored, while the pending
-    // read queries treat their settled deletion as inert.
-    const latestPost = await db.getPost({ postId: post.id });
-    if (
-      latestPost &&
-      !latestPost.parentId &&
-      latestPost.sequenceNum === 0 &&
-      (latestPost.deliveryStatus === 'sent' ||
-        latestPost.deliveryStatus === 'needs_verification')
-    ) {
-      await clearUnsentPost(latestPost);
+    // Once the server confirms the delete, remove an acknowledged optimistic
+    // top-level row only if it is still unsequenced. The database predicate
+    // checks sequence/status atomically with the DELETE, so an addPost echo
+    // that lands at the last moment preserves the confirmed tombstone.
+    const deletedPost = await db.deleteUnsequencedAcknowledgedPost(post.id);
+    if (deletedPost) {
+      await finishHardDeletedPost(deletedPost);
     }
   } catch (e) {
     console.error('Failed to delete post', e);
