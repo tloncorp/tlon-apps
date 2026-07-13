@@ -76,6 +76,21 @@ function normalizePreviewUrl(url: string) {
   }
 }
 
+// Extract normalized, deduplicated URLs eligible for link previews. Strips
+// backtick code spans/blocks (including unclosed ones) first so that URLs
+// inside code fences are not turned into link attachments. Triple-backtick
+// alternation is listed first so that ``` is not accidentally consumed by
+// the single-backtick branch.
+function extractPreviewUrls(text: string): string[] {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const textOutsideCodeBlocks = text.replace(
+    /```[\s\S]*?(?:```|$)|`[^`]*(?:`|$)/g,
+    ''
+  );
+  const matches = textOutsideCodeBlocks.match(urlRegex) || [];
+  return [...new Set(matches.map(normalizePreviewUrl))];
+}
+
 function useMaxInputHeight(maxInputHeightBasic: number) {
   const keyboardHeight = useKeyboardHeight();
   return keyboardHeight > 0
@@ -252,13 +267,8 @@ function BareChatInput(
     () => height - HEADER_HEIGHT - bottom - top,
     [height, bottom, top]
   );
-  const {
-    attachments,
-    addAttachment,
-    clearAttachments,
-    resetAttachments,
-    removeAttachment,
-  } = useAttachmentContext();
+  const { attachments, addAttachment, clearAttachments, resetAttachments } =
+    useAttachmentContext();
   const [controlledText, setControlledText] = useState('');
   const [inputHeight, setInputHeight] = useState(initialHeight);
   const [sendError, setSendError] = useState(false);
@@ -299,6 +309,8 @@ function BareChatInput(
   const debouncedText = useDebouncedValue(controlledText, 500);
   const attachmentsRef = useRef(attachments);
   attachmentsRef.current = attachments;
+  const latestTextRef = useRef(controlledText);
+  latestTextRef.current = controlledText;
   const prevUrlsRef = useRef<string[]>([]);
 
   const processReferences = useCallback(
@@ -554,43 +566,24 @@ function BareChatInput(
     );
   }, [controlledText, attachments]);
 
-  // Sync link attachments with URLs in text
-  // This effect watches for URL changes and updates link previews accordingly
+  // Watch for new URLs in text and add link previews for them. Previews are
+  // intentionally not removed when their URL leaves the text: a common flow is
+  // pasting a link (preview appears), then replacing the link text with a
+  // comment and sending both. Once a preview has appeared, only its explicit
+  // remove button dismisses it.
   useEffect(() => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    // Strip backtick code spans/blocks (including unclosed ones) before
-    // scanning for URLs so that URLs inside code fences are not turned into
-    // link attachments. Triple-backtick alternation is listed first so that
-    // ``` is not accidentally consumed by the single-backtick branch.
-    const textOutsideCodeBlocks = debouncedText.replace(
-      /```[\s\S]*?(?:```|$)|`[^`]*(?:`|$)/g,
-      ''
-    );
-    const matches = textOutsideCodeBlocks.match(urlRegex) || [];
-
-    // Normalize URLs (remove hash) and deduplicate
-    const currentUrls = [...new Set(matches.map(normalizePreviewUrl))];
+    const currentUrls = extractPreviewUrls(debouncedText);
 
     const prevUrls = prevUrlsRef.current;
-    const linksByUrl = new Map(
+    const existingLinkUrls = new Set(
       attachmentsRef.current
         .filter((a) => a.type === 'link')
-        .map((a) => [normalizePreviewUrl(a.url), a] as const)
+        .map((a) => normalizePreviewUrl(a.url))
     );
 
-    const removedUrls = prevUrls.filter((url) => !currentUrls.includes(url));
     const addedUrls = currentUrls.filter(
-      (url) => !prevUrls.includes(url) && !linksByUrl.has(url)
+      (url) => !prevUrls.includes(url) && !existingLinkUrls.has(url)
     );
-
-    // Remove attachments for URLs no longer in text
-    removedUrls.forEach((url) => {
-      const attachment = linksByUrl.get(url);
-      if (attachment) {
-        bareChatInputLogger.log('removing stale link attachment', { url });
-        removeAttachment(attachment);
-      }
-    });
 
     // Fetch metadata for new URLs
     if (addedUrls.length > 0) {
@@ -603,6 +596,16 @@ function BareChatInput(
             // Check if this request is still valid
             if (currentSession !== inputSessionRef.current) {
               bareChatInputLogger.log('ignoring stale link metadata', {
+                url,
+              });
+              return;
+            }
+
+            // If the URL was deleted from the text before its metadata
+            // arrived, the user never saw a preview - don't surprise them
+            // with one now.
+            if (!extractPreviewUrls(latestTextRef.current).includes(url)) {
+              bareChatInputLogger.log('skipping link preview for removed url', {
                 url,
               });
               return;
@@ -657,7 +660,7 @@ function BareChatInput(
     }
 
     prevUrlsRef.current = currentUrls;
-  }, [debouncedText, store, addAttachment, removeAttachment]);
+  }, [debouncedText, store, addAttachment]);
 
   const adjustInputHeightProgrammatically = useCallback(() => {
     if (!isWeb || !inputRef.current) {
