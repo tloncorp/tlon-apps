@@ -19,7 +19,7 @@ import uuid
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Sequence
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
@@ -42,13 +42,13 @@ from .approval import (
     approval_ship,
     approval_type,
     build_approval_card,
+    build_pending_approvals_response,
     create_pending_approval,
     find_approval,
     find_duplicate,
     format_approval_request,
     format_blocked_list,
     format_confirmation,
-    format_pending_list,
     parse_approval_command,
     parse_dm_allowlist,
     parse_foreigns,
@@ -71,13 +71,19 @@ from .channel_access import (
     is_channel_open,
     parse_channel_rules,
 )
+from .cite import resolve_cites
 from .history import (
     build_channel_context,
     build_thread_context,
     fetch_channel_history,
     fetch_thread_context,
 )
-from .media import PreparedMedia, prepare_inbound_media, render_content_with_blob
+from .media import (
+    PreparedMedia,
+    combine_blob_fields,
+    prepare_inbound_media,
+    render_content_with_blob,
+)
 from .mention import (
     BotMentionMatcher,
     build_bot_mention_terms,
@@ -167,6 +173,7 @@ from .tlon_tool import (
 logger = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF_SECONDS = (2, 5, 10, 30, 60)
+CITE_RESOLUTION_BUDGET_SECONDS = 5.0
 RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000
 REQUIRED_ENV = [
     "TLON_NODE_URL",
@@ -631,6 +638,9 @@ class TlonAdapter(BasePlatformAdapter):
         self._known_bot_ships: set[str] = set()
         self._known_bot_consecutive_by_channel: dict[str, int] = {}
         self._pending_bot_cap_addendum: dict[str, tuple[str, str]] = {}
+        # Lens output IDs derive from --sent-at. Reserve strictly increasing
+        # values so quick consecutive sends cannot collide on the same post ID.
+        self._last_lens_sent_at = 0
         self._owner_listen = self._owner_listen_env_defaults()
         self._settings_group_channels: set[str] = set()
         self._settings_loaded = False
@@ -1207,9 +1217,17 @@ class TlonAdapter(BasePlatformAdapter):
             self._pending_approvals, time.time() * 1000.0
         )
         pruned = len(self._pending_approvals) != before
+        if pruned:
+            await self._persist_pending_approvals()
 
+        blob_fields: tuple[str | None, ...] = ()
         if action == "pending":
-            reply = format_pending_list(self._pending_approvals)
+            reply, pending_blob = build_pending_approvals_response(
+                self._pending_approvals,
+                is_dm=_is_dm_chat_id(reply_chat_id),
+            )
+            if pending_blob is not None:
+                blob_fields = (pending_blob,)
         elif action == "banned":
             reply = format_blocked_list(await self._blocked_ships_list())
         elif action == "unban":
@@ -1225,9 +1243,9 @@ class TlonAdapter(BasePlatformAdapter):
             else:
                 reply = await self._execute_approval_action(approval, action)
 
-        if pruned:
-            await self._persist_pending_approvals()
-        await self._send_control_reply(reply_chat_id, reply_parent_id, reply)
+        await self._send_control_reply(
+            reply_chat_id, reply_parent_id, reply, blob_fields=blob_fields
+        )
 
     async def _execute_approval_action(
         self, approval: dict[str, Any], action: str
@@ -1668,12 +1686,22 @@ class TlonAdapter(BasePlatformAdapter):
         chat_id: str,
         parent_id: Optional[str],
         text: str,
+        *,
+        blob_fields: Sequence[str | None] = (),
     ) -> None:
+        # Control commands are consumed before normal dispatch, so they never
+        # have a lens run. Retain their existing routing rule: channel control
+        # replies may thread, while direct-message control replies stay linear.
+        text = str(text or "")[:MAX_MESSAGE_LENGTH]
+        thread_parent = parent_id if parent_id and not _is_dm_chat_id(chat_id) else None
         with cli_context("control_plane"):
-            if parent_id and not _is_dm_chat_id(chat_id):
-                result = await self._cli.send_reply(chat_id, parent_id, text)
-            else:
-                result = await self._cli.send_message(chat_id, text)
+            result, _ = await self._deliver_post(
+                chat_id,
+                text,
+                parent_id=thread_parent,
+                blob_fields=blob_fields,
+                lens_blob=None,
+            )
         if not result.success:
             logger.warning("[tlon] control command reply failed: %s", result.error)
 
@@ -2131,6 +2159,20 @@ class TlonAdapter(BasePlatformAdapter):
         message: TlonIncomingMessage,
         text: str,
     ) -> tuple[str, PreparedMedia]:
+        cite_block = ""
+        if self._sse is not None and message.content:
+            try:
+                cite_block = await asyncio.wait_for(
+                    resolve_cites(self._sse.scry, message.content),
+                    CITE_RESOLUTION_BUDGET_SECONDS,
+                )
+            except (Exception, asyncio.TimeoutError) as exc:
+                logger.debug(
+                    "[tlon] cite resolution failed for %s: %s",
+                    message.message_id,
+                    exc,
+                )
+                self._telemetry.error("cite_resolve", exc)
         try:
             prepared = await prepare_inbound_media(message.content, message.blob)
         except Exception as exc:
@@ -2140,13 +2182,16 @@ class TlonAdapter(BasePlatformAdapter):
                 exc,
             )
             self._telemetry.error("media_prepare", exc)
-            return text, PreparedMedia()
+            prepared = PreparedMedia()
         if not prepared.text_prefix:
-            return text, prepared
-        body = str(text or "").strip()
-        dispatch_text = (
-            f"{prepared.text_prefix}\n{body}" if body else prepared.text_prefix
-        )
+            dispatch_text = text
+        else:
+            body = str(text or "").strip()
+            dispatch_text = (
+                f"{prepared.text_prefix}\n{body}" if body else prepared.text_prefix
+            )
+        if cite_block:
+            dispatch_text = f"{cite_block}\n\n{dispatch_text}"
         return dispatch_text, prepared
 
     async def _with_group_context(
@@ -2406,6 +2451,46 @@ class TlonAdapter(BasePlatformAdapter):
             self._seen_ids.discard(old)
         return True
 
+    def _next_lens_sent_at(self) -> int:
+        """Allocate the post ID timestamp for one lens-stamped output."""
+        sent_at_ms = max(int(time.time() * 1000), self._last_lens_sent_at + 1)
+        self._last_lens_sent_at = sent_at_ms
+        return sent_at_ms
+
+    async def _deliver_post(
+        self,
+        chat_id: str,
+        content: str,
+        *,
+        parent_id: Optional[str] = None,
+        parent_author: Optional[str] = None,
+        blob_fields: Sequence[str | None] = (),
+        lens_blob: Optional[str] = None,
+    ) -> tuple[Any, Optional[int]]:
+        """Deliver one post after composing every applicable blob source.
+
+        ``blob_fields`` is the adapter-facing producer seam: callers pass
+        complete serialized post-blob arrays, which are ordered before the
+        internal lens reference. A caller-provided blob must ride non-empty
+        content (the published CLI has no blob-only send transport).
+        """
+        blob = combine_blob_fields(*blob_fields, lens_blob)
+        sent_at_ms = self._next_lens_sent_at() if lens_blob is not None else None
+        if parent_id:
+            result = await self._cli.send_reply(
+                chat_id,
+                parent_id,
+                content,
+                parent_author=parent_author,
+                blob=blob,
+                sent_at=sent_at_ms,
+            )
+        else:
+            result = await self._cli.send_message(
+                chat_id, content, blob=blob, sent_at=sent_at_ms
+            )
+        return result, sent_at_ms
+
     async def send(
         self,
         chat_id: str,
@@ -2413,6 +2498,13 @@ class TlonAdapter(BasePlatformAdapter):
         reply_to: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> SendResult:
+        """Send a model reply.
+
+        Adapter callers may provide ``metadata["blob"]`` as a complete,
+        serialized post-blob entry array. It is composed before the internal
+        context-lens reference and must accompany non-empty content because
+        the deployed CLI does not support blob-only posts.
+        """
         pending = self._pending_bot_cap_addendum.get(chat_id)
         addendum = ""
         if pending and reply_to and str(reply_to) == pending[1]:
@@ -2423,6 +2515,22 @@ class TlonAdapter(BasePlatformAdapter):
             )
         content = (content or "")[: self.MAX_MESSAGE_LENGTH - len(addendum)] + addendum
         metadata = metadata or {}
+        caller_blob = metadata.get("blob")
+        if not (isinstance(caller_blob, str) and caller_blob.strip()):
+            # A whitespace-only string is treated as ABSENT, same as None:
+            # it never fires the blob-requires-content guard below.
+            caller_blob = None
+        if caller_blob is not None and not content.strip():
+            blob_error = "metadata['blob'] requires non-empty content (no blob-only CLI transport)"
+            self._telemetry.record_delivery(chat_id, content=content, success=False)
+            self._lens.record_delivery_failure(chat_id, error=blob_error)
+            return SendResult(
+                success=False,
+                message_id=None,
+                error=blob_error,
+                raw_response={},
+                retryable=False,
+            )
         # Core anchors every reply to the triggering message (reply_to), but
         # Tlon conversations are linear: reply top-level unless the
         # conversation is already a thread (metadata.thread_id carries the
@@ -2437,30 +2545,18 @@ class TlonAdapter(BasePlatformAdapter):
         # the run from the message (badge / message actions), matching
         # OpenClaw. Only when a run is active for this conversation.
         lens_blob = self._lens_reference_blob(chat_id)
-        # Only override the send time — and derive the lens output id from it
-        # (~author/<@da of sent>, how the client resolves outputs) — when we're
-        # actually stamping a lens output. Passing --sent-at on every send
-        # would let an older `tlon` binary (which doesn't know the flag) fold
-        # it into the message body; gate it exactly like --blob above.
-        sent_at_ms = int(time.time() * 1000) if lens_blob is not None else None
         with cli_context("delivery", conversation=chat_id):
-            if is_thread_reply:
-                # parentAuthor: honor what Hermes passes; otherwise the CLI
-                # attributes the reference to the bot. (We don't assume a DM
-                # partner authored the thread root.)
-                parent_author = metadata.get("parent_author") or None
-                result = await self._cli.send_reply(
-                    chat_id,
-                    thread_parent,
-                    content,
-                    parent_author=parent_author,
-                    blob=lens_blob,
-                    sent_at=sent_at_ms,
-                )
-            else:
-                result = await self._cli.send_message(
-                    chat_id, content, blob=lens_blob, sent_at=sent_at_ms
-                )
+            # parentAuthor: honor what Hermes passes; otherwise the CLI
+            # attributes the reference to the bot. (We don't assume a DM
+            # partner authored the thread root.)
+            result, sent_at_ms = await self._deliver_post(
+                chat_id,
+                content,
+                parent_id=thread_parent if is_thread_reply else None,
+                parent_author=metadata.get("parent_author") or None,
+                blob_fields=(caller_blob,) if caller_blob is not None else (),
+                lens_blob=lens_blob,
+            )
         self._telemetry.record_delivery(chat_id, content=content, success=result.success)
         if result.success:
             # sent_at_ms is set iff there's an active run to stamp (see above).

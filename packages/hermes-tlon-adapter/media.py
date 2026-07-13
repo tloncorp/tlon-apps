@@ -11,9 +11,11 @@ import inspect
 import ipaddress
 import json
 import logging
+import math
 import mimetypes
 import os
 import socket
+import sys
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Optional, Sequence
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
@@ -22,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 MAX_BLOB_DOWNLOAD_BYTES = 100 * 1024 * 1024
 MAX_REDIRECTS = 5
+_MAX_INT_LITERAL_DIGITS = 4_000
 
 
 @dataclass(frozen=True)
@@ -94,6 +97,85 @@ class MediaTooLargeError(MediaDownloadError):
 
 class UnsafeMediaUrlError(MediaDownloadError):
     pass
+
+
+def _reject_json_constant(_value: str) -> Any:
+    """Make ``json.loads`` reject constants that ``JSON.parse`` rejects."""
+    raise ValueError("non-standard JSON constant")
+
+
+def _normalize_json_float(value: str) -> Any:
+    """Match JSON.parse + JSON.stringify for overflowing float literals."""
+    result = float(value)
+    return result if math.isfinite(result) else None
+
+
+def _int_literal_digit_limit() -> int:
+    """Return a safe conversion band for CPython's configurable int limit."""
+    runtime = getattr(sys, "get_int_max_str_digits", lambda: 0)()
+    if runtime == 0:
+        return _MAX_INT_LITERAL_DIGITS
+    return min(_MAX_INT_LITERAL_DIGITS, runtime - 1)
+
+
+def _bounded_parse_int(value: str) -> Any:
+    """Normalize integer literals that cannot survive JavaScript's Number path.
+
+    Python 3.11 may reject a very large literal before we can merge the other
+    entries in its field. JavaScript instead parses that literal as a Number,
+    and JSON.stringify emits ``null`` when it overflows. Keep fields intact by
+    converting both Python-unsafe and JS-overflowing literals to ``None``.
+    """
+    if len(value.lstrip("-")) > _int_literal_digit_limit():
+        return None
+    result = int(value)
+    try:
+        float(result)
+    except OverflowError:
+        return None
+    return result
+
+
+def combine_blob_fields(*fields: str | None) -> str | None:
+    """Merge serialized post-blob arrays without losing a valid co-field.
+
+    This mirrors OpenClaw's ``combineBlobFields``: falsy, malformed, and
+    non-array fields are skipped; surviving entries retain argument order.
+    Strict constants and numeric hooks preserve the JSON.parse /
+    JSON.stringify behaviour used by the reference implementation. The result
+    is ASCII-escaped so it is safe to hand directly to the ``tlon`` subprocess
+    even when an input contains an unpaired surrogate.
+
+    Nesting depth is deliberately unbounded, like the reference (JSON.parse
+    imposes no depth limit): a very deep field is preserved wherever this
+    runtime's json parser can decode it (CPython >= 3.14, iterative). On
+    recursive parsers (<= 3.13, including the 3.11 dev-image runtime) the
+    ``RecursionError`` catches below act as a safety net: such a field is
+    skipped — the co-fields and the message itself always survive.
+    """
+    entries: list[Any] = []
+    for field in fields:
+        if not field:
+            continue
+        try:
+            parsed = json.loads(
+                field,
+                parse_constant=_reject_json_constant,
+                parse_float=_normalize_json_float,
+                parse_int=_bounded_parse_int,
+            )
+        except (TypeError, ValueError, RecursionError):
+            continue
+        if isinstance(parsed, list):
+            entries.extend(parsed)
+    if not entries:
+        return None
+    try:
+        return json.dumps(entries, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
+    except (TypeError, ValueError, RecursionError):
+        # A parsed structure too deep to re-serialize must drop the blob,
+        # never abort message delivery.
+        return None
 
 
 def parse_blob_data(blob: str | None) -> list[BlobEntry]:

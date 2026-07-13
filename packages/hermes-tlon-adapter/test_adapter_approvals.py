@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import sys
+import time
 import types
 import unittest
 from pathlib import Path
@@ -131,6 +132,7 @@ def channel_event(
     author="~ten",
     nest="chat/~pen/general",
     post_id="170.141",
+    parent_id=None,
     blob=None,
     content=None,
 ):
@@ -142,15 +144,16 @@ def channel_event(
     }
     if blob is not None:
         essay["blob"] = blob
+    set_payload = {"essay": essay}
+    if parent_id:
+        set_payload["seal"] = {"parent-id": parent_id}
     return {
         "nest": nest,
         "response": {
             "post": {
                 "id": post_id,
                 "r-post": {
-                    "set": {
-                        "essay": essay
-                    }
+                    "set": set_payload
                 },
             }
         },
@@ -237,7 +240,9 @@ class FakeSSE:
 class FakeCLI:
     def __init__(self):
         self.messages = []
+        self.message_blobs = []
         self.replies = []
+        self.reply_blobs = []
         self.commands = []
 
     async def run_command(self, args):
@@ -248,12 +253,14 @@ class FakeCLI:
 
     async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
         self.messages.append((chat_id, text))
+        self.message_blobs.append((blob, sent_at))
         return tlon_api.TlonSendResult(
             success=True, command=("tlon-test", "posts", "send"), message_id="post-id"
         )
 
     async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
         self.replies.append((chat_id, post_id, text, parent_author))
+        self.reply_blobs.append((blob, sent_at))
         return tlon_api.TlonSendResult(
             success=True, command=("tlon-test", "posts", "reply"), message_id="reply-id"
         )
@@ -1134,6 +1141,122 @@ class AdapterApprovalTests(unittest.TestCase):
         )
         self.assertIn("• ~bus", adapter._cli.messages[-1][1])
 
+    def test_pending_dm_reply_sends_card_with_full_text_fallback(self):
+        adapter = self.make_adapter()
+        first_id = self.queue_dm_request(adapter)
+        self.dispatches(
+            adapter,
+            dm_event("second request", author="~bus", whom="~bus", msg_id="dm-2"),
+            dm=True,
+        )
+        second_id = adapter._pending_approvals[1]["id"]
+
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-1"),
+            dm=True,
+        )
+
+        text = adapter._cli.messages[-1][1]
+        blob, sent_at = adapter._cli.message_blobs[-1]
+        self.assertIn(f"#{first_id}", text)
+        self.assertIn(f"#{second_id}", text)
+        self.assertIn("/allow <id> · /reject <id> · /ban <id>", text)
+        self.assertIsNone(sent_at)
+        entry = json.loads(blob)[0]
+        self.assertEqual(entry["type"], "a2ui")
+        self.assertIn(f"/allow {first_id}", blob)
+        self.assertIn(f"/reject {second_id}", blob)
+
+    def test_pending_channel_reply_and_out_of_budget_reply_have_no_card(self):
+        adapter = self.make_adapter()
+        self.queue_dm_request(adapter)
+        self.dispatches(
+            adapter,
+            channel_event(
+                "/pending", author="~mug", post_id="pending-1", parent_id="170.0"
+            ),
+        )
+        self.assertEqual(len(adapter._cli.replies), 1)
+        self.assertIsNone(adapter._cli.reply_blobs[-1][0])
+
+        adapter = self.make_adapter()
+        adapter._pending_approvals = [
+            {
+                "id": f"d{index}",
+                "type": "dm",
+                "requestingShip": f"~ship{index}",
+                "timestamp": int(time.time() * 1000),
+            }
+            for index in range(5)
+        ]
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-2"),
+            dm=True,
+        )
+        self.assertIsNone(adapter._cli.message_blobs[-1][0])
+
+    def test_pending_zero_items_replies_with_text_only_no_blob(self):
+        adapter = self.make_adapter()
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-1"),
+            dm=True,
+        )
+        text = adapter._cli.messages[-1][1]
+        blob, _sent_at = adapter._cli.message_blobs[-1]
+        self.assertIn("No pending approvals", text)
+        self.assertIsNone(blob)
+
+    def test_pending_card_falls_back_to_text_when_validator_forced_false(self):
+        approval_mod = sys.modules[f"{PACKAGE_NAME}.approval"]
+        adapter = self.make_adapter()
+        first_id = self.queue_dm_request(adapter, "hi bot")
+        self.dispatches(
+            adapter,
+            dm_event("second request", author="~bus", whom="~bus", msg_id="dm-2"),
+            dm=True,
+        )
+        second_id = adapter._pending_approvals[1]["id"]
+
+        original = approval_mod.validate_a2ui_card
+        approval_mod.validate_a2ui_card = lambda _card: False
+        self.addCleanup(setattr, approval_mod, "validate_a2ui_card", original)
+
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-1"),
+            dm=True,
+        )
+
+        text = adapter._cli.messages[-1][1]
+        blob, _sent_at = adapter._cli.message_blobs[-1]
+        self.assertIn(f"#{first_id}", text)
+        self.assertIn(f"#{second_id}", text)
+        self.assertIsNone(blob)
+
+    def test_control_reply_truncates_to_max_message_length(self):
+        adapter = self.make_adapter()
+        long_text = "x" * (tlon_api.MAX_MESSAGE_LENGTH + 500)
+
+        asyncio.run(adapter._send_control_reply("~mug", None, long_text))
+
+        sent_text = adapter._cli.messages[-1][1]
+        self.assertEqual(len(sent_text), tlon_api.MAX_MESSAGE_LENGTH)
+
+    def test_dm_control_reply_with_parent_id_still_uses_posts_send(self):
+        # DMs are linear; a control reply must never thread even when a
+        # parent_id is passed in, unlike the channel side (which does thread
+        # — see test_pending_channel_reply_and_out_of_budget_reply_have_no_card).
+        adapter = self.make_adapter()
+
+        asyncio.run(adapter._send_control_reply("~mug", "170.0", "some reply"))
+
+        self.assertEqual(adapter._cli.replies, [])
+        self.assertEqual(len(adapter._cli.messages), 1)
+        self.assertEqual(adapter._cli.messages[-1], ("~mug", "some reply"))
+
     def test_allow_unknown_id_reports_not_found(self):
         adapter = self.make_adapter()
         self.dispatches(adapter, dm_event("/allow zzzzz", author="~mug", whom="~mug"), dm=True)
@@ -1168,6 +1291,45 @@ class AdapterApprovalTests(unittest.TestCase):
             adapter, channel_event("~pen thanks!", post_id="170.150")
         )
         self.assertEqual(len(follow_up), 1)
+
+    def test_channel_approval_replay_resolves_queued_cite(self):
+        adapter = self.make_adapter({"context_messages": 0})
+        path = "/channels/v4/chat/~host/quoted/posts/post/123"
+        adapter._sse.payloads[path] = {
+            "essay": {
+                "author": "~quoted-author",
+                "sent": 1000,
+                "content": [{"inline": ["quoted text"]}],
+            },
+            "seal": {"id": "123"},
+        }
+        content = [
+            {
+                "block": {
+                    "cite": {
+                        "chan": {
+                            "nest": "chat/~host/quoted",
+                            "where": "/msg/123",
+                        }
+                    }
+                }
+            },
+            {"inline": ["~pen please answer"]},
+        ]
+
+        self.dispatches(adapter, channel_event("", content=content))
+        request_id = adapter._pending_approvals[0]["id"]
+        events = self.dispatches(
+            adapter,
+            dm_event(f"/allow {request_id}", author="~mug", whom="~mug"),
+            dm=True,
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(
+            events[0].text,
+            "> ~quoted-author wrote: quoted text\n\n[quoted message] ~pen please answer",
+        )
 
     def test_channel_bot_approval_replay_counts_loop_safety(self):
         adapter = self.make_adapter({"max_consecutive_bot_responses": 1})
