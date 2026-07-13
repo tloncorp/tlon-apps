@@ -659,7 +659,7 @@ class TlonAdapter(BasePlatformAdapter):
         self._auto_accept_dm_invites: bool = False
         self._auto_discover: bool = self.tlon_config.auto_discover
 
-    async def connect(self) -> bool:
+    async def connect(self, *, is_reconnect: bool = False) -> bool:
         if not AIOHTTP_AVAILABLE:
             logger.warning("[tlon] aiohttp is not installed")
             return False
