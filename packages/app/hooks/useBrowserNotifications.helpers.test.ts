@@ -3,8 +3,101 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   getBrowserNotificationContactName,
   getBrowserNotificationCopy,
+  getBrowserNotificationTargetWithRetry,
+  isOtherBrowserNotificationTabForegrounded,
   navigateToBrowserNotificationTarget,
 } from './useBrowserNotifications.helpers';
+
+describe('isOtherBrowserNotificationTabForegrounded', () => {
+  const now = 20_000;
+
+  it('detects a recent foreground lease owned by another tab', () => {
+    expect(
+      isOtherBrowserNotificationTabForegrounded({
+        serializedTab: JSON.stringify({
+          tabId: 'other-tab',
+          updatedAt: now - 1_000,
+        }),
+        currentTabId: 'current-tab',
+        now,
+        ttlMs: 15_000,
+      })
+    ).toBe(true);
+  });
+
+  it('ignores the current tab and expired or malformed leases', () => {
+    const baseInput = {
+      currentTabId: 'current-tab',
+      now,
+      ttlMs: 15_000,
+    };
+
+    expect(
+      isOtherBrowserNotificationTabForegrounded({
+        ...baseInput,
+        serializedTab: JSON.stringify({
+          tabId: 'current-tab',
+          updatedAt: now - 1_000,
+        }),
+      })
+    ).toBe(false);
+    expect(
+      isOtherBrowserNotificationTabForegrounded({
+        ...baseInput,
+        serializedTab: JSON.stringify({
+          tabId: 'other-tab',
+          updatedAt: now - 15_000,
+        }),
+      })
+    ).toBe(false);
+    expect(
+      isOtherBrowserNotificationTabForegrounded({
+        ...baseInput,
+        serializedTab: 'not-json',
+      })
+    ).toBe(false);
+  });
+});
+
+describe('getBrowserNotificationTargetWithRetry', () => {
+  it('retries a missing target and returns it once synchronization catches up', async () => {
+    const target = { id: 'chat/~zod/general' };
+    const getTarget = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(target);
+    const wait = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      getBrowserNotificationTargetWithRetry(getTarget, [250], wait)
+    ).resolves.toBe(target);
+    expect(getTarget).toHaveBeenCalledTimes(2);
+    expect(wait).toHaveBeenCalledWith(250);
+  });
+
+  it('does not wait when the target is already synchronized', async () => {
+    const target = { id: 'chat/~zod/general' };
+    const getTarget = vi.fn().mockResolvedValue(target);
+    const wait = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      getBrowserNotificationTargetWithRetry(getTarget, [250, 500], wait)
+    ).resolves.toBe(target);
+    expect(getTarget).toHaveBeenCalledOnce();
+    expect(wait).not.toHaveBeenCalled();
+  });
+
+  it('stops after the bounded retry schedule when the target stays missing', async () => {
+    const getTarget = vi.fn().mockResolvedValue(null);
+    const wait = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      getBrowserNotificationTargetWithRetry(getTarget, [250, 500], wait)
+    ).resolves.toBeNull();
+    expect(getTarget).toHaveBeenCalledTimes(3);
+    expect(wait.mock.calls).toEqual([[250], [500]]);
+  });
+});
 
 describe('getBrowserNotificationContactName', () => {
   const contact = {

@@ -2,6 +2,77 @@ import type * as db from '@tloncorp/shared/db';
 
 import { resolveContactNameProps } from '../ui/components/contactNameResolver';
 
+export type BrowserNotificationForegroundTab = {
+  tabId: string;
+  updatedAt: number;
+};
+
+export function parseBrowserNotificationForegroundTab(
+  serializedTab: string | null
+): BrowserNotificationForegroundTab | null {
+  if (!serializedTab) {
+    return null;
+  }
+
+  try {
+    const tab: unknown = JSON.parse(serializedTab);
+    if (
+      typeof tab === 'object' &&
+      tab !== null &&
+      'tabId' in tab &&
+      typeof tab.tabId === 'string' &&
+      'updatedAt' in tab &&
+      typeof tab.updatedAt === 'number'
+    ) {
+      return { tabId: tab.tabId, updatedAt: tab.updatedAt };
+    }
+  } catch {
+    // Ignore malformed/stale values from previous app versions.
+  }
+
+  return null;
+}
+
+export function isOtherBrowserNotificationTabForegrounded({
+  serializedTab,
+  currentTabId,
+  now,
+  ttlMs,
+}: {
+  serializedTab: string | null;
+  currentTabId: string;
+  now: number;
+  ttlMs: number;
+}) {
+  const foregroundTab = parseBrowserNotificationForegroundTab(serializedTab);
+  if (!foregroundTab || foregroundTab.tabId === currentTabId) {
+    return false;
+  }
+
+  const ageMs = now - foregroundTab.updatedAt;
+  return ageMs >= 0 && ageMs < ttlMs;
+}
+
+export async function getBrowserNotificationTargetWithRetry<T>(
+  getTarget: () => Promise<T | null | undefined>,
+  retryDelaysMs: readonly number[],
+  wait: (delayMs: number) => Promise<void> = (delayMs) =>
+    new Promise((resolve) => setTimeout(resolve, delayMs))
+): Promise<T | null> {
+  let target = await getTarget();
+
+  for (const delayMs of retryDelaysMs) {
+    if (target != null) {
+      return target;
+    }
+
+    await wait(delayMs);
+    target = await getTarget();
+  }
+
+  return target ?? null;
+}
+
 type BrowserNotificationContactNameInput = {
   contact: db.Contact | null;
   contactId?: string | null;

@@ -151,10 +151,10 @@ const extractNestedRouteDesktop = (state: any) => {
   return null;
 };
 
-// Needs to render inside the NavigationContainer so notification clicks can
-// navigate. AppRoutes only mounts once the client is ready (post-splash on
-// web, post-clientReady in Electron), and the hook itself no-ops in Electron.
-function BrowserNotifications() {
+// Mobile notifications can mount directly under the NavigationContainer.
+// Desktop mounts the hook from TopLevelDrawer, below GlobalSearchProvider, so
+// notification clicks retain the user's last Home/Messages tab.
+function MobileBrowserNotifications() {
   useBrowserNotifications();
   return null;
 }
@@ -365,7 +365,7 @@ function AppRoutes() {
           navigationInChildEnabled
         >
           <ForwardPostSheetProvider>
-            <BrowserNotifications />
+            <MobileBrowserNotifications />
             <BasePathNavigator isMobile={true} />
           </ForwardPostSheetProvider>
         </NavigationContainer>
@@ -387,7 +387,6 @@ function AppRoutes() {
           navigationInChildEnabled
         >
           <ForwardPostSheetProvider>
-            <BrowserNotifications />
             <BasePathNavigator isMobile={false} />
           </ForwardPostSheetProvider>
         </NavigationContainer>
