@@ -13,6 +13,8 @@ import { getClient, setupDatabaseTestSuite } from '../../test/helpers';
 import { updateSession } from '../session';
 import { setUploadState } from '../storage';
 import * as sync from '../sync';
+import { subscribeToDeletedPosts } from '../useChannelPosts/subscriptions';
+import type { DeletedPostState } from '../useChannelPosts/subscriptions';
 import { mergePendingPosts } from '../useMergePendingPosts';
 import {
   deleteFailedPost,
@@ -742,11 +744,14 @@ describe('clearing a failed optimistic post', () => {
     // Pending merge layer is clean.
     const pending = await db.getPendingPosts(TEST_CHANNEL);
     expect(pending.map((p) => p.id)).not.toContain(post.id);
+    // A mounted channel can still hold the pre-delete snapshot in its
+    // session-local `newPosts` array. The hard-delete event marks that input
+    // removed so it disappears immediately without a remount.
     const merged = mergePendingPosts({
-      newPosts: [],
+      newPosts: [post],
       pendingPosts: pending,
       existingPosts: [],
-      deletedPosts: {},
+      deletedPosts: { [post.id]: 'removed' },
       hasNewest: true,
     });
     expect(merged.map((p) => p.id)).not.toContain(post.id);
@@ -1494,7 +1499,12 @@ describe('deleting a sent-but-unsequenced post', () => {
       post.id
     );
 
+    let liveDeleteState: DeletedPostState | undefined;
+    const unsubscribe = subscribeToDeletedPosts((postId, state) => {
+      if (postId === post.id) liveDeleteState = state;
+    });
     await deletePost({ post });
+    unsubscribe();
 
     // Unlike the failed-optimistic short-circuit, the row may exist on the
     // server, so the delete round trip must happen.
@@ -1505,11 +1515,12 @@ describe('deleting a sent-but-unsequenced post', () => {
     expect(await fetchPost(post.id)).toBeUndefined();
     const pending = await db.getPendingPosts(TEST_CHANNEL);
     expect(pending.map((p) => p.id)).not.toContain(post.id);
+    expect(liveDeleteState).toBe('removed');
     const merged = mergePendingPosts({
-      newPosts: [],
+      newPosts: [post],
       pendingPosts: pending,
       existingPosts: [],
-      deletedPosts: {},
+      deletedPosts: { [post.id]: liveDeleteState! },
       hasNewest: true,
     });
     expect(merged.map((p) => p.id)).not.toContain(post.id);

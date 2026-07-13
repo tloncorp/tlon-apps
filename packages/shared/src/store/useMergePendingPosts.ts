@@ -1,4 +1,5 @@
 import * as db from '../db';
+import type { DeletedPostState } from './useChannelPosts/subscriptions';
 
 /**
  * Pending posts aren't assigned sequence numbers, so we need to weave them into the existing posts
@@ -7,7 +8,7 @@ import * as db from '../db';
  * @param newPosts An array of posts that have come in since we started querying
  * @param pendingPosts An array of all pending posts for the channel, sorted newest first.
  * @param existingPosts A contiguous sequence of confirmed posts, sorted newest first.
- * @param deletedPosts A map of post IDs to a boolean indicating if the post has been deleted.
+ * @param deletedPosts A map of post IDs to their live deletion state.
  * @param hasNewest A boolean indicating if existingPosts represents the newest available messages.
  * @param filterDeleted A boolean indicating if deleted posts should be filtered out.
  * @returns A single array of posts, sorted newest first, with relevant pending posts woven in.
@@ -23,7 +24,7 @@ export const mergePendingPosts = ({
   newPosts: db.Post[];
   pendingPosts: db.Post[];
   existingPosts: db.Post[];
-  deletedPosts: Record<string, boolean>;
+  deletedPosts: Record<string, DeletedPostState>;
   hasNewest: boolean;
   filterDeleted?: boolean;
 }): db.Post[] => {
@@ -35,9 +36,13 @@ export const mergePendingPosts = ({
     return keys;
   };
   const deletedPostKeys = new Set<string>();
+  const removedPostKeys = new Set<string>();
   [...newPosts, ...pendingPosts, ...existingPosts].forEach((post) => {
     if (post.isDeleted || deletedPosts[post.id]) {
       postMergeKeys(post).forEach((key) => deletedPostKeys.add(key));
+    }
+    if (deletedPosts[post.id] === 'removed') {
+      postMergeKeys(post).forEach((key) => removedPostKeys.add(key));
     }
   });
   const hasDeletedOverlay = (post: db.Post) => {
@@ -45,6 +50,12 @@ export const mergePendingPosts = ({
       post.isDeleted ||
       deletedPosts[post.id] ||
       postMergeKeys(post).some((key) => deletedPostKeys.has(key))
+    );
+  };
+  const hasRemovedOverlay = (post: db.Post) => {
+    return (
+      deletedPosts[post.id] === 'removed' ||
+      postMergeKeys(post).some((key) => removedPostKeys.has(key))
     );
   };
 
@@ -80,7 +91,9 @@ export const mergePendingPosts = ({
     });
   const sentAtMap = new Map<number, db.Post>();
   [...newPosts, ...pendingPosts]
-    .filter((post) => !isLocallyClearedOptimistic(post))
+    .filter(
+      (post) => !hasRemovedOverlay(post) && !isLocallyClearedOptimistic(post)
+    )
     .forEach((post) => {
       if (!sentAtMap.has(post.sentAt)) {
         sentAtMap.set(post.sentAt, post);

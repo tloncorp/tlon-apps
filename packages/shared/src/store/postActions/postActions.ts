@@ -18,6 +18,7 @@ import * as sync from '../sync';
 import {
   clearChannelPostsQueries,
   deleteFromChannelPosts,
+  removeFromChannelPosts,
   rollbackDeletedChannelPost,
 } from '../useChannelPosts';
 import { logger } from './logger';
@@ -717,6 +718,7 @@ function isUnsentOptimisticRow(post: db.Post): boolean {
 async function clearUnsentPost(post: db.Post) {
   deleteFromChannelPosts(post);
   await db.deletePost(post.id);
+  removeFromChannelPosts(post);
   if (post.parentId) {
     // Optimistic reply creation bumps the parent's replyCount / replyTime /
     // replyContactIds via `addReplyToPost`. Undo that bump, but do not

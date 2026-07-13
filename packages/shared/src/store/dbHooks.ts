@@ -36,13 +36,49 @@ export const useAllChannels = ({ enabled }: { enabled?: boolean }) => {
 export const useCurrentChats = (
   queryConfig?: CustomQueryConfig<GroupedChats>
 ): UseQueryResult<GroupedChats | null> => {
-  return useQuery({
+  const query = useQuery({
     queryFn: async () => {
       return db.getChats();
     },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
     ...queryConfig,
   });
+
+  useEffect(() => {
+    if (!query.data) return;
+
+    // Older settled-delete ghosts can leave `lastPostId` nulled while the old
+    // `lastPostAt` survives. Repair only that inconsistent shape as it falls
+    // out of the chat-list read layer; recomputation clears the timestamp or
+    // installs a real head, so this work is self-limiting and needs no startup
+    // sweep.
+    const staleChannelIds = new Set<string>();
+    const chats = [
+      ...query.data.pinned,
+      ...query.data.pending,
+      ...query.data.unpinned,
+    ];
+    for (const chat of chats) {
+      const channels =
+        chat.type === 'channel' ? [chat.channel] : chat.group.channels ?? [];
+      for (const channel of channels) {
+        if (channel.lastPostId === null && channel.lastPostAt !== null) {
+          staleChannelIds.add(channel.id);
+        }
+      }
+    }
+    if (staleChannelIds.size === 0) return;
+
+    void (async () => {
+      for (const channelId of staleChannelIds) {
+        await db.recomputeChannelLastPost({ channelId });
+      }
+    })().catch((error) => {
+      console.error('Failed to repair stale channel previews', error);
+    });
+  }, [query.data]);
+
+  return query;
 };
 
 // Probe %notes once to detect whether the notes desk is installed on the

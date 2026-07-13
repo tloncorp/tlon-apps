@@ -1591,6 +1591,32 @@ describe('recomputeChannelLastPost', () => {
     expect(channel!.lastPostAt).toBe(1000);
   });
 
+  test('repairs the stale preview shape left by a persisted settled-delete ghost', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await seedTopLevel('previous-post', 1000);
+    await seedTopLevel('persisted-ghost', 2000, {
+      sequenceNum: 0,
+      deliveryStatus: 'sent',
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+    // The legacy delete path nulled only the id, leaving the old timestamp.
+    await queries.updateChannel({
+      id: channelId,
+      lastPostId: null,
+      lastPostAt: 2000,
+    });
+
+    await queries.recomputeChannelLastPost({ channelId });
+
+    const channel = await queries.getChannel({ id: channelId });
+    expect(channel!.lastPostId).toBe('previous-post');
+    expect(channel!.lastPostAt).toBe(1000);
+    // Read-layer repair is non-destructive; the settled row stays inert in
+    // storage and remains available for any later sync reconciliation.
+    expect(await queries.getPost({ postId: 'persisted-ghost' })).toBeTruthy();
+  });
+
   test('also repairs parent group lastPostId / lastPostAt when the channel belongs to a group', async () => {
     const groupId = '~zod/group-with-preview';
     await queries.insertGroups({
