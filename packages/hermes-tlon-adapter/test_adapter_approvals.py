@@ -1169,6 +1169,45 @@ class AdapterApprovalTests(unittest.TestCase):
         )
         self.assertEqual(len(follow_up), 1)
 
+    def test_channel_approval_replay_resolves_queued_cite(self):
+        adapter = self.make_adapter({"context_messages": 0})
+        path = "/channels/v4/chat/~host/quoted/posts/post/123"
+        adapter._sse.payloads[path] = {
+            "essay": {
+                "author": "~quoted-author",
+                "sent": 1000,
+                "content": [{"inline": ["quoted text"]}],
+            },
+            "seal": {"id": "123"},
+        }
+        content = [
+            {
+                "block": {
+                    "cite": {
+                        "chan": {
+                            "nest": "chat/~host/quoted",
+                            "where": "/msg/123",
+                        }
+                    }
+                }
+            },
+            {"inline": ["~pen please answer"]},
+        ]
+
+        self.dispatches(adapter, channel_event("", content=content))
+        request_id = adapter._pending_approvals[0]["id"]
+        events = self.dispatches(
+            adapter,
+            dm_event(f"/allow {request_id}", author="~mug", whom="~mug"),
+            dm=True,
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(
+            events[0].text,
+            "> ~quoted-author wrote: quoted text\n\n[quoted message] ~pen please answer",
+        )
+
     def test_channel_bot_approval_replay_counts_loop_safety(self):
         adapter = self.make_adapter({"max_consecutive_bot_responses": 1})
 
