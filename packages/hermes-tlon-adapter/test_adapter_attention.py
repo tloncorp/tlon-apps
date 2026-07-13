@@ -223,7 +223,9 @@ def loop_cap_addendum(ship="~bot"):
 class RecordingCLI(FakeCLI):
     def __init__(self, results=None):
         self.sends = []
+        self.send_blobs = []
         self.thread_replies = []
+        self.reply_blobs = []
         self.results = list(results or [])
 
     def _next_result(self):
@@ -237,12 +239,14 @@ class RecordingCLI(FakeCLI):
 
     async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
         self.sends.append((chat_id, text))
+        self.send_blobs.append((blob, sent_at))
         return self._next_result()
 
     async def send_reply(
         self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None
     ):
         self.thread_replies.append((chat_id, post_id, text, parent_author))
+        self.reply_blobs.append((blob, sent_at))
         result = self._next_result()
         if result.command == ():
             return tlon_api.TlonSendResult(
@@ -1178,6 +1182,151 @@ class AdapterAttentionTests(unittest.TestCase):
         # No lens output to stamp → no --sent-at override (keeps older `tlon`
         # binaries from folding an unknown flag into the message body).
         self.assertIsNone(captured["sent_at"])
+
+    def test_send_composes_caller_blob_with_active_lens_reference(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        adapter._lens_sync._ready = True
+        adapter._lens.begin(
+            "chat/~pen/general",
+            adapter_mod.LensRun(
+                lens_id="L42",
+                message_id="m",
+                chat_type="channel",
+                trigger="mention",
+                conversation_kind="channel",
+            ),
+        )
+        adapter._cli = RecordingCLI()
+        caller_blob = json.dumps([{"type": "a2ui", "version": 1, "messages": []}])
+
+        result = asyncio.run(
+            adapter.send("chat/~pen/general", "reply", metadata={"blob": caller_blob})
+        )
+
+        self.assertTrue(result.success)
+        blob, sent_at = adapter._cli.send_blobs[-1]
+        entries = json.loads(blob)
+        self.assertEqual([entry["type"] for entry in entries], ["a2ui", "tlon-context-lens"])
+        self.assertEqual(entries[1]["lensId"], "L42")
+        self.assertIsNotNone(sent_at)
+        output = adapter._lens.get("chat/~pen/general").outputs[-1]
+        self.assertEqual(output.message_id, tlon_api.format_post_id("~pen", sent_at))
+
+    def test_caller_blob_routes_without_lens_and_malformed_blob_fails_closed(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._cli = RecordingCLI()
+        caller_blob = json.dumps([{"type": "a2ui", "version": 1, "messages": []}])
+
+        asyncio.run(adapter.send("chat/~pen/general", "reply", metadata={"blob": caller_blob}))
+        blob, sent_at = adapter._cli.send_blobs[-1]
+        self.assertEqual(json.loads(blob), json.loads(caller_blob))
+        self.assertIsNone(sent_at)
+
+        asyncio.run(adapter.send("chat/~pen/general", "plain", metadata={"blob": 7}))
+        self.assertIsNone(adapter._cli.send_blobs[-1][0])
+
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        adapter._lens_sync._ready = True
+        adapter._lens.begin(
+            "chat/~pen/general",
+            adapter_mod.LensRun(
+                lens_id="L43",
+                message_id="m",
+                chat_type="channel",
+                trigger="mention",
+                conversation_kind="channel",
+            ),
+        )
+        adapter._cli = RecordingCLI()
+        asyncio.run(adapter.send("chat/~pen/general", "reply", metadata={"blob": "not json"}))
+        entries = json.loads(adapter._cli.send_blobs[-1][0])
+        self.assertEqual([entry["type"] for entry in entries], ["tlon-context-lens"])
+
+    def test_lens_sent_at_allocator_is_monotonic_under_a_frozen_clock(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        adapter._lens_sync._ready = True
+        adapter._lens.begin(
+            "chat/~pen/general",
+            adapter_mod.LensRun(
+                lens_id="L44",
+                message_id="m",
+                chat_type="channel",
+                trigger="mention",
+                conversation_kind="channel",
+            ),
+        )
+        adapter._cli = RecordingCLI()
+
+        with patch.object(adapter_mod.time, "time", return_value=1_700_000_000.0):
+            asyncio.run(adapter.send("chat/~pen/general", "first"))
+            asyncio.run(adapter.send("chat/~pen/general", "second"))
+
+        first_sent_at = adapter._cli.send_blobs[-2][1]
+        second_sent_at = adapter._cli.send_blobs[-1][1]
+        self.assertLess(first_sent_at, second_sent_at)
+        outputs = adapter._lens.get("chat/~pen/general").outputs
+        self.assertEqual(outputs[-2].message_id, tlon_api.format_post_id("~pen", first_sent_at))
+        self.assertEqual(outputs[-1].message_id, tlon_api.format_post_id("~pen", second_sent_at))
+
+    def test_caller_blob_requires_non_empty_content(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._cli = RecordingCLI()
+        caller_blob = json.dumps([{"type": "a2ui", "version": 1, "messages": []}])
+
+        result = asyncio.run(
+            adapter.send("chat/~pen/general", "  ", metadata={"blob": caller_blob})
+        )
+
+        self.assertFalse(result.success)
+        self.assertIn("metadata['blob'] requires non-empty content", result.error)
+        self.assertEqual(adapter._cli.sends, [])
+
+        result = asyncio.run(adapter.send("chat/~pen/general", ""))
+        self.assertTrue(result.success)
+        self.assertEqual(adapter._cli.sends[-1][1], "")
+
+    def test_caller_blob_guard_with_active_lens_run_fails_delivery_not_no_reply(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        adapter._lens_sync._ready = True
+        adapter._lens.begin(
+            "chat/~pen/general",
+            adapter_mod.LensRun(
+                lens_id="L50",
+                message_id="m",
+                chat_type="channel",
+                trigger="mention",
+                conversation_kind="channel",
+            ),
+        )
+        adapter._cli = RecordingCLI()
+        caller_blob = json.dumps([{"type": "a2ui", "version": 1, "messages": []}])
+
+        result = asyncio.run(
+            adapter.send("chat/~pen/general", "  ", metadata={"blob": caller_blob})
+        )
+
+        self.assertFalse(result.success)
+        self.assertIn("metadata['blob'] requires non-empty content", result.error)
+        # The guard must fail closed before ever reaching the CLI.
+        self.assertEqual(adapter._cli.sends, [])
+        self.assertEqual(adapter._cli.thread_replies, [])
+
+        run = adapter._lens.get("chat/~pen/general")
+        # No LensOutput recorded for the rejected send...
+        self.assertEqual(run.outputs, [])
+        # ...but the run must finalize as a delivery error, not a silent
+        # no_reply: the guard now runs through the same failure lifecycle
+        # as a CLI-level send failure.
+        self.assertTrue(run.delivery_failed)
+        self.assertIn("metadata['blob'] requires non-empty content", run.error)
 
     def test_nickname_fetch_failure_keeps_ship_and_alias_wakes(self):
         adapter = self.make_adapter({"allowed_users": ["~mug"], "bot_mentions": ["arvo"]})
