@@ -306,7 +306,14 @@
   ::
   +$  versioned-state  $%(state-0 state-1 state-2)
   ::
-  +$  state-1  _%*(. *state-2 - %1)
+  +$  state-1
+    $:  %1
+        =^places
+        want=(set [ship context])
+        subs=(jug context ship)
+        tries=(map [ship context] @ud)
+    ==
+  ::
   +$  state-0
     $:  %0
         =^places
