@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
   NavigationChainNode,
   getActiveTopLevelDrawerRouteName,
+  getDesktopGroupInviteRoute,
   getDesktopPostRoute,
 } from './routeHelpers';
 
@@ -202,5 +203,20 @@ describe('getDesktopPostRoute', () => {
     });
     expect(route.params.params.selectedPostId).toBeUndefined();
     expect(route.params.params.params.selectedPostId).toBeUndefined();
+  });
+});
+
+describe('getDesktopGroupInviteRoute', () => {
+  test('opens the clicked invite in the nested desktop ChatList', () => {
+    expect(getDesktopGroupInviteRoute('~zod/test-group')).toEqual({
+      name: 'Home',
+      params: {
+        screen: 'ChatList',
+        params: {
+          previewGroupId: '~zod/test-group',
+          previewGroupFromInviteNotification: true,
+        },
+      },
+    });
   });
 });

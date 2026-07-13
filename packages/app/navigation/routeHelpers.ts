@@ -122,3 +122,21 @@ export function getDesktopPostRoute(
     },
   } as const;
 }
+
+/**
+ * Build the nested desktop route used when a group-invite notification is
+ * opened. The ChatList params identify the invite that was clicked and keep
+ * the invite preview open while its group data is loading.
+ */
+export function getDesktopGroupInviteRoute(groupId: string) {
+  return {
+    name: 'Home',
+    params: {
+      screen: 'ChatList',
+      params: {
+        previewGroupId: groupId,
+        previewGroupFromInviteNotification: true,
+      },
+    },
+  } as const;
+}

@@ -20,6 +20,7 @@ import type {
 import {
   TOP_LEVEL_DRAWER_ROUTES,
   getActiveTopLevelDrawerRouteName,
+  getDesktopGroupInviteRoute,
   getDesktopPostRoute,
   screenNameFromChannelId,
 } from './routeHelpers';
@@ -201,9 +202,7 @@ function useResetToGroupInvite() {
         },
       ]);
     } else {
-      // desktop has no group-preview route; land on the chat list where the
-      // invite is surfaced
-      reset([{ name: 'Home', params: { screen: 'ChatList' } }]);
+      reset([getDesktopGroupInviteRoute(groupId)]);
     }
   };
 }
