@@ -1359,6 +1359,67 @@ describe('deleteUnsequencedAcknowledgedPost', () => {
   });
 });
 
+describe('getSettledDeletedGhostChannelIds', () => {
+  async function seedPost(
+    channelId: string,
+    id: string,
+    overrides: Partial<Post> = {}
+  ) {
+    await queries.insertChannelPosts({
+      posts: [
+        {
+          id,
+          type: 'chat',
+          channelId,
+          authorId: '~zod',
+          sentAt: Date.now(),
+          receivedAt: Date.now(),
+          sequenceNum: 0,
+          deliveryStatus: 'sent',
+          content: JSON.stringify([{ inline: ['seed'] }]),
+          syncedAt: Date.now(),
+          ...overrides,
+        } as Post,
+      ],
+    });
+  }
+
+  test('returns only channels with an acknowledged, unsequenced settled-delete ghost', async () => {
+    const ghostChannel = 'ghost-evidence-channel';
+    const inFlightChannel = 'in-flight-delete-channel';
+    const ordinaryDeleteChannel = 'ordinary-delete-channel';
+    await queries.insertChannels(
+      [ghostChannel, inFlightChannel, ordinaryDeleteChannel].map((id) => ({
+        id,
+        type: 'chat' as const,
+      }))
+    );
+    await seedPost(ghostChannel, 'settled-ghost', {
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+    await seedPost(inFlightChannel, 'in-flight-delete', {
+      deliveryStatus: 'pending',
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+    await seedPost(ordinaryDeleteChannel, 'ordinary-delete', {
+      sequenceNum: 42,
+      deliveryStatus: null,
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+
+    const ids = await queries.getSettledDeletedGhostChannelIds([
+      ghostChannel,
+      inFlightChannel,
+      ordinaryDeleteChannel,
+    ]);
+
+    expect(ids).toEqual([ghostChannel]);
+  });
+});
+
 // TLON-5606: `undoOptimisticReplyBump` must undo a single optimistic reply
 // add without clobbering server-sourced reply summary state. Two regimes:
 // complete local cache → full recompute; partial local cache → decrement

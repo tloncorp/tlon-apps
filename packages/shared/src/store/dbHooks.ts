@@ -48,10 +48,9 @@ export const useCurrentChats = (
     if (!query.data) return;
 
     // Older settled-delete ghosts can leave `lastPostId` nulled while the old
-    // `lastPostAt` survives. Repair only that inconsistent shape as it falls
-    // out of the chat-list read layer; recomputation clears the timestamp or
-    // installs a real head, so this work is self-limiting and needs no startup
-    // sweep.
+    // `lastPostAt` survives. Treat this metadata shape only as a candidate:
+    // ordinary deletes can produce it while the local post cache is partial.
+    // The DB check below gates recomputation on the actual persisted ghost row.
     const staleChannelIds = new Set<string>();
     const chats = [
       ...query.data.pinned,
@@ -70,7 +69,10 @@ export const useCurrentChats = (
     if (staleChannelIds.size === 0) return;
 
     void (async () => {
-      for (const channelId of staleChannelIds) {
+      const ghostChannelIds = await db.getSettledDeletedGhostChannelIds([
+        ...staleChannelIds,
+      ]);
+      for (const channelId of ghostChannelIds) {
         await db.recomputeChannelLastPost({ channelId });
       }
     })().catch((error) => {

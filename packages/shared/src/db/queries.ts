@@ -4650,6 +4650,33 @@ export const getPendingPosts = createReadQuery(
 );
 
 /**
+ * Return only channels containing the persisted TLON-5911 ghost shape. This
+ * lets preview repair distinguish a settled acknowledged delete from ordinary
+ * `lastPostId: null` states that may have only a partial local post cache.
+ */
+export const getSettledDeletedGhostChannelIds = createReadQuery(
+  'getSettledDeletedGhostChannelIds',
+  async (channelIds: string[], ctx: QueryCtx) => {
+    if (channelIds.length === 0) return [];
+    const rows = await ctx.db
+      .selectDistinct({ channelId: $posts.channelId })
+      .from($posts)
+      .where(
+        and(
+          inArray($posts.channelId, channelIds),
+          eq($posts.isDeleted, true),
+          eq($posts.deleteStatus, 'sent'),
+          eq($posts.sequenceNum, 0),
+          isNull($posts.parentId),
+          inArray($posts.deliveryStatus, ['sent', 'needs_verification'])
+        )
+      );
+    return rows.map((row) => row.channelId);
+  },
+  ['posts']
+);
+
+/**
  * Rows that are still in-flight from the sender's perspective, used by
  * `syncChannelWithBackoff` to decide whether delivery polling should
  * continue. Deleted `enqueued` / `pending` rows remain eligible even after
