@@ -10,10 +10,10 @@ vere_ver="vere-v4.5"
 arch=`uname -m`
 
 case $OSTYPE in
-  linux* )
+  linux* )  
     platform=linux
     case $arch in
-      x86_64 )
+      x86_64 ) 
         # urbit_bin_url="$urbit_bin_url/linux-x86_64/latest"
         urbit_bin_url="$urbit_bin_url/$vere_ver-linux-x86_64"
         arch=x86_64
@@ -27,12 +27,12 @@ case $OSTYPE in
   darwin* )
     platform=macos
     case $arch in
-      x86_64 )
+      x86_64 ) 
         # urbit_bin_url="$urbit_bin_url/macos-x86_64/latest"
         urbit_bin_url="$urbit_bin_url/$vere_ver-macos-x86_64"
         arch=x86_64
         ;;
-      arm64  )
+      arm64  ) 
         # urbit_bin_url="$urbit_bin_url/macos-aarch64/latest"
         urbit_bin_url="$urbit_bin_url/$vere_ver-macos-aarch64"
         arch=aarch64
@@ -40,7 +40,7 @@ case $OSTYPE in
     esac ;;
 esac
 
-pill_download_url="https://bootstrap.urbit.org/groups-v11-3-0-408k.pill"
+pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2-408k.pill"
 
 #archive=`basename $download_url`
 pill=`basename $pill_download_url`
@@ -143,6 +143,14 @@ then
   cp $pill ${pier}/groups/${pill_name}.jam
 fi
 
+patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
+rm -f $pier/base/lib/strandio.hoon.rej
+rm -f $pier/base/lib/strandio.hoon.orig
+
+patch -f $pier/base/sur/aquarium.hoon `dirname $0`/aqua-sur.patch
+rm -f $pier/base/sur/aquarium.hoon.rej
+rm -f $pier/base/sur/aquarium.hoon.orig
+
 echo "Updating base desk..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
@@ -185,30 +193,19 @@ ${run_click} $pier <<EOF
 (pure:m !>(%ok))  
 EOF
 
+sleep 3
 echo "Awaiting desk update..."
 await_ship
 
-# the commit lands asynchronously and build time varies with runner speed —
-# poll for the hash to change instead of racing it with a fixed sleep
-desk_hash_b=$desk_hash_a
-for attempt in $(seq 1 24)
-do
-  sleep 5
-  result=$( $run_click $pier <<EOF
+result=$( $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
 (pure:m !>(hash))  
 EOF
 )
-  desk_hash_b=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
-  if [ -n "$desk_hash_b" ] && [ "$desk_hash_a" != "$desk_hash_b" ]
-  then
-    break
-  fi
-done
+desk_hash_b=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 
-echo "desk hash: ${desk_hash_a} -> ${desk_hash_b}"
-if [ -z "$desk_hash_b" ] || [ "$desk_hash_a" == "$desk_hash_b" ]
+if [ $desk_hash_a == $desk_hash_b ]
 then
   echo "Desk upgrade failed ❌"
   kill -TERM $vere_pid
