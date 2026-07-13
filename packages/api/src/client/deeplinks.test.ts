@@ -119,10 +119,10 @@ describe('getMetadataFromInviteToken', () => {
     delete (globalThis as any).window;
   });
 
-  test('accepts personal invites minted with an empty invitedGroupId', async () => {
+  test('accepts personal invites, which carry the placeholder group id', async () => {
     stubProvider({
       inviteType: 'user',
-      invitedGroupId: '',
+      invitedGroupId: '~zod/personal-invite-link',
       inviterUserId: '~zod',
       inviterNickname: 'Zod',
     });
