@@ -1135,8 +1135,19 @@
       =/  =tombstone:c
         =,  +.u.post
         [id author seq now.bowl]
-      :-  `[%post id.c-post %set |+tombstone]
-      ca-core(posts.channel (put:on-v-posts:c posts.channel id.c-post |+tombstone))
+      =.  posts.channel
+        (put:on-v-posts:c posts.channel id.c-post |+tombstone)
+      ::  a deleted post cannot stay pinned or arranged: drop it from
+      ::  the order and let subscribers know
+      ::
+      =/  arranged=arranged-posts:c  +.order.channel
+      =?  ca-core  ?=(^ arranged)
+        =/  remaining  (skip u.arranged |=(id=id-post:c =(id id.c-post)))
+        =/  next=arranged-posts:c  ?~(remaining ~ `remaining)
+        =^  changed  order.channel  (next-rev:c order.channel next)
+        ?.  changed  ca-core
+        (ca-update %order order.channel)
+      [`[%post id.c-post %set |+tombstone] ca-core]
     ::
         ?(%add-react %del-react)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)

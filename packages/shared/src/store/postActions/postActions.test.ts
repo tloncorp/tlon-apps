@@ -1442,3 +1442,98 @@ describe('clearing a failed optimistic post', () => {
     expect(parentAfter!.replyContactIds).toEqual(['~alfa', '~bravo']);
   });
 });
+
+// TLON-6133: deleting a post that is pinned/arranged also removes it from
+// the channel order.
+describe('deleting a pinned post', () => {
+  const GROUP_CHANNEL = 'chat/~zod/general';
+  const GROUP_ID = '~zod/test-group';
+
+  beforeEach(async () => {
+    await getClient()!
+      .insert(db.schema.groups)
+      .values({
+        id: GROUP_ID,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+        hostUserId: '~zod',
+      })
+      .onConflictDoNothing();
+    await db.insertChannels([
+      db.buildChannel({
+        id: GROUP_CHANNEL,
+        type: 'chat',
+        groupId: GROUP_ID,
+      }),
+    ]);
+    vi.mocked(poke).mockResolvedValue(0);
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+  });
+
+  afterEach(() => {
+    vi.mocked(poke).mockReset();
+    updateSession(null);
+  });
+
+  async function seedPinnedPost(order?: string[]): Promise<db.Post> {
+    const channel = (await db.getChannel({ id: GROUP_CHANNEL }))!;
+    const post = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 1,
+      content: [{ inline: ['pinned post'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [post] });
+    await db.updateChannel({
+      id: GROUP_CHANNEL,
+      order: order ?? [post.id],
+    });
+    return post;
+  }
+
+  test('deletePost removes the post from the channel order', async () => {
+    const post = await seedPinnedPost();
+
+    await deletePost({ post });
+
+    expect((await fetchPost(post.id))!.isDeleted).toBe(true);
+    const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channelAfter!.order).toEqual([]);
+
+    // Only the delete poke goes out — the channel host drops the post from
+    // the order itself, and a non-admin author couldn't reorder anyway.
+    const orderPokes = vi
+      .mocked(poke)
+      .mock.calls.filter(([payload]) => payload.json?.channel?.action?.order);
+    expect(orderPokes).toEqual([]);
+  });
+
+  test('deletePost leaves other arranged posts in the order', async () => {
+    const post = await seedPinnedPost();
+    await db.updateChannel({
+      id: GROUP_CHANNEL,
+      order: ['~2024.1.1..0.0.0', post.id, '~2024.2.2..0.0.0'],
+    });
+
+    await deletePost({ post });
+
+    const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channelAfter!.order).toEqual([
+      '~2024.1.1..0.0.0',
+      '~2024.2.2..0.0.0',
+    ]);
+  });
+
+  test('failed deletePost restores the post in the order', async () => {
+    const post = await seedPinnedPost();
+    vi.mocked(poke).mockRejectedValue(new Error('delete failed'));
+
+    await deletePost({ post });
+
+    expect((await fetchPost(post.id))!.deleteStatus).toBe('failed');
+    const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channelAfter!.order).toEqual([post.id]);
+  });
+});
