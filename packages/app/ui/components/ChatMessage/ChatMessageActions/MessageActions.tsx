@@ -379,15 +379,12 @@ export async function handleAction({
       await Clipboard.setStringAsync(logic.getPostReferencePath(post));
       break;
     case 'copyText': {
-      // post.textContent is a single-line preview (line breaks collapsed to
-      // spaces), so re-derive plaintext from the full content to keep them.
       let text: string;
       try {
         text = logic.plaintextPreviewOf(
           logic.convertContent(post.content, post.blob),
           {
             ...logic.PlaintextPreviewConfig.defaultConfig,
-            // Keep clipboard text free of synthetic "(Ref)" markers.
             includeRefTag: false,
           }
         );
