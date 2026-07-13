@@ -38,6 +38,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     appVariant: process.env.APP_VARIANT || 'production',
     notifyProvider: process.env.NOTIFY_PROVIDER,
     notifyService: process.env.NOTIFY_SERVICE,
+    inviteProvider: process.env.INVITE_PROVIDER,
     apiUrl: process.env.API_URL,
     apiAuthUsername: process.env.API_AUTH_USERNAME,
     apiAuthPassword: process.env.API_AUTH_PASSWORD,
