@@ -177,6 +177,13 @@ EOF
 )
 desk_hash_a=`echo $result | sed -n 's/\[0 %avow 0 %noun \(.*\)\]/\1/p'`
 
+if [ -z "$desk_hash_a" ]
+then
+  echo "Invalid empty desk hash (a)"
+  kill -TERM $vere_pid
+  exit 1
+fi
+
 echo "Updating groups desk"
 ${run_click} $pier <<EOF
 =/  m  (strand ,vase)  
@@ -196,6 +203,14 @@ result=$( $run_click $pier <<EOF
 EOF
 )
 desk_hash_b=`echo $result | sed -n 's/\[0 %avow 0 %noun \(.*\)\]/\1/p'`
+
+if [ -z "$desk_hash_b" ]
+then
+  echo "Invalid empty desk hash (b)"
+  kill -TERM $vere_pid
+  exit 1
+fi
+
 
 if [ "$desk_hash_a" == "$desk_hash_b" ]
 then
