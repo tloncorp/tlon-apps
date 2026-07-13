@@ -1,24 +1,19 @@
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { getMetadataFromInviteToken, parseInviteDeepLink } from './deeplinks';
 
-const options = {
-  branchDomain: 'custom.branch.test',
-  appLinkDomains: ['example.app.link'],
-};
-
 describe('parseInviteDeepLink', () => {
   test('parses single-segment invite tokens from invite domains', () => {
-    expect(parseInviteDeepLink('https://join.tlon.io/0vabc', options)).toEqual({
+    expect(parseInviteDeepLink('https://join.tlon.io/0vabc')).toEqual({
       type: 'lure',
       token: '0vabc',
     });
-    expect(parseInviteDeepLink('invite.tlon.io/0vxyz', options)).toEqual({
+    expect(parseInviteDeepLink('invite.tlon.io/0vxyz')).toEqual({
       type: 'lure',
       token: '0vxyz',
     });
     expect(
-      parseInviteDeepLink('https://serverless-infra.vercel.app/0vabc', options)
+      parseInviteDeepLink('https://serverless-infra.vercel.app/0vabc')
     ).toEqual({
       type: 'lure',
       token: '0vabc',
@@ -33,23 +28,21 @@ describe('parseInviteDeepLink', () => {
   });
 
   test('parses legacy flag invite tokens', () => {
-    expect(
-      parseInviteDeepLink('https://join.tlon.io/~zod/team', options)
-    ).toEqual({
+    expect(parseInviteDeepLink('https://join.tlon.io/~zod/team')).toEqual({
       type: 'lure',
       token: '~zod/team',
     });
   });
 
   test('parses app.link and configured Branch domains', () => {
-    expect(
-      parseInviteDeepLink('https://example.app.link/0vabc', options)
-    ).toEqual({
+    expect(parseInviteDeepLink('https://sa96e.app.link/0vabc')).toEqual({
       type: 'lure',
       token: '0vabc',
     });
     expect(
-      parseInviteDeepLink('https://custom.branch.test/0vabc', options)
+      parseInviteDeepLink('https://custom.branch.test/0vabc', {
+        branchDomain: 'custom.branch.test',
+      })
     ).toEqual({
       type: 'lure',
       token: '0vabc',
@@ -57,18 +50,14 @@ describe('parseInviteDeepLink', () => {
   });
 
   test('parses fallback tlon.network lure links', () => {
-    expect(
-      parseInviteDeepLink('https://tlon.network/lure/~zod/team', options)
-    ).toEqual({
+    expect(parseInviteDeepLink('https://tlon.network/lure/~zod/team')).toEqual({
       type: 'lure',
       token: '~zod/team',
     });
   });
 
   test('maps dm aliases to wer paths', () => {
-    expect(
-      parseInviteDeepLink('https://join.tlon.io/dm-~zod', options)
-    ).toEqual({
+    expect(parseInviteDeepLink('https://join.tlon.io/dm-~zod')).toEqual({
       type: 'wer',
       wer: 'dm/~zod',
     });
@@ -85,38 +74,36 @@ describe('parseInviteDeepLink', () => {
   });
 
   test('ignores unrelated links and malformed tokens', () => {
-    expect(
-      parseInviteDeepLink('https://example.com/0vabc', options)
-    ).toBeNull();
-    expect(
-      parseInviteDeepLink('https://join.tlon.io/not-a-token', options)
-    ).toBeNull();
+    expect(parseInviteDeepLink('https://example.com/0vabc')).toBeNull();
+    expect(parseInviteDeepLink('https://join.tlon.io/not-a-token')).toBeNull();
   });
 });
 
 describe('getMetadataFromInviteToken', () => {
-  const realFetch = globalThis.fetch;
-
-  const stubProvider = (fields: Record<string, string>) => {
-    // getConstants reads window[tlonEnv] and references window bare, which
-    // only exists in app runtimes
-    (globalThis as any).window = {
+  // getConstants reads window[tlonEnv], which only exists in app runtimes
+  const stubEnv = () =>
+    vi.stubGlobal('window', {
       tlonEnv: {
         INVITE_PROVIDER: 'https://provider.test',
         BRANCH_DOMAIN: 'join.tlon.io',
         BRANCH_KEY: 'key',
       },
-    };
-    globalThis.fetch = (async () =>
-      new Response(JSON.stringify({ fields }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })) as typeof fetch;
+    });
+
+  const stubProvider = (fields: Record<string, string>) => {
+    stubEnv();
+    vi.stubGlobal(
+      'fetch',
+      async () =>
+        new Response(JSON.stringify({ fields }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+    );
   };
 
   afterEach(() => {
-    globalThis.fetch = realFetch;
-    delete (globalThis as any).window;
+    vi.unstubAllGlobals();
   });
 
   test('accepts personal invites, whose metadata has an empty invitedGroupId', async () => {
@@ -133,15 +120,11 @@ describe('getMetadataFromInviteToken', () => {
   });
 
   test('derives flag-style tokens when the provider has no metadata', async () => {
-    (globalThis as any).window = {
-      tlonEnv: {
-        INVITE_PROVIDER: 'https://provider.test',
-        BRANCH_DOMAIN: 'join.tlon.io',
-        BRANCH_KEY: 'key',
-      },
-    };
-    globalThis.fetch = (async () =>
-      new Response('not found', { status: 404 })) as typeof fetch;
+    stubEnv();
+    vi.stubGlobal(
+      'fetch',
+      async () => new Response('not found', { status: 404 })
+    );
 
     const invite = await getMetadataFromInviteToken('~zod/gardening');
     expect(invite?.inviterUserId).toBe('~zod');

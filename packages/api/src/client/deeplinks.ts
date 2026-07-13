@@ -1,25 +1,23 @@
-import { valid } from '@urbit/aura';
-
 import { AppInvite, getBranchLinkMeta, isLureMeta } from '../client/branch';
 import { createDevLogger } from '../lib/logger';
 import { getConstants } from '../types/constants';
 import type { ContentReference } from '../types/references';
 import { citeToPath } from '../urbit';
+import { whomIsFlag } from '../urbit/utils';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('deeplinks', false);
 
-const DEFAULT_INVITE_DOMAINS = [
+// bare lowercase hostnames; the configured branch domain joins at parse time
+const KNOWN_INVITE_HOSTS = new Set([
   'join.tlon.io',
   'invite.tlon.io',
   'serverless-infra.vercel.app',
-];
-const DEFAULT_APP_LINK_DOMAINS = [
   'sa96e.app.link',
   'sa96e-alternate.app.link',
   'sa96e.test-app.link',
   'sa96e-alternate.test-app.link',
-];
+]);
 const DM_INVITE_PREFIX = 'dm-';
 
 type ParsedInviteDeepLink =
@@ -28,8 +26,6 @@ type ParsedInviteDeepLink =
 
 interface InviteDeepLinkParseOptions {
   branchDomain?: string;
-  inviteDomains?: string[];
-  appLinkDomains?: string[];
 }
 
 export async function getReferenceFromDeeplink({
@@ -88,23 +84,13 @@ export async function getInviteLinkMeta({
   return getMetadataFromInviteToken(token);
 }
 
-// group flags are exactly (pair ship term): a valid @p, one slash, and a
-// term-shaped name. shared by the parser and the fallback derivation —
-// some callers (e.g. useInviteParam) pass raw query tokens that never go
-// through parseInviteDeepLink, so the derivation must validate for itself
-function validFlagToken(token: string): boolean {
-  if (!/^~[a-z-]+\/[a-z][a-z0-9-]*$/.test(token)) {
-    return false;
-  }
-  const [ship] = token.split('/');
-  return valid('p', ship);
-}
-
 // flag-style v1 lures carry the inviter and group in the token itself —
 // the same derivation extractLureMetadata applies to slash lures, used
-// here whenever the provider has no first-party metadata for the token
+// here whenever the provider has no first-party metadata for the token.
+// some callers (e.g. useInviteParam) pass raw query tokens that never go
+// through parseInviteDeepLink, so the shape is validated here too
 function flagTokenFallback(token: string): AppInvite | null {
-  if (!validFlagToken(token)) {
+  if (!whomIsFlag(token)) {
     return null;
   }
   const [ship] = token.split('/');
@@ -213,23 +199,11 @@ export async function getMetadataFromInviteToken(token: string) {
   return metadata;
 }
 
-function getInviteHosts(options: InviteDeepLinkParseOptions = {}) {
-  const hosts = [
-    ...(options.inviteDomains ?? DEFAULT_INVITE_DOMAINS),
-    ...(options.appLinkDomains ?? DEFAULT_APP_LINK_DOMAINS),
-    options.branchDomain,
-  ];
-
-  return new Set(
-    hosts
-      .filter((host): host is string => Boolean(host))
-      .map((host) =>
-        host
-          .replace(/^https?:\/\//, '')
-          .replace(/\/.*$/, '')
-          .toLowerCase()
-      )
-  );
+function normalizeHost(host: string) {
+  return host
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .toLowerCase();
 }
 
 function parseUrl(input: string) {
@@ -260,7 +234,7 @@ function getTokenFromPath(pathname: string) {
   }
 
   if (path.startsWith('~')) {
-    return validFlagToken(path) ? path : null;
+    return whomIsFlag(path) ? path : null;
   }
 
   return null;
@@ -284,14 +258,17 @@ export function parseInviteDeepLink(
   }
 
   const host = parsed.hostname.toLowerCase();
-  const inviteHosts = getInviteHosts(options);
 
   if (host === 'tlon.network' && parsed.pathname.startsWith('/lure/')) {
     const token = getTokenFromPath(parsed.pathname.replace(/^\/lure\//, ''));
     return token ? { type: 'lure', token } : null;
   }
 
-  if (!inviteHosts.has(host)) {
+  const branchDomain = options.branchDomain ?? getConfiguredBranchDomain();
+  if (
+    !KNOWN_INVITE_HOSTS.has(host) &&
+    (!branchDomain || host !== normalizeHost(branchDomain))
+  ) {
     return null;
   }
 
@@ -301,37 +278,18 @@ export function parseInviteDeepLink(
     return ship ? { type: 'wer', wer: `dm/${ship}` } : null;
   }
 
-  const token = getTokenFromPath(parsed.pathname);
+  const token = getTokenFromPath(path);
   return token ? { type: 'lure', token } : null;
 }
 
-function getInviteLinkPattern() {
-  const hosts = Array.from(
-    getInviteHosts({ branchDomain: getConfiguredBranchDomain() })
-  )
-    .map((host) => host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('|');
-
-  return `(?:${hosts}|tlon\\.network/lure)`;
-}
-
-export function createInviteLinkRegex() {
-  return new RegExp(
-    `^(https?://)?${getInviteLinkPattern()}/(?:0v[^/\\s]+|~[a-z-]+/\\S+)$`,
-    'i'
-  );
-}
-
 export function extractTokenFromInviteLink(url: string): string | null {
-  const parsed = parseInviteDeepLink(url, {
-    branchDomain: getConfiguredBranchDomain(),
-  });
+  const parsed = parseInviteDeepLink(url);
   return parsed?.type === 'lure' ? parsed.token : null;
 }
 
 export function extractNormalizedInviteLink(url: string): string | null {
   const env = getConstants();
-  const parsed = parseInviteDeepLink(url, { branchDomain: env.BRANCH_DOMAIN });
+  const parsed = parseInviteDeepLink(url);
 
   if (parsed?.type === 'lure') {
     return `https://${env.BRANCH_DOMAIN}/${parsed.token}`;

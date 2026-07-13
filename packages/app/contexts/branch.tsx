@@ -50,6 +50,9 @@ const INITIAL_STATE: State = {
 
 const logger = createDevLogger('deeplink', true);
 
+const inviteHasMetadata = (invite: Partial<AppInvite>) =>
+  Boolean(invite.inviterUserId || invite.invitedGroupId || invite.inviteType);
+
 export const Context = createContext({} as ContextValue);
 
 export const useBranch = () => {
@@ -116,14 +119,11 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     isAuthenticatedRef.current = isAuthenticated;
   }, [isAuthenticated]);
 
-  const inviteHasMetadata = (invite: AppInvite) =>
-    Boolean(invite.inviterUserId || invite.invitedGroupId || invite.inviteType);
-
   const { goToChannel } = useGroupNavigation();
 
   const setInviteLure = useCallback(
     (
-      invite: AppInvite,
+      invite: Omit<AppInvite, 'shouldAutoJoin'>,
       options: { priorityToken?: string; source?: string } = {}
     ) => {
       const nextLure: Lure = {
@@ -159,6 +159,22 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
     []
   );
 
+  // a wer (deep link) clears the invite machine: release the intake slot
+  // (a re-tap of the old invite must not be swallowed), tombstone restores,
+  // wipe the persisted copy, and route to the path
+  const applyWerDeepLink = useCallback((wer: string) => {
+    const deepLinkPath = getPathFromWer(wer);
+    logger.log('detected non-Branch deep link:', deepLinkPath);
+    intakeRef.current = null;
+    inviteClearedRef.current = true;
+    storage.invitation.resetValue();
+    setState({
+      deepLinkPath,
+      lure: undefined,
+      priorityToken: undefined,
+    });
+  }, []);
+
   const handleInviteUrl = useCallback(
     async (url: string, source: 'expo_linking' | 'non_branch_link') => {
       const parsed = parseInviteDeepLink(url, { branchDomain: BRANCH_DOMAIN });
@@ -167,19 +183,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (parsed.type === 'wer') {
-        const deepLinkPath = getPathFromWer(parsed.wer);
-        logger.log('detected non-Branch deep link:', deepLinkPath);
-        // clearing the lure releases the intake slot (a re-tap of the old
-        // invite must not be swallowed) and the persisted copy (the storage
-        // check must not restore it on the next run)
-        intakeRef.current = null;
-        inviteClearedRef.current = true;
-        storage.invitation.resetValue();
-        setState({
-          deepLinkPath,
-          lure: undefined,
-          priorityToken: undefined,
-        });
+        applyWerDeepLink(parsed.wer);
         return true;
       }
 
@@ -195,11 +199,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       // signed-out taps paint an id-only lure before the fetch so signup
       // params carry the token even while metadata is slow. the paint is
       // in-memory only: persisting the bare copy would clobber same-token
-      // cached metadata that the provider-failure fallback below reads
-      // back. "signed out" here can also be auth that has not hydrated
-      // yet — if ship state loads mid-fetch the listener consumes the
-      // paint as a no-op, the soft clear preserves the fetching slot, and
-      // the settle re-applies with metadata and live auth
+      // cached metadata that the provider-failure fallback below reads back
       if (!isAuthenticatedRef.current) {
         setState({
           lure: { id: parsed.token, shouldAutoJoin: true },
@@ -241,19 +241,10 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         // id-only copy persisted during a provider outage)
         return true;
       }
-      // getMetadataFromInviteToken self-derives flag-style tokens, so the
-      // id-only fallback is reachable only for 0v tokens without metadata
-      // (setInviteLure computes shouldAutoJoin from live auth state)
-      setInviteLure(
-        invite ?? {
-          id: parsed.token,
-          shouldAutoJoin: !isAuthenticatedRef.current,
-        },
-        { source }
-      );
+      setInviteLure(invite ?? { id: parsed.token }, { source });
       return true;
     },
-    [setInviteLure]
+    [applyWerDeepLink, setInviteLure]
   );
 
   useEffect(() => {
@@ -282,6 +273,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
             nonBranchLink,
             'non_branch_link'
           );
+          // moves into the shared url handler when the Branch pipe is removed
           if (!handled && asUrl.hostname === 'channel') {
             switch (asUrl.pathname) {
               // example: io.tlon.groups://channel/open?id=0v4.00000.qd4mk.d4htu.er4b8.eao21&startDraft=true
@@ -337,7 +329,6 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
                 {
                   ...extractLureMetadata(params),
                   id: lureId,
-                  shouldAutoJoin: !isAuthenticatedRef.current,
                 },
                 {
                   priorityToken: params.token as string | undefined,
@@ -352,27 +343,15 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
               });
             }
           } else if (params.wer) {
-            // Link had a wer (deep link) field embedded — same reset as the
-            // parsed wer path: clearing the lure releases the intake slot
-            // and the persisted invitation
-            const deepLinkPath = getPathFromWer(params.wer as string);
-            console.debug('detected deep link:', deepLinkPath);
-            intakeRef.current = null;
-            inviteClearedRef.current = true;
-            storage.invitation.resetValue();
-            setState({
-              deepLinkPath,
-              lure: undefined,
-              priorityToken: undefined,
-            });
+            applyWerDeepLink(params.wer as string);
           }
         }
       },
     });
 
-    // once per provider lifetime: the effect re-runs on auth changes, and a
-    // second read would replay the launch url as a fresh invite after signup
-    // consumed it (or after logout cleared it)
+    // the launch url must be consumed at most once per provider lifetime,
+    // even if the effect re-runs — a second read would replay it as a fresh
+    // invite after signup consumed it (or after logout cleared it)
     if (!initialUrlHandledRef.current) {
       initialUrlHandledRef.current = true;
       (async () => {
@@ -392,12 +371,14 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
           });
         }
 
+        // restore only when the intake slot is free and nothing cleared
+        // this session — whatever claimed the slot is fresher intent, even
+        // for the same token. checked before the read too: when the launch
+        // url claimed the slot, the read's result is already unusable
+        if (inviteClearedRef.current || intakeRef.current != null) {
+          return;
+        }
         const nextLure = await storage.invitation.getValue();
-        // restore only when the intake slot is free. a launch url that
-        // claimed the slot is fresher intent for the same token too — its
-        // settle paints the fetched result (or its fallback) itself, while
-        // restoring over the fetch would mark the slot applied and let the
-        // redeem's soft clear cancel the refresh mid-flight
         if (
           nextLure?.lure &&
           !inviteClearedRef.current &&
@@ -426,9 +407,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       unsubscribe();
       linkingSubscription.remove();
     };
-  }, [goToChannel, handleInviteUrl, setInviteLure]);
-
-  const setLure = setInviteLure;
+  }, [applyWerDeepLink, goToChannel, handleInviteUrl, setInviteLure]);
 
   const clearLure = useCallback(
     (options: { preserveFetching?: boolean } = {}) => {
@@ -467,7 +446,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         deepLinkPath,
         lure,
         priorityToken,
-        setLure,
+        setLure: setInviteLure,
         clearLure,
         clearDeepLink,
       }}
