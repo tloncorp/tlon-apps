@@ -4652,11 +4652,12 @@ export const getPendingPosts = createReadQuery(
 /**
  * Rows that are still in-flight from the sender's perspective, used by
  * `syncChannelWithBackoff` to decide whether delivery polling should
- * continue. Deleted rows remain eligible while the delete is in flight, but
- * drop out once `deleteStatus` is `sent`: the server has settled the delete,
- * so there is no original send left for delivery polling to reconcile.
- * `failed` and `needs_verification` are handled by dedicated retry /
- * verification flows, so they are not treated as "still delivering".
+ * continue. Deleted `enqueued` / `pending` rows remain eligible even after
+ * their delete settles: the original send lifecycle is still in flight and
+ * must reconcile independently. Once an unsequenced send is acknowledged as
+ * `sent`, a settled delete makes it inert and it drops out. `failed` and
+ * `needs_verification` are handled by dedicated retry / verification flows,
+ * so they are not treated as "still delivering".
  *
  * Server-acknowledged but unsequenced rows (`deliveryStatus: 'sent'` while
  * still `sequenceNum === 0`) are also included: `markPostSent` sets the
@@ -4676,15 +4677,18 @@ export const getDeliveryPendingPosts = createReadQuery(
         or(
           eq($posts.deliveryStatus, 'enqueued'),
           eq($posts.deliveryStatus, 'pending'),
-          and(eq($posts.deliveryStatus, 'sent'), eq($posts.sequenceNum, 0))
-        ),
-        // Keep nullable values explicit to avoid filtering ordinary rows via
-        // SQL's three-valued logic.
-        or(
-          isNull($posts.isDeleted),
-          eq($posts.isDeleted, false),
-          isNull($posts.deleteStatus),
-          not(eq($posts.deleteStatus, 'sent'))
+          and(
+            eq($posts.deliveryStatus, 'sent'),
+            eq($posts.sequenceNum, 0),
+            // Keep nullable values explicit to avoid filtering ordinary rows
+            // via SQL's three-valued logic.
+            or(
+              isNull($posts.isDeleted),
+              eq($posts.isDeleted, false),
+              isNull($posts.deleteStatus),
+              not(eq($posts.deleteStatus, 'sent'))
+            )
+          )
         )
       ),
     });

@@ -188,6 +188,9 @@ test('syncChannelWithBackoff keeps polling when a deleted row is still in flight
         deliveryStatus: 'pending',
         // User deleted the optimistic post mid-flight.
         isDeleted: true,
+        // The delete request can settle before the independent original send
+        // lifecycle does. Delivery polling must continue in this shape.
+        deleteStatus: 'sent',
         syncedAt: Date.now(),
       } as unknown as db.Post,
     ],
@@ -195,9 +198,9 @@ test('syncChannelWithBackoff keeps polling when a deleted row is still in flight
 
   // Delivery polling query keeps the row visible — still in flight.
   expect((await db.getDeliveryPendingPosts(channelId)).length).toBe(1);
-  // UI query also surfaces it as a tombstone source so remount renders a
-  // "Message deleted" row instead of a gap while the send reconciles.
-  expect((await db.getPendingPosts(channelId)).length).toBe(1);
+  // The UI pending layer hides the settled deletion, independently of the
+  // original send lifecycle that delivery polling still needs to reconcile.
+  expect((await db.getPendingPosts(channelId)).length).toBe(0);
 });
 
 // TLON-5606 regression guard: deleted rows with the final local-only shape

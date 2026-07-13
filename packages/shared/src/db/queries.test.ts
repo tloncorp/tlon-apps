@@ -2077,7 +2077,7 @@ describe('getDeliveryPendingPosts', () => {
     expect(ids).toContain(catchUp.id);
   });
 
-  test('excludes settled deleted rows across delivery states without deleting them', async () => {
+  test('keeps settled deletes polling while the original send is in flight, then excludes sent ghosts', async () => {
     await queries.insertChannels([{ id: channelId, type: 'chat' }]);
     const enqueued = await seedPost({
       id: 'settled-enqueued',
@@ -2102,8 +2102,8 @@ describe('getDeliveryPendingPosts', () => {
     const ids = (await queries.getDeliveryPendingPosts(channelId)).map(
       (p) => p.id
     );
-    expect(ids).not.toContain(enqueued.id);
-    expect(ids).not.toContain(pending.id);
+    expect(ids).toContain(enqueued.id);
+    expect(ids).toContain(pending.id);
     expect(ids).not.toContain(sent.id);
     expect(await queries.getPost({ postId: sent.id })).toBeTruthy();
   });
