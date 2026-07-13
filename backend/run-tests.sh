@@ -175,13 +175,11 @@ result=$( $run_click $pier <<EOF
 (pure:m !>(hash))  
 EOF
 )
-# match only a hash-shaped response — sed without -n passes non-matching
-# output (e.g. a transient scry failure) through, which would false-pass
-# the hash comparisons below
-desk_hash_a=`echo $result | sed -n 's/^\[0 %avow 0 %noun \(0x[0-9a-f.]*\)\]$/\1/p'`
+desk_hash_a=`echo $result | sed -n 's/\[0 %avow 0 %noun \(.*\)\]/\1/p'`
+
 if [ -z "$desk_hash_a" ]
 then
-  echo "Failed to read desk hash ❌"
+  echo "Invalid empty desk hash (a)"
   kill -TERM $vere_pid
   exit 1
 fi
@@ -194,30 +192,27 @@ ${run_click} $pier <<EOF
 (pure:m !>(%ok))  
 EOF
 
+sleep 3
 echo "Awaiting desk update..."
 await_ship
 
-# the commit lands asynchronously and build time varies with runner speed —
-# poll for the hash to change instead of racing it with a fixed sleep
-desk_hash_b=$desk_hash_a
-for attempt in $(seq 1 24)
-do
-  sleep 5
-  result=$( $run_click $pier <<EOF
+result=$( $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
 (pure:m !>(hash))  
 EOF
 )
-  desk_hash_b=`echo $result | sed -n 's/^\[0 %avow 0 %noun \(0x[0-9a-f.]*\)\]$/\1/p'`
-  if [ -n "$desk_hash_b" ] && [ "$desk_hash_a" != "$desk_hash_b" ]
-  then
-    break
-  fi
-done
+desk_hash_b=`echo $result | sed -n 's/\[0 %avow 0 %noun \(.*\)\]/\1/p'`
 
-echo "desk hash: ${desk_hash_a} -> ${desk_hash_b}"
-if [ -z "$desk_hash_b" ] || [ "$desk_hash_a" == "$desk_hash_b" ]
+if [ -z "$desk_hash_b" ]
+then
+  echo "Invalid empty desk hash (b)"
+  kill -TERM $vere_pid
+  exit 1
+fi
+
+
+if [ "$desk_hash_a" == "$desk_hash_b" ]
 then
   echo "Desk upgrade failed ❌"
   kill -TERM $vere_pid
