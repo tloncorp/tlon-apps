@@ -22,10 +22,16 @@
 ::
 =+  invite-url=`@t`(rap 3 base-url '/' token ~)
 ;<  =bowl:strand  bind:m  get-bowl:io
-::  push the update to the invite service's first-party record.
-::  non-fatal: the branch update below proceeds regardless.
+::  retrieve the secret from the bait provider
 ::
 ;<  branch-secret=@t  bind:m  (scry:io @t %gx /bait/branch-secret/noun)
+::
+::  we currently have two services: branch deep linking, and our own
+::  self-hosted service prototype. below we continue to push out the
+::  update to both.
+::
+::  push the update to the invite service's first-party record.
+::
 =/  push-body=json
   =/  update-fields=(map @t json)
     (~(run by fields.update) |=(=@t s+t))
@@ -39,7 +45,7 @@
       ==
       `(as-octs:mimes:html (en:json:html push-body))
   ==
-;<  rep=(unit client-response:iris)  bind:m  (send-request-soft push)
+;<  rep=(unit client-response:iris)  bind:m  (send-request-retry-soft push)
 ;<  ~  bind:m
   =/  n  (strand ,~)
   ^-  form:n
@@ -76,7 +82,7 @@
   =/  body=tape
     ?^  full-file.client-response
       (trip `@t`q.data.u.full-file.client-response)
-    ""
+    "empty response"
   =/  =log-event:logs
     :-  %tell
     :-  %error
@@ -93,9 +99,6 @@
 =/  metadata=(unit json)  (de:json:html q.data.u.full-file.client-response)
 ?~  metadata
   (pure:m !>(`(crip "failed to parse link metadata")))
-::  retrieve the secret from the bait provider
-::
-;<  branch-secret=@t  bind:m  (scry:io @t %gx /bait/branch-secret/noun)
 ::  update the metadata fields
 ::
 ?>  ?=(%o -.u.metadata)
@@ -137,7 +140,7 @@
   =/  body=tape
     ?^  full-file.client-response
       (trip `@t`q.data.u.full-file.client-response)
-    ""
+    "empty response"
   =/  =log-event:logs
     :-  %tell
     :-  %error
@@ -155,18 +158,20 @@
   |=  =request:http
   =/  m  (strand client-response:iris)
   ^-  form:m
-  ;<  rep=(unit client-response:iris)  bind:m  (send-request-soft request)
-  ?~  rep
-    (strand-fail:libstrand %http-request-cancelled ~)
-  (pure:m u.rep)
-::  +send-request-soft: request that must never fail the strand
+  =/  tries  retry
+  |-
+  ;<  ~  bind:m  (send-request:io request)
+  ;<  rep=client-response:iris  bind:m  take-client-response:io
+  ?:  ?&  ?=(%finished -.rep)
+          =(200 status-code.response-header.rep)
+      ==
+    (pure:m rep)
+  ?:  (lte tries 1)
+    (pure:m rep)
+  ;<  ~  bind:m  (sleep:io retry-delay)
+  $(tries (dec tries))
 ::
-::    returns ~ when the runtime cancels the request and retries are
-::    exhausted. the invite-service push treats that as a logged miss so
-::    the branch update still runs; send-request-retry converts it into
-::    a thread failure for the branch calls that keep hard semantics
-::
-++  send-request-soft
+++  send-request-retry-soft
   |=  =request:http
   =/  m  (strand (unit client-response:iris))
   ^-  form:m
