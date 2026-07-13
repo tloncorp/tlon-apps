@@ -445,18 +445,23 @@ export const createGroup = async ({
 
     return toClientGroupV7(group.id, result, true);
   } catch (err) {
-    // The create thread may have completed on the ship even though the
-    // response never made it back to us (e.g. Brave stalling the response
-    // body, a dropped connection). Check before reporting failure.
-    try {
-      const createdGroup = await getGroup(group.id);
-      logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
-        context: 'group-create-thread response lost, recovered via scry',
-        errorMessage: err.message,
-      });
-      return createdGroup;
-    } catch {
-      // fall through to the original error
+    // On a transport-level failure (timeout, dropped connection, Brave
+    // stalling the response body), the thread may have completed on the ship
+    // even though the response never made it back to us — check before
+    // reporting failure. An explicit error response means the thread itself
+    // failed, possibly after creating the group but before its channels, so
+    // don't treat a merely-existing group as success in that case.
+    if (!(err instanceof BadResponseError)) {
+      try {
+        const createdGroup = await getGroup(group.id);
+        logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
+          context: 'group-create-thread response lost, recovered via scry',
+          errorMessage: err.message,
+        });
+        return createdGroup;
+      } catch {
+        // fall through to the original error
+      }
     }
 
     if (err instanceof BadResponseError) {

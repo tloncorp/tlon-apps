@@ -1081,9 +1081,10 @@ export class Urbit {
       );
       // Buffer the body while the timeout is still armed. fetch resolves when
       // response headers arrive, so an un-timed body read afterwards can hang
-      // indefinitely if the browser stalls the stream (seen on Brave).
-      const responseBody = await result.text();
-      return new Response(responseBody.length > 0 ? responseBody : null, {
+      // indefinitely if the browser stalls the stream (seen on Brave). Buffer
+      // as bytes so non-text output marks pass through unchanged.
+      const responseBody = await result.arrayBuffer();
+      return new Response(responseBody.byteLength > 0 ? responseBody : null, {
         status: result.status,
         statusText: result.statusText,
         headers: result.headers,

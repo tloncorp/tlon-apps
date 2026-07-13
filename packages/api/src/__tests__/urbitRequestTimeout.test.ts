@@ -64,6 +64,27 @@ describe('Urbit request timeouts cover the response body read', () => {
     await expect(response.json()).resolves.toEqual({ ok: true });
   });
 
+  it('thread preserves non-UTF-8 body bytes when buffering', async () => {
+    // includes bytes that are invalid UTF-8 and would be corrupted by a
+    // text() decode/re-encode round trip
+    const bytes = new Uint8Array([0x00, 0xff, 0xfe, 0x80, 0xc3, 0x28]);
+    const fetchFn: typeof fetch = async () =>
+      new Response(bytes, {
+        status: 200,
+        headers: { 'content-type': 'application/x-urb-jam' },
+      });
+    const client = new Urbit('', undefined, 'groups', fetchFn);
+    const response = await client.thread({
+      inputMark: 'noun',
+      outputMark: 'noun',
+      threadName: 'some-thread',
+      body: {},
+      timeout: 1000,
+    });
+    const buffer = await response.arrayBuffer();
+    expect(new Uint8Array(buffer)).toEqual(bytes);
+  });
+
   it('scry rejects when the response body stalls after headers', async () => {
     const client = new Urbit('', undefined, 'groups', stalledBodyFetch());
     await expect(
