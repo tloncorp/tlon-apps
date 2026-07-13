@@ -120,6 +120,7 @@ import {
   fetchThreadContextHistory,
   getChannelHistory,
   lookupCachedMessage,
+  lookupOrFetchCachedChannelMessage,
   renderHistoryContent,
 } from './history.js';
 import {
@@ -137,6 +138,7 @@ import {
   setLastNudgeStageShadow,
   setLastOwnerActivity,
 } from './nudge-state.js';
+import { recordSentTlonReply } from './output.js';
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
@@ -3362,18 +3364,19 @@ export async function monitorTlonProvider(
                     contextLenses.recordPersistence(lens.lensId, {
                       postsReply: true,
                     });
-                    if (outputMessageId) {
-                      contextLenses.recordOutput(lens.lensId, {
-                        messageId: outputMessageId,
-                        conversationId: isGroup
-                          ? groupChannel ?? ''
-                          : senderShip,
-                        kind: isGroup ? 'channel' : 'dm',
-                        sentAt: Date.now(),
-                        preview: previewText(replyText),
-                        chunkIndex: deliveredMessageCount - 1,
-                      });
-                    }
+                    recordSentTlonReply({
+                      botShipName,
+                      contextLenses,
+                      deliveredMessageCount,
+                      groupChannel,
+                      isGroup,
+                      lensId: lens.lensId,
+                      outputMessageId,
+                      replyBlob,
+                      replyPreview: previewText(replyText),
+                      replyText,
+                      senderShip,
+                    });
                     contextLenses.recordPersistenceEvent(lens.lensId, {
                       kind: 'conversation_state',
                       action: 'created',
@@ -3518,6 +3521,7 @@ export async function monitorTlonProvider(
           response?.post?.['r-post']?.reply?.['r-reply']?.reacts;
         const effectiveReacts = reacts || replyReacts;
         if (effectiveReacts && typeof effectiveReacts === 'object') {
+          const rootPostId = replyReacts ? response?.post?.id : undefined;
           const postId = replyReacts
             ? response?.post?.['r-post']?.reply?.id ??
               response?.post?.id ??
@@ -3538,20 +3542,32 @@ export async function monitorTlonProvider(
                 peer: { kind: 'group', id: nest },
               });
               // Look up the reacted-to message content for context
-              const cached = lookupCachedMessage(nest, postId);
+              const cached = await lookupOrFetchCachedChannelMessage(
+                api,
+                nest,
+                postId,
+                rootPostId,
+                runtime
+              );
               const contentSnippet = cached?.content
                 ? ` (message: "${cached.content.substring(0, 200)}${cached.content.length > 200 ? '...' : ''}")`
                 : '';
-              const authorInfo = cached?.author
-                ? ` (by ${formatShipWithNickname(cached.author)})`
-                : '';
+              const author = cached?.author;
+              if (!author || author === 'unknown') {
+                runtime.log?.(
+                  `[tlon] Unclassified reaction on ${nest} post ${postId}: ` +
+                    'could not resolve the reacted post author.'
+                );
+                continue;
+              }
+              const authorInfo = ` (by ${formatShipWithNickname(author)})`;
               const reactorDisplay = formatShipWithNickname(ship);
               const eventText = `Tlon reaction in ${nest}: ${reactEmoji} by ${reactorDisplay} on post ${postId}${authorInfo}${contentSnippet}`;
               runtime.log?.(`[tlon] REACTION: ${eventText}`);
 
               // If reacting to the bot's own message, dispatch as a real message
               // so the agent runs immediately (e.g. thumbs-up as "yes")
-              if (cached?.author === botShipName) {
+              if (author === botShipName) {
                 // Include context so agent knows what was reacted to, since we're
                 // deliberately omitting thread context (parentId) to avoid the agent
                 // suppressing responses when it sees its own message in thread history.
