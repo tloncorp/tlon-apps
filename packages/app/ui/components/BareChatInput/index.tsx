@@ -603,11 +603,17 @@ function BareChatInput(
 
             // If the URL was deleted from the text before its metadata
             // arrived, the user never saw a preview - don't surprise them
-            // with one now.
+            // with one now. Un-mark the URL as seen so that if it is typed
+            // again, the next debounce pass re-fetches it (the deletion may
+            // never reach debouncedText, so this pass's marking would
+            // otherwise suppress the re-added URL forever).
             if (!extractPreviewUrls(latestTextRef.current).includes(url)) {
               bareChatInputLogger.log('skipping link preview for removed url', {
                 url,
               });
+              prevUrlsRef.current = prevUrlsRef.current.filter(
+                (u) => u !== url
+              );
               return;
             }
 
