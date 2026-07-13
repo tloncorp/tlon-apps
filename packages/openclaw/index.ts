@@ -23,6 +23,11 @@ import {
   scheduleBackgroundContextLensFinalization,
 } from './src/context-lens.js';
 import {
+  clearCronServiceAccessor,
+  handleCronChangedEvent,
+  setCronServiceAccessor,
+} from './src/cron-telemetry.js';
+import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
@@ -41,6 +46,7 @@ import {
   type TlonDiagnosticLogAttributes,
   type TlonSessionDiagnosticReportInput,
   formatTlonTelemetryErrorText,
+  recordCronRunAttribution,
   recordToolCall,
   reportHarnessDebug,
   reportHarnessError,
@@ -1384,6 +1390,40 @@ export default defineChannelPluginEntry({
       });
     });
 
+    // ── Cron observability ──────────────────────────────────────────────
+    // `cron_changed` is a gateway-global hook; owner/bot identity is injected
+    // by the monitor's cron reporter (setCronTelemetryReporter). The
+    // gateway_start handler publishes the cron service accessor so the monitor
+    // can emit its boot-time job-count snapshot without a hook context.
+    api.on('gateway_start', (_event, ctx) => {
+      if (ctx.getCron) {
+        setCronServiceAccessor(ctx.getCron);
+      }
+    });
+    api.on('gateway_stop', clearCronServiceAccessor);
+
+    api.on('cron_changed', async (event, ctx) => {
+      try {
+        await handleCronChangedEvent(event, ctx);
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] Telemetry observer failed (cron_changed:${event.action}): ${String(error)}`
+        );
+        try {
+          reportTelemetryError({
+            telemetrySource: 'cron_changed',
+            sourceEventName: event.action,
+            errorKind: error instanceof Error ? error.name : typeof error,
+            errorText: formatTlonTelemetryErrorText(error),
+          });
+        } catch (reportError) {
+          api.logger.warn(
+            `[tlon] Telemetry error reporting failed: ${String(reportError)}`
+          );
+        }
+      }
+    });
+
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
       const unsubscribeDiagnosticEvents =
         installTelemetryDiagnosticObservers(api);
@@ -1485,8 +1525,34 @@ export default defineChannelPluginEntry({
         publishContextLensEvent('created', background.lens);
       }
     };
-    api.on('agent_turn_prepare', (_event, ctx) => ensureCronContextLens(ctx));
-    api.on('model_call_started', (_event, ctx) => ensureCronContextLens(ctx));
+    // Record cron attribution independently of the context lens so low-level
+    // model/harness/run failures can bypass the inbound-session telemetry gate
+    // and retain their detailed diagnostic fields. The lifecycle hook remains
+    // the authoritative source for the final cron outcome.
+    const onCronAgentHook = (ctx: {
+      sessionKey?: string;
+      trigger?: string;
+      jobId?: string;
+      runId?: string;
+    }) => {
+      if (ctx.trigger === 'cron') {
+        safeTelemetryObserver({
+          logger: api.logger,
+          telemetrySource: 'cron_run_attribution',
+          sessionKey: ctx.sessionKey,
+          runId: ctx.runId,
+          run: () =>
+            recordCronRunAttribution({
+              sessionKey: ctx.sessionKey,
+              runId: ctx.runId,
+              jobId: ctx.jobId,
+            }),
+        });
+      }
+      ensureCronContextLens(ctx);
+    };
+    api.on('agent_turn_prepare', (_event, ctx) => onCronAgentHook(ctx));
+    api.on('model_call_started', (_event, ctx) => onCronAgentHook(ctx));
 
     // Background lenses normally finalize on tool-result idle; agent_end
     // re-arms the window so runs that end with model output (no trailing

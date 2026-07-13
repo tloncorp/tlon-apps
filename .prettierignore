@@ -297,6 +297,15 @@ clurd
 /packages/openclaw/**/.pnpm-store/
 /packages/openclaw/**/.publish/
 /packages/openclaw/**/*.tgz
+# From packages/openclaw/.prettierignore
+/packages/openclaw/**/SECURITY-AUDIT.md
+/packages/openclaw/**/SECURITY.md
+/packages/openclaw/**/openclaw.plugin.json
+/packages/openclaw/scripts/generate-channel-configs.mjs
+/packages/openclaw/scripts/generate-version.js
+/packages/openclaw/scripts/prepare-publish-package.js
+/packages/openclaw/scripts/resolve-workspace-deps.mjs
+/packages/openclaw/test/README.md
 # From packages/scripts/.gitignore
 /packages/scripts/**/build
 # From packages/shared/.gitignore
