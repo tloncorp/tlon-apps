@@ -6,7 +6,7 @@ import { Urbit } from '../http-api/Urbit';
 // body never completes: the returned stream only errors when the request's
 // abort signal fires. Regression coverage for TLON-6148, where an un-timed
 // body read left the create-group spinner hanging forever.
-function stalledBodyFetch(): typeof fetch {
+function stalledBodyFetch(status = 200): typeof fetch {
   return async (_input: any, init?: any) => {
     const stream = new ReadableStream({
       start(controller) {
@@ -18,7 +18,7 @@ function stalledBodyFetch(): typeof fetch {
       },
     });
     return new Response(stream, {
-      status: 200,
+      status,
       headers: { 'content-type': 'application/json' },
     });
   };
@@ -62,6 +62,22 @@ describe('Urbit request timeouts cover the response body read', () => {
     });
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
+  it('thread preserves an error status when the error body stalls', async () => {
+    // A stalled body on a non-OK response must not surface as a transport
+    // error: callers distinguish backend failures from lost responses by
+    // status, and the status already arrived with the headers.
+    const client = new Urbit('', undefined, 'groups', stalledBodyFetch(500));
+    const response = await client.thread({
+      inputMark: 'group-create-thread',
+      outputMark: 'group-ui-2',
+      threadName: 'group-create-1',
+      body: {},
+      timeout: 50,
+    });
+    expect(response.status).toBe(500);
+    await expect(response.text()).resolves.toBe('');
   });
 
   it('thread preserves non-UTF-8 body bytes when buffering', async () => {

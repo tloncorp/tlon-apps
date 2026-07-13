@@ -1083,8 +1083,19 @@ export class Urbit {
       // response headers arrive, so an un-timed body read afterwards can hang
       // indefinitely if the browser stalls the stream (seen on Brave). Buffer
       // as bytes so non-text output marks pass through unchanged.
-      const responseBody = await result.arrayBuffer();
-      return new Response(responseBody.byteLength > 0 ? responseBody : null, {
+      let responseBody: ArrayBuffer | null = null;
+      try {
+        const buffer = await result.arrayBuffer();
+        responseBody = buffer.byteLength > 0 ? buffer : null;
+      } catch (e) {
+        // The error status arrived with the headers; a stalled or aborted
+        // body read shouldn't mask it, since callers dispatch on status to
+        // distinguish backend failures from transport failures.
+        if (result.ok) {
+          throw e;
+        }
+      }
+      return new Response(responseBody, {
         status: result.status,
         statusText: result.statusText,
         headers: result.headers,
