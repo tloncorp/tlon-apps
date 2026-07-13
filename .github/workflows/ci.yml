@@ -53,12 +53,10 @@ jobs:
               - 'packages/tlon-bot-e2e/**'
               - 'packages/tlon-skill/**'
 
-  # The app-wide suite and the repo's required status check. Skipped only when
-  # the filter positively reported app == 'false' (bot-/docs-only PRs); a
-  # skipped run still satisfies the required check. Written `!= 'false'`
-  # rather than `== 'true'` to fail closed: if the changes job errors, its
-  # outputs are empty and a plain `== 'true'` gate would skip this job —
-  # letting the PR merge with no tests run.
+  # The app-wide suite. Skipped only when the filter positively reported
+  # app == 'false' (bot-/docs-only PRs). Written `!= 'false'` rather than
+  # `== 'true'` to fail closed: if the changes job errors, its outputs are
+  # empty and a plain `== 'true'` gate would skip the suite entirely.
   test-build:
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
@@ -156,6 +154,30 @@ jobs:
 
       - name: Run Hermes adapter unit tests
         run: ./packages/hermes-tlon-adapter/dev/test.sh
+
+  # Merge gate: the single required status check for this repo ("CI OK" in
+  # branch protection). It aggregates the conditionally-skipped jobs above
+  # into one context that always reports: a skipped need is fine (the filter
+  # said that suite wasn't relevant to the diff), but any failure or
+  # cancellation — including the changes job itself erroring — fails the
+  # gate. `always()` (not `!cancelled()`) so a cancelled run reports a
+  # failure instead of a skip, which would satisfy the required check.
+  # When adding a new filter-gated job, append it to `needs` here.
+  ci-ok:
+    name: CI OK
+    needs: [changes, test-build, bot-checks]
+    if: ${{ always() }}
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - name: Verify gated jobs succeeded or were skipped
+        run: |
+          for result in ${{ join(needs.*.result, ' ') }}; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "::error::A gated job reported '$result'"
+              exit 1
+            fi
+          done
+          echo "All gated jobs succeeded or were skipped."
 
   # Production-build smoke test. The parallel e2e suite runs against the Vite
   # *dev* server; this boots the minified `vite build` output to catch
