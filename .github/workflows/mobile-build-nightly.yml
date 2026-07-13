@@ -55,4 +55,4 @@ jobs:
           APP_VARIANT: "preview"
           NOTIFY_PROVIDER: "binnec-dozzod-marnus"
           NOTIFY_SERVICE: "tlon-preview-release"
-          VITE_INVITE_PROVIDER: ${{ secrets.VITE_INVITE_PROVIDER}}
+          INVITE_PROVIDER: ${{ secrets.VITE_INVITE_PROVIDER }}
