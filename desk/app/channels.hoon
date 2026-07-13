@@ -172,7 +172,7 @@
   +$  card  card:guard
   +$  rail  rail:guard
   +$  current-state
-    $:  %18
+    $:  %19
         =v-channels:v10:cv
         voc=(map [nest:cv plan:cv] (unit said:v10:cv))
         hidden-posts=(set id-post:cv)
@@ -333,7 +333,16 @@
   =?  old  ?=(%15 -.old)  (state-15-to-16 old)
   =?  old  ?=(%16 -.old)  (state-16-to-17 old)
   =?  old  ?=(%17 -.old)  (state-17-to-18 old)
-  ?>  ?=(%18 -.old)
+  ::  18-to-19: no data change. the version bump makes the one-time notes-desk
+  ::  reconcile (suspend a standalone %notes desk, rein our %notes agent on)
+  ::  fire exactly once per existing ship, on the upgrade to this version.
+  ::  fresh installs get it from +init instead.
+  ::
+  =^  caz-19=(list card)  old
+    ?.  ?=(%18 -.old)  [~ old]
+    [reconcile-notes-cards (state-18-to-19 old)]
+  =.  cor  (emil caz-19)
+  ?>  ?=(%19 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -341,7 +350,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-18
+    $%  state-19
+        state-18
         state-17
         state-16
         state-15
@@ -361,7 +371,8 @@
         state-1
         state-0
     ==
-  +$  state-18  current-state
+  +$  state-19  current-state
+  +$  state-18  _%*(. *state-19 - %18)
   +$  state-17  _%*(. *state-18 - %17)
   +$  state-16
     $:  %16
@@ -453,6 +464,12 @@
         =^subs:s
         =pimp:imp
     ==
+  ::
+  ++  state-18-to-19
+    |=  =state-18
+    ^-  state-19
+    ::  identical fields; the bump is only a trigger (see +load, +init)
+    %=(state-18 - %19)
   ::
   ++  state-17-to-18
     |=  =state-17
@@ -777,7 +794,26 @@
   ::NOTE  poking diary/heap/chat with %*-migrate is done by channels-server,
   ::      because it is important the server migration happens before those
   ::      happen. that way, local subs get established without issue.
+  =.  cor  (emil reconcile-notes-cards)
   inflate-io
+::  +reconcile-notes-cards: %notes ships as its own gall agent but is kept OUT
+::  of desk.bill, so installing %groups never trips gall's "can't run from two
+::  desks" against a user's standalone %notes desk. Instead we suspend that
+::  desk (a no-op if it isn't installed) and rein our %notes agent on. Fired
+::  once on install (+init) and once on upgrade (state-18-to-19).
+::
+++  reconcile-notes-cards
+  ^-  (list card)
+  ::  %agent %poke cards must be wrapped into the guard card type (unsafe:guard);
+  ::  step:un:guard unwraps them back to the real mark when they're emitted.
+  %+  turn
+    ^-  (list card:agent:gall)
+    :~  [%pass /kiln/suspend-notes %agent [our.bowl %hood] %poke %kiln-suspend !>(`@tas`%notes)]
+        :*  %pass  /kiln/rein-notes  %agent  [our.bowl %hood]  %poke
+            %kiln-rein  !>(`[@tas (map @tas ?)]`[%groups (~(put by *(map @tas ?)) %notes &)])
+        ==
+    ==
+  unsafe:guard
 ::
 ++  unsubscribe
   |=  [=wire =dock]
@@ -1225,6 +1261,14 @@
       ~          cor
       [%pimp ~]  cor
       [%logs ~]  cor
+  ::
+      [%kiln *]
+    ::  ack from a notes-desk reconcile poke to %hood (+reconcile-notes-cards).
+    ::  fire-and-forget; just log a nack (e.g. rein/suspend refused).
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf+"{<dap.bowl>} notes-desk reconcile poke nacked" u.p.sign)
+    cor
   ::
       [?(%numbers %tombstones) *]
     ?>  ?=(%poke-ack -.sign)

@@ -33,6 +33,7 @@ export type CreateApprovalParams = {
     messageContent: unknown;
     timestamp: number;
     parentId?: string;
+    parentAuthorId?: string;
     isThreadReply?: boolean;
     blob?: string;
   };
@@ -66,6 +67,10 @@ export type DisplayContext = {
   channelGroups?: Map<string, string>;
   /** Map from group flag (~host/name) to human-readable group title */
   groupNames?: Map<string, string>;
+};
+
+export type ApprovalA2UIOptions = {
+  includeSourceNavigation?: boolean;
 };
 
 function displayShipName(ship: string, ctx?: DisplayContext): string {
@@ -225,6 +230,7 @@ type ApprovalA2UIParams = {
   groupName?: string;
   groupFlag?: string;
   groupTitle?: string;
+  sourceTarget?: A2UI.NavigationTarget;
 };
 
 function approvalRequesterName(params: ApprovalA2UIParams): string {
@@ -320,12 +326,14 @@ function buildApprovalA2UIBlobFromParams(
   const contextLines = approvalContextLines(params);
   const contextIds = contextLines.map((_, index) => `context${index}`);
   const copy = approvalCopy(params);
+  const actionChildren = ['allow', 'reject', 'ban'];
   const bodyChildren = [
     'eyebrow',
     'title',
     'titleDivider',
     ...contextIds,
     ...(copy ? ['copy'] : []),
+    ...(params.sourceTarget ? ['sourceAction'] : []),
     'divider',
     'details',
     'actions',
@@ -347,6 +355,9 @@ function buildApprovalA2UIBlobFromParams(
           text: copy,
         },
       ]
+    : [];
+  const sourceActionComponents: A2UI.Component[] = params.sourceTarget
+    ? [{ id: 'sourceAction', component: 'Row', children: ['viewMessage'] }]
     : [];
 
   const components: A2UI.Component[] = [
@@ -371,6 +382,7 @@ function buildApprovalA2UIBlobFromParams(
     { id: 'titleDivider', component: 'Divider' },
     ...contextComponents,
     ...copyComponents,
+    ...sourceActionComponents,
     { id: 'divider', component: 'Divider' },
     {
       id: 'details',
@@ -386,8 +398,29 @@ function buildApprovalA2UIBlobFromParams(
     {
       id: 'actions',
       component: 'Row',
-      children: ['allow', 'reject', 'ban'],
+      children: actionChildren,
     },
+    ...(params.sourceTarget
+      ? [
+          {
+            id: 'viewMessage',
+            component: 'Button',
+            variant: 'secondary',
+            child: 'viewMessageLabel',
+            action: {
+              event: {
+                name: A2UI.action.navigate,
+                context: { target: params.sourceTarget },
+              },
+            },
+          } as const,
+          {
+            id: 'viewMessageLabel',
+            component: 'Text',
+            text: 'View message',
+          } as const,
+        ]
+      : []),
     {
       id: 'allow',
       component: 'Button',
@@ -473,9 +506,45 @@ function displayGroupForApproval(
   return titleOverride || ctx?.groupNames?.get(flag) || flag;
 }
 
-export function buildApprovalA2UIBlob(
+function approvalSourceTarget(
   approval: PendingApproval,
   ctx?: DisplayContext
+): A2UI.NavigationTarget | undefined {
+  const messageId = approval.originalMessage?.messageId;
+  if (!messageId) {
+    return undefined;
+  }
+
+  const base = {
+    type: 'message' as const,
+    postId: messageId,
+    authorId: approval.requestingShip,
+    parentId: approval.originalMessage?.parentId,
+    parentAuthorId: approval.originalMessage?.parentAuthorId,
+  };
+
+  if (approval.type === 'dm') {
+    return {
+      ...base,
+      channelId: approval.requestingShip,
+    };
+  }
+
+  if (approval.type === 'channel' && approval.channelNest) {
+    return {
+      ...base,
+      channelId: approval.channelNest,
+      groupId: ctx?.channelGroups?.get(approval.channelNest),
+    };
+  }
+
+  return undefined;
+}
+
+export function buildApprovalA2UIBlob(
+  approval: PendingApproval,
+  ctx?: DisplayContext,
+  options: ApprovalA2UIOptions = {}
 ): TlonA2UIBlob {
   return buildApprovalA2UIBlobFromParams({
     type: approval.type,
@@ -494,7 +563,179 @@ export function buildApprovalA2UIBlob(
       approval.groupTitle,
       ctx
     ),
+    sourceTarget:
+      options.includeSourceNavigation === false
+        ? undefined
+        : approvalSourceTarget(approval, ctx),
   });
+}
+
+// ============================================================================
+// Pending Requests A2UI
+// ============================================================================
+
+const MAX_PENDING_APPROVALS_A2UI = 4;
+
+function shouldUsePendingApprovalsA2UI(
+  activeApprovals: PendingApproval[]
+): boolean {
+  return (
+    activeApprovals.length > 0 &&
+    activeApprovals.length <= MAX_PENDING_APPROVALS_A2UI
+  );
+}
+
+function pendingItemFields(
+  approval: PendingApproval,
+  ctx?: DisplayContext
+): { title: string; context: string; preview?: string } {
+  const name = displayShipName(approval.requestingShip, ctx);
+  const ship = displayShipWithId(approval.requestingShip, ctx);
+  const preview = approval.messagePreview
+    ? `Message: "${truncate(approval.messagePreview, 100)}"`
+    : undefined;
+
+  switch (approval.type) {
+    case 'dm':
+      return { title: `DM from ${name}`, context: `Sender: ${ship}`, preview };
+    case 'channel':
+      return {
+        title: `Channel access for ${name}`,
+        context: `Channel: ${displayChannel(approval.channelNest ?? '', ctx)}`,
+        preview,
+      };
+    case 'group':
+      return {
+        title: `Group invite from ${name}`,
+        context: `Group: ${displayGroup(approval.groupFlag ?? '', ctx, approval.groupTitle)}`,
+      };
+  }
+  return assertNever(approval.type);
+}
+
+export function buildPendingApprovalsA2UIBlob(
+  approvals: PendingApproval[],
+  ctx?: DisplayContext
+): TlonA2UIBlob | undefined {
+  const active = pruneExpired(approvals);
+  if (!shouldUsePendingApprovalsA2UI(active)) {
+    return undefined;
+  }
+
+  const text = (
+    id: string,
+    value: string,
+    variant?: A2UI.Text['variant']
+  ): A2UI.Component =>
+    variant
+      ? { id, component: 'Text', variant, text: value }
+      : { id, component: 'Text', text: value };
+  const button = (
+    id: string,
+    labelId: string,
+    command: string,
+    variant?: A2UI.Button['variant']
+  ): A2UI.Component => ({
+    id,
+    component: 'Button',
+    ...(variant ? { variant } : {}),
+    child: labelId,
+    action: {
+      event: {
+        name: A2UI.action.sendMessage,
+        context: { text: command },
+      },
+    },
+  });
+
+  const bodyChildren = ['eyebrow', 'title', 'titleDivider'];
+  const components: A2UI.Component[] = [
+    { id: 'root', component: 'Card', child: 'body' },
+    { id: 'body', component: 'Column', children: bodyChildren },
+    text('eyebrow', 'Pending requests', 'caption'),
+    text(
+      'title',
+      `${active.length} approval ${active.length === 1 ? 'request' : 'requests'}`,
+      'h3'
+    ),
+    { id: 'titleDivider', component: 'Divider' },
+    text('allowLabel', 'Allow'),
+    text('rejectLabel', 'Reject'),
+    text('blockLabel', 'Block'),
+  ];
+
+  for (const [index, approval] of active.entries()) {
+    const prefix = `item${index}`;
+    const fields = pendingItemFields(approval, ctx);
+
+    if (index > 0) {
+      const dividerId = `${prefix}Divider`;
+      bodyChildren.push(dividerId);
+      components.push({ id: dividerId, component: 'Divider' });
+    }
+
+    bodyChildren.push(prefix);
+    components.push(
+      {
+        id: prefix,
+        component: 'Column',
+        children: [
+          `${prefix}Title`,
+          `${prefix}Context`,
+          ...(fields.preview ? [`${prefix}Preview`] : []),
+          `${prefix}Actions`,
+        ],
+      },
+      text(`${prefix}Title`, fields.title, 'h4'),
+      text(`${prefix}Context`, fields.context, 'caption'),
+      ...(fields.preview
+        ? [text(`${prefix}Preview`, fields.preview, 'caption')]
+        : []),
+      {
+        id: `${prefix}Actions`,
+        component: 'Row',
+        children: [`${prefix}Allow`, `${prefix}Reject`, `${prefix}Block`],
+      },
+      button(
+        `${prefix}Allow`,
+        'allowLabel',
+        `/allow ${approval.id}`,
+        'primary'
+      ),
+      button(`${prefix}Reject`, 'rejectLabel', `/reject ${approval.id}`),
+      button(
+        `${prefix}Block`,
+        'blockLabel',
+        `/ban ${approval.id}`,
+        'borderless'
+      )
+    );
+  }
+
+  return makeA2UIBlob('pending-approvals', 'root', components);
+}
+
+export function buildPendingApprovalsResponse(
+  approvals: PendingApproval[],
+  ctx: DisplayContext | undefined,
+  serializeBlob: (blob: TlonA2UIBlob) => string | undefined,
+  onError?: (error: unknown) => void
+): { text: string; mode: 'text' } | { text: string; mode: 'ui'; blob: string } {
+  const text = formatPendingList(approvals, ctx);
+  if (!shouldUsePendingApprovalsA2UI(approvals)) {
+    return { text, mode: 'text' };
+  }
+
+  try {
+    const blob = buildPendingApprovalsA2UIBlob(approvals, ctx);
+    const serialized = blob ? serializeBlob(blob) : undefined;
+    return serialized
+      ? { text, blob: serialized, mode: 'ui' }
+      : { text, mode: 'text' };
+  } catch (error) {
+    onError?.(error);
+    return { text, mode: 'text' };
+  }
 }
 
 // ============================================================================

@@ -16,7 +16,7 @@ import { useAttachmentContext } from '../../../contexts/attachment';
 import { useChannelContext } from '../../../contexts/channel';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
-import { getContextLensStamp } from '../../Channel/ContextLens/lensPost';
+import { getOwnContextLensStamp } from '../../Channel/ContextLens/lensPost';
 import { useContextLensAvailable } from '../../Channel/ContextLens/useContextLensStore';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
 import {
@@ -49,12 +49,15 @@ export default function MessageActions({
   postActionIds: ChannelAction.Id[];
 }) {
   const contextLensAvailable = useContextLensAvailable();
+  const { data: ownedBotShips } = store.useContextLensBotShips();
   const showViewBotRun = useMemo(
     () =>
       Boolean(
-        contextLensAvailable && onViewBotRun && getContextLensStamp(post)
+        contextLensAvailable &&
+          onViewBotRun &&
+          getOwnContextLensStamp(post, ownedBotShips ?? [])
       ),
-    [contextLensAvailable, onViewBotRun, post]
+    [contextLensAvailable, onViewBotRun, ownedBotShips, post]
   );
 
   // arbitrary width that looks reasonable given labels
@@ -375,9 +378,24 @@ export async function handleAction({
     case 'copyRef':
       await Clipboard.setStringAsync(logic.getPostReferencePath(post));
       break;
-    case 'copyText':
-      await Clipboard.setStringAsync(post.textContent ?? '');
+    case 'copyText': {
+      let text: string;
+      try {
+        text = logic.plaintextPreviewOf(
+          logic.convertContent(post.content, post.blob),
+          {
+            ...logic.PlaintextPreviewConfig.defaultConfig,
+            includeRefTag: false,
+          }
+        );
+      } catch (e) {
+        // convertContent throws on unrecognized block types (e.g. content
+        // written by a newer client); fall back to the stored preview.
+        text = post.textContent ?? '';
+      }
+      await Clipboard.setStringAsync(text);
       break;
+    }
     case 'delete':
       store.deletePost({ post });
       break;

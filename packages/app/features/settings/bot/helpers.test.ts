@@ -1,0 +1,795 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import {
+  buildChannelModelEntries,
+  buildChannelRuleDrafts,
+  buildConfigFromChatValues,
+  buildMergedChannelModelEntries,
+  formatShipList,
+  getModelFormValues,
+  groupChannelEntries,
+  hasGroupMembership,
+  haveChannelModelEntriesChanged,
+  mergeChannelRules,
+  normalizeChannelRuleKey,
+  normalizeMoonName,
+  normalizeProviderConfig,
+  normalizeShip,
+  normalizeShipList,
+  normalizeTlonbotConfig,
+  parseChannelRuleKey,
+  resolveGroupFull,
+  runApplySteps,
+  safeKeySummary,
+  toBackendModel,
+  toDisplayProviderId,
+  validateProviderKey,
+} from './helpers';
+
+describe('ship normalization', () => {
+  it('normalizes ships to a single leading sig', () => {
+    expect(normalizeShip('zod')).toBe('~zod');
+    expect(normalizeShip('~~zod')).toBe('~zod');
+    expect(normalizeShip('@zod')).toBe('~zod');
+    expect(normalizeShip('  ~zod  ')).toBe('~zod');
+    expect(normalizeShip('')).toBeNull();
+    expect(normalizeShip('~')).toBeNull();
+  });
+
+  it('splits, dedupes, and normalizes ship lists', () => {
+    expect(normalizeShipList('~zod, nec ~zod\n bus')).toEqual([
+      '~zod',
+      '~nec',
+      '~bus',
+    ]);
+    expect(normalizeShipList('')).toEqual([]);
+  });
+
+  it('formats ship lists as comma-separated strings', () => {
+    expect(formatShipList(['zod', '~zod', 'nec'])).toBe('~zod, ~nec');
+  });
+
+  it('normalizes moon names against their parent ship', () => {
+    expect(normalizeMoonName('molten', 'zod')).toBe('~molten-zod');
+    expect(normalizeMoonName('~molten-zod', '~zod')).toBe('~molten-zod');
+  });
+});
+
+describe('channel rule keys', () => {
+  it('parses channel rule keys with and without the chat/ prefix', () => {
+    expect(parseChannelRuleKey('chat/~zod/general')).toEqual({
+      app: 'chat',
+      host: '~zod',
+      channelId: 'general',
+    });
+    expect(parseChannelRuleKey('zod/general/extra')).toEqual({
+      app: 'chat',
+      host: 'zod',
+      channelId: 'general/extra',
+    });
+    // non-chat channel nests keep their app prefix
+    expect(parseChannelRuleKey('heap/~zod/gallery')).toEqual({
+      app: 'heap',
+      host: '~zod',
+      channelId: 'gallery',
+    });
+    expect(parseChannelRuleKey('diary/~zod/plans')).toEqual({
+      app: 'diary',
+      host: '~zod',
+      channelId: 'plans',
+    });
+    expect(parseChannelRuleKey('nonsense')).toBeNull();
+  });
+
+  it('normalizes keys to app/~host/channel form, preserving the app', () => {
+    expect(normalizeChannelRuleKey('zod/general')).toBe('chat/~zod/general');
+    expect(normalizeChannelRuleKey('chat/~zod/general')).toBe(
+      'chat/~zod/general'
+    );
+    // heap/diary nests round-trip instead of being rewritten as chat
+    expect(normalizeChannelRuleKey('heap/~zod/gallery')).toBe(
+      'heap/~zod/gallery'
+    );
+    expect(normalizeChannelRuleKey('diary/zod/plans')).toBe('diary/~zod/plans');
+    expect(normalizeChannelRuleKey('nonsense')).toBe('nonsense');
+  });
+});
+
+describe('provider config', () => {
+  it('normalizes provider config and legacy default key field', () => {
+    expect(normalizeProviderConfig(null)).toEqual({
+      keys: {},
+      models: [],
+      defaultKeys: {},
+    });
+    expect(
+      normalizeProviderConfig({
+        default: { basic: { key: 'x' } },
+      }).defaultKeys
+    ).toEqual({ basic: { key: 'x' } });
+  });
+
+  it('maps default-key openrouter usage to the basic provider', () => {
+    const config = normalizeProviderConfig({
+      keys: {},
+      models: [],
+      defaultKeys: { basic: { key: 'x' } },
+    });
+    // only the shared default MODEL on openrouter maps to Basic
+    expect(
+      toDisplayProviderId(config, 'openrouter', 'minimax/minimax-m3')
+    ).toBe('basic');
+    // a custom openrouter model must stay openrouter (else a save would pin it
+    // to minimax and silently rewrite the user's real model)
+    expect(
+      toDisplayProviderId(config, 'openrouter', 'anthropic/claude-3.5')
+    ).toBe('openrouter');
+    // with a personal openrouter key, even the default model stays openrouter
+    expect(
+      toDisplayProviderId(
+        { ...config, keys: { openrouter: 'sk-or-abc' } },
+        'openrouter',
+        'minimax/minimax-m3'
+      )
+    ).toBe('openrouter');
+    expect(toDisplayProviderId(config, 'anthropic', 'claude-1')).toBe(
+      'anthropic'
+    );
+  });
+
+  it('redacts stored keys instead of rendering them in full', () => {
+    const config = normalizeProviderConfig({
+      keys: { anthropic: 'sk-ant-secret-abcd1234', openai: 'x' },
+      models: [],
+      defaultKeys: { basic: { key: 'shared' } },
+    });
+    const summary = safeKeySummary(config, 'anthropic');
+    expect(summary).toBe('••••1234');
+    expect(summary).not.toContain('secret');
+    // short keys are masked entirely
+    expect(safeKeySummary(config, 'openai')).toBe('••••');
+    expect(
+      safeKeySummary(config, 'anthropic'.replace('anthropic', 'missing'))
+    ).toBe('Not set');
+    expect(safeKeySummary(config, 'basic')).toBe('Included');
+  });
+
+  it('derives model form values from the provider config', () => {
+    const empty = getModelFormValues(undefined);
+    expect(empty.provider).toBe('basic');
+    expect(empty.model).toBe('');
+
+    const values = getModelFormValues({
+      keys: { anthropic: 'sk-ant-xxx' },
+      defaultKeys: {},
+      models: [
+        { provider: 'anthropic', model: 'claude-1', primary: true },
+        { provider: 'openai', model: 'gpt-x' },
+        {
+          provider: 'anthropic',
+          model: 'channel-model',
+          channels: ['chat/~zod/general'],
+        },
+      ],
+    });
+    expect(values.provider).toBe('anthropic');
+    expect(values.model).toBe('claude-1');
+    expect(values.fallbacks).toEqual([{ provider: 'openai', model: 'gpt-x' }]);
+  });
+
+  it('treats the first non-channel model as primary when none is flagged', () => {
+    // legacy shape: {provider, model} entries with no `primary` flag
+    const values = getModelFormValues({
+      keys: { anthropic: 'sk-ant-xxx' },
+      defaultKeys: {},
+      models: [
+        { provider: 'anthropic', model: 'claude-1' },
+        { provider: 'openai', model: 'gpt-x' },
+        {
+          provider: 'anthropic',
+          model: 'channel-model',
+          channels: ['chat/~zod/general'],
+        },
+      ],
+    });
+    // first non-channel model is the primary (not a fall-through to Basic)
+    expect(values.provider).toBe('anthropic');
+    expect(values.model).toBe('claude-1');
+    // the remaining non-channel model becomes a fallback (not duplicated)
+    expect(values.fallbacks).toEqual([{ provider: 'openai', model: 'gpt-x' }]);
+  });
+});
+
+describe('tlonbot config', () => {
+  it('normalizes partial configs', () => {
+    const config = normalizeTlonbotConfig({
+      defaultAuthorizedShips: ['~bus'],
+      channelRules: {
+        'chat/~zod/general': { mode: 'restricted', allowedShips: ['~nec'] },
+        'chat/~zod/random': { mode: 'open', allowedShips: [] },
+        'chat/~zod/unknown': { mode: 'bogus', allowedShips: [] },
+        'chat/~zod/inherit': { mode: 'restricted' } as {
+          mode: string;
+          allowedShips: string[];
+        },
+      },
+    });
+    expect(config.dmAllowlist).toEqual([]);
+    // a legacy `restricted` value canonicalizes to `allowlist` (the backend's
+    // real vocabulary), never silently to `open`
+    expect(config.channelRules['chat/~zod/general'].mode).toBe('allowlist');
+    expect(config.channelRules['chat/~zod/general'].allowedShips).toEqual([
+      '~nec',
+    ]);
+    expect(config.channelRules['chat/~zod/random'].mode).toBe('open');
+    // anything that isn't an explicit `open` becomes `allowlist`, so a rule
+    // never silently loses its allowlist on round-trip
+    expect(config.channelRules['chat/~zod/unknown'].mode).toBe('allowlist');
+    // an explicit empty allowlist is preserved (block-all), not widened
+    expect(config.channelRules['chat/~zod/unknown'].allowedShips).toEqual([]);
+    // an omitted allowedShips is preserved as omitted (inherits defaults), not
+    // materialized into a list
+    expect(
+      config.channelRules['chat/~zod/inherit'].allowedShips
+    ).toBeUndefined();
+    expect(config.autoAcceptDmInvites).toBe(false);
+  });
+
+  it('builds channel rule drafts including model overrides', () => {
+    const drafts = buildChannelRuleDrafts(
+      normalizeTlonbotConfig({
+        defaultAuthorizedShips: ['~bus'],
+        channelRules: {
+          // legacy `restricted` values still read as an allowlist
+          'zod/general': { mode: 'restricted', allowedShips: ['nec'] },
+          // a rule with omitted allowedShips reads as an explicit defaults snapshot
+          'zod/inherited': { mode: 'allowlist' } as {
+            mode: string;
+            allowedShips: string[];
+          },
+        },
+        groupChannels: ['zod/general', 'zod/random'],
+      }),
+      {
+        keys: {},
+        defaultKeys: { basic: { key: 'x' } },
+        models: [
+          {
+            provider: 'openrouter',
+            // the shared default model on openrouter (no user key) reads as Basic
+            model: 'minimax/minimax-m3',
+            channels: ['chat/~zod/general'],
+          },
+        ],
+      }
+    );
+    expect(drafts['chat/~zod/general']).toEqual({
+      mode: 'allowlist',
+      allowedShips: '~nec',
+      modelOverrideProvider: 'basic',
+      modelOverride: 'minimax/minimax-m3',
+    });
+    // a group channel with no explicit rule reads as an explicit snapshot of the
+    // default authorized ships (no inherited flag), not an open channel
+    expect(drafts['chat/~zod/random']).toEqual({
+      mode: 'allowlist',
+      allowedShips: '~bus',
+    });
+    // a rule that omits allowedShips also reads as the defaults snapshot
+    expect(drafts['chat/~zod/inherited']).toEqual({
+      mode: 'allowlist',
+      allowedShips: '~bus',
+    });
+  });
+
+  it('saves each monitored channel with its own explicit allowlist', () => {
+    const config = buildConfigFromChatValues({
+      dmAllowlist: '',
+      defaultAuthorizedShips: '~zod, ~bus',
+      groupInviteAllowlist: '',
+      autoAcceptDmInvites: false,
+      autoDiscoverChannels: false,
+      channelRuleDrafts: {
+        // each allowlist channel carries its own explicit list — there is no
+        // follows-defaults state, so this is saved as-is (not re-materialized
+        // from the current defaultAuthorizedShips)
+        'chat/~zod/general': {
+          mode: 'allowlist',
+          allowedShips: '~nec',
+        },
+        'chat/~zod/private': {
+          mode: 'allowlist',
+          allowedShips: '~mel',
+        },
+      },
+    });
+    expect(config.channelRules['chat/~zod/general']).toEqual({
+      mode: 'allowlist',
+      allowedShips: ['~nec'],
+    });
+    expect(config.groupChannels).toContain('chat/~zod/general');
+    expect(config.channelRules['chat/~zod/private']).toEqual({
+      mode: 'allowlist',
+      allowedShips: ['~mel'],
+    });
+    expect(config.groupChannels).toContain('chat/~zod/private');
+  });
+
+  it('builds a config payload from chat form values', () => {
+    const config = buildConfigFromChatValues({
+      dmAllowlist: 'zod, nec',
+      defaultAuthorizedShips: '~zod',
+      groupInviteAllowlist: '',
+      autoAcceptDmInvites: true,
+      autoDiscoverChannels: false,
+      channelRuleDrafts: {
+        'zod/general': { mode: 'allowlist', allowedShips: 'nec bus' },
+        'chat/~zod/random': { mode: 'open', allowedShips: '~nec' },
+      },
+    });
+    expect(config.dmAllowlist).toEqual(['~zod', '~nec']);
+    // the `allowlist` draft mode is written back as the backend's `allowlist`
+    expect(config.channelRules['chat/~zod/general']).toEqual({
+      mode: 'allowlist',
+      allowedShips: ['~nec', '~bus'],
+    });
+    // open channels drop their allowlists
+    expect(config.channelRules['chat/~zod/random'].allowedShips).toEqual([]);
+    expect(config.groupChannels.sort()).toEqual([
+      'chat/~zod/general',
+      'chat/~zod/random',
+    ]);
+  });
+});
+
+describe('channel model overrides', () => {
+  const baseline = {
+    'chat/~zod/general': { mode: 'open' as const, allowedShips: '' },
+  };
+
+  it('detects override changes independent of other rule fields', () => {
+    expect(
+      haveChannelModelEntriesChanged(baseline, {
+        'chat/~zod/general': { mode: 'allowlist', allowedShips: '~nec' },
+      })
+    ).toBe(false);
+    expect(
+      haveChannelModelEntriesChanged(baseline, {
+        'chat/~zod/general': {
+          mode: 'open',
+          allowedShips: '',
+          modelOverrideProvider: 'anthropic',
+          modelOverride: 'claude-1',
+        },
+      })
+    ).toBe(true);
+  });
+
+  it('preserves override entries for untouched channels when merging', () => {
+    const merged = buildMergedChannelModelEntries(
+      {
+        keys: {},
+        defaultKeys: {},
+        models: [
+          {
+            provider: 'anthropic',
+            model: 'claude-1',
+            channels: ['chat/~bus/untouched', 'chat/~zod/general'],
+          },
+        ],
+      },
+      baseline,
+      {
+        'chat/~zod/general': {
+          mode: 'open',
+          allowedShips: '',
+          modelOverrideProvider: 'openai',
+          modelOverride: 'gpt-x',
+        },
+      }
+    );
+    expect(merged).toEqual([
+      {
+        provider: 'anthropic',
+        model: 'claude-1',
+        channels: ['chat/~bus/untouched'],
+      },
+      {
+        provider: 'openai',
+        model: 'gpt-x',
+        channels: ['chat/~zod/general'],
+      },
+    ]);
+  });
+
+  it('writes Basic overrides back as the basic provider with the fixed default model', () => {
+    const entries = buildChannelModelEntries({
+      'chat/~zod/general': {
+        mode: 'open',
+        allowedShips: '',
+        modelOverrideProvider: 'basic',
+        modelOverride: 'some/model',
+      },
+    });
+    expect(entries).toEqual([
+      {
+        provider: 'basic',
+        model: 'minimax/minimax-m3',
+        channels: ['chat/~zod/general'],
+      },
+    ]);
+  });
+
+  it('keeps a Basic override that has no model (Basic has no model picker)', () => {
+    const entries = buildChannelModelEntries({
+      'chat/~zod/general': {
+        mode: 'open',
+        allowedShips: '',
+        modelOverrideProvider: 'basic',
+        modelOverride: '',
+      },
+    });
+    expect(entries).toEqual([
+      {
+        provider: 'basic',
+        model: 'minimax/minimax-m3',
+        channels: ['chat/~zod/general'],
+      },
+    ]);
+  });
+
+  it('still drops a non-Basic override missing its model', () => {
+    const entries = buildChannelModelEntries({
+      'chat/~zod/general': {
+        mode: 'open',
+        allowedShips: '',
+        modelOverrideProvider: 'anthropic',
+        modelOverride: '',
+      },
+    });
+    expect(entries).toEqual([]);
+  });
+});
+
+describe('toBackendModel', () => {
+  it('persists basic as its own provider and pins the model to the default', () => {
+    expect(toBackendModel('basic', '')).toEqual({
+      provider: 'basic',
+      model: 'minimax/minimax-m3',
+    });
+    // a stale/leftover model on a Basic pick is ignored
+    expect(toBackendModel('basic', 'anthropic/claude-1')).toEqual({
+      provider: 'basic',
+      model: 'minimax/minimax-m3',
+    });
+  });
+
+  it('passes real providers and their models through unchanged', () => {
+    expect(toBackendModel('anthropic', 'claude-1')).toEqual({
+      provider: 'anthropic',
+      model: 'claude-1',
+    });
+    expect(toBackendModel('openrouter', 'some/model')).toEqual({
+      provider: 'openrouter',
+      model: 'some/model',
+    });
+  });
+});
+
+describe('channel grouping', () => {
+  const groups = {
+    '~zod': {
+      'my-group': {
+        title: 'My Group',
+        channels: { general: 'General', random: 'Random' },
+      },
+    },
+  };
+
+  it('groups channels by host and group', () => {
+    const entries = groupChannelEntries(groups, {});
+    expect(entries).toHaveLength(1);
+    expect(entries[0].title).toBe('My Group');
+    expect(entries[0].channels.map((c) => c.key)).toEqual([
+      'chat/~zod/general',
+      'chat/~zod/random',
+    ]);
+  });
+
+  it('surfaces rules for channels missing from the ship listing', () => {
+    const entries = groupChannelEntries(groups, {
+      'chat/~bus/ghost': { mode: 'open', allowedShips: '' },
+    });
+    const ghostGroup = entries.find((entry) => entry.host === '~bus');
+    expect(ghostGroup?.group).toBe('unknown');
+    expect(ghostGroup?.channels[0].key).toBe('chat/~bus/ghost');
+  });
+
+  it('resolves full group ids for join requests', () => {
+    expect(resolveGroupFull(groups, '~zod', 'my-group', '')).toBe(
+      '~zod/my-group'
+    );
+    expect(
+      resolveGroupFull(groups, 'zod', 'unknown', 'chat/~zod/general')
+    ).toBe('~zod/my-group');
+    expect(resolveGroupFull(groups, '~bus', 'unknown', 'chat/~bus/ghost')).toBe(
+      null
+    );
+  });
+
+  it('checks group membership by host and group name', () => {
+    expect(hasGroupMembership(groups, 'zod', 'my-group')).toBe(true);
+    expect(hasGroupMembership(groups, '~zod', 'other')).toBe(false);
+  });
+});
+
+describe('mergeChannelRules', () => {
+  it('keeps every server rule (each is a monitored channel) when nothing is dirty', () => {
+    const serverRules = {
+      'chat/~zod/one': { mode: 'allowlist' as const, allowedShips: ['~bus'] },
+      'chat/~zod/two': { mode: 'open' as const, allowedShips: [] },
+    };
+    const merged = mergeChannelRules(serverRules, {}, []);
+    expect(merged).toEqual(serverRules);
+  });
+
+  it('does not resurrect a channel the server removed unless it is a dirty add', () => {
+    // A channel the user did NOT touch that the server no longer has (another
+    // client removed it) must stay removed — only an explicit add (dirty key)
+    // re-introduces a channel the server lacks.
+    const serverRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+    };
+    const nextRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+      // present in the draft but server-removed and not dirty -> stays dropped
+      'chat/~zod/removed': {
+        mode: 'allowlist' as const,
+        allowedShips: ['~bus'],
+      },
+      // explicitly added this session (dirty) -> included
+      'chat/~zod/added': { mode: 'allowlist' as const, allowedShips: ['~nec'] },
+    };
+    const merged = mergeChannelRules(
+      serverRules,
+      nextRules,
+      ['chat/~zod/added'],
+      // server still monitors /one but NOT /removed -> /removed stays dropped
+      ['chat/~zod/one']
+    );
+    expect(merged).toEqual({
+      'chat/~zod/one': { mode: 'open', allowedShips: [] },
+      'chat/~zod/added': { mode: 'allowlist', allowedShips: ['~nec'] },
+    });
+  });
+
+  it('carries forward a monitored channel the server lists in groupChannels but not channelRules', () => {
+    // legacy/inherited groupChannels-only monitored channel: not in
+    // server.channelRules, not dirty, but still in server.groupChannels — an
+    // unrelated save must not drop it from the monitored set.
+    const serverRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+    };
+    const nextRules = {
+      'chat/~zod/one': { mode: 'open' as const, allowedShips: [] },
+      'chat/~zod/inherited': {
+        mode: 'allowlist' as const,
+        allowedShips: ['~bus'],
+      },
+    };
+    const merged = mergeChannelRules(
+      serverRules,
+      nextRules,
+      [],
+      ['chat/~zod/one', 'chat/~zod/inherited']
+    );
+    expect(merged).toEqual({
+      'chat/~zod/one': { mode: 'open', allowedShips: [] },
+      'chat/~zod/inherited': { mode: 'allowlist', allowedShips: ['~bus'] },
+    });
+  });
+
+  it('does not overwrite a concurrent server value for an untouched channel', () => {
+    // server has a newer value (another client edited it); the draft's stale
+    // copy must not clobber it when the user didn't touch that channel.
+    const serverRules = {
+      'chat/~zod/one': { mode: 'allowlist' as const, allowedShips: ['~new'] },
+    };
+    const nextRules = {
+      'chat/~zod/one': { mode: 'allowlist' as const, allowedShips: ['~stale'] },
+    };
+    const merged = mergeChannelRules(serverRules, nextRules, []);
+    expect(merged['chat/~zod/one'].allowedShips).toEqual(['~new']);
+  });
+
+  it('keeps an explicit block-all rule (allowlist with empty allowedShips)', () => {
+    const serverRules = {
+      'chat/~zod/blocked': { mode: 'allowlist' as const, allowedShips: [] },
+    };
+    const merged = mergeChannelRules(serverRules, {}, []);
+    expect(merged['chat/~zod/blocked']).toEqual({
+      mode: 'allowlist',
+      allowedShips: [],
+    });
+  });
+
+  it('overlays dirty edits and preserves untouched server rules', () => {
+    const serverRules = {
+      'chat/~zod/other': { mode: 'open' as const, allowedShips: [] },
+    };
+    const nextRules = {
+      'chat/~zod/edited': {
+        mode: 'allowlist' as const,
+        allowedShips: ['~bus'],
+      },
+    };
+    const merged = mergeChannelRules(serverRules, nextRules, [
+      'chat/~zod/edited',
+    ]);
+    expect(merged).toEqual({
+      'chat/~zod/other': { mode: 'open', allowedShips: [] },
+      'chat/~zod/edited': { mode: 'allowlist', allowedShips: ['~bus'] },
+    });
+  });
+
+  it('deletes a rule whose dirty key is absent from nextRules (channel reset to inherited)', () => {
+    const serverRules = {
+      'chat/~zod/reset': {
+        mode: 'allowlist' as const,
+        allowedShips: ['~bus'],
+      },
+    };
+    const merged = mergeChannelRules(serverRules, {}, ['chat/~zod/reset']);
+    expect(merged['chat/~zod/reset']).toBeUndefined();
+  });
+
+  it('normalizes legacy un-normalized server keys before overlaying dirty edits', () => {
+    const serverRules = {
+      'zod/general': { mode: 'allowlist' as const, allowedShips: ['~bus'] },
+    };
+    const nextRules = {
+      'chat/~zod/general': {
+        mode: 'open' as const,
+        allowedShips: [],
+      },
+    };
+    const merged = mergeChannelRules(serverRules, nextRules, [
+      'chat/~zod/general',
+    ]);
+    // The normalized key is updated in place — no stale duplicate under the
+    // legacy key.
+    expect(merged).toEqual({
+      'chat/~zod/general': { mode: 'open', allowedShips: [] },
+    });
+  });
+});
+
+describe('runApplySteps', () => {
+  type Snap = { nickname: string; model: string; chat: string };
+
+  it('runs steps in order and emits each section patch after its success', async () => {
+    const order: string[] = [];
+    const patches: Partial<Snap>[] = [];
+    await runApplySteps<Snap>(
+      [
+        {
+          run: async () => {
+            order.push('nickname');
+          },
+          commit: { nickname: 'new' },
+        },
+        {
+          run: async () => {
+            order.push('model');
+          },
+          commit: { model: 'new' },
+        },
+      ],
+      (patch) => patches.push(patch)
+    );
+    expect(order).toEqual(['nickname', 'model']);
+    expect(patches).toEqual([{ nickname: 'new' }, { model: 'new' }]);
+  });
+
+  it('commits the patch returned by run (server-accepted state) over the static fallback', async () => {
+    const patches: Partial<Snap>[] = [];
+    await runApplySteps<Snap>(
+      [
+        // run returns the actually-saved value, overriding the static commit
+        {
+          run: async () => ({ model: 'server-merged' }),
+          commit: { model: 'draft' },
+        },
+        // run returns void -> falls back to the static commit
+        { run: async () => {}, commit: { chat: 'draft-chat' } },
+      ],
+      (patch) => patches.push(patch)
+    );
+    expect(patches).toEqual([
+      { model: 'server-merged' },
+      { chat: 'draft-chat' },
+    ]);
+  });
+
+  it('emits only the patches for steps that succeeded before a failure, then rethrows', async () => {
+    const patches: Partial<Snap>[] = [];
+    const laterRun = vi.fn();
+    await expect(
+      runApplySteps<Snap>(
+        [
+          { run: async () => {}, commit: { nickname: 'new' } },
+          {
+            run: async () => {
+              throw new Error('boom');
+            },
+            commit: { model: 'new' },
+          },
+          { run: laterRun, commit: { chat: 'new' } },
+        ],
+        (patch) => patches.push(patch)
+      )
+    ).rejects.toThrow('boom');
+    // Only the first step committed; the failing step and the one after it did
+    // not, and the later step never ran.
+    expect(patches).toEqual([{ nickname: 'new' }]);
+    expect(laterRun).not.toHaveBeenCalled();
+  });
+
+  it('does nothing for an empty step list', async () => {
+    const onCommit = vi.fn();
+    await runApplySteps<Snap>([], onCommit);
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('preserves unsaved sections when a later step fails (section patches merged into baseline+draft)', async () => {
+    // Mirror the store's commitSection: merge each patch into both baseline and
+    // draft. After a partial failure the unsaved sections must keep their draft
+    // edits (so the user can retry) while the saved section is no longer dirty.
+    let baseline: Snap = { nickname: 'old', model: 'old', chat: 'old' };
+    let draft: Snap = { nickname: 'new-nick', model: 'new-model', chat: 'old' };
+    const commitSection = (patch: Partial<Snap>) => {
+      baseline = { ...baseline, ...patch };
+      draft = { ...draft, ...patch };
+    };
+    await expect(
+      runApplySteps<Snap>(
+        [
+          { run: async () => {}, commit: { nickname: 'new-nick' } },
+          {
+            run: async () => {
+              throw new Error('model save failed');
+            },
+            commit: { model: 'new-model' },
+          },
+        ],
+        commitSection
+      )
+    ).rejects.toThrow('model save failed');
+    // nickname saved -> no longer pending
+    expect(baseline.nickname).toBe('new-nick');
+    expect(draft.nickname).toBe('new-nick');
+    // model failed -> still pending AND still retryable (edit preserved)
+    expect(baseline.model).toBe('old');
+    expect(draft.model).toBe('new-model');
+  });
+});
+
+describe('provider key validation', () => {
+  it('validates anthropic keys', () => {
+    expect(validateProviderKey('anthropic', '')).toBeTruthy();
+    expect(validateProviderKey('anthropic', 'sk-nope')).toBeTruthy();
+    expect(
+      validateProviderKey('anthropic', `sk-ant-${'a'.repeat(40)}`)
+    ).toBeTruthy();
+    expect(
+      validateProviderKey('anthropic', `sk-ant-${'a'.repeat(80)}`)
+    ).toBeNull();
+  });
+
+  it('validates openai and openrouter key prefixes', () => {
+    expect(validateProviderKey('openai', 'nope')).toBeTruthy();
+    expect(validateProviderKey('openai', 'sk-abc')).toBeNull();
+    expect(validateProviderKey('openrouter', 'sk-abc')).toBeTruthy();
+    expect(validateProviderKey('openrouter', 'sk-or-abc')).toBeNull();
+  });
+});

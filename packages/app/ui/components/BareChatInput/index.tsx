@@ -398,16 +398,31 @@ function BareChatInput(
 
   const onMentionSelect = useCallback(
     (option: MentionOption) => {
-      const newText = handleSelectMention(option, controlledText);
+      const selectionResult = handleSelectMention(option, controlledText);
 
-      if (!newText) {
+      if (!selectionResult) {
         return;
       }
 
-      setControlledText(newText);
+      setControlledText(selectionResult.text);
 
-      // Force focus back to input after mention selection
+      // Force focus back to input after mention selection.
       inputRef.current?.focus();
+
+      if (!isWeb) {
+        // Only set the selection here — the input's text on native is driven
+        // by the TextWithMentions children. Setting `text` via setNativeProps
+        // would be *prepended* to the child text by RCTBaseTextInputShadowView,
+        // duplicating the message.
+        requestAnimationFrame(() => {
+          inputRef.current?.setNativeProps({
+            selection: {
+              start: selectionResult.cursorPosition,
+              end: selectionResult.cursorPosition,
+            },
+          });
+        });
+      }
     },
     [handleSelectMention, controlledText]
   );

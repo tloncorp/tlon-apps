@@ -49,17 +49,16 @@ export function useNotesImportController({
   const [isDragImportActive, setIsDragImportActive] = useState(false);
   const [isImportingNotes, setIsImportingNotes] = useState(false);
   const dragImportDepthRef = useRef(0);
+  // Synchronous re-entrancy guard: isImportingNotes lags a render behind, so
+  // two quick drops could both pass a state-based check.
+  const importRunRef = useRef(false);
 
   const importNotesFromSources = useMutableCallback(
     async (
-      sources: NotesImportSource[] | null,
+      sources: NotesImportSource[],
       targetRootFolderId: number,
       importNotebookFlag: string
     ) => {
-      if (!sources) {
-        return;
-      }
-
       const importItems = buildNotesImportItems(sources);
       if (importItems.length === 0) {
         setImportNotice('No markdown or text files found.');
@@ -141,7 +140,11 @@ export function useNotesImportController({
   );
 
   const runImport = useMutableCallback(
-    async (readSources: () => Promise<NotesImportSource[] | null>) => {
+    async (
+      readSources: (
+        onSourcesChosen: () => void
+      ) => Promise<NotesImportSource[] | null>
+    ) => {
       const targetRootFolderId = getNotesImportTargetFolderId({
         activeFolderId,
         rootFolderId,
@@ -152,20 +155,31 @@ export function useNotesImportController({
         !notebookFlag ||
         targetRootFolderId == null ||
         !canEdit ||
-        isImportingNotes
+        importRunRef.current
       ) {
         return;
       }
 
+      const setImportLatch = (value: boolean) => {
+        importRunRef.current = value;
+        setIsImportingNotes(value);
+      };
+
       setError(null);
       setImportNotice(null);
-      setIsImportingNotes(true);
       try {
-        await importNotesFromSources(
-          await readSources(),
-          targetRootFolderId,
-          notebookFlag
-        );
+        // The reader latches via the callback as soon as a concrete selection
+        // exists (files dropped, or a picker committed) so a second action
+        // can't start a concurrent import while contents are being read. The
+        // latch can't simply be set up front: an empty webkitdirectory pick
+        // fires neither `change` nor `cancel`, so an unlatched pending picker
+        // has to stay harmless.
+        const sources = await readSources(() => setImportLatch(true));
+        if (!sources) {
+          return;
+        }
+        setImportLatch(true);
+        await importNotesFromSources(sources, targetRootFolderId, notebookFlag);
       } catch (e) {
         const message = errorMessage(e, 'Failed to import notes');
         trackNotesActionError('import notes', e, message, {
@@ -173,17 +187,21 @@ export function useNotesImportController({
         });
         setError(message);
       } finally {
-        setIsImportingNotes(false);
+        setImportLatch(false);
       }
     }
   );
 
   const importFiles = useMutableCallback(() => {
-    void runImport(() => selectNotesImportSources('files'));
+    void runImport((onSourcesChosen) =>
+      selectNotesImportSources('files', { onFilesChosen: onSourcesChosen })
+    );
   });
 
   const importFolder = useMutableCallback(() => {
-    void runImport(() => selectNotesImportSources('folder'));
+    void runImport((onSourcesChosen) =>
+      selectNotesImportSources('folder', { onFilesChosen: onSourcesChosen })
+    );
   });
 
   const prepareImportDragEvent = useMutableCallback((event: DragEvent) => {
@@ -221,9 +239,10 @@ export function useNotesImportController({
     if (!prepareImportDragEvent(event)) return;
     dragImportDepthRef.current = 0;
     setIsDragImportActive(false);
-    void runImport(() =>
-      readNotesImportSourcesFromDataTransfer(event.dataTransfer)
-    );
+    void runImport((onSourcesChosen) => {
+      onSourcesChosen();
+      return readNotesImportSourcesFromDataTransfer(event.dataTransfer);
+    });
   });
 
   const dropImportProps = useMemo(
