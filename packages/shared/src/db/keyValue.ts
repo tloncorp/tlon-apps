@@ -35,10 +35,12 @@ export const dismissedPinnedPostBannerIds = createStorageItem<string[]>({
 });
 
 // TODO: Remove after `%set-order` is deployed fleet-wide. While old groups-ui
-// desks reject pin reorders, this preserves the last local order across stale
-// startup/foreground pin snapshots. Session storage is cleared on logout.
+// desks reject pin reorders, this preserves the locally reordered ids across
+// stale startup/foreground pin snapshots. The v2 key intentionally ignores
+// full-order values written by rollout builds before this stored partial intent.
+// Session storage is cleared on logout.
 export const pendingPinnedItemsOrder = createStorageItem<string[] | null>({
-  key: 'pendingPinnedItemsOrder',
+  key: 'pendingPinnedItemsOrder:v2',
   defaultValue: null,
 });
 

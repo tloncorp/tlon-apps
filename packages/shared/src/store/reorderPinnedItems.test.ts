@@ -117,11 +117,8 @@ test('reorderPinnedItems reasserts only the visible ids when a sync lands mid-po
 test('reorderPinnedItems keeps the local order for the old-desk conversion failure', async () => {
   await seedPins(['H', 'A', 'B']);
   let orderSeenBeforePoke: string[] = [];
-  let pendingOrderSeenBeforePoke: string[] = [];
+  let pendingOrderSeenBeforePoke: string[] | null = null;
   let storedOrder: string[] | null = null;
-  const getPendingOrder = vi
-    .spyOn(db.pendingPinnedItemsOrder, 'getValue')
-    .mockImplementation(async () => storedOrder);
   const setPendingOrder = vi
     .spyOn(db.pendingPinnedItemsOrder, 'setValue')
     .mockImplementation(async (value) => {
@@ -130,7 +127,7 @@ test('reorderPinnedItems keeps the local order for the old-desk conversion failu
 
   vi.mocked(poke).mockImplementationOnce(async () => {
     orderSeenBeforePoke = await currentOrder();
-    pendingOrderSeenBeforePoke = storedOrder ?? [];
+    pendingOrderSeenBeforePoke = storedOrder;
     // Simulate a stale pin sync landing while the unsupported poke is in flight.
     await db.insertPinnedItems([
       { type: 'group' as const, index: 0, itemId: 'A' },
@@ -146,19 +143,83 @@ test('reorderPinnedItems keeps the local order for the old-desk conversion failu
     keepLocalOrderOnUnsupportedBackend: true,
   });
 
-  // The full order is durably written before the best-effort server poke.
+  // The full order is optimistically written before the best-effort server poke,
+  // while only the visible reorder intent is persisted as local authority.
   expect(orderSeenBeforePoke).toEqual(['H', 'B', 'A']);
-  expect(pendingOrderSeenBeforePoke).toEqual(['H', 'B', 'A']);
+  expect(pendingOrderSeenBeforePoke).toEqual(['B', 'A']);
   // A rejected poke is swallowed, and the visible reorder is re-asserted over
   // the concurrent sync without moving its hidden pin.
   expect(ok).toBe(true);
   expect(await currentOrder()).toEqual(['B', 'H', 'A']);
   expect(lastPokeSetOrder()).toEqual(['B', 'A']);
   expect(scry).not.toHaveBeenCalled();
-  expect(setPendingOrder).toHaveBeenNthCalledWith(1, ['H', 'B', 'A']);
-  expect(setPendingOrder).toHaveBeenLastCalledWith(['B', 'H', 'A']);
-  expect(storedOrder).toEqual(['B', 'H', 'A']);
-  getPendingOrder.mockRestore();
+  expect(setPendingOrder).toHaveBeenCalledTimes(1);
+  expect(setPendingOrder).toHaveBeenCalledWith(['B', 'A']);
+  expect(storedOrder).toEqual(['B', 'A']);
+  setPendingOrder.mockRestore();
+});
+
+test('reorderPinnedItems persists only visible intent after a successful filtered reorder', async () => {
+  await seedPins(['H', 'A', 'B']);
+  let storedOrder: string[] | null = ['A', 'B'];
+  const setPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'setValue')
+    .mockImplementation(async (value) => {
+      storedOrder = typeof value === 'function' ? value(storedOrder) : value;
+    });
+
+  // A server sync moves hidden H while the supported poke is in flight.
+  vi.mocked(poke).mockImplementationOnce(async () => {
+    await db.insertPinnedItems([
+      { type: 'group' as const, index: 0, itemId: 'A' },
+      { type: 'group' as const, index: 1, itemId: 'B' },
+      { type: 'group' as const, index: 2, itemId: 'H' },
+    ]);
+    return 0;
+  });
+
+  const ok = await reorderPinnedItems({
+    optimisticOrder: ['H', 'B', 'A'],
+    backendOrder: ['B', 'A'],
+    keepLocalOrderOnUnsupportedBackend: true,
+  });
+
+  expect(ok).toBe(true);
+  expect(await currentOrder()).toEqual(['B', 'A', 'H']);
+  expect(setPendingOrder).toHaveBeenCalledTimes(1);
+  expect(setPendingOrder).toHaveBeenCalledWith(['B', 'A']);
+  expect(storedOrder).toEqual(['B', 'A']);
+  setPendingOrder.mockRestore();
+});
+
+test('reorderPinnedItems does not resurrect intent confirmed while the poke is in flight', async () => {
+  await seedPins(['H', 'A', 'B']);
+  let storedOrder: string[] | null = null;
+  const setPendingOrder = vi
+    .spyOn(db.pendingPinnedItemsOrder, 'setValue')
+    .mockImplementation(async (value) => {
+      storedOrder = typeof value === 'function' ? value(storedOrder) : value;
+    });
+
+  vi.mocked(poke).mockImplementationOnce(async () => {
+    // Model a server snapshot that confirms the partial intent before the poke
+    // acknowledgement arrives. Sync owns the only clearing transition.
+    await db.pendingPinnedItemsOrder.setValue((pendingOrder) => {
+      expect(pendingOrder).toEqual(['B', 'A']);
+      return null;
+    });
+    return 0;
+  });
+
+  const ok = await reorderPinnedItems({
+    optimisticOrder: ['H', 'B', 'A'],
+    backendOrder: ['B', 'A'],
+    keepLocalOrderOnUnsupportedBackend: true,
+  });
+
+  expect(ok).toBe(true);
+  expect(storedOrder).toBeNull();
+  expect(setPendingOrder).toHaveBeenCalledTimes(2);
   setPendingOrder.mockRestore();
 });
 
@@ -181,7 +242,8 @@ test('reorderPinnedItems clears pending state and reconciles transient failures'
 
   expect(ok).toBe(false);
   expect(await currentOrder()).toEqual(['A', 'B', 'C']);
-  expect(setPendingOrder).toHaveBeenNthCalledWith(1, ['C', 'B', 'A']);
+  expect(setPendingOrder).toHaveBeenCalledTimes(2);
+  expect(setPendingOrder).toHaveBeenNthCalledWith(1, ['B', 'A']);
   expect(setPendingOrder).toHaveBeenLastCalledWith(null);
   expect(storedOrder).toBeNull();
   setPendingOrder.mockRestore();

@@ -50,8 +50,8 @@ import { updateLastActivityTime } from './updateLastActivityTime';
 const joinedGroupsAndChannels = new Set<string>();
 
 // TODO: Remove with `pendingPinnedItemsOrder` after `%set-order` is deployed
-// fleet-wide. Until then, merge stale server membership into the pending local
-// order instead of allowing startup/foreground sync to undo a failed reorder.
+// fleet-wide. Until then, apply the pending local reorder intent to each server
+// snapshot without taking authority over hidden or newly added pins.
 const persistSyncedPinnedItems = async (
   pinnedItems: db.Pin[],
   queryCtx?: QueryCtx
@@ -78,7 +78,9 @@ const persistSyncedPinnedItems = async (
       mergedPinnedItems = pinnedItems;
       return null;
     }
-    return mergedOrder;
+    // Keep only the ids the user actually reordered as local intent. Expanding
+    // this to `mergedOrder` would make hidden/new server pins locally owned too.
+    return pendingOrder;
   });
 
   if (hasPendingOrder && mergedPinnedItems.length === 0) {

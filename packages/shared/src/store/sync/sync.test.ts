@@ -118,7 +118,7 @@ test('syncs pins', async () => {
   expect(savedItems).toEqual(outputData);
 });
 
-test('syncs pin membership without replacing a pending local order', async () => {
+test('syncs pin membership without expanding the pending local intent', async () => {
   setScryOutput(inputData);
   let storedOrder: string[] | null = [inputData[2], inputData[0]];
   const getPendingOrder = vi
@@ -140,13 +140,28 @@ test('syncs pin membership without replacing a pending local order', async () =>
     outputData[1],
     { ...outputData[0], index: 2 },
   ]);
-  expect(storedOrder).toEqual([inputData[2], inputData[1], inputData[0]]);
+  expect(storedOrder).toEqual([inputData[2], inputData[0]]);
+
+  // A later server snapshot moves the pin that was never part of the local
+  // reorder. Its new slot is accepted while the two locally reordered ids keep
+  // their relative order.
+  setScryOutput([inputData[1], inputData[0], inputData[2]]);
+  await syncPinnedItems();
+  const resyncedItems = (await db.getPinnedItems()).sort(
+    (a, b) => a.index - b.index
+  );
+  expect(resyncedItems).toEqual([
+    { ...outputData[1], index: 0 },
+    { ...outputData[2], index: 1 },
+    { ...outputData[0], index: 2 },
+  ]);
+  expect(storedOrder).toEqual([inputData[2], inputData[0]]);
   getPendingOrder.mockRestore();
   setPendingOrder.mockRestore();
 });
 
 test('clears a confirmed pending order and accepts later server reorders', async () => {
-  let storedOrder: string[] | null = [...inputData].reverse();
+  let storedOrder: string[] | null = [inputData[2], inputData[0]];
   const getPendingOrder = vi
     .spyOn(db.pendingPinnedItemsOrder, 'getValue')
     .mockImplementation(async () => storedOrder);
@@ -156,14 +171,14 @@ test('clears a confirmed pending order and accepts later server reorders', async
       storedOrder = typeof value === 'function' ? value(storedOrder) : value;
     });
 
-  setScryOutput([...inputData].reverse());
+  setScryOutput([inputData[2], inputData[1], inputData[0]]);
   await syncPinnedItems();
   expect(storedOrder).toBeNull();
   expect(
     (await db.getPinnedItems())
       .sort((a, b) => a.index - b.index)
       .map((pin) => pin.itemId)
-  ).toEqual([...inputData].reverse());
+  ).toEqual([inputData[2], inputData[1], inputData[0]]);
 
   setScryOutput(inputData);
   await syncPinnedItems();
