@@ -1341,6 +1341,15 @@ describe('clearGhostPosts', () => {
       isDeleted: true,
       deleteStatus: 'pending',
     });
+    // Send still in flight (delete already confirmed): delivery polling via
+    // `getDeliveryPendingPosts` must still be able to reconcile the original
+    // send, so the sweep must not touch it.
+    const sendInFlight = await seedPost({
+      id: 'send-in-flight',
+      deliveryStatus: 'enqueued',
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
     // Deleted but not yet delete-confirmed sent row: the normal tombstone
     // window, must survive.
     const sentCatchUp = await seedPost({
@@ -1383,6 +1392,7 @@ describe('clearGhostPosts', () => {
         confirmed.id,
         confirmedTombstone.id,
         deleteInFlight.id,
+        sendInFlight.id,
         sentCatchUp.id,
         replyGhost.id,
       ])

@@ -4623,12 +4623,15 @@ export const getPendingPosts = createReadQuery(
 
 /**
  * Hard-delete "ghost" tombstones: top-level rows whose send was acknowledged
- * but never sequenced (`deliveryStatus` set, `sequenceNum === 0`) and whose
- * delete was confirmed by the server (`deleteStatus: 'sent'`). No sequenced
- * `addPost` will ever replace such a row, so it would otherwise sit in the
- * pending merge layer as an `isDeleted` tombstone pinned to the bottom of
- * chat-style scrollers indefinitely (TLON-5911). `deletePost` now clears
- * these at delete time; this sweep repairs rows poisoned before that fix.
+ * but never sequenced (`deliveryStatus: 'sent'` / `'needs_verification'`,
+ * `sequenceNum === 0`) and whose delete was confirmed by the server
+ * (`deleteStatus: 'sent'`). No sequenced `addPost` will ever replace such a
+ * row, so it would otherwise sit in the pending merge layer as an `isDeleted`
+ * tombstone pinned to the bottom of chat-style scrollers indefinitely
+ * (TLON-5911). `deletePost` now clears these at delete time; this sweep
+ * repairs rows poisoned before that fix. In-flight `enqueued` / `pending`
+ * rows are excluded — `getDeliveryPendingPosts` keeps polling those so the
+ * original send can still reconcile against the server.
  */
 export const clearGhostPosts = createWriteQuery(
   'clearGhostPosts',
@@ -4641,7 +4644,7 @@ export const clearGhostPosts = createWriteQuery(
             eq($posts.isDeleted, true),
             eq($posts.sequenceNum, 0),
             isNull($posts.parentId),
-            isNotNull($posts.deliveryStatus),
+            inArray($posts.deliveryStatus, ['sent', 'needs_verification']),
             eq($posts.deleteStatus, 'sent')
           )
         )
