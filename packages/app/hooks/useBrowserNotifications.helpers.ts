@@ -97,6 +97,13 @@ export function getBrowserNotificationContactName({
   );
 }
 
+export function getBrowserNotificationGroupTitle(
+  groupTitle: string | null | undefined,
+  fallbackTitle: string
+) {
+  return groupTitle || fallbackTitle;
+}
+
 type BrowserNotificationCopyInput = {
   activityType: string;
   channelTitle?: string | null;

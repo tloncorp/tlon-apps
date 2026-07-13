@@ -3,10 +3,28 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   getBrowserNotificationContactName,
   getBrowserNotificationCopy,
+  getBrowserNotificationGroupTitle,
   getBrowserNotificationTargetWithRetry,
   isOtherBrowserNotificationTabForegrounded,
   navigateToBrowserNotificationTarget,
 } from './useBrowserNotifications.helpers';
+
+describe('getBrowserNotificationGroupTitle', () => {
+  it.each([undefined, null, ''])(
+    'uses the fallback for an empty group title (%s)',
+    (groupTitle) => {
+      expect(
+        getBrowserNotificationGroupTitle(groupTitle, 'Group invitation')
+      ).toBe('Group invitation');
+    }
+  );
+
+  it('preserves an explicit group title', () => {
+    expect(getBrowserNotificationGroupTitle('Tlon', 'Group invitation')).toBe(
+      'Tlon'
+    );
+  });
+});
 
 describe('isOtherBrowserNotificationTabForegrounded', () => {
   const now = 20_000;

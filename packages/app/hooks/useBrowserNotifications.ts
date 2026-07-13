@@ -10,6 +10,7 @@ import { useCalm, useCurrentUserId } from '../ui/contexts/appDataContext';
 import {
   getBrowserNotificationContactName,
   getBrowserNotificationCopy,
+  getBrowserNotificationGroupTitle,
   getBrowserNotificationTargetWithRetry,
   isOtherBrowserNotificationTabForegrounded,
   navigateToBrowserNotificationTarget,
@@ -227,10 +228,13 @@ async function showGroupNotification({
     return false;
   }
 
-  const notification = new window.Notification(group?.title ?? fallbackTitle, {
-    body: getBody(contactName),
-    tag: notificationKey,
-  });
+  const notification = new window.Notification(
+    getBrowserNotificationGroupTitle(group?.title, fallbackTitle),
+    {
+      body: getBody(contactName),
+      tag: notificationKey,
+    }
+  );
 
   notification.onclick = () => {
     window.focus();
