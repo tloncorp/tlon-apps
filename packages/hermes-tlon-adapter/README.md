@@ -291,3 +291,5 @@ When `BRAVE_SEARCH_API_KEY` or `BRAVE_API_KEY` is configured, the adapter regist
 When `TLON_GATEWAY_STATUS` is enabled, the adapter pokes `%gateway-status` on connect, heartbeat, and disconnect. `TLON_GATEWAY_STATUS_OWNER` defaults to `TLON_OWNER_SHIP` when omitted.
 
 The adapter reconnects its Eyre SSE channel when no bytes arrive for `TLON_SSE_READ_TIMEOUT_SECONDS`. This is meant to recover stale sleep/wake sockets and mirrors the byte timeout behavior in `@tloncorp/api`.
+
+<!-- filter-verify: temporary line to test CI path routing; PR will be closed unmerged -->
