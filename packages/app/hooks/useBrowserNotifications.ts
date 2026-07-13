@@ -5,6 +5,7 @@ import { getTextContent, useMutableRef } from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useRef } from 'react';
 
 import { useRootNavigation } from '../navigation/utils';
+import { reactDisplayValue } from '../ui/components/Activity/ActivitySummaryMessage';
 import { useIsElectron } from './useIsElectron';
 
 const logger = createDevLogger('useBrowserNotifications', false);
@@ -31,6 +32,42 @@ function isAppForegrounded() {
   );
 }
 
+async function getContactName(contactId: string | null | undefined) {
+  const contact = contactId ? await db.getContact({ id: contactId }) : null;
+  return contact?.nickname ?? contactId ?? 'Unknown';
+}
+
+// Group join requests have a groupId but no channelId; clicking routes to the
+// group instead of a channel.
+async function showGroupAskNotification(
+  activityEvent: db.ActivityEvent,
+  notificationKey: string,
+  resetToGroupRef: { current: (groupId: string) => Promise<void> }
+) {
+  const groupId = activityEvent.groupId;
+  if (!groupId) {
+    logger.error('No group ID in group-ask activity event:', activityEvent);
+    return;
+  }
+
+  const group = await db.getGroup({ id: groupId });
+  const contactName = await getContactName(activityEvent.groupEventUserId);
+
+  const notification = new window.Notification(
+    group?.title ?? 'Group join request',
+    {
+      body: `${contactName} is requesting to join`,
+      tag: notificationKey,
+    }
+  );
+
+  notification.onclick = () => {
+    window.focus();
+    resetToGroupRef.current(groupId);
+    notification.close();
+  };
+}
+
 /**
  * Shows browser notifications for incoming activity. Electron gets native
  * notifications via useDesktopNotifications instead, so this bails there.
@@ -42,8 +79,9 @@ function isAppForegrounded() {
 export default function useBrowserNotifications() {
   const processedNotifications = useRef<Set<string>>(new Set());
   const isElectron = useIsElectron();
-  const { resetToChannel } = useRootNavigation();
+  const { resetToChannel, resetToGroup } = useRootNavigation();
   const resetToChannelRef = useMutableRef(resetToChannel);
+  const resetToGroupRef = useMutableRef(resetToGroup);
 
   const showActivityNotification = useCallback(
     async (activityEvent: db.ActivityEvent) => {
@@ -68,37 +106,51 @@ export default function useBrowserNotifications() {
         );
       }
 
-      const channelId = activityEvent.channelId;
-      if (!channelId) {
-        logger.error('No channel ID in activity event:', activityEvent);
-        return;
-      }
-
       try {
+        if (activityEvent.type === 'group-ask') {
+          await showGroupAskNotification(
+            activityEvent,
+            notificationKey,
+            resetToGroupRef
+          );
+          return;
+        }
+
+        const channelId = activityEvent.channelId;
+        if (!channelId) {
+          logger.error('No channel ID in activity event:', activityEvent);
+          return;
+        }
+
         const channel = await db.getChannelWithRelations({ id: channelId });
         if (!channel) {
           return;
         }
 
-        const contactId = activityEvent.authorId;
-        const contact = contactId
-          ? await db.getContact({ id: contactId })
-          : null;
-        const contactName = contact?.nickname ?? contactId ?? 'Unknown';
-        const contentText = activityEvent.content
-          ? getTextContent(activityEvent.content as api.PostContent)
+        const contactName = await getContactName(activityEvent.authorId);
+        const isReact = activityEvent.type === 'react';
+        const reactValue = isReact
+          ? reactDisplayValue(activityEvent.content)
           : '';
+        const contentText =
+          !isReact && activityEvent.content
+            ? getTextContent(activityEvent.content as api.PostContent)
+            : '';
 
         let title = channel.title ?? contactName ?? 'New message';
-        let body = contentText || 'New message';
+        let body = isReact
+          ? `${contactName} reacted${reactValue ? ` ${reactValue}` : ''} to your post`
+          : contentText || 'New message';
 
         if (activityEvent.groupId) {
           const group = await db.getGroup({ id: activityEvent.groupId });
           if (group) {
             title = `${title} in ${group.title}`;
-            body = contentText
-              ? `${contactName ?? 'Someone'}: ${contentText}`
-              : `New message in ${group.title}`;
+            if (!isReact) {
+              body = contentText
+                ? `${contactName ?? 'Someone'}: ${contentText}`
+                : `New message in ${group.title}`;
+            }
           }
         }
 
@@ -116,12 +168,12 @@ export default function useBrowserNotifications() {
         };
       } catch (error) {
         logger.error(
-          'Error processing channel activity for browser notifications',
+          'Error processing activity for browser notifications',
           error
         );
       }
     },
-    [resetToChannelRef]
+    [resetToChannelRef, resetToGroupRef]
   );
 
   useEffect(() => {
