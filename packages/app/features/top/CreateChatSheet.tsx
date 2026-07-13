@@ -355,6 +355,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       const didCreate = await createChat(params);
       if (didCreate) {
         setStep('initial');
+        setSelectedTemplateId(undefined);
+        setGroupTitle(undefined);
+        setSelectedContactIds([]);
       }
     },
     [createChat, isCreatingChat]
@@ -409,7 +412,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       {triggerWithOnPress}
       <ActionSheet
         open={step === 'selectType'}
-        onOpenChange={() => setStep('initial')}
+        onOpenChange={handleOpenChange}
         mode="dialog"
         closeButton
         dialogContentProps={{ width: 380 }}
@@ -421,17 +424,17 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       </ActionSheet>
       <GroupTypeSelectionSheet
         open={step === 'selectGroupType'}
-        onOpenChange={() => setStep('initial')}
+        onOpenChange={handleOpenChange}
         onSelectGroupType={handleGroupTypeSelected}
       />
       <GroupTitleInputSheet
         open={step === 'setGroupTitle'}
-        onOpenChange={() => setStep('initial')}
+        onOpenChange={handleOpenChange}
         onSubmitTitle={handleTitleSubmitted}
       />
       <ActionSheet
         open={step === 'createJoinGroup'}
-        onOpenChange={() => setStep('initial')}
+        onOpenChange={handleOpenChange}
         mode="dialog"
         closeButton
         dialogContentProps={{ width: 600 }}
@@ -446,7 +449,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       </ActionSheet>
       <ActionSheet
         open={step === 'createDm' || step === 'createGroup'}
-        onOpenChange={() => setStep('initial')}
+        onOpenChange={handleOpenChange}
         mode="dialog"
         closeButton
         dialogContentProps={{ height: 'auto', maxHeight: 1200, width: 600 }}
@@ -574,6 +577,17 @@ export function CreateChatInviteSheet({
 }) {
   const [screenScrolling, setScreenScrolling] = useState(false);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  const [contentKey, setContentKey] = useState(0);
+
+  // The sheet stays mounted across opens, so ContactBook's internal selection
+  // and search state would otherwise leak into the next creation flow. Clear
+  // our selection and remount the form whenever the sheet closes.
+  useEffect(() => {
+    if (!open) {
+      setSelectedContactIds([]);
+      setContentKey((key) => key + 1);
+    }
+  }, [open]);
 
   const handleSelectDmContact = useCallback(
     (contactId: string) => {
@@ -589,7 +603,6 @@ export function CreateChatInviteSheet({
       templateId,
       title,
     });
-    setSelectedContactIds([]);
   }, [onSubmit, selectedContactIds, templateId, title]);
 
   // hack: ensure the nested ContactBook will scroll properly within the sheet
@@ -610,6 +623,7 @@ export function CreateChatInviteSheet({
       hasScrollableContent
     >
       <CreateChatFormContent
+        key={contentKey}
         chatType={chatType}
         isCreating={isCreating}
         onSelectDmContact={handleSelectDmContact}
