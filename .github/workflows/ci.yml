@@ -9,12 +9,15 @@ jobs:
   # for ANY change except ones confined to the isolated bot/plugin packages
   # (openclaw/hermes/tlon-bot-e2e/tlon-skill — not consumed by the app, covered
   # by their own workflows) or docs. New packages therefore default to running
-  # the app suite, so we never silently skip needed tests.
+  # the app suite, so we never silently skip needed tests. `bots` mirrors that
+  # package list positively; it gates the bot-checks job that keeps the checks
+  # only test-build used to provide (see below) running on bot-only PRs.
   changes:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     outputs:
       app: ${{ steps.filter.outputs.app }}
       backend: ${{ steps.filter.outputs.backend }}
+      bots: ${{ steps.filter.outputs.bots }}
     steps:
       - name: Filter changed paths
         uses: dorny/paths-filter@v3
@@ -32,8 +35,18 @@ jobs:
             backend:
               - 'desk/**'
               - 'backend/**'
+            bots:
+              - 'packages/openclaw/**'
+              - 'packages/hermes-tlon-adapter/**'
+              - 'packages/tlon-bot-e2e/**'
+              - 'packages/tlon-skill/**'
 
+  # The app-wide suite. Skipped when a PR only touches the bot/plugin packages
+  # or docs; a skipped run still satisfies the `test-build` required status
+  # check (GitHub treats jobs skipped via `if:` as passing).
   test-build:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - name: Checkout
@@ -84,6 +97,50 @@ jobs:
         run: pnpm build:all
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+
+  # Checks for the bot/plugin packages that historically rode along in
+  # test-build and run nowhere else. Only needed when test-build is skipped
+  # (bot-only PRs); on mixed PRs test-build's repo-wide prettier/lint/tsc/
+  # test:ci already covers all of this. Deliberately NOT re-running what the
+  # path-triggered plugin workflows (hermes-ci/openclaw-ci) already run on the
+  # same PR: openclaw unit/security tests and tlon-bot-e2e tsc + unit tests.
+  bot-checks:
+    needs: changes
+    if: needs.changes.outputs.app == 'false' && needs.changes.outputs.bots == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    name: Bot Package Checks
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Check Prettier (bot packages)
+        run: pnpm prettier --check 'packages/{openclaw,tlon-skill,tlon-bot-e2e}/**/*.{ts,tsx}'
+
+      - name: Lint OpenClaw
+        run: pnpm --filter '@tloncorp/openclaw' lint
+
+      - name: tlon-skill typecheck, tests, and build smoke
+        run: pnpm --filter '@tloncorp/tlon-skill' check
+
+      - name: Run Hermes adapter unit tests
+        run: ./packages/hermes-tlon-adapter/dev/test.sh
 
   # Production-build smoke test. The parallel e2e suite runs against the Vite
   # *dev* server; this boots the minified `vite build` output to catch
