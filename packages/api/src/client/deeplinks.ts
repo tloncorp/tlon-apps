@@ -161,7 +161,11 @@ export async function getMetadataFromInviteToken(token: string) {
   if (
     !responseMeta.fields ||
     !responseMeta.fields.inviterUserId ||
-    !responseMeta.fields.invitedGroupId
+    // personal invite links post inviteType 'user' with an empty
+    // invitedGroupId (createPersonalInviteLinkOnService), and the provider
+    // serves posted fields verbatim — only group invites need a group
+    (!responseMeta.fields.invitedGroupId &&
+      responseMeta.fields.inviteType !== 'user')
   ) {
     return flagTokenFallback(token);
   }
