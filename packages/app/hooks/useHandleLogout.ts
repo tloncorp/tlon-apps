@@ -10,6 +10,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useShip } from '../contexts/ship';
+import { resetBotSettingsDraft } from '../features/settings/bot/useBotSettingsDraft';
 import { cancelNodeResumeNudge } from '../lib/notifications';
 
 const logger = createDevLogger('logout', true);
@@ -26,6 +27,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     store.updateSession(null);
     store.clearSyncStartLock();
     cancelNodeResumeNudge();
+    resetBotSettingsDraft();
 
     // Clear Electron stored credentials if in Electron environment
     if (isElectronEnv()) {

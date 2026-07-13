@@ -78,6 +78,17 @@ export type RootStackParamList = {
   BotSettings: undefined;
   BotMcpSettings: undefined;
   BotOtherSettings: undefined;
+  BotModelSettings: { mode: 'default' | 'fallbacks' };
+  BotApiKeySettings: { provider: string };
+  BotShipListSettings: {
+    list: 'dmAllowlist' | 'defaultAuthorizedShips' | 'groupInviteAllowlist';
+  };
+  BotChannelRulesSettings: undefined;
+  BotChannelRuleSettings: {
+    channelKey: string;
+    channelLabel: string;
+    groupJoined: boolean;
+  };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -176,6 +187,11 @@ export type SettingsDrawerParamList = Pick<
   | 'BotSettings'
   | 'BotMcpSettings'
   | 'BotOtherSettings'
+  | 'BotModelSettings'
+  | 'BotApiKeySettings'
+  | 'BotShipListSettings'
+  | 'BotChannelRulesSettings'
+  | 'BotChannelRuleSettings'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'

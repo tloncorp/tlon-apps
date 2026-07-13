@@ -20,12 +20,21 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
-import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
+import {
+  Input,
+  ScrollView,
+  TextArea,
+  XStack,
+  YStack,
+  getTokenValue,
+  isWeb,
+} from 'tamagui';
 
 import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
 } from '../Channel/ChannelHeader';
+import { TextInput, type TextInputRef } from '../Form';
 import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
 import { ScreenHeader } from '../ScreenHeader';
 import {
@@ -43,6 +52,7 @@ type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 // covered by the flush paths and the draft stash either way.
 const AUTOSAVE_DEBOUNCE_MS = 10_000;
 const MIN_BODY_INPUT_HEIGHT = 360;
+const NOTE_COLUMN_MAX_WIDTH = 760;
 const BODY_FONT_SIZE = 14;
 const BODY_LINE_HEIGHT = 22;
 const BODY_MONO_CHAR_WIDTH = BODY_FONT_SIZE * 0.62;
@@ -238,11 +248,7 @@ export function NotesNoteDetail({
   );
   const titleDraftRef = useRef(titleDraft);
   const bodyDraftRef = useRef(bodyDraft);
-  const pendingBodyDraftRef = useRef<string | null>(null);
-  const bodyDraftUpdateTimeoutRef = useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null);
-  const titleInputRef = useRef<ElementRef<typeof Input>>(null);
+  const titleInputRef = useRef<TextInputRef>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
   const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
   const scrollOffsetYRef = useRef(0);
@@ -269,6 +275,11 @@ export function NotesNoteDetail({
         bodyDraft !== draftBase.bodyMd)
   );
   const previewState = useMemo(() => {
+    // Markdown conversion is too expensive to run per keystroke; only
+    // compute it when the preview pane is actually visible.
+    if (!isPreviewing) {
+      return { content: [], error: null };
+    }
     try {
       return {
         content: convertContent(markdownToStory(bodyDraft), null),
@@ -280,11 +291,24 @@ export function NotesNoteDetail({
         error: errorMessage(e, 'Unable to render Markdown preview'),
       };
     }
-  }, [bodyDraft]);
+  }, [bodyDraft, isPreviewing]);
+  // On web the editor pane is pinned to the viewport and the textarea
+  // scrolls its own content, so the body input spans the full pane and
+  // fakes the centered note column with horizontal padding. Native keeps
+  // the grow-to-content textarea inside the page scroll.
+  const useWebEditorPane = isWeb && !isPreviewing;
   const bodyInputHeight = useMemo(
-    () => estimateBodyInputHeight(bodyDraft, bodyInputWidth),
-    [bodyDraft, bodyInputWidth]
+    () =>
+      useWebEditorPane ? 0 : estimateBodyInputHeight(bodyDraft, bodyInputWidth),
+    [bodyDraft, bodyInputWidth, useWebEditorPane]
   );
+  const bodyEditorPadding = useMemo(() => {
+    const basePadding = getTokenValue('$xl', 'space');
+    if (!bodyInputWidth) return basePadding;
+    return (
+      Math.max((bodyInputWidth - NOTE_COLUMN_MAX_WIDTH) / 2, 0) + basePadding
+    );
+  }, [bodyInputWidth]);
   const folderPath = useMemo(
     () =>
       selectedNote
@@ -372,31 +396,6 @@ export function NotesNoteDetail({
     selectedNote,
   ]);
 
-  useEffect(() => {
-    return () => {
-      if (bodyDraftUpdateTimeoutRef.current !== null) {
-        clearTimeout(bodyDraftUpdateTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const flushPendingBodyDraft = useCallback(() => {
-    if (bodyDraftUpdateTimeoutRef.current !== null) {
-      clearTimeout(bodyDraftUpdateTimeoutRef.current);
-      bodyDraftUpdateTimeoutRef.current = null;
-    }
-
-    const pendingBody = pendingBodyDraftRef.current;
-    pendingBodyDraftRef.current = null;
-    if (pendingBody === null || bodyDraftRef.current === pendingBody) {
-      return bodyDraftRef.current;
-    }
-
-    bodyDraftRef.current = pendingBody;
-    setBodyDraft(pendingBody);
-    return pendingBody;
-  }, []);
-
   const preserveScrollOffset = useCallback(() => {
     if (isPreviewing) return;
     pendingScrollRestoreYRef.current = Math.max(
@@ -438,12 +437,26 @@ export function NotesNoteDetail({
 
   useEffect(() => {
     if (!autoFocusTitle || !selectedNoteRowId || !canEdit) return;
+    if (isPreviewing) {
+      // The title is a locked display field in preview mode, so renaming
+      // needs the editor. Leaving preview re-runs this effect with the
+      // editable input mounted, and the focus below can land.
+      setPreviewMode(false);
+      return;
+    }
     const timeout = setTimeout(() => {
       titleInputRef.current?.focus();
       onTitleAutoFocused?.();
     });
     return () => clearTimeout(timeout);
-  }, [autoFocusTitle, canEdit, onTitleAutoFocused, selectedNoteRowId]);
+  }, [
+    autoFocusTitle,
+    canEdit,
+    isPreviewing,
+    onTitleAutoFocused,
+    selectedNoteRowId,
+    setPreviewMode,
+  ]);
 
   // All saves go through one chain so each rebases onto the revision the
   // previous save produced instead of racing the backend revision check.
@@ -473,7 +486,7 @@ export function NotesNoteDetail({
 
   const saveSelectedNote = useCallback(async () => {
     if (!notebookFlag || !draftBase || !canEdit) return false;
-    const bodyToSave = flushPendingBodyDraft();
+    const bodyToSave = bodyDraftRef.current;
     const dirty =
       normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
       bodyToSave !== draftBase.bodyMd;
@@ -525,7 +538,6 @@ export function NotesNoteDetail({
   }, [
     canEdit,
     draftBase,
-    flushPendingBodyDraft,
     notebookFlag,
     preserveScrollOffset,
     runSave,
@@ -533,7 +545,15 @@ export function NotesNoteDetail({
   ]);
 
   useEffect(() => {
-    if (!isDirty || !canEdit || saveState === 'saving') return;
+    if (!canEdit || saveState === 'saving') return;
+    if (!isDirty) {
+      // Edits were reverted back to the saved content; there's nothing to
+      // save, so don't leave a stale "Not synced" showing.
+      if (saveState === 'dirty') {
+        setSaveState('idle');
+      }
+      return;
+    }
     setSaveState('dirty');
     const timeout = setTimeout(() => {
       saveSelectedNote();
@@ -559,7 +579,7 @@ export function NotesNoteDetail({
   });
 
   const flushPendingSave = useCallback(() => {
-    const bodyToSave = flushPendingBodyDraft();
+    const bodyToSave = bodyDraftRef.current;
     const titleToSave = titleDraftRef.current;
     const ctx = flushCtxRef.current;
     if (!ctx || !ctx.flag || !ctx.base || !ctx.canEdit) return;
@@ -597,7 +617,7 @@ export function NotesNoteDetail({
         setSaveState('saved');
       })
       .catch(() => {});
-  }, [flushPendingBodyDraft, preserveScrollOffset, runSave]);
+  }, [preserveScrollOffset, runSave]);
 
   // Flush unsaved work when switching notes or unmounting — the poke
   // outlives the component.
@@ -615,12 +635,30 @@ export function NotesNoteDetail({
     return () => subscription.remove();
   }, [flushPendingSave]);
 
+  // Guard so the stash restore below runs once per loaded note revision.
+  // Without it, any edit that brings the content back to the saved state
+  // (type a char, then delete it) flips the editor clean again and the
+  // restore effect re-applies the stash — resurrecting the deleted edit
+  // and destroying the caret position.
+  const stashRestoreCheckedRef = useRef<string | null>(null);
+  const stashRestoreKey =
+    notebookFlag && draftBase
+      ? `${draftStashKey(notebookFlag, draftBase.noteId)}/${draftBase.revision}`
+      : null;
+
   // Stash drafts as crash insurance between autosave cycles. Stashes are
-  // cleared by the save paths above once their content lands, never just
-  // because the editor is clean — a fresh mount is clean too, and must not
-  // destroy a stash before the restore effect below has read it.
+  // cleared by the save paths above once their content lands, or — once the
+  // restore pass has run — when the editor returns to a clean state, which
+  // means the user reverted the stashed edits themselves. A fresh mount is
+  // clean too, but its restore pass hasn't run yet, so its stash survives.
   useEffect(() => {
-    if (!notebookFlag || !draftBase || !isDirty) return;
+    if (!notebookFlag || !draftBase) return;
+    if (!isDirty) {
+      if (stashRestoreCheckedRef.current === stashRestoreKey) {
+        clearDraftStash(notebookFlag, draftBase.noteId);
+      }
+      return;
+    }
     void db.notesNoteDrafts.setValue((stashes) => ({
       ...stashes,
       [draftStashKey(notebookFlag, draftBase.noteId)]: {
@@ -630,14 +668,23 @@ export function NotesNoteDetail({
         stashedAt: Date.now(),
       },
     }));
-  }, [bodyDraft, draftBase, isDirty, notebookFlag, titleDraft]);
+  }, [
+    bodyDraft,
+    draftBase,
+    isDirty,
+    notebookFlag,
+    stashRestoreKey,
+    titleDraft,
+  ]);
 
   // Restore a stashed draft after a crash/kill. Only restore while the
   // editor is clean and the row is still at the stash's base revision —
   // then pushing the restored draft can't clobber anyone's newer work. A
   // stash from an older revision is superseded; drop it.
   useEffect(() => {
-    if (!notebookFlag || !draftBase || isDirty) return;
+    if (!notebookFlag || !draftBase || isDirty || !stashRestoreKey) return;
+    if (stashRestoreCheckedRef.current === stashRestoreKey) return;
+    stashRestoreCheckedRef.current = stashRestoreKey;
     let cancelled = false;
     void db.notesNoteDrafts.getValue().then((stashes) => {
       const stash = stashes[draftStashKey(notebookFlag, draftBase.noteId)];
@@ -654,7 +701,7 @@ export function NotesNoteDetail({
     return () => {
       cancelled = true;
     };
-  }, [draftBase, isDirty, notebookFlag]);
+  }, [draftBase, isDirty, notebookFlag, stashRestoreKey]);
 
   const togglePreview = useCallback(() => {
     setPreviewMode(!isPreviewing);
@@ -697,23 +744,19 @@ export function NotesNoteDetail({
     setTitleDraft(nextTitle);
   }, []);
 
+  // The body input is controlled, so the state update must be synchronous:
+  // deferring it makes React revert the DOM to the stale draft after each
+  // keystroke, which destroys the caret position.
   const handleBodyDraftChange = useCallback(
     (nextBody: string) => {
-      if (
-        bodyDraftRef.current === nextBody ||
-        pendingBodyDraftRef.current === nextBody
-      ) {
+      if (bodyDraftRef.current === nextBody) {
         return;
       }
       preserveScrollOffset();
-      pendingBodyDraftRef.current = nextBody;
-      if (bodyDraftUpdateTimeoutRef.current !== null) return;
-
-      bodyDraftUpdateTimeoutRef.current = setTimeout(() => {
-        flushPendingBodyDraft();
-      }, 0);
+      bodyDraftRef.current = nextBody;
+      setBodyDraft(nextBody);
     },
-    [flushPendingBodyDraft, preserveScrollOffset]
+    [preserveScrollOffset]
   );
 
   const handleBodyInputFocus = useCallback(() => {
@@ -782,7 +825,10 @@ export function NotesNoteDetail({
         automaticallyAdjustKeyboardInsets
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ flexGrow: 1 }}
+        scrollEnabled={!useWebEditorPane}
+        contentContainerStyle={
+          useWebEditorPane ? { flexGrow: 1, height: '100%' } : { flexGrow: 1 }
+        }
         onScroll={handleScroll}
         onScrollBeginDrag={handleScrollBeginDrag}
         onScrollEndDrag={handleScrollEnd}
@@ -793,7 +839,7 @@ export function NotesNoteDetail({
         <YStack
           flexGrow={1}
           width="100%"
-          maxWidth={760}
+          maxWidth={useWebEditorPane ? undefined : NOTE_COLUMN_MAX_WIDTH}
           marginHorizontal="auto"
         >
           <YStack
@@ -801,6 +847,9 @@ export function NotesNoteDetail({
             paddingTop="$l"
             paddingBottom="$l"
             gap="$l"
+            width="100%"
+            maxWidth={NOTE_COLUMN_MAX_WIDTH}
+            marginHorizontal="auto"
           >
             {folderPath || noteDate || saveStatusLabel ? (
               <XStack alignItems="center" gap="$m" minHeight={18}>
@@ -843,34 +892,50 @@ export function NotesNoteDetail({
               </XStack>
             ) : null}
             <XStack alignItems="center" gap="$s">
-              <Input
-                ref={titleInputRef}
-                flex={1}
-                width="100%"
-                value={titleDraft}
-                onChangeText={handleTitleDraftChange}
-                onSubmitEditing={focusBodyInput}
-                placeholder="Untitled"
-                placeholderTextColor="$tertiaryText"
-                returnKeyType="next"
-                blurOnSubmit={false}
-                fontSize={24}
-                height={34}
-                minHeight={34}
-                fontWeight="400"
-                borderColor="transparent"
-                borderWidth={0}
-                backgroundColor="transparent"
-                paddingHorizontal={0}
-                paddingVertical={0}
-                disabled={!canEdit}
-              />
+              {isPreviewing ? (
+                <Input
+                  flex={1}
+                  width="100%"
+                  value={titleDraft}
+                  placeholder="Untitled"
+                  placeholderTextColor="$tertiaryText"
+                  fontSize={24}
+                  height={34}
+                  minHeight={34}
+                  fontWeight="400"
+                  borderColor="transparent"
+                  borderWidth={0}
+                  backgroundColor="transparent"
+                  paddingHorizontal={0}
+                  paddingVertical={0}
+                  disabled
+                  testID="NotesTitleDisplay"
+                />
+              ) : (
+                <TextInput
+                  ref={titleInputRef}
+                  value={titleDraft}
+                  onChangeText={handleTitleDraftChange}
+                  onSubmitEditing={focusBodyInput}
+                  placeholder="Untitled"
+                  returnKeyType="next"
+                  blurOnSubmit={false}
+                  editable={canEdit}
+                  frameStyle={{
+                    flex: 1,
+                    // Bleed the frame left by its own padding + border so
+                    // the text inside aligns with the note text column.
+                    marginLeft: -(getTokenValue('$xl', 'space') + 1),
+                  }}
+                  testID="NotesTitleInput"
+                />
+              )}
               {inlineActions}
             </XStack>
           </YStack>
           <YStack
             flexGrow={1}
-            minHeight={MIN_BODY_INPUT_HEIGHT}
+            minHeight={useWebEditorPane ? 0 : MIN_BODY_INPUT_HEIGHT}
             position="relative"
           >
             {isPreviewing ? (
@@ -901,17 +966,18 @@ export function NotesNoteDetail({
             ) : (
               <YStack
                 flexGrow={1}
-                minHeight={MIN_BODY_INPUT_HEIGHT}
-                paddingHorizontal="$xl"
+                minHeight={useWebEditorPane ? 0 : MIN_BODY_INPUT_HEIGHT}
+                paddingHorizontal={useWebEditorPane ? 0 : '$xl'}
                 paddingTop={0}
-                paddingBottom="$xl"
+                paddingBottom={useWebEditorPane ? 0 : '$xl'}
                 testID="NotesBodyScrollView"
               >
                 <TextArea
                   ref={bodyInputRef}
                   width="100%"
-                  minHeight={MIN_BODY_INPUT_HEIGHT}
-                  height={bodyInputHeight}
+                  flex={useWebEditorPane ? 1 : undefined}
+                  minHeight={useWebEditorPane ? 0 : MIN_BODY_INPUT_HEIGHT}
+                  height={useWebEditorPane ? undefined : bodyInputHeight}
                   value={bodyDraft}
                   onChangeText={handleBodyDraftChange}
                   onFocus={handleBodyInputFocus}
@@ -923,12 +989,19 @@ export function NotesNoteDetail({
                   color="$primaryText"
                   backgroundColor="$background"
                   borderWidth={0}
-                  paddingHorizontal={0}
-                  paddingVertical={0}
+                  paddingLeft={useWebEditorPane ? bodyEditorPadding : 0}
+                  paddingRight={
+                    useWebEditorPane
+                      ? bodyEditorPadding + getTokenValue('$l', 'space')
+                      : 0
+                  }
+                  paddingTop={0}
+                  paddingBottom={useWebEditorPane ? '$xl' : 0}
                   disabled={!canEdit}
                   rejectResponderTermination={false}
-                  scrollEnabled={false}
+                  scrollEnabled={useWebEditorPane}
                   textAlignVertical="top"
+                  focusVisibleStyle={{ outlineWidth: 0 }}
                   style={{ lineHeight: BODY_LINE_HEIGHT }}
                   testID="NotesBodyInput"
                 />

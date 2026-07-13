@@ -117,7 +117,7 @@ export function NotesTreePane({
     return (
       <YStack flex={1} minHeight={0} backgroundColor="$background">
         <ScrollView flex={1}>
-          <YStack paddingTop="$s" paddingBottom="$m">
+          <YStack paddingTop="$l" paddingHorizontal="$l" paddingBottom="$m">
             {treeList}
           </YStack>
         </ScrollView>
@@ -131,8 +131,8 @@ export function NotesTreePane({
         width="100%"
         maxWidth={760}
         marginHorizontal="auto"
-        paddingLeft="$s"
-        paddingRight="$s"
+        paddingLeft="$l"
+        paddingRight="$l"
         paddingTop="$m"
         paddingBottom="$m"
       >
