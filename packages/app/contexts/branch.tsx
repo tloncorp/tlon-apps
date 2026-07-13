@@ -209,8 +209,17 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         source,
       });
 
-      const invite = await getMetadataFromInviteToken(parsed.token);
-      // assert: the ref may have been reassigned during the await, which
+      let invite = await getMetadataFromInviteToken(parsed.token);
+      if (!invite) {
+        // the provider gave nothing for this token — a same-token copy
+        // persisted by an earlier session may still carry the metadata
+        // needed to redeem or navigate, which beats the id-only fallback
+        const saved = await storage.invitation.getValue();
+        if (saved?.lure?.id === parsed.token && inviteHasMetadata(saved.lure)) {
+          invite = saved.lure;
+        }
+      }
+      // assert: the ref may have been reassigned during the awaits, which
       // control-flow narrowing does not see
       const settled = intakeRef.current as InviteIntake | null;
       if (settled?.token !== parsed.token) {
