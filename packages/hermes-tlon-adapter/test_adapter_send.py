@@ -6,6 +6,7 @@ _set_fatal_error) rather than hand-rolled equivalents.
 
 import asyncio
 import importlib.util
+import json
 import sys
 import types
 import unittest
@@ -225,6 +226,48 @@ class ChunkingTests(unittest.TestCase):
         self.assertTrue(all(b and "tlon-context-lens" in b for b in blobs))
         self.assertTrue(all(t is not None for t in sent_ats))
         self.assertEqual([o.sent_at for o in recorded], sent_ats)
+
+    def test_caller_blob_rides_first_chunk_while_lens_rides_every_chunk(self):
+        adapter = make_adapter(
+            [cli_result(message_id=f"m{i}") for i in range(1, 3)],
+            extra={"context_lens": True},
+        )
+        adapter._lens._sync._ready = True
+        adapter.MAX_MESSAGE_LENGTH = 10
+        adapter._lens._runs["~alice"] = lens.LensRun(
+            lens_id="L1",
+            message_id="m1",
+            chat_type="dm",
+            trigger="dm",
+            conversation_kind="dm",
+            conversation_id="~alice",
+            author_ship="~alice",
+        )
+        caller_blob = json.dumps(
+            [{"type": "a2ui", "version": 1, "messages": []}]
+        )
+
+        with patch.object(adapter_mod.time, "time", return_value=1_700_000_000.0):
+            result = asyncio.run(
+                adapter.send(
+                    "~alice",
+                    "a" * 15,
+                    metadata={"blob": caller_blob},
+                )
+            )
+
+        self.assertTrue(result.success)
+        blob_entries = [json.loads(entry[3]) for entry in adapter._cli.sent]
+        self.assertEqual(
+            [entry["type"] for entry in blob_entries[0]],
+            ["a2ui", "tlon-context-lens"],
+        )
+        self.assertEqual(
+            [entry["type"] for entry in blob_entries[1]],
+            ["tlon-context-lens"],
+        )
+        sent_ats = [entry[4] for entry in adapter._cli.sent]
+        self.assertLess(sent_ats[0], sent_ats[1])
 
     def test_partial_chunk_failure_reports_delivered_prefix(self):
         # Second chunk fails after the first landed: report success so the

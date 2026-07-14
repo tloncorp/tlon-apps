@@ -67,12 +67,21 @@ export function canSelectNotesImportSources(mode: NotesImportMode) {
   );
 }
 
+export type NotesImportSelectOptions = {
+  // Fires as soon as the user has committed to a concrete selection, before
+  // any file contents are read. Lets callers latch their in-flight state for
+  // the (potentially slow) read phase without gating on the picker promise,
+  // which may never settle (see the empty-directory note below).
+  onFilesChosen?: () => void;
+};
+
 export async function selectNotesImportSources(
-  mode: NotesImportMode
+  mode: NotesImportMode,
+  options: NotesImportSelectOptions = {}
 ): Promise<NotesImportSource[] | null> {
   return canSelectNotesImportSourcesFromWeb()
-    ? selectNotesImportSourcesFromWeb(mode)
-    : selectNotesImportSourcesFromNative(mode);
+    ? selectNotesImportSourcesFromWeb(mode, options)
+    : selectNotesImportSourcesFromNative(mode, options);
 }
 
 function canSelectNotesImportSourcesFromWeb() {
@@ -80,7 +89,8 @@ function canSelectNotesImportSourcesFromWeb() {
 }
 
 function selectNotesImportSourcesFromWeb(
-  mode: NotesImportMode
+  mode: NotesImportMode,
+  options: NotesImportSelectOptions = {}
 ): Promise<NotesImportSource[] | null> {
   if (!canSelectNotesImportSourcesFromWeb()) {
     return Promise.resolve(null);
@@ -96,36 +106,34 @@ function selectNotesImportSourcesFromWeb(
     }
 
     let settled = false;
-    const cleanup = () => {
-      window.removeEventListener('focus', handleFocus);
-      input.remove();
-    };
     const settle = (value: NotesImportSource[] | null) => {
       if (settled) return;
       settled = true;
-      cleanup();
+      input.remove();
       resolve(value);
     };
-    const handleFocus = () => {
-      window.setTimeout(() => {
-        if (!input.files || input.files.length === 0) {
-          settle(null);
-        }
-      }, 300);
-    };
 
+    // Dismissal must be detected via the `cancel` event, never via a
+    // window-refocus timeout: after a folder pick the browser keeps
+    // `input.files` empty until the user accepts its upload-confirmation
+    // dialog, which arrives long after the window regains focus. Chromium
+    // fires neither `change` nor `cancel` for an empty-directory pick, so
+    // this promise may never settle — callers must not gate UI on it.
+    input.oncancel = () => settle(null);
     input.onchange = () => {
+      if (settled) return;
+      options.onFilesChosen?.();
       const files = Array.from(input.files ?? []);
       readNotesImportSourcesFromFiles(files)
         .then(settle)
         .catch((e) => {
-          cleanup();
+          settled = true;
+          input.remove();
           reject(e);
         });
     };
 
     document.body.appendChild(input);
-    window.addEventListener('focus', handleFocus);
     input.click();
   });
 }
@@ -449,9 +457,12 @@ function canSelectNotesImportFolderFromNative() {
   return typeof ExpoDirectory.pickDirectoryAsync === 'function';
 }
 
-async function selectNotesImportSourcesFromNative(mode: NotesImportMode) {
+async function selectNotesImportSourcesFromNative(
+  mode: NotesImportMode,
+  options: NotesImportSelectOptions = {}
+) {
   if (mode === 'folder') {
-    return selectNotesImportFolderFromNative();
+    return selectNotesImportFolderFromNative(options);
   }
 
   const result = await DocumentPicker.getDocumentAsync({
@@ -462,17 +473,21 @@ async function selectNotesImportSourcesFromNative(mode: NotesImportMode) {
 
   if (result.assets == null || result.assets.length === 0) return null;
 
+  options.onFilesChosen?.();
   return readNotesImportSourcesFromDocumentPickerAssets(
     result.assets,
     FileSystem.readAsStringAsync
   );
 }
 
-async function selectNotesImportFolderFromNative() {
+async function selectNotesImportFolderFromNative(
+  options: NotesImportSelectOptions = {}
+) {
   if (!canSelectNotesImportFolderFromNative()) return null;
 
   try {
     const directory = await ExpoDirectory.pickDirectoryAsync();
+    options.onFilesChosen?.();
     return readNotesImportSourcesFromNativeDirectory(directory);
   } catch (e) {
     if (isPickerCancelError(e)) {

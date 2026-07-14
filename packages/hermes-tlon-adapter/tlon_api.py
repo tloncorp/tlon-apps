@@ -28,7 +28,7 @@ DEFAULT_GATEWAY_LEASE_SECONDS = 90.0
 DEFAULT_GATEWAY_ACTIVE_WINDOW_SECONDS = 300
 DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS = 300
 DEFAULT_SSE_READ_TIMEOUT_SECONDS = 60.0
-DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES = 2
+DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES = 3
 DEFAULT_CONTEXT_MESSAGES = 20
 
 
@@ -173,6 +173,19 @@ def _parse_non_negative_int(value: Any, default: int) -> int:
     except (TypeError, ValueError):
         return default
     return parsed if parsed >= 0 else default
+
+
+def _parse_strict_non_negative_int(value: Any, default: int) -> int:
+    """Reject non-integral values instead of truncating them. Needed where 0
+    is a meaningful sentinel: "0.5" must fall back to the default, not
+    truncate to 0 (OpenClaw's schema likewise requires an integer)."""
+    try:
+        parsed = float(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+    if not parsed.is_integer():
+        return default
+    return int(parsed) if parsed >= 0 else default
 
 
 def _format_da_from_unix_millis(value: float) -> str:
@@ -339,7 +352,7 @@ class TlonConfig:
                 ("known_bot_users",),
             )
         )
-        max_consecutive_bot_responses = _parse_int(
+        max_consecutive_bot_responses = _parse_strict_non_negative_int(
             _env_or_extra(
                 env,
                 ("TLON_MAX_CONSECUTIVE_BOT_RESPONSES",),
@@ -1331,6 +1344,7 @@ class TlonIncomingMessage:
     raw: Any
     content: Any = None
     blob: Optional[str] = None
+    author_is_bot: bool = False
 
 
 def extract_message_text(content: Any) -> str:
@@ -1408,6 +1422,11 @@ def extract_author_ship(author: Any) -> str:
     return normalize_ship(str(author or ""))
 
 
+def author_is_bot_meta(author: Any) -> bool:
+    """True when the author field is a BotProfile-shaped mapping."""
+    return isinstance(author, Mapping) and bool(author.get("ship"))
+
+
 def parse_channel_message(
     event: Any,
     *,
@@ -1442,7 +1461,11 @@ def parse_channel_message(
         r_reply = reply.get("r-reply")
         if isinstance(r_reply, dict) and isinstance(r_reply.get("set"), dict):
             reply_set = r_reply["set"]
-            reply_content = reply_set.get("memo") or reply_set.get("essay")
+            reply_content = (
+                reply_set.get("reply-essay")
+                or reply_set.get("memo")
+                or reply_set.get("essay")
+            )
 
     content = reply_content or essay
     if not isinstance(content, dict):
@@ -1480,6 +1503,7 @@ def parse_channel_message(
         raw=event,
         content=story_content,
         blob=blob,
+        author_is_bot=author_is_bot_meta(content.get("author")),
     )
 
 
@@ -1544,6 +1568,7 @@ def parse_dm_message(
         raw=event,
         content=story_content,
         blob=blob,
+        author_is_bot=author_is_bot_meta(content.get("author")),
     )
 
 

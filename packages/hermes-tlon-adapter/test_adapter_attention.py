@@ -5,6 +5,7 @@ import os
 import sys
 import types
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -166,6 +167,22 @@ def channel_event(
     }
 
 
+def dm_event(text, *, author="~mug", whom="~mug", msg_id="dm-1", content=None):
+    return {
+        "whom": whom,
+        "id": msg_id,
+        "response": {
+            "add": {
+                "essay": {
+                    "author": author,
+                    "sent": 1000,
+                    "content": [{"inline": [text]}] if content is None else content,
+                }
+            }
+        },
+    }
+
+
 class FakeSSE:
     def __init__(self, payload=None, error=None):
         self.payload = payload
@@ -191,6 +208,59 @@ class FakeCLI:
             command=("tlon-test", "posts", "send"),
             message_id="post-id",
         )
+
+
+def bot_author(ship="~bot"):
+    return {"ship": ship, "nickname": "Loop Bot", "avatar": ""}
+
+
+def loop_cap_addendum(ship="~bot"):
+    return (
+        "\n\n---\n_This is my last response to "
+        f"{ship} for now. To continue our conversation, "
+        "someone will need to mention me._"
+    )
+
+
+class RecordingCLI(FakeCLI):
+    def __init__(self, results=None):
+        self.sends = []
+        self.send_blobs = []
+        self.thread_replies = []
+        self.reply_blobs = []
+        self.results = list(results or [])
+
+    def _next_result(self):
+        if self.results:
+            return self.results.pop(0)
+        return tlon_api.TlonSendResult(
+            success=True,
+            command=("tlon-test", "posts", "send"),
+            message_id="post-id",
+        )
+
+    async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
+        self.sends.append((chat_id, text))
+        self.send_blobs.append((blob, sent_at))
+        return self._next_result()
+
+    async def send_reply(
+        self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None
+    ):
+        self.thread_replies.append((chat_id, post_id, text, parent_author))
+        self.reply_blobs.append((blob, sent_at))
+        result = self._next_result()
+        if result.command == ():
+            return tlon_api.TlonSendResult(
+                success=result.success,
+                command=("tlon-test", "posts", "reply"),
+                stdout=result.stdout,
+                stderr=result.stderr,
+                returncode=result.returncode,
+                message_id=result.message_id,
+                error=result.error,
+            )
+        return result
 
 
 class HermesToolPermissionSnapshotTests(unittest.TestCase):
@@ -633,6 +703,329 @@ class AdapterAttentionTests(unittest.TestCase):
         self.assertEqual(duplicate, [])
         self.assertEqual(adapter._known_bot_consecutive_by_channel, {"chat/~pen/general": 1})
 
+    def test_dynamic_bot_meta_detection_caps_without_static_list(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+
+        first = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("bot one", author=bot_author(), post_id="1"),
+            )
+        )
+        second = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("bot two", author=bot_author(), post_id="2"),
+            )
+        )
+
+        self.assertEqual(len(first), 1)
+        self.assertEqual(second, [])
+        self.assertIn("~bot", adapter._known_bot_ships)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel, {"chat/~pen/general": 2})
+
+    def test_dynamic_bot_detection_sticks_across_author_shapes(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+
+        first = asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="1"))
+        )
+        second = asyncio.run(
+            self.dispatches(adapter, channel_event("bot two", author="~bot", post_id="2"))
+        )
+
+        self.assertEqual(len(first), 1)
+        self.assertEqual(second, [])
+        self.assertIn("~bot", adapter._known_bot_ships)
+
+    def test_bot_meta_detection_runs_before_attention_gate(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("not addressed", author=bot_author(), post_id="1"),
+            )
+        )
+
+        self.assertEqual(events, [])
+        self.assertIn("~bot", adapter._known_bot_ships)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel, {})
+
+    def test_final_allowed_bot_reply_gets_addendum_once(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 2,
+            }
+        )
+        adapter._cli = RecordingCLI()
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+        asyncio.run(adapter.send("chat/~pen/general", "first reply", reply_to="m1"))
+        self.assertEqual(adapter._cli.sends[-1][1], "first reply")
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot two", author=bot_author(), post_id="m2"))
+        )
+        asyncio.run(adapter.send("chat/~pen/general", "second reply", reply_to="m2"))
+        self.assertEqual(
+            adapter._cli.sends[-1][1],
+            "second reply" + loop_cap_addendum("~bot"),
+        )
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        asyncio.run(adapter.send("chat/~pen/general", "clean follow-up", reply_to="m2"))
+        self.assertEqual(adapter._cli.sends[-1][1], "clean follow-up")
+
+    def test_bot_cap_addendum_survives_timeout_retry_and_clears_on_terminal_failure(self):
+        timeout = tlon_api.TlonSendResult(
+            success=False,
+            command=("tlon-test", "posts", "send"),
+            returncode=124,
+            error="timeout",
+        )
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI(results=[timeout])
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+        first = asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="m1"))
+        self.assertFalse(first.success)
+        # A timed-out poke may already have landed, so core must not retry it
+        # automatically and risk a duplicate post.
+        self.assertFalse(first.retryable)
+        self.assertIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+        self.assertEqual(adapter._cli.sends[-1][1], "reply" + loop_cap_addendum("~bot"))
+
+        retry = asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="m1"))
+        self.assertTrue(retry.success)
+        self.assertEqual(adapter._cli.sends[-1][1], "reply" + loop_cap_addendum("~bot"))
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        terminal = tlon_api.TlonSendResult(
+            success=False,
+            command=("tlon-test", "posts", "send"),
+            returncode=1,
+            error="failed",
+        )
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI(results=[terminal])
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+        failed = asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="m1"))
+        self.assertFalse(failed.success)
+        self.assertFalse(failed.retryable)
+        self.assertEqual(adapter._cli.sends[-1][1], "reply" + loop_cap_addendum("~bot"))
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        asyncio.run(adapter.send("chat/~pen/general", "clean", reply_to="m1"))
+        self.assertEqual(adapter._cli.sends[-1][1], "clean")
+
+    def test_mismatched_reply_to_does_not_consume_addendum_marker(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI()
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+
+        asyncio.run(adapter.send("chat/~pen/general", "wrong", reply_to="other"))
+        asyncio.run(adapter.send("chat/~pen/general", "missing"))
+        self.assertEqual(adapter._cli.sends[-2][1], "wrong")
+        self.assertEqual(adapter._cli.sends[-1][1], "missing")
+        self.assertEqual(
+            adapter._pending_bot_cap_addendum["chat/~pen/general"],
+            ("~bot", "m1"),
+        )
+
+        asyncio.run(adapter.send("chat/~pen/general", "right", reply_to="m1"))
+        self.assertEqual(adapter._cli.sends[-1][1], "right" + loop_cap_addendum("~bot"))
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+    def test_stale_send_completion_does_not_clear_newer_marker(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        release = None
+        sent = []
+
+        class BlockingCLI(FakeCLI):
+            async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
+                sent.append((chat_id, text))
+                await release
+                return tlon_api.TlonSendResult(
+                    success=True,
+                    command=("tlon-test", "posts", "send"),
+                    message_id="post-id",
+                )
+
+        async def run():
+            nonlocal release
+            release = asyncio.get_running_loop().create_future()
+            adapter._cli = BlockingCLI()
+            await self.dispatches(
+                adapter,
+                channel_event("bot one", author=bot_author(), post_id="m1"),
+            )
+            task = asyncio.create_task(
+                adapter.send("chat/~pen/general", "old reply", reply_to="m1")
+            )
+            await asyncio.sleep(0)
+            adapter._pending_bot_cap_addendum["chat/~pen/general"] = ("~bot", "m2")
+            release.set_result(None)
+            await task
+            adapter._cli = RecordingCLI()
+            await adapter.send("chat/~pen/general", "new reply", reply_to="m2")
+
+        asyncio.run(run())
+
+        self.assertEqual(sent[0][1], "old reply" + loop_cap_addendum("~bot"))
+        self.assertEqual(
+            adapter._cli.sends[-1][1],
+            "new reply" + loop_cap_addendum("~bot"),
+        )
+
+    def test_static_list_bot_gets_addendum(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "known_bot_users": ["~bot"],
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI()
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author="~bot", post_id="m1"))
+        )
+        asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="m1"))
+
+        self.assertEqual(adapter._cli.sends[-1][1], "reply" + loop_cap_addendum("~bot"))
+
+    def test_human_reset_clears_pending_addendum(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot", "~mug"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI()
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+        self.assertIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("human reset", author="~mug", post_id="m2"))
+        )
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 0)
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        asyncio.run(adapter.send("chat/~pen/general", "clean", reply_to="m1"))
+        self.assertEqual(adapter._cli.sends[-1][1], "clean")
+
+    def test_zero_loop_cap_is_unlimited_without_addendum(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 0,
+            }
+        )
+
+        for idx in range(5):
+            events = asyncio.run(
+                self.dispatches(
+                    adapter,
+                    channel_event(
+                        f"bot {idx}",
+                        author=bot_author(),
+                        post_id=f"m{idx}",
+                    ),
+                )
+            )
+            self.assertEqual(len(events), 1)
+
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 5)
+        self.assertEqual(adapter._pending_bot_cap_addendum, {})
+
+    def test_addendum_respects_max_message_length(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._cli = RecordingCLI()
+
+        asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author=bot_author(), post_id="m1"))
+        )
+        asyncio.run(
+            adapter.send(
+                "chat/~pen/general",
+                "x" * adapter.MAX_MESSAGE_LENGTH,
+                reply_to="m1",
+            )
+        )
+
+        delivered = [entry[1] for entry in adapter._cli.sends]
+        self.assertTrue(
+            all(len(chunk) <= adapter.MAX_MESSAGE_LENGTH for chunk in delivered)
+        )
+        self.assertEqual(
+            "".join(delivered),
+            "x" * adapter.MAX_MESSAGE_LENGTH + loop_cap_addendum("~bot"),
+        )
+
     def test_dm_behavior_stays_outside_group_loop_cap(self):
         adapter = self.make_adapter(
             {
@@ -641,28 +1034,36 @@ class AdapterAttentionTests(unittest.TestCase):
                 "max_consecutive_bot_responses": 1,
             }
         )
-        message = tlon_api.TlonIncomingMessage(
-            chat_id="~bot",
-            chat_name="~bot",
-            chat_type="dm",
-            user_id="~bot",
-            user_name="~bot",
-            text="hello",
-            message_id="dm-1",
-            reply_to_message_id=None,
-            sent_at=tlon_api._datetime_from_ms(1000),
-            raw={},
-        )
+        # Drive the real DM handler (not _dispatch_message directly) so the
+        # no-bot-learning assertion actually exercises _handle_dm_event.
+        dm_event = {
+            "whom": "~bot",
+            "id": "dm-1",
+            "response": {
+                "add": {
+                    "essay": {
+                        "author": bot_author(),
+                        "sent": 1000,
+                        "content": [{"inline": ["hello"]}],
+                    }
+                }
+            },
+        }
         events = []
 
         async def record(event):
             events.append(event)
 
         adapter.handle_message = record
-        asyncio.run(adapter._dispatch_message(message, is_dm=True))
+        asyncio.run(adapter._handle_dm_event(dm_event))
+        adapter._cli = RecordingCLI()
+        adapter._pending_bot_cap_addendum["chat/~pen/general"] = ("~bot", "dm-1")
+        asyncio.run(adapter.send("~bot", "dm reply", reply_to="dm-1"))
 
         self.assertEqual(len(events), 1)
         self.assertEqual(adapter._known_bot_consecutive_by_channel, {})
+        self.assertEqual(adapter._known_bot_ships, set())
+        self.assertEqual(adapter._cli.sends[-1][1], "dm reply")
 
     def test_group_reply_is_top_level_unless_thread_metadata(self):
         adapter = self.make_adapter({"allowed_users": ["~mug"]})
@@ -790,6 +1191,151 @@ class AdapterAttentionTests(unittest.TestCase):
         # No lens output to stamp → no --sent-at override (keeps older `tlon`
         # binaries from folding an unknown flag into the message body).
         self.assertIsNone(captured["sent_at"])
+
+    def test_send_composes_caller_blob_with_active_lens_reference(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        adapter._lens_sync._ready = True
+        adapter._lens.begin(
+            "chat/~pen/general",
+            adapter_mod.LensRun(
+                lens_id="L42",
+                message_id="m",
+                chat_type="channel",
+                trigger="mention",
+                conversation_kind="channel",
+            ),
+        )
+        adapter._cli = RecordingCLI()
+        caller_blob = json.dumps([{"type": "a2ui", "version": 1, "messages": []}])
+
+        result = asyncio.run(
+            adapter.send("chat/~pen/general", "reply", metadata={"blob": caller_blob})
+        )
+
+        self.assertTrue(result.success)
+        blob, sent_at = adapter._cli.send_blobs[-1]
+        entries = json.loads(blob)
+        self.assertEqual([entry["type"] for entry in entries], ["a2ui", "tlon-context-lens"])
+        self.assertEqual(entries[1]["lensId"], "L42")
+        self.assertIsNotNone(sent_at)
+        output = adapter._lens.get("chat/~pen/general").outputs[-1]
+        self.assertEqual(output.message_id, tlon_api.format_post_id("~pen", sent_at))
+
+    def test_caller_blob_routes_without_lens_and_malformed_blob_fails_closed(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._cli = RecordingCLI()
+        caller_blob = json.dumps([{"type": "a2ui", "version": 1, "messages": []}])
+
+        asyncio.run(adapter.send("chat/~pen/general", "reply", metadata={"blob": caller_blob}))
+        blob, sent_at = adapter._cli.send_blobs[-1]
+        self.assertEqual(json.loads(blob), json.loads(caller_blob))
+        self.assertIsNone(sent_at)
+
+        asyncio.run(adapter.send("chat/~pen/general", "plain", metadata={"blob": 7}))
+        self.assertIsNone(adapter._cli.send_blobs[-1][0])
+
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        adapter._lens_sync._ready = True
+        adapter._lens.begin(
+            "chat/~pen/general",
+            adapter_mod.LensRun(
+                lens_id="L43",
+                message_id="m",
+                chat_type="channel",
+                trigger="mention",
+                conversation_kind="channel",
+            ),
+        )
+        adapter._cli = RecordingCLI()
+        asyncio.run(adapter.send("chat/~pen/general", "reply", metadata={"blob": "not json"}))
+        entries = json.loads(adapter._cli.send_blobs[-1][0])
+        self.assertEqual([entry["type"] for entry in entries], ["tlon-context-lens"])
+
+    def test_lens_sent_at_allocator_is_monotonic_under_a_frozen_clock(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        adapter._lens_sync._ready = True
+        adapter._lens.begin(
+            "chat/~pen/general",
+            adapter_mod.LensRun(
+                lens_id="L44",
+                message_id="m",
+                chat_type="channel",
+                trigger="mention",
+                conversation_kind="channel",
+            ),
+        )
+        adapter._cli = RecordingCLI()
+
+        with patch.object(adapter_mod.time, "time", return_value=1_700_000_000.0):
+            asyncio.run(adapter.send("chat/~pen/general", "first"))
+            asyncio.run(adapter.send("chat/~pen/general", "second"))
+
+        first_sent_at = adapter._cli.send_blobs[-2][1]
+        second_sent_at = adapter._cli.send_blobs[-1][1]
+        self.assertLess(first_sent_at, second_sent_at)
+        outputs = adapter._lens.get("chat/~pen/general").outputs
+        self.assertEqual(outputs[-2].message_id, tlon_api.format_post_id("~pen", first_sent_at))
+        self.assertEqual(outputs[-1].message_id, tlon_api.format_post_id("~pen", second_sent_at))
+
+    def test_caller_blob_requires_non_empty_content(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._cli = RecordingCLI()
+        caller_blob = json.dumps([{"type": "a2ui", "version": 1, "messages": []}])
+
+        result = asyncio.run(
+            adapter.send("chat/~pen/general", "  ", metadata={"blob": caller_blob})
+        )
+
+        self.assertFalse(result.success)
+        self.assertIn("metadata['blob'] requires non-empty content", result.error)
+        self.assertEqual(adapter._cli.sends, [])
+
+        result = asyncio.run(adapter.send("chat/~pen/general", ""))
+        self.assertTrue(result.success)
+        self.assertEqual(adapter._cli.sends[-1][1], "")
+
+    def test_caller_blob_guard_with_active_lens_run_fails_delivery_not_no_reply(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "context_lens": True, "context_lens_owner": "~zod"}
+        )
+        adapter._lens_sync._ready = True
+        adapter._lens.begin(
+            "chat/~pen/general",
+            adapter_mod.LensRun(
+                lens_id="L50",
+                message_id="m",
+                chat_type="channel",
+                trigger="mention",
+                conversation_kind="channel",
+            ),
+        )
+        adapter._cli = RecordingCLI()
+        caller_blob = json.dumps([{"type": "a2ui", "version": 1, "messages": []}])
+
+        result = asyncio.run(
+            adapter.send("chat/~pen/general", "  ", metadata={"blob": caller_blob})
+        )
+
+        self.assertFalse(result.success)
+        self.assertIn("metadata['blob'] requires non-empty content", result.error)
+        # The guard must fail closed before ever reaching the CLI.
+        self.assertEqual(adapter._cli.sends, [])
+        self.assertEqual(adapter._cli.thread_replies, [])
+
+        run = adapter._lens.get("chat/~pen/general")
+        # No LensOutput recorded for the rejected send...
+        self.assertEqual(run.outputs, [])
+        # ...but the run must finalize as a delivery error, not a silent
+        # no_reply: the guard now runs through the same failure lifecycle
+        # as a CLI-level send failure.
+        self.assertTrue(run.delivery_failed)
+        self.assertIn("metadata['blob'] requires non-empty content", run.error)
 
     def test_nickname_fetch_failure_keeps_ship_and_alias_wakes(self):
         adapter = self.make_adapter({"allowed_users": ["~mug"], "bot_mentions": ["arvo"]})
@@ -1250,6 +1796,314 @@ class LensTriggerMapTests(unittest.TestCase):
         t = adapter_mod._lens_trigger
         self.assertEqual(t("approved", is_dm=True), "dm")
         self.assertEqual(t("approved", is_dm=False), "mention")
+
+
+class CitationDispatchTests(unittest.TestCase):
+    def make_adapter(self, extra=None):
+        base = {
+            "node_url": "https://pen.tlon.network",
+            "node_id": "~pen",
+            "access_code": "code",
+            "channels": ["chat/~pen/general"],
+            "allowed_users": ["~mug"],
+            "require_mention": False,
+            "context_messages": 0,
+        }
+        base.update(extra or {})
+        with patch.dict(os.environ, {}, clear=True):
+            return adapter_mod.TlonAdapter(PlatformConfig(extra=base))
+
+    async def dispatches(self, adapter, raw, *, dm=False):
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        if dm:
+            await adapter._handle_dm_event(raw)
+        else:
+            await adapter._handle_channel_event(raw)
+        return events
+
+    @staticmethod
+    def cite_block(where, *, nest="chat/~host/quoted"):
+        return {"block": {"cite": {"chan": {"nest": nest, "where": where}}}}
+
+    @staticmethod
+    def cited_payload(text, *, author="~quoted-author"):
+        return {
+            "essay": {
+                "author": author,
+                "sent": 1000,
+                "content": [{"inline": [text]}],
+            },
+            "seal": {"id": "123"},
+        }
+
+    class RecordingSSE:
+        def __init__(self, payloads=None):
+            self.payloads = payloads or {}
+            self.scries = []
+
+        async def scry(self, path):
+            self.scries.append(path)
+            payload = self.payloads.get(path)
+            if isinstance(payload, BaseException):
+                raise payload
+            if payload is None:
+                raise ConnectionError(f"no payload for {path}")
+            return payload
+
+    class RecordingTelemetry:
+        def __init__(self):
+            self.errors = []
+
+        def error(self, component, exc, **context):
+            self.errors.append((component, exc, context))
+
+        def start_reply(self, *args, **kwargs):
+            pass
+
+    def test_channel_cite_prepends_resolved_text(self):
+        adapter = self.make_adapter()
+        path = "/channels/v4/chat/~host/quoted/posts/post/123"
+        adapter._sse = self.RecordingSSE({path: self.cited_payload("quoted")})
+        content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(
+            events[0].text,
+            "> ~quoted-author wrote: quoted\n\n[quoted message] body",
+        )
+
+    def test_multiple_cites_join_with_one_newline(self):
+        adapter = self.make_adapter()
+        adapter._sse = self.RecordingSSE(
+            {
+                "/channels/v4/chat/~host/quoted/posts/post/123": self.cited_payload("one"),
+                "/channels/v4/chat/~host/quoted/posts/post/456": self.cited_payload("two"),
+            }
+        )
+        content = [
+            self.cite_block("/msg/123"),
+            self.cite_block("/msg/456"),
+            {"inline": ["body"]},
+        ]
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        self.assertEqual(
+            events[0].text,
+            "> ~quoted-author wrote: one\n> ~quoted-author wrote: two\n\n"
+            "[quoted message] [quoted message] body",
+        )
+
+    def test_cite_media_prefix_and_body_have_the_required_order(self):
+        adapter = self.make_adapter()
+        path = "/channels/v4/chat/~host/quoted/posts/post/123"
+        adapter._sse = self.RecordingSSE({path: self.cited_payload("quoted")})
+        content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
+
+        async def fake_prepare(story_content, blob):
+            return adapter_mod.PreparedMedia(text_prefix="[attachment]")
+
+        with patch.object(adapter_mod, "prepare_inbound_media", fake_prepare):
+            events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        self.assertEqual(
+            events[0].text,
+            "> ~quoted-author wrote: quoted\n\n[attachment]\n[quoted message] body",
+        )
+
+    def test_zero_cite_payloads_keep_existing_text_and_media_composition(self):
+        adapter = self.make_adapter()
+        message = tlon_api.TlonIncomingMessage(
+            chat_id="chat/~pen/general",
+            chat_name="general",
+            chat_type="group",
+            user_id="~mug",
+            user_name="~mug",
+            text="  body  ",
+            message_id="no-cite",
+            reply_to_message_id=None,
+            sent_at=datetime.now(),
+            raw={},
+            content=[{"inline": ["body"]}],
+        )
+
+        text, _ = asyncio.run(adapter._prepare_dispatch_payload(message, "  body  "))
+        self.assertEqual(text, "  body  ")
+
+        async def fake_prepare(story_content, blob):
+            return adapter_mod.PreparedMedia(text_prefix="[attachment]")
+
+        with patch.object(adapter_mod, "prepare_inbound_media", fake_prepare):
+            text, _ = asyncio.run(adapter._prepare_dispatch_payload(message, "  body  "))
+        self.assertEqual(text, "[attachment]\nbody")
+
+    def test_dm_cross_channel_cite_resolves(self):
+        # Cite resolution is a deliberate "resolve everything" policy for any
+        # authorized wake-capable sender, not an owner-only carve-out. Use a
+        # different owner (~pen) and have ~mug dispatch merely as a
+        # config-allowlisted (non-owner) sender to prove that.
+        adapter = self.make_adapter({"owner_ship": "~pen"})
+        self.assertFalse(adapter._is_owner("~mug"))
+        path = "/channels/v4/chat/~other/private/posts/post/123"
+        adapter._sse = self.RecordingSSE({path: self.cited_payload("cross-channel")})
+        content = [
+            self.cite_block("/msg/123", nest="chat/~other/private"),
+            {"inline": ["dm body"]},
+        ]
+
+        events = asyncio.run(
+            self.dispatches(adapter, dm_event("", author="~mug", whom="~mug", content=content), dm=True)
+        )
+
+        self.assertEqual(
+            events[0].text,
+            "> ~quoted-author wrote: cross-channel\n\n[quoted message] dm body",
+        )
+        self.assertEqual(adapter._sse.scries, [path])
+
+    def test_unmentioned_channel_cite_does_not_scry(self):
+        adapter = self.make_adapter({"require_mention": True})
+        adapter._sse = self.RecordingSSE()
+        content = [self.cite_block("/msg/123"), {"inline": ["ordinary chatter"]}]
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._sse.scries, [])
+
+    def test_hanging_scry_times_out_and_later_event_still_dispatches(self):
+        adapter = self.make_adapter()
+
+        class HangingSSE:
+            def __init__(self):
+                self.scries = []
+
+            async def scry(self, path):
+                self.scries.append(path)
+                await asyncio.Event().wait()
+
+        adapter._sse = HangingSSE()
+        cited_content = [self.cite_block("/msg/123"), {"inline": ["first"]}]
+
+        async def run():
+            with patch.object(adapter_mod, "CITE_RESOLUTION_BUDGET_SECONDS", 0.05):
+                first = await self.dispatches(adapter, channel_event("", content=cited_content))
+                second = await self.dispatches(adapter, channel_event("second", post_id="2"))
+            return first, second
+
+        # An outer timeout comfortably above the patched budget (0.05s) but
+        # far below the 5s module default proves dispatch actually honored
+        # the patched budget rather than an import-time-captured constant.
+        first, second = asyncio.run(asyncio.wait_for(run(), timeout=1.0))
+
+        self.assertEqual(first[0].text, "[quoted message] first")
+        self.assertEqual(second[0].text, "second")
+
+    def test_per_cite_scry_failure_does_not_emit_cite_telemetry(self):
+        adapter = self.make_adapter()
+        adapter._telemetry = self.RecordingTelemetry()
+        adapter._sse = self.RecordingSSE(
+            {"/channels/v4/chat/~host/quoted/posts/post/123": ConnectionError("deleted")}
+        )
+        content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        self.assertEqual(events[0].text, "[quoted message] body")
+        self.assertEqual([item for item in adapter._telemetry.errors if item[0] == "cite_resolve"], [])
+
+    def test_timeout_emits_one_cite_telemetry_error(self):
+        adapter = self.make_adapter()
+        adapter._telemetry = self.RecordingTelemetry()
+
+        class HangingSSE:
+            async def scry(self, path):
+                await asyncio.Event().wait()
+
+        adapter._sse = HangingSSE()
+        content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
+
+        with patch.object(adapter_mod, "CITE_RESOLUTION_BUDGET_SECONDS", 0.01):
+            events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        cite_errors = [item for item in adapter._telemetry.errors if item[0] == "cite_resolve"]
+        self.assertEqual(events[0].text, "[quoted message] body")
+        self.assertEqual(len(cite_errors), 1)
+
+    def test_resolver_phase_exception_emits_one_error_and_dispatches(self):
+        adapter = self.make_adapter()
+        adapter._telemetry = self.RecordingTelemetry()
+        adapter._sse = self.RecordingSSE()
+        content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
+
+        async def explode(scry, story_content, *, max_attempts=3):
+            raise RuntimeError("unexpected resolver failure")
+
+        with patch.object(adapter_mod, "resolve_cites", explode):
+            events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        cite_errors = [item for item in adapter._telemetry.errors if item[0] == "cite_resolve"]
+        self.assertEqual(events[0].text, "[quoted message] body")
+        self.assertEqual(len(cite_errors), 1)
+
+    def test_resolver_cancelled_error_propagates_and_emits_no_telemetry(self):
+        # CancelledError must escape _prepare_dispatch_payload rather than
+        # being caught by the ``(Exception, asyncio.TimeoutError)`` phase
+        # guard, and must not be recorded as a cite_resolve telemetry error.
+        adapter = self.make_adapter()
+        adapter._telemetry = self.RecordingTelemetry()
+        adapter._sse = self.RecordingSSE()
+        content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
+
+        async def cancel(scry, story_content, *, max_attempts=3):
+            raise asyncio.CancelledError()
+
+        async def attempt():
+            with patch.object(adapter_mod, "resolve_cites", cancel):
+                try:
+                    await self.dispatches(adapter, channel_event("", content=content))
+                    return "no-error"
+                except asyncio.CancelledError:
+                    return "cancelled"
+
+        result = asyncio.run(attempt())
+
+        self.assertEqual(result, "cancelled")
+        self.assertEqual(
+            [item for item in adapter._telemetry.errors if item[0] == "cite_resolve"], []
+        )
+
+    def test_media_failure_keeps_resolved_cite_block(self):
+        adapter = self.make_adapter()
+        path = "/channels/v4/chat/~host/quoted/posts/post/123"
+        adapter._sse = self.RecordingSSE({path: self.cited_payload("quoted")})
+        content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
+
+        async def explode(story_content, blob):
+            raise RuntimeError("media unavailable")
+
+        with patch.object(adapter_mod, "prepare_inbound_media", explode):
+            events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        self.assertEqual(
+            events[0].text,
+            "> ~quoted-author wrote: quoted\n\n[quoted message] body",
+        )
+
+    def test_missing_sse_keeps_placeholder_without_crashing(self):
+        adapter = self.make_adapter()
+        content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        self.assertEqual(events[0].text, "[quoted message] body")
 
 
 if __name__ == "__main__":

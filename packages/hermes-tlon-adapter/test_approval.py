@@ -391,6 +391,146 @@ class A2UICardTests(unittest.TestCase):
             components["allow"]["action"]["event"]["context"]["text"], "/allow g9f3a"
         )
 
+    def test_card_survives_oversized_persisted_fields(self):
+        """Pending approvals are untrusted persisted JSON; a corrupted
+        groupTitle or channelNest must not blow the a2ui validator's size
+        limits — every button command must still resolve to its approval."""
+        oversized_group = make_approval(
+            id="g1a2b",
+            type="group",
+            requestingShip="~ten",
+            groupFlag="~host/projects",
+            groupTitle="x" * 50_000,
+        )
+        oversized_channel = make_approval(
+            id="c3d4e",
+            type="channel",
+            requestingShip="~pen",
+            channelNest="y" * 50_000,
+        )
+        store = [oversized_group, oversized_channel]
+        for item in store:
+            card = approval.build_approval_card(item)
+            self.assertTrue(approval.validate_a2ui_card(card))
+            components, _ = self.card_components(card)
+            for component in components.values():
+                if component.get("component") != "Button":
+                    continue
+                command_text = component["action"]["event"]["context"]["text"]
+                parsed = approval.parse_approval_command(command_text)
+                self.assertIsNotNone(parsed)
+                _action, arg = parsed
+                resolved = approval.find_approval(store, arg)
+                self.assertIsNotNone(resolved)
+                self.assertEqual(resolved["id"], item["id"])
+
+
+class PendingApprovalsA2UITests(unittest.TestCase):
+    def approvals(self, count):
+        return [
+            make_approval(
+                id=f"d{index}",
+                messagePreview=f"request {index}",
+                requestingShip=f"~ship{index}",
+            )
+            for index in range(count)
+        ]
+
+    @staticmethod
+    def components(card):
+        return card["messages"][1]["updateComponents"]["components"]
+
+    def test_pending_card_is_valid_for_one_and_four_items(self):
+        for count in (1, 4):
+            card = approval.build_pending_approvals_card(self.approvals(count))
+            self.assertTrue(approval.validate_a2ui_card(card))
+            components = self.components(card)
+            ids = [component["id"] for component in components]
+            self.assertEqual(len(ids), len(set(ids)))
+            self.assertLessEqual(len(components), 50)
+            self.assertIn(f"/allow d{count - 1}", json.dumps(card))
+            self.assertIn(f"/reject d{count - 1}", json.dumps(card))
+            self.assertIn(f"/ban d{count - 1}", json.dumps(card))
+
+    def test_pending_card_falls_back_outside_dm_card_budget_or_with_bad_id(self):
+        self.assertIsNone(approval.build_pending_approvals_card([]))
+        self.assertIsNone(approval.build_pending_approvals_card(self.approvals(5)))
+        malformed = self.approvals(1)
+        malformed[0]["id"] = "bad id"
+        self.assertIsNone(approval.build_pending_approvals_card(malformed))
+
+        text, blob = approval.build_pending_approvals_response(malformed, is_dm=True)
+        self.assertIsNone(blob)
+        self.assertIn("[unactionable approval ID]", text)
+        self.assertIn("/allow <id>", text)
+
+    def test_pending_response_keeps_full_text_fallback_beneath_card(self):
+        approvals = self.approvals(2)
+        text, blob = approval.build_pending_approvals_response(approvals, is_dm=True)
+
+        self.assertEqual(text, approval.format_pending_list(approvals))
+        self.assertIn("#d0", text)
+        self.assertIn("#d1", text)
+        self.assertIn("/allow <id> · /reject <id> · /ban <id>", text)
+        self.assertIsNotNone(blob)
+        self.assertTrue(approval.validate_a2ui_card(json.loads(blob)[0]))
+
+        channel_text, channel_blob = approval.build_pending_approvals_response(
+            approvals, is_dm=False
+        )
+        self.assertEqual(channel_text, text)
+        self.assertIsNone(channel_blob)
+
+    def test_pending_response_falls_back_when_validation_rejects_card(self):
+        approvals = self.approvals(2)
+        original = approval.validate_a2ui_card
+        approval.validate_a2ui_card = lambda _card: False
+        self.addCleanup(setattr, approval, "validate_a2ui_card", original)
+
+        text, blob = approval.build_pending_approvals_response(approvals, is_dm=True)
+        self.assertEqual(text, approval.format_pending_list(approvals))
+        self.assertIsNone(blob)
+
+    def test_validator_rejects_duplicate_dangling_and_cyclic_components(self):
+        card = approval.build_pending_approvals_card(self.approvals(1))
+        components = self.components(card)
+        components.append(dict(components[0]))
+        self.assertFalse(approval.validate_a2ui_card(card))
+
+        card = approval.build_pending_approvals_card(self.approvals(1))
+        components = self.components(card)
+        next(component for component in components if component["id"] == "body")["children"].append(
+            "missing"
+        )
+        self.assertFalse(approval.validate_a2ui_card(card))
+
+        card = approval.build_pending_approvals_card(self.approvals(1))
+        next(component for component in self.components(card) if component["id"] == "body")[
+            "children"
+        ].append("root")
+        self.assertFalse(approval.validate_a2ui_card(card))
+
+    def test_pending_text_is_bounded_for_hostile_persisted_data(self):
+        approvals = [
+            make_approval(
+                id=" " * 50_000,
+                type="not-a-real-kind" * 5_000,
+                requestingShip="~" + "s" * 50_000,
+                channelNest="n" * 50_000,
+                groupFlag="g" * 50_000,
+                groupTitle="t" * 50_000,
+                messagePreview="p" * 50_000,
+            )
+            for _ in range(30)
+        ]
+        text, blob = approval.build_pending_approvals_response(approvals, is_dm=True)
+
+        self.assertIsNone(blob)
+        self.assertLessEqual(len(text), 10_000)
+        self.assertIn("[unactionable approval ID]", text)
+        self.assertIn("5 more pending approval(s) not shown.", text)
+        self.assertIn("/allow <id> · /reject <id> · /ban <id>", text)
+
 
 if __name__ == "__main__":
     unittest.main()

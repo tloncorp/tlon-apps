@@ -19,7 +19,7 @@ import uuid
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Sequence
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
@@ -42,13 +42,13 @@ from .approval import (
     approval_ship,
     approval_type,
     build_approval_card,
+    build_pending_approvals_response,
     create_pending_approval,
     find_approval,
     find_duplicate,
     format_approval_request,
     format_blocked_list,
     format_confirmation,
-    format_pending_list,
     parse_approval_command,
     parse_dm_allowlist,
     parse_foreigns,
@@ -71,13 +71,19 @@ from .channel_access import (
     is_channel_open,
     parse_channel_rules,
 )
+from .cite import resolve_cites
 from .history import (
     build_channel_context,
     build_thread_context,
     fetch_channel_history,
     fetch_thread_context,
 )
-from .media import PreparedMedia, prepare_inbound_media, render_content_with_blob
+from .media import (
+    PreparedMedia,
+    combine_blob_fields,
+    prepare_inbound_media,
+    render_content_with_blob,
+)
 from .mention import (
     BotMentionMatcher,
     build_bot_mention_terms,
@@ -172,6 +178,7 @@ from .tlon_tool import (
 logger = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF_SECONDS = (2, 5, 10, 30, 60)
+CITE_RESOLUTION_BUDGET_SECONDS = 5.0
 RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000
 # Window in which a repeated retry request for the same lensId is a no-op
 # (mirrors RETRY_DEDUP_MS in the gateway monitor).
@@ -640,7 +647,12 @@ class TlonAdapter(BasePlatformAdapter):
         self._bot_nickname: str = ""
         self._bot_avatar: str = ""
         self._participated_threads: set[str] = set()
+        self._known_bot_ships: set[str] = set()
         self._known_bot_consecutive_by_channel: dict[str, int] = {}
+        self._pending_bot_cap_addendum: dict[str, tuple[str, str]] = {}
+        # Lens output IDs derive from --sent-at. Reserve strictly increasing
+        # values so quick consecutive sends cannot collide on the same post ID.
+        self._last_lens_sent_at = 0
         self._owner_listen = self._owner_listen_env_defaults()
         self._settings_group_channels: set[str] = set()
         self._settings_loaded = False
@@ -793,7 +805,9 @@ class TlonAdapter(BasePlatformAdapter):
         self._seen_ids.clear()
         self._seen_order.clear()
         self._participated_threads.clear()
+        self._known_bot_ships.clear()
         self._known_bot_consecutive_by_channel.clear()
+        self._pending_bot_cap_addendum.clear()
         self._processed_dm_invites.clear()
         self._processed_group_invites.clear()
         self._telemetry.flush()
@@ -1013,6 +1027,8 @@ class TlonAdapter(BasePlatformAdapter):
             payload["messageContent"] = message.content
         if message.blob:
             payload["blob"] = message.blob
+        if message.author_is_bot:
+            payload["authorIsBot"] = True
         if message.reply_to_message_id:
             payload["parentId"] = message.reply_to_message_id
             payload["isThreadReply"] = True
@@ -1061,6 +1077,12 @@ class TlonAdapter(BasePlatformAdapter):
             return
         original = self._original_message_payload(message)
         original["messageText"] = clean_text
+        if normalize_ship(message.user_id) in self._known_bot_ships:
+            # The triggering message may carry a plain-string author even
+            # though the ship was already learned as a bot, and the learned
+            # set is lost on restart — persist the status so a post-restart
+            # replay still counts against the loop cap.
+            original["authorIsBot"] = True
         await self._queue_approval(
             approval_kind="channel",
             requesting_ship=message.user_id,
@@ -1253,9 +1275,17 @@ class TlonAdapter(BasePlatformAdapter):
             self._pending_approvals, time.time() * 1000.0
         )
         pruned = len(self._pending_approvals) != before
+        if pruned:
+            await self._persist_pending_approvals()
 
+        blob_fields: tuple[str | None, ...] = ()
         if action == "pending":
-            reply = format_pending_list(self._pending_approvals)
+            reply, pending_blob = build_pending_approvals_response(
+                self._pending_approvals,
+                is_dm=_is_dm_chat_id(reply_chat_id),
+            )
+            if pending_blob is not None:
+                blob_fields = (pending_blob,)
         elif action == "banned":
             reply = format_blocked_list(await self._blocked_ships_list())
         elif action == "unban":
@@ -1271,9 +1301,9 @@ class TlonAdapter(BasePlatformAdapter):
             else:
                 reply = await self._execute_approval_action(approval, action)
 
-        if pruned:
-            await self._persist_pending_approvals()
-        await self._send_control_reply(reply_chat_id, reply_parent_id, reply)
+        await self._send_control_reply(
+            reply_chat_id, reply_parent_id, reply, blob_fields=blob_fields
+        )
 
     async def _execute_approval_action(
         self, approval: dict[str, Any], action: str
@@ -1372,10 +1402,13 @@ class TlonAdapter(BasePlatformAdapter):
             raw={"approvalReplay": approval_id(approval), "originalMessage": original},
             content=original.get("messageContent"),
             blob=blob,
+            author_is_bot=bool(original.get("authorIsBot")),
         )
         retry_seed = self._build_retry_seed(message, text)
-        dispatch_text, prepared_media = await self._prepare_dispatch_payload(message, text)
         if is_dm:
+            dispatch_text, prepared_media = await self._prepare_dispatch_payload(
+                message, text
+            )
             await self._dispatch_message(
                 replace(message, text=dispatch_text),
                 is_dm=True,
@@ -1384,10 +1417,18 @@ class TlonAdapter(BasePlatformAdapter):
                 retry_seed=retry_seed,
             )
             return
+        if message.author_is_bot:
+            self._learn_known_bot_ship(message.user_id)
+        if not self._mark_seen(message):
+            return
+        if not self._passes_group_loop_safety(message):
+            return
+        dispatch_text, prepared_media = await self._prepare_dispatch_payload(message, text)
         dispatch_text = await self._with_group_context(message, dispatch_text, "approved")
         await self._dispatch_message(
             replace(message, text=dispatch_text),
             is_dm=False,
+            mark_seen=False,
             dispatch_reason="approved",
             prepared_media=prepared_media,
             retry_seed=retry_seed,
@@ -1706,12 +1747,22 @@ class TlonAdapter(BasePlatformAdapter):
         chat_id: str,
         parent_id: Optional[str],
         text: str,
+        *,
+        blob_fields: Sequence[str | None] = (),
     ) -> None:
+        # Control commands are consumed before normal dispatch, so they never
+        # have a lens run. Retain their existing routing rule: channel control
+        # replies may thread, while direct-message control replies stay linear.
+        text = str(text or "")[:MAX_MESSAGE_LENGTH]
+        thread_parent = parent_id if parent_id and not _is_dm_chat_id(chat_id) else None
         with cli_context("control_plane"):
-            if parent_id and not _is_dm_chat_id(chat_id):
-                result = await self._cli.send_reply(chat_id, parent_id, text)
-            else:
-                result = await self._cli.send_message(chat_id, text)
+            result, _ = await self._deliver_post(
+                chat_id,
+                text,
+                parent_id=thread_parent,
+                blob_fields=blob_fields,
+                lens_blob=None,
+            )
         if not result.success:
             logger.warning("[tlon] control command reply failed: %s", result.error)
 
@@ -1902,6 +1953,8 @@ class TlonAdapter(BasePlatformAdapter):
         message = parse_channel_message(raw, self_ship=self.tlon_config.ship_name)
         if message is None:
             return
+        if message.author_is_bot:
+            self._learn_known_bot_ship(message.user_id)
 
         is_mentioned = self._mention_matcher.mentioned(message.text)
         clean_text = (
@@ -2186,6 +2239,20 @@ class TlonAdapter(BasePlatformAdapter):
         message: TlonIncomingMessage,
         text: str,
     ) -> tuple[str, PreparedMedia]:
+        cite_block = ""
+        if self._sse is not None and message.content:
+            try:
+                cite_block = await asyncio.wait_for(
+                    resolve_cites(self._sse.scry, message.content),
+                    CITE_RESOLUTION_BUDGET_SECONDS,
+                )
+            except (Exception, asyncio.TimeoutError) as exc:
+                logger.debug(
+                    "[tlon] cite resolution failed for %s: %s",
+                    message.message_id,
+                    exc,
+                )
+                self._telemetry.error("cite_resolve", exc)
         try:
             prepared = await prepare_inbound_media(message.content, message.blob)
         except Exception as exc:
@@ -2195,13 +2262,16 @@ class TlonAdapter(BasePlatformAdapter):
                 exc,
             )
             self._telemetry.error("media_prepare", exc)
-            return text, PreparedMedia()
+            prepared = PreparedMedia()
         if not prepared.text_prefix:
-            return text, prepared
-        body = str(text or "").strip()
-        dispatch_text = (
-            f"{prepared.text_prefix}\n{body}" if body else prepared.text_prefix
-        )
+            dispatch_text = text
+        else:
+            body = str(text or "").strip()
+            dispatch_text = (
+                f"{prepared.text_prefix}\n{body}" if body else prepared.text_prefix
+            )
+        if cite_block:
+            dispatch_text = f"{cite_block}\n\n{dispatch_text}"
         return dispatch_text, prepared
 
     async def _with_group_context(
@@ -2248,27 +2318,41 @@ class TlonAdapter(BasePlatformAdapter):
             return False
         return self._thread_key(message.chat_id, message.reply_to_message_id) in self._participated_threads
 
-    def _passes_group_loop_safety(self, message: TlonIncomingMessage) -> bool:
-        known_bots = self.tlon_config.known_bot_users
-        if not known_bots:
-            return True
+    def _learn_known_bot_ship(self, ship: str) -> None:
+        sender = normalize_ship(ship)
+        if not sender or sender in self._known_bot_ships:
+            return
+        self._known_bot_ships.add(sender)
+        logger.info("[tlon] learned bot ship from channel author metadata: %s", sender)
 
+    def _passes_group_loop_safety(self, message: TlonIncomingMessage) -> bool:
         channel = message.chat_id
         sender = normalize_ship(message.user_id)
-        if sender in known_bots:
-            count = self._known_bot_consecutive_by_channel.get(channel, 0) + 1
-            self._known_bot_consecutive_by_channel[channel] = count
-            if count > self.tlon_config.max_consecutive_bot_responses:
-                logger.info(
-                    "[tlon] dropping known-bot message from %s in %s after %s consecutive dispatch attempts",
-                    sender,
-                    channel,
-                    count,
-                )
-                return False
+        is_known_bot = (
+            message.author_is_bot
+            or sender in self._known_bot_ships
+            or sender in self.tlon_config.known_bot_users
+        )
+        if not is_known_bot:
+            self._known_bot_consecutive_by_channel[channel] = 0
+            self._pending_bot_cap_addendum.pop(channel, None)
             return True
 
-        self._known_bot_consecutive_by_channel[channel] = 0
+        count = self._known_bot_consecutive_by_channel.get(channel, 0) + 1
+        self._known_bot_consecutive_by_channel[channel] = count
+        limit = self.tlon_config.max_consecutive_bot_responses
+        if limit <= 0:
+            return True
+        if count > limit:
+            logger.info(
+                "[tlon] dropping known-bot message from %s in %s after %s consecutive dispatch attempts",
+                sender,
+                channel,
+                count,
+            )
+            return False
+        if count == limit:
+            self._pending_bot_cap_addendum[channel] = (sender, message.message_id)
         return True
 
     async def _dispatch_message(
@@ -2583,6 +2667,46 @@ class TlonAdapter(BasePlatformAdapter):
             self._seen_ids.discard(old)
         return True
 
+    def _next_lens_sent_at(self) -> int:
+        """Allocate the post ID timestamp for one lens-stamped output."""
+        sent_at_ms = max(int(time.time() * 1000), self._last_lens_sent_at + 1)
+        self._last_lens_sent_at = sent_at_ms
+        return sent_at_ms
+
+    async def _deliver_post(
+        self,
+        chat_id: str,
+        content: str,
+        *,
+        parent_id: Optional[str] = None,
+        parent_author: Optional[str] = None,
+        blob_fields: Sequence[str | None] = (),
+        lens_blob: Optional[str] = None,
+    ) -> tuple[Any, Optional[int]]:
+        """Deliver one post after composing every applicable blob source.
+
+        ``blob_fields`` is the adapter-facing producer seam: callers pass
+        complete serialized post-blob arrays, which are ordered before the
+        internal lens reference. A caller-provided blob must ride non-empty
+        content (the published CLI has no blob-only send transport).
+        """
+        blob = combine_blob_fields(*blob_fields, lens_blob)
+        sent_at_ms = self._next_lens_sent_at() if lens_blob is not None else None
+        if parent_id:
+            result = await self._cli.send_reply(
+                chat_id,
+                parent_id,
+                content,
+                parent_author=parent_author,
+                blob=blob,
+                sent_at=sent_at_ms,
+            )
+        else:
+            result = await self._cli.send_message(
+                chat_id, content, blob=blob, sent_at=sent_at_ms
+            )
+        return result, sent_at_ms
+
     async def send(
         self,
         chat_id: str,
@@ -2590,8 +2714,40 @@ class TlonAdapter(BasePlatformAdapter):
         reply_to: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> SendResult:
-        content = content or ""
+        """Send a model reply.
+
+        Adapter callers may provide ``metadata["blob"]`` as a complete,
+        serialized post-blob entry array. It rides the first chunk, is
+        composed before the internal context-lens reference, and must
+        accompany non-empty content because the deployed CLI does not support
+        blob-only posts.
+        """
+        pending = self._pending_bot_cap_addendum.get(chat_id)
+        addendum = ""
+        if pending and reply_to and str(reply_to) == pending[1]:
+            addendum = (
+                "\n\n---\n_This is my last response to "
+                f"{pending[0]} for now. To continue our conversation, "
+                "someone will need to mention me._"
+            )
+        content = (content or "") + addendum
         metadata = metadata or {}
+        caller_blob = metadata.get("blob")
+        if not (isinstance(caller_blob, str) and caller_blob.strip()):
+            # A whitespace-only string is treated as ABSENT, same as None:
+            # it never fires the blob-requires-content guard below.
+            caller_blob = None
+        if caller_blob is not None and not content.strip():
+            blob_error = "metadata['blob'] requires non-empty content (no blob-only CLI transport)"
+            self._telemetry.record_delivery(chat_id, content=content, success=False)
+            self._lens.record_delivery_failure(chat_id, error=blob_error)
+            return SendResult(
+                success=False,
+                message_id=None,
+                error=blob_error,
+                raw_response={},
+                retryable=False,
+            )
         # Core anchors every reply to the triggering message (reply_to), but
         # Tlon conversations are linear: reply top-level unless the
         # conversation is already a thread (metadata.thread_id carries the
@@ -2612,31 +2768,23 @@ class TlonAdapter(BasePlatformAdapter):
         message_ids: list[str] = []
         result = None
         for idx, chunk in enumerate(chunks):
-            # Only override the send time — and derive the lens output id from
-            # it (~author/<@da of sent>, how the client resolves outputs) —
-            # when we're actually stamping a lens output. Passing --sent-at on
-            # every send would let an older `tlon` binary (which doesn't know
-            # the flag) fold it into the message body; gate it exactly like
-            # --blob. Computed per chunk: every chunk is its own post, so each
-            # stamped chunk needs its own send time / output id.
-            sent_at_ms = int(time.time() * 1000) if lens_blob is not None else None
             with cli_context("delivery", conversation=chat_id):
-                if is_thread_reply:
-                    # parentAuthor: honor what Hermes passes; otherwise the CLI
-                    # attributes the reference to the bot. (We don't assume a DM
-                    # partner authored the thread root.)
-                    result = await self._cli.send_reply(
-                        chat_id,
-                        thread_parent,
-                        chunk,
-                        parent_author=parent_author,
-                        blob=lens_blob,
-                        sent_at=sent_at_ms,
-                    )
-                else:
-                    result = await self._cli.send_message(
-                        chat_id, chunk, blob=lens_blob, sent_at=sent_at_ms
-                    )
+                # A caller-provided field describes one logical reply and
+                # therefore rides only the first visible chunk. The internal
+                # lens reference rides every chunk so each post can open the
+                # run that produced it.
+                result, sent_at_ms = await self._deliver_post(
+                    chat_id,
+                    chunk,
+                    parent_id=thread_parent if is_thread_reply else None,
+                    parent_author=parent_author,
+                    blob_fields=(
+                        (caller_blob,)
+                        if idx == 0 and caller_blob is not None
+                        else ()
+                    ),
+                    lens_blob=lens_blob,
+                )
             self._telemetry.record_delivery(
                 chat_id, content=chunk, success=result.success
             )
@@ -2699,6 +2847,9 @@ class TlonAdapter(BasePlatformAdapter):
         delivered = bool(message_ids)
         if delivered and is_thread_reply and thread_parent:
             self._participated_threads.add(self._thread_key(chat_id, thread_parent))
+        if addendum and (result.success or result.returncode != 124):
+            if self._pending_bot_cap_addendum.get(chat_id) == pending:
+                self._pending_bot_cap_addendum.pop(chat_id, None)
         return SendResult(
             success=delivered,
             # Core contract: message_id is the LAST visible chunk (edits
