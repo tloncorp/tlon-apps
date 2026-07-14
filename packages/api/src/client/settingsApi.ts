@@ -156,7 +156,10 @@ export const toClientSettings = (
     webAppSplashDismissed: settings.desk.groups?.webAppSplashDismissed ?? false,
     mobileAppPromoDismissed:
       settings.desk.groups?.mobileAppPromoDismissed ?? false,
-    contextLensEnabled: settings.desk.groups?.contextLensEnabled ?? false,
+    // Deliberately not coerced to false: "never set" must survive sync as
+    // null/undefined so migrateLegacyContextLensFlag can distinguish it from
+    // an explicit disable. Readers apply their own ?? false default.
+    contextLensEnabled: settings.desk.groups?.contextLensEnabled,
   };
 };
 

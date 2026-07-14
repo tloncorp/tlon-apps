@@ -242,13 +242,17 @@ export async function updateContextLensEnabled(value: boolean) {
     // optimistic update
     await db.insertSettings({ contextLensEnabled: value });
     await api.setSetting('contextLensEnabled', value);
+    return true;
   } catch (e) {
     logger.trackError('Error updating context lens enabled setting', {
       error: e,
       value,
       severity: AnalyticsSeverity.Medium,
     });
-    await db.insertSettings({ contextLensEnabled: oldValue });
+    // ?? null so the rollback restores "never set" even when no settings row
+    // existed yet (insertSettings skips undefined fields).
+    await db.insertSettings({ contextLensEnabled: oldValue ?? null });
+    return false;
   }
 }
 
@@ -272,7 +276,11 @@ export async function migrateLegacyContextLensFlag() {
   // we don't resurrect a toggle the user later disabled on another device.
   const existing = await db.getSettings();
   if (flags.contextLens === true && existing?.contextLensEnabled == null) {
-    await updateContextLensEnabled(true);
+    const migrated = await updateContextLensEnabled(true);
+    if (!migrated) {
+      // Keep the legacy key so the next startup can retry the migration.
+      return;
+    }
   }
 
   const rest = { ...flags };
