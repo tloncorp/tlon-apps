@@ -263,6 +263,7 @@ class TlonConfig:
     user_timezone: Optional[str] = None
     context_lens_enabled: bool = False
     context_lens_owner: str = ""
+    context_lens_store_path: str = ""
     sse_read_timeout_seconds: float = DEFAULT_SSE_READ_TIMEOUT_SECONDS
     # Force the hosted (memex) image-upload path. Opt-in: only true when the
     # operator sets TLON_HOSTING. Read once where the env is reliably present
@@ -599,6 +600,12 @@ class TlonConfig:
                 ("context_lens_owner",),
             )
         )
+        context_lens_store_path = _env_first(
+            env,
+            ("TLON_CONTEXT_LENS_STORE_PATH",),
+            extra,
+            ("context_lens_store_path",),
+        )
         sse_read_timeout_seconds = _parse_float(
             _env_or_extra(
                 env,
@@ -667,6 +674,7 @@ class TlonConfig:
             user_timezone=user_timezone,
             context_lens_enabled=context_lens_enabled,
             context_lens_owner=context_lens_owner,
+            context_lens_store_path=context_lens_store_path,
             sse_read_timeout_seconds=sse_read_timeout_seconds,
         )
 
@@ -913,6 +921,10 @@ class TlonSSEEvent:
     raw: dict[str, Any]
 
 
+class TlonAuthError(ConnectionError):
+    """The ship rejected our credentials (bad access code) — unrecoverable."""
+
+
 class TlonSSEClient:
     """Eyre SSE channel client for subscriptions."""
 
@@ -925,6 +937,10 @@ class TlonSSEClient:
         self._session: Any = None
         self._action_counter = 0
         self._subscriptions: dict[int, tuple[str, str]] = {}
+        # Optional subscriptions may be unavailable (e.g. an agent that isn't
+        # installed). Their nacks/quits are logged and skipped rather than
+        # raised, so one dead optional sub can't tear down the whole stream.
+        self._optional_subscriptions: set[int] = set()
         self._last_acked_event_id = -1
         self._ack_threshold = 20
 
@@ -946,6 +962,11 @@ class TlonSSEClient:
             allow_redirects=False,
             timeout=aiohttp.ClientTimeout(total=15),
         ) as resp:
+            if resp.status in (400, 401, 403):
+                # The ship rejected the access code itself — retrying with the
+                # same credentials can never succeed (5xx / timeouts stay
+                # transient: the ship may just be down).
+                raise TlonAuthError(f"Tlon auth rejected: HTTP {resp.status}")
             if resp.status not in (200, 204, 302, 303, 307):
                 raise ConnectionError(f"Tlon auth failed: HTTP {resp.status}")
             cookie = resp.headers.get("set-cookie", "")
@@ -976,11 +997,13 @@ class TlonSSEClient:
             ]
         )
 
-    async def subscribe(self, app: str, path: str) -> int:
+    async def subscribe(self, app: str, path: str, *, optional: bool = False) -> int:
         if self.channel_url is None:
             await self.open()
         sub_id = self._next_action_id()
         self._subscriptions[sub_id] = (app, path)
+        if optional:
+            self._optional_subscriptions.add(sub_id)
         await self._send_actions(
             [
                 {
@@ -1153,6 +1176,16 @@ class TlonSSEClient:
         if response == "subscribe":
             if sub_id in self._subscriptions and "err" in raw:
                 app, path = self._subscriptions[sub_id]
+                if sub_id in self._optional_subscriptions:
+                    logger.warning(
+                        "[tlon] optional subscription unavailable for %s %s: %s",
+                        app,
+                        path,
+                        str(raw.get("err"))[:200],
+                    )
+                    self._subscriptions.pop(sub_id, None)
+                    self._optional_subscriptions.discard(sub_id)
+                    return None
                 raise ConnectionError(
                     f"Tlon subscription failed for {app} {path}: {str(raw.get('err'))[:200]}"
                 )
@@ -1161,6 +1194,11 @@ class TlonSSEClient:
         if response == "quit":
             if sub_id in self._subscriptions:
                 app, path = self._subscriptions[sub_id]
+                # `optional` only suppresses the *initial* unavailability (the
+                # subscribe-nack branch above). A quit means the subscription
+                # WAS established and has now dropped (e.g. an agent/desk
+                # reload), so force the reconnect path to re-subscribe rather
+                # than silently going deaf to future facts.
                 raise ConnectionError(f"Tlon subscription quit for {app} {path}")
             return None
 
