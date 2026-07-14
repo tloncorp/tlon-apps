@@ -75,7 +75,7 @@ _CONFIGURE_MARK = "steward-action-1"
 _LENS_MARK = "steward-lens-action-1"
 # Existence probe: a %steward lens scry that any installed agent answers (and
 # our own ship is always allowed to peek). A ship without %steward nacks it.
-_STEWARD_PROBE_PATH = "/steward/v1/lens/recent"
+_STEWARD_PROBE_PATH = "/x/v1/lens/recent"
 
 
 def _now_ms() -> int:

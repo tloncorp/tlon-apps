@@ -596,6 +596,9 @@ def is_connected(config) -> bool:
 
 class TlonAdapter(BasePlatformAdapter):
     MAX_MESSAGE_LENGTH = MAX_MESSAGE_LENGTH
+    # Tell Hermes' DeliveryRouter not to truncate before calling send(); this
+    # adapter preserves oversized replies by splitting them into Tlon posts.
+    splits_long_messages = True
 
     # The adapter implements the full inbound access policy itself
     # (deny-by-default, owner/env allowlists, settings-store grants, approval

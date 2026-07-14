@@ -172,6 +172,11 @@ def make_adapter(results=None, extra=None):
 
 
 class ChunkingTests(unittest.TestCase):
+    def test_declares_native_long_message_splitting(self):
+        # DeliveryRouter checks this capability before invoking send(). Without
+        # it, core truncates the payload before _chunk_outbound can preserve it.
+        self.assertTrue(adapter_mod.TlonAdapter.splits_long_messages)
+
     def test_short_reply_single_send(self):
         adapter = make_adapter([cli_result(message_id="m1")])
         result = asyncio.run(adapter.send("~alice", "hello"))
