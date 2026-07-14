@@ -312,7 +312,11 @@ print(json.dumps({
     "nudge_tick_interval_ms": config.nudge_tick_interval_ms,
 }))
 `;
-  const result = await compose.exec(ctx.services.bot, ['python3', '-c', script]);
+  const result = await compose.exec(ctx.services.bot, [
+    'python3',
+    '-c',
+    script,
+  ]);
   assertExecOk(result, 'Hermes nudge config probe');
   const config = JSON.parse(result.stdout.trim()) as {
     reengagement_enabled: boolean;

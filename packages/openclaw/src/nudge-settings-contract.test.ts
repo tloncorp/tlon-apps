@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
 import { describe, expect, it } from 'vitest';
 
 import { parseSettingsResponse } from './settings.js';
@@ -21,7 +20,9 @@ const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8')) as {
   pythonSerializedPendingNudge: string;
 };
 
-function normalizeNudgeSettings(settings: ReturnType<typeof parseSettingsResponse>) {
+function normalizeNudgeSettings(
+  settings: ReturnType<typeof parseSettingsResponse>
+) {
   return {
     lastOwnerMessageAt: settings.lastOwnerMessageAt ?? null,
     lastOwnerMessageDate: settings.lastOwnerMessageDate ?? null,
@@ -35,9 +36,9 @@ function normalizeNudgeSettings(settings: ReturnType<typeof parseSettingsRespons
 
 describe('Hermes/OpenClaw nudge settings contract', () => {
   it.each(fixture.buckets)('$name', ({ bucket, expected }) => {
-    expect(normalizeNudgeSettings(parseSettingsResponse({ tlon: bucket }))).toEqual(
-      expected
-    );
+    expect(
+      normalizeNudgeSettings(parseSettingsResponse({ tlon: bucket }))
+    ).toEqual(expected);
   });
 
   it('reads a PendingNudge serialized by Hermes', () => {

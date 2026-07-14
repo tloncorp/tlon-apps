@@ -197,7 +197,11 @@ export async function withNudgeSettingsIsolation(
   return {
     async set(key, value) {
       changed.add(key);
-      await actors.bot.setSettingsEntry({ bucket: SETTINGS_BUCKET, key, value });
+      await actors.bot.setSettingsEntry({
+        bucket: SETTINGS_BUCKET,
+        key,
+        value,
+      });
     },
     async delete(key) {
       changed.add(key);

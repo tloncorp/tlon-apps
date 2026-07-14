@@ -583,7 +583,10 @@ export const commonScenarios: readonly SharedScenario[] = [
 
       const nudge = await waitFor(
         async () => {
-          const posts = await actors.owner.state.channelPosts(actors.bot.ship, 40);
+          const posts = await actors.owner.state.channelPosts(
+            actors.bot.ship,
+            40
+          );
           return posts.find(
             (post) =>
               post.authorId === actors.bot.ship &&
@@ -643,14 +646,19 @@ export const commonScenarios: readonly SharedScenario[] = [
           call.userText.includes('[Context: You recently sent')
         )
       ) {
-        throw new Error('Expected owner re-engagement model request to include nudge context.');
+        throw new Error(
+          'Expected owner re-engagement model request to include nudge context.'
+        );
       }
       await expectModelExpectations(ctx.fakeModel, key, script);
 
       const started = Date.now();
       while (Date.now() - started < NUDGE_DUPLICATE_WINDOW_MS) {
         await sleep(500);
-        const posts = await actors.owner.state.channelPosts(actors.bot.ship, 40);
+        const posts = await actors.owner.state.channelPosts(
+          actors.bot.ship,
+          40
+        );
         const duplicate = posts.find(
           (post) =>
             post.authorId === actors.bot.ship &&
