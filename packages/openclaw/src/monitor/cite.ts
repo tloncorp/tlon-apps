@@ -127,7 +127,10 @@ export async function resolveCites(
         : deadline.signal;
 
       try {
-        const payload = await api.scry(path, { timeoutMs: remainingMs, signal });
+        const payload = await api.scry(path, {
+          timeoutMs: remainingMs,
+          signal,
+        });
         throwIfAborted(opts.signal);
         if (deadline.signal.aborted) {
           break;
