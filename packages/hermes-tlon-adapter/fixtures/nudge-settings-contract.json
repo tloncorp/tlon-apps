@@ -1,0 +1,68 @@
+{
+  "buckets": [
+    {
+      "name": "fully-valid-whole-bucket",
+      "bucket": {
+        "lastOwnerMessageAt": 1700000000000,
+        "lastOwnerMessageDate": "2023-11-14",
+        "pendingNudge": "{\"sentAt\":1700000000000,\"stage\":1,\"ownerShip\":\"~ten\",\"accountId\":\"hermes\",\"content\":\"hello\"}",
+        "lastNudgeStage": "2",
+        "nudgeActiveHoursStart": "08:30",
+        "nudgeActiveHoursEnd": "24:00",
+        "nudgeActiveHoursTimezone": "America/Chicago"
+      },
+      "expected": {
+        "lastOwnerMessageAt": 1700000000000,
+        "lastOwnerMessageDate": "2023-11-14",
+        "pendingNudge": {"sentAt": 1700000000000, "stage": 1, "ownerShip": "~ten", "accountId": "hermes", "content": "hello"},
+        "lastNudgeStage": 2,
+        "nudgeActiveHoursStart": "08:30",
+        "nudgeActiveHoursEnd": "24:00",
+        "nudgeActiveHoursTimezone": "America/Chicago"
+      }
+    },
+    {
+      "name": "invalid-types-whole-bucket",
+      "bucket": {
+        "lastOwnerMessageAt": true,
+        "lastOwnerMessageDate": 123,
+        "pendingNudge": {"sentAt": true, "stage": 1, "ownerShip": "~ten", "accountId": "hermes"},
+        "lastNudgeStage": true,
+        "nudgeActiveHoursStart": 800,
+        "nudgeActiveHoursEnd": false,
+        "nudgeActiveHoursTimezone": ["UTC"]
+      },
+      "expected": {
+        "lastOwnerMessageAt": null,
+        "lastOwnerMessageDate": null,
+        "pendingNudge": null,
+        "lastNudgeStage": null,
+        "nudgeActiveHoursStart": null,
+        "nudgeActiveHoursEnd": null,
+        "nudgeActiveHoursTimezone": null
+      }
+    },
+    {
+      "name": "object-pending-and-per-key-normalization",
+      "bucket": {
+        "lastOwnerMessageAt": 1700000000001,
+        "lastOwnerMessageDate": "not-validated-by-settings-parser",
+        "pendingNudge": {"sentAt": 1700000000001, "stage": 3, "ownerShip": "~mug", "accountId": "default", "extra": true},
+        "lastNudgeStage": "1e0",
+        "nudgeActiveHoursStart": "not-a-time",
+        "nudgeActiveHoursEnd": "99:99",
+        "nudgeActiveHoursTimezone": "not-a-zone"
+      },
+      "expected": {
+        "lastOwnerMessageAt": 1700000000001,
+        "lastOwnerMessageDate": "not-validated-by-settings-parser",
+        "pendingNudge": {"sentAt": 1700000000001, "stage": 3, "ownerShip": "~mug", "accountId": "default"},
+        "lastNudgeStage": 1,
+        "nudgeActiveHoursStart": "not-a-time",
+        "nudgeActiveHoursEnd": "99:99",
+        "nudgeActiveHoursTimezone": "not-a-zone"
+      }
+    }
+  ],
+  "pythonSerializedPendingNudge": "{\"sentAt\":1700000000123,\"stage\":3,\"ownerShip\":\"~ten\",\"accountId\":\"hermes\",\"content\":\"round trip\"}"
+}

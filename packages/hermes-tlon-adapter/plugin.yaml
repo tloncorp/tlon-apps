@@ -1,7 +1,7 @@
 name: tlon-platform
 label: Tlon
 kind: platform
-version: 0.14.0
+version: 0.15.0
 description: >
   Tlon Messenger platform adapter for Hermes Agent. Reads inbound messages from
   an authenticated Eyre SSE channel and sends replies through the
@@ -189,6 +189,30 @@ optional_env:
       'Optional owner ship override for %gateway-status offline replies;
       defaults to TLON_OWNER_SHIP'
     prompt: 'Gateway status owner'
+    password: false
+  - name: TLON_REENGAGEMENT_ENABLED
+    description: 'Enable staged owner re-engagement nudges (true/false; default false)'
+    prompt: 'Enable re-engagement nudges?'
+    password: false
+  - name: TLON_NUDGE_TICK_INTERVAL_MS
+    description: 'Optional re-engagement nudge scheduler interval in milliseconds'
+    prompt: 'Nudge tick interval'
+    password: false
+  - name: TLON_NUDGE_ACTIVE_HOURS_START
+    description: 'Optional nudge active-hours start (HH:MM)'
+    prompt: 'Nudge active-hours start'
+    password: false
+  - name: TLON_NUDGE_ACTIVE_HOURS_END
+    description: 'Optional nudge active-hours end (HH:MM; 24:00 allowed)'
+    prompt: 'Nudge active-hours end'
+    password: false
+  - name: TLON_NUDGE_ACTIVE_HOURS_TIMEZONE
+    description: 'Optional nudge active-hours IANA timezone, user, or local'
+    prompt: 'Nudge active-hours timezone'
+    password: false
+  - name: TLON_TIMEZONE
+    description: 'Optional IANA timezone used when nudge active-hours timezone is user'
+    prompt: 'User timezone'
     password: false
   - name: BRAVE_SEARCH_API_KEY
     description:

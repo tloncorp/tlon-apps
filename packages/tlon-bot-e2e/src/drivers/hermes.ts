@@ -75,6 +75,8 @@ export const hermesDriver: BotDriver = {
         TLON_ALLOW_ALL_USERS: 'false',
         TLON_HOME_CHANNEL: homeChannel,
         TLON_GATEWAY_STATUS: 'false',
+        TLON_REENGAGEMENT_ENABLED: 'true',
+        TLON_NUDGE_TICK_INTERVAL_MS: '5000',
         TLON_TELEMETRY: 'false',
         TLON_CONTEXT_MESSAGES: '4',
         TLON_SSE_READ_TIMEOUT_SECONDS: '15',
@@ -109,12 +111,14 @@ export const hermesDriver: BotDriver = {
   async waitReady(ctx, compose) {
     await waitForHermesLog(ctx, compose);
     await assertHermesConfig(ctx, compose);
+    await assertHermesNudgeConfig(ctx, compose);
     await assertHermesSetup(ctx, compose);
     await assertForbiddenContainerEnv(ctx, compose);
   },
 
   async assertRuntimeConfig(ctx, compose) {
     await assertHermesConfig(ctx, compose);
+    await assertHermesNudgeConfig(ctx, compose);
     await assertForbiddenContainerEnv(ctx, compose);
   },
 
@@ -287,6 +291,40 @@ async function assertHermesConfig(
     if (!condition) {
       failures.push(message);
     }
+  }
+}
+
+async function assertHermesNudgeConfig(
+  ctx: RuntimeContext,
+  compose: ComposeHandle
+): Promise<void> {
+  const script = String.raw`
+import json
+import os
+import sys
+
+sys.path.insert(0, os.environ["TLON_ADAPTER_DIR"])
+from tlon_api import TlonConfig
+
+config = TlonConfig.from_env()
+print(json.dumps({
+    "reengagement_enabled": config.reengagement_enabled,
+    "nudge_tick_interval_ms": config.nudge_tick_interval_ms,
+}))
+`;
+  const result = await compose.exec(ctx.services.bot, ['python3', '-c', script]);
+  assertExecOk(result, 'Hermes nudge config probe');
+  const config = JSON.parse(result.stdout.trim()) as {
+    reengagement_enabled: boolean;
+    nudge_tick_interval_ms: number;
+  };
+  if (
+    config.reengagement_enabled !== true ||
+    config.nudge_tick_interval_ms !== 5000
+  ) {
+    throw new Error(
+      `Hermes nudge config is ineffective: ${JSON.stringify(config)}`
+    );
   }
 }
 

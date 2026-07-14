@@ -102,11 +102,27 @@ TLON_SSE_READ_TIMEOUT_SECONDS=60
 TLON_SKILL_PATH=/path/to/tlon-skill/SKILL.md # optional explicit plugin-skill path
 TLON_GATEWAY_STATUS=true
 TLON_GATEWAY_STATUS_OWNER=~friend # optional override; defaults to TLON_OWNER_SHIP
+TLON_REENGAGEMENT_ENABLED=false # opt in to staged owner nudges
+TLON_NUDGE_TICK_INTERVAL_MS=900000
+TLON_NUDGE_ACTIVE_HOURS_START=09:00
+TLON_NUDGE_ACTIVE_HOURS_END=21:00
+TLON_NUDGE_ACTIVE_HOURS_TIMEZONE=America/New_York
+TLON_TIMEZONE=America/Chicago # used when the active-hours timezone is user
 ```
 
 `TLON_OWNER_SHIP` is required: it defines the owner identity for approvals, owner-only tools such as `tlon`/`cronjob`/MCP/file tools, owner-listen, telemetry identity, and home-channel defaults. Without it, Tlon chat-session tool calls fail closed.
 
 The adapter also accepts the older `TLON_SHIP_*`, `TLON_URL/TLON_SHIP/TLON_CODE`, and `URBIT_*` aliases and passes them through to the CLI, so it works with the credential resolver in `@tloncorp/tlon-skill`.
+
+### Re-engagement nudges
+
+Set `TLON_REENGAGEMENT_ENABLED=true` to send the OpenClaw-compatible owner DM nudges after 7, 14, and 30 whole days of owner inactivity. The adapter is deliberately default-off; hosted enablement is supplied by the separate hosted entrypoint. State is shared in the `%settings` `moltbot`/`tlon` bucket through `lastOwnerMessageAt`, `lastOwnerMessageDate`, `lastNudgeStage`, and JSON-string `pendingNudge`, so a Hermes/OpenClaw harness switch carries it forward.
+
+Nudges use the runtime-editable `nudgeActiveHoursStart`, `nudgeActiveHoursEnd`, and `nudgeActiveHoursTimezone` keys when present. Each field falls back independently to the matching `TLON_NUDGE_ACTIVE_HOURS_*` env value, then to `09:00`–`21:00 America/New_York`; `user` uses `TLON_TIMEZONE`, and `local` uses the host timezone. The active window is `[start, end)`, supports overnight windows, and equal bounds intentionally disable sends.
+
+For duplicate prevention, `lastNudgeStage` is persisted before the DM is sent; a crash in between can lose one nudge but cannot double-send it. Like OpenClaw, a settings poke accepted by Eyre but later nacked by Gall is treated as accepted: a broken settings agent can therefore allow one duplicate after a failed put, retain a consumed `pendingNudge`, or delay a cleared stage.
+
+There is one additional accepted parity risk: during a reconnect outage, monotonic loads may miss a `lastNudgeStage` clear made by a concurrent OpenClaw on the same ship, so Hermes can re-send that stage once. This requires concurrent dual-harness operation; non-concurrent harness switching and single-harness operation are unaffected. The worst case is one duplicate nudge, accepted in exchange for avoiding a defect-prone echo/reservation overlay.
 
 Group attention is deterministic and happens before the model runs. Messages from allowed users dispatch when they mention the node id, bare node id, an alias in `TLON_BOT_MENTIONS`, or the node profile nickname. The nickname is fetched at startup and tracked live via a `contacts /v1/news` subscription: renaming the bot (including during onboarding) updates the wake terms without a restart, clearing the nickname drops that term, and the profile is re-synced after each SSE reconnect. Nickname lookup failures are non-fatal; the adapter falls back to node id, bare node id, and configured aliases.
 

@@ -277,7 +277,12 @@ class AdapterOwnerListenTests(unittest.TestCase):
         }
         base.update(extra)
         with patch.dict(os.environ, {}, clear=True):
-            return adapter_mod.TlonAdapter(PlatformConfig(extra=base))
+            adapter = adapter_mod.TlonAdapter(PlatformConfig(extra=base))
+        # These access-policy tests do not model a failed boot settings scry.
+        # Keep pending-nudge ownership initialized so the unrelated
+        # unrehydrated-reply recovery del-entry is not part of their fixtures.
+        adapter._pending_nudge_rehydrated = True
+        return adapter
 
     def dispatches(self, adapter, raw, *, dm=False):
         events = []
