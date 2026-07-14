@@ -421,6 +421,15 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         void storage.deferredInviteChecked.setValue(true);
+        // updaters are not fresh installs: a persisted ship means this
+        // device predates the cascade, so there is no install gap to
+        // recover across. skipping avoids a paste prompt on the first
+        // launch after updating, and keeps a years-old install referrer
+        // from resurrecting the invite that originally installed the app
+        const priorShip = await storage.shipInfo.getValue();
+        if (priorShip?.ship) {
+          return;
+        }
         if (inviteClearedRef.current || intakeRef.current != null) {
           // a launch url or saved lure already owns this install's invite
           return;
