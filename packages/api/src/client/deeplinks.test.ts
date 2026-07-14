@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
+  extractNormalizedInviteLink,
   getMetadataFromInviteToken,
   inviteUrlFromDeferredPayload,
   parseInviteDeepLink,
@@ -86,19 +87,19 @@ describe('parseInviteDeepLink', () => {
 describe('inviteUrlFromDeferredPayload', () => {
   test('synthesizes urls from raw tokens', () => {
     expect(inviteUrlFromDeferredPayload('0vabcde')).toBe(
-      'https://join.tlon.io/0vabcde'
+      'https://invite.tlon.io/0vabcde'
     );
     expect(inviteUrlFromDeferredPayload('~zod/team')).toBe(
-      'https://join.tlon.io/~zod/team'
+      'https://invite.tlon.io/~zod/team'
     );
   });
 
   test('extracts token key-value referrer payloads', () => {
     expect(inviteUrlFromDeferredPayload('token=0vabcde')).toBe(
-      'https://join.tlon.io/0vabcde'
+      'https://invite.tlon.io/0vabcde'
     );
     expect(inviteUrlFromDeferredPayload('utm_source=x&token=~zod%2Fteam')).toBe(
-      'https://join.tlon.io/~zod/team'
+      'https://invite.tlon.io/~zod/team'
     );
   });
 
@@ -118,6 +119,18 @@ describe('inviteUrlFromDeferredPayload', () => {
     expect(inviteUrlFromDeferredPayload('https://example.com/page')).toBeNull();
     expect(inviteUrlFromDeferredPayload('~zod')).toBeNull();
     expect(inviteUrlFromDeferredPayload('')).toBeNull();
+  });
+});
+
+describe('extractNormalizedInviteLink', () => {
+  test('normalizes any accepted invite link to the canonical domain', () => {
+    expect(extractNormalizedInviteLink('https://join.tlon.io/0vabcde')).toBe(
+      'https://invite.tlon.io/0vabcde'
+    );
+    expect(
+      extractNormalizedInviteLink('https://sa96e.app.link/~zod/team')
+    ).toBe('https://invite.tlon.io/~zod/team');
+    expect(extractNormalizedInviteLink('https://example.com/0vabc')).toBeNull();
   });
 });
 

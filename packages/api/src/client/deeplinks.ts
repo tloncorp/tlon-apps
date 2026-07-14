@@ -8,6 +8,10 @@ import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('deeplinks', false);
 
+// the domain new links are written and displayed with. parsing accepts
+// every known host forever; join.tlon.io redirects here after the flip
+export const CANONICAL_INVITE_HOST = 'invite.tlon.io';
+
 // bare lowercase hostnames; the configured branch domain joins at parse time
 const KNOWN_INVITE_HOSTS = new Set([
   'join.tlon.io',
@@ -293,7 +297,7 @@ export function inviteUrlFromDeferredPayload(payload: string): string | null {
   }
 
   if (/^0v[^/\s]+$/.test(trimmed) || whomIsFlag(trimmed)) {
-    return `https://join.tlon.io/${trimmed}`;
+    return `https://${CANONICAL_INVITE_HOST}/${trimmed}`;
   }
 
   const tokenParam = trimmed.match(/(?:^|[?&])token=([^&\s]+)/);
@@ -310,11 +314,10 @@ export function extractTokenFromInviteLink(url: string): string | null {
 }
 
 export function extractNormalizedInviteLink(url: string): string | null {
-  const env = getConstants();
   const parsed = parseInviteDeepLink(url);
 
   if (parsed?.type === 'lure') {
-    return `https://${env.BRANCH_DOMAIN}/${parsed.token}`;
+    return `https://${CANONICAL_INVITE_HOST}/${parsed.token}`;
   }
 
   return null;
