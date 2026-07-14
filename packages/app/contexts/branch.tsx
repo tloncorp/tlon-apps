@@ -22,6 +22,7 @@ import branch from 'react-native-branch';
 
 import { BRANCH_DOMAIN, MCP_OAUTH_COMPLETION_PATH } from '../constants';
 import { useGroupNavigation } from '../hooks/useGroupNavigation';
+import { resolveDeferredInvite } from '../lib/deferredInvite';
 import { getPathFromWer } from '../utils/string';
 import { useShip } from './ship';
 
@@ -176,7 +177,15 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const handleInviteUrl = useCallback(
-    async (url: string, source: 'expo_linking' | 'non_branch_link') => {
+    async (
+      url: string,
+      source:
+        | 'expo_linking'
+        | 'non_branch_link'
+        | 'install_referrer'
+        | 'clipboard'
+        | 'ip_match'
+    ) => {
       const parsed = parseInviteDeepLink(url, { branchDomain: BRANCH_DOMAIN });
       if (!parsed) {
         return false;
@@ -383,25 +392,46 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         // this session — whatever claimed the slot is fresher intent, even
         // for the same token. checked before the read too: when the launch
         // url claimed the slot, the read's result is already unusable
-        if (inviteClearedRef.current || intakeRef.current != null) {
+        if (!inviteClearedRef.current && intakeRef.current == null) {
+          const nextLure = await storage.invitation.getValue();
+          if (
+            nextLure?.lure &&
+            !inviteClearedRef.current &&
+            intakeRef.current == null
+          ) {
+            console.debug('[branch] Detected saved lure:', nextLure.lure);
+            intakeRef.current = {
+              token: nextLure.lure.id,
+              phase: 'applied',
+              hasMetadata: inviteHasMetadata(nextLure.lure),
+            };
+            setState({
+              ...nextLure,
+              deepLinkPath: undefined,
+            });
+          }
+        }
+
+        // deferred install attribution (cascade steps 2–4): one shot per
+        // install. the flag is set on the first pass no matter which path
+        // claimed the invite, so the clipboard read — and its ios paste
+        // prompt — can never fire on a later launch
+        const deferredChecked = await storage.deferredInviteChecked.getValue();
+        if (deferredChecked) {
           return;
         }
-        const nextLure = await storage.invitation.getValue();
-        if (
-          nextLure?.lure &&
-          !inviteClearedRef.current &&
-          intakeRef.current == null
-        ) {
-          console.debug('[branch] Detected saved lure:', nextLure.lure);
-          intakeRef.current = {
-            token: nextLure.lure.id,
-            phase: 'applied',
-            hasMetadata: inviteHasMetadata(nextLure.lure),
-          };
-          setState({
-            ...nextLure,
-            deepLinkPath: undefined,
+        void storage.deferredInviteChecked.setValue(true);
+        if (inviteClearedRef.current || intakeRef.current != null) {
+          // a launch url or saved lure already owns this install's invite
+          return;
+        }
+        const deferred = await resolveDeferredInvite();
+        if (deferred) {
+          logger.trackEvent('Deferred Invite Recovery', {
+            source: deferred.source,
+            matchedAfterMs: deferred.matchedAfterMs,
           });
+          void handleInviteUrl(deferred.url, deferred.source);
         }
       })();
     }

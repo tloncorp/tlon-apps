@@ -284,6 +284,13 @@ export const invitation = createStorageItem<Lure | null>({
   defaultValue: null,
 });
 
+// deferred install attribution (referrer/clipboard/ip match) runs exactly
+// once per install; this flag survives relaunches but not reinstalls
+export const deferredInviteChecked = createStorageItem<boolean>({
+  key: 'deferredInviteChecked',
+  defaultValue: false,
+});
+
 export type ShipInfo = {
   authType: 'self' | 'hosted';
   ship: string | undefined;

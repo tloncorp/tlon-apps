@@ -282,6 +282,28 @@ export function parseInviteDeepLink(
   return token ? { type: 'lure', token } : null;
 }
 
+// deferred-install payloads arrive as a raw token (our referrer default),
+// a key=value referrer string, or a full invite url (our clipboard default) —
+// organic-install referrers (utm noise) and arbitrary clipboard contents
+// must come back null
+export function inviteUrlFromDeferredPayload(payload: string): string | null {
+  const trimmed = payload.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^0v[^/\s]+$/.test(trimmed) || whomIsFlag(trimmed)) {
+    return `https://join.tlon.io/${trimmed}`;
+  }
+
+  const tokenParam = trimmed.match(/(?:^|[?&])token=([^&\s]+)/);
+  if (tokenParam) {
+    return inviteUrlFromDeferredPayload(decodeURIComponent(tokenParam[1]));
+  }
+
+  return parseInviteDeepLink(trimmed) ? trimmed : null;
+}
+
 export function extractTokenFromInviteLink(url: string): string | null {
   const parsed = parseInviteDeepLink(url);
   return parsed?.type === 'lure' ? parsed.token : null;

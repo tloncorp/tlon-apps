@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { getMetadataFromInviteToken, parseInviteDeepLink } from './deeplinks';
+import {
+  getMetadataFromInviteToken,
+  inviteUrlFromDeferredPayload,
+  parseInviteDeepLink,
+} from './deeplinks';
 
 describe('parseInviteDeepLink', () => {
   test('parses single-segment invite tokens from invite domains', () => {
@@ -76,6 +80,44 @@ describe('parseInviteDeepLink', () => {
   test('ignores unrelated links and malformed tokens', () => {
     expect(parseInviteDeepLink('https://example.com/0vabc')).toBeNull();
     expect(parseInviteDeepLink('https://join.tlon.io/not-a-token')).toBeNull();
+  });
+});
+
+describe('inviteUrlFromDeferredPayload', () => {
+  test('synthesizes urls from raw tokens', () => {
+    expect(inviteUrlFromDeferredPayload('0vabcde')).toBe(
+      'https://join.tlon.io/0vabcde'
+    );
+    expect(inviteUrlFromDeferredPayload('~zod/team')).toBe(
+      'https://join.tlon.io/~zod/team'
+    );
+  });
+
+  test('extracts token key-value referrer payloads', () => {
+    expect(inviteUrlFromDeferredPayload('token=0vabcde')).toBe(
+      'https://join.tlon.io/0vabcde'
+    );
+    expect(inviteUrlFromDeferredPayload('utm_source=x&token=~zod%2Fteam')).toBe(
+      'https://join.tlon.io/~zod/team'
+    );
+  });
+
+  test('passes through full invite urls', () => {
+    expect(inviteUrlFromDeferredPayload('https://join.tlon.io/0vabcde')).toBe(
+      'https://join.tlon.io/0vabcde'
+    );
+    expect(
+      inviteUrlFromDeferredPayload('https://invite.tlon.io/~zod/team')
+    ).toBe('https://invite.tlon.io/~zod/team');
+  });
+
+  test('rejects organic-install noise and arbitrary content', () => {
+    expect(
+      inviteUrlFromDeferredPayload('utm_source=google-play&utm_medium=organic')
+    ).toBeNull();
+    expect(inviteUrlFromDeferredPayload('https://example.com/page')).toBeNull();
+    expect(inviteUrlFromDeferredPayload('~zod')).toBeNull();
+    expect(inviteUrlFromDeferredPayload('')).toBeNull();
   });
 });
 
