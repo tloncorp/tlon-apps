@@ -122,7 +122,7 @@ class ActiveHours:
 
 @dataclass(frozen=True)
 class PendingNudge:
-    sent_at: float
+    sent_at: int
     stage: int
     owner_ship: str
     account_id: str
@@ -260,30 +260,47 @@ def _parse_date_at_utc_midnight(raw: Any) -> Optional[int]:
         return None
     try:
         parsed = datetime.strptime(raw, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    except ValueError:
+        instant = int(parsed.timestamp() * 1000)
+    except (OverflowError, OSError, ValueError):
         return None
-    return int(parsed.timestamp() * 1000)
+    return _valid_epoch_ms(instant)
+
+
+def _valid_epoch_ms(value: Any) -> Optional[int]:
+    """Return a datetime-representable epoch-ms value, else ``None``."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        instant = value
+    elif isinstance(value, float) and math.isfinite(value):
+        instant = int(value)
+    else:
+        return None
+    try:
+        datetime.fromtimestamp(instant / 1000, timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
+    return instant
 
 
 def resolve_last_owner_instant(
     shadow: Optional[tuple[int, str]], snapshot: NudgeSettingsSnapshot
 ) -> Optional[int]:
     if shadow is not None:
-        at = shadow[0]
-        if isinstance(at, (int, float)) and not isinstance(at, bool) and math.isfinite(at):
-            return int(at)
-    at = snapshot.last_owner_message_at
-    if isinstance(at, (int, float)) and not isinstance(at, bool) and math.isfinite(at):
-        return int(at)
+        instant = _valid_epoch_ms(shadow[0])
+        if instant is not None:
+            return instant
+    instant = _valid_epoch_ms(snapshot.last_owner_message_at)
+    if instant is not None:
+        return instant
     return _parse_date_at_utc_midnight(snapshot.last_owner_message_date)
 
 
 def owner_activity_from_snapshot(
     snapshot: NudgeSettingsSnapshot,
 ) -> Optional[tuple[int, str]]:
-    at = snapshot.last_owner_message_at
-    if isinstance(at, (int, float)) and not isinstance(at, bool) and math.isfinite(at):
-        instant = int(at)
+    instant = _valid_epoch_ms(snapshot.last_owner_message_at)
+    if instant is not None:
         date = snapshot.last_owner_message_date
         if not isinstance(date, str) or _parse_date_at_utc_midnight(date) is None:
             date = datetime.fromtimestamp(instant / 1000, timezone.utc).date().isoformat()
@@ -311,14 +328,12 @@ def parse_pending_nudge(raw: Any) -> Optional[PendingNudge]:
             return None
     if not isinstance(value, Mapping):
         return None
-    sent_at = value.get("sentAt")
+    sent_at = _valid_epoch_ms(value.get("sentAt"))
     stage = value.get("stage")
     owner_ship = value.get("ownerShip")
     account_id = value.get("accountId")
     if (
-        not isinstance(sent_at, (int, float))
-        or isinstance(sent_at, bool)
-        or not math.isfinite(sent_at)
+        sent_at is None
         or stage not in (1, 2, 3)
         or isinstance(stage, bool)
         or not isinstance(owner_ship, str)
@@ -338,6 +353,8 @@ def parse_pending_nudge(raw: Any) -> Optional[PendingNudge]:
 def parse_last_nudge_stage(raw: Any) -> Optional[int]:
     if isinstance(raw, bool):
         return None
+    if isinstance(raw, int):
+        return raw if raw in (1, 2, 3) else None
     value: Any = raw
     if isinstance(raw, str):
         text = raw.strip()
@@ -345,9 +362,9 @@ def parse_last_nudge_stage(raw: Any) -> Optional[int]:
             return None
         try:
             value = float(text)
-        except ValueError:
+        except (OverflowError, TypeError, ValueError):
             return None
-    if not isinstance(value, (int, float)) or isinstance(value, bool):
+    if not isinstance(value, float):
         return None
     return int(value) if math.isfinite(value) and value in (1, 2, 3) else None
 
@@ -357,7 +374,8 @@ def is_nudge_eligible(
     now_ms: int | float,
     window_ms: int = DEFAULT_ATTRIBUTION_WINDOW_MS,
 ) -> bool:
-    return now_ms - nudge.sent_at <= window_ms
+    sent_at = _valid_epoch_ms(nudge.sent_at)
+    return sent_at is not None and now_ms - sent_at <= window_ms
 
 
 class Poke(Protocol):

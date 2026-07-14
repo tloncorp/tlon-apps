@@ -1,5 +1,6 @@
 import asyncio
 import importlib.util
+import json
 import sys
 import types
 import unittest
@@ -295,6 +296,90 @@ class AdapterNudgeTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(await adapter._load_nudge_settings_only())
         self.assertIsNone(adapter._pending_nudge)
+
+    async def test_boot_load_rejects_unrepresentable_pending_nudge_sent_at(self):
+        for sent_at in (1e20, 10**400):
+            with self.subTest(sent_at=repr(sent_at)):
+                adapter = make_adapter()
+                sse = HeldScrySSE(
+                    {
+                        "all": {
+                            "moltbot": {
+                                "tlon": {
+                                    "pendingNudge": json.dumps(
+                                        {
+                                            "sentAt": sent_at,
+                                            "stage": 1,
+                                            "ownerShip": "~ten",
+                                            "accountId": "hermes",
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                )
+                sse.release_scry.set()
+                adapter._sse = sse
+
+                self.assertTrue(await adapter._load_nudge_settings_only())
+                self.assertTrue(adapter._pending_nudge_rehydrated)
+                self.assertIsNone(adapter._pending_nudge)
+
+    async def test_boot_load_rejects_oversized_last_nudge_stage(self):
+        for seeded, existing_stage, expected_stage in (
+            (False, 0, 0),
+            (True, 2, 2),
+        ):
+            with self.subTest(seeded=seeded):
+                adapter = make_adapter()
+                adapter._nudge_load_seeded = seeded
+                adapter._nudge_stage_shadow = existing_stage
+                sse = HeldScrySSE(
+                    {
+                        "all": {
+                            "moltbot": {"tlon": {"lastNudgeStage": 10**400}}
+                        }
+                    }
+                )
+                sse.release_scry.set()
+                adapter._sse = sse
+
+                self.assertTrue(await adapter._load_nudge_settings_only())
+                self.assertEqual(adapter._nudge_stage_shadow, expected_stage)
+
+    async def test_poisoned_pending_nudge_does_not_drop_owner_reply(self):
+        adapter = make_adapter()
+        adapter._nudge_stage_shadow = 1
+        adapter._pending_nudge_rehydrated = True
+        adapter._pending_nudge = nudge.PendingNudge(1e20, 1, "~ten", "hermes")
+        dispatched = []
+
+        async def record(event):
+            dispatched.append(event)
+
+        adapter.handle_message = record
+        message = tlon_api.TlonIncomingMessage(
+            chat_id="~zod",
+            chat_name="~zod",
+            chat_type="dm",
+            user_id="~ten",
+            user_name="~ten",
+            text="I am back",
+            message_id="poisoned-pending-reply",
+            reply_to_message_id=None,
+            sent_at=datetime.fromtimestamp(1_700_000_000, timezone.utc),
+            raw={},
+        )
+
+        hook = adapter._observe_nudge_owner_message(message, is_dm=True)
+        self.assertFalse(hook.inject_context)
+        await adapter._handle_dm_event({}, message=message, nudge_hook=hook)
+        await adapter._nudge_activity_persistence.flush()
+        await adapter._pending_nudge_persistence.flush()
+
+        self.assertEqual(len(dispatched), 1)
+        self.assertEqual(dispatched[0].text, "I am back")
 
     async def test_unrehydrated_owner_reply_takes_authority_in_one_activity_batch(self):
         adapter = make_adapter()
@@ -873,3 +958,193 @@ class AdapterNudgeTests(unittest.IsolatedAsyncioTestCase):
             except asyncio.CancelledError:
                 pass
             await adapter._stop_event_worker()
+
+    async def test_malformed_fast_taps_do_not_reconnect_the_sse_stream(self):
+        adapter = make_adapter()
+        handled = []
+
+        async def record(event):
+            handled.append(event)
+
+        class MalformedEventSSE(RecordingSSE):
+            def __init__(self):
+                super().__init__()
+                self.events_yielded = asyncio.Event()
+                self.closed = False
+
+            async def events(self):
+                yield SimpleNamespace(
+                    app="channels",
+                    json={
+                        "nest": "chat/~zod/general",
+                        "response": {
+                            "post": {
+                                "id": "bad-channel",
+                                "r-post": {
+                                    "set": {
+                                        "essay": {
+                                            "author": "~ten",
+                                            "sent": 10**400,
+                                            "content": [{"inline": ["bad"]}],
+                                        }
+                                    }
+                                },
+                            }
+                        },
+                    },
+                )
+                yield SimpleNamespace(
+                    app="chat",
+                    json={
+                        "whom": "~ten",
+                        "id": "bad-dm",
+                        "response": {
+                            "add": {
+                                "essay": {
+                                    "author": "~ten",
+                                    "sent": 10**400,
+                                    "content": [{"inline": ["bad"]}],
+                                }
+                            }
+                        },
+                    },
+                )
+                self.events_yielded.set()
+                await asyncio.Future()
+
+            async def close(self, *, graceful=True):
+                self.closed = True
+
+        sse = MalformedEventSSE()
+        adapter._sse = sse
+        adapter.handle_message = record
+        reconnects = 0
+
+        async def unexpected_connect():
+            nonlocal reconnects
+            reconnects += 1
+            raise AssertionError("malformed event triggered an SSE reconnect")
+
+        adapter._connect_sse = unexpected_connect
+        adapter._start_event_worker()
+        stream = asyncio.create_task(adapter._run_stream())
+        try:
+            await asyncio.wait_for(sse.events_yielded.wait(), timeout=1)
+            assert adapter._event_queue is not None
+            await asyncio.wait_for(adapter._event_queue.join(), timeout=1)
+            self.assertEqual(handled, [])
+            self.assertEqual(reconnects, 0)
+            self.assertFalse(sse.closed)
+        finally:
+            stream.cancel()
+            await stream
+            await adapter._stop_event_worker()
+
+    async def test_out_of_range_nudge_settings_event_is_ignored_atomically(self):
+        poisoned = nudge.NudgeSettingsSnapshot(last_owner_message_at=-1e20)
+        self.assertIsNone(nudge.owner_activity_from_snapshot(poisoned))
+        self.assertIsNone(nudge.resolve_last_owner_instant(None, poisoned))
+        self.assertIsNone(
+            nudge.owner_activity_from_snapshot(
+                nudge.NudgeSettingsSnapshot(last_owner_message_date="not-a-date")
+            )
+        )
+
+        adapter = make_adapter()
+        before_snapshot = nudge.NudgeSettingsSnapshot(
+            last_nudge_stage=2,
+            active_hours_start="00:00",
+            active_hours_end="24:00",
+            active_hours_timezone="UTC",
+        )
+        adapter._nudge_snapshot = before_snapshot
+        adapter._nudge_stage_shadow = 2
+        adapter._nudge_load_generation = 41
+        adapter._nudge_scheduler._now_ms = lambda: 31 * 86_400_000
+
+        await adapter._route_stream_event(
+            SimpleNamespace(
+                app="settings",
+                json={
+                    "put-entry": {
+                        "desk": "moltbot",
+                        "bucket-key": "tlon",
+                        "entry-key": "lastOwnerMessageAt",
+                        "value": -1e20,
+                    }
+                },
+            )
+        )
+
+        self.assertIs(adapter._nudge_snapshot, before_snapshot)
+        self.assertEqual(adapter._nudge_snapshot, before_snapshot)
+        self.assertIsNone(adapter._nudge_owner_activity)
+        self.assertEqual(adapter._nudge_stage_shadow, 2)
+        self.assertEqual(adapter._nudge_load_generation, 41)
+        self.assertFalse(adapter._nudge_load_seeded)
+
+        await adapter._nudge_scheduler.tick_now()
+        self.assertEqual(adapter._sse.pokes, [])
+        self.assertEqual(adapter._cli.sends, [])
+
+    async def test_full_event_queue_backpressures_after_nudge_fast_tap(self):
+        adapter = make_adapter()
+        adapter._pending_nudge_rehydrated = True
+
+        class ObservingQueue(asyncio.Queue):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.put_started = asyncio.Event()
+                self.put_finished = asyncio.Event()
+
+            async def put(self, item):
+                self.put_started.set()
+                await super().put(item)
+                self.put_finished.set()
+
+        queue = ObservingQueue(maxsize=1)
+        queue.put_nowait(adapter_mod._StreamWorkItem("contacts", {}))
+        adapter._event_queue = queue
+        producer = asyncio.create_task(
+            adapter._route_stream_event(
+                SimpleNamespace(
+                    app="chat",
+                    json={
+                        "whom": "~ten",
+                        "id": "owner-reply",
+                        "response": {
+                            "add": {
+                                "essay": {
+                                    "author": "~ten",
+                                    "sent": 1_000,
+                                    "content": [{"inline": ["I am back"]}],
+                                }
+                            }
+                        },
+                    },
+                )
+            )
+        )
+        try:
+            await asyncio.wait_for(queue.put_started.wait(), timeout=1)
+            self.assertFalse(producer.done())
+            self.assertFalse(queue.put_finished.is_set())
+            self.assertEqual(adapter._nudge_owner_activity, (1_000, "1970-01-01"))
+
+            queue.get_nowait()
+            queue.task_done()
+            await asyncio.wait_for(producer, timeout=1)
+
+            queued = queue.get_nowait()
+            queue.task_done()
+            self.assertEqual(queued.app, "chat")
+            self.assertIsNotNone(queued.message)
+        finally:
+            if not producer.done():
+                producer.cancel()
+                try:
+                    await producer
+                except asyncio.CancelledError:
+                    pass
+            adapter._event_queue = None
+            await adapter._nudge_activity_persistence.flush()

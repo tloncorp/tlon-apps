@@ -122,6 +122,7 @@ from .nudge import (
     SETTINGS_KEY_NUDGE_ACTIVE_HOURS_TIMEZONE,
     SETTINGS_KEY_PENDING_NUDGE,
     TlonNudgeScheduler,
+    _valid_epoch_ms,
     is_nudge_eligible,
     owner_activity_from_snapshot,
     parse_last_nudge_stage,
@@ -282,6 +283,11 @@ _NUDGE_SNAPSHOT_FIELDS = {
     SETTINGS_KEY_NUDGE_ACTIVE_HOURS_END: "active_hours_end",
     SETTINGS_KEY_NUDGE_ACTIVE_HOURS_TIMEZONE: "active_hours_timezone",
 }
+
+# Absorb a normal slow dispatch without stalling SSE ingestion, but apply
+# transport backpressure rather than accumulating unbounded work under
+# sustained overload.
+_STREAM_EVENT_QUEUE_MAXSIZE = 1024
 
 try:
     import aiohttp as _aiohttp  # noqa: F401
@@ -1303,6 +1309,15 @@ class TlonAdapter(BasePlatformAdapter):
         if key not in _NUDGE_SNAPSHOT_FIELDS:
             return False
         value = getattr(event, "value", None)
+        if (
+            key == SETTINGS_KEY_LAST_OWNER_MESSAGE_AT
+            and value is not None
+            and _valid_epoch_ms(value) is None
+        ):
+            # Ignore a malformed activity instant entirely.  It is a handled
+            # settings event, so the ordered worker does not retry it after
+            # the fast tap and accidentally apply a poisoned snapshot.
+            return True
         # Subscription events are trusted and fully authoritative, including
         # deletes and external backdates. Only the scry/load path is
         # monotonic, because a scry can be stale relative to local writes.
@@ -1310,27 +1325,44 @@ class TlonAdapter(BasePlatformAdapter):
         # field: the load replaces the entire snapshot, not only the scheduler
         # shadows, so it could otherwise restore stale active hours or pending
         # nudge data.
-        self._nudge_load_seeded = True
-        self._nudge_load_generation += 1
-        self._nudge_snapshot.apply(key, value)
+        candidate = replace(self._nudge_snapshot)
+        candidate.apply(key, value)
+        activity: Optional[tuple[int, str]] = None
+        stage: Optional[int] = None
+        pending: Optional[PendingNudge] = None
+        clear_expired_pending = False
         if key in (
             SETTINGS_KEY_LAST_OWNER_MESSAGE_AT,
             SETTINGS_KEY_LAST_OWNER_MESSAGE_DATE,
         ):
-            self._nudge_owner_activity = owner_activity_from_snapshot(
-                self._nudge_snapshot
-            )
+            activity = owner_activity_from_snapshot(candidate)
         elif key == SETTINGS_KEY_LAST_NUDGE_STAGE:
-            self._set_nudge_stage(
-                parse_last_nudge_stage(self._nudge_snapshot.last_nudge_stage) or 0
-            )
+            stage = parse_last_nudge_stage(candidate.last_nudge_stage) or 0
         elif key == SETTINGS_KEY_PENDING_NUDGE and not self._pending_nudge_rehydrated:
-            pending = parse_pending_nudge(self._nudge_snapshot.pending_nudge_raw)
+            pending = parse_pending_nudge(candidate.pending_nudge_raw)
             if pending is not None:
-                self._set_pending_nudge(pending)
-                if not is_nudge_eligible(pending, int(time.time() * 1000)):
-                    self._set_pending_nudge(None)
-                    self._pending_nudge_persistence.enqueue(None)
+                clear_expired_pending = not is_nudge_eligible(
+                    pending, int(time.time() * 1000)
+                )
+
+        # Do all candidate derivation before publishing any part of the live
+        # state. If a future parser or derivation raises above, the fast-tap
+        # fallback can safely leave this prior state in place for the worker.
+        self._nudge_snapshot = candidate
+        self._nudge_load_seeded = True
+        self._nudge_load_generation += 1
+        if key in (
+            SETTINGS_KEY_LAST_OWNER_MESSAGE_AT,
+            SETTINGS_KEY_LAST_OWNER_MESSAGE_DATE,
+        ):
+            self._set_nudge_owner_activity(activity)
+        elif key == SETTINGS_KEY_LAST_NUDGE_STAGE:
+            self._set_nudge_stage(stage or 0)
+        elif pending is not None:
+            self._set_pending_nudge(pending)
+            if clear_expired_pending:
+                self._set_pending_nudge(None)
+                self._pending_nudge_persistence.enqueue(None)
         return True
 
     def _user_authorized(self, ship: str, *, is_dm: bool, nest: str = "") -> bool:
@@ -2278,7 +2310,7 @@ class TlonAdapter(BasePlatformAdapter):
                 await asyncio.sleep(delay)
 
     def _start_event_worker(self) -> None:
-        self._event_queue = asyncio.Queue()
+        self._event_queue = asyncio.Queue(maxsize=_STREAM_EVENT_QUEUE_MAXSIZE)
         self._event_worker_task = asyncio.create_task(self._run_event_worker())
 
     async def _stop_event_worker(self) -> None:
@@ -2342,39 +2374,58 @@ class TlonAdapter(BasePlatformAdapter):
             self._telemetry.error("event_handler", exc, app=item.app)
 
     async def _route_stream_event(self, event: Any) -> None:
-        """Apply nudge-critical state immediately, then preserve SSE order for
-        the existing asynchronous handlers in one worker."""
+        """Apply nudge-critical state before the bounded ordered worker queue.
+
+        The queue cap makes sustained overload backpressure the SSE reader.
+        Nudge state must remain fresh even while enqueueing blocks, so its
+        synchronous fast-tap always runs before the queue operation.
+        """
         app = getattr(event, "app", "")
         raw = getattr(event, "json", None)
         item = _StreamWorkItem(app=app, raw=raw)
-        if app == "channels" and isinstance(raw, dict):
-            message = parse_channel_message(raw, self_ship=self.tlon_config.ship_name)
-            if message is not None:
-                item = _StreamWorkItem(
-                    app=app,
-                    raw=raw,
-                    message=message,
-                    nudge_hook=self._observe_nudge_owner_message(message, is_dm=False),
+        try:
+            if app == "channels" and isinstance(raw, dict):
+                message = parse_channel_message(
+                    raw, self_ship=self.tlon_config.ship_name
                 )
-        elif app == "chat" and not isinstance(raw, list):
-            message = parse_dm_message(raw, self_ship=self.tlon_config.ship_name)
-            if message is not None:
-                item = _StreamWorkItem(
-                    app=app,
-                    raw=raw,
-                    message=message,
-                    nudge_hook=self._observe_nudge_owner_message(message, is_dm=True),
+                if message is not None:
+                    item = _StreamWorkItem(
+                        app=app,
+                        raw=raw,
+                        message=message,
+                        nudge_hook=self._observe_nudge_owner_message(
+                            message, is_dm=False
+                        ),
+                    )
+            elif app == "chat" and not isinstance(raw, list):
+                message = parse_dm_message(raw, self_ship=self.tlon_config.ship_name)
+                if message is not None:
+                    item = _StreamWorkItem(
+                        app=app,
+                        raw=raw,
+                        message=message,
+                        nudge_hook=self._observe_nudge_owner_message(
+                            message, is_dm=True
+                        ),
+                    )
+            elif app == "settings":
+                settings_event = parse_settings_event(raw)
+                handled = settings_event is not None and self._apply_nudge_settings_event(
+                    settings_event
                 )
-        elif app == "settings":
-            settings_event = parse_settings_event(raw)
-            handled = settings_event is not None and self._apply_nudge_settings_event(
-                settings_event
-            )
-            item = _StreamWorkItem(
-                app=app, raw=raw, nudge_settings_handled=handled
-            )
+                item = _StreamWorkItem(
+                    app=app, raw=raw, nudge_settings_handled=handled
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            # A malformed fast-tap must not escape to _run_stream, where it
+            # would be treated as a failed SSE connection. Keep the plain item
+            # so the existing guarded worker can log and skip its dispatch.
+            logger.warning("[tlon] %s event fast-tap failed: %s", app, exc)
+            self._telemetry.error("event_fast_tap", exc, app=app)
         if self._event_queue is not None:
-            self._event_queue.put_nowait(item)
+            await self._event_queue.put(item)
         else:
             await self._process_stream_item(item)
 

@@ -97,6 +97,41 @@ class NudgeDecisionTests(unittest.TestCase):
         self.assertTrue(nudge.is_nudge_eligible(record, 1 + nudge.DEFAULT_ATTRIBUTION_WINDOW_MS))
         self.assertFalse(nudge.is_nudge_eligible(record, 2 + nudge.DEFAULT_ATTRIBUTION_WINDOW_MS))
 
+    def test_stage_parsers_reject_oversized_integers(self):
+        oversized = 10**400
+        self.assertEqual(
+            [
+                nudge.parse_last_nudge_stage(value)
+                for value in (
+                    1,
+                    2,
+                    3,
+                    1.0,
+                    2.0,
+                    3.0,
+                    "1",
+                    "1.0",
+                    "1e0",
+                    -1,
+                    oversized,
+                    -oversized,
+                )
+            ],
+            [1, 2, 3, 1, 2, 3, 1, 1, 1, None, None, None],
+        )
+        self.assertIsNone(
+            nudge.parse_pending_nudge(
+                json.dumps(
+                    {
+                        "sentAt": 1,
+                        "stage": oversized,
+                        "ownerShip": "~ten",
+                        "accountId": "hermes",
+                    }
+                )
+            )
+        )
+
     def test_shared_settings_contract(self):
         fixture = json.loads(
             (PACKAGE_DIR / "fixtures/nudge-settings-contract.json").read_text()
