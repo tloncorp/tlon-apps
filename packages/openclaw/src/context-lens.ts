@@ -1016,6 +1016,46 @@ export function getActiveBackgroundContextLens(): ContextLens | null {
   return best;
 }
 
+/**
+ * Active foreground (in-session) dispatch lens for a given conversation, if a
+ * run is mid-dispatch for it. The outbound send path uses this to attribute
+ * message-tool posts — replies the model issues by calling the `message` tool
+ * itself, instead of emitting a normal final reply — to the run that produced
+ * them, so a tool-only answer is not mislabeled `no_reply`. Matched on
+ * conversationId (not recency) so concurrent runs in different conversations
+ * stay correctly separated.
+ */
+export function getActiveForegroundContextLensForConversation(
+  conversationId: string | null | undefined
+): { registry: ContextLensRegistry; lensId: string } | null {
+  const target = conversationId?.trim();
+  if (!target) {
+    return null;
+  }
+  let best: {
+    registry: ContextLensRegistry;
+    lensId: string;
+    updatedAt: number;
+  } | null = null;
+  for (const binding of activeLensesBySession.values()) {
+    if (binding.background) {
+      continue;
+    }
+    const lens = binding.registry.get(binding.lensId);
+    if (!lens || lens.triggerDetails.conversationId?.trim() !== target) {
+      continue;
+    }
+    if (!best || lens.updatedAt > best.updatedAt) {
+      best = {
+        registry: binding.registry,
+        lensId: binding.lensId,
+        updatedAt: lens.updatedAt,
+      };
+    }
+  }
+  return best ? { registry: best.registry, lensId: best.lensId } : null;
+}
+
 export function recordBackgroundContextLensOutput(
   lensId: string,
   output: ContextLensOutput

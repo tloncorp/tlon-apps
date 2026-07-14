@@ -151,6 +151,7 @@ import {
   tlonDeliveryContext,
 } from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
+import { resolveTlonSourceReplyDeliveryMode } from './source-reply-delivery.js';
 import {
   extractCites,
   formatModelName,
@@ -3161,11 +3162,10 @@ export async function monitorTlonProvider(
           })
         : undefined;
 
-      const hasExplicitVisibleReplyPolicy =
-        cfg.messages?.visibleReplies !== undefined ||
-        cfg.messages?.groupChat?.visibleReplies !== undefined;
-      const sourceReplyDeliveryMode =
-        isGroup && !hasExplicitVisibleReplyPolicy ? 'automatic' : undefined;
+      const sourceReplyDeliveryMode = resolveTlonSourceReplyDeliveryMode({
+        isGroup,
+        messages: cfg.messages,
+      });
 
       const replyOptions: NonNullable<
         Parameters<
@@ -3454,11 +3454,21 @@ export async function monitorTlonProvider(
           dispatchError
         );
         unbindContextLensFromSession(lensSessionKeys, lens.lensId);
+        // A reply the model issued by calling the `message` tool itself lands
+        // through the outbound adapter, which records it on the lens but never
+        // touches this closure's `deliveredMessageCount`. Count the lens's own
+        // recorded outputs so a tool-only answer isn't finalized as no_reply.
+        const recordedOutputCount =
+          contextLenses.get(lens.lensId)?.outputs.length ?? 0;
+        const effectiveDeliveredCount = Math.max(
+          deliveredMessageCount,
+          recordedOutputCount
+        );
         contextLenses.recordLifecycle(lens.lensId, {
           completedAt: Date.now(),
           durationMs: dispatchDurationMs,
           timedOut: dispatchTimedOut,
-          deliveredMessageCount,
+          deliveredMessageCount: effectiveDeliveredCount,
           queuedFinal: dispatchResult?.queuedFinal ?? false,
           queuedFinalCount: dispatchResult?.counts.final ?? 0,
           queuedBlockCount: dispatchResult?.counts.block ?? 0,
@@ -3467,7 +3477,7 @@ export async function monitorTlonProvider(
           sendAttemptCount,
           sendErrorCount,
           sendErrorKind,
-          deliveredMessageCount,
+          deliveredMessageCount: effectiveDeliveredCount,
           replyCharCount,
           replyWordCount,
           replyMediaCount,
@@ -3488,7 +3498,7 @@ export async function monitorTlonProvider(
         if (!dispatchError) {
           contextLenses.setStatus(
             lens.lensId,
-            deliveredMessageCount > 0 ? 'completed' : 'no_reply'
+            effectiveDeliveredCount > 0 ? 'completed' : 'no_reply'
           );
         }
         const finalLens = contextLenses.get(lens.lensId);
