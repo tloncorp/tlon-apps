@@ -860,7 +860,7 @@ export function NotesNativeChannel({
         <NotesEmptyDetailPane
           canEdit={canEdit}
           isCreating={isCreatingNote}
-          onCreateNote={handleCreateNote}
+          onCreateNote={() => void handleCreateNote()}
         />
       ) : (
         <NotesNoteDetail

@@ -1,4 +1,8 @@
-import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
+import {
+  isDmChannelId,
+  isGroupDmChannelId,
+  parseNotesChannelId,
+} from '@tloncorp/api/client';
 
 // Pure, side-effect-light navigation route helpers.
 //
@@ -96,8 +100,11 @@ export function getDesktopPostRoute(
   }
 ) {
   const screen = screenNameFromChannelId(postParams.channelId);
+  // Notes channels always open under Home, where the notebook sidebar and
+  // channel takeover providers are mounted.
+  const resolvedTab = parseNotesChannelId(postParams.channelId) ? 'Home' : tab;
   return {
-    name: tab,
+    name: resolvedTab,
     params: {
       screen,
       pop: true,
@@ -114,4 +121,45 @@ export function getDesktopPostRoute(
       },
     },
   } as const;
+}
+
+/**
+ * Build the nested desktop route used when a group-invite notification is
+ * opened. The ChatList params identify the invite that was clicked and keep
+ * the invite preview open while its group data is loading.
+ */
+export function getDesktopGroupInviteRoute(groupId: string) {
+  return {
+    name: 'Home',
+    params: {
+      screen: 'ChatList',
+      params: {
+        previewGroupId: groupId,
+        previewGroupFromInviteNotification: true,
+      },
+    },
+  } as const;
+}
+
+/**
+ * Extract the group-invite preview state that the desktop drawer content must
+ * pass to HomeSidebar. Keeping this as a pure helper makes it harder for the
+ * notification marker to drift out of sync with the nested route shape.
+ */
+export function getDesktopGroupInvitePreviewProps(routeParams: unknown) {
+  if (
+    typeof routeParams !== 'object' ||
+    routeParams === null ||
+    !('previewGroupId' in routeParams) ||
+    typeof routeParams.previewGroupId !== 'string'
+  ) {
+    return null;
+  }
+
+  return {
+    previewGroupId: routeParams.previewGroupId,
+    previewGroupFromInviteNotification:
+      'previewGroupFromInviteNotification' in routeParams &&
+      routeParams.previewGroupFromInviteNotification === true,
+  };
 }
