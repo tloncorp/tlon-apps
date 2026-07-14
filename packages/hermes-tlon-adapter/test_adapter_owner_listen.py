@@ -284,6 +284,16 @@ class AdapterOwnerListenTests(unittest.TestCase):
         # Keep pending-nudge ownership initialized so the unrelated
         # unrehydrated-reply recovery del-entry is not part of their fixtures.
         adapter._pending_nudge_rehydrated = True
+        # An owner-listen command is itself owner activity, so the nudge hook
+        # records lastOwnerMessage* via the async persistence drain. That is
+        # covered in test_adapter_nudge; neutralize it here so its drain can't
+        # leak non-deterministic pokes into these owner-listen poke assertions.
+        def _skip_nudge_persistence(*_args, **_kwargs):
+            return None
+
+        adapter._nudge_activity_persistence.enqueue = _skip_nudge_persistence
+        adapter._nudge_activity_persistence.enqueue_stage_clear = _skip_nudge_persistence
+        adapter._pending_nudge_persistence.enqueue = _skip_nudge_persistence
         return adapter
 
     def dispatches(self, adapter, raw, *, dm=False):
