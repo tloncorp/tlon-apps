@@ -22,7 +22,7 @@ type ResolveCitesOptions = {
   signal?: AbortSignal;
 };
 
-const NEST_PATTERN = /^(?:chat|heap|diary)\/~[a-z-]+\/[a-z0-9-]+$/;
+const NEST_PATTERN = /^(?:chat|heap|diary)\/~[a-z-]+\/[a-zA-Z0-9-]+$/;
 const UNDOTTED_UD_PATTERN = /^(0|[1-9][0-9]*)$/;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -176,21 +176,35 @@ export async function buildReplayMessageText(
   originalMessage: { messageText: string; messageContent?: unknown },
   api: CiteScryApi,
   opts: Pick<ResolveCitesOptions, 'runtime' | 'signal'> = {}
-): Promise<string> {
+): Promise<{
+  messageText: string;
+  citedContent?: string;
+  messageTextIsCiteFree: boolean;
+}> {
   if (!isStory(originalMessage.messageContent)) {
-    return originalMessage.messageText;
+    return {
+      messageText: originalMessage.messageText,
+      messageTextIsCiteFree: false,
+    };
   }
 
   let rawText: string;
   try {
     rawText = extractMessageText(originalMessage.messageContent);
   } catch {
-    return originalMessage.messageText;
+    return {
+      messageText: originalMessage.messageText,
+      messageTextIsCiteFree: false,
+    };
   }
   const citedContent = await resolveCites(
     api,
     originalMessage.messageContent,
     opts
   );
-  return citedContent ? `${citedContent}\n\n${rawText}` : rawText;
+  return {
+    messageText: rawText,
+    messageTextIsCiteFree: true,
+    ...(citedContent ? { citedContent } : {}),
+  };
 }

@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   extractCites,
   extractMessageText,
+  isCitePlaceholderLine,
+  isSummarizationRequest,
   parseChannelWhere,
   prepareInboundText,
+  stripBotMentionOutsidePlaceholders,
 } from './utils.js';
 
 const POST_ID = '170141184506536961460817141626482720768';
@@ -147,4 +150,80 @@ describe('prepareInboundText', () => {
     expect(prepared.mentioned).toBe(true);
     expect(prepared.engagementText).toBe('~bot-ship can you help?');
   });
+
+  it('keeps cite placeholder text out of the summarization gate', () => {
+    const content = [
+      channelCite('chat/~zod/tldr', '/msg/123'),
+      { inline: ['hello'] },
+    ];
+
+    const prepared = prepareInboundText(content, '~bot-ship');
+
+    expect(prepared.rawText).toContain('chat/~zod/tldr');
+    expect(isSummarizationRequest(prepared.rawText)).toBe(true);
+    expect(prepared.engagementText).toBe('hello');
+    expect(isSummarizationRequest(prepared.engagementText)).toBe(false);
+  });
+});
+
+describe('stripBotMentionOutsidePlaceholders', () => {
+  it('strips a live mention after a placeholder containing the bot ship', () => {
+    const text =
+      '> [quoted from chat/~bot-ship/general]\n\n~bot-ship can you help?';
+
+    expect(stripBotMentionOutsidePlaceholders(text, '~bot-ship')).toBe(
+      '> [quoted from chat/~bot-ship/general]\n\n can you help?'
+    );
+  });
+
+  it('does not strip bot ships that appear only in placeholders', () => {
+    const text = '> [quoted from chat/~bot-ship/general]';
+
+    expect(stripBotMentionOutsidePlaceholders(text, '~bot-ship')).toBe(text);
+  });
+
+  it.each([
+    '> [ref: group ~bot-ship/thegroup]',
+    '> [ref: ~bot-ship/someapp]',
+    '> [ref: chan in ~bot-ship/grp]',
+  ])('preserves %s and strips the following live mention', (placeholder) => {
+    const text = `${placeholder}\n\n~bot-ship can you help?`;
+
+    expect(stripBotMentionOutsidePlaceholders(text, '~bot-ship')).toBe(
+      `${placeholder}\n\n can you help?`
+    );
+  });
+
+  it('keeps stripBotMention behavior for ordinary nickname-free text', () => {
+    expect(
+      stripBotMentionOutsidePlaceholders('~bot-ship /status', '~bot-ship')
+    ).toBe('/status');
+  });
+
+  it('treats a placeholder-lookalike user line as a placeholder', () => {
+    // Once rendered, a user-authored lookalike cannot be distinguished from a
+    // cite placeholder, so skipping it is intentional.
+    const text = '> [quoted from ~bot-ship]';
+
+    expect(stripBotMentionOutsidePlaceholders(text, '~bot-ship')).toBe(text);
+  });
+});
+
+describe('isCitePlaceholderLine', () => {
+  it.each([
+    '> [quoted from chat/~zod/general]',
+    '> [quoted message]',
+    '> [ref: group ~zod/test]',
+    '> [ref: landscape]',
+    '> [ref: graph in ~zod/test]',
+  ])('recognizes extractMessageText cite placeholders: %s', (line) => {
+    expect(isCitePlaceholderLine(line)).toBe(true);
+  });
+
+  it.each(['ordinary text', '> hello'])(
+    'rejects non-placeholder text: %s',
+    (line) => {
+      expect(isCitePlaceholderLine(line)).toBe(false);
+    }
+  );
 });

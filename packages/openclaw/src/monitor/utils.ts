@@ -258,6 +258,58 @@ export function stripBotMention(
   return messageText.replace(normalizeShip(botShipName), '').trim();
 }
 
+/**
+ * Whether a line is one of extractMessageText's rendered cite placeholders.
+ *
+ * Cite nests and references are sender-controlled, so callers that search the
+ * rendered message must treat these lines as metadata rather than live text.
+ */
+export function isCitePlaceholderLine(line: string): boolean {
+  return (
+    /^> \[quoted from .+\]$/.test(line) ||
+    line === '> [quoted message]' ||
+    /^> \[ref: .+\]$/.test(line)
+  );
+}
+
+/**
+ * Strip the first bot-ship occurrence outside extractMessageText cite
+ * placeholders. Cite nests are sender-controlled, so a placeholder must not
+ * consume the mention that the sender put in the current message.
+ *
+ * A user-authored line that happens to match a placeholder is treated as a
+ * placeholder too. That ambiguity is acceptable because the rendered format
+ * has no provenance once it reaches this helper.
+ */
+export function stripBotMentionOutsidePlaceholders(
+  messageText: string,
+  botShipName: string
+): string {
+  if (!messageText || !botShipName) {
+    return messageText;
+  }
+
+  const normalizedBotShip = normalizeShip(botShipName);
+  let stripped = false;
+  const text = messageText
+    .split('\n')
+    .map((line) => {
+      if (
+        stripped ||
+        isCitePlaceholderLine(line) ||
+        !line.includes(normalizedBotShip)
+      ) {
+        return line;
+      }
+
+      stripped = true;
+      return line.replace(normalizedBotShip, '');
+    })
+    .join('\n');
+
+  return text.trim();
+}
+
 export function isDmAllowed(
   senderShip: string,
   allowlist: string[] | undefined

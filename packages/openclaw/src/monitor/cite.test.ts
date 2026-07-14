@@ -74,11 +74,43 @@ describe('validatedCiteScryPath', () => {
     ).toBe('/channels/v4/chat/~zod/general/posts/post/0.json');
   });
 
+  it('accepts case-sensitive channel names and preserves their case in scry paths', async () => {
+    const mixedCaseNest = 'chat/~zod/q6QH2RoI';
+    const path =
+      '/channels/v4/chat/~zod/q6QH2RoI/posts/post/170.141.184.506.536.961.460.817.141.626.482.720.768.json';
+    const calls: string[] = [];
+    const api = {
+      scry: async (scryPath: string) => {
+        calls.push(scryPath);
+        return essayPayload('~scried-author');
+      },
+    };
+
+    expect(
+      validatedCiteScryPath({
+        type: 'chan',
+        nest: mixedCaseNest,
+        postId: POST_ID,
+      })
+    ).toBe(path);
+
+    await resolveCites(
+      api,
+      citedStory([{ nest: mixedCaseNest, where: `/msg/${POST_ID}` }])
+    );
+    expect(calls).toEqual([path]);
+  });
+
   it('rejects malformed nests and ids before scrying', async () => {
     const invalidNests = [
       'club/~zod/general',
       'chat/zod/general',
       'chat/~zod/general/extra',
+      'chat/~zod/general.name',
+      'chat/~zod/general_name',
+      'chat/~zod/general$name',
+      'Chat/~zod/general',
+      'chat/~Zod/general',
     ];
     const invalidIds = [
       'letters',
@@ -412,9 +444,11 @@ describe('buildReplayMessageText', () => {
         },
         api
       )
-    ).resolves.toBe(
-      '> ~scried-author wrote: quote\n\n> [quoted from chat/~zod/general]\n\nfollow-up question'
-    );
+    ).resolves.toEqual({
+      messageText: '> [quoted from chat/~zod/general]\n\nfollow-up question',
+      citedContent: '> ~scried-author wrote: quote',
+      messageTextIsCiteFree: true,
+    });
   });
 
   it('uses the stored text when message content is missing or malformed', async () => {
@@ -426,19 +460,28 @@ describe('buildReplayMessageText', () => {
 
     await expect(
       buildReplayMessageText({ messageText: 'stored text' }, api)
-    ).resolves.toBe('stored text');
+    ).resolves.toEqual({
+      messageText: 'stored text',
+      messageTextIsCiteFree: false,
+    });
     await expect(
       buildReplayMessageText(
         { messageText: 'stored malformed text', messageContent: {} },
         api
       )
-    ).resolves.toBe('stored malformed text');
+    ).resolves.toEqual({
+      messageText: 'stored malformed text',
+      messageTextIsCiteFree: false,
+    });
     await expect(
       buildReplayMessageText(
         { messageText: 'stored malformed array', messageContent: [{}] },
         api
       )
-    ).resolves.toBe('stored malformed array');
+    ).resolves.toEqual({
+      messageText: 'stored malformed array',
+      messageTextIsCiteFree: false,
+    });
     await expect(
       buildReplayMessageText(
         {
@@ -447,7 +490,10 @@ describe('buildReplayMessageText', () => {
         },
         api
       )
-    ).resolves.toBe('stored extraction failure');
+    ).resolves.toEqual({
+      messageText: 'stored extraction failure',
+      messageTextIsCiteFree: false,
+    });
   });
 
   it('propagates resolver aborts instead of falling back to stored text', async () => {

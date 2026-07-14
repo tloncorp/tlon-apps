@@ -10,6 +10,7 @@ import {
   bindContextLensToSession,
   buildRetryDispatch,
   createContextLensRegistry,
+  createRetrySeed,
   ensureBackgroundContextLensForSession,
   finalizeBackgroundContextLensForSession,
   getActiveBackgroundContextLens,
@@ -17,6 +18,7 @@ import {
   recordBackgroundContextLensOutput,
   recordContextLensToolResultForSession,
   recordContextLensToolStartForSession,
+  retrySeedMessageTextIsCiteFree,
   scheduleBackgroundContextLensFinalization,
   unbindContextLensFromSession,
 } from './context-lens.js';
@@ -803,6 +805,7 @@ describe('retry seed and dispatch', () => {
       preview: 'preview text',
       retrySeed: {
         messageText: 'full original text',
+        messageTextIsCiteFree: true,
         blobField: null,
         parentId: '170.5',
         isThreadReply: true,
@@ -820,6 +823,7 @@ describe('retry seed and dispatch', () => {
         messageId: 'message-retry-3',
         senderShip: '~ten',
         messageText: 'full original text',
+        messageTextIsCiteFree: true,
         blobField: null,
         messageContent: null,
         isGroup: true,
@@ -831,6 +835,59 @@ describe('retry seed and dispatch', () => {
         degraded: false,
       },
     });
+  });
+
+  it('keeps a legacy retry and its retry-of-a-retry unmarked as cite-free', () => {
+    const registry = createContextLensRegistry();
+    const lens = registry.create({
+      messageId: 'message-retry-legacy',
+      chatType: 'channel',
+      trigger: 'retry',
+      sessionKey: 'session-retry-legacy',
+      senderShip: '~ten',
+      conversationId: 'chat/~ten/test',
+      retrySeed: {
+        messageText: '> ~quoted wrote: baked-in quote\n\nfollow-up question',
+        messageContent: [{ inline: ['follow-up question'] }],
+      },
+    });
+    const failed = registry.setStatus(lens.lensId, 'error', new Error('boom'));
+
+    const dispatch = buildRetryDispatch(failed!);
+
+    expect(dispatch).toMatchObject({ ok: true });
+    if (dispatch.ok) {
+      expect(dispatch.dispatch).not.toHaveProperty('messageTextIsCiteFree');
+      expect(
+        createRetrySeed({
+          messageText: dispatch.dispatch.messageText,
+          ...(retrySeedMessageTextIsCiteFree(
+            dispatch.dispatch.messageTextIsCiteFree
+          )
+            ? { messageTextIsCiteFree: true }
+            : {}),
+        })
+      ).not.toHaveProperty('messageTextIsCiteFree');
+    }
+  });
+
+  it('marks retry seeds cite-free only for explicitly cite-free dispatches', () => {
+    expect(
+      createRetrySeed({
+        messageText: 'cite-free message',
+        ...(retrySeedMessageTextIsCiteFree(true)
+          ? { messageTextIsCiteFree: true }
+          : {}),
+      })
+    ).toMatchObject({ messageTextIsCiteFree: true });
+    expect(
+      createRetrySeed({
+        messageText: 'legacy message',
+        ...(retrySeedMessageTextIsCiteFree(undefined)
+          ? { messageTextIsCiteFree: true }
+          : {}),
+      })
+    ).not.toHaveProperty('messageTextIsCiteFree');
   });
 
   it('falls back to the preview as degraded when the run predates retrySeed', () => {

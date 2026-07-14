@@ -21,6 +21,8 @@ import {
   bindContextLensToSession,
   buildRetryDispatch,
   createContextLensRegistry,
+  createRetrySeed,
+  retrySeedMessageTextIsCiteFree,
   unbindContextLensFromSession,
 } from '../context-lens.js';
 import { scheduleCronSnapshot } from '../cron-telemetry.js';
@@ -159,7 +161,7 @@ import {
   prepareInboundText,
   sanitizeMessageText,
   shouldEngageInGroup,
-  stripBotMention,
+  stripBotMentionOutsidePlaceholders,
 } from './utils.js';
 import { probeWebSearchBootStatus } from './web-search-status.js';
 
@@ -1477,15 +1479,11 @@ export async function monitorTlonProvider(
       runtime.log?.('[tlon] No group channels to monitor (DMs only)');
     }
 
-    async function buildMessageTextWithCites(
-      story: unknown,
-      rawText: string
-    ): Promise<string> {
-      const citedContent = await resolveCites(api!, story, {
+    async function resolveCitedContent(story: unknown): Promise<string> {
+      return resolveCites(api!, story, {
         runtime,
         signal: opts.abortSignal,
       });
-      return citedContent ? `${citedContent}\n\n${rawText}` : rawText;
     }
 
     // Helper to save pending approvals to settings store
@@ -1907,15 +1905,31 @@ export async function monitorTlonProvider(
               runtime.log?.(
                 `[tlon] Processing original message from ${approval.requestingShip} after approval`
               );
-              const messageText = await buildReplayMessageText(
+              const replayMessage = await buildReplayMessageText(
                 approval.originalMessage,
                 api!,
                 { runtime, signal: opts.abortSignal }
               );
+              const replayInboundText = replayMessage.messageTextIsCiteFree
+                ? prepareInboundText(
+                    approval.originalMessage.messageContent,
+                    botShipName,
+                    botNickname ?? undefined
+                  )
+                : undefined;
               await processMessage({
                 messageId: approval.originalMessage.messageId,
                 senderShip: approval.requestingShip,
-                messageText,
+                messageText: replayMessage.messageText,
+                ...(replayMessage.citedContent
+                  ? { citedContent: replayMessage.citedContent }
+                  : {}),
+                ...(replayInboundText
+                  ? { gateText: replayInboundText.engagementText }
+                  : {}),
+                ...(replayMessage.messageTextIsCiteFree
+                  ? { messageTextIsCiteFree: true }
+                  : {}),
                 trigger: 'dm',
                 messageContent: approval.originalMessage.messageContent,
                 isGroup: false,
@@ -1936,15 +1950,31 @@ export async function monitorTlonProvider(
                 runtime.log?.(
                   `[tlon] Processing original message from ${approval.requestingShip} in ${approval.channelNest} after approval`
                 );
-                const messageText = await buildReplayMessageText(
+                const replayMessage = await buildReplayMessageText(
                   approval.originalMessage,
                   api!,
                   { runtime, signal: opts.abortSignal }
                 );
+                const replayInboundText = replayMessage.messageTextIsCiteFree
+                  ? prepareInboundText(
+                      approval.originalMessage.messageContent,
+                      botShipName,
+                      botNickname ?? undefined
+                    )
+                  : undefined;
                 await processMessage({
                   messageId: approval.originalMessage.messageId,
                   senderShip: approval.requestingShip,
-                  messageText,
+                  messageText: replayMessage.messageText,
+                  ...(replayMessage.citedContent
+                    ? { citedContent: replayMessage.citedContent }
+                    : {}),
+                  ...(replayInboundText
+                    ? { gateText: replayInboundText.engagementText }
+                    : {}),
+                  ...(replayMessage.messageTextIsCiteFree
+                    ? { messageTextIsCiteFree: true }
+                    : {}),
                   trigger: approval.originalMessage.isThreadReply
                     ? 'thread'
                     : 'mention',
@@ -2223,6 +2253,11 @@ export async function monitorTlonProvider(
       messageId: string;
       senderShip: string;
       messageText: string;
+      citedContent?: string;
+      /** Cite-free rendering used only for message-level gates. */
+      gateText?: string;
+      /** True only when messageText excludes resolved cite content. */
+      messageTextIsCiteFree?: boolean;
       trigger?: ContextLensTrigger;
       cachesHistory?: boolean;
       messageContent?: unknown; // Raw Tlon content for media extraction
@@ -2255,23 +2290,34 @@ export async function monitorTlonProvider(
       // the reply is still delivered as a thread reply.
       const deliverParentId = params.replyParentId ?? parentId;
       const groupChannel = channelNest; // For compatibility
-      let messageText = sanitizeMessageText(params.messageText);
-      const rawMessageText = messageText; // Preserve original before any modifications
+      const rawMessageText = sanitizeMessageText(params.messageText);
+      let currentMessageText = rawMessageText;
       const previewText = (text: string, max = 180) => {
         const compact = sanitizeMessageText(text).replace(/\s+/g, ' ').trim();
         return compact.length > max ? `${compact.slice(0, max - 1)}…` : compact;
       };
 
-      // Strip bot mention EARLY, before thread context is prepended.
+      // Strip the sender's bot mention before cite or thread context is prepended.
       // This ensures [Current message] in thread context won't contain the bot ship name,
       // which was causing the agent to mistake it for its own message and return NO_REPLY.
       if (isGroup) {
-        messageText = stripBotMention(messageText, botShipName);
+        currentMessageText = stripBotMentionOutsidePlaceholders(
+          currentMessageText,
+          botShipName
+        );
       }
-      const trigger: ContextLensTrigger =
-        isGroup && groupChannel && isSummarizationRequest(messageText)
-          ? 'summarization'
-          : params.trigger ?? 'unknown';
+      const gateText = sanitizeMessageText(
+        params.gateText ?? currentMessageText
+      );
+      const isChannelSummaryRequest =
+        isGroup && Boolean(groupChannel) && isSummarizationRequest(gateText);
+      const trigger: ContextLensTrigger = isChannelSummaryRequest
+        ? 'summarization'
+        : params.trigger ?? 'unknown';
+      const citedContent = sanitizeMessageText(params.citedContent ?? '');
+      let messageText = citedContent
+        ? `${citedContent}\n\n${currentMessageText}`
+        : currentMessageText;
 
       const route = core.channel.routing.resolveAgentRoute({
         cfg,
@@ -2318,15 +2364,18 @@ export async function monitorTlonProvider(
         receivedAt: timestamp,
         preview: previewText(messageText),
         ...(params.retryOf ? { retryOf: params.retryOf } : {}),
-        retrySeed: {
+        retrySeed: createRetrySeed({
           messageText: rawMessageText,
+          ...(retrySeedMessageTextIsCiteFree(params.messageTextIsCiteFree)
+            ? { messageTextIsCiteFree: true }
+            : {}),
           blobField: params.blobField ?? null,
           messageContent: messageContent ?? null,
           parentId: parentId ?? null,
           isThreadReply: Boolean(isThreadReply),
           replyParentId: params.replyParentId ?? null,
           cachesHistory: Boolean(params.cachesHistory),
-        },
+        }),
       });
       contextLenses.recordPersistence(lens.lensId, {
         cachesHistory: Boolean(params.cachesHistory),
@@ -2661,7 +2710,7 @@ export async function monitorTlonProvider(
         }
       }
 
-      if (isGroup && groupChannel && isSummarizationRequest(messageText)) {
+      if (isChannelSummaryRequest && groupChannel) {
         try {
           const history = await getChannelHistory(
             api,
@@ -2937,7 +2986,7 @@ export async function monitorTlonProvider(
 
       // Use raw text (no thread context) for command detection so "/status" is recognized
       const commandBody = isGroup
-        ? stripBotMention(rawMessageText, botShipName)
+        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
         : rawMessageText;
 
       const ctxPayload = core.channel.reply.finalizeInboundContext({
@@ -3596,7 +3645,7 @@ export async function monitorTlonProvider(
           return;
         }
 
-        const { rawText, mentioned } = prepareInboundText(
+        const { rawText, engagementText, mentioned } = prepareInboundText(
           content.content,
           botShipName,
           botNickname ?? undefined
@@ -3802,14 +3851,14 @@ export async function monitorTlonProvider(
         }
 
         const parsed = parseChannelNest(nest);
-        const messageText = await buildMessageTextWithCites(
-          content.content,
-          rawText
-        );
+        const citedContent = await resolveCitedContent(content.content);
         await processMessage({
           messageId: messageId ?? '',
           senderShip,
-          messageText,
+          messageText: rawText,
+          ...(citedContent ? { citedContent } : {}),
+          gateText: engagementText,
+          messageTextIsCiteFree: true,
           trigger,
           cachesHistory: true,
           messageContent: content.content, // Pass raw content for media extraction
@@ -4055,7 +4104,7 @@ export async function monitorTlonProvider(
         const authorShip = normalizeShip(extractAuthorShip(dmContent.author));
         const partnerShip = extractDmPartnerShip(whom);
         const senderShip = partnerShip || authorShip;
-        const { rawText } = prepareInboundText(
+        const { rawText, engagementText } = prepareInboundText(
           dmContent.content,
           botShipName,
           botNickname ?? undefined
@@ -4132,14 +4181,14 @@ export async function monitorTlonProvider(
           return;
         }
 
-        const messageText = await buildMessageTextWithCites(
-          dmContent.content,
-          rawText
-        );
+        const citedContent = await resolveCitedContent(dmContent.content);
         await processMessage({
           messageId: effectiveMessageId ?? '',
           senderShip,
-          messageText,
+          messageText: rawText,
+          ...(citedContent ? { citedContent } : {}),
+          gateText: engagementText,
+          messageTextIsCiteFree: true,
           trigger: 'dm',
           cachesHistory: Boolean(rawCacheText.trim()),
           messageContent: dmContent.content, // Pass raw content for media extraction
@@ -4361,10 +4410,29 @@ export async function monitorTlonProvider(
                 : ''
             }`
           );
+          const citedContent =
+            dispatch.messageTextIsCiteFree && dispatch.messageContent
+              ? await resolveCitedContent(dispatch.messageContent)
+              : undefined;
+          const retryInboundText =
+            dispatch.messageTextIsCiteFree && dispatch.messageContent
+              ? prepareInboundText(
+                  dispatch.messageContent,
+                  botShipName,
+                  botNickname ?? undefined
+                )
+              : undefined;
           await processMessage({
             messageId: lens.messageId,
             senderShip: dispatch.senderShip,
             messageText: dispatch.messageText,
+            ...(citedContent ? { citedContent } : {}),
+            ...(retryInboundText
+              ? { gateText: retryInboundText.engagementText }
+              : {}),
+            ...(dispatch.messageTextIsCiteFree
+              ? { messageTextIsCiteFree: true }
+              : {}),
             blobField: dispatch.blobField,
             ...(dispatch.messageContent
               ? { messageContent: dispatch.messageContent }
