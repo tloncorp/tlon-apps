@@ -518,6 +518,20 @@ async def _assert_safe_http_url(url: str) -> ParseResult:
     parsed = _parse_http_url(url)
     if parsed is None:
         raise UnsafeMediaUrlError("media URL must be http(s)")
+    # Prefer the core URL-safety policy when running in-process with
+    # hermes-agent (same import base.py's media cache uses): it is the single
+    # source of truth and honors security.allow_private_urls — which
+    # self-hosted / localhost dev ships need — while keeping cloud-metadata
+    # endpoints blocked unconditionally. The local check below is the
+    # standalone fallback.
+    try:
+        from tools.url_safety import is_safe_url
+    except Exception:
+        is_safe_url = None
+    if is_safe_url is not None:
+        if not await asyncio.to_thread(is_safe_url, url):
+            raise UnsafeMediaUrlError("media URL blocked by URL safety policy")
+        return parsed
     host = parsed.hostname or ""
     if host.lower() in {"localhost", "ip6-localhost", "ip6-loopback"}:
         raise UnsafeMediaUrlError("media URL resolves to a local host")

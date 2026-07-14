@@ -148,6 +148,7 @@ from .version import (
 from .tlon_api import (
     DEFAULT_CONTEXT_MESSAGES,
     MAX_MESSAGE_LENGTH,
+    TlonAuthError,
     TlonCLI,
     TlonConfig,
     TlonGatewayStatus,
@@ -595,6 +596,9 @@ def is_connected(config) -> bool:
 
 class TlonAdapter(BasePlatformAdapter):
     MAX_MESSAGE_LENGTH = MAX_MESSAGE_LENGTH
+    # Tell Hermes' DeliveryRouter not to truncate before calling send(); this
+    # adapter preserves oversized replies by splitting them into Tlon posts.
+    splits_long_messages = True
 
     # The adapter implements the full inbound access policy itself
     # (deny-by-default, owner/env allowlists, settings-store grants, approval
@@ -765,6 +769,14 @@ class TlonAdapter(BasePlatformAdapter):
             )
             logger.info("[tlon] connected to %s as %s", self.tlon_config.ship_url, self.tlon_config.ship_name)
             return True
+        except TlonAuthError as exc:
+            # Bad access code: fatal, not a transient connect failure — stops
+            # the gateway from restart-looping against rejected credentials.
+            logger.error("[tlon] connect failed, credentials rejected: %s", exc)
+            self._telemetry.error("connect", exc, operation="authenticate")
+            await self._close_sse(graceful=False)
+            self._set_fatal_error("auth", str(exc), retryable=False)
+            return False
         except Exception as exc:
             logger.error("[tlon] connect failed: %s", exc, exc_info=True)
             self._telemetry.error("connect", exc)
@@ -1883,6 +1895,16 @@ class TlonAdapter(BasePlatformAdapter):
                     await self._route_stream_event(event)
             except asyncio.CancelledError:
                 return
+            except TlonAuthError as exc:
+                # The ship rejected the access code — reconnecting with the
+                # same credentials can never succeed. Mark the adapter fatal
+                # (core surfaces it and stops restart churn) instead of
+                # hammering the ship at max-backoff forever.
+                logger.error("[tlon] SSE auth rejected, stopping: %s", exc)
+                await self._close_sse(graceful=False)
+                self._telemetry.error("sse", exc, operation="authenticate")
+                self._set_fatal_error("auth", str(exc), retryable=False)
+                return
             except Exception as exc:
                 if not self._running:
                     return
@@ -2698,9 +2720,10 @@ class TlonAdapter(BasePlatformAdapter):
         """Send a model reply.
 
         Adapter callers may provide ``metadata["blob"]`` as a complete,
-        serialized post-blob entry array. It is composed before the internal
-        context-lens reference and must accompany non-empty content because
-        the deployed CLI does not support blob-only posts.
+        serialized post-blob entry array. It rides the first chunk, is
+        composed before the internal context-lens reference, and must
+        accompany non-empty content because the deployed CLI does not support
+        blob-only posts.
         """
         pending = self._pending_bot_cap_addendum.get(chat_id)
         addendum = ""
@@ -2710,7 +2733,7 @@ class TlonAdapter(BasePlatformAdapter):
                 f"{pending[0]} for now. To continue our conversation, "
                 "someone will need to mention me._"
             )
-        content = (content or "")[: self.MAX_MESSAGE_LENGTH - len(addendum)] + addendum
+        content = (content or "") + addendum
         metadata = metadata or {}
         caller_blob = metadata.get("blob")
         if not (isinstance(caller_blob, str) and caller_blob.strip()):
@@ -2738,24 +2761,38 @@ class TlonAdapter(BasePlatformAdapter):
         if thread_parent is None and self.tlon_config.reply_in_thread:
             thread_parent = reply_to
         is_thread_reply = bool(thread_parent)
-        # Stamp the reply with a pointer to its lens run so the client can open
-        # the run from the message (badge / message actions), matching
-        # OpenClaw. Only when a run is active for this conversation.
+        parent_author = metadata.get("parent_author") or None
+        # Stamp each delivered chunk with a pointer to its lens run so the
+        # client can open the run from the message (badge / message actions),
+        # matching OpenClaw. Only when a run is active for this conversation.
         lens_blob = self._lens_reference_blob(chat_id)
-        with cli_context("delivery", conversation=chat_id):
-            # parentAuthor: honor what Hermes passes; otherwise the CLI
-            # attributes the reference to the bot. (We don't assume a DM
-            # partner authored the thread root.)
-            result, sent_at_ms = await self._deliver_post(
-                chat_id,
-                content,
-                parent_id=thread_parent if is_thread_reply else None,
-                parent_author=metadata.get("parent_author") or None,
-                blob_fields=(caller_blob,) if caller_blob is not None else (),
-                lens_blob=lens_blob,
+        chunks = self._chunk_outbound(content)
+        multi = len(chunks) > 1
+        message_ids: list[str] = []
+        result = None
+        for idx, chunk in enumerate(chunks):
+            with cli_context("delivery", conversation=chat_id):
+                # A caller-provided field describes one logical reply and
+                # therefore rides only the first visible chunk. The internal
+                # lens reference rides every chunk so each post can open the
+                # run that produced it.
+                result, sent_at_ms = await self._deliver_post(
+                    chat_id,
+                    chunk,
+                    parent_id=thread_parent if is_thread_reply else None,
+                    parent_author=parent_author,
+                    blob_fields=(
+                        (caller_blob,)
+                        if idx == 0 and caller_blob is not None
+                        else ()
+                    ),
+                    lens_blob=lens_blob,
+                )
+            self._telemetry.record_delivery(
+                chat_id, content=chunk, success=result.success
             )
-        self._telemetry.record_delivery(chat_id, content=content, success=result.success)
-        if result.success:
+            if not result.success:
+                break
             # sent_at_ms is set iff there's an active run to stamp (see above).
             if sent_at_ms is not None:
                 self._lens.record_output(
@@ -2765,34 +2802,114 @@ class TlonAdapter(BasePlatformAdapter):
                         conversation_id=chat_id,
                         kind="dm" if normalize_ship(chat_id) == chat_id else "channel",
                         sent_at=sent_at_ms,
-                        preview=content or None,
-                        chunk_index=None,
+                        preview=chunk or None,
+                        chunk_index=idx if multi else None,
                     ),
                 )
-        else:
-            # A produced-but-undelivered reply is a delivery failure, not a
-            # no_reply; record it so the run finalizes as an error.
-            self._lens.record_delivery_failure(
-                chat_id, error=(result.stderr or "").strip() or "delivery failed"
-            )
+            message_ids.append(str(result.message_id or ""))
 
         raw_response = {
             "stdout": result.stdout,
             "stderr": result.stderr,
             "returncode": result.returncode,
         }
-        if result.success and is_thread_reply and thread_parent:
+        if message_ids and not result.success:
+            # Partial delivery: some chunks landed before one failed. Report
+            # success with what was delivered — a failure here would make the
+            # core retry/plain-text-fallback resend the WHOLE payload and
+            # duplicate the chunks users already saw.
+            logger.error(
+                "[tlon] delivered %d/%d chunks to %s before failure: %s",
+                len(message_ids),
+                len(chunks),
+                chat_id,
+                result.error,
+            )
+            self._telemetry.error(
+                "send",
+                RuntimeError(result.error or "chunked send failed"),
+                operation="chunked_delivery",
+            )
+            # Surface the dropped tail on the lens run (error text, status
+            # unchanged) so the owner sees it in the UI, not just in logs.
+            live_run = self._lens.get(chat_id)
+            if live_run is not None:
+                live_run.set_status(
+                    live_run.status,
+                    error=(
+                        f"partial delivery: {len(message_ids)}/{len(chunks)} "
+                        f"chunks sent ({result.error or 'send failed'})"
+                    ),
+                )
+        elif not result.success:
+            # A produced-but-undelivered reply is a delivery failure, not a
+            # no_reply; record it so the run finalizes as an error.
+            self._lens.record_delivery_failure(
+                chat_id, error=(result.stderr or "").strip() or "delivery failed"
+            )
+        delivered = bool(message_ids)
+        if delivered and is_thread_reply and thread_parent:
             self._participated_threads.add(self._thread_key(chat_id, thread_parent))
         if addendum and (result.success or result.returncode != 124):
             if self._pending_bot_cap_addendum.get(chat_id) == pending:
                 self._pending_bot_cap_addendum.pop(chat_id, None)
         return SendResult(
-            success=result.success,
-            message_id=result.message_id,
-            error=result.error,
+            success=delivered,
+            # Core contract: message_id is the LAST visible chunk (edits
+            # target it); earlier chunk ids ride continuation_message_ids.
+            message_id=message_ids[-1] if delivered else result.message_id,
+            error=None if delivered else result.error,
             raw_response=raw_response,
-            retryable=result.returncode == 124,
+            retryable=False if delivered else self._send_retryable(result),
+            continuation_message_ids=tuple(message_ids[:-1]),
         )
+
+    # Transient network failures from the bun-built tlon CLI, mirroring
+    # core's _RETRYABLE_ERROR_PATTERNS. CLI timeouts (returncode 124) are
+    # deliberately NOT retryable: the poke may have landed before the kill,
+    # so a resend risks a duplicate post (same rule as core's
+    # _is_timeout_error).
+    _TRANSIENT_SEND_ERRORS = (
+        "econnrefused",
+        "econnreset",
+        "enotfound",
+        "eai_again",
+        "socket hang up",
+        "fetch failed",
+        "network",
+        "connection refused",
+        "connection reset",
+        "broken pipe",
+    )
+
+    @classmethod
+    def _send_retryable(cls, result: Any) -> bool:
+        if result.returncode == 124:
+            return False
+        blob = f"{result.error or ''} {result.stderr or ''}".lower()
+        return any(pat in blob for pat in cls._TRANSIENT_SEND_ERRORS)
+
+    def _chunk_outbound(self, content: str) -> list[str]:
+        """Split an oversized reply instead of silently truncating it.
+
+        Uses core's code-block-aware truncate_message when running under the
+        real BasePlatformAdapter; the plain fallback keeps the adapter usable
+        standalone (test stubs).
+        """
+        if len(content) <= self.MAX_MESSAGE_LENGTH:
+            return [content]
+        chunker = getattr(self, "truncate_message", None)
+        if callable(chunker):
+            try:
+                chunks = [c for c in chunker(content, self.MAX_MESSAGE_LENGTH) if c]
+                if chunks:
+                    return chunks
+            except Exception as exc:
+                logger.warning("[tlon] truncate_message failed, plain split: %s", exc)
+        return [
+            content[i : i + self.MAX_MESSAGE_LENGTH]
+            for i in range(0, len(content), self.MAX_MESSAGE_LENGTH)
+        ]
 
     async def get_chat_info(self, chat_id: str) -> Dict[str, Any]:
         chat_type = "dm" if normalize_ship(chat_id) == chat_id and chat_id.startswith("~") else "group"
