@@ -466,3 +466,56 @@ export function sanitizeMessageText(text: string): string {
 
   return sanitized;
 }
+
+/**
+ * Find an unexpired external-handler claim covering an inbound message.
+ * Claims are written to the settings store by local sessions (e.g. the
+ * claude-tlon-channel Claude Code plugin) that attach to a conversation as
+ * this ship; while one is live the monitor should not respond there.
+ *
+ * Scope grammar (must stay in sync with packages/claude-tlon-channel):
+ *   ~ship                        one-to-one DM with that ship
+ *   chat/~host/slug              whole group channel
+ *   chat/~host/slug/<post-id>    single thread (top-level post id)
+ *
+ * Group-DM (club) scopes are not yet matchable here because processMessage
+ * does not carry the club id.
+ */
+export function findExternalClaim(
+  claims:
+    | { scope: string; holder: string; expiresAt: number }[]
+    | undefined,
+  locus: {
+    isGroup: boolean;
+    channelNest?: string;
+    parentId?: string | null;
+    senderShip: string;
+  },
+  now: number
+): { scope: string; holder: string; expiresAt: number } | undefined {
+  if (!claims || claims.length === 0) {
+    return undefined;
+  }
+  const stripDots = (id: string) => id.replace(/\./g, '');
+  const candidates = new Set<string>();
+  if (locus.isGroup && locus.channelNest) {
+    candidates.add(locus.channelNest);
+    if (locus.parentId) {
+      candidates.add(`${locus.channelNest}/${stripDots(locus.parentId)}`);
+    }
+  } else if (!locus.isGroup) {
+    candidates.add(normalizeShip(locus.senderShip));
+  }
+  return claims.find((claim) => {
+    if (claim.expiresAt <= now) {
+      return false;
+    }
+    // Normalize thread scopes so dotted and undotted post ids match.
+    const parts = claim.scope.split('/');
+    const normalized =
+      parts.length === 4
+        ? `${parts[0]}/${parts[1]}/${parts[2]}/${stripDots(parts[3])}`
+        : claim.scope;
+    return candidates.has(normalized);
+  });
+}

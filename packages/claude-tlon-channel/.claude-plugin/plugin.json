@@ -1,0 +1,8 @@
+{
+  "name": "tlon-channel",
+  "version": "0.1.0",
+  "description": "Attach this Claude Code session to Tlon channels, threads, and DMs. Inbound messages arrive as channel events; reply with the tlon_send tool.",
+  "author": {
+    "name": "Tlon Corporation"
+  }
+}
