@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   _testing,
   createTlonTelemetry,
+  recordCronRunAttribution,
   recordToolCall,
+  reportCronJobChanged,
+  reportCronRun,
+  reportCronSnapshot,
   reportHarnessDebug,
   reportHarnessError,
   reportOutboundRoute,
@@ -12,6 +16,7 @@ import {
   reportSessionLifecycle,
   reportSessionTurnCreated,
   reportTelemetryError,
+  setCronTelemetryReporter,
   setDebugTelemetryReporter,
   setErrorTelemetryReporter,
   setOutboundRouteReporter,
@@ -46,6 +51,7 @@ describe('telemetry tool tracking', () => {
     _testing.clearToolCalls();
     _testing.clearSessionContexts();
     _testing.clearHarnessDebugSnapshots();
+    _testing.clearCronRunAttribution();
     setSessionTelemetryReporter(null);
     setDebugTelemetryReporter(null);
     setErrorTelemetryReporter(null);
@@ -1410,6 +1416,218 @@ describe('telemetry tool tracking', () => {
     });
   });
 
+  it('emits a cron harness failure with its complete low-level diagnostic context', () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+
+    // Scheduled runs have no inbound reply, so no session context is remembered.
+    recordCronRunAttribution({
+      sessionKey: 'cron-session',
+      runId: 'cron-run',
+      jobId: 'job-7',
+    });
+    reportHarnessError({
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'cron-session',
+      sessionId: 'cron-session-id',
+      runId: 'cron-run',
+      agentId: 'agent-main',
+      provider: 'anthropic',
+      model: 'claude-test',
+      phase: 'request',
+      outcome: 'error',
+      errorCategory: 'network',
+      failureKind: 'connection_reset',
+      durationMs: 1_234,
+      errorText: 'full\nmodel\nerror with provider diagnostics',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Error');
+    expect(call.properties).toMatchObject({
+      harness: 'openclaw',
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'cron-session',
+      sessionId: 'cron-session-id',
+      runId: 'cron-run',
+      accountId: 'default',
+      agentId: 'agent-main',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      provider: 'anthropic',
+      model: 'claude-test',
+      phase: 'request',
+      outcome: 'error',
+      errorCategory: 'network',
+      failureKind: 'connection_reset',
+      durationMs: 1_234,
+      errorText: 'full\nmodel\nerror with provider diagnostics',
+      isCron: true,
+      cronJobId: 'job-7',
+    });
+  });
+
+  it('attributes a run-id-less cron failure best-effort', () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+
+    recordCronRunAttribution({
+      sessionKey: 'cron-session',
+      jobId: 'job-9',
+    });
+    reportHarnessError({
+      harnessEventType: 'harness.run.error',
+      errorScope: 'harness',
+      sessionKey: 'cron-session',
+      errorText: 'run failed',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties).toMatchObject({
+      errorScope: 'harness',
+      isCron: true,
+      cronJobId: 'job-9',
+    });
+  });
+
+  it('does not attribute a different run reusing the cron session key', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+
+    recordCronRunAttribution({
+      sessionKey: 'session-1',
+      runId: 'cron-run',
+      jobId: 'job-7',
+    });
+    reportHarnessError({
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'session-1',
+      runId: 'interactive-run',
+      errorText: 'model unresponsive',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Error');
+    expect(call.properties.isCron).toBe(false);
+    expect(Object.hasOwn(call.properties, 'cronJobId')).toBe(false);
+  });
+
+  it('does not attribute non-gateway scopes during a cron run', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+
+    recordCronRunAttribution({
+      sessionKey: 'session-1',
+      runId: 'cron-run',
+      jobId: 'job-7',
+    });
+    reportHarnessError({
+      harnessEventType: 'tool.execution.error',
+      errorScope: 'tool',
+      sessionKey: 'session-1',
+      runId: 'cron-run',
+      toolName: 'tlon',
+      errorText: 'tool blew up',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties.errorScope).toBe('tool');
+    expect(call.properties.isCron).toBe(false);
+  });
+
+  it('does not let a run-id-less cron signal poison a later interactive run', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+
+    recordCronRunAttribution({ sessionKey: 'session-1', jobId: 'job-7' });
+    reportHarnessError({
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'session-1',
+      runId: 'interactive-run',
+      errorText: 'model unresponsive',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Error');
+    expect(call.properties.isCron).toBe(false);
+    expect(Object.hasOwn(call.properties, 'cronJobId')).toBe(false);
+  });
+
+  it('matches a run-id-less cron failure instead of a stale remembered run', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+    // This leaves the remembered context with runId='run-1'.
+    await rememberSessionForDiagnostics(telemetry);
+
+    recordCronRunAttribution({ sessionKey: 'session-1', jobId: 'job-7' });
+    reportHarnessError({
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'session-1',
+      errorText: 'model unresponsive',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Error');
+    expect(call.properties.isCron).toBe(true);
+    expect(call.properties.cronJobId).toBe('job-7');
+  });
+
+  it("does not reuse an earlier cron run's job id for a run-id-less signal", () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+
+    recordCronRunAttribution({
+      sessionKey: 'cron-session',
+      runId: 'cron-1',
+      jobId: 'job-a',
+    });
+    recordCronRunAttribution({ sessionKey: 'cron-session' });
+    reportHarnessError({
+      harnessEventType: 'harness.run.error',
+      errorScope: 'harness',
+      sessionKey: 'cron-session',
+      errorText: 'run failed',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties.isCron).toBe(true);
+    expect(Object.hasOwn(call.properties, 'cronJobId')).toBe(false);
+  });
+
+  it("does not reuse another cron run's job id for an exact run match", () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+
+    recordCronRunAttribution({
+      sessionKey: 'cron-session',
+      runId: 'run-a',
+    });
+    recordCronRunAttribution({
+      sessionKey: 'cron-session',
+      runId: 'run-b',
+      jobId: 'job-b',
+    });
+    reportHarnessError({
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'cron-session',
+      runId: 'run-a',
+      errorText: 'model unresponsive',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties.isCron).toBe(true);
+    expect(Object.hasOwn(call.properties, 'cronJobId')).toBe(false);
+  });
+
   it('reports process-level harness diagnostics without a session key', () => {
     const telemetry = createEnabledTelemetry()!;
     bindErrorReporter(telemetry);
@@ -1589,5 +1807,208 @@ describe('outbound route telemetry', () => {
       targetKind: 'dm',
     });
     expect(reporter).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('cron telemetry capture', () => {
+  beforeEach(() => {
+    postHogMocks.identify.mockClear();
+    postHogMocks.capture.mockClear();
+    setCronTelemetryReporter(null);
+  });
+
+  function createEnabledTelemetry() {
+    return createTlonTelemetry({
+      config: { enabled: true, apiKey: 'phc_test', host: null },
+    });
+  }
+
+  const scheduleFields = {
+    scheduleKind: 'cron',
+    scheduleExpr: '0 9 * * *',
+    scheduleTz: null,
+    scheduleEveryMs: null,
+    scheduleAt: null,
+  };
+
+  function cronJobChangedEvent() {
+    return {
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      cronAction: 'added' as const,
+      jobId: 'job-1',
+      jobName: 'morning briefing',
+      agentId: 'agent-main',
+      enabled: true,
+      wakeMode: 'now',
+      payloadKind: 'agentTurn',
+      sessionTargetKind: 'isolated',
+      ...scheduleFields,
+      activeCronJobCount: 3,
+      totalCronJobCount: 4,
+    };
+  }
+
+  it('captures cron job changes with counts as person properties', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureCronJobChanged(cronJobChangedEvent());
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Cron Job Changed');
+    expect(call.distinctId).toBe('~zod');
+    expect(call.properties.cronAction).toBe('added');
+    expect(call.properties.jobId).toBe('job-1');
+    expect(call.properties.scheduleKind).toBe('cron');
+    expect(call.properties.scheduleExpr).toBe('0 9 * * *');
+    expect(call.properties.activeCronJobCount).toBe(3);
+    expect(call.properties.totalCronJobCount).toBe(4);
+    expect(call.properties.$set).toEqual({
+      tlonCronActiveJobCount: 3,
+      tlonCronTotalJobCount: 4,
+      tlonCronCountsUpdatedAt: expect.any(String),
+    });
+    expect(postHogMocks.identify).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits person properties when counts are unknown', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureCronJobChanged({
+      ...cronJobChangedEvent(),
+      activeCronJobCount: null,
+      totalCronJobCount: null,
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties.$set).toBeUndefined();
+    expect(call.properties).not.toHaveProperty('activeCronJobCount');
+  });
+
+  it('captures cron runs with failure detail and no person properties', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureCronRun({
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      jobId: 'job-1',
+      jobName: 'morning briefing',
+      agentId: 'agent-main',
+      runId: 'run-1',
+      status: 'error',
+      cronError: 'model timed out',
+      durationMs: 1_234,
+      runAtMs: 10_000,
+      nextRunAtMs: 20_000,
+      delivered: false,
+      deliveryStatus: 'not-delivered',
+      deliveryError: null,
+      model: 'claude-sonnet-5',
+      provider: 'anthropic',
+      payloadKind: 'agentTurn',
+      sessionTargetKind: 'isolated',
+      ...scheduleFields,
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Cron Run');
+    expect(call.distinctId).toBe('~zod');
+    expect(call.properties.status).toBe('error');
+    expect(call.properties.cronError).toBe('model timed out');
+    expect(call.properties.durationMs).toBe(1_234);
+    expect(call.properties.deliveryStatus).toBe('not-delivered');
+    expect(call.properties.$set).toBeUndefined();
+  });
+
+  it('captures cron snapshots with kind breakdown and person properties', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureCronSnapshot({
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      activeCronJobCount: 2,
+      totalCronJobCount: 4,
+      scheduleKindCronCount: 1,
+      scheduleKindEveryCount: 1,
+      scheduleKindAtCount: 1,
+      scheduleKindOnExitCount: 1,
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Cron Snapshot');
+    expect(call.properties.activeCronJobCount).toBe(2);
+    expect(call.properties.scheduleKindEveryCount).toBe(1);
+    expect(call.properties.scheduleKindOnExitCount).toBe(1);
+    expect(call.properties.$set).toEqual({
+      tlonCronActiveJobCount: 2,
+      tlonCronTotalJobCount: 4,
+      tlonCronCountsUpdatedAt: expect.any(String),
+    });
+  });
+
+  it('skips cron captures when ownerShip is not configured', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureCronJobChanged({
+      ...cronJobChangedEvent(),
+      ownerShip: null,
+    });
+    expect(postHogMocks.capture).not.toHaveBeenCalled();
+  });
+
+  it('report functions forward to the registered cron reporter', () => {
+    const reporter = vi.fn();
+    setCronTelemetryReporter(reporter);
+
+    reportCronRun({
+      jobId: 'job-1',
+      jobName: null,
+      agentId: null,
+      runId: null,
+      status: 'ok',
+      cronError: null,
+      durationMs: null,
+      runAtMs: null,
+      nextRunAtMs: null,
+      delivered: null,
+      deliveryStatus: null,
+      deliveryError: null,
+      model: null,
+      provider: null,
+      payloadKind: null,
+      sessionTargetKind: null,
+      ...scheduleFields,
+    });
+    expect(reporter).toHaveBeenCalledWith({
+      kind: 'run',
+      event: expect.objectContaining({ jobId: 'job-1', status: 'ok' }),
+    });
+
+    reportCronSnapshot({
+      activeCronJobCount: 1,
+      totalCronJobCount: 1,
+      scheduleKindCronCount: 1,
+      scheduleKindEveryCount: 0,
+      scheduleKindAtCount: 0,
+      scheduleKindOnExitCount: 0,
+    });
+    expect(reporter).toHaveBeenCalledWith({
+      kind: 'snapshot',
+      event: expect.objectContaining({ totalCronJobCount: 1 }),
+    });
+
+    setCronTelemetryReporter(null);
+    reportCronJobChanged({
+      cronAction: 'removed',
+      jobId: 'job-1',
+      jobName: null,
+      agentId: null,
+      enabled: null,
+      wakeMode: null,
+      payloadKind: null,
+      sessionTargetKind: null,
+      ...scheduleFields,
+      activeCronJobCount: null,
+      totalCronJobCount: null,
+    });
+    expect(reporter).toHaveBeenCalledTimes(2);
   });
 });

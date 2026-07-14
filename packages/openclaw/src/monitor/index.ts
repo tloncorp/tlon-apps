@@ -23,6 +23,7 @@ import {
   createContextLensRegistry,
   unbindContextLensFromSession,
 } from '../context-lens.js';
+import { scheduleCronSnapshot } from '../cron-telemetry.js';
 import {
   getEffectiveOwnerShip,
   setEffectiveOwnerShip,
@@ -65,6 +66,7 @@ import {
   type TlonPluginErrorSource,
   createTlonTelemetry,
   formatTlonTelemetryErrorText,
+  setCronTelemetryReporter,
   setDebugTelemetryReporter,
   setErrorTelemetryReporter,
   setOutboundRouteReporter,
@@ -146,6 +148,7 @@ import {
   tlonDeliveryContext,
 } from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
+import { resolveTlonSourceReplyDeliveryMode } from './source-reply-delivery.js';
 import {
   type ParsedCite,
   extractCites,
@@ -797,6 +800,28 @@ export async function monitorTlonProvider(
         ownerShip: event.ownerShip ?? currentTelemetryOwnerShip(),
         botShip: event.botShip || botShipName,
       });
+    });
+    // Bridge cron lifecycle/run telemetry from the global `cron_changed` hook
+    // to this account's telemetry client. Cron jobs are gateway-global, so
+    // events are attributed to this account's owner (same last-writer-wins
+    // semantics as the other global-hook reporters above).
+    setCronTelemetryReporter((report) => {
+      const identity = {
+        accountId: account.accountId,
+        ownerShip: currentTelemetryOwnerShip(),
+        botShip: botShipName,
+      };
+      switch (report.kind) {
+        case 'jobChanged':
+          telemetry?.captureCronJobChanged({ ...report.event, ...identity });
+          break;
+        case 'run':
+          telemetry?.captureCronRun({ ...report.event, ...identity });
+          break;
+        case 'snapshot':
+          telemetry?.captureCronSnapshot({ ...report.event, ...identity });
+          break;
+      }
     });
     setErrorTelemetryReporter((report) => {
       switch (report.kind) {
@@ -3115,11 +3140,10 @@ export async function monitorTlonProvider(
           })
         : undefined;
 
-      const hasExplicitVisibleReplyPolicy =
-        cfg.messages?.visibleReplies !== undefined ||
-        cfg.messages?.groupChat?.visibleReplies !== undefined;
-      const sourceReplyDeliveryMode =
-        isGroup && !hasExplicitVisibleReplyPolicy ? 'automatic' : undefined;
+      const sourceReplyDeliveryMode = resolveTlonSourceReplyDeliveryMode({
+        isGroup,
+        messages: cfg.messages,
+      });
 
       const replyOptions: NonNullable<
         Parameters<
@@ -3408,11 +3432,21 @@ export async function monitorTlonProvider(
           dispatchError
         );
         unbindContextLensFromSession(lensSessionKeys, lens.lensId);
+        // A reply the model issued by calling the `message` tool itself lands
+        // through the outbound adapter, which records it on the lens but never
+        // touches this closure's `deliveredMessageCount`. Count the lens's own
+        // recorded outputs so a tool-only answer isn't finalized as no_reply.
+        const recordedOutputCount =
+          contextLenses.get(lens.lensId)?.outputs.length ?? 0;
+        const effectiveDeliveredCount = Math.max(
+          deliveredMessageCount,
+          recordedOutputCount
+        );
         contextLenses.recordLifecycle(lens.lensId, {
           completedAt: Date.now(),
           durationMs: dispatchDurationMs,
           timedOut: dispatchTimedOut,
-          deliveredMessageCount,
+          deliveredMessageCount: effectiveDeliveredCount,
           queuedFinal: dispatchResult?.queuedFinal ?? false,
           queuedFinalCount: dispatchResult?.counts.final ?? 0,
           queuedBlockCount: dispatchResult?.counts.block ?? 0,
@@ -3421,7 +3455,7 @@ export async function monitorTlonProvider(
           sendAttemptCount,
           sendErrorCount,
           sendErrorKind,
-          deliveredMessageCount,
+          deliveredMessageCount: effectiveDeliveredCount,
           replyCharCount,
           replyWordCount,
           replyMediaCount,
@@ -3442,7 +3476,7 @@ export async function monitorTlonProvider(
         if (!dispatchError) {
           contextLenses.setStatus(
             lens.lensId,
-            deliveredMessageCount > 0 ? 'completed' : 'no_reply'
+            effectiveDeliveredCount > 0 ? 'completed' : 'no_reply'
           );
         }
         const finalLens = contextLenses.get(lens.lensId);
@@ -5080,6 +5114,13 @@ export async function monitorTlonProvider(
         ownerListenEnabled: effectiveOwnerListenEnabled,
         ...webSearchStatus,
       });
+      // Boot-time cron job-count snapshot (daily container restarts make this
+      // a daily gauge). Retries internally: the cron service accessor is
+      // published by the gateway_start hook, which can race this connect.
+      scheduleCronSnapshot({
+        onError: (error) =>
+          runtime.error?.(`[tlon] Cron snapshot failed: ${String(error)}`),
+      });
 
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
@@ -5218,6 +5259,7 @@ export async function monitorTlonProvider(
       setSessionTelemetryReporter(null);
       setDebugTelemetryReporter(null);
       setErrorTelemetryReporter(null);
+      setCronTelemetryReporter(null);
       await telemetry?.close();
       try {
         await api?.close();
