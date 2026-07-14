@@ -274,12 +274,24 @@ export async function migrateLegacyContextLensFlag() {
 
   // Only adopt the legacy value when the synced setting has never been set, so
   // we don't resurrect a toggle the user later disabled on another device.
-  const existing = await db.getSettings();
-  if (flags.contextLens === true && existing?.contextLensEnabled == null) {
-    const migrated = await updateContextLensEnabled(true);
-    if (!migrated) {
-      // Keep the legacy key so the next startup can retry the migration.
+  // Check the backend directly: the local cache can't distinguish "never set"
+  // from an explicit disable, since older builds cached a missing backend
+  // value as false.
+  if (flags.contextLens === true) {
+    let raw: boolean | undefined;
+    try {
+      raw = await api.getContextLensEnabledRaw();
+    } catch (e) {
+      // Can't tell whether the setting was ever synced; keep the legacy key
+      // so the next startup retries.
       return;
+    }
+    if (raw == null) {
+      const migrated = await updateContextLensEnabled(true);
+      if (!migrated) {
+        // Keep the legacy key so the next startup can retry the migration.
+        return;
+      }
     }
   }
 
