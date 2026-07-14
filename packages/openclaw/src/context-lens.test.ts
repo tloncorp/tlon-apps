@@ -13,6 +13,7 @@ import {
   ensureBackgroundContextLensForSession,
   finalizeBackgroundContextLensForSession,
   getActiveBackgroundContextLens,
+  getActiveForegroundContextLensForConversation,
   hashSessionKey,
   recordBackgroundContextLensOutput,
   recordContextLensToolResultForSession,
@@ -488,6 +489,57 @@ describe('context lens registry', () => {
       finalizeBackgroundContextLensForSession('session-active-bg-a');
       finalizeBackgroundContextLensForSession('session-active-bg-b');
       unbindContextLensFromSession(conversationKey, conversation.lensId);
+    }
+  });
+
+  it('resolves the foreground dispatch lens for a conversation so message-tool posts attribute correctly', () => {
+    const registry = createContextLensRegistry();
+    const sessionKey = 'session-fg-dm';
+    const lens = registry.create({
+      messageId: 'message-fg-dm',
+      chatType: 'dm',
+      sessionKey,
+      conversationId: '~ten',
+    });
+    bindContextLensToSession(sessionKey, registry, lens.lensId);
+
+    // A concurrent background run for an unrelated conversation must not match.
+    const background = ensureBackgroundContextLensForSession('session-fg-bg', {
+      runKind: 'cron',
+      trigger: 'cron',
+    });
+
+    try {
+      // Foreground bindings are not background-stamp candidates.
+      expect(getActiveBackgroundContextLens()?.lensId).toBe(
+        background?.lens.lensId
+      );
+
+      const resolved = getActiveForegroundContextLensForConversation('~ten');
+      expect(resolved?.lensId).toBe(lens.lensId);
+      expect(resolved?.registry).toBe(registry);
+
+      // Conversations without an active foreground run resolve to null.
+      expect(getActiveForegroundContextLensForConversation('~zod')).toBeNull();
+      expect(getActiveForegroundContextLensForConversation('')).toBeNull();
+
+      // The resolved registry records the tool-driven post as a run output.
+      resolved?.registry.recordOutput(resolved.lensId, {
+        messageId: '~zod/170.141.184',
+        conversationId: '~ten',
+        kind: 'dm',
+        sentAt: 456,
+        preview: 'cat from the internet',
+      });
+      expect(registry.get(lens.lensId)?.outputs).toEqual([
+        expect.objectContaining({
+          messageId: '~zod/170.141.184',
+          preview: 'cat from the internet',
+        }),
+      ]);
+    } finally {
+      finalizeBackgroundContextLensForSession('session-fg-bg');
+      unbindContextLensFromSession(sessionKey, lens.lensId);
     }
   });
 

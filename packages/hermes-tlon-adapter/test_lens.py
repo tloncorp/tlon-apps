@@ -253,7 +253,7 @@ class SyncSequencingTests(unittest.TestCase):
 
         run(scenario())
         client = FakeClient.instances[-1]
-        self.assertIn(lens._STEWARD_PROBE_PATH, client.scries)
+        self.assertEqual(client.scries, ["/x/v1/lens/recent"])
 
     def test_start_returns_false_when_steward_missing(self):
         cfg = make_config(TLON_CONTEXT_LENS="true", TLON_OWNER_SHIP="~zod")
@@ -275,7 +275,7 @@ class SyncSequencingTests(unittest.TestCase):
 
         run(scenario())
         client = FakeClient.instances[-1]
-        self.assertIn(lens._STEWARD_PROBE_PATH, client.scries)
+        self.assertEqual(client.scries, ["/x/v1/lens/recent"])
         self.assertTrue(client.closed)
         self.assertEqual(client.entries(), [])
 
