@@ -5,6 +5,7 @@ import {
   buildThreadContextMessage,
   fetchParentPostAuthor,
   fetchParentPostHistoryEntry,
+  parsePostPayload,
   renderHistoryContent,
   retainThreadContextMessages,
 } from './history.js';
@@ -329,6 +330,96 @@ describe('fetchParentPostHistoryEntry', () => {
     );
 
     expect(entry?.author).toBe('~nec');
+  });
+});
+
+describe('parsePostPayload', () => {
+  it('returns a text-less essay node with its source author', () => {
+    expect(
+      parsePostPayload({
+        seal: { id: '1' },
+        essay: { author: '~nec', content: [] },
+      })
+    ).toEqual({
+      sourceAuthor: '~nec',
+      entry: {
+        author: '~nec',
+        content: '',
+        timestamp: expect.any(Number),
+        id: '1',
+        blob: null,
+      },
+    });
+  });
+
+  it('uses unknown only for history entry author when source author is absent', () => {
+    const parsed = parsePostPayload({
+      seal: { id: '1' },
+      essay: { content: [{ inline: ['anonymous'] }] },
+    });
+
+    expect(parsed?.sourceAuthor).toBeNull();
+    expect(parsed?.entry.author).toBe('unknown');
+  });
+
+  it('preserves parent-author and text-only history behavior', async () => {
+    const authorlessApi = {
+      scry: async () => ({
+        seal: { id: '1' },
+        essay: { content: [{ inline: ['anonymous'] }] },
+      }),
+    };
+    const blobOnlyApi = {
+      scry: async () => ({
+        seal: { id: '1' },
+        essay: {
+          author: '~nec',
+          content: [],
+          blob: JSON.stringify([
+            {
+              type: 'file',
+              version: 1,
+              fileUri: 'https://storage.example.com/notes.pdf',
+              mimeType: 'application/pdf',
+              name: 'notes.pdf',
+              size: 1024,
+            },
+          ]),
+        },
+      }),
+    };
+
+    await expect(
+      fetchParentPostAuthor(authorlessApi, 'chat/~zod/general', '1')
+    ).resolves.toBeNull();
+    await expect(
+      fetchParentPostHistoryEntry(blobOnlyApi, 'chat/~zod/general', '1')
+    ).resolves.toBeNull();
+  });
+
+  it('parses the wrapped r-post.set payload shape', () => {
+    expect(
+      parsePostPayload({
+        'r-post': {
+          set: {
+            seal: { id: '1' },
+            essay: {
+              author: { ship: '~bot' },
+              sent: 2,
+              content: [{ inline: ['wrapped'] }],
+            },
+          },
+        },
+      })
+    ).toMatchObject({
+      sourceAuthor: '~bot',
+      entry: {
+        author: '~bot',
+        content: 'wrapped',
+        timestamp: 2,
+        id: '1',
+      },
+    });
   });
 });
 
