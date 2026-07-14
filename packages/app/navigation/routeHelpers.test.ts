@@ -3,6 +3,8 @@ import { describe, expect, test } from 'vitest';
 import {
   NavigationChainNode,
   getActiveTopLevelDrawerRouteName,
+  getDesktopGroupInvitePreviewProps,
+  getDesktopGroupInviteRoute,
   getDesktopPostRoute,
 } from './routeHelpers';
 
@@ -173,6 +175,16 @@ describe('getDesktopPostRoute', () => {
     expect(route.params.screen).toBe('GroupDM');
   });
 
+  test('notes channel -> Home even when the last open tab is Messages', () => {
+    const route = getDesktopPostRoute('Messages', {
+      ...base,
+      channelId: 'notes/~zod/blog',
+      groupId: '~zod/tlon',
+    });
+    expect(route.name).toBe('Home');
+    expect(route.params.screen).toBe('Channel');
+  });
+
   test('selectedPostId is threaded onto both wrapper and nested Post params', () => {
     const route = getDesktopPostRoute('Home', {
       ...base,
@@ -192,5 +204,46 @@ describe('getDesktopPostRoute', () => {
     });
     expect(route.params.params.selectedPostId).toBeUndefined();
     expect(route.params.params.params.selectedPostId).toBeUndefined();
+  });
+});
+
+describe('getDesktopGroupInviteRoute', () => {
+  test('opens the clicked invite in the nested desktop ChatList', () => {
+    expect(getDesktopGroupInviteRoute('~zod/test-group')).toEqual({
+      name: 'Home',
+      params: {
+        screen: 'ChatList',
+        params: {
+          previewGroupId: '~zod/test-group',
+          previewGroupFromInviteNotification: true,
+        },
+      },
+    });
+  });
+});
+
+describe('getDesktopGroupInvitePreviewProps', () => {
+  test('preserves the notification marker for the desktop Home sidebar', () => {
+    expect(
+      getDesktopGroupInvitePreviewProps({
+        previewGroupId: '~zod/test-group',
+        previewGroupFromInviteNotification: true,
+      })
+    ).toEqual({
+      previewGroupId: '~zod/test-group',
+      previewGroupFromInviteNotification: true,
+    });
+  });
+
+  test('treats an ordinary group preview as a non-notification selection', () => {
+    expect(
+      getDesktopGroupInvitePreviewProps({
+        previewGroupId: '~zod/test-group',
+      })
+    ).toEqual({
+      previewGroupId: '~zod/test-group',
+      previewGroupFromInviteNotification: false,
+    });
+    expect(getDesktopGroupInvitePreviewProps(undefined)).toBeNull();
   });
 });

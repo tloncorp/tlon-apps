@@ -26,6 +26,7 @@ import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { NotebookSidebarProvider } from '../../ui/contexts/notebookSidebar';
+import { getDesktopGroupInvitePreviewProps } from '../routeHelpers';
 import { HomeDrawerParamList } from '../types';
 import { mediaViewerScreenOptions } from '../utils';
 import { HomeSidebar } from './HomeSidebar';
@@ -75,6 +76,8 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
   const state = props.state as NavigationState<HomeDrawerParamList>;
   const focusedRoute = state.routes[props.state.index];
   const focusedRouteParams = focusedRoute.params;
+  const groupInvitePreviewProps =
+    getDesktopGroupInvitePreviewProps(focusedRouteParams);
   // @ts-expect-error - nested params is not in the type
   const nestedFocusedRouteParams = focusedRouteParams?.params;
   if (
@@ -131,8 +134,8 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
     }
   } else if (focusedRoute.params && 'channelId' in focusedRoute.params) {
     return <HomeSidebar focusedChannelId={focusedRoute.params.channelId} />;
-  } else if (focusedRoute.params && 'previewGroupId' in focusedRoute.params) {
-    return <HomeSidebar previewGroupId={focusedRoute.params.previewGroupId} />;
+  } else if (groupInvitePreviewProps) {
+    return <HomeSidebar {...groupInvitePreviewProps} />;
   } else {
     return <HomeSidebar />;
   }

@@ -1,3 +1,4 @@
+import { preSig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { da, parse } from '@urbit/aura';
@@ -49,4 +50,19 @@ export function getContextLensStamp(post: db.Post): ContextLensStamp | null {
     // is the right fallback for the %context-lens lookup key
     botShip: entry.botShip ?? post.authorId ?? null,
   };
+}
+
+export function getOwnContextLensStamp(
+  post: db.Post,
+  ownedBotShips: readonly string[]
+): ContextLensStamp | null {
+  const stamp = getContextLensStamp(post);
+  if (!stamp?.botShip || !post.authorId) {
+    return null;
+  }
+
+  const botShip = preSig(stamp.botShip);
+  const authorId = preSig(post.authorId);
+  const isOwnedBot = ownedBotShips.some((ship) => preSig(ship) === botShip);
+  return isOwnedBot && authorId === botShip ? stamp : null;
 }

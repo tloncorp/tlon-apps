@@ -23,6 +23,7 @@ import {
   createContextLensRegistry,
   unbindContextLensFromSession,
 } from '../context-lens.js';
+import { scheduleCronSnapshot } from '../cron-telemetry.js';
 import {
   getEffectiveOwnerShip,
   setEffectiveOwnerShip,
@@ -65,6 +66,7 @@ import {
   type TlonPluginErrorSource,
   createTlonTelemetry,
   formatTlonTelemetryErrorText,
+  setCronTelemetryReporter,
   setDebugTelemetryReporter,
   setErrorTelemetryReporter,
   setOutboundRouteReporter,
@@ -146,12 +148,14 @@ import {
   tlonDeliveryContext,
 } from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
+import { resolveTlonSourceReplyDeliveryMode } from './source-reply-delivery.js';
 import {
   type ParsedCite,
   extractCites,
   extractMessageText,
   formatModelName,
   isBotMentioned,
+  isChannelRestricted,
   isDmAllowed,
   isOwnerListenSlashCommand,
   isSummarizationRequest,
@@ -238,7 +242,10 @@ export type MonitorTlonOpts = {
 };
 
 type ChannelAuthorization = {
-  mode?: 'restricted' | 'open';
+  // "allowlist" is what the app saves (and Solaris stores); "restricted" is the
+  // legacy value still written by the approval flow. Both gate senders; only
+  // "open" is unrestricted. See isChannelRestricted.
+  mode?: 'restricted' | 'allowlist' | 'open';
   allowedShips?: string[];
 };
 
@@ -335,7 +342,7 @@ function resolveChannelAuthorization(
   cfg: OpenClawConfig,
   channelNest: string,
   settings?: TlonSettingsStore
-): { mode: 'restricted' | 'open'; allowedShips: string[] } {
+): { mode: 'restricted' | 'allowlist' | 'open'; allowedShips: string[] } {
   const tlonConfig = cfg.channels?.tlon as
     | {
         authorization?: { channelRules?: Record<string, ChannelAuthorization> };
@@ -794,6 +801,28 @@ export async function monitorTlonProvider(
         botShip: event.botShip || botShipName,
       });
     });
+    // Bridge cron lifecycle/run telemetry from the global `cron_changed` hook
+    // to this account's telemetry client. Cron jobs are gateway-global, so
+    // events are attributed to this account's owner (same last-writer-wins
+    // semantics as the other global-hook reporters above).
+    setCronTelemetryReporter((report) => {
+      const identity = {
+        accountId: account.accountId,
+        ownerShip: currentTelemetryOwnerShip(),
+        botShip: botShipName,
+      };
+      switch (report.kind) {
+        case 'jobChanged':
+          telemetry?.captureCronJobChanged({ ...report.event, ...identity });
+          break;
+        case 'run':
+          telemetry?.captureCronRun({ ...report.event, ...identity });
+          break;
+        case 'snapshot':
+          telemetry?.captureCronSnapshot({ ...report.event, ...identity });
+          break;
+      }
+    });
     setErrorTelemetryReporter((report) => {
       switch (report.kind) {
         case 'harness':
@@ -1138,7 +1167,11 @@ export async function monitorTlonProvider(
           `[tlon] Using autoAcceptGroupInvites from settings store: ${effectiveAutoAcceptGroupInvites}`
         );
       }
-      if (currentSettings.groupInviteAllowlist?.length) {
+      // An explicit empty settings list is authoritative (the admin cleared the
+      // allowlist), not a signal to fall back to the file config — otherwise
+      // clearing it in the form would keep auto-accepting invites from the old
+      // file list. Only `undefined` (never set) defers to the file value.
+      if (currentSettings.groupInviteAllowlist !== undefined) {
         effectiveGroupInviteAllowlist = currentSettings.groupInviteAllowlist;
         runtime.log?.(
           `[tlon] Using groupInviteAllowlist from settings store: ${effectiveGroupInviteAllowlist.join(', ')}`
@@ -1584,7 +1617,7 @@ export async function monitorTlonProvider(
       const normalizedShip = normalizeShip(ship);
       const channelRules = currentSettings.channelRules ?? {};
       const rule = channelRules[channelNest] ?? {
-        mode: 'restricted',
+        mode: 'allowlist',
         allowedShips: [],
       };
       const allowedShips = [...(rule.allowedShips ?? [])]; // Clone to avoid mutation
@@ -3107,11 +3140,10 @@ export async function monitorTlonProvider(
           })
         : undefined;
 
-      const hasExplicitVisibleReplyPolicy =
-        cfg.messages?.visibleReplies !== undefined ||
-        cfg.messages?.groupChat?.visibleReplies !== undefined;
-      const sourceReplyDeliveryMode =
-        isGroup && !hasExplicitVisibleReplyPolicy ? 'automatic' : undefined;
+      const sourceReplyDeliveryMode = resolveTlonSourceReplyDeliveryMode({
+        isGroup,
+        messages: cfg.messages,
+      });
 
       const replyOptions: NonNullable<
         Parameters<
@@ -3400,11 +3432,21 @@ export async function monitorTlonProvider(
           dispatchError
         );
         unbindContextLensFromSession(lensSessionKeys, lens.lensId);
+        // A reply the model issued by calling the `message` tool itself lands
+        // through the outbound adapter, which records it on the lens but never
+        // touches this closure's `deliveredMessageCount`. Count the lens's own
+        // recorded outputs so a tool-only answer isn't finalized as no_reply.
+        const recordedOutputCount =
+          contextLenses.get(lens.lensId)?.outputs.length ?? 0;
+        const effectiveDeliveredCount = Math.max(
+          deliveredMessageCount,
+          recordedOutputCount
+        );
         contextLenses.recordLifecycle(lens.lensId, {
           completedAt: Date.now(),
           durationMs: dispatchDurationMs,
           timedOut: dispatchTimedOut,
-          deliveredMessageCount,
+          deliveredMessageCount: effectiveDeliveredCount,
           queuedFinal: dispatchResult?.queuedFinal ?? false,
           queuedFinalCount: dispatchResult?.counts.final ?? 0,
           queuedBlockCount: dispatchResult?.counts.block ?? 0,
@@ -3413,7 +3455,7 @@ export async function monitorTlonProvider(
           sendAttemptCount,
           sendErrorCount,
           sendErrorKind,
-          deliveredMessageCount,
+          deliveredMessageCount: effectiveDeliveredCount,
           replyCharCount,
           replyWordCount,
           replyMediaCount,
@@ -3434,7 +3476,7 @@ export async function monitorTlonProvider(
         if (!dispatchError) {
           contextLenses.setStatus(
             lens.lensId,
-            deliveredMessageCount > 0 ? 'completed' : 'no_reply'
+            effectiveDeliveredCount > 0 ? 'completed' : 'no_reply'
           );
         }
         const finalLens = contextLenses.get(lens.lensId);
@@ -3754,7 +3796,7 @@ export async function monitorTlonProvider(
             nest,
             currentSettings
           );
-          if (mode === 'restricted') {
+          if (isChannelRestricted(mode)) {
             const normalizedAllowed = allowedShips.map(normalizeShip);
             if (!normalizedAllowed.includes(senderShip)) {
               // If owner is configured, queue approval request
@@ -4517,12 +4559,11 @@ export async function monitorTlonProvider(
           );
         }
 
-        // Update group invite allowlist
+        // Update group invite allowlist. An explicit empty list is authoritative
+        // (the admin cleared it) — don't fall back to the file list, or clearing
+        // the allowlist would keep auto-accepting invites from the old entries.
         if (newSettings.groupInviteAllowlist !== undefined) {
-          effectiveGroupInviteAllowlist =
-            newSettings.groupInviteAllowlist.length > 0
-              ? newSettings.groupInviteAllowlist
-              : account.groupInviteAllowlist;
+          effectiveGroupInviteAllowlist = newSettings.groupInviteAllowlist;
           runtime.log?.(
             `[tlon] Settings: groupInviteAllowlist updated to ${effectiveGroupInviteAllowlist.join(', ')}`
           );
@@ -5073,6 +5114,13 @@ export async function monitorTlonProvider(
         ownerListenEnabled: effectiveOwnerListenEnabled,
         ...webSearchStatus,
       });
+      // Boot-time cron job-count snapshot (daily container restarts make this
+      // a daily gauge). Retries internally: the cron service accessor is
+      // published by the gateway_start hook, which can race this connect.
+      scheduleCronSnapshot({
+        onError: (error) =>
+          runtime.error?.(`[tlon] Cron snapshot failed: ${String(error)}`),
+      });
 
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
@@ -5211,6 +5259,7 @@ export async function monitorTlonProvider(
       setSessionTelemetryReporter(null);
       setDebugTelemetryReporter(null);
       setErrorTelemetryReporter(null);
+      setCronTelemetryReporter(null);
       await telemetry?.close();
       try {
         await api?.close();

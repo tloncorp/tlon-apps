@@ -82,6 +82,51 @@ function source(relativePath: string, contents: string) {
   return { relativePath, contents };
 }
 
+type FakeWebPickerInput = {
+  accept: string;
+  attributes: Record<string, string>;
+  click: () => void;
+  files:
+    | {
+        name: string;
+        webkitRelativePath?: string;
+        text: () => Promise<string>;
+      }[]
+    | null;
+  multiple: boolean;
+  onchange: (() => void) | null;
+  oncancel: (() => void) | null;
+  remove: () => void;
+  setAttribute: (name: string, value: string) => void;
+  type: string;
+};
+
+function stubWebPickerDocument() {
+  const inputs: FakeWebPickerInput[] = [];
+  vi.stubGlobal('document', {
+    createElement: () => {
+      const input: FakeWebPickerInput = {
+        accept: '',
+        attributes: {},
+        click: vi.fn(),
+        files: null,
+        multiple: false,
+        onchange: null,
+        oncancel: null,
+        remove: vi.fn(),
+        setAttribute(name: string, value: string) {
+          this.attributes[name] = value;
+        },
+        type: '',
+      };
+      inputs.push(input);
+      return input;
+    },
+    body: { appendChild: vi.fn() },
+  });
+  return inputs;
+}
+
 afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
@@ -153,6 +198,13 @@ describe('notes import helpers', () => {
         rootFolderId: 1,
       })
     ).toBe(1);
+    expect(
+      getNotesImportTargetFolderId({
+        selectedFolderId: 9,
+        activeFolderId: null,
+        rootFolderId: 1,
+      })
+    ).toBe(9);
   });
 
   test('reads dropped files and folders from desktop browsers', async () => {
@@ -184,6 +236,67 @@ describe('notes import helpers', () => {
     });
 
     expect(sources).toEqual([source('Research/Plan.md', '# Plan')]);
+  });
+
+  test('web folder picker keeps waiting while the browser upload confirmation is open', async () => {
+    const inputs = stubWebPickerDocument();
+    const onFilesChosen = vi.fn();
+
+    const promise = selectNotesImportSources('folder', { onFilesChosen });
+    const input = inputs[0];
+    expect(input.attributes.webkitdirectory).toBe('');
+    expect(input.click).toHaveBeenCalled();
+
+    let settledEarly = false;
+    void promise.then(() => {
+      settledEarly = true;
+    });
+    // After a folder pick the browser keeps input.files empty until the user
+    // accepts its upload confirmation. The old focus+300ms heuristic settled
+    // null in this window, silently discarding the pick (TLON-6117).
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(settledEarly).toBe(false);
+    expect(onFilesChosen).not.toHaveBeenCalled();
+
+    input.files = [
+      {
+        name: 'Alpha.md',
+        webkitRelativePath: 'Vault/Alpha.md',
+        text: async () => '# Alpha',
+      },
+      {
+        name: 'Beta.md',
+        webkitRelativePath: 'Vault/Sub/Beta.md',
+        text: async () => '# Beta',
+      },
+    ];
+    input.onchange?.();
+    // The chosen callback fires synchronously with the change event, before
+    // any file contents have been read.
+    expect(onFilesChosen).toHaveBeenCalledTimes(1);
+
+    await expect(promise).resolves.toEqual([
+      source('Vault/Alpha.md', '# Alpha'),
+      source('Vault/Sub/Beta.md', '# Beta'),
+    ]);
+    expect(input.remove).toHaveBeenCalled();
+  });
+
+  test('web picker resolves null when the user cancels the dialog', async () => {
+    const inputs = stubWebPickerDocument();
+    const onFilesChosen = vi.fn();
+
+    const promise = selectNotesImportSources('files', { onFilesChosen });
+    const input = inputs[0];
+    expect(input.attributes.webkitdirectory).toBeUndefined();
+
+    input.oncancel?.();
+
+    await expect(promise).resolves.toBeNull();
+    expect(input.remove).toHaveBeenCalled();
+    // A late change event after cancel must not report a chosen selection.
+    input.onchange?.();
+    expect(onFilesChosen).not.toHaveBeenCalled();
   });
 
   test('selects native markdown and text files', async () => {
