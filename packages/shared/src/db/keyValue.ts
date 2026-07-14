@@ -289,6 +289,10 @@ export const invitation = createStorageItem<Lure | null>({
 export const deferredInviteChecked = createStorageItem<boolean>({
   key: 'deferredInviteChecked',
   defaultValue: false,
+  // one shot per INSTALL, not per session: without this, logout re-arms
+  // the cascade and the old referrer/clipboard/ip match would attach the
+  // original install's invite to the next account
+  persistAfterLogout: true,
 });
 
 export type ShipInfo = {
