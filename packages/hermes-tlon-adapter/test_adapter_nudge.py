@@ -379,6 +379,57 @@ class AdapterNudgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(adapter._nudge_owner_activity, (1_700_000_000_123, "2023-11-14"))
         self.assertEqual(adapter._nudge_stage_shadow, 2)
 
+    async def test_load_with_newer_activity_adopts_cleared_stage(self):
+        bucket = {
+            "all": {
+                "moltbot": {
+                    "tlon": {
+                        "lastOwnerMessageAt": 1_700_000_000_123,
+                        "lastOwnerMessageDate": "2023-11-14",
+                    }
+                }
+            }
+        }
+        adapter = make_adapter()
+        held_scry = HeldScrySSE(bucket)
+        adapter._sse = held_scry
+        held_scry.release_scry.set()
+        adapter._nudge_owner_activity = (1_700_000_000_000, "2023-11-14")
+        adapter._nudge_stage_shadow = 3
+        adapter._nudge_load_seeded = True
+        adapter._pending_nudge_rehydrated = True
+
+        self.assertTrue(await adapter._load_nudge_settings_only())
+
+        self.assertEqual(adapter._nudge_owner_activity, (1_700_000_000_123, "2023-11-14"))
+        self.assertEqual(adapter._nudge_stage_shadow, 0)
+
+    async def test_load_with_equal_activity_does_not_lower_stage(self):
+        bucket = {
+            "all": {
+                "moltbot": {
+                    "tlon": {
+                        "lastOwnerMessageAt": 1_700_000_000_123,
+                        "lastOwnerMessageDate": "2023-11-14",
+                        "lastNudgeStage": 1,
+                    }
+                }
+            }
+        }
+        adapter = make_adapter()
+        held_scry = HeldScrySSE(bucket)
+        adapter._sse = held_scry
+        held_scry.release_scry.set()
+        adapter._nudge_owner_activity = (1_700_000_000_123, "2023-11-14")
+        adapter._nudge_stage_shadow = 3
+        adapter._nudge_load_seeded = True
+        adapter._pending_nudge_rehydrated = True
+
+        self.assertTrue(await adapter._load_nudge_settings_only())
+
+        self.assertEqual(adapter._nudge_owner_activity, (1_700_000_000_123, "2023-11-14"))
+        self.assertEqual(adapter._nudge_stage_shadow, 3)
+
     async def test_boot_scry_failure_owner_reply_discards_stale_retry_load(self):
         now = 8 * 86_400_000
         stale_bucket = {

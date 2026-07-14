@@ -1130,10 +1130,11 @@ class TlonAdapter(BasePlatformAdapter):
     ) -> None:
         """Atomically load settings while keeping scheduler shadows monotonic.
 
-        Scries can race our local settings pokes, so only a newer owner
-        activity instant or a higher nudge stage may affect the scheduler
-        shadows after boot.  Live subscription events remain authoritative in
-        both directions and are handled separately below.
+        Scries can race our local settings pokes, so a seeded load only adopts
+        a newer owner activity or a higher nudge stage. A snapshot with newer
+        activity also adopts its stage wholesale; live subscription events
+        remain authoritative in both directions and are handled separately
+        below.
         """
         incoming = NudgeSettingsSnapshot.from_bucket(bucket)
         incoming_activity = owner_activity_from_snapshot(incoming)
@@ -1149,11 +1150,21 @@ class TlonAdapter(BasePlatformAdapter):
             self._nudge_load_seeded = True
         else:
             current_activity = self._nudge_owner_activity
-            if incoming_activity is not None and (
+            incoming_activity_is_newer = incoming_activity is not None and (
                 current_activity is None or incoming_activity[0] > current_activity[0]
-            ):
+            )
+            if incoming_activity_is_newer:
                 self._set_nudge_owner_activity(incoming_activity)
-            if incoming_stage > self._nudge_stage_shadow:
+                # Both harnesses persist activity put-entries before the stage
+                # del-entry, so strictly newer activity marks a newer owner
+                # cycle: adopt its stage even when it clears or lowers. A
+                # stale scry can only carry activity <= our shadow and stays
+                # on the raise-only path. Caveat: if we already observed the
+                # activity put live and then missed the ordered stage
+                # deletion (disconnect mid-batch), the equal-activity load
+                # retains the old stage until still-newer owner activity.
+                self._set_nudge_stage(incoming_stage)
+            elif incoming_stage > self._nudge_stage_shadow:
                 self._set_nudge_stage(incoming_stage)
 
         if not self._pending_nudge_rehydrated:
