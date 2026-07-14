@@ -140,3 +140,26 @@ export function getDesktopGroupInviteRoute(groupId: string) {
     },
   } as const;
 }
+
+/**
+ * Extract the group-invite preview state that the desktop drawer content must
+ * pass to HomeSidebar. Keeping this as a pure helper makes it harder for the
+ * notification marker to drift out of sync with the nested route shape.
+ */
+export function getDesktopGroupInvitePreviewProps(routeParams: unknown) {
+  if (
+    typeof routeParams !== 'object' ||
+    routeParams === null ||
+    !('previewGroupId' in routeParams) ||
+    typeof routeParams.previewGroupId !== 'string'
+  ) {
+    return null;
+  }
+
+  return {
+    previewGroupId: routeParams.previewGroupId,
+    previewGroupFromInviteNotification:
+      'previewGroupFromInviteNotification' in routeParams &&
+      routeParams.previewGroupFromInviteNotification === true,
+  };
+}

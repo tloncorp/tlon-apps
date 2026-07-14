@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
   NavigationChainNode,
   getActiveTopLevelDrawerRouteName,
+  getDesktopGroupInvitePreviewProps,
   getDesktopGroupInviteRoute,
   getDesktopPostRoute,
 } from './routeHelpers';
@@ -218,5 +219,31 @@ describe('getDesktopGroupInviteRoute', () => {
         },
       },
     });
+  });
+});
+
+describe('getDesktopGroupInvitePreviewProps', () => {
+  test('preserves the notification marker for the desktop Home sidebar', () => {
+    expect(
+      getDesktopGroupInvitePreviewProps({
+        previewGroupId: '~zod/test-group',
+        previewGroupFromInviteNotification: true,
+      })
+    ).toEqual({
+      previewGroupId: '~zod/test-group',
+      previewGroupFromInviteNotification: true,
+    });
+  });
+
+  test('treats an ordinary group preview as a non-notification selection', () => {
+    expect(
+      getDesktopGroupInvitePreviewProps({
+        previewGroupId: '~zod/test-group',
+      })
+    ).toEqual({
+      previewGroupId: '~zod/test-group',
+      previewGroupFromInviteNotification: false,
+    });
+    expect(getDesktopGroupInvitePreviewProps(undefined)).toBeNull();
   });
 });

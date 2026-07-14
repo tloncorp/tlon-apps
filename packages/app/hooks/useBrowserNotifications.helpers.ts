@@ -134,7 +134,7 @@ export function getBrowserNotificationCopy({
     ? `Flagged ${flaggedKind}`
     : channelTitle || contactName || 'New message';
   let body = flaggedKind
-    ? `${contactName} flagged a ${flaggedKind} in your group`
+    ? `A ${flaggedKind} by ${contactName} was flagged in your group`
     : isReact
       ? `${contactName} reacted${reactValue ? ` ${reactValue}` : ''} to your post`
       : isDmInvite

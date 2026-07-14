@@ -180,8 +180,9 @@ describe('getBrowserNotificationCopy', () => {
 
     expect(copy).toEqual({
       title: `Flagged ${kind} in Tlon`,
-      body: `Alice flagged a ${kind} in your group`,
+      body: `A ${kind} by Alice was flagged in your group`,
     });
+    expect(copy.body).not.toContain('Alice flagged');
     expect(copy.body).not.toBe('New message');
   });
 
