@@ -15,7 +15,7 @@
 ::  we are ~zod, in a dm with ~ten. the host (~ten) keys the dm context
 ::  by the subscriber, /dm/~zod; on receipt we translate it to /dm/~ten.
 ::
-++  sub-wire     `wire`/context/dm/(scot %p ~zod)
+++  sub-wire     `wire`/context-2/dm/(scot %p ~zod)
 ++  expire-wire  `wire`/expire/(scot %p host)/computing/dm/(scot %p host)
 ++  key-theirs   `key:p`[/dm/(scot %p ~zod) host %computing]
 ++  key-ours     `key:p`[/dm/(scot %p host) host %computing]
@@ -96,4 +96,26 @@
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add t0 ~m5))))
   ;<  caz=(list card)  bind:m  do-wake
   (ex-cards caz ~)
+::
+++  test-state-2-resub
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=  b=bowl
+    =-  b(wex (~(gas by wex.b) -))
+    :~  [[/context/dm/~zod ~fus dap] [| /context/~zod/dm/~zod]]
+        [[/context/dm/~zod ~fun dap] [& /context/~zod/dm/~zod]]
+    ==
+  ;<  caz=(list card)  bind:m
+    %+  do-load  agent
+    %-  some  !>
+    [%1 *places:p want=*(set [ship context:p]) subs=*(jug context:p ship) tries=*(map [ship context:p] @ud)]
+  %+  ex-cards  caz
+  :~  (ex-arvo /setup %b %wait t0)
+      (ex-task /context/dm/~zod [~fus dap] %leave ~)
+      (ex-task /context-2/dm/~zod [~fus dap] %watch-as %presence-update-1 /context/~zod/dm/~zod)
+  ==
 --
