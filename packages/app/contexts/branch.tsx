@@ -51,6 +51,19 @@ const INITIAL_STATE: State = {
 
 const logger = createDevLogger('deeplink', true);
 
+// captured at import, before any effect can run: logout wipes shipInfo,
+// and the first-install storage wipe (InitialStateCheckScreen) both wipes
+// and re-arms flags mid-session — so install freshness must be judged by
+// launch-time state. every shipped version maintains these two markers,
+// and both survive logout
+const priorInstallAtLaunch = Promise.all([
+  storage.didClearPreviousInstall.getValue(),
+  storage.lastAppVersion.getValue(),
+]).then(
+  ([cleared, version]) => Boolean(cleared) || version != null,
+  () => false
+);
+
 const inviteHasMetadata = (invite: Partial<AppInvite>) =>
   Boolean(invite.inviterUserId || invite.invitedGroupId || invite.inviteType);
 
@@ -421,13 +434,11 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         void storage.deferredInviteChecked.setValue(true);
-        // updaters are not fresh installs: a persisted ship means this
-        // device predates the cascade, so there is no install gap to
-        // recover across. skipping avoids a paste prompt on the first
-        // launch after updating, and keeps a years-old install referrer
+        // updaters are not fresh installs: there is no install gap to
+        // recover across, and skipping keeps a years-old play referrer
         // from resurrecting the invite that originally installed the app
-        const priorShip = await storage.shipInfo.getValue();
-        if (priorShip?.ship) {
+        // (and spares ios updaters a paste prompt on first launch)
+        if (await priorInstallAtLaunch) {
           return;
         }
         if (inviteClearedRef.current || intakeRef.current != null) {
