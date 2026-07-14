@@ -789,7 +789,7 @@ class AdapterNudgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(client.pokes), 1)
 
     async def test_retryable_http_errors_retain_and_replay_queue_head(self):
-        for status in (429, 503):
+        for status in (404, 410, 429, 503):
             adapter = make_adapter()
 
             class RetryThenSuccessSSE:

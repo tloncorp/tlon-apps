@@ -1138,9 +1138,11 @@ class TlonSSEClient:
                 text = await resp.text()
                 message = f"Tlon channel action failed: HTTP {resp.status} {text[:200]}"
                 # A malformed or unauthorized client action will not recover
-                # by replaying it.  Rate limits, request-timeout/too-early
-                # responses, server errors, and other non-4xx responses may.
-                if 400 <= resp.status < 500 and resp.status not in (408, 425, 429):
+                # by replaying it.  A 404/410 can be a stale, reaped channel
+                # URL and recover after reconnect; rate limits,
+                # request-timeout/too-early responses, server errors, and
+                # other non-4xx responses may also recover.
+                if 400 <= resp.status < 500 and resp.status not in (404, 408, 410, 425, 429):
                     raise TlonTerminalActionError(message)
                 raise ConnectionError(message)
 

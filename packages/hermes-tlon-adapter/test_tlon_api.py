@@ -436,7 +436,7 @@ class TlonSSEClientTests(unittest.TestCase):
         )
         fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
 
-        for status in (408, 425, 429, 500, 503):
+        for status in (404, 408, 410, 425, 429, 500, 503):
             client = tlon_api.TlonSSEClient(cfg)
             client._session = FakeActionSession(status)
             client.channel_url = "https://zod.tlon.network/~/channel/test"
@@ -445,12 +445,13 @@ class TlonSSEClientTests(unittest.TestCase):
                     asyncio.run(client._send_actions([]))
             self.assertNotIsInstance(raised.exception, tlon_api.TlonTerminalActionError)
 
-        client = tlon_api.TlonSSEClient(cfg)
-        client._session = FakeActionSession(403)
-        client.channel_url = "https://zod.tlon.network/~/channel/test"
-        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
-            with self.assertRaises(tlon_api.TlonTerminalActionError):
-                asyncio.run(client._send_actions([]))
+        for status in (400, 403):
+            client = tlon_api.TlonSSEClient(cfg)
+            client._session = FakeActionSession(status)
+            client.channel_url = "https://zod.tlon.network/~/channel/test"
+            with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+                with self.assertRaises(tlon_api.TlonTerminalActionError):
+                    asyncio.run(client._send_actions([]))
 
     def test_parse_acknowledges_id_only_sse_frames(self):
         cfg = tlon_api.TlonConfig.from_env(
