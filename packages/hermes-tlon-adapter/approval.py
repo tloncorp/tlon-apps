@@ -17,6 +17,7 @@ text notification.
 from __future__ import annotations
 
 import json
+import math
 import re
 import uuid
 from typing import Any, Iterable, Mapping, Optional
@@ -32,6 +33,20 @@ SETTINGS_KEY_AUTO_ACCEPT_DM_INVITES = "autoAcceptDmInvites"
 APPROVAL_TTL_MS = 48 * 60 * 60 * 1000
 DM_INVITE_PREVIEW = "(DM invite - no message yet)"
 PREVIEW_MAX_CHARS = 100
+# Derived from the client's component budget, not a taste choice: each
+# pending item with a preview line costs ~9 components (row + title +
+# context + preview + actions row + 3 buttons + divider), so 4 items already
+# renders a 43-component card and a 5th would push it past 50 — the a2ui
+# validator's maxComponents (packages/api/src/client/a2ui.ts LIMITS).
+MAX_PENDING_APPROVALS_A2UI = 4
+MAX_PENDING_APPROVALS_TEXT = 25
+
+_MAX_DISPLAY_SHIP_CHARS = 60
+_MAX_DISPLAY_NEST_CHARS = 80
+_MAX_DISPLAY_GROUP_CHARS = 80
+_MAX_DISPLAY_TITLE_CHARS = 80
+_MAX_DISPLAY_PREVIEW_CHARS = 100
+_APPROVAL_ID_RE = re.compile(r"^[a-z0-9]{1,16}$")
 
 A2UI_CATALOG_ID = "tlon.a2ui.basic.v1"
 A2UI_MESSAGE_VERSION = "v0.9"
@@ -337,24 +352,102 @@ def format_approval_request(approval: Mapping[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _bounded_display_text(value: Any, max_chars: int, fallback: str = "") -> str:
+    text = str(value or "").strip()
+    if not text:
+        return fallback
+    return truncate(text, max_chars)
+
+
+def approval_id_is_actionable(approval: Mapping[str, Any]) -> bool:
+    """Whether an approval ID can round-trip through the owner command parser."""
+    return bool(_APPROVAL_ID_RE.fullmatch(approval_id(approval)))
+
+
+def _pending_approval_type(approval: Mapping[str, Any]) -> str:
+    kind = approval_type(approval)
+    return kind if kind in {"dm", "channel", "group"} else "unknown"
+
+
+def _pending_approval_descriptor(approval: Mapping[str, Any]) -> str:
+    return {
+        "dm": "DM request",
+        "channel": "channel request",
+        "group": "group invite",
+    }.get(_pending_approval_type(approval), "request")
+
+
+def _pending_display_id(approval: Mapping[str, Any]) -> str:
+    if approval_id_is_actionable(approval):
+        return f"#{approval_id(approval)}"
+    return "[unactionable approval ID]"
+
+
+def _pending_display_ship(approval: Mapping[str, Any]) -> str:
+    value = _bounded_display_text(
+        approval.get("requestingShip"), _MAX_DISPLAY_SHIP_CHARS
+    )
+    return normalize_ship(value) if value else "[unknown ship]"
+
+
+def _pending_display_nest(approval: Mapping[str, Any]) -> str:
+    return _bounded_display_text(approval.get("channelNest"), _MAX_DISPLAY_NEST_CHARS)
+
+
+def _pending_display_group_flag(approval: Mapping[str, Any]) -> str:
+    return _bounded_display_text(approval.get("groupFlag"), _MAX_DISPLAY_GROUP_CHARS)
+
+
+def _pending_group_label(approval: Mapping[str, Any]) -> str:
+    return _bounded_display_text(
+        approval.get("groupTitle"), _MAX_DISPLAY_TITLE_CHARS
+    ) or _pending_display_group_flag(approval) or "[unknown group]"
+
+
+def _pending_display_preview(approval: Mapping[str, Any]) -> str:
+    return _bounded_display_text(
+        approval.get("messagePreview"), _MAX_DISPLAY_PREVIEW_CHARS
+    )
+
+
 def format_pending_list(approvals: Iterable[Mapping[str, Any]]) -> str:
+    """Render a bounded, actionable fallback for persisted approval data.
+
+    Pending approvals are stored as untrusted JSON in %settings. Never let a
+    corrupt record crowd the owner-facing command guidance out of the reply;
+    malformed IDs are deliberately labeled rather than truncated into commands
+    that could not resolve to the stored record.
+    """
     entries = list(approvals)
     if not entries:
         return "No pending approvals."
     lines = [f"{len(entries)} pending approval(s):"]
-    for approval in entries:
-        descriptor = _approval_descriptor(approval)
-        if approval_type(approval) == "group":
-            detail = f" {_group_label(approval)} (from {approval_ship(approval)})"
-            lines.append(f"• #{approval_id(approval)} {descriptor}:{detail}")
+    for approval in entries[:MAX_PENDING_APPROVALS_TEXT]:
+        descriptor = _pending_approval_descriptor(approval)
+        request_id = _pending_display_id(approval)
+        # An unactionable ID can never resolve via /allow, /reject, or /ban;
+        # tell the owner it will still self-clear once its TTL elapses.
+        expiry_hint = (
+            "" if approval_id_is_actionable(approval) else "; expires automatically"
+        )
+        if _pending_approval_type(approval) == "group":
+            detail = (
+                f" {_pending_group_label(approval)} "
+                f"(from {_pending_display_ship(approval)})"
+            )
+            lines.append(f"• {request_id} {descriptor}:{detail}{expiry_hint}")
             continue
-        nest = approval_nest(approval)
+        nest = _pending_display_nest(approval)
         where = f" in {nest}" if nest else ""
-        preview = str(approval.get("messagePreview") or "")
+        preview = _pending_display_preview(approval)
         suffix = f' — "{truncate(preview, 60)}"' if preview else ""
         lines.append(
-            f"• #{approval_id(approval)} {descriptor} from {approval_ship(approval)}{where}{suffix}"
+            f"• {request_id} {descriptor} from {_pending_display_ship(approval)}"
+            f"{where}{suffix}{expiry_hint}"
         )
+    remaining = len(entries) - MAX_PENDING_APPROVALS_TEXT
+    if remaining > 0:
+        lines.append(f"• … {remaining} more pending approval(s) not shown.")
     lines.append("")
     lines.append("Reply /allow <id> · /reject <id> · /ban <id>")
     return "\n".join(lines)
@@ -476,12 +569,16 @@ def _approval_nav_target(approval: Mapping[str, Any]) -> Optional[dict[str, Any]
 
 
 def _approval_card_title(approval: Mapping[str, Any]) -> str:
-    ship = approval_ship(approval)
+    # Pending approvals are untrusted persisted JSON (see module docstring);
+    # bound every field the same way the pending-list card does so a
+    # corrupted/oversized channelNest or groupTitle can't blow the a2ui
+    # validator's per-card size limits and knock the card back to plain text.
+    ship = _pending_display_ship(approval)
     kind = approval_type(approval)
     if kind == "channel":
-        return f"Let the bot reply to {ship} in {approval_nest(approval) or 'this channel'}?"
+        return f"Let the bot reply to {ship} in {_pending_display_nest(approval) or 'this channel'}?"
     if kind == "group":
-        return f"Let the bot join {truncate(_group_label(approval), 60)}?"
+        return f"Let the bot join {truncate(_pending_group_label(approval), 60)}?"
     return f"Allow {ship} to DM the bot?"
 
 
@@ -506,11 +603,11 @@ def _approval_card_allow_note(approval: Mapping[str, Any]) -> str:
 def _approval_card_context_lines(approval: Mapping[str, Any]) -> list[str]:
     if approval_type(approval) == "group":
         return [
-            f"Inviter: {approval_ship(approval)}",
-            f"Group: {_group_label(approval)}",
+            f"Inviter: {_pending_display_ship(approval)}",
+            f"Group: {_pending_group_label(approval)}",
         ]
-    lines = [f"Sender: {approval_ship(approval)}"]
-    nest = approval_nest(approval)
+    lines = [f"Sender: {_pending_display_ship(approval)}"]
+    nest = _pending_display_nest(approval)
     if nest:
         lines.append(f"Channel: {nest}")
     return lines
@@ -612,3 +709,360 @@ def build_approval_card(approval: Mapping[str, Any]) -> dict[str, Any]:
     )
 
     return make_a2ui_blob_entry(f"approval-{request_id}", "root", components)
+
+
+# ── Pending approvals A2UI ──────────────────────────────────────────────
+
+
+def _pending_item_fields(approval: Mapping[str, Any]) -> tuple[str, str, Optional[str]]:
+    """Return bounded display fields for one persisted pending approval."""
+    kind = _pending_approval_type(approval)
+    ship = _pending_display_ship(approval)
+    preview = _pending_display_preview(approval)
+    preview_line = f'Message: "{preview}"' if preview else None
+    if kind == "dm":
+        return f"DM from {ship}", f"Sender: {ship}", preview_line
+    if kind == "channel":
+        return (
+            f"Channel access for {ship}",
+            f"Channel: {_pending_display_nest(approval) or 'this channel'}",
+            preview_line,
+        )
+    return f"Group invite from {ship}", f"Group: {_pending_group_label(approval)}", None
+
+
+def _pending_text_component(
+    component_id: str, text: str, *, variant: Optional[str] = None
+) -> dict[str, Any]:
+    component: dict[str, Any] = {"id": component_id, "component": "Text", "text": text}
+    if variant is not None:
+        component["variant"] = variant
+    return component
+
+
+def _pending_button(
+    component_id: str,
+    label_id: str,
+    command: str,
+    *,
+    variant: Optional[str] = None,
+) -> dict[str, Any]:
+    component: dict[str, Any] = {
+        "id": component_id,
+        "component": "Button",
+        "child": label_id,
+        "action": {
+            "event": {
+                "name": A2UI_ACTION_SEND_MESSAGE,
+                "context": {"text": command},
+            }
+        },
+    }
+    if variant is not None:
+        component["variant"] = variant
+    return component
+
+
+def build_pending_approvals_card(
+    approvals: Iterable[Mapping[str, Any]],
+) -> Optional[dict[str, Any]]:
+    """Build the bounded pending-approvals card from OpenClaw #5939.
+
+    Action IDs are intentionally strict: a malformed persisted ID is shown in
+    the text fallback as unactionable instead of being shortened into a button
+    command that could address a different record.
+    """
+    active = list(approvals)
+    if not 0 < len(active) <= MAX_PENDING_APPROVALS_A2UI:
+        return None
+    if any(
+        not approval_id_is_actionable(approval)
+        or _pending_approval_type(approval) == "unknown"
+        for approval in active
+    ):
+        return None
+
+    body_children = ["eyebrow", "title", "titleDivider"]
+    components: list[dict[str, Any]] = [
+        {"id": "root", "component": "Card", "child": "body"},
+        {"id": "body", "component": "Column", "children": body_children},
+        _pending_text_component("eyebrow", "Pending requests", variant="caption"),
+        _pending_text_component(
+            "title",
+            f"{len(active)} approval {'request' if len(active) == 1 else 'requests'}",
+            variant="h3",
+        ),
+        {"id": "titleDivider", "component": "Divider"},
+        _pending_text_component("allowLabel", "Allow"),
+        _pending_text_component("rejectLabel", "Reject"),
+        _pending_text_component("blockLabel", "Block"),
+    ]
+
+    for index, approval in enumerate(active):
+        prefix = f"item{index}"
+        title, context, preview = _pending_item_fields(approval)
+        request_id = approval_id(approval)
+        if index:
+            divider_id = f"{prefix}Divider"
+            body_children.append(divider_id)
+            components.append({"id": divider_id, "component": "Divider"})
+        body_children.append(prefix)
+        item_children = [f"{prefix}Title", f"{prefix}Context"]
+        if preview:
+            item_children.append(f"{prefix}Preview")
+        item_children.append(f"{prefix}Actions")
+        components.extend(
+            [
+                {"id": prefix, "component": "Column", "children": item_children},
+                _pending_text_component(f"{prefix}Title", title, variant="h4"),
+                _pending_text_component(f"{prefix}Context", context, variant="caption"),
+                *(
+                    [_pending_text_component(f"{prefix}Preview", preview, variant="caption")]
+                    if preview
+                    else []
+                ),
+                {
+                    "id": f"{prefix}Actions",
+                    "component": "Row",
+                    "children": [
+                        f"{prefix}Allow",
+                        f"{prefix}Reject",
+                        f"{prefix}Block",
+                    ],
+                },
+                _pending_button(
+                    f"{prefix}Allow",
+                    "allowLabel",
+                    f"/allow {request_id}",
+                    variant="primary",
+                ),
+                _pending_button(
+                    f"{prefix}Reject", "rejectLabel", f"/reject {request_id}"
+                ),
+                _pending_button(
+                    f"{prefix}Block",
+                    "blockLabel",
+                    f"/ban {request_id}",
+                    variant="borderless",
+                ),
+            ]
+        )
+
+    return make_a2ui_blob_entry("pending-approvals", "root", components)
+
+
+def _is_plain_object(value: Any) -> bool:
+    return isinstance(value, Mapping)
+
+
+def _is_non_empty_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _is_finite_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _is_valid_target_id(value: Any) -> bool:
+    return _is_non_empty_string(value) and len(value) <= 500
+
+
+def _is_valid_navigation_target(target: Any) -> bool:
+    if not _is_plain_object(target):
+        return False
+    target_type = target.get("type")
+
+    def optional_id(name: str) -> bool:
+        return name not in target or _is_valid_target_id(target.get(name))
+
+    if target_type == "message":
+        return (
+            _is_valid_target_id(target.get("channelId"))
+            and _is_valid_target_id(target.get("postId"))
+            and all(optional_id(name) for name in ("parentId", "parentAuthorId", "authorId", "groupId"))
+        )
+    if target_type == "channel":
+        return _is_valid_target_id(target.get("channelId")) and all(
+            optional_id(name) for name in ("groupId", "selectedPostId")
+        )
+    if target_type == "group":
+        return _is_valid_target_id(target.get("groupId"))
+    if target_type == "profile":
+        return _is_valid_target_id(target.get("userId")) and all(
+            optional_id(name) for name in ("groupId", "channelId")
+        )
+    if target_type in {"chatDetails", "chatVolume"}:
+        return (
+            target.get("chatType") in {"group", "channel"}
+            and _is_valid_target_id(target.get("chatId"))
+            and optional_id("groupId")
+        )
+    return False
+
+
+def _is_valid_button_action(action: Any) -> bool:
+    if not _is_plain_object(action) or not _is_plain_object(action.get("event")):
+        return False
+    event = action["event"]
+    context = event.get("context")
+    if event.get("name") == A2UI_ACTION_SEND_MESSAGE:
+        return (
+            _is_plain_object(context)
+            and _is_non_empty_string(context.get("text"))
+            and len(context["text"]) <= 1000
+        )
+    if event.get("name") == A2UI_ACTION_NAVIGATE:
+        return _is_plain_object(context) and _is_valid_navigation_target(context.get("target"))
+    return False
+
+
+def _is_valid_a2ui_component(component: Any) -> bool:
+    if not _is_plain_object(component) or not _is_non_empty_string(component.get("id")):
+        return False
+    weight = component.get("weight")
+    if "weight" in component and (not _is_finite_number(weight) or not 0 <= weight <= 12):
+        return False
+    kind = component.get("component")
+    if kind == "Text":
+        return (
+            isinstance(component.get("text"), str)
+            and len(component["text"]) <= 1000
+            and component.get("variant") in {None, "body", "caption", "h1", "h2", "h3", "h4", "h5"}
+        )
+    if kind in {"Row", "Column"}:
+        children = component.get("children")
+        return (
+            isinstance(children, list)
+            and len(children) <= 12
+            and all(_is_non_empty_string(child) for child in children)
+            and len(set(children)) == len(children)
+            and component.get("justify") in {None, "start", "center", "end", "spaceBetween", "spaceAround"}
+            and component.get("align") in {None, "start", "center", "end", "stretch"}
+        )
+    if kind == "Card":
+        return _is_non_empty_string(component.get("child"))
+    if kind == "Divider":
+        return True
+    if kind == "Button":
+        return (
+            _is_non_empty_string(component.get("child"))
+            and ("disabled" not in component or isinstance(component["disabled"], bool))
+            and component.get("variant") in {None, "default", "primary", "secondary", "borderless"}
+            and _is_valid_button_action(component.get("action"))
+        )
+    return False
+
+
+def validate_a2ui_card(entry: Any) -> bool:
+    """Conservative Python port of ``A2UI.validateBlobEntry``.
+
+    This keeps a malformed card from replacing the plain-text `/pending`
+    response. It covers the client envelope, component, and reachable-tree
+    invariants without accepting a shape the renderer would reject.
+    """
+    if not _is_plain_object(entry) or entry.get("type") != "a2ui" or entry.get("version") != 1:
+        return False
+    try:
+        # ASCII escaping is intentionally conservative for the browser's
+        # JSON.stringify length budget and also catches non-serializable data.
+        if len(json.dumps(entry, ensure_ascii=True, separators=(",", ":")).encode("ascii")) > 32 * 1024:
+            return False
+    except (TypeError, ValueError):
+        return False
+
+    messages = entry.get("messages")
+    if not isinstance(messages, list):
+        return False
+    create_message = next(
+        (message for message in messages if _is_plain_object(message) and "createSurface" in message),
+        None,
+    )
+    update_message = next(
+        (message for message in messages if _is_plain_object(message) and "updateComponents" in message),
+        None,
+    )
+    if (
+        not _is_plain_object(create_message)
+        or not _is_plain_object(update_message)
+        or create_message.get("version") != A2UI_MESSAGE_VERSION
+        or update_message.get("version") != A2UI_MESSAGE_VERSION
+        or not _is_plain_object(create_message.get("createSurface"))
+        or not _is_plain_object(update_message.get("updateComponents"))
+    ):
+        return False
+    create_surface = create_message["createSurface"]
+    update = update_message["updateComponents"]
+    components = update.get("components")
+    if (
+        not _is_non_empty_string(create_surface.get("surfaceId"))
+        or create_surface.get("surfaceId") != update.get("surfaceId")
+        or not _is_non_empty_string(create_surface.get("catalogId"))
+        or not isinstance(components, list)
+        or not 0 < len(components) <= 50
+        or not all(_is_valid_a2ui_component(component) for component in components)
+    ):
+        return False
+
+    by_id: dict[str, Mapping[str, Any]] = {}
+    total_text = 0
+    for component in components:
+        component_id = component["id"]
+        if component_id in by_id:
+            return False
+        by_id[component_id] = component
+        if component["component"] == "Text":
+            total_text += len(component["text"])
+        elif component["component"] == "Button":
+            action = component["action"]
+            event = action["event"]
+            if event["name"] == A2UI_ACTION_SEND_MESSAGE:
+                total_text += len(event["context"]["text"])
+    if total_text > 8000:
+        return False
+
+    root = update.get("root", components[0]["id"])
+    if not _is_non_empty_string(root) or root not in by_id:
+        return False
+    visiting: set[str] = set()
+    expanded = 0
+
+    def visit(component_id: str, depth: int) -> bool:
+        nonlocal expanded
+        if depth > 8 or component_id in visiting:
+            return False
+        expanded += 1
+        if expanded > 50 * 12:
+            return False
+        component = by_id.get(component_id)
+        if component is None:
+            return False
+        visiting.add(component_id)
+        if component["component"] in {"Row", "Column"}:
+            children = component["children"]
+        elif component["component"] in {"Card", "Button"}:
+            children = [component["child"]]
+        else:
+            children = []
+        if len(children) > 12 or not all(visit(child, depth + 1) for child in children):
+            return False
+        visiting.remove(component_id)
+        return True
+
+    return visit(root, 1)
+
+
+def build_pending_approvals_response(
+    approvals: Iterable[Mapping[str, Any]], *, is_dm: bool
+) -> tuple[str, Optional[str]]:
+    """Return the self-sufficient text fallback and optional pending-card blob."""
+    active = list(approvals)
+    text = format_pending_list(active)
+    if not is_dm:
+        return text, None
+    card = build_pending_approvals_card(active)
+    if card is None or not validate_a2ui_card(card):
+        return text, None
+    try:
+        return text, serialize_blob(card)
+    except (TypeError, ValueError):
+        return text, None

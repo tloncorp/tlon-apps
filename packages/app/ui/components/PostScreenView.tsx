@@ -216,6 +216,7 @@ export function PostScreenView({
     toggleContextLens,
     clearSelectedContextLensMessage,
     inspectContextLensPost,
+    openContextLensForPost,
   } = useContextLensController({ channel });
 
   const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
@@ -433,6 +434,10 @@ export function PostScreenView({
                                 contextLensAvailable && contextLensOpen
                                   ? inspectContextLensPost
                                   : undefined,
+                              openContextLensForPost:
+                                contextLensAvailable && !isWindowNarrow
+                                  ? openContextLensForPost
+                                  : undefined,
                               onGoToBotRun:
                                 contextLensAvailable && isWindowNarrow
                                   ? goToContextLensRun
@@ -584,6 +589,7 @@ function SinglePostView({
   goBack,
   handleGoToImage,
   inspectContextLensPost,
+  openContextLensForPost,
   onGoToBotRun,
   negotiationMatch,
   onPressDelete,
@@ -600,6 +606,7 @@ function SinglePostView({
   group: db.Group | null;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   inspectContextLensPost?: (post: db.Post) => void;
+  openContextLensForPost?: (post: db.Post) => void;
   onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
@@ -869,6 +876,7 @@ function SinglePostView({
             highlightPostId={highlightPostId}
             scrollerRef={scrollerRef}
             inspectContextLensPost={inspectContextLensPost}
+            onOpenContextLens={openContextLensForPost}
             onGoToBotRun={onGoToBotRun}
           />
         ) : null}
