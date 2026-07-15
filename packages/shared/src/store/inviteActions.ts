@@ -213,11 +213,12 @@ export function getGroupDisplayTitle(group: db.Group): string | undefined {
     return group.title;
   }
   if ((group.members?.length ?? 0) > 1) {
+    // peerNickname (what people call themselves), never nickname — the
+    // computed field includes customNickname pet names, which must not
+    // leak into public invite metadata (same rule as group placeholder
+    // titles in groupActions)
     return group.members
-      ?.map(
-        (member) =>
-          (member.contact as db.Contact | null)?.nickname || member.contactId
-      )
+      ?.map((member) => member.contact?.peerNickname || member.contactId)
       .sort((a, b) => (a && b ? a.localeCompare(b) : 0))
       .join(', ');
   }
