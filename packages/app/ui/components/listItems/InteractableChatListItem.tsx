@@ -67,6 +67,10 @@ function BaseInteractableChatRow({
   const showSwipeFeedback = useCallback(() => setIsSwipeActive(true), []);
   const hideSwipeFeedback = useCallback(() => setIsSwipeActive(false), []);
 
+  useEffect(() => {
+    setIsSwipeActive(false);
+  }, [model.id, model.pin?.itemId]);
+
   const isMuted = useMemo(() => {
     return logic.isMuted(model.volumeSettings?.level, model.type);
   }, [model]);
@@ -151,6 +155,7 @@ function BaseInteractableChatRow({
         onSwipeableOpenStartDrag={showSwipeFeedback}
         onSwipeableCloseStartDrag={showSwipeFeedback}
         onSwipeableWillOpen={showSwipeFeedback}
+        onSwipeableOpen={hideSwipeFeedback}
         onSwipeableClose={hideSwipeFeedback}
         leftThreshold={1}
         rightThreshold={1}
