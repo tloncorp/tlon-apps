@@ -810,6 +810,32 @@ export async function deletePost({ post }: { post: db.Post }) {
     );
     await db.updatePost({ id: post.id, deleteStatus: 'sent' });
   } catch (e) {
+    // A rejected poke may only mean its acknowledgement was lost. Before
+    // restoring a pinned post from a stale snapshot, ask the ship whether
+    // the delete landed. Group-channel post scries omit tombstones, so a 404
+    // is also confirmation that the post is gone.
+    if (orderWithPost) {
+      try {
+        const serverPost = await api.getPostWithReplies({
+          channelId: post.channelId,
+          postId: post.id,
+          authorId: post.authorId,
+        });
+        if (serverPost.isDeleted) {
+          await db.updatePost({ id: post.id, deleteStatus: 'sent' });
+          return;
+        }
+      } catch (verifyError) {
+        if (
+          verifyError instanceof api.BadResponseError &&
+          verifyError.status === 404
+        ) {
+          await db.updatePost({ id: post.id, deleteStatus: 'sent' });
+          return;
+        }
+      }
+    }
+
     console.error('Failed to delete post', e);
 
     // rollback optimistic update

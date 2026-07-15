@@ -1471,6 +1471,7 @@ describe('deleting a pinned post', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.mocked(poke).mockReset();
     updateSession(null);
   });
@@ -1526,9 +1527,53 @@ describe('deleting a pinned post', () => {
     ]);
   });
 
-  test('failed deletePost restores the post in the order', async () => {
+  test('failed deletePost restores the post when it is still on the server', async () => {
     const post = await seedPinnedPost();
     vi.mocked(poke).mockRejectedValue(new Error('delete failed'));
+    vi.spyOn(api, 'getPostWithReplies').mockResolvedValue(post);
+
+    await deletePost({ post });
+
+    expect((await fetchPost(post.id))!.deleteStatus).toBe('failed');
+    const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channelAfter!.order).toEqual([post.id]);
+  });
+
+  test('lost acknowledgement keeps a server-confirmed deletion', async () => {
+    const post = await seedPinnedPost();
+    vi.mocked(poke).mockRejectedValue(new Error('ack lost'));
+    vi.spyOn(api, 'getPostWithReplies').mockResolvedValue({
+      ...post,
+      isDeleted: true,
+    });
+
+    await deletePost({ post });
+
+    expect((await fetchPost(post.id))!.deleteStatus).toBe('sent');
+    const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channelAfter!.order).toEqual([]);
+  });
+
+  test('404 verification keeps the deletion because channel scries omit tombstones', async () => {
+    const post = await seedPinnedPost();
+    vi.mocked(poke).mockRejectedValue(new Error('ack lost'));
+    vi.spyOn(api, 'getPostWithReplies').mockRejectedValue(
+      new api.BadResponseError(404, '')
+    );
+
+    await deletePost({ post });
+
+    expect((await fetchPost(post.id))!.deleteStatus).toBe('sent');
+    const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channelAfter!.order).toEqual([]);
+  });
+
+  test('unreachable verification rolls back until the next sync', async () => {
+    const post = await seedPinnedPost();
+    vi.mocked(poke).mockRejectedValue(new Error('delete failed'));
+    vi.spyOn(api, 'getPostWithReplies').mockRejectedValue(
+      new Error('ship unreachable')
+    );
 
     await deletePost({ post });
 
