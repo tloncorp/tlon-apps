@@ -57,11 +57,11 @@ function BaseInteractableChatRow({
   const swipeableRowStyle = useMemo(
     () => ({
       backgroundColor: isSwipeActive
-        ? theme.backgroundSecondary.val
+        ? theme.secondaryBackground.val
         : theme.background.val,
       borderRadius: getTokenValue('$m', 'radius'),
     }),
-    [isSwipeActive, theme.background.val, theme.backgroundSecondary.val]
+    [isSwipeActive, theme.background.val, theme.secondaryBackground.val]
   );
 
   const showSwipeFeedback = useCallback(() => setIsSwipeActive(true), []);
