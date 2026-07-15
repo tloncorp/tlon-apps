@@ -270,6 +270,7 @@ export default function AttachmentSheet({
           allowsEditing: false,
           allowsMultipleSelection: allowMultipleSelection,
           selectionLimit: allowMultipleSelection ? 0 : 1,
+          orderedSelection: allowMultipleSelection,
           quality: 0.5,
           exif: false,
           shouldDownloadFromNetwork: true,
@@ -352,7 +353,6 @@ export default function AttachmentSheet({
     );
     if (errorMessage) {
       Alert.alert('Unable to attach', errorMessage);
-      return;
     }
     await attachNormalizedUploadIntents(uploadIntents);
   }, [allowMultipleSelection, attachNormalizedUploadIntents, onOpenChange]);

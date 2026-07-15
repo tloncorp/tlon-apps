@@ -46,11 +46,11 @@ export function buildGalleryAttachmentPostDrafts({
   });
 }
 
-export async function sendGalleryAttachmentPostsSequentially(
+export async function enqueueGalleryAttachmentPosts(
   drafts: PostDataDraft[],
   sendPost: (draft: PostDataDraft) => Promise<void>
 ): Promise<void> {
-  for (const draft of drafts) {
-    await sendPost(draft);
-  }
+  // Start every send in selection order before awaiting. The session action
+  // queue serializes the backend operations once each send reaches it.
+  await Promise.all(drafts.map((draft) => sendPost(draft)));
 }

@@ -32,7 +32,7 @@ import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { LinkInput, LinkInputSaveParams } from './LinkInput';
 import {
   buildGalleryAttachmentPostDrafts,
-  sendGalleryAttachmentPostsSequentially,
+  enqueueGalleryAttachmentPosts,
 } from './galleryPost';
 import { DraftInputContext, GalleryRoute } from './shared';
 
@@ -60,8 +60,13 @@ export function GalleryInput({
   } = draftInputContext;
 
   const safeAreaInsets = useSafeAreaInsets();
-  const { attachments, resetAttachments, addAttachment, attachAssets } =
-    useAttachmentContext();
+  const {
+    attachments,
+    resetAttachments,
+    addAttachment,
+    attachAssets,
+    uploadAssets,
+  } = useAttachmentContext();
   // Attachment review is postable whenever there is a real attachment, but we
   // still ignore the placeholder image we attach during media selection.
   const hasRealAttachments = useMemo(
@@ -168,13 +173,50 @@ export function GalleryInput({
     onPresentationModeChange?.('inline');
   }, [resetGalleryState, setEditingPost, onPresentationModeChange]);
 
-  // Handle image selection
-  const handleGalleryImageSet = useCallback(
-    (assets?: domain.Attachment.UploadIntent[] | null) => {
-      const hasAssets = assets != null && assets.length > 0;
-      setRoute(hasAssets ? 'review-attachment' : 'gallery');
+  const handleGalleryMediaSet = useCallback(
+    async (assets: domain.Attachment.UploadIntent[]) => {
+      if (assets.length === 0) {
+        setRoute('gallery');
+        return;
+      }
+
+      if (assets.length === 1) {
+        attachAssets(assets);
+        setRoute('review-attachment');
+        return;
+      }
+
+      // Multi-select is a batch operation: skip the single-attachment review
+      // UI and enqueue one post per selected item. Keeping this batch outside
+      // attachment state also avoids single-post video composition rules from
+      // replacing or rejecting items in the selection.
+      setRoute('gallery');
+      setIsPosting(true);
+      const selectedAttachments = assets.map((asset) =>
+        domain.Attachment.fromUploadIntent(asset)
+      );
+      const drafts = buildGalleryAttachmentPostDrafts({
+        attachments: selectedAttachments,
+        caption: '',
+        channelId: channel.id,
+        channelType: channel.type,
+      });
+      const uploads = uploadAssets(assets, {
+        skipAddToAttachmentList: true,
+      });
+
+      try {
+        await Promise.all([
+          uploads,
+          enqueueGalleryAttachmentPosts(drafts, sendPostFromDraft),
+        ]);
+      } catch (error) {
+        console.error('Error posting gallery attachments:', error);
+      } finally {
+        setIsPosting(false);
+      }
     },
-    []
+    [attachAssets, channel.id, channel.type, sendPostFromDraft, uploadAssets]
   );
 
   // For image/video picks we often attach a placeholder immediately and then
@@ -395,7 +437,7 @@ export function GalleryInput({
       <AddGalleryPost
         route={route}
         setRoute={setRoute}
-        onSetMedia={handleGalleryImageSet}
+        onSetMedia={handleGalleryMediaSet}
       />
     </>
   );
@@ -449,7 +491,7 @@ function ReviewAttachment({
         editTargetPostId: editingPost?.id,
       });
 
-      await sendGalleryAttachmentPostsSequentially(drafts, sendPostFromDraft);
+      await enqueueGalleryAttachmentPosts(drafts, sendPostFromDraft);
 
       // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
       // First reset all gallery-related state to clean up the editing

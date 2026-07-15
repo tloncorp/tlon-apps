@@ -3,7 +3,7 @@ import { expect, test, vi } from 'vitest';
 
 import {
   buildGalleryAttachmentPostDrafts,
-  sendGalleryAttachmentPostsSequentially,
+  enqueueGalleryAttachmentPosts,
 } from './galleryPost';
 
 const image = (uri: string): Attachment => ({
@@ -17,6 +17,14 @@ const file = (name: string): Attachment => ({
   name,
   size: 100,
   mimeType: 'text/plain',
+});
+
+const video = (name: string): Attachment => ({
+  type: 'video',
+  localFile: `file:///tmp/${name}`,
+  name,
+  size: 1_000,
+  mimeType: 'video/mp4',
 });
 
 test('builds one gallery post per attachment in selection order', () => {
@@ -61,26 +69,42 @@ test('keeps all attachments together when editing an existing post', () => {
   ]);
 });
 
-test('sends gallery attachment posts sequentially', async () => {
+test('builds a separate post for every selected video', () => {
+  const drafts = buildGalleryAttachmentPostDrafts({
+    attachments: [video('first.mp4'), video('second.mp4')],
+    caption: '',
+    channelId: 'heap/~zod/gallery',
+    channelType: 'gallery',
+  });
+
+  expect(drafts.map((draft) => draft.attachments)).toEqual([
+    [video('first.mp4')],
+    [video('second.mp4')],
+  ]);
+});
+
+test('enqueues every gallery attachment post before waiting', async () => {
   const drafts = buildGalleryAttachmentPostDrafts({
     attachments: [image('file:///first.jpg'), image('file:///second.jpg')],
     caption: '',
     channelId: 'heap/~zod/gallery',
     channelType: 'gallery',
   });
-  const sentImages: (string | undefined)[] = [];
-  let activeSends = 0;
-  let maxActiveSends = 0;
-  const sendPost = vi.fn(async (draft) => {
-    activeSends += 1;
-    maxActiveSends = Math.max(maxActiveSends, activeSends);
-    await Promise.resolve();
-    sentImages.push(draft.image);
-    activeSends -= 1;
+  const queuedImages: (string | undefined)[] = [];
+  const releaseSends: (() => void)[] = [];
+  const sendPost = vi.fn((draft) => {
+    queuedImages.push(draft.image);
+    return new Promise<void>((resolve) => {
+      releaseSends.push(resolve);
+    });
   });
 
-  await sendGalleryAttachmentPostsSequentially(drafts, sendPost);
+  const pending = enqueueGalleryAttachmentPosts(drafts, sendPost);
+  await Promise.resolve();
 
-  expect(maxActiveSends).toBe(1);
-  expect(sentImages).toEqual(['file:///first.jpg', 'file:///second.jpg']);
+  expect(sendPost).toHaveBeenCalledTimes(2);
+  expect(queuedImages).toEqual(['file:///first.jpg', 'file:///second.jpg']);
+
+  releaseSends.forEach((release) => release());
+  await pending;
 });
