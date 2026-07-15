@@ -59,6 +59,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.4.0",
+    "@urbit/nockjs": "^1.6.0",
     "dotenv": "^17.2.4",
     "openclaw": "2026.5.28",
     "typescript": "^5.7.0",
