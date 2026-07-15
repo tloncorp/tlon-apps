@@ -72,7 +72,7 @@ export const useDeepLinkListener = () => {
         } catch (e) {
           logger.error('Failed to handle deep link', lure, e);
         } finally {
-          clearLure();
+          clearLure({ preserveFetching: true });
           isHandlingLinkRef.current = false;
         }
       })();
