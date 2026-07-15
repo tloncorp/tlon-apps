@@ -1,5 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { extractNormalizedInviteLink } from '@tloncorp/shared/logic';
 import { enableGroupLinks, useGroup, useLure } from '@tloncorp/shared/store';
 import { useEffect, useMemo, useRef } from 'react';
 
@@ -32,6 +33,18 @@ export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
   const { data: homeGroup, isLoading: homeGroupIsLoading } = useGroup({
     id: homeGroupId,
   });
+
+  // links cached by older versions carry the old share domain — normalize
+  // in place so updaters share canonical links (mirrors verifyUserInviteLink)
+  useEffect(() => {
+    if (!cachedInviteLink) {
+      return;
+    }
+    const normalized = extractNormalizedInviteLink(cachedInviteLink);
+    if (normalized && normalized !== cachedInviteLink) {
+      db.homeGroupInviteLink.setValue(normalized);
+    }
+  }, [cachedInviteLink]);
 
   const shouldRecoverFromLure = enabled && !cachedInviteLink && !!homeGroup?.id;
 
