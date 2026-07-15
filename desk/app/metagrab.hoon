@@ -536,7 +536,7 @@
     ::
     ::  in the loop .url points to the redirection source url.
     ::
-    =*  max-redir  5
+    =*  max-redir  10
     |-  ^-  (quip card _this)
     ?:  (~(has ju trail) orig-url u.nex)
       ::  [trail 3]: when a request resolves back to the trail, forming a
