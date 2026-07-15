@@ -19,7 +19,6 @@ import {
   getFlagParts,
   withRetry,
 } from '../logic';
-import { memberListTitle } from './groupActions';
 import { syncGroupPreviews } from './sync/syncGroupPreviews';
 
 const logger = createDevLogger('inviteActions', false);
@@ -206,26 +205,6 @@ export async function enableGroupLinks(groupId: string) {
   return enableGroup(name);
 }
 
-// auto-named groups (group chats) have no stored title — users see a name
-// computed from member names. the mint posts the same name group creation
-// uses for placeholder titles (memberListTitle), so invite pages match
-// what titles have always looked like
-export function getGroupDisplayTitle(group: db.Group): string | undefined {
-  if (group.title && group.title !== '') {
-    return group.title;
-  }
-  const members = group.members ?? [];
-  if (members.length === 0) {
-    return undefined;
-  }
-  return memberListTitle(
-    members.map((member) => ({
-      peerNickname: member.contact?.peerNickname,
-      id: member.contactId,
-    }))
-  );
-}
-
 export async function createGroupInviteLink(groupId: string) {
   const currentUserId = getCurrentUserId();
   const group = await db.getGroup({ id: groupId });
@@ -248,7 +227,7 @@ export async function createGroupInviteLink(groupId: string) {
         inviterNickname: user?.nickname ?? '',
         inviterAvatarImage: user?.avatarImage ?? '',
         invitedGroupId: groupId,
-        invitedGroupTitle: (group && getGroupDisplayTitle(group)) ?? '',
+        invitedGroupTitle: group?.title ?? '',
         invitedGroupDescription: group?.description ?? '',
         invitedGroupIconImageUrl: group?.iconImage ?? '',
       })

@@ -218,16 +218,10 @@ async function getPlaceholderTitle({ memberIds, title }: CreateGroupParams) {
       async (id): Promise<db.Contact> => (await db.getContact({ id })) ?? { id }
     )
   );
-  return memberListTitle(memberContacts);
-}
-
-// Use peerNickname (what people call themselves) instead of nickname (which
-// includes customNickname/pet names) to avoid leaking pet names via titles
-// that leave this device (backend group meta, public invite metadata)
-export function memberListTitle(
-  contacts: { peerNickname?: string | null; id: string }[]
-) {
-  return contacts.map((c) => c?.peerNickname ?? c?.id).join(', ');
+  // Use peerNickname (what people call themselves) instead of nickname (which
+  // includes customNickname/pet names) to avoid leaking pet names to other
+  // group members via the global group title stored on backend
+  return memberContacts.map((c) => c?.peerNickname ?? c?.id).join(', ');
 }
 
 export async function acceptGroupInvitation(group: db.Group) {
