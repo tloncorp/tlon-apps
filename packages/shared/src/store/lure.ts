@@ -9,7 +9,7 @@ import create from 'zustand';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
-import { createGroupInviteLink } from './inviteActions';
+import { createGroupInviteLink, getGroupDisplayTitle } from './inviteActions';
 
 interface LureMetadata {
   tag: string;
@@ -130,7 +130,7 @@ export const useLureState = create<LureState>((set, get) => ({
         inviterNickname: user?.nickname ?? undefined,
         inviterAvatarImage: user?.avatarImage ?? undefined,
         invitedGroupId: flag,
-        invitedGroupTitle: group?.title ?? undefined,
+        invitedGroupTitle: group ? getGroupDisplayTitle(group) : undefined,
         invitedGroupDescription: group?.description ?? undefined,
         invitedGroupIconImageUrl: group?.iconImage ?? undefined,
         invitedGroupiconImageColor: group?.iconImageColor ?? undefined,

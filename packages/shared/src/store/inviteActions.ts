@@ -115,6 +115,12 @@ export async function verifyUserInviteLink() {
     const cachedInviteLink = await db.personalInviteLink.getValue();
     if (cachedInviteLink) {
       logger.log('have cached invite link', cachedInviteLink);
+      // links persisted by older versions carry the old share domain —
+      // re-normalize so updaters share canonical links, not just fresh installs
+      const normalized = extractNormalizedInviteLink(cachedInviteLink);
+      if (normalized && normalized !== cachedInviteLink) {
+        await db.personalInviteLink.setValue(normalized);
+      }
       return;
     }
 
@@ -199,6 +205,25 @@ export async function enableGroupLinks(groupId: string) {
   return enableGroup(name);
 }
 
+// auto-named groups (group chats) have no stored title — users see a name
+// computed from member names. the mint must post what users see, or invite
+// pages fall back to "a Groupchat" (mirrors ui getGroupTitle)
+export function getGroupDisplayTitle(group: db.Group): string | undefined {
+  if (group.title && group.title !== '') {
+    return group.title;
+  }
+  if ((group.members?.length ?? 0) > 1) {
+    return group.members
+      ?.map(
+        (member) =>
+          (member.contact as db.Contact | null)?.nickname || member.contactId
+      )
+      .sort((a, b) => (a && b ? a.localeCompare(b) : 0))
+      .join(', ');
+  }
+  return undefined;
+}
+
 export async function createGroupInviteLink(groupId: string) {
   const currentUserId = getCurrentUserId();
   const group = await db.getGroup({ id: groupId });
@@ -221,7 +246,7 @@ export async function createGroupInviteLink(groupId: string) {
         inviterNickname: user?.nickname ?? '',
         inviterAvatarImage: user?.avatarImage ?? '',
         invitedGroupId: groupId,
-        invitedGroupTitle: group?.title ?? '',
+        invitedGroupTitle: (group && getGroupDisplayTitle(group)) ?? '',
         invitedGroupDescription: group?.description ?? '',
         invitedGroupIconImageUrl: group?.iconImage ?? '',
       })
