@@ -1,5 +1,5 @@
-import type { Attachment, PostDataDraft } from '@tloncorp/shared/domain';
 import type { PostSendOptions } from '@tloncorp/shared';
+import type { Attachment, PostDataDraft } from '@tloncorp/shared/domain';
 
 export function buildGalleryAttachmentPostDrafts({
   attachments,
@@ -49,10 +49,7 @@ export function buildGalleryAttachmentPostDrafts({
 
 export async function enqueueGalleryAttachmentPosts(
   drafts: PostDataDraft[],
-  sendPost: (
-    draft: PostDataDraft,
-    options?: PostSendOptions
-  ) => Promise<void>
+  sendPost: (draft: PostDataDraft, options?: PostSendOptions) => Promise<void>
 ): Promise<void> {
   const completions: Promise<void>[] = [];
 
