@@ -283,6 +283,7 @@ Before finalizing a PR, do a focused pass on your own diff:
 -   **Trim debug fat.** Remove leftover `console.log`s, ad-hoc perf marks, commented-out code, and stale `// TODO` notes that no longer apply. Comments that just describe _what_ the code does belong in the identifiers; keep comments only when they explain _why_ (non-obvious constraints, workarounds, decisions).
 -   **Reuse before adding.** Before introducing a new helper/util/constant, grep for an existing one. Don't ship parallel implementations — if the new one is genuinely better, remove the old in the same PR.
 -   **Audit comments for staleness.** A comment written mid-implementation may describe an earlier approach. If it references deleted code or a previous shape of the function, fix or delete it.
+-   **Always run Prettier before committing.** Run `npx prettier --check` (or `--write`) on your changed files — or `pnpm lint:format` in the affected package — so a formatting-only diff never lands in the commit or trips CI. Editor/tsc/eslint passing does not guarantee Prettier is satisfied.
 
 ## Testing
 
