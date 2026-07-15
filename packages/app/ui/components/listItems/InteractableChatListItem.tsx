@@ -18,7 +18,7 @@ import Animated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { ColorTokens, View, getTokenValue, isWeb } from 'tamagui';
+import { ColorTokens, View, getTokenValue, isWeb, useTheme } from 'tamagui';
 
 import * as utils from '../../utils';
 import { ListItemProps } from '../ListItem';
@@ -43,6 +43,26 @@ const rightActionsStaticStyle = StyleSheet.create({
   },
 }).container;
 
+const swipeableRowShadowStaticStyle = StyleSheet.create({
+  container: {
+    zIndex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+}).container;
+
+const swipeableContainerStaticStyles = StyleSheet.create({
+  base: {
+    overflow: 'visible',
+  },
+  active: {
+    zIndex: 1,
+  },
+});
+
 function BaseInteractableChatRow({
   model,
   onPress,
@@ -51,6 +71,30 @@ function BaseInteractableChatRow({
   ...props
 }: ListItemProps<db.Chat> & { onLayout?: (e: any) => void }) {
   const swipeableRef = useRef<SwipeableMethods>(null);
+  const theme = useTheme();
+  const [isSwipeActive, setIsSwipeActive] = useState(false);
+
+  const swipeableRowStyle = useMemo(
+    () => [
+      {
+        backgroundColor: theme.background.val,
+        borderRadius: getTokenValue('$m', 'radius'),
+      },
+      isSwipeActive ? swipeableRowShadowStaticStyle : undefined,
+    ],
+    [isSwipeActive, theme.background.val]
+  );
+
+  const showSwipeShadow = useCallback(() => setIsSwipeActive(true), []);
+  const hideSwipeShadow = useCallback(() => setIsSwipeActive(false), []);
+
+  const swipeableContainerStyle = useMemo(
+    () => [
+      swipeableContainerStaticStyles.base,
+      isSwipeActive ? swipeableContainerStaticStyles.active : undefined,
+    ],
+    [isSwipeActive]
+  );
 
   const isMuted = useMemo(() => {
     return logic.isMuted(model.volumeSettings?.level, model.type);
@@ -132,6 +176,13 @@ function BaseInteractableChatRow({
         ref={swipeableRef}
         renderLeftActions={renderLeftActions}
         renderRightActions={renderRightActions}
+        containerStyle={swipeableContainerStyle}
+        childrenContainerStyle={swipeableRowStyle}
+        onSwipeableOpenStartDrag={showSwipeShadow}
+        onSwipeableCloseStartDrag={showSwipeShadow}
+        onSwipeableWillOpen={showSwipeShadow}
+        onSwipeableOpen={hideSwipeShadow}
+        onSwipeableClose={hideSwipeShadow}
         leftThreshold={1}
         rightThreshold={1}
         friction={1.5}
