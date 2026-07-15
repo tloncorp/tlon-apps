@@ -23,7 +23,7 @@ export default function AttachmentButton({
   const handlePress = async () => {
     // On web, skip the sheet and go straight to the system file picker.
     if (isWeb) {
-      const { uploadIntents } = await pickFile();
+      const { uploadIntents } = await pickFile(['*/*'], true);
       if (uploadIntents.length > 0) {
         attachAssets(uploadIntents);
       }
@@ -39,6 +39,7 @@ export default function AttachmentButton({
         isOpen={showInputSelector}
         onOpenChange={setShowInputSelector}
         mediaType="all"
+        allowMultipleSelection
       />
     </>
   );
