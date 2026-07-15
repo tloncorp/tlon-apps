@@ -151,7 +151,6 @@ function BaseInteractableChatRow({
         onSwipeableOpenStartDrag={showSwipeFeedback}
         onSwipeableCloseStartDrag={showSwipeFeedback}
         onSwipeableWillOpen={showSwipeFeedback}
-        onSwipeableOpen={hideSwipeFeedback}
         onSwipeableClose={hideSwipeFeedback}
         leftThreshold={1}
         rightThreshold={1}
