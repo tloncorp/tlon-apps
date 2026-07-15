@@ -83,7 +83,7 @@ test('builds a separate post for every selected video', () => {
   ]);
 });
 
-test('enqueues every gallery attachment post before waiting', async () => {
+test('enqueues gallery attachment posts in selection order before waiting', async () => {
   const drafts = buildGalleryAttachmentPostDrafts({
     attachments: [image('file:///first.jpg'), image('file:///second.jpg')],
     caption: '',
@@ -91,10 +91,12 @@ test('enqueues every gallery attachment post before waiting', async () => {
     channelType: 'gallery',
   });
   const queuedImages: (string | undefined)[] = [];
+  const markEnqueued: (() => void)[] = [];
   const releaseSends: (() => void)[] = [];
-  const sendPost = vi.fn((draft) => {
+  const sendPost = vi.fn((draft, options) => {
     queuedImages.push(draft.image);
     return new Promise<void>((resolve) => {
+      markEnqueued.push(() => options?.onEnqueued?.());
       releaseSends.push(resolve);
     });
   });
@@ -102,9 +104,16 @@ test('enqueues every gallery attachment post before waiting', async () => {
   const pending = enqueueGalleryAttachmentPosts(drafts, sendPost);
   await Promise.resolve();
 
+  expect(sendPost).toHaveBeenCalledOnce();
+  expect(queuedImages).toEqual(['file:///first.jpg']);
+
+  markEnqueued[0]();
+  await Promise.resolve();
+
   expect(sendPost).toHaveBeenCalledTimes(2);
   expect(queuedImages).toEqual(['file:///first.jpg', 'file:///second.jpg']);
 
+  markEnqueued[1]();
   releaseSends.forEach((release) => release());
   await pending;
 });

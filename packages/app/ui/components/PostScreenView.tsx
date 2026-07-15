@@ -138,9 +138,9 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
       channel,
       clearDraft,
       onPresentationModeChange: noop,
-      sendPostFromDraft: async (draft) => {
+      sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
-        await store.finalizeAndSendPost(draft);
+        await store.finalizeAndSendPost(draft, options);
       },
       setEditingPost,
       setShouldBlur,
@@ -780,15 +780,15 @@ function SinglePostView({
   );
 
   const sendFromThreadComposer = useCallback(
-    async (draft: domain.PostDataDraft) => {
+    async (draft: domain.PostDataDraft, options?: store.PostSendOptions) => {
       setEditingPost?.(undefined);
       if (draft.isEdit) {
-        await store.finalizeAndSendPost(draft);
+        await store.finalizeAndSendPost(draft, options);
         return;
       }
 
       draft.replyToPostId = parentPost.id;
-      await store.finalizeAndSendPost(draft);
+      await store.finalizeAndSendPost(draft, options);
       scrollToNewReply();
     },
     [parentPost, store, scrollToNewReply, setEditingPost]
@@ -928,9 +928,9 @@ function SinglePostView({
             setEditingPost={setEditingPost}
             shouldBlur={inputShouldBlur}
             setShouldBlur={setInputShouldBlur}
-            sendPostFromDraft={async (draft) => {
+            sendPostFromDraft={async (draft, options) => {
               setEditingPost?.(undefined);
-              await store.finalizeAndSendPost(draft);
+              await store.finalizeAndSendPost(draft, options);
             }}
             getDraft={parentEditDraftCallbacks?.getDraft ?? (async () => null)}
             storeDraft={

@@ -1,4 +1,5 @@
 import type { Attachment, PostDataDraft } from '@tloncorp/shared/domain';
+import type { PostSendOptions } from '@tloncorp/shared';
 
 export function buildGalleryAttachmentPostDrafts({
   attachments,
@@ -48,9 +49,28 @@ export function buildGalleryAttachmentPostDrafts({
 
 export async function enqueueGalleryAttachmentPosts(
   drafts: PostDataDraft[],
-  sendPost: (draft: PostDataDraft) => Promise<void>
+  sendPost: (
+    draft: PostDataDraft,
+    options?: PostSendOptions
+  ) => Promise<void>
 ): Promise<void> {
-  // Start every send in selection order before awaiting. The session action
-  // queue serializes the backend operations once each send reaches it.
-  await Promise.all(drafts.map((draft) => sendPost(draft)));
+  const completions: Promise<void>[] = [];
+
+  for (const draft of drafts) {
+    let resolveEnqueued: (() => void) | undefined;
+    const enqueued = new Promise<void>((resolve) => {
+      resolveEnqueued = resolve;
+    });
+    const markEnqueued = () => resolveEnqueued?.();
+    const completion = sendPost(draft, { onEnqueued: markEnqueued });
+
+    // A send can exit early (for example, if its channel disappears) before
+    // reaching the queue. In that case, continue the batch after it settles
+    // rather than leaving the remaining selections blocked forever.
+    void completion.then(markEnqueued, markEnqueued);
+    await enqueued;
+    completions.push(completion);
+  }
+
+  await Promise.all(completions);
 }
