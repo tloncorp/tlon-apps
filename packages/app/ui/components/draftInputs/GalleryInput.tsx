@@ -30,6 +30,10 @@ import { ScreenHeader } from '../ScreenHeader';
 import Notices from '../Wayfinding/Notices';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { LinkInput, LinkInputSaveParams } from './LinkInput';
+import {
+  buildGalleryAttachmentPostDrafts,
+  sendGalleryAttachmentPostsSequentially,
+} from './galleryPost';
 import { DraftInputContext, GalleryRoute } from './shared';
 
 const isPlaceholderImageAttachment = (attachment: domain.Attachment) =>
@@ -434,32 +438,18 @@ function ReviewAttachment({
     try {
       setIsPosting(true);
 
-      // Build the draft with caption content and image attachments
-      // Caption goes in content, images go in attachments
-      const captionContent = caption ? [caption] : [];
-
-      // Extract image URI from the first image attachment for the draft's image field
-      const imageAttachment = attachments.find(
-        (att) => att.type === 'image' && 'file' in att
+      const postableAttachments = attachments.filter(
+        (attachment) => !isPlaceholderImageAttachment(attachment)
       );
-      const imageUri =
-        imageAttachment?.type === 'image' && 'file' in imageAttachment
-          ? imageAttachment.file.uri
-          : undefined;
-
-      const draft: domain.PostDataDraft = {
+      const drafts = buildGalleryAttachmentPostDrafts({
+        attachments: postableAttachments,
+        caption,
         channelId: channel.id,
-        content: captionContent,
-        attachments,
         channelType: channel.type,
-        replyToPostId: null,
-        image: imageUri,
-        ...(isEditingPost && editingPost != null
-          ? { isEdit: true, editTargetPostId: editingPost.id }
-          : { isEdit: false }),
-      };
+        editTargetPostId: editingPost?.id,
+      });
 
-      await sendPostFromDraft(draft);
+      await sendGalleryAttachmentPostsSequentially(drafts, sendPostFromDraft);
 
       // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
       // First reset all gallery-related state to clean up the editing

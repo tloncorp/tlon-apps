@@ -1,3 +1,4 @@
+import * as DocumentPicker from 'expo-document-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { expect, test, vi } from 'vitest';
 
@@ -6,6 +7,7 @@ import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import {
   imagePickerAssetToUploadIntent,
   normalizeUploadIntent,
+  pickFile,
 } from './filepicker';
 
 vi.mock('expo-document-picker', () => ({
@@ -221,4 +223,52 @@ test('normalizeUploadIntent keeps supported quicktime videos with known size', a
     },
     errorMessage: null,
   });
+});
+
+test('pickFile requests multiple documents and preserves their selection order', async () => {
+  vi.mocked(isLikelyVideoSource).mockReset();
+  vi.mocked(isLikelyVideoSource).mockReturnValue(false);
+  vi.mocked(DocumentPicker.getDocumentAsync).mockResolvedValueOnce({
+    canceled: false,
+    assets: [
+      {
+        name: 'first.txt',
+        uri: 'file:///tmp/first.txt',
+        size: 10,
+        mimeType: 'text/plain',
+        lastModified: 1,
+      },
+      {
+        name: 'second.txt',
+        uri: 'file:///tmp/second.txt',
+        size: 20,
+        mimeType: 'text/plain',
+        lastModified: 2,
+      },
+    ],
+  });
+
+  const result = await pickFile(['text/plain'], true);
+
+  expect(DocumentPicker.getDocumentAsync).toHaveBeenCalledWith({
+    copyToCacheDirectory: true,
+    multiple: true,
+    type: ['text/plain'],
+  });
+  expect(result.uploadIntents).toEqual([
+    {
+      type: 'fileUri',
+      name: 'first.txt',
+      localUri: 'file:///tmp/first.txt',
+      size: 10,
+      mimeType: 'text/plain',
+    },
+    {
+      type: 'fileUri',
+      name: 'second.txt',
+      localUri: 'file:///tmp/second.txt',
+      size: 20,
+      mimeType: 'text/plain',
+    },
+  ]);
 });

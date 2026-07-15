@@ -21,7 +21,7 @@ export default function AddGalleryPost({
 
   const openWebFilePicker = useCallback(async () => {
     setRoute('gallery');
-    const { uploadIntents } = await pickFile();
+    const { uploadIntents } = await pickFile(['*/*'], true);
     if (uploadIntents.length > 0) {
       attachAssets(uploadIntents);
       onSetMedia(uploadIntents);
@@ -89,6 +89,7 @@ export default function AddGalleryPost({
           onOpenChange={onClose}
           onAttach={handleAttachmentSet}
           mediaType="all"
+          allowMultipleSelection
         />
       )}
     </>
