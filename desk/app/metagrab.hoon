@@ -559,7 +559,7 @@
     =.  await
       %-  ~(gas ju await)
       (turn ~(tap in (~(get ju await) url)) (lead u.nex))
-    =.  await  (~(del by await) url)
+    =?  await  !=(u.nex url)  (~(del by await) url)
     ::  check the cache for the target
     ::
     =/  entry  (~(get by cache) u.nex)
