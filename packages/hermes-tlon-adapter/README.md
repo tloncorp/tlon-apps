@@ -102,9 +102,53 @@ TLON_SSE_READ_TIMEOUT_SECONDS=60
 TLON_SKILL_PATH=/path/to/tlon-skill/SKILL.md # optional explicit plugin-skill path
 TLON_GATEWAY_STATUS=true
 TLON_GATEWAY_STATUS_OWNER=~friend # optional override; defaults to TLON_OWNER_SHIP
+TLON_CONTEXT_LENS=true # off by default; durable bot-run records via %steward
+TLON_CONTEXT_LENS_OWNER=~friend # optional; defaults to TLON_OWNER_SHIP
 ```
 
 `TLON_OWNER_SHIP` is required: it defines the owner identity for approvals, owner-only tools such as `tlon`/`cronjob`/MCP/file tools, owner-listen, telemetry identity, and home-channel defaults. Without it, Tlon chat-session tool calls fail closed.
+
+## Context Lens
+
+Context Lens records each bot run (context sources, model, tool calls, timings, outputs) on-ship via the `%steward` agent and surfaces them in Tlon Messenger (badge / Bot Run sheet). Hermes uses the same protocol as OpenClaw.
+
+**Harness**
+
+```bash
+TLON_CONTEXT_LENS=true
+# optional; defaults to TLON_OWNER_SHIP
+# TLON_CONTEXT_LENS_OWNER=~friend
+```
+
+Restart the Hermes gateway after changing these.
+
+**Tlon Messenger (owner install)**
+
+- Settings → Experimental Features → **Enable bot context lens panel**
+- Leave **Context lens gateway URL** and **Context lens gateway token** blank. Those are the old direct HTTP stream to a local harness gateway (web-only). They are not required for durable `%steward` records and will not fix a missing steward.
+
+**Ships**
+
+1. `%steward` must be **running** on both the bot ship and the owner ship (`+gall/agents %groups` → `status: running %steward`). It ships with a current `%groups` desk.
+2. On the **owner** ship, explicitly trust the bot once. Moon sponsorship is **not** auto-trust:
+
+```hoon
+:steward &steward-action-1 [%trust-bot ~your-bot-ship]
+```
+
+3. Test with a **new** bot reply. Historical messages do not gain badges retroactively.
+
+**Data path**
+
+1. Hermes probes bot `%steward` with an Eyre scry of `/steward/v1/lens/recent` (care `%x` is applied by Gall/Eyre — do not put `/x/` in the HTTP path).
+2. Healthy log: `[tlon] context-lens sync active (owner=~...)`.
+3. Hermes pokes run milestones to bot `%steward`; the bot fans them to the trusted owner over Ames.
+4. The owner client loads runs from **owner** `%steward` (local DB after sync/scry). Bot-side `{"recent":[]}` is normal when the owner is a different ship — the durable UI store is on the owner.
+5. If the badge appears but the Bot Run sheet says the run is unavailable, owner `%steward` is usually missing trust for the bot (or not installed/running).
+
+**Not the same as gateway status**
+
+`TLON_GATEWAY_STATUS` still pokes the legacy `%gateway-status` agent for online/offline notices. Context Lens uses `%steward`. A ship slog of `steward: gateway lease expired…` means steward is alive and a lease timed out; it does not mean Context Lens is disabled.
 
 The adapter also accepts the older `TLON_SHIP_*`, `TLON_URL/TLON_SHIP/TLON_CODE`, and `URBIT_*` aliases and passes them through to the CLI, so it works with the credential resolver in `@tloncorp/tlon-skill`.
 

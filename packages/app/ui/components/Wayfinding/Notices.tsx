@@ -222,11 +222,21 @@ export function ChatInputTooltip() {
 }
 
 export function BotMentionTooltip() {
+  const handleDismiss = useCallback(() => {
+    db.wayfindingProgress.setValue((prev) => ({
+      ...prev,
+      tappedHomeGroupHint: true,
+    }));
+  }, []);
+
   return (
     <View position="absolute" bottom={35} right={50}>
       <YStack gap="$l">
-        <View
-          padding={20}
+        <Pressable
+          onPress={handleDismiss}
+          paddingVertical={20}
+          paddingLeft={20}
+          paddingRight={44}
           width={240}
           backgroundColor="$positiveActionText"
           borderRadius="$l"
@@ -236,7 +246,15 @@ export function BotMentionTooltip() {
             Since you own this group, your Tlonbot will automatically respond to
             your messages. Others can @-mention your bot to interact with it.
           </Text>
-        </View>
+          <View position="absolute" top={8} right={8} padding={4}>
+            <Icon
+              type="Close"
+              size="$s"
+              color="$white"
+              testID="BotMentionWayfindingTooltipDismiss"
+            />
+          </View>
+        </Pressable>
         <XStack width="100%" justifyContent="flex-end">
           <Circle backgroundColor="$positiveActionText" size="$2xl" />
         </XStack>

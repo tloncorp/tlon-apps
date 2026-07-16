@@ -1,5 +1,4 @@
 import type { Story } from '@tloncorp/api';
-import { configureGatewayStatus, gatewayStart } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
@@ -29,14 +28,10 @@ import {
   setEffectiveOwnerShip,
 } from '../effective-owner.js';
 import {
-  ACTIVE_WINDOW_SECS,
-  OFFLINE_REPLY_COOLDOWN_SECS,
-  computeLeaseUntil,
-  getGatewayStatusManager,
-} from '../gateway-status.js';
-import {
   API_CLIENT_PARAMS_SLOT,
   type SharedApiClientParams,
+  gateGatewayStatusActivation,
+  getGatewayStatusCoordinator,
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
@@ -148,6 +143,7 @@ import {
   tlonDeliveryContext,
 } from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
+import { resolveTlonSourceReplyDeliveryMode } from './source-reply-delivery.js';
 import {
   type ParsedCite,
   extractCites,
@@ -238,6 +234,15 @@ export type MonitorTlonOpts = {
   runtime?: RuntimeEnv;
   abortSignal?: AbortSignal;
   accountId?: string | null;
+  /**
+   * Channel-start config snapshot (the gateway adapter's `ctx.cfg`), used
+   * instead of an independent `core.config.loadConfig()` call so
+   * gateway-status eligibility (Fix B) reads the SAME config OpenClaw used
+   * to enumerate/start accounts, avoiding a transient mismatch if a second
+   * config write races. Falls back to `loadConfig()` when absent (e.g. a
+   * caller that doesn't thread a snapshot through).
+   */
+  cfg?: OpenClawConfig;
 };
 
 type ChannelAuthorization = {
@@ -264,63 +269,11 @@ type ChatFirehoseEvent = DmInvite[] | WritResponse;
 /** Refresh stale settings subscription state periodically as a fallback for silently-dead SSE subscriptions. */
 const SETTINGS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
-const GATEWAY_STATUS_ACTIVATION_TIMEOUT_MS = 15_000;
-const GATEWAY_STATUS_ACTIVATION_RETRY_MS = 30_000;
-
 function classifyPluginError(error: unknown): string {
   if (error instanceof Error) {
     return error.name || 'Error';
   }
   return typeof error;
-}
-
-// Bound an activation poke so a silently-hung promise surfaces as a
-// retryable error instead of leaving gateway-status dead for the process
-// lifetime. The underlying poke may still settle after the timeout; the
-// trailing no-op catch keeps a late rejection from becoming an unhandled
-// rejection, and a late duplicate poke is harmless (same bootId/values).
-function withActivationTimeout<T>(
-  promise: Promise<T>,
-  label: string
-): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      promise.catch(() => {});
-      reject(
-        new Error(
-          `${label} poke timed out after ${GATEWAY_STATUS_ACTIVATION_TIMEOUT_MS}ms`
-        )
-      );
-    }, GATEWAY_STATUS_ACTIVATION_TIMEOUT_MS);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
-}
-
-function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (signal?.aborted) {
-      resolve();
-      return;
-    }
-    const onAbort = () => {
-      clearTimeout(timer);
-      resolve();
-    };
-    const timer = setTimeout(() => {
-      signal?.removeEventListener('abort', onAbort);
-      resolve();
-    }, ms);
-    signal?.addEventListener('abort', onAbort, { once: true });
-  });
 }
 
 /**
@@ -369,7 +322,9 @@ export async function monitorTlonProvider(
   opts: MonitorTlonOpts = {}
 ): Promise<void> {
   const core = getTlonRuntime();
-  const cfg = core.config.loadConfig();
+  // Prefer the channel-start config snapshot (Fix B) over an independent
+  // load: see the MonitorTlonOpts.cfg doc comment.
+  const cfg = opts.cfg ?? core.config.loadConfig();
   if (cfg.channels?.tlon?.enabled === false) {
     return;
   }
@@ -615,13 +570,31 @@ export async function monitorTlonProvider(
   };
   apiClientParamsSlot.set(myApiClientParams);
 
-  // gsManager is hoisted here (from its prior location at the
+  // gsCoordinator is hoisted here (from its prior location at the
   // gateway-status activation block below) so cleanupGatewayStatus can
-  // close over it. getGatewayStatusManager() returns the manager
-  // singleton index.ts published during plugin registration; it is
-  // null when multi-account or zero-account configs disable the
-  // feature (see index.ts registration gate).
-  const gsManager = getGatewayStatusManager();
+  // close over it. getGatewayStatusCoordinator() returns the
+  // process-lifetime coordinator index.ts's registerFull publishes on
+  // every load pass (tool discovery, full activation, and the 6.11+
+  // prewarm) — it is created unconditionally, independent of Tlon account
+  // count; see gateway-status.ts. Per-monitor eligibility (exactly one
+  // account) is checked below, from THIS monitor's config snapshot.
+  const gsCoordinator = getGatewayStatusCoordinator();
+
+  // Monitor-local heartbeat handle (Fix C): each activation owns its own
+  // interval, so a stale monitor's cleanup can never kill a replacement
+  // monitor's heartbeat by construction. Populated once activation
+  // actually starts the heartbeat; cleared/cleared-out on teardown.
+  let stopGatewayHeartbeat: (() => void) | null = null;
+
+  // Monitor-local abort for the gateway-status ACTIVATION ORCHESTRATION
+  // only (the waitForStartedLifecycle() wait, the start watchdog, and the
+  // retry backoff) — NOT the in-flight pokes (that abort is the deferred
+  // Fix D). Aborting this from cleanupGatewayStatus() lets teardown cancel
+  // a pending wait even when the host abortSignal never fires (e.g.
+  // bootstrap throws because api.connect() failed), so the coordinator does
+  // not retain the waiter + monitor closure and the watchdog can't emit
+  // telemetry after teardown.
+  const gatewayStatusActivationAbort = new AbortController();
 
   // Idempotent gateway-status teardown. Called from every path that
   // can leave this monitor: (a) synchronous abort already raised at
@@ -637,16 +610,21 @@ export async function monitorTlonProvider(
       return;
     }
     gatewayStatusCleanupRan = true;
-    gsManager?.stopHeartbeat();
-    // Deliberately do NOT call gsManager.markStopped() here. The manager is
-    // a process-lifetime singleton (set once in index.ts's registerFull,
-    // which does not re-run on config reload) reused across monitor
-    // restarts. markStopped() is a one-way latch the gateway_stop hook owns;
-    // if monitor teardown set it, a config-reload's replacement monitor
-    // would reuse the latched manager, its activation would see stopped and
-    // bail, and gateway-status would stay dead until a full gateway restart.
-    // Zombie-heartbeat prevention is monitor-local via gatewayStatusCleanupRan
-    // (checked in the activation task before startHeartbeat).
+    stopGatewayHeartbeat?.();
+    stopGatewayHeartbeat = null;
+    // Cancel any pending activation wait/watchdog/backoff (orchestration
+    // only — never the in-flight poke requests).
+    gatewayStatusActivationAbort.abort();
+    // Deliberately do NOT call gsCoordinator.markStopped() here. The
+    // coordinator is process-lifetime (created once, reused across BOTH
+    // registerFull passes and in-process monitor restarts). markStopped()
+    // latches a specific GENERATION stopped and is the gateway_stop hook's
+    // job; if monitor teardown called it, a config-reload's replacement
+    // monitor would find its generation already stopped and bail, leaving
+    // gateway-status dead until the next real %gateway-start. Zombie-
+    // heartbeat prevention is monitor-local via gatewayStatusCleanupRan
+    // (checked by the activation task, and by every heartbeat tick's own
+    // validity predicate).
     if (apiClientParamsSlot.get() === myApiClientParams) {
       apiClientParamsSlot.set(null);
     }
@@ -1295,127 +1273,62 @@ export async function monitorTlonProvider(
     }
 
     // ── Gateway-status: non-blocking background activation ──────
-    // (gsManager was hoisted to the slot-publish region above so that
-    // cleanupGatewayStatus can close over it; we reuse the same captured
-    // reference here.)
-
-    if (gsManager && effectiveOwnerShip) {
-      const capturedOwnerShip = effectiveOwnerShip;
-      const signal = opts.abortSignal;
-
-      // Fire-and-forget: wait for gateway_start signal, then activate.
-      // Does NOT block monitor startup — discovery, subscriptions, etc. proceed immediately.
-      void (async () => {
-        // Named abort handler so it can be removed once the race settles. When
-        // the "started" branch wins (every config-reload restart, since
-        // waitForGatewayStart() is already resolved on the process-lifetime
-        // manager), a bare addEventListener would linger on the host's signal
-        // forever — `{ once: true }` only removes it after it fires — retaining
-        // this activation closure and the SSE-bound monitor state. Same
-        // retention class the outer-finally removeEventListener avoids.
-        let onRaceAbort: (() => void) | undefined;
-        try {
-          const abortRace =
-            signal &&
-            new Promise<'aborted'>((r) => {
-              if (signal.aborted) {
-                r('aborted');
-                return;
-              }
-              onRaceAbort = () => r('aborted');
-              signal.addEventListener('abort', onRaceAbort, { once: true });
-            });
-          const raced = await Promise.race([
-            gsManager.waitForGatewayStart().then(() => 'started' as const),
-            ...(abortRace ? [abortRace] : []),
-          ]);
-          if (signal && onRaceAbort) {
-            signal.removeEventListener('abort', onRaceAbort);
-          }
-          if (
-            raced !== 'started' ||
-            gatewayStatusCleanupRan ||
-            gsManager.stopped
-          ) {
-            return;
-          }
-
-          // One-shot activation proved fragile: a single silently-hung poke
-          // (observed when activation raced an SSE reconnect) left
-          // gateway-status dead for the whole process lifetime, so the ship
-          // marked the gateway %down and auto-replied "bot is offline" to
-          // owner DMs. Retry with a per-attempt timeout until activation
-          // sticks or this monitor is torn down.
-          for (let attempt = 1; ; attempt += 1) {
-            if (
-              signal?.aborted ||
-              gatewayStatusCleanupRan ||
-              gsManager.stopped
-            ) {
-              return;
-            }
-            try {
-              await withActivationTimeout(
-                configureGatewayStatus({
-                  owner: capturedOwnerShip,
-                  activeWindowSecs: ACTIVE_WINDOW_SECS,
-                  offlineReplyCooldownSecs: OFFLINE_REPLY_COOLDOWN_SECS,
-                }),
-                '%configure'
-              );
-              // Recheck after each await: this monitor can be torn down
-              // (gatewayStatusCleanupRan), the signal can abort, or the gateway can
-              // stop (gsManager.stopped) while these pokes are in flight. Without
-              // the recheck we would leave a zombie heartbeat interval running.
-              // The cleanup flag is monitor-local on purpose — see
-              // cleanupGatewayStatus for why we don't latch the shared manager.
-              if (
-                signal?.aborted ||
-                gatewayStatusCleanupRan ||
-                gsManager.stopped
-              ) {
-                return;
-              }
-              // Mark starting before the %gateway-start poke so a concurrent
-              // gateway_stop hook knows a start poke is in flight and sends a
-              // matching %gateway-stop even if shutdown lands before markActivated().
-              gsManager.markStarting();
-              await withActivationTimeout(
-                gatewayStart({
-                  bootId: gsManager.bootId,
-                  leaseUntil: computeLeaseUntil(),
-                }),
-                '%gateway-start'
-              );
-              if (
-                signal?.aborted ||
-                gatewayStatusCleanupRan ||
-                gsManager.stopped
-              ) {
-                return;
-              }
-              gsManager.markActivated();
-              gsManager.startHeartbeat();
-              runtime.log?.(
-                `[gateway-status] activated (bootId=${gsManager.bootId}, owner=${capturedOwnerShip}, attempt=${attempt})`
-              );
-              return;
-            } catch (err) {
-              capturePluginError('gateway_status_activation', err, {
-                attempt,
-              });
-              runtime.error?.(
-                `[gateway-status] activation attempt ${attempt} failed: ${String(err)} — retrying in ${GATEWAY_STATUS_ACTIVATION_RETRY_MS / 1000}s`
-              );
-            }
-            await abortableDelay(GATEWAY_STATUS_ACTIVATION_RETRY_MS, signal);
-          }
-        } catch (err) {
-          capturePluginError('gateway_status_activation', err);
-          runtime.error?.(`[gateway-status] start failed: ${String(err)}`);
+    // (gsCoordinator was hoisted to the slot-publish region above so that
+    // cleanupGatewayStatus can close over its heartbeat handle; we reuse
+    // the same captured reference here.)
+    //
+    // Fix B: eligibility (exactly one Tlon account) is derived from THIS
+    // monitor's own config snapshot (`cfg`, the channel-start `ctx.cfg`),
+    // not from anything registerFull decided — an account added/removed via
+    // a channels.tlon hot-reload restarts monitors without a second
+    // registerFull, so a value cached at registration time would go stale.
+    // gsCoordinator itself is created unconditionally in index.ts
+    // (independent of account count). The decision lives in the shared
+    // gateGatewayStatusActivation() so tests exercise the exact gate.
+    //
+    // Compose the host abort (config-reload/shutdown restart) with the
+    // monitor-local activation abort (bootstrap-failure teardown) so the
+    // orchestration's wait/watchdog/backoff honor either.
+    const gatewayStatusSignal = opts.abortSignal
+      ? AbortSignal.any([opts.abortSignal, gatewayStatusActivationAbort.signal])
+      : gatewayStatusActivationAbort.signal;
+    void gateGatewayStatusActivation({
+      cfg,
+      coordinator: gsCoordinator,
+      effectiveOwnerShip,
+      signal: gatewayStatusSignal,
+      isTornDown: () => gatewayStatusCleanupRan,
+      logger: {
+        log: (m) => runtime.log?.(m),
+        error: (m) => runtime.error?.(m),
+      },
+      onActivationError: (err, attempt) =>
+        capturePluginError('gateway_status_activation', err, { attempt }),
+      onHeartbeatError: (err) =>
+        capturePluginError('gateway_status_heartbeat', err),
+      onWatchdogTimeout: () =>
+        capturePluginError(
+          'gateway_status_activation',
+          new Error('gateway-status start watchdog timeout'),
+          { errorKind: 'start_watchdog_timeout' }
+        ),
+      onMultiAccountSkip: (count) =>
+        runtime.log?.(
+          `[gateway-status] skipped: ${count} Tlon accounts configured, ` +
+            `but v1 only supports one (global @tloncorp/api client cannot target multiple ships)`
+        ),
+      registerHeartbeatStop: (stop) => {
+        // A concurrent teardown may have already run cleanupGatewayStatus
+        // (which clears/nulls this handle) between the heartbeat starting
+        // and this callback running; stop it immediately instead of
+        // leaving a zombie interval that only self-clears on its next tick.
+        if (gatewayStatusCleanupRan) {
+          stop();
+          return;
         }
-      })();
-    }
+        stopGatewayHeartbeat = stop;
+      },
+    });
 
     // Fetch group metadata AFTER settings are loaded so approval cards can display
     // friendly group names for both auto-discovered and manually configured channels.
@@ -3139,11 +3052,10 @@ export async function monitorTlonProvider(
           })
         : undefined;
 
-      const hasExplicitVisibleReplyPolicy =
-        cfg.messages?.visibleReplies !== undefined ||
-        cfg.messages?.groupChat?.visibleReplies !== undefined;
-      const sourceReplyDeliveryMode =
-        isGroup && !hasExplicitVisibleReplyPolicy ? 'automatic' : undefined;
+      const sourceReplyDeliveryMode = resolveTlonSourceReplyDeliveryMode({
+        isGroup,
+        messages: cfg.messages,
+      });
 
       const replyOptions: NonNullable<
         Parameters<
@@ -3432,11 +3344,21 @@ export async function monitorTlonProvider(
           dispatchError
         );
         unbindContextLensFromSession(lensSessionKeys, lens.lensId);
+        // A reply the model issued by calling the `message` tool itself lands
+        // through the outbound adapter, which records it on the lens but never
+        // touches this closure's `deliveredMessageCount`. Count the lens's own
+        // recorded outputs so a tool-only answer isn't finalized as no_reply.
+        const recordedOutputCount =
+          contextLenses.get(lens.lensId)?.outputs.length ?? 0;
+        const effectiveDeliveredCount = Math.max(
+          deliveredMessageCount,
+          recordedOutputCount
+        );
         contextLenses.recordLifecycle(lens.lensId, {
           completedAt: Date.now(),
           durationMs: dispatchDurationMs,
           timedOut: dispatchTimedOut,
-          deliveredMessageCount,
+          deliveredMessageCount: effectiveDeliveredCount,
           queuedFinal: dispatchResult?.queuedFinal ?? false,
           queuedFinalCount: dispatchResult?.counts.final ?? 0,
           queuedBlockCount: dispatchResult?.counts.block ?? 0,
@@ -3445,7 +3367,7 @@ export async function monitorTlonProvider(
           sendAttemptCount,
           sendErrorCount,
           sendErrorKind,
-          deliveredMessageCount,
+          deliveredMessageCount: effectiveDeliveredCount,
           replyCharCount,
           replyWordCount,
           replyMediaCount,
@@ -3466,7 +3388,7 @@ export async function monitorTlonProvider(
         if (!dispatchError) {
           contextLenses.setStatus(
             lens.lensId,
-            deliveredMessageCount > 0 ? 'completed' : 'no_reply'
+            effectiveDeliveredCount > 0 ? 'completed' : 'no_reply'
           );
         }
         const finalLens = contextLenses.get(lens.lensId);
