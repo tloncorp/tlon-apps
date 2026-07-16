@@ -239,6 +239,31 @@ class AdapterReactionTests(unittest.TestCase):
         # The malformed full snapshot did not create a false removal/re-add.
         self.assertEqual(len(adapter._pending_reaction_notes), 0)
 
+    def test_channel_self_reaction_skipped_but_snapshot_state_commits(self):
+        # Reviewer gap (self-reactor skip with state commit): channel
+        # snapshots deliberately KEEP the bot's own entries — the diff
+        # engine needs them for future transitions — so the only guard
+        # against the bot reacting to itself is the `reaction.reactor ==
+        # bot` check inside _handle_reaction, not the snapshot commit.
+        adapter = self.make_adapter()
+        self.cache_bot_post(adapter)
+        snapshot = channel_reacts({"~pen": "👍"})
+        events = asyncio.run(self.channel_events(adapter, snapshot))
+        self.assertEqual(events, [])
+        self.assertEqual(len(adapter._pending_reaction_notes), 0)
+
+        # The self-reaction still committed into ReactionState even though
+        # it produced neither a dispatch nor a passive note.
+        key = "group:chat/~pen/general"
+        entries = adapter._reaction_state._conversations[key]["170.141"]
+        self.assertIn("~pen", entries)
+
+        # Redelivery of the identical snapshot is a no-op diff (no
+        # transitions), so it produces neither events nor notes.
+        events = asyncio.run(self.channel_events(adapter, snapshot))
+        self.assertEqual(events, [])
+        self.assertEqual(len(adapter._pending_reaction_notes), 0)
+
     def test_authorization_notes_drain_and_failure_retention(self):
         adapter = self.make_adapter({"allow_all_users": False, "allowed_users": ["~mug"]})
         asyncio.run(self.channel_events(adapter, channel_reacts({"~mug": "👍"}, post_id="other")))
@@ -279,6 +304,27 @@ class AdapterReactionTests(unittest.TestCase):
                 )
             )
         self.assertIn(key, adapter._pending_reaction_notes)
+
+    def test_unauthorized_reactor_produces_no_events_no_notes_no_approvals(self):
+        # Reviewer gap (unauthorized-reactor drop): an unauthorized reactor
+        # must be fully dropped, not merely undispatched — it must not
+        # become a passive note either, and reactions have no approval
+        # path at all (only messages queue approvals), so the approval
+        # queue must stay untouched.
+        adapter = self.make_adapter({"allow_all_users": False, "allowed_users": ["~mug"]})
+        self.cache_bot_post(adapter)
+        events = asyncio.run(self.channel_events(adapter, channel_reacts({"~nec": "👍"})))
+        self.assertEqual(events, [])
+        self.assertNotIn("group:chat/~pen/general", adapter._pending_reaction_notes)
+        self.assertEqual(adapter._pending_approvals, [])
+
+        # DM side: dm_react()'s default post id ("~pen/170.141") is already
+        # bot-authored by construction (DM ownership is read off the id
+        # prefix, no cached post needed), so the same triple-negative holds.
+        dm_events = asyncio.run(self.dm_events(adapter, dm_react(author="~nec")))
+        self.assertEqual(dm_events, [])
+        self.assertNotIn("dm:~mug", adapter._pending_reaction_notes)
+        self.assertEqual(adapter._pending_approvals, [])
 
     def test_note_caps_and_structural_encoding(self):
         adapter = self.make_adapter()
@@ -368,6 +414,25 @@ class AdapterReactionTests(unittest.TestCase):
         self.assertEqual(len(adapter._sse.paths), 1)
         notes = adapter._pending_reaction_notes["group:chat/~pen/general"]
         self.assertEqual(len(notes), 2)
+
+    def test_snapshot_scry_success_memoized_across_transitions(self):
+        # Reviewer gap (success-path memoization): the existing failure-memo
+        # test above only pins the memo for a scry that raises. A multi-entry
+        # snapshot whose exact scry *succeeds* must still make just one scry
+        # for the whole event — the first transition's successful lookup
+        # populates the message cache, so the second transition must find it
+        # cached instead of re-scrying the same post.
+        payload = {
+            "essay": {"author": "~pen", "sent": 1, "content": [{"inline": ["pre-startup"]}]},
+            "seal": {"id": "170.141"},
+        }
+        adapter = self.make_adapter()
+        adapter._sse = RecordingSSE(payload)
+        events = asyncio.run(
+            self.channel_events(adapter, channel_reacts({"~mug": "👍", "~nec": "🔥"}))
+        )
+        self.assertEqual(len(events), 2)
+        self.assertEqual(len(adapter._sse.paths), 1)
 
     def test_snapshot_transition_exception_does_not_abort_remaining_transitions(self):
         # I2: apply_channel_snapshot() already committed the new map before
