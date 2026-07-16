@@ -446,6 +446,9 @@ class AdapterAttentionTests(unittest.TestCase):
             "node_id": "~pen",
             "access_code": "code",
             "channels": ["chat/~pen/general"],
+            # Attention assertions focus on wake behavior, not the reaction
+            # envelope (covered in test_adapter_reactions).
+            "reaction_level": "off",
         }
         base.update(extra)
         with patch.dict(os.environ, {}, clear=True):
@@ -1957,6 +1960,10 @@ class LensTriggerMapTests(unittest.TestCase):
         self.assertEqual(t("mention", is_dm=False), "mention")
         self.assertEqual(t("participated-thread", is_dm=False), "thread")
         self.assertEqual(t("owner-listen", is_dm=False), "owner-listen")
+        # reaction dispatches report their own lens trigger (F-4), not
+        # "unknown", regardless of conversation kind.
+        self.assertEqual(t("reaction", is_dm=False), "reaction")
+        self.assertEqual(t("reaction", is_dm=True), "reaction")
         # free-response is a real dispatch reason with no dedicated trigger.
         self.assertEqual(t("free-response", is_dm=False), "unknown")
 
@@ -1976,6 +1983,11 @@ class CitationDispatchTests(unittest.TestCase):
             "allowed_users": ["~mug"],
             "require_mention": False,
             "context_messages": 0,
+            # Cite tests assert exact dispatch text; keep the reaction
+            # message-id envelope out of it (same isolation as the other
+            # legacy suites — envelope behavior is pinned in
+            # test_adapter_reactions.py).
+            "reaction_level": "off",
         }
         base.update(extra or {})
         with patch.dict(os.environ, {}, clear=True):

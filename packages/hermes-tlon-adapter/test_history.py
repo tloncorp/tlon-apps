@@ -254,6 +254,19 @@ class ParseThreadTests(unittest.TestCase):
             self.assertEqual(entry.content, "root")
             self.assertEqual(entry.post_id, "7")
 
+    def test_exact_reply_accepts_memo_and_reply_essay(self):
+        reply = essay("~mug", "reply", 1000)
+        entries = [
+            history.parse_exact_reply(
+                {"seal": {"id": "8"}, "revision": 1, "memo": reply}, "8"
+            ),
+            history.parse_exact_reply(
+                {"seal": {"id": "8"}, "revision": 1, "reply-essay": reply}, "8"
+            ),
+        ]
+
+        self.assertEqual(entries, [history.HistoryEntry("~mug", "reply", 1000.0, "8")] * 2)
+
     def test_fetch_thread_context_orders_parent_first_and_dedupes(self):
         nest = "chat/~pen/general"
         payloads = {

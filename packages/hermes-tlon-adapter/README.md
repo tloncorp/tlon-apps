@@ -95,6 +95,7 @@ TLON_OWNER_LISTEN=true
 TLON_OWNER_LISTEN_DISABLED_CHANNELS=
 TLON_OWNER_LISTEN_ENABLED_CHANNELS=
 TLON_CONTEXT_MESSAGES=20
+TLON_REACTION_LEVEL=minimal # off, ack, minimal, or extensive
 TLON_KNOWN_BOT_USERS=~other-bot
 TLON_MAX_CONSECUTIVE_BOT_RESPONSES=3
 TLON_CLI=tlon
@@ -102,9 +103,53 @@ TLON_SSE_READ_TIMEOUT_SECONDS=60
 TLON_SKILL_PATH=/path/to/tlon-skill/SKILL.md # optional explicit plugin-skill path
 TLON_GATEWAY_STATUS=true
 TLON_GATEWAY_STATUS_OWNER=~friend # optional override; defaults to TLON_OWNER_SHIP
+TLON_CONTEXT_LENS=true # off by default; durable bot-run records via %steward
+TLON_CONTEXT_LENS_OWNER=~friend # optional; defaults to TLON_OWNER_SHIP
 ```
 
 `TLON_OWNER_SHIP` is required: it defines the owner identity for approvals, owner-only tools such as `tlon`/`cronjob`/MCP/file tools, owner-listen, telemetry identity, and home-channel defaults. Without it, Tlon chat-session tool calls fail closed.
+
+## Context Lens
+
+Context Lens records each bot run (context sources, model, tool calls, timings, outputs) on-ship via the `%steward` agent and surfaces them in Tlon Messenger (badge / Bot Run sheet). Hermes uses the same protocol as OpenClaw.
+
+**Harness**
+
+```bash
+TLON_CONTEXT_LENS=true
+# optional; defaults to TLON_OWNER_SHIP
+# TLON_CONTEXT_LENS_OWNER=~friend
+```
+
+Restart the Hermes gateway after changing these.
+
+**Tlon Messenger (owner install)**
+
+- Settings → Experimental Features → **Enable bot context lens panel**
+- Leave **Context lens gateway URL** and **Context lens gateway token** blank. Those are the old direct HTTP stream to a local harness gateway (web-only). They are not required for durable `%steward` records and will not fix a missing steward.
+
+**Ships**
+
+1. `%steward` must be **running** on both the bot ship and the owner ship (`+gall/agents %groups` → `status: running %steward`). It ships with a current `%groups` desk.
+2. On the **owner** ship, explicitly trust the bot once. Moon sponsorship is **not** auto-trust:
+
+```hoon
+:steward &steward-action-1 [%trust-bot ~your-bot-ship]
+```
+
+3. Test with a **new** bot reply. Historical messages do not gain badges retroactively.
+
+**Data path**
+
+1. Hermes probes bot `%steward` with an Eyre scry of `/steward/v1/lens/recent` (care `%x` is applied by Gall/Eyre — do not put `/x/` in the HTTP path).
+2. Healthy log: `[tlon] context-lens sync active (owner=~...)`.
+3. Hermes pokes run milestones to bot `%steward`; the bot fans them to the trusted owner over Ames.
+4. The owner client loads runs from **owner** `%steward` (local DB after sync/scry). Bot-side `{"recent":[]}` is normal when the owner is a different ship — the durable UI store is on the owner.
+5. If the badge appears but the Bot Run sheet says the run is unavailable, owner `%steward` is usually missing trust for the bot (or not installed/running).
+
+**Not the same as gateway status**
+
+`TLON_GATEWAY_STATUS` still pokes the legacy `%gateway-status` agent for online/offline notices. Context Lens uses `%steward`. A ship slog of `steward: gateway lease expired…` means steward is alive and a lease timed out; it does not mean Context Lens is disabled.
 
 The adapter also accepts the older `TLON_SHIP_*`, `TLON_URL/TLON_SHIP/TLON_CODE`, and `URBIT_*` aliases and passes them through to the CLI, so it works with the credential resolver in `@tloncorp/tlon-skill`.
 
@@ -210,7 +255,7 @@ The model can block an abusive DM sender with `[BLOCK_USER: ~ship | reason]`. Ex
 The seven keys above are the full "dashboard edit works" set. Everything else Tlon-related is either process env with no settings-store counterpart, or process env that only _seeds_ a settings key's default:
 
 -   **Env that seeds a settings default (edit the settings key to override it at runtime, not just the env):** `TLON_AUTO_DISCOVER` → `autoDiscoverChannels`; `TLON_GROUP_INVITE_ALLOWLIST` → `groupInviteAllowlist`; `TLON_OWNER_LISTEN`/`TLON_OWNER_LISTEN_DEFAULT`/`TLON_OWNER_LISTEN_DISABLED_CHANNELS`/`TLON_OWNER_LISTEN_ENABLED_CHANNELS` → the `ownerListen*` keys; `TLON_CHANNELS` → `groupChannels` (with a limit: a `groupChannels` edit can add or remove settings-managed channels, but can **never remove** a channel that came from `TLON_CHANNELS` — those stay monitored for the life of the process).
--   **Env-only, dashboard-invisible (no settings-store counterpart at all — a dashboard edit here genuinely does nothing):** notably `TLON_FREE_RESPONSE_CHANNELS` (unmentioned-message dispatch in named channels has no settings key on either harness), plus `TLON_ALLOWED_USERS`, `TLON_ALLOW_ALL_USERS`, `TLON_DM_ALLOWLIST` (the env var — distinct from the `dmAllowlist` settings key above), `TLON_REQUIRE_MENTION`, `TLON_BOT_MENTIONS`, `TLON_KNOWN_BOT_USERS`, `TLON_MAX_CONSECUTIVE_BOT_RESPONSES`, `TLON_HOME_CHANNEL`, `TLON_CONTEXT_MESSAGES`, `TLON_REPLY_IN_THREAD`, `TLON_CLI`/`TLON_CLI_TIMEOUT`, `TLON_HOSTING`, `TLON_SKILL_PATH`, `TLON_SSE_READ_TIMEOUT_SECONDS`, `BRAVE_SEARCH_API_KEY`/`BRAVE_API_KEY`, the `TLON_TELEMETRY*` vars, the `TLON_GATEWAY_STATUS*` vars, and the connection credentials (`TLON_NODE_URL`, `TLON_NODE_ID`, `TLON_OWNER_SHIP`, and the `TLON_ACCESS_CODE`/`TLON_COOKIE` auth pair — one of the two is required, not both; each also accepts the older
+-   **Env-only, dashboard-invisible (no settings-store counterpart at all — a dashboard edit here genuinely does nothing):** notably `TLON_FREE_RESPONSE_CHANNELS` (unmentioned-message dispatch in named channels has no settings key on either harness), plus `TLON_ALLOWED_USERS`, `TLON_ALLOW_ALL_USERS`, `TLON_DM_ALLOWLIST` (the env var — distinct from the `dmAllowlist` settings key above), `TLON_REQUIRE_MENTION`, `TLON_BOT_MENTIONS`, `TLON_KNOWN_BOT_USERS`, `TLON_MAX_CONSECUTIVE_BOT_RESPONSES`, `TLON_HOME_CHANNEL`, `TLON_CONTEXT_MESSAGES`, `TLON_REACTION_LEVEL`, `TLON_REPLY_IN_THREAD`, `TLON_CLI`/`TLON_CLI_TIMEOUT`, `TLON_HOSTING`, `TLON_SKILL_PATH`, `TLON_SSE_READ_TIMEOUT_SECONDS`, `BRAVE_SEARCH_API_KEY`/`BRAVE_API_KEY`, the `TLON_TELEMETRY*` vars, the `TLON_GATEWAY_STATUS*` vars, and the connection credentials (`TLON_NODE_URL`, `TLON_NODE_ID`, `TLON_OWNER_SHIP`, and the `TLON_ACCESS_CODE`/`TLON_COOKIE` auth pair — one of the two is required, not both; each also accepts the older
     `TLON_SHIP_*`/`TLON_URL`/`TLON_SHIP`/`TLON_CODE`/`URBIT_*` aliases listed under [Configuration](#configuration)).
 
 ## Debug commands
@@ -274,6 +319,16 @@ When a deployment shows nothing in PostHog, work through the built-in diagnostic
 4. **`TLON_TELEMETRY_DEBUG=true`** — logs every capture/identify enqueue at info level plus the posthog SDK's internal debug output, and elevates repeated delivery failures from debug to warning.
 
 Delivery failures are also surfaced without debug mode: the adapter hooks the SDK's `on_error` callback and warns on the first failed batch (`[tlon] telemetry delivery to PostHog failed …`).
+
+## Reactions
+
+`TLON_REACTION_LEVEL` controls the model-facing reaction affordance. It defaults to `minimal`; `extensive` encourages more frequent natural reactions; `off` and `ack` both hide reaction hints and block `react`/`unreact` (the `ack` tier is retained as a reserved no-op for OpenClaw parity). At `minimal`/`extensive`, dispatched messages expose real wire ids in `[message id: …]` and `[thread root: …]` markers, and recent group context lines include their ids. The model uses `tlon posts react <nest> <post-id> <emoji>` for channels and `tlon dms react <ship> <author/id> <emoji>` for one-to-one DMs; reacting to a thread reply adds `--parent <thread-root-id>` (the DM parent must include its author).
+
+Inbound channel reaction snapshots and DM reaction deltas are deduplicated in bounded in-memory state. An authorized reaction added to one of the bot's own posts wakes the model with the emoji and a cached/scry-fetched content snippet; channel targets that predate the gateway are classified by exact top-level or reply scries. A reaction on another post, and every removal, becomes a bounded passive note that is injected into the next authorized dispatch in that conversation without waking the model. Unauthorized reactions are dropped and never queue approvals. DM removals seen without a prior local add surface once through a tombstone, then deduplicate.
+
+The cache and reaction state are intentionally process-local. After restart or bounded-state eviction, the first channel snapshot for a post can replay its current entries once. This is bounded best-effort observability rather than durable reaction history. The legacy emoji approval path is deliberately not implemented: current A2UI approval cards and `/allow`, `/reject`, and `/ban` replace it.
+
+The `tlon` tool remains owner-only except that non-owner Tlon sessions may use `posts react|unreact` in their current channel or `dms react|unreact` in their current one-to-one DM, when reactions are enabled. They cannot target another conversation, mix the command family, or pass account/credential override flags.
 
 ## Reply Placement
 

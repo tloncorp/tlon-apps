@@ -370,10 +370,12 @@ class NaturalRetryableFailureTests(unittest.TestCase):
         events = handle_retry(adapter, lens_id)
 
         self.assertEqual(len(events), 1, "retry should produce exactly one dispatched event")
+        # The reaction envelope (default level=minimal) rides the retried
+        # dispatch as a deterministic suffix; assert the exact dispatched text.
         self.assertEqual(
             events[0].text,
-            "retry this after network error",
-            "retry event should carry the original message text"
+            "retry this after network error\n\n[message id: m1]",
+            "retry event should carry the original message text",
         )
 
         # The new run should be a retry (trigger="retry", retry_of=original_id)
@@ -452,7 +454,9 @@ class NaturalRetryableFailureTests(unittest.TestCase):
         events = handle_retry(second_adapter, lens_id)
 
         self.assertEqual(len(events), 1, "cold retry should produce one dispatched event")
-        self.assertEqual(events[0].text, "retry this from disk")
+        # The reaction envelope (default level=minimal) rides the retried
+        # dispatch as a deterministic suffix; assert the exact dispatched text.
+        self.assertEqual(events[0].text, "retry this from disk\n\n[message id: m1]")
 
         # Cold retry must NOT touch steward either
         self.assertFalse(
@@ -482,7 +486,9 @@ class NaturalRetryableFailureTests(unittest.TestCase):
         events = handle_retry(second_adapter, lens_id)
 
         self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].text, long_text)
+        # The full original text must survive retry untruncated; the reaction
+        # envelope (default level=minimal) rides after it as a deterministic suffix.
+        self.assertEqual(events[0].text, long_text + "\n\n[message id: m1]")
 
     # ── Auth error classification (documented limitation) ─────────────────
 
