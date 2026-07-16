@@ -576,7 +576,11 @@ class AdapterReactionTests(unittest.TestCase):
         )
 
         self.assertFalse(first.success)
-        self.assertTrue(first.retryable)
+        # A CLI timeout (rc 124) is deliberately non-retryable post-hardening
+        # (the poke may have landed before the kill, so an auto-resend risks a
+        # duplicate post). The explicit resend below still targets the real
+        # reacted post — which is what this test guards.
+        self.assertFalse(first.retryable)
         self.assertTrue(retry.success)
         self.assertEqual(
             [reply[1] for reply in adapter._cli.thread_replies],
@@ -621,7 +625,11 @@ class AdapterReactionTests(unittest.TestCase):
         retry = asyncio.run(adapter.send("~mug", "nice", reply_to=message_id, metadata=None))
 
         self.assertFalse(first.success)
-        self.assertTrue(first.retryable)
+        # A CLI timeout (rc 124) is deliberately non-retryable post-hardening
+        # (the poke may have landed before the kill, so an auto-resend risks a
+        # duplicate post). The explicit resend below still targets the real
+        # reacted post — which is what this test guards.
+        self.assertFalse(first.retryable)
         self.assertTrue(retry.success)
         self.assertEqual(
             [reply[1] for reply in adapter._cli.thread_replies],
