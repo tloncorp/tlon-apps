@@ -18,7 +18,7 @@ import Animated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { ColorTokens, View, getTokenValue, isWeb } from 'tamagui';
+import { ColorTokens, View, getTokenValue, isWeb, useTheme } from 'tamagui';
 
 import * as utils from '../../utils';
 import { ListItemProps } from '../ListItem';
@@ -51,6 +51,25 @@ function BaseInteractableChatRow({
   ...props
 }: ListItemProps<db.Chat> & { onLayout?: (e: any) => void }) {
   const swipeableRef = useRef<SwipeableMethods>(null);
+  const theme = useTheme();
+  const [isSwipeActive, setIsSwipeActive] = useState(false);
+
+  const swipeableRowStyle = useMemo(
+    () => ({
+      backgroundColor: isSwipeActive
+        ? theme.secondaryBackground.val
+        : theme.background.val,
+      borderRadius: getTokenValue('$m', 'radius'),
+    }),
+    [isSwipeActive, theme.background.val, theme.secondaryBackground.val]
+  );
+
+  const showSwipeFeedback = useCallback(() => setIsSwipeActive(true), []);
+  const hideSwipeFeedback = useCallback(() => setIsSwipeActive(false), []);
+
+  useEffect(() => {
+    setIsSwipeActive(false);
+  }, [model.id, model.pin?.itemId]);
 
   const isMuted = useMemo(() => {
     return logic.isMuted(model.volumeSettings?.level, model.type);
@@ -132,6 +151,12 @@ function BaseInteractableChatRow({
         ref={swipeableRef}
         renderLeftActions={renderLeftActions}
         renderRightActions={renderRightActions}
+        childrenContainerStyle={swipeableRowStyle}
+        onSwipeableOpenStartDrag={showSwipeFeedback}
+        onSwipeableCloseStartDrag={showSwipeFeedback}
+        onSwipeableWillOpen={showSwipeFeedback}
+        onSwipeableOpen={hideSwipeFeedback}
+        onSwipeableClose={hideSwipeFeedback}
         leftThreshold={1}
         rightThreshold={1}
         friction={1.5}
