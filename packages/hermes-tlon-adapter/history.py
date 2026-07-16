@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Optional, Sequence
 
 from .media import render_content_with_blob
+from .sanitize import strip_block_directives
 from .tlon_api import extract_author_ship, extract_message_text
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ _ROLE_TAG_RE = re.compile(r"\[(owner|user|admin|system)\]", re.IGNORECASE)
 
 
 def sanitize_context_text(text: str) -> str:
-    return _ROLE_TAG_RE.sub(r"(\1)", str(text or ""))
+    return _ROLE_TAG_RE.sub(r"(\1)", strip_block_directives(text))
 
 
 def format_ud(post_id: Any) -> str:

@@ -20,6 +20,7 @@ from .history import (
     render_history_content,
     sanitize_context_text,
 )
+from .sanitize import strip_block_directives
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +147,9 @@ async def resolve_cites(scry: ScryFn, content: Any, *, max_attempts: int = 3) ->
             entry = parse_parent_post(payload, cite.post_id or "")
             if entry is None:
                 continue
-            text = sanitize_context_text(render_history_content(entry))
+            text = sanitize_context_text(
+                strip_block_directives(render_history_content(entry))
+            )
             if text.strip():
                 lines.append(f"> {entry.author} wrote: {text}")
         except Exception as exc:
