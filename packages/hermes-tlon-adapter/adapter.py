@@ -2263,6 +2263,9 @@ class TlonAdapter(BasePlatformAdapter):
         ):
             logger.info("[tlon] ignoring unauthorized reaction from %s", reaction.reactor)
             return
+        if is_dm and await self._is_ship_blocked(reaction.reactor):
+            logger.info("[tlon] ignoring DM reaction from blocked ship")
+            return
 
         target = await self._lookup_reaction_target(reaction, snapshot_cache)
         if self._is_own_reaction_target(reaction, target) and reaction.added:
