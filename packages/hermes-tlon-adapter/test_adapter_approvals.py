@@ -530,6 +530,24 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(events, [])
         self.assertEqual(len(adapter._pending_approvals), 1)
 
+    def test_config_allowlisted_blocked_ship_does_not_dispatch_dm(self):
+        adapter = self.make_adapter({"allowed_users": ["~ten"]})
+        adapter._sse.payloads["/chat/blocked"] = ["~ten"]
+
+        events = self.dispatches(adapter, dm_event("hi bot"), dm=True)
+
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_config_allowlisted_unblocked_ship_dispatches_dm(self):
+        adapter = self.make_adapter({"allowed_users": ["~ten"]})
+        adapter._sse.payloads["/chat/blocked"] = []
+
+        events = self.dispatches(adapter, dm_event("hi bot"), dm=True)
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(adapter._pending_approvals, [])
+
     def test_default_authorized_ships_ignored_when_rule_pins_allowed_ships(self):
         adapter = self.make_adapter()
         adapter._settings_default_authorized_ships = {"~ten"}

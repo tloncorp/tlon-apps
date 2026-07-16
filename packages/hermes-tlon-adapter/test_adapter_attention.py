@@ -2154,7 +2154,12 @@ class CitationDispatchTests(unittest.TestCase):
         adapter = self.make_adapter({"owner_ship": "~pen"})
         self.assertFalse(adapter._is_owner("~mug"))
         path = "/channels/v4/chat/~other/private/posts/post/123"
-        adapter._sse = self.RecordingSSE({path: self.cited_payload("cross-channel")})
+        adapter._sse = self.RecordingSSE(
+            {
+                "/chat/blocked": [],
+                path: self.cited_payload("cross-channel"),
+            }
+        )
         content = [
             self.cite_block("/msg/123", nest="chat/~other/private"),
             {"inline": ["dm body"]},
@@ -2168,7 +2173,7 @@ class CitationDispatchTests(unittest.TestCase):
             events[0].text,
             "> ~quoted-author wrote: cross-channel\n\n[quoted message] dm body",
         )
-        self.assertEqual(adapter._sse.scries, [path])
+        self.assertEqual(adapter._sse.scries, ["/chat/blocked", path])
 
     def test_unmentioned_channel_cite_does_not_scry(self):
         adapter = self.make_adapter({"require_mention": True})

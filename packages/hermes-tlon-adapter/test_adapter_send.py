@@ -616,7 +616,21 @@ class BlockDirectiveSendTests(unittest.TestCase):
         self.assertEqual(len(self.notifications(adapter)), 1)
         self.assertNotIn("BLOCK_USER", adapter._cli.sent[0][2])
 
-    def test_block_failure_does_not_notify_or_abort_visible_delivery(self):
+    def test_directive_only_block_failure_notifies_without_post_or_execution(self):
+        adapter, _event = self.correlated_adapter()
+        adapter._sse = FakeSSE(poke_error=RuntimeError("poke failed"))
+
+        result = asyncio.run(
+            adapter.send("~attacker", self.directive, reply_to="m1")
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(adapter._cli.sent, [])
+        self.assertEqual(len(self.notifications(adapter)), 1)
+        self.assertIn("block failed", self.notifications(adapter)[0][3])
+        self.assertEqual(adapter._executed_block_directives, {})
+
+    def test_block_failure_notifies_and_does_not_abort_visible_delivery(self):
         adapter, _event = self.correlated_adapter()
         adapter._sse = FakeSSE(poke_error=RuntimeError("poke failed"))
         telemetry_errors = []
@@ -629,8 +643,10 @@ class BlockDirectiveSendTests(unittest.TestCase):
         )
 
         self.assertTrue(result.success)
-        self.assertEqual(self.notifications(adapter), [])
         self.assertEqual(adapter._cli.sent[0][2], "still visible")
+        self.assertEqual(len(self.notifications(adapter)), 1)
+        self.assertIn("block failed", self.notifications(adapter)[0][3])
+        self.assertEqual(adapter._executed_block_directives, {})
         self.assertTrue(
             any(
                 args and args[0] == "moderation" and kwargs.get("operation") == "block"

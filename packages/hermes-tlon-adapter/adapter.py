@@ -1381,11 +1381,17 @@ class TlonAdapter(BasePlatformAdapter):
                 requestType=approval_type(approval),
             )
 
-    async def _notify_owner(self, target: str, reason: str) -> None:
+    async def _notify_owner(
+        self, target: str, reason: str, *, block_succeeded: bool = True
+    ) -> None:
         owner = self.tlon_config.owner_ship
         if not owner:
             return
-        text = f"[Agent Action] Blocked {target}\nReason: {reason}"
+        if block_succeeded:
+            action = f"Blocked {target}"
+        else:
+            action = f"Tried to block {target} but the block failed."
+        text = f"[Agent Action] {action}\nReason: {reason}"
         with cli_context("owner_notification"):
             result = await self._cli.run_command(("posts", "send", owner, text))
         if not result.success:
@@ -2479,6 +2485,9 @@ class TlonAdapter(BasePlatformAdapter):
                     "[tlon] ignoring unauthorized message in %s", message.chat_id
                 )
             return
+        if await self._is_ship_blocked(message.user_id):
+            logger.info("[tlon] ignoring DM from blocked ship")
+            return
         retry_seed = self._build_retry_seed(message, sanitized_text)
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(
             message, message.text
@@ -3304,6 +3313,7 @@ class TlonAdapter(BasePlatformAdapter):
             self._remember_executed_block(directive_key)
             if not await self._block_ship(target):
                 self._executed_block_directives.pop(directive_key, None)
+                await self._notify_owner(target, reason, block_succeeded=False)
                 continue
             await self._remove_from_dm_allowlist(target)
             await self._notify_owner(target, reason)
