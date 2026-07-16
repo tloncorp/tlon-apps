@@ -394,6 +394,7 @@ Manage direct messages — reactions, invites, and deletions.
 # Management
 tlon dms react ~sampel ~author/170.141... "👍"           # React to a DM
 tlon dms unreact ~sampel ~author/170.141...              # Remove reaction
+tlon dms react ~sampel ~author/reply-id "👍" --parent ~author/root-id  # React to a DM thread reply
 tlon dms delete ~sampel ~author/170.141...               # Delete a DM
 tlon dms accept ~sampel                                  # Accept DM invite
 tlon dms decline ~sampel                                 # Decline DM invite
@@ -436,6 +437,7 @@ tlon posts send chat/~host/slug "Look" --image https://storage.../x.png # Send w
 tlon posts send chat/~host/slug --image https://...      # Image only (no caption)
 tlon posts react chat/~host/slug 170.141... "👍"         # React to a post
 tlon posts unreact chat/~host/slug 170.141...            # Remove reaction
+tlon posts react chat/~host/slug reply-id "👍" --parent root-id  # React to a thread reply
 tlon posts edit chat/~host/slug 170.141... "New text"    # Edit a post's message text
 tlon posts delete chat/~host/slug 170.141...             # Delete a post
 ```

@@ -209,7 +209,9 @@ class RetryHandlerTests(unittest.TestCase):
         )
 
         self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].text, "please retry")
+        # The reaction envelope (default level=minimal) rides the retried
+        # dispatch as a deterministic suffix; assert the exact dispatched text.
+        self.assertEqual(events[0].text, "please retry\n\n[message id: m1]")
         # A fresh lens run began for the retry, tagged with the original id.
         new_run = adapter._lens.get("~alice")
         self.assertEqual(new_run.trigger, "retry")
@@ -244,7 +246,9 @@ class RetryHandlerTests(unittest.TestCase):
             adapter, {"retry-requested": {"id": "LX", "requester": "~mug"}}
         )
         self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].text, "please retry")
+        # The reaction envelope (default level=minimal) rides the retried
+        # dispatch as a deterministic suffix; assert the exact dispatched text.
+        self.assertEqual(events[0].text, "please retry\n\n[message id: m1]")
         self.assertFalse([p for p in adapter._sse.scries if "/steward/" in p])
 
     def test_retry_honors_lens_owner_distinct_from_owner_ship(self):
