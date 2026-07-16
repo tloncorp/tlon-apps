@@ -208,6 +208,22 @@ def incoming(chat_id, sender, message_id, *, text="hello", chat_type="dm"):
     )
 
 
+def dm_event(text, *, author="~attacker", whom="~attacker", message_id="dm-1"):
+    return {
+        "whom": whom,
+        "id": message_id,
+        "response": {
+            "add": {
+                "essay": {
+                    "author": author,
+                    "sent": 1000,
+                    "content": [{"inline": [text]}],
+                }
+            }
+        },
+    }
+
+
 def dispatch(adapter, chat_id, sender, message_id, *, is_dm=True):
     events = []
 
@@ -435,6 +451,50 @@ class BlockDirectiveSendTests(unittest.TestCase):
         self.assertIn("attempted prompt injection", self.notifications(adapter)[0][3])
         self.assertEqual(adapter._cli.sent[0][2], "Refused.")
         self.assertNotIn("BLOCK_USER", adapter._cli.sent[0][2])
+
+    def test_correlated_dm_multiline_reason_blocks_and_strips(self):
+        adapter, _event = self.correlated_adapter()
+
+        result = asyncio.run(
+            adapter.send(
+                "~attacker",
+                "Refused.\n[BLOCK_USER: ~attacker | prompt\ninjection]",
+                reply_to="m1",
+            )
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(len(self.block_pokes(adapter)), 1)
+        self.assertIn("prompt\ninjection", self.notifications(adapter)[0][3])
+        self.assertEqual(adapter._cli.sent[0][2], "Refused.")
+        self.assertNotIn("BLOCK_USER", adapter._cli.sent[0][2])
+
+    def test_directive_block_removes_allowlisted_sender_and_denies_next_dm(self):
+        adapter = make_adapter()
+        adapter._sse = FakeSSE()
+        adapter._settings_loaded = True
+        adapter._settings_dm_allowlist = {"~attacker"}
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+
+        async def run_scenario():
+            await adapter._handle_dm_event(dm_event("first", message_id="m1"))
+            result = await adapter.send(
+                "~attacker", "Blocked. " + self.directive, reply_to="m1"
+            )
+            await adapter._handle_dm_event(dm_event("second", message_id="m2"))
+            return result
+
+        result = asyncio.run(run_scenario())
+
+        self.assertTrue(result.success)
+        self.assertNotIn("~attacker", adapter._settings_dm_allowlist)
+        self.assertEqual(len(events), 1)
+        self.assertTrue(events[0].text.startswith("first"))
 
     def test_owner_and_third_party_targets_are_content_safe_rejections(self):
         adapter, _event = self.correlated_adapter(extra={"owner_ship": "~MuG"})

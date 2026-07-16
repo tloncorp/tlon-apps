@@ -6,7 +6,7 @@ import re
 
 
 BLOCK_DIRECTIVE_RE = re.compile(
-    r"\[BLOCK_USER:\s*(~[\w-]+)\s*\|\s*(.+?)\]", re.IGNORECASE
+    r"\[BLOCK_USER:\s*(~[\w-]+)\s*\|\s*(.+?)\]", re.IGNORECASE | re.DOTALL
 )
 _BLOCK_DIRECTIVE_PREFIX = "[BLOCK_USER:"
 

@@ -3305,6 +3305,7 @@ class TlonAdapter(BasePlatformAdapter):
             if not await self._block_ship(target):
                 self._executed_block_directives.pop(directive_key, None)
                 continue
+            await self._remove_from_dm_allowlist(target)
             await self._notify_owner(target, reason)
 
         return strip_block_directives(content).strip(), True

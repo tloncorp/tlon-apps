@@ -43,6 +43,16 @@ class BlockDirectiveTests(unittest.TestCase):
         )
         self.assertEqual(sanitize.strip_block_directives(text), "")
 
+    def test_multiline_reason_matches_and_strips_as_complete(self):
+        text = "before [BLOCK_USER: ~attacker | prompt\ninjection] after"
+        self.assertEqual(
+            sanitize.find_block_directives(text),
+            [("~attacker", "prompt\ninjection")],
+        )
+        self.assertEqual(sanitize.strip_block_directives(text), "before  after")
+        self.assertFalse(sanitize.ends_with_directive_prefix(text))
+        self.assertEqual(sanitize.strip_trailing_directive_prefix(text), (text, False))
+
     def test_galaxy_planet_and_moon_names(self):
         ships = ("~zod", "~sampel-palnet", "~doznec-salfun-naptel-haswyn")
         text = " ".join(f"[BLOCK_USER: {ship} | abuse]" for ship in ships)
