@@ -32,6 +32,20 @@ const DEFAULT_POKE_ACK_TIMEOUT = 30000;
 const isBrowser =
   typeof window !== 'undefined' && typeof window.document !== 'undefined';
 
+/**
+ * A thread response began, but its successful response body could not be read.
+ * Consumers may safely treat this as a lost response only because the server
+ * has already sent the response headers.
+ */
+export class ThreadResponseBodyError extends Error {
+  readonly responseHeadersReceived = true;
+
+  constructor(cause: unknown) {
+    super('Thread response body could not be read', { cause });
+    this.name = 'ThreadResponseBodyError';
+  }
+}
+
 //TODO  move into nockjs utils
 function isNoun(a: any): a is Noun {
   return a instanceof Atom || a instanceof Cell;
@@ -1092,7 +1106,7 @@ export class Urbit {
         // body read shouldn't mask it, since callers dispatch on status to
         // distinguish backend failures from transport failures.
         if (result.ok) {
-          throw e;
+          throw new ThreadResponseBodyError(e);
         }
       }
       return new Response(responseBody, {

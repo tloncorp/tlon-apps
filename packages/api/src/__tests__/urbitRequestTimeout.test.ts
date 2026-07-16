@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { Urbit } from '../http-api/Urbit';
+import { ThreadResponseBodyError, Urbit } from '../http-api/Urbit';
 
 // Mimics real fetch behavior for a response whose headers arrive but whose
 // body never completes: the returned stream only errors when the request's
@@ -43,7 +43,7 @@ describe('Urbit request timeouts cover the response body read', () => {
         body: {},
         timeout: 50,
       })
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(ThreadResponseBodyError);
   });
 
   it('thread resolves with a readable response when the body completes', async () => {

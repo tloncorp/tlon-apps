@@ -1,4 +1,4 @@
-import type { Poke } from '../http-api';
+import { type Poke, ThreadResponseBodyError } from '../http-api';
 import { createDevLogger } from '../lib/logger';
 import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import type * as db from '../types/models';
@@ -445,13 +445,11 @@ export const createGroup = async ({
 
     return toClientGroupV7(group.id, result, true);
   } catch (err) {
-    // On a transport-level failure (timeout, dropped connection, Brave
-    // stalling the response body), the thread may have completed on the ship
-    // even though the response never made it back to us — check before
-    // reporting failure. An explicit error response means the thread itself
-    // failed, possibly after creating the group but before its channels, so
-    // don't treat a merely-existing group as success in that case.
-    if (!(err instanceof BadResponseError)) {
+    // Only a stalled body after the response headers arrived is safe to
+    // recover from: the create thread has finished, but its response was lost
+    // in transit. A request that times out before headers can still be
+    // creating channels, so a scry could find and return an incomplete group.
+    if (err instanceof ThreadResponseBodyError) {
       try {
         const createdGroup = await getGroup(group.id);
         logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
