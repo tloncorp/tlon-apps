@@ -1,7 +1,11 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createChannel, useGroup } from '@tloncorp/shared';
-import { Button } from '@tloncorp/ui';
+import {
+  NOTES_PERMISSIONS_COMPAT_NOTICE,
+  notesPermissionsCompatActive,
+} from '@tloncorp/shared/logic/notesPermissionsCompat';
+import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,10 +13,8 @@ import { ScrollView, View, YStack } from 'tamagui';
 
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { PermissionTable } from '../../ui/components/ManageChannels/ChannelPermissions';
-import {
-  PermissionActionButtons,
-  processFinalPermissions,
-} from '../../ui/components/ManageChannels/ChannelPermissionsContent';
+import { PermissionActionButtons } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
+import { processFinalPermissions } from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
 export function CreateChannelPermissionsScreen() {
@@ -31,6 +33,7 @@ export function CreateChannelPermissionsScreen() {
 
   const { groupId, channelTitle, channelType, createdRoleId, selectedRoleIds } =
     route.params;
+  const usesNotesPermissionsCompat = notesPermissionsCompatActive(channelType);
 
   const { data: group } = useGroup({ id: groupId });
 
@@ -40,7 +43,9 @@ export function CreateChannelPermissionsScreen() {
       description: '',
       isPrivate: true,
       readers: selectedRoleIds ?? ['admin'],
-      writers: ['admin'],
+      writers: usesNotesPermissionsCompat
+        ? selectedRoleIds ?? ['admin']
+        : ['admin'],
     },
   });
 
@@ -53,14 +58,20 @@ export function CreateChannelPermissionsScreen() {
         ? currentReaders
         : ['admin', ...currentReaders];
       form.setValue('readers', [...base, createdRoleId]);
+      if (usesNotesPermissionsCompat) {
+        form.setValue('writers', [...base, createdRoleId]);
+      }
     }
-  }, [createdRoleId, form]);
+  }, [createdRoleId, form, usesNotesPermissionsCompat]);
 
   // Handle roles selected from SelectChannelRoles screen
   useEffect(() => {
     if (!selectedRoleIds) return;
     form.setValue('readers', selectedRoleIds);
-  }, [selectedRoleIds, form]);
+    if (usesNotesPermissionsCompat) {
+      form.setValue('writers', selectedRoleIds);
+    }
+  }, [selectedRoleIds, form, usesNotesPermissionsCompat]);
 
   const handleSelectRoles = useCallback(() => {
     const currentReaders = form.getValues('readers');
@@ -85,7 +96,8 @@ export function CreateChannelPermissionsScreen() {
     const { finalReaders, finalWriters } = processFinalPermissions(
       currentReaders,
       currentWriters,
-      currentIsPrivate
+      currentIsPrivate,
+      channelType
     );
 
     createChannel({
@@ -116,7 +128,15 @@ export function CreateChannelPermissionsScreen() {
           contentContainerStyle={{ paddingBottom: insets.bottom }}
         >
           <YStack gap="$2xl" padding="$xl">
-            <PermissionTable groupRoles={group.roles ?? []} />
+            {usesNotesPermissionsCompat && (
+              <Text size="$label/s" color="$tertiaryText">
+                {NOTES_PERMISSIONS_COMPAT_NOTICE}
+              </Text>
+            )}
+            <PermissionTable
+              groupRoles={group.roles ?? []}
+              channelType={channelType}
+            />
             <PermissionActionButtons onSelectRoles={handleSelectRoles} />
             <Button
               preset="primary"
