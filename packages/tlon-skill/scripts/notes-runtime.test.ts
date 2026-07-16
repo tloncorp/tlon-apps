@@ -1,84 +1,12 @@
-import { describe, expect, it, mock } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 
 import { CommandError } from './commands/command';
-
-const NOTES_V1_OPS = [
-  'getRequest',
-  'listNotebooks',
-  'getNotebook',
-  'createNotebook',
-  'createGroupNotebook',
-  'listNotes',
-  'getNote',
-  'createNote',
-  'updateNoteBody',
-  'renameNote',
-  'moveNote',
-  'deleteNote',
-  'listNoteHistory',
-  'listFolders',
-  'getFolder',
-  'createFolder',
-  'renameFolder',
-  'moveFolder',
-  'deleteFolder',
-  'listMembers',
-] as const;
-
-type NotesV1Op = (typeof NOTES_V1_OPS)[number];
-type MockedNotesV1 = Record<
-  NotesV1Op,
-  (...args: unknown[]) => Promise<unknown>
->;
-
-class MockNotesV1PendingWriteError extends Error {
-  readonly requestId?: string;
-  readonly status?: string;
-  readonly checks: unknown[];
-
-  constructor({
-    requestId,
-    status,
-    checks = [],
-  }: {
-    requestId?: string;
-    status?: string;
-    checks?: unknown[];
-  } = {}) {
-    super('%notes write request is still pending');
-    this.name = 'NotesV1PendingWriteError';
-    this.requestId = requestId;
-    this.status = status;
-    this.checks = checks;
-  }
-}
-
-const mockedNotesV1 = Object.fromEntries(
-  NOTES_V1_OPS.map((op) => [op, async () => undefined])
-) as MockedNotesV1;
-
-class MockUrbit {
-  cookie = '';
-  nodeId = '';
-
-  constructor(readonly url: string) {}
-}
-
-mock.module('@tloncorp/api', () => ({
-  Urbit: MockUrbit,
-  client: { cookie: '' },
-  configureClient: async () => undefined,
-  internalRemoveClient: () => undefined,
-  preSig: (ship: string) => (ship.startsWith('~') ? ship : `~${ship}`),
-  scry: async () => undefined,
-  subscribe: async () => 0,
-  NotesV1PendingWriteError: MockNotesV1PendingWriteError,
-  notesV1: mockedNotesV1,
-  getGroup: async () => ({ channels: [] }),
-  deleteNotesNotebookStrict: async () => undefined,
-  joinNotesChannel: async () => undefined,
-  leaveNotesChannel: async () => undefined,
-}));
+// Registers the process-wide '@tloncorp/api' mock as an import side effect —
+// see the module doc for why per-file mock.module registrations are unsafe.
+import {
+  MockNotesV1PendingWriteError,
+  mockedNotesV1,
+} from './tloncorp-api-mock';
 
 let runtimeModule: Promise<typeof import('./notes-runtime')> | null = null;
 let channelRuntimeModule: Promise<

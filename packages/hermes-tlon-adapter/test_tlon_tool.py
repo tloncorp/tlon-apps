@@ -497,5 +497,90 @@ class TlonSessionGateTests(unittest.TestCase):
         self.assertIsNone(block)
 
 
+class ReactionToolGateTests(unittest.TestCase):
+    def test_reaction_level_blocks_off_and_ack_but_allows_enabled_levels(self):
+        args, error = tlon_tool.split_tlon_command(
+            'posts react chat/~pen/general 170.141 "👍"'
+        )
+        self.assertIsNone(error)
+        for level in ("off", "ack"):
+            with self.subTest(level=level):
+                blocked = tlon_tool.check_tlon_tool_command(args, reaction_level=level)
+                self.assertIn("TLON_REACTION_LEVEL", blocked)
+        for level in ("minimal", "extensive"):
+            with self.subTest(level=level):
+                self.assertIsNone(
+                    tlon_tool.check_tlon_tool_command(args, reaction_level=level)
+                )
+
+    def _gate(self, command, **env):
+        base = {
+            "HERMES_SESSION_PLATFORM": "tlon",
+            "HERMES_SESSION_USER_ID": "~mug",
+            "HERMES_SESSION_CHAT_ID": "chat/~pen/general",
+            "TLON_OWNER_SHIP": "~pen",
+            "TLON_REACTION_LEVEL": "minimal",
+        }
+        base.update(env)
+        with patch.dict(os.environ, base, clear=True):
+            return adapter_mod.block_tlon_session_tool("tlon", {"command": command})
+
+    def test_non_owner_reaction_carveout_is_bound_to_current_conversation(self):
+        self.assertIsNone(
+            self._gate('posts react chat/~pen/general 170.141 "👍"')
+        )
+        self.assertIn(
+            "use posts",
+            self._gate('dms react ~mug ~pen/170.141 "👍"')["message"],
+        )
+        self.assertIn(
+            "current conversation",
+            self._gate('posts react chat/~pen/else 170.141 "👍"')["message"],
+        )
+        self.assertIn(
+            "owner-only",
+            self._gate('posts delete chat/~pen/general 170.141')["message"],
+        )
+        self.assertIn("owner-only", self._gate('posts "unterminated')["message"])
+
+    def test_non_owner_reaction_blocks_credentials_and_wrong_dm_family(self):
+        for command in (
+            '--ship ~other posts react chat/~pen/general 170.141 "👍"',
+            '--config file posts react chat/~pen/general 170.141 "👍"',
+            '--url=https://other posts react chat/~pen/general 170.141 "👍"',
+        ):
+            with self.subTest(command=command):
+                self.assertIn("credential override", self._gate(command)["message"])
+        self.assertIsNone(
+            self._gate(
+                'dms unreact ~mug ~pen/170.141',
+                HERMES_SESSION_CHAT_ID="~mug",
+            )
+        )
+        self.assertIn(
+            "use dms",
+            self._gate(
+                'posts react ~mug 170.141 "👍"',
+                HERMES_SESSION_CHAT_ID="~mug",
+            )["message"],
+        )
+        self.assertIn(
+            "disabled",
+            self._gate(
+                'posts react chat/~pen/general 170.141 "👍"',
+                TLON_REACTION_LEVEL="ack",
+            )["message"],
+        )
+
+    def test_owner_keeps_unrestricted_tlon_access(self):
+        self.assertIsNone(
+            self._gate(
+                'posts react chat/~other/else 170.141 "👍"',
+                HERMES_SESSION_USER_ID="~pen",
+                TLON_REACTION_LEVEL="off",
+            )
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

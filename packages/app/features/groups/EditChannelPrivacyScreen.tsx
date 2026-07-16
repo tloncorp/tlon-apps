@@ -1,4 +1,9 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import {
+  NOTES_PERMISSIONS_COMPAT_NOTICE,
+  notesPermissionsCompatActive,
+} from '@tloncorp/shared/logic/notesPermissionsCompat';
+import { Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { ScrollView, View, YStack } from 'tamagui';
@@ -9,13 +14,11 @@ import {
   PermissionTable,
   PrivateChannelToggle,
 } from '../../ui/components/ManageChannels/ChannelPermissions';
-import {
-  PermissionActionButtons,
-  processFinalPermissions,
-} from '../../ui/components/ManageChannels/ChannelPermissionsContent';
+import { PermissionActionButtons } from '../../ui/components/ManageChannels/ChannelPermissionsContent';
 import {
   MEMBERS_MARKER,
   getChannelPrivacyDefaults,
+  processFinalPermissions,
 } from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
@@ -48,6 +51,9 @@ export function EditChannelPrivacyScreen(props: Props) {
   });
 
   const isPrivate = form.watch('isPrivate');
+  const usesNotesPermissionsCompat = notesPermissionsCompatActive(
+    channel?.type
+  );
   const { isDirty } = form.formState;
   const channelIdRef = useRef(channel?.id);
 
@@ -78,21 +84,29 @@ export function EditChannelPrivacyScreen(props: Props) {
         ? currentReaders
         : ['admin', ...currentReaders];
       form.setValue('readers', [...base, createdRoleId]);
+      if (usesNotesPermissionsCompat) {
+        form.setValue('writers', [...base, createdRoleId]);
+      }
       form.setValue('isPrivate', true);
     }
-  }, [createdRoleId, form]);
+  }, [createdRoleId, form, usesNotesPermissionsCompat]);
 
   // Handle roles selected from SelectChannelRoles screen
   useEffect(() => {
     if (!selectedRoleIds) return;
     form.setValue('readers', selectedRoleIds);
+    if (usesNotesPermissionsCompat) {
+      form.setValue('writers', selectedRoleIds);
+      form.setValue('isPrivate', true);
+      return;
+    }
     const currentWriters = form.getValues('writers');
     form.setValue(
       'writers',
       currentWriters.filter((w) => selectedRoleIds.includes(w))
     );
     form.setValue('isPrivate', true);
-  }, [selectedRoleIds, form]);
+  }, [selectedRoleIds, form, usesNotesPermissionsCompat]);
 
   const handleTogglePrivate = useCallback(
     (value: boolean) => {
@@ -141,7 +155,8 @@ export function EditChannelPrivacyScreen(props: Props) {
     const { finalReaders, finalWriters } = processFinalPermissions(
       currentReaders,
       currentWriters,
-      currentIsPrivate
+      currentIsPrivate,
+      channel.type
     );
 
     updateChannel({ ...channel }, finalReaders, finalWriters);
@@ -182,7 +197,15 @@ export function EditChannelPrivacyScreen(props: Props) {
                 onTogglePrivate={handleTogglePrivate}
               />
             </YStack>
-            <PermissionTable groupRoles={group.roles ?? []} />
+            {usesNotesPermissionsCompat && isPrivate && (
+              <Text size="$label/s" color="$tertiaryText">
+                {NOTES_PERMISSIONS_COMPAT_NOTICE}
+              </Text>
+            )}
+            <PermissionTable
+              groupRoles={group.roles ?? []}
+              channelType={channel.type}
+            />
             {isPrivate && (
               <PermissionActionButtons onSelectRoles={handleSelectRoles} />
             )}

@@ -104,6 +104,20 @@ export const getSettings = async (): Promise<{
   };
 };
 
+// Backend value of contextLensEnabled without the client cache in between.
+// The local db can't distinguish "never set" from an explicit disable (older
+// builds cached a missing backend value as false), so the legacy-flag
+// migration reads the source of truth directly.
+export const getContextLensEnabledRaw = async (): Promise<
+  boolean | undefined
+> => {
+  const results = await scry<ub.GroupsDeskSettings>({
+    app: 'settings',
+    path: '/desk/groups',
+  });
+  return results.desk.groups?.contextLensEnabled;
+};
+
 type SidebarSortMode = 'alphabetical' | 'arranged' | 'recent';
 
 const toClientSidebarSort = (
@@ -156,7 +170,11 @@ export const toClientSettings = (
     webAppSplashDismissed: settings.desk.groups?.webAppSplashDismissed ?? false,
     mobileAppPromoDismissed:
       settings.desk.groups?.mobileAppPromoDismissed ?? false,
-    contextLensEnabled: settings.desk.groups?.contextLensEnabled ?? false,
+    // Deliberately not coerced to false: coercion would cache a fabricated
+    // explicit disable over "never set". Readers apply their own ?? false
+    // default; getContextLensEnabledRaw exists for callers that need the
+    // uncached backend value.
+    contextLensEnabled: settings.desk.groups?.contextLensEnabled,
   };
 };
 

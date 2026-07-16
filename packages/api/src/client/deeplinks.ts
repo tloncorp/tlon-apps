@@ -3,9 +3,34 @@ import { createDevLogger } from '../lib/logger';
 import { getConstants } from '../types/constants';
 import type { ContentReference } from '../types/references';
 import { citeToPath } from '../urbit';
+import { whomIsFlag } from '../urbit/utils';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('deeplinks', false);
+
+// the domain new links are written and displayed with. parsing accepts
+// every known host forever; join.tlon.io redirects here after the flip
+export const CANONICAL_INVITE_HOST = 'invite.tlon.io';
+
+// bare lowercase hostnames; the configured branch domain joins at parse time
+const KNOWN_INVITE_HOSTS = new Set([
+  'join.tlon.io',
+  'invite.tlon.io',
+  'serverless-infra.vercel.app',
+  'sa96e.app.link',
+  'sa96e-alternate.app.link',
+  'sa96e.test-app.link',
+  'sa96e-alternate.test-app.link',
+]);
+const DM_INVITE_PREFIX = 'dm-';
+
+type ParsedInviteDeepLink =
+  | { type: 'lure'; token: string }
+  | { type: 'wer'; wer: string };
+
+interface InviteDeepLinkParseOptions {
+  branchDomain?: string;
+}
 
 export async function getReferenceFromDeeplink({
   deepLink,
@@ -63,6 +88,24 @@ export async function getInviteLinkMeta({
   return getMetadataFromInviteToken(token);
 }
 
+// flag-style v1 lures carry the inviter and group in the token itself —
+// the same derivation extractLureMetadata applies to slash lures, used
+// here whenever the provider has no first-party metadata for the token.
+// some callers (e.g. useInviteParam) pass raw query tokens that never go
+// through parseInviteDeepLink, so the shape is validated here too
+function flagTokenFallback(token: string): AppInvite | null {
+  if (!whomIsFlag(token)) {
+    return null;
+  }
+  const [ship] = token.split('/');
+  return {
+    id: token,
+    shouldAutoJoin: true,
+    inviterUserId: ship,
+    invitedGroupId: token,
+  };
+}
+
 export async function getMetadataFromInviteToken(token: string) {
   const env = getConstants();
   logger.log('getting metadata for invite token', {
@@ -86,7 +129,7 @@ export async function getMetadataFromInviteToken(token: string) {
     });
   }
   if (!providerResponse?.ok) {
-    return null;
+    return flagTokenFallback(token);
   }
 
   let responseMeta: ProviderMetadataResponse | null = null;
@@ -102,15 +145,19 @@ export async function getMetadataFromInviteToken(token: string) {
       inviteToken: token,
       errorMessage: e.toString(),
     });
-    return null;
+    return flagTokenFallback(token);
   }
 
   if (
     !responseMeta.fields ||
-    !responseMeta.fields.invitedGroupId ||
-    !responseMeta.fields.inviterUserId
+    !responseMeta.fields.inviterUserId ||
+    // personal invite links post inviteType 'user' with an empty
+    // invitedGroupId (createPersonalInviteLinkOnService), and the provider
+    // serves posted fields verbatim — only group invites need a group
+    (!responseMeta.fields.invitedGroupId &&
+      responseMeta.fields.inviteType !== 'user')
   ) {
-    return null;
+    return flagTokenFallback(token);
   }
 
   const metadata: AppInvite = {
@@ -156,39 +203,121 @@ export async function getMetadataFromInviteToken(token: string) {
   return metadata;
 }
 
-export function createInviteLinkRegex() {
-  const env = getConstants();
-  return new RegExp(
-    `^(https?://)?(${env.BRANCH_DOMAIN}/|tlon\\.network/lure/)0v[^/]+$`
-  );
+function normalizeHost(host: string) {
+  return host
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .toLowerCase();
 }
 
-export function extractTokenFromInviteLink(url: string): string | null {
-  if (!url) return null;
-  const INVITE_LINK_REGEX = createInviteLinkRegex();
-  const match = url.trim().match(INVITE_LINK_REGEX);
+function parseUrl(input: string) {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return null;
+  }
 
-  if (match) {
-    const parts = match[0].split('/');
-    const token = parts[parts.length - 1];
-    return token ?? null;
+  try {
+    return new URL(trimmed);
+  } catch {
+    try {
+      return new URL(`https://${trimmed}`);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function getTokenFromPath(pathname: string) {
+  const path = pathname.replace(/^\/+|\/+$/g, '');
+  if (!path) {
+    return null;
+  }
+
+  if (/^0v[^/]+$/.test(path)) {
+    return path;
+  }
+
+  if (path.startsWith('~')) {
+    return whomIsFlag(path) ? path : null;
   }
 
   return null;
 }
 
-export function extractNormalizedInviteLink(url: string): string | null {
-  if (!url) return null;
-  const env = getConstants();
-  const INVITE_LINK_REGEX = createInviteLinkRegex();
-  const match = url.trim().match(INVITE_LINK_REGEX);
+function getConfiguredBranchDomain() {
+  try {
+    return getConstants().BRANCH_DOMAIN;
+  } catch {
+    return undefined;
+  }
+}
 
-  if (match) {
-    const parts = match[0].split('/');
-    const token = parts[parts.length - 1];
-    if (token) {
-      return `https://${env.BRANCH_DOMAIN}/${token}`;
-    }
+export function parseInviteDeepLink(
+  input: string,
+  options: InviteDeepLinkParseOptions = {}
+): ParsedInviteDeepLink | null {
+  const parsed = parseUrl(input);
+  if (!parsed) {
+    return null;
+  }
+
+  const host = parsed.hostname.toLowerCase();
+
+  if (host === 'tlon.network' && parsed.pathname.startsWith('/lure/')) {
+    const token = getTokenFromPath(parsed.pathname.replace(/^\/lure\//, ''));
+    return token ? { type: 'lure', token } : null;
+  }
+
+  const branchDomain = options.branchDomain ?? getConfiguredBranchDomain();
+  if (
+    !KNOWN_INVITE_HOSTS.has(host) &&
+    (!branchDomain || host !== normalizeHost(branchDomain))
+  ) {
+    return null;
+  }
+
+  const path = parsed.pathname.replace(/^\/+|\/+$/g, '');
+  if (path.startsWith(DM_INVITE_PREFIX)) {
+    const ship = path.slice(DM_INVITE_PREFIX.length);
+    return ship ? { type: 'wer', wer: `dm/${ship}` } : null;
+  }
+
+  const token = getTokenFromPath(path);
+  return token ? { type: 'lure', token } : null;
+}
+
+// deferred-install payloads arrive as a raw token (our referrer default),
+// a key=value referrer string, or a full invite url (our clipboard default) —
+// organic-install referrers (utm noise) and arbitrary clipboard contents
+// must come back null
+export function inviteUrlFromDeferredPayload(payload: string): string | null {
+  const trimmed = payload.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^0v[^/\s]+$/.test(trimmed) || whomIsFlag(trimmed)) {
+    return `https://${CANONICAL_INVITE_HOST}/${trimmed}`;
+  }
+
+  const tokenParam = trimmed.match(/(?:^|[?&])token=([^&\s]+)/);
+  if (tokenParam) {
+    return inviteUrlFromDeferredPayload(decodeURIComponent(tokenParam[1]));
+  }
+
+  return parseInviteDeepLink(trimmed) ? trimmed : null;
+}
+
+export function extractTokenFromInviteLink(url: string): string | null {
+  const parsed = parseInviteDeepLink(url);
+  return parsed?.type === 'lure' ? parsed.token : null;
+}
+
+export function extractNormalizedInviteLink(url: string): string | null {
+  const parsed = parseInviteDeepLink(url);
+
+  if (parsed?.type === 'lure') {
+    return `https://${CANONICAL_INVITE_HOST}/${parsed.token}`;
   }
 
   return null;
