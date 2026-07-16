@@ -143,6 +143,9 @@ services:
       - TLON_CODE=${TLON_CODE:-lidlut-tabwed-pillex-ridrup}
       - TLON_OWNER_SHIP=${TLON_OWNER_SHIP:-~ten}
       - TLON_DM_ALLOWLIST=${TLON_DM_ALLOWLIST:-~ten}
+      # Virtual identity: when set, the bot acts as this moon of TLON_SHIP
+      - TLON_MOON=${TLON_MOON:-}
+      - TLON_MOON_NICKNAME=${TLON_MOON_NICKNAME:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - BRAVE_API_KEY=${BRAVE_API_KEY}
       - MODEL=${MODEL:-custom-proxy/tlon-test-scripted}
@@ -152,11 +155,19 @@ services:
       - TEST_LIVE_TOOL_TRACE_CONTENTS=${TEST_LIVE_TOOL_TRACE_CONTENTS:-0}
     ports:
       - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+    # Resolve host.docker.internal on engines that don't inject it (and some
+    # Docker Desktop network configs) so TLON_URL can target host-run ships.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - fake-model
     volumes:
       - ..:/workspace/openclaw-tlon
       - openclaw-modules:/workspace/tlon/node_modules
+      # Monorepo mount so entrypoint.test.sh can link the LOCAL @tloncorp/api
+      # build (branch features not yet on the registry) via
+      # build-local-api-override.sh.
+      - ../../..:/workspace/tlon-apps
 
 volumes:
   ships-data:

@@ -152,6 +152,10 @@ export const TlonConfigSchema = z.object({
   ship: ShipSchema.optional(),
   url: z.string().optional(),
   code: z.string().optional(),
+  // Virtual identity: a moon of `ship` the bot acts as (see TlonAccountSchema)
+  moon: ShipSchema.optional(),
+  moonNickname: z.string().optional(),
+  moonAvatar: z.string().optional(),
   network: TlonNetworkSchema.optional(),
   /** @deprecated Use `network.dangerouslyAllowPrivateNetwork`. Migrated by `openclaw doctor --fix`. */
   allowPrivateNetwork: z.boolean().optional(),

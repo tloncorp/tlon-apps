@@ -59,6 +59,14 @@ minimumReleaseAge: 0
 verifyDepsBeforeRun: false
 PNPM_EOF
 pnpm install
+
+# When the monorepo is mounted (docker-compose.test.yml), link its local
+# @tloncorp/api build over the registry version so branch features (e.g.
+# vouched DMs) are available in the container.
+if [ -d /workspace/tlon-apps/packages/api ]; then
+  bash /workspace/tlon/dev/build-local-api-override.sh
+fi
+
 pnpm build
 
 # Expose tlon CLI to PATH
@@ -211,6 +219,17 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
   }
 }
 EOF
+
+# Virtual identity: when TLON_MOON is set, the bot runs on the host ship but
+# acts as this moon (see channels.tlon.moon in the plugin config schema).
+if [ -n "${TLON_MOON:-}" ]; then
+  echo "==> Patching config: acting as moon $TLON_MOON..."
+  jq --arg moon "$TLON_MOON" --arg nick "${TLON_MOON_NICKNAME:-}" \
+    '.channels.tlon.moon = $moon
+     | if $nick != "" then .channels.tlon.moonNickname = $nick else . end' \
+    "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
+    && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
+fi
 
 # Patch in image-search plugin if tlonbot is mounted
 if [ -d "/workspace/tlonbot/image-search" ]; then
