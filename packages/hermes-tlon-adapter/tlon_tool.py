@@ -270,6 +270,7 @@ def check_tlon_tool_command(
     session_user_id: str = "",
     session_chat_id: str = "",
     owner_ship: str = "",
+    reaction_level: str = "minimal",
 ) -> Optional[str]:
     lowered = [str(arg).lower() for arg in args]
     if lowered in (["--help"], ["--version"]):
@@ -283,6 +284,15 @@ def check_tlon_tool_command(
 
     command_args = [str(arg).lower() for arg in args[sub_idx:]]
     action = command_args[1] if len(command_args) > 1 else ""
+    if (
+        (subcommand, action) in {("posts", "react"), ("posts", "unreact"), ("dms", "react"), ("dms", "unreact")}
+        and str(reaction_level).lower() in {"off", "ack"}
+    ):
+        return (
+            "Blocked: agent reactions are disabled "
+            f'(TLON_REACTION_LEVEL="{str(reaction_level).lower()}"). '
+            "Set TLON_REACTION_LEVEL to minimal or extensive to enable."
+        )
     if subcommand == "notebook":
         return (
             "Blocked: the notebook command is removed (the %diary backend no "
@@ -370,6 +380,7 @@ async def execute_tlon_tool(
         session_user_id=_get_session_env("HERMES_SESSION_USER_ID", ""),
         session_chat_id=_get_session_env("HERMES_SESSION_CHAT_ID", ""),
         owner_ship=cfg.owner_ship,
+        reaction_level=cfg.reaction_level,
     )
     if blocked:
         return _json({"error": blocked, "blocked": True})
