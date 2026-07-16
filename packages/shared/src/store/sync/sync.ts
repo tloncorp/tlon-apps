@@ -34,6 +34,7 @@ import { useLureState } from '../lure';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import { getSession, setSession, updateSession } from '../session';
+import { migrateLegacyContextLensFlag } from '../settingsActions';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
 import { clearChannelPostsQueries } from '../useChannelPosts/queries';
@@ -2295,9 +2296,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
             retry: true,
           }).then(() => logger.crumb(`finished syncing contacts`))
         : Promise.resolve(),
-      syncSettings({ priority: syncStartPriority.low + 1 }).then(() =>
-        logger.crumb(`finished syncing settings`)
-      ),
+      syncSettings({ priority: syncStartPriority.low + 1 })
+        .then(() => migrateLegacyContextLensFlag())
+        .then(() => logger.crumb(`finished syncing settings`)),
       syncVolumeSettings({ priority: syncStartPriority.low + 1 }).then(() =>
         logger.crumb(`finished syncing volume settings`)
       ),

@@ -12,14 +12,79 @@ services:
 
   # Both fakezod ships in one container (they need shared fake ames)
   ships:
-    image: ubuntu:22.04
+    # Node's Debian image supplies a glibc runtime, tar/gzip, and an HTTPS
+    # client without an apt-get at container startup. Avoiding Ubuntu's HTTP
+    # package mirror keeps ship boot independent of ports.ubuntu.com.
+    image: node:22-bookworm-slim
     command:
       - bash
       - -c
       - |
         set -e
-        apt-get update && apt-get install -y curl xz-utils
         cd /data
+
+        download() {
+          node - "$$1" "$$2" "$$3" "$$4" "$$5" <<'NODE'
+        const crypto = require('node:crypto');
+        const fs = require('node:fs');
+        const { Readable } = require('node:stream');
+        const { pipeline } = require('node:stream/promises');
+        const [url, output, digestKind, expectedDigest, expectedSize] =
+          process.argv.slice(2);
+
+        async function verify() {
+          const stat = await fs.promises.stat(output);
+          if (stat.size !== Number(expectedSize)) {
+            throw new Error(
+              `size mismatch: expected $${expectedSize}, got $${stat.size}`
+            );
+          }
+          const hash = crypto.createHash(digestKind);
+          for await (const chunk of fs.createReadStream(output)) {
+            hash.update(chunk);
+          }
+          const actualDigest = hash.digest('hex');
+          if (actualDigest !== expectedDigest) {
+            throw new Error(
+              `$${digestKind} mismatch: expected $${expectedDigest}, got $${actualDigest}`
+            );
+          }
+          console.error(
+            `verified $${output}: $${stat.size} bytes, $${digestKind}=$${actualDigest}`
+          );
+        }
+
+        (async () => {
+          let lastError;
+          for (let attempt = 1; attempt <= 3; attempt += 1) {
+            try {
+              const response = await fetch(url, {
+                redirect: 'follow',
+                signal: AbortSignal.timeout(300_000),
+              });
+              if (!response.ok || !response.body) {
+                throw new Error(`HTTP $${response.status}`);
+              }
+              await pipeline(
+                Readable.fromWeb(response.body),
+                fs.createWriteStream(output)
+              );
+              await verify();
+              return;
+            } catch (error) {
+              lastError = error;
+              fs.rmSync(output, { force: true });
+              console.error(`download attempt $${attempt} failed: $${error}`);
+              await new Promise((resolve) => setTimeout(resolve, 2_000));
+            }
+          }
+          throw lastError;
+        })().catch((error) => {
+          console.error(error);
+          process.exit(1);
+        });
+        NODE
+        }
 
         # Pin both halves of the runtime/snapshot pair so the version skew that
         # crashed serf replay (stale snapshot -> downgrade runtime to replay ->
@@ -29,25 +94,26 @@ services:
         echo "==> vere pin: vere-v4.5  pier gen: 27"
 
         echo "==> Downloading zod..."
-        curl -fSL --retry 3 --retry-delay 2 --retry-all-errors https://bootstrap.urbit.org/rube-zod27.tgz -o rube-zod27.tgz || { echo "Failed to download zod"; exit 1; }
+        download https://bootstrap.urbit.org/rube-zod27.tgz rube-zod27.tgz md5 6e3f322f441fcd942590470b10b7cea5 283602626 || { echo "Failed to download zod"; exit 1; }
         ls -la rube-zod27.tgz
         echo "==> Extracting zod..."
         tar xzf rube-zod27.tgz || { echo "Failed to extract zod"; exit 1; }
 
         echo "==> Downloading ten..."
-        curl -fSL --retry 3 --retry-delay 2 --retry-all-errors https://bootstrap.urbit.org/rube-ten27.tgz -o rube-ten27.tgz || { echo "Failed to download ten"; exit 1; }
+        download https://bootstrap.urbit.org/rube-ten27.tgz rube-ten27.tgz md5 b3ec907c2a851cff05a4676806836ded 283381725 || { echo "Failed to download ten"; exit 1; }
         ls -la rube-ten27.tgz
         echo "==> Extracting ten..."
         tar xzf rube-ten27.tgz || { echo "Failed to extract ten"; exit 1; }
 
         echo "==> Downloading mug..."
-        curl -fSL --retry 3 --retry-delay 2 --retry-all-errors https://bootstrap.urbit.org/rube-mug27.tgz -o rube-mug27.tgz || { echo "Failed to download mug"; exit 1; }
+        download https://bootstrap.urbit.org/rube-mug27.tgz rube-mug27.tgz md5 b378f62ec7a95a243d5d88976193ad1a 284181858 || { echo "Failed to download mug"; exit 1; }
         ls -la rube-mug27.tgz
         echo "==> Extracting mug..."
         tar xzf rube-mug27.tgz || { echo "Failed to extract mug"; exit 1; }
 
         echo "==> Downloading vere..."
-        curl -fSL --retry 3 --retry-delay 2 --retry-all-errors https://github.com/urbit/vere/releases/download/vere-v4.5/linux-x86_64.tgz | tar xz || { echo "Failed to download vere"; exit 1; }
+        download https://github.com/urbit/vere/releases/download/vere-v4.5/linux-x86_64.tgz vere.tgz sha256 bf7a30aad0a820bf217f3f81239b1029d16f11ba5274d45067d811489f817eed 9728849 || { echo "Failed to download vere"; exit 1; }
+        tar xzf vere.tgz || { echo "Failed to extract vere"; exit 1; }
         VERE=$$(ls -1 vere-*-linux-x86_64 | head -1)
         chmod +x $$VERE
         echo "==> Using vere: $$VERE"
@@ -68,7 +134,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.test
+      args:
+        OPENCLAW_CORE_VERSION: ${OPENCLAW_CORE_VERSION:-2026.5.28}
     environment:
+      - OPENCLAW_CORE_VERSION=${OPENCLAW_CORE_VERSION:-2026.5.28}
       - TLON_URL=${TLON_URL:-http://ships:8080}
       - TLON_SHIP=${TLON_SHIP:-~zod}
       - TLON_CODE=${TLON_CODE:-lidlut-tabwed-pillex-ridrup}

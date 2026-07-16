@@ -63,4 +63,5 @@ jobs:
           RECAPTCHA_SITE_KEY_IOS: ${{ secrets.RECAPTCHA_SITE_KEY_IOS }}
           TLON_EMPLOYEE_GROUP: ${{ secrets.TLON_EMPLOYEE_GROUP }}
           INVITE_SERVICE_ENDPOINT: ${{ secrets.INVITE_SERVICE_ENDPOINT }}
+          INVITE_PROVIDER: ${{ secrets.VITE_INVITE_PROVIDER }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
