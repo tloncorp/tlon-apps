@@ -4,7 +4,7 @@
  * Captures OpenClaw container logs for asserting tool invocations
  * in integration tests run under docker compose (pnpm test:integration).
  */
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 
 type LiveToolTraceOptions = {
   composeFile: string;
@@ -32,7 +32,8 @@ const TOOL_TRACE_LINE_RE =
  */
 export function getContainerLogsSince(
   composeFile: string,
-  sinceIso: string
+  sinceIso: string,
+  timeoutMs = 10_000
 ): string {
   const composeFiles = resolveComposeFiles(composeFile);
   const output = execFileSync(
@@ -48,12 +49,87 @@ export function getContainerLogsSince(
     ],
     {
       encoding: 'utf-8',
-      timeout: 10_000,
+      timeout: timeoutMs,
+      maxBuffer: 10 * 1024 * 1024,
       cwd: process.cwd(),
       env: composeEnv(),
     }
   );
   return output;
+}
+
+/** Fail immediately when the integration gateway container is not running. */
+export function assertOpenClawContainerRunning(
+  composeFile: string,
+  timeoutMs = 10_000
+): void {
+  const composeFiles = resolveComposeFiles(composeFile);
+  const output = execFileSync(
+    'docker',
+    [
+      'compose',
+      ...composeFileArgs(composeFiles),
+      'ps',
+      '--status',
+      'running',
+      '--quiet',
+      'openclaw',
+    ],
+    {
+      encoding: 'utf-8',
+      timeout: timeoutMs,
+      cwd: process.cwd(),
+      env: composeEnv(),
+    }
+  );
+  if (!output.trim()) {
+    throw new Error('OpenClaw container exited or is not running');
+  }
+}
+
+export interface ConfigSetResult {
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+/** Run the exact liveness-neutral config mutation used by the regression test. */
+export function setGatewayStatusRestartConfig(
+  composeFile: string,
+  timeoutMs = 20_000
+): ConfigSetResult {
+  const composeFiles = resolveComposeFiles(composeFile);
+  const result = spawnSync(
+    'docker',
+    [
+      'compose',
+      ...composeFileArgs(composeFiles),
+      'exec',
+      '-T',
+      'openclaw',
+      'openclaw',
+      'config',
+      'set',
+      'channels.tlon.showModelSignature',
+      'true',
+      '--strict-json',
+    ],
+    {
+      encoding: 'utf-8',
+      timeout: timeoutMs,
+      maxBuffer: 2 * 1024 * 1024,
+      cwd: process.cwd(),
+      env: composeEnv(),
+    }
+  );
+  if (result.error) {
+    throw result.error;
+  }
+  return {
+    exitCode: result.status,
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+  };
 }
 
 function escapeRegex(s: string): string {
@@ -310,5 +386,13 @@ function composeEnv(projectName?: string): NodeJS.ProcessEnv {
     projectName ??
     process.env.TEST_COMPOSE_PROJECT_NAME ??
     process.env.COMPOSE_PROJECT_NAME;
-  return name ? { ...process.env, COMPOSE_PROJECT_NAME: name } : process.env;
+  const env = {
+    ...process.env,
+    // Optional compose values. Empty defaults keep every test-side logs/ps
+    // poll from emitting interpolation warnings when secrets are absent.
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY ?? '',
+    BRAVE_API_KEY: process.env.BRAVE_API_KEY ?? '',
+    TLONBOT_TOKEN: process.env.TLONBOT_TOKEN ?? '',
+  };
+  return name ? { ...env, COMPOSE_PROJECT_NAME: name } : env;
 }

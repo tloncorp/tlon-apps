@@ -1132,6 +1132,16 @@
         =/  =event:h  [%on-post %del +.u.post]
         (run-hooks event nest 'delete blocked')
       ?>  =(& -.result)
+      ::  a deleted post cannot stay pinned or arranged: drop it from
+      ::  the order and let subscribers know
+      ::
+      =/  arranged=arranged-posts:c  +.order.channel
+      =?  ca-core  ?=(^ arranged)
+        =/  remaining  (skip u.arranged |=(id=id-post:c =(id id.c-post)))
+        =/  next=arranged-posts:c  ?~(remaining ~ `remaining)
+        =^  changed  order.channel  (next-rev:c order.channel next)
+        ?.  changed  ca-core
+        (ca-update %order order.channel)
       =/  =tombstone:c
         =,  +.u.post
         [id author seq now.bowl]

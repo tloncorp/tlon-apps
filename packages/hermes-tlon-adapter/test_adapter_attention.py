@@ -70,12 +70,14 @@ class SendResult:
         error=None,
         raw_response=None,
         retryable=False,
+        continuation_message_ids=(),
     ):
         self.success = success
         self.message_id = message_id
         self.error = error
         self.raw_response = raw_response or {}
         self.retryable = retryable
+        self.continuation_message_ids = tuple(continuation_message_ids)
 
 
 class BasePlatformAdapter:
@@ -820,7 +822,9 @@ class AdapterAttentionTests(unittest.TestCase):
         )
         first = asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="m1"))
         self.assertFalse(first.success)
-        self.assertTrue(first.retryable)
+        # A timed-out poke may already have landed, so core must not retry it
+        # automatically and risk a duplicate post.
+        self.assertFalse(first.retryable)
         self.assertIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
         self.assertEqual(adapter._cli.sends[-1][1], "reply" + loop_cap_addendum("~bot"))
 
@@ -1016,9 +1020,14 @@ class AdapterAttentionTests(unittest.TestCase):
             )
         )
 
-        delivered = adapter._cli.sends[-1][1]
-        self.assertLessEqual(len(delivered), adapter.MAX_MESSAGE_LENGTH)
-        self.assertTrue(delivered.endswith(loop_cap_addendum("~bot")))
+        delivered = [entry[1] for entry in adapter._cli.sends]
+        self.assertTrue(
+            all(len(chunk) <= adapter.MAX_MESSAGE_LENGTH for chunk in delivered)
+        )
+        self.assertEqual(
+            "".join(delivered),
+            "x" * adapter.MAX_MESSAGE_LENGTH + loop_cap_addendum("~bot"),
+        )
 
     def test_dm_behavior_stays_outside_group_loop_cap(self):
         adapter = self.make_adapter(
