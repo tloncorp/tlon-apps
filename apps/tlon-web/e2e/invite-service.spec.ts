@@ -41,11 +41,11 @@ test('should generate an invite link and be able to redeem group/personal invite
   await helpers.openGroupSettings(zodPage);
   await helpers.navigateBack(zodPage);
 
-  await expect(zodPage.getByText('Invite Friends')).toBeVisible({
+  await expect(zodPage.getByText('Copy invite link')).toBeVisible({
     timeout: 15000,
   });
 
-  await zodPage.getByText('Invite Friends').click();
+  await zodPage.getByText('Copy invite link').click();
 
   const clipboardText: string = await zodPage.evaluate(
     'navigator.clipboard.readText()'
@@ -56,7 +56,7 @@ test('should generate an invite link and be able to redeem group/personal invite
 
   // Grab zod's personal invite token
   await zodPage.getByTestId('PersonalInviteNavIcon').click();
-  await zodPage.getByText('Share Invite Link').click();
+  await zodPage.getByText('Copy invite link').click();
   const zodClipboardText: string = await zodPage.evaluate(
     'navigator.clipboard.readText()'
   );

@@ -14,7 +14,8 @@ function InviteFriendsToTlonButtonFixture() {
             With Group
           </Text>
           <Text size="$label/s" color="$tertiaryText">
-            Shows invite button for a group (link generation depends on backend)
+            Shows copy and share actions for a group (link generation depends on
+            backend)
           </Text>
           <InviteFriendsToTlonButton group={group} />
         </YStack>
@@ -34,5 +35,5 @@ function InviteFriendsToTlonButtonFixture() {
 }
 
 export default {
-  'Invite Friends Button': <InviteFriendsToTlonButtonFixture />,
+  'Invite Link Buttons': <InviteFriendsToTlonButtonFixture />,
 };
