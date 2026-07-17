@@ -4199,10 +4199,22 @@ export async function monitorTlonProvider(
       });
       runtime.log?.('[tlon] Subscribed to channels firehose (/v4)');
 
-      // Subscribe to chat/DM firehose (/v4)
+      // DM firehose. When acting as a moon the bot's DMs are NOT the host's
+      // own DMs (chat /v4) — they live in the host's per-moon bot inbox, which
+      // it streams on /v4/vouched/<moon> (same writ-response shape, one entry
+      // per conversation keyed by `whom`, but auto-accepted so no invites).
+      // Subscribing to the host's /v4 while acting as a moon would both leak
+      // the host's private DMs to the bot and, when the host DMs its own bot,
+      // collide with the vouched copy on the dedup tracker. So pick exactly
+      // one firehose. Either way route through the normal chat handler so
+      // reactions, thread replies, and the allowlist behave identically.
+      // Bot-inbox history is scryable at /chat/v4/vouched/<moon>/dm/<who>/... .
+      const dmFirehosePath = account.moon
+        ? `/v4/vouched/${botShipName}`
+        : '/v4';
       await api.subscribe({
         app: 'chat',
-        path: '/v4',
+        path: dmFirehosePath,
         event: (data) => handleChatFirehose(data as ChatFirehoseEvent),
         err: (error) => {
           capturePluginError('chat_firehose', error);
@@ -4219,34 +4231,11 @@ export async function monitorTlonProvider(
           );
         },
       });
-      runtime.log?.('[tlon] Subscribed to chat firehose (/v4)');
-
-      // When acting as a moon, the host stores our bot DMs in a per-moon inbox
-      // and streams writ-responses on /v4/vouched/<moon> (same shape as its own
-      // /v4 dm firehose, one entry per conversation keyed by `whom`). Route
-      // them through the normal chat handler so reactions, thread replies, and
-      // the allowlist all behave exactly as they do for real DMs. History is
-      // scryable at /chat/v4/vouched/<moon>/dm/<who>/writs/... .
-      if (account.moon) {
-        const vouchedPath = `/v4/vouched/${botShipName}`;
-        await api.subscribe({
-          app: 'chat',
-          path: vouchedPath,
-          event: (data) => handleChatFirehose(data as ChatFirehoseEvent),
-          err: (error) => {
-            capturePluginError('vouched_dm', error);
-            runtime.error?.(
-              `[tlon] Vouched DM subscription error: ${String(error)}`
-            );
-          },
-          quit: () => {
-            runtime.log?.(
-              '[tlon] Vouched DM subscription quit, SSE client will resubscribe'
-            );
-          },
-        });
-        runtime.log?.(`[tlon] Subscribed to bot DMs (chat${vouchedPath})`);
-      }
+      runtime.log?.(
+        account.moon
+          ? `[tlon] Subscribed to bot DMs (chat${dmFirehosePath})`
+          : '[tlon] Subscribed to chat firehose (/v4)'
+      );
 
       // Subscribe to contacts updates to track nickname changes
       await api.subscribe({
