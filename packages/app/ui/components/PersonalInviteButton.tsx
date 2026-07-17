@@ -55,18 +55,27 @@ export function PersonalInviteButton() {
   }, [doCopy, inviteLink, isLoading, trackInviteShared]);
 
   return (
-    <YStack width="100%" gap="$m">
-      <XStack width="100%" gap="$m">
+    <YStack width="100%" gap="$s">
+      <XStack width="100%">
         <TextInput
           value={inviteLink ?? ''}
           placeholder="Preparing invite link"
           editable={false}
           selectTextOnFocus={!isLoading}
-          frameStyle={{ flex: 1 }}
+          frameStyle={{
+            flex: 1,
+            height: 44,
+            borderTopRightRadius: 0,
+            borderBottomRightRadius: 0,
+            borderRightWidth: 0,
+          }}
         />
         <Button
-          preset="primary"
-          size="medium"
+          intent="positive"
+          size="small"
+          width={44}
+          borderTopLeftRadius={0}
+          borderBottomLeftRadius={0}
           icon={didCopy ? 'Checkmark' : 'Copy'}
           accessibilityLabel={didCopy ? 'Copied' : 'Copy invite link'}
           loading={isLoading}
@@ -75,8 +84,9 @@ export function PersonalInviteButton() {
         />
       </XStack>
       <Button
-        preset="secondaryOutline"
-        size="medium"
+        intent="positive"
+        fill="outline"
+        size="small"
         label="Share link"
         leadingIcon="Send"
         disabled={isLoading}

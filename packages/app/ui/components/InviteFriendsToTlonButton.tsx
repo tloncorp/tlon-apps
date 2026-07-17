@@ -131,19 +131,29 @@ export function InviteFriendsToTlonButton({
         : '';
 
   return (
-    <YStack width="100%" gap="$m">
-      <XStack width="100%" gap="$m">
+    <YStack width="100%" gap="$s">
+      <XStack width="100%">
         <TextInput
           value={linkIsReady ? shareUrl : ''}
           placeholder={inviteLinkPlaceholder}
           editable={false}
           selectTextOnFocus={linkIsReady}
-          frameStyle={{ flex: 1 }}
+          frameStyle={{
+            flex: 1,
+            height: 44,
+            borderTopRightRadius: 0,
+            borderBottomRightRadius: 0,
+            borderRightWidth: 0,
+          }}
         />
         <Button
           {...buttonProps}
           preset={preset}
-          size="medium"
+          intent="positive"
+          size="small"
+          width={44}
+          borderTopLeftRadius={0}
+          borderBottomLeftRadius={0}
           icon={didCopy ? 'Checkmark' : 'Copy'}
           accessibilityLabel={didCopy ? 'Copied' : 'Copy invite link'}
           loading={linkIsLoading}
@@ -154,8 +164,9 @@ export function InviteFriendsToTlonButton({
       <Button
         {...buttonProps}
         preset={preset}
+        intent="positive"
         fill="outline"
-        size="medium"
+        size="small"
         label="Share link"
         leadingIcon="Send"
         disabled={!linkIsReady}

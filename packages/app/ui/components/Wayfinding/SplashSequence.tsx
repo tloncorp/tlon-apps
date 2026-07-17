@@ -2013,8 +2013,8 @@ export function GroupsPane(props: {
       </YStack>
       <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
         {props.hostingBotEnabled ? (
-          <YStack width="100%" gap="$m">
-            <XStack width="100%" gap="$m">
+          <YStack width="100%" gap="$s">
+            <XStack width="100%">
               <TextInput
                 value={groupInviteIsReady ? homeGroupInviteUrl ?? '' : ''}
                 placeholder={
@@ -2024,7 +2024,13 @@ export function GroupsPane(props: {
                 }
                 editable={false}
                 selectTextOnFocus={groupInviteIsReady}
-                frameStyle={{ flex: 1 }}
+                frameStyle={{
+                  flex: 1,
+                  height: 44,
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                  borderRightWidth: 0,
+                }}
               />
               <Button
                 onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
@@ -2032,8 +2038,11 @@ export function GroupsPane(props: {
                 accessibilityLabel={
                   didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
                 }
-                intent={groupInviteIsReady ? 'positive' : undefined}
-                size="medium"
+                intent="positive"
+                size="small"
+                width={44}
+                borderTopLeftRadius={0}
+                borderBottomLeftRadius={0}
                 loading={groupInviteIsLoading}
                 disabled={!groupInviteIsReady}
                 glow={groupInviteIsReady}
@@ -2042,9 +2051,9 @@ export function GroupsPane(props: {
             <Button
               onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}
               label="Share link"
-              intent={groupInviteIsReady ? 'positive' : undefined}
+              intent="positive"
               fill="outline"
-              size="medium"
+              size="small"
               leadingIcon="Send"
               disabled={!groupInviteIsReady}
             />
