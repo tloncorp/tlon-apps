@@ -95,24 +95,52 @@ export function renderHistoryContent(entry: TlonHistoryEntry): string {
 }
 
 const messageCache = new Map<string, TlonHistoryEntry[]>();
+const reactionTargetCache = new Map<string, TlonHistoryEntry[]>();
 const MAX_CACHED_MESSAGES = 100;
+const MAX_CACHED_REACTION_TARGETS = 20;
 const REACTION_TARGET_FETCH_ATTEMPTS = 3;
 const REACTION_TARGET_FETCH_RETRY_DELAY_MS = 50;
+
+function findCachedMessage(
+  cache: TlonHistoryEntry[] | undefined,
+  messageId: string
+): TlonHistoryEntry | undefined {
+  if (!cache) return undefined;
+  const normalizedId = normalizeMessageId(messageId);
+  return cache.find(
+    (entry) => entry.id && normalizeMessageId(entry.id) === normalizedId
+  );
+}
+
+function removeCachedMessage(
+  cache: TlonHistoryEntry[],
+  messageId: string
+): void {
+  const normalizedId = normalizeMessageId(messageId);
+  if (!normalizedId) return;
+
+  const existingIndex = cache.findIndex(
+    (entry) => normalizeMessageId(entry.id) === normalizedId
+  );
+  if (existingIndex >= 0) {
+    cache.splice(existingIndex, 1);
+  }
+}
 
 export function lookupCachedMessage(
   channelNest: string,
   messageId: string
 ): TlonHistoryEntry | undefined {
-  const cache = messageCache.get(channelNest);
-  if (!cache) return undefined;
-  const normalizedId = normalizeMessageId(messageId);
-  return cache.find((m) => m.id && normalizeMessageId(m.id) === normalizedId);
+  return (
+    findCachedMessage(messageCache.get(channelNest), messageId) ??
+    findCachedMessage(reactionTargetCache.get(channelNest), messageId)
+  );
 }
 
 /**
  * Resolve a channel post or reply for an event that can arrive before its echo.
  * Channel hosts assign the post id, so outbound client timestamps cannot be
- * used to pre-populate this cache.
+ * used to pre-populate channel reaction-target lookup state.
  */
 export async function lookupOrFetchCachedChannelMessage(
   api: { scry: (path: string) => Promise<unknown> },
@@ -137,7 +165,14 @@ export async function lookupOrFetchCachedChannelMessage(
         )
       : await fetchParentPostHistoryEntry(api, channelNest, messageId, runtime);
     if (fetched?.author && fetched.author !== 'unknown') {
-      cacheMessage(channelNest, fetched);
+      const echoed = findCachedMessage(
+        messageCache.get(channelNest),
+        messageId
+      );
+      if (echoed) {
+        return echoed;
+      }
+      cacheReactionTarget(channelNest, fetched);
       return fetched;
     }
     if (attempt < REACTION_TARGET_FETCH_ATTEMPTS - 1) {
@@ -158,17 +193,35 @@ export function cacheMessage(channelNest: string, message: TlonHistoryEntry) {
   if (!cache) {
     return;
   }
-  const normalizedId = normalizeMessageId(message.id);
-  if (normalizedId) {
-    const existingIndex = cache.findIndex(
-      (entry) => normalizeMessageId(entry.id) === normalizedId
-    );
-    if (existingIndex >= 0) {
-      cache.splice(existingIndex, 1);
+  removeCachedMessage(cache, message.id ?? '');
+  const targets = reactionTargetCache.get(channelNest);
+  if (targets) {
+    removeCachedMessage(targets, message.id ?? '');
+    if (targets.length === 0) {
+      reactionTargetCache.delete(channelNest);
     }
   }
   cache.unshift(message);
   if (cache.length > MAX_CACHED_MESSAGES) {
+    cache.pop();
+  }
+}
+
+function cacheReactionTarget(
+  channelNest: string,
+  message: TlonHistoryEntry
+): void {
+  if (!reactionTargetCache.has(channelNest)) {
+    reactionTargetCache.set(channelNest, []);
+  }
+  const cache = reactionTargetCache.get(channelNest);
+  if (!cache) {
+    return;
+  }
+
+  removeCachedMessage(cache, message.id ?? '');
+  cache.unshift(message);
+  if (cache.length > MAX_CACHED_REACTION_TARGETS) {
     cache.pop();
   }
 }

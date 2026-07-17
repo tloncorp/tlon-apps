@@ -19,6 +19,49 @@ type HandleChannelReactionParams = {
   enqueueSystemEvent: (eventText: string) => void;
 };
 
+type ChannelReactionSnapshotParams = {
+  botShip: string;
+  reactions: Record<string, string>;
+  postId: string;
+  rootPostId?: string;
+  normalizeShip: (ship: string) => string;
+  resolveTarget: (
+    postId: string,
+    rootPostId?: string
+  ) => Promise<TlonHistoryEntry | undefined>;
+  handleReaction: (reaction: {
+    emoji: string;
+    reactor: string;
+    target: TlonHistoryEntry | undefined;
+  }) => Promise<void>;
+};
+
+/**
+ * Process every eligible reaction in one snapshot against one target lookup.
+ */
+export async function processChannelReactionSnapshot({
+  botShip,
+  reactions,
+  postId,
+  rootPostId,
+  normalizeShip,
+  resolveTarget,
+  handleReaction,
+}: ChannelReactionSnapshotParams): Promise<void> {
+  const reactors = Object.entries(reactions)
+    .map(([reactShip, emoji]) => ({ emoji, reactor: normalizeShip(reactShip) }))
+    .filter(({ reactor }) => reactor && reactor !== botShip);
+
+  if (reactors.length === 0) {
+    return;
+  }
+
+  const target = await resolveTarget(postId, rootPostId);
+  for (const { emoji, reactor } of reactors) {
+    await handleReaction({ emoji, reactor, target });
+  }
+}
+
 /**
  * Classify a channel reaction after its target has been resolved from the
  * cache or API, then dispatch bot-target reactions or queue passive events.

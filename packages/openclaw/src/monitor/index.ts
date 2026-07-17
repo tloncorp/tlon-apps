@@ -100,7 +100,10 @@ import {
   pruneExpired,
   removePendingApproval,
 } from './approval.js';
-import { handleChannelReaction } from './channel-reactions.js';
+import {
+  handleChannelReaction,
+  processChannelReactionSnapshot,
+} from './channel-reactions.js';
 import {
   type ApprovalCommandBridge,
   removeBridge,
@@ -3454,82 +3457,89 @@ export async function monitorTlonProvider(
               response?.post?.id ??
               'unknown'
             : response?.post?.id ?? 'unknown';
-          for (const [reactShip, reactEmoji] of Object.entries(
-            effectiveReacts as Record<string, string>
-          )) {
-            const ship = normalizeShip(reactShip);
-            if (!ship || ship === botShipName) {
-              continue;
-            }
-            try {
-              const route = core.channel.routing.resolveAgentRoute({
-                cfg,
-                channel: 'tlon',
-                accountId: opts.accountId ?? undefined,
-                peer: { kind: 'group', id: nest },
-              });
-              // Look up the reacted-to message content for context
-              const cached = await lookupOrFetchCachedChannelMessage(
+          await processChannelReactionSnapshot({
+            botShip: botShipName,
+            reactions: effectiveReacts as Record<string, string>,
+            postId,
+            rootPostId,
+            normalizeShip,
+            // Every reactor in this snapshot reacted to the same target. Resolve
+            // it once so a missing/deleted target cannot retry its scry per reactor.
+            resolveTarget: (targetPostId, targetRootPostId) =>
+              lookupOrFetchCachedChannelMessage(
                 api,
                 nest,
-                postId,
-                rootPostId,
+                targetPostId,
+                targetRootPostId,
                 runtime
-              );
-              await handleChannelReaction({
-                botShip: botShipName,
-                emoji: reactEmoji,
-                formatShip: formatShipWithNickname,
-                nest,
-                postId,
-                reactor: ship,
-                rootPostId,
-                target: cached,
-                log: (message) => runtime.log?.(message),
-                // If reacting to the bot's own message, dispatch as a real
-                // message so the agent runs immediately (e.g. thumbs-up as
-                // "yes"). Omit thread context to avoid the agent suppressing
-                // responses to its own message, but preserve the reply parent
-                // for delivery.
-                dispatchAgent: async ({ messageText, replyParentId }) => {
-                  runtime.log?.(
-                    `[tlon] Dispatching channel reaction as message: ${reactEmoji} from ${ship}`
-                  );
-                  const parsed = parseChannelNest(nest);
-                  await processMessage({
-                    messageId: `react-${postId}-${ship}-${Date.now()}`,
-                    senderShip: ship,
-                    messageText,
-                    trigger: 'reaction',
-                    cachesHistory: true,
-                    isGroup: true,
-                    channelNest: nest,
-                    hostShip: parsed?.hostShip,
-                    channelName: parsed?.channelName,
-                    timestamp: Date.now(),
-                    replyParentId, // Thread reply for delivery only
-                  });
-                },
-                // Reactions on other people's messages are passive system
-                // events, including targets whose author cannot be resolved.
-                enqueueSystemEvent: (eventText) => {
-                  core.system.enqueueSystemEvent(eventText, {
-                    sessionKey: route.sessionKey,
-                    contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
-                    // Route any resulting system/heartbeat turn back to Tlon.
-                    deliveryContext: tlonDeliveryContext(
-                      `tlon:${nest}`,
-                      route.accountId
-                    ),
-                  });
-                },
-              });
-            } catch (err: any) {
-              runtime.error?.(
-                `[tlon] Error handling reaction: ${err?.message ?? String(err)}`
-              );
-            }
-          }
+              ),
+            handleReaction: async ({
+              emoji: reactEmoji,
+              reactor: ship,
+              target: reactionTarget,
+            }) => {
+              try {
+                const route = core.channel.routing.resolveAgentRoute({
+                  cfg,
+                  channel: 'tlon',
+                  accountId: opts.accountId ?? undefined,
+                  peer: { kind: 'group', id: nest },
+                });
+                await handleChannelReaction({
+                  botShip: botShipName,
+                  emoji: reactEmoji,
+                  formatShip: formatShipWithNickname,
+                  nest,
+                  postId,
+                  reactor: ship,
+                  rootPostId,
+                  target: reactionTarget,
+                  log: (message) => runtime.log?.(message),
+                  // If reacting to the bot's own message, dispatch as a real
+                  // message so the agent runs immediately (e.g. thumbs-up as
+                  // "yes"). Omit thread context to avoid the agent suppressing
+                  // responses to its own message, but preserve the reply parent
+                  // for delivery.
+                  dispatchAgent: async ({ messageText, replyParentId }) => {
+                    runtime.log?.(
+                      `[tlon] Dispatching channel reaction as message: ${reactEmoji} from ${ship}`
+                    );
+                    const parsed = parseChannelNest(nest);
+                    await processMessage({
+                      messageId: `react-${postId}-${ship}-${Date.now()}`,
+                      senderShip: ship,
+                      messageText,
+                      trigger: 'reaction',
+                      cachesHistory: true,
+                      isGroup: true,
+                      channelNest: nest,
+                      hostShip: parsed?.hostShip,
+                      channelName: parsed?.channelName,
+                      timestamp: Date.now(),
+                      replyParentId, // Thread reply for delivery only
+                    });
+                  },
+                  // Reactions on other people's messages are passive system
+                  // events, including targets whose author cannot be resolved.
+                  enqueueSystemEvent: (eventText) => {
+                    core.system.enqueueSystemEvent(eventText, {
+                      sessionKey: route.sessionKey,
+                      contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
+                      // Route any resulting system/heartbeat turn back to Tlon.
+                      deliveryContext: tlonDeliveryContext(
+                        `tlon:${nest}`,
+                        route.accountId
+                      ),
+                    });
+                  },
+                });
+              } catch (err: any) {
+                runtime.error?.(
+                  `[tlon] Error handling reaction: ${err?.message ?? String(err)}`
+                );
+              }
+            },
+          });
           return;
         }
 

@@ -290,6 +290,94 @@ describe('cacheMessage', () => {
     ]);
   });
 
+  it('uses an echo that arrives during a target fetch without retaining a stale target', async () => {
+    const channel = `chat/~zod/reaction-fetch-race-${Date.now().toString(36)}`;
+    const oldPostId = '170141184507111';
+    const oldPostIdWithDots = '170.141.184.507.111';
+    let resolveScry: ((value: unknown) => void) | undefined;
+    const scry = vi.fn(
+      () =>
+        new Promise<unknown>((resolve) => {
+          resolveScry = resolve;
+        })
+    );
+
+    const targetLookup = lookupOrFetchCachedChannelMessage(
+      { scry },
+      channel,
+      oldPostId
+    );
+    expect(scry).toHaveBeenCalledOnce();
+
+    const echoEntry = makeEntry({
+      author: '~nec',
+      content: 'echoed old reaction target',
+      timestamp: 1,
+      id: oldPostIdWithDots,
+    });
+    cacheMessage(channel, echoEntry);
+
+    if (!resolveScry) {
+      throw new Error('reaction target scry did not start');
+    }
+    resolveScry({
+      post: {
+        essay: {
+          author: '~nec',
+          sent: 1,
+          content: [{ inline: ['stale fetched reaction target'] }],
+        },
+        seal: { id: oldPostIdWithDots },
+      },
+    });
+
+    await expect(targetLookup).resolves.toBe(echoEntry);
+    expect(lookupCachedMessage(channel, oldPostId)).toBe(echoEntry);
+
+    for (let index = 0; index < 100; index++) {
+      cacheMessage(
+        channel,
+        makeEntry({ id: `newer-message-${index}`, timestamp: index + 2 })
+      );
+    }
+
+    expect(lookupCachedMessage(channel, oldPostId)).toBeUndefined();
+  });
+
+  it('bounds fetched reaction targets to 20 entries per channel', async () => {
+    const channel = `chat/~zod/reaction-target-bound-${Date.now().toString(36)}`;
+    const targetIds = Array.from(
+      { length: 21 },
+      (_, index) => `170141184507${String(index).padStart(3, '0')}`
+    );
+    const scry = vi.fn(async (path: string) => {
+      const id = path.match(/posts\/post\/(.+)\.json$/)?.[1] ?? '';
+      return {
+        post: {
+          essay: {
+            author: '~nec',
+            sent: 1,
+            content: [{ inline: [`reaction target ${id}`] }],
+          },
+          seal: { id },
+        },
+      };
+    });
+
+    for (const targetId of targetIds) {
+      await lookupOrFetchCachedChannelMessage({ scry }, channel, targetId);
+    }
+
+    expect(scry).toHaveBeenCalledTimes(21);
+    expect(lookupCachedMessage(channel, targetIds[0]!)).toBeUndefined();
+    expect(
+      targetIds
+        .slice(1)
+        .map((targetId) => lookupCachedMessage(channel, targetId))
+        .filter(Boolean)
+    ).toHaveLength(20);
+  });
+
   it('retries a rejected reaction-target lookup, then leaves it unresolved', async () => {
     const scry = vi.fn(async () => {
       throw new Error('scry unavailable');
