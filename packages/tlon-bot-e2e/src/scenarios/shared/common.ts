@@ -514,6 +514,105 @@ export const commonScenarios: readonly SharedScenario[] = [
   ),
 
   testScenario(
+    'dm-reaction-on-bot-reply',
+    {},
+    async ({ ctx, driver, actors }) => {
+      const key = scenarioKey('dm-reaction');
+      const tag = `[tlon-test:${key}]`;
+      const replyOne = `DM reaction reply ${key} ${tag}`;
+      const reactionAck = `DM reaction acknowledgement ${key}`;
+      const script = driver.model.replyTexts([replyOne, reactionAck]);
+      await registerModelScript(ctx.fakeModel, key, script);
+
+      const prompt = await actors.owner.prompt(
+        `${tag} Write the scripted DM reply.`
+      );
+      expectPromptSuccess(prompt, replyOne);
+      const botReply = await waitForDmBotReply(
+        actors.owner,
+        actors.bot.ship,
+        replyOne
+      );
+      if (!botReply.id || !botReply.authorId || botReply.parentId) {
+        throw new Error(
+          'Expected the initial bot reaction target to be a root DM reply.'
+        );
+      }
+
+      // Do not settle before this reaction: OpenClaw must classify the event
+      // from its DM send-time cache entry before the bot's echo arrives.
+      await actors.owner.addReact({
+        channelId: actors.bot.ship,
+        postId: botReply.id,
+        react: '👍',
+        postAuthor: botReply.authorId,
+      });
+
+      // OpenClaw delivers its DM reaction acknowledgement in the reacted
+      // message's thread. Hermes uses source.thread_id only when the reaction
+      // has a thread root, so the shared reply_in_thread: false config keeps
+      // this root-DM acknowledgement in the main conversation.
+      if (driver.name === 'openclaw') {
+        const acknowledgements = await waitForThreadReplies(
+          actors.owner,
+          actors.bot.ship,
+          botReply.id,
+          botReply.authorId,
+          actors.bot.ship,
+          reactionAck
+        );
+        expect(acknowledgements).toHaveLength(1);
+        expect(acknowledgements[0]?.parentId).toBe(botReply.id);
+      } else {
+        const acknowledgement = await waitForDmBotReply(
+          actors.owner,
+          actors.bot.ship,
+          reactionAck
+        );
+        expect(acknowledgement.parentId).toBeUndefined();
+      }
+
+      const calls = await expectModelExpectations(ctx.fakeModel, key, script);
+      const isBenign = benignModelCallPredicate(driver);
+      await expectNoNewModelCallsAfterSettle(
+        ctx.fakeModel,
+        isBenign,
+        await modelCallCount(ctx.fakeModel, isBenign)
+      );
+      if (driver.name === 'openclaw') {
+        const settledAcknowledgements = await waitForThreadReplies(
+          actors.owner,
+          actors.bot.ship,
+          botReply.id,
+          botReply.authorId,
+          actors.bot.ship,
+          reactionAck
+        );
+        expect(settledAcknowledgements).toHaveLength(1);
+        expect(settledAcknowledgements[0]?.parentId).toBe(botReply.id);
+      } else {
+        const settledAcknowledgements = await matchingDmBotReplies(
+          actors.owner,
+          actors.bot.ship,
+          reactionAck
+        );
+        expect(settledAcknowledgements).toHaveLength(1);
+        expect(settledAcknowledgements[0]?.parentId).toBeUndefined();
+      }
+      expect(calls).toHaveLength(2);
+      const reactionCall = calls[1];
+      expect(reactionCall?.userText).toContain('👍');
+      expect(reactionCall?.userText).toContain(replyOne);
+      if (driver.name === 'openclaw') {
+        expect(reactionCall?.userText).toContain(actors.owner.ship);
+      }
+      expect(reactionCall?.provenance).toBe(
+        REACTION_PROVENANCE_BY_DRIVER[driver.name]
+      );
+    }
+  ),
+
+  testScenario(
     'channel-thread-anchoring-and-follow',
     {},
     async ({ ctx, driver, actors }) => {
@@ -630,6 +729,107 @@ export const commonScenarios: readonly SharedScenario[] = [
       );
       expect(followSettledReplies).toHaveLength(1);
       expect(followSettledReplies[0]?.parentId).toBe(secondRoot.id);
+    }
+  ),
+
+  testScenario(
+    'channel-thread-reply-reaction-dispatches',
+    {},
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await withSettingsEntry(actors, 'ownerListenEnabled', false);
+      const root = await actors.owner.sendChannelPost({
+        channelId: fixture.channelId,
+        content: `Reaction thread root ${scenarioKey('thread-reaction-root')}`,
+      });
+      const key = scenarioKey('thread-reaction');
+      const tag = `[tlon-test:${key}]`;
+      const replyOne = `Reaction thread reply ${key} ${tag}`;
+      const reactionAck = `Reaction thread acknowledgement ${key}`;
+      const script = driver.model.replyTexts([replyOne, reactionAck]);
+      await registerModelScript(ctx.fakeModel, key, script);
+
+      await actors.owner.replyToPost({
+        channelId: fixture.channelId,
+        parentId: root.id,
+        parentAuthor: root.authorId,
+        content: storyWithMention(
+          actors.bot.ship,
+          `${tag} Write the scripted thread reply.`
+        ),
+      });
+      await waitForModelCalls(ctx.fakeModel, key);
+      const initialReplies = await waitForThreadReplies(
+        actors.owner,
+        fixture.channelId,
+        root.id,
+        root.authorId,
+        actors.bot.ship,
+        replyOne
+      );
+      expect(initialReplies).toHaveLength(1);
+      const botReply = initialReplies[0];
+      if (!botReply?.id || !botReply.parentId) {
+        throw new Error(
+          'Expected the initial bot reaction target to be a channel thread reply.'
+        );
+      }
+      expect(botReply.parentId).toBe(root.id);
+
+      // Supplying the root parent makes this a reply reaction rather than a
+      // reaction on the root post, exercising OpenClaw's exact-reply lookup.
+      await actors.owner.addReact({
+        channelId: fixture.channelId,
+        postId: botReply.id,
+        react: '👍',
+        postAuthor: botReply.author,
+        parentId: root.id,
+        parentAuthorId: root.authorId,
+      });
+
+      const acknowledgements = await waitForThreadReplies(
+        actors.owner,
+        fixture.channelId,
+        root.id,
+        root.authorId,
+        actors.bot.ship,
+        reactionAck
+      );
+      expect(acknowledgements).toHaveLength(1);
+      // OpenClaw sets replyParentId to the reply's thread root. Hermes carries
+      // the same root via reply_to_message_id/source.thread_id and therefore
+      // also sends the acknowledgement into this thread.
+      expect(acknowledgements[0]?.parentId).toBe(root.id);
+
+      const calls = await expectModelExpectations(ctx.fakeModel, key, script);
+      const isBenign = benignModelCallPredicate(driver);
+      await expectNoNewModelCallsAfterSettle(
+        ctx.fakeModel,
+        isBenign,
+        await modelCallCount(ctx.fakeModel, isBenign)
+      );
+      const settledThread = await actors.owner.state.postWithReplies({
+        channelId: fixture.channelId,
+        rootId: root.id,
+        rootAuthor: root.authorId,
+      });
+      const settledAcknowledgements = settledThread.replies.filter(
+        (reply) =>
+          reply.author === normalizeShip(actors.bot.ship) &&
+          reply.text.includes(reactionAck)
+      );
+      expect(settledAcknowledgements).toHaveLength(1);
+      expect(settledAcknowledgements[0]?.parentId).toBe(root.id);
+      expect(calls).toHaveLength(2);
+      const reactionCall = calls[1];
+      expect(reactionCall?.userText).toContain('👍');
+      expect(reactionCall?.userText).toContain(replyOne);
+      if (driver.name === 'openclaw') {
+        expect(reactionCall?.userText).toContain(actors.owner.ship);
+      }
+      expect(reactionCall?.provenance).toBe(
+        REACTION_PROVENANCE_BY_DRIVER[driver.name]
+      );
     }
   ),
 
