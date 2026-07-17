@@ -2,12 +2,15 @@ export type Step =
   | { kind: 'text'; content: string }
   | { kind: 'tool_call'; name: string; args: Record<string, unknown> };
 
+export type ModelAuxiliaryCallKind = 'hermes_title_generation';
+
 export interface ScriptOptions {
   /**
    * Number of calls past the last scripted step to tolerate, returning benign
    * filler instead of a 400. Default 0.
    */
   allowExtraCalls?: number;
+  allowedAuxiliaryCalls?: ModelAuxiliaryCallKind[];
 }
 
 export interface ReceivedCall {
@@ -39,6 +42,7 @@ export interface ReceivedCall {
   stale: boolean;
   /** How the request key was selected. */
   provenance: 'latest-user' | 'history-active' | 'history-inactive' | 'none';
+  auxiliaryKind?: ModelAuxiliaryCallKind;
   /** Assistant tool calls emitted by the fake-model response for this request. */
   responseToolCalls: FakeModelToolCallSummary[];
   /** Assistant text emitted by the fake-model response for this request. */

@@ -1121,6 +1121,9 @@ importers:
       '@types/node':
         specifier: ^25.4.0
         version: 25.9.3
+      '@urbit/nockjs':
+        specifier: ^1.6.0
+        version: 1.6.0
       dotenv:
         specifier: ^17.2.4
         version: 17.4.2
