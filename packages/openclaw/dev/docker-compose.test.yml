@@ -149,6 +149,10 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - BRAVE_API_KEY=${BRAVE_API_KEY}
       - MODEL=${MODEL:-custom-proxy/tlon-test-scripted}
+      # Set ANTHROPIC_API_KEY (e.g. in packages/openclaw/.env) to run the bot
+      # on a real model instead of the scripted fake one; entrypoint wires the
+      # built-in Anthropic provider and routes the agent to it.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - TLONBOT_TOKEN=${TLONBOT_TOKEN}
       - VERBOSE=${VERBOSE:-0}
       - TEST_LIVE_TOOL_TRACE=${TEST_LIVE_TOOL_TRACE:-0}

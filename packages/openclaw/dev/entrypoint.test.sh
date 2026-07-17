@@ -220,6 +220,34 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
 }
 EOF
 
+# Real model: when OPENROUTER_API_KEY is set, register an OpenRouter provider
+# (OpenAI-completions compatible) and route the agent to MODEL, replacing the
+# scripted fake-model. MODEL like "openrouter/minimax/minimax-m2.5"; the model
+# id passed to OpenRouter is MODEL with the leading "openrouter/" stripped.
+if [ -n "${OPENROUTER_API_KEY:-}" ] && [ "${MODEL:-}" != "custom-proxy/tlon-test-scripted" ]; then
+  OR_MODEL_ID="${MODEL#openrouter/}"
+  echo "==> Patching config: OpenRouter provider (real model $MODEL)..."
+  jq --arg key "$OPENROUTER_API_KEY" --arg model "$MODEL" --arg mid "$OR_MODEL_ID" '
+    .models.providers.openrouter = {
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKey": $key,
+      "api": "openai-completions",
+      "models": [ {
+        "id": $mid,
+        "name": $mid,
+        "api": "openai-completions",
+        "reasoning": false,
+        "input": ["text"],
+        "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+        "contextWindow": 128000,
+        "maxTokens": 4096
+      } ]
+    }
+    | .agents.defaults.model.primary = $model
+  ' "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
+    && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
+fi
+
 # Virtual identity: when TLON_MOON is set, the bot runs on the host ship but
 # acts as this moon (see channels.tlon.moon in the plugin config schema).
 if [ -n "${TLON_MOON:-}" ]; then
