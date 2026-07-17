@@ -8,10 +8,11 @@ import * as store from '@tloncorp/shared/store';
 import { Button, Text, useCopy } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useEffect } from 'react';
 import { Share } from 'react-native';
-import { XStack, isWeb } from 'tamagui';
+import { XStack, YStack, isWeb } from 'tamagui';
 
 import { useCurrentUserId, useInviteService } from '../contexts/appDataContext';
 import { useIsAdmin } from '../utils';
+import { TextInput } from './Form';
 
 const logger = createDevLogger('InviteButton', false);
 
@@ -24,6 +25,7 @@ export function InviteFriendsToTlonButton({
   | 'icon'
   | 'label'
   | 'leadingIcon'
+  | 'trailingIcon'
   | 'onPress'
   | 'loading'
   | 'disabled'
@@ -120,42 +122,45 @@ export function InviteFriendsToTlonButton({
   const linkFailed =
     linkIsDisabled || status === 'error' || status === 'unsupported';
 
-  const copyButtonLabel = didCopy
-    ? 'Copied'
-    : linkIsReady
-      ? 'Copy invite link'
-      : linkIsDisabled
-        ? 'Invite links are disabled'
-        : linkFailed
-          ? 'Error generating invite link'
-          : linkIsLoading
-            ? 'Generating invite link...'
-            : '';
+  const inviteLinkPlaceholder = linkIsDisabled
+    ? 'Invite links are disabled'
+    : linkFailed
+      ? 'Error generating invite link'
+      : linkIsLoading
+        ? 'Generating invite link...'
+        : '';
 
   return (
-    <XStack width="100%" gap="$m">
+    <YStack width="100%" gap="$m">
+      <XStack width="100%" gap="$m">
+        <TextInput
+          value={linkIsReady ? shareUrl : ''}
+          placeholder={inviteLinkPlaceholder}
+          editable={false}
+          selectTextOnFocus={linkIsReady}
+          frameStyle={{ flex: 1 }}
+        />
+        <Button
+          {...buttonProps}
+          preset={preset}
+          size="medium"
+          icon={didCopy ? 'Checkmark' : 'Copy'}
+          accessibilityLabel={didCopy ? 'Copied' : 'Copy invite link'}
+          loading={linkIsLoading}
+          disabled={!linkIsReady}
+          onPress={handleCopyInviteLink}
+        />
+      </XStack>
       <Button
         {...buttonProps}
-        flex={1}
-        preset={preset}
-        size="small"
-        label={copyButtonLabel}
-        leadingIcon={linkIsLoading ? undefined : 'Link'}
-        loading={linkIsLoading}
-        disabled={!linkIsReady}
-        onPress={handleCopyInviteLink}
-      />
-      <Button
-        {...buttonProps}
-        flex={1}
         preset={preset}
         fill="outline"
-        size="small"
+        size="medium"
         label="Share link"
         leadingIcon="Send"
         disabled={!linkIsReady}
         onPress={handleShareInviteLink}
       />
-    </XStack>
+    </YStack>
   );
 }

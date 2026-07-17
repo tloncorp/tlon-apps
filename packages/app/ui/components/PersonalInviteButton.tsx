@@ -3,7 +3,9 @@ import * as db from '@tloncorp/shared/db';
 import { Button, useCopy } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Share } from 'react-native';
-import { XStack, isWeb } from 'tamagui';
+import { XStack, YStack, isWeb } from 'tamagui';
+
+import { TextInput } from './Form';
 
 const logger = createDevLogger('PersonalInviteButton', true);
 
@@ -53,32 +55,33 @@ export function PersonalInviteButton() {
   }, [doCopy, inviteLink, isLoading, trackInviteShared]);
 
   return (
-    <XStack width="100%" gap="$m">
+    <YStack width="100%" gap="$m">
+      <XStack width="100%" gap="$m">
+        <TextInput
+          value={inviteLink ?? ''}
+          placeholder="Preparing invite link"
+          editable={false}
+          selectTextOnFocus={!isLoading}
+          frameStyle={{ flex: 1 }}
+        />
+        <Button
+          preset="primary"
+          size="medium"
+          icon={didCopy ? 'Checkmark' : 'Copy'}
+          accessibilityLabel={didCopy ? 'Copied' : 'Copy invite link'}
+          loading={isLoading}
+          disabled={isLoading}
+          onPress={handleCopyInviteLink}
+        />
+      </XStack>
       <Button
-        flex={1}
-        preset="primary"
-        size="small"
-        label={
-          isLoading
-            ? 'Preparing invite link'
-            : didCopy
-              ? 'Copied'
-              : 'Copy invite link'
-        }
-        leadingIcon={isLoading ? undefined : 'Link'}
-        loading={isLoading}
-        disabled={isLoading}
-        onPress={handleCopyInviteLink}
-      />
-      <Button
-        flex={1}
         preset="secondaryOutline"
-        size="small"
+        size="medium"
         label="Share link"
         leadingIcon="Send"
         disabled={isLoading}
         onPress={handleShareInviteLink}
       />
-    </XStack>
+    </YStack>
   );
 }

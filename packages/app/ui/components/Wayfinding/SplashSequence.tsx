@@ -2013,37 +2013,42 @@ export function GroupsPane(props: {
       </YStack>
       <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
         {props.hostingBotEnabled ? (
-          <XStack width="100%" gap="$m">
-            <Button
-              flex={1}
-              onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
-              label={
-                groupInviteIsReady
-                  ? didCopyHomeGroupInvite
-                    ? 'Copied'
-                    : 'Copy invite link'
-                  : groupInviteIsLoading
+          <YStack width="100%" gap="$m">
+            <XStack width="100%" gap="$m">
+              <TextInput
+                value={groupInviteIsReady ? homeGroupInviteUrl ?? '' : ''}
+                placeholder={
+                  groupInviteIsLoading
                     ? 'Preparing invite link'
                     : 'Invite link unavailable'
-              }
-              intent={groupInviteIsReady ? 'positive' : undefined}
-              size="small"
-              leadingIcon={groupInviteIsLoading ? undefined : 'Link'}
-              loading={groupInviteIsLoading}
-              disabled={!groupInviteIsReady}
-              glow={groupInviteIsReady}
-            />
+                }
+                editable={false}
+                selectTextOnFocus={groupInviteIsReady}
+                frameStyle={{ flex: 1 }}
+              />
+              <Button
+                onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
+                icon={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
+                accessibilityLabel={
+                  didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
+                }
+                intent={groupInviteIsReady ? 'positive' : undefined}
+                size="medium"
+                loading={groupInviteIsLoading}
+                disabled={!groupInviteIsReady}
+                glow={groupInviteIsReady}
+              />
+            </XStack>
             <Button
-              flex={1}
               onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}
               label="Share link"
               intent={groupInviteIsReady ? 'positive' : undefined}
               fill="outline"
-              size="small"
+              size="medium"
               leadingIcon="Send"
               disabled={!groupInviteIsReady}
             />
-          </XStack>
+          </YStack>
         ) : null}
         <Button
           data-testid="got-it"
