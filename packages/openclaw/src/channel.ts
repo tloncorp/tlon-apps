@@ -157,6 +157,14 @@ export const tlonPlugin = createChatChannelPlugin({
           '- To react to a gallery comment: use action=react, to=heap/~host/name, messageId=<commentId>, parentId=<postId>, emoji=<emoji>'
         );
 
+        hints.push(
+          '',
+          'Tlon notebooks (notes/~host/name) hold durable Markdown notes.',
+          '- Notebooks are not message channels: never send to a notes/ nest with this tool',
+          "- Read and write them via the tlon tool instead: 'notes list', 'notes notes <nest>', 'notes note <nest> <id>', 'notes note-create <nest> root \"Title\" --body <file>'",
+          '- Prefer a notebook over a chat reply when asked to save durable content: meeting notes, drafts, plans, reference documents'
+        );
+
         const level = account.reactionLevel ?? 'minimal';
         if (level !== 'off' && level !== 'ack') {
           if (level === 'extensive') {

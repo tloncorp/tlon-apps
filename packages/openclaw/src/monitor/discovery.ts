@@ -34,6 +34,15 @@ export interface InitData {
   channelNames: Map<string, string>;
   /** Map from group flag to human-readable group title */
   groupNames: Map<string, string>;
+  /**
+   * Map from %notes notebook nest (notes/~host/name) to its group flag.
+   * Notebooks are group channels but not %channels message channels — no
+   * firehose events arrive for them, so they are surfaced to the agent as
+   * context (readable via `tlon notes`) rather than watched.
+   */
+  notebookToGroup: Map<string, string>;
+  /** Map from notebook nest to human-readable notebook title */
+  notebookNames: Map<string, string>;
   foreigns: Foreigns | null;
 }
 
@@ -65,6 +74,8 @@ export async function fetchInitData(
     const channelToGroup = new Map<string, string>();
     const channelNames = new Map<string, string>();
     const groupNames = new Map<string, string>();
+    const notebookToGroup = new Map<string, string>();
+    const notebookNames = new Map<string, string>();
     if (initData?.groups) {
       for (const [groupFlag, groupData] of Object.entries(
         initData.groups as Record<string, any>
@@ -90,6 +101,12 @@ export async function fetchInitData(
                 if (channelTitle) {
                   channelNames.set(channelNest, channelTitle);
                 }
+              } else if (channelNest.startsWith('notes/')) {
+                notebookToGroup.set(channelNest, groupFlag);
+                const notebookTitle = extractTitle(channelData);
+                if (notebookTitle) {
+                  notebookNames.set(channelNest, notebookTitle);
+                }
               }
             }
           }
@@ -102,6 +119,11 @@ export async function fetchInitData(
     } else {
       runtime.log?.('[tlon] No channels found via auto-discovery');
     }
+    if (notebookToGroup.size > 0) {
+      runtime.log?.(
+        `[tlon] Discovered ${notebookToGroup.size} group notebook(s)`
+      );
+    }
 
     const foreigns = (initData?.foreigns as Foreigns) || null;
     if (foreigns) {
@@ -113,7 +135,15 @@ export async function fetchInitData(
       }
     }
 
-    return { channels, channelToGroup, channelNames, groupNames, foreigns };
+    return {
+      channels,
+      channelToGroup,
+      channelNames,
+      groupNames,
+      notebookToGroup,
+      notebookNames,
+      foreigns,
+    };
   } catch (error: any) {
     runtime.log?.(
       `[tlon] Init data fetch failed: ${error?.message ?? String(error)}`
@@ -123,6 +153,8 @@ export async function fetchInitData(
       channelToGroup: new Map(),
       channelNames: new Map(),
       groupNames: new Map(),
+      notebookToGroup: new Map(),
+      notebookNames: new Map(),
       foreigns: null,
     };
   }

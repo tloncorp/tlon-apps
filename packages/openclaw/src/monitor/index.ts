@@ -694,6 +694,11 @@ export async function monitorTlonProvider(
     const processedTracker = createProcessedMessageTracker(2000);
     let groupChannels: string[] = [];
     const channelToGroup = new Map<string, string>();
+    // %notes notebooks discovered in the bot's groups. Never added to
+    // watchedChannels — notebooks have no %channels firehose events; they are
+    // surfaced to the agent as context and reached via `tlon notes`.
+    const notebookToGroup = new Map<string, string>();
+    const notebookNameCache = new Map<string, string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -1363,6 +1368,12 @@ export async function monitorTlonProvider(
         // Populate group name cache for human-readable display
         for (const [flag, title] of initData.groupNames) {
           groupNameCache.set(flag, title);
+        }
+        for (const [nest, groupFlag] of initData.notebookToGroup) {
+          notebookToGroup.set(nest, groupFlag);
+        }
+        for (const [nest, title] of initData.notebookNames) {
+          notebookNameCache.set(nest, title);
         }
         initForeigns = initData.foreigns;
       } catch (error: any) {
@@ -2875,6 +2886,22 @@ export async function monitorTlonProvider(
             included: true,
             reason: 'member list available through tlon tool, not injected raw',
           });
+          const groupNotebooks: string[] = [];
+          for (const [nest, flag] of notebookToGroup) {
+            if (flag !== groupFlag) continue;
+            const title = notebookNameCache.get(nest);
+            groupNotebooks.push(title ? `"${title}" (${nest})` : nest);
+          }
+          if (groupNotebooks.length > 0) {
+            bodyWithAttachments += `\n[This group has notebooks: ${groupNotebooks.join(', ')} — read/write via the tlon tool, e.g. 'notes notes <nest>' to list notes, 'notes note <nest> <id>' to read one]`;
+            contextLenses.recordContextSource(lens.lensId, {
+              kind: 'system',
+              label: 'Group notebooks hint',
+              sourceId: groupFlag,
+              included: true,
+              reason: 'notebooks readable through tlon notes, not injected raw',
+            });
+          }
         }
       }
 
@@ -5065,14 +5092,31 @@ export async function monitorTlonProvider(
           if (!opts.abortSignal?.aborted) {
             try {
               if (effectiveAutoDiscoverChannels) {
-                const discoveredChannels = await fetchAllChannels(api, runtime);
-                for (const channelNest of discoveredChannels) {
+                const refreshed = await fetchInitData(api, runtime);
+                for (const channelNest of refreshed.channels) {
                   if (!watchedChannels.has(channelNest)) {
                     watchedChannels.add(channelNest);
                     runtime.log?.(
                       `[tlon] Now watching new channel: ${channelNest}`
                     );
                   }
+                }
+                // Keep group/notebook context fresh for newly created
+                // channels and notebooks (merge-only, like watchedChannels).
+                for (const [nest, groupFlag] of refreshed.channelToGroup) {
+                  channelToGroup.set(nest, groupFlag);
+                }
+                for (const [nest, title] of refreshed.channelNames) {
+                  channelNameCache.set(nest, title);
+                }
+                for (const [flag, title] of refreshed.groupNames) {
+                  groupNameCache.set(flag, title);
+                }
+                for (const [nest, groupFlag] of refreshed.notebookToGroup) {
+                  notebookToGroup.set(nest, groupFlag);
+                }
+                for (const [nest, title] of refreshed.notebookNames) {
+                  notebookNameCache.set(nest, title);
                 }
               }
             } catch (error: any) {

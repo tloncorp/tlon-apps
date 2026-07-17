@@ -1046,6 +1046,7 @@ export default defineBundledChannelEntry({
       description:
         'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
         'DO NOT use this tool to send messages — use the `message` tool instead. ' +
+        "Use the 'notes' commands for %notes notebooks (Markdown notes at notes/~host/name nests) — the right place for durable writing like meeting notes, drafts, and reference documents. " +
         "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
       parameters: {
         type: 'object',
