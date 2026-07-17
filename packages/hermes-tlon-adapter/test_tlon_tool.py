@@ -96,6 +96,7 @@ class TlonToolGuardTests(unittest.TestCase):
             ('posts send ~friend "hi"', "chat/~zod/general"),  # in a channel, DM someone
             ('dms send 0v5.abcde "hi"', "chat/~zod/general"),  # in a channel, group-DM someone
             ('posts reply chat/~bot/general 170.141 "hi"', "~owner"),
+            ('posts send heap/~zod/gallery "new gallery item"', "chat/~zod/general"),
         ]
         for command, chat_id in cases:
             with self.subTest(command=command):
@@ -138,6 +139,84 @@ class TlonToolGuardTests(unittest.TestCase):
         )
         self.assertIsNotNone(blocked)
         self.assertIn("--image", blocked)  # block message teaches the escape
+
+    def test_current_gallery_send_is_allowed_but_gallery_reply_stays_blocked(self):
+        send_args, send_error = tlon_tool.split_tlon_command(
+            'posts send heap/~zod/gallery "new gallery item"'
+        )
+        reply_args, reply_error = tlon_tool.split_tlon_command(
+            'posts reply heap/~zod/gallery 170.141 "gallery comment"'
+        )
+
+        self.assertIsNone(send_error)
+        self.assertIsNone(reply_error)
+        self.assertIsNone(
+            tlon_tool.check_tlon_tool_command(
+                send_args, session_chat_id="heap/~zod/gallery"
+            )
+        )
+        blocked = tlon_tool.check_tlon_tool_command(
+            reply_args, session_chat_id="heap/~zod/gallery"
+        )
+        self.assertIsNotNone(blocked)
+        self.assertIn("current conversation", blocked)
+
+    def test_heap_comment_reactions_and_gallery_delete_are_allowed(self):
+        react_args, react_error = tlon_tool.split_tlon_command(
+            'posts react heap/~zod/gallery 170.142 "🔥" --parent 170.141'
+        )
+        delete_args, delete_error = tlon_tool.split_tlon_command(
+            "posts delete heap/~zod/gallery 170.141"
+        )
+
+        self.assertIsNone(react_error)
+        self.assertIsNone(delete_error)
+        self.assertIsNone(
+            tlon_tool.check_tlon_tool_command(react_args, reaction_level="minimal")
+        )
+        self.assertIsNone(tlon_tool.check_tlon_tool_command(delete_args))
+        blocked = tlon_tool.check_tlon_tool_command(react_args, reaction_level="off")
+        self.assertIsNotNone(blocked)
+        self.assertIn("reactions are disabled", blocked)
+
+    def test_tool_description_includes_gallery_guidance(self):
+        description = tlon_tool.TLON_TOOL_DESCRIPTION
+        command_description = tlon_tool.TLON_TOOL_SCHEMA["parameters"]["properties"][
+            "command"
+        ]["description"]
+
+        self.assertIn("heap/~host/name", description)
+        self.assertIn("--parent <post-id>", description)
+        self.assertIn("posts delete heap/~host/name", description)
+        self.assertIn("heap/~host/name", command_description)
+        self.assertIn("--parent <post-id>", command_description)
+
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, *_args, **_kwargs):
+                pass
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        context = RecordingContext()
+        adapter_mod.register(context)
+        platform_hint = context.platform["platform_hint"]
+
+        self.assertIn("Sending plain text to the current conversation", platform_hint)
+        self.assertIn("except that posts send heap/~host/name", platform_hint)
+        self.assertIn("Reply normally in a gallery to comment on the triggering post", platform_hint)
+        self.assertIn("allowed even in the current gallery", platform_hint)
+        self.assertIn("--parent <post-id>", platform_hint)
+        self.assertIn("posts delete heap/~host/name <post-id>", platform_hint)
 
     def test_blocks_notebook(self):
         args, error = tlon_tool.split_tlon_command('notebook diary/~zod/notes "Title"')

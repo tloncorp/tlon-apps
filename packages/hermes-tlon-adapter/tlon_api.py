@@ -1420,6 +1420,17 @@ def extract_message_text(content: Any) -> str:
     return str(content)
 
 
+def extract_message_title(content: Any) -> str:
+    """Return a user-visible essay title when the wire payload has one."""
+    if not isinstance(content, Mapping):
+        return ""
+    meta = content.get("meta")
+    if not isinstance(meta, Mapping):
+        return ""
+    title = meta.get("title")
+    return title.strip() if isinstance(title, str) else ""
+
+
 def _extract_inline_text(inlines: Any) -> str:
     if isinstance(inlines, str):
         return inlines
@@ -1448,11 +1459,32 @@ def _extract_inline_text(inlines: Any) -> str:
                 parts.append(str(item["inline-code"]))
             elif "code" in item:
                 parts.append(str(item["code"]))
+            elif "task" in item and isinstance(item["task"], Mapping):
+                task = item["task"]
+                marker = "[x] " if task.get("checked") else "[ ] "
+                parts.append(marker + _extract_inline_text(task.get("content")))
             elif "break" in item:
                 parts.append("\n")
             elif "tag" in item:
                 parts.append(f"#{item['tag']}")
     return "".join(parts)
+
+
+def _extract_listing_text(listing: Any) -> str:
+    """Extract all text carried by recursive story listing nodes."""
+    if not isinstance(listing, Mapping):
+        return ""
+    item = listing.get("item")
+    if isinstance(item, list):
+        return _extract_inline_text(item)
+    list_node = listing.get("list")
+    if not isinstance(list_node, Mapping):
+        return ""
+    parts = [_extract_inline_text(list_node.get("contents"))]
+    items = list_node.get("items")
+    if isinstance(items, list):
+        parts.extend(_extract_listing_text(child) for child in items)
+    return "\n".join(part for part in parts if part)
 
 
 def _extract_block_text(block: dict[str, Any]) -> str:
@@ -1461,6 +1493,20 @@ def _extract_block_text(block: dict[str, Any]) -> str:
         return f"[image: {image.get('alt') or image.get('src') or ''}]"
     if "cite" in block:
         return "[quoted message]"
+    if "link" in block and isinstance(block["link"], Mapping):
+        link = block["link"]
+        url = str(link.get("url") or "").strip()
+        meta = link.get("meta")
+        title = ""
+        if isinstance(meta, Mapping):
+            title = str(meta.get("title") or meta.get("description") or "").strip()
+        if title and url:
+            return f"[link: {title} — {url}]"
+        return f"[link: {url}]" if url else "[link]"
+    if "header" in block and isinstance(block["header"], Mapping):
+        return _extract_inline_text(block["header"].get("content"))
+    if "listing" in block:
+        return _extract_listing_text(block["listing"])
     if "code" in block and isinstance(block["code"], dict):
         code = block["code"]
         lang = code.get("lang") or ""
@@ -1680,6 +1726,10 @@ def parse_channel_message(
 
     story_content = content.get("content")
     text = extract_message_text(story_content)
+    if nest.startswith("heap/"):
+        title = extract_message_title(content)
+        if title:
+            text = "\n".join(part for part in (title, text) if part)
     raw_blob = content.get("blob")
     blob = raw_blob if isinstance(raw_blob, str) and raw_blob.strip() else None
     if not text.strip() and not blob:

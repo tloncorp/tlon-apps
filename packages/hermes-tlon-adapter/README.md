@@ -12,7 +12,7 @@ This first pass keeps the integration deliberately small:
 -   group dispatches carry recent channel/thread history as context
 -   DMs dispatch directly, deny-by-default: unknown senders queue for owner approval with rich A2UI approve/deny cards
 
-The model-visible `tlon` tool is not a delivery path. It blocks text `posts send`, `posts reply`, `dms send`, and `dms reply` when they target the current conversation, so normal replies stay inside Hermes' platform delivery path (`TlonAdapter.send()`); proactive sends to other channels/DMs and `--image` sends anywhere remain allowed. It separately blocks `notebook`, since the `%diary` backend is removed — use `tlon notes` for `%notes` notebooks.
+The model-visible `tlon` tool is not a delivery path. It blocks text `posts send`, `posts reply`, `dms send`, and `dms reply` when they target the current conversation, so normal replies stay inside Hermes' platform delivery path (`TlonAdapter.send()`); the exception is `posts send heap/~host/name`, which creates a new top-level item in the current gallery. Proactive sends to other channels/DMs and `--image` sends anywhere remain allowed. It separately blocks `notebook`, since the `%diary` backend is removed — use `tlon notes` for `%notes` notebooks.
 
 When this package can find `@tloncorp/tlon-skill/SKILL.md`, it registers that file as the explicit plugin skill `tlon-platform:tlon`. The model-facing tool and platform hint point at `skill_view("tlon-platform:tlon")`, which works the same way in dev and production because the skill registration travels with the plugin. Set `TLON_SKILL_PATH` when the skill file lives somewhere non-standard.
 
@@ -327,7 +327,7 @@ The `tlon` tool remains owner-only except that non-owner Tlon sessions may use `
 
 ## Reply Placement
 
-Replies post **top-level** in the conversation (Tlon conversations are linear), and messages that arrive inside a thread are answered in that thread, attached to the thread root — this holds for both group channels and DMs (a reply to a DM-thread message lands in that thread, not the main DM). Set `TLON_REPLY_IN_THREAD=true` to instead start a thread on every triggering message.
+Replies post **top-level** in the conversation (Tlon conversations are linear), and messages that arrive inside a thread are answered in that thread, attached to the thread root — this holds for both group channels and DMs (a reply to a DM-thread message lands in that thread, not the main DM). Gallery (`heap/`) conversations always anchor replies to the triggering post as comments. Set `TLON_REPLY_IN_THREAD=true` to instead start a thread on every non-gallery triggering message.
 
 ## Group Message Context
 

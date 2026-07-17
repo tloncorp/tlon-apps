@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Optional, Sequence
 
 from .media import render_content_with_blob
-from .tlon_api import extract_author_ship, extract_message_text
+from .tlon_api import extract_author_ship, extract_message_text, extract_message_title
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,9 @@ def _entry_from_content(content: Any, seal: Any, fallback_id: Any = None) -> Opt
     if not isinstance(content, dict):
         return None
     text = extract_message_text(content.get("content"))
+    title = extract_message_title(content)
+    if title:
+        text = "\n".join(part for part in (title, text) if part)
     raw_blob = content.get("blob")
     blob = raw_blob if isinstance(raw_blob, str) and raw_blob.strip() else None
     if not text.strip() and not blob:
