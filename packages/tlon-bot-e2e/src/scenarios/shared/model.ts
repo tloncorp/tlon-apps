@@ -1,8 +1,4 @@
-import type {
-  BotDriver,
-  ModelAuxiliaryCallKind,
-  ModelScript,
-} from '../../drivers/types.js';
+import type { BotDriver, ModelScript } from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import { sleep } from '../../runtime/waiters.js';
 
@@ -30,7 +26,14 @@ export async function expectModelExpectations(
   options: ExpectModelExpectationsOptions = {}
 ): Promise<ReceivedCall[]> {
   assertExtraCallAllowanceIsClassified(script, key);
-  const calls = await receivedCallsAfterSettle(fakeModel, key, script, options);
+  const received = await receivedCallsAfterSettle(
+    fakeModel,
+    key,
+    script,
+    options
+  );
+  assertAllowedAuxiliaryCalls(received, script, key);
+  const calls = primaryModelCalls(received);
   const expectations = script.expectations;
   if (!expectations) {
     return calls;
@@ -52,8 +55,6 @@ export async function expectModelExpectations(
   if (expectations.advertisedTools) {
     assertAllAdvertisedTools(calls, script, key);
   }
-
-  assertAllowedAuxiliaryCalls(calls, script, key);
 
   if (expectations.streamedToolLoop) {
     assertStreamedToolLoop(calls, script, key);
@@ -85,12 +86,12 @@ async function receivedCallsAfterSettle(
     options.settleTimeoutMs ?? Math.max(settleMs * 2, settleMs + 500);
   const deadline = Date.now() + settleTimeoutMs;
   let calls = await fakeModel.received(key);
-  let lastCount = calls.length;
+  let lastPrimaryCount = primaryModelCalls(calls).length;
   let quietSince = Date.now();
 
   while (Date.now() < deadline) {
     if (
-      calls.length >= expectedMinimum &&
+      primaryModelCalls(calls).length >= expectedMinimum &&
       Date.now() - quietSince >= settleMs
     ) {
       return calls;
@@ -98,8 +99,9 @@ async function receivedCallsAfterSettle(
 
     await sleep(pollIntervalMs);
     calls = await fakeModel.received(key);
-    if (calls.length !== lastCount) {
-      lastCount = calls.length;
+    const primaryCount = primaryModelCalls(calls).length;
+    if (primaryCount !== lastPrimaryCount) {
+      lastPrimaryCount = primaryCount;
       quietSince = Date.now();
     }
   }
@@ -116,15 +118,12 @@ function assertExtraCallAllowanceIsClassified(
     return;
   }
   const expectations = script.expectations;
-  if ((expectations?.allowedAuxiliaryCalls ?? []).length > 0) {
-    return;
-  }
   if (expectations?.allowUnclassifiedExtraCallsForDriverQuirk?.reason.trim()) {
     return;
   }
   throw new Error(
     `Model script ${key} allows ${allowExtraCalls} extra call(s) without ` +
-      `allowedAuxiliaryCalls or allowUnclassifiedExtraCallsForDriverQuirk.`
+      `allowUnclassifiedExtraCallsForDriverQuirk.`
   );
 }
 
@@ -145,6 +144,12 @@ function maxExpectedCallCount(script: ModelScript): number {
 
 export type BenignModelCallPredicate = (call: ReceivedCall) => boolean;
 
+export function primaryModelCalls(
+  calls: readonly ReceivedCall[]
+): ReceivedCall[] {
+  return calls.filter((call) => !call.auxiliaryKind);
+}
+
 /**
  * Predicate for the driver's own background model calls (e.g. OpenClaw
  * heartbeat polls). Drivers without benign background calls filter nothing.
@@ -160,7 +165,7 @@ export async function expectNoModelCalls(
   key?: string,
   isBenign: BenignModelCallPredicate = () => false
 ): Promise<void> {
-  const calls = (await fakeModel.received(key)).filter(
+  const calls = primaryModelCalls(await fakeModel.received(key)).filter(
     (call) => !isBenign(call)
   );
   if (calls.length > 0) {
@@ -227,50 +232,19 @@ function assertAllowedAuxiliaryCalls(
   script: ModelScript,
   key: string
 ): void {
-  const expectedCallCount = script.expectations?.expectedCallCount;
-  if (expectedCallCount === undefined || calls.length <= expectedCallCount) {
-    return;
-  }
-
-  const allowed = script.expectations?.allowedAuxiliaryCalls ?? [];
-  if (allowed.length === 0) {
-    return;
-  }
-
-  for (const [offset, call] of calls.slice(expectedCallCount).entries()) {
-    if (allowed.some((kind) => auxiliaryCallMatches(call, kind))) {
+  const allowed = script.options?.allowedAuxiliaryCalls ?? [];
+  for (const [index, call] of calls.entries()) {
+    if (!call.auxiliaryKind) {
+      continue;
+    }
+    if (allowed.includes(call.auxiliaryKind)) {
       continue;
     }
     throw new Error(
-      `Unexpected auxiliary model call for ${key} ` +
-        `#${expectedCallCount + offset + 1}: ` +
+      `Unexpected auxiliary model call for ${key} #${index + 1}: ` +
         `${summarizeCallForError(call)}.`
     );
   }
-}
-
-function auxiliaryCallMatches(
-  call: ReceivedCall,
-  kind: ModelAuxiliaryCallKind
-): boolean {
-  if (kind === 'hermes_title_generation') {
-    return isHermesTitleGenerationCall(call);
-  }
-  return false;
-}
-
-function isHermesTitleGenerationCall(call: ReceivedCall): boolean {
-  if ((call.toolNames ?? []).length > 0) {
-    return false;
-  }
-  const systemText = call.messages.find((message) => message.role === 'system')
-    ?.content?.text;
-  return (
-    typeof systemText === 'string' &&
-    systemText.startsWith('Generate a short, descriptive title') &&
-    call.userText.includes('User:') &&
-    call.userText.includes('Assistant:')
-  );
 }
 
 function summarizeCallForError(call: ReceivedCall): string {
