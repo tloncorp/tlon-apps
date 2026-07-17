@@ -176,7 +176,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %14
+    $:  %15
         dms=(map ship dm:v7:cv)
         clubs=(map id:club:c club:v7:cv)
         pins=(list whom:c)
@@ -192,6 +192,11 @@
         ::  this map only records that delivery for .vouched goes to .host
         ::  (its sponsor) instead of the (non-running) moon itself.
         vouched-dms=(map vouched=@p host=@p)
+        ::  host-side store for the bot moons we run: their DM conversations,
+        ::  keyed by [as=moon who=counterparty]. Parallel to .dms (which is
+        ::  our own DMs); lets the bot runner scry/sub its inbox. See +di-core,
+        ::  which is parameterized by .as to read/write either map.
+        bot-dms=(map [as=ship who=ship] dm:v7:cv)
     ==
   +$  sent-id
     $@  time             ::  top-level msg
@@ -297,14 +302,16 @@
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
   =?  old  ?=(%13 -.old)  (state-13-to-14 old)
-  ?>  ?=(%14 -.old)
+  =?  old  ?=(%14 -.old)  (state-14-to-15 old)
+  ?>  ?=(%15 -.old)
   =.  state  old
   =.  cor
     (emit [%pass /load/rectify-activity %arvo %b %wait now.bowl])
   rectify-club-state
   ::
   +$  versioned-state
-    $%  state-14
+    $%  current-state
+        state-14
         state-13
         state-12
         state-11
@@ -456,7 +463,6 @@
         old-pins=(list whom:v2:cv)
     ==
   ::
-  +$  state-14  current-state
   +$  state-13
     $:  %13
         dms=(map ship dm:v7:cv)
@@ -472,6 +478,38 @@
     ==
   +$  state-12  _%*(. *state-13 - %12)
   ::
+  +$  state-14
+    $:  %14
+        dms=(map ship dm:v7:cv)
+        clubs=(map id:club:c club:v7:cv)
+        pins=(list whom:c)
+        sends=(map whom:c (qeu sent-id))
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:c)
+        last-updated=(list [=whom:c =time])
+        old-chats=(map flag:v2:cv chat:v2:cv)
+        old-pins=(list whom:v2:cv)
+        vouched-dms=(map vouched=@p host=@p)
+    ==
+  ++  state-14-to-15
+    |=  s=state-14
+    ^-  current-state
+    ~>  %spin.['state-14-to-15']
+    :*  %15
+        dms.s
+        clubs.s
+        pins.s
+        sends.s
+        blocked.s
+        blocked-by.s
+        hidden-messages.s
+        last-updated.s
+        old-chats.s
+        old-pins.s
+        vouched-dms.s
+        bot-dms=~
+    ==
   ++  state-13-to-14
     |=  s=state-13
     ^-  state-14
