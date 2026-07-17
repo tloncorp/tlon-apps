@@ -136,6 +136,7 @@ export function InviteFriendsToTlonButton({
         <TextInput
           value={linkIsReady ? shareUrl : ''}
           placeholder={inviteLinkPlaceholder}
+          accent="positive"
           editable={false}
           selectTextOnFocus={linkIsReady}
           frameStyle={{

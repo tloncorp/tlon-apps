@@ -60,6 +60,7 @@ export function PersonalInviteButton() {
         <TextInput
           value={inviteLink ?? ''}
           placeholder="Preparing invite link"
+          accent="positive"
           editable={false}
           selectTextOnFocus={!isLoading}
           frameStyle={{

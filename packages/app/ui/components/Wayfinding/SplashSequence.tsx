@@ -2022,6 +2022,7 @@ export function GroupsPane(props: {
                     ? 'Preparing invite link'
                     : 'Invite link unavailable'
                 }
+                accent="positive"
                 editable={false}
                 selectTextOnFocus={groupInviteIsReady}
                 frameStyle={{
