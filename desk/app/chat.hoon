@@ -66,7 +66,6 @@
           [/clubs %chat-club-action ~]
           [/dm/$ %writ-response ~]
           [/dm/invited %ships ~]
-          [/vouched-dm %chat-dm-vouched-diff-2 ~]
           [/epic %epic ~]
           [/unreads %chat-unread-update ~]
         ::
@@ -1029,13 +1028,11 @@
     ::  otherwise a human is speaking to the bot: we must host the moon, and
     ::  the sender must own the writ. store it in the bot's inbox (keyed by
     ::  [moon, human]) so its runner can scry/reload, and give it on the
-    ::  moon's firehose. (also relayed on the legacy /vouched-dm stream until
-    ::  the runner is switched over to scry+sub.)
+    ::  moon's firehose.
     ~|  %vouched-dm-not-our-bot
     ?>  (vouches-for:utils our.bowl as)
     ~|  %vouched-dm-writ-not-owned-by-sender
     ?>  (vouches-for:utils src.bowl author)
-    =.  cor  (emit %give %fact ~[/vouched-dm] chat-dm-vouched-diff-2+vd)
     di-abet:(di-take-counter:(di-abed-as:di-core [as author]) diff.vd)
   ::
       %chat-dm-action-1
@@ -1236,9 +1233,6 @@
 
       [%unreads ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
-  ::  experimental: stream of incoming vouched (virtual-identity) dms, for the
-  ::  host's own clients/bot to read. local subscribers only.
-      [%vouched-dm ~]  ?>(from-self cor)
   ::  per-moon firehose of the bot dms we host: writ-responses for every
   ::  conversation of .moon, for the bot runner. local subscribers only.
       [%v4 %vouched moon=@ ~]  ?>(from-self cor)

@@ -139,8 +139,7 @@
   !>((bot-inbox-newest moon now.bw verse))
 ::  the host stores an inbound vouched dm in the bot's inbox (keyed by
 ::  [moon, human]) and gives it on the moon's firehose; the stored writ is
-::  scryable by the bot runner. (also mirrored on the legacy /vouched-dm
-::  stream during the transition.)
+::  scryable by the bot runner.
 ++  test-vouched-dm-host-relay-inbound
   %-  eval-mare
   =/  m  (mare ,~)
@@ -155,11 +154,7 @@
     !>(`vouched-diff:dm:c`[moon diff])
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  %^    ex-fact
-          ~[/vouched-dm]
-        %chat-dm-vouched-diff-2
-      !>(`vouched-diff:dm:c`[moon diff])
-        (ex-bot-fact moon ~bus ~bus now.bw verse 1)
+    :~  (ex-bot-fact moon ~bus ~bus now.bw verse 1)
     ==
   %+  ex-scry-result
     /x/v4/vouched/(scot %p moon)/dm/(scot %p ~bus)/writs/newest/(scot %ud 1)/light
