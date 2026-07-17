@@ -1883,6 +1883,7 @@ export function GroupsPane(props: {
     });
   const groupInviteIsLoading = homeGroupInviteState === 'loading';
   const groupInviteIsReady = homeGroupInviteState === 'ready';
+  const groupInviteHasError = homeGroupInviteState === 'unavailable';
   const { doCopy: copyHomeGroupInvite, didCopy: didCopyHomeGroupInvite } =
     useCopy(homeGroupInviteUrl ?? '');
   const shareHomeGroupInvite = useCallback(async () => {
@@ -2022,32 +2023,38 @@ export function GroupsPane(props: {
                     ? 'Preparing invite link'
                     : 'Invite link unavailable'
                 }
-                accent="positive"
+                accent={groupInviteHasError ? 'negative' : 'positive'}
                 editable={false}
                 selectTextOnFocus={groupInviteIsReady}
                 frameStyle={{
                   flex: 1,
                   height: 44,
-                  borderTopRightRadius: 0,
-                  borderBottomRightRadius: 0,
-                  borderRightWidth: 0,
+                  ...(groupInviteHasError
+                    ? {}
+                    : {
+                        borderTopRightRadius: 0,
+                        borderBottomRightRadius: 0,
+                        borderRightWidth: 0,
+                      }),
                 }}
               />
-              <Button
-                onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
-                icon={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
-                accessibilityLabel={
-                  didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
-                }
-                intent="positive"
-                size="small"
-                width={44}
-                borderTopLeftRadius={0}
-                borderBottomLeftRadius={0}
-                loading={groupInviteIsLoading}
-                disabled={!groupInviteIsReady}
-                glow={groupInviteIsReady}
-              />
+              {!groupInviteHasError && (
+                <Button
+                  onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
+                  icon={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
+                  accessibilityLabel={
+                    didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
+                  }
+                  intent="positive"
+                  size="small"
+                  width={44}
+                  borderTopLeftRadius={0}
+                  borderBottomLeftRadius={0}
+                  loading={groupInviteIsLoading}
+                  disabled={!groupInviteIsReady}
+                  glow={groupInviteIsReady}
+                />
+              )}
             </XStack>
             <Button
               onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}

@@ -119,8 +119,8 @@ export function InviteFriendsToTlonButton({
   const linkIsLoading = status === 'loading' || status === 'stale';
   const linkIsReady = status === 'ready' && typeof shareUrl === 'string';
   const linkIsDisabled = status === 'disabled';
-  const linkFailed =
-    linkIsDisabled || status === 'error' || status === 'unsupported';
+  const linkHasError = status === 'error' || status === 'unsupported';
+  const linkFailed = linkIsDisabled || linkHasError;
 
   const inviteLinkPlaceholder = linkIsDisabled
     ? 'Invite links are disabled'
@@ -136,31 +136,37 @@ export function InviteFriendsToTlonButton({
         <TextInput
           value={linkIsReady ? shareUrl : ''}
           placeholder={inviteLinkPlaceholder}
-          accent="positive"
+          accent={linkHasError ? 'negative' : 'positive'}
           editable={false}
           selectTextOnFocus={linkIsReady}
           frameStyle={{
             flex: 1,
             height: 44,
-            borderTopRightRadius: 0,
-            borderBottomRightRadius: 0,
-            borderRightWidth: 0,
+            ...(linkHasError
+              ? {}
+              : {
+                  borderTopRightRadius: 0,
+                  borderBottomRightRadius: 0,
+                  borderRightWidth: 0,
+                }),
           }}
         />
-        <Button
-          {...buttonProps}
-          preset={preset}
-          intent="positive"
-          size="small"
-          width={44}
-          borderTopLeftRadius={0}
-          borderBottomLeftRadius={0}
-          icon={didCopy ? 'Checkmark' : 'Copy'}
-          accessibilityLabel={didCopy ? 'Copied' : 'Copy invite link'}
-          loading={linkIsLoading}
-          disabled={!linkIsReady}
-          onPress={handleCopyInviteLink}
-        />
+        {!linkHasError && (
+          <Button
+            {...buttonProps}
+            preset={preset}
+            intent="positive"
+            size="small"
+            width={44}
+            borderTopLeftRadius={0}
+            borderBottomLeftRadius={0}
+            icon={didCopy ? 'Checkmark' : 'Copy'}
+            accessibilityLabel={didCopy ? 'Copied' : 'Copy invite link'}
+            loading={linkIsLoading}
+            disabled={!linkIsReady}
+            onPress={handleCopyInviteLink}
+          />
+        )}
       </XStack>
       <Button
         {...buttonProps}
