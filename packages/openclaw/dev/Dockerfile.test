@@ -3,8 +3,16 @@ FROM node:22-bookworm-slim
 RUN apt-get update && apt-get install -y git curl jq && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@11.9.0
 
-# Install OpenClaw globally (pinned to avoid dependency bugs in latest)
-RUN npm install -g openclaw@2026.5.28
+# Install OpenClaw globally. The default remains the package's development pin,
+# while the focused gateway-status lane selects affected cores by build arg.
+# Keep this default in lockstep with DEFAULT_CORE_VERSION in
+# test/cases/08-gateway-status.test.ts (08 asserts installed == requested).
+# Bumping both to 2026.6.11/2026.7.1 promotes 08 from a smoke test to the full
+# prewarm regression guard on the existing shared E2E lane — no matrix lane needed.
+ARG OPENCLAW_CORE_VERSION=2026.5.28
+RUN npm install -g "openclaw@${OPENCLAW_CORE_VERSION}"
+ENV OPENCLAW_CORE_VERSION=${OPENCLAW_CORE_VERSION}
+RUN echo "[tlon-e2e-build] openclaw-core-version=${OPENCLAW_CORE_VERSION}"
 
 # Install the Brave web-search plugin at build time. openclaw@2026.5.28
 # rejects tools.web.search.provider "brave" (set by entrypoint.test.sh when

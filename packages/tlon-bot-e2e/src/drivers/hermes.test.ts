@@ -50,6 +50,7 @@ describe('Hermes driver runtime spec', () => {
       HERMES_MODEL_API_MODE: 'chat_completions',
       TLON_GATEWAY_STATUS: 'false',
       TLON_TELEMETRY: 'false',
+      TLON_SSE_READ_TIMEOUT_SECONDS: '60',
       TLON_KNOWN_BOT_USERS: '~mug',
       TLON_MAX_CONSECUTIVE_BOT_RESPONSES: '3',
     });
@@ -64,11 +65,10 @@ describe('Hermes driver runtime spec', () => {
   test('model adapter returns script objects with baseline tool expectations', () => {
     expect(hermesDriver.model.replyText('hello')).toMatchObject({
       steps: [{ kind: 'text', content: 'hello' }],
-      options: { allowExtraCalls: 1 },
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 1,
-        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     });
 
@@ -87,19 +87,26 @@ describe('Hermes driver runtime spec', () => {
           { kind: 'final_model_text' },
         ],
         streamedToolLoop: true,
-        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     });
 
     expect(
       hermesDriver.model.sendMessage({ target: '~ten', message: 'hello' })
     ).toMatchObject({
-      options: { allowExtraCalls: 1 },
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 1,
-        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
+    });
+
+    expect(hermesDriver.model.replyTexts(['one', 'two'])).toMatchObject({
+      steps: [
+        { kind: 'text', content: 'one' },
+        { kind: 'text', content: 'two' },
+      ],
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
+      expectations: { expectedCallCount: 2 },
     });
   });
 });

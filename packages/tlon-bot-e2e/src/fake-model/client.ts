@@ -1,11 +1,18 @@
 import type {
   FakeModelReceivedResponse,
+  ModelAuxiliaryCallKind,
   ReceivedCall,
   ScriptOptions,
   Step,
 } from './types.js';
 
-export type { FakeModelReceivedResponse, ReceivedCall, ScriptOptions, Step };
+export type {
+  FakeModelReceivedResponse,
+  ModelAuxiliaryCallKind,
+  ReceivedCall,
+  ScriptOptions,
+  Step,
+};
 
 export const DEFAULT_FAKE_MODEL_BASE_URL = 'http://localhost:4000';
 
@@ -42,6 +49,7 @@ export class FakeModelClient {
         key,
         steps,
         allowExtraCalls: opts.allowExtraCalls ?? 0,
+        allowedAuxiliaryCalls: opts.allowedAuxiliaryCalls ?? [],
       }),
     });
     if (!res.ok) {

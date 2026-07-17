@@ -6,6 +6,11 @@
     "declaration": false,
     "types": ["node", "bun-types"]
   },
-  "include": ["scripts/**/*.test.ts", "scripts/**/*.spec.ts", "tests/**/*.ts"],
+  "include": [
+    "scripts/**/*.test.ts",
+    "scripts/**/*.spec.ts",
+    "scripts/tloncorp-api-mock.ts",
+    "tests/**/*.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

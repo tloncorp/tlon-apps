@@ -9,8 +9,8 @@
  * Usage:
  *   npx ts-node scripts/dms.ts send <club-id> <message>        (group DMs only)
  *   npx ts-node scripts/dms.ts reply <club-id> <post-id> <msg> (group DMs only)
- *   npx ts-node scripts/dms.ts react <ship> <post-id> <emoji>
- *   npx ts-node scripts/dms.ts unreact <ship> <post-id>
+ *   npx ts-node scripts/dms.ts react <ship> <post-id> <emoji> [--parent <post-id>]
+ *   npx ts-node scripts/dms.ts unreact <ship> <post-id> [--parent <post-id>]
  *   npx ts-node scripts/dms.ts delete <ship> <post-id>
  *   npx ts-node scripts/dms.ts accept <ship>
  *   npx ts-node scripts/dms.ts decline <ship>
@@ -46,8 +46,8 @@ const DMS_HELP = `Usage: tlon dms <command>
 Commands:
   send <club-id> [message]        Send a message to a group DM [--image <url>]
   reply <club-id> <post-id> <msg> Reply in a group DM (post-id must include author)
-  react <ship> <post-id> <emoji>  React to a DM (post-id must include author)
-  unreact <ship> <post-id>        Remove reaction from a DM (post-id must include author)
+  react <ship> <post-id> <emoji>  React to a DM (post-id must include author) [--parent <post-id>]
+  unreact <ship> <post-id>        Remove reaction from a DM (post-id must include author) [--parent <post-id>]
   delete <ship> <post-id>         Delete a DM (post-id may include author)
   accept <ship>                   Accept a DM invite
   decline <ship>                  Decline a DM invite`;
@@ -55,8 +55,8 @@ Commands:
 const DMS_COMMAND_HELP: Record<string, string> = {
   send: 'Usage: tlon dms send <club-id> [message] [--image <url>] (message optional with --image)',
   reply: 'Usage: tlon dms reply <club-id> <post-id> <message>',
-  react: 'Usage: tlon dms react <ship> <post-id> <emoji>',
-  unreact: 'Usage: tlon dms unreact <ship> <post-id>',
+  react: 'Usage: tlon dms react <ship> <post-id> <emoji> [--parent <post-id>]',
+  unreact: 'Usage: tlon dms unreact <ship> <post-id> [--parent <post-id>]',
   delete: 'Usage: tlon dms delete <ship> <post-id>',
   accept: 'Usage: tlon dms accept <ship>',
   decline: 'Usage: tlon dms decline <ship>',
@@ -86,7 +86,7 @@ function isDmsMessageHelpLiteral(args: string[]): boolean {
   return false;
 }
 
-function validateDmsArgs(args: string[]): void {
+export function validateDmsArgs(args: string[]): void {
   const command = args[0];
   if (!command || !DMS_COMMAND_HELP[command]) {
     printUsageAndExit(DMS_HELP);
@@ -123,9 +123,19 @@ function validateDmsArgs(args: string[]): void {
     case 'react': {
       if (!args[1] || !args[2] || !args[3])
         printUsageAndExit(DMS_COMMAND_HELP.react);
+      // A positional slot filled by an option token (e.g. `--parent` swallowed
+      // into the emoji slot when the emoji is omitted) is a usage error.
+      if (positionalIsOption(args, 3))
+        printUsageAndExit(DMS_COMMAND_HELP.react);
+      reactionParent(args, DMS_COMMAND_HELP.react);
       return;
     }
     case 'unreact':
+      if (!args[1] || !args[2]) printUsageAndExit(DMS_COMMAND_HELP.unreact);
+      if (positionalIsOption(args, 2))
+        printUsageAndExit(DMS_COMMAND_HELP.unreact);
+      reactionParent(args, DMS_COMMAND_HELP.unreact);
+      return;
     case 'delete': {
       if (!args[1] || !args[2]) printUsageAndExit(DMS_COMMAND_HELP[command]);
       return;
@@ -148,12 +158,40 @@ function isClub(whom: string): boolean {
   return whom.startsWith('0v');
 }
 
-function parsePostId(postId: string): { id: string; authorId?: string } {
+export function parsePostId(postId: string): { id: string; authorId?: string } {
   if (postId.includes('/')) {
     const [author, id] = postId.split('/');
     return { id, authorId: normalizeShip(author) };
   }
   return { id: postId };
+}
+
+// True when any positional slot 1..count is an option token (starts with
+// `--`). Guards against a flag being swallowed into a positional slot (e.g.
+// an omitted emoji letting `--parent` land in the react slot).
+function positionalIsOption(args: string[], count: number): boolean {
+  for (let i = 1; i <= count; i += 1) {
+    if (args[i]?.startsWith('--')) return true;
+  }
+  return false;
+}
+
+export function reactionParent(
+  args: string[],
+  help: string
+): string | undefined {
+  const idx = args.indexOf('--parent');
+  if (idx === -1) return undefined;
+  // Reject a duplicate `--parent` and a value that is itself an option
+  // token (e.g. `--parent --bogus` reading the next flag as the id).
+  if (args.indexOf('--parent', idx + 1) !== -1) {
+    printUsageAndExit(help);
+  }
+  const parentId = args[idx + 1];
+  if (!parentId || parentId.startsWith('--')) {
+    printUsageAndExit(help);
+  }
+  return parentId;
 }
 
 // Send a message to a group DM (club)
@@ -219,13 +257,29 @@ async function replyToClub(
 }
 
 // React to a DM
-async function reactToDM(
+type DmReactionDeps = {
+  addReaction: typeof addReaction;
+  getCurrentUserId: typeof getCurrentUserId;
+  normalizeShip: typeof normalizeShip;
+  removeReaction: typeof removeReaction;
+};
+
+const DEFAULT_REACTION_DEPS: DmReactionDeps = {
+  addReaction,
+  getCurrentUserId,
+  normalizeShip,
+  removeReaction,
+};
+
+export async function reactToDM(
   ship: string,
   postId: string,
-  react: string
+  react: string,
+  parentId?: string,
+  deps: DmReactionDeps = DEFAULT_REACTION_DEPS
 ): Promise<{ success: boolean; error?: string }> {
-  const normalizedShip = normalizeShip(ship);
-  const our = getCurrentUserId();
+  const normalizedShip = deps.normalizeShip(ship);
+  const our = deps.getCurrentUserId();
   const parsed = parsePostId(postId);
 
   if (!parsed.authorId) {
@@ -234,14 +288,24 @@ async function reactToDM(
       error: 'Post ID must include author (e.g., ~ship/123.456)',
     };
   }
+  const parent = parentId ? parsePostId(parentId) : undefined;
+  if (parentId && !parent?.authorId) {
+    return {
+      success: false,
+      error: 'Parent ID must include author (e.g., ~ship/123.456)',
+    };
+  }
 
   try {
-    await addReaction({
+    await deps.addReaction({
       channelId: normalizedShip,
       postId: parsed.id,
       emoji: react,
       our,
       postAuthor: parsed.authorId,
+      ...(parent
+        ? { parentId: parent.id, parentAuthorId: parent.authorId }
+        : {}),
     });
 
     return { success: true };
@@ -251,12 +315,14 @@ async function reactToDM(
 }
 
 // Remove reaction from a DM
-async function unreactToDM(
+export async function unreactToDM(
   ship: string,
-  postId: string
+  postId: string,
+  parentId?: string,
+  deps: DmReactionDeps = DEFAULT_REACTION_DEPS
 ): Promise<{ success: boolean; error?: string }> {
-  const normalizedShip = normalizeShip(ship);
-  const our = getCurrentUserId();
+  const normalizedShip = deps.normalizeShip(ship);
+  const our = deps.getCurrentUserId();
   const parsed = parsePostId(postId);
 
   if (!parsed.authorId) {
@@ -265,13 +331,23 @@ async function unreactToDM(
       error: 'Post ID must include author (e.g., ~ship/123.456)',
     };
   }
+  const parent = parentId ? parsePostId(parentId) : undefined;
+  if (parentId && !parent?.authorId) {
+    return {
+      success: false,
+      error: 'Parent ID must include author (e.g., ~ship/123.456)',
+    };
+  }
 
   try {
-    await removeReaction({
+    await deps.removeReaction({
       channelId: normalizedShip,
       postId: parsed.id,
       our,
       postAuthor: parsed.authorId,
+      ...(parent
+        ? { parentId: parent.id, parentAuthorId: parent.authorId }
+        : {}),
     });
 
     return { success: true };
@@ -340,7 +416,7 @@ async function declineDM(
 }
 
 // CLI
-async function main() {
+export async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
 
@@ -416,7 +492,12 @@ async function main() {
       if (!ship || !postId || !react) {
         printUsageAndExit(DMS_COMMAND_HELP.react);
       }
-      const result = await reactToDM(ship, postId, react);
+      const result = await reactToDM(
+        ship,
+        postId,
+        react,
+        reactionParent(args, DMS_COMMAND_HELP.react)
+      );
       if (result.success) {
         console.log('✓ Reaction added!');
       } else {
@@ -432,7 +513,11 @@ async function main() {
       if (!ship || !postId) {
         printUsageAndExit(DMS_COMMAND_HELP.unreact);
       }
-      const result = await unreactToDM(ship, postId);
+      const result = await unreactToDM(
+        ship,
+        postId,
+        reactionParent(args, DMS_COMMAND_HELP.unreact)
+      );
       if (result.success) {
         console.log('✓ Reaction removed!');
       } else {
@@ -494,4 +579,10 @@ async function main() {
   process.exit(0);
 }
 
-main().catch(printErrorAndExit);
+// The unified CLI dynamically imports this module after setting argv to
+// ['tlon', 'dms', ...], while direct legacy `ts-node scripts/dms.ts` execution
+// retains the source filename in argv[1]. Keep both entry styles working and
+// leave imports side-effect free for the command-level tests.
+if (/(?:^|[\\/])dms\.(?:ts|js)$/.test(process.argv[1] ?? '')) {
+  main().catch(printErrorAndExit);
+}

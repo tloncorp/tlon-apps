@@ -176,6 +176,16 @@ export const openclawDriver: BotDriver = {
       };
     },
 
+    replyTexts(texts) {
+      return {
+        steps: texts.map((content) => ({ kind: 'text' as const, content })),
+        expectations: {
+          advertisedTools: { exact: ['message', 'tlon'] },
+          expectedCallCount: texts.length,
+        },
+      };
+    },
+
     sendMessage(args) {
       return {
         steps: [
