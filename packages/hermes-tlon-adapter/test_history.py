@@ -27,10 +27,12 @@ load_module("tlon_api")
 history = load_module("history")
 
 
-def essay(author, text, sent, *, blob=None):
+def essay(author, text, sent, *, blob=None, title=None):
     payload = {"author": author, "sent": sent, "content": [{"inline": [text]}]}
     if blob is not None:
         payload["blob"] = blob
+    if title is not None:
+        payload["meta"] = {"title": title}
     return payload
 
 
@@ -148,6 +150,29 @@ class ParseChannelHistoryTests(unittest.TestCase):
 
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0].author, "~mug")
+
+    def test_fetch_chat_history_hides_essay_title(self):
+        nest = "chat/~pen/general"
+        path = f"/channels/v4/{nest}/posts/newest/1/outline"
+        payload = {
+            "posts": {
+                "1": {
+                    "essay": essay(
+                        "~mug",
+                        "visible chat text",
+                        1000,
+                        title="hidden chat metadata",
+                    ),
+                    "seal": {"id": "1"},
+                }
+            }
+        }
+
+        entries = asyncio.run(
+            history.fetch_channel_history(make_scry({path: payload}), nest, 1)
+        )
+
+        self.assertEqual([entry.content for entry in entries], ["visible chat text"])
 
     def test_non_dict_payload(self):
         self.assertEqual(history.parse_channel_history(None), [])
