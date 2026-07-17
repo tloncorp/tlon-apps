@@ -60,7 +60,14 @@ type ExactReplyScryResponse = {
 };
 
 function normalizeMessageId(id: string | number | undefined | null): string {
-  return String(id ?? '').replace(/\./g, '');
+  const rawId = String(id ?? '');
+  const separatorIndex = rawId.indexOf('/');
+  const author = rawId.slice(0, separatorIndex);
+  const bareId =
+    separatorIndex > 0 && /^~?[a-z0-9-]+$/i.test(author)
+      ? rawId.slice(separatorIndex + 1)
+      : rawId;
+  return bareId.replace(/\./g, '');
 }
 
 function getParsedBlobData(entry: TlonHistoryEntry): ClientPostBlobData | null {

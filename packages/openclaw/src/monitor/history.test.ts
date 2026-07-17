@@ -202,6 +202,40 @@ describe('renderHistoryContent', () => {
 });
 
 describe('cacheMessage', () => {
+  it('normalizes DM writ ids at the cache boundary and deduplicates the echo', async () => {
+    const channel = `dm/~owner-${Date.now().toString(36)}`;
+    const dottedTimestamp = '170.141.184.507.123';
+    const bareTimestamp = '170141184507123';
+    const sendTimeEntry = makeEntry({
+      author: '~bot',
+      content: 'send-time reply',
+      id: `~bot/${dottedTimestamp}`,
+    });
+
+    cacheMessage(channel, sendTimeEntry);
+
+    expect(lookupCachedMessage(channel, bareTimestamp)).toEqual(sendTimeEntry);
+    expect(lookupCachedMessage(channel, `bot/${dottedTimestamp}`)).toEqual(
+      sendTimeEntry
+    );
+
+    const echoEntry = makeEntry({
+      author: '~bot',
+      content: 'echoed reply',
+      timestamp: 2,
+      id: bareTimestamp,
+    });
+    cacheMessage(channel, echoEntry);
+
+    expect(lookupCachedMessage(channel, `~bot/${dottedTimestamp}`)).toEqual(
+      echoEntry
+    );
+
+    const scry = vi.fn(async () => []);
+    await getChannelHistory({ scry }, channel, 2);
+    expect(scry).toHaveBeenCalledOnce();
+  });
+
   it('resolves a reaction before the echo and upserts the host-assigned post id', async () => {
     const channel = `chat/~zod/cache-upsert-${Date.now().toString(36)}`;
     const clientSentId = '~zod/170.141.184.507.123';

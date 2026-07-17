@@ -539,8 +539,9 @@ export const commonScenarios: readonly SharedScenario[] = [
         );
       }
 
-      // Do not settle before this reaction: OpenClaw must classify the event
-      // from its DM send-time cache entry before the bot's echo arrives.
+      // Exercise root-DM reaction dispatch and acknowledgement anchoring.
+      // packages/openclaw/src/monitor/history.test.ts is the deterministic
+      // gate for pre-echo ID normalization.
       await actors.owner.addReact({
         channelId: actors.bot.ship,
         postId: botReply.id,
@@ -777,7 +778,10 @@ export const commonScenarios: readonly SharedScenario[] = [
       expect(botReply.parentId).toBe(root.id);
 
       // Supplying the root parent makes this a reply reaction rather than a
-      // reaction on the root post, exercising OpenClaw's exact-reply lookup.
+      // reaction on the root post, covering reply-reaction dispatch and
+      // thread-root acknowledgement anchoring.
+      // packages/openclaw/src/monitor/history.test.ts is the deterministic
+      // gate for exact-reply cache-miss fetching.
       await actors.owner.addReact({
         channelId: fixture.channelId,
         postId: botReply.id,

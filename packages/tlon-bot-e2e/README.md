@@ -67,12 +67,14 @@ Current common baseline scenarios are:
 -   `/owner-listen all off` and `/owner-listen all on` settings persistence
 -   practical known-bot loop protection with a BotProfile-shaped `~mug` sender and human reset
 -   reaction on a bot-authored channel root dispatches an acknowledgement on both drivers (threaded by OpenClaw; top-level by Hermes under the shared `reply_in_thread: false` config)
--   immediate reaction on a bot-authored root DM reply, covering OpenClaw's send-time DM cache race (threaded by OpenClaw; top-level by Hermes under the shared `reply_in_thread: false` config)
+-   reaction on a bot-authored root DM reply, covering reaction dispatch and acknowledgement anchoring (threaded by OpenClaw; top-level by Hermes under the shared `reply_in_thread: false` config)
 -   channel thread-root anchoring, participated-thread follow, and an unparticipated-thread control
 -   reaction on a bot-authored channel thread reply, covering the reply-reaction route and thread-root acknowledgement anchoring
 -   DM thread anchoring, including a check that the follow-up does not appear in the main DM
 -   stop/start replay coverage is selected and visibly skipped pending [TLON-6098](https://linear.app/tlon/issue/TLON-6098): neither runtime replays messages received while the bot is down; the intact scenario remains the regression gate when reconnect replay lands
 -   Hermes-only no-agent cron delivery to `TLON_HOME_CHANNEL`, with a future one-shot fired through `run_one_job(..., adapters=None, loop=None)` so the test uses the standalone sender path without racing the gateway ticker
+
+The reaction scenarios cover dispatch and acknowledgement anchoring only. `packages/openclaw/src/monitor/history.test.ts` is the deterministic gate for pre-echo ID normalization and exact-reply cache-miss fetching.
 
 The cron scenario deliberately covers Hermes only. OpenClaw's existing package-level heartbeat coverage verifies its proactive target today; the symmetric shared proactive scenario is tracked by TLON-5931. A model-driven cron turn is tracked by [TLON-6150: bot e2e: cron-enabled capability partition (model-driven cron turn)](https://linear.app/tlon/issue/TLON-6150).
 

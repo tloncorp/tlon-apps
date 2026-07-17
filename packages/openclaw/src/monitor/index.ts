@@ -100,6 +100,7 @@ import {
   pruneExpired,
   removePendingApproval,
 } from './approval.js';
+import { handleChannelReaction } from './channel-reactions.js';
 import {
   type ApprovalCommandBridge,
   removeBridge,
@@ -3471,63 +3472,54 @@ export async function monitorTlonProvider(
                 rootPostId,
                 runtime
               );
-              const contentSnippet = cached?.content
-                ? ` (message: "${cached.content.substring(0, 200)}${cached.content.length > 200 ? '...' : ''}")`
-                : '';
-              const author = cached?.author;
-              if (!author || author === 'unknown') {
-                runtime.log?.(
-                  `[tlon] Unclassified reaction on ${nest} post ${postId}: ` +
-                    'could not resolve the reacted post author.'
-                );
-                continue;
-              }
-              const authorInfo = ` (by ${formatShipWithNickname(author)})`;
-              const reactorDisplay = formatShipWithNickname(ship);
-              const eventText = `Tlon reaction in ${nest}: ${reactEmoji} by ${reactorDisplay} on post ${postId}${authorInfo}${contentSnippet}`;
-              runtime.log?.(`[tlon] REACTION: ${eventText}`);
-
-              // If reacting to the bot's own message, dispatch as a real message
-              // so the agent runs immediately (e.g. thumbs-up as "yes")
-              if (author === botShipName) {
-                // Include context so agent knows what was reacted to, since we're
-                // deliberately omitting thread context (parentId) to avoid the agent
-                // suppressing responses when it sees its own message in thread history.
-                const reactionParentId = replyReacts
-                  ? response?.post?.id ?? postId
-                  : postId;
-                const reactText = cached?.content
-                  ? `${reactEmoji} (reacting to: "${cached.content}")`
-                  : reactEmoji;
-                runtime.log?.(
-                  `[tlon] Dispatching channel reaction as message: ${reactEmoji} from ${ship}`
-                );
-                const parsed = parseChannelNest(nest);
-                await processMessage({
-                  messageId: `react-${postId}-${ship}-${Date.now()}`,
-                  senderShip: ship,
-                  messageText: reactText,
-                  trigger: 'reaction',
-                  cachesHistory: true,
-                  isGroup: true,
-                  channelNest: nest,
-                  hostShip: parsed?.hostShip,
-                  channelName: parsed?.channelName,
-                  timestamp: Date.now(),
-                  replyParentId: reactionParentId, // Thread reply for delivery only
-                });
-              } else {
-                // For reactions on other people's messages, just enqueue as system event
-                core.system.enqueueSystemEvent(eventText, {
-                  sessionKey: route.sessionKey,
-                  contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
-                  // Route any resulting system/heartbeat turn back to Tlon.
-                  deliveryContext: tlonDeliveryContext(
-                    `tlon:${nest}`,
-                    route.accountId
-                  ),
-                });
-              }
+              await handleChannelReaction({
+                botShip: botShipName,
+                emoji: reactEmoji,
+                formatShip: formatShipWithNickname,
+                nest,
+                postId,
+                reactor: ship,
+                rootPostId,
+                target: cached,
+                log: (message) => runtime.log?.(message),
+                // If reacting to the bot's own message, dispatch as a real
+                // message so the agent runs immediately (e.g. thumbs-up as
+                // "yes"). Omit thread context to avoid the agent suppressing
+                // responses to its own message, but preserve the reply parent
+                // for delivery.
+                dispatchAgent: async ({ messageText, replyParentId }) => {
+                  runtime.log?.(
+                    `[tlon] Dispatching channel reaction as message: ${reactEmoji} from ${ship}`
+                  );
+                  const parsed = parseChannelNest(nest);
+                  await processMessage({
+                    messageId: `react-${postId}-${ship}-${Date.now()}`,
+                    senderShip: ship,
+                    messageText,
+                    trigger: 'reaction',
+                    cachesHistory: true,
+                    isGroup: true,
+                    channelNest: nest,
+                    hostShip: parsed?.hostShip,
+                    channelName: parsed?.channelName,
+                    timestamp: Date.now(),
+                    replyParentId, // Thread reply for delivery only
+                  });
+                },
+                // Reactions on other people's messages are passive system
+                // events, including targets whose author cannot be resolved.
+                enqueueSystemEvent: (eventText) => {
+                  core.system.enqueueSystemEvent(eventText, {
+                    sessionKey: route.sessionKey,
+                    contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
+                    // Route any resulting system/heartbeat turn back to Tlon.
+                    deliveryContext: tlonDeliveryContext(
+                      `tlon:${nest}`,
+                      route.accountId
+                    ),
+                  });
+                },
+              });
             } catch (err: any) {
               runtime.error?.(
                 `[tlon] Error handling reaction: ${err?.message ?? String(err)}`
