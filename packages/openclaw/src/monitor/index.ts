@@ -78,7 +78,12 @@ import {
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
 import { describeError } from '../urbit/errors.js';
 import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
-import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
+import {
+  type BotProfile,
+  sendChannelPost,
+  sendDm,
+  sendVouchedDm,
+} from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
@@ -362,6 +367,22 @@ export async function monitorTlonProvider(
   // moon — used for self-detection, @-mentions, and authorship.
   const hostShipName = normalizeShip(account.ship);
   const botShipName = account.moon ? normalizeShip(account.moon) : hostShipName;
+  // DM reply sender: when acting as a moon, replies must go out on the
+  // vouched path (authored as the moon, keyed by the moon in the human's
+  // dms) rather than a normal DM (which would land under the host ship).
+  // Mirrors the channel.runtime outbound split for the monitor's own sends.
+  const sendDmReply: typeof sendDm = (params) => {
+    if (!account.moon) {
+      return sendDm(params);
+    }
+    return sendVouchedDm({
+      as: botShipName,
+      toShip: params.toShip,
+      text: params.text,
+      blob: params.blob,
+      botProfile: params.botProfile,
+    });
+  };
   const tlonSkillVersion = await resolveTlonSkillVersion();
   let effectiveOwnerShip: string | null = account.ownerShip
     ? normalizeShip(account.ownerShip)
@@ -1701,7 +1722,7 @@ export async function monitorTlonProvider(
         return undefined;
       }
       try {
-        const result = await sendDm({
+        const result = await sendDmReply({
           botProfile: getBotProfile(),
           fromShip: botShipName,
           toShip: effectiveOwnerShip,
@@ -2675,7 +2696,7 @@ export async function monitorTlonProvider(
               });
               outputMessageId = result.messageId;
             } else {
-              const result = await sendDm({
+              const result = await sendDmReply({
                 botProfile: getBotProfile(),
                 fromShip: botShipName,
                 toShip: senderShip,
@@ -2743,7 +2764,7 @@ export async function monitorTlonProvider(
             });
             outputMessageId = result.messageId;
           } else {
-            const result = await sendDm({
+            const result = await sendDmReply({
               botProfile: getBotProfile(),
               fromShip: botShipName,
               toShip: senderShip,
@@ -2807,7 +2828,7 @@ export async function monitorTlonProvider(
               `Docs: https://docs.openclaw.ai/concepts/session#secure-dm-mode`;
 
             // Send async, don't block message processing
-            sendDm({
+            sendDmReply({
               botProfile: getBotProfile(),
               fromShip: botShipName,
               toShip: effectiveOwnerShip,
@@ -3293,7 +3314,7 @@ export async function monitorTlonProvider(
                         );
                       }
                     } else {
-                      const result = await sendDm({
+                      const result = await sendDmReply({
                         botProfile: getBotProfile(),
                         fromShip: botShipName,
                         toShip: senderShip,
@@ -4279,10 +4300,13 @@ export async function monitorTlonProvider(
         await api.subscribe({
           app: 'chat',
           path: '/vouched-dm',
-          event: (data) => handleVouchedDm(data as Parameters<typeof handleVouchedDm>[0]),
+          event: (data) =>
+            handleVouchedDm(data as Parameters<typeof handleVouchedDm>[0]),
           err: (error) => {
             capturePluginError('vouched_dm', error);
-            runtime.error?.(`[tlon] Vouched DM subscription error: ${String(error)}`);
+            runtime.error?.(
+              `[tlon] Vouched DM subscription error: ${String(error)}`
+            );
           },
           quit: () => {
             runtime.log?.(
@@ -5236,7 +5260,7 @@ export async function monitorTlonProvider(
           getLastNudgeStageShadow,
           setLastNudgeStageShadow,
           setLocalPendingNudge,
-          sendDm,
+          sendDm: sendDmReply,
           getBotProfile,
           telemetry,
           runtime,
