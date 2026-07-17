@@ -108,6 +108,7 @@ import {
 } from './command-bridge.js';
 import { createComputingPresenceTracker } from './computing-presence.js';
 import { fetchAllChannels, fetchInitData } from './discovery.js';
+import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
   buildThreadContextMessage,
   cacheMessage,
@@ -360,6 +361,9 @@ export async function monitorTlonProvider(
   const accountCode = account.code;
 
   const botShipName = normalizeShip(account.ship);
+  if (!botShipName) {
+    throw new Error('Tlon account ship is empty after normalization');
+  }
   const tlonSkillVersion = await resolveTlonSkillVersion();
   let effectiveOwnerShip: string | null = account.ownerShip
     ? normalizeShip(account.ownerShip)
@@ -3950,7 +3954,10 @@ export async function monitorTlonProvider(
                   cachesHistory: true,
                   isGroup: false,
                   timestamp: Date.now(),
-                  replyParentId: messageId, // Thread reply for delivery only
+                  replyParentId: dmReactionReplyParentId(
+                    botShipName,
+                    messageId
+                  ), // Thread reply for delivery only
                 });
               } else {
                 const contentSnippet = cached?.content
