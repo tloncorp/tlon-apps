@@ -534,6 +534,7 @@ _LENS_TRIGGER_MAP = {
     "reaction": "reaction",
     "mention": "mention",
     "owner-listen": "owner-listen",
+    "owner-blob": "owner-blob",
     "participated-thread": "thread",
     "retry": "retry",
     # A free (unprompted) channel response has no dedicated trigger in the
@@ -552,7 +553,9 @@ def _lens_trigger(dispatch_reason: str, *, is_dm: bool) -> str:
 
 
 def _lens_run_kind(dispatch_reason: str) -> str:
-    return "owner_listen" if dispatch_reason == "owner-listen" else "conversation"
+    if dispatch_reason in ("owner-listen", "owner-blob"):
+        return "owner_listen"
+    return "conversation"
 
 
 def _lens_final_status(
@@ -2364,6 +2367,7 @@ class TlonAdapter(BasePlatformAdapter):
             owner_ship=self.tlon_config.owner_ship,
             bot_ship=self.tlon_config.ship_name,
         )
+        is_owner_blob = bool(message.blob) and self._is_owner(message.user_id)
         is_participated_thread = self._is_participated_thread(message)
         is_free_response = self.tlon_config.group_free_response_enabled(message.chat_id)
         decision = resolve_attention(
@@ -2373,6 +2377,7 @@ class TlonAdapter(BasePlatformAdapter):
                 has_text=bool(clean_text or message.blob),
                 is_mentioned=is_mentioned,
                 is_owner_listen=is_owner_listen,
+                is_owner_blob=is_owner_blob,
                 is_free_response=is_free_response,
                 is_participated_thread=is_participated_thread,
             )

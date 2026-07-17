@@ -8,7 +8,7 @@ This first pass keeps the integration deliberately small:
 -   outbound sends use the packaged `tlon` CLI
 -   a single model-callable `tlon` tool wraps the packaged CLI for reads/admin
 -   a plugin-owned `image_search` tool finds direct image URLs for Tlon uploads
--   group channels dispatch on bot ship/name/alias wakes, owner-listen, explicit free-response config, or threads the bot has already replied to
+-   group channels dispatch on bot ship/name/alias wakes, owner-listen, owner image/file posts (any monitored channel), explicit free-response config, or threads the bot has already replied to
 -   group dispatches carry recent channel/thread history as context
 -   DMs dispatch directly, deny-by-default: unknown senders queue for owner approval with rich A2UI approve/deny cards
 
@@ -154,6 +154,8 @@ Restart the Hermes gateway after changing these.
 The adapter also accepts the older `TLON_SHIP_*`, `TLON_URL/TLON_SHIP/TLON_CODE`, and `URBIT_*` aliases and passes them through to the CLI, so it works with the credential resolver in `@tloncorp/tlon-skill`.
 
 Group attention is deterministic and happens before the model runs. Messages from allowed users dispatch when they mention the node id, bare node id, an alias in `TLON_BOT_MENTIONS`, or the node profile nickname. The nickname is fetched at startup and tracked live via a `contacts /v1/news` subscription: renaming the bot (including during onboarding) updates the wake terms without a restart, clearing the nickname drops that term, and the profile is re-synced after each SSE reconnect. Nickname lookup failures are non-fatal; the adapter falls back to node id, bare node id, and configured aliases.
+
+Owner posts carrying an image/file attachment dispatch in any monitored group channel regardless of owner-listen state, mirroring OpenClaw.
 
 `TLON_FREE_RESPONSE_CHANNELS` and `TLON_REQUIRE_MENTION=false` allow unmentioned group messages to dispatch for the owner, explicitly allowed users, or all users when `TLON_ALLOW_ALL_USERS=true`. `TLON_DM_ALLOWLIST` is additive for DMs and does not grant group-channel access.
 
