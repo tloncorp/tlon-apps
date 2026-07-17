@@ -43,10 +43,10 @@ export function AppDataProvider({
       if (!normalized || normalized === cached) {
         return;
       }
-      // re-read before writing: a logout wipe queued during the reads
-      // must win — writing the old account's link back after the wipe
-      // would hand it to the next account
-      const current = await db.personalInviteLink.getValue();
+      // re-read before writing, waiting on the storage lock so any
+      // queued logout wipe completes first — writing the old account's
+      // link back after the wipe would hand it to the next account
+      const current = await db.personalInviteLink.getValue(true);
       if (cancelled || current !== cached) {
         return;
       }

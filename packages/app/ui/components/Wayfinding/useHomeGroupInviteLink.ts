@@ -46,7 +46,7 @@ export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
       return;
     }
     let cancelled = false;
-    void db.homeGroupInviteLink.getValue().then((current) => {
+    void db.homeGroupInviteLink.getValue(true).then((current) => {
       if (cancelled || current !== cachedInviteLink) {
         return;
       }
