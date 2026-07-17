@@ -177,10 +177,15 @@ def parse_thread_replies(payload: Any, nest: Optional[str] = None) -> list[Histo
         if not isinstance(item, dict):
             continue
         reply_set = item.get("r-reply", {}).get("set") if isinstance(item.get("r-reply"), dict) else None
-        memo = item.get("memo") or (reply_set or {}).get("memo")
+        reply_content = (
+            item.get("reply-essay")
+            or (reply_set or {}).get("reply-essay")
+            or item.get("memo")
+            or (reply_set or {}).get("memo")
+        )
         seal = item.get("seal") or (reply_set or {}).get("seal")
         entry = _entry_from_content(
-            memo,
+            reply_content,
             seal,
             fallback_id=item.get("id"),
             include_title=include_title,
