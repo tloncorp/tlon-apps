@@ -36,6 +36,25 @@
       (ex-fact ~[/v3 /v3/dm/[mp] /v3/dm/[mp]/writs] writ-response-3+!>(old-response-6))
       (ex-fact ~[/v4 /v4/dm/[mp] /v4/dm/[mp]/writs] writ-response-4+!>([whom response]))
   ==
+::  the single writ-response fact +di-give-writs-diff emits for a bot dm we
+::  host: on the moon's per-identity firehose, keyed by the counterparty
+++  ex-bot-fact
+  |=  [bot=ship who=ship author=ship =time =verse:ch seq=@ud]
+  ^-  $-(card tang)
+  =/  =whom:c  [%ship who]
+  =/  =essay:c  [[~[verse] author time] chat+/ ~ ~]
+  =/  =response:writs:c  [[author time] %add essay seq time]
+  (ex-fact ~[/v4/vouched/(scot %p bot)] writ-response-4+!>([whom response]))
+::  the writ +di-ingest-diff stores for a bot dm we host, as it appears from a
+::  newest/1 paged scry of the bot's inbox
+++  bot-inbox-newest
+  |=  [author=ship =time =verse:ch]
+  ^-  paged-writs:v7:cv
+  =/  =writ:c
+    :-  [[author time] 1 time ~ ~ [0 ~ ~]]
+    [[~[verse] author time] chat+/ ~ ~]
+  =/  =writs:c  (gas:on:writs:c *writs:c ~[[time &+writ]])
+  [writs ~ ~ 1 1]
 ::  a human DMs a bot moon: the conversation is a normal dm keyed by the
 ::  moon (normal facts), with delivery routed to the moon's host. a
 ::  follow-up send through the plain dm-action path routes the same way.
@@ -94,8 +113,9 @@
   :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
       [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
   ==
-::  the host relays its bot's outbound message to the human, keeping no
-::  dm state of its own
+::  the host relays its bot's outbound message to the human AND stores it in
+::  the bot's own inbox (keyed by [moon, human]), giving it on the moon's
+::  firehose; the stored writ is scryable by the bot runner.
 ++  test-vouched-dm-host-relay-outbound
   %-  eval-mare
   =/  m  (mare ,~)
@@ -103,15 +123,24 @@
   ;<  *  bind:m  (set-scry-gate scries)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our owner, src owner)))
   ;<  bw=bowl  bind:m  get-bowl
-  =/  =diff:dm:c  (vouched-message moon now.bw [%inline ~['hi from bot']])
+  =/  =verse:ch  [%inline ~['hi from bot']]
+  =/  =diff:dm:c  (vouched-message moon now.bw verse)
   ;<  caz=(list card)  bind:m
     %+  do-poke  %chat-dm-vouched-action-2
     !>(`vouched-action:dm:c`[moon ~bus diff])
-  %+  ex-cards  caz
-  :~  %+  ex-poke  /vouched-dm/(scot %p moon)/(scot %p ~bus)
-      [[~bus dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
-  ==
-::  the host relays an inbound vouched dm to the bot runner via /vouched-dm
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-poke  /vouched-dm/(scot %p moon)/(scot %p ~bus)
+        [[~bus dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+        (ex-bot-fact moon ~bus moon now.bw verse 1)
+    ==
+  %+  ex-scry-result
+    /x/v4/vouched/(scot %p moon)/dm/(scot %p ~bus)/writs/newest/(scot %ud 1)/light
+  !>((bot-inbox-newest moon now.bw verse))
+::  the host stores an inbound vouched dm in the bot's inbox (keyed by
+::  [moon, human]) and gives it on the moon's firehose; the stored writ is
+::  scryable by the bot runner. (also mirrored on the legacy /vouched-dm
+::  stream during the transition.)
 ++  test-vouched-dm-host-relay-inbound
   %-  eval-mare
   =/  m  (mare ,~)
@@ -119,16 +148,22 @@
   ;<  *  bind:m  (set-scry-gate scries)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our owner, src ~bus)))
   ;<  bw=bowl  bind:m  get-bowl
-  =/  =diff:dm:c  (vouched-message ~bus now.bw [%inline ~['hi bot']])
+  =/  =verse:ch  [%inline ~['hi bot']]
+  =/  =diff:dm:c  (vouched-message ~bus now.bw verse)
   ;<  caz=(list card)  bind:m
     %+  do-poke  %chat-dm-vouched-diff-2
     !>(`vouched-diff:dm:c`[moon diff])
-  %+  ex-cards  caz
-  :~  %^    ex-fact
-        ~[/vouched-dm]
-      %chat-dm-vouched-diff-2
-    !>(`vouched-diff:dm:c`[moon diff])
-  ==
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %^    ex-fact
+          ~[/vouched-dm]
+        %chat-dm-vouched-diff-2
+      !>(`vouched-diff:dm:c`[moon diff])
+        (ex-bot-fact moon ~bus ~bus now.bw verse 1)
+    ==
+  %+  ex-scry-result
+    /x/v4/vouched/(scot %p moon)/dm/(scot %p ~bus)/writs/newest/(scot %ud 1)/light
+  !>((bot-inbox-newest ~bus now.bw verse))
 ::  a bot-initiated dm arrives as a normal dm invite keyed by the moon
 ++  test-vouched-dm-human-receive
   %-  eval-mare

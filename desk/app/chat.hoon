@@ -89,6 +89,8 @@
           [/v4/club/$ %writ-response-4 ~]
           [/v4/clubs %chat-club-action-2 ~]
           [/v4/dm/$ %writ-response-4 ~]
+        ::  per-moon firehose of the bot dms we host, for the bot runner
+          [/v4/vouched/$ %writ-response-4 ~]
       ==
     ::  scries
     ::
@@ -152,6 +154,9 @@
         [/x/v4/dm/$/writs %chat-paged-writs-4]
         [/x/v4/dm/$/writs/writ %chat-writ-4]
         [/x/v4/heads %chat-heads-4]
+      ::  history of the bot dms we host, for the bot runner to reload
+        [/x/v4/vouched/$/dm/$/writs %chat-paged-writs-4]
+        [/x/v4/vouched/$/dm/$/writs/writ %chat-writ-4]
         [/x/v4/init-posts %chat-changed-writs-1]
     ==
 ::
@@ -983,15 +988,18 @@
     ::  message addressed to another ship is the bot's host relaying the
     ::  bot's words to that human.
     ?:  !=(p.action.va as.va)
-      ::  relay the bot's outbound to the human .p.action; only the moon's
-      ::  host may speak as it. state lives with the bot runner, not our dms.
+      ::  the bot (which we host) is speaking to the human .p.action; only the
+      ::  moon's host may speak as it. relay the words over the network, and
+      ::  store them in the bot's own inbox so its runner can reload history.
       ~|  %vouched-dm-not-our-bot
       ?>  (vouches-for:utils our.bowl as.va)
-      %-  emit
-      :*  %pass  /vouched-dm/(scot %p as.va)/(scot %p p.action.va)
-          %agent  [p.action.va dap.bowl]
-          %poke  chat-dm-vouched-diff-2+[as.va q.action.va]
-      ==
+      =.  cor
+        %-  emit
+        :*  %pass  /vouched-dm/(scot %p as.va)/(scot %p p.action.va)
+            %agent  [p.action.va dap.bowl]
+            %poke  chat-dm-vouched-diff-2+[as.va q.action.va]
+        ==
+      di-abet:(di-ingest-diff:(di-abed-as:di-core [as.va p.action.va]) q.action.va)
     ::  we are the human: record where to route delivery for this moon,
     ::  then run the normal dm machinery with the moon as the partner.
     =.  vouched-dms  (~(put by vouched-dms) as.va (^sein:title as.va))
@@ -1019,12 +1027,16 @@
       =.  vouched-dms  (~(put by vouched-dms) as src.bowl)
       di-abet:(di-take-counter:(di-abed-soft:di-core as) diff.vd)
     ::  otherwise a human is speaking to the bot: we must host the moon, and
-    ::  the sender must own the writ. relay it to the bot runner.
+    ::  the sender must own the writ. store it in the bot's inbox (keyed by
+    ::  [moon, human]) so its runner can scry/reload, and give it on the
+    ::  moon's firehose. (also relayed on the legacy /vouched-dm stream until
+    ::  the runner is switched over to scry+sub.)
     ~|  %vouched-dm-not-our-bot
     ?>  (vouches-for:utils our.bowl as)
     ~|  %vouched-dm-writ-not-owned-by-sender
     ?>  (vouches-for:utils src.bowl author)
-    (emit %give %fact ~[/vouched-dm] chat-dm-vouched-diff-2+vd)
+    =.  cor  (emit %give %fact ~[/vouched-dm] chat-dm-vouched-diff-2+vd)
+    di-abet:(di-take-counter:(di-abed-as:di-core [as author]) diff.vd)
   ::
       %chat-dm-action-1
     =*  old-action=action:dm:v6:cv  p.rail
@@ -1227,6 +1239,9 @@
   ::  experimental: stream of incoming vouched (virtual-identity) dms, for the
   ::  host's own clients/bot to read. local subscribers only.
       [%vouched-dm ~]  ?>(from-self cor)
+  ::  per-moon firehose of the bot dms we host: writ-responses for every
+  ::  conversation of .moon, for the bot runner. local subscribers only.
+      [%v4 %vouched moon=@ ~]  ?>(from-self cor)
   ::
       [%dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -1526,6 +1541,12 @@
       [%x ?(%v1 %v2 %v3 %v4) %dm @ *]
     =/  =ship  (slav %p i.t.t.t.path)
     (di-peek:(di-abed:di-core ship) %x i.t.path t.t.t.t.path)
+  ::
+    ::  history of a bot dm we host, keyed by [moon, counterparty]
+      [%x ?(%v1 %v2 %v3 %v4) %vouched @ %dm @ *]
+    =/  moon=ship  (slav %p i.t.t.t.path)
+    =/  who=ship   (slav %p i.t.t.t.t.t.path)
+    (di-peek:(di-abed-as:di-core [moon who]) %x i.t.path t.t.t.t.t.t.path)
   ::
       [%x %club @ *]
     (cu-peek:(cu-abed (slav %uv i.t.t.path)) %x %v0 t.t.t.path)
@@ -2643,12 +2664,23 @@
 ::  +di-core: direct messaging core
 ::
 ++  di-core
-  |_  [=ship =dm:c gone=_|]
+  ::  .as is the identity this core acts as: normally .our.bowl (our own dms,
+  ::  stored in .dms), but for a bot moon we host it is the moon itself, in
+  ::  which case .bot-mode is set and the conversation lives in .bot-dms keyed
+  ::  by [as=moon who=ship]. See +di-abed (our dms) vs +di-abed-as (a bot's).
+  |_  [as=ship =ship =dm:c gone=_| bot-mode=_|]
   +*  di-pact  ~(. pac pact.dm)
       ::  set when .ship is a vouched moon: the host to route delivery to
       di-vouched  (~(get by vouched-dms) ship)
   ++  di-core  .
   ++  di-abet
+    ?:  bot-mode
+      ::  a hosted bot's conversation: no activity, no last-updated bookkeeping
+      ?.  gone
+        =.  bot-dms  (~(put by bot-dms) [as ship] dm)
+        cor
+      =.  bot-dms  (~(del by bot-dms) [as ship])
+      cor
     =?  last-updated  |(gone !(~(has by dms) ship))
       (~(put ol last-updated) [%ship ship] now.bowl)
     ?.  gone
@@ -2663,13 +2695,13 @@
     |=  s=@p
     ~>  %spin.['di-abed']
     ~|  ship=s
-    di-core(ship s, dm (~(got by dms) s))
+    di-core(as our.bowl, ship s, dm (~(got by dms) s))
   ::
   ++  di-abed-soft
     |=  s=@p
     ~>  %spin.['di-abed-soft']
     =/  dm  (~(get by dms) s)
-    ?^  dm  di-core(ship s, dm u.dm)
+    ?^  dm  di-core(as our.bowl, ship s, dm u.dm)
     =|  =remark:c
     =/  new=dm:c
       :*  *pact:c
@@ -2678,12 +2710,34 @@
           ?:(=(src our):bowl %inviting %invited)
           |
       ==
-    =.  di-core  di-core(ship s, dm new)
+    =.  di-core  di-core(as our.bowl, ship s, dm new)
     ?:  &(!=(s our.bowl) =(src our):bowl)  di-core
     (di-activity [%invite ~] *story:d &)
+  ::  +di-abed-as: load a hosted bot's conversation from .bot-dms.
   ::
-  ++  di-area  `path`/dm/(scot %p ship)
-  ++  di-area-writs  `path`/dm/(scot %p ship)/writs
+  ::    .a is the bot moon we act as, .s the counterparty. A fresh inbox
+  ::    auto-accepts (net=%done): a hosted bot has no invite handshake.
+  ++  di-abed-as
+    |=  [a=@p s=@p]
+    ~>  %spin.['di-abed-as']
+    ~|  [bot=a who=s]
+    =/  existing  (~(get by bot-dms) [a s])
+    ?^  existing  di-core(as a, ship s, dm u.existing, bot-mode &)
+    =|  =remark:c
+    =/  new=dm:c
+      :*  *pact:c
+          remark(watching &)
+          %done
+          |
+      ==
+    di-core(as a, ship s, dm new, bot-mode &)
+  ::
+  ++  di-area
+    ?:  bot-mode  `path`/vouched/(scot %p as)/dm/(scot %p ship)
+    `path`/dm/(scot %p ship)
+  ++  di-area-writs
+    ?:  bot-mode  `path`/vouched/(scot %p as)/dm/(scot %p ship)/writs
+    `path`/dm/(scot %p ship)/writs
   ::
   ++  di-activity
     |=  $:  $=  concern
@@ -2699,6 +2753,7 @@
             mention=?
         ==
     ~>  %spin.['di-activity']
+    ?:  bot-mode  di-core  ::  a hosted bot generates no activity for us
     ?.  ?|  =(net.dm %done)
             &(=(net.dm %invited) =(%invite -.concern))
         ==
@@ -2761,6 +2816,13 @@
     =/  old-response-6=[whom:c response:writs:v6:cv]
       [whom (v6:response-writs:v7:cc u.response)]
     =/  new-response  [whom u.response]
+    ::  a hosted bot's writs go only on its own vouched firehose, so its
+    ::  runner (openclaw) can subscribe; never on the host's own dm firehose.
+    ?:  bot-mode
+      =.  cor
+        =/  =rail  writ-response-4+new-response
+        (emit %give %fact ~[/v4/vouched/(scot %p as)] rail)
+      di-core
     =.  cor
       =/  =rail
         writ-response+old-response-3
@@ -2799,8 +2861,9 @@
       q.diff(react.delta u.moj)
     ::
     ::  a vouched moon never runs; its profile comes from the host's
-    ::  published bot profile, so don't %meet (avoids a dead retry loop)
-    =?  cor  ?=(~ di-vouched)
+    ::  published bot profile, so don't %meet (avoids a dead retry loop).
+    ::  a hosted bot's inbox is not our contact book either.
+    =?  cor  &(!bot-mode ?=(~ di-vouched))
       =/  =wire  /contacts/(scot %p ship)
       =/  =rail  contact-action-1+`action:contacts`[%meet ~[ship]]
       (emit %pass wire %agent [our.bowl %contacts] %poke rail)
@@ -2840,20 +2903,20 @@
       =.  time.q.diff  (~(get by dex.pact.dm) p.diff)
       =*  essay  essay.q.diff
       =?    last-read.remark.dm
-          =((get-author-ship:utils author.essay) our.bowl)
+          =((get-author-ship:utils author.essay) as)
         (add now.bowl (div ~s1 100))
       =.  recency.remark.dm  now.bowl
-      =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
+      =?  cor  &(!bot-mode !=(old-unread di-unread) !=(net.dm %invited))
         (give-unread ship/ship di-unread)
       =/  concern  [%post p.diff now.bowl]
-      =/  mention  (was-mentioned:utils content.essay our.bowl ~)
+      =/  mention  (was-mentioned:utils content.essay as ~)
       =.  di-core  (di-activity concern content.essay mention)
       (di-give-writs-diff diff)
     ::
         %del
       =?  di-core  &(?=(^ had) ?=(%& -.writ.u.had))
         =*  content  content.writ.u.had
-        =/  mention  (was-mentioned:utils content our.bowl ~)
+        =/  mention  (was-mentioned:utils content as ~)
         (di-activity [%delete-post [id time]:writ.u.had] content mention)
       (di-give-writs-diff diff)
     ::
@@ -2870,7 +2933,7 @@
           =/  top-key  [id time]:writ.u.entry
           =/  message-key  [id time]:reply.u.reply
           =*  content  content.reply.u.reply
-          =/  mention  (was-mentioned:utils content our.bowl ~)
+          =/  mention  (was-mentioned:utils content as ~)
           =/  concern  [%react message-key `top-key author.delta react.delta]
           (di-activity concern content mention)
         (di-give-writs-diff diff)
@@ -2890,7 +2953,7 @@
           %del
         =?  di-core  &(?=(^ reply) ?=(%& -.reply.u.reply))
           =*  content  content.reply.u.reply
-          =/  mention  (was-mentioned:utils content our.bowl ~)
+          =/  mention  (was-mentioned:utils content as ~)
           =/  concern
             [%delete-reply [id time]:reply.u.reply [id time]:writ.u.entry]
           (di-activity concern content mention)
@@ -2898,16 +2961,16 @@
       ::
           %add
         =*  reply-essay  reply-essay.delta
-        =?  unread-threads.remark.dm  !=(our.bowl author.reply-essay)
+        =?  unread-threads.remark.dm  !=(as author.reply-essay)
             (~(put in unread-threads.remark.dm) p.diff)
-        =?  last-read.remark.dm  =(author.reply-essay our.bowl)
+        =?  last-read.remark.dm  =(author.reply-essay as)
           (add now.bowl (div ~s1 100))
         =.  recency.remark.dm  now.bowl
-        =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
+        =?  cor  &(!bot-mode !=(old-unread di-unread) !=(net.dm %invited))
           (give-unread ship/ship di-unread)
         =/  top-con  [id time]:writ.u.entry
         =/  concern  [%reply [id.q.diff now.bowl] top-con]
-        =/  mention  (was-mentioned:utils content.reply-essay our.bowl ~)
+        =/  mention  (was-mentioned:utils content.reply-essay as ~)
         =.  di-core  (di-activity concern content.reply-essay mention)
         (di-give-writs-diff diff)
       ==
@@ -2924,8 +2987,8 @@
   ++  di-post-notice
     |=  text=cord
     ~>  %spin.['di-post-notice']
-    =/  =delta:writs:c  (make-notice ?:(from-self our.bowl ship) text)
-    (di-ingest-diff [our now]:bowl delta)
+    =/  =delta:writs:c  (make-notice ?:(from-self as ship) text)
+    (di-ingest-diff [as now.bowl] delta)
   ::  +di-send-rsvp: send a dm rsvp
   ::
   ++  di-send-rsvp
@@ -3183,7 +3246,7 @@
     ==
   ::
   ++  di-unread
-    %+  unread:di-pact  our.bowl
+    %+  unread:di-pact  as
     [recency last-read unread-threads]:remark.dm
   ++  di-remark-diff
     |=  diff=remark-diff:c
