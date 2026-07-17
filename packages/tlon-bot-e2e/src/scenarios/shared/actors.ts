@@ -26,6 +26,14 @@ export interface ScenarioActor {
   state: StateReader;
   prompt(text: string, opts?: { timeoutMs?: number }): Promise<PromptResult>;
   sendDm(text: string): Promise<void>;
+  addReact(params: {
+    channelId: string;
+    postId: string;
+    react: string;
+    postAuthor: string;
+    parentId?: string;
+    parentAuthorId?: string;
+  }): Promise<void>;
   sendChannelPost(params: {
     channelId: string;
     content: StoryInput;
@@ -142,6 +150,10 @@ function createScenarioActor(
 
     async sendDm(text) {
       await client.sendDm(botShip, text);
+    },
+
+    async addReact(params) {
+      await client.addReact(params);
     },
 
     async sendChannelPost(params) {

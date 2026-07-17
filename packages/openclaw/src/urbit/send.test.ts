@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { dmReactionReplyParentId } from '../monitor/dm-reactions.js';
+
 vi.mock('@urbit/aura', () => ({
   scot: vi.fn(() => 'mocked-ud'),
   da: {
@@ -91,4 +93,40 @@ describe('sendDm', () => {
     );
     expect(result.messageId).toBe('~zod/mocked-ud');
   });
+
+  it.each([
+    ['a bare target id', '170.141.184.507.123'],
+    ['a full /v4 target id', '~bot/170.141.184.507.123'],
+  ])(
+    'keeps the bot as parent author for a DM reaction reply poke with %s',
+    async (_description, targetId) => {
+      const sendReply = vi.fn(async () => ({}));
+
+      vi.doMock('@tloncorp/api', () => ({
+        sendPost: vi.fn(),
+        sendReply,
+        addReaction: vi.fn(),
+        removeReaction: vi.fn(),
+        deletePost: vi.fn(),
+        configureClient: vi.fn(),
+      }));
+
+      const { sendDm } = await import('./send.js');
+
+      await sendDm({
+        fromShip: '~bot',
+        toShip: '~owner',
+        text: 'Acknowledged.',
+        replyToId: dmReactionReplyParentId('~bot', targetId),
+      });
+
+      expect(sendReply).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channelId: '~owner',
+          parentId: '170.141.184.507.123',
+          parentAuthor: '~bot',
+        })
+      );
+    }
+  );
 });
