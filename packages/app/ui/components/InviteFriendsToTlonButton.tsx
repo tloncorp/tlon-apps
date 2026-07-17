@@ -171,7 +171,7 @@ export function InviteFriendsToTlonButton({
       <Button
         {...buttonProps}
         preset={preset}
-        intent="positive"
+        intent={linkHasError ? 'negative' : 'positive'}
         fill="outline"
         size="small"
         label="Share link"

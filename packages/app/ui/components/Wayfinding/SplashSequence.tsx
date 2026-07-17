@@ -2059,7 +2059,7 @@ export function GroupsPane(props: {
             <Button
               onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}
               label="Share link"
-              intent="positive"
+              intent={groupInviteHasError ? 'negative' : 'positive'}
               fill="outline"
               size="small"
               leadingIcon="Send"
