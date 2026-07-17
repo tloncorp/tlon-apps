@@ -937,9 +937,18 @@
     =/  va=vouched-action:dm:c  p.rail
     ?.  =(src.bowl our.bowl)
       ~|("%chat-dm-vouched-action-2 only allowed from self" !!)
-    ::  hosting the bot: relay outbound to the human. the conversation
-    ::  state lives with the bot runner, not in our dms.
-    ?:  &(!=(as.va our.bowl) (vouches-for:utils our.bowl as.va))
+    ~|  %vouched-dm-not-a-moon
+    ?>  ?=(%earl (clan:title as.va))
+    ::  the target tells us our role (rather than "do we sponsor the moon",
+    ::  which is ambiguous when the host DMs its own bot): a message
+    ::  addressed to the moon itself is us-as-human talking to the bot; a
+    ::  message addressed to another ship is the bot's host relaying the
+    ::  bot's words to that human.
+    ?:  !=(p.action.va as.va)
+      ::  relay the bot's outbound to the human .p.action; only the moon's
+      ::  host may speak as it. state lives with the bot runner, not our dms.
+      ~|  %vouched-dm-not-our-bot
+      ?>  (vouches-for:utils our.bowl as.va)
       %-  emit
       :*  %pass  /vouched-dm/(scot %p as.va)/(scot %p p.action.va)
           %agent  [p.action.va dap.bowl]
@@ -947,36 +956,37 @@
       ==
     ::  we are the human: record where to route delivery for this moon,
     ::  then run the normal dm machinery with the moon as the partner.
-    ~|  %vouched-dm-not-a-moon
-    ?>  ?=(%earl (clan:title as.va))
-    ~|  %vouched-dm-partner-mismatch
-    ?>  =(as.va p.action.va)
     =.  vouched-dms  (~(put by vouched-dms) as.va (^sein:title as.va))
     $(rail [%chat-dm-action-2 action.va])
   ::
       %chat-dm-vouched-diff-2
     =/  vd=vouched-diff:dm:c  p.rail
     =*  as  as.vd
-    ::  we host bot .as: validate the sender owns the writs it sent, then
-    ::  relay to the bot runner via /vouched-dm. no dm state on the host.
-    ?:  &(!=(as our.bowl) (vouches-for:utils our.bowl as))
-      =/  owner=ship
-        ?-  -.q.diff.vd
-          %del    p.p.diff.vd
-          %reply  ?:  ?=(%del -.delta.q.diff.vd)
-                    p.id.q.diff.vd
-                  (get-ship-dr delta.q.diff.vd)
-          ?(%add %add-react %del-react)  (get-ship-dw q.diff.vd)
-        ==
-      ~|  %vouched-dm-writ-not-owned-by-sender
-      ?>  (vouches-for:utils src.bowl owner)
-      (emit %give %fact ~[/vouched-dm] chat-dm-vouched-diff-2+vd)
-    ::  the bot's host speaking as its moon to us: ingest as a normal dm
-    ::  keyed by the moon.
-    ?:  (vouches-for:utils src.bowl as)
+    ~|  %vouched-dm-not-a-moon
+    ?>  ?=(%earl (clan:title as))
+    =/  author=ship
+      ?-  -.q.diff.vd
+        %del    p.p.diff.vd
+        %reply  ?:  ?=(%del -.delta.q.diff.vd)
+                  p.id.q.diff.vd
+                (get-ship-dr delta.q.diff.vd)
+        ?(%add %add-react %del-react)  (get-ship-dw q.diff.vd)
+      ==
+    ::  a writ authored by the moon is the bot speaking to us (the human):
+    ::  file it as a normal dm keyed by the moon. the sender must be the
+    ::  moon's host (its sponsor) for us to trust it.
+    ?:  =(author as)
+      ~|  %vouched-dm-reply-not-from-host
+      ?>  (vouches-for:utils src.bowl as)
       =.  vouched-dms  (~(put by vouched-dms) as src.bowl)
       di-abet:(di-take-counter:(di-abed-soft:di-core as) diff.vd)
-    ~|  %vouched-dm-diff-failed-vouch  !!
+    ::  otherwise a human is speaking to the bot: we must host the moon, and
+    ::  the sender must own the writ. relay it to the bot runner.
+    ~|  %vouched-dm-not-our-bot
+    ?>  (vouches-for:utils our.bowl as)
+    ~|  %vouched-dm-writ-not-owned-by-sender
+    ?>  (vouches-for:utils src.bowl author)
+    (emit %give %fact ~[/vouched-dm] chat-dm-vouched-diff-2+vd)
   ::
       %chat-dm-action-1
     =*  old-action=action:dm:v6:cv  p.rail
@@ -2920,7 +2930,10 @@
     |=  ok=?
     ~>  %spin.['di-receive-rsvp']
     ^+  di-core
-    ?<  from-self
+    ::  normally an rsvp can't come from ourselves; the exception is a
+    ::  vouched moon whose host is us (host DMing its own bot), where the
+    ::  bot's first reply is relayed by us to ourselves.
+    ?<  &(from-self ?=(~ di-vouched))
     ::  the partner themselves, or the host speaking for a vouched moon
     ::  (the implicit accept in +di-take-counter fires on the host's diffs)
     ?>  (vouches-for:utils src.bowl ship)

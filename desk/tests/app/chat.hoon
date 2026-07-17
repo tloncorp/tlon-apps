@@ -74,6 +74,26 @@
   :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
       [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff-2])]
   ==
+::  the moon's OWN host can also DM its bot as a human: even though we
+::  sponsor the moon, a message addressed to the moon itself is stored as a
+::  normal dm and routed to the host (ourselves), not mistaken for a relay.
+++  test-vouched-dm-host-self-send
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our owner, src owner)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =verse:ch  [%inline ~['hi my own bot']]
+  =/  =diff:dm:c  (vouched-message owner now.bw verse)
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %chat-dm-vouched-action-2
+    !>(`vouched-action:dm:c`[moon moon diff])
+  %+  ex-cards  caz
+  %+  welp  (ex-writ-facts owner now.bw verse 1)
+  :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
+      [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+  ==
 ::  the host relays its bot's outbound message to the human, keeping no
 ::  dm state of its own
 ++  test-vouched-dm-host-relay-outbound
