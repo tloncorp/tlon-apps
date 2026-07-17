@@ -835,11 +835,24 @@ export const POSTS_FAMILY_CASES: CliCase[] = [
     '170.141',
     'Updated message',
   ]),
-  refusalCase(
-    'posts send title on chat nest refuses before auth',
-    ['posts', 'send', 'chat/~host/channel', 'message', '--title', 'Chat title'],
-    '--title is only supported for gallery (heap/) posts'
-  ),
+  {
+    ...usageErrorCase(
+      'posts send title on chat nest refuses before auth',
+      [
+        'posts',
+        'send',
+        'chat/~host/channel',
+        'message',
+        '--title',
+        'Chat title',
+      ],
+      '--title is only supported for gallery (heap/) posts'
+    ),
+    stderrIncludes: [
+      '--title is only supported for gallery (heap/) posts',
+      'Usage: tlon posts send',
+    ],
+  },
   // The minimal help-literal: `--help` in the message slot is treated as edit
   // message content, so this reaches auth instead of printing help.
   authRequiredCase('posts edit minimal help-literal reaches auth', [
