@@ -1,7 +1,7 @@
 import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useContact, useNotesDeskAvailable } from '@tloncorp/shared/store';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Pressable as TlonPressable, useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Fragment,
   ReactElement,
@@ -396,7 +396,19 @@ export function ChannelHeader({
       rightControls={
         <>
           {showSearchButton && (
-            <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
+            <TlonPressable
+              accessibilityLabel="Search"
+              accessibilityRole="button"
+              alignItems="center"
+              height="$4xl"
+              justifyContent="center"
+              onPress={goToSearch}
+              pressStyle={{ opacity: 0.5 }}
+              testID="ChannelHeaderSearchButton"
+              width="$4xl"
+            >
+              <ScreenHeader.IconButton pointerEvents="none" type="Search" />
+            </TlonPressable>
           )}
           {/* this fragment/map is necessary to be able to provide a key to the items */}
           {contextItems.map((item, index) => (
