@@ -7,6 +7,7 @@ import { TextInput } from './Form';
 
 export function SearchBar({
   autoFocus = false,
+  initialValue = '',
   placeholder,
   onChangeQuery,
   debounceTime = 300,
@@ -15,13 +16,14 @@ export function SearchBar({
   ...rest
 }: {
   autoFocus?: boolean;
+  initialValue?: string;
   placeholder?: string;
   onChangeQuery: (query: string) => void;
   debounceTime?: number;
   onPressCancel?: () => void;
   inputProps?: ComponentProps<typeof TextInput>;
 } & ComponentProps<typeof Input>) {
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(initialValue);
   const debouncedOnChangeQuery = useMemo(
     () =>
       debounce(onChangeQuery, debounceTime, {
