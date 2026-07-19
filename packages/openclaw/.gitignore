@@ -11,3 +11,6 @@ WORKLOG.md
 # Publish staging
 .publish/
 *.tgz
+
+# Local debug artifacts (may contain private conversation data)
+.lens-panel-snapshot.txt
