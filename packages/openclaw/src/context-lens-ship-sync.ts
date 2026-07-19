@@ -1,9 +1,15 @@
+import fs from 'node:fs';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import {
   type ContextLensEvent,
   subscribeToContextLensEvents,
 } from './context-lens-events.js';
+import {
+  type ContextLensStore,
+  getContextLensStore,
+  lensFinalizedAt,
+} from './context-lens-store.js';
 import type { ContextLens, ContextLensStatus } from './context-lens.js';
 import {
   API_CLIENT_PARAMS_SLOT,
@@ -17,6 +23,13 @@ const PAYLOAD_SCHEMA_VERSION = 1;
 const MAX_SUMMARY_CHARS = 4_096;
 const MAX_PAYLOAD_CHARS = 50 * 1_024;
 const MAX_TRACKED_RUNS = 1_000;
+const MAX_SYNCED_IDS = 1_000;
+const REPLAY_POLL_MS = 2_000;
+const REPLAY_GIVE_UP_MS = 10 * 60_000;
+const REPLAY_WINDOW_MS = 24 * 60 * 60 * 1_000;
+const REPLAY_MAX_RUNS = 50;
+const RETRY_BASE_MS = 30_000;
+const RETRY_MAX_MS = 10 * 60_000;
 
 const TERMINAL_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
   'completed',
@@ -42,6 +55,41 @@ const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
 const shipSyncUnsubscribeSlot = sharedSlot<() => void>(
   'contextLens.shipSync.unsubscribe'
 );
+const replayCancelSlot = sharedSlot<() => void>(
+  'contextLens.shipSync.replayCancel'
+);
+const finalRetryCancelSlot = sharedSlot<() => void>(
+  'contextLens.shipSync.finalRetryCancel'
+);
+
+export function syncedLensIdsPath(storeFilePath: string): string {
+  return `${storeFilePath}.synced.json`;
+}
+
+export function loadSyncedLensIds(filePath: string): Set<string> {
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (!Array.isArray(parsed)) {
+      return new Set();
+    }
+    return new Set(parsed.filter((id): id is string => typeof id === 'string'));
+  } catch {
+    return new Set();
+  }
+}
+
+export function recordSyncedLensId(filePath: string, lensId: string): void {
+  const ids = loadSyncedLensIds(filePath);
+  ids.delete(lensId);
+  ids.add(lensId);
+  const trimmed = [...ids].slice(-MAX_SYNCED_IDS);
+  // Atomic rewrite: a crash mid-write must not leave invalid JSON, which
+  // would read back as an empty ledger and trigger a full (if idempotent)
+  // replay on the next boot.
+  const tmpPath = `${filePath}.tmp`;
+  fs.writeFileSync(tmpPath, JSON.stringify(trimmed), { mode: 0o600 });
+  fs.renameSync(tmpPath, filePath);
+}
 
 function truncateSummary(value: string | undefined): string | undefined {
   if (value === undefined || value.length <= MAX_SUMMARY_CHARS) {
@@ -172,22 +220,36 @@ export function createContextLensShipSync(opts: {
   owner: string;
   logger: SyncLogger;
   getParams?: () => SharedApiClientParams | null;
+  /** Called after a run-final poke is acked — basis for boot-time replay. */
+  onRunFinal?: (lens: ContextLens) => void;
+  /**
+   * Called when a run-final poke is dropped (monitor not connected) or
+   * rejected (ship unreachable) — basis for retry-until-synced. Milestone
+   * failures do not fire this: the eventual run-final supersedes them.
+   */
+  onRunFinalFailure?: (lens: ContextLens) => void;
 }): ContextLensShipSync {
-  const { owner, logger } = opts;
+  const { owner, logger, onRunFinal, onRunFinalFailure } = opts;
   const getParams = opts.getParams ?? (() => apiClientParamsSlot.get() ?? null);
 
   const lastStatusByLensId = new Map<string, ContextLensStatus>();
   let configuredFor: SharedApiClientParams | null = null;
   let queue: Promise<void> = Promise.resolve();
 
-  const enqueuePoke = (label: string, json: unknown) => {
+  const enqueuePoke = (
+    label: string,
+    json: unknown,
+    onSuccess?: () => void,
+    onFailure?: () => void
+  ) => {
     queue = queue
       .then(async () => {
         const params = getParams();
         if (!params) {
           // Monitor not connected yet (or shut down); drop rather than
           // buffer — the ship store is bounded and the gateway store keeps
-          // the full run.
+          // the full run. Finals report the drop so replay can heal it.
+          onFailure?.();
           return;
         }
         if (params !== configuredFor) {
@@ -203,6 +265,13 @@ export function createContextLensShipSync(opts: {
           mark: 'steward-lens-action-1',
           json,
         });
+        try {
+          onSuccess?.();
+        } catch (error) {
+          logger.warn(
+            `[tlon] Context lens ship sync bookkeeping failed (${label}): ${String(error)}`
+          );
+        }
       })
       .catch((error) => {
         // A failed %configure must retry before the next run poke.
@@ -210,6 +279,13 @@ export function createContextLensShipSync(opts: {
         logger.warn(
           `[tlon] Context lens ship sync poke failed (${label}): ${String(error)}`
         );
+        try {
+          onFailure?.();
+        } catch (callbackError) {
+          logger.warn(
+            `[tlon] Context lens ship sync failure bookkeeping failed (${label}): ${String(callbackError)}`
+          );
+        }
       });
   };
 
@@ -220,13 +296,18 @@ export function createContextLensShipSync(opts: {
     }
     if (TERMINAL_STATUSES.has(lens.status)) {
       lastStatusByLensId.delete(lens.lensId);
-      enqueuePoke(`run-final ${lens.lensId}`, {
-        entry: {
-          id: lens.lensId,
-          payload: buildLensRunPayload(lens),
-          final: true,
+      enqueuePoke(
+        `run-final ${lens.lensId}`,
+        {
+          entry: {
+            id: lens.lensId,
+            payload: buildLensRunPayload(lens),
+            final: true,
+          },
         },
-      });
+        onRunFinal ? () => onRunFinal(lens) : undefined,
+        onRunFinalFailure ? () => onRunFinalFailure(lens) : undefined
+      );
       return;
     }
     if (lens.status === lastStatusByLensId.get(lens.lensId)) {
@@ -257,6 +338,129 @@ export function createContextLensShipSync(opts: {
 }
 
 /**
+ * Re-poke terminal runs whose run-final never reached the ship — e.g. runs
+ * finalized during a SIGTERM shutdown, where the store write (sync fs)
+ * landed but the poke died with the process. Without this the ship copy
+ * stays frozen at the last in-flight status forever. Idempotent ship-side
+ * (last write wins per run id); bounded by a recency window and a count cap
+ * so a first boot without a synced-ids file cannot flood the ship.
+ */
+export function replayUnsyncedFinalRuns(
+  store: ContextLensStore,
+  sync: ContextLensShipSync,
+  logger: SyncLogger,
+  now = Date.now()
+): number {
+  const synced = loadSyncedLensIds(syncedLensIdsPath(store.filePath));
+  const cutoff = now - REPLAY_WINDOW_MS;
+  const missed = store
+    .list()
+    .filter(
+      (lens) =>
+        TERMINAL_STATUSES.has(lens.status) &&
+        lens.visibility !== 'internal' &&
+        !synced.has(lens.lensId) &&
+        lensFinalizedAt(lens) > cutoff
+    )
+    .slice(-REPLAY_MAX_RUNS);
+  if (missed.length === 0) {
+    return 0;
+  }
+  logger.info(
+    `[tlon] Context lens ship sync replaying ${missed.length} unsynced terminal run(s)`
+  );
+  for (const lens of missed) {
+    sync.handleEvent({ seq: 0, at: now, phase: 'replay', lens });
+  }
+  return missed.length;
+}
+
+export type LensSyncRetry = {
+  /** Arm (or keep armed) a retry; no-op while one is already pending. */
+  schedule: () => void;
+  /** Reset the backoff after a successful sync. */
+  reset: () => void;
+  cancel: () => void;
+};
+
+/**
+ * Exponential-backoff retry used to re-run the unsynced-final replay after a
+ * mid-session failure (ship unreachable, monitor disconnected). Without this
+ * a run whose run-final poke fails stays frozen at its last milestone on the
+ * ship until the next gateway restart. One timer at most: replay covers all
+ * unsynced finals at once, so per-run timers would just multiply pokes.
+ */
+export function createLensSyncRetry(opts: {
+  run: () => void;
+  logger: SyncLogger;
+  baseMs?: number;
+  maxMs?: number;
+}): LensSyncRetry {
+  const baseMs = opts.baseMs ?? RETRY_BASE_MS;
+  const maxMs = opts.maxMs ?? RETRY_MAX_MS;
+  let attempt = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const schedule = () => {
+    if (timer) {
+      return;
+    }
+    const delay = Math.min(baseMs * 2 ** attempt, maxMs);
+    attempt += 1;
+    opts.logger.info(
+      `[tlon] Context lens ship sync retrying unsynced finals in ${Math.round(delay / 1_000)}s (attempt ${attempt})`
+    );
+    timer = setTimeout(() => {
+      timer = null;
+      opts.run();
+    }, delay);
+    timer.unref?.();
+  };
+  return {
+    schedule,
+    reset: () => {
+      attempt = 0;
+    },
+    cancel: () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    },
+  };
+}
+
+function startShipSyncReplay(
+  sync: ContextLensShipSync,
+  logger: SyncLogger
+): void {
+  replayCancelSlot.get()?.();
+  const startedAt = Date.now();
+  // Poll: at init time neither the api-client params (monitor not connected)
+  // nor the disk store (initialized after ship sync) exist yet.
+  const timer = setInterval(() => {
+    if (Date.now() - startedAt > REPLAY_GIVE_UP_MS) {
+      stop();
+      return;
+    }
+    const store = getContextLensStore();
+    if (!store || !apiClientParamsSlot.get()) {
+      return;
+    }
+    stop();
+    try {
+      replayUnsyncedFinalRuns(store, sync, logger);
+    } catch (error) {
+      logger.warn(
+        `[tlon] Context lens ship sync replay failed: ${String(error)}`
+      );
+    }
+  }, REPLAY_POLL_MS);
+  timer.unref?.();
+  const stop = () => clearInterval(timer);
+  replayCancelSlot.set(stop);
+}
+
+/**
  * Wire ship sync to the lens event stream. Returns true when active, false
  * when the lens is disabled or no owner resolves (no contextLens.owner and
  * no ownerShip).
@@ -275,9 +479,56 @@ export function initContextLensShipSync(api: {
     );
     return false;
   }
-  const sync = createContextLensShipSync({ owner, logger: api.logger });
+  // Forward reference: the retry replays through `sync`, which is created
+  // below with callbacks that arm/reset the retry. `run` only fires from a
+  // timer, well after both bindings exist.
+  const retry = createLensSyncRetry({
+    logger: api.logger,
+    run: () => {
+      const store = getContextLensStore();
+      if (!store || !apiClientParamsSlot.get()) {
+        // Still disconnected (or store gone): keep backing off.
+        retry.schedule();
+        return;
+      }
+      try {
+        replayUnsyncedFinalRuns(store, sync, api.logger);
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] Context lens ship sync retry failed: ${String(error)}`
+        );
+      }
+    },
+  });
+  const sync = createContextLensShipSync({
+    owner,
+    logger: api.logger,
+    onRunFinal: (lens) => {
+      // The poke succeeded but the ledger write can still fail; without a
+      // scheduled retry the run would stay marked unsynced until the next
+      // boot replay. Arm the retry so the ledger write is re-attempted (the
+      // replayed poke is idempotent ship-side).
+      const store = getContextLensStore();
+      if (store) {
+        try {
+          recordSyncedLensId(syncedLensIdsPath(store.filePath), lens.lensId);
+        } catch (error) {
+          api.logger.warn(
+            `[tlon] Context lens sync ledger write failed: ${String(error)}`
+          );
+          retry.schedule();
+          return;
+        }
+      }
+      retry.reset();
+    },
+    onRunFinalFailure: () => retry.schedule(),
+  });
   shipSyncUnsubscribeSlot.get()?.();
   shipSyncUnsubscribeSlot.set(subscribeToContextLensEvents(sync.handleEvent));
+  finalRetryCancelSlot.get()?.();
+  finalRetryCancelSlot.set(retry.cancel);
+  startShipSyncReplay(sync, api.logger);
   api.logger.info(
     `[tlon] Context lens ship sync enabled, fanning out to ${owner}`
   );
