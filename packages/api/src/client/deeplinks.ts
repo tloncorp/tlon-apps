@@ -9,8 +9,10 @@ import { normalizeUrbitColor } from './utils';
 const logger = createDevLogger('deeplinks', false);
 
 // the domain new links are written and displayed with. parsing accepts
-// every known host forever; join.tlon.io redirects here after the flip
-export const CANONICAL_INVITE_HOST = 'invite.tlon.io';
+// every known host forever. this stays join.tlon.io through the DNS flip
+// so shared links keep opening directly in app versions that only register
+// the old domain; the first release after the flip moves it to invite.tlon.io
+export const CANONICAL_INVITE_HOST = 'join.tlon.io';
 
 // bare lowercase hostnames; the configured branch domain joins at parse time
 const KNOWN_INVITE_HOSTS = new Set([
