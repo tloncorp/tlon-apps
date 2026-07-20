@@ -9,6 +9,7 @@ import create from 'zustand';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
+import { extractNormalizedInviteLink } from '../logic';
 import { createGroupInviteLink } from './inviteActions';
 
 interface LureMetadata {
@@ -136,12 +137,18 @@ export const useLureState = create<LureState>((set, get) => ({
         invitedGroupiconImageColor: group?.iconImageColor ?? undefined,
       };
 
-      deepLinkUrl = await createDeepLink({
+      const mintedUrl = await createDeepLink({
         fallbackUrl: url,
         type: 'lure',
         path: flag,
         metadata,
       });
+      // createDeepLink returns the branch-minted url on the old share
+      // domain; every surface that shows a group invite reads this value,
+      // so canonicalize here or join-flavored links reach users
+      deepLinkUrl = mintedUrl
+        ? extractNormalizedInviteLink(mintedUrl) ?? mintedUrl
+        : mintedUrl;
       lureLogger.crumb('deepLinkUrl created', deepLinkUrl);
     }
 
