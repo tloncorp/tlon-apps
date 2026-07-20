@@ -1,7 +1,7 @@
 ::  branch: update a lure invite deep link in branch.io
 ::
 /-  spider, reel
-/+  io=strandio, logs
+/+  io=strandio, logs, libstrand=strand
 ::
 =+  branch-key='key_live_hubypwhuxR6vkwKfdozyRoamErouusXi'
 =+  branch-url='https://api2.branch.io/v1/url'
@@ -22,6 +22,49 @@
 ::
 =+  invite-url=`@t`(rap 3 base-url '/' token ~)
 ;<  =bowl:strand  bind:m  get-bowl:io
+::  retrieve the secret from the bait provider
+::
+;<  branch-secret=@t  bind:m  (scry:io @t %gx /bait/branch-secret/noun)
+::
+::  we currently have two services: branch deep linking, and our own
+::  self-hosted service prototype. below we continue to push out the
+::  update to both.
+::
+::  push the update to the invite service's first-party record.
+::
+=/  push-body=json
+  =/  update-fields=(map @t json)
+    (~(run by fields.update) |=(=@t s+t))
+  %-  pairs:enjs:format
+  ~[['token' s+token] ['fields' o+update-fields]]
+=/  push=request:http
+  :*  %'POST'
+      'https://serverless-infra.vercel.app/api/inviteUpdate'
+      :~  ['content-type' 'application/json']
+          ['authorization' (cat 3 'Bearer ' branch-secret)]
+      ==
+      `(as-octs:mimes:html (en:json:html push-body))
+  ==
+;<  rep=(unit client-response:iris)  bind:m  (send-request-retry-soft push)
+;<  ~  bind:m
+  =/  n  (strand ,~)
+  ^-  form:n
+  ?:  ?&  ?=([~ %finished *] rep)
+          =(200 status-code.response-header.u.rep)
+      ==
+    (pure:n ~)
+  =/  code=tape
+    ?:  ?=([~ %finished *] rep)
+      "http {<status-code.response-header.u.rep>}"
+    "no response"
+  =/  =log-event:logs
+    :-  %tell
+    :-  %error
+    :~  leaf+"failed to push invite metadata to invite service"
+        leaf+"token: {(trip token)}"
+        leaf+code
+    ==
+  (poke:io [our.bowl %logs] log-action-1+!>([%log log-event ~]))
 ::  read deep link metadata
 ::
 =/  read=request:http
@@ -36,28 +79,26 @@
 ?>  ?=(%finished -.client-response)
 =*  status-code  status-code.response-header.client-response
 ?.  =(200 status-code.response-header.client-response)
+  =/  body=tape
+    ?^  full-file.client-response
+      (trip `@t`q.data.u.full-file.client-response)
+    "empty response"
   =/  =log-event:logs
-    :*  %tell
-        %crit
-        'failed to read lure invite branch metadata'
-        token
+    :-  %tell
+    :-  %error
+    :~  leaf+"failed to read lure invite branch metadata"
+        leaf+"token: {(trip token)}"
         leaf+"http {<status-code>}"
-        ?^  full-file.client-response
-          `@t`q.data.u.full-file.client-response
-        ''
-        ~
+        leaf+body
     ==
   ;<  =bowl:strand  bind:m  get-bowl:io
   ;<  ~  bind:m
-    (poke:io [our.bowl %logs] log-action+!>([%log log-event ~]))
+    (poke:io [our.bowl %logs] log-action-1+!>([%log log-event ~]))
   (pure:m !>(`(crip "failed to read link metadata: HTTP {<status-code>}")))
 ?>  ?=(^ full-file.client-response)
 =/  metadata=(unit json)  (de:json:html q.data.u.full-file.client-response)
 ?~  metadata
   (pure:m !>(`(crip "failed to parse link metadata")))
-::  retrieve the secret from the bait provider
-::
-;<  branch-secret=@t  bind:m  (scry:io @t %gx /bait/branch-secret/noun)
 ::  update the metadata fields
 ::
 ?>  ?=(%o -.u.metadata)
@@ -96,19 +137,20 @@
 ?>  ?=(%finished -.client-response)
 =*  status-code  status-code.response-header.client-response
 ?.  =(200 status-code.response-header.client-response)
+  =/  body=tape
+    ?^  full-file.client-response
+      (trip `@t`q.data.u.full-file.client-response)
+    "empty response"
   =/  =log-event:logs
-    :*  %tell
-        %crit
-        'failed to update lure invite branch metadata'
-        token
+    :-  %tell
+    :-  %error
+    :~  leaf+"failed to update lure invite branch metadata"
+        leaf+"token: {(trip token)}"
         leaf+"http {<status-code>}"
-        ?^  full-file.client-response
-          `@t`q.data.u.full-file.client-response
-        ''
-        ~
+        leaf+body
     ==
   ;<  ~  bind:m
-    (poke:io [our.bowl %logs] log-action+!>([%log log-event ~]))
+    (poke:io [our.bowl %logs] log-action-1+!>([%log log-event ~]))
   (pure:m !>(`(crip "failed to update link metadata: {<status-code>}")))
 (pure:m !>(~))
 ::
@@ -116,16 +158,33 @@
   |=  =request:http
   =/  m  (strand client-response:iris)
   ^-  form:m
-  =|  response=client-response:iris
+  =/  tries  retry
   |-
-  ?:  =(0 retry)
-    (pure:m response)
   ;<  ~  bind:m  (send-request:io request)
-  ;<  =client-response:iris  bind:m  take-client-response:io
-  ?>  ?=(%finished -.client-response)
-  ?:  =(200 status-code.response-header.client-response)
-    (pure:m client-response)
-  =*  status-code  status-code.response-header.client-response
+  ;<  rep=client-response:iris  bind:m  take-client-response:io
+  ?:  ?&  ?=(%finished -.rep)
+          =(200 status-code.response-header.rep)
+      ==
+    (pure:m rep)
+  ?:  (lte tries 1)
+    (pure:m rep)
   ;<  ~  bind:m  (sleep:io retry-delay)
-  $(retry (dec retry), response client-response)
+  $(tries (dec tries))
+::
+++  send-request-retry-soft
+  |=  =request:http
+  =/  m  (strand (unit client-response:iris))
+  ^-  form:m
+  =/  tries  retry
+  |-
+  ;<  ~  bind:m  (send-request:io request)
+  ;<  rep=(unit client-response:iris)  bind:m  take-maybe-response:io
+  ?:  ?&  ?=([~ %finished *] rep)
+          =(200 status-code.response-header.u.rep)
+      ==
+    (pure:m rep)
+  ?:  (lte tries 1)
+    (pure:m rep)
+  ;<  ~  bind:m  (sleep:io retry-delay)
+  $(tries (dec tries))
 --

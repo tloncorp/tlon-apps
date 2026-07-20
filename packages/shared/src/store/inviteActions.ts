@@ -115,6 +115,12 @@ export async function verifyUserInviteLink() {
     const cachedInviteLink = await db.personalInviteLink.getValue();
     if (cachedInviteLink) {
       logger.log('have cached invite link', cachedInviteLink);
+      // links persisted by older versions carry the old share domain —
+      // re-normalize so updaters share canonical links, not just fresh installs
+      const normalized = extractNormalizedInviteLink(cachedInviteLink);
+      if (normalized && normalized !== cachedInviteLink) {
+        await db.personalInviteLink.setValue(normalized);
+      }
       return;
     }
 

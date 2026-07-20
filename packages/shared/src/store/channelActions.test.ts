@@ -11,6 +11,7 @@ import {
   joinGroupChannel,
   leaveGroupChannel,
   markChannelRead,
+  updateChannel,
 } from './channelActions';
 
 setupDatabaseTestSuite();
@@ -318,6 +319,55 @@ test('createChannel does not roll back when the notes listing cannot be verified
   await assertion;
 
   expect(deleteNotesNotebookStrict).not.toHaveBeenCalled();
+});
+
+test('updateChannel saves notes readers without sending writer actions', async () => {
+  const notesChannelId = 'notes/~zod/native-notes';
+  await insertGroupAndChannel({ id: notesChannelId, type: 'notes' });
+  await db.insertChannelPerms([
+    {
+      channelId: notesChannelId,
+      readers: ['admin'],
+      writers: ['stale-writer'],
+    },
+  ]);
+
+  const channel = await db.getChannelWithRelations({ id: notesChannelId });
+  if (!channel) throw new Error('test channel not initialized');
+
+  const updateGroupChannel = vi
+    .spyOn(api, 'updateChannel')
+    .mockResolvedValue(1);
+  const addChannelWriters = vi.spyOn(api, 'addChannelWriters');
+  const removeChannelWriters = vi.spyOn(api, 'removeChannelWriters');
+
+  await updateChannel({
+    groupId,
+    sectionId: 'default',
+    readers: ['admin', 'viewer'],
+    writers: ['admin', 'viewer'],
+    join: true,
+    channel,
+  });
+
+  expect(updateGroupChannel).toHaveBeenCalledWith(
+    expect.objectContaining({
+      groupId,
+      channelId: notesChannelId,
+      channel: expect.objectContaining({ readers: ['admin', 'viewer'] }),
+    })
+  );
+  expect(addChannelWriters).not.toHaveBeenCalled();
+  expect(removeChannelWriters).not.toHaveBeenCalled();
+  await expect(
+    db.getChannelWithRelations({ id: notesChannelId })
+  ).resolves.toMatchObject({
+    readerRoles: expect.arrayContaining([
+      expect.objectContaining({ roleId: 'admin' }),
+      expect.objectContaining({ roleId: 'viewer' }),
+    ]),
+    writerRoles: [],
+  });
 });
 
 test('joinGroupChannel routes notes channels through the notes API', async () => {

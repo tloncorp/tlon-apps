@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import sys
+import time
 import types
 import unittest
 from pathlib import Path
@@ -69,12 +70,14 @@ class SendResult:
         error=None,
         raw_response=None,
         retryable=False,
+        continuation_message_ids=(),
     ):
         self.success = success
         self.message_id = message_id
         self.error = error
         self.raw_response = raw_response or {}
         self.retryable = retryable
+        self.continuation_message_ids = tuple(continuation_message_ids)
 
 
 class BasePlatformAdapter:
@@ -131,6 +134,7 @@ def channel_event(
     author="~ten",
     nest="chat/~pen/general",
     post_id="170.141",
+    parent_id=None,
     blob=None,
     content=None,
 ):
@@ -142,15 +146,16 @@ def channel_event(
     }
     if blob is not None:
         essay["blob"] = blob
+    set_payload = {"essay": essay}
+    if parent_id:
+        set_payload["seal"] = {"parent-id": parent_id}
     return {
         "nest": nest,
         "response": {
             "post": {
                 "id": post_id,
                 "r-post": {
-                    "set": {
-                        "essay": essay
-                    }
+                    "set": set_payload
                 },
             }
         },
@@ -190,6 +195,10 @@ def dm_event(
             },
         }
     return {"whom": whom, "id": msg_id, "response": {"add": {"essay": essay}}}
+
+
+def bot_author(ship="~bot"):
+    return {"ship": ship, "nickname": "Loop Bot", "avatar": ""}
 
 
 class FakeSSE:
@@ -233,7 +242,9 @@ class FakeSSE:
 class FakeCLI:
     def __init__(self):
         self.messages = []
+        self.message_blobs = []
         self.replies = []
+        self.reply_blobs = []
         self.commands = []
 
     async def run_command(self, args):
@@ -242,14 +253,16 @@ class FakeCLI:
             success=True, command=("tlon-test", *args), stdout="ok\n"
         )
 
-    async def send_message(self, chat_id, text):
+    async def send_message(self, chat_id, text, *, blob=None, sent_at=None):
         self.messages.append((chat_id, text))
+        self.message_blobs.append((blob, sent_at))
         return tlon_api.TlonSendResult(
             success=True, command=("tlon-test", "posts", "send"), message_id="post-id"
         )
 
-    async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+    async def send_reply(self, chat_id, post_id, text, *, parent_author=None, blob=None, sent_at=None):
         self.replies.append((chat_id, post_id, text, parent_author))
+        self.reply_blobs.append((blob, sent_at))
         return tlon_api.TlonSendResult(
             success=True, command=("tlon-test", "posts", "reply"), message_id="reply-id"
         )
@@ -266,6 +279,9 @@ class AdapterApprovalTests(unittest.TestCase):
             "access_code": "code",
             "channels": ["chat/~pen/general"],
             "owner_ship": "~mug",
+            # Approval replay assertions are independent of the reaction id
+            # envelope (covered by test_adapter_reactions).
+            "reaction_level": "off",
         }
         base.update(extra or {})
         with patch.dict(os.environ, {}, clear=True):
@@ -285,6 +301,19 @@ class AdapterApprovalTests(unittest.TestCase):
         handler = adapter._handle_dm_event if dm else adapter._handle_channel_event
         asyncio.run(handler(raw))
         return events
+
+    def apply_settings_event(self, adapter, event):
+        asyncio.run(adapter._handle_settings_event(event))
+
+    def reconnect(self, adapter):
+        """Simulate the _run_stream reconnect sequence: settings reload then
+        the pending-DM-invite catch-up scan."""
+
+        async def run():
+            await adapter._load_settings_state()
+            await adapter._process_pending_dm_invites()
+
+        asyncio.run(run())
 
     # ── deny-by-default + queueing ───────────────────────────────────────
 
@@ -414,6 +443,55 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(events, [])
         self.assertEqual(adapter._pending_approvals, [])
 
+    # ── defaultAuthorizedShips (TLON-6090) ──────────────────────────────
+
+    def test_default_authorized_ships_grants_channel_access_without_rule(self):
+        adapter = self.make_adapter()
+        adapter._settings_default_authorized_ships = {"~ten"}
+
+        events = self.dispatches(adapter, channel_event("~pen are you there?"))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_default_authorized_ships_does_not_grant_dm_access(self):
+        adapter = self.make_adapter()
+        adapter._settings_default_authorized_ships = {"~ten"}
+
+        events = self.dispatches(adapter, dm_event("hi bot"), dm=True)
+
+        self.assertEqual(events, [])
+        self.assertEqual(len(adapter._pending_approvals), 1)
+
+    def test_default_authorized_ships_ignored_when_rule_pins_allowed_ships(self):
+        adapter = self.make_adapter()
+        adapter._settings_default_authorized_ships = {"~ten"}
+        adapter._channel_rules = {"chat/~pen/general": {"allowedShips": ["~bus"]}}
+
+        events = self.dispatches(adapter, channel_event("~pen are you there?"))
+
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._pending_approvals[0]["type"], "channel")
+
+    def test_default_authorized_ships_used_when_rule_omits_allowed_ships(self):
+        adapter = self.make_adapter()
+        adapter._settings_default_authorized_ships = {"~ten"}
+        adapter._channel_rules = {"chat/~pen/general": {"mode": "restricted"}}
+
+        events = self.dispatches(adapter, channel_event("~pen are you there?"))
+
+        self.assertEqual(len(events), 1)
+
+    def test_open_channel_still_open_regardless_of_defaults(self):
+        adapter = self.make_adapter()
+        adapter._settings_default_authorized_ships = set()
+        adapter._channel_rules = {"chat/~pen/general": {"mode": "open"}}
+
+        events = self.dispatches(adapter, channel_event("~pen are you there?"))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(adapter._pending_approvals, [])
+
     def test_duplicate_dm_updates_without_renotify_within_cooldown(self):
         adapter = self.make_adapter()
 
@@ -447,8 +525,21 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(pending["messagePreview"], "(DM invite - no message yet)")
         self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
 
-    def test_invite_from_allowed_ship_is_auto_accepted(self):
+    def test_invite_from_env_allowed_ship_left_pending_when_flag_off(self):
+        # OpenClaw parity: only the owner bypasses autoAcceptDmInvites. An
+        # env-allowlisted ship's invite is left pending (not accepted, not
+        # queued, not marked processed) while the flag is off.
         adapter = self.make_adapter({"allowed_users": ["~ten"]})
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertNotIn("~ten", adapter._processed_dm_invites)
+
+    def test_invite_from_env_allowed_ship_auto_accepted_when_flag_on(self):
+        adapter = self.make_adapter({"allowed_users": ["~ten"]})
+        adapter._auto_accept_dm_invites = True
 
         self.dispatches(adapter, ["~ten"], dm=True)
 
@@ -464,6 +555,320 @@ class AdapterApprovalTests(unittest.TestCase):
 
         self.assertEqual(len(adapter._pending_approvals), 1)
         self.assertEqual(len(adapter._cli.notifications()), 1)
+
+    def test_owner_invite_always_accepted_flag_irrelevant(self):
+        adapter = self.make_adapter()
+        adapter._auto_accept_dm_invites = False
+
+        self.dispatches(adapter, ["~mug"], dm=True)
+
+        self.assertIn(("dms", "accept", "~mug"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_unknown_ship_with_owner_queues_and_marks_processed(self):
+        adapter = self.make_adapter()
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+
+    # ── autoAcceptDmInvites (TLON-6090) ─────────────────────────────────
+
+    def test_flag_off_store_allowlisted_invite_left_pending(self):
+        adapter = self.make_adapter()
+        adapter._auto_accept_dm_invites = False
+        adapter._settings_dm_allowlist = {"~ten"}
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertNotIn("~ten", adapter._processed_dm_invites)
+
+    def test_flag_on_store_allowlisted_invite_auto_accepted(self):
+        adapter = self.make_adapter()
+        adapter._auto_accept_dm_invites = True
+        adapter._settings_dm_allowlist = {"~ten"}
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+    def test_reload_then_accept_via_settings_event(self):
+        adapter = self.make_adapter()
+        adapter._settings_dm_allowlist = {"~ten"}
+        adapter._auto_accept_dm_invites = False
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertNotIn("~ten", adapter._processed_dm_invites)
+
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+        self.apply_settings_event(
+            adapter,
+            {
+                "settings-event": {
+                    "put-entry": {
+                        "desk": "moltbot",
+                        "bucket-key": "tlon",
+                        "entry-key": "autoAcceptDmInvites",
+                        "value": True,
+                    }
+                }
+            },
+        )
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+    def test_reconnect_catchup_invite_missed_while_down_flag_already_true(self):
+        adapter = self.make_adapter()
+        # "Flag already true" means the persisted store has it true (an
+        # in-memory-only override would be clobbered by the settings reload
+        # this test exercises).
+        adapter._sse.payloads["/settings/all"] = {
+            "all": {
+                "moltbot": {
+                    "tlon": {
+                        "dmAllowlist": ["~ten"],
+                        "autoAcceptDmInvites": True,
+                    }
+                }
+            }
+        }
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+
+        self.reconnect(adapter)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+    def test_reconnect_catchup_flag_flipped_while_down(self):
+        adapter = self.make_adapter()
+        adapter._auto_accept_dm_invites = False
+        adapter._sse.payloads["/settings/all"] = {
+            "all": {
+                "moltbot": {
+                    "tlon": {
+                        "dmAllowlist": ["~ten"],
+                        "autoAcceptDmInvites": True,
+                    }
+                }
+            }
+        }
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+
+        self.reconnect(adapter)
+
+        self.assertTrue(adapter._auto_accept_dm_invites)
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+    def test_reconnect_catchup_idempotence(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/settings/all"] = {
+            "all": {
+                "moltbot": {
+                    "tlon": {
+                        "dmAllowlist": ["~ten"],
+                        "autoAcceptDmInvites": True,
+                    }
+                }
+            }
+        }
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+
+        self.reconnect(adapter)
+        self.reconnect(adapter)
+
+        self.assertEqual(
+            adapter._cli.commands.count(("dms", "accept", "~ten")), 1
+        )
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_failed_accept_is_retriable(self):
+        class FailingAcceptCLI(FakeCLI):
+            async def run_command(self, args):
+                self.commands.append(tuple(args))
+                if tuple(args[:2]) == ("dms", "accept"):
+                    return tlon_api.TlonSendResult(
+                        success=False,
+                        command=("tlon-test", *args),
+                        error="rsvp failed",
+                    )
+                return tlon_api.TlonSendResult(
+                    success=True, command=("tlon-test", *args), stdout="ok\n"
+                )
+
+        adapter = self.make_adapter()
+        adapter._cli = FailingAcceptCLI()
+        adapter._auto_accept_dm_invites = True
+        adapter._settings_dm_allowlist = {"~ten"}
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertNotIn("~ten", adapter._processed_dm_invites)
+
+        # A later scan retries the still-unprocessed ship.
+        adapter._cli = FakeCLI()
+        self.dispatches(adapter, ["~ten"], dm=True)
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+    def test_narrowed_scope_queued_then_allowlisted_not_retroactively_accepted(self):
+        adapter = self.make_adapter()
+
+        # Unknown ship: queues and marks processed.
+        self.dispatches(adapter, ["~ten"], dm=True)
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+        # Owner adds it to dmAllowlist with the flag already on; the ship is
+        # still in _processed_dm_invites, so the settings-event branch's
+        # re-scan (and any later re-scan) skips it.
+        self.apply_settings_event(
+            adapter,
+            {
+                "settings-event": {
+                    "put-entry": {
+                        "desk": "moltbot",
+                        "bucket-key": "tlon",
+                        "entry-key": "autoAcceptDmInvites",
+                        "value": True,
+                    }
+                }
+            },
+        )
+        self.apply_settings_event(
+            adapter,
+            {
+                "settings-event": {
+                    "put-entry": {
+                        "desk": "moltbot",
+                        "bucket-key": "tlon",
+                        "entry-key": "dmAllowlist",
+                        "value": ["~ten"],
+                    }
+                }
+            },
+        )
+
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(len(adapter._pending_approvals), 1)  # no duplicate
+
+        # A later re-scan / repeat invite event still skips it.
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+        asyncio.run(adapter._process_pending_dm_invites())
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(len(adapter._pending_approvals), 1)
+
+    def test_restart_recovery_accepts_and_clears_stale_approval(self):
+        adapter = self.make_adapter()
+
+        # Unknown ship: queues and marks processed.
+        self.dispatches(adapter, ["~ten"], dm=True)
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        queued_id = adapter._pending_approvals[0]["id"]
+        self.assertIn("~ten", adapter._processed_dm_invites)
+
+        # Owner adds it to dmAllowlist with the flag on (narrowed-scope
+        # limitation: no retroactive accept while still processed).
+        adapter._settings_dm_allowlist = {"~ten"}
+        adapter._auto_accept_dm_invites = True
+
+        # Simulate the relevant effect of a full disconnect()/connect()
+        # restart: the processed set is cleared and a fresh reconnect
+        # sequence re-scans, reloading the still-queued approval from the
+        # bucket along with the now-allowlisted dmAllowlist/flag.
+        adapter._processed_dm_invites.clear()
+        adapter._sse.payloads["/settings/all"] = {
+            "all": {
+                "moltbot": {
+                    "tlon": {
+                        "dmAllowlist": ["~ten"],
+                        "autoAcceptDmInvites": True,
+                        "pendingApprovals": json.dumps(adapter._pending_approvals),
+                    }
+                }
+            }
+        }
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+
+        self.reconnect(adapter)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+        persisted = adapter._sse.settings_writes("pendingApprovals")
+        self.assertTrue(persisted)
+        self.assertEqual(persisted[-1], [])
+        self.assertNotIn(
+            queued_id, [a["id"] for a in adapter._pending_approvals]
+        )
+
+    def test_accept_clears_only_matching_dm_approval_type_scoped(self):
+        adapter = self.make_adapter()
+        adapter._pending_approvals = [
+            {
+                "id": "d1",
+                "type": "dm",
+                "requestingShip": "~ten",
+                "timestamp": 1,
+            },
+            {
+                "id": "c1",
+                "type": "channel",
+                "requestingShip": "~ten",
+                "channelNest": "chat/~pen/general",
+                "timestamp": 1,
+            },
+        ]
+        adapter._auto_accept_dm_invites = True
+        adapter._settings_dm_allowlist = {"~ten"}
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        remaining = [a["id"] for a in adapter._pending_approvals]
+        self.assertEqual(remaining, ["c1"])
+
+    def test_accept_with_no_queued_approval_persists_nothing(self):
+        adapter = self.make_adapter()
+        adapter._auto_accept_dm_invites = True
+        adapter._settings_dm_allowlist = {"~ten"}
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._sse.settings_writes("pendingApprovals"), [])
+
+    def test_accept_preserves_dm_message_approval_awaiting_replay(self):
+        adapter = self.make_adapter()
+
+        # A real DM message from unknown ~ten queues a 'dm' approval carrying
+        # originalMessage for post-approval replay.
+        self.dispatches(adapter, dm_event("hi bot, help me"), dm=True)
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertIn("originalMessage", adapter._pending_approvals[0])
+
+        # The ship is later allowlisted via the dashboard and its native
+        # invite auto-accepts — the message approval must NOT be swept away,
+        # or the queued message would silently never replay.
+        adapter._settings_dm_allowlist = {"~ten"}
+        adapter._auto_accept_dm_invites = True
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertEqual(
+            adapter._pending_approvals[0]["messagePreview"], "hi bot, help me"
+        )
 
     # ── group invites ────────────────────────────────────────────────────
 
@@ -741,6 +1146,122 @@ class AdapterApprovalTests(unittest.TestCase):
         )
         self.assertIn("• ~bus", adapter._cli.messages[-1][1])
 
+    def test_pending_dm_reply_sends_card_with_full_text_fallback(self):
+        adapter = self.make_adapter()
+        first_id = self.queue_dm_request(adapter)
+        self.dispatches(
+            adapter,
+            dm_event("second request", author="~bus", whom="~bus", msg_id="dm-2"),
+            dm=True,
+        )
+        second_id = adapter._pending_approvals[1]["id"]
+
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-1"),
+            dm=True,
+        )
+
+        text = adapter._cli.messages[-1][1]
+        blob, sent_at = adapter._cli.message_blobs[-1]
+        self.assertIn(f"#{first_id}", text)
+        self.assertIn(f"#{second_id}", text)
+        self.assertIn("/allow <id> · /reject <id> · /ban <id>", text)
+        self.assertIsNone(sent_at)
+        entry = json.loads(blob)[0]
+        self.assertEqual(entry["type"], "a2ui")
+        self.assertIn(f"/allow {first_id}", blob)
+        self.assertIn(f"/reject {second_id}", blob)
+
+    def test_pending_channel_reply_and_out_of_budget_reply_have_no_card(self):
+        adapter = self.make_adapter()
+        self.queue_dm_request(adapter)
+        self.dispatches(
+            adapter,
+            channel_event(
+                "/pending", author="~mug", post_id="pending-1", parent_id="170.0"
+            ),
+        )
+        self.assertEqual(len(adapter._cli.replies), 1)
+        self.assertIsNone(adapter._cli.reply_blobs[-1][0])
+
+        adapter = self.make_adapter()
+        adapter._pending_approvals = [
+            {
+                "id": f"d{index}",
+                "type": "dm",
+                "requestingShip": f"~ship{index}",
+                "timestamp": int(time.time() * 1000),
+            }
+            for index in range(5)
+        ]
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-2"),
+            dm=True,
+        )
+        self.assertIsNone(adapter._cli.message_blobs[-1][0])
+
+    def test_pending_zero_items_replies_with_text_only_no_blob(self):
+        adapter = self.make_adapter()
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-1"),
+            dm=True,
+        )
+        text = adapter._cli.messages[-1][1]
+        blob, _sent_at = adapter._cli.message_blobs[-1]
+        self.assertIn("No pending approvals", text)
+        self.assertIsNone(blob)
+
+    def test_pending_card_falls_back_to_text_when_validator_forced_false(self):
+        approval_mod = sys.modules[f"{PACKAGE_NAME}.approval"]
+        adapter = self.make_adapter()
+        first_id = self.queue_dm_request(adapter, "hi bot")
+        self.dispatches(
+            adapter,
+            dm_event("second request", author="~bus", whom="~bus", msg_id="dm-2"),
+            dm=True,
+        )
+        second_id = adapter._pending_approvals[1]["id"]
+
+        original = approval_mod.validate_a2ui_card
+        approval_mod.validate_a2ui_card = lambda _card: False
+        self.addCleanup(setattr, approval_mod, "validate_a2ui_card", original)
+
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-1"),
+            dm=True,
+        )
+
+        text = adapter._cli.messages[-1][1]
+        blob, _sent_at = adapter._cli.message_blobs[-1]
+        self.assertIn(f"#{first_id}", text)
+        self.assertIn(f"#{second_id}", text)
+        self.assertIsNone(blob)
+
+    def test_control_reply_truncates_to_max_message_length(self):
+        adapter = self.make_adapter()
+        long_text = "x" * (tlon_api.MAX_MESSAGE_LENGTH + 500)
+
+        asyncio.run(adapter._send_control_reply("~mug", None, long_text))
+
+        sent_text = adapter._cli.messages[-1][1]
+        self.assertEqual(len(sent_text), tlon_api.MAX_MESSAGE_LENGTH)
+
+    def test_dm_control_reply_with_parent_id_still_uses_posts_send(self):
+        # DMs are linear; a control reply must never thread even when a
+        # parent_id is passed in, unlike the channel side (which does thread
+        # — see test_pending_channel_reply_and_out_of_budget_reply_have_no_card).
+        adapter = self.make_adapter()
+
+        asyncio.run(adapter._send_control_reply("~mug", "170.0", "some reply"))
+
+        self.assertEqual(adapter._cli.replies, [])
+        self.assertEqual(len(adapter._cli.messages), 1)
+        self.assertEqual(adapter._cli.messages[-1], ("~mug", "some reply"))
+
     def test_allow_unknown_id_reports_not_found(self):
         adapter = self.make_adapter()
         self.dispatches(adapter, dm_event("/allow zzzzz", author="~mug", whom="~mug"), dm=True)
@@ -775,6 +1296,380 @@ class AdapterApprovalTests(unittest.TestCase):
             adapter, channel_event("~pen thanks!", post_id="170.150")
         )
         self.assertEqual(len(follow_up), 1)
+
+    def test_channel_approval_replay_resolves_queued_cite(self):
+        adapter = self.make_adapter({"context_messages": 0})
+        path = "/channels/v4/chat/~host/quoted/posts/post/123"
+        adapter._sse.payloads[path] = {
+            "essay": {
+                "author": "~quoted-author",
+                "sent": 1000,
+                "content": [{"inline": ["quoted text"]}],
+            },
+            "seal": {"id": "123"},
+        }
+        content = [
+            {
+                "block": {
+                    "cite": {
+                        "chan": {
+                            "nest": "chat/~host/quoted",
+                            "where": "/msg/123",
+                        }
+                    }
+                }
+            },
+            {"inline": ["~pen please answer"]},
+        ]
+
+        self.dispatches(adapter, channel_event("", content=content))
+        request_id = adapter._pending_approvals[0]["id"]
+        events = self.dispatches(
+            adapter,
+            dm_event(f"/allow {request_id}", author="~mug", whom="~mug"),
+            dm=True,
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(
+            events[0].text,
+            "> ~quoted-author wrote: quoted text\n\n[quoted message] ~pen please answer",
+        )
+
+    def test_channel_bot_approval_replay_counts_loop_safety(self):
+        adapter = self.make_adapter({"max_consecutive_bot_responses": 1})
+
+        self.dispatches(
+            adapter,
+            channel_event("~pen bot a", author=bot_author("~bot-a"), post_id="a1"),
+        )
+        request_a = adapter._pending_approvals[0]["id"]
+        replayed = self.dispatches(
+            adapter,
+            dm_event(f"/allow {request_a}", author="~mug", whom="~mug", msg_id="allow-a"),
+            dm=True,
+        )
+
+        self.assertEqual(len(replayed), 1)
+        self.assertEqual(replayed[0].text, "bot a")
+        self.assertIn("~bot-a", adapter._known_bot_ships)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+        self.assertEqual(
+            adapter._pending_bot_cap_addendum["chat/~pen/general"],
+            ("~bot-a", "a1"),
+        )
+
+        self.dispatches(
+            adapter,
+            channel_event("~pen bot b", author=bot_author("~bot-b"), post_id="b1"),
+        )
+        request_b = adapter._pending_approvals[0]["id"]
+        dropped = self.dispatches(
+            adapter,
+            dm_event(f"/allow {request_b}", author="~mug", whom="~mug", msg_id="allow-b"),
+            dm=True,
+        )
+
+        self.assertEqual(dropped, [])
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 2)
+        self.assertIn("group:chat/~pen/general:b1", adapter._seen_ids)
+
+    def test_repeated_unauthorized_bot_mentions_count_once_at_replay(self):
+        adapter = self.make_adapter({"max_consecutive_bot_responses": 3})
+
+        self.dispatches(
+            adapter,
+            channel_event("~pen first", author=bot_author(), post_id="m1"),
+        )
+        self.dispatches(
+            adapter,
+            channel_event("~pen second", author=bot_author(), post_id="m2"),
+        )
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["originalMessage"]["messageId"], "m2")
+
+        events = self.dispatches(
+            adapter,
+            dm_event(f"/allow {pending['id']}", author="~mug", whom="~mug"),
+            dm=True,
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "second")
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+    def test_unauthorized_human_reset_waits_until_replay(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+
+        initial = self.dispatches(
+            adapter,
+            channel_event("bot one", author=bot_author(), post_id="b1"),
+        )
+        self.assertEqual(len(initial), 1)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+        self.dispatches(
+            adapter,
+            channel_event("~pen reset please", author="~ten", post_id="h1"),
+        )
+        self.assertEqual(len(adapter._pending_approvals), 1)
+
+        before_approval = self.dispatches(
+            adapter,
+            channel_event("bot two", author=bot_author(), post_id="b2"),
+        )
+        self.assertEqual(before_approval, [])
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 2)
+
+        request_id = adapter._pending_approvals[0]["id"]
+        replayed_human = self.dispatches(
+            adapter,
+            dm_event(f"/allow {request_id}", author="~mug", whom="~mug"),
+            dm=True,
+        )
+        self.assertEqual(len(replayed_human), 1)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 0)
+        self.assertNotIn("chat/~pen/general", adapter._pending_bot_cap_addendum)
+
+        after_reset = self.dispatches(
+            adapter,
+            channel_event("bot three", author=bot_author(), post_id="b3"),
+        )
+        self.assertEqual(len(after_reset), 1)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+    def test_over_cap_replay_marks_seen_and_skips_media_prep(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        adapter._known_bot_consecutive_by_channel["chat/~pen/general"] = 1
+        approval = {
+            "id": "drop1",
+            "type": "channel",
+            "requestingShip": "~bot",
+            "channelNest": "chat/~pen/general",
+            "originalMessage": {
+                "messageId": "drop-message",
+                "messageText": "over cap",
+                "timestamp": 1000,
+                "authorIsBot": True,
+            },
+        }
+        events = []
+        prepare_calls = 0
+
+        async def record(event):
+            events.append(event)
+
+        async def fake_prepare(message, text):
+            nonlocal prepare_calls
+            prepare_calls += 1
+            return text, adapter_mod.PreparedMedia()
+
+        adapter.handle_message = record
+        with patch.object(adapter, "_prepare_dispatch_payload", fake_prepare):
+            asyncio.run(adapter._replay_approved_message(approval))
+
+        self.assertEqual(events, [])
+        self.assertEqual(prepare_calls, 0)
+        self.assertIn("group:chat/~pen/general:drop-message", adapter._seen_ids)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 2)
+
+        redelivered = self.dispatches(
+            adapter,
+            channel_event(
+                "bot repeats",
+                author=bot_author(),
+                post_id="drop-message",
+            ),
+        )
+        self.assertEqual(redelivered, [])
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 2)
+
+    def test_already_seen_replay_does_not_redispatch_or_count(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "require_mention": False,
+                "max_consecutive_bot_responses": 3,
+            }
+        )
+
+        live = self.dispatches(
+            adapter,
+            channel_event("live first", author=bot_author(), post_id="live-1"),
+        )
+        self.assertEqual(len(live), 1)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+        events = []
+        prepare_calls = 0
+
+        async def record(event):
+            events.append(event)
+
+        async def fake_prepare(message, text):
+            nonlocal prepare_calls
+            prepare_calls += 1
+            return text, adapter_mod.PreparedMedia()
+
+        adapter.handle_message = record
+        with patch.object(adapter, "_prepare_dispatch_payload", fake_prepare):
+            asyncio.run(
+                adapter._replay_approved_message(
+                    {
+                        "id": "seen1",
+                        "type": "channel",
+                        "requestingShip": "~bot",
+                        "channelNest": "chat/~pen/general",
+                        "originalMessage": {
+                            "messageId": "live-1",
+                            "messageText": "live first",
+                            "timestamp": 1000,
+                            "authorIsBot": True,
+                        },
+                    }
+                )
+            )
+
+        self.assertEqual(events, [])
+        self.assertEqual(prepare_calls, 0)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+    def test_channel_approval_persists_learned_bot_status(self):
+        adapter = self.make_adapter({"max_consecutive_bot_responses": 1})
+
+        # Learn the ship from an unmentioned bot-meta message (drops at the
+        # attention gate, so no approval is queued for it).
+        self.dispatches(
+            adapter,
+            channel_event("just chatting", author=bot_author(), post_id="learn-1"),
+        )
+        self.assertIn("~bot", adapter._known_bot_ships)
+        self.assertEqual(adapter._pending_approvals, [])
+
+        # The mention that queues the approval carries a plain string author.
+        self.dispatches(
+            adapter,
+            channel_event("~pen hello", author="~bot", post_id="plain-1"),
+        )
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        approval = adapter._pending_approvals[0]
+        self.assertTrue(approval["originalMessage"]["authorIsBot"])
+
+        # Restart before /allow: a fresh adapter (empty learned set) must
+        # still replay it as a bot dispatch.
+        fresh = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        fresh.handle_message = record
+        asyncio.run(fresh._replay_approved_message(approval))
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("~bot", fresh._known_bot_ships)
+        self.assertEqual(fresh._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+    def test_replay_payload_round_trips_author_is_bot(self):
+        adapter = self.make_adapter({"allowed_users": ["~bot"]})
+        bot_message = tlon_api.TlonIncomingMessage(
+            chat_id="chat/~pen/general",
+            chat_name="general",
+            chat_type="group",
+            user_id="~bot",
+            user_name="~bot",
+            text="hello",
+            message_id="m1",
+            reply_to_message_id=None,
+            sent_at=tlon_api._datetime_from_ms(1000),
+            raw={},
+            author_is_bot=True,
+        )
+        human_message = tlon_api.TlonIncomingMessage(
+            chat_id="chat/~pen/general",
+            chat_name="general",
+            chat_type="group",
+            user_id="~ten",
+            user_name="~ten",
+            text="hello",
+            message_id="m2",
+            reply_to_message_id=None,
+            sent_at=tlon_api._datetime_from_ms(1000),
+            raw={},
+        )
+
+        bot_payload = adapter._original_message_payload(bot_message)
+        human_payload = adapter._original_message_payload(human_message)
+        self.assertTrue(bot_payload["authorIsBot"])
+        self.assertNotIn("authorIsBot", human_payload)
+
+        fresh = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        fresh.handle_message = record
+        asyncio.run(
+            fresh._replay_approved_message(
+                {
+                    "id": "persisted-channel",
+                    "type": "channel",
+                    "requestingShip": "~bot",
+                    "channelNest": "chat/~pen/general",
+                    "originalMessage": bot_payload,
+                }
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("~bot", fresh._known_bot_ships)
+        self.assertEqual(fresh._known_bot_consecutive_by_channel["chat/~pen/general"], 1)
+
+        dm_fresh = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "dm_allowlist": ["~bot"],
+            }
+        )
+        dm_payload = dict(bot_payload)
+        dm_payload["messageId"] = "dm-1"
+        dm_fresh.handle_message = record
+        asyncio.run(
+            dm_fresh._replay_approved_message(
+                {
+                    "id": "persisted-dm",
+                    "type": "dm",
+                    "requestingShip": "~bot",
+                    "originalMessage": dm_payload,
+                }
+            )
+        )
+        self.assertEqual(dm_fresh._known_bot_ships, set())
+        self.assertEqual(dm_fresh._known_bot_consecutive_by_channel, {})
 
     def test_channel_access_open_admits_everyone(self):
         adapter = self.make_adapter()
@@ -962,7 +1857,8 @@ class AdapterApprovalTests(unittest.TestCase):
 
     def test_settings_event_hot_reloads_approval_state(self):
         adapter = self.make_adapter()
-        adapter._handle_settings_event(
+        self.apply_settings_event(
+            adapter,
             {
                 "settings-event": {
                     "put-entry": {
@@ -972,11 +1868,12 @@ class AdapterApprovalTests(unittest.TestCase):
                         "value": ["~bus"],
                     }
                 }
-            }
+            },
         )
         self.assertEqual(adapter._settings_dm_allowlist, {"~bus"})
 
-        adapter._handle_settings_event(
+        self.apply_settings_event(
+            adapter,
             {
                 "put-entry": {
                     "desk": "moltbot",
@@ -984,7 +1881,7 @@ class AdapterApprovalTests(unittest.TestCase):
                     "entry-key": "channelRules",
                     "value": {"chat/~pen/general": {"mode": "open"}},
                 }
-            }
+            },
         )
         self.assertTrue(
             adapter_mod.is_channel_open(adapter._channel_rules, "chat/~pen/general")

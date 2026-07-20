@@ -58,6 +58,7 @@ jobs:
           NOTIFY_PROVIDER: binnec-dozzod-marnus
           NOTIFY_SERVICE: tlon-preview-release
           INVITE_PROVIDER: ${{ secrets.VITE_INVITE_PROVIDER}}
+          INVITE_SERVICE_ENDPOINT: ${{ secrets.INVITE_SERVICE_ENDPOINT }}
       - name: Download iOS build
         if: matrix.platform == 'ios'
         run: |

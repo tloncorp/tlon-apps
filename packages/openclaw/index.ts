@@ -2,10 +2,8 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  type OpenClawPluginApi,
-  defineChannelPluginEntry,
-} from 'openclaw/plugin-sdk/core';
+import { defineBundledChannelEntry } from 'openclaw/plugin-sdk/channel-entry-contract';
+import { type OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 import {
   onDiagnosticEvent,
   onInternalDiagnosticEvent,
@@ -23,14 +21,15 @@ import {
   scheduleBackgroundContextLensFinalization,
 } from './src/context-lens.js';
 import {
+  clearCronServiceAccessor,
+  handleCronChangedEvent,
+  setCronServiceAccessor,
+} from './src/cron-telemetry.js';
+import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
-import { sendGatewayStop } from './src/gateway-status.js';
-import {
-  createGatewayStatusManager,
-  setGatewayStatusManager,
-} from './src/gateway-status.js';
+import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
@@ -41,11 +40,11 @@ import {
   type TlonDiagnosticLogAttributes,
   type TlonSessionDiagnosticReportInput,
   formatTlonTelemetryErrorText,
+  recordCronRunAttribution,
   recordToolCall,
   reportHarnessDebug,
   reportHarnessError,
   reportOutboundRoute,
-  reportPluginError,
   reportSessionDiagnostic,
   reportSessionLifecycle,
   reportSessionTurnCreated,
@@ -67,7 +66,7 @@ import {
   liveToolTraceContentsEnabled,
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
-import { listTlonAccountIds, resolveTlonAccount } from './src/types.js';
+import { resolveTlonAccount } from './src/types.js';
 import {
   formatTlonVersionIdentity,
   resolveTlonSkillVersion,
@@ -927,96 +926,44 @@ function installTelemetryDiagnosticObservers(
   });
 }
 
-export default defineChannelPluginEntry({
+export default defineBundledChannelEntry({
   id: 'tlon',
   name: 'Tlon',
   description: 'Tlon/Urbit channel plugin',
-  plugin: tlonPlugin,
-  setRuntime: setTlonRuntime,
+  importMetaUrl: import.meta.url,
+  plugin: {
+    specifier: './src/channel.js',
+    exportName: 'tlonPlugin',
+  },
+  runtime: {
+    specifier: './src/runtime.js',
+    exportName: 'setTlonRuntime',
+  },
   registerFull(api) {
     // ── Gateway-status liveness integration ───────────────────
     //
-    // v1 requires exactly one Tlon account. With multiple accounts, multiple
-    // monitors call configureTlonApiWithPoke() and the last one wins the
-    // global @tloncorp/api singleton — making it unsafe to route heartbeats or
-    // stop pokes to a specific ship. Disable entirely rather than route to the
-    // wrong ship.
+    // registerFull is NOT a once-per-process call: OpenClaw invokes it once
+    // per load pass — tool discovery, full channel activation, and (on
+    // 6.11+) a ~10s post-startup runtime-plugin prewarm that re-runs it
+    // into a SEPARATE plugin registry. `gateway_start`/`gateway_stop` are
+    // fire-once, non-latched hooks bound against whichever registry is
+    // active when they fire, so nulling-and-recreating the coordinator here
+    // on every pass (the old behavior) could orphan an already-resolved
+    // coordinator behind a never-resolved replacement.
     //
-    // We count ALL configured account entries (not just currently-runnable
-    // ones) on purpose. The manager is a process-lifetime singleton created
-    // here in registerFull, which does NOT re-run on config reload. If we
-    // counted only runnable accounts, a config of one complete account plus a
-    // disabled/unconfigured stub would enable the singleton, and later
-    // completing the stub would start a second monitor that races the shared
-    // API slot — without registerFull re-evaluating the gate. Counting every
-    // entry keeps the feature off whenever a second account exists at all.
-    const gsAccountIds = listTlonAccountIds(api.config);
-    setGatewayStatusManager(null);
-
-    if (gsAccountIds.length > 1) {
-      api.logger.warn(
-        `[gateway-status] disabled: ${gsAccountIds.length} Tlon accounts configured, ` +
-          `but v1 only supports one (global @tloncorp/api client cannot target multiple ships)`
-      );
-    } else if (gsAccountIds.length === 1) {
-      const gsManager = createGatewayStatusManager({
-        logger: {
-          log: (m) => api.logger.info(m),
-          error: (m) => {
-            reportPluginError({
-              pluginErrorSource: 'gateway_status_heartbeat',
-              errorKind: 'heartbeat',
-              errorText: m,
-            });
-            api.logger.warn(m);
-          },
-        },
-      });
-      setGatewayStatusManager(gsManager);
-
-      api.on('gateway_start', () => {
-        gsManager.signalGatewayStarted();
-        api.logger.info('[gateway-status] gateway_start received');
-      });
-
-      api.on('gateway_stop', async (event) => {
-        if (gsManager.stopped) {
-          return;
-        }
-        // Latch stopped FIRST, unconditionally. An activation task may be
-        // in flight (between the %gateway-start poke and markActivated());
-        // latching here makes its post-poke recheck bail so it can't start a
-        // heartbeat after we've already passed the shutdown hook.
-        const startPokeInFlightOrDone =
-          gsManager.activated || gsManager.starting;
-        gsManager.stopHeartbeat();
-        gsManager.markStopped();
-        // Only send %gateway-stop if a %gateway-start has been or is being
-        // sent. If activation never reached the start poke, there is nothing
-        // for the ship to stop.
-        if (!startPokeInFlightOrDone) {
-          return;
-        }
-        try {
-          const sent = await sendGatewayStop({
-            bootId: gsManager.bootId,
-            reason: event.reason ?? 'shutdown',
-          });
-          if (sent) {
-            api.logger.info(
-              `[gateway-status] stopped (reason=${event.reason ?? 'shutdown'})`
-            );
-          } else {
-            api.logger.warn(
-              '[gateway-status] stop skipped: api-client params not published'
-            );
-          }
-        } catch (err) {
-          api.logger.warn(`[gateway-status] stop poke failed: ${String(err)}`);
-        }
-      });
-    }
-    // else: zero accounts configured — nothing to do
+    // registerGatewayStatusHooks() is idempotent across passes: it
+    // get-or-creates a single process-lifetime coordinator (independent of
+    // Tlon account count — see gateway-status.ts) and (re)binds the hooks
+    // onto the CURRENT pass's `api` every time. Per-monitor eligibility
+    // (exactly one Tlon account) is evaluated in the monitor itself, from
+    // its own config snapshot, so an account added/removed via a
+    // channels.tlon hot-reload takes effect without a second registerFull.
+    registerGatewayStatusHooks(api, {
+      logger: {
+        log: (m) => api.logger.info(m),
+        error: (m) => api.logger.warn(m),
+      },
+    });
 
     // Resolve the tlon tool binary once. The tool itself and version
     // diagnostics share this path so telemetry reports what OpenClaw will
@@ -1384,6 +1331,40 @@ export default defineChannelPluginEntry({
       });
     });
 
+    // ── Cron observability ──────────────────────────────────────────────
+    // `cron_changed` is a gateway-global hook; owner/bot identity is injected
+    // by the monitor's cron reporter (setCronTelemetryReporter). The
+    // gateway_start handler publishes the cron service accessor so the monitor
+    // can emit its boot-time job-count snapshot without a hook context.
+    api.on('gateway_start', (_event, ctx) => {
+      if (ctx.getCron) {
+        setCronServiceAccessor(ctx.getCron);
+      }
+    });
+    api.on('gateway_stop', clearCronServiceAccessor);
+
+    api.on('cron_changed', async (event, ctx) => {
+      try {
+        await handleCronChangedEvent(event, ctx);
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] Telemetry observer failed (cron_changed:${event.action}): ${String(error)}`
+        );
+        try {
+          reportTelemetryError({
+            telemetrySource: 'cron_changed',
+            sourceEventName: event.action,
+            errorKind: error instanceof Error ? error.name : typeof error,
+            errorText: formatTlonTelemetryErrorText(error),
+          });
+        } catch (reportError) {
+          api.logger.warn(
+            `[tlon] Telemetry error reporting failed: ${String(reportError)}`
+          );
+        }
+      }
+    });
+
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
       const unsubscribeDiagnosticEvents =
         installTelemetryDiagnosticObservers(api);
@@ -1485,8 +1466,34 @@ export default defineChannelPluginEntry({
         publishContextLensEvent('created', background.lens);
       }
     };
-    api.on('agent_turn_prepare', (_event, ctx) => ensureCronContextLens(ctx));
-    api.on('model_call_started', (_event, ctx) => ensureCronContextLens(ctx));
+    // Record cron attribution independently of the context lens so low-level
+    // model/harness/run failures can bypass the inbound-session telemetry gate
+    // and retain their detailed diagnostic fields. The lifecycle hook remains
+    // the authoritative source for the final cron outcome.
+    const onCronAgentHook = (ctx: {
+      sessionKey?: string;
+      trigger?: string;
+      jobId?: string;
+      runId?: string;
+    }) => {
+      if (ctx.trigger === 'cron') {
+        safeTelemetryObserver({
+          logger: api.logger,
+          telemetrySource: 'cron_run_attribution',
+          sessionKey: ctx.sessionKey,
+          runId: ctx.runId,
+          run: () =>
+            recordCronRunAttribution({
+              sessionKey: ctx.sessionKey,
+              runId: ctx.runId,
+              jobId: ctx.jobId,
+            }),
+        });
+      }
+      ensureCronContextLens(ctx);
+    };
+    api.on('agent_turn_prepare', (_event, ctx) => onCronAgentHook(ctx));
+    api.on('model_call_started', (_event, ctx) => onCronAgentHook(ctx));
 
     // Background lenses normally finalize on tool-result idle; agent_end
     // re-arms the window so runs that end with model output (no trailing
@@ -1564,7 +1571,7 @@ export default defineChannelPluginEntry({
         if ('error' in result) {
           return { text: result.error };
         }
-        return { text: await result.bridge.getPendingList() };
+        return await result.bridge.getPendingApprovalsReply();
       },
     });
 

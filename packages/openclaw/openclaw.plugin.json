@@ -92,6 +92,7 @@
                       "type": "string",
                       "enum": [
                         "restricted",
+                        "allowlist",
                         "open"
                       ]
                     },

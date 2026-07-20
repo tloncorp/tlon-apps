@@ -16,6 +16,14 @@ echo "==> OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR"
 echo "==> User: $(whoami)"
 echo "==> Working directory: $(pwd)"
 
+requested_core_version="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+installed_core_version="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$(npm root -g)/openclaw/package.json")"
+if [ "$installed_core_version" != "$requested_core_version" ]; then
+  echo "FATAL: requested OpenClaw core $requested_core_version but installed $installed_core_version"
+  exit 1
+fi
+echo "[tlon-e2e] openclaw-core-version=$installed_core_version requested=$requested_core_version"
+
 # The mounted package declares workspace:^ deps that only resolve inside the
 # tlon-apps pnpm workspace. Copy it to a container-local dir (also the
 # id-shaped path OpenClaw's path hint expects) and rewrite those deps to
@@ -80,7 +88,7 @@ TLON_CONFIG_DM_ALLOWLIST="${TLON_DM_ALLOWLIST:-~ten}"
 TLON_CONFIG_DM_ALLOWLIST_JSON="$(printf '%s' "$TLON_CONFIG_DM_ALLOWLIST" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
 DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON='["web_fetch","web_search","image_search","read","cron","tlon","message"]'
 OPENCLAW_CONFIG_TOOLS_ALLOW_JSON="${OPENCLAW_TEST_TOOLS_ALLOW_JSON:-$DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON}"
-TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES="${TLON_MAX_CONSECUTIVE_BOT_RESPONSES:-2}"
+TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES="${TLON_MAX_CONSECUTIVE_BOT_RESPONSES:-3}"
 
 if ! printf '%s' "$OPENCLAW_CONFIG_TOOLS_ALLOW_JSON" | jq -e 'type == "array" and all(.[]; type == "string")' >/dev/null; then
   echo "FATAL: OPENCLAW_TEST_TOOLS_ALLOW_JSON must be a JSON array of strings"
@@ -244,7 +252,7 @@ fi
 if [ -n "$BRAVE_API_KEY" ]; then
   echo "==> Patching config: adding Brave search API key..."
   jq --arg key "$BRAVE_API_KEY" \
-    '.tools.web.search = {"provider": "brave", "apiKey": $key}
+    '.tools.web.search = {"enabled": true, "provider": "brave", "apiKey": $key}
     | .plugins.allow += ["brave"]
     | .plugins.entries.brave = {"enabled": true, "config": {"webSearch": {"apiKey": $key}}}' \
     "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \

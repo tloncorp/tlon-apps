@@ -28,6 +28,12 @@
 ::    timestamps and timeouts as-is, and ignoring any that have expired
 ::    by the time we receive them. if it's in the future, treat it as now.
 ::
+::    we use both /context and /context-2 wire prefixes interchangeably,
+::    because at some point during this agent's lifecycle we needed to
+::    re-establish some subscriptions on a new flow, to work around ames-gall
+::    bugs. we always _send_ the newest wire format, but must check for and
+::    accept either.
+::
 ::TODO  make chat, channels clear %typing whenever we receive a msg?
 ::TODO  discipline
 ::
@@ -39,14 +45,8 @@
 ::      specify the context as it exists _on their end_ (which is relevant for
 ::      the dm case).
 ::      wires only contain the context, because src.bowl indicates the ship.
-+$  state-0
-  $:  %0
-      =places
-      want=(set [ship context])
-      subs=(jug context ship)
-  ==
-+$  state-1
-  $:  %1
++$  state-2
+  $:  %2
       =places
       :: ships=(jug ship context)
     ::
@@ -55,7 +55,6 @@
       tries=(map [ship context] @ud)  ::  consecutive sub nacks
       ::TODO  wack=(set ship)     ::  waiting for acks (load prevention)
   ==
-+$  versioned-state  $%(state-0 state-1)
 ::
 +$  card  card:agent:gall
 ::
@@ -205,14 +204,16 @@
   ::      this will work as long as we're aligned or behind the publisher.
   ::      ⚠️ if we're ahead and ask about a mark they don't know,
   ::      conversion will fail, we will get get kicked!
-  :+  %pass      [%context context]
+  :+  %pass      [%context-2 context]
   :+  %agent     [who %presence]
   :+  %watch-as  %presence-update-1
   [%context (scot %p our) context]
 ::
 ++  leave-context
   |=  [who=ship =context]
-  [%pass [%context context] %agent [who %presence] %leave ~]
+  :~  [%pass [%context context] %agent [who %presence] %leave ~]
+      [%pass [%context-2 context] %agent [who %presence] %leave ~]
+  ==
 ::
 ++  inflate
   |=  [=bowl:gall want=(set [ship context])]
@@ -223,7 +224,7 @@
     %+  murn  ~(tap by wex.bowl)
     |=  [[=wire =ship =term] *]
     ^-  (unit card)
-    ?.  ?=([%context *] wire)  ~
+    ?.  ?=([?(%context %context-2) *] wire)  ~
     =*  context  t.wire
     ?:  (~(has in want) ship context)  ~
     `[%pass wire %agent [ship term] %leave ~]
@@ -234,8 +235,10 @@
     |=  [=ship =context]
     ^-  (unit card)
     ?:  =(ship our.bowl)  ~  ::  don't subscribe to ourselves
-    =/  =wire  [%context context]
-    ?:  (~(has by wex.bowl) wire ship dap.bowl)  ~
+    ?:  ?|  (~(has by wex.bowl) [%context context] ship dap.bowl)
+            (~(has by wex.bowl) [%context-2 context] ship dap.bowl)
+        ==
+      ~
     `(watch-context our.bowl ship context)
   ::
     ::  ensure we have local subs in place
@@ -251,7 +254,7 @@
   ==
 --
 ::
-=|  state-1
+=|  state-2
 =*  state  -
 ::
 %-  agent:dbug
@@ -260,7 +263,7 @@
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
-    log   ~(. logs [our.bowl /logs])
+    log   ~(. logs [bowl /logs])
 ++  on-init
   ^-  (quip card _this)
   :_  this
@@ -272,17 +275,52 @@
 ::
 ++  on-load
   |=  ole=vase
-  ^-  (quip card _this)
-  =/  old  !<(versioned-state ole)
-  =/  new=state-1
-    ?-  -.old
-      %0  [%1 places.old want.old subs.old ~]
-      %1  old
+  |^  ^-  (quip card _this)
+      =/  old  !<(versioned-state ole)
+      =?  old  ?=(%0 -.old)  [%1 places.old want.old subs.old ~]
+      =^  caz  old
+        ?.  ?=(%1 -.old)  [~ old]
+        :_  old(- %2)
+        ::  due to a gall-ames bug, if the remote agent wasn't running yet when
+        ::  we first sent out subscription, it blocks the flow indefinitely,
+        ::  even once the agent on the other side is running.
+        ::  now that presence agent is running on all up-to-date ships,
+        ::  re-start unacked subs on a fresh flow, to work around that bug.
+        ::
+        %-  zing
+        %+  turn  ~(tap by wex.bowl)
+        |=  [[=wire =ship =term] acked=? =path]
+        ^-  (list card)
+        ?:  acked                  ~
+        ?.  =(%presence term)      ~
+        ?.  ?=([%context *] wire)  ~
+        :~  [%pass wire %agent [ship term] %leave ~]
+            (watch-context our.bowl ship t.wire)
+        ==
+      ?>  ?=(%2 -.old)
+      :_  this(state old)
+      :*  (tell:log %dbug ~['on-load: scheduling setup' >`@ud`~(wyt in want)< >`@ud`~(wyt by subs)<] ~)
+          (await-setup now.bowl ~)
+          caz
+      ==
+  ::
+  +$  versioned-state  $%(state-0 state-1 state-2)
+  ::
+  +$  state-1
+    $:  %1
+        =^places
+        want=(set [ship context])
+        subs=(jug context ship)
+        tries=(map [ship context] @ud)
     ==
-  :_  this(state new)
-  :~  (tell:log %dbug ~['on-load: scheduling setup' >`@ud`~(wyt in want)< >`@ud`~(wyt by subs)<] ~)
-      (await-setup now.bowl ~)
-  ==
+  ::
+  +$  state-0
+    $:  %0
+        =^places
+        want=(set [ship context])
+        subs=(jug context ship)
+    ==
+  --
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -298,7 +336,7 @@
     =;  =cage
       =/  =key     ?-(-.act %set key.act, %clear key.act)
       =/  host=@p  (context-host context.key our.bowl)
-      [[%pass [%context context.key] %agent [host dap.bowl] %poke cage]~ this]
+      [[%pass [%context-2 context.key] %agent [host dap.bowl] %poke cage]~ this]
     :-  %presence-command-1
     !>  ^-  command-1
     ?-  -.act
@@ -428,7 +466,7 @@
       ?~  p.sign  :_(this [(tell:log %dbug ~['local sub ack ok' >wire<] ~)]~)
       %-  (slog (rap 3 dap.bowl ' rejected by local for ' (spat wire) ~) u.p.sign)
       :_  this
-      [(tell:log %warn ['local sub nacked' >wire=wire< u.p.sign] ~)]~
+      [(fail:log %warn ~['local sub nacked' >wire=wire<] u.p.sign ~)]~
     ::
         %fact
       ?.  ?=(%activity-update-4 p.cage.sign)
@@ -460,13 +498,12 @@
       ?:  &(!add.u.news (~(has in want) u.new))
         =.  tries  (~(del by tries) u.new)
         :_  this(want (~(del in want) u.new))
-        :~  (tell:log %dbug ~['channels/all: removing context' >u.new<] ~)
-            (leave-context u.new)
-        ==
+        :-  (tell:log %dbug ~['channels/all: removing context' >u.new<] ~)
+        (leave-context u.new)
       [~ this]
     ==
   ::
-      [%context *]
+      [?(%context %context-2) *]
     =*  context  t.wire
     ?-  -.sign
         %poke-ack
@@ -475,11 +512,7 @@
         [(tell:log %dbug ~['context poke acked' >src.bowl< >context<] ~)]~
       %-  (slog (rap 3 dap.bowl ': poke-nacked by ' (scot %p src.bowl) ~) u.p.sign)
       :_  this
-      =-  [(tell:log %warn - ~)]~
-      :*  'context poke nacked'
-          >[src=src.bowl context=context]<
-          u.p.sign
-      ==
+      [(fail:log %warn ~['context poke nacked' >[src=src.bowl context=context]<] u.p.sign ~)]~
     ::
         %kick
       ::  resubscribe after brief wait, prevent hot-looping
@@ -513,10 +546,10 @@
       =.  tries  (~(put by tries) [src.bowl context] try)
       :_  this
       :~  (await-setup (add now.bowl (mul try ~m5)) `[src.bowl context])
-          =-  (tell:log %warn - ~)
+          =-  (fail:log %warn - u.p.sign ~)
           :*  'context sub nacked, will retry'
               >[src=src.bowl context=context try=try]<
-              u.p.sign
+              ~
           ==
       ==
     ::
@@ -622,7 +655,9 @@
       =.  tries  (~(del by tries) [ship context])
       :_  this
       [(tell:log %dbug ~['setup(specific): no longer wanted, skipping' >ship< >context<] ~)]~
-    ?:  (~(has by wex.bowl) [%context context] ship dap.bowl)
+    ?:  ?|  (~(has by wex.bowl) [%context context] ship dap.bowl)
+            (~(has by wex.bowl) [%context-2 context] ship dap.bowl)
+        ==
       :_  this
       [(tell:log %dbug ~['setup(specific): already subscribed, skipping' >ship< >context<] ~)]~
     :_  this
@@ -657,8 +692,8 @@
   |=  [=term =tang]
   ^-  (quip card _this)
   ::TODO  want to ~(del in want) if ?=(%fact term) but don't know the wire...
-  %.  [~ this]
-  (slog (rap 3 dap.bowl ': +on-fail: ' term ~) tang)
+  :_  this
+  [(~(on-fail logs bowl /logs) term tang)]~
 ::
 ++  on-peek
   |=  =path

@@ -344,6 +344,27 @@ describe('posts send', () => {
     expect(context.calls.sendPost[0].blob).toBe('[{"type":"a2ui"}]');
   });
 
+  it('honors --sent-at over the clock', async () => {
+    const context = makeDeps({ now: 999 });
+    await run(
+      ['send', 'chat/~host/channel', 'hi', '--sent-at', '1234'],
+      context.deps
+    );
+    expect(context.calls.sendPost[0].sentAt).toBe(1234);
+    // and it does not leak into the message text
+    expect(context.calls.sendPost[0].content).toEqual([{ inline: ['hi'] }]);
+  });
+
+  it('rejects a non-positive --sent-at', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'hi', '--sent-at', 'nope'],
+      context.deps
+    );
+    expect(exitCode).toBe(1);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
   it('wraps image fetch failures as a stable command error after auth', async () => {
     const context = makeDeps({
       buildImageVerse: async () => {
@@ -426,6 +447,40 @@ describe('posts reply', () => {
     );
 
     expect(context.calls.sendReply[0].parentAuthor).toBe('~bus');
+  });
+
+  it('stamps a validated --blob without folding it into the message', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      [
+        'reply',
+        'chat/~host/channel',
+        '170.141',
+        'hello there',
+        '--blob',
+        '[{"type":"tlon-context-lens","lensId":"L1"}]',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendReply[0].content).toEqual([
+      { inline: ['hello there'] },
+    ]);
+    expect(context.calls.sendReply[0].blob).toBe(
+      '[{"type":"tlon-context-lens","lensId":"L1"}]'
+    );
+  });
+
+  it('rejects a malformed reply --blob', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['reply', 'chat/~host/channel', '170.141', 'hi', '--blob', '{"a":1}'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.sendReply).toEqual([]);
   });
 
   it('defaults the parent author to a one-to-one DM target', async () => {
@@ -521,6 +576,74 @@ describe('posts react', () => {
       postAuthor: '~nec',
     });
   });
+
+  it('passes --parent through for thread-reply reactions', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['react', 'chat/~host/channel', '170142', '🔥', '--parent', '170141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.addReaction).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        postId: '170.142',
+        emoji: '🔥',
+        our: '~nec',
+        postAuthor: '~nec',
+        parentId: '170.141',
+      },
+    ]);
+  });
+
+  it('rejects a --parent value that is itself an option token', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['react', 'chat/~host/channel', '170141', '🔥', '--parent', '--bogus'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects a duplicate --parent flag', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      [
+        'react',
+        'chat/~host/channel',
+        '170142',
+        '🔥',
+        '--parent',
+        '170141',
+        '--parent',
+        '170140',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects an omitted emoji that lets --parent fill the emoji slot', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['react', 'chat/~host/chan', '170.142', '--parent', '170.141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
+    expectNoAuthOrApi(context);
+  });
 });
 
 describe('posts unreact', () => {
@@ -584,6 +707,72 @@ describe('posts unreact', () => {
     expect(exitCode).toBe(1);
     expect(context.stdout()).toBe('');
     expect(context.stderr()).toBe('Error: remove failed\n');
+  });
+
+  it('passes --parent through for thread-reply reaction removal', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      ['unreact', 'chat/~host/channel', '170142', '--parent', '170141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.removeReaction).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        postId: '170.142',
+        our: '~bus',
+        postAuthor: '~bus',
+        parentId: '170.141',
+      },
+    ]);
+  });
+
+  it('rejects a --parent value that is itself an option token', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      ['unreact', 'chat/~host/channel', '170141', '--parent', '--bogus'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.unreact}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects a duplicate --parent flag', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      [
+        'unreact',
+        'chat/~host/channel',
+        '170142',
+        '--parent',
+        '170141',
+        '--parent',
+        '170140',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.unreact}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects an omitted id that lets --parent fill the id slot', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      ['unreact', 'chat/~host/chan', '--parent', '170.141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.unreact}\n`);
+    expectNoAuthOrApi(context);
   });
 });
 

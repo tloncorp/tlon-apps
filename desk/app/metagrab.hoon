@@ -14,6 +14,12 @@
 |%
 +$  card  card:agent:gall
 ::
++$  state-2
+  $:  %2
+      cache=(map @t response)  ::  cached results
+      await=(jug @t @ta)       ::  pending, w/ response targets
+      trail=(jug @t @t)        ::  redirection trail for policy
+  ==
 +$  state-1
   $:  %1
       cache=(map @t response)  ::  cached results
@@ -231,17 +237,16 @@
   [%200 %page meta]
 ::
 ++  l
-  |_  [our=@p url=(unit @t)]
+  |_  [=bowl:gall url=(unit @t)]
   ++  fail
-    ::TODO  maybe always slog the trace?
-    |=  [desc=term trace=tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our /logs) desc trace deez)
+    (~(fail logs bowl /logs) vol echo tang deez)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
     %-  link
-    (~(tell logs our /logs) volume echo deez)
+    (~(tell logs bowl /logs) volume echo deez)
   ::
   ++  deez
     ^-  (list [@t json])
@@ -258,7 +263,7 @@
   --
 --
 ::
-=|  state-1
+=|  state-2
 =*  state  -
 ::
 =+  log=l
@@ -269,7 +274,7 @@
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
-    l     log(our our.bowl)
+    l     log(bowl bowl)
 ::
 ++  on-save  !>(state)
 ::
@@ -283,12 +288,69 @@
   |^  ^-  (quip card _this)
       =+  old=!<(state-any ole)
       =?  old  ?=(%0 -.old)  *state-1
-      ?>  ?=(%1 -.old)
+      =?  old  ?=(%1 -.old)
+        [%2 cache await ~]:old
+      ?>  ?=(%2 -.old)
       =.  state  old
       =.  cache  ~
+      =.  trail  ~
       [~ this]
-  +$  state-any  $%([%0 *] state-1)
+  +$  state-any  $%([%0 *] state-1 state-2)
   --
+::  +on-poke
+::
+::      redirection loop detection
+::
+::    guarding against infinite loops careful
+::    accounting of invariants in two different places:
+::    at the request call site in +on-poke, and in resolution
+::    handling in +on-arvo. a much better way to structure the code
+::    would be no doubt to implement it in io-style available in
+::    threads. for other reasons that is not possible presently.
+::
+::    to keep track of redirection trail, we record the origin url
+::    in a header that is then preserved across requests. each time a
+::    redirection is resolved, we add the url to the corresponding trail.
+::
+::    we prove that no loop can occur from a handful of statements
+::    which are marked in relevant portions of the code.
+::
+::    [trail 1]: every request to be resolved is a beginning of a new
+::               trail.
+::    [trail 2]: when the request is finalized its trail is removed.
+::    [trail 3]: when a request resolves back to the trail, forming a
+::               loop, we detect it and return an error.
+::    [trail 4]: when we exceed maximum number of redirections, we
+::               we detect it and return an error.
+::    [trail 5]: if a redirection loop occured the last cached url 
+::               is removed.
+::    [trail 6]: if a redirection limit is exceeded the last cached url 
+::               is removed.
+::
+::    a loop can occur in three distinct ways:
+::    1. in +on-poke cached redirection resolution
+::    2. in +on-arvo cached redirection resolution
+::    3. asynchronously, by following redirections indefinitely
+::
+::    we now prove that 1-3 from our statements. suppose we
+::    resolved through a -> b -> c ..., with the chain exceeding our
+::    maximum redirection limit. by trail (4) we terminate and return an
+::    error, ruling out (3).
+::
+::    supposed we have followed through a cache of a -> b -> c in
+::    +on-arvo, while c resolved back to a. by trail (3) we detect this case
+::    and return an error. this rules out (2).
+::
+::    now suppose there is a loop in the cache b ->..-> b. how 
+::    could we arrive at this state? if we had followed in a single
+::    trail, this would be detected and removed from cache. this means a
+::    loop must have been constructed from two separate trails. first we
+::    had b -> ... -> a in the cache, then a separate trail inserted
+::    a -> ... -> b without following through the already cached path, thus
+::    evading detection. this would only be possible if the second trail
+::    exceeded maximum number of requests while resolving b. however, 
+::    we protect against this by removing the last cached request when
+::    the limit is exceeded.
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -341,6 +403,9 @@
         ::  no valid cache entry for this target, start a new fetch
         ::
         =.  await  (~(put ju await) u.target id)
+        ::  [trail 1] every request to be resolved is a beginning of a
+        ::            new trail.
+        =.  trail  (~(put ju trail) u.target u.target)
         =;  hes=(list (unit [@t @t]))
           [[(fetch %head u.target (murn hes same)) ~] this]
         =*  hl  header-list.request
@@ -381,7 +446,7 @@
       [%eyre %bind ~]
     ?>  ?=(%bound +<.sign)
     ?:  accepted.sign  [~ this]
-    %-  (tell:l %crit 'failed to eyre-bind' ~)
+    %-  (tell:l %error 'failed to eyre-bind' ~)
     %-  (slog dap.bowl 'failed to eyre-bind' ~)
     [~ this]
   ::
@@ -396,6 +461,21 @@
     =/  met      i.t.t.t.wire
     ?>  ?=([%iris %http-response *] sign)
     =*  res  client-response.sign
+    ::  if we have followed url from a redirection, the original url
+    ::  had been preserved in headers. otherwise we need to set it.
+    ::
+    =^  orig-url=@t  hes
+      ?~  hel=(get-header:http 'original-url' hes)
+        :-  url
+        [['original-url' url] hes]
+      [u.hel hes]
+    ::  [trail 2] when the request is finalized its trail is removed.
+    ::
+    =*  finalize
+      %=  this
+        await  (~(del by await) url)
+        trail  (~(del by trail) orig-url)
+      ==
     ::  %progress responses are unexpected, the runtime doesn't support them
     ::  right now. if they occur, just treat them as cancels and retry.
     ::
@@ -411,7 +491,7 @@
     ::
     ?:  ?=(%cancel -.res)
       :-  (give-response (~(get ju await) url) now.bowl %bad 'cancelled')
-      this(await (~(del by await) url))
+      finalize
     ::
     ?>  ?=(%finished -.res)
     =*  cod  status-code.response-header.res
@@ -436,7 +516,7 @@
           (tell:l %warn 'failed to parse' url ~)
       =.  cache  (~(put by cache) url now.bowl result)
       :-  (give-response (~(get ju await) url) now.bowl result)
-      this(await (~(del by await) url))
+      finalize
     ::  handle redirects specially
     ::
     =/  nex=(unit @t)
@@ -447,19 +527,39 @@
     =.  cache  (~(put by cache) url now.bowl %300 nex)
     ?~  nex
       :-  (give-response (~(get ju await) url) now.bowl %300 ~)
-      this(await (~(del by await) url))
+      finalize
     ?~  (de-purl:html u.nex)
       %-  (tell:l %warn 'unparsable redirect' u.nex ~)
       :-  (give-response (~(get ju await) url) now.bowl %300 nex)
-      this(await (~(del by await) url))
+      finalize
     ::TODO  deduplicate with %handle-http-request somehow?
+    ::
+    ::  in the loop .url points to the redirection source url.
+    ::
+    =*  max-redir  10
     |-  ^-  (quip card _this)
+    ?:  (~(has ju trail) orig-url u.nex)
+      ::  [trail 3]: when a request resolves back to the trail, forming a
+      ::             loop, we detect it and return an error.
+      ::
+      %-  (tell:l %warn 'redirection loop' orig-url u.nex ~)
+      :-  (give-response (~(get ju await) url) now.bowl %500 `'redirection loop')
+      =.  this  finalize
+      this(cache (~(del by cache) url))
+    ?:  (gth ~(wyt in (~(get ju trail) orig-url)) max-redir)
+      %-  (tell:l %warn 'max redirections exceeded' orig-url u.nex ~)
+      :-  (give-response (~(get ju await) url) now.bowl %500 `'max redirections exceeded')
+      =.  this  finalize
+      ::  important: protect against cache poisoning due to 
+      ::  two separate trails forming a loop.
+      ::
+      this(cache (~(del by cache) url))
     ::  move awaiters over to the next target
     ::
     =.  await
       %-  ~(gas ju await)
       (turn ~(tap in (~(get ju await) url)) (lead u.nex))
-    =.  await  (~(del by await) url)
+    =?  await  !=(u.nex url)  (~(del by await) url)
     ::  check the cache for the target
     ::
     =/  entry  (~(get by cache) u.nex)
@@ -468,19 +568,28 @@
         ==
       ::  no valid cache entry, start a new fetch
       ::
+      =.  trail  (~(put ju trail) orig-url u.nex)
       [[(fetch %head u.nex hes)]~ this]
-    ::TODO  detect redirect loops
     ::  we have a valid cache entry.
     ::  if it's a redirect where we know the next target,
     ::  and can make a request to that,
     ::  retry with that url as the target.
+    ::
     ?:  ?&  ?=([%300 ~ @] wat.u.entry)
             ?=(^ (de-purl:html u.nex.wat.u.entry))
         ==
-      $(u.nex u.nex.wat.u.entry)
+      %=  $
+        url    u.nex
+        u.nex  u.nex.wat.u.entry
+        trail  (~(put ju trail) orig-url u.nex)
+      ==
     ::  otherwise, serve the response from cache
     ::
-    [(give-response (~(get ju await) u.nex) u.entry) this]
+    :-  (give-response (~(get ju await) u.nex) u.entry)
+    %=  this
+      await  (~(del by await) u.nex)
+      trail  (~(del by trail) orig-url)  ::  [trail 2]
+    ==
   ==
 ::
 ++  on-watch
@@ -498,8 +607,7 @@
 ++  on-agent
   |=  [=wire =sign:agent:gall]
   ?:  =(/logs wire)  [~ this]
-  %-  (tell:l %crit 'unexpected on-agent' (spat wire) -.sign ~)
-  ~&  [dap.bowl %unexpected-on-agent wire=wire]
+  %-  (tell:l %error 'unexpected on-agent' (spat wire) -.sign ~)
   [~ this]
 ::
 ++  on-peek
@@ -511,7 +619,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:l term tang)
-  %-  (slog dap.bowl '+on-fail' term tang)
-  [~ this]
+  :_  this
+  [(~(on-fail logs bowl /logs) term tang)]~
 --

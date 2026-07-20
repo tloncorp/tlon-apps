@@ -9,17 +9,27 @@ jobs:
   # for ANY change except ones confined to the isolated bot/plugin packages
   # (openclaw/hermes/tlon-bot-e2e/tlon-skill — not consumed by the app, covered
   # by their own workflows) or docs. New packages therefore default to running
-  # the app suite, so we never silently skip needed tests.
+  # the app suite, so we never silently skip needed tests. `bots` mirrors that
+  # package list positively; it gates the bot-checks job that keeps the checks
+  # only test-build used to provide (see below) running on bot-only PRs.
   changes:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     outputs:
-      app: ${{ steps.filter.outputs.app }}
+      app: ${{ steps.filter-app.outputs.app }}
       backend: ${{ steps.filter.outputs.backend }}
+      bots: ${{ steps.filter.outputs.bots }}
     steps:
-      - name: Filter changed paths
+      # An ignore-list filter only works with predicate-quantifier `every`:
+      # a file counts only if it matches every pattern — `**` AND each `!`
+      # exclusion. Under the default `some`, `**` matches everything and the
+      # exclusions are dead letters (the pre-#6128 gating had this bug).
+      # The quantifier is step-wide and `every` would break the positive
+      # OR-lists below, so `app` gets its own step.
+      - name: Filter changed paths (app ignore-list)
         uses: dorny/paths-filter@v3
-        id: filter
+        id: filter-app
         with:
+          predicate-quantifier: 'every'
           filters: |
             app:
               - '**'
@@ -29,11 +39,27 @@ jobs:
               - '!packages/tlon-skill/**'
               - '!docs/**'
               - '!**/*.md'
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
             backend:
               - 'desk/**'
               - 'backend/**'
+            bots:
+              - 'packages/openclaw/**'
+              - 'packages/hermes-tlon-adapter/**'
+              - 'packages/tlon-bot-e2e/**'
+              - 'packages/tlon-skill/**'
 
+  # The app-wide suite. Skipped only when the filter positively reported
+  # app == 'false' (bot-/docs-only PRs). Written `!= 'false'` rather than
+  # `== 'true'` to fail closed: if the changes job errors, its outputs are
+  # empty and a plain `== 'true'` gate would skip the suite entirely.
   test-build:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     runs-on: blacksmith-4vcpu-ubuntu-2204
     steps:
       - name: Checkout
@@ -84,6 +110,85 @@ jobs:
         run: pnpm build:all
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+
+  # Unit-level checks for the bot/plugin packages, mirroring what test-build's
+  # repo-wide prettier/lint/tsc/test:ci ran for them before gating. Only
+  # needed when test-build is skipped (bot-only PRs); on mixed PRs test-build
+  # covers all of this. The openclaw and tlon-bot-e2e unit steps duplicate
+  # jobs in the path-triggered hermes-ci/openclaw-ci workflows, on purpose:
+  # those workflows can't be required status checks (a paths-filtered workflow
+  # never reports on unrelated PRs, wedging a required context), so this job
+  # is what puts that coverage behind the CI OK merge gate. Their heavyweight
+  # shared-E2E suites stay in the plugin workflows only, non-blocking.
+  bot-checks:
+    needs: changes
+    if: needs.changes.outputs.app == 'false' && needs.changes.outputs.bots == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    name: Bot Package Checks
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Check Prettier (bot packages)
+        run: pnpm prettier --check 'packages/{openclaw,tlon-skill,tlon-bot-e2e}/**/*.{ts,tsx}'
+
+      - name: Lint OpenClaw
+        run: pnpm --filter '@tloncorp/openclaw' lint
+
+      - name: Run OpenClaw unit and security tests
+        run: pnpm --filter '@tloncorp/openclaw' test
+
+      - name: tlon-bot-e2e typecheck and unit tests
+        run: |
+          pnpm --filter '@tloncorp/tlon-bot-e2e' tsc
+          pnpm --filter '@tloncorp/tlon-bot-e2e' test:unit
+
+      - name: tlon-skill typecheck, tests, and build smoke
+        run: pnpm --filter '@tloncorp/tlon-skill' check
+
+      - name: Run Hermes adapter unit tests
+        run: ./packages/hermes-tlon-adapter/dev/test.sh
+
+  # Merge gate: the single required status check for this repo ("CI OK" in
+  # branch protection). It aggregates the conditionally-skipped jobs above
+  # into one context that always reports: a skipped need is fine (the filter
+  # said that suite wasn't relevant to the diff), but any failure or
+  # cancellation — including the changes job itself erroring — fails the
+  # gate. `always()` (not `!cancelled()`) so a cancelled run reports a
+  # failure instead of a skip, which would satisfy the required check.
+  # When adding a new filter-gated job, append it to `needs` here.
+  ci-ok:
+    name: CI OK
+    needs: [changes, test-build, bot-checks]
+    if: ${{ always() }}
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - name: Verify gated jobs succeeded or were skipped
+        run: |
+          for result in ${{ join(needs.*.result, ' ') }}; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "::error::A gated job reported '$result'"
+              exit 1
+            fi
+          done
+          echo "All gated jobs succeeded or were skipped."
 
   # Production-build smoke test. The parallel e2e suite runs against the Vite
   # *dev* server; this boots the minified `vite build` output to catch
@@ -167,6 +272,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install peru
+        # run-tests.sh assembles the groups desk via scripts/assemble-desk.sh,
+        # which runs `peru sync` to vendor desk deps (desk-deps/) — including
+        # peru-only deps like sur/mcp-proxy that aren't in the test pill.
+        run: |
+          pipx install peru || pip install --user peru || pip3 install --user --break-system-packages peru
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Run Backend Tests for Groups
         run: |

@@ -72,7 +72,7 @@ describe('OpenClaw driver runtime spec', () => {
         'tlon',
         'message',
       ]),
-      TLON_MAX_CONSECUTIVE_BOT_RESPONSES: '2',
+      TLON_MAX_CONSECUTIVE_BOT_RESPONSES: '3',
       TLON_NUDGE_TICK_INTERVAL_MS: '5000',
     });
     expect(ctx.composeEnv.BRAVE_API_KEY).toBeUndefined();
@@ -204,6 +204,14 @@ describe('OpenClaw driver runtime spec', () => {
         advertisedTools: { include: ['image_search'] },
         expectedCallCount: 1,
       },
+    });
+
+    expect(openclawDriver.model.replyTexts(['one', 'two'])).toMatchObject({
+      steps: [
+        { kind: 'text', content: 'one' },
+        { kind: 'text', content: 'two' },
+      ],
+      expectations: { expectedCallCount: 2 },
     });
   });
 });

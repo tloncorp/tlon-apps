@@ -96,13 +96,14 @@ optional_env:
     password: false
   - name: TLON_KNOWN_BOT_USERS
     description:
-      'Comma-separated bot ships subject to group-channel loop protection'
+      'Comma-separated bot ships that supplement dynamic bot-metadata loop
+      detection'
     prompt: 'Known bot ships'
     password: false
   - name: TLON_MAX_CONSECUTIVE_BOT_RESPONSES
     description:
       'Maximum consecutive group dispatch attempts from known bot ships before
-      dropping (default: 2)'
+      dropping (default: 3, 0 = unlimited)'
     prompt: 'Known-bot response cap'
     password: false
   - name: TLON_OWNER_LISTEN
@@ -134,6 +135,12 @@ optional_env:
       'Recent channel/thread messages prepended as context on group dispatch
       (default: 20, 0 disables)'
     prompt: 'Group context messages'
+    password: false
+  - name: TLON_REACTION_LEVEL
+    description:
+      'Reaction prompt/tool level: off, ack (reserved/off), minimal (default),
+      or extensive'
+    prompt: 'Reaction level'
     password: false
   - name: TLON_TELEMETRY
     description:

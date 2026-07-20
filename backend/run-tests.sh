@@ -154,8 +154,18 @@ EOF
 # TODO: We should figure out the source ship for this file and delete it
 rm -f $pier/groups/tests/lib/diary-graph.hoon
 
-# Update the groups desk
-rsync -r desk/ $pier/groups
+# Update the groups desk. Assemble the full desk (desk-deps/ vendored deps +
+# desk/ source) and overlay it onto the pill's groups desk. The pill provides a
+# bootable base; the assembled tree brings in peru-vendored deps (e.g.
+# sur/mcp-proxy) that live only in desk-deps/. Overlaid without --delete so the
+# pill's own artifacts (the jammed pill used by the aqua tests) are preserved.
+assembled=$(mktemp -d)
+./scripts/assemble-desk.sh "$assembled"
+# assemble-desk stamps the git hash into commit.txt; keep the 'development'
+# placeholder the logs test (/tests/app/logs) asserts on instead.
+cp desk/commit.txt "$assembled/commit.txt"
+rsync -r "$assembled"/ $pier/groups
+rm -rf "$assembled"
 
 rsync -r --delete desk/tests/ $pier/groups/tests
 
@@ -165,7 +175,14 @@ result=$( $run_click $pier <<EOF
 (pure:m !>(hash))  
 EOF
 )
-desk_hash_a=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
+desk_hash_a=`echo $result | sed -n 's/\[0 %avow 0 %noun \(.*\)\]/\1/p'`
+
+if [ -z "$desk_hash_a" ]
+then
+  echo "Invalid empty desk hash (a)"
+  kill -TERM $vere_pid
+  exit 1
+fi
 
 echo "Updating groups desk"
 ${run_click} $pier <<EOF
@@ -185,9 +202,17 @@ result=$( $run_click $pier <<EOF
 (pure:m !>(hash))  
 EOF
 )
-desk_hash_b=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
+desk_hash_b=`echo $result | sed -n 's/\[0 %avow 0 %noun \(.*\)\]/\1/p'`
 
-if [ $desk_hash_a == $desk_hash_b ]
+if [ -z "$desk_hash_b" ]
+then
+  echo "Invalid empty desk hash (b)"
+  kill -TERM $vere_pid
+  exit 1
+fi
+
+
+if [ "$desk_hash_a" == "$desk_hash_b" ]
 then
   echo "Desk upgrade failed ❌"
   kill -TERM $vere_pid

@@ -176,6 +176,16 @@ export const openclawDriver: BotDriver = {
       };
     },
 
+    replyTexts(texts) {
+      return {
+        steps: texts.map((content) => ({ kind: 'text' as const, content })),
+        expectations: {
+          advertisedTools: { exact: ['message', 'tlon'] },
+          expectedCallCount: texts.length,
+        },
+      };
+    },
+
     sendMessage(args) {
       return {
         steps: [
@@ -324,7 +334,7 @@ async function assertOpenClawConfig(
   const model = config.agents?.defaults?.model;
   const channel = config.channels?.tlon;
   const expectedLoopLimit = Number(
-    ctx.composeEnv.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '2'
+    ctx.composeEnv.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '3'
   );
 
   expectConfig(
@@ -505,7 +515,7 @@ function firstEnv(...keys: string[]): string | undefined {
 }
 
 function sharedLoopLimitEnv(): string {
-  const raw = process.env.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '2';
+  const raw = process.env.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '3';
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(

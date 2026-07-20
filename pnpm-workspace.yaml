@@ -18,6 +18,14 @@ verifyDepsBeforeRun: false
 # TLON_SHELL to their Git bash; everywhere else it falls back to /bin/bash.
 scriptShell: ${TLON_SHELL-/bin/bash}
 
+autoInstallPeers: false
+
+peerDependencyRules:
+  ignoreMissing:
+    # Peer of app-builder-lib, only required for the Windows "squirrel"
+    # target; our Windows builds use nsis.
+    - electron-builder-squirrel-windows
+
 patchedDependencies:
   "@types/testing-library__jest-dom": patches/@types__testing-library__jest-dom@5.14.5.patch
   "@urbit/http-api": patches/@urbit__http-api@3.2.0-dev.patch
@@ -33,6 +41,7 @@ patchedDependencies:
   react-native-gesture-handler: patches/react-native-gesture-handler@2.31.2.patch
   expo-image-manipulator: patches/expo-image-manipulator@56.0.19.patch
   expo-background-task: patches/expo-background-task@56.0.19.patch
+  '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
 
 allowUnusedPatches: false
 

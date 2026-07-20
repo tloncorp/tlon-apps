@@ -1,11 +1,13 @@
 import { buildChannelConfigSchema } from 'openclaw/plugin-sdk/core';
 import { z } from 'zod';
 
-const ShipSchema = z.string().min(1);
+const ShipSchema = z.string().trim().min(1);
 const ChannelNestSchema = z.string().min(1);
 
 export const TlonChannelRuleSchema = z.object({
-  mode: z.enum(['restricted', 'open']).optional(),
+  // "allowlist" is the current value; "restricted" is accepted for legacy
+  // configs. Both gate senders; only "open" is unrestricted.
+  mode: z.enum(['restricted', 'allowlist', 'open']).optional(),
   allowedShips: z.array(ShipSchema).optional(),
 });
 

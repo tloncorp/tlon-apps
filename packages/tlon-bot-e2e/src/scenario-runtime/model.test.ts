@@ -27,12 +27,13 @@ describe('shared model script helpers', () => {
 
   test('registers steps with script options and enforces expectations', async () => {
     const script: ModelScript = {
-      steps: [{ kind: 'text', content: 'ok' }],
-      options: { allowExtraCalls: 1 },
+      steps: [
+        { kind: 'text', content: 'ok' },
+        { kind: 'text', content: 'ok again' },
+      ],
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 2,
-        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     };
     const tag = await registerModelScript(fakeModel, 'script-options', script);
@@ -49,17 +50,19 @@ describe('shared model script helpers', () => {
     ).resolves.toHaveLength(2);
   });
 
-  test('allows only declared and classified extra model-call budget', async () => {
+  test('filters declared auxiliary calls without advancing primary steps', async () => {
     const script: ModelScript = {
-      steps: [{ kind: 'text', content: 'ok' }],
-      options: { allowExtraCalls: 1 },
+      steps: [
+        { kind: 'text', content: 'first' },
+        { kind: 'text', content: 'second' },
+      ],
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
       expectations: {
         advertisedTools: { exact: ['tlon'] },
-        expectedCallCount: 1,
-        allowedAuxiliaryCalls: ['hermes_title_generation'],
+        expectedCallCount: 2,
       },
     };
-    const tag = await registerModelScript(fakeModel, 'extra-budget', script);
+    const tag = await registerModelScript(fakeModel, 'interleaved-aux', script);
 
     await postChat(server.baseUrl, tag, {
       tools: [{ type: 'function', function: { name: 'tlon' } }],
@@ -67,18 +70,18 @@ describe('shared model script helpers', () => {
     await postChat(server.baseUrl, tag, {
       messages: hermesTitleMessages(tag, 'ok'),
     });
-
-    await expect(
-      expectModelExpectations(fakeModel, 'extra-budget', script, noSettle)
-    ).resolves.toHaveLength(2);
-
-    await postChatAllowFailure(server.baseUrl, tag, {
+    await postChat(server.baseUrl, tag, {
       tools: [{ type: 'function', function: { name: 'tlon' } }],
     });
 
     await expect(
-      expectModelExpectations(fakeModel, 'extra-budget', script, noSettle)
-    ).rejects.toThrow(/Expected 1-2 model call/);
+      expectModelExpectations(fakeModel, 'interleaved-aux', script, noSettle)
+    ).resolves.toHaveLength(2);
+    const calls = await fakeModel.received('interleaved-aux');
+    expect(calls).toHaveLength(3);
+    expect(calls[0]?.auxiliaryKind).toBeUndefined();
+    expect(calls[1]?.auxiliaryKind).toBe('hermes_title_generation');
+    expect(calls[2]?.auxiliaryKind).toBeUndefined();
   });
 
   test('rejects unclassified extra-call allowances', async () => {
@@ -93,16 +96,15 @@ describe('shared model script helpers', () => {
 
     await expect(
       expectModelExpectations(fakeModel, 'unclassified-extra', script, noSettle)
-    ).rejects.toThrow(/without allowedAuxiliaryCalls/);
+    ).rejects.toThrow(/without allowUnclassifiedExtraCallsForDriverQuirk/);
   });
 
   test('allows declared Hermes title-generation auxiliary calls', async () => {
     const script: ModelScript = {
       steps: [{ kind: 'text', content: 'ok' }],
-      options: { allowExtraCalls: 1 },
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
       expectations: {
         expectedCallCount: 1,
-        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     };
     const tag = await registerModelScript(fakeModel, 'hermes-title', script);
@@ -114,31 +116,111 @@ describe('shared model script helpers', () => {
 
     await expect(
       expectModelExpectations(fakeModel, 'hermes-title', script, noSettle)
-    ).resolves.toHaveLength(2);
+    ).resolves.toHaveLength(1);
+  });
+
+  test('does not let an early auxiliary call satisfy primary settling', async () => {
+    const script: ModelScript = {
+      steps: [{ kind: 'text', content: 'ok' }],
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
+      expectations: { expectedCallCount: 1 },
+    };
+    const tag = await registerModelScript(fakeModel, 'early-auxiliary', script);
+
+    await postChat(server.baseUrl, tag, {
+      messages: hermesTitleMessages(tag, 'ok'),
+    });
+    const primary = new Promise<void>((resolve, reject) => {
+      setTimeout(() => {
+        postChat(server.baseUrl, tag).then(resolve, reject);
+      }, 25);
+    });
+
+    await expect(
+      expectModelExpectations(fakeModel, 'early-auxiliary', script, {
+        settleMs: 40,
+        settleTimeoutMs: 500,
+        pollIntervalMs: 10,
+      })
+    ).resolves.toHaveLength(1);
+    await primary;
+  });
+
+  test('treats auxiliary-only traffic as no primary calls', async () => {
+    const script: ModelScript = {
+      steps: [{ kind: 'text', content: 'ok' }],
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
+      expectations: { expectedCallCount: 1 },
+    };
+    const tag = await registerModelScript(fakeModel, 'auxiliary-only', script);
+
+    await postChat(server.baseUrl, tag, {
+      messages: hermesTitleMessages(tag, 'ok'),
+    });
+
+    await expect(
+      expectNoModelCalls(fakeModel, 'auxiliary-only')
+    ).resolves.toBeUndefined();
+    await expect(
+      expectModelExpectations(fakeModel, 'auxiliary-only', script, noSettle)
+    ).rejects.toThrow(/Expected 1 model call\(s\).*got 0/);
+  });
+
+  test('lets undeclared auxiliary-shaped requests consume a primary step', async () => {
+    const script: ModelScript = {
+      steps: [{ kind: 'text', content: 'only scripted response' }],
+      expectations: { expectedCallCount: 1 },
+    };
+    const tag = await registerModelScript(
+      fakeModel,
+      'undeclared-auxiliary',
+      script
+    );
+
+    await postChat(server.baseUrl, tag, {
+      messages: hermesTitleMessages(tag, 'ok'),
+    });
+    await postChatAllowFailure(server.baseUrl, tag);
+
+    const calls = await fakeModel.received('undeclared-auxiliary');
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.auxiliaryKind).toBeUndefined();
+    await expect(
+      expectModelExpectations(
+        fakeModel,
+        'undeclared-auxiliary',
+        script,
+        noSettle
+      )
+    ).rejects.toThrow(/Expected 1 model call\(s\).*got 2/);
   });
 
   test('catches delayed unexpected extra calls inside the settle window', async () => {
     const script: ModelScript = {
       steps: [{ kind: 'text', content: 'ok' }],
-      options: { allowExtraCalls: 1 },
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
       expectations: {
         expectedCallCount: 1,
-        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     };
     const tag = await registerModelScript(fakeModel, 'delayed-extra', script);
 
     await postChat(server.baseUrl, tag);
-    const delayedExtra = new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        postChat(server.baseUrl, tag, {
+    const delayedExtra = new Promise<void>((resolve) => {
+      setTimeout(resolve, 25);
+    })
+      .then(() =>
+        postChatAllowFailure(server.baseUrl, tag, {
           messages: [
             { role: 'system', content: 'Normal assistant request.' },
             { role: 'user', content: `${tag} Duplicate dispatch.` },
           ],
-        }).then(resolve, reject);
-      }, 25);
-    });
+        })
+      )
+      .then(
+        () => undefined,
+        () => undefined
+      );
 
     await expect(
       expectModelExpectations(fakeModel, 'delayed-extra', script, {
@@ -146,17 +228,16 @@ describe('shared model script helpers', () => {
         settleTimeoutMs: 500,
         pollIntervalMs: 10,
       })
-    ).rejects.toThrow(/Unexpected auxiliary model call/);
+    ).rejects.toThrow(/Expected 1 model call\(s\).*got 2/);
     await delayedExtra;
   });
 
   test('rejects unexpected extra calls when auxiliary calls are narrowed', async () => {
     const script: ModelScript = {
       steps: [{ kind: 'text', content: 'ok' }],
-      options: { allowExtraCalls: 1 },
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
       expectations: {
         expectedCallCount: 1,
-        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     };
     const tag = await registerModelScript(
@@ -166,7 +247,7 @@ describe('shared model script helpers', () => {
     );
 
     await postChat(server.baseUrl, tag);
-    await postChat(server.baseUrl, tag, {
+    await postChatAllowFailure(server.baseUrl, tag, {
       messages: [
         { role: 'system', content: 'Normal assistant request.' },
         { role: 'user', content: `${tag} Duplicate dispatch.` },
@@ -180,7 +261,7 @@ describe('shared model script helpers', () => {
         script,
         noSettle
       )
-    ).rejects.toThrow(/Unexpected auxiliary model call/);
+    ).rejects.toThrow(/Expected 1 model call\(s\).*got 2/);
   });
 
   test('fails when a required model call omits advertised tools', async () => {

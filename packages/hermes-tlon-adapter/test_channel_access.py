@@ -82,6 +82,54 @@ class ParseRulesTests(unittest.TestCase):
         self.assertEqual(fresh["chat/~new/spot"]["allowedShips"], ["~ten"])
 
 
+class EffectiveAllowedShipsTests(unittest.TestCase):
+    def test_no_rule_inherits_defaults(self):
+        self.assertEqual(
+            ca.effective_allowed_ships({}, NEST, {"~ten", "~bus"}),
+            frozenset({"~ten", "~bus"}),
+        )
+
+    def test_rule_omitting_allowed_ships_inherits_defaults(self):
+        rules = {NEST: {"mode": "restricted"}}
+        self.assertEqual(
+            ca.effective_allowed_ships(rules, NEST, {"~ten"}), frozenset({"~ten"})
+        )
+
+    def test_explicit_list_wins_over_defaults(self):
+        rules = {NEST: {"allowedShips": ["~other"]}}
+        self.assertEqual(
+            ca.effective_allowed_ships(rules, NEST, {"~ten"}), frozenset({"~other"})
+        )
+
+    def test_explicit_empty_list_blocks_all_does_not_inherit(self):
+        rules = {NEST: {"allowedShips": []}}
+        self.assertEqual(
+            ca.effective_allowed_ships(rules, NEST, {"~ten"}), frozenset()
+        )
+
+    def test_null_allowed_ships_inherits_defaults(self):
+        rules = {NEST: {"allowedShips": None}}
+        self.assertEqual(
+            ca.effective_allowed_ships(rules, NEST, {"~ten"}), frozenset({"~ten"})
+        )
+
+    def test_malformed_non_list_allowed_ships_fails_closed(self):
+        for garbage in ("~zod", 42, {"nested": True}):
+            with self.subTest(garbage=garbage):
+                rules = {NEST: {"allowedShips": garbage}}
+                self.assertEqual(
+                    ca.effective_allowed_ships(rules, NEST, {"~ten"}), frozenset()
+                )
+
+    def test_malformed_nest_fails_closed_even_with_defaults(self):
+        self.assertEqual(
+            ca.effective_allowed_ships({}, "not-a-nest", {"~ten"}), frozenset()
+        )
+        self.assertEqual(
+            ca.effective_allowed_ships({}, "", {"~ten"}), frozenset()
+        )
+
+
 class CommandTests(unittest.TestCase):
     def test_command_detection_and_args(self):
         self.assertTrue(ca.is_channel_access_command("/channel-access open"))
