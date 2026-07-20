@@ -18,11 +18,21 @@ test('renderPublishedNoteHtml renders markdown tables', () => {
     body: '| Name | Score |\n| :--- | ---: |\n| Alice | 10 |',
   });
 
+  expect(html).toContain('<div class="tlon-table-scroll"><table><thead><tr>');
   expect(html).toContain(
-    '<div class="tlon-table-scroll"><table><thead><tr><th style="text-align:left">Name</th><th style="text-align:right">Score</th></tr></thead><tbody><tr><td style="text-align:left">Alice</td><td style="text-align:right">10</td></tr></tbody></table></div>'
+    '<th class="tlon-table-data-cell" style="text-align:left"><div class="tlon-table-cell-content">Name</div></th>'
+  );
+  expect(html).toContain(
+    '<td class="tlon-table-data-cell" style="text-align:left"><div class="tlon-table-cell-content">Alice</div></td>'
   );
   expect(html).toContain(
     'th{background:transparent;color:var(--tertiary-text);font-weight:400}'
   );
+  expect(html).toContain('width:max-content;min-width:100%');
+  expect(html).toContain(
+    '<th class="tlon-table-spacer" aria-hidden="true"></th>'
+  );
+  expect(html).toContain('<div class="tlon-table-cell-content">Name</div>');
+  expect(html).toContain('class="tlon-table-data-cell"');
   expect(html).toContain('tr{border-bottom:1px solid var(--border)}');
 });

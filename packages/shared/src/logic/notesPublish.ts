@@ -34,12 +34,15 @@ blockquote{border-left:3px solid var(--action-text);padding-left:16px;color:var(
 hr{border:0;border-top:1px solid var(--border);margin:2em 0}
 img,video{max-width:100%;border-radius:8px}
 .tlon-table-scroll{max-width:100%;overflow-x:auto}
-table{border-collapse:collapse;width:max-content;font-size:14px;line-height:20px}
+table{border-collapse:collapse;width:max-content;min-width:100%;font-size:14px;line-height:20px}
 tr{border-bottom:1px solid var(--border)}
 tbody tr:last-child{border-bottom:0}
 th,td{border:0;max-width:280px;padding:16px 12px;vertical-align:top;overflow-wrap:anywhere}
 th:first-child,td:first-child{padding-left:0}
 th{background:transparent;color:var(--tertiary-text);font-weight:400}
+.tlon-table-cell-content{width:max-content;max-width:280px}
+.tlon-table-data-cell{width:1px}
+.tlon-table-spacer{padding:0}
 .tlon-published-footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--border);color:var(--tertiary-text);font-size:12px}
 `.trim();
 const inlineStyleTags = {
@@ -200,10 +203,10 @@ function renderTableRowToHtml(
       const textAlign = align[index]
         ? ` style="text-align:${align[index]}"`
         : '';
-      return `<${cellTag}${textAlign}>${renderInlinesToHtml(cell.content)}</${cellTag}>`;
+      return `<${cellTag} class="tlon-table-data-cell"${textAlign}><div class="tlon-table-cell-content">${renderInlinesToHtml(cell.content)}</div></${cellTag}>`;
     })
     .join('');
-  return `<tr>${cells}</tr>`;
+  return `<tr>${cells}<${cellTag} class="tlon-table-spacer" aria-hidden="true"></${cellTag}></tr>`;
 }
 
 function referenceLabel(block: Extract<BlockData, { type: 'reference' }>) {

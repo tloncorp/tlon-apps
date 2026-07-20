@@ -74,7 +74,7 @@ const notes = [
     5,
     5,
     'Long title: portable markdown tables, import progress, and row overflow behavior',
-    '| Area | Status |\n| --- | --- |\n| Import | Testing |\n| Publish | Ready |'
+    '| # | Area | Status |\n| ---: | --- | --- |\n| 1 | Import | Testing |\n| 2 | Publish | Ready |'
   ),
   makeNote(6, 6, '', 'Untitled note body'),
   makeNote(

@@ -794,6 +794,7 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
 
   const cellRefs = useRef<Map<string, RNView>>(new Map());
   const [columnWidths, setColumnWidths] = useState<number[] | null>(null);
+  const [viewportWidth, setViewportWidth] = useState<number | null>(null);
 
   // Reset measurement when the table's actual content changes. We can't key
   // on `block` reference — upstream memoization invalidates often enough
@@ -864,6 +865,10 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
   );
 
   const totalWidth = columnWidths?.reduce((a, b) => a + b, 0);
+  const tableWidth =
+    totalWidth == null || viewportWidth == null
+      ? totalWidth
+      : Math.max(totalWidth, viewportWidth);
 
   // Use react-native-gesture-handler's ScrollView so horizontal pans aren't
   // swallowed by the vertical FlatList that wraps each chat message —
@@ -874,13 +879,18 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
       horizontal
       style={{ width: '100%', maxWidth: '100%' }}
       showsHorizontalScrollIndicator={false}
+      onLayout={(event) => {
+        const width = Math.ceil(event.nativeEvent.layout.width);
+        setViewportWidth((current) => (current === width ? current : width));
+      }}
     >
-      <YStack {...(totalWidth != null ? { width: totalWidth } : {})}>
+      <YStack {...(tableWidth != null ? { width: tableWidth } : {})}>
         {allRows.map((row, rowIdx) => {
           const isHeader = rowIdx === 0;
           return (
             <XStack
               key={rowIdx}
+              width="100%"
               flexShrink={0}
               borderBottomWidth={rowIdx < allRows.length - 1 ? 1 : 0}
               borderColor="$border"
