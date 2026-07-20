@@ -65,7 +65,18 @@ case "$cmd" in
   home)      "$ADB" shell input keyevent 3 ;;
   wake)      "$ADB" shell input keyevent 224 ;;
   stayon)    "$ADB" shell svc power stayon true ;;   # don't sleep while charging
-  shot)      "$ADB" exec-out screencap -p > "$SS/${1:-shot}.png"; echo "$SS/${1:-shot}.png" ;;
+  shot)
+    # Only advertise the path if capture actually succeeded — a disconnected /
+    # unauthorized / ambiguous (multiple) device makes screencap fail and would
+    # otherwise leave an empty PNG that looks like valid evidence.
+    out="$SS/${1:-shot}.png"
+    if "$ADB" exec-out screencap -p > "$out" && [ -s "$out" ]; then
+      echo "$out"
+    else
+      echo "screencap failed (no authorized device? disconnected? multiple devices?)" >&2
+      rm -f "$out"
+      exit 1
+    fi ;;
   ui)        "$ADB" shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; "$ADB" shell cat /sdcard/ui.xml ;;
   # bounds "<needle>" — fresh ui dump, print bounds= of nodes whose line matches
   # the needle (text or content-desc). Center = midpoint of [x1,y1][x2,y2].

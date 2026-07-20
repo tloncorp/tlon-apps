@@ -36,21 +36,23 @@ screenshot. Where noted, use your tool's own verbs for those actions.
 2. Boot the **zod** ship (http port 35453 per `apps/tlon-web/e2e/shipManifest.json`).
    **First make sure zod's own port/pier isn't already live** — deleting a live
    `.vere.lock` and booting a second Vere on the same pier corrupts/wedges it.
-   Gate specifically on **zod's port `:35453`** (not "any urbit" — another rube
-   ship like `~ten` on `:38473` is irrelevant here and must not make you skip
-   booting zod, or Vite below points at a dead port). The `-d` flag runs Vere as a
-   detached daemon, so this returns and you can proceed:
+   Gate on **zod specifically** — its port `:35453` **or** a live process on the
+   `zod/zod` pier. Check both, because a zod daemon that is still booting has
+   created `.vere.lock` but hasn't bound `:35453` yet; a port-only check would then
+   delete a live lock and start a second Vere on the same pier (the exact
+   corruption this guards against). The pier-path match keeps it zod-specific, so
+   another rube ship like `~ten` (`ten/ten`, `:38473`) is correctly ignored and
+   doesn't make you skip booting zod. The `-d` flag runs Vere as a detached
+   daemon, so the boot returns and you can proceed:
    ```
    cd apps/tlon-web
-   if lsof -ti :35453 >/dev/null 2>&1; then
-     echo "zod already serving :35453 — reuse it; do NOT delete the lock or boot again."
+   if lsof -ti :35453 >/dev/null 2>&1 || pgrep -f 'rube/dist/zod/zod' >/dev/null; then
+     echo "zod already live (port :35453 or zod/zod pier process) — reuse it; do NOT delete the lock or boot again."
    else
      rm -f rube/dist/zod/zod/.vere.lock
      ./rube/dist/urbit_extracted/urbit rube/dist/zod/zod -d --http-port 35453   # -d = daemon (detached)
    fi
    ```
-   (If a stale zod process holds the pier but isn't listening on `:35453`, the
-   `-d` boot after removing the lock recovers it.)
 3. Start the web server. It runs in the **foreground and blocks**, so launch it as
    a long-lived background/detached process (your agent's background-run
    mechanism, a separate terminal/session, or append `&`) — otherwise the recipe

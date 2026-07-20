@@ -78,12 +78,17 @@ easy to get wrong. In `apps/tlon-mobile/android/app/build.gradle`,
 If a `previewDebug` build is already installed (the usual dev/preview state), you
 don't need Gradle at all:
 
+Use the `adbx.sh` wrapper (`A="$SKILL/scripts/adbx.sh"`) for the adb calls —
+`adb` is usually not on PATH (Phase 1), and the wrapper's `adb` passthrough
+resolves it.
+
 ```bash
-# 1. Start Metro on the FIXED source (background; keep it running):
-cd apps/tlon-mobile && APP_VARIANT=preview npx expo start --dev-client --port 8081
-# 2. Make the device reach it, then load it:
-adb reverse tcp:8081 tcp:8081
-adb shell am start -a android.intent.action.VIEW \
+# 1. Start Metro on the FIXED source. It runs in the FOREGROUND and blocks, so
+#    background it (append & / separate session) and keep it running:
+( cd apps/tlon-mobile && APP_VARIANT=preview npx expo start --dev-client --port 8081 ) &
+# 2. Make the device reach it, then load it (via the wrapper, not bare adb):
+"$A" adb reverse tcp:8081 tcp:8081
+"$A" adb shell am start -a android.intent.action.VIEW \
   -d "io.tlon.groups.preview://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
 # (or force-stop + relaunch and pick "localhost:8081" from the dev-launcher's
 #  Recently Opened list)
@@ -113,8 +118,11 @@ production JS constants (Branch keys, deep-link scheme, etc.) under the preview
 applicationId, making preview-only behavior unverifiable:
 
 ```bash
-echo "sdk.dir=/opt/homebrew/share/android-commandlinetools" \
-  > apps/tlon-mobile/android/local.properties
+# Append sdk.dir only if absent — don't clobber an existing local.properties
+# (it may hold machine-specific SDK/NDK paths from prior Android builds):
+lp=apps/tlon-mobile/android/local.properties
+grep -qs '^sdk.dir=' "$lp" || \
+  echo "sdk.dir=/opt/homebrew/share/android-commandlinetools" >> "$lp"
 cd apps/tlon-mobile/android
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools

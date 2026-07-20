@@ -55,8 +55,12 @@ what you have.
    b. PUT the raw bytes to `uploadRequest.url`, sending **every** header in
       `uploadRequest.headers` verbatim (casing included) or you get HTTP 403:
 
+      Use `--fail-with-body` so curl **exits non-zero** on a 4xx/5xx (an expired
+      signed URL or a wrong/missing header returns 403 while plain `curl` still
+      exits 0):
+
       ```bash
-      curl -sS -X PUT --data-binary @file.png \
+      curl -sS --fail-with-body -X PUT --data-binary @file.png \
         -H "content-type: image/png" \
         -H "cache-control: public, max-age=31536000" \
         -H "x-goog-content-length-range: <size>,<size>" \
@@ -66,8 +70,11 @@ what you have.
       (This is a plain outbound PUT; it needs real network, so if your shell runs
       in a network sandbox, run this step with the sandbox disabled.)
 
-   c. `create_attachment_from_upload` with the `issue` and the `assetUrl` from
-      step (a) to link it.
+   c. **Only if the PUT succeeded (2xx / curl exit 0)**, call
+      `create_attachment_from_upload` with the `issue` and the `assetUrl` from
+      step (a). If the PUT failed, re-run `prepare_attachment_upload` (the URL
+      expires in ~60s) and retry — don't finalize, or the issue gets a broken /
+      missing screenshot.
 
 6. **Report** the issue id + URL back to the user.
 
