@@ -3024,28 +3024,30 @@ export async function monitorTlonProvider(
 
       const typingCallbacks = presenceConversationId
         ? createTypingCallbacks({
-            start: async () => {
-              await computingPresence.refreshRun({
+            start: () => {
+              computingPresence.refreshRun({
                 conversationId: presenceConversationId,
                 runId: presenceRunId,
               });
+              return Promise.resolve();
             },
-            stop: async () => {
-              await computingPresence.stopRun({
+            stop: () => {
+              computingPresence.stopRun({
                 conversationId: presenceConversationId,
                 runId: presenceRunId,
               });
+              return Promise.resolve();
             },
             onStartError: (err: unknown) => {
               runtime.error?.(
-                `[tlon] Failed to start computing presence for ${presenceConversationId}: ${
+                `[tlon] Failed to enqueue computing presence for ${presenceConversationId}: ${
                   err instanceof Error ? err.stack ?? err.message : String(err)
                 }`
               );
             },
             onStopError: (err: unknown) => {
               runtime.error?.(
-                `[tlon] Failed to stop computing presence for ${presenceConversationId}: ${
+                `[tlon] Failed to enqueue computing presence stop for ${presenceConversationId}: ${
                   err instanceof Error ? err.stack ?? err.message : String(err)
                 }`
               );
@@ -3055,10 +3057,6 @@ export async function monitorTlonProvider(
             // callbacks, killing the thinking indicator for the rest of long
             // runs. stopRun is already wired to deliver/idle/cleanup.
             maxDurationMs: 0,
-            // The SDK default (2) trips the keepalive permanently after two
-            // transient poke failures, which lets the ship-side presence expire
-            // mid-run. Failures are already logged via onStartError.
-            maxConsecutiveFailures: 5,
           })
         : undefined;
 
@@ -3086,18 +3084,18 @@ export async function monitorTlonProvider(
           });
           logContextLens(lens.lensId, 'model_selected');
         },
-        onAssistantMessageStart: async () => {
+        onAssistantMessageStart: () => {
           if (presenceConversationId) {
-            await computingPresence.clearToolCalls({
+            computingPresence.clearToolCalls({
               conversationId: presenceConversationId,
               runId: presenceRunId,
             });
           }
         },
-        onToolStart: async (payload) => {
+        onToolStart: (payload) => {
           const toolName = payload.name ?? 'unknown';
           if (presenceConversationId) {
-            await computingPresence.addToolCall({
+            computingPresence.addToolCall({
               conversationId: presenceConversationId,
               runId: presenceRunId,
               toolName,
@@ -3316,7 +3314,7 @@ export async function monitorTlonProvider(
                         : 0;
 
                     if (presenceConversationId) {
-                      await computingPresence.stopRun({
+                      computingPresence.stopRun({
                         conversationId: presenceConversationId,
                         runId: presenceRunId,
                       });
