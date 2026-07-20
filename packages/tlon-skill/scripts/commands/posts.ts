@@ -20,7 +20,7 @@ import {
 export const POSTS_HELP = `Usage: tlon posts <command>
 
 Commands:
-  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>]
+  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>] [--title <text>]
   reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship] [--blob <json>]
   react <channel> <post-id> <emoji>     React to a post with an emoji [--parent <post-id>]
   unreact <channel> <post-id>           Remove your reaction from a post [--parent <post-id>]
@@ -31,12 +31,14 @@ Send options:
   --blob <json>        Attach a post-blob JSON array (e.g. an a2ui entry)
   --image <url>        Attach an image (direct png/jpeg/gif/webp URL, e.g. from
                        'tlon upload'); message becomes an optional caption
+  --title <text>       Set a title on a gallery (heap/) post
   --sent-at <ms>       Override the send timestamp (unix ms); the post id
                        derives from it. Applies to send and reply.
 
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
   tlon posts send chat/~host/channel "Look at this" --image https://storage.../tree.png
+  tlon posts send heap/~host/gallery "A link or caption" --title "Gallery item"
   tlon posts reply chat/~host/channel 170.141... "Thread reply"
   tlon posts edit chat/~host/channel 170.141... "Updated message"
 
@@ -44,7 +46,7 @@ Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--sent-at <ms>] (message optional with --image)',
+  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--sent-at <ms>] (message optional with --image)',
   reply:
     'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>] [--sent-at <ms>]',
   react:
@@ -67,7 +69,7 @@ const POSTS_EDIT_REMOVED_FLAGS_MESSAGE =
   'tlon posts edit no longer supports --title/--image/--content (notebook-only affordances). Edit the message text directly; use `tlon notes` for %notes content.';
 
 const POST_REPLY_OPTION_FLAGS = ['author', 'blob', 'sent-at'] as const;
-const POST_SEND_OPTION_FLAGS = ['blob', 'image', 'sent-at'] as const;
+const POST_SEND_OPTION_FLAGS = ['blob', 'image', 'title', 'sent-at'] as const;
 
 export interface PostReactionInput {
   channelId: string;
@@ -114,6 +116,7 @@ export interface PostSendInput {
   sentAt: number;
   content: Story;
   blob?: string;
+  metadata?: { title?: string };
 }
 
 export interface PostReplyInput {
@@ -175,6 +178,7 @@ type ParsedPostsArgs =
       channelId: string;
       message: string;
       imageUrl?: string;
+      title?: string;
       blob?: string;
       sentAt?: number;
     }
@@ -317,6 +321,18 @@ function validatedBlobFlag(
   return blob;
 }
 
+function validatedTitleFlag(args: string[], usage: string): string | undefined {
+  const titleIdx = args.indexOf('--title');
+  if (titleIdx === -1) {
+    return undefined;
+  }
+  const title = args[titleIdx + 1];
+  if (!title || title.startsWith('--')) {
+    throw usageError(usage);
+  }
+  return title;
+}
+
 // Plain `--flag` boundary scan. Edit/reply use this for all their flags — a
 // `--image=url` token is deliberately NOT a flag boundary for edit, matching
 // legacy behavior.
@@ -443,12 +459,20 @@ function parseArgs(args: string[]): ParsedPostsArgs {
         throw usageError(POSTS_COMMAND_HELP.send);
       }
       const blob = validatedBlobFlag(args);
+      const title = validatedTitleFlag(args, POSTS_COMMAND_HELP.send);
+      if (title !== undefined && !args[1].startsWith('heap/')) {
+        throw usageError(
+          '--title is only supported for gallery (heap/) posts',
+          POSTS_COMMAND_HELP.send
+        );
+      }
       const sentAt = validatedSentAt(args, POSTS_COMMAND_HELP.send);
       return {
         kind: 'send',
         channelId: args[1],
         message,
         imageUrl,
+        title,
         blob,
         sentAt,
       };
@@ -603,6 +627,7 @@ async function sendPost(
     channelId: string;
     message: string;
     imageUrl?: string;
+    title?: string;
     blob?: string;
     sentAt?: number;
   },
@@ -624,6 +649,7 @@ async function sendPost(
     sentAt: parsed.sentAt ?? deps.now(),
     content,
     blob: parsed.blob,
+    ...(parsed.title ? { metadata: { title: parsed.title } } : {}),
   });
 }
 

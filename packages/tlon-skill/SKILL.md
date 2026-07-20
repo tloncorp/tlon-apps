@@ -10,8 +10,7 @@ Use the `tlon` command for reading data, managing channels/groups/contacts, and 
 ## Hermes
 
 When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the
-`tlon` CLI for reading data, administration, and management. Do **not** use it
-to send replies or create posts.
+`tlon` CLI for reading data, administration, management, and proactive posts.
 
 For exact command syntax, use the command sections below or run
 `tlon <subcommand> --help` through the tool.
@@ -22,15 +21,21 @@ This invites the requester and makes them an admin. Do not use plain
 `tlon groups create` for user-requested groups; that creates a bot-owned group
 that does not automatically include the requester.
 
-For a normal reply in the current Tlon conversation, respond with final
+For a normal text reply in the current Tlon conversation, respond with final
 assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post
 to a different channel or one-to-one DM (a proactive send), use `posts send`
 with that target (`chat/~host/slug` for channels, `~ship` for one-to-one DMs).
 Reserve `dms send <club-id>` for group DMs, whose club IDs start with `0v`.
 
-Blocked in Hermes' `tlon` tool: plain-text `posts send`/`posts reply`/`dms
-send`/`dms reply` targeting the **current** conversation (reply normally
-instead). Image sends (`--image`) are allowed anywhere,
+Gallery channels use `heap/~host/name`. A normal reply in a gallery becomes a
+comment on the triggering post. Use `posts send heap/~host/name "..."` to
+create a distinct new top-level gallery item, including when that gallery is
+the current conversation; gallery items can use `--title "..."`.
+
+Blocked in Hermes' `tlon` tool: plain-text `posts reply`/`dms send`/`dms reply`
+and `posts send` to a current chat/DM conversation (reply normally instead).
+Current-gallery `posts send` creates a new item and is allowed. Image sends
+(`--image`) are allowed anywhere,
 including the current conversation: `tlon upload <direct-image-url>`, then
 `posts send <target> [caption] --image <uploaded-url>`.
 
@@ -435,11 +440,15 @@ tlon posts send chat/~host/slug "Hello"                  # Send a message
 tlon posts send ~sampel "Hello"                          # Send a 1:1 DM
 tlon posts send chat/~host/slug "Look" --image https://storage.../x.png # Send with an image
 tlon posts send chat/~host/slug --image https://...      # Image only (no caption)
+tlon posts send heap/~host/gallery "A link or caption" --title "Gallery item" # New gallery item
+tlon posts reply heap/~host/gallery 170.141... "Nice work" # Comment on a gallery post
 tlon posts react chat/~host/slug 170.141... "👍"         # React to a post
 tlon posts unreact chat/~host/slug 170.141...            # Remove reaction
 tlon posts react chat/~host/slug reply-id "👍" --parent root-id  # React to a thread reply
+tlon posts react heap/~host/gallery comment-id "🔥" --parent post-id # React to a gallery comment
 tlon posts edit chat/~host/slug 170.141... "New text"    # Edit a post's message text
 tlon posts delete chat/~host/slug 170.141...             # Delete a post
+tlon posts delete heap/~host/gallery 170.141...          # Delete a gallery post
 ```
 
 Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
