@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { convertContent } from '../postContent';
 import { markdownToStory } from './parse';
 import {
   blockToMarkdown,
@@ -328,9 +329,31 @@ describe('markdownToStory', () => {
   });
 
   describe('table conversion', () => {
-    it('converts table to VerseInline with text representation', () => {
-      const result = markdownToStory('| A | B |\n|---|---|\n| 1 | 2 |');
-      expect(result).toEqual([{ inline: ['| A | B |\n| 1 | 2 |'] }]);
+    it('preserves renderable table syntax and alignment', () => {
+      const markdown = '| A | B |\n| :--- | ---: |\n| 1 | 2 |';
+      const story = markdownToStory(markdown);
+
+      expect(story).toEqual([{ inline: [markdown] }]);
+      expect(convertContent(story, null)).toEqual([
+        {
+          type: 'table',
+          header: {
+            cells: [
+              { content: [{ type: 'text', text: 'A' }] },
+              { content: [{ type: 'text', text: 'B' }] },
+            ],
+          },
+          rows: [
+            {
+              cells: [
+                { content: [{ type: 'text', text: '1' }] },
+                { content: [{ type: 'text', text: '2' }] },
+              ],
+            },
+          ],
+          align: ['left', 'right'],
+        },
+      ]);
     });
   });
 

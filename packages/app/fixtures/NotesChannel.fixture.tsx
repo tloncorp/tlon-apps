@@ -405,7 +405,13 @@ function ForceSavingHeaderSlot() {
   return null;
 }
 
-function NotesEditorFixture({ saving = false }: { saving?: boolean }) {
+function NotesEditorFixture({
+  noteId = 4,
+  saving = false,
+}: {
+  noteId?: number;
+  saving?: boolean;
+}) {
   const ready = useSeedNotesFixtureData();
 
   return (
@@ -421,7 +427,7 @@ function NotesEditorFixture({ saving = false }: { saving?: boolean }) {
           />
           {ready ? (
             <NotesNoteDetail
-              noteId={4}
+              noteId={noteId}
               notebookFlag={notebookFlag}
               syncEnabled={false}
             />
@@ -437,5 +443,6 @@ export default {
   'Contents List': <NotebookContentsListFixture />,
   'Folder Contents': <NotesTreeFixture />,
   'Editor Header': <NotesEditorFixture />,
+  'Table Preview': <NotesEditorFixture noteId={5} />,
   'Saving Header': <NotesEditorFixture saving />,
 };

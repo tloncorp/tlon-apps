@@ -11,3 +11,14 @@ test('renderPublishedNoteHtml renders markdown list children as list items', () 
   expect(html).toContain('<ul><li>first</li><li>second</li></ul>');
   expect(html).not.toContain('<ul><li><ul>');
 });
+
+test('renderPublishedNoteHtml renders markdown tables', () => {
+  const html = renderPublishedNoteHtml({
+    title: 'Table note',
+    body: '| Name | Score |\n| :--- | ---: |\n| Alice | 10 |',
+  });
+
+  expect(html).toContain(
+    '<table><thead><tr><th style="text-align:left">Name</th><th style="text-align:right">Score</th></tr></thead><tbody><tr><td style="text-align:left">Alice</td><td style="text-align:right">10</td></tr></tbody></table>'
+  );
+});

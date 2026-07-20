@@ -397,13 +397,16 @@ function blockquoteToVerse(blockquote: MdastBlockquote): VerseInline {
 function tableToVerse(node: RootContent): VerseInline | null {
   if (node.type !== 'table') return null;
 
+  const table = node as {
+    align?: Array<'left' | 'center' | 'right' | null>;
+    children: Array<{
+      children: Array<{ children: PhrasingContent[] }>;
+    }>;
+  };
+
   // Extract rows from table
   const rows: string[][] = [];
-  for (const row of (
-    node as {
-      children: Array<{ children: Array<{ children: PhrasingContent[] }> }>;
-    }
-  ).children) {
+  for (const row of table.children) {
     const cells: string[] = [];
     for (const cell of row.children) {
       // Extract text from cell children
@@ -418,7 +421,23 @@ function tableToVerse(node: RootContent): VerseInline | null {
     rows.push(cells);
   }
 
-  const tableText = rows.map((row) => '| ' + row.join(' | ') + ' |').join('\n');
+  const separator = (rows[0] ?? []).map((_, index) => {
+    switch (table.align?.[index]) {
+      case 'left':
+        return ':---';
+      case 'center':
+        return ':---:';
+      case 'right':
+        return '---:';
+      default:
+        return '---';
+    }
+  });
+  const tableRows =
+    rows.length > 0 ? [rows[0], separator, ...rows.slice(1)] : [];
+  const tableText = tableRows
+    .map((row) => '| ' + row.join(' | ') + ' |')
+    .join('\n');
   return { inline: [tableText] };
 }
 
