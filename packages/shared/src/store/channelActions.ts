@@ -360,8 +360,8 @@ export async function updateChannel({
     ? writers.filter((roleId) => !currentChannelWriterIds?.includes(roleId))
     : [];
   const writersToRemove = managesWriters
-    ? currentChannelWriterIds?.filter((roleId) => !writers.includes(roleId)) ??
-      []
+    ? (currentChannelWriterIds?.filter((roleId) => !writers.includes(roleId)) ??
+      [])
     : [];
 
   const updatedChannel: db.Channel = {

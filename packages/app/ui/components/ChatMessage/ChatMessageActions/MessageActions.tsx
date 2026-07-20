@@ -54,8 +54,8 @@ export default function MessageActions({
     () =>
       Boolean(
         contextLensAvailable &&
-          onViewBotRun &&
-          getOwnContextLensStamp(post, ownedBotShips ?? [])
+        onViewBotRun &&
+        getOwnContextLensStamp(post, ownedBotShips ?? [])
       ),
     [contextLensAvailable, onViewBotRun, ownedBotShips, post]
   );

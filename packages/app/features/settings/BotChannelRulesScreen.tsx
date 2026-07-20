@@ -137,7 +137,7 @@ export function BotChannelRulesScreen(props: Props) {
     allChannelsDisabled &&
     Boolean(
       disableEverywhereSnapshot &&
-        Object.keys(disableEverywhereSnapshot).length > 0
+      Object.keys(disableEverywhereSnapshot).length > 0
     );
 
   useEffect(() => {

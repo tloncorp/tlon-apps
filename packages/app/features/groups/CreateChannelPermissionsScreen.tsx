@@ -44,7 +44,7 @@ export function CreateChannelPermissionsScreen() {
       isPrivate: true,
       readers: selectedRoleIds ?? ['admin'],
       writers: usesNotesPermissionsCompat
-        ? selectedRoleIds ?? ['admin']
+        ? (selectedRoleIds ?? ['admin'])
         : ['admin'],
     },
   });
