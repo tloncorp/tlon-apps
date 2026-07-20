@@ -143,9 +143,9 @@ export const useLureState = create<LureState>((set, get) => ({
         path: flag,
         metadata,
       });
-      // createDeepLink returns the branch-minted url on the old share
-      // domain; every surface that shows a group invite reads this value,
-      // so canonicalize here or join-flavored links reach users
+      // every surface that shows a group invite reads this value, so
+      // normalize here to keep displayed links on the canonical domain
+      // no matter what the minter returned
       deepLinkUrl = mintedUrl
         ? extractNormalizedInviteLink(mintedUrl) ?? mintedUrl
         : mintedUrl;
