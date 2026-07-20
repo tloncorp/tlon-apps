@@ -379,7 +379,51 @@ class AdapterNudgeTests(unittest.IsolatedAsyncioTestCase):
         await adapter._pending_nudge_persistence.flush()
 
         self.assertEqual(len(dispatched), 1)
-        self.assertEqual(dispatched[0].text, "I am back")
+        self.assertEqual(
+            dispatched[0].text, "I am back\n\n[message id: poisoned-pending-reply]"
+        )
+
+    async def test_bot_authored_dm_echo_is_not_owner_activity(self):
+        # DM parses set user_id to the conversation partner, so with
+        # include_self=True the bot's own outbound echo (including the nudge
+        # DM itself) arrives with user_id=owner but author_id=bot. It must
+        # not clear stage/pending, record activity, or consume dedup space.
+        adapter = make_adapter()
+        adapter._nudge_load_seeded = True
+        adapter._nudge_stage_shadow = 1
+        adapter._pending_nudge_rehydrated = True
+        pending = nudge.PendingNudge(1_700_000_000_000, 1, "~ten", "hermes")
+        adapter._pending_nudge = pending
+
+        echo = tlon_api.TlonIncomingMessage(
+            chat_id="~ten",
+            chat_name="~ten",
+            chat_type="dm",
+            user_id="~ten",
+            user_name="~ten",
+            text="Hey! Quick ideas for your week...",
+            message_id="self-echo-1",
+            reply_to_message_id=None,
+            sent_at=datetime.fromtimestamp(1_700_000_100, timezone.utc),
+            raw={},
+            author_id="~zod",
+        )
+
+        hook = adapter._observe_nudge_owner_message(echo, is_dm=True)
+        await adapter._nudge_activity_persistence.flush()
+        await adapter._pending_nudge_persistence.flush()
+
+        self.assertIsNone(hook.pending)
+        self.assertFalse(hook.inject_context)
+        self.assertEqual(adapter._nudge_stage_shadow, 1)
+        self.assertIs(adapter._pending_nudge, pending)
+        self.assertNotIn("dm:~ten:self-echo-1", adapter._nudge_seen_ids)
+        activity_keys = {
+            poke[2].get("put-entry", {}).get("entry-key")
+            for poke in adapter._sse.pokes
+            if isinstance(poke[2], dict)
+        }
+        self.assertNotIn("lastOwnerMessageAt", activity_keys)
 
     async def test_unrehydrated_owner_reply_takes_authority_in_one_activity_batch(self):
         adapter = make_adapter()

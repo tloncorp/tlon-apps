@@ -27,6 +27,7 @@ import {
   Pressable,
   Text,
   ZStack,
+  useCopy,
   useToast,
 } from '@tloncorp/ui';
 import * as Clipboard from 'expo-clipboard';
@@ -49,6 +50,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
+  XStack,
   YStack,
   getTokenValue,
   isWeb,
@@ -962,22 +964,6 @@ function prejoinTlonbotRevivalWayfindingGroups() {
       });
     });
   });
-}
-
-async function shareTlonbotGroupInvite(homeGroupInviteLink: string) {
-  if (isWeb) {
-    try {
-      await navigator.clipboard.writeText(homeGroupInviteLink);
-    } catch (e) {
-      console.error('Failed to copy invite link:', e);
-    }
-    return;
-  }
-  try {
-    await Share.share({ message: homeGroupInviteLink });
-  } catch (e) {
-    console.error('Failed to share invite link:', e);
-  }
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -1897,6 +1883,26 @@ export function GroupsPane(props: {
     });
   const groupInviteIsLoading = homeGroupInviteState === 'loading';
   const groupInviteIsReady = homeGroupInviteState === 'ready';
+  const groupInviteHasError = homeGroupInviteState === 'unavailable';
+  const { doCopy: copyHomeGroupInvite, didCopy: didCopyHomeGroupInvite } =
+    useCopy(homeGroupInviteUrl ?? '');
+  const shareHomeGroupInvite = useCallback(async () => {
+    if (!homeGroupInviteUrl) return;
+
+    try {
+      if (isWeb) {
+        if (typeof navigator.share === 'function') {
+          await navigator.share({ url: homeGroupInviteUrl });
+        } else {
+          await copyHomeGroupInvite();
+        }
+      } else {
+        await Share.share({ message: homeGroupInviteUrl });
+      }
+    } catch (e) {
+      console.error('Failed to share invite link:', e);
+    }
+  }, [copyHomeGroupInvite, homeGroupInviteUrl]);
   const [resolvedBotShipId, setResolvedBotShipId] = useState(
     props.botShipId ?? null
   );
@@ -2008,26 +2014,58 @@ export function GroupsPane(props: {
       </YStack>
       <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
         {props.hostingBotEnabled ? (
-          <Button
-            onPress={
-              groupInviteIsReady && homeGroupInviteUrl
-                ? () => shareTlonbotGroupInvite(homeGroupInviteUrl)
-                : undefined
-            }
-            label={
-              groupInviteIsReady
-                ? 'Share invite link'
-                : groupInviteIsLoading
-                  ? 'Preparing invite link'
-                  : 'Invite link unavailable'
-            }
-            intent={groupInviteIsReady ? 'positive' : undefined}
-            size="large"
-            leadingIcon={groupInviteIsLoading ? undefined : 'Link'}
-            loading={groupInviteIsLoading}
-            disabled={!groupInviteIsReady}
-            glow={groupInviteIsReady}
-          />
+          <YStack width="100%" gap="$s">
+            <XStack width="100%">
+              <TextInput
+                value={groupInviteIsReady ? homeGroupInviteUrl ?? '' : ''}
+                placeholder={
+                  groupInviteIsLoading
+                    ? 'Preparing invite link'
+                    : 'Invite link unavailable'
+                }
+                accent={groupInviteHasError ? 'negative' : 'positive'}
+                editable={false}
+                selectTextOnFocus={groupInviteIsReady}
+                frameStyle={{
+                  flex: 1,
+                  height: 44,
+                  ...(groupInviteHasError
+                    ? {}
+                    : {
+                        borderTopRightRadius: 0,
+                        borderBottomRightRadius: 0,
+                        borderRightWidth: 0,
+                      }),
+                }}
+              />
+              {!groupInviteHasError && (
+                <Button
+                  onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
+                  icon={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
+                  accessibilityLabel={
+                    didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
+                  }
+                  intent="positive"
+                  size="small"
+                  width={44}
+                  borderTopLeftRadius={0}
+                  borderBottomLeftRadius={0}
+                  loading={groupInviteIsLoading}
+                  disabled={!groupInviteIsReady}
+                  glow={groupInviteIsReady}
+                />
+              )}
+            </XStack>
+            <Button
+              onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}
+              label="Share link"
+              intent={groupInviteHasError ? 'negative' : 'positive'}
+              fill="outline"
+              size="small"
+              leadingIcon="Send"
+              disabled={!groupInviteIsReady}
+            />
+          </YStack>
         ) : null}
         <Button
           data-testid="got-it"

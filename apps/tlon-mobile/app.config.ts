@@ -9,6 +9,9 @@ const projectId = '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0';
 const isPreview = process.env.APP_VARIANT === 'preview';
 const buildGitHash = process.env.EAS_BUILD_GIT_COMMIT_HASH || 'development';
 const appScheme = isPreview ? 'io.tlon.groups.preview' : 'io.tlon.groups';
+const branchDomain = isPreview
+  ? process.env.BRANCH_DOMAIN_TEST
+  : process.env.BRANCH_DOMAIN_PROD;
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -35,6 +38,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     appVariant: process.env.APP_VARIANT || 'production',
     notifyProvider: process.env.NOTIFY_PROVIDER,
     notifyService: process.env.NOTIFY_SERVICE,
+    inviteProvider: process.env.INVITE_PROVIDER,
     apiUrl: process.env.API_URL,
     apiAuthUsername: process.env.API_AUTH_USERNAME,
     apiAuthPassword: process.env.API_AUTH_PASSWORD,
@@ -58,7 +62,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ignoreCosmos: process.env.IGNORE_COSMOS,
     TlonEmployeeGroup: process.env.TLON_EMPLOYEE_GROUP,
     branchKey: process.env.BRANCH_KEY_PROD,
-    branchDomain: process.env.BRANCH_DOMAIN_PROD,
+    branchDomain,
     inviteServiceEndpoint: process.env.INVITE_SERVICE_ENDPOINT,
     inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
     gitHash: buildGitHash ? buildGitHash.substring(0, 7) : 'dev',

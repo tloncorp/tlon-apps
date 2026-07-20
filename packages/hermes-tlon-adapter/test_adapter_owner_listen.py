@@ -276,6 +276,9 @@ class AdapterOwnerListenTests(unittest.TestCase):
             "access_code": "code",
             "channels": ["chat/~pen/general"],
             "owner_ship": "~mug",
+            # Owner-listen/context assertions are independent of reaction id
+            # rendering (covered by test_adapter_reactions).
+            "reaction_level": "off",
         }
         base.update(extra)
         with patch.dict(os.environ, {}, clear=True):

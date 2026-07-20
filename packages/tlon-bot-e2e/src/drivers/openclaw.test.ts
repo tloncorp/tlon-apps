@@ -205,6 +205,14 @@ describe('OpenClaw driver runtime spec', () => {
         expectedCallCount: 1,
       },
     });
+
+    expect(openclawDriver.model.replyTexts(['one', 'two'])).toMatchObject({
+      steps: [
+        { kind: 'text', content: 'one' },
+        { kind: 'text', content: 'two' },
+      ],
+      expectations: { expectedCallCount: 2 },
+    });
   });
 });
 

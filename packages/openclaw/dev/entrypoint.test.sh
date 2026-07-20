@@ -16,6 +16,14 @@ echo "==> OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR"
 echo "==> User: $(whoami)"
 echo "==> Working directory: $(pwd)"
 
+requested_core_version="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+installed_core_version="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$(npm root -g)/openclaw/package.json")"
+if [ "$installed_core_version" != "$requested_core_version" ]; then
+  echo "FATAL: requested OpenClaw core $requested_core_version but installed $installed_core_version"
+  exit 1
+fi
+echo "[tlon-e2e] openclaw-core-version=$installed_core_version requested=$requested_core_version"
+
 # The mounted package declares workspace:^ deps that only resolve inside the
 # tlon-apps pnpm workspace. Copy it to a container-local dir (also the
 # id-shaped path OpenClaw's path hint expects) and rewrite those deps to

@@ -111,12 +111,15 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
 
-  # Checks for the bot/plugin packages that historically rode along in
-  # test-build and run nowhere else. Only needed when test-build is skipped
-  # (bot-only PRs); on mixed PRs test-build's repo-wide prettier/lint/tsc/
-  # test:ci already covers all of this. Deliberately NOT re-running what the
-  # path-triggered plugin workflows (hermes-ci/openclaw-ci) already run on the
-  # same PR: openclaw unit/security tests and tlon-bot-e2e tsc + unit tests.
+  # Unit-level checks for the bot/plugin packages, mirroring what test-build's
+  # repo-wide prettier/lint/tsc/test:ci ran for them before gating. Only
+  # needed when test-build is skipped (bot-only PRs); on mixed PRs test-build
+  # covers all of this. The openclaw and tlon-bot-e2e unit steps duplicate
+  # jobs in the path-triggered hermes-ci/openclaw-ci workflows, on purpose:
+  # those workflows can't be required status checks (a paths-filtered workflow
+  # never reports on unrelated PRs, wedging a required context), so this job
+  # is what puts that coverage behind the CI OK merge gate. Their heavyweight
+  # shared-E2E suites stay in the plugin workflows only, non-blocking.
   bot-checks:
     needs: changes
     if: needs.changes.outputs.app == 'false' && needs.changes.outputs.bots == 'true'
@@ -148,6 +151,14 @@ jobs:
 
       - name: Lint OpenClaw
         run: pnpm --filter '@tloncorp/openclaw' lint
+
+      - name: Run OpenClaw unit and security tests
+        run: pnpm --filter '@tloncorp/openclaw' test
+
+      - name: tlon-bot-e2e typecheck and unit tests
+        run: |
+          pnpm --filter '@tloncorp/tlon-bot-e2e' tsc
+          pnpm --filter '@tloncorp/tlon-bot-e2e' test:unit
 
       - name: tlon-skill typecheck, tests, and build smoke
         run: pnpm --filter '@tloncorp/tlon-skill' check

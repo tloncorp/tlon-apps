@@ -1,0 +1,9 @@
+# Register the single process-wide '@tloncorp/api' module mock before any
+# test file loads. bun's mock.module cannot be called for the same specifier
+# from two test files: the registrations race (test-file execution order is
+# platform-dependent), the loser's importers fail ESM named-export
+# validation against the winner's shape, and bun's error misleadingly blames
+# packages/api/dist. See scripts/tloncorp-api-mock.ts. Hermetic tests spawn
+# the real CLI in subprocesses, which this mock does not reach.
+[test]
+preload = ["./scripts/tloncorp-api-mock.ts"]

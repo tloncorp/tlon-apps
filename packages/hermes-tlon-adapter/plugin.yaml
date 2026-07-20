@@ -136,6 +136,12 @@ optional_env:
       (default: 20, 0 disables)'
     prompt: 'Group context messages'
     password: false
+  - name: TLON_REACTION_LEVEL
+    description:
+      'Reaction prompt/tool level: off, ack (reserved/off), minimal (default),
+      or extensive'
+    prompt: 'Reaction level'
+    password: false
   - name: TLON_TELEMETRY
     description:
       'Enable opt-in PostHog telemetry (true/false, default false); requires

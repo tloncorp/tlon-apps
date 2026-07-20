@@ -79,7 +79,10 @@ export const hermesDriver: BotDriver = {
         TLON_NUDGE_TICK_INTERVAL_MS: '5000',
         TLON_TELEMETRY: 'false',
         TLON_CONTEXT_MESSAGES: '4',
-        TLON_SSE_READ_TIMEOUT_SECONDS: '15',
+        // The fake-ship SSE stream does not emit idle heartbeats. Match the
+        // adapter's production default instead of forcing a reconnect every
+        // 15 seconds during otherwise idle scenario setup/settles.
+        TLON_SSE_READ_TIMEOUT_SECONDS: '60',
         TLON_KNOWN_BOT_USERS: knownBotUsers,
         TLON_MAX_CONSECUTIVE_BOT_RESPONSES: maxConsecutiveBotResponses,
         HERMES_MODEL_PROVIDER: 'custom',
@@ -126,11 +129,21 @@ export const hermesDriver: BotDriver = {
     replyText(text) {
       return {
         steps: [{ kind: 'text', content: text }],
-        options: { allowExtraCalls: 1 },
+        options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
         expectations: {
           advertisedTools: { exact: ['tlon'] },
           expectedCallCount: 1,
-          allowedAuxiliaryCalls: ['hermes_title_generation'],
+        },
+      };
+    },
+
+    replyTexts(texts) {
+      return {
+        steps: texts.map((content) => ({ kind: 'text' as const, content })),
+        options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
+        expectations: {
+          advertisedTools: { exact: ['tlon'] },
+          expectedCallCount: texts.length,
         },
       };
     },
@@ -146,11 +159,10 @@ export const hermesDriver: BotDriver = {
             },
           },
         ],
-        options: { allowExtraCalls: 1 },
+        options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
         expectations: {
           advertisedTools: { exact: ['tlon'] },
           expectedCallCount: 1,
-          allowedAuxiliaryCalls: ['hermes_title_generation'],
         },
       };
     },
@@ -161,7 +173,7 @@ export const hermesDriver: BotDriver = {
           { kind: 'tool_call', name: 'tlon', args: { command } },
           { kind: 'text', content: finalText },
         ],
-        options: { allowExtraCalls: 1 },
+        options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
         expectations: {
           advertisedTools: { exact: ['tlon'] },
           expectedCallCount: 2,
@@ -173,7 +185,6 @@ export const hermesDriver: BotDriver = {
           ],
           toolLoopResult: true,
           streamedToolLoop: true,
-          allowedAuxiliaryCalls: ['hermes_title_generation'],
         },
       };
     },
@@ -277,6 +288,10 @@ async function assertHermesConfig(
   expectConfig(
     tlon.max_consecutive_bot_responses === expectedLoopLimit,
     `tlon.max_consecutive_bot_responses must be ${expectedLoopLimit}`
+  );
+  expectConfig(
+    tlon.reply_in_thread === undefined || tlon.reply_in_thread === false,
+    'tlon.reply_in_thread must be unset or false for shared thread anchoring'
   );
 
   if (failures.length > 0) {

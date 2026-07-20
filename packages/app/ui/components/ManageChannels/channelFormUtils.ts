@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { notesPermissionsCompatActive } from '@tloncorp/shared/logic/notesPermissionsCompat';
 
 /**
  * Form schema for channel privacy settings.
@@ -24,6 +25,34 @@ export const MEMBER_ROLE_OPTION: RoleOption = {
   label: 'Members',
   value: MEMBERS_MARKER,
 };
+
+/**
+ * Process readers/writers arrays for submission.
+ * If MEMBERS_MARKER is present, an empty array grants access to all members.
+ * Channels with unified permissions, such as %notes, do not submit writers.
+ */
+export function processFinalPermissions(
+  readers: string[],
+  writers: string[],
+  isPrivate = true,
+  channelType?: string
+): { finalReaders: string[]; finalWriters: string[] } {
+  const finalReaders = !isPrivate
+    ? []
+    : readers.includes(MEMBERS_MARKER)
+      ? []
+      : readers.filter((reader) => reader !== MEMBERS_MARKER);
+
+  const finalWriters = notesPermissionsCompatActive(channelType)
+    ? []
+    : !isPrivate
+      ? []
+      : writers.includes(MEMBERS_MARKER)
+        ? []
+        : writers.filter((writer) => writer !== MEMBERS_MARKER);
+
+  return { finalReaders, finalWriters };
+}
 
 /**
  * Converts group roles to option format for selectors.
@@ -56,6 +85,25 @@ export const getChannelPrivacyDefaults = (
 ): ChannelPrivacyFormSchema => {
   const readerRoles = channel?.readerRoles?.map((r) => r.roleId) ?? [];
   const writerRoles = channel?.writerRoles?.map((r) => r.roleId) ?? [];
+
+  // %notes has a single access permission: anyone who can read a notebook can
+  // also edit it. Ignore any stale writer roles and mirror the reader roles in
+  // the form so the two controls accurately describe that shared permission.
+  if (notesPermissionsCompatActive(channel?.type)) {
+    const isPrivate = readerRoles.length > 0;
+    const roles = isPrivate
+      ? readerRoles.includes('admin')
+        ? readerRoles
+        : ['admin', ...readerRoles]
+      : [];
+
+    return {
+      readers: roles,
+      writers: roles,
+      isPrivate,
+    };
+  }
+
   const isPrivate = readerRoles.length > 0 || writerRoles.length > 0;
 
   const readers = isPrivate
