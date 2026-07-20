@@ -1,0 +1,14 @@
+diff --git a/package.json b/package.json
+index 13b63d2..ee96943 100644
+--- a/package.json
++++ b/package.json
+@@ -10,7 +10,7 @@
+   },
+   "main": "./deferred",
+-  "dependencies": [],
+-  "devDependencies": ["mocha", "underscore"],
++  "dependencies": {},
++  "devDependencies": {},
+   "optionalDependencies": {},
+   "engines": {
+     "node": "*"

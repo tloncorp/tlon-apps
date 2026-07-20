@@ -18,7 +18,7 @@
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
-    "expensify-common": "^2.0.182",
+    "expensify-common": "2.0.182",
     "posthog-js": "^1.234.4",
     "refractor": "^4.8.0",
     "sqlocal": "^0.14.1"

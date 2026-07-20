@@ -42,6 +42,7 @@ patchedDependencies:
   expo-image-manipulator: patches/expo-image-manipulator@56.0.19.patch
   expo-background-task: patches/expo-background-task@56.0.19.patch
   '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
+  'simply-deferred@3.0.0': patches/simply-deferred@3.0.0.patch
 
 allowUnusedPatches: false
 
@@ -77,10 +78,12 @@ overrides:
   react-native-gesture-handler: ~2.31.1
   get-intrinsic: 1.2.4
   esbuild: 0.27.3
-  react-native-enriched: file:../../vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
+  react-native-enriched: file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
   '@expensify/react-native-live-markdown': github:janicduplessis/react-native-live-markdown#2ebc7c7
+  simply-deferred: 3.0.0
 
 allowBuilds:
+  '@expensify/react-native-live-markdown@https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33': true
   "@firebase/util": true
   "@google/genai": true
   "@sentry/cli": true
