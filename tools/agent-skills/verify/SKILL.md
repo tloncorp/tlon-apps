@@ -33,24 +33,31 @@ screenshot. Where noted, use your tool's own verbs for those actions.
 1. Piers + urbit binary live in `apps/tlon-web/rube/dist/` after any rube
    run (zod/, ten/, urbit_extracted/urbit). If missing, let
    `./start-playwright-dev.sh` run once to download/extract, then kill it.
-2. Boot one ship (zod, http port 35453 per `apps/tlon-web/e2e/shipManifest.json`).
-   **First make sure no ship is already using this pier/port** — deleting a live
+2. Boot the **zod** ship (http port 35453 per `apps/tlon-web/e2e/shipManifest.json`).
+   **First make sure zod's own port/pier isn't already live** — deleting a live
    `.vere.lock` and booting a second Vere on the same pier corrupts/wedges it.
-   Only remove the lock once you've confirmed nothing is running:
+   Gate specifically on **zod's port `:35453`** (not "any urbit" — another rube
+   ship like `~ten` on `:38473` is irrelevant here and must not make you skip
+   booting zod, or Vite below points at a dead port). The `-d` flag runs Vere as a
+   detached daemon, so this returns and you can proceed:
    ```
    cd apps/tlon-web
-   # Bail if a ship is already serving this port (reuse it instead of double-booting):
-   if lsof -ti :35453 >/dev/null 2>&1 || pgrep -f 'rube/dist/urbit_extracted/urbit' >/dev/null; then
-     echo "A ship/port is already live — reuse it; do NOT delete the lock or boot again."
+   if lsof -ti :35453 >/dev/null 2>&1; then
+     echo "zod already serving :35453 — reuse it; do NOT delete the lock or boot again."
    else
      rm -f rube/dist/zod/zod/.vere.lock
-     ./rube/dist/urbit_extracted/urbit rube/dist/zod/zod -d --http-port 35453
+     ./rube/dist/urbit_extracted/urbit rube/dist/zod/zod -d --http-port 35453   # -d = daemon (detached)
    fi
    ```
-3. Start web server (background):
+   (If a stale zod process holds the pier but isn't listening on `:35453`, the
+   `-d` boot after removing the lock recovers it.)
+3. Start the web server. It runs in the **foreground and blocks**, so launch it as
+   a long-lived background/detached process (your agent's background-run
+   mechanism, a separate terminal/session, or append `&`) — otherwise the recipe
+   hangs here and never reaches the browser step:
    ```
    cd apps/tlon-web
-   SHIP_URL=http://localhost:35453 VITE_DISABLE_SPLASH_MODAL=true pnpm dev-no-ssl --port 3000
+   SHIP_URL=http://localhost:35453 VITE_DISABLE_SPLASH_MODAL=true pnpm dev-no-ssl --port 3000 &
    ```
 4. Browse `http://localhost:3000/apps/groups/`, log in with zod code
    `lidlut-tabwed-pillex-ridrup`. Rube nukes ship state, so create a quick

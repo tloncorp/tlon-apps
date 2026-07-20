@@ -145,15 +145,22 @@ exact PR-body shape are in **`references/fix-and-verify.md`**.
 
 ## Phase 5 — Verify on-device
 
-The preview build **embeds its JS bundle and boots straight into the app**, so
-Metro hot-reload does not pick up a code change — the only way to get a fix onto
-the device is a native rebuild that bundles the current source. The full recipe
-(JDK/SDK env, `local.properties`, `gradlew :app:installPreviewDebug`, the
-non-destructive "never uninstall" rule that preserves the user's login, and the
-screen-sleep/unlock handling for the long build) is in
-**`references/fix-and-verify.md`**.
+**Know your variant** — this is easy to get wrong. `previewDebug` is a
+`debuggableVariant` in `apps/tlon-mobile/android/app/build.gradle`, so its JS
+bundle is **not** embedded; that build loads JS from **Metro**. So:
 
-After it installs: reproduce the original failing steps, screenshot the
+- **JS/TS-only fix (common case): verify via Metro, no rebuild.** Start Metro on
+  the fixed source (`APP_VARIANT=preview npx expo start --dev-client`), point the
+  device at it, and confirm Metro logs an `Android Bundling` line when the app
+  loads — otherwise you're looking at stale/cached JS and the check is a lie.
+- **Native change, or a standalone APK that embeds the fix:** build the bundling
+  variant `previewRelease` (with `APP_VARIANT=preview`) — **not**
+  `installPreviewDebug`, which won't contain your source.
+
+The full recipe (both paths, JDK/SDK env, the non-destructive "never uninstall"
+rule, screen-sleep/unlock handling) is in **`references/fix-and-verify.md`**.
+
+Once the fix is live: reproduce the original failing steps, screenshot the
 now-correct behavior, and view the shot to confirm. Proof is the before
 (filed screenshot) and after (post-fix screenshot) of the same repro.
 

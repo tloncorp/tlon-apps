@@ -99,6 +99,19 @@ is NOT live. (This is the trap that makes Phase 5 lie.)
 Prereqs on a typical macOS dev box: JDK 17 (`/opt/homebrew/opt/openjdk@17`) and
 the Android SDK (`/opt/homebrew/share/android-commandlinetools`).
 
+Simplest: use the package script, which sets the variant env for you:
+
+```bash
+# EMBEDS the JS as the preview variant. Cold build ~10-20 min; run in bg.
+pnpm --filter tlon-mobile android:release:preview
+```
+
+If you invoke Gradle directly instead, you **must** set `APP_VARIANT=preview` —
+`app.config.ts` derives the Expo scheme and `extra.appVariant` from it and
+defaults to *production* when it's unset, so a bare `installPreviewRelease` embeds
+production JS constants (Branch keys, deep-link scheme, etc.) under the preview
+applicationId, making preview-only behavior unverifiable:
+
 ```bash
 echo "sdk.dir=/opt/homebrew/share/android-commandlinetools" \
   > apps/tlon-mobile/android/local.properties
@@ -106,8 +119,7 @@ cd apps/tlon-mobile/android
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
-# previewRelease EMBEDS the JS (bundling variant). Cold build ~10-20 min; run in bg.
-./gradlew :app:installPreviewRelease -x lint
+APP_VARIANT=preview ./gradlew :app:installPreviewRelease -x lint
 ```
 
 Watch for `BUILD SUCCESSFUL` / `Installed on` vs `BUILD FAILED` / `FAILURE:`, and
