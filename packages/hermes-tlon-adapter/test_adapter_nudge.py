@@ -425,6 +425,74 @@ class AdapterNudgeTests(unittest.IsolatedAsyncioTestCase):
         }
         self.assertNotIn("lastOwnerMessageAt", activity_keys)
 
+    async def test_stale_timestamped_owner_edit_does_not_backdate_activity(self):
+        # Post edits re-deliver `r-post.set` with the original creation
+        # `sent`. After a restart the dedup ring is empty, so without the
+        # advance-only guard an owner editing a month-old post would backdate
+        # the activity shadow, persist the stale instant, and look 30 days
+        # idle to the scheduler.
+        adapter = make_adapter()
+        adapter._nudge_load_seeded = True
+        adapter._nudge_stage_shadow = 1
+        adapter._pending_nudge_rehydrated = True
+        pending = nudge.PendingNudge(1_700_000_000_000, 1, "~ten", "hermes")
+        adapter._pending_nudge = pending
+        adapter._nudge_owner_activity = (1_700_000_000_000, "2023-11-14")
+
+        month_old_edit = tlon_api.TlonIncomingMessage(
+            chat_id="chat/~zod/general",
+            chat_name="general",
+            chat_type="group",
+            user_id="~ten",
+            user_name="~ten",
+            text="edited an ancient post",
+            message_id="ancient-post-1",
+            reply_to_message_id=None,
+            sent_at=datetime.fromtimestamp(1_697_000_000, timezone.utc),
+            raw={},
+            author_id="~ten",
+        )
+
+        hook = adapter._observe_nudge_owner_message(month_old_edit, is_dm=False)
+        await adapter._nudge_activity_persistence.flush()
+        await adapter._pending_nudge_persistence.flush()
+
+        self.assertIsNone(hook.pending)
+        self.assertFalse(hook.inject_context)
+        self.assertEqual(adapter._nudge_owner_activity, (1_700_000_000_000, "2023-11-14"))
+        self.assertEqual(adapter._nudge_stage_shadow, 1)
+        self.assertIs(adapter._pending_nudge, pending)
+        activity_keys = {
+            poke[2].get("put-entry", {}).get("entry-key")
+            for poke in adapter._sse.pokes
+            if isinstance(poke[2], dict)
+        }
+        self.assertNotIn("lastOwnerMessageAt", activity_keys)
+
+    async def test_same_instant_owner_message_still_processes(self):
+        adapter = make_adapter()
+        adapter._nudge_load_seeded = True
+        adapter._nudge_stage_shadow = 1
+        adapter._pending_nudge_rehydrated = True
+        adapter._nudge_owner_activity = (1_700_000_000_000, "2023-11-14")
+
+        same_instant = tlon_api.TlonIncomingMessage(
+            chat_id="~ten",
+            chat_name="~ten",
+            chat_type="dm",
+            user_id="~ten",
+            user_name="~ten",
+            text="same millisecond",
+            message_id="same-instant-1",
+            reply_to_message_id=None,
+            sent_at=datetime.fromtimestamp(1_700_000_000, timezone.utc),
+            raw={},
+            author_id="~ten",
+        )
+
+        adapter._observe_nudge_owner_message(same_instant, is_dm=True)
+        self.assertEqual(adapter._nudge_stage_shadow, 0)
+
     async def test_unrehydrated_owner_reply_takes_authority_in_one_activity_batch(self):
         adapter = make_adapter()
         message = tlon_api.TlonIncomingMessage(

@@ -2631,6 +2631,15 @@ class TlonAdapter(BasePlatformAdapter):
         at = _epoch_ms(message.sent_at)
         if at is None:
             return _NudgeHookResult()
+        # Advance-only, like the load path. Post edits re-deliver `r-post.set`
+        # with the ORIGINAL creation `sent`, so an owner editing an old post
+        # (with the dedup ring empty after a restart) would otherwise backdate
+        # the activity shadow — and persist that stale instant — making an
+        # active owner look idle for 7/14/30 days. A strictly older instant
+        # never advances state; same-instant messages still process normally.
+        current_activity = self._nudge_owner_activity
+        if current_activity is not None and at < current_activity[0]:
+            return _NudgeHookResult()
         date = datetime.fromtimestamp(at / 1000, timezone.utc).date().isoformat()
         # Owner activity is trusted just like a live settings event.  It can
         # arrive while a boot/retry scry is in flight, so make a later load
