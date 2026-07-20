@@ -97,6 +97,63 @@
   ;<  caz=(list card)  bind:m  do-wake
   (ex-cards caz ~)
 ::
+::  virtual-identity (bot moon) presence.
+::  ~doznec-sampel-palnet is a moon sponsored by ~sampel-palnet.
+++  vhost   ~sampel-palnet
+++  vmoon   ~doznec-sampel-palnet
+++  human   ~zod
+++  vctx    `context:p`/vouched/(scot %p vmoon)/dm/(scot %p human)
+++  vkey    `key:p`[vctx vmoon %computing]
+++  vsub    `path`/context/(scot %p human)/vouched/(scot %p vmoon)/dm/(scot %p human)
+::  the moon's host (us) fans the moon's %computing presence to a human who
+::  subscribed to us for it, attributing it to the moon.
+++  test-vouched-presence-host-fans
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our vhost, src vhost, now t0)))
+  ;<  *  bind:m  (do-init dap agent)
+  ::  the human subscribes to the moon's presence via us (its sponsor)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(src human)))
+  ;<  *  bind:m  (do-watch vsub)
+  ::  openclaw (running on us) sets the moon's computing presence
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(src vhost, now t0)))
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %presence-command-1
+    !>(`command-1:p`[%set ~ vkey [t0 ~] display])
+  %+  ex-cards  caz
+  :~  (ex-fact ~[/v1] %presence-response-1 !>(`response-1:p`[%here vkey [t0 ~] display]))
+      %+  ex-arvo
+        `wire`/expire/(scot %p vmoon)/computing/vouched/(scot %p vmoon)/dm/(scot %p human)
+      [%b %wait (add t0 ~m1)]
+      (ex-fact ~[vsub] %presence-update-1 !>(`update-1:p`[%set vkey [t0 ~] display]))
+  ==
+::  the human hears the moon's presence from the host and re-keys it to the
+::  moon's dm, so it displays like any other dm presence for that moon.
+++  test-vouched-presence-receipt
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our human, src human, now t0)))
+  ;<  *  bind:m  (do-init dap agent)
+  ::  register our outgoing sub to the host for the moon's presence
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=  b=bowl
+    =/  w=wire  /context-2/vouched/(scot %p vmoon)/dm/(scot %p human)
+    b(now t0, wex (~(put by wex.b) [w vhost dap] [& vsub]))
+  =/  ours  `key:p`[/dm/(scot %p vmoon) vmoon %computing]
+  ;<  caz=(list card)  bind:m
+    %+  do-agent  `wire`/context-2/vouched/(scot %p vmoon)/dm/(scot %p human)
+    :-  [vhost dap]
+    [%fact %presence-update-1 !>(`update-1:p`[%set vkey [t0 ~] display])]
+  %+  ex-cards  caz
+  :~  (ex-fact ~[/v1] %presence-response-1 !>(`response-1:p`[%here ours [t0 ~] display]))
+      %+  ex-arvo
+        `wire`/expire/(scot %p vmoon)/computing/dm/(scot %p vmoon)
+      [%b %wait (add t0 ~m1)]
+  ==
+::
 ++  test-state-2-resub
   %-  eval-mare
   =/  m  (mare ,~)

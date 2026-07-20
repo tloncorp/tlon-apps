@@ -69,11 +69,26 @@
     %other      ~s30
   ==
 ::
+::  +vouches-for: may .src speak/act as .who? true when the same ship, or
+::  when .who is a moon (%earl) sponsored by .src. Uses the pure +^sein:title
+::  so it resolves for a moon that has never booted. Mirrors +vouches-for in
+::  /lib/channel-utils; inlined here to avoid pulling in the chat deps.
+++  vouches-for
+  |=  [src=ship who=ship]
+  ^-  ?
+  ?:  =(src who)  &
+  ?&  ?=(%earl (clan:title who))
+      =(src (^sein:title who))
+  ==
+::
 ++  context-host
   |=  [=context our=@p]
   ^-  ship
   ?+  context  !!
     [%dm @ ~]                          our
+    ::  presence for a bot moon we host lives with us (the moon's sponsor),
+    ::  the same way we relay its dms. See +vouches-for.
+    [%vouched @ %dm @ ~]               our
     [%channel kind=@ ship=@ name=@ ~]  (slav %p i.t.t.context)
     [%group ship=@ term=@ ~]           (slav %p i.t.context)
   ==
@@ -84,6 +99,13 @@
   ?+  context  &
       [%dm @ ~]
     =(src.bowl (slav %p i.t.context))
+  ::
+    ::  a bot moon we host: the subscriber must be the counterparty named in
+    ::  the context, and .who must be a moon we actually sponsor.
+      [%vouched @ %dm @ ~]
+    ?&  (vouches-for our.bowl (slav %p i.t.context))
+        =(src.bowl (slav %p i.t.t.t.context))
+    ==
   ::
       [%channel @ @ @ ~]
     =/  group=(unit flag:gv)
@@ -179,11 +201,14 @@
 ++  dm-contexts
   |=  =bowl:gall
   ^-  (set [ship context])
-  %.  (late /dm/(scot %p our.bowl))
-  %~  run  in
-  .^  (set ship)  %gx
-    /(scot %p our.bowl)/chat/(scot %da now.bowl)/dm/ships
-  ==
+  %-  ~(run in .^((set ship) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/dm/ships))
+  |=  partner=ship
+  ^-  [ship context]
+  ::  a bot moon never boots, so watch its presence via its host (sponsor) on
+  ::  the vouched context; the host relays the moon's presence to us.
+  ?:  ?=(%earl (clan:title partner))
+    [(^sein:title partner) /vouched/(scot %p partner)/dm/(scot %p our.bowl)]
+  [partner /dm/(scot %p our.bowl)]
 ::
 ++  channel-contexts
   |=  =bowl:gall
@@ -353,12 +378,18 @@
     ::  and it's a presence for the sender
     ::
     ?>  =(our.bowl (context-host context.key our.bowl))
-    ?>  |(!?=([%dm *] context.key) =(our src):bowl)
-    ?>  =(src.bowl ship.key)
-    ::  for non-dm contexts, verify participant membership
-    ::
-    ?>  ?:  ?=([%dm *] context.key)  &
-        (is-participant context.key bowl)
+    ?>  ?:  ?=([%vouched @ %dm @ ~] context.key)
+          ::  presence for a bot moon we host: only we may set it (as
+          ::  ourselves, the moon's sponsor), and .key.ship must be that moon.
+          ?&  =(src.bowl our.bowl)
+              =(ship.key (slav %p i.t.context.key))
+              (vouches-for our.bowl ship.key)
+          ==
+        ::  normal: sender sets their own presence, in a context they're in
+        ?&  |(!?=([%dm *] context.key) =(our src):bowl)
+            =(src.bowl ship.key)
+            ?:(?=([%dm *] context.key) & (is-participant context.key bowl))
+        ==
     ?-  -.cmd
         %set
       ::  ack but no-op on timed out presence
@@ -565,14 +596,23 @@
           ==
         :_  this
         [(tell:log %warn ~['context fact: wire/context mismatch' >wire< >upd<] ~)]~
-      ::  translate dm context from peer's perspective to ours
+      ::  translate the context we heard into the one our client keys by
       ::
       =/  theirs=^context  /dm/(scot %p our.bowl)
       =/  ours=^context    /dm/(scot %p src.bowl)
+      =/  =key             ?-(-.upd %set key.upd, %clear key.upd)
+      =/  new-ctx=^context
+        ::  a bot moon's presence, relayed by its host: re-key to the moon's
+        ::  dm so it displays like any other dm presence for that moon.
+        ?:  ?=([%vouched @ %dm @ ~] context.key)
+          /dm/(scot %p (slav %p i.t.context.key))
+        ::  normal dm: the peer keys by us, we key by them
+        ?:  =(theirs context.key)  ours
+        context.key
       =.  upd
         ?-  -.upd
-          %set    ?:(=(theirs context.key.upd) upd(context.key ours) upd)
-          %clear  ?:(=(theirs context.key.upd) upd(context.key ours) upd)
+          %set    upd(context.key new-ctx)
+          %clear  upd(context.key new-ctx)
         ==
       ?-  -.upd
           %set
