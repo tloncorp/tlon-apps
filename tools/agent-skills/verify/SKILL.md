@@ -33,11 +33,19 @@ screenshot. Where noted, use your tool's own verbs for those actions.
 1. Piers + urbit binary live in `apps/tlon-web/rube/dist/` after any rube
    run (zod/, ten/, urbit_extracted/urbit). If missing, let
    `./start-playwright-dev.sh` run once to download/extract, then kill it.
-2. Boot one ship (zod, http port 35453 per `apps/tlon-web/e2e/shipManifest.json`):
+2. Boot one ship (zod, http port 35453 per `apps/tlon-web/e2e/shipManifest.json`).
+   **First make sure no ship is already using this pier/port** — deleting a live
+   `.vere.lock` and booting a second Vere on the same pier corrupts/wedges it.
+   Only remove the lock once you've confirmed nothing is running:
    ```
    cd apps/tlon-web
-   rm -f rube/dist/zod/zod/.vere.lock
-   ./rube/dist/urbit_extracted/urbit rube/dist/zod/zod -d --http-port 35453
+   # Bail if a ship is already serving this port (reuse it instead of double-booting):
+   if lsof -ti :35453 >/dev/null 2>&1 || pgrep -f 'rube/dist/urbit_extracted/urbit' >/dev/null; then
+     echo "A ship/port is already live — reuse it; do NOT delete the lock or boot again."
+   else
+     rm -f rube/dist/zod/zod/.vere.lock
+     ./rube/dist/urbit_extracted/urbit rube/dist/zod/zod -d --http-port 35453
+   fi
    ```
 3. Start web server (background):
    ```

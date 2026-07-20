@@ -16,8 +16,11 @@
 3. **Hygiene before committing:**
    - Typecheck: `cd packages/<pkg> && npx tsc --noEmit` (or `pnpm -r tsc`).
    - Prettier: `npx prettier --write <changed files>`.
-   - Branch off `develop`: `git checkout -b <user>/tlon-<NNNN>-<slug>`
-     (the `tlon-<NNNN>` segment auto-links the PR to the Linear issue).
+   - Branch off `develop` **explicitly** — don't rely on current HEAD:
+     `git fetch origin && git switch -c <user>/tlon-<NNNN>-<slug> origin/develop`.
+     (`git checkout -b <name>` with no start point branches from wherever you
+     happen to be; on a stale feature branch that drags unrelated commits into the
+     PR.) The `tlon-<NNNN>` segment auto-links the PR to the Linear issue.
    - Commit. If your agent uses a co-author trailer, add it (e.g.
      `Co-Authored-By: <agent> <email>`).
    - Push, then `gh pr create --base develop` with a body following the repo
@@ -54,57 +57,77 @@ repos, `raw.githubusercontent.com` (needs a token). Prefer, in order:
 broken. (Linear attachments are fine *on the Linear issue itself* — just not in
 GitHub.)
 
-## Verifying on-device — why a rebuild is required
+## Verifying on-device — know your variant first
 
-The installed preview app (`io.tlon.groups.preview`) is **debuggable but embeds
-its JS bundle** and boots straight into the app (no dev-launcher screen). Because
-of that:
+Whether you need a rebuild depends entirely on the build variant, and this is
+easy to get wrong. In `apps/tlon-mobile/android/app/build.gradle`,
+`previewDebug` (and the other `*Debug*` variants) are listed in
+**`debuggableVariants`**, which — per the Expo config comment right above it —
+**skips bundling the JS bundle and assets**. So:
 
-- Starting Metro and reloading does **not** apply your change — the app never
-  requests a bundle from Metro (confirmed by no bundling line in the Metro log),
-  and the `expo-development-client` deep link is ignored when it's already running
-  the embedded bundle.
-- The only way to get the fix onto the device is a **native rebuild** that bundles
-  the current source (which now includes your fix).
+- **`previewDebug` does NOT embed your JS.** It loads the bundle from **Metro** at
+  runtime. `./gradlew :app:installPreviewDebug` therefore does *not* put your
+  current source on the device by itself — without Metro it runs stale/last-cached
+  JS, and Phase 5 can falsely pass or fail against the wrong code.
+- Only a **bundling (release-style) variant** embeds the current JS into a
+  standalone APK: **`previewRelease`** (`pnpm --filter tlon-mobile
+  android:release:preview`).
 
-## The rebuild (non-destructive)
+### For a JS/TS-only fix (the common case) → use Metro, no rebuild needed
 
-Prereqs present on a typical tlon-apps macOS dev box:
-
-- JDK 17: `/opt/homebrew/opt/openjdk@17`
-- Android SDK: `/opt/homebrew/share/android-commandlinetools` (platforms + build-tools)
-
-Steps:
+If a `previewDebug` build is already installed (the usual dev/preview state), you
+don't need Gradle at all:
 
 ```bash
-# 1. Point Gradle at the SDK (android/local.properties, git-ignored)
+# 1. Start Metro on the FIXED source (background; keep it running):
+cd apps/tlon-mobile && APP_VARIANT=preview npx expo start --dev-client --port 8081
+# 2. Make the device reach it, then load it:
+adb reverse tcp:8081 tcp:8081
+adb shell am start -a android.intent.action.VIEW \
+  -d "io.tlon.groups.preview://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+# (or force-stop + relaunch and pick "localhost:8081" from the dev-launcher's
+#  Recently Opened list)
+```
+
+**Confirm you're actually on your Metro bundle**, or you may verify stale code:
+watch the Metro log for an `Android Bundling …` line when the app loads. If no
+bundling request arrives, the app is running an embedded/cached bundle — your fix
+is NOT live. (This is the trap that makes Phase 5 lie.)
+
+### For a native change, or a standalone APK that embeds the fix → build a bundling variant
+
+Prereqs on a typical macOS dev box: JDK 17 (`/opt/homebrew/opt/openjdk@17`) and
+the Android SDK (`/opt/homebrew/share/android-commandlinetools`).
+
+```bash
 echo "sdk.dir=/opt/homebrew/share/android-commandlinetools" \
   > apps/tlon-mobile/android/local.properties
-
-# 2. Build + install the preview debug variant (matches io.tlon.groups.preview).
-#    Run in the BACKGROUND — a cold build is ~10-20 min.
 cd apps/tlon-mobile/android
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
-./gradlew :app:installPreviewDebug -x lint
+# previewRelease EMBEDS the JS (bundling variant). Cold build ~10-20 min; run in bg.
+./gradlew :app:installPreviewRelease -x lint
 ```
 
-Watch for `BUILD SUCCESSFUL` / `Installed on` (success) or `BUILD FAILED` /
-`FAILURE:` (with an `adbx.sh stayon` set so the device screen stays awake).
+Watch for `BUILD SUCCESSFUL` / `Installed on` vs `BUILD FAILED` / `FAILURE:`, and
+set `adbx.sh stayon` so the screen stays awake during the long build.
 
 ### Data-safety rule: never uninstall
 
 Reinstalling over the existing app is safe **as long as you do not uninstall it**.
-If the debug signature matches the installed one, `adb install -r` preserves app
-data and the user's login. If signatures differ, the install simply **fails**
-(no data loss) — it does not silently wipe. So: never run `adb uninstall`. Worst
-case is "couldn't install, report that", never "logged the user out of their real
-account". If it fails on signature mismatch, tell the user rather than forcing it.
+If signatures match, `adb install -r` preserves app data and the user's login. If
+signatures differ (e.g. a release-signed `previewRelease` over a debug-signed
+`previewDebug`), the install simply **fails** — it does not silently wipe. So:
+never run `adb uninstall`. Worst case is "couldn't install, report that", never
+"logged the user out of their real account". If it fails on signature mismatch,
+tell the user rather than forcing it — the Metro flow above avoids the mismatch
+entirely for JS fixes.
 
 ## Capture the proof
 
-After it installs, reproduce the exact failing steps from the Linear repro,
+Once the fix is live on the device (Metro-loaded for a JS fix, or installed for a
+bundling build), reproduce the exact failing steps from the Linear repro,
 screenshot the corrected behavior, and view the shot to confirm. The deliverable
 is a before (the filed broken-state shot) and after (post-fix shot) of the same
 repro. For TLON-6173 that's: Group → Channels → ⋮ → Channel info → edit pencil →

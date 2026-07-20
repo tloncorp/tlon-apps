@@ -47,8 +47,10 @@ what you have.
    the signed URL expires in ~60s so do them back-to-back):
 
    a. `prepare_attachment_upload` with `issue`, `filename`, `contentType:
-      "image/png"`, and the exact byte `size` (`stat -f%z file.png`). It returns
-      `uploadRequest` (url + signed headers) and an `assetUrl`.
+      "image/png"`, and the exact byte `size`. Get the size portably with
+      `wc -c < file.png` (works on macOS **and** Linux; `stat -f%z` is
+      BSD/macOS-only and errors out on GNU/Linux). It returns `uploadRequest`
+      (url + signed headers) and an `assetUrl`.
 
    b. PUT the raw bytes to `uploadRequest.url`, sending **every** header in
       `uploadRequest.headers` verbatim (casing included) or you get HTTP 403:
