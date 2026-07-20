@@ -6,7 +6,8 @@
 # motionevent drag for React Native rows that ignore `input swipe`) and `bounds`
 # (read an element's real coordinates when a tap keeps missing).
 #
-# Screenshots go to $QA_SHOT_DIR (default ./.qa-screens).
+# Screenshots go to $QA_SHOT_DIR (default: a temp dir outside the repo, so
+# real-account captures never land in the worktree / get committed).
 #
 # Usage:
 #   A=.claude/skills/mobile-qa/scripts/adbx.sh
@@ -34,7 +35,10 @@ find_adb() {
 }
 
 ADB="$(find_adb)"
-SS="${QA_SHOT_DIR:-./.qa-screens}"
+# Default to a temp dir OUTSIDE the repo — screenshots can contain real-account
+# content (private chats, member lists), and Phase 4 commits from the worktree,
+# so a repo-relative default risks accidentally committing them.
+SS="${QA_SHOT_DIR:-${TMPDIR:-/tmp}/tlon-qa-screens}"
 mkdir -p "$SS"
 
 cmd="${1:-}"; shift || true

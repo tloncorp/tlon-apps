@@ -70,7 +70,8 @@ than guessing.
 it and wraps the common gestures; use it instead of re-deriving adb invocations.
 
 ```bash
-# point screenshots at a scratch dir (default ./.qa-screens), then sanity-check
+# point screenshots at a scratch dir (default: a temp dir OUTSIDE the repo, so
+# real-account captures never land in the worktree), then sanity-check
 export QA_SHOT_DIR=/path/to/scratch
 SKILL=/path/to/this/skill        # wherever your agent installed it
 A="$SKILL/scripts/adbx.sh"

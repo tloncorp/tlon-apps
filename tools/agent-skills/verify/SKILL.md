@@ -46,7 +46,11 @@ screenshot. Where noted, use your tool's own verbs for those actions.
    daemon, so the boot returns and you can proceed:
    ```
    cd apps/tlon-web
-   if lsof -ti :35453 >/dev/null 2>&1 || pgrep -f 'rube/dist/zod/zod' >/dev/null; then
+   # Note the [r] trick: `pgrep -f 'rube/...'` would otherwise match the wrapper
+   # shell running this very block (its command line contains the pattern) and
+   # always report "live". `[r]ube` matches the ship process but not the literal
+   # `[r]ube` in this shell's argv.
+   if lsof -ti :35453 >/dev/null 2>&1 || pgrep -f '[r]ube/dist/zod/zod' >/dev/null; then
      echo "zod already live (port :35453 or zod/zod pier process) — reuse it; do NOT delete the lock or boot again."
    else
      rm -f rube/dist/zod/zod/.vere.lock
@@ -59,7 +63,10 @@ screenshot. Where noted, use your tool's own verbs for those actions.
    hangs here and never reaches the browser step:
    ```
    cd apps/tlon-web
-   SHIP_URL=http://localhost:35453 VITE_DISABLE_SPLASH_MODAL=true pnpm dev-no-ssl --port 3000 &
+   # --strictPort: fail loudly if :3000 is taken instead of silently falling
+   # through to the next free port (which would leave you verifying stale UI at
+   # localhost:3000). If it fails, kill/reuse the existing :3000 server first.
+   SHIP_URL=http://localhost:35453 VITE_DISABLE_SPLASH_MODAL=true pnpm dev-no-ssl --port 3000 --strictPort &
    ```
 4. Browse `http://localhost:3000/apps/groups/`, log in with zod code
    `lidlut-tabwed-pillex-ridrup`. Rube nukes ship state, so create a quick
