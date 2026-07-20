@@ -496,6 +496,45 @@ class BlockDirectiveSendTests(unittest.TestCase):
         self.assertEqual(len(events), 1)
         self.assertTrue(events[0].text.startswith("first"))
 
+    def test_directive_block_removes_pending_approvals_and_persists(self):
+        adapter, _event = self.correlated_adapter()
+        adapter._pending_approvals = [
+            {"id": "target", "requestingShip": "~attacker"},
+            {"id": "other", "requestingShip": "~other"},
+        ]
+
+        result = asyncio.run(
+            adapter.send("~attacker", self.directive, reply_to="m1")
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(adapter._pending_approvals, [
+            {"id": "other", "requestingShip": "~other"}
+        ])
+        settings_pokes = [
+            poke
+            for poke in adapter._sse.pokes
+            if poke[1] == "settings-event"
+            and poke[2]["put-entry"]["entry-key"] == "pendingApprovals"
+        ]
+        self.assertEqual(len(settings_pokes), 1)
+        self.assertEqual(
+            json.loads(settings_pokes[0][2]["put-entry"]["value"]),
+            adapter._pending_approvals,
+        )
+
+    def test_directive_block_without_pending_approvals_does_not_persist(self):
+        adapter, _event = self.correlated_adapter()
+
+        result = asyncio.run(
+            adapter.send("~attacker", self.directive, reply_to="m1")
+        )
+
+        self.assertTrue(result.success)
+        self.assertFalse(
+            any(poke[1] == "settings-event" for poke in adapter._sse.pokes)
+        )
+
     def test_owner_and_third_party_targets_are_content_safe_rejections(self):
         adapter, _event = self.correlated_adapter(extra={"owner_ship": "~MuG"})
         raw_secret = "DO NOT LOG THIS REASON"

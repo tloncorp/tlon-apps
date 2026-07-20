@@ -1412,6 +1412,18 @@ class TlonAdapter(BasePlatformAdapter):
             SETTINGS_KEY_PENDING_APPROVALS, json.dumps(self._pending_approvals)
         )
 
+    async def _drop_pending_approvals_for(self, ship: str) -> int:
+        remaining = [
+            item
+            for item in self._pending_approvals
+            if approval_ship(item) != ship
+        ]
+        removed = len(self._pending_approvals) - len(remaining)
+        if removed:
+            self._pending_approvals = remaining
+            await self._persist_pending_approvals()
+        return removed
+
     async def _persist_channel_rules(self) -> bool:
         return await self._persist_settings_entry(
             SETTINGS_KEY_CHANNEL_RULES, json.dumps(self._channel_rules)
@@ -1659,19 +1671,8 @@ class TlonAdapter(BasePlatformAdapter):
         if not await self._block_ship(ship):
             return f"Could not block {ship}."
         await self._remove_from_dm_allowlist(ship)
-        removed = [
-            item
-            for item in self._pending_approvals
-            if approval_ship(item) == ship
-        ]
-        if removed:
-            self._pending_approvals = [
-                item
-                for item in self._pending_approvals
-                if approval_ship(item) != ship
-            ]
-            await self._persist_pending_approvals()
-        suffix = f" Removed {len(removed)} pending request(s)." if removed else ""
+        removed = await self._drop_pending_approvals_for(ship)
+        suffix = f" Removed {removed} pending request(s)." if removed else ""
         self._telemetry.approval_event("banned", "ship")
         return f"Blocked {ship}.{suffix}"
 
@@ -3326,6 +3327,7 @@ class TlonAdapter(BasePlatformAdapter):
                 await self._notify_owner(target, reason, block_succeeded=False)
                 continue
             await self._remove_from_dm_allowlist(target)
+            await self._drop_pending_approvals_for(target)
             await self._notify_owner(target, reason)
 
         return strip_block_directives(content).strip(), True
