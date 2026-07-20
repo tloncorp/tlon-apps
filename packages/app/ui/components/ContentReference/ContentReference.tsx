@@ -365,8 +365,11 @@ export function NotesNoteReferenceLoader({
   channelId: string;
   noteId: string;
 }) {
-  const { useNoteReference } = useRequests();
+  const { useNoteReference, useChannel } = useRequests();
   const noteQuery = useNoteReference({ channelId, noteId });
+  // public-notebook previews hydrate for non-members, but NotesDetail only
+  // reads locally synced channels — don't offer a tap into a blank screen
+  const { data: channel } = useChannel({ id: channelId });
   const navigation =
     useReactNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const preview = noteQuery.data;
@@ -384,7 +387,7 @@ export function NotesNoteReferenceLoader({
       isLoading={noteQuery.isLoading}
       isError={noteQuery.isError}
       errorMessage={noteQuery.error?.message}
-      onPress={openOnPress && preview ? handlePress : undefined}
+      onPress={openOnPress && preview && channel ? handlePress : undefined}
     >
       <ContentReferenceHeader type="notes" />
       {preview && (

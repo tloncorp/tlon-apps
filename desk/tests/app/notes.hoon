@@ -2256,7 +2256,7 @@
   ;<  =bowl:gall  b  get-bowl
   =/  f=flag:n  [~bus %nb]
   =/  pax=path  (said-watch-path f 1)
-  =/  =wire  /said/(scot %p ~bus)/nb/note/1
+  =/  =wire  /said/(scot %p ~bus)/nb/note/1/(scot %uv eny.bowl)
   ;<  caz=(list card)  b  (do-watch pax)
   ;<  ~  b
     %+  ex-cards  caz
@@ -2278,14 +2278,69 @@
   =*  b  bind:m
   ^-  form:m
   ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
   =/  f=flag:n  [~bus %nb]
   =/  pax=path  (said-watch-path f 1)
-  =/  =wire  /said/(scot %p ~bus)/nb/note/1
+  =/  =wire  /said/(scot %p ~bus)/nb/note/1/(scot %uv eny.bowl)
   ;<  *  b  (do-watch pax)
   ;<  caz=(list card)  b
     (do-agent wire [~bus %notes] [%watch-ack `~[leaf+"denied"]])
   %+  ex-cards  caz
   :~  (ex-fact ~[pax] %notes-denied !>(~))
       (ex-card [%give %kick ~[pax] ~])
+  ==
+::  +said-group-scry: mock %gu group liveness + %gx can-read for said tests
+::
+++  said-group-scry
+  |=  [synced=? allowed=?]
+  ^-  scry
+  |=  pax=path
+  ?:  ?=([%gu @ %groups @ %groups @ @ ~] pax)
+    `!>(synced)
+  ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
+    ~
+  `!>(|=([who=ship =nest:n] allowed))
+::  ====  test-said-group-reader-gets-preview  ====
+::  Group notebook, group synced, can-read allows → preview served.
+::
+++  test-said-group-reader-gets-preview
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate (said-group-scry & &))
+  ;<  *  b  (poke-a [%create-group-notebook 'GNB' [~zod %grp] ~])
+  =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
+  ;<  *  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
+  ;<  *  b  (set-src ~bus)
+  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'GNB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  ====  test-said-group-unsynced-fails-closed  ====
+::  Group notebook with an unsynced group must deny previews, even though
+::  +can-view-flag treats the same state as viewable for subscriptions.
+::
+++  test-said-group-unsynced-fails-closed
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate (said-group-scry & &))
+  ;<  *  b  (poke-a [%create-group-notebook 'GNB' [~zod %grp] ~])
+  =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
+  ;<  *  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
+  ;<  ~  b  (set-scry-gate (said-group-scry | &))
+  ;<  *  b  (set-src ~bus)
+  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  %+  ex-cards  caz
+  :~  (ex-fact ~ %notes-denied !>(~))
+      (ex-card [%give %kick ~ ~])
   ==
 --

@@ -85,7 +85,7 @@ export function FolderTreeRow({
   );
   const { actionsMenu, rowActionProps } = useRowActions({
     actionGroups,
-    canEdit,
+    enabled: canEdit,
     header: {
       icon: 'Folder',
       title: label,
@@ -154,7 +154,7 @@ export function NoteRow({
   const bodyPreview = getNoteBodyPreview(note.bodyMd);
 
   const actionGroups = createActionGroups(
-    [
+    canEdit && [
       'neutral',
       {
         title: 'Rename note',
@@ -197,25 +197,27 @@ export function NoteRow({
   // appear in place instead of the sheet vanishing mid-operation.
   const publishSection = (
     <ActionSheet.ActionGroup accent="neutral">
-      <ActionSheet.Action
-        action={{
-          title: 'Publish to web',
-          startIcon: 'EyeOpen',
-          // Visual-only: the row press drives the toggle. Letting the Switch
-          // handle taps double-fires with the row action, and its taps get
-          // eaten by the sheet's pan gesture on Android (see
-          // ChannelPermissions.tsx for the same workaround).
-          endIcon: (
-            <View pointerEvents="none">
-              <Switch value={isPublished} disabled={publishDisabled} />
-            </View>
-          ),
-          action: isPublished ? onUnpublish : onPublish,
-          disabled: publishDisabled,
-        }}
-        testID={`NotesPublishToggleAction-${note.noteId}`}
-      />
-      {isPublished ? (
+      {canEdit ? (
+        <ActionSheet.Action
+          action={{
+            title: 'Publish to web',
+            startIcon: 'EyeOpen',
+            // Visual-only: the row press drives the toggle. Letting the Switch
+            // handle taps double-fires with the row action, and its taps get
+            // eaten by the sheet's pan gesture on Android (see
+            // ChannelPermissions.tsx for the same workaround).
+            endIcon: (
+              <View pointerEvents="none">
+                <Switch value={isPublished} disabled={publishDisabled} />
+              </View>
+            ),
+            action: isPublished ? onUnpublish : onPublish,
+            disabled: publishDisabled,
+          }}
+          testID={`NotesPublishToggleAction-${note.noteId}`}
+        />
+      ) : null}
+      {canEdit && isPublished ? (
         <ActionSheet.Action
           action={{
             title: 'Update published note',
@@ -247,7 +249,7 @@ export function NoteRow({
   );
   const { actionsMenu, rowActionProps } = useRowActions({
     actionGroups,
-    canEdit,
+    enabled: true,
     header: {
       icon: 'ChannelNote',
       title: note.title || 'Untitled',
@@ -256,7 +258,7 @@ export function NoteRow({
     bottomContent: (
       <>
         {referenceSection}
-        {publishSection}
+        {canEdit || (isPublished && publishedUrl) ? publishSection : null}
       </>
     ),
   });
@@ -298,12 +300,12 @@ export function NoteRow({
 
 function useRowActions({
   actionGroups,
-  canEdit,
+  enabled,
   header,
   bottomContent,
 }: {
   actionGroups: ActionGroup[];
-  canEdit: boolean;
+  enabled: boolean;
   header: {
     icon: IconType;
     subtitle?: string;
@@ -316,7 +318,7 @@ function useRowActions({
   const { closeAfterAnimation, cancel: cancelPendingAction } =
     useSheetCloseAfterAnimation();
   const openActions = () => {
-    if (canEdit) {
+    if (enabled) {
       cancelPendingAction();
       setOpen(true);
     }
@@ -352,7 +354,7 @@ function useRowActions({
         }
       : {};
   const actionsTrigger =
-    canEdit && Platform.OS === 'web' && (open || isHovered) ? (
+    enabled && Platform.OS === 'web' && (open || isHovered) ? (
       <OverflowTriggerButton
         paddingHorizontal="$xs"
         paddingVertical="$xs"
@@ -373,7 +375,7 @@ function useRowActions({
 
   return {
     actionsMenu:
-      canEdit && (open || actionsTrigger) ? (
+      enabled && (open || actionsTrigger) ? (
         <NotesActionMenu
           groups={actionGroups}
           header={header}
@@ -386,7 +388,7 @@ function useRowActions({
       ) : null,
     rowActionProps: {
       ...hoverProps,
-      onOpenMenu: canEdit ? openActions : undefined,
+      onOpenMenu: enabled ? openActions : undefined,
     },
   };
 }

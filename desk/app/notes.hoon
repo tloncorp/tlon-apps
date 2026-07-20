@@ -637,9 +637,10 @@
       (give-said ~ flag nid src.bowl)
     ::  refuse to fetch over the network on another ship's behalf
     ?>  =(src.bowl our.bowl)
-    =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
-    ?:  (~(has by wex.bowl) [wire ship.flag %notes])
-      cor
+    ::  nonce'd wire: a finished request's sub can linger in wex until the
+    ::  host acks the %leave, which would block an identical re-watch.
+    =/  =wire
+      /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)/(scot %uv eny.bowl)
     (emit %pass wire %agent [ship.flag %notes] %watch (said-path flag nid))
   ::
       [%v1 %notes ship=@ name=@ %request requester=@ id=@ ~]
@@ -791,7 +792,7 @@
         %poke-ack  cor
     ==
   ::
-      [%said ship=@ name=@ %note id=@ ~]
+      [%said ship=@ name=@ %note id=@ nonce=@ ~]
     ::  proxied note-preview answer from a notebook host: relay to our
     ::  /v0/said subscribers (nack/foreign mark coerced to %notes-denied).
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
@@ -812,7 +813,8 @@
           (give %fact paths cage.sign)
         (give %fact paths notes-denied+!>(~))
       =.  cor  (give %kick paths ~)
-      =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+      =/  =wire
+        /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)/[nonce.pole]
       (emit %pass wire %agent [ship.flag %notes] %leave ~)
     ==
   ::
@@ -1018,7 +1020,9 @@
   (crip (tufa (scag limit chars)))
 ::  +give-said: one %fact (preview or %notes-denied) then an immediate
 ::  %kick, mirroring %channels' single-shot said flow. Public notebooks
-::  preview for anyone; others gate on +can-view-flag.
+::  preview for anyone. Unlike +can-view-flag (which treats an unsynced
+::  group as viewable so subscriptions only drop on real revocations),
+::  previews fail closed: no synced group, no snippet.
 ::
 ++  give-said
   |=  [paths=(list path) =flag:n nid=@ud who=ship]
@@ -1026,9 +1030,13 @@
   =/  =cage
     ?~  entry=(get-book flag)  notes-denied+!>(~)
     =*  bs  notebook-state.u.entry
-    ?.  ?|  =(%public visibility.bs)
-            (can-view-flag flag who)
-        ==
+    =/  can-view=?
+      ?~  grp=group.bs
+        !=(~ (~(get by members.bs) who))
+      ?&  (group-synced u.grp)
+          (group-can-read u.grp flag who)
+      ==
+    ?.  |(=(%public visibility.bs) can-view)
       notes-denied+!>(~)
     ?~  nt=(~(get by notes.bs) nid)  notes-denied+!>(~)
     :-  %notes-said
