@@ -13,11 +13,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Optional, Sequence
 
 from .media import render_content_with_blob
-from .tlon_api import extract_author_ship, extract_message_text
+from .tlon_api import extract_author_ship, extract_message_text, extract_message_title
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +56,61 @@ class HistoryEntry:
     blob: Optional[str] = None
 
 
-def _entry_from_content(content: Any, seal: Any, fallback_id: Any = None) -> Optional[HistoryEntry]:
+class MessageCache:
+    """Small in-memory SSE message cache used to classify reaction targets."""
+
+    def __init__(self, *, per_conversation: int = 100, conversations: int = 64) -> None:
+        self.per_conversation = per_conversation
+        self.conversations = conversations
+        self._entries: OrderedDict[str, OrderedDict[str, HistoryEntry]] = OrderedDict()
+
+    def record(self, chat_key: str, post_id: str, author: str, text: str) -> None:
+        key = str(chat_key or "")
+        item_id = _normalize_id(post_id)
+        if not key or not item_id:
+            return
+        entries = self._entries.get(key)
+        if entries is None:
+            entries = OrderedDict()
+            self._entries[key] = entries
+        self._entries.move_to_end(key)
+        entries[item_id] = HistoryEntry(
+            author=extract_author_ship(author) or str(author or "unknown"),
+            content=str(text or ""),
+            timestamp=0.0,
+            post_id=str(post_id),
+        )
+        entries.move_to_end(item_id)
+        while len(entries) > self.per_conversation:
+            entries.popitem(last=False)
+        while len(self._entries) > self.conversations:
+            self._entries.popitem(last=False)
+
+    def lookup(self, chat_key: str, post_id: str) -> Optional[HistoryEntry]:
+        entries = self._entries.get(str(chat_key or ""))
+        if entries is None:
+            return None
+        self._entries.move_to_end(str(chat_key or ""))
+        return entries.get(_normalize_id(post_id))
+
+    def clear(self) -> None:
+        self._entries.clear()
+
+
+def _entry_from_content(
+    content: Any,
+    seal: Any,
+    fallback_id: Any = None,
+    *,
+    include_title: bool = False,
+) -> Optional[HistoryEntry]:
     if not isinstance(content, dict):
         return None
     text = extract_message_text(content.get("content"))
+    if include_title:
+        title = extract_message_title(content)
+        if title:
+            text = "\n".join(part for part in (title, text) if part)
     raw_blob = content.get("blob")
     blob = raw_blob if isinstance(raw_blob, str) and raw_blob.strip() else None
     if not text.strip() and not blob:
@@ -81,7 +133,8 @@ def _entry_from_content(content: Any, seal: Any, fallback_id: Any = None) -> Opt
     )
 
 
-def parse_channel_history(payload: Any) -> list[HistoryEntry]:
+def parse_channel_history(payload: Any, nest: Optional[str] = None) -> list[HistoryEntry]:
+    include_title = bool(nest and nest.startswith("heap/"))
     if isinstance(payload, list):
         posts: Sequence[Any] = payload
     elif isinstance(payload, dict):
@@ -97,14 +150,15 @@ def parse_channel_history(payload: Any) -> list[HistoryEntry]:
         post_set = item.get("r-post", {}).get("set") if isinstance(item.get("r-post"), dict) else None
         essay = item.get("essay") or (post_set or {}).get("essay")
         seal = item.get("seal") or (post_set or {}).get("seal")
-        entry = _entry_from_content(essay, seal)
+        entry = _entry_from_content(essay, seal, include_title=include_title)
         if entry is not None:
             entries.append(entry)
     entries.sort(key=lambda entry: entry.timestamp)
     return entries
 
 
-def parse_thread_replies(payload: Any) -> list[HistoryEntry]:
+def parse_thread_replies(payload: Any, nest: Optional[str] = None) -> list[HistoryEntry]:
+    include_title = bool(nest and nest.startswith("heap/"))
     if isinstance(payload, list):
         replies: Sequence[Any] = payload
     elif isinstance(payload, dict):
@@ -123,28 +177,81 @@ def parse_thread_replies(payload: Any) -> list[HistoryEntry]:
         if not isinstance(item, dict):
             continue
         reply_set = item.get("r-reply", {}).get("set") if isinstance(item.get("r-reply"), dict) else None
-        memo = item.get("memo") or (reply_set or {}).get("memo")
+        reply_content = (
+            item.get("reply-essay")
+            or (reply_set or {}).get("reply-essay")
+            or item.get("memo")
+            or (reply_set or {}).get("memo")
+        )
         seal = item.get("seal") or (reply_set or {}).get("seal")
-        entry = _entry_from_content(memo, seal, fallback_id=item.get("id"))
+        entry = _entry_from_content(
+            reply_content,
+            seal,
+            fallback_id=item.get("id"),
+            include_title=include_title,
+        )
         if entry is not None:
             entries.append(entry)
     entries.sort(key=lambda entry: entry.timestamp)
     return entries
 
 
-def parse_parent_post(payload: Any, parent_id: str) -> Optional[HistoryEntry]:
+def parse_parent_post(
+    payload: Any,
+    parent_id: str,
+    nest: Optional[str] = None,
+) -> Optional[HistoryEntry]:
+    include_title = bool(nest and nest.startswith("heap/"))
     if not isinstance(payload, dict):
         return None
     post = payload.get("post") if isinstance(payload.get("post"), dict) else payload
     post_set = post.get("r-post", {}).get("set") if isinstance(post.get("r-post"), dict) else None
     content = post.get("essay") or post.get("memo") or (post_set or {}).get("essay")
     seal = post.get("seal") or (post_set or {}).get("seal")
-    return _entry_from_content(content, seal, fallback_id=parent_id)
+    return _entry_from_content(
+        content,
+        seal,
+        fallback_id=parent_id,
+        include_title=include_title,
+    )
+
+
+def parse_exact_reply(
+    payload: Any,
+    reply_id: str,
+    nest: Optional[str] = None,
+) -> Optional[HistoryEntry]:
+    """Decode channel-reply-2's memo or reply-essay object, not a reply collection."""
+    include_title = bool(nest and nest.startswith("heap/"))
+    if not isinstance(payload, dict):
+        return None
+    memo = payload.get("memo") or payload.get("reply-essay")
+    seal = payload.get("seal")
+    return _entry_from_content(
+        memo,
+        seal,
+        fallback_id=reply_id,
+        include_title=include_title,
+    )
 
 
 async def fetch_channel_history(scry: ScryFn, nest: str, count: int) -> list[HistoryEntry]:
     payload = await scry(f"/channels/v4/{nest}/posts/newest/{count}/outline")
-    return parse_channel_history(payload)
+    return parse_channel_history(payload, nest)
+
+
+async def fetch_post(
+    scry: ScryFn,
+    nest: str,
+    post_id: str,
+) -> Optional[HistoryEntry]:
+    """Fetch one top-level post through the exact v4 post route."""
+    try:
+        payload = await scry(f"/channels/v4/{nest}/posts/post/{format_ud(post_id)}")
+    except Exception as exc:
+        logger.debug("[tlon] exact post fetch failed for %s: %s", post_id, exc)
+        return None
+    return parse_parent_post(payload, post_id, nest)
 
 
 async def fetch_thread_context(
@@ -162,7 +269,7 @@ async def fetch_thread_context(
         except Exception as exc:
             logger.debug("[tlon] parent post fetch failed for %s: %s", parent_id, exc)
             return None
-        return parse_parent_post(payload, parent_id)
+        return parse_parent_post(payload, parent_id, nest)
 
     async def fetch_replies() -> list[HistoryEntry]:
         try:
@@ -172,7 +279,7 @@ async def fetch_thread_context(
         except Exception as exc:
             logger.debug("[tlon] thread replies fetch failed for %s: %s", parent_id, exc)
             return []
-        return parse_thread_replies(payload)
+        return parse_thread_replies(payload, nest)
 
     parent, replies = await asyncio.gather(fetch_parent(), fetch_replies())
     ordered = ([parent] if parent else []) + replies
@@ -190,6 +297,24 @@ async def fetch_thread_context(
     return deduped
 
 
+async def fetch_reply(
+    scry: ScryFn,
+    nest: str,
+    parent_id: str,
+    reply_id: str,
+) -> Optional[HistoryEntry]:
+    """Fetch precisely one channel reply from the v4 reply-id route."""
+    try:
+        payload = await scry(
+            f"/channels/v4/{nest}/posts/post/id/{format_ud(parent_id)}"
+            f"/replies/reply/id/{format_ud(reply_id)}"
+        )
+    except Exception as exc:
+        logger.debug("[tlon] exact reply fetch failed for %s: %s", reply_id, exc)
+        return None
+    return parse_exact_reply(payload, reply_id, nest)
+
+
 def render_history_content(entry: HistoryEntry) -> str:
     return render_content_with_blob(entry.content, entry.blob, compact=True)
 
@@ -203,9 +328,19 @@ def _context_line_items(entries: Sequence[HistoryEntry]) -> list[tuple[HistoryEn
     return items
 
 
-def _context_lines(entries: Sequence[HistoryEntry]) -> str:
+def _context_lines(
+    items: Sequence[tuple[HistoryEntry, str]], *, include_ids: bool = False
+) -> str:
+    """Render pre-filtered (entry, rendered-text) pairs as one line each:
+    `author [id …]: text` when ``include_ids`` and the entry has an id, else
+    `author: text`. Shared by both context builders below."""
     return "\n".join(
-        f"{entry.author}: {rendered}" for entry, rendered in _context_line_items(entries)
+        (
+            f"{entry.author} [id {entry.post_id}]: {rendered}"
+            if include_ids and entry.post_id
+            else f"{entry.author}: {rendered}"
+        )
+        for entry, rendered in items
     )
 
 
@@ -216,6 +351,7 @@ def build_channel_context(
     current_id: str,
     is_mention: bool,
     limit: int,
+    include_ids: bool = False,
 ) -> Optional[str]:
     """Prepend recent channel activity to the current message text."""
     if limit <= 0:
@@ -235,7 +371,7 @@ def build_channel_context(
         "Use this context to understand what's being discussed.]"
     )
     current_label = "[Current message (mentioned you)]" if is_mention else "[Current message]"
-    lines = "\n".join(f"{entry.author}: {rendered}" for entry, rendered in context)
+    lines = _context_lines(context, include_ids=include_ids)
     return f"{note}\n\n{lines}\n\n{current_label}\n{current_text}"
 
 
@@ -245,6 +381,7 @@ def build_thread_context(
     current_text: str,
     current_id: str,
     limit: int,
+    include_ids: bool = False,
 ) -> Optional[str]:
     """Prepend thread history (parent post first) to the current message text."""
     if limit <= 0:
@@ -268,7 +405,7 @@ def build_thread_context(
         "You are participating in this thread. Only respond if relevant or helpful - "
         "you don't need to reply to every message.]"
     )
-    lines = "\n".join(f"{entry.author}: {rendered}" for entry, rendered in context)
+    lines = _context_lines(context, include_ids=include_ids)
     return (
         f"{note}\n\n[Previous messages]\n{lines}\n\n"
         f"[Current message]\n{current_text}"

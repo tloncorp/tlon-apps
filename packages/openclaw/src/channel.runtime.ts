@@ -379,6 +379,7 @@ export async function startTlonGatewayAccount(
     runtime: ctx.runtime,
     abortSignal: ctx.abortSignal,
     accountId: account.accountId,
+    cfg: ctx.cfg,
   });
 }
 

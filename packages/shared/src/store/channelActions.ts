@@ -12,6 +12,7 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
+import { notesPermissionsCompatActive } from '../logic/notesPermissionsCompat';
 import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
@@ -346,6 +347,7 @@ export async function updateChannel({
   channel: db.Channel;
 }) {
   logger.log('updating channel', channel.id, { readers, writers });
+  const managesWriters = !notesPermissionsCompatActive(channel.type);
   const currentChannel = await db.getChannel({
     id: channel.id,
     includeWriters: true,
@@ -354,12 +356,13 @@ export async function updateChannel({
     (role) => role.roleId
   );
   logger.log('currentChannelWriterIds', currentChannelWriterIds);
-  const writersToAdd = writers.filter(
-    (roleId) => !currentChannelWriterIds?.includes(roleId)
-  );
-  const writersToRemove =
-    currentChannelWriterIds?.filter((roleId) => !writers.includes(roleId)) ??
-    [];
+  const writersToAdd = managesWriters
+    ? writers.filter((roleId) => !currentChannelWriterIds?.includes(roleId))
+    : [];
+  const writersToRemove = managesWriters
+    ? currentChannelWriterIds?.filter((roleId) => !writers.includes(roleId)) ??
+      []
+    : [];
 
   const updatedChannel: db.Channel = {
     ...channel,
@@ -367,7 +370,7 @@ export async function updateChannel({
       channelId: channel.id,
       roleId,
     })),
-    writerRoles: writers.map((roleId) => ({
+    writerRoles: (managesWriters ? writers : []).map((roleId) => ({
       channelId: channel.id,
       roleId,
     })),

@@ -9,6 +9,7 @@ import { useCallback, useRef, useState } from 'react';
 import { getVariableValue, useTheme } from 'tamagui';
 
 import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
+import useBrowserNotifications from '../../hooks/useBrowserNotifications';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import {
   AvatarNavIcon,
@@ -184,6 +185,9 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
 };
 
 const TopLevelDrawerInner = () => {
+  // This must stay below GlobalSearchProvider so notification navigation uses
+  // the user's actual last-open desktop tab instead of the context default.
+  useBrowserNotifications();
   const { navigateToGroup, navigateToChannel } = useRootNavigation();
 
   return (

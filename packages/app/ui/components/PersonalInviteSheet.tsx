@@ -9,6 +9,8 @@ import { ActionSheet } from './ActionSheet';
 import { ListItem } from './ListItem';
 import { PersonalInviteButton } from './PersonalInviteButton';
 
+const PERSONAL_INVITE_TITLE = 'Invite Friends to Tlon Messenger';
+
 export function PersonalInviteSheet({
   open,
   onOpenChange,
@@ -27,10 +29,11 @@ export function PersonalInviteSheet({
     <ActionSheet
       open={open}
       onOpenChange={onOpenChange}
+      title={PERSONAL_INVITE_TITLE}
       snapPointsMode="fit"
       modal
     >
-      <ActionSheet.SimpleHeader title="Invite Friends to Tlon Messenger" />
+      <ActionSheet.SimpleHeader title={PERSONAL_INVITE_TITLE} />
       <ActionSheet.Content flex={1} paddingBottom={0}>
         <ActionSheet.ScrollableContent flex={1}>
           {hasOpenedRef.current && (

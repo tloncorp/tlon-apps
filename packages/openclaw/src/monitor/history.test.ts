@@ -1,10 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   type TlonHistoryEntry,
   buildThreadContextMessage,
+  cacheMessage,
   fetchParentPostAuthor,
   fetchParentPostHistoryEntry,
+  getChannelHistory,
+  lookupCachedMessage,
+  lookupOrFetchCachedChannelMessage,
   parsePostPayload,
   renderHistoryContent,
   retainThreadContextMessages,
@@ -195,6 +199,295 @@ describe('renderHistoryContent', () => {
     };
     const result = renderHistoryContent(entry);
     expect(result).toBe('[📎 a.pdf]\n[📎 b.txt]\nHere are the files');
+  });
+});
+
+describe('cacheMessage', () => {
+  it('normalizes DM writ ids at the cache boundary and deduplicates the echo', async () => {
+    const channel = `dm/~owner-${Date.now().toString(36)}`;
+    const dottedTimestamp = '170.141.184.507.123';
+    const bareTimestamp = '170141184507123';
+    const sendTimeEntry = makeEntry({
+      author: '~bot',
+      content: 'send-time reply',
+      id: `~bot/${dottedTimestamp}`,
+    });
+
+    cacheMessage(channel, sendTimeEntry);
+
+    expect(lookupCachedMessage(channel, bareTimestamp)).toEqual(sendTimeEntry);
+    expect(lookupCachedMessage(channel, `bot/${dottedTimestamp}`)).toEqual(
+      sendTimeEntry
+    );
+
+    const echoEntry = makeEntry({
+      author: '~bot',
+      content: 'echoed reply',
+      timestamp: 2,
+      id: bareTimestamp,
+    });
+    cacheMessage(channel, echoEntry);
+
+    expect(lookupCachedMessage(channel, `~bot/${dottedTimestamp}`)).toEqual(
+      echoEntry
+    );
+
+    const scry = vi.fn(async () => []);
+    await getChannelHistory({ scry }, channel, 2);
+    expect(scry).toHaveBeenCalledOnce();
+  });
+
+  it('resolves a reaction before the echo and upserts the host-assigned post id', async () => {
+    const channel = `chat/~zod/cache-upsert-${Date.now().toString(36)}`;
+    const clientSentId = '~zod/170.141.184.507.123';
+    const hostPostId = '170141184507999';
+    const hostPostIdWithDots = '170.141.184.507.999';
+    const scry = vi.fn(async () => ({
+      post: {
+        essay: {
+          author: '~zod',
+          sent: 1,
+          content: [{ inline: ['reaction-target content'] }],
+        },
+        seal: { id: hostPostIdWithDots },
+      },
+    }));
+
+    // Channel hosts assign a different id than the client's send timestamp,
+    // so no fabricated send-time entry can satisfy this reaction lookup.
+    expect(lookupCachedMessage(channel, clientSentId)).toBeUndefined();
+    const reactionTarget = await lookupOrFetchCachedChannelMessage(
+      { scry },
+      channel,
+      hostPostId
+    );
+    expect(reactionTarget).toMatchObject({
+      author: '~zod',
+      content: 'reaction-target content',
+      id: hostPostIdWithDots,
+    });
+    expect(scry).toHaveBeenCalledWith(
+      `/channels/v4/${channel}/posts/post/${hostPostIdWithDots}.json`
+    );
+
+    cacheMessage(channel, {
+      author: '~zod',
+      content: 'echo-fresh content',
+      timestamp: 2,
+      id: hostPostIdWithDots,
+    });
+
+    expect(lookupCachedMessage(channel, hostPostId)).toMatchObject({
+      content: 'echo-fresh content',
+      timestamp: 2,
+    });
+    await expect(
+      getChannelHistory({ scry: async () => ({}) }, channel, 1)
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: hostPostIdWithDots,
+        content: 'echo-fresh content',
+      }),
+    ]);
+  });
+
+  it('uses an echo that arrives during a target fetch without retaining a stale target', async () => {
+    const channel = `chat/~zod/reaction-fetch-race-${Date.now().toString(36)}`;
+    const oldPostId = '170141184507111';
+    const oldPostIdWithDots = '170.141.184.507.111';
+    let resolveScry: ((value: unknown) => void) | undefined;
+    const scry = vi.fn(
+      () =>
+        new Promise<unknown>((resolve) => {
+          resolveScry = resolve;
+        })
+    );
+
+    const targetLookup = lookupOrFetchCachedChannelMessage(
+      { scry },
+      channel,
+      oldPostId
+    );
+    expect(scry).toHaveBeenCalledOnce();
+
+    const echoEntry = makeEntry({
+      author: '~nec',
+      content: 'echoed old reaction target',
+      timestamp: 1,
+      id: oldPostIdWithDots,
+    });
+    cacheMessage(channel, echoEntry);
+
+    if (!resolveScry) {
+      throw new Error('reaction target scry did not start');
+    }
+    resolveScry({
+      post: {
+        essay: {
+          author: '~nec',
+          sent: 1,
+          content: [{ inline: ['stale fetched reaction target'] }],
+        },
+        seal: { id: oldPostIdWithDots },
+      },
+    });
+
+    await expect(targetLookup).resolves.toBe(echoEntry);
+    expect(lookupCachedMessage(channel, oldPostId)).toBe(echoEntry);
+
+    for (let index = 0; index < 100; index++) {
+      cacheMessage(
+        channel,
+        makeEntry({ id: `newer-message-${index}`, timestamp: index + 2 })
+      );
+    }
+
+    expect(lookupCachedMessage(channel, oldPostId)).toBeUndefined();
+  });
+
+  it('bounds fetched reaction targets to 20 entries per channel', async () => {
+    const channel = `chat/~zod/reaction-target-bound-${Date.now().toString(36)}`;
+    const targetIds = Array.from(
+      { length: 21 },
+      (_, index) => `170141184507${String(index).padStart(3, '0')}`
+    );
+    const scry = vi.fn(async (path: string) => {
+      const id = path.match(/posts\/post\/(.+)\.json$/)?.[1] ?? '';
+      return {
+        post: {
+          essay: {
+            author: '~nec',
+            sent: 1,
+            content: [{ inline: [`reaction target ${id}`] }],
+          },
+          seal: { id },
+        },
+      };
+    });
+
+    for (const targetId of targetIds) {
+      await lookupOrFetchCachedChannelMessage({ scry }, channel, targetId);
+    }
+
+    expect(scry).toHaveBeenCalledTimes(21);
+    expect(lookupCachedMessage(channel, targetIds[0]!)).toBeUndefined();
+    expect(
+      targetIds
+        .slice(1)
+        .map((targetId) => lookupCachedMessage(channel, targetId))
+        .filter(Boolean)
+    ).toHaveLength(20);
+  });
+
+  it('retries a rejected reaction-target lookup, then leaves it unresolved', async () => {
+    const scry = vi.fn(async () => {
+      throw new Error('scry unavailable');
+    });
+
+    await expect(
+      lookupOrFetchCachedChannelMessage(
+        { scry },
+        `chat/~zod/reaction-rejected-${Date.now().toString(36)}`,
+        '170141184507999'
+      )
+    ).resolves.toBeUndefined();
+
+    expect(scry).toHaveBeenCalledTimes(3);
+  });
+
+  it('retries a not-found reaction target, then leaves it unresolved', async () => {
+    const scry = vi.fn(async () => ({}));
+
+    await expect(
+      lookupOrFetchCachedChannelMessage(
+        { scry },
+        `chat/~zod/reaction-not-found-${Date.now().toString(36)}`,
+        '170141184507999'
+      )
+    ).resolves.toBeUndefined();
+
+    expect(scry).toHaveBeenCalledTimes(3);
+  });
+
+  it('preserves an author for a textless reaction target', async () => {
+    const scry = vi.fn(async () => ({
+      post: {
+        essay: {
+          author: '~zod',
+          sent: 1,
+          content: [],
+        },
+        seal: { id: '170.141.184.507.999' },
+      },
+    }));
+
+    await expect(
+      lookupOrFetchCachedChannelMessage(
+        { scry },
+        `chat/~zod/reaction-textless-${Date.now().toString(36)}`,
+        '170141184507999'
+      )
+    ).resolves.toMatchObject({
+      author: '~zod',
+      content: '',
+      id: '170.141.184.507.999',
+    });
+
+    expect(scry).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves a reply reaction before its echo through the exact reply route', async () => {
+    const channel = `chat/~zod/reply-reaction-${Date.now().toString(36)}`;
+    const rootPostId = '170141184507111';
+    const replyId = '170141184507222';
+    const rootPostIdWithDots = '170.141.184.507.111';
+    const replyIdWithDots = '170.141.184.507.222';
+    const scry = vi.fn(async () => ({
+      seal: { id: replyIdWithDots, 'parent-id': rootPostIdWithDots },
+      revision: '1',
+      memo: {
+        author: '~zod',
+        sent: 1,
+        content: [{ inline: ['reply reaction target content'] }],
+      },
+    }));
+
+    expect(lookupCachedMessage(channel, replyId)).toBeUndefined();
+    await expect(
+      lookupOrFetchCachedChannelMessage({ scry }, channel, replyId, rootPostId)
+    ).resolves.toMatchObject({
+      author: '~zod',
+      content: 'reply reaction target content',
+      id: replyIdWithDots,
+    });
+
+    expect(scry).toHaveBeenCalledWith(
+      `/channels/v4/${channel}/posts/post/id/${rootPostIdWithDots}/replies/reply/id/${replyIdWithDots}.json`
+    );
+  });
+
+  it('preserves an author for a textless reply reaction target', async () => {
+    const channel = `chat/~zod/textless-reply-reaction-${Date.now().toString(36)}`;
+    const rootPostId = '170141184507111';
+    const replyId = '170141184507222';
+    const scry = vi.fn(async () => ({
+      seal: { id: '170.141.184.507.222' },
+      memo: {
+        author: { ship: '~nec', nickname: 'Nec' },
+        sent: 1,
+        content: [],
+      },
+    }));
+
+    await expect(
+      lookupOrFetchCachedChannelMessage({ scry }, channel, replyId, rootPostId)
+    ).resolves.toMatchObject({
+      author: '~nec',
+      content: '',
+      id: '170.141.184.507.222',
+    });
+
+    expect(scry).toHaveBeenCalledTimes(1);
   });
 });
 
