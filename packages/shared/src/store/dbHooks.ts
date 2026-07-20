@@ -618,9 +618,9 @@ export const useNoteReference = ({
   return useQuery({
     queryKey: ['noteReference', channelId, noteId],
     enabled: enabled && !!noteId,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
-    // null = denied or missing; cache it rather than retrying
+    // null = denied or missing, which can flip once the user joins the
+    // notebook or gains group access — let remounts refetch after 30s
+    staleTime: 30_000,
     queryFn: () => api.getNoteReference({ channelId, noteId }),
   });
 };

@@ -218,9 +218,10 @@ export interface PlaintextPreviewConfig {
 function toContentReference(cite: ub.Cite): ContentReference | null {
   if ('chan' in cite) {
     const channelId = cite.chan.nest;
-    // notes channels cite individual notes as /note/<decimal id>
+    // notes channels cite individual notes as /note/<id>, where the id
+    // may be dot-grouped urbit-style (1.234)
     if (channelId.startsWith('notes/')) {
-      const noteMatch = cite.chan.where.match(/^\/note\/(\d+)/);
+      const noteMatch = cite.chan.where.match(/^\/note\/(\d[\d.]*)/);
       if (!noteMatch) {
         return null;
       }
@@ -228,7 +229,7 @@ function toContentReference(cite: ub.Cite): ContentReference | null {
         type: 'reference',
         referenceType: 'note',
         channelId,
-        noteId: noteMatch[1],
+        noteId: noteMatch[1].replace(/\./g, ''),
       };
     }
     // I've seen these forms of reference path:

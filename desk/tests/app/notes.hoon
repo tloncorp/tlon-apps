@@ -2289,6 +2289,24 @@
   :~  (ex-fact ~[pax] %notes-denied !>(~))
       (ex-card [%give %kick ~[pax] ~])
   ==
+::  ====  test-said-uninit-sub-proxies  ====
+::  A just-joined %sub placeholder (init=|) has no note state; a said
+::  request must proxy to the host rather than answer %notes-denied.
+::
+++  test-said-uninit-sub-proxies
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  =/  f=flag:n  [~bus %nb]
+  ;<  *  b  (poke-a [%join f])
+  ;<  =bowl:gall  b  get-bowl
+  =/  pax=path  (said-watch-path f 1)
+  =/  =wire  /said/(scot %p ~bus)/nb/note/1/(scot %uv eny.bowl)
+  ;<  caz=(list card)  b  (do-watch pax)
+  %+  ex-cards  caz
+  ~[(ex-card [%pass wire %agent [~bus %notes] %watch pax])]
 ::  +said-group-scry: mock %gu group liveness + %gx can-read for said tests
 ::
 ++  said-group-scry

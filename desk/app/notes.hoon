@@ -631,9 +631,13 @@
     ::  else proxy one watch to the host and relay its answer in +agent.
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
     =/  nid=@ud  (slav %ud id.pole)
-    ?:  ?|  =(our.bowl ship.flag)
-            (~(has by books) flag)
-        ==
+    ::  a just-joined %sub placeholder (init=|) has no note state yet and
+    ::  would answer %notes-denied for a real note — proxy instead.
+    =/  ready=?
+      ?~  entry=(get-book flag)  |
+      ?:  ?=(%pub -.net.u.entry)  &
+      init.net.u.entry
+    ?:  |(=(our.bowl ship.flag) ready)
       (give-said ~ flag nid src.bowl)
     ::  refuse to fetch over the network on another ship's behalf
     ?>  =(src.bowl our.bowl)

@@ -80,6 +80,18 @@ test('toContentReference parses a notes chan cite as a note reference', () => {
   });
 });
 
+test('toContentReference strips dot-grouping from note ids', () => {
+  const reference = toContentReference({
+    chan: { nest: NOTES_CHANNEL_ID, where: '/note/1.234' },
+  });
+  expect(reference).toEqual({
+    type: 'reference',
+    referenceType: 'note',
+    channelId: NOTES_CHANNEL_ID,
+    noteId: '1234',
+  });
+});
+
 test('toContentReference rejects a notes cite with a non-note where path', () => {
   expect(
     toContentReference({
