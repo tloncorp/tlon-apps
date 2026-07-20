@@ -23,7 +23,7 @@ import {
 } from '@tloncorp/api/urbit/content';
 import { describe, expect, it } from 'vitest';
 
-import { JSONToInlines } from './tiptap';
+import { JSONToInlines, diaryMixedToJSON } from './tiptap';
 
 /**
  * Round-trip conversion tests for Markdown ↔ Story conversion.
@@ -756,5 +756,27 @@ describe('TipTap JSON → Story → Markdown', () => {
     expect(markdown).toContain('*Text before');
     expect(markdown).toContain('[link text](https://example.com)');
     expect(markdown).toContain('text after*');
+  });
+
+  it('is non-mutating: two passes over the same node preserve marks', () => {
+    // BigInput stores the live-markdown editor's reported tiptap JSON in a ref
+    // and runs JSONToInlines over it twice (edit change-detection, then send).
+    // The second pass must not see marks emptied by the first.
+    const md = 'a **bold** b *italic* c [link](https://x.com) d';
+    const json = diaryMixedToJSON(
+      markdownToStory(md, { parseMentions: false })
+    );
+
+    const first = storyToMarkdown(
+      constructStory(JSONToInlines(json) as Inline[])
+    );
+    const second = storyToMarkdown(
+      constructStory(JSONToInlines(json) as Inline[])
+    );
+
+    expect(first).toContain('**bold**');
+    expect(first).toContain('*italic*');
+    expect(first).toContain('[link](https://x.com)');
+    expect(second).toEqual(first);
   });
 });

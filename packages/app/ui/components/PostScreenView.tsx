@@ -219,6 +219,14 @@ export function PostScreenView({
     openContextLensForPost,
   } = useContextLensController({ channel });
 
+  // Keep focusedPost in sync with parentPost when not in carousel mode
+  // (e.g. after editing a post, parentPost updates from the DB query)
+  useEffect(() => {
+    if (parentPost && parentPost.id === focusedPost?.id) {
+      setFocusedPost(parentPost);
+    }
+  }, [parentPost?.content, parentPost?.id]);
+
   const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
 
   const mode: 'single' | 'carousel' = useMemo(() => {

@@ -1,9 +1,19 @@
-import { Block, Inline, constructStory } from '@tloncorp/api/urbit';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Block,
+  Inline,
+  JSONContent,
+  constructStory,
+} from '@tloncorp/api/urbit';
 import {
   Attachment,
   createDevLogger,
+  extractContentTypesFromPost,
+  htmlToStory,
   markdownToStory,
+  postContentToHtml,
   storyToContent,
+  storyToHtml,
   storyToMarkdown,
   tiptap,
   uploadAsset as uploadAssetToStorage,
@@ -34,20 +44,34 @@ import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { useAttachmentContext } from '../contexts/attachment';
+import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
+import {
+  MentionOption,
+  createMentionRoleOptions,
+} from './BareChatInput/useMentions';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { MarkdownEditor } from './MarkdownEditor';
+import MentionPopup from './MentionPopup';
 import { MessageInput } from './MessageInput';
+import {
+  EnrichedNoteInput,
+  EnrichedNoteInputRef,
+  PastedImage,
+} from './MessageInput/EnrichedNoteInput';
+import { FormattingToolbar } from './MessageInput/FormattingToolbar';
 import { InputToolbar } from './MessageInput/InputToolbar';
+import { LiveMarkdownMessageInput } from './MessageInput/LiveMarkdownMessageInput';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
 import {
   DEFAULT_TOOLBAR_ITEMS,
+  TlonBridgeState,
   TlonEditorBridge,
   ToolbarItem,
 } from './MessageInput/toolbarActions';
 import { ScreenHeader } from './ScreenHeader';
 
-const logger = createDevLogger('BigInput', false);
+const logger = createDevLogger('BigInput', true);
 
 /**
  * Manages markdown-mode state and the conversions between markdown text and
@@ -169,7 +193,12 @@ export function BigInput({
   editingPost,
   setShowBigInput,
   clearDraft,
+  storeDraft,
+  getDraft,
+  draftType,
   setShouldBlur,
+  groupMembers,
+  groupRoles,
   ...props
 }: MessageInputProps & {
   channelId: string;
@@ -184,6 +213,7 @@ export function BigInput({
   );
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const [showInlineImageSheet, setShowInlineImageSheet] = useState(false);
+  const [showEditorSwitcher, setShowEditorSwitcher] = useState(false);
   const [hasContentChanges, setHasContentChanges] = useState(false);
   const [hasTitleChanges, setHasTitleChanges] = useState(false);
   const [hasImageChanges, setHasImageChanges] = useState(false);
@@ -191,6 +221,20 @@ export function BigInput({
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
+  const enrichedEditorRef = useRef<EnrichedNoteInputRef>(null);
+  // Latest content reported by the live-markdown editor (tiptap JSON), used to
+  // send from the notebook Post button.
+  const liveMarkdownContentRef = useRef<JSONContent | undefined>(undefined);
+  const [enrichedEditorState, setEnrichedEditorState] =
+    useState<TlonBridgeState | null>(null);
+  const [enrichedHtml, setEnrichedHtml] = useState('');
+  const [enrichedInitialHtml, setEnrichedInitialHtml] = useState<
+    string | undefined
+  >(undefined);
+  // Mention state for enriched editor (native mention detection)
+  const [mentionActive, setMentionActive] = useState(false);
+  const [mentionSearchText, setMentionSearchText] = useState('');
+  const [mentionIndicator, setMentionIndicator] = useState('');
   const inlineImageSelectionRef = useRef<{ from: number; to: number } | null>(
     null
   );
@@ -200,6 +244,14 @@ export function BigInput({
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
   const [markdownNotebooksEnabled] = useFeatureFlag('markdownNotebooks');
+  const [liveMarkdownFlag, setLiveMarkdownFlag] =
+    useFeatureFlag('liveMarkdownInput');
+  const liveMarkdownEnabled = liveMarkdownFlag && Platform.OS !== 'web';
+  const [enrichedInputFlag, setEnrichedInputFlag] =
+    useFeatureFlag('enrichedInput');
+  // Live markdown takes precedence over the enriched editor when both are on.
+  const enrichedInputEnabled =
+    enrichedInputFlag && !liveMarkdownEnabled && Platform.OS !== 'web';
   const {
     isMarkdownMode,
     markdownContent,
@@ -215,8 +267,80 @@ export function BigInput({
   });
   const { attachments, clearAttachments } = useAttachmentContext();
 
+  // Mention support for enriched editor
+  const roleOptions = useMemo(
+    () => createMentionRoleOptions(groupRoles),
+    [groupRoles]
+  );
+
+  const { data: mentionCandidates = [] } = useQuery({
+    queryKey: ['mentionCandidates', channelId, mentionSearchText],
+    queryFn: () =>
+      db.getMentionCandidates({ chatId: channelId, query: mentionSearchText }),
+    placeholderData: (prev) => prev || [],
+    enabled:
+      enrichedInputEnabled &&
+      mentionActive &&
+      mentionSearchText.trim().length > 0,
+    select: (data) =>
+      data.map((c) => ({
+        id: c.id,
+        title: c.nickname || c.id,
+        subtitle: c.id,
+        type: 'contact' as const,
+        priority: c.priority,
+        contact: {
+          id: c.id,
+          nickname: c.nickname,
+          avatarImage: c.avatarImage,
+        } as db.Contact,
+      })),
+  });
+
+  const mentionOptions = useMemo(() => {
+    const filteredRoles = roleOptions.filter(
+      (o) =>
+        mentionSearchText.trim().length > 0 &&
+        o.title?.toLowerCase().startsWith(mentionSearchText.toLowerCase())
+    );
+    return [...filteredRoles, ...mentionCandidates].sort(
+      (a, b) => a.priority - b.priority
+    );
+  }, [roleOptions, mentionCandidates, mentionSearchText]);
+
+  const handleStartMention = useCallback((indicator: string) => {
+    setMentionActive(true);
+    setMentionIndicator(indicator);
+    setMentionSearchText('');
+  }, []);
+
+  const handleChangeMention = useCallback(
+    (_indicator: string, text: string) => {
+      setMentionSearchText(text);
+    },
+    []
+  );
+
+  const handleEndMention = useCallback(() => {
+    setMentionActive(false);
+    setMentionSearchText('');
+  }, []);
+
+  const handleSelectMention = useCallback(
+    (option: MentionOption) => {
+      const editor = enrichedEditorRef.current?.editor;
+      if (!editor) return;
+      const displayText = option.title || option.id;
+      (editor as any).setMention(mentionIndicator, displayText, option.id);
+      setMentionActive(false);
+      setMentionSearchText('');
+    },
+    [mentionIndicator]
+  );
+
   const handleEditorContentChanged = useCallback(
     (content?: object) => {
+      liveMarkdownContentRef.current = content as JSONContent | undefined;
       const hasAttachmentsAndIsGallery =
         attachments.length > 0 && channelType === 'gallery';
       const nextIsEmpty =
@@ -249,7 +373,6 @@ export function BigInput({
     if (isMarkdownMode) {
       const markdownIsEmpty = !markdownContent || markdownContent.trim() === '';
       setIsEmpty(markdownIsEmpty);
-      // Also update hasContentChanges for editing mode
       if (editingPost?.content) {
         const originalContent = editingPost.content as { story?: any };
         const hasOriginalContent =
@@ -260,6 +383,91 @@ export function BigInput({
       }
     }
   }, [isMarkdownMode, markdownContent, editingPost?.content]);
+
+  // Update isEmpty state when using enriched editor
+  useEffect(() => {
+    if (enrichedInputEnabled) {
+      // Strip tags for a rough empty check
+      const textOnly = enrichedHtml.replace(/<[^>]*>/g, '').trim();
+      const htmlIsEmpty = !textOnly;
+      setIsEmpty(htmlIsEmpty);
+      if (editingPost?.content) {
+        const originalContent = editingPost.content as { story?: any };
+        const hasOriginalContent =
+          originalContent.story && Array.isArray(originalContent.story);
+        setHasContentChanges(hasOriginalContent ? !htmlIsEmpty : false);
+      } else {
+        setHasContentChanges(!htmlIsEmpty);
+      }
+    }
+  }, [enrichedInputEnabled, enrichedHtml, editingPost?.content]);
+
+  // Load initial HTML content when editing an existing post with enriched editor
+  useEffect(() => {
+    if (enrichedInputEnabled && editingPost?.content) {
+      try {
+        const { story } = extractContentTypesFromPost(editingPost);
+        logger.log('editingPost postContent:', JSON.stringify(story));
+        if (!story) return;
+        // Content can be either PostContent (BlockData[]) or Story (Verse[]).
+        // Detect by checking if items have 'type' field (PostContent) or
+        // 'inline'/'block' fields (Story).
+        const firstItem = story[0] as any;
+        let html: string;
+        if (firstItem && ('inline' in firstItem || 'block' in firstItem)) {
+          // Story (Verse[]) format
+          const innerHtml = storyToHtml(story as any);
+          html = innerHtml ? `<html>${innerHtml}</html>` : '';
+        } else {
+          // PostContent (BlockData[]) format
+          html = postContentToHtml(story as any);
+        }
+        logger.log('initialHtml:', html);
+        setEnrichedInitialHtml(html);
+        setEnrichedHtml(html);
+      } catch (e) {
+        logger.error('Failed to load post content into enriched editor', e);
+      }
+    }
+  }, [enrichedInputEnabled, editingPost?.id]);
+
+  // Load draft on mount for enriched editor (when not editing an existing post)
+  useEffect(() => {
+    if (!enrichedInputEnabled || editingPost) return;
+    (async () => {
+      const draft = await getDraft(draftType);
+      if (draft && (draft as any).type === 'enrichedHtml') {
+        const html = (draft as any).html as string;
+        if (html) {
+          setEnrichedInitialHtml(html);
+          setEnrichedHtml(html);
+        }
+      }
+    })().catch((e) => logger.error('Failed to load enriched draft', e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enrichedInputEnabled]);
+
+  // Save draft on enriched HTML changes
+  useEffect(() => {
+    if (!enrichedInputEnabled || editingPost) return;
+    const textOnly = enrichedHtml.replace(/<[^>]*>/g, '').trim();
+    if (!textOnly) {
+      clearDraft(draftType);
+      return;
+    }
+    // Store as a custom JSON shape so we can distinguish from TipTap drafts
+    storeDraft(
+      { type: 'enrichedHtml', html: enrichedHtml } as any,
+      draftType
+    ).catch((e) => logger.error('Failed to store enriched draft', e));
+  }, [
+    enrichedInputEnabled,
+    enrichedHtml,
+    editingPost,
+    storeDraft,
+    clearDraft,
+    draftType,
+  ]);
 
   // Determine if the post/save button should be enabled - with direct content check
   useEffect(() => {
@@ -290,7 +498,28 @@ export function BigInput({
 
     let content: (Inline | Block)[];
 
-    if (isMarkdownMode) {
+    if (enrichedInputEnabled) {
+      // Enriched editor: convert HTML to Story
+      try {
+        logger.log('enrichedHtml:', enrichedHtml);
+        // Strip <html> wrapper that the enriched editor adds
+        const innerHtml = enrichedHtml
+          .replace(/^<html>\n?/, '')
+          .replace(/\n?<\/html>$/, '');
+        const story = htmlToStory(innerHtml);
+        logger.log('story:', JSON.stringify(story));
+        content = storyToContent(story);
+        logger.log('content:', JSON.stringify(content));
+      } catch (error) {
+        logger.error('Failed to convert HTML for send:', error);
+        showToast({
+          message: 'Failed to process content',
+          duration: 2000,
+        });
+        setIsSending(false);
+        return;
+      }
+    } else if (isMarkdownMode) {
       // Convert Markdown content to Story, then extract inlines and blocks
       try {
         const story = markdownToStory(markdownContent);
@@ -298,12 +527,18 @@ export function BigInput({
       } catch (error) {
         logger.error('Failed to convert Markdown for send:', error);
         showToast({
-          message: 'Failed to process Markdown content',
+          message: 'Failed to process content',
           duration: 2000,
         });
         setIsSending(false);
         return;
       }
+    } else if (liveMarkdownEnabled) {
+      // Live-markdown editor reports its content (tiptap JSON) via
+      // onEditorContentChange; convert the latest to inlines/blocks.
+      content = liveMarkdownContentRef.current
+        ? tiptap.JSONToInlines(liveMarkdownContentRef.current)
+        : [];
     } else {
       // Rich text mode: get content from Tiptap editor
       if (!editorRef.current?.editor) {
@@ -397,8 +632,11 @@ export function BigInput({
     setShowFormatMenu,
     clearAttachments,
     attachments,
+    enrichedInputEnabled,
+    enrichedHtml,
     isMarkdownMode,
     markdownContent,
+    liveMarkdownEnabled,
     showToast,
   ]);
 
@@ -444,7 +682,10 @@ export function BigInput({
       // We only allow image uploads, so we can simplify and only handle images
       // here.
       const assets = Attachment.UploadIntent.extractImagePickerAssets(intents);
-      if (assets.length > 0 && editorRef.current?.editor) {
+      const activeEditor = enrichedInputEnabled
+        ? enrichedEditorRef.current?.editor
+        : editorRef.current?.editor;
+      if (assets.length > 0 && activeEditor) {
         const asset = assets[0];
 
         // For inline images in notebooks, we need to upload the image first
@@ -469,19 +710,24 @@ export function BigInput({
 
           const uploadState = uploadStates[asset.uri];
 
-          if (uploadState?.status === 'success' && editorRef.current?.editor) {
-            const savedSelection = inlineImageSelectionRef.current;
-            if (savedSelection) {
-              editorRef.current.editor.focus();
-              editorRef.current.editor.setSelection(
-                savedSelection.from,
-                savedSelection.to
-              );
+          const currentEditor = enrichedInputEnabled
+            ? enrichedEditorRef.current?.editor
+            : editorRef.current?.editor;
+          if (uploadState?.status === 'success' && currentEditor) {
+            if (!enrichedInputEnabled) {
+              const savedSelection = inlineImageSelectionRef.current;
+              if (savedSelection) {
+                currentEditor.focus();
+                currentEditor.setSelection(
+                  savedSelection.from,
+                  savedSelection.to
+                );
+              }
             }
 
             // Insert the S3 URL into the editor
             const s3Url = uploadState.remoteUri;
-            (editorRef.current.editor as any).setImage(s3Url);
+            (currentEditor as any).setImage(s3Url, asset.width, asset.height);
             inlineImageSelectionRef.current = null;
           } else if (isMountedRef.current) {
             logger.trackError('notebook:inline-image:upload-failure', {
@@ -508,6 +754,63 @@ export function BigInput({
       // Only update state if component is still mounted
       if (isMountedRef.current) {
         setShowInlineImageSheet(false);
+      }
+    },
+    [showToast, enrichedInputEnabled]
+  );
+
+  // Handle images pasted into the enriched editor
+  const handlePasteImages = useCallback(
+    async (images: PastedImage[]) => {
+      if (images.length === 0) return;
+
+      const image = images[0];
+      const editor = enrichedEditorRef.current?.editor;
+      if (!editor) return;
+
+      try {
+        const uploadIntent = Attachment.UploadIntent.fromImagePickerAsset({
+          uri: image.uri,
+          width: image.width,
+          height: image.height,
+          mimeType: image.type,
+        } as any);
+        await uploadAssetToStorage(uploadIntent, true);
+
+        if (!isMountedRef.current) return;
+
+        const uploadStates = await waitForUploads([
+          Attachment.UploadIntent.extractKey(uploadIntent),
+        ]);
+
+        if (!isMountedRef.current) return;
+
+        const uploadState = uploadStates[image.uri];
+        const currentEditor = enrichedEditorRef.current?.editor;
+
+        if (uploadState?.status === 'success' && currentEditor) {
+          (currentEditor as any).setImage(
+            uploadState.remoteUri,
+            image.width,
+            image.height
+          );
+        } else if (isMountedRef.current) {
+          logger.trackError('notebook:paste-image:upload-failure', {
+            uploadState,
+          });
+          showToast({
+            message: 'Failed to upload pasted image. Please try again.',
+            duration: 3000,
+          });
+        }
+      } catch (error) {
+        if (isMountedRef.current) {
+          logger.trackError('notebook:paste-image:upload-error', error);
+          showToast({
+            message: 'Error uploading pasted image.',
+            duration: 3000,
+          });
+        }
       }
     },
     [showToast]
@@ -568,6 +871,72 @@ export function BigInput({
     setShouldBlur,
   ]);
 
+  // Toolbar items for enriched editor — exclude items that rely on tentap-only
+  // capabilities (Undo, Redo, Indent/Outdent), add inline image button
+  const enrichedToolbarItems = useMemo((): ToolbarItem[] => {
+    const unsupported = new Set([
+      'Undo',
+      'Redo',
+      'IndentIncrease',
+      'IndentDecrease',
+    ]);
+    const items = DEFAULT_TOOLBAR_ITEMS.filter((i) => !unsupported.has(i.icon));
+
+    const imageButton: ToolbarItem = {
+      onPress: () => () => setShowInlineImageSheet(true),
+      active: () => false,
+      disabled: () => false,
+      icon: 'Camera',
+    };
+    // Insert after Heading button
+    const headingIdx = items.findIndex((i) => i.icon === 'Heading');
+    items.splice(headingIdx + 1, 0, imageButton);
+
+    return items;
+  }, []);
+
+  const currentEditor: 'live-markdown' | 'enriched' | 'markdown' | 'tiptap' =
+    liveMarkdownEnabled
+      ? 'live-markdown'
+      : enrichedInputEnabled
+        ? 'enriched'
+        : isMarkdownMode
+          ? 'markdown'
+          : 'tiptap';
+
+  const selectEditor = useCallback(
+    (editor: 'live-markdown' | 'enriched' | 'tiptap') => {
+      setLiveMarkdownFlag(editor === 'live-markdown');
+      setEnrichedInputFlag(editor === 'enriched');
+      setShowEditorSwitcher(false);
+    },
+    [setLiveMarkdownFlag, setEnrichedInputFlag]
+  );
+
+  const editorSwitcherActions: Action[] = useMemo(
+    () => [
+      {
+        title: 'Live Markdown (Expensify)',
+        action: () => selectEditor('live-markdown'),
+        selected: currentEditor === 'live-markdown',
+        endIcon: currentEditor === 'live-markdown' ? 'Checkmark' : undefined,
+      },
+      {
+        title: 'Enriched (native)',
+        action: () => selectEditor('enriched'),
+        selected: currentEditor === 'enriched',
+        endIcon: currentEditor === 'enriched' ? 'Checkmark' : undefined,
+      },
+      {
+        title: 'TipTap (webview)',
+        action: () => selectEditor('tiptap'),
+        selected: currentEditor === 'tiptap',
+        endIcon: currentEditor === 'tiptap' ? 'Checkmark' : undefined,
+      },
+    ],
+    [currentEditor, selectEditor]
+  );
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -578,6 +947,28 @@ export function BigInput({
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <View flex={1} flexDirection="column">
+        {__DEV__ && (
+          <TouchableOpacity
+            onPress={() => setShowEditorSwitcher(true)}
+            hitSlop={8}
+          >
+            <XStack
+              alignItems="center"
+              gap="$xs"
+              paddingHorizontal="$l"
+              paddingTop="$xs"
+            >
+              <Text fontSize={10} color="$tertiaryText">
+                editor: {currentEditor}
+              </Text>
+              <Icon
+                type="ChevronDown"
+                customSize={[12, 12]}
+                color="$tertiaryText"
+              />
+            </XStack>
+          </TouchableOpacity>
+        )}
         {channelType === 'notebook' && (
           <>
             <View padding="$m" paddingBottom="$s">
@@ -660,6 +1051,23 @@ export function BigInput({
                     </XStack>
                   </TouchableOpacity>
                 </XStack>
+              ) : enrichedInputEnabled ? (
+                enrichedEditorRef.current?.editor &&
+                enrichedEditorState && (
+                  <FormattingToolbar
+                    editor={enrichedEditorRef.current.editor}
+                    editorState={enrichedEditorState}
+                    hidden={false}
+                    items={enrichedToolbarItems}
+                    style={{
+                      borderWidth: 0,
+                      borderTopWidth: 0,
+                      borderBottomWidth: 1,
+                      borderRadius: 0,
+                      backgroundColor: theme.background.val,
+                    }}
+                  />
+                )
               ) : (
                 editorRef.current?.editor && (
                   <InputToolbar
@@ -685,6 +1093,72 @@ export function BigInput({
               placeholder="Write your content in Markdown..."
               testID="BigInputMarkdownEditor"
             />
+          ) : liveMarkdownEnabled ? (
+            <LiveMarkdownMessageInput
+              sendPostFromDraft={sendPostFromDraft}
+              channelId={channelId}
+              channelType={channelType}
+              editingPost={editingPost}
+              setShouldBlur={setShouldBlur}
+              {...props}
+              groupMembers={groupMembers}
+              groupRoles={groupRoles}
+              storeDraft={storeDraft}
+              getDraft={getDraft}
+              draftType={draftType}
+              clearDraft={clearDraft}
+              frameless={true}
+              bigInput={true}
+              shouldAutoFocus={true}
+              showInlineAttachments={channelType === 'gallery'}
+              onEditorContentChange={handleEditorContentChanged}
+              onEditorStateChange={handleEditorStateChange}
+              title={title}
+              image={
+                imageUri ? { uri: imageUri, height: 0, width: 0 } : undefined
+              }
+              paddingHorizontal="$l"
+            />
+          ) : enrichedInputEnabled ? (
+            <>
+              <EnrichedNoteInput
+                ref={enrichedEditorRef}
+                initialHtml={enrichedInitialHtml}
+                onChangeHtml={setEnrichedHtml}
+                onEditorStateChange={setEnrichedEditorState}
+                onPasteImages={handlePasteImages}
+                onStartMention={handleStartMention}
+                onChangeMention={handleChangeMention}
+                onEndMention={handleEndMention}
+                placeholder="Write your note..."
+                testID="BigInputEnrichedEditor"
+                style={{
+                  flex: 1,
+                  width: '100%',
+                  backgroundColor: theme.background.val,
+                  padding: 16,
+                }}
+              />
+              {mentionActive && mentionOptions.length > 0 && (
+                <View
+                  position="absolute"
+                  bottom={0}
+                  left={0}
+                  right={0}
+                  zIndex={1000}
+                  backgroundColor="$background"
+                  borderTopWidth={1}
+                  borderTopColor="$border"
+                  maxHeight={300}
+                >
+                  <MentionPopup
+                    options={mentionOptions}
+                    onPress={handleSelectMention}
+                    matchText={mentionSearchText}
+                  />
+                </View>
+              )}
+            </>
           ) : (
             <MessageInput
               ref={editorRef}
@@ -694,6 +1168,11 @@ export function BigInput({
               editingPost={editingPost}
               setShouldBlur={setShouldBlur}
               {...props}
+              groupMembers={groupMembers}
+              groupRoles={groupRoles}
+              storeDraft={storeDraft}
+              getDraft={getDraft}
+              draftType={draftType}
               clearDraft={clearDraft}
               frameless={true}
               bigInput={true}
@@ -747,6 +1226,23 @@ export function BigInput({
                     </Text>
                   </XStack>
                 </TouchableOpacity>
+              ) : enrichedInputEnabled ? (
+                enrichedEditorRef.current?.editor &&
+                enrichedEditorState && (
+                  <FormattingToolbar
+                    editor={enrichedEditorRef.current.editor}
+                    editorState={enrichedEditorState}
+                    hidden={false}
+                    items={enrichedToolbarItems}
+                    style={{
+                      borderWidth: 0,
+                      borderTopWidth: 0,
+                      borderBottomWidth: 0,
+                      borderRadius: getTokenValue('$l', 'radius'),
+                      backgroundColor: theme.background.val,
+                    }}
+                  />
+                )
               ) : (
                 editorRef.current?.editor && (
                   <InputToolbar
@@ -765,26 +1261,29 @@ export function BigInput({
               )}
             </View>
           )}
-          {isWindowNarrow && (editorRef.current?.editor || isMarkdownMode) && (
-            <Button.Frame
-              position="absolute"
-              bottom={insets.bottom + 16}
-              right={16}
-              zIndex={200}
-              backgroundColor={'$background'}
-              shadowColor={'$primaryText'}
-              shadowOffset={{ width: 0, height: 2 }}
-              shadowOpacity={0.1}
-              shadowRadius={4}
-              onPress={() => setShowFormatMenu(!showFormatMenu)}
-            >
-              {showFormatMenu ? (
-                <Icon type="Close" size="$l" color="$primaryText" />
-              ) : (
-                <Icon type="Italic" size="$l" color="$primaryText" />
-              )}
-            </Button.Frame>
-          )}
+          {isWindowNarrow &&
+            (editorRef.current?.editor ||
+              isMarkdownMode ||
+              enrichedInputEnabled) && (
+              <Button.Frame
+                position="absolute"
+                bottom={insets.bottom + 16}
+                right={16}
+                zIndex={200}
+                backgroundColor={'$background'}
+                shadowColor={'$primaryText'}
+                shadowOffset={{ width: 0, height: 2 }}
+                shadowOpacity={0.1}
+                shadowRadius={4}
+                onPress={() => setShowFormatMenu(!showFormatMenu)}
+              >
+                {showFormatMenu ? (
+                  <Icon type="Close" size="$l" color="$primaryText" />
+                ) : (
+                  <Icon type="Italic" size="$l" color="$primaryText" />
+                )}
+              </Button.Frame>
+            )}
         </>
       )}
 
@@ -806,6 +1305,15 @@ export function BigInput({
           onAttach={handleInlineImageSelect}
           showClearOption={false}
           mediaType="image"
+        />
+      )}
+      {__DEV__ && (
+        <SimpleActionSheet
+          open={showEditorSwitcher}
+          onOpenChange={setShowEditorSwitcher}
+          title="Editor"
+          subtitle="Switch the notebook editor (dev only)"
+          actions={editorSwitcherActions}
         />
       )}
     </KeyboardAvoidingView>

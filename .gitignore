@@ -25,6 +25,7 @@ packages/tlon-skill/bin/tlon
 /.peru/
 /peru.lock
 *.tgz
+!vendor/*.tgz
 *.xst
 zod*
 bud

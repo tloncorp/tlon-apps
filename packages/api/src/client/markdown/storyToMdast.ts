@@ -51,10 +51,12 @@ import {
   isList,
   isListItem,
   isListing,
+  isSect,
   isShip,
   isStrikethrough,
   isTask,
 } from '../../urbit/content';
+import type { GroupMention } from './groupMentionPlugin';
 import type { ShipMention } from './shipMentionPlugin';
 
 /**
@@ -195,6 +197,16 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
         value: ship.ship,
       };
       result.push(shipMention as unknown as PhrasingContent);
+      continue;
+    }
+
+    if (isSect(inline)) {
+      // Use our custom group mention node (@all for the empty sect, else @role)
+      const groupMention: GroupMention = {
+        type: 'groupMention',
+        value: inline.sect === null ? 'all' : inline.sect,
+      };
+      result.push(groupMention as unknown as PhrasingContent);
       continue;
     }
 
@@ -573,11 +585,14 @@ export function storyToMdast(story: Story): RootContent[] {
       if (node) {
         nodes.push(node);
       }
-    } else {
+    } else if (verse && 'inline' in verse) {
       // VerseInline - can return multiple nodes if it contains blockquotes
       const inlineNodes = verseInlineToMdast(verse.inline);
       nodes.push(...inlineNodes);
     }
+    // A verse that is neither a block nor an inline verse (e.g. a
+    // ContentReference embedded in a post's content) has no Markdown
+    // equivalent; skip it instead of crashing on a missing `inline`.
   }
 
   return nodes;

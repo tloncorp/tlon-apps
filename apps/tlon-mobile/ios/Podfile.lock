@@ -2400,6 +2400,28 @@ PODS:
     - React-utils (= 0.85.3)
     - ReactNativeDependencies
   - ReactNativeDependencies (0.85.3)
+  - ReactNativeEnriched (0.7.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - recaptcha-enterprise-react-native (18.8.2):
     - hermes-engine
     - RCTRequired
@@ -2568,6 +2590,31 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
+    - Yoga
+  - RNLiveMarkdown (0.1.327):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-FabricComponents
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-rendererconsistency
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - RNWorklets
     - Yoga
   - RNReanimated (4.3.1):
     - hermes-engine
@@ -3072,6 +3119,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios/ReactCodegen`)
   - ReactCommon/turbomodule/core (from `../../../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../../../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
+  - ReactNativeEnriched (from `../../../node_modules/react-native-enriched`)
   - "recaptcha-enterprise-react-native (from `../../../node_modules/@google-cloud/recaptcha-enterprise-react-native`)"
   - "RNCAsyncStorage (from `../../../node_modules/@react-native-async-storage/async-storage`)"
   - "RNCPicker (from `../../../node_modules/@react-native-picker/picker`)"
@@ -3080,6 +3128,7 @@ DEPENDENCIES:
   - "RNFBCrashlytics (from `../../../node_modules/@react-native-firebase/crashlytics`)"
   - "RNFBPerf (from `../../../node_modules/@react-native-firebase/perf`)"
   - RNGestureHandler (from `../../../node_modules/react-native-gesture-handler`)
+  - "RNLiveMarkdown (from `../../../node_modules/@expensify/react-native-live-markdown`)"
   - RNReanimated (from `../../../node_modules/react-native-reanimated`)
   - RNScreens (from `../../../node_modules/react-native-screens`)
   - "RNSentry (from `../../../node_modules/@sentry/react-native`)"
@@ -3392,6 +3441,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native/ReactCommon"
   ReactNativeDependencies:
     :podspec: "../../../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
+  ReactNativeEnriched:
+    :path: "../../../node_modules/react-native-enriched"
   recaptcha-enterprise-react-native:
     :path: "../../../node_modules/@google-cloud/recaptcha-enterprise-react-native"
   RNCAsyncStorage:
@@ -3408,6 +3459,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@react-native-firebase/perf"
   RNGestureHandler:
     :path: "../../../node_modules/react-native-gesture-handler"
+  RNLiveMarkdown:
+    :path: "../../../node_modules/@expensify/react-native-live-markdown"
   RNReanimated:
     :path: "../../../node_modules/react-native-reanimated"
   RNScreens:
@@ -3494,7 +3547,7 @@ SPEC CHECKSUMS:
   FirebaseSharedSwift: 3d1e448b7202e36821a492941c84592d1308ea14
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
-  hermes-engine: 1e84033f643387415eb686494bd2eee7ec6b9016
+  hermes-engine: c42405b9c7af3518a7f2bf83fb1f0d0375b2dede
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
@@ -3511,7 +3564,7 @@ SPEC CHECKSUMS:
   React: e2dc35338068bbd299c66f043ae0d7f25de8499e
   React-callinvoker: 28b25d21b124c26cebaea713ba7d801b9351dc48
   React-Core: 02ed7d2ffb70437bdf2aba074a13078a7b0b9ff0
-  React-Core-prebuilt: 82c3c473990f1e2ba57ba54aa6da5a79aced91e9
+  React-Core-prebuilt: 2eb31ba35afae12c20bdcc97f66450a5743aca34
   React-CoreModules: b3a5a42dadcde3b5d47b325bd912eb2ced89e146
   React-cxxreact: fe8f88dda044e5905e99a00f41b7a874c3908716
   React-debug: 9af1e96a6069c996e3d9f1e493603e74bc9f1593
@@ -3583,7 +3636,8 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 25c9c516839be2c5e3d3344f95dc7da5f7e63fc2
   ReactCodegen: 5b2b5c009cec17b5e848bde3bc067c339009390d
   ReactCommon: 7dfc3250793bf36cf221096ff59e1179e13eef7f
-  ReactNativeDependencies: bd320ddc5ffab6eee966a739c6cefbd5abcd7461
+  ReactNativeDependencies: 9c9874e499b5157b2e2220029f4a93effc5b7be9
+  ReactNativeEnriched: 79eddb2363135a1f0bba6f49634eafe118d629d7
   recaptcha-enterprise-react-native: 15b27d8db2ccd8ebce5e11b5c41b66a29cb1d7bb
   RecaptchaEnterprise: 2d06f415c94253c3e92214a4d1472b5875442cdc
   RecaptchaEnterpriseSDK: 2fd06a12a27f943c24f643f8814404a27cc74288
@@ -3595,6 +3649,7 @@ SPEC CHECKSUMS:
   RNFBCrashlytics: cc24fabc492282a7021398eecda840ccc14b26ea
   RNFBPerf: da252abab3ae760752d153e45c25187cc898e5a2
   RNGestureHandler: a97cc64efbfcb7a53969a38310a189a3d5246c65
+  RNLiveMarkdown: 8b05b12e3e93e56c4103d4bdb959bb7cba6cabd0
   RNReanimated: 7a16183cabf799cf59e42ffeade5da8d689e3309
   RNScreens: 8d318eb8905fa1d3439a1ce5d567f82ae8245657
   RNSentry: 4f0cf7953e18b7ff30a6524107bfff730a1b0d8d

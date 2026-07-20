@@ -4,17 +4,26 @@ import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 
 import { Story } from '../../urbit/channel';
+import { remarkGroupMentions } from './groupMentionPlugin';
 import { mdastToStory } from './mdastToStory';
 import { remarkShipMentions } from './shipMentionPlugin';
 
 /**
- * Create a unified processor for parsing Markdown to mdast.
- * Includes GFM support (tables, task lists, strikethrough) and ship mentions.
+ * Processor that parses GFM plus ship and group/role mentions (`~zod`, `@all`,
+ * `@admin`) into mention nodes.
  */
-const processor = unified()
+const mentionProcessor = unified()
   .use(remarkParse)
   .use(remarkGfm)
-  .use(remarkShipMentions);
+  .use(remarkShipMentions)
+  .use(remarkGroupMentions);
+
+/**
+ * Processor that parses GFM only; `~ship`/`@role` text is left as plain text.
+ * Used when mentions are tracked out-of-band (e.g. by entity position) rather
+ * than detected from text patterns.
+ */
+const plainProcessor = unified().use(remarkParse).use(remarkGfm);
 
 /**
  * Convert a Markdown string to a Story (Verse[]).
@@ -28,15 +37,23 @@ const processor = unified()
  * Supports:
  * - Standard Markdown (bold, italic, links, images, headers, code blocks, lists)
  * - GFM extensions (task lists, tables, strikethrough)
- * - Ship mentions (~zod, ~sampel-palnet, etc.)
+ * - Ship mentions (~zod, ~sampel-palnet, etc.) and group/role mentions (@all,
+ *   @admin, etc.) when `parseMentions` is true (the default)
+ *
+ * Pass `parseMentions: false` to leave `~ship`/`@role` text untouched.
  */
-export function markdownToStory(markdown: string): Story {
+export function markdownToStory(
+  markdown: string,
+  options: { parseMentions?: boolean } = {}
+): Story {
   if (!markdown || markdown.trim() === '') {
     return [];
   }
 
+  const { parseMentions = true } = options;
+  const processor = parseMentions ? mentionProcessor : plainProcessor;
   const tree = processor.parse(markdown) as Root;
-  processor.runSync(tree); // Apply transformations (ship mentions, etc.)
+  processor.runSync(tree); // Apply transformations (mentions, etc.)
 
   return mdastToStory(tree.children);
 }

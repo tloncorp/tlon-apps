@@ -192,6 +192,35 @@ describe('markdownToStory', () => {
     });
   });
 
+  describe('group mentions', () => {
+    it('parses @all and @role mentions into sect inlines', () => {
+      expect(markdownToStory('ping @all')).toEqual([
+        { inline: ['ping ', { sect: null }] },
+      ]);
+      expect(markdownToStory('ping @admin')).toEqual([
+        { inline: ['ping ', { sect: 'admin' }] },
+      ]);
+      // ships still parse
+      expect(markdownToStory('hi ~zod')).toEqual([
+        { inline: ['hi ', { ship: 'zod' }] },
+      ]);
+    });
+
+    it('leaves ~ship/@role as text when parseMentions is false', () => {
+      expect(
+        markdownToStory('hi ~zod and @all and @admin', {
+          parseMentions: false,
+        })
+      ).toEqual([{ inline: ['hi ~zod and @all and @admin'] }]);
+    });
+
+    it('still parses bold when parseMentions is false', () => {
+      expect(
+        markdownToStory('hi **bold** ~zod', { parseMentions: false })
+      ).toEqual([{ inline: ['hi ', { bold: ['bold'] }, ' ~zod'] }]);
+    });
+  });
+
   describe('header conversion', () => {
     it('converts h1 header to VerseBlock', () => {
       const result = markdownToStory('# Header One');

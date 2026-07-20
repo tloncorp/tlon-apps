@@ -12,11 +12,13 @@
   },
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
+    "@expensify/react-native-live-markdown": "^0.1.327",
     "@mattermost/react-native-paste-input": "2.0.1",
     "@tloncorp/api": "workspace:*",
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
+    "expensify-common": "2.0.182",
     "posthog-js": "^1.234.4",
     "refractor": "^4.8.0",
     "sqlocal": "^0.14.1"
@@ -46,6 +48,7 @@
     "@simform_solutions/react-native-audio-waveform": "*",
     "react-native-device-info": "*",
     "react-native-email-link": "*",
+    "react-native-enriched": "*",
     "react-native-safe-area-context": "*",
     "react-native-transformer-text-input": "^0.4.1",
     "tamagui": "2.4.2",

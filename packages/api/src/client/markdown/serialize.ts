@@ -6,6 +6,7 @@ import { unified } from 'unified';
 import { Story } from '../../urbit/channel';
 import { Block, Inline } from '../../urbit/content';
 import { visit, visitAll } from './astUtils';
+import type { GroupMention } from './groupMentionPlugin';
 import type { ShipMention } from './shipMentionPlugin';
 import { inlinesToPhrasing, storyToMdast } from './storyToMdast';
 
@@ -21,6 +22,22 @@ function transformShipMentionsToHtml(tree: Node): void {
     const htmlNode = {
       type: 'html',
       value: `~${node.value}`,
+    };
+    parent.children[index] = htmlNode as unknown as PhrasingContent;
+  });
+}
+
+/**
+ * Transform group mention nodes to html nodes before serialization.
+ * Using html nodes prevents escaping of the @ character.
+ */
+function transformGroupMentionsToHtml(tree: Node): void {
+  visit<GroupMention>(tree, 'groupMention', (node, index, parent) => {
+    if (!parent || index === undefined) return;
+
+    const htmlNode = {
+      type: 'html',
+      value: `@${node.value}`,
     };
     parent.children[index] = htmlNode as unknown as PhrasingContent;
   });
@@ -72,6 +89,7 @@ export function storyToMarkdown(story: Story): string {
   // Make lists tight and transform ship mentions before serialization
   makeTightLists(tree);
   transformShipMentionsToHtml(tree);
+  transformGroupMentionsToHtml(tree);
 
   const markdown = processor.stringify(tree).trim();
   return markdown;
@@ -92,6 +110,7 @@ export function inlinesToMarkdown(inlines: Inline[]): string {
 
   // Transform ship mentions before serialization
   transformShipMentionsToHtml(tree);
+  transformGroupMentionsToHtml(tree);
 
   return processor.stringify(tree).trim();
 }
