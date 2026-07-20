@@ -2195,7 +2195,7 @@
   ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
   %+  ex-cards  caz
   :~  %+  ex-fact  ~
-      [%notes-said-1 !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'NB']])]
+      [%notes-said !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'NB']])]
       (ex-card [%give %kick ~ ~])
   ==
 ::  ====  test-said-private-denies-stranger  ====
@@ -2227,7 +2227,7 @@
   ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
   %+  ex-cards  caz
   :~  %+  ex-fact  ~
-      [%notes-said-1 !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'NB']])]
+      [%notes-said !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'NB']])]
       (ex-card [%give %kick ~ ~])
   ==
 ::  ====  test-said-missing-note-denied  ====
@@ -2244,9 +2244,8 @@
       (ex-card [%give %kick ~ ~])
   ==
 ::  ====  test-said-proxies-and-relays  ====
-::  A watch for a notebook we don't hold proxies one watch to the host;
-::  the host's fact is relayed to our /v0/said subscribers, they're
-::  kicked, and the upstream sub is torn down.
+::  A watch for a notebook we don't hold proxies to the host; its fact
+::  is relayed, subscribers kicked, and the upstream sub torn down.
 ::
 ++  test-said-proxies-and-relays
   %-  eval-mare
@@ -2264,9 +2263,9 @@
     ~[(ex-card [%pass wire %agent [~bus %notes] %watch pax])]
   =/  sd=said:n  [f [1 'T' 'B' ~bus now.bowl 'NB']]
   ;<  caz=(list card)  b
-    (do-agent wire [~bus %notes] [%fact %notes-said-1 !>(sd)])
+    (do-agent wire [~bus %notes] [%fact %notes-said !>(sd)])
   %+  ex-cards  caz
-  :~  (ex-fact ~[pax] %notes-said-1 !>(sd))
+  :~  (ex-fact ~[pax] %notes-said !>(sd))
       (ex-card [%give %kick ~[pax] ~])
       (ex-card [%pass wire %agent [~bus %notes] %leave ~])
   ==

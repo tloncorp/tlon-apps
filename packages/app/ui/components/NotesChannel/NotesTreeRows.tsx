@@ -179,8 +179,7 @@ export function NoteRow({
       },
     ]
   );
-  // A pasteable in-app reference (/1/chan/notes/...): chat inputs convert
-  // it to a note citation on paste.
+  // pasteable in-app reference; chat inputs convert it to a note citation
   const referenceSection = (
     <ActionSheet.ActionGroup accent="neutral">
       <ActionSheet.CopyAction

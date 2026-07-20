@@ -5315,8 +5315,7 @@ async function copyShareLink() {
 
 async function copyNoteReference() {
   if (!activeNotebookFlag || !activeNoteId) return;
-  // In-app Tlon reference path. Pasting it into a Tlon chat input turns it
-  // into a note citation (mirrors channel-post /1/chan/... references).
+  // pasting this into a Tlon chat input turns it into a note citation
   const ref = `/1/chan/notes/${activeNotebookFlag}/note/${activeNoteId}`;
   try {
     await navigator.clipboard.writeText(ref);

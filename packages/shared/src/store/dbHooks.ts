@@ -620,8 +620,7 @@ export const useNoteReference = ({
     enabled: enabled && !!noteId,
     refetchOnReconnect: false,
     refetchOnMount: false,
-    // A null result means the host denied the preview (or the note is
-    // gone) — cache it like any other result rather than retrying.
+    // null = denied or missing; cache it rather than retrying
     queryFn: () => api.getNoteReference({ channelId, noteId }),
   });
 };

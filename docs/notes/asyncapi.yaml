@@ -229,7 +229,7 @@ components:
       name: notesSaid
       title: Note reference preview
       summary: |
-        Mark %notes-said-1. A denied or missing note instead delivers a
+        Mark %notes-said. A denied or missing note instead delivers a
         single null fact (mark %notes-denied).
       payload:
         $ref: "#/components/schemas/NotesSaid"

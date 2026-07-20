@@ -627,9 +627,8 @@
     cor
   ::
       [%v0 %said ship=@ name=@ %note id=@ ~]
-    ::  single-shot note reference preview (fact + kick). Hosts and local
-    ::  replicas answer from state; otherwise proxy one watch to the host
-    ::  and relay its answer in +agent.
+    ::  single-shot note reference preview: answer from state if we can,
+    ::  else proxy one watch to the host and relay its answer in +agent.
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
     =/  nid=@ud  (slav %ud id.pole)
     ?:  ?|  =(our.bowl ship.flag)
@@ -793,9 +792,8 @@
     ==
   ::
       [%said ship=@ name=@ %note id=@ ~]
-    ::  proxied note-preview answer from a notebook host. Relay the fact
-    ::  (or coerce a nack/foreign mark to %notes-denied) to our local
-    ::  /v0/said subscribers, kick them, and tear down the upstream sub.
+    ::  proxied note-preview answer from a notebook host: relay to our
+    ::  /v0/said subscribers (nack/foreign mark coerced to %notes-denied).
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
     =/  nid=@ud  (slav %ud id.pole)
     =/  paths=(list path)  ~[(said-path flag nid)]
@@ -806,13 +804,11 @@
       (give %kick paths ~)
     ::
         %kick
-      ::  normal end of the single-shot sub. If the fact already landed,
-      ::  our subscribers were kicked alongside it and this is a no-op.
       (give %kick paths ~)
     ::
         %fact
       =.  cor
-        ?:  ?=(?(%notes-said-1 %notes-denied) p.cage.sign)
+        ?:  ?=(?(%notes-said %notes-denied) p.cage.sign)
           (give %fact paths cage.sign)
         (give %fact paths notes-denied+!>(~))
       =.  cor  (give %kick paths ~)
@@ -1010,8 +1006,8 @@
   |=  [=flag:n nid=@ud]
   ^-  path
   /v0/said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
-::  +said-snippet: leading slice of body-md for preview cards, cut on a
-::  codepoint (not byte) boundary so multi-byte UTF-8 never gets split.
+::  +said-snippet: leading slice of body-md, cut on a codepoint (not
+::  byte) boundary so multi-byte UTF-8 never gets split.
 ::
 ++  said-snippet
   |=  body=@t
@@ -1020,12 +1016,9 @@
   =/  chars=(list @c)  (tuba (trip body))
   ?:  (lte (lent chars) limit)  body
   (crip (tufa (scag limit chars)))
-::  +give-said: answer a note-preview request from local state — one %fact
-::  (preview or %notes-denied) followed by an immediate %kick, mirroring
-::  %channels' single-shot said flow. paths is ~ when answering the
-::  in-flight subscriber from +watch; explicit when relaying from +agent.
-::  Read gate: public notebooks preview for anyone; private/group ones
-::  require the same access as a live subscription (+can-view-flag).
+::  +give-said: one %fact (preview or %notes-denied) then an immediate
+::  %kick, mirroring %channels' single-shot said flow. Public notebooks
+::  preview for anyone; others gate on +can-view-flag.
 ::
 ++  give-said
   |=  [paths=(list path) =flag:n nid=@ud who=ship]
@@ -1038,7 +1031,7 @@
         ==
       notes-denied+!>(~)
     ?~  nt=(~(get by notes.bs) nid)  notes-denied+!>(~)
-    :-  %notes-said-1
+    :-  %notes-said
     !>  ^-  said:n
     :-  flag
     :*  nid
