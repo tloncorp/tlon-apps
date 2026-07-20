@@ -52,6 +52,7 @@ describe('createComputingPresenceTracker', () => {
       topic: 'computing',
       disclose: [],
       timeout: '~m1.s30',
+      as: null,
       display: {
         text: 'Computing',
         blob: {
@@ -75,8 +76,39 @@ describe('createComputingPresenceTracker', () => {
     expect(clearConversationPresence).toHaveBeenCalledWith({
       conversationId: '~nec',
       topic: 'computing',
+      as: null,
     });
     expect(setConversationPresence).not.toHaveBeenCalled();
+  });
+
+  test('publishes as the moon when acting as a virtual identity', async () => {
+    const reporter = createComputingPresenceReporter({
+      as: '~doznec-dozzod-dozzod',
+    });
+
+    await reporter.publish({
+      conversationId: '~nec',
+      thinking: true,
+      toolNames: [],
+    });
+    expect(setConversationPresence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: '~nec',
+        topic: 'computing',
+        as: '~doznec-dozzod-dozzod',
+      })
+    );
+
+    await reporter.publish({
+      conversationId: '~nec',
+      thinking: false,
+      toolNames: [],
+    });
+    expect(clearConversationPresence).toHaveBeenCalledWith({
+      conversationId: '~nec',
+      topic: 'computing',
+      as: '~doznec-dozzod-dozzod',
+    });
   });
 
   test('publishes thinking state for a new run and sends thinking false when the run stops', async () => {

@@ -46,13 +46,20 @@ function normalizeToolName(toolName?: string | null) {
   return trimmed ? trimmed : null;
 }
 
-export function createComputingPresenceReporter(): ComputingPresenceReporter {
+export function createComputingPresenceReporter(reporterOpts?: {
+  // When acting as a bot moon, publish computing presence as the moon so the
+  // human sees the *bot* thinking (not the host). The host relays it on the
+  // moon's behalf. See setConversationPresence's `as` param.
+  as?: string | null;
+}): ComputingPresenceReporter {
+  const as = reporterOpts?.as ?? null;
   return {
     publish: async ({ conversationId, thinking, toolNames }) => {
       if (!thinking) {
         await clearConversationPresence({
           conversationId,
           topic: 'computing',
+          as,
         });
         return;
       }
@@ -65,6 +72,7 @@ export function createComputingPresenceReporter(): ComputingPresenceReporter {
         topic: 'computing',
         disclose: [],
         timeout: ACTIVE_PRESENCE_TIMEOUT,
+        as,
         display: {
           text: getComputingStatusText(status),
           blob: serializeComputingStatus({ thinking, toolCalls }),
@@ -79,8 +87,12 @@ export function createComputingPresenceTracker(trackerOpts?: {
   runtime?: RuntimeEnv;
   minUpdateIntervalMs?: number;
   maxPublishAgeMs?: number;
+  // Bot moon to publish presence as, when acting as a virtual identity.
+  as?: string | null;
 }) {
-  const reporter = trackerOpts?.reporter ?? createComputingPresenceReporter();
+  const reporter =
+    trackerOpts?.reporter ??
+    createComputingPresenceReporter({ as: trackerOpts?.as ?? null });
   const runtime = trackerOpts?.runtime;
   const minUpdateIntervalMs = Math.max(
     0,

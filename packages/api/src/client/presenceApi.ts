@@ -73,6 +73,12 @@ export const groupIdToPresenceContext = (groupId: string) => {
   return formatScryPath('group', host, name);
 };
 
+// Wrap a DM presence context so the moon's host relays it on the moon's
+// behalf: /dm/<who> -> /vouched/<moon>/dm/<who>. The host is the moon's
+// sponsor. See the +presence agent's vouched handling.
+export const toVouchedPresenceContext = (as: string, context: string) =>
+  `/vouched/${preSig(as)}${context}`;
+
 // Presence keys are scoped to wire contexts like `/dm/~nec`; convert them back to
 // the app's stable ids so store consumers can join presence against existing data.
 export const getPresenceContextIdFromKey = (key: ub.PresenceKey) => {
@@ -117,12 +123,17 @@ export const setPresence = async ({
   display,
   disclose = [],
   timeout = null,
+  as = null,
 }: {
   context: string;
   topic: ub.PresenceTopic;
   display?: PresenceDisplayInput;
   disclose?: string[];
   timeout?: string | null;
+  // When set, publish this presence as a bot moon we host: the context is
+  // wrapped as /vouched/<moon>/… and the presence is keyed by the moon, so the
+  // host relays it to the human on the moon's behalf. See +presence agent.
+  as?: string | null;
 }) => {
   return poke({
     app: 'presence',
@@ -131,8 +142,8 @@ export const setPresence = async ({
       set: {
         disclose,
         key: {
-          context,
-          ship: getCurrentUserId(),
+          context: as ? toVouchedPresenceContext(as, context) : context,
+          ship: as ? preSig(as) : getCurrentUserId(),
           topic,
         },
         timeout,
@@ -151,6 +162,7 @@ export const setConversationPresence = async ({
   display?: PresenceDisplayInput;
   disclose?: string[];
   timeout?: string | null;
+  as?: string | null;
 }) => {
   return setPresence({
     context: conversationIdToPresenceContext(conversationId),
@@ -161,17 +173,19 @@ export const setConversationPresence = async ({
 export const clearPresence = async ({
   context,
   topic,
+  as = null,
 }: {
   context: string;
   topic: ub.PresenceTopic;
+  as?: string | null;
 }) => {
   return poke({
     app: 'presence',
     mark: 'presence-action-1',
     json: {
       clear: {
-        context,
-        ship: getCurrentUserId(),
+        context: as ? toVouchedPresenceContext(as, context) : context,
+        ship: as ? preSig(as) : getCurrentUserId(),
         topic,
       },
     } satisfies ub.PresenceAction,
@@ -181,13 +195,16 @@ export const clearPresence = async ({
 export const clearConversationPresence = async ({
   conversationId,
   topic,
+  as = null,
 }: {
   conversationId: string;
   topic: ub.PresenceTopic;
+  as?: string | null;
 }) => {
   return clearPresence({
     context: conversationIdToPresenceContext(conversationId),
     topic,
+    as,
   });
 };
 
@@ -315,6 +332,15 @@ function parsePresenceContext(context: string): ParsedPresenceContext | null {
   const parts = context.split('/').filter(Boolean);
 
   if (parts[0] === 'dm' && parts.length === 2) {
+    return {
+      type: 'dm',
+      ship: preSig(parts[1]),
+    };
+  }
+
+  // a bot moon's presence context as seen on the host: /vouched/<moon>/dm/<who>.
+  // Key it by the moon so the host's own client can display the bot's presence.
+  if (parts[0] === 'vouched' && parts[2] === 'dm' && parts.length === 4) {
     return {
       type: 'dm',
       ship: preSig(parts[1]),

@@ -705,7 +705,11 @@ export async function monitorTlonProvider(
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
   try {
-    const computingPresence = createComputingPresenceTracker({ runtime });
+    const computingPresence = createComputingPresenceTracker({
+      runtime,
+      // when acting as a moon, publish the bot's computing presence as the moon
+      as: account.moon ? botShipName : null,
+    });
     const contextLensConfig = account.contextLens;
     const contextLensEnabled = isContextLensEffectivelyEnabled(
       cfg,
