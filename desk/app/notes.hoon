@@ -626,6 +626,23 @@
     ?>  =(src.bowl our.bowl)
     cor
   ::
+      [%v0 %said ship=@ name=@ %note id=@ ~]
+    ::  single-shot note reference preview (fact + kick). Hosts and local
+    ::  replicas answer from state; otherwise proxy one watch to the host
+    ::  and relay its answer in +agent.
+    =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
+    =/  nid=@ud  (slav %ud id.pole)
+    ?:  ?|  =(our.bowl ship.flag)
+            (~(has by books) flag)
+        ==
+      (give-said ~ flag nid src.bowl)
+    ::  refuse to fetch over the network on another ship's behalf
+    ?>  =(src.bowl our.bowl)
+    =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+    ?:  (~(has by wex.bowl) [wire ship.flag %notes])
+      cor
+    (emit %pass wire %agent [ship.flag %notes] %watch (said-path flag nid))
+  ::
       [%v1 %notes ship=@ name=@ %request requester=@ id=@ ~]
     ::  Per-request path. Subscribers attach here while awaiting their
     ::  response-update. Path's `ship`/`name` segment is the notebook
@@ -773,6 +790,34 @@
     ::  on the ack — the local entry is already gone either way.
     ?+  -.sign  cor
         %poke-ack  cor
+    ==
+  ::
+      [%said ship=@ name=@ %note id=@ ~]
+    ::  proxied note-preview answer from a notebook host. Relay the fact
+    ::  (or coerce a nack/foreign mark to %notes-denied) to our local
+    ::  /v0/said subscribers, kick them, and tear down the upstream sub.
+    =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
+    =/  nid=@ud  (slav %ud id.pole)
+    =/  paths=(list path)  ~[(said-path flag nid)]
+    ?+  -.sign  cor
+        %watch-ack
+      ?~  p.sign  cor
+      =.  cor  (give %fact paths notes-denied+!>(~))
+      (give %kick paths ~)
+    ::
+        %kick
+      ::  normal end of the single-shot sub. If the fact already landed,
+      ::  our subscribers were kicked alongside it and this is a no-op.
+      (give %kick paths ~)
+    ::
+        %fact
+      =.  cor
+        ?:  ?=(?(%notes-said-1 %notes-denied) p.cage.sign)
+          (give %fact paths cage.sign)
+        (give %fact paths notes-denied+!>(~))
+      =.  cor  (give %kick paths ~)
+      =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+      (emit %pass wire %agent [ship.flag %notes] %leave ~)
     ==
   ::
       [%notes %req ship=@ name=@ id=@ %watch ~]
@@ -959,6 +1004,52 @@
   ::  revocation rather than a replication gap.
   ?.  (group-synced u.grp)  &
   (group-can-read u.grp flag who)
+::  +said-path: subscription path for a single note-preview request
+::
+++  said-path
+  |=  [=flag:n nid=@ud]
+  ^-  path
+  /v0/said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+::  +said-snippet: leading slice of body-md for preview cards, cut on a
+::  codepoint (not byte) boundary so multi-byte UTF-8 never gets split.
+::
+++  said-snippet
+  |=  body=@t
+  ^-  @t
+  =/  limit=@ud  400
+  =/  chars=(list @c)  (tuba (trip body))
+  ?:  (lte (lent chars) limit)  body
+  (crip (tufa (scag limit chars)))
+::  +give-said: answer a note-preview request from local state — one %fact
+::  (preview or %notes-denied) followed by an immediate %kick, mirroring
+::  %channels' single-shot said flow. paths is ~ when answering the
+::  in-flight subscriber from +watch; explicit when relaying from +agent.
+::  Read gate: public notebooks preview for anyone; private/group ones
+::  require the same access as a live subscription (+can-view-flag).
+::
+++  give-said
+  |=  [paths=(list path) =flag:n nid=@ud who=ship]
+  ^+  cor
+  =/  =cage
+    ?~  entry=(get-book flag)  notes-denied+!>(~)
+    =*  bs  notebook-state.u.entry
+    ?.  ?|  =(%public visibility.bs)
+            (can-view-flag flag who)
+        ==
+      notes-denied+!>(~)
+    ?~  nt=(~(get by notes.bs) nid)  notes-denied+!>(~)
+    :-  %notes-said-1
+    !>  ^-  said:n
+    :-  flag
+    :*  nid
+        title.u.nt
+        (said-snippet body-md.u.nt)
+        created-by.u.nt
+        updated-at.u.nt
+        title.notebook.bs
+    ==
+  =.  cor  (give %fact paths cage)
+  (give %kick paths ~)
 ::  +recheck-group-access: a fact arrived for group `changed`, so read
 ::  permissions there may have shifted. Re-run can-read for every remote
 ::  subscriber on a hosted notebook bound to that group and %kick any who've

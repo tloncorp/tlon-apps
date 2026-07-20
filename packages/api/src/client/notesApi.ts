@@ -1,6 +1,14 @@
 import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
-import { poke, requestJson, scry, subscribe, unsubscribe } from './urbit';
+import { formatUd } from './apiUtils';
+import {
+  poke,
+  requestJson,
+  scry,
+  subscribe,
+  subscribeOnce,
+  unsubscribe,
+} from './urbit';
 
 const logger = createDevLogger('notesApi', false);
 
@@ -91,6 +99,45 @@ export function parseNotesChannelId(
 
 export function notesChannelId(flag: NotesFlag | string): string {
   return `notes/${formatNotesFlag(flag)}`;
+}
+
+/**
+ * Preview payload from the %notes /v0/said single-shot subscription
+ * (mark %notes-said-1). A %notes-denied answer arrives as a null fact.
+ */
+export interface NotesSaidPreview {
+  host: string;
+  flagName: string;
+  id: number;
+  title: string;
+  snippet: string;
+  author: string;
+  updatedAt: number;
+  notebookTitle: string;
+}
+
+export async function getNoteReference({
+  channelId,
+  noteId,
+}: {
+  channelId: string;
+  noteId: string;
+}): Promise<NotesSaidPreview | null> {
+  const flag = parseNotesChannelId(channelId);
+  if (!flag) {
+    throw new Error(`invalid notes channel id: ${channelId}`);
+  }
+  const data = await subscribeOnce<NotesSaidPreview | null>(
+    {
+      app: 'notes',
+      // the agent parses the id with +slav %ud, so dot-group it (1.234)
+      path: `/v0/said/${flag.host}/${flag.name}/note/${formatUd(noteId)}`,
+    },
+    3000,
+    undefined,
+    { tag: 'getNoteReference' }
+  );
+  return data ?? null;
 }
 
 function ensureSig(host: string): string {

@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { getNoteReferencePath } from '@tloncorp/shared/logic';
 import { Icon, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -178,6 +179,20 @@ export function NoteRow({
       },
     ]
   );
+  // A pasteable in-app reference (/1/chan/notes/...): chat inputs convert
+  // it to a note citation on paste.
+  const referenceSection = (
+    <ActionSheet.ActionGroup accent="neutral">
+      <ActionSheet.CopyAction
+        action={{ title: 'Copy link to note', startIcon: 'Copy' }}
+        copyText={getNoteReferencePath(
+          `notes/${note.notebookFlag}`,
+          note.noteId
+        )}
+        testID={`NotesCopyReferenceAction-${note.noteId}`}
+      />
+    </ActionSheet.ActionGroup>
+  );
   // Rendered outside NotesActionGroupList's dismiss-on-press wrapper: the
   // sheet stays open, so the switch flips and the published-note actions
   // appear in place instead of the sheet vanishing mid-operation.
@@ -239,7 +254,12 @@ export function NoteRow({
       title: note.title || 'Untitled',
       subtitle: bodyPreview || 'Note',
     },
-    bottomContent: publishSection,
+    bottomContent: (
+      <>
+        {referenceSection}
+        {publishSection}
+      </>
+    ),
   });
 
   return (

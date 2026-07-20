@@ -606,6 +606,26 @@ export const usePostReference = ({
   return postQuery;
 };
 
+export const useNoteReference = ({
+  channelId,
+  noteId,
+  enabled = true,
+}: {
+  channelId: string;
+  noteId: string;
+  enabled?: boolean;
+}) => {
+  return useQuery({
+    queryKey: ['noteReference', channelId, noteId],
+    enabled: enabled && !!noteId,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    // A null result means the host denied the preview (or the note is
+    // gone) — cache it like any other result rather than retrying.
+    queryFn: () => api.getNoteReference({ channelId, noteId }),
+  });
+};
+
 export const useGroupsHostedBy = (userId: string, disabled?: boolean) => {
   return useQuery({
     queryKey: ['groupsHostedBy', userId],

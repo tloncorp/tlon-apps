@@ -1571,6 +1571,20 @@ export function toUrbitStory(content: PostContent): Story {
 export function toContentReference(cite: ub.Cite): ContentReference | null {
   if ('chan' in cite) {
     const channelId = cite.chan.nest;
+    // notes channels cite individual notes as /note/<decimal id>
+    if (channelId.startsWith('notes/')) {
+      const noteMatch = cite.chan.where.match(/^\/note\/(\d+)/);
+      if (!noteMatch) {
+        console.error('found invalid notes ref', cite);
+        return null;
+      }
+      return {
+        type: 'reference',
+        referenceType: 'note',
+        channelId,
+        noteId: noteMatch[1],
+      };
+    }
     // I've seen these forms of reference path:
     // /msg/170141184506828851385935487131294105600
     // /msg/170141184506312077223314290444316180480/170141184506312235291442423303751335936
@@ -1626,6 +1640,13 @@ export function contentReferenceToCite(reference: ContentReference): ub.Cite {
       desk: {
         flag: `${reference.userId}/${reference.appId}`,
         where: '',
+      },
+    };
+  } else if (reference.referenceType === 'note') {
+    return {
+      chan: {
+        nest: reference.channelId,
+        where: `/note/${reference.noteId}`,
       },
     };
   }

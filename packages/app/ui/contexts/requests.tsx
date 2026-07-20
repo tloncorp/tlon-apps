@@ -1,6 +1,7 @@
 import {
   useChannelPreview,
   useGroupPreview,
+  useNoteReference,
   usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared';
@@ -13,6 +14,7 @@ type State = {
   useGroup: typeof useGroupPreview;
   useApp: (id: string) => void;
   usePostReference: typeof usePostReference;
+  useNoteReference: typeof useNoteReference;
 };
 
 type ContextValue = State;
@@ -23,6 +25,7 @@ const Context = createContext<ContextValue>({
   useGroup: useGroupPreview,
   useApp: () => {},
   usePostReference: usePostReference,
+  useNoteReference: useNoteReference,
 });
 
 export const useRequests = () => {
@@ -41,6 +44,8 @@ type RequestProviderProps = {
   useGroup: typeof useGroupPreview;
   useApp: (id: string) => void;
   usePostReference: typeof usePostReference;
+  // optional so existing providers fall back to the shared store hook
+  useNoteReference?: typeof useNoteReference;
 };
 
 export const RequestsProvider = ({
@@ -50,10 +55,25 @@ export const RequestsProvider = ({
   useChannel,
   useGroup,
   useApp,
+  useNoteReference: useNoteReferenceProp,
 }: PropsWithChildren<RequestProviderProps>) => {
   const value = useMemo(
-    () => ({ usePost, useChannel, useGroup, useApp, usePostReference }),
-    [usePost, useChannel, useGroup, useApp, usePostReference]
+    () => ({
+      usePost,
+      useChannel,
+      useGroup,
+      useApp,
+      usePostReference,
+      useNoteReference: useNoteReferenceProp ?? useNoteReference,
+    }),
+    [
+      usePost,
+      useChannel,
+      useGroup,
+      useApp,
+      usePostReference,
+      useNoteReferenceProp,
+    ]
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 };

@@ -309,6 +309,22 @@
 ::  HTML body is served via /notes/pub/~host/name/note-id, not this list.
 ::
 +$  published-record  [=flag note-id=@ud]
+::  $note-preview: reference-preview payload served on /v0/said. A trimmed,
+::  read-gated view of a note for rendering chat citations — snippet is the
+::  leading slice of body-md, not the full document.
+::
++$  note-preview
+  $:  id=@ud
+      title=@t
+      snippet=@t
+      author=ship
+      updated-at=@da
+      notebook-title=@t
+  ==
+::  $said: single-shot /v0/said response — the preview plus the notebook
+::  it lives in. Mirrors %channels' said (fact then immediate kick).
+::
++$  said  [=flag =note-preview]
 ::  Type aliases
 ::
 +$  action    a-notes

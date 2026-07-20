@@ -72,6 +72,28 @@ channels:
         $ref: "#/components/messages/InboxInviteRemoved"
       inboxNotebooksChanged:
         $ref: "#/components/messages/InboxNotebooksChanged"
+  saidStream:
+    address: "/v0/said/{host}/{name}/note/{noteId}"
+    title: Single-shot note reference preview
+    description: |
+      Request/response over a subscription, mirroring %channels' /said:
+      exactly one fact (a `NotesSaid` preview, or null when denied /
+      missing — mark %notes-denied) followed by an immediate kick.
+
+      Hosts and local replicas answer from state; otherwise the agent
+      proxies one watch to the notebook host and relays the answer.
+      Read gate: public notebooks preview for anyone; private/group
+      notebooks require the same access as a live subscription.
+    parameters:
+      host:
+        description: Host ship of the notebook (URL-encoded `@p`, e.g. `~zod`).
+      name:
+        description: Notebook slug (`@tas`).
+      noteId:
+        description: Note id as a dot-grouped `@ud` (e.g. `1.234`).
+    messages:
+      notesSaid:
+        $ref: "#/components/messages/NotesSaid"
   requestStream:
     address: "/v1/request/{requestId}"
     title: Per-request response stream (v1)
@@ -122,6 +144,13 @@ operations:
       Only needed when the original POST returned `pending`.
     messages:
       - $ref: "#/channels/requestStream/messages/response"
+  receiveSaid:
+    action: receive
+    channel:
+      $ref: "#/channels/saidStream"
+    summary: Fetch one note preview (fact + kick)
+    messages:
+      - $ref: "#/channels/saidStream/messages/notesSaid"
 
 components:
   messages:
@@ -196,11 +225,33 @@ components:
         Same shape as the HTTP `Response` schema in openapi.yaml.
       payload:
         $ref: "#/components/schemas/Response"
+    NotesSaid:
+      name: notesSaid
+      title: Note reference preview
+      summary: |
+        Mark %notes-said-1. A denied or missing note instead delivers a
+        single null fact (mark %notes-denied).
+      payload:
+        $ref: "#/components/schemas/NotesSaid"
 
   schemas:
     # Mirror of openapi.yaml schemas. Kept self-contained so this spec
     # can be consumed by code-generators that don't follow cross-file
     # $refs. Source of truth is the agent's lib/notes-json encoder.
+    NotesSaid:
+      type: object
+      required: [host, flagName, id, title, snippet, author, updatedAt, notebookTitle]
+      properties:
+        host: { type: string, example: "~zod" }
+        flagName: { type: string, example: "my-notebook-1" }
+        id: { type: integer, description: Note id. }
+        title: { type: string }
+        snippet:
+          type: string
+          description: Leading slice (≤400 chars) of the note's markdown body.
+        author: { type: string, description: Ship that created the note. }
+        updatedAt: { type: integer, description: Unix seconds. }
+        notebookTitle: { type: string }
     RSnapshot:
       type: object
       required: [type, host, flagName, visibility]

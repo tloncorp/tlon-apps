@@ -2164,5 +2164,129 @@
   ?~  vis
     |+['snapshot missing visibility field']~
   &+[~ s]
+::  ====  /v0/said: single-shot note reference previews  ====
+::  +said-watch-path: the client-facing watch path for a note preview
 ::
+++  said-watch-path
+  |=  [f=flag:n nid=@ud]
+  ^-  path
+  /v0/said/(scot %p ship.f)/[name.f]/note/(scot %ud nid)
+::  +setup-said-notebook: notebook 'NB' + one note ('T' / body 'B', id 3)
+::
+++  setup-said-notebook
+  =/  m  (mare ,[f=flag:n =bowl:gall])
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  *  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
+  (pure:m f bowl)
+::  ====  test-said-host-answers-member  ====
+::  Host answers its own /v0/said watch with the preview fact + kick.
+::
+++  test-said-host-answers-member
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  [f=flag:n =bowl:gall]  b  setup-said-notebook
+  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said-1 !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'NB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  ====  test-said-private-denies-stranger  ====
+::  A non-member watching a private notebook's /v0/said gets %notes-denied.
+::
+++  test-said-private-denies-stranger
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  [f=flag:n =bowl:gall]  b  setup-said-notebook
+  ;<  *  b  (set-src ~bus)
+  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  %+  ex-cards  caz
+  :~  (ex-fact ~ %notes-denied !>(~))
+      (ex-card [%give %kick ~ ~])
+  ==
+::  ====  test-said-public-answers-stranger  ====
+::  Public notebooks preview for anyone, member or not.
+::
+++  test-said-public-answers-stranger
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  [f=flag:n =bowl:gall]  b  setup-said-notebook
+  ;<  *  b  (poke-a [%notebook f [%visibility %public]])
+  ;<  *  b  (set-src ~bus)
+  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said-1 !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'NB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  ====  test-said-missing-note-denied  ====
+::
+++  test-said-missing-note-denied
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  [f=flag:n =bowl:gall]  b  setup-said-notebook
+  ;<  caz=(list card)  b  (do-watch (said-watch-path f 999))
+  %+  ex-cards  caz
+  :~  (ex-fact ~ %notes-denied !>(~))
+      (ex-card [%give %kick ~ ~])
+  ==
+::  ====  test-said-proxies-and-relays  ====
+::  A watch for a notebook we don't hold proxies one watch to the host;
+::  the host's fact is relayed to our /v0/said subscribers, they're
+::  kicked, and the upstream sub is torn down.
+::
+++  test-said-proxies-and-relays
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  =/  f=flag:n  [~bus %nb]
+  =/  pax=path  (said-watch-path f 1)
+  =/  =wire  /said/(scot %p ~bus)/nb/note/1
+  ;<  caz=(list card)  b  (do-watch pax)
+  ;<  ~  b
+    %+  ex-cards  caz
+    ~[(ex-card [%pass wire %agent [~bus %notes] %watch pax])]
+  =/  sd=said:n  [f [1 'T' 'B' ~bus now.bowl 'NB']]
+  ;<  caz=(list card)  b
+    (do-agent wire [~bus %notes] [%fact %notes-said-1 !>(sd)])
+  %+  ex-cards  caz
+  :~  (ex-fact ~[pax] %notes-said-1 !>(sd))
+      (ex-card [%give %kick ~[pax] ~])
+      (ex-card [%pass wire %agent [~bus %notes] %leave ~])
+  ==
+::  ====  test-said-nack-coerces-denied  ====
+::  A nacked proxy watch surfaces to local subscribers as %notes-denied.
+::
+++  test-said-nack-coerces-denied
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  =/  f=flag:n  [~bus %nb]
+  =/  pax=path  (said-watch-path f 1)
+  =/  =wire  /said/(scot %p ~bus)/nb/note/1
+  ;<  *  b  (do-watch pax)
+  ;<  caz=(list card)  b
+    (do-agent wire [~bus %notes] [%watch-ack `~[leaf+"denied"]])
+  %+  ex-cards  caz
+  :~  (ex-fact ~[pax] %notes-denied !>(~))
+      (ex-card [%give %kick ~[pax] ~])
+  ==
 --

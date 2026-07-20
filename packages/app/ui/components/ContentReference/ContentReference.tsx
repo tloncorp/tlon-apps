@@ -1,4 +1,6 @@
 // tamagui-ignore
+import { useNavigation as useReactNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getChannelType } from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import { ContentReference } from '@tloncorp/shared/domain';
@@ -8,6 +10,7 @@ import React from 'react';
 import { ComponentProps, useCallback, useContext } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
+import type { RootStackParamList } from '../../../navigation/types';
 import { useNavigation } from '../../contexts/navigation';
 import { useRequests } from '../../contexts/requests';
 import { useGroupTitle } from '../../utils';
@@ -51,6 +54,14 @@ export const ContentReferenceLoader: ContentReferenceLoaderComponent = ({
     );
   } else if (reference.referenceType === 'group') {
     return <GroupReferenceLoader groupId={reference.groupId} {...props} />;
+  } else if (reference.referenceType === 'note') {
+    return (
+      <NotesNoteReferenceLoader
+        channelId={reference.channelId}
+        noteId={reference.noteId}
+        {...props}
+      />
+    );
   } else if (reference.referenceType === 'app') {
     return (
       <ReferenceSkeleton
@@ -343,6 +354,79 @@ export function GroupReference({
   );
 }
 
+// Note reference (%notes shared notebooks)
+
+export function NotesNoteReferenceLoader({
+  channelId,
+  noteId,
+  openOnPress = true,
+  ...props
+}: ReferenceProps & {
+  channelId: string;
+  noteId: string;
+}) {
+  const { useNoteReference } = useRequests();
+  const noteQuery = useNoteReference({ channelId, noteId });
+  const navigation =
+    useReactNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const preview = noteQuery.data;
+  const handlePress = useCallback(() => {
+    navigation.navigate('NotesDetail', {
+      channelId,
+      noteId: Number(noteId),
+    });
+  }, [navigation, channelId, noteId]);
+
+  return (
+    <Reference
+      {...props}
+      hasData={!!preview}
+      isLoading={noteQuery.isLoading}
+      isError={noteQuery.isError}
+      errorMessage={noteQuery.error?.message}
+      onPress={openOnPress && preview ? handlePress : undefined}
+    >
+      <ContentReferenceHeader type="notes" />
+      {preview && (
+        <IsInsideReferenceContext.Provider value={true}>
+          <NotesSaidReferenceContent
+            title={preview.title}
+            author={preview.author}
+            snippet={preview.snippet}
+          />
+        </IsInsideReferenceContext.Provider>
+      )}
+    </Reference>
+  );
+}
+
+function NotesSaidReferenceContent({
+  title,
+  author,
+  snippet,
+}: {
+  title: string;
+  author: string;
+  snippet: string;
+}) {
+  const { contentSize } = useReferenceContext();
+  return (
+    <Reference.Body>
+      <NoteBookReferenceContent>
+        {title ? (
+          <NoteReferenceTitleText>{title}</NoteReferenceTitleText>
+        ) : null}
+        <PostReferenceAuthor contactId={author} />
+        {contentSize !== '$s' && (
+          <Text size="$body" numberOfLines={6}>
+            {snippet}
+          </Text>
+        )}
+      </NoteBookReferenceContent>
+    </Reference.Body>
+  );
+}
+
 const typeMeta: Record<string, { label: string; icon: IconType }> = {
   gallery: {
     label: 'Gallery Post',
@@ -359,6 +443,10 @@ const typeMeta: Record<string, { label: string; icon: IconType }> = {
   group: {
     label: 'Group',
     icon: 'Discover',
+  },
+  notes: {
+    label: 'Note',
+    icon: 'ChannelNotebooks',
   },
 };
 
