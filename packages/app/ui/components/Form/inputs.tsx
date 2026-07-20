@@ -660,7 +660,7 @@ export const ListItemInput = <T,>({
   return (
     <YStack {...props}>
       {options.map((option) => (
-        <ListItemInputRow
+        <ListItemInputRow<T>
           key={option.title}
           option={option}
           onPress={onChange}
@@ -726,7 +726,7 @@ export const CheckboxInput = <T,>({
 } & ComponentProps<typeof YStack>) => {
   return (
     <YStack {...props}>
-      <CheckboxInputRow
+      <CheckboxInputRow<T>
         key={option.title}
         option={option}
         onPress={onChange}

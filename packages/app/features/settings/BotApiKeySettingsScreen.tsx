@@ -104,11 +104,11 @@ export function BotApiKeySettingsScreen(props: Props) {
   const errorMessage =
     validationError ??
     (saveProviderKey.error
-      ? getErrorMessage(saveProviderKey.error) ?? 'Failed to save API key.'
+      ? (getErrorMessage(saveProviderKey.error) ?? 'Failed to save API key.')
       : null) ??
     (deleteProviderKey.error
-      ? getErrorMessage(deleteProviderKey.error) ??
-        'Failed to delete provider key.'
+      ? (getErrorMessage(deleteProviderKey.error) ??
+        'Failed to delete provider key.')
       : null);
 
   return (

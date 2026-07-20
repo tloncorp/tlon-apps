@@ -236,7 +236,7 @@ export const useMentions = ({
       const editPosition =
         explicitCursorPosition != null
           ? cursorPosition - (delta > 0 ? delta : 0)
-          : firstDiffIndex ?? cursorPosition;
+          : (firstDiffIndex ?? cursorPosition);
       const updatedMentions = mentions
         .map((mention) => {
           if (mention.start >= editPosition) {

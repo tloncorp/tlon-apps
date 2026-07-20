@@ -93,7 +93,7 @@ export function ChatListScreenView({
   // taps / deep links). Only this case gets the loading/gating/bounded-fallback treatment.
   const [inviteNotificationGroupId, setInviteNotificationGroupId] = useState<
     string | null
-  >(previewGroupFromInviteNotification ? previewGroupId ?? null : null);
+  >(previewGroupFromInviteNotification ? (previewGroupId ?? null) : null);
   const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
 
   const [showSearchInput, setShowSearchInput] = useState(false);

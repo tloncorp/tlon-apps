@@ -35,12 +35,12 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsup",
-    "lint": "eslint src/",
-    "lint:format": "prettier ./ --write",
+    "build": "tsdown",
+    "lint": "oxlint src/",
+    "lint:format": "oxfmt ./",
     "prepare": "pnpm build",
     "test": "vitest",
-    "watch": "tsup --watch",
+    "watch": "tsdown --watch",
     "tsc": "tsc --noEmit"
   },
   "publishConfig": {
@@ -69,5 +69,9 @@
     "unified": "^11.0.0",
     "validator": "^13.7.0",
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "tsdown": "^0.22.4",
+    "@typescript/native-preview": "latest"
   }
 }

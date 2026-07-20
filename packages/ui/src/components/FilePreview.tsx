@@ -96,5 +96,5 @@ function extensionOf(name?: string): string | null {
   const segments = name.split('.');
   // without a dot there is no extension; the old `.at(-1)` fallback returned
   // the entire string (e.g. a full URL) as the "extension"
-  return segments.length > 1 ? segments.at(-1) ?? null : null;
+  return segments.length > 1 ? (segments.at(-1) ?? null) : null;
 }

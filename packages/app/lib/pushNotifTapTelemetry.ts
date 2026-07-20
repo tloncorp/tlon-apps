@@ -149,7 +149,7 @@ export function startPushNotifTapMeasurement({
       measurement.networkInternetReachable = state.isInternetReachable ?? null;
       measurement.cellularGeneration =
         state.type === 'cellular'
-          ? state.details.cellularGeneration ?? null
+          ? (state.details.cellularGeneration ?? null)
           : null;
     }
   });

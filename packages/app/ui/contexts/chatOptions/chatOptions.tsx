@@ -127,7 +127,7 @@ export const ChatOptionsProvider = ({
   const channelTitle = useChannelTitle(channel ?? null);
   const groupId = isGroup
     ? chat.id
-    : channel?.groupId ?? initialChat?.groupId ?? undefined;
+    : (channel?.groupId ?? initialChat?.groupId ?? undefined);
   const channelId = isChannel ? chat.id : undefined;
   const { data: group } = useGroup({
     id: groupId,

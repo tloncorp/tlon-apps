@@ -51,7 +51,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
   } = useForm<FormData>({
     mode: 'onChange',
     defaultValues: {
-      nickname: isRevivalOnboarding ? '' : DEFAULT_ONBOARDING_NICKNAME ?? '',
+      nickname: isRevivalOnboarding ? '' : (DEFAULT_ONBOARDING_NICKNAME ?? ''),
     },
   });
 

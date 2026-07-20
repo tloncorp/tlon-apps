@@ -975,7 +975,7 @@ function updateHarnessDebugSnapshot(
     previous.lastHarnessEventRunId !== eventRunId;
   const existing = resetForNewRun
     ? createEmptyHarnessDebugSnapshot(now)
-    : previous ?? createEmptyHarnessDebugSnapshot(now);
+    : (previous ?? createEmptyHarnessDebugSnapshot(now));
   const contextEngineEvent = optionalString(event.contextEngineEvent);
   const contextEngineTaskId = optionalString(event.contextEngineTaskId);
   const contextEngineOperation = optionalString(event.contextEngineOperation);

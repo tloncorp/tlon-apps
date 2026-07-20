@@ -129,7 +129,7 @@ function getNotePreviewModeKey(
 }
 
 function getStoredNotePreviewMode(key: string | null) {
-  return key ? notePreviewModes.get(key) ?? true : true;
+  return key ? (notePreviewModes.get(key) ?? true) : true;
 }
 
 function useNotePreviewMode(
@@ -263,16 +263,16 @@ export function NotesNoteDetail({
   const selectedNote =
     noteId === null
       ? null
-      : notes.find((note) => note.noteId === noteId) ?? null;
+      : (notes.find((note) => note.noteId === noteId) ?? null);
   const selectedNoteRowId = selectedNote?.id ?? null;
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(
     selectedNote &&
-      draftBase &&
-      draftsMatchSelectedNote &&
-      (normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
-        bodyDraft !== draftBase.bodyMd)
+    draftBase &&
+    draftsMatchSelectedNote &&
+    (normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
+      bodyDraft !== draftBase.bodyMd)
   );
   const previewState = useMemo(() => {
     // Markdown conversion is too expensive to run per keystroke; only

@@ -73,23 +73,23 @@ export function EditProfileScreenView(props: Props) {
   const currentNickname = useMemo(() => {
     return isCurrUser
       ? userContact?.nickname
-      : userContact?.customNickname ?? '';
+      : (userContact?.customNickname ?? '');
   }, [isCurrUser, userContact?.nickname, userContact?.customNickname]);
 
   const nicknamePlaceholder = useMemo(() => {
     return isCurrUser
       ? userContact?.id
-      : userContact?.peerNickname ?? userContact?.id;
+      : (userContact?.peerNickname ?? userContact?.id);
   }, [isCurrUser, userContact]);
 
   const currentAvatarImage = useMemo(() => {
     return isCurrUser
       ? userContact?.avatarImage
-      : userContact?.customAvatarImage ?? '';
+      : (userContact?.customAvatarImage ?? '');
   }, [isCurrUser, userContact]);
 
   const avatarPlaceholder = useMemo(() => {
-    return isCurrUser ? undefined : userContact?.peerAvatarImage ?? undefined;
+    return isCurrUser ? undefined : (userContact?.peerAvatarImage ?? undefined);
   }, [isCurrUser, userContact]);
 
   const {

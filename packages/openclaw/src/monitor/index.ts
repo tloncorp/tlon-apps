@@ -2221,7 +2221,7 @@ export async function monitorTlonProvider(
       const trigger: ContextLensTrigger =
         isGroup && groupChannel && isSummarizationRequest(messageText)
           ? 'summarization'
-          : params.trigger ?? 'unknown';
+          : (params.trigger ?? 'unknown');
 
       const route = core.channel.routing.resolveAgentRoute({
         cfg,
@@ -2229,7 +2229,7 @@ export async function monitorTlonProvider(
         accountId: opts.accountId ?? undefined,
         peer: {
           kind: isGroup ? 'group' : 'direct',
-          id: isGroup ? groupChannel ?? senderShip : senderShip,
+          id: isGroup ? (groupChannel ?? senderShip) : senderShip,
         },
       });
 
@@ -2264,7 +2264,7 @@ export async function monitorTlonProvider(
         trigger,
         sessionKey: route.sessionKey,
         senderShip,
-        conversationId: isGroup ? groupChannel ?? '' : senderShip,
+        conversationId: isGroup ? (groupChannel ?? '') : senderShip,
         receivedAt: timestamp,
         preview: previewText(messageText),
         ...(params.retryOf ? { retryOf: params.retryOf } : {}),
@@ -2662,7 +2662,7 @@ export async function monitorTlonProvider(
             if (outputMessageId) {
               contextLenses.recordOutput(lens.lensId, {
                 messageId: outputMessageId,
-                conversationId: isGroup ? groupChannel ?? '' : senderShip,
+                conversationId: isGroup ? (groupChannel ?? '') : senderShip,
                 kind: isGroup ? 'channel' : 'dm',
                 sentAt: Date.now(),
                 preview: previewText(noHistoryMsg),
@@ -2730,7 +2730,7 @@ export async function monitorTlonProvider(
           if (outputMessageId) {
             contextLenses.recordOutput(lens.lensId, {
               messageId: outputMessageId,
-              conversationId: isGroup ? groupChannel ?? '' : senderShip,
+              conversationId: isGroup ? (groupChannel ?? '') : senderShip,
               kind: isGroup ? 'channel' : 'dm',
               sentAt: Date.now(),
               preview: previewText(errorMsg),
@@ -3018,7 +3018,7 @@ export async function monitorTlonProvider(
         route.agentId
       );
       const presenceConversationId = isGroup
-        ? groupChannel ?? null
+        ? (groupChannel ?? null)
         : senderShip;
       const presenceRunId = String(messageId);
 
@@ -3039,14 +3039,18 @@ export async function monitorTlonProvider(
             onStartError: (err: unknown) => {
               runtime.error?.(
                 `[tlon] Failed to start computing presence for ${presenceConversationId}: ${
-                  err instanceof Error ? err.stack ?? err.message : String(err)
+                  err instanceof Error
+                    ? (err.stack ?? err.message)
+                    : String(err)
                 }`
               );
             },
             onStopError: (err: unknown) => {
               runtime.error?.(
                 `[tlon] Failed to stop computing presence for ${presenceConversationId}: ${
-                  err instanceof Error ? err.stack ?? err.message : String(err)
+                  err instanceof Error
+                    ? (err.stack ?? err.message)
+                    : String(err)
                 }`
               );
             },
@@ -3235,7 +3239,7 @@ export async function monitorTlonProvider(
                           messageId,
                           isGroup,
                           destination: isGroup
-                            ? groupChannel ?? null
+                            ? (groupChannel ?? null)
                             : senderShip,
                           deliverParentId: deliverParentId ?? null,
                         })}`
@@ -3453,10 +3457,10 @@ export async function monitorTlonProvider(
         if (effectiveReacts && typeof effectiveReacts === 'object') {
           const rootPostId = replyReacts ? response?.post?.id : undefined;
           const postId = replyReacts
-            ? response?.post?.['r-post']?.reply?.id ??
+            ? (response?.post?.['r-post']?.reply?.id ??
               response?.post?.id ??
-              'unknown'
-            : response?.post?.id ?? 'unknown';
+              'unknown')
+            : (response?.post?.id ?? 'unknown');
           await processChannelReactionSnapshot({
             botShip: botShipName,
             reactions: effectiveReacts as Record<string, string>,

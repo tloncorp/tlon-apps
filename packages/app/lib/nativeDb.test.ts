@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Mock, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   NativeDb,
@@ -11,13 +11,13 @@ import {
 import { TRIGGER_SETUP } from './triggers';
 
 type MockConnection = {
-  close: ReturnType<typeof vi.fn>;
-  createClient: ReturnType<typeof vi.fn>;
-  delete: ReturnType<typeof vi.fn>;
-  execute: ReturnType<typeof vi.fn>;
-  getDbPath: ReturnType<typeof vi.fn>;
-  migrateClient: ReturnType<typeof vi.fn>;
-  updateHook: ReturnType<typeof vi.fn>;
+  close: Mock<any, any>;
+  createClient: Mock<any, any>;
+  delete: Mock<any, any>;
+  execute: Mock<any, any>;
+  getDbPath: Mock<any, any>;
+  migrateClient: Mock<any, any>;
+  updateHook: Mock<any, any>;
 };
 
 type TrackPayload = Record<string, unknown>;
@@ -324,7 +324,7 @@ describe('NativeDb', () => {
 
   it('throws if retry purge fails', async () => {
     const firstConnection = sqliteRuntime.makeConnection({
-      delete: vi.fn(() => {
+      delete: vi.fn((): void => {
         throw new Error('delete failed');
       }),
       migrateClient: vi

@@ -1,12 +1,12 @@
-import { defineConfig } from 'tsup';
+import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-  clean: true,
-  dts: true,
   entry: ['src/index.ts'],
   format: ['esm'],
   outDir: 'dist',
   sourcemap: true,
-  target: 'es2020',
+  dts: { tsgo: true },
+  clean: true,
   tsconfig: 'tsconfig.build.json',
+  outExtensions: () => ({ js: '.js', dts: '.d.ts' }),
 });

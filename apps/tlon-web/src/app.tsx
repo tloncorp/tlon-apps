@@ -227,7 +227,7 @@ function AppRoutes() {
   }, []);
 
   const documentTitleFormatterMobile = useCallback(
-    (_options: any, route: Route<string>) => {
+    (_options: any, route: Route<string> | undefined) => {
       if (!route?.name) return 'Tlon';
 
       if (route.name === 'GroupChannels') {
@@ -274,7 +274,7 @@ function AppRoutes() {
   );
 
   const documentTitleFormatterDesktop = useCallback(
-    (_options: any, route: Route<string>) => {
+    (_options: any, route: Route<string> | undefined) => {
       if (!route?.name) return 'Tlon';
 
       // For channel routes
@@ -357,6 +357,7 @@ function AppRoutes() {
           linking={mobileLinkingConfig}
           theme={theme}
           onReady={handleNavigationReady}
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           onStateChange={combinedStateChangeHandler}
           documentTitle={{
             enabled: true,
@@ -379,6 +380,7 @@ function AppRoutes() {
           linking={desktopLinkingConfig}
           theme={theme}
           onReady={handleNavigationReady}
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           onStateChange={combinedStateChangeHandler}
           documentTitle={{
             enabled: true,

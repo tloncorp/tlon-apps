@@ -21,11 +21,10 @@ const logger = createDevLogger('urbit', false);
 const DEFAULT_SCRY_TIMEOUT = 60 * 1000; // 1 minute
 const DEFAULT_THREAD_TIMEOUT = 90 * 1000; // 90 seconds
 
-interface Config
-  extends Pick<
-    ClientParams,
-    'getCode' | 'handleAuthFailure' | 'shipUrl' | 'onQuitOrReset'
-  > {
+interface Config extends Pick<
+  ClientParams,
+  'getCode' | 'handleAuthFailure' | 'shipUrl' | 'onQuitOrReset'
+> {
   client: Urbit | null;
   subWatchers: Watchers;
   pendingAuth: Promise<string | void> | null;

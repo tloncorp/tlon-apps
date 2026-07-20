@@ -286,7 +286,7 @@ function recordScriptedResponse(callRecord, scripted) {
   callRecord.responseText =
     typeof scripted.message.content === 'string'
       ? scripted.message.content
-      : scripted.message.content ?? null;
+      : (scripted.message.content ?? null);
   callRecord.responseFinishReason = scripted.finish_reason;
 }
 

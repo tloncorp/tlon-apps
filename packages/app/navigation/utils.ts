@@ -53,7 +53,7 @@ export function createTypedReset<T extends Record<string, any>>(
     index = routes.length - 1
   ) {
     navigation.dispatch(
-      // eslint-disable-next-line no-restricted-syntax
+      // eslint-disable-next-line tlon/no-common-actions-reset
       CommonActions.reset({
         index,
         routes,

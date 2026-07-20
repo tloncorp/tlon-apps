@@ -97,7 +97,7 @@ async function fetchNotesNotebookSnapshot(
       db.getNotesMembers({ notebookFlag: flag }),
     ]);
     currentUserRole = existingNotebook
-      ? existingNotebook.currentUserRole ?? null
+      ? (existingNotebook.currentUserRole ?? null)
       : undefined;
     dbMembers = existingMembers;
   }
@@ -441,8 +441,8 @@ export async function saveNotebookNote({
       const updated = findSnapshotNote(snapshot, note.noteId);
       return Boolean(
         updated &&
-          (!shouldRename || updated.title === nextTitle) &&
-          (!shouldUpdateBody || updated.bodyMd === body)
+        (!shouldRename || updated.title === nextTitle) &&
+        (!shouldUpdateBody || updated.bodyMd === body)
       );
     },
     shouldUpdateBody
@@ -753,8 +753,8 @@ function notebookForSnapshot(
     currentUserRole:
       preservedCurrentUserRole !== undefined
         ? preservedCurrentUserRole
-        : currentMember?.role ??
-          (notebook.host === currentUserId ? ('owner' as const) : null),
+        : (currentMember?.role ??
+          (notebook.host === currentUserId ? ('owner' as const) : null)),
   };
 }
 
@@ -787,7 +787,7 @@ function noteForSnapshot(
       note.notebookId ?? existingNote?.notebookId ?? notebook.notebookId,
     folderId: note.folderId ?? existingNote?.folderId ?? notebook.rootFolderId,
     title: note.title,
-    slug: note.slug === undefined ? existingNote?.slug ?? null : note.slug,
+    slug: note.slug === undefined ? (existingNote?.slug ?? null) : note.slug,
     bodyMd: note.bodyMd ?? existingNote?.bodyMd ?? '',
     createdBy: note.createdBy ?? existingNote?.createdBy ?? null,
     createdAt: note.createdAt ?? existingNote?.createdAt ?? null,

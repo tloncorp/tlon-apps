@@ -97,7 +97,9 @@ export function RootStack() {
       <Root.Screen name="AddContacts" component={AddContactsScreen} />
       <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
       <Root.Screen name="Channel" component={ChannelScreen} />
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <Root.Screen name="DM" component={ChannelScreen} />
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <Root.Screen name="GroupDM" component={ChannelScreen} />
       <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
       <Root.Screen name="ContextLensRuns" component={ContextLensRunsScreen} />
@@ -138,6 +140,7 @@ export function RootStack() {
       <Root.Screen name="AppInfo" component={AppInfoScreen} />
       <Root.Screen name="FeatureFlags" component={FeatureFlagScreen} />
       <Root.Screen
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
         name="PushNotificationSettings"
         component={PushNotificationSettingsScreen}
       />

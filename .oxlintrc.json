@@ -1,0 +1,134 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "import"],
+  "jsPlugins": ["./oxlint/tlon-plugin.cjs"],
+  "ignorePatterns": ["dist", "node_modules", "*.md"],
+  "rules": {
+    "no-useless-escape": "warn",
+    "no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "destructuredArrayIgnorePattern": "^_",
+        "caughtErrors": "none"
+      }
+    ],
+    "typescript/consistent-type-imports": "off",
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-namespace": "off",
+    "typescript/no-var-requires": "off",
+    "typescript/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "destructuredArrayIgnorePattern": "^_",
+        "caughtErrors": "none"
+      }
+    ],
+    "react/no-unescaped-entities": "warn",
+    "react/display-name": "warn",
+    "react-hooks/exhaustive-deps": [
+      "warn",
+      {
+        "additionalHooks": "(useAnimatedStyle|useDerivedValue|useAnimatedProps)"
+      }
+    ],
+    "import/no-cycle": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "tamagui",
+            "importNames": ["ZStack"],
+            "message": "Import ZStack from @tloncorp/ui instead. The repo uses a local native-safe implementation."
+          },
+          {
+            "name": "@tamagui/stacks",
+            "importNames": ["ZStack"],
+            "message": "Import ZStack from @tloncorp/ui instead. The repo uses a local native-safe implementation."
+          }
+        ]
+      }
+    ],
+    "tlon/no-get-token": "error",
+    "tlon/no-stack-press": "error",
+    "tlon/no-common-actions-reset": "error",
+    "tlon/navigate-requires-pop": "error",
+    "tlon/restricted-paths": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.{ts,tsx}"],
+      "rules": {
+        "tlon/restricted-paths": "off"
+      }
+    },
+    {
+      "files": ["packages/openclaw/**/*.ts"],
+      "rules": {
+        "no-inner-declarations": "off"
+      }
+    },
+    {
+      "files": ["packages/api/src/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@tloncorp/shared", "@tloncorp/shared/*"],
+                "message": "API package boundaries: imports from @tloncorp/shared are not allowed."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/ui/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["@tloncorp/app", "tlon-mobile", "tlon-web"] }
+        ]
+      }
+    },
+    {
+      "files": ["packages/app/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["tlon-mobile", "tlon-web"] }
+        ]
+      }
+    },
+    {
+      "files": ["packages/shared/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "@tloncorp/*",
+              "!@tloncorp/api",
+              "!@tloncorp/api/**",
+              "tlon-mobile",
+              "tlon-web"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/editor/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["@tloncorp/*", "tlon-mobile", "tlon-web"] }
+        ]
+      }
+    }
+  ]
+}

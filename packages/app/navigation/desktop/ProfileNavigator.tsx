@@ -114,9 +114,13 @@ export const ProfileNavigator = () => {
       id="ProfileDrawer"
       backBehavior="history"
     >
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <ProfileDrawer.Screen name="AddContacts" component={AddContactsScreen} />
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <ProfileDrawer.Screen name="UserProfile" component={UserProfileScreen} />
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <ProfileDrawer.Screen name="EditProfile" component={EditProfileScreen} />
+      {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
       <ProfileDrawer.Screen name="Attestation" component={AttestationScreen} />
     </ProfileDrawer.Navigator>
   );

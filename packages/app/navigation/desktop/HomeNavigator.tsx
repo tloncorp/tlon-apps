@@ -62,10 +62,15 @@ export const HomeNavigator = () => {
       >
         <HomeDrawer.Screen name="ChatList" component={MainStack} />
         <HomeDrawer.Screen name="GroupChannels" component={Empty} />
+        {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
         <HomeDrawer.Screen name="Channel" component={ChannelStack} />
+        {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
         <HomeDrawer.Screen name="DM" component={ChannelStack} />
+        {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
         <HomeDrawer.Screen name="GroupDM" component={ChannelStack} />
+        {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
         <HomeDrawer.Screen name="ChatVolume" component={ChatVolumeScreen} />
+        {/* @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships */}
         <HomeDrawer.Screen name="ChatDetails" component={ChatDetailsScreen} />
       </HomeDrawer.Navigator>
     </NotebookSidebarProvider>
@@ -190,7 +195,9 @@ function ChannelStack(
     >
       <ChannelStackNavigator.Group navigationKey={navKey()}>
         <ChannelStackNavigator.Screen
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           name="ChannelRoot"
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           component={ChannelScreen}
           initialParams={props.route.params}
         />
@@ -200,42 +207,51 @@ function ChannelStack(
         />
         <ChannelStackNavigator.Screen
           name="ChannelSearch"
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           component={ChannelSearchScreen}
         />
         <ChannelStackNavigator.Screen
           name="Post"
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           component={PostScreen}
           initialParams={props.route.params}
         />
         <ChannelStackNavigator.Screen
           name="NotesDetail"
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           component={NotesDetailScreen}
           initialParams={props.route.params}
         />
         <ChannelStackNavigator.Screen
           name="NotesFolder"
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           component={NotesFolderScreen}
           initialParams={props.route.params}
         />
         <ChannelStackNavigator.Screen
           name="MediaViewer"
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           component={MediaViewerScreen}
           options={mediaViewerScreenOptions}
         />
         <ChannelStackNavigator.Screen
           name="UserProfile"
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           component={UserProfileScreen}
         />
         <ChannelStackNavigator.Screen
           name="EditProfile"
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           component={EditProfileScreen}
         />
         <ChannelStackNavigator.Screen
           name="ChannelMembers"
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           component={ChannelMembersScreen}
         />
         <ChannelStackNavigator.Screen
           name="ChannelMeta"
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           component={ChannelMetaScreen}
         />
       </ChannelStackNavigator.Group>

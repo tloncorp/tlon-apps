@@ -37,9 +37,9 @@ class SQLiteService {
       this.db.pragma('foreign_keys = false'); // this matches the default behavior of SQLite (foreign keys are off in both the web and mobile implementations of SQLite that we're using)
 
       // Set up change notification function
-      this.db.function('notifyChanges', (changeData: string) => {
+      this.db.function('notifyChanges', (changeData: unknown) => {
         try {
-          const changeObj = JSON.parse(changeData);
+          const changeObj = JSON.parse(String(changeData));
           this.notifyRenderer(changeObj);
         } catch (error) {
           console.error('Error parsing change data:', error);
@@ -85,7 +85,7 @@ class SQLiteService {
     try {
       if (method === 'run') {
         // For insert/update/delete operations
-        const stmt = sqliteService.db.prepare(sql);
+        const stmt = this.db!.prepare(sql);
         const result = params ? stmt.run(...params) : stmt.run();
         return {
           lastInsertRowid: result.lastInsertRowid,
@@ -93,17 +93,17 @@ class SQLiteService {
         };
       } else if (method === 'get') {
         // For getting a single row
-        const stmt = sqliteService.db.prepare(sql);
+        const stmt = this.db!.prepare(sql);
         const row = params ? stmt.raw().get(...params) : stmt.raw().get();
         return row || null;
       } else if (method === 'all') {
         // For getting multiple rows
-        const stmt = sqliteService.db.prepare(sql);
+        const stmt = this.db!.prepare(sql);
         const rows = params ? stmt.raw().all(...params) : stmt.raw().all();
         return this.toDrizzleResult(rows);
       } else if (method === 'values') {
         // For getting raw values (not objects)
-        const stmt = sqliteService.db.prepare(sql);
+        const stmt = this.db!.prepare(sql);
         const rows = params ? stmt.raw().all(...params) : stmt.raw().all();
         return this.toDrizzleResult(rows);
       } else {
@@ -154,13 +154,12 @@ class SQLiteService {
             try {
               this.db!.exec(statement);
             } catch (statementError) {
+              const statementErrorMessage =
+                statementError instanceof Error ? statementError.message : '';
               // If table already exists, just continue
-              if (
-                statementError.message &&
-                statementError.message.includes('already exists')
-              ) {
+              if (statementErrorMessage.includes('already exists')) {
                 console.log(
-                  `Table already exists, continuing with migration: ${statementError.message}`
+                  `Table already exists, continuing with migration: ${statementErrorMessage}`
                 );
               } else {
                 // For other errors, rollback and throw

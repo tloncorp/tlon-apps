@@ -843,7 +843,7 @@ export type ContextLensSessionKeys =
 
 function normalizeSessionKeys(sessionKeys: ContextLensSessionKeys): string[] {
   const list =
-    typeof sessionKeys === 'string' ? [sessionKeys] : sessionKeys ?? [];
+    typeof sessionKeys === 'string' ? [sessionKeys] : (sessionKeys ?? []);
   return [
     ...new Set(list.map((key) => key.trim()).filter((key) => key.length > 0)),
   ];

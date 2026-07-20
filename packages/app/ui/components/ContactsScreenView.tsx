@@ -24,7 +24,7 @@ interface Props {
 
 interface Section {
   title?: string;
-  data: db.Contact[];
+  data: readonly db.Contact[];
 }
 
 export function ContactsScreenView(props: Props) {

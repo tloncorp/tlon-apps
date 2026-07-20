@@ -191,7 +191,8 @@ export function NotesNativeChannel({
   const selectedFolderId = useMemo(
     () =>
       selectedNoteId !== null
-        ? notes.find((note) => note.noteId === selectedNoteId)?.folderId ?? null
+        ? (notes.find((note) => note.noteId === selectedNoteId)?.folderId ??
+          null)
         : null,
     [notes, selectedNoteId]
   );

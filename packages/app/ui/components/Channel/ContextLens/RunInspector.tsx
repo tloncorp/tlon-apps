@@ -190,7 +190,7 @@ function ToolRunItem({ run }: { run: ContextLensToolRun }) {
       ? `${run.argumentSummary}${run.durationMs ? ` · ${formatDuration(run.durationMs)}` : ''}`
       : run.durationMs
         ? `${formatDuration(run.durationMs)}${run.phase ? ` · ${run.phase}` : ''}`
-        : run.phase ?? 'running';
+        : (run.phase ?? 'running');
 
   const content = (
     <YStack
@@ -290,7 +290,7 @@ function OutputItem({
       : null
   );
   const resolvedPost = postQuery.data ?? sentAtQuery.data ?? null;
-  const fullText = expanded ? resolvedPost?.textContent ?? null : null;
+  const fullText = expanded ? (resolvedPost?.textContent ?? null) : null;
 
   return (
     <YStack

@@ -286,7 +286,7 @@ export function getNextNoteIdAfterDelete(
   const deletedIndex = noteIds.indexOf(deletedNoteId);
   return deletedIndex === -1
     ? null
-    : noteIds[deletedIndex + 1] ?? noteIds[deletedIndex - 1] ?? null;
+    : (noteIds[deletedIndex + 1] ?? noteIds[deletedIndex - 1] ?? null);
 }
 
 export function getNextNoteIdAfterFolderDelete({

@@ -870,7 +870,7 @@ export const createFakeReactions = ({
     const count = randInt(minTotal, maxTotal);
     for (let j = 0; j < count; j++) {
       const contactId = contacts
-        ? contacts[randInt(0, contacts.length - 1)]?.id ?? '~latter-bolden'
+        ? (contacts[randInt(0, contacts.length - 1)]?.id ?? '~latter-bolden')
         : randomContactId();
       reactions.push({
         contactId,

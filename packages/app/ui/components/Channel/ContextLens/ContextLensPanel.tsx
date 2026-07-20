@@ -250,15 +250,15 @@ export function ContextLensPanel({
   // staying pinned to the stale snapshot captured at selection time. Fall back
   // to the frozen selection if it has aged out of the list.
   const selectedRunEvent = selectedRun
-    ? runs.find((event) => event.lens.lensId === selectedRun.lens.lensId) ??
-      selectedRun
+    ? (runs.find((event) => event.lens.lensId === selectedRun.lens.lensId) ??
+      selectedRun)
     : undefined;
   // prefer the more authoritative of the live event and the synced lookup so a
   // stale in-flight live snapshot can't mask a finalized synced row
   const selectedDetail =
     selectedEvent && selectedLookupEvent
       ? preferred(selectedEvent, selectedLookupEvent)
-      : selectedEvent ?? selectedLookupEvent;
+      : (selectedEvent ?? selectedLookupEvent);
   const panelMode = selectedRun ? 'run' : selectedMessage ? 'selected' : 'live';
   const latest =
     panelMode === 'run'

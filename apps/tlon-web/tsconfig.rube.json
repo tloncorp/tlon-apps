@@ -9,5 +9,7 @@
     "noEmit": false,
     "outDir": "./rube/dist",
     "rootDir": "./rube"
-  }
+  },
+  "include": ["./rube/**/*.ts"],
+  "exclude": ["./rube/dist"]
 }

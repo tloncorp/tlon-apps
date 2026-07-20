@@ -345,7 +345,7 @@ export default function useBrowserNotifications() {
           : '';
         const contentText =
           !isReact && activityEvent.content
-            ? getTextContent(activityEvent.content as api.PostContent) ?? ''
+            ? (getTextContent(activityEvent.content as api.PostContent) ?? '')
             : '';
         const group = activityEvent.groupId
           ? await db.getGroup({ id: activityEvent.groupId })

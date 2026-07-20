@@ -163,7 +163,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         channel={ctx.channel}
         collectionLayoutType={collectionLayoutType}
         firstUnreadId={
-          ctx.initialChannelUnread?.countWithoutThreads ?? 0 > 0
+          (ctx.initialChannelUnread?.countWithoutThreads ?? 0 > 0)
             ? ctx.initialChannelUnread?.firstUnreadPostId
             : null
         }

@@ -2017,7 +2017,7 @@ export function GroupsPane(props: {
           <YStack width="100%" gap="$s">
             <XStack width="100%">
               <TextInput
-                value={groupInviteIsReady ? homeGroupInviteUrl ?? '' : ''}
+                value={groupInviteIsReady ? (homeGroupInviteUrl ?? '') : ''}
                 placeholder={
                   groupInviteIsLoading
                     ? 'Preparing invite link'

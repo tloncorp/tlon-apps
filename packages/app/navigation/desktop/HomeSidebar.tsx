@@ -61,7 +61,7 @@ export const HomeSidebar = memo(
     );
     const [inviteNotificationGroupId, setInviteNotificationGroupId] = useState<
       string | null
-    >(previewGroupFromInviteNotification ? previewGroupId ?? null : null);
+    >(previewGroupFromInviteNotification ? (previewGroupId ?? null) : null);
     const [waitElapsedForGroupId, setWaitElapsedForGroupId] = useState<
       string | null
     >(null);

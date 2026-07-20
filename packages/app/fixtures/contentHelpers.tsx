@@ -747,12 +747,16 @@ const channelsMap: Record<string, db.Channel> = Object.fromEntries(
   )
 );
 
-export const usePost = (options: { id: string }, initialData?: db.Post) => {
+export const usePost = (
+  options: { id: string } | null,
+  initialData?: db.Post
+) => {
   return useQuery({
-    queryKey: ['post', options.id],
+    queryKey: ['post', options?.id],
     staleTime: Infinity,
     ...(initialData ? { initialData } : {}),
-    queryFn: () => initialData ?? postsMap[options.id] ?? null,
+    queryFn: (): db.Post | null =>
+      options ? (initialData ?? postsMap[options.id] ?? null) : null,
   });
 };
 

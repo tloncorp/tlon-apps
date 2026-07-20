@@ -9,9 +9,9 @@
     "tsc": "tsc --noEmit",
     "build": "vite build && pnpm post-build",
     "post-build": "node ../../node_modules/@10play/tentap-editor/scripts/buildEditor.js ./dist/index.html",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix --quiet",
-    "lint:format": "prettier src/ --write"
+    "lint": "oxlint src/",
+    "lint:fix": "oxlint src/ --fix --quiet",
+    "lint:format": "oxfmt src/"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -26,11 +26,7 @@
     "@tiptap/react": "^2.6.6"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^6.7.4",
-    "@typescript-eslint/parser": "^6.7.4",
     "@vitejs/plugin-react": "^4.2.1",
-    "eslint": "^8.50.0",
-    "eslint-plugin-prettier": "^5.0.0",
     "typescript": "^5.1.3",
     "vite": "^5.1.6",
     "vite-plugin-singlefile": "^2.0.1",

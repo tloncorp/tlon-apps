@@ -74,7 +74,7 @@ const SETTINGS_COMMAND_HELP: Record<string, string> = {
 
 function getSettingsHelp(command?: string): string {
   return command
-    ? SETTINGS_COMMAND_HELP[command] ?? SETTINGS_HELP
+    ? (SETTINGS_COMMAND_HELP[command] ?? SETTINGS_HELP)
     : SETTINGS_HELP;
 }
 

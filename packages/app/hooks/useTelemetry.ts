@@ -252,7 +252,8 @@ export function useTelemetry(): TelemetryClient {
     getIsOptedOut,
     optIn: posthog.optIn,
     optOut: posthog.optOut,
-    identify: posthog.identify,
+    identify: (userId: string, properties?: Record<string, any>) =>
+      posthog.identify(userId, properties ?? {}),
     capture: posthog.capture,
     flush: posthog.flush,
 

@@ -44,8 +44,8 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
           Math.max(
             latest,
             chat.type === 'group'
-              ? chat.group.lastPostAt ?? 0
-              : chat.channel.lastPostAt ?? 0
+              ? (chat.group.lastPostAt ?? 0)
+              : (chat.channel.lastPostAt ?? 0)
           ),
         0
       ),
@@ -54,8 +54,8 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
           Math.max(
             latest,
             chat.type === 'group'
-              ? chat.group.lastPostAt ?? 0
-              : chat.channel.lastPostAt ?? 0
+              ? (chat.group.lastPostAt ?? 0)
+              : (chat.channel.lastPostAt ?? 0)
           ),
         0
       ),
@@ -64,8 +64,8 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
           Math.max(
             latest,
             chat.type === 'group'
-              ? chat.group.lastPostAt ?? 0
-              : chat.channel.lastPostAt ?? 0
+              ? (chat.group.lastPostAt ?? 0)
+              : (chat.channel.lastPostAt ?? 0)
           ),
         0
       ),
