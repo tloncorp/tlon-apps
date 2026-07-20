@@ -4,7 +4,9 @@ import { RNFile, getCurrentUserId } from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
 import { Attachment } from '@tloncorp/api/types/attachment';
 import { da, render } from '@urbit/aura';
-import * as FileSystem from 'expo-file-system/legacy';
+// Aliased so it doesn't shadow the global web File used elsewhere in this
+// module.
+import { File as ExpoFile } from 'expo-file-system';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
 import * as db from '../../db';
@@ -420,7 +422,7 @@ async function uploadFile(
     }
     return response;
   } else {
-    const response = await FileSystem.uploadAsync(presignedUrl, assetUri, {
+    const response = await new ExpoFile(assetUri).upload(presignedUrl, {
       httpMethod: 'PUT',
       headers,
     });
