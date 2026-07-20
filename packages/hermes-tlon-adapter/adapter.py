@@ -540,6 +540,7 @@ _LENS_TRIGGER_MAP = {
     "reaction": "reaction",
     "mention": "mention",
     "owner-listen": "owner-listen",
+    "owner-blob": "owner-blob",
     "participated-thread": "thread",
     "retry": "retry",
     # A free (unprompted) channel response has no dedicated trigger in the
@@ -558,7 +559,9 @@ def _lens_trigger(dispatch_reason: str, *, is_dm: bool) -> str:
 
 
 def _lens_run_kind(dispatch_reason: str) -> str:
-    return "owner_listen" if dispatch_reason == "owner-listen" else "conversation"
+    if dispatch_reason in ("owner-listen", "owner-blob"):
+        return "owner_listen"
+    return "conversation"
 
 
 def _lens_final_status(
@@ -1907,6 +1910,8 @@ class TlonAdapter(BasePlatformAdapter):
         if not self._is_owner(message.user_id):
             return False
         reply_parent_id = None if ctx_nest is None else message.reply_to_message_id
+        if ctx_nest and ctx_nest.startswith("heap/") and not reply_parent_id:
+            reply_parent_id = message.message_id
         if is_owner_listen_command(command_text):
             if self._mark_seen(message):
                 self._telemetry.control_command("owner-listen")
@@ -2414,6 +2419,7 @@ class TlonAdapter(BasePlatformAdapter):
             owner_ship=self.tlon_config.owner_ship,
             bot_ship=self.tlon_config.ship_name,
         )
+        is_owner_blob = bool(message.blob) and self._is_owner(message.user_id)
         is_participated_thread = self._is_participated_thread(message)
         is_free_response = self.tlon_config.group_free_response_enabled(message.chat_id)
         decision = resolve_attention(
@@ -2423,6 +2429,7 @@ class TlonAdapter(BasePlatformAdapter):
                 has_text=bool(clean_text or message.blob),
                 is_mentioned=is_mentioned,
                 is_owner_listen=is_owner_listen,
+                is_owner_blob=is_owner_blob,
                 is_free_response=is_free_response,
                 is_participated_thread=is_participated_thread,
             )
@@ -3413,9 +3420,13 @@ class TlonAdapter(BasePlatformAdapter):
         # conversation is already a thread (metadata.thread_id carries the
         # thread ROOT, which is what Tlon replies must attach to). This holds
         # for both group channels and DMs — DM threads thread too.
-        # reply_in_thread=true restores always-thread-on-the-trigger.
+        # reply_in_thread=true restores always-thread-on-the-trigger. Gallery
+        # posts always anchor reactive replies to the trigger: a new heap post
+        # is a separate gallery item, not a conversational reply.
         thread_parent = str(metadata.get("thread_id") or "") or None
-        if thread_parent is None and self.tlon_config.reply_in_thread:
+        if thread_parent is None and (
+            self.tlon_config.reply_in_thread or chat_id.startswith("heap/")
+        ):
             # A top-level own-post reaction's `reply_to` is core's generic
             # trigger anchor, i.e. the synthetic `react/<post>/<reactor>/
             # <emoji>` event id — never a real wire post. Recover the actual
@@ -3926,7 +3937,14 @@ def register(ctx) -> None:
             "group you host or a one-to-one DM), use the tlon tool's posts "
             "send with that target; reserve dms send for group-DM club IDs "
             "starting with 0v. Sending plain text to the current conversation "
-            "that way is blocked. To send an image anywhere — including the "
+            "that way is blocked, except that posts send heap/~host/name creates "
+            "a new top-level gallery item. Galleries use heap/~host/name. Reply "
+            "normally in a gallery to comment on the triggering post; posts send "
+            "heap/~host/name \"text or URL\" creates a new top-level item and is "
+            "allowed even in the current gallery (optional --title \"...\"). React "
+            "to a gallery comment with posts react heap/~host/name <comment-id> "
+            "<emoji> --parent <post-id>; delete with posts delete heap/~host/name "
+            "<post-id>. To send an image anywhere — including the "
             "current conversation — first 'tlon upload <direct-image-url>', then "
             "'tlon posts send <target> [caption] --image <uploaded-url>'. "
             "The platform adapter directly handles owner chat commands for "

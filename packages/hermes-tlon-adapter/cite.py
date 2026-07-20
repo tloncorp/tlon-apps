@@ -144,7 +144,7 @@ async def resolve_cites(scry: ScryFn, content: Any, *, max_attempts: int = 3) ->
     for cite, path in attempts:
         try:
             payload = await scry(path)
-            entry = parse_parent_post(payload, cite.post_id or "")
+            entry = parse_parent_post(payload, cite.post_id or "", cite.nest)
             if entry is None:
                 continue
             text = sanitize_context_text(

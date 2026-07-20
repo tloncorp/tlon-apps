@@ -1021,6 +1021,60 @@ class RetryableClassificationTests(unittest.TestCase):
         self.assertFalse(result.retryable)
 
 
+class HeapReplyAnchoringTests(unittest.TestCase):
+    def test_gallery_replies_anchor_to_posts_and_recover_reaction_targets(self):
+        class AnchorRecordingCLI(FakeCLI):
+            def __init__(self):
+                super().__init__()
+                self.replies = []
+
+            async def send_reply(
+                self,
+                chat_id,
+                parent,
+                content,
+                *,
+                parent_author=None,
+                blob=None,
+                sent_at=None,
+            ):
+                self.replies.append((chat_id, parent, content, parent_author))
+                return await super().send_reply(
+                    chat_id,
+                    parent,
+                    content,
+                    parent_author=parent_author,
+                    blob=blob,
+                    sent_at=sent_at,
+                )
+
+        adapter = make_adapter()
+        adapter._cli = AnchorRecordingCLI()
+
+        asyncio.run(
+            adapter.send("heap/~zod/gallery", "top-level reply", reply_to="170.141")
+        )
+        asyncio.run(
+            adapter.send(
+                "heap/~zod/gallery",
+                "thread reply",
+                reply_to="170.151",
+                metadata={"thread_id": "170.150"},
+            )
+        )
+        synthetic_id = "react/170.160/~mug/👍"
+        adapter._reaction_reply_targets[synthetic_id] = "170.160"
+        asyncio.run(
+            adapter.send("heap/~zod/gallery", "reaction reply", reply_to=synthetic_id)
+        )
+
+        self.assertEqual(
+            [reply[1] for reply in adapter._cli.replies],
+            ["170.141", "170.150", "170.160"],
+        )
+        self.assertEqual([sent[0] for sent in adapter._cli.sent], ["reply"] * 3)
+
+
 class FatalAuthTests(unittest.TestCase):
     def test_auth_rejection_marks_fatal_and_stops_stream(self):
         adapter = make_adapter()
