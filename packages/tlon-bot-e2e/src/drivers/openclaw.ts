@@ -46,6 +46,7 @@ const LEGACY_OPENCLAW_TOOLS = [
   'message',
 ] as const;
 const BASELINE_OPENCLAW_TOOLS = ['tlon', 'message'] as const;
+const OPENCLAW_CRON_AT_OFFSET_MS = 180_000;
 
 export const openclawDriver: BotDriver = {
   name: 'openclaw',
@@ -238,6 +239,45 @@ export const openclawDriver: BotDriver = {
           advertisedTools: { include: ['image_search'] },
           expectedCallCount: 1,
         },
+      };
+    },
+
+    createCronJob({ name, firedPrompt, finalText }) {
+      return {
+        steps: [
+          {
+            kind: 'tool_call',
+            name: 'cron',
+            args: {
+              action: 'add',
+              job: {
+                name,
+                schedule: {
+                  kind: 'at',
+                  at: new Date(
+                    Date.now() + OPENCLAW_CRON_AT_OFFSET_MS
+                  ).toISOString(),
+                },
+                payload: { kind: 'agentTurn', message: firedPrompt },
+                sessionTarget: 'isolated',
+                deleteAfterRun: true,
+              },
+            },
+          },
+          { kind: 'text', content: finalText },
+        ],
+        expectations: {
+          advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+          expectedCallCount: 2,
+          toolEffectOnly: true,
+        },
+      };
+    },
+
+    looseReplyText(text) {
+      return {
+        steps: [{ kind: 'text', content: text }],
+        expectations: { expectedCallCount: 1 },
       };
     },
   },
@@ -566,6 +606,9 @@ function openClawToolsForPartition(seed: RuntimeSeed): string[] {
 function openClawToolsForCapability(
   capability: RuntimeCapability
 ): readonly string[] {
+  if (capability === 'cron') {
+    return ['cron'];
+  }
   if (capability === 'image_search') {
     return ['image_search'];
   }

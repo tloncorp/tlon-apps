@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { createRuntimeContext } from '../runtime/context.js';
 import { allocateRuntimeEndpoints } from '../runtime/ports.js';
@@ -161,6 +161,20 @@ describe('OpenClaw driver runtime spec', () => {
     expect(ctx.composeEnv.BRAVE_API_KEY).toBe('brave-test');
   });
 
+  test('adds cron only for the cron capability partition', async () => {
+    clearOptionalEnv();
+    const seed = await createSeed(path.resolve('/repo'));
+    seed.capabilityPartition = { key: 'cron', capabilities: ['cron'] };
+
+    const ctx = createRuntimeContext(seed, openclawDriver.resolveRuntime(seed));
+
+    expect(JSON.parse(ctx.composeEnv.OPENCLAW_TEST_TOOLS_ALLOW_JSON)).toEqual([
+      'tlon',
+      'message',
+      'cron',
+    ]);
+  });
+
   test('model adapter returns script objects with options and expectations', () => {
     const sendMessage = openclawDriver.model.sendMessage({
       target: '~ten',
@@ -213,6 +227,56 @@ describe('OpenClaw driver runtime spec', () => {
       ],
       expectations: { expectedCallCount: 2 },
     });
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-20T12:00:00.000Z'));
+    const constructionTime = Date.now();
+    const createCronJob = openclawDriver.model.createCronJob({
+      name: 'scheduled-job',
+      firedPrompt: '[tlon-test:fired] Reply with the marker.',
+      finalText: 'Scheduled.',
+    });
+    expect(createCronJob).toMatchObject({
+      steps: [
+        {
+          kind: 'tool_call',
+          name: 'cron',
+          args: {
+            action: 'add',
+            job: {
+              name: 'scheduled-job',
+              payload: {
+                kind: 'agentTurn',
+                message: '[tlon-test:fired] Reply with the marker.',
+              },
+              sessionTarget: 'isolated',
+              deleteAfterRun: true,
+            },
+          },
+        },
+        { kind: 'text', content: 'Scheduled.' },
+      ],
+      expectations: {
+        advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+        expectedCallCount: 2,
+        toolEffectOnly: true,
+      },
+    });
+    const toolCall = createCronJob.steps[0];
+    if (toolCall?.kind !== 'tool_call') {
+      throw new Error('Expected a cron tool call.');
+    }
+    const schedule = (toolCall.args as { job: { schedule: { at: string } } })
+      .job.schedule;
+    expect(Date.parse(schedule.at) - constructionTime).toBe(180_000);
+
+    const looseReply = openclawDriver.model.looseReplyText('loose');
+    expect(looseReply).toMatchObject({
+      steps: [{ kind: 'text', content: 'loose' }],
+      expectations: { expectedCallCount: 1 },
+    });
+    expect(looseReply.expectations?.advertisedTools).toBeUndefined();
+    vi.useRealTimers();
   });
 });
 
