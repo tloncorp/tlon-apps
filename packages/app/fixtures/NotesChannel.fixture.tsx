@@ -73,8 +73,8 @@ const notes = [
   makeNote(
     5,
     5,
-    'Long title: portable markdown tables, import progress, and row overflow behavior',
-    '| # | Area | Status |\n| ---: | --- | --- |\n| 1 | Import | Testing |\n| 2 | Publish | Ready |'
+    'Portable markdown tables',
+    'Text above the table should align with its first column.\n\n| # | Area | Status |\n| ---: | --- | --- |\n| 1 | Import | Testing |\n| 2 | Publish | Ready |\n\nText below the table should align with its first column.'
   ),
   makeNote(6, 6, '', 'Untitled note body'),
   makeNote(
