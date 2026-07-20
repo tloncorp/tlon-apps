@@ -1034,13 +1034,17 @@
   =/  =cage
     ?~  entry=(get-book flag)  notes-denied+!>(~)
     =*  bs  notebook-state.u.entry
+    ::  mirrors +se-member-join: visibility only means something for
+    ::  non-group notebooks; group mode's sole authority is can-read
     =/  can-view=?
       ?~  grp=group.bs
-        !=(~ (~(get by members.bs) who))
+        ?|  =(%public visibility.bs)
+            !=(~ (~(get by members.bs) who))
+        ==
       ?&  (group-synced u.grp)
           (group-can-read u.grp flag who)
       ==
-    ?.  |(=(%public visibility.bs) can-view)
+    ?.  can-view
       notes-denied+!>(~)
     ?~  nt=(~(get by notes.bs) nid)  notes-denied+!>(~)
     :-  %notes-said

@@ -2339,6 +2339,30 @@
       [%notes-said !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'GNB']])]
       (ex-card [%give %kick ~ ~])
   ==
+::  ====  test-said-group-ignores-public-visibility  ====
+::  A group notebook toggled %public must still gate previews on the
+::  group's can-read — visibility only means something for non-group
+::  notebooks (mirrors +se-member-join).
+::
+++  test-said-group-ignores-public-visibility
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate (said-group-scry & &))
+  ;<  *  b  (poke-a [%create-group-notebook 'GNB' [~zod %grp] ~])
+  =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
+  ;<  *  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
+  ;<  *  b  (poke-a [%notebook f [%visibility %public]])
+  ;<  ~  b  (set-scry-gate (said-group-scry & |))
+  ;<  *  b  (set-src ~bus)
+  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  %+  ex-cards  caz
+  :~  (ex-fact ~ %notes-denied !>(~))
+      (ex-card [%give %kick ~ ~])
+  ==
 ::  ====  test-said-group-unsynced-fails-closed  ====
 ::  Group notebook with an unsynced group must deny previews, even though
 ::  +can-view-flag treats the same state as viewable for subscriptions.
