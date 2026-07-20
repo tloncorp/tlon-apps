@@ -191,6 +191,12 @@ describe('posts command help and shell', () => {
     expectNoAuthOrApi(context);
   });
 
+  it('documents the gallery-only send title option', () => {
+    expect(POSTS_HELP).toContain('--title <text>');
+    expect(POSTS_COMMAND_HELP.send).toContain('--title <text>');
+    expect(POSTS_HELP).toContain('heap/~host/gallery');
+  });
+
   it('returns a family usage error for bare posts without auth/API work', async () => {
     const context = makeDeps();
     const exitCode = await run([], context.deps);
@@ -344,6 +350,71 @@ describe('posts send', () => {
     expect(context.calls.sendPost[0].blob).toBe('[{"type":"a2ui"}]');
   });
 
+  it('passes a gallery title through as post metadata', async () => {
+    const context = makeDeps({ currentUserId: '~nec', now: 42 });
+    const exitCode = await run(
+      [
+        'send',
+        'heap/~host/gallery',
+        'Gallery caption',
+        '--title',
+        'Gallery title',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost).toEqual([
+      {
+        channelId: 'heap/~host/gallery',
+        authorId: '~nec',
+        sentAt: 42,
+        content: [{ inline: ['Gallery caption'] }],
+        blob: undefined,
+        metadata: { title: 'Gallery title' },
+      },
+    ]);
+  });
+
+  it('rejects --title outside gallery nests before auth', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'caption', '--title', 'Chat title'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain(
+      '--title is only supported for gallery (heap/) posts'
+    );
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects a --title flag with no value before auth', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'heap/~host/gallery', 'caption', '--title'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.send}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects a --title value that is itself an option token before auth', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'heap/~zod/gallery', 'caption', '--title', '--sent-at', '1234'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.send}\n`);
+    expectNoAuthOrApi(context);
+  });
+
   it('honors --sent-at over the clock', async () => {
     const context = makeDeps({ now: 999 });
     await run(
@@ -433,6 +504,26 @@ describe('posts reply', () => {
         parentId: '170.141.184',
         parentAuthor: '~nec',
         content: [{ inline: ['Thread reply'] }],
+        sentAt: 7,
+        authorId: '~nec',
+      },
+    ]);
+  });
+
+  it('replies to a gallery post with the exact heap target input', async () => {
+    const context = makeDeps({ currentUserId: '~nec', now: 7 });
+    const exitCode = await run(
+      ['reply', 'heap/~host/gallery', '170141184', 'Gallery comment'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendReply).toEqual([
+      {
+        channelId: 'heap/~host/gallery',
+        parentId: '170.141.184',
+        parentAuthor: '~nec',
+        content: [{ inline: ['Gallery comment'] }],
         sentAt: 7,
         authorId: '~nec',
       },
@@ -588,6 +679,26 @@ describe('posts react', () => {
     expect(context.calls.addReaction).toEqual([
       {
         channelId: 'chat/~host/channel',
+        postId: '170.142',
+        emoji: '🔥',
+        our: '~nec',
+        postAuthor: '~nec',
+        parentId: '170.141',
+      },
+    ]);
+  });
+
+  it('passes a gallery comment reaction parent through exactly', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['react', 'heap/~host/gallery', '170142', '🔥', '--parent', '170141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.addReaction).toEqual([
+      {
+        channelId: 'heap/~host/gallery',
         postId: '170.142',
         emoji: '🔥',
         our: '~nec',
@@ -819,6 +930,23 @@ describe('posts delete', () => {
         },
       ]);
     }
+  });
+
+  it('deletes a gallery post with the exact heap target input', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['delete', 'heap/~host/gallery', '170141184'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.deletePost).toEqual([
+      {
+        channelId: 'heap/~host/gallery',
+        postId: '170.141.184',
+        authorId: '~nec',
+      },
+    ]);
   });
 
   it('routes facade failures through the shared command-error path', async () => {
