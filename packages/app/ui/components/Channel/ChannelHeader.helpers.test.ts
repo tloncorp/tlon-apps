@@ -3,7 +3,24 @@ import { describe, expect, it } from 'vitest';
 import {
   getChannelConnectionStatusText,
   getChannelHeaderLoadingSubtitle,
+  isHostedChannelType,
 } from './ChannelHeader.helpers';
+
+describe('isHostedChannelType', () => {
+  it.each(['dm', 'groupDm'] as const)(
+    'does not treat %s conversations as hosted channels',
+    (channelType) => {
+      expect(isHostedChannelType(channelType)).toBe(false);
+    }
+  );
+
+  it.each(['chat', 'notebook', 'notes', 'gallery'] as const)(
+    'treats %s channels as hosted channels',
+    (channelType) => {
+      expect(isHostedChannelType(channelType)).toBe(true);
+    }
+  );
+});
 
 describe('getChannelConnectionStatusText', () => {
   it.each(['Connecting', 'Reconnecting'] as const)(
@@ -36,6 +53,17 @@ describe('getChannelConnectionStatusText', () => {
 });
 
 describe('getChannelHeaderLoadingSubtitle', () => {
+  it('preserves registered loading text ahead of connection status', () => {
+    expect(
+      getChannelHeaderLoadingSubtitle({
+        channelConnectionStatusText: 'Channel host offline',
+        loadingSubtitle: 'Loading messages…',
+        registeredLoadingSubtitle: 'Syncing...',
+        showSpinner: true,
+      })
+    ).toBe('Syncing...');
+  });
+
   it('prioritizes an end-to-end connection status over message loading', () => {
     expect(
       getChannelHeaderLoadingSubtitle({

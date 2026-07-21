@@ -1,3 +1,9 @@
+import type * as db from '@tloncorp/shared/db';
+
+export function isHostedChannelType(channelType: db.Channel['type']): boolean {
+  return channelType !== 'dm' && channelType !== 'groupDm';
+}
+
 export function getChannelConnectionStatusText(
   connectionStatus: string,
   isChannelHostOffline: boolean
@@ -28,8 +34,8 @@ export function getChannelHeaderLoadingSubtitle({
   showSpinner: boolean | undefined;
 }): string | null {
   return (
-    channelConnectionStatusText ??
     registeredLoadingSubtitle ??
+    channelConnectionStatusText ??
     (showSpinner ? loadingSubtitle : null)
   );
 }

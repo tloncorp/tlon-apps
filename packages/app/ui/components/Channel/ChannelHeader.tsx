@@ -13,8 +13,8 @@ import {
   useState,
 } from 'react';
 
-import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useShipConnectionStatus } from '../../../features/top/useShipConnectionStatus';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import ConnectionStatus from '../ConnectionStatus';
@@ -23,6 +23,7 @@ import { ScreenHeader } from '../ScreenHeader';
 import {
   getChannelConnectionStatusText,
   getChannelHeaderLoadingSubtitle,
+  isHostedChannelType,
 } from './ChannelHeader.helpers';
 
 export interface ChannelHeaderItemsContextValue {
@@ -182,8 +183,12 @@ export function ChannelHeader({
   const channelHost = useMemo(() => {
     return getChannelHost(channel, currentUserId);
   }, [channel, currentUserId]);
-  const channelHostConnectionStatus = useShipConnectionStatus(channelHost);
+  const isHostedChannel = isHostedChannelType(channel.type);
+  const channelHostConnectionStatus = useShipConnectionStatus(channelHost, {
+    enabled: isHostedChannel,
+  });
   const isChannelHostOffline =
+    isHostedChannel &&
     channelHostConnectionStatus.complete &&
     channelHostConnectionStatus.status !== 'yes';
   const channelConnectionStatusText = getChannelConnectionStatusText(
