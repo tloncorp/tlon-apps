@@ -53,7 +53,9 @@ test('should generate an invite link and be able to redeem group/personal invite
   const clipboardText: string = await zodPage.evaluate(
     'navigator.clipboard.readText()'
   );
-  expect(clipboardText).toContain('join.tlon.io');
+  // either canonical host passes so flipping CANONICAL_INVITE_HOST
+  // after the DNS flip doesn't break this spec
+  expect(clipboardText).toMatch(/https:\/\/(join|invite)\.tlon\.io\//);
   const token = clipboardText.split('/').pop();
   expect(token).toBeDefined();
 
