@@ -117,11 +117,13 @@ export function createComposeHandle(
 
     async down(opts = {}) {
       const timeoutMs = opts.timeoutMs ?? DEFAULT_DOWN_TIMEOUT_MS;
+      const deadline = Date.now() + timeoutMs;
+      const remaining = () => Math.max(0, deadline - Date.now());
       const failures: string[] = [];
 
       const downResult = await runCompose(
         ['down', ...(opts.volumes === false ? [] : ['-v'])],
-        { allowFailure: true, timeoutMs }
+        { allowFailure: true, timeoutMs: remaining() }
       );
       if (downResult.exitCode !== 0 && !opts.allowFailure) {
         failures.push(
@@ -142,7 +144,7 @@ export function createComposeHandle(
             '--format',
             '{{.ID}}\\t{{.Names}}',
           ],
-          { env, cwd: ctx.packageDir, stream: false, timeoutMs }
+          { env, cwd: ctx.packageDir, stream: false, timeoutMs: remaining() }
         );
         const volumeListing = await commandRunner(
           'docker',
@@ -154,7 +156,7 @@ export function createComposeHandle(
             '--format',
             '{{.Name}}',
           ],
-          { env, cwd: ctx.packageDir, stream: false, timeoutMs }
+          { env, cwd: ctx.packageDir, stream: false, timeoutMs: remaining() }
         );
 
         if (containerListing.exitCode !== 0) {

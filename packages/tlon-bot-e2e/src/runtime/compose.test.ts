@@ -101,8 +101,9 @@ describe('createComposeHandle down', () => {
         'down',
         '-v',
       ],
-      expect.objectContaining({ timeoutMs: 60_000 })
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
+    expectTimeoutInBudget(run, 0, 60_000);
   });
 
   test('allowFailure resolves bounded without verification', async () => {
@@ -114,8 +115,9 @@ describe('createComposeHandle down', () => {
     expect(run).toHaveBeenCalledWith(
       'docker',
       expect.arrayContaining(['down', '-v']),
-      expect.objectContaining({ timeoutMs: 60_000 })
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
+    expectTimeoutInBudget(run, 0, 60_000);
   });
 
   test('verify issues label-filtered listing commands and resolves when empty', async () => {
@@ -136,12 +138,13 @@ describe('createComposeHandle down', () => {
         '{{.ID}}\\t{{.Names}}',
       ],
       expect.objectContaining({
-        timeoutMs: 60_000,
+        timeoutMs: expect.any(Number),
         env: expect.objectContaining({
           COMPOSE_PROJECT_NAME: 'tlon-bot-e2e-unit',
         }),
       })
     );
+    expectTimeoutInBudget(run, 1, 60_000);
     expect(run).toHaveBeenNthCalledWith(
       3,
       'docker',
@@ -153,8 +156,9 @@ describe('createComposeHandle down', () => {
         '--format',
         '{{.Name}}',
       ],
-      expect.objectContaining({ timeoutMs: 60_000 })
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
+    expectTimeoutInBudget(run, 2, 60_000);
   });
 
   test('verify reports leaks and a failed down, attempting both listings', async () => {
@@ -190,6 +194,55 @@ describe('createComposeHandle down', () => {
     expect(error.message).toContain('docker ps failed');
     expect(run).toHaveBeenCalledTimes(3);
   });
+
+  test('verify passes strictly decreasing timeouts from a single shared deadline', async () => {
+    const nowSpy = vi.spyOn(Date, 'now');
+    const T0 = 1_000_000;
+    const step = 10_000;
+    nowSpy
+      .mockReturnValueOnce(T0)
+      .mockReturnValueOnce(T0 + step)
+      .mockReturnValueOnce(T0 + 2 * step)
+      .mockReturnValueOnce(T0 + 3 * step);
+    try {
+      const run = commandRunner([{}, { stdout: '' }, { stdout: '' }]);
+      const compose = createComposeHandle(context(), run);
+
+      await expect(compose.down({ verify: true })).resolves.toBeUndefined();
+
+      expect(run).toHaveBeenCalledTimes(3);
+      const timeouts = callTimeouts(run);
+      expect(timeouts).toEqual([50_000, 40_000, 30_000]);
+      expect(timeouts[0]).toBeGreaterThan(timeouts[1]);
+      expect(timeouts[1]).toBeGreaterThan(timeouts[2]);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  test('verify clamps remaining budget to 0 once the shared deadline is exceeded', async () => {
+    const nowSpy = vi.spyOn(Date, 'now');
+    const T0 = 1_000_000;
+    nowSpy
+      .mockReturnValueOnce(T0)
+      .mockReturnValueOnce(T0 + 10_000)
+      .mockReturnValueOnce(T0 + 30_000)
+      .mockReturnValueOnce(T0 + 70_000);
+    try {
+      const run = commandRunner([{}, { stdout: '' }, { stdout: '' }]);
+      const compose = createComposeHandle(context(), run);
+
+      await expect(compose.down({ verify: true })).resolves.toBeUndefined();
+
+      expect(run).toHaveBeenCalledTimes(3);
+      const timeouts = callTimeouts(run);
+      expect(timeouts[0]).toBe(50_000);
+      expect(timeouts[1]).toBe(30_000);
+      expect(timeouts[2]).toBe(0);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
 });
 
 function commandRunner(results: Array<Partial<ExecResult>>): typeof runCommand {
@@ -200,6 +253,23 @@ function commandRunner(results: Array<Partial<ExecResult>>): typeof runCommand {
     }
     return { stdout: '', stderr: '', exitCode: 0, ...next };
   });
+}
+
+function expectTimeoutInBudget(
+  run: typeof runCommand,
+  callIndex: number,
+  max: number
+): void {
+  const calls = (run as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+  const opts = calls[callIndex][2] as { timeoutMs: number };
+  expect(opts.timeoutMs).toBeGreaterThan(0);
+  expect(opts.timeoutMs).toBeLessThanOrEqual(max);
+}
+
+function callTimeouts(run: typeof runCommand): number[] {
+  return (run as unknown as { mock: { calls: unknown[][] } }).mock.calls.map(
+    (call) => (call[2] as { timeoutMs: number }).timeoutMs
+  );
 }
 
 function context(): RuntimeContext {
