@@ -2181,7 +2181,7 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
 const logger = createDevLogger('SplashSequence', true);
 
 const INVITE_EXPLANATION_TEXT =
-  "Anyone you invite will skip the waitlist. You'll receive a DM when they join.";
+  "You'll receive a DM when they join.";
 
 export function InviteContactsContent(props: {
   onComplete: () => void;
