@@ -326,5 +326,59 @@ class ResolveCitesTests(unittest.TestCase):
         self.assertEqual(len(scry.calls), 1)
 
 
+class NotesCiteTests(unittest.TestCase):
+    def test_notes_note_cite_renders_pointer_without_scry(self):
+        scry = recording_scry()
+        result = asyncio.run(
+            cite.resolve_cites(
+                scry, [chan_cite("/note/12", nest="notes/~host/plans")]
+            )
+        )
+        self.assertEqual(
+            result,
+            "> [note reference: notes/~host/plans note 12 — read it via "
+            "the tlon tool: 'notes note notes/~host/plans 12']",
+        )
+        self.assertEqual(scry.calls, [])
+
+    def test_notes_cite_without_note_id_renders_notebook_pointer(self):
+        scry = recording_scry()
+        result = asyncio.run(
+            cite.resolve_cites(scry, [chan_cite(None, nest="notes/~host/plans")])
+        )
+        self.assertEqual(
+            result,
+            "> [notebook reference: notes/~host/plans — browse it via the "
+            "tlon tool: 'notes notes notes/~host/plans']",
+        )
+        self.assertEqual(scry.calls, [])
+
+    def test_notes_pointer_keeps_story_order_alongside_scried_cites(self):
+        scry = recording_scry(essay_payload())
+        content = [
+            chan_cite("/note/7", nest="notes/~host/plans"),
+            chan_cite("/msg/123456"),
+        ]
+
+        result = asyncio.run(cite.resolve_cites(scry, content))
+
+        lines = result.split("\n")
+        self.assertEqual(len(lines), 2)
+        self.assertIn("note reference: notes/~host/plans note 7", lines[0])
+        self.assertIn("~real-author wrote: hello", lines[1])
+        self.assertEqual(len(scry.calls), 1)
+
+    def test_notes_pointers_consume_attempt_slots(self):
+        scry = recording_scry(essay_payload())
+        content = [
+            chan_cite(f"/note/{i}", nest="notes/~host/plans") for i in (1, 2, 3)
+        ] + [chan_cite("/msg/123456")]
+
+        result = asyncio.run(cite.resolve_cites(scry, content))
+
+        self.assertEqual(len(result.split("\n")), 3)
+        self.assertEqual(scry.calls, [])
+
+
 if __name__ == "__main__":
     unittest.main()

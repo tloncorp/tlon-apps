@@ -24,6 +24,7 @@ from .history import (
 logger = logging.getLogger(__name__)
 
 _NEST_RE = re.compile(r"(?:chat|heap|diary)/~[a-z-]+/[a-z0-9-]+")
+_NOTES_NEST_RE = re.compile(r"notes/~[a-z-]+/[a-z0-9-]+")
 _UD_RE = re.compile(r"[0-9]+(?:\.[0-9]+)*")
 _WHERE_RE = re.compile(r"^/(?:msg|note|curio)/([^/]+)(?:/([^/]+))?$")
 _LEGACY_WHERE_RE = re.compile(r"^/msg/(~[a-z-]+)/([^/]+)$")
@@ -115,6 +116,29 @@ def _valid_nest(nest: Optional[str]) -> bool:
     return isinstance(nest, str) and _NEST_RE.fullmatch(nest) is not None
 
 
+def _notes_cite_line(cite: ParsedCite) -> Optional[str]:
+    """Render a %notes reference as an actionable pointer.
+
+    %notes notebooks are hosted by the %notes agent, not %channels, so their
+    posts cannot be scried via /channels/v4. Until a preview surface lands,
+    point the agent at the tlon notes commands instead of dropping the ref.
+    """
+    if cite.type != "chan" or not isinstance(cite.nest, str):
+        return None
+    if _NOTES_NEST_RE.fullmatch(cite.nest) is None:
+        return None
+    if _valid_ud(cite.post_id):
+        note_id = format_ud(cite.post_id)
+        return (
+            f"> [note reference: {cite.nest} note {note_id} — read it via "
+            f"the tlon tool: 'notes note {cite.nest} {note_id}']"
+        )
+    return (
+        f"> [notebook reference: {cite.nest} — browse it via the tlon tool: "
+        f"'notes notes {cite.nest}']"
+    )
+
+
 def _valid_ud(value: Optional[str]) -> bool:
     if not isinstance(value, str) or _UD_RE.fullmatch(value) is None:
         return False
@@ -130,17 +154,26 @@ async def resolve_cites(scry: ScryFn, content: Any, *, max_attempts: int = 3) ->
     if max_attempts <= 0:
         return ""
 
-    attempts: list[tuple[ParsedCite, str]] = []
+    # %notes references resolve locally to a pointer line (no scry) but still
+    # consume an attempt slot so the rendered block stays bounded.
+    attempts: list[tuple[ParsedCite, Optional[str], Optional[str]]] = []
     for cite in extract_cites(content):
-        path = _validated_scry_path(cite)
-        if path is None:
-            continue
-        attempts.append((cite, path))
+        note_line = _notes_cite_line(cite)
+        if note_line is not None:
+            attempts.append((cite, None, note_line))
+        else:
+            path = _validated_scry_path(cite)
+            if path is None:
+                continue
+            attempts.append((cite, path, None))
         if len(attempts) == max_attempts:
             break
 
     lines: list[str] = []
-    for cite, path in attempts:
+    for cite, path, note_line in attempts:
+        if note_line is not None:
+            lines.append(note_line)
+            continue
         try:
             payload = await scry(path)
             entry = parse_parent_post(payload, cite.post_id or "")

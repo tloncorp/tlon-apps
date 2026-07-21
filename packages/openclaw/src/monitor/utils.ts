@@ -387,6 +387,16 @@ export function extractMessageText(content: unknown): string {
           // ChanCite - reference to a channel message
           if (cite.chan && typeof cite.chan === 'object') {
             const { nest, where } = cite.chan;
+            // %notes references (/1/chan/notes/~host/name/note/<id>) point at
+            // a notebook note, not a %channels post — render an actionable
+            // pointer so the agent can read it with `tlon notes`.
+            if (typeof nest === 'string' && nest.startsWith('notes/')) {
+              const noteMatch = where?.match(/^\/note\/([0-9.]+)/);
+              if (noteMatch) {
+                return `\n> [note reference: ${nest} note ${noteMatch[1]} — read it via the tlon tool: 'notes note ${nest} ${noteMatch[1]}']\n`;
+              }
+              return `\n> [notebook reference: ${nest} — browse it via the tlon tool: 'notes notes ${nest}']\n`;
+            }
             // where is typically /msg/~author/timestamp
             const whereMatch = where?.match(/\/msg\/(~[a-z-]+)\/(.+)/);
             if (whereMatch) {
