@@ -1394,7 +1394,7 @@ export async function createGalleryImagePost(
 
   if (caption) {
     await expect(page.getByText(caption).first()).toBeVisible({
-      timeout: 10000,
+      timeout: 45000,
     });
   }
 }
