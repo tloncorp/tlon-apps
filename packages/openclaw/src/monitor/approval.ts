@@ -704,7 +704,6 @@ export function buildPendingApprovalsA2UIBlob(
           `${prefix}Title`,
           `${prefix}Context`,
           ...(fields.preview ? [`${prefix}Preview`] : []),
-          ...(sourceTarget ? [`${prefix}Source`] : []),
           `${prefix}Actions`,
         ],
       },
@@ -713,13 +712,11 @@ export function buildPendingApprovalsA2UIBlob(
       ...(fields.preview
         ? [text(`${prefix}Preview`, fields.preview, 'caption')]
         : []),
+      // The view button shares the actions row (instead of getting its own
+      // row like the single-approval card) to stay under the a2ui
+      // 50-component limit at the 4-approval maximum.
       ...(sourceTarget
         ? ([
-            {
-              id: `${prefix}Source`,
-              component: 'Row',
-              children: [`${prefix}View`],
-            },
             {
               id: `${prefix}View`,
               component: 'Button',
@@ -737,7 +734,12 @@ export function buildPendingApprovalsA2UIBlob(
       {
         id: `${prefix}Actions`,
         component: 'Row',
-        children: [`${prefix}Allow`, `${prefix}Reject`, `${prefix}Block`],
+        children: [
+          `${prefix}Allow`,
+          `${prefix}Reject`,
+          `${prefix}Block`,
+          ...(sourceTarget ? [`${prefix}View`] : []),
+        ],
       },
       button(
         `${prefix}Allow`,

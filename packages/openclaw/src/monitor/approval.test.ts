@@ -579,6 +579,33 @@ describe('buildPendingApprovalsA2UIBlob', () => {
     expect(text).toContain('"parentId":"170.141.184.600"');
   });
 
+  it('stays under the a2ui component limit with the maximum of four fully-loaded approvals', () => {
+    const approvals: PendingApproval[] = Array.from(
+      { length: 4 },
+      (_, index) => ({
+        id: `c${index}ab`,
+        type: 'channel' as const,
+        requestingShip: `~ship${index}`,
+        channelNest: 'chat/~host/general',
+        messagePreview: `@bot request number ${index}`,
+        timestamp: Date.now(),
+        originalMessage: {
+          messageId: `170.141.184.${600 + index}`,
+          messageText: `@bot request number ${index}`,
+          messageContent: [],
+          timestamp: 1,
+        },
+      })
+    );
+
+    // makeA2UIBlob throws over the 50-component limit, which would drop the
+    // card entirely — this must build and validate at the advertised max.
+    const blob = buildPendingApprovalsA2UIBlob(approvals, ctx);
+    expect(blob).toBeDefined();
+    expect(A2UI.validateBlobEntry(blob)).toBe(true);
+    expect(JSON.stringify(blob)).toContain('"id":"item3View"');
+  });
+
   it('hides dm sources in the pending card when the recipient cannot see bot DMs', () => {
     const originalMessage = {
       messageId: '170.141.184.507',
