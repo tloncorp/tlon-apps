@@ -60,6 +60,17 @@ export const MentionText = styled(Text, {
   color: '$positiveActionText',
   backgroundColor: '$positiveBackground',
   cursor: 'pointer',
+  // Pill styling so the mention reads as tappable. Border radius and
+  // horizontal padding only apply on web — React Native ignores them on
+  // nested Text — but hover/press background feedback works everywhere.
+  borderRadius: '$s',
+  paddingHorizontal: '$xs',
+  hoverStyle: {
+    backgroundColor: '$positiveBorder',
+  },
+  pressStyle: {
+    backgroundColor: '$positiveBorder',
+  },
 });
 
 export function InlineMention({
