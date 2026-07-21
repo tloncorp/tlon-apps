@@ -1,6 +1,7 @@
+import { formatUd } from '@tloncorp/api';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
-import { formatUd, parsePostPayload, renderHistoryContent } from './history.js';
+import { parsePostPayload, renderHistoryContent } from './history.js';
 import {
   type ParsedCite,
   extractCites,

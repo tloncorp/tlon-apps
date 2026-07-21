@@ -1,27 +1,13 @@
-import type { ClientPostBlobData } from '@tloncorp/api';
+import {
+  type ClientPostBlobData,
+  type PostDataResponse,
+  type ReplyWithMemo,
+  formatUd,
+} from '@tloncorp/api';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
 import { formatBlobForHistory, parseBlobData } from './media.js';
 import { extractMessageText } from './utils.js';
-
-/**
- * Format a number as @ud (with dots every 3 digits from the right)
- * e.g., 170141184507799509469114119040828178432 -> 170.141.184.507.799.509.469.114.119.040.828.178.432
- */
-export function formatUd(id: string | number): string {
-  const str = String(id).replace(/\./g, ''); // Remove any existing dots
-  const reversed = str.split('').toReversed();
-  const chunks: string[] = [];
-  for (let i = 0; i < reversed.length; i += 3) {
-    chunks.push(
-      reversed
-        .slice(i, i + 3)
-        .toReversed()
-        .join('')
-    );
-  }
-  return chunks.toReversed().join('.');
-}
 
 export type TlonHistoryEntry = {
   author: string;
@@ -33,10 +19,6 @@ export type TlonHistoryEntry = {
 };
 
 export const MAX_THREAD_CONTEXT_MESSAGES = 20;
-
-type ParentPostSeal = {
-  id?: string;
-};
 
 type ParsedPostPayload = {
   entry: TlonHistoryEntry;
@@ -57,13 +39,6 @@ function parsePostAuthor(author: unknown): string | null {
   return null;
 }
 
-function parsePostSeal(value: unknown): ParentPostSeal | undefined {
-  if (!isRecord(value) || typeof value.id !== 'string') {
-    return undefined;
-  }
-  return { id: value.id };
-}
-
 /** Parse the supported single-post and single-reply scry payload shapes. */
 export function parsePostPayload(
   payload: unknown,
@@ -73,64 +48,49 @@ export function parsePostPayload(
     return null;
   }
 
-  const postCandidate = payload.post ?? payload;
-  if (!isRecord(postCandidate)) {
-    return null;
+  if (isRecord(payload.essay)) {
+    const post = payload as unknown as PostDataResponse;
+    const sourceAuthor = parsePostAuthor(post.essay.author);
+    const id = post.seal?.id ?? fallbackId;
+    const blob = typeof post.essay.blob === 'string' ? post.essay.blob : null;
+
+    return {
+      entry: {
+        author: sourceAuthor ?? 'unknown',
+        content: extractMessageText(post.essay.content ?? []),
+        timestamp:
+          typeof post.essay.sent === 'number' && post.essay.sent !== 0
+            ? post.essay.sent
+            : Date.now(),
+        ...(id ? { id } : {}),
+        blob,
+      },
+      sourceAuthor,
+    };
   }
-  const post = postCandidate;
-  const wrappedPost = isRecord(post['r-post']) ? post['r-post'] : undefined;
-  const wrappedSet =
-    wrappedPost && isRecord(wrappedPost.set) ? wrappedPost.set : undefined;
-  const rootEssay = isRecord(post.essay) ? post.essay : undefined;
-  const rootMemo = isRecord(post.memo) ? post.memo : undefined;
-  const wrappedEssay =
-    wrappedSet && isRecord(wrappedSet.essay) ? wrappedSet.essay : undefined;
-  const essay = rootEssay ?? rootMemo ?? wrappedEssay;
 
-  if (!essay) {
-    return null;
+  if (isRecord(payload.memo)) {
+    const reply = payload as unknown as ReplyWithMemo;
+    const sourceAuthor = parsePostAuthor(reply.memo.author);
+    const id = reply.seal?.id ?? fallbackId;
+
+    return {
+      entry: {
+        author: sourceAuthor ?? 'unknown',
+        content: extractMessageText(reply.memo.content ?? []),
+        timestamp:
+          typeof reply.memo.sent === 'number' && reply.memo.sent !== 0
+            ? reply.memo.sent
+            : Date.now(),
+        ...(id ? { id } : {}),
+        blob: null,
+      },
+      sourceAuthor,
+    };
   }
 
-  const sourceAuthor = parsePostAuthor(essay.author);
-  const seal = parsePostSeal(post.seal) ?? parsePostSeal(wrappedSet?.seal);
-  const id = seal?.id ?? fallbackId;
-  const blob = !rootMemo && typeof essay.blob === 'string' ? essay.blob : null;
-
-  return {
-    entry: {
-      author: sourceAuthor ?? 'unknown',
-      content: extractMessageText(essay.content ?? []),
-      timestamp:
-        typeof essay.sent === 'number' && essay.sent !== 0
-          ? essay.sent
-          : Date.now(),
-      ...(id ? { id } : {}),
-      blob,
-    },
-    sourceAuthor,
-  };
+  return null;
 }
-
-type ParentPostEssay = {
-  author?: unknown;
-  content?: unknown;
-  sent?: number;
-};
-
-type ReplyMemo = ParentPostEssay & {
-  blob?: string | null;
-};
-
-type ExactReplyScryResponse = {
-  reply?: {
-    memo?: ReplyMemo;
-    'reply-essay'?: ReplyMemo;
-    seal?: ParentPostSeal;
-  };
-  memo?: ReplyMemo;
-  'reply-essay'?: ReplyMemo;
-  seal?: ParentPostSeal;
-};
 
 function normalizeMessageId(id: string | number | undefined | null): string {
   const rawId = String(id ?? '');
@@ -492,20 +452,8 @@ async function fetchReplyHistoryEntry(
   try {
     const scryPath = `/channels/v4/${channelNest}/posts/post/id/${formatUd(rootPostId)}/replies/reply/id/${formatUd(replyId)}.json`;
     runtime?.log?.(`[tlon] Fetching reply: ${scryPath}`);
-    const data = (await api.scry(scryPath)) as ExactReplyScryResponse | null;
-    const reply = data?.reply ?? data;
-    const memo = reply?.memo ?? reply?.['reply-essay'];
-    if (!memo) {
-      return null;
-    }
-
-    return {
-      author: parsePostAuthor(memo.author) ?? 'unknown',
-      content: extractMessageText(memo.content || []),
-      timestamp: memo.sent || Date.now(),
-      id: reply?.seal?.id || replyId,
-      blob: memo.blob ?? null,
-    };
+    const data: unknown = await api.scry(scryPath);
+    return parsePostPayload(data, replyId)?.entry ?? null;
   } catch (error: any) {
     runtime?.log?.(
       `[tlon] Error fetching reply: ${error?.message ?? String(error)}`

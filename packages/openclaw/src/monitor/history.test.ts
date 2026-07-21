@@ -243,14 +243,12 @@ describe('cacheMessage', () => {
     const hostPostId = '170141184507999';
     const hostPostIdWithDots = '170.141.184.507.999';
     const scry = vi.fn(async () => ({
-      post: {
-        essay: {
-          author: '~zod',
-          sent: 1,
-          content: [{ inline: ['reaction-target content'] }],
-        },
-        seal: { id: hostPostIdWithDots },
+      essay: {
+        author: '~zod',
+        sent: 1,
+        content: [{ inline: ['reaction-target content'] }],
       },
+      seal: { id: hostPostIdWithDots },
     }));
 
     // Channel hosts assign a different id than the client's send timestamp,
@@ -322,14 +320,12 @@ describe('cacheMessage', () => {
       throw new Error('reaction target scry did not start');
     }
     resolveScry({
-      post: {
-        essay: {
-          author: '~nec',
-          sent: 1,
-          content: [{ inline: ['stale fetched reaction target'] }],
-        },
-        seal: { id: oldPostIdWithDots },
+      essay: {
+        author: '~nec',
+        sent: 1,
+        content: [{ inline: ['stale fetched reaction target'] }],
       },
+      seal: { id: oldPostIdWithDots },
     });
 
     await expect(targetLookup).resolves.toBe(echoEntry);
@@ -354,14 +350,12 @@ describe('cacheMessage', () => {
     const scry = vi.fn(async (path: string) => {
       const id = path.match(/posts\/post\/(.+)\.json$/)?.[1] ?? '';
       return {
-        post: {
-          essay: {
-            author: '~nec',
-            sent: 1,
-            content: [{ inline: [`reaction target ${id}`] }],
-          },
-          seal: { id },
+        essay: {
+          author: '~nec',
+          sent: 1,
+          content: [{ inline: [`reaction target ${id}`] }],
         },
+        seal: { id },
       };
     });
 
@@ -411,14 +405,12 @@ describe('cacheMessage', () => {
 
   it('preserves an author for a textless reaction target', async () => {
     const scry = vi.fn(async () => ({
-      post: {
-        essay: {
-          author: '~zod',
-          sent: 1,
-          content: [],
-        },
-        seal: { id: '170.141.184.507.999' },
+      essay: {
+        author: '~zod',
+        sent: 1,
+        content: [],
       },
+      seal: { id: '170.141.184.507.999' },
     }));
 
     await expect(
@@ -495,15 +487,13 @@ describe('fetchParentPostHistoryEntry', () => {
   it('extracts an author from a media-only parent post', async () => {
     const api = {
       scry: async () => ({
-        post: {
-          essay: {
-            author: { ship: '~nec', nickname: 'Nec' },
-            sent: 123,
-            content: [],
-            blob: '[{"type":"file","version":1}]',
-          },
-          seal: { id: '170.141.184.507' },
+        essay: {
+          author: { ship: '~nec', nickname: 'Nec' },
+          sent: 123,
+          content: [],
+          blob: '[{"type":"file","version":1}]',
         },
+        seal: { id: '170.141.184.507' },
       }),
     };
 
@@ -519,14 +509,12 @@ describe('fetchParentPostHistoryEntry', () => {
   it('extracts parent post text from memo-shaped post payloads', async () => {
     const api = {
       scry: async () => ({
-        post: {
-          memo: {
-            author: '~nec',
-            sent: 123,
-            content: [{ inline: ['Parent post from memo'] }],
-          },
-          seal: { id: '170.141.184.507.939.843.704.966.283.402.546.249.728' },
+        memo: {
+          author: '~nec',
+          sent: 123,
+          content: [{ inline: ['Parent post from memo'] }],
         },
+        seal: { id: '170.141.184.507.939.843.704.966.283.402.546.249.728' },
       }),
     };
 
@@ -605,14 +593,12 @@ describe('fetchParentPostHistoryEntry', () => {
   it('extracts a parent author from a bot profile', async () => {
     const api = {
       scry: async () => ({
-        post: {
-          essay: {
-            author: { ship: '~nec', nickname: 'Nec' },
-            sent: 123,
-            content: [{ inline: ['Parent post'] }],
-          },
-          seal: { id: '170.141.184.507' },
+        essay: {
+          author: { ship: '~nec', nickname: 'Nec' },
+          sent: 123,
+          content: [{ inline: ['Parent post'] }],
         },
+        seal: { id: '170.141.184.507' },
       }),
     };
 
@@ -690,29 +676,28 @@ describe('parsePostPayload', () => {
     ).resolves.toBeNull();
   });
 
-  it('parses the wrapped r-post.set payload shape', () => {
+  it('preserves essay.blob on a post payload', () => {
+    const blob = JSON.stringify([{ type: 'file', version: 1 }]);
     expect(
       parsePostPayload({
-        'r-post': {
-          set: {
-            seal: { id: '1' },
-            essay: {
-              author: { ship: '~bot' },
-              sent: 2,
-              content: [{ inline: ['wrapped'] }],
-            },
-          },
+        seal: { id: '1' },
+        essay: { author: '~nec', sent: 5, content: [], blob },
+      })?.entry.blob
+    ).toBe(blob);
+  });
+
+  it('nulls blob on a reply payload even when a stray blob key is present', () => {
+    expect(
+      parsePostPayload({
+        seal: { id: '2' },
+        memo: {
+          author: '~nec',
+          sent: 5,
+          content: [{ inline: ['reply'] }],
+          blob: JSON.stringify([{ type: 'file', version: 1 }]),
         },
-      })
-    ).toMatchObject({
-      sourceAuthor: '~bot',
-      entry: {
-        author: '~bot',
-        content: 'wrapped',
-        timestamp: 2,
-        id: '1',
-      },
-    });
+      })?.entry.blob
+    ).toBeNull();
   });
 });
 
