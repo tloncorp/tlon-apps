@@ -101,7 +101,7 @@ export function createComposeHandle(
       const tailArgs =
         typeof opts.tail === 'number' ? [`--tail=${opts.tail}`] : [];
       const result = await runCompose(['logs', ...tailArgs, ...services], {
-        allowFailure: true,
+        allowFailure: opts.allowFailure ?? true,
         stream: false,
         timeoutMs: opts.timeoutMs,
       });
