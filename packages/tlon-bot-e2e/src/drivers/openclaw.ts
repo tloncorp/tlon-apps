@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, readdir, rename, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -116,7 +116,9 @@ export const openclawDriver: BotDriver = {
         );
       }
 
-      await rename(packedPath, tarballPath);
+      // copyFile, not rename: os.tmpdir() can sit on a different filesystem
+      // than the checkout (devcontainers), where rename fails with EXDEV.
+      await copyFile(packedPath, tarballPath);
       console.log(`==> Workspace @tloncorp/api tarball: ${tarballPath}`);
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
