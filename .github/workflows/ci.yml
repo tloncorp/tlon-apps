@@ -29,7 +29,7 @@ jobs:
         uses: dorny/paths-filter@v3
         id: filter-app
         with:
-          predicate-quantifier: 'every'
+          predicate-quantifier: "every"
           filters: |
             app:
               - '**'
@@ -122,7 +122,9 @@ jobs:
   # shared-E2E suites stay in the plugin workflows only, non-blocking.
   bot-checks:
     needs: changes
-    if: needs.changes.outputs.app == 'false' && needs.changes.outputs.bots == 'true'
+    if:
+      needs.changes.outputs.app == 'false' && needs.changes.outputs.bots ==
+      'true'
     runs-on: blacksmith-4vcpu-ubuntu-2204
     name: Bot Package Checks
     steps:
@@ -147,7 +149,9 @@ jobs:
               args: [--frozen-lockfile]
 
       - name: Check Prettier (bot packages)
-        run: pnpm prettier --check 'packages/{openclaw,tlon-skill,tlon-bot-e2e}/**/*.{ts,tsx}'
+        run:
+          pnpm prettier --check
+          'packages/{openclaw,tlon-skill,tlon-bot-e2e}/**/*.{ts,tsx}'
 
       - name: Lint OpenClaw
         run: pnpm --filter '@tloncorp/openclaw' lint
@@ -245,11 +249,15 @@ jobs:
         # rube runs `peru sync` to vendor desk deps into desk-deps/ before
         # assembling ship desks. (The parallel e2e job gets peru from the rube
         # Docker image; this smoke test runs on the bare runner.)
-        run: pipx install peru || pip install --user peru || pip3 install --user --break-system-packages peru
+        run:
+          pipx install peru || pip install --user peru || pip3 install --user
+          --break-system-packages peru
 
       - name: Run Production Build Smoke Test
         id: smoke-test
-        run: pnpm e2e:prod:smoke:force || (echo "::warning::Production smoke test failed, retrying..." && pnpm e2e:prod:smoke:force)
+        run:
+          pnpm e2e:prod:smoke:force || (echo "::warning::Production smoke test
+          failed, retrying..." && pnpm e2e:prod:smoke:force)
         working-directory: ./apps/tlon-web
         continue-on-error: false
 
@@ -289,7 +297,9 @@ jobs:
   # Parallel E2E Tests using Docker containers
   e2e-parallel:
     needs: changes
-    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.backend == 'true'
+    if:
+      needs.changes.outputs.app == 'true' || needs.changes.outputs.backend ==
+      'true'
     runs-on: blacksmith-16vcpu-ubuntu-2204
     name: E2E Tests (Parallel - 4 shards)
     steps:
@@ -335,4 +345,5 @@ jobs:
             apps/tlon-web/test-results/merged-report/
             apps/tlon-web/test-results/junit-merged.xml
             apps/tlon-web/test-results/logs/
+            apps/tlon-web/test-results/shard-*/
           retention-days: 30
