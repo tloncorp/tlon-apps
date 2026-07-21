@@ -4,6 +4,8 @@ Use the `tlon` tool for Tlon reads, profile management, group/channel administra
 
 Do not guess `tlon` command syntax. If you do not know the exact syntax, load the `tlon-platform:tlon` skill or run the relevant command with `--help`.
 
+Prefer %notes notebooks over chat replies for durable writing — meeting notes, drafts, plans, and reference documents. Notebooks are `notes/~host/name` nests inside groups; they are not message channels, so never `posts send` to one. Use `tlon notes list` to find notebooks, `notes notes <nest>` to list a notebook's notes, `notes note <nest> <id>` to read one, and `notes note-create <nest> root "Title" --body <file>` to write a new note.
+
 For reminders or recurring jobs, use Hermes' `cronjob` tool. Do not call a tool named `cron`; `cron` is the user-facing Hermes CLI/slash-command feature name, while `cronjob` is the model tool. In Tlon chats, omit the `deliver` parameter unless the user asks to send the job somewhere other than the current conversation.
 
 For connected external services such as Linear, GitHub, Notion, or similar apps, use MCP tools when they are available. In hosted Tlon, these services usually come through the `urbit` MCP server/proxy; Hermes exposes those tools with MCP-prefixed names, often beginning with `mcp_urbit_`. Do not say an external service is disconnected just because there is no first-party tool named after that service.

@@ -190,6 +190,7 @@ logger = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF_SECONDS = (2, 5, 10, 30, 60)
 CITE_RESOLUTION_BUDGET_SECONDS = 5.0
+GROUP_DIRECTORY_TTL_SECONDS = 300.0
 RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000
 # Window in which a repeated retry request for the same lensId is a no-op
 # (mirrors RETRY_DEDUP_MS in the gateway monitor).
@@ -809,6 +810,15 @@ class TlonAdapter(BasePlatformAdapter):
         # to the real post.
         self._reaction_reply_targets: OrderedDict[str, str] = OrderedDict()
         self._monitored_channels = set(self.tlon_config.channels)
+        # %notes notebooks discovered in the bot's groups (group flag ->
+        # {nest: title}) plus the nest -> group flag map used to look them
+        # up per message. Notebooks are group channels without %channels
+        # firehose events, so they are surfaced to the agent as context
+        # (readable via `tlon notes`) rather than added to
+        # _monitored_channels.
+        self._group_notebooks: dict[str, dict[str, str]] = {}
+        self._channel_group: dict[str, str] = {}
+        self._directory_task: Optional[asyncio.Task] = None
         self._mention_matcher = self._build_mention_matcher()
         self._bot_nickname: str = ""
         self._bot_avatar: str = ""
@@ -891,6 +901,8 @@ class TlonAdapter(BasePlatformAdapter):
             await self._load_settings_state()
             await self._process_pending_dm_invites()
             await self._process_pending_group_invites()
+            await self._refresh_group_directory()
+            self._directory_task = asyncio.create_task(self._directory_refresh_loop())
             await self._start_gateway_status()
             await self._start_lens()
             self._stream_task = asyncio.create_task(self._run_stream())
@@ -967,6 +979,13 @@ class TlonAdapter(BasePlatformAdapter):
             except asyncio.CancelledError:
                 pass
             self._stream_task = None
+        if self._directory_task is not None:
+            self._directory_task.cancel()
+            try:
+                await self._directory_task
+            except asyncio.CancelledError:
+                pass
+            self._directory_task = None
         await self._close_sse()
         self._seen_ids.clear()
         self._seen_order.clear()
@@ -2609,10 +2628,86 @@ class TlonAdapter(BasePlatformAdapter):
             and nest.split("/", 1)[0] in ("chat", "heap", "diary")
         }
 
+    async def _refresh_group_directory(self) -> None:
+        """Rebuild the nest -> group map and the per-group %notes notebook
+        directory from groups-ui init. Notebooks are context only — they are
+        never added to _monitored_channels."""
+        if self._sse is None:
+            return
+        try:
+            init = await self._sse.scry("/groups-ui/v7/init")
+        except Exception as exc:
+            logger.debug("[tlon] could not scry group directory: %s", exc)
+            return
+        groups = init.get("groups") if isinstance(init, dict) else None
+        if not isinstance(groups, dict):
+            return
+        channel_group: dict[str, str] = {}
+        notebooks: dict[str, dict[str, str]] = {}
+        for flag, group in groups.items():
+            if not isinstance(flag, str) or not isinstance(group, dict):
+                continue
+            channels = group.get("channels")
+            if not isinstance(channels, dict):
+                continue
+            for nest, channel in channels.items():
+                if not isinstance(nest, str):
+                    continue
+                channel_group[nest] = flag
+                if not nest.startswith("notes/"):
+                    continue
+                title = ""
+                if isinstance(channel, dict):
+                    meta = channel.get("meta")
+                    raw_title = meta.get("title") if isinstance(meta, dict) else None
+                    if isinstance(raw_title, str):
+                        title = raw_title.strip()
+                notebooks.setdefault(flag, {})[nest] = title
+        self._channel_group = channel_group
+        self._group_notebooks = notebooks
+        if notebooks:
+            count = sum(len(entries) for entries in notebooks.values())
+            logger.debug("[tlon] discovered %d group notebook(s)", count)
+
+    async def _directory_refresh_loop(self) -> None:
+        """Keep the notebook directory fresh off the dispatch path. Message
+        handling only reads the cached maps — a slow or hung ship scry here
+        must never block a reply turn."""
+        while True:
+            await asyncio.sleep(GROUP_DIRECTORY_TTL_SECONDS)
+            try:
+                await self._refresh_group_directory()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.debug("[tlon] group directory refresh failed: %s", exc)
+
+    def _group_notebook_hint(self, nest: str) -> str:
+        """One-line context hint listing the notebooks in a channel's group."""
+        flag = self._channel_group.get(nest)
+        if not flag:
+            return ""
+        notebooks = self._group_notebooks.get(flag)
+        if not notebooks:
+            return ""
+        parts = [
+            f'"{title}" ({nb_nest})' if title else nb_nest
+            for nb_nest, title in sorted(notebooks.items())
+        ]
+        return (
+            "[This group has notebooks: "
+            + ", ".join(parts)
+            + " — read/write via the tlon tool, e.g. 'notes notes <nest>'"
+            + " to list notes, 'notes note <nest> <id>' to read one]"
+        )
+
     async def _adopt_group_channels(self, flag: str) -> None:
         """Pull a newly-joined group's channels into the monitored set so the
         bot is addressable there, and persist them to groupChannels."""
         channels = await self._fetch_group_channels(flag)
+        # The joined group may carry notebooks even when it adds no new
+        # message channels, so refresh the directory before the early return.
+        await self._refresh_group_directory()
         new_channels = (channels or set()) - self._monitored_channels
         if not new_channels:
             return
@@ -2682,10 +2777,16 @@ class TlonAdapter(BasePlatformAdapter):
         clean_text: str,
         reason: str,
     ) -> str:
-        """Prepend recent channel or thread history so group replies have context."""
+        """Prepend recent channel or thread history so group replies have context,
+        and append the group's notebook directory hint (cached — never scries)."""
+        notebook_hint = self._group_notebook_hint(message.chat_id)
+
+        def with_hint(text: str) -> str:
+            return f"{text}\n{notebook_hint}" if notebook_hint else text
+
         limit = self.tlon_config.context_messages
         if limit <= 0 or self._sse is None:
-            return clean_text
+            return with_hint(clean_text)
         scry = self._sse.scry
         try:
             if message.reply_to_message_id:
@@ -2716,8 +2817,8 @@ class TlonAdapter(BasePlatformAdapter):
             self._telemetry.error(
                 "context_fetch", exc, isThread=bool(message.reply_to_message_id)
             )
-            return clean_text
-        return enriched or clean_text
+            return with_hint(clean_text)
+        return with_hint(enriched or clean_text)
 
     def _is_participated_thread(self, message: TlonIncomingMessage) -> bool:
         if not message.reply_to_message_id:
@@ -3715,6 +3816,14 @@ def register(ctx) -> None:
             "that way is blocked. To send an image anywhere — including the "
             "current conversation — first 'tlon upload <direct-image-url>', then "
             "'tlon posts send <target> [caption] --image <uploaded-url>'. "
+            "Groups may contain %notes notebooks (notes/~host/name nests) "
+            "holding durable Markdown notes. Prefer a notebook over a chat "
+            "reply when asked to save durable content such as meeting notes, "
+            "drafts, plans, or reference documents. Notebooks are not message "
+            "channels — never posts send to a notes/ nest; use the tlon "
+            "tool's notes commands ('notes list', 'notes notes <nest>', "
+            "'notes note <nest> <id>', 'notes note-create <nest> root "
+            "\"Title\" --body <file>'). "
             "The platform adapter directly handles owner chat commands for "
             "access and configuration: /owner-listen (no-mention listening), "
             "/channel-access (per-channel open access), /pending, /allow, "
