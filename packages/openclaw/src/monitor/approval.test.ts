@@ -293,7 +293,7 @@ describe('buildApprovalA2UIBlob', () => {
     expect(JSON.stringify(channel)).toContain('"groupId":"~host/cool-group"');
   });
 
-  it('hides source navigation when the notification recipient cannot see the bot source', () => {
+  it('hides dm source navigation when the recipient cannot see bot DMs, but keeps channel sources linked', () => {
     const sourceMessage = {
       messageId: '170.141.184.507',
       messageText: 'Please let me in',
@@ -309,7 +309,7 @@ describe('buildApprovalA2UIBlob', () => {
         originalMessage: sourceMessage,
       },
       undefined,
-      { includeSourceNavigation: false }
+      { recipientSeesBotDms: false }
     );
     const channel = buildApprovalA2UIBlob(
       {
@@ -321,14 +321,21 @@ describe('buildApprovalA2UIBlob', () => {
         originalMessage: sourceMessage,
       },
       ctx,
-      { includeSourceNavigation: false }
+      { recipientSeesBotDms: false }
     );
 
-    for (const approval of [dm, channel]) {
-      expect(A2UI.validateBlobEntry(approval)).toBe(true);
-      expect(JSON.stringify(approval)).not.toContain('View message');
-      expect(JSON.stringify(approval)).not.toContain('tlon.navigate');
-    }
+    expect(A2UI.validateBlobEntry(dm)).toBe(true);
+    expect(JSON.stringify(dm)).not.toContain('View message');
+    expect(JSON.stringify(dm)).not.toContain('tlon.navigate');
+
+    // The channel-mention source lives in the group channel, not in the
+    // bot's DM history, so a separate owner can still jump to it (TLON-6198).
+    expect(A2UI.validateBlobEntry(channel)).toBe(true);
+    expect(JSON.stringify(channel)).toContain('View message');
+    expect(JSON.stringify(channel)).toContain('"name":"tlon.navigate"');
+    expect(JSON.stringify(channel)).toContain(
+      '"channelId":"chat/~host/general"'
+    );
   });
 
   it('does not add view message navigation to group invites', () => {
@@ -538,6 +545,77 @@ describe('buildPendingApprovalsA2UIBlob', () => {
     expect(text).toContain('/allow da1b2');
     expect(text).toContain('/reject cc3d4');
     expect(text).toContain('/ban cc3d4');
+  });
+
+  it('adds view message navigation for approvals with source messages', () => {
+    const blob = buildPendingApprovalsA2UIBlob(
+      [
+        {
+          id: 'cc3d4',
+          type: 'channel',
+          requestingShip: '~sampel-palnet',
+          channelNest: 'chat/~host/general',
+          timestamp: Date.now(),
+          originalMessage: {
+            messageId: '170.141.184.621',
+            messageText: '@bot can you take a look?',
+            messageContent: [],
+            timestamp: 1,
+            parentId: '170.141.184.600',
+            parentAuthorId: '~host',
+          },
+        },
+      ],
+      ctx
+    );
+
+    expect(blob).toBeDefined();
+    expect(A2UI.validateBlobEntry(blob)).toBe(true);
+    const text = JSON.stringify(blob);
+    expect(text).toContain('View message');
+    expect(text).toContain('"name":"tlon.navigate"');
+    expect(text).toContain('"channelId":"chat/~host/general"');
+    expect(text).toContain('"postId":"170.141.184.621"');
+    expect(text).toContain('"parentId":"170.141.184.600"');
+  });
+
+  it('hides dm sources in the pending card when the recipient cannot see bot DMs', () => {
+    const originalMessage = {
+      messageId: '170.141.184.507',
+      messageText: 'Hello there',
+      messageContent: [],
+      timestamp: 1,
+    };
+    const blob = buildPendingApprovalsA2UIBlob(
+      [
+        {
+          id: 'da1b2',
+          type: 'dm',
+          requestingShip: '~zod',
+          timestamp: Date.now(),
+          originalMessage,
+        },
+        {
+          id: 'cc3d4',
+          type: 'channel',
+          requestingShip: '~sampel-palnet',
+          channelNest: 'chat/~host/general',
+          timestamp: Date.now(),
+          originalMessage,
+        },
+      ],
+      ctx,
+      { recipientSeesBotDms: false }
+    );
+
+    expect(blob).toBeDefined();
+    expect(A2UI.validateBlobEntry(blob)).toBe(true);
+    const text = JSON.stringify(blob);
+    // Channel source stays linked; the dm item gets no view button.
+    expect(text).toContain('"channelId":"chat/~host/general"');
+    expect(text).not.toContain('"channelId":"~zod"');
+    expect(text).toContain('"id":"item1View"');
+    expect(text).not.toContain('"id":"item0View"');
   });
 
   it('omits the card when there are no active approvals', () => {

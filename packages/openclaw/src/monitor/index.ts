@@ -993,9 +993,10 @@ export async function monitorTlonProvider(
       try {
         return serializeBlobField(
           buildApprovalA2UIBlob(approval, ctx, {
-            // Source messages live on the bot's account. A separate owner may
-            // not have the corresponding DM or group channel in local state.
-            includeSourceNavigation: effectiveOwnerShip === botShipName,
+            // DM sources live in the bot's own DM history, which a separate
+            // owner cannot open. Channel-mention sources live in the group
+            // channel, so they stay linked for any owner (TLON-6198).
+            recipientSeesBotDms: effectiveOwnerShip === botShipName,
           })
         );
       } catch (err) {
@@ -2018,6 +2019,11 @@ export async function monitorTlonProvider(
             runtime.error?.(
               `[tlon] Failed to build pending approvals A2UI blob: ${String(err)}`
             );
+          },
+          {
+            // Same visibility rule as buildApprovalBlobField: only DM sources
+            // are restricted to recipients on the bot's own account.
+            recipientSeesBotDms: effectiveOwnerShip === botShipName,
           }
         );
 
