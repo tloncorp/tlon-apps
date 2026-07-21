@@ -1979,19 +1979,22 @@ const storageDiagWithTimeout = async <T>(
   what: string
 ): Promise<T> => {
   promise.catch(() => {});
-  let timer: NodeJS.Timeout | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       promise,
       new Promise<T>((_, reject) => {
-        timer = setTimeout(
+        const t = setTimeout(
           () =>
             reject(
               new Error(`${what} timed out after ${STORAGE_DIAG_TIMEOUT_MS}ms`)
             ),
           STORAGE_DIAG_TIMEOUT_MS
         );
-        timer.unref?.();
+        // Node returns a Timeout with unref(); the app-wide tsc pass uses DOM
+        // typings where setTimeout returns number, so feature-detect via cast.
+        (t as unknown as { unref?: () => void }).unref?.();
+        timer = t;
       }),
     ]);
   } finally {
