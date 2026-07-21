@@ -179,23 +179,25 @@ export async function buildReplayMessageText(
   opts: Pick<ResolveCitesOptions, 'runtime' | 'signal'> = {}
 ): Promise<{
   messageText: string;
+  gateText?: string;
   citedContent?: string;
-  messageTextIsCiteFree: boolean;
 }> {
   if (!isStory(originalMessage.messageContent)) {
     return {
       messageText: originalMessage.messageText,
-      messageTextIsCiteFree: false,
     };
   }
 
   let rawText: string;
+  let gateText: string;
   try {
     rawText = extractMessageText(originalMessage.messageContent);
+    gateText = extractMessageText(originalMessage.messageContent, {
+      omitCites: true,
+    });
   } catch {
     return {
       messageText: originalMessage.messageText,
-      messageTextIsCiteFree: false,
     };
   }
   const citedContent = await resolveCites(
@@ -205,7 +207,7 @@ export async function buildReplayMessageText(
   );
   return {
     messageText: rawText,
-    messageTextIsCiteFree: true,
+    gateText,
     ...(citedContent ? { citedContent } : {}),
   };
 }

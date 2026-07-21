@@ -56,8 +56,6 @@ export type ContextLensTriggerDetails = {
  */
 export type ContextLensRetrySeed = {
   messageText: string;
-  /** Whether messageText excludes resolved citations, which are rebuilt from messageContent. */
-  messageTextIsCiteFree?: boolean;
   blobField?: string | null;
   // Raw Tlon Story content, persisted so a retry can re-attach media that
   // lives in image blocks (not blobField) — downloadMessageImages rebuilds
@@ -304,33 +302,6 @@ function capRetrySeed(seed: ContextLensRetrySeed): ContextLensRetrySeed {
   return capped;
 }
 
-/**
- * Preserve the cite-free marker only when the incoming message explicitly
- * established it. Legacy retry dispatches may already include resolved quotes.
- */
-export function retrySeedMessageTextIsCiteFree(
-  messageTextIsCiteFree: boolean | undefined
-): true | undefined {
-  return messageTextIsCiteFree === true ? true : undefined;
-}
-
-/**
- * Preserve the cite-free marker only when the incoming dispatch explicitly
- * established it. Legacy dispatches may already include resolved quotes and
- * must remain unmarked on every later retry.
- */
-export function createRetrySeed(
-  seed: ContextLensRetrySeed
-): ContextLensRetrySeed {
-  const { messageTextIsCiteFree, ...rest } = seed;
-  return {
-    ...rest,
-    ...(retrySeedMessageTextIsCiteFree(messageTextIsCiteFree)
-      ? { messageTextIsCiteFree: true }
-      : {}),
-  };
-}
-
 export const RETRYABLE_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
   'no_reply',
   'timed_out',
@@ -342,7 +313,6 @@ export type RetryDispatch = {
   messageId: string;
   senderShip: string;
   messageText: string;
-  messageTextIsCiteFree?: boolean;
   blobField?: string | null;
   messageContent?: unknown;
   isGroup: boolean;
@@ -402,7 +372,6 @@ export function buildRetryDispatch(lens: ContextLens): RetryDispatchResult {
       messageId: lens.messageId,
       senderShip,
       messageText,
-      ...(seed?.messageTextIsCiteFree ? { messageTextIsCiteFree: true } : {}),
       blobField,
       messageContent,
       isGroup,

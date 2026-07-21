@@ -436,19 +436,41 @@ describe('buildReplayMessageText', () => {
       scry: async () => essayPayload('~scried-author', [{ inline: ['quote'] }]),
     };
 
-    await expect(
-      buildReplayMessageText(
-        {
-          messageText: '> ~legacy wrote: old quote\n\nfollow-up question',
-          messageContent: story,
-        },
-        api
-      )
-    ).resolves.toEqual({
+    const result = await buildReplayMessageText(
+      {
+        messageText: '> ~legacy wrote: old quote\n\nfollow-up question',
+        messageContent: story,
+      },
+      api
+    );
+
+    expect(result).toEqual({
       messageText: '> [quoted from chat/~zod/general]\n\nfollow-up question',
+      gateText: 'follow-up question',
       citedContent: '> ~scried-author wrote: quote',
-      messageTextIsCiteFree: true,
     });
+    // The rebuilt text carries exactly one resolved quote block (no doubling),
+    // and gateText is the omitCites rendering with the placeholder excluded.
+    expect(result.gateText).toBe('follow-up question');
+    expect(result.gateText).not.toContain('[quoted from');
+  });
+
+  it('returns an empty gateText for a cite-only Story so gates never see placeholder text', async () => {
+    const story = citedStory([{ nest: 'chat/~zod/tldr', where: '/msg/1' }], '');
+    const api = {
+      scry: async () => essayPayload('~scried-author', [{ inline: ['quote'] }]),
+    };
+
+    const result = await buildReplayMessageText(
+      { messageText: 'stored', messageContent: story },
+      api
+    );
+
+    // A cite-only message has an empty engagement surface; the empty string is
+    // a valid gate value and must survive to processMessage (truthiness checks
+    // would fall back to placeholder-bearing text like "[quoted from chat/~zod/tldr]").
+    expect(result.gateText).toBe('');
+    expect(result.messageText).toContain('[quoted from chat/~zod/tldr]');
   });
 
   it('uses the stored text when message content is missing or malformed', async () => {
@@ -458,30 +480,26 @@ describe('buildReplayMessageText', () => {
       },
     };
 
-    await expect(
-      buildReplayMessageText({ messageText: 'stored text' }, api)
-    ).resolves.toEqual({
-      messageText: 'stored text',
-      messageTextIsCiteFree: false,
-    });
+    const missing = await buildReplayMessageText(
+      { messageText: 'stored text' },
+      api
+    );
+    expect(missing).toEqual({ messageText: 'stored text' });
+    expect(missing).not.toHaveProperty('gateText');
+    expect(missing).not.toHaveProperty('citedContent');
+
     await expect(
       buildReplayMessageText(
         { messageText: 'stored malformed text', messageContent: {} },
         api
       )
-    ).resolves.toEqual({
-      messageText: 'stored malformed text',
-      messageTextIsCiteFree: false,
-    });
+    ).resolves.toEqual({ messageText: 'stored malformed text' });
     await expect(
       buildReplayMessageText(
         { messageText: 'stored malformed array', messageContent: [{}] },
         api
       )
-    ).resolves.toEqual({
-      messageText: 'stored malformed array',
-      messageTextIsCiteFree: false,
-    });
+    ).resolves.toEqual({ messageText: 'stored malformed array' });
     await expect(
       buildReplayMessageText(
         {
@@ -490,10 +508,7 @@ describe('buildReplayMessageText', () => {
         },
         api
       )
-    ).resolves.toEqual({
-      messageText: 'stored extraction failure',
-      messageTextIsCiteFree: false,
-    });
+    ).resolves.toEqual({ messageText: 'stored extraction failure' });
   });
 
   it('propagates resolver aborts instead of falling back to stored text', async () => {

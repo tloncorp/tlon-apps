@@ -20,8 +20,6 @@ import {
   bindContextLensToSession,
   buildRetryDispatch,
   createContextLensRegistry,
-  createRetrySeed,
-  retrySeedMessageTextIsCiteFree,
   unbindContextLensFromSession,
 } from '../context-lens.js';
 import { scheduleCronSnapshot } from '../cron-telemetry.js';
@@ -1833,13 +1831,6 @@ export async function monitorTlonProvider(
                 api!,
                 { runtime, signal: opts.abortSignal }
               );
-              const replayInboundText = replayMessage.messageTextIsCiteFree
-                ? prepareInboundText(
-                    approval.originalMessage.messageContent,
-                    botShipName,
-                    botNickname ?? undefined
-                  )
-                : undefined;
               await processMessage({
                 messageId: approval.originalMessage.messageId,
                 senderShip: approval.requestingShip,
@@ -1847,11 +1838,8 @@ export async function monitorTlonProvider(
                 ...(replayMessage.citedContent
                   ? { citedContent: replayMessage.citedContent }
                   : {}),
-                ...(replayInboundText
-                  ? { gateText: replayInboundText.engagementText }
-                  : {}),
-                ...(replayMessage.messageTextIsCiteFree
-                  ? { messageTextIsCiteFree: true }
+                ...(replayMessage.gateText !== undefined
+                  ? { gateText: replayMessage.gateText }
                   : {}),
                 trigger: 'dm',
                 messageContent: approval.originalMessage.messageContent,
@@ -1878,13 +1866,6 @@ export async function monitorTlonProvider(
                   api!,
                   { runtime, signal: opts.abortSignal }
                 );
-                const replayInboundText = replayMessage.messageTextIsCiteFree
-                  ? prepareInboundText(
-                      approval.originalMessage.messageContent,
-                      botShipName,
-                      botNickname ?? undefined
-                    )
-                  : undefined;
                 await processMessage({
                   messageId: approval.originalMessage.messageId,
                   senderShip: approval.requestingShip,
@@ -1892,11 +1873,8 @@ export async function monitorTlonProvider(
                   ...(replayMessage.citedContent
                     ? { citedContent: replayMessage.citedContent }
                     : {}),
-                  ...(replayInboundText
-                    ? { gateText: replayInboundText.engagementText }
-                    : {}),
-                  ...(replayMessage.messageTextIsCiteFree
-                    ? { messageTextIsCiteFree: true }
+                  ...(replayMessage.gateText !== undefined
+                    ? { gateText: replayMessage.gateText }
                     : {}),
                   trigger: approval.originalMessage.isThreadReply
                     ? 'thread'
@@ -2179,8 +2157,6 @@ export async function monitorTlonProvider(
       citedContent?: string;
       /** Cite-free rendering used only for message-level gates. */
       gateText?: string;
-      /** True only when messageText excludes resolved cite content. */
-      messageTextIsCiteFree?: boolean;
       trigger?: ContextLensTrigger;
       cachesHistory?: boolean;
       messageContent?: unknown; // Raw Tlon content for media extraction
@@ -2287,18 +2263,15 @@ export async function monitorTlonProvider(
         receivedAt: timestamp,
         preview: previewText(messageText),
         ...(params.retryOf ? { retryOf: params.retryOf } : {}),
-        retrySeed: createRetrySeed({
+        retrySeed: {
           messageText: rawMessageText,
-          ...(retrySeedMessageTextIsCiteFree(params.messageTextIsCiteFree)
-            ? { messageTextIsCiteFree: true }
-            : {}),
           blobField: params.blobField ?? null,
           messageContent: messageContent ?? null,
           parentId: parentId ?? null,
           isThreadReply: Boolean(isThreadReply),
           replyParentId: params.replyParentId ?? null,
           cachesHistory: Boolean(params.cachesHistory),
-        }),
+        },
       });
       contextLenses.recordPersistence(lens.lensId, {
         cachesHistory: Boolean(params.cachesHistory),
@@ -3802,7 +3775,6 @@ export async function monitorTlonProvider(
           messageText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
-          messageTextIsCiteFree: true,
           trigger,
           cachesHistory: true,
           messageContent: content.content, // Pass raw content for media extraction
@@ -4135,7 +4107,6 @@ export async function monitorTlonProvider(
           messageText: rawText,
           ...(citedContent ? { citedContent } : {}),
           gateText: engagementText,
-          messageTextIsCiteFree: true,
           trigger: 'dm',
           cachesHistory: Boolean(rawCacheText.trim()),
           messageContent: dmContent.content, // Pass raw content for media extraction
@@ -4357,28 +4328,25 @@ export async function monitorTlonProvider(
                 : ''
             }`
           );
-          const citedContent =
-            dispatch.messageTextIsCiteFree && dispatch.messageContent
-              ? await resolveCitedContent(dispatch.messageContent)
-              : undefined;
-          const retryInboundText =
-            dispatch.messageTextIsCiteFree && dispatch.messageContent
-              ? prepareInboundText(
-                  dispatch.messageContent,
-                  botShipName,
-                  botNickname ?? undefined
-                )
-              : undefined;
+          const replay = dispatch.messageContent
+            ? await buildReplayMessageText(
+                {
+                  messageText: dispatch.messageText,
+                  messageContent: dispatch.messageContent,
+                },
+                api!,
+                { runtime, signal: opts.abortSignal }
+              )
+            : { messageText: dispatch.messageText };
           await processMessage({
             messageId: lens.messageId,
             senderShip: dispatch.senderShip,
-            messageText: dispatch.messageText,
-            ...(citedContent ? { citedContent } : {}),
-            ...(retryInboundText
-              ? { gateText: retryInboundText.engagementText }
+            messageText: replay.messageText,
+            ...(replay.citedContent
+              ? { citedContent: replay.citedContent }
               : {}),
-            ...(dispatch.messageTextIsCiteFree
-              ? { messageTextIsCiteFree: true }
+            ...(replay.gateText !== undefined
+              ? { gateText: replay.gateText }
               : {}),
             blobField: dispatch.blobField,
             ...(dispatch.messageContent
