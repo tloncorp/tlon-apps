@@ -103,7 +103,7 @@ export interface ComposeHandle {
   ps(opts?: { timeoutMs?: number }): Promise<ComposeServiceState[]>;
   logs(
     services?: string[],
-    opts?: { tail?: number; timeoutMs?: number }
+    opts?: { tail?: number; timeoutMs?: number; allowFailure?: boolean }
   ): Promise<string>;
   exec(
     service: string,

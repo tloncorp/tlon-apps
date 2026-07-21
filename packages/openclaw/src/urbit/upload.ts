@@ -17,7 +17,7 @@ export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
     // Validate URL is http/https before fetching
     const url = new URL(imageUrl);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      console.warn(`[tlon] Rejected non-http(s) URL: ${imageUrl}`);
+      console.log(`[tlon] upload: rejected non-http(s) URL: ${imageUrl}`);
       return imageUrl;
     }
 
@@ -32,8 +32,8 @@ export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
 
     try {
       if (!response.ok) {
-        console.warn(
-          `[tlon] Failed to fetch image from ${imageUrl}: ${response.status}`
+        console.log(
+          `[tlon] upload: failed to fetch image from ${imageUrl}: ${response.status}`
         );
         return imageUrl;
       }
@@ -57,7 +57,12 @@ export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
       await release();
     }
   } catch (err) {
-    console.warn(`[tlon] Failed to upload image, using original URL: ${err}`);
+    // console.log, not console.warn: warn-level output from this subsystem
+    // does not surface in the harness/CI container logs, which made upload
+    // failures fully silent (source-URL fallback with no visible cause).
+    console.log(
+      `[tlon] upload: failed, using original URL: ${err instanceof Error ? err.stack ?? err.message : String(err)}`
+    );
     return imageUrl;
   }
 }

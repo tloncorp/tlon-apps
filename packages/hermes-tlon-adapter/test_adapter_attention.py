@@ -603,6 +603,82 @@ class AdapterAttentionTests(unittest.TestCase):
         self.assertEqual(events[0].text, "🎙️ [voice memo] (?)")
         self.assertEqual(events[0].message_type, MessageType.VOICE)
 
+    def test_owner_blob_only_dispatches_without_owner_listen(self):
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+        blob = json.dumps([{"type": "file", "version": 1}])
+
+        async def fake_prepare(content, raw_blob):
+            self.assertEqual(raw_blob, blob)
+            return adapter_mod.PreparedMedia()
+
+        with patch.object(adapter_mod, "prepare_inbound_media", fake_prepare):
+            events = asyncio.run(
+                self.dispatches(
+                    adapter,
+                    channel_event("", blob=blob, nest="chat/~dev/random"),
+                )
+            )
+
+        self.assertEqual(len(events), 1)
+
+    def test_owner_blob_with_text_dispatches_without_mention(self):
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+        blob = json.dumps([{"type": "file", "version": 1}])
+
+        async def fake_prepare(content, raw_blob):
+            self.assertEqual(raw_blob, blob)
+            return adapter_mod.PreparedMedia()
+
+        with patch.object(adapter_mod, "prepare_inbound_media", fake_prepare):
+            events = asyncio.run(
+                self.dispatches(
+                    adapter,
+                    channel_event(
+                        "look at this",
+                        blob=blob,
+                        nest="chat/~dev/random",
+                    ),
+                )
+            )
+
+        self.assertEqual(len(events), 1)
+
+    def test_non_owner_blob_only_drops_in_unaddressed_channel(self):
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~zod",
+                "allowed_users": ["~mug"],
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+        blob = json.dumps([{"type": "file", "version": 1}])
+
+        async def fake_prepare(content, raw_blob):
+            return adapter_mod.PreparedMedia()
+
+        with patch.object(adapter_mod, "prepare_inbound_media", fake_prepare):
+            events = asyncio.run(
+                self.dispatches(
+                    adapter,
+                    channel_event("", blob=blob, nest="chat/~dev/random"),
+                )
+            )
+
+        self.assertEqual(events, [])
+
     def test_unmentioned_group_drops_until_free_response_is_configured(self):
         default_open = self.make_adapter(
             {
@@ -1792,6 +1868,8 @@ class LensTriggerMapTests(unittest.TestCase):
         self.assertEqual(t("mention", is_dm=False), "mention")
         self.assertEqual(t("participated-thread", is_dm=False), "thread")
         self.assertEqual(t("owner-listen", is_dm=False), "owner-listen")
+        self.assertEqual(t("owner-blob", is_dm=False), "owner-blob")
+        self.assertEqual(adapter_mod._lens_run_kind("owner-blob"), "owner_listen")
         # reaction dispatches report their own lens trigger (F-4), not
         # "unknown", regardless of conversation kind.
         self.assertEqual(t("reaction", is_dm=False), "reaction")

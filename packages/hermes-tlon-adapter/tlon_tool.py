@@ -36,10 +36,11 @@ CREDENTIAL_FLAGS_WITH_VALUE = frozenset(
     {"--config", "--url", "--ship", "--code", "--cookie"}
 )
 
-# Message-send operations. These are blocked only when they target the
+# Message-send operations. These are normally blocked when they target the
 # *current* conversation — those must go through Hermes' streaming reply path
-# (TlonAdapter.send()). Sends to any other channel/DM are proactive and allowed
-# through the tool, since "reply normally" can only reach the current chat.
+# (TlonAdapter.send()). The current-gallery ``posts send`` carveout creates a
+# new top-level gallery item. Sends to any other channel/DM are proactive and
+# allowed through the tool, since "reply normally" can only reach the current chat.
 SEND_OPERATIONS = {
     ("dms", "send"),
     ("dms", "reply"),
@@ -65,11 +66,20 @@ TLON_TOOL_DESCRIPTION = (
     "For user-requested group creation, use groups create-owned with "
     "--owner set to the requesting ship. "
     "To reply to the CURRENT conversation, just write the reply — do not use "
-    "posts/dms send here (that path is blocked so Hermes delivers replies). "
+    "posts/dms send here (that path is blocked so Hermes delivers replies, except "
+    "posts send heap/~host/name creates a new gallery item). "
     "To post to a DIFFERENT channel or one-to-one DM (a proactive send), use "
     "posts send with that target, e.g. posts send chat/~host/channel \"...\" "
     "or posts send ~ship \"...\". Reserve dms send for group-DM club IDs "
     "starting with 0v. "
+    "Gallery channels are heap/~host/name image/link boards. In a gallery, "
+    "replying normally comments on the triggering post; posts send "
+    "heap/~host/name \"text or URL\" creates a new top-level item and is "
+    "allowed even in the current gallery (optional --title \"...\"). Upload "
+    "before image items, then posts send heap/~host/name [caption] --image "
+    "<uploaded-url>. React to a gallery comment with posts react "
+    "heap/~host/name <comment-id> <emoji> --parent <post-id>; delete gallery "
+    "posts with posts delete heap/~host/name <post-id>. "
     "To send an IMAGE anywhere (including the current conversation): first "
     "'upload <direct-image-url>', then 'posts send <target> [caption] --image "
     "<uploaded-url>' (group DMs: dms send <club-id> ... --image <url>)."
@@ -99,10 +109,16 @@ TLON_TOOL_SCHEMA = {
                     "'groups create-owned' so the requester is invited and made admin. "
                     "To post to a different channel or one-to-one DM, use "
                     "'posts send <channel> \"...\"' or 'posts send ~ship \"...\"'. "
+                    "Galleries use heap/~host/name: reply normally to comment on "
+                    "the triggering gallery post, or use 'posts send "
+                    "heap/~host/name \"...\" [--title \"...\"]' for a new item. "
+                    "React to a gallery comment with 'posts react heap/~host/name "
+                    "<comment-id> <emoji> --parent <post-id>'; delete with "
+                    "'posts delete heap/~host/name <post-id>'. "
                     "Use 'dms send <club-id> \"...\"' only for group-DM club IDs "
                     "starting with 0v. Sending to "
                     "the CURRENT conversation is blocked (reply normally "
-                    "instead) EXCEPT image sends: 'posts send <target> "
+                    "instead) EXCEPT new gallery items and image sends: 'posts send <target> "
                     "[caption] --image <uploaded-url>' is allowed anywhere — "
                     "upload first with 'upload <direct-image-url>'. 'notebook' "
                     "is removed; use 'notes' commands for %notes notebooks. "
@@ -306,10 +322,20 @@ def check_tlon_tool_command(
             "Hermes cannot pipe stdin into the tlon CLI process. Write the "
             "Markdown body to a file and use --body <file>."
         )
+    targets_current = _send_targets_current_conversation(
+        args, sub_idx, session_chat_id
+    )
+    target = str(args[sub_idx + 2]).strip() if len(args) > sub_idx + 2 else ""
+    is_current_heap_post_send = (
+        (subcommand, action) == ("posts", "send")
+        and targets_current
+        and target.casefold().startswith("heap/")
+    )
     if (
         (subcommand, action) in SEND_OPERATIONS
         and not _has_image_flag(args)
-        and _send_targets_current_conversation(args, sub_idx, session_chat_id)
+        and targets_current
+        and not is_current_heap_post_send
     ):
         return (
             "Blocked: don't deliver your reply to the current conversation with "
