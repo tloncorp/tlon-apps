@@ -385,9 +385,12 @@
               =(ship.key (slav %p i.t.context.key))
               (vouches-for our.bowl ship.key)
           ==
-        ::  normal: sender sets their own presence, in a context they're in
+        ::  normal: sender sets a presence they may author (their own, or a
+        ::  bot moon they sponsor -- mirroring +can-author for channel posts),
+        ::  in a context they're in. In a channel this lets the moon show up as
+        ::  itself, riding the channel host's normal subscription.
         ?&  |(!?=([%dm *] context.key) =(our src):bowl)
-            =(src.bowl ship.key)
+            (vouches-for src.bowl ship.key)
             ?:(?=([%dm *] context.key) & (is-participant context.key bowl))
         ==
     ?-  -.cmd

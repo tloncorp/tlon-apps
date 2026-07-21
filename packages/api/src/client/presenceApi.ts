@@ -79,6 +79,24 @@ export const groupIdToPresenceContext = (groupId: string) => {
 export const toVouchedPresenceContext = (as: string, context: string) =>
   `/vouched/${preSig(as)}${context}`;
 
+// Resolve the presence key's context+ship for the acting identity. A bot moon
+// presents as itself everywhere, so when `as` is set the presence is keyed by
+// the moon in both DMs and channels (channels already accept vouched authorship
+// via can-author). Only DMs also wrap the context: a DM's presence host is
+// normally the ship itself, so the moon's host must stand in and the human is
+// redirected to it. A channel's presence host is the (third-party) channel
+// host everyone already subscribes to, so its context is left untouched.
+const presenceKeyIdentity = (context: string, as?: string | null) => {
+  if (as == null) {
+    return { context, ship: getCurrentUserId() };
+  }
+  const wrapped =
+    parsePresenceContext(context)?.type === 'dm'
+      ? toVouchedPresenceContext(as, context)
+      : context;
+  return { context: wrapped, ship: preSig(as) };
+};
+
 // Presence keys are scoped to wire contexts like `/dm/~nec`; convert them back to
 // the app's stable ids so store consumers can join presence against existing data.
 export const getPresenceContextIdFromKey = (key: ub.PresenceKey) => {
@@ -142,8 +160,7 @@ export const setPresence = async ({
       set: {
         disclose,
         key: {
-          context: as ? toVouchedPresenceContext(as, context) : context,
-          ship: as ? preSig(as) : getCurrentUserId(),
+          ...presenceKeyIdentity(context, as),
           topic,
         },
         timeout,
@@ -184,8 +201,7 @@ export const clearPresence = async ({
     mark: 'presence-action-1',
     json: {
       clear: {
-        context: as ? toVouchedPresenceContext(as, context) : context,
-        ship: as ? preSig(as) : getCurrentUserId(),
+        ...presenceKeyIdentity(context, as),
         topic,
       },
     } satisfies ub.PresenceAction,
