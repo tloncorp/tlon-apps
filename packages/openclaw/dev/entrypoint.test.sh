@@ -72,6 +72,21 @@ dangerouslyAllowAllBuilds: true
 minimumReleaseAge: 0
 verifyDepsBeforeRun: false
 PNPM_EOF
+# The tarball's package.json declares ^3.190.0 for the AWS S3 SDK, so this
+# standalone install (no monorepo lockfile in scope) would float to latest.
+# Pin both packages to the exact monorepo lockfile resolution: newer SDK
+# checksum defaults break GCS-compatible endpoints (see storageApi.ts). The
+# pin must live HERE — pnpm 11 ignores a package.json `pnpm` section (it
+# warns "no longer read by pnpm"). If the workspace ever upgrades the SDK
+# intentionally, this pin moves with it.
+if [ "${OPENCLAW_WORKSPACE_API_TARBALL:-0}" = "1" ] \
+  && [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
+  cat >> pnpm-workspace.yaml << 'PNPM_EOF'
+overrides:
+  "@aws-sdk/client-s3": 3.190.0
+  "@aws-sdk/s3-request-presigner": 3.190.0
+PNPM_EOF
+fi
 pnpm install
 pnpm build
 
