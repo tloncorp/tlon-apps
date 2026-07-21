@@ -1884,8 +1884,7 @@ const enableVerb = async () => {
   await new Promise((resolve) => setTimeout(resolve, 2000));
 };
 
-const setStorageConfiguration = async () => {
-  // Check if storage configuration environment variables are set
+const getStorageEnvConfig = () => {
   const s3Endpoint = process.env.E2E_S3_ENDPOINT;
   const s3AccessKeyId = process.env.E2E_S3_ACCESS_KEY_ID;
   const s3SecretAccessKey = process.env.E2E_S3_SECRET_ACCESS_KEY;
@@ -1893,6 +1892,21 @@ const setStorageConfiguration = async () => {
   const s3Region = process.env.E2E_S3_REGION || 'us-east-1';
 
   if (!s3Endpoint || !s3AccessKeyId || !s3SecretAccessKey || !s3BucketName) {
+    return null;
+  }
+
+  return {
+    s3Endpoint,
+    s3AccessKeyId,
+    s3SecretAccessKey,
+    s3BucketName,
+    s3Region,
+  };
+};
+
+const setStorageConfiguration = async () => {
+  const config = getStorageEnvConfig();
+  if (!config) {
     console.log(
       'Storage configuration environment variables not set, skipping S3 setup'
     );
@@ -1902,6 +1916,14 @@ const setStorageConfiguration = async () => {
     );
     return;
   }
+
+  const {
+    s3Endpoint,
+    s3AccessKeyId,
+    s3SecretAccessKey,
+    s3BucketName,
+    s3Region,
+  } = config;
 
   console.log('Configuring S3 storage on all ships');
 
@@ -1945,6 +1967,101 @@ const setStorageConfiguration = async () => {
 
   // Give the commands time to complete
   await new Promise((resolve) => setTimeout(resolve, 2000));
+};
+
+const STORAGE_DIAG_TIMEOUT_MS = 10_000;
+
+// Best-effort timeout for diagnostic scries: the underlying fetch has no
+// timeout of its own, and diagnostics must never wedge ship setup. Late
+// settlement of the losing promise is swallowed.
+const storageDiagWithTimeout = async <T>(
+  promise: Promise<T>,
+  what: string
+): Promise<T> => {
+  promise.catch(() => {});
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(`${what} timed out after ${STORAGE_DIAG_TIMEOUT_MS}ms`)
+            ),
+          STORAGE_DIAG_TIMEOUT_MS
+        );
+        timer.unref?.();
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+const logStorageState = async (label: string): Promise<void> => {
+  if (!getStorageEnvConfig()) {
+    return;
+  }
+
+  for (const ship of Object.values(ships) as Ship[]) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
+      continue;
+    }
+
+    try {
+      const credentialsRaw = await storageDiagWithTimeout(
+        makeRequestWithCookies(
+          ship.ship as ShipName,
+          `http://localhost:${ship.httpPort}/~/scry/storage/credentials.json`,
+          { context: `storage-diag credentials scry for ~${ship.ship}` }
+        ),
+        'credentials scry'
+      );
+      const configurationRaw = await storageDiagWithTimeout(
+        makeRequestWithCookies(
+          ship.ship as ShipName,
+          `http://localhost:${ship.httpPort}/~/scry/storage/configuration.json`,
+          { context: `storage-diag configuration scry for ~${ship.ship}` }
+        ),
+        'configuration scry'
+      );
+
+      let credentials;
+      let configuration;
+      try {
+        credentials = JSON.parse(credentialsRaw);
+        configuration = JSON.parse(configurationRaw);
+      } catch {
+        // Fixed message: a JSON.parse error can quote the raw response,
+        // which for the credentials scry includes the secret access key.
+        console.error(
+          `[storage-diag] ${label} ~${ship.ship} failed: scry response was not valid JSON`
+        );
+        continue;
+      }
+
+      const endpoint = credentials?.['storage-update']?.credentials?.endpoint;
+      const accessKeyId =
+        credentials?.['storage-update']?.credentials?.accessKeyId;
+      const currentBucket =
+        configuration?.['storage-update']?.configuration?.currentBucket;
+      const region = configuration?.['storage-update']?.configuration?.region;
+
+      const accessKeyIdPrefix =
+        typeof accessKeyId === 'string'
+          ? accessKeyId.slice(0, 8)
+          : String(accessKeyId);
+
+      console.log(
+        `[storage-diag] ${label} ~${ship.ship} endpoint=${endpoint} accessKeyId=${accessKeyIdPrefix}... currentBucket=${currentBucket} region=${region}`
+      );
+    } catch (e) {
+      console.error(
+        `[storage-diag] ${label} ~${ship.ship} failed: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
+  }
 };
 
 const checkExistingInstance = (): boolean => {
@@ -2040,7 +2157,9 @@ const main = async () => {
       if (INCLUDE_OPTIONAL_SHIPS) {
         await setReelServiceShip();
       }
+      await logStorageState('pre-config');
       await setStorageConfiguration();
+      await logStorageState('post-config');
     } else {
       await getStartHashes();
 
@@ -2055,7 +2174,9 @@ const main = async () => {
           'Skipping reel service ship setup (optional ships not included)'
         );
       }
+      await logStorageState('pre-config');
       await setStorageConfiguration();
+      await logStorageState('post-config');
 
       // Mount desks first so Urbit writes its current state to filesystem
       await mountDesks();
@@ -2066,6 +2187,7 @@ const main = async () => {
       // Commit changes so Urbit reads our updates and updates its internal state
       await commitDesks(shipsNeedingUpdates);
       await checkShipReadinessForTests(shipsNeedingUpdates);
+      await logStorageState('post-commit');
     }
 
     // uncomment to enable verb logging for all ships
