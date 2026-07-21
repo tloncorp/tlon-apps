@@ -6,6 +6,12 @@ import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
 import {
+  type TlonAuthPhase,
+  authRetryStateKey,
+  clearAuthRetryState,
+  recordAuthRetryFailure,
+} from '../auth-retry-state.js';
+import {
   findRecentContextLensById,
   publishContextLensEvent,
   setContextLensEventCapacity,
@@ -385,6 +391,7 @@ export async function monitorTlonProvider(
       errorKind?: string | null;
       attempt?: number | null;
       downMs?: number | null;
+      authPhase?: TlonAuthPhase | null;
     }
   ) => {
     telemetry?.capturePluginError({
@@ -397,6 +404,7 @@ export async function monitorTlonProvider(
       errorText: formatTlonTelemetryErrorText(error),
       attempt: extra?.attempt ?? null,
       downMs: extra?.downMs ?? null,
+      authPhase: extra?.authPhase ?? null,
     });
   };
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
@@ -416,18 +424,55 @@ export async function monitorTlonProvider(
     maxAttempts = 10,
     source: 'auth' | 're_auth' = 'auth'
   ): Promise<string> {
+    const authPhase: TlonAuthPhase = source === 'auth' ? 'startup' : 're_auth';
+    const retryStateKey = authRetryStateKey({
+      accountId: account.accountId,
+      botShip: botShipName,
+    });
+
     for (let attempt = 1; ; attempt++) {
       if (opts.abortSignal?.aborted) {
+        clearAuthRetryState(retryStateKey);
         throw new Error('Aborted while waiting to authenticate');
       }
       try {
         runtime.log?.(`[tlon] Attempting authentication to ${accountUrl}...`);
-        return await authenticate(accountUrl, accountCode, { ssrfPolicy });
+        const cookie = await authenticate(accountUrl, accountCode, {
+          ssrfPolicy,
+        });
+        clearAuthRetryState(retryStateKey);
+        return cookie;
       } catch (error: any) {
-        capturePluginError(source, error, { attempt });
-        runtime.error?.(
-          `[tlon] Failed to authenticate (attempt ${attempt}): ${error?.message ?? String(error)}`
-        );
+        const failure = recordAuthRetryFailure(retryStateKey);
+        const errorKind = classifyPluginError(error);
+        const errorText = formatTlonTelemetryErrorText(error);
+
+        if (failure.shouldCapturePluginError) {
+          capturePluginError(source, error, {
+            attempt: failure.attempt,
+            downMs: failure.downMs,
+            authPhase,
+          });
+          runtime.error?.(
+            `[tlon] Failed to authenticate after ${Math.round(failure.downMs / 1000)}s (${authPhase}, attempt ${failure.attempt}): ${error?.message ?? String(error)}`
+          );
+        } else {
+          telemetry?.captureAuthAttemptFailed({
+            harness: 'openclaw',
+            pluginErrorSource: source,
+            authPhase,
+            accountId: account.accountId,
+            ownerShip: currentTelemetryOwnerShip(),
+            botShip: botShipName,
+            errorKind,
+            errorText,
+            attempt: failure.attempt,
+            downMs: failure.downMs,
+          });
+          runtime.log?.(
+            `[tlon] Waiting for moon (${authPhase}, attempt ${failure.attempt}, ${Math.round(failure.downMs / 1000)}s elapsed): ${error?.message ?? String(error)}`
+          );
+        }
         if (attempt >= maxAttempts) {
           throw error;
         }
@@ -438,6 +483,7 @@ export async function monitorTlonProvider(
           if (opts.abortSignal) {
             const onAbort = () => {
               clearTimeout(timer);
+              clearAuthRetryState(retryStateKey);
               reject(new Error('Aborted'));
             };
             opts.abortSignal.addEventListener('abort', onAbort, { once: true });
@@ -831,6 +877,7 @@ export async function monitorTlonProvider(
             errorText: report.event.errorText,
             attempt: report.event.attempt ?? null,
             downMs: report.event.downMs ?? null,
+            authPhase: report.event.authPhase ?? null,
           });
           break;
         case 'telemetry':

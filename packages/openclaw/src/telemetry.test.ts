@@ -920,6 +920,8 @@ describe('telemetry tool tracking', () => {
             errorKind: report.event.errorKind ?? null,
             errorText: report.event.errorText,
             attempt: report.event.attempt ?? null,
+            downMs: report.event.downMs ?? null,
+            authPhase: report.event.authPhase ?? null,
           });
           break;
         case 'telemetry':
@@ -1697,6 +1699,40 @@ describe('telemetry tool tracking', () => {
     expect(calls[1].properties.errorText).toBe(
       'second full error\nwith details'
     );
+  });
+
+  it('captures expected auth failures separately from plugin errors', () => {
+    const telemetry = createEnabledTelemetry()!;
+
+    telemetry.captureAuthAttemptFailed({
+      harness: 'openclaw',
+      pluginErrorSource: 'auth',
+      authPhase: 'startup',
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      errorKind: 'TimeoutError',
+      errorText: 'request timed out',
+      attempt: 3,
+      downMs: 45_000,
+    });
+
+    expect(postHogMocks.capture).toHaveBeenLastCalledWith({
+      distinctId: '~zod',
+      event: 'TlonBot Auth Attempt Failed',
+      properties: expect.objectContaining({
+        harness: 'openclaw',
+        pluginErrorSource: 'auth',
+        authPhase: 'startup',
+        accountId: 'default',
+        ownerShip: '~zod',
+        botShip: '~nec',
+        errorKind: 'TimeoutError',
+        errorText: 'request timed out',
+        attempt: 3,
+        downMs: 45_000,
+      }),
+    });
   });
 
   it('captures telemetry observer failures', () => {

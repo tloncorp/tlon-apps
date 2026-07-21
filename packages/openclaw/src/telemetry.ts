@@ -1,6 +1,7 @@
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
 
+import type { TlonAuthPhase } from './auth-retry-state.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 import type {
   TlonChannelKind,
@@ -535,6 +536,7 @@ export type TlonPluginErrorSource =
 export type TlonPluginErrorEvent = {
   harness: TlonHarnessName;
   pluginErrorSource: TlonPluginErrorSource;
+  authPhase: TlonAuthPhase | null;
   accountId: string | null;
   ownerShip: string | null;
   botShip: string;
@@ -542,11 +544,24 @@ export type TlonPluginErrorEvent = {
   errorText: string;
   attempt: number | null;
   /**
-   * For recoverable subscription/stream failures: how long inbound has been
-   * (or was) down, in ms. Lets PostHog aggregate outage duration rather than
-   * just failure counts.
+   * For recoverable auth/subscription/stream failures: how long the dependency
+   * has been (or was) down, in ms. Lets PostHog aggregate outage duration
+   * rather than just failure counts.
    */
   downMs: number | null;
+};
+
+export type TlonAuthAttemptFailedEvent = {
+  harness: TlonHarnessName;
+  pluginErrorSource: 'auth' | 're_auth';
+  authPhase: TlonAuthPhase;
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  errorKind: string | null;
+  errorText: string;
+  attempt: number;
+  downMs: number;
 };
 
 export type TlonTelemetryErrorEvent = {
@@ -574,6 +589,7 @@ export interface TlonTelemetryClient {
   captureSessionRecovery(event: TlonSessionRecoveryEvent): void;
   captureHarnessError(event: TlonHarnessErrorEvent): void;
   captureHarnessDebug(event: TlonHarnessDebugEvent): void;
+  captureAuthAttemptFailed(event: TlonAuthAttemptFailedEvent): void;
   capturePluginError(event: TlonPluginErrorEvent): void;
   captureTelemetryError(event: TlonTelemetryErrorEvent): void;
   captureCronJobChanged(event: TlonCronJobChangedEvent): void;
@@ -596,6 +612,7 @@ const TLON_SESSION_WATCHDOG_EVENT = 'TlonBot Session Watchdog';
 const TLON_SESSION_RECOVERY_EVENT = 'TlonBot Session Recovery';
 const TLON_HARNESS_ERROR_EVENT = 'TlonBot Harness Error';
 const TLON_HARNESS_DEBUG_EVENT = 'TlonBot Harness Debug';
+const TLON_AUTH_ATTEMPT_FAILED_EVENT = 'TlonBot Auth Attempt Failed';
 const TLON_PLUGIN_ERROR_EVENT = 'TlonBot Plugin Error';
 const TLON_TELEMETRY_ERROR_EVENT = 'TlonBot Telemetry Error';
 const TLON_HEARTBEAT_NUDGE_EVENT = 'TlonBot Heartbeat Nudge Sent';
@@ -1967,6 +1984,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         {
           harness: event.harness,
           pluginErrorSource: event.pluginErrorSource,
+          authPhase: event.authPhase,
           accountId: event.accountId,
           ownerShip: event.ownerShip,
           botShip: event.botShip,
@@ -1977,6 +1995,30 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         },
         { omitNullish: true }
       ),
+    });
+  }
+
+  captureAuthAttemptFailed(event: TlonAuthAttemptFailedEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_AUTH_ATTEMPT_FAILED_EVENT,
+      properties: this.properties({
+        harness: event.harness,
+        pluginErrorSource: event.pluginErrorSource,
+        authPhase: event.authPhase,
+        accountId: event.accountId,
+        ownerShip: event.ownerShip,
+        botShip: event.botShip,
+        errorKind: event.errorKind,
+        errorText: event.errorText,
+        attempt: event.attempt,
+        downMs: event.downMs,
+      }),
     });
   }
 
@@ -2298,6 +2340,7 @@ export type TlonHarnessDebugReportInput = {
 
 export type TlonPluginErrorReportInput = {
   pluginErrorSource: TlonPluginErrorSource;
+  authPhase?: TlonAuthPhase | null;
   accountId?: string | null;
   ownerShip?: string | null;
   botShip?: string | null;
