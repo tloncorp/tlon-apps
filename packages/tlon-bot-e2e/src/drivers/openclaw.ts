@@ -229,6 +229,7 @@ export const openclawDriver: BotDriver = {
   async assertRuntimeConfig(ctx, compose) {
     await assertOpenClawConfig(ctx, compose);
     await assertOpenClawContainerEnv(ctx, compose);
+    await assertOpenClawWorkspaceApi(ctx, compose);
   },
 
   isBenignModelCall(call) {
@@ -516,6 +517,79 @@ console.log(JSON.stringify({ found, model: process.env.MODEL || null, brave: Boo
         .map((failure) => `- ${failure}`)
         .join('\n')}`
     );
+  }
+}
+
+async function assertOpenClawWorkspaceApi(
+  ctx: RuntimeContext,
+  compose: ComposeHandle
+): Promise<void> {
+  if (ctx.composeEnv.OPENCLAW_WORKSPACE_API_TARBALL !== '1') {
+    return;
+  }
+
+  const probeScript = `const fs = require('fs');
+function readJson(p) {
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; }
+}
+const pkg = readJson('/workspace/tlon/package.json') || {};
+const api = readJson('/workspace/tlon/node_modules/@tloncorp/api/package.json');
+const sdk = readJson('/workspace/tlon/node_modules/@aws-sdk/client-s3/package.json');
+let workspaceYaml = '';
+try { workspaceYaml = fs.readFileSync('/workspace/tlon/pnpm-workspace.yaml', 'utf8'); } catch {}
+console.log(JSON.stringify({
+  dep: (pkg.dependencies || {})['@tloncorp/api'] ?? null,
+  apiVersion: api ? api.version : null,
+  sdkVersion: sdk ? sdk.version : null,
+  tarballExists: fs.existsSync('/workspace/tlon/dev/tlon-api-workspace.tgz'),
+  overridesInWorkspaceYaml: workspaceYaml.includes('@aws-sdk/client-s3'),
+}));`;
+
+  const result = await compose.exec(ctx.services.bot, [
+    'node',
+    '-e',
+    probeScript,
+  ]);
+  assertExecOk(result, 'OpenClaw workspace-api probe');
+  const raw = result.stdout.trim();
+  const parsed = JSON.parse(raw) as {
+    dep: string | null;
+    apiVersion: string | null;
+    sdkVersion: string | null;
+    tarballExists: boolean;
+    overridesInWorkspaceYaml: boolean;
+  };
+
+  const failures: string[] = [];
+  expectWorkspaceApi(
+    parsed.dep === 'file:dev/tlon-api-workspace.tgz',
+    `package.json dependency @tloncorp/api must be file:dev/tlon-api-workspace.tgz, got ${parsed.dep}`
+  );
+  expectWorkspaceApi(
+    parsed.sdkVersion === '3.190.0',
+    `@aws-sdk/client-s3 version must be 3.190.0, got ${parsed.sdkVersion}`
+  );
+  expectWorkspaceApi(
+    parsed.tarballExists === true,
+    'workspace @tloncorp/api tarball /workspace/tlon/dev/tlon-api-workspace.tgz must exist'
+  );
+  expectWorkspaceApi(
+    parsed.overridesInWorkspaceYaml === true,
+    'pnpm-workspace.yaml must override @aws-sdk/client-s3'
+  );
+
+  if (failures.length > 0) {
+    throw new Error(
+      `OpenClaw workspace-api assertion failed:\n` +
+        failures.map((failure) => `- ${failure}`).join('\n') +
+        `\nRaw probe output:\n${raw}`
+    );
+  }
+
+  function expectWorkspaceApi(condition: boolean, message: string) {
+    if (!condition) {
+      failures.push(message);
+    }
   }
 }
 
