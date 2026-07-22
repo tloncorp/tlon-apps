@@ -1629,6 +1629,11 @@ class TlonAdapter(BasePlatformAdapter):
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
             return
+        if not clean_text.strip() and not message.blob:
+            logger.info(
+                "[tlon] ignoring empty request after sanitization from unauthorized ship"
+            )
+            return
         original = self._original_message_payload(message)
         original["messageText"] = clean_text
         await self._queue_approval(
@@ -1643,6 +1648,11 @@ class TlonAdapter(BasePlatformAdapter):
     ) -> None:
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
+            return
+        if not clean_text.strip() and not message.blob:
+            logger.info(
+                "[tlon] ignoring empty request after sanitization from unauthorized ship"
+            )
             return
         original = self._original_message_payload(message)
         original["messageText"] = clean_text
