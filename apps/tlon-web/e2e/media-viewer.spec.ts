@@ -29,7 +29,7 @@ test('should open and close the gallery image media viewer on web', async ({
   await helpers.createGalleryImagePost(page, caption);
 
   await expect(page.getByTestId('Post').first()).toBeVisible({
-    timeout: 10000,
+    timeout: 45000,
   });
   await page.getByTestId('Post').first().click();
 

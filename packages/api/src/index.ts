@@ -56,6 +56,9 @@ export {
   type WritDelta,
   type WritDiff,
   type GatewayStatusAction,
+  type Cite,
+  type PostDataResponse,
+  type ReplyWithMemo,
 } from './urbit';
 export {
   appendFileUploadToPostBlob,

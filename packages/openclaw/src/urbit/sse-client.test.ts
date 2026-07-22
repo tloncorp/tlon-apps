@@ -148,6 +148,42 @@ describe('UrbitSSEClient', () => {
     });
   });
 
+  describe('scry', () => {
+    it('forwards optional timeout and abort signal to scryUrbitPath', async () => {
+      const { scryUrbitPath } = await import('./channel-ops.js');
+      const mockScryUrbitPath = vi.mocked(scryUrbitPath);
+      const controller = new AbortController();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+
+      await client.scry('/foo.json', {
+        timeoutMs: 123,
+        signal: controller.signal,
+      });
+
+      expect(mockScryUrbitPath).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'https://example.com',
+          cookie: 'urbauth-~zod=123',
+        }),
+        {
+          path: '/foo.json',
+          auditContext: 'tlon-urbit-scry',
+          timeoutMs: 123,
+          signal: controller.signal,
+        }
+      );
+
+      await client.scry('/without-options.json');
+      expect(mockScryUrbitPath).toHaveBeenLastCalledWith(expect.any(Object), {
+        path: '/without-options.json',
+        auditContext: 'tlon-urbit-scry',
+      });
+    });
+  });
+
   describe('reconnection', () => {
     it('has autoReconnect enabled by default', () => {
       const client = new UrbitSSEClient(

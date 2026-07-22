@@ -25,7 +25,7 @@ export type PendingApproval = {
   originalMessage?: {
     messageId: string;
     messageText: string;
-    messageContent: unknown;
+    messageContent?: unknown;
     timestamp: number;
     parentId?: string;
     parentAuthorId?: string;

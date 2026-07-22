@@ -444,7 +444,10 @@ export class UrbitSSEClient {
     );
   }
 
-  async scry(path: string) {
+  async scry(
+    path: string,
+    opts?: { timeoutMs?: number; signal?: AbortSignal }
+  ) {
     return await scryUrbitPath(
       {
         baseUrl: this.url,
@@ -453,7 +456,7 @@ export class UrbitSSEClient {
         lookupFn: this.lookupFn,
         fetchImpl: this.fetchImpl,
       },
-      { path, auditContext: 'tlon-urbit-scry' }
+      { path, auditContext: 'tlon-urbit-scry', ...opts }
     );
   }
 
