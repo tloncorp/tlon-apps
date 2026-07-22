@@ -10,6 +10,7 @@ export function createFakeModelServer() {
     scripts: new Map(),
     callCounts: new Map(),
     allowExtraCalls: new Map(),
+    allowedAuxiliaryCalls: new Map(),
     receivedCalls: [],
     epoch: 0,
     lastRegistration: new Map(),
@@ -89,7 +90,8 @@ async function handleRequest(state, req, res) {
     const body = await readJson(req);
     const { key, steps } = body ?? {};
     const extra = body?.allowExtraCalls ?? 0;
-    const validation = validateScript(key, steps, extra);
+    const allowedAuxiliaryCalls = body?.allowedAuxiliaryCalls ?? [];
+    const validation = validateScript(key, steps, extra, allowedAuxiliaryCalls);
     if (validation) {
       sendJson(res, 400, { error: { message: validation } });
       return;
@@ -97,6 +99,7 @@ async function handleRequest(state, req, res) {
     state.scripts.set(key, steps);
     state.callCounts.set(key, 0);
     state.allowExtraCalls.set(key, extra);
+    state.allowedAuxiliaryCalls.set(key, allowedAuxiliaryCalls);
     recordRegistration(state, key);
     console.log(
       `[fake-model] registered script "${key}" with ${steps.length} step(s)` +
@@ -111,6 +114,7 @@ async function handleRequest(state, req, res) {
     state.scripts.clear();
     state.callCounts.clear();
     state.allowExtraCalls.clear();
+    state.allowedAuxiliaryCalls.clear();
     state.receivedCalls.length = 0;
     state.epoch += 1;
     console.log(
@@ -224,6 +228,18 @@ async function handleChatCompletion(state, req, res) {
     return;
   }
 
+  const auxiliaryKind = classifyAuxiliaryCall(
+    callRecord,
+    state.allowedAuxiliaryCalls.get(key) ?? []
+  );
+  if (auxiliaryKind) {
+    callRecord.auxiliaryKind = auxiliaryKind;
+    const scripted = benignFiller();
+    recordScriptedResponse(callRecord, scripted);
+    respondScripted(res, body, scripted);
+    return;
+  }
+
   const n = state.callCounts.get(key) ?? 0;
   if (n >= steps.length) {
     const extra = state.allowExtraCalls.get(key) ?? 0;
@@ -324,7 +340,7 @@ export function extractAdvertisedToolMetadata(body) {
   };
 }
 
-function validateScript(key, steps, extra) {
+function validateScript(key, steps, extra, allowedAuxiliaryCalls) {
   if (typeof key !== 'string' || key.length === 0) {
     return "missing or invalid 'key' (must be non-empty string)";
   }
@@ -336,6 +352,12 @@ function validateScript(key, steps, extra) {
     (typeof extra !== 'number' || !Number.isInteger(extra) || extra < 0)
   ) {
     return "invalid 'allowExtraCalls' (must be a non-negative integer)";
+  }
+  if (
+    !Array.isArray(allowedAuxiliaryCalls) ||
+    allowedAuxiliaryCalls.some((kind) => kind !== 'hermes_title_generation')
+  ) {
+    return "invalid 'allowedAuxiliaryCalls'";
   }
   for (let i = 0; i < steps.length; i += 1) {
     const step = steps[i];
@@ -362,6 +384,30 @@ function validateScript(key, steps, extra) {
     }
   }
   return null;
+}
+
+function classifyAuxiliaryCall(call, allowedAuxiliaryCalls) {
+  if (
+    allowedAuxiliaryCalls.includes('hermes_title_generation') &&
+    isHermesTitleGenerationCall(call)
+  ) {
+    return 'hermes_title_generation';
+  }
+  return undefined;
+}
+
+function isHermesTitleGenerationCall(call) {
+  if ((call.toolNames ?? []).length > 0) {
+    return false;
+  }
+  const systemText = call.messages.find((message) => message.role === 'system')
+    ?.content?.text;
+  return (
+    typeof systemText === 'string' &&
+    systemText.startsWith('Generate a short, descriptive title') &&
+    call.userText.includes('User:') &&
+    call.userText.includes('Assistant:')
+  );
 }
 
 function extractLatestScriptKey(messages) {

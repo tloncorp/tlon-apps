@@ -32,8 +32,10 @@ vi.mock('@react-native-community/netinfo', () => {
   };
 });
 
-vi.mock('expo-file-system/legacy', () => ({
-  uploadAsync: vi.fn(),
+vi.mock('expo-file-system', () => ({
+  File: class {
+    upload = vi.fn().mockResolvedValue({ status: 200, body: '', headers: {} });
+  },
 }));
 
 vi.mock('expo-image-manipulator', () => ({

@@ -1,11 +1,17 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
+  CANONICAL_INVITE_HOST,
   extractNormalizedInviteLink,
   getMetadataFromInviteToken,
   inviteUrlFromDeferredPayload,
   parseInviteDeepLink,
 } from './deeplinks';
+
+// expectations track the canonical host so flipping it (the post-flip
+// release lever) needs no test edits; inputs cover both domains
+const canonical = (token: string) =>
+  `https://${CANONICAL_INVITE_HOST}/${token}`;
 
 describe('parseInviteDeepLink', () => {
   test('parses single-segment invite tokens from invite domains', () => {
@@ -86,20 +92,18 @@ describe('parseInviteDeepLink', () => {
 
 describe('inviteUrlFromDeferredPayload', () => {
   test('synthesizes urls from raw tokens', () => {
-    expect(inviteUrlFromDeferredPayload('0vabcde')).toBe(
-      'https://invite.tlon.io/0vabcde'
-    );
+    expect(inviteUrlFromDeferredPayload('0vabcde')).toBe(canonical('0vabcde'));
     expect(inviteUrlFromDeferredPayload('~zod/team')).toBe(
-      'https://invite.tlon.io/~zod/team'
+      canonical('~zod/team')
     );
   });
 
   test('extracts token key-value referrer payloads', () => {
     expect(inviteUrlFromDeferredPayload('token=0vabcde')).toBe(
-      'https://invite.tlon.io/0vabcde'
+      canonical('0vabcde')
     );
     expect(inviteUrlFromDeferredPayload('utm_source=x&token=~zod%2Fteam')).toBe(
-      'https://invite.tlon.io/~zod/team'
+      canonical('~zod/team')
     );
   });
 
@@ -125,12 +129,22 @@ describe('inviteUrlFromDeferredPayload', () => {
 describe('extractNormalizedInviteLink', () => {
   test('normalizes any accepted invite link to the canonical domain', () => {
     expect(extractNormalizedInviteLink('https://join.tlon.io/0vabcde')).toBe(
-      'https://invite.tlon.io/0vabcde'
+      canonical('0vabcde')
+    );
+    expect(extractNormalizedInviteLink('https://invite.tlon.io/0vabcde')).toBe(
+      canonical('0vabcde')
     );
     expect(
       extractNormalizedInviteLink('https://sa96e.app.link/~zod/team')
-    ).toBe('https://invite.tlon.io/~zod/team');
+    ).toBe(canonical('~zod/team'));
     expect(extractNormalizedInviteLink('https://example.com/0vabc')).toBeNull();
+  });
+
+  test('canonical links round-trip through the parser', () => {
+    expect(parseInviteDeepLink(canonical('0vabc'))).toEqual({
+      type: 'lure',
+      token: '0vabc',
+    });
   });
 });
 

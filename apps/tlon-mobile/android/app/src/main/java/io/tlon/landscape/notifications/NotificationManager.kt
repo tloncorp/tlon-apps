@@ -86,6 +86,12 @@ object NotificationMessagesCache {
 
 private const val NOTIFICATION_MANAGER = "NotificationManager"
 
+// FCM stamps this key on notification intents. expo-notifications (SDK 56+)
+// only surfaces a tap to JS when the launch intent carries it
+// (ExpoNotificationLifecycleListener.isFCMIntent); our notifications are
+// posted natively, so we must stamp it on the tap intent ourselves.
+private const val FCM_MESSAGE_ID_KEY = "google.message_id"
+
 private fun getNotificationId(identifier: String): Int {
     return if (identifier.startsWith("0v")) {
         try {
@@ -280,6 +286,10 @@ fun NotificationCompat.Builder.buildMessagingTappable(context: Context, id: Int,
     val tapIntent = Intent(context, MainActivity::class.java)
     tapIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
     tapIntent.replaceExtras(extras)
+    if (!extras.containsKey(FCM_MESSAGE_ID_KEY)) {
+        val messageId = extras.getString("uid") ?: extras.getString("id") ?: id.toString()
+        tapIntent.putExtra(FCM_MESSAGE_ID_KEY, messageId)
+    }
     val tapPendingIntent =  PendingIntent.getActivity(
         context,
         id,

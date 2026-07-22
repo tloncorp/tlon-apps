@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/openclaw",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "OpenClaw Tlon/Urbit channel plugin",
   "license": "MIT",
   "repository": {
@@ -59,6 +59,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.4.0",
+    "@urbit/nockjs": "^1.6.0",
     "dotenv": "^17.2.4",
     "openclaw": "2026.5.28",
     "typescript": "^5.7.0",

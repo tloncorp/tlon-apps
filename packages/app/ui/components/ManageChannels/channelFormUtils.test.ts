@@ -6,7 +6,38 @@ import {
   getChannelPrivacyDefaults,
   groupRolesToOptions,
   mapRoleIdsToOptions,
+  processFinalPermissions,
 } from './channelFormUtils';
+
+describe('processFinalPermissions', () => {
+  test('omits writer roles for channels with one shared permission', () => {
+    expect(
+      processFinalPermissions(
+        ['admin', 'viewer'],
+        ['admin', 'viewer'],
+        true,
+        'notes'
+      )
+    ).toEqual({
+      finalReaders: ['admin', 'viewer'],
+      finalWriters: [],
+    });
+  });
+
+  test('makes member-readable unified channels public', () => {
+    expect(
+      processFinalPermissions(
+        ['admin', MEMBERS_MARKER],
+        ['admin', MEMBERS_MARKER],
+        true,
+        'notes'
+      )
+    ).toEqual({
+      finalReaders: [],
+      finalWriters: [],
+    });
+  });
+});
 
 describe('groupRolesToOptions', () => {
   test('converts group roles to options', () => {
@@ -143,5 +174,33 @@ describe('getChannelPrivacyDefaults', () => {
     const result = getChannelPrivacyDefaults(channel);
     expect(result.writers).toContain('admin');
     expect(result.writers[0]).toBe('admin');
+  });
+
+  test('notes channels mirror reader roles and ignore stale writer roles', () => {
+    const channel = {
+      type: 'notes',
+      readerRoles: [{ roleId: 'viewer' }],
+      writerRoles: [{ roleId: 'stale-writer' }],
+    } as any;
+
+    expect(getChannelPrivacyDefaults(channel)).toEqual({
+      isPrivate: true,
+      readers: ['admin', 'viewer'],
+      writers: ['admin', 'viewer'],
+    });
+  });
+
+  test('notes channels with no readers are public despite stale writers', () => {
+    const channel = {
+      type: 'notes',
+      readerRoles: [],
+      writerRoles: [{ roleId: 'stale-writer' }],
+    } as any;
+
+    expect(getChannelPrivacyDefaults(channel)).toEqual({
+      isPrivate: false,
+      readers: [],
+      writers: [],
+    });
   });
 });

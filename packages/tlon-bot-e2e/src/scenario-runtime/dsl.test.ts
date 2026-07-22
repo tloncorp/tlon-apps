@@ -4,6 +4,7 @@ import type { RuntimeContext } from '../drivers/types.js';
 import {
   partitionKey,
   partitionScenarios,
+  scenarioTestName,
   scenarioTimeoutMs,
   scenariosForPartition,
   selectScenarioPartitions,
@@ -70,6 +71,40 @@ describe('shared scenario DSL partitions', () => {
         (scenario) => scenario.id
       )
     ).toEqual(['baseline-case', 'hermes-only-case']);
+  });
+
+  test('runs order-dependent scenarios after declaration-ordered peers', () => {
+    const first = testScenario('first', {}, async () => {});
+    const disruptive = testScenario(
+      'disruptive',
+      { orderDependent: true },
+      async () => {}
+    );
+    const second = testScenario('second', {}, async () => {});
+
+    expect(
+      scenariosForPartition([first, disruptive, second], 'baseline').map(
+        (scenario) => scenario.id
+      )
+    ).toEqual(['first', 'second', 'disruptive']);
+  });
+
+  test('retains skipped scenarios and makes their reason visible to Vitest', () => {
+    const skipped = testScenario(
+      'reconnect-replay',
+      { skipReason: 'TLON-6098: reconnect does not replay missed messages' },
+      async () => {}
+    );
+
+    expect(skipped.skipReason).toBe(
+      'TLON-6098: reconnect does not replay missed messages'
+    );
+    expect(scenariosForPartition([baseline, skipped], 'baseline')).toContain(
+      skipped
+    );
+    expect(scenarioTestName(skipped)).toBe(
+      'reconnect replay (skipped: TLON-6098: reconnect does not replay missed messages)'
+    );
   });
 
   test('rejects unknown requested partitions', () => {

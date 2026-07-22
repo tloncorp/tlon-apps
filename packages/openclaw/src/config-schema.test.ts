@@ -30,6 +30,16 @@ describe('Tlon config schema', () => {
     expect(parsed.accounts?.primary?.ship).toBe('~zod');
   });
 
+  it('rejects whitespace-only ship configuration', () => {
+    expect(() =>
+      TlonConfigSchema.parse({
+        accounts: {
+          primary: { ship: ' ' },
+        },
+      })
+    ).toThrow();
+  });
+
   it('accepts opt-in telemetry configuration', () => {
     const parsed = TlonConfigSchema.parse({
       telemetry: {
