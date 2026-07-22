@@ -1,6 +1,6 @@
 import type { LookupFn, SsrFPolicy } from 'openclaw/plugin-sdk/ssrf-runtime';
 
-import { UrbitAuthError } from './errors.js';
+import { UrbitAuthError, UrbitHttpError } from './errors.js';
 import { urbitFetch } from './fetch.js';
 
 export type UrbitAuthenticateOptions = {
@@ -36,10 +36,16 @@ export async function authenticate(
 
   try {
     if (!response.ok) {
-      throw new UrbitAuthError(
-        'auth_failed',
-        `Login failed with status ${response.status}`
-      );
+      if (response.status === 401 || response.status === 403) {
+        throw new UrbitAuthError(
+          'auth_failed',
+          `Login failed with status ${response.status}`
+        );
+      }
+      throw new UrbitHttpError({
+        operation: 'Login',
+        status: response.status,
+      });
     }
 
     // Some Urbit setups require the response body to be read before cookie headers finalize.

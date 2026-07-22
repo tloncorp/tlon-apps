@@ -4,6 +4,10 @@ export type TlonAuthPhase = 'startup' | 're_auth';
 
 export const AUTH_PLUGIN_ERROR_GRACE_MS = 3 * 60_000;
 
+export function authRetryDelayMs(attempt: number): number {
+  return Math.min(30_000, 1_000 * Math.pow(2, attempt - 1));
+}
+
 type AuthRetryState = {
   startedAtMs: number;
   attempt: number;

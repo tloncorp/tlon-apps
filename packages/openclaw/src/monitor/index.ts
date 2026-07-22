@@ -7,6 +7,7 @@ import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
 import {
   type TlonAuthPhase,
+  authRetryDelayMs,
   authRetryStateKey,
   clearAuthRetryState,
   recordAuthRetryFailure,
@@ -81,7 +82,7 @@ import {
   serializeContextLensReferenceBlob,
 } from '../urbit/blob.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
-import { describeError } from '../urbit/errors.js';
+import { UrbitAuthError, describeError } from '../urbit/errors.js';
 import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
 import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
@@ -421,7 +422,6 @@ export async function monitorTlonProvider(
 
   // Helper to authenticate with retry logic
   async function authenticateWithRetry(
-    maxAttempts = 10,
     source: 'auth' | 're_auth' = 'auth'
   ): Promise<string> {
     const authPhase: TlonAuthPhase = source === 'auth' ? 'startup' : 're_auth';
@@ -432,7 +432,6 @@ export async function monitorTlonProvider(
 
     for (let attempt = 1; ; attempt++) {
       if (opts.abortSignal?.aborted) {
-        clearAuthRetryState(retryStateKey);
         throw new Error('Aborted while waiting to authenticate');
       }
       try {
@@ -444,10 +443,11 @@ export async function monitorTlonProvider(
         return cookie;
       } catch (error: any) {
         const failure = recordAuthRetryFailure(retryStateKey);
+        const permanentAuthFailure = error instanceof UrbitAuthError;
         const errorKind = classifyPluginError(error);
         const errorText = formatTlonTelemetryErrorText(error);
 
-        if (failure.shouldCapturePluginError) {
+        if (permanentAuthFailure || failure.shouldCapturePluginError) {
           capturePluginError(source, error, {
             attempt: failure.attempt,
             downMs: failure.downMs,
@@ -473,17 +473,21 @@ export async function monitorTlonProvider(
             `[tlon] Waiting for moon (${authPhase}, attempt ${failure.attempt}, ${Math.round(failure.downMs / 1000)}s elapsed): ${error?.message ?? String(error)}`
           );
         }
-        if (attempt >= maxAttempts) {
+
+        // Permanent login failures should be actionable immediately. Transient
+        // failures stay in this monitor until the grace window has produced a
+        // Plugin Error, rather than relying on a fixed attempt count that can
+        // expire before three minutes when failures return quickly.
+        if (permanentAuthFailure || failure.shouldCapturePluginError) {
           throw error;
         }
-        const delay = Math.min(30000, 1000 * Math.pow(2, attempt - 1));
+        const delay = authRetryDelayMs(attempt);
         runtime.log?.(`[tlon] Retrying authentication in ${delay}ms...`);
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(resolve, delay);
           if (opts.abortSignal) {
             const onAbort = () => {
               clearTimeout(timer);
-              clearAuthRetryState(retryStateKey);
               reject(new Error('Aborted'));
             };
             opts.abortSignal.addEventListener('abort', onAbort, { once: true });
@@ -531,7 +535,7 @@ export async function monitorTlonProvider(
       // Re-authenticate on reconnect in case the session expired
       onReconnect: async (client) => {
         runtime.log?.('[tlon] Re-authenticating on SSE reconnect...');
-        const newCookie = await authenticateWithRetry(5, 're_auth');
+        const newCookie = await authenticateWithRetry('re_auth');
         client.updateCookie(newCookie);
         runtime.log?.('[tlon] Re-authentication successful');
       },

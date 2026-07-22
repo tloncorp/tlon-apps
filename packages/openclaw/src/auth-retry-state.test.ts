@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   AUTH_PLUGIN_ERROR_GRACE_MS,
+  authRetryDelayMs,
   authRetryStateKey,
   clearAuthRetryState,
   recordAuthRetryFailure,
@@ -43,6 +44,24 @@ describe('auth retry state', () => {
       attempt: 1,
       downMs: 0,
       shouldCapturePluginError: false,
+    });
+  });
+
+  it('keeps fast transient failures retrying until the grace window', () => {
+    let nowMs = 1_000;
+
+    for (let attempt = 1; attempt <= 10; attempt++) {
+      expect(recordAuthRetryFailure(key, nowMs)).toMatchObject({
+        attempt,
+        shouldCapturePluginError: false,
+      });
+      nowMs += authRetryDelayMs(attempt);
+    }
+
+    expect(recordAuthRetryFailure(key, nowMs)).toEqual({
+      attempt: 11,
+      downMs: 181_000,
+      shouldCapturePluginError: true,
     });
   });
 });
