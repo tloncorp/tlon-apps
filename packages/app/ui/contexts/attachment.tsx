@@ -82,12 +82,6 @@ function addAttachmentToState(
       errorMessage: validation.reason,
     };
   }
-  if (attachment.type === 'video') {
-    return {
-      attachments: [...prev.filter((att) => att.type !== 'video'), attachment],
-      errorMessage: null,
-    };
-  }
   return {
     attachments: [...prev, attachment],
     errorMessage: null,

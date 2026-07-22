@@ -130,8 +130,9 @@ async function runDriverRuntime(args: {
     );
   }
 
+  let runFailed = false;
   try {
-    await compose.down();
+    await compose.down({ allowFailure: true });
     await assertRequestedPortsAvailable(
       requestedRuntimeEndpointPorts(ctx.endpoints)
     );
@@ -151,6 +152,7 @@ async function runDriverRuntime(args: {
       }
     }
   } catch (error) {
+    runFailed = true;
     const diagnostics = await collectDiagnostics(
       ctx,
       compose,
@@ -163,8 +165,20 @@ async function runDriverRuntime(args: {
     throw error;
   } finally {
     if (!args.keepStack) {
-      await compose.down();
-      await args.driver.afterComposeDown?.(ctx);
+      try {
+        await compose.down({ verify: true });
+        await args.driver.afterComposeDown?.(ctx);
+      } catch (cleanupError) {
+        if (!runFailed) {
+          throw cleanupError;
+        }
+        console.error('\n==> Compose teardown failed during cleanup\n');
+        console.error(
+          cleanupError instanceof Error
+            ? cleanupError.stack ?? cleanupError.message
+            : cleanupError
+        );
+      }
     } else {
       console.error(
         `Keeping compose stack ${ctx.composeProjectName} because TLON_BOT_E2E_KEEP_STACK is set.`

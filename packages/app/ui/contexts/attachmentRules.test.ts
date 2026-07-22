@@ -39,6 +39,14 @@ test('allows one video', () => {
   expect(canAddAttachment([], makeVideo())).toEqual({ ok: true });
 });
 
+test('rejects a second video', () => {
+  expect(canAddAttachment([makeVideo()], makeVideo())).toEqual({
+    ok: false,
+    reason: VIDEO_COMPOSITION_ERROR,
+    kind: 'composition',
+  });
+});
+
 test('rejects video mixed with non-text media', () => {
   expect(canAddAttachment([makeImage()], makeVideo())).toEqual({
     ok: false,
