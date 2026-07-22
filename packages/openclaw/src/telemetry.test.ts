@@ -1912,7 +1912,8 @@ describe('cron telemetry capture', () => {
     const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
     expect(call.event).toBe('TlonBot Cron Run');
     expect(call.distinctId).toBe('~zod');
-    expect(call.properties.status).toBe('error');
+    expect(call.properties.cronStatus).toBe('error');
+    expect(call.properties).not.toHaveProperty('status');
     expect(call.properties.cronError).toBe('model timed out');
     expect(call.properties.durationMs).toBe(1_234);
     expect(call.properties.deliveryStatus).toBe('not-delivered');

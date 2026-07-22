@@ -1754,7 +1754,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           jobId: event.jobId,
           jobName: event.jobName,
           runId: event.runId,
-          status: event.status,
+          cronStatus: event.status,
           cronError: event.cronError,
           durationMs: event.durationMs,
           runAtMs: event.runAtMs,
