@@ -112,6 +112,42 @@ describe('UrbitSSEClient', () => {
     });
   });
 
+  describe('poke responses', () => {
+    it('does not log successful acknowledgements', () => {
+      const log = vi.fn();
+      const error = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { logger: { log, error } }
+      );
+
+      client.processEvent('data: {"response":"poke","id":123}');
+
+      expect(log).not.toHaveBeenCalled();
+      expect(error).not.toHaveBeenCalled();
+    });
+
+    it('keeps poke failures observable', () => {
+      const log = vi.fn();
+      const error = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { logger: { log, error } }
+      );
+
+      client.processEvent(
+        'data: {"response":"poke","id":123,"err":{"message":"nack"}}'
+      );
+
+      expect(log).not.toHaveBeenCalled();
+      expect(error).toHaveBeenCalledWith(
+        '[SSE] Poke NACK id=123: {"message":"nack"}'
+      );
+    });
+  });
+
   describe('scry', () => {
     it('forwards optional timeout and abort signal to scryUrbitPath', async () => {
       const { scryUrbitPath } = await import('./channel-ops.js');
