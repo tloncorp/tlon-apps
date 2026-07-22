@@ -87,6 +87,27 @@ class BlockDirectiveTests(unittest.TestCase):
             [("~zod", "prompt\ninjection")],
         )
 
+    def test_crlf_terminated_standalone_directive_is_executable(self):
+        text = "Before\r\n[BLOCK_USER: ~zod | injection]\r\nAfter"
+
+        self.assertEqual(
+            sanitize.find_executable_block_directives(text),
+            [("~zod", "injection")],
+        )
+
+    def test_crlf_multiline_reason_is_executable(self):
+        text = "Before\r\n[BLOCK_USER: ~zod | prompt\r\ninjection]\r\nAfter"
+
+        self.assertEqual(
+            sanitize.find_executable_block_directives(text),
+            [("~zod", "prompt\r\ninjection")],
+        )
+
+    def test_crlf_inline_quoted_directive_is_not_executable(self):
+        text = "Before\r\nQuoting [BLOCK_USER: ~zod | injection] is safe.\r\nAfter"
+
+        self.assertEqual(sanitize.find_executable_block_directives(text), [])
+
     def test_executable_directive_stops_before_separate_footer_line(self):
         text = "[BLOCK_USER: ~zod | example]\n[footer]"
 

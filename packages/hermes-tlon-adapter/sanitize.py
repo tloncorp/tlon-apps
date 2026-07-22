@@ -9,7 +9,7 @@ BLOCK_DIRECTIVE_RE = re.compile(
     r"\[BLOCK_USER:\s*(~[\w-]+)\s*\|\s*(.+?)\]", re.IGNORECASE | re.DOTALL
 )
 EXECUTABLE_BLOCK_DIRECTIVE_RE = re.compile(
-    r"^[^\S\r\n]*\[BLOCK_USER:\s*(~[\w-]+)\s*\|\s*([^\]]+?)\][^\S\r\n]*$",
+    r"^[^\S\r\n]*\[BLOCK_USER:\s*(~[\w-]+)\s*\|\s*([^\]]+?)\][^\S\n]*$",
     re.IGNORECASE | re.DOTALL | re.MULTILINE,
 )
 _BLOCK_DIRECTIVE_PREFIX = "[BLOCK_USER:"
