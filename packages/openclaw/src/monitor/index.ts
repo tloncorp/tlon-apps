@@ -76,13 +76,16 @@ import {
 } from '../telemetry.js';
 import { resolveTlonAccount } from '../types.js';
 import { configureTlonApiWithPoke } from '../urbit/api-client.js';
-import { authenticate } from '../urbit/auth.js';
+import {
+  authenticate,
+  isPermanentAuthenticationFailure,
+} from '../urbit/auth.js';
 import {
   serializeBlobField,
   serializeContextLensReferenceBlob,
 } from '../urbit/blob.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
-import { UrbitAuthError, describeError } from '../urbit/errors.js';
+import { describeError } from '../urbit/errors.js';
 import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
 import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
@@ -443,7 +446,7 @@ export async function monitorTlonProvider(
         return cookie;
       } catch (error: any) {
         const failure = recordAuthRetryFailure(retryStateKey);
-        const permanentAuthFailure = error instanceof UrbitAuthError;
+        const permanentAuthFailure = isPermanentAuthenticationFailure(error);
         const errorKind = classifyPluginError(error);
         const errorText = formatTlonTelemetryErrorText(error);
 

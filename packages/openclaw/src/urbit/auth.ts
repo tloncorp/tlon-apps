@@ -1,6 +1,10 @@
-import type { LookupFn, SsrFPolicy } from 'openclaw/plugin-sdk/ssrf-runtime';
+import {
+  type LookupFn,
+  SsrFBlockedError,
+  type SsrFPolicy,
+} from 'openclaw/plugin-sdk/ssrf-runtime';
 
-import { UrbitAuthError, UrbitHttpError } from './errors.js';
+import { UrbitAuthError, UrbitHttpError, UrbitUrlError } from './errors.js';
 import { urbitFetch } from './fetch.js';
 
 export type UrbitAuthenticateOptions = {
@@ -12,6 +16,14 @@ export type UrbitAuthenticateOptions = {
   ) => Promise<Response>;
   timeoutMs?: number;
 };
+
+export function isPermanentAuthenticationFailure(error: unknown): boolean {
+  return (
+    error instanceof UrbitAuthError ||
+    error instanceof UrbitUrlError ||
+    error instanceof SsrFBlockedError
+  );
+}
 
 export async function authenticate(
   url: string,
