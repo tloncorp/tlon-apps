@@ -436,6 +436,8 @@ function BareChatInput(
         const draftBase = {
           channelId,
           content: inlines,
+          // Unlike Gallery, Chat keeps every item from a multi-selection in
+          // the same post.
           attachments,
           image: image?.uri,
           channelType,

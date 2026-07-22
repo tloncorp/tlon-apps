@@ -1,5 +1,6 @@
 import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
 import { JSONContent, Story } from '@tloncorp/api/urbit';
+import type { PostSendOptions } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
@@ -28,7 +29,10 @@ import InputMentionPopup from './InputMentionPopup';
 export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
-  sendPostFromDraft: (draft: domain.PostDataDraft) => Promise<void>;
+  sendPostFromDraft: (
+    draft: domain.PostDataDraft,
+    options?: PostSendOptions
+  ) => Promise<void>;
   channelId: string;
   groupId?: string | null;
   groupMembers: db.ChatMember[];
