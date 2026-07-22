@@ -1199,6 +1199,15 @@ class AdapterApprovalTests(unittest.TestCase):
     def test_ban_by_ship_clears_pending_and_unban_reverses(self):
         adapter = self.make_adapter()
         self.queue_dm_request(adapter)
+        adapter._pending_approvals.append(
+            {
+                "id": "channel-request",
+                "type": "channel",
+                "requestingShip": "~ten",
+                "channelNest": "chat/~pen/general",
+                "timestamp": int(time.time() * 1000),
+            }
+        )
 
         self.dispatches(
             adapter,
@@ -1206,8 +1215,11 @@ class AdapterApprovalTests(unittest.TestCase):
             dm=True,
         )
         self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(
+            adapter._sse.settings_writes("pendingApprovals")[-1], []
+        )
         self.assertEqual(len(adapter._sse.pokes_for("chat-block-ship")), 1)
-        self.assertIn("Removed 1 pending request(s).", adapter._cli.messages[-1][1])
+        self.assertIn("Removed 2 pending request(s).", adapter._cli.messages[-1][1])
 
         self.dispatches(
             adapter,

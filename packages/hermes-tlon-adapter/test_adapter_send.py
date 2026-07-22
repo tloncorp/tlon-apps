@@ -469,6 +469,28 @@ class BlockDirectiveSendTests(unittest.TestCase):
         self.assertEqual(adapter._cli.sent[0][2], "Refused.")
         self.assertNotIn("BLOCK_USER", adapter._cli.sent[0][2])
 
+    def test_owner_block_notification_truncates_huge_multiline_reason(self):
+        adapter, _event = self.correlated_adapter()
+        reason = ("first line\nsecond line\n" * 500) + "unbounded tail"
+
+        asyncio.run(adapter._notify_owner("~attacker", reason))
+
+        text = self.notifications(adapter)[0][3]
+        truncated_reason = reason[:499].rstrip() + "…"
+        self.assertLessEqual(len(text), adapter_mod.MAX_MESSAGE_LENGTH)
+        self.assertIn(f"Reason: {truncated_reason}", text)
+        self.assertNotIn("unbounded tail", text)
+
+    def test_owner_block_notification_preserves_short_reason(self):
+        adapter, _event = self.correlated_adapter()
+
+        asyncio.run(adapter._notify_owner("~attacker", "prompt\ninjection"))
+
+        self.assertEqual(
+            self.notifications(adapter)[0][3],
+            "[Agent Action] Blocked ~attacker\nReason: prompt\ninjection",
+        )
+
     def test_correlated_dm_inline_quoted_directive_is_strip_only(self):
         adapter, _event = self.correlated_adapter()
 
@@ -530,11 +552,16 @@ class BlockDirectiveSendTests(unittest.TestCase):
         self.assertEqual(len(events), 1)
         self.assertTrue(events[0].text.startswith("first"))
 
-    def test_directive_block_removes_pending_approvals_and_persists(self):
+    def test_directive_block_removes_only_dm_approvals_and_persists(self):
         adapter, _event = self.correlated_adapter()
         adapter._pending_approvals = [
-            {"id": "target", "requestingShip": "~attacker"},
-            {"id": "other", "requestingShip": "~other"},
+            {"id": "target-dm", "type": "dm", "requestingShip": "~attacker"},
+            {
+                "id": "target-channel",
+                "type": "channel",
+                "requestingShip": "~attacker",
+            },
+            {"id": "other", "type": "dm", "requestingShip": "~other"},
         ]
 
         result = asyncio.run(
@@ -542,9 +569,17 @@ class BlockDirectiveSendTests(unittest.TestCase):
         )
 
         self.assertTrue(result.success)
-        self.assertEqual(adapter._pending_approvals, [
-            {"id": "other", "requestingShip": "~other"}
-        ])
+        self.assertEqual(
+            adapter._pending_approvals,
+            [
+                {
+                    "id": "target-channel",
+                    "type": "channel",
+                    "requestingShip": "~attacker",
+                },
+                {"id": "other", "type": "dm", "requestingShip": "~other"},
+            ],
+        )
         settings_pokes = [
             poke
             for poke in adapter._sse.pokes

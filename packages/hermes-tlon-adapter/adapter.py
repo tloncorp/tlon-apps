@@ -307,6 +307,7 @@ _NUDGE_SNAPSHOT_FIELDS = {
 # transport backpressure rather than accumulating unbounded work under
 # sustained overload.
 _STREAM_EVENT_QUEUE_MAXSIZE = 1024
+_OWNER_BLOCK_REASON_MAX_CHARS = 500
 
 try:
     import aiohttp as _aiohttp  # noqa: F401
@@ -1764,7 +1765,10 @@ class TlonAdapter(BasePlatformAdapter):
             action = f"Blocked {target}"
         else:
             action = f"Tried to block {target} but the block failed."
-        text = f"[Agent Action] {action}\nReason: {reason}"
+        reason = str(reason or "")
+        if len(reason) > _OWNER_BLOCK_REASON_MAX_CHARS:
+            reason = reason[: _OWNER_BLOCK_REASON_MAX_CHARS - 1].rstrip() + "…"
+        text = f"[Agent Action] {action}\nReason: {reason}"[:MAX_MESSAGE_LENGTH]
         with cli_context("owner_notification"):
             result = await self._cli.run_command(("posts", "send", owner, text))
         if not result.success:
@@ -1782,11 +1786,14 @@ class TlonAdapter(BasePlatformAdapter):
             SETTINGS_KEY_PENDING_APPROVALS, json.dumps(self._pending_approvals)
         )
 
-    async def _drop_pending_approvals_for(self, ship: str) -> int:
+    async def _drop_pending_approvals_for(
+        self, ship: str, *, types: tuple[str, ...] | None = None
+    ) -> int:
         remaining = [
             item
             for item in self._pending_approvals
             if approval_ship(item) != ship
+            or (types is not None and approval_type(item) not in types)
         ]
         removed = len(self._pending_approvals) - len(remaining)
         if removed:
@@ -3918,7 +3925,7 @@ class TlonAdapter(BasePlatformAdapter):
                 await self._notify_owner(target, reason, block_succeeded=False)
                 continue
             await self._remove_from_dm_allowlist(target)
-            await self._drop_pending_approvals_for(target)
+            await self._drop_pending_approvals_for(target, types=("dm",))
             await self._notify_owner(target, reason)
 
         return strip_block_directives(content).strip(), True
