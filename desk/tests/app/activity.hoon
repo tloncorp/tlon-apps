@@ -38,6 +38,109 @@
   =/  new-indices  indices.state-11
   (ex-equal !>(new-indices) !>(want-indices))
 ::
+::  a %note-create event indexes under its note source and rolls up
+::  through notebook -> group -> base, notifying by default
+::
+++  test-note-activity-rollup
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (do-init dap activity-agent)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
+  ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
+  =/  book=[p=@p q=@tas]  [~zod %journal]
+  =/  grp=(unit [p=@p q=@tas])  `[~zod %gardening]
+  =/  note-src=source:v10:av  [%note 42 book grp]
+  ;<  *  bind:m
+    %-  do-poke
+    activity-action-2+!>(`action:v10:av`[%add %note-create 42 7 book grp 'T' ~wet])
+  ;<  sv=vase  bind:m  get-save
+  =/  st  !<(state-11 sv)
+  =/  ac  activity.st
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by ac) note-src)) !>(1))
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by ac) [%notebook book grp])) !>(1))
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by ac) [%group ~zod %gardening])) !>(1))
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by ac) [%base ~])) !>(1))
+  ;<  *  bind:m  (ex-equal !>(notify-count:(~(got by ac) note-src)) !>(1))
+  (ex-equal !>(notify:(~(got by ac) note-src)) !>(&))
+::  a standalone notebook (no group) parents straight to base
+::
+++  test-note-activity-standalone-parents-to-base
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (do-init dap activity-agent)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
+  ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
+  =/  book=[p=@p q=@tas]  [~zod %journal]
+  ;<  *  bind:m
+    %-  do-poke
+    activity-action-2+!>(`action:v10:av`[%add %note-create 42 7 book ~ 'T' ~wet])
+  ;<  sv=vase  bind:m  get-save
+  =/  st  !<(state-11 sv)
+  =/  ac  activity.st
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by ac) [%notebook book ~])) !>(1))
+  (ex-equal !>(count:(~(got by ac) [%base ~])) !>(1))
+::  del-event of the prior edit keeps one unread edit per author (the
+::  coalescing %notes relies on), and read %all clears the whole chain
+::
+++  test-note-activity-coalesce-and-read
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (do-init dap activity-agent)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
+  ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
+  =/  book=[p=@p q=@tas]  [~zod %journal]
+  =/  note-src=source:v10:av  [%note 42 book ~]
+  =/  create=incoming-event:v10:av  [%note-create 42 7 book ~ 'T' ~wet]
+  =/  edit1=incoming-event:v10:av   [%note-edit 42 7 book ~ 'T' ~wet]
+  =/  edit2=incoming-event:v10:av   [%note-edit 42 3 book ~ 'T2' ~wet]
+  ;<  *  bind:m
+    (do-poke activity-action-2+!>(`action:v10:av`[%add create]))
+  ;<  *  bind:m
+    (do-poke activity-action-2+!>(`action:v10:av`[%add edit1]))
+  ;<  *  bind:m
+    (do-poke activity-action-2+!>(`action:v10:av`[%del-event note-src edit1]))
+  ;<  *  bind:m
+    (do-poke activity-action-2+!>(`action:v10:av`[%add edit2]))
+  ;<  sv=vase  bind:m  get-save
+  =/  st  !<(state-11 sv)
+  ::  create + one live edit: the replaced edit1 does not count
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by activity.st) note-src)) !>(2))
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by activity.st) [%base ~])) !>(2))
+  ;<  *  bind:m
+    %-  do-poke
+    activity-action-2+!>(`action:v10:av`[%read note-src [%all ~ |]])
+  ;<  sv2=vase  bind:m  get-save
+  =/  st2  !<(state-11 sv2)
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by activity.st2) note-src)) !>(0))
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by activity.st2) [%notebook book ~])) !>(0))
+  (ex-equal !>(count:(~(got by activity.st2) [%base ~])) !>(0))
+::  %del of the notebook source drops the notebook and its note children
+::
+++  test-note-activity-del-notebook
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (do-init dap activity-agent)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
+  ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
+  =/  book=[p=@p q=@tas]  [~zod %journal]
+  ;<  *  bind:m
+    %-  do-poke
+    activity-action-2+!>(`action:v10:av`[%add %note-create 42 7 book ~ 'T' ~wet])
+  ;<  *  bind:m
+    %-  do-poke
+    activity-action-2+!>(`action:v10:av`[%del %notebook book ~])
+  ;<  sv=vase  bind:m  get-save
+  =/  st  !<(state-11 sv)
+  ;<  *  bind:m
+    (ex-equal !>((~(has by activity.st) [%notebook book ~])) !>(|))
+  ;<  *  bind:m
+    (ex-equal !>((~(has by activity.st) [%note 42 book ~])) !>(|))
+  (ex-equal !>((~(has by indices.st) [%note 42 book ~])) !>(|))
+::
 ++  test-fix-init
   =+  state-0:fix-init
   %-  eval-mare
