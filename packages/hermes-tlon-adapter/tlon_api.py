@@ -39,7 +39,16 @@ DEFAULT_NUDGE_TICK_INTERVAL_MS = 15 * 60 * 1000
 
 
 class TlonTerminalActionError(ConnectionError):
-    """A channel action rejected by Eyre, so retrying it cannot help."""
+    """A channel action rejected by Eyre, so retrying it cannot help.
+
+    `status` is the rejecting HTTP status when known, so callers can tell an
+    auth rejection (401/403) from a malformed action (400/422) without
+    parsing the message.
+    """
+
+    def __init__(self, message: str, *, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 def normalize_ship(ship: str) -> str:
@@ -1201,7 +1210,7 @@ class TlonSSEClient:
                 # request-timeout/too-early responses, server errors, and
                 # other non-4xx responses may also recover.
                 if 400 <= resp.status < 500 and resp.status not in (404, 408, 410, 425, 429):
-                    raise TlonTerminalActionError(message)
+                    raise TlonTerminalActionError(message, status=resp.status)
                 raise ConnectionError(message)
 
     async def _parse_sse_payload(self, payload: str) -> Optional[TlonSSEEvent]:

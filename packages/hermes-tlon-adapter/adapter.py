@@ -2511,10 +2511,26 @@ class TlonAdapter(BasePlatformAdapter):
                 if not self._running:
                     return
                 if self._sse is None:
-                    logger.warning("[tlon] SSE setup failed, retrying: %s", exc)
                     self._nudge_settings_ready = False
                     self._nudge_load_generation += 1
                     await self._stop_nudge_settings_retry()
+                    if (
+                        isinstance(exc, TlonTerminalActionError)
+                        and exc.status in (401, 403)
+                        and not self._can_reauthenticate()
+                    ):
+                        # Setup rejects auth in open()/subscribe() (a channel
+                        # PUT) rather than on the SSE GET, so it never reaches
+                        # the TlonChannelError branch. Same policy applies: a
+                        # configured cookie the ship rejects can never succeed,
+                        # and retrying forever just hammers the ship.
+                        logger.error(
+                            "[tlon] SSE setup auth rejected, stopping: %s", exc
+                        )
+                        self._telemetry.error("sse", exc, operation="setup")
+                        self._set_fatal_error("auth", str(exc), retryable=False)
+                        return
+                    logger.warning("[tlon] SSE setup failed, retrying: %s", exc)
                     await _backoff_and_report(exc, mode="rebuild")
                 else:
                     logger.warning(

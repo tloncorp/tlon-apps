@@ -569,6 +569,84 @@ class StreamLoopTests(unittest.TestCase):
                 self.assertEqual(len(sse_instances), 2)
                 self.assertIsNone(adapter._fatal_error)
 
+    def _run_setup_rejection(self, extra, exc):
+        """Drive _run_stream where _connect_sse raises during setup."""
+        adapter = self.make_adapter(extra)
+        attempts = []
+
+        async def failing_connect():
+            attempts.append(1)
+            adapter._sse = object()
+            raise exc
+
+        adapter._connect_sse = failing_connect
+
+        async def close_sse(*, graceful=True):
+            adapter._sse = None
+
+        adapter._close_sse = close_sse
+        telemetry_errors = []
+        reconnects = []
+        adapter._telemetry = types.SimpleNamespace(
+            sse_reconnect=lambda **kw: (
+                reconnects.append(kw),
+                # Never let a non-fatal path spin: stop after the first backoff.
+                setattr(adapter, "_running", False),
+            ),
+            error=lambda *a, **kw: telemetry_errors.append((a, kw)),
+        )
+        calls = []
+        patches = self._patch_catchups(adapter, calls)
+
+        async def run():
+            with patches[0], patches[1], patches[2]:
+                await adapter._run_stream()
+
+        with patch("asyncio.sleep", _instant_sleep):
+            asyncio.run(run())
+        return adapter, attempts, telemetry_errors, reconnects
+
+    def test_setup_401_403_fixed_cookie_is_fatal(self):
+        for status in (401, 403):
+            with self.subTest(status=status):
+                adapter, attempts, telemetry_errors, reconnects = (
+                    self._run_setup_rejection(
+                        {"cookie": "urbauth=abc123"},
+                        tlon_api.TlonTerminalActionError(
+                            f"Tlon channel action failed: HTTP {status}", status=status
+                        ),
+                    )
+                )
+                self.assertIsNotNone(adapter._fatal_error)
+                self.assertEqual(adapter._fatal_error["code"], "auth")
+                self.assertFalse(adapter._fatal_error["retryable"])
+                self.assertEqual(len(attempts), 1, "must not retry a dead cookie")
+                self.assertEqual(reconnects, [], "must not back off and retry")
+                self.assertEqual(telemetry_errors[0][1]["operation"], "setup")
+
+    def test_setup_401_with_ship_code_retries(self):
+        adapter, attempts, telemetry_errors, reconnects = self._run_setup_rejection(
+            {"access_code": "code"},
+            tlon_api.TlonTerminalActionError(
+                "Tlon channel action failed: HTTP 401", status=401
+            ),
+        )
+        self.assertIsNone(adapter._fatal_error)
+        self.assertEqual(len(reconnects), 1)
+        self.assertEqual(reconnects[0]["mode"], "rebuild")
+
+    def test_setup_400_fixed_cookie_is_not_fatal(self):
+        adapter, attempts, telemetry_errors, reconnects = self._run_setup_rejection(
+            {"cookie": "urbauth=abc123"},
+            tlon_api.TlonTerminalActionError(
+                "Tlon channel action failed: HTTP 400", status=400
+            ),
+        )
+        self.assertIsNone(
+            adapter._fatal_error, "a malformed action is not an auth rejection"
+        )
+        self.assertEqual(len(reconnects), 1)
+
     def test_401_fixed_cookie_is_fatal(self):
         adapter = self.make_adapter({"cookie": "urbauth=abc123"})
         close_calls = []
