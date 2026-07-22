@@ -73,6 +73,9 @@ export default ({ mode }: { mode: string }) => {
       return [
         basicSsl() as Plugin,
         react({
+          babel: {
+            plugins: ['babel-plugin-react-compiler'],
+          },
           jsxImportSource: wdyrJsxImportSource,
         }) as PluginOption[],
       ];
@@ -85,6 +88,7 @@ export default ({ mode }: { mode: string }) => {
         react({
           babel: {
             plugins: [
+              'babel-plugin-react-compiler',
               '@babel/plugin-proposal-export-namespace-from',
               'react-native-worklets/plugin',
             ],
@@ -117,6 +121,7 @@ export default ({ mode }: { mode: string }) => {
           // adding these per instructions here:
           // https://docs.swmansion.com/react-native-reanimated/docs/guides/web-support/
           plugins: [
+            'babel-plugin-react-compiler',
             '@babel/plugin-proposal-export-namespace-from',
             'react-native-worklets/plugin',
           ],

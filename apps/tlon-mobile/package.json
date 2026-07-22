@@ -172,6 +172,7 @@
     "@types/seedrandom": "^3.0.5",
     "@types/tmp": "^0.2.6",
     "babel-plugin-inline-import": "^3.0.0",
+    "babel-plugin-react-compiler": "1.0.0",
     "babel-preset-expo": "~57.0.0",
     "better-sqlite3": "11.8.1",
     "concurrently": "^8.0.1",
