@@ -428,8 +428,7 @@ then
     fi
 fi
 
-safe_base_rev=$(printf '%s' "$base_rev" | sed 's/[^A-Za-z0-9_-]/-/g')
-pill_name="groups-$safe_base_rev-$base_hash-$groups_hash"
+pill_name="groups-$base_hash-$groups_hash"
 pill_file=$pill_name.pill
 
 if [[ ! -e ./$pill_file ]]
