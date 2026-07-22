@@ -1458,28 +1458,6 @@ describe('deleting a sent-but-unsequenced post', () => {
   beforeEach(async () => {
     await db.insertChannels([
       db.buildChannel({ id: TEST_CHANNEL, type: 'chat' }),
-// TLON-6133: deleting a post that is pinned/arranged also removes it from
-// the channel order.
-describe('deleting a pinned post', () => {
-  const GROUP_CHANNEL = 'chat/~zod/general';
-  const GROUP_ID = '~zod/test-group';
-
-  beforeEach(async () => {
-    await getClient()!
-      .insert(db.schema.groups)
-      .values({
-        id: GROUP_ID,
-        currentUserIsMember: true,
-        currentUserIsHost: false,
-        hostUserId: '~zod',
-      })
-      .onConflictDoNothing();
-    await db.insertChannels([
-      db.buildChannel({
-        id: GROUP_CHANNEL,
-        type: 'chat',
-        groupId: GROUP_ID,
-      }),
     ]);
     vi.mocked(poke).mockResolvedValue(0);
     updateSession({ startTime: Date.now(), channelStatus: 'active' });
@@ -1492,13 +1470,6 @@ describe('deleting a pinned post', () => {
 
   async function seedSentUnsequencedPost(): Promise<db.Post> {
     const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
-    vi.restoreAllMocks();
-    vi.mocked(poke).mockReset();
-    updateSession(null);
-  });
-
-  async function seedPinnedPost(order?: string[]): Promise<db.Post> {
-    const channel = (await db.getChannel({ id: GROUP_CHANNEL }))!;
     const post = db.buildPost({
       authorId: '~zod',
       author: null,
@@ -1566,6 +1537,69 @@ describe('deleting a pinned post', () => {
       // unsequenced by the time the delete is acknowledged.
       await db.updatePost({ id: post.id, sequenceNum: 42 });
       return 0;
+    });
+
+    await deletePost({ post });
+
+    const rowAfter = await fetchPost(post.id);
+    expect(rowAfter).toBeTruthy();
+    expect(rowAfter!.isDeleted).toBe(true);
+    expect(rowAfter!.sequenceNum).toBe(42);
+  });
+
+  test('deletePost() failure rolls back and does NOT hard-delete the row', async () => {
+    const post = await seedSentUnsequencedPost();
+    vi.mocked(poke).mockRejectedValueOnce(new Error('nack'));
+
+    await deletePost({ post });
+
+    const rowAfter = await fetchPost(post.id);
+    expect(rowAfter).toBeTruthy();
+    expect(rowAfter!.isDeleted).toBeFalsy();
+    expect(rowAfter!.deliveryStatus).toBe('sent');
+    expect(rowAfter!.deleteStatus).toBe('failed');
+  });
+});
+
+// TLON-6133: deleting a post that is pinned/arranged also removes it from
+// the channel order.
+describe('deleting a pinned post', () => {
+  const GROUP_CHANNEL = 'chat/~zod/general';
+  const GROUP_ID = '~zod/test-group';
+
+  beforeEach(async () => {
+    await getClient()!
+      .insert(db.schema.groups)
+      .values({
+        id: GROUP_ID,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+        hostUserId: '~zod',
+      })
+      .onConflictDoNothing();
+    await db.insertChannels([
+      db.buildChannel({
+        id: GROUP_CHANNEL,
+        type: 'chat',
+        groupId: GROUP_ID,
+      }),
+    ]);
+    vi.mocked(poke).mockResolvedValue(0);
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.mocked(poke).mockReset();
+    updateSession(null);
+  });
+
+  async function seedPinnedPost(order?: string[]): Promise<db.Post> {
+    const channel = (await db.getChannel({ id: GROUP_CHANNEL }))!;
+    const post = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
       sequenceNum: 1,
       content: [{ inline: ['pinned post'] }],
       deliveryStatus: 'sent',
@@ -1633,23 +1667,6 @@ describe('deleting a pinned post', () => {
 
     await deletePost({ post });
 
-    const rowAfter = await fetchPost(post.id);
-    expect(rowAfter).toBeTruthy();
-    expect(rowAfter!.isDeleted).toBe(true);
-    expect(rowAfter!.sequenceNum).toBe(42);
-  });
-
-  test('deletePost() failure rolls back and does NOT hard-delete the row', async () => {
-    const post = await seedSentUnsequencedPost();
-    vi.mocked(poke).mockRejectedValueOnce(new Error('nack'));
-
-    await deletePost({ post });
-
-    const rowAfter = await fetchPost(post.id);
-    expect(rowAfter).toBeTruthy();
-    expect(rowAfter!.isDeleted).toBeFalsy();
-    expect(rowAfter!.deliveryStatus).toBe('sent');
-    expect(rowAfter!.deleteStatus).toBe('failed');
     expect((await fetchPost(post.id))!.deleteStatus).toBe('sent');
     const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
     expect(channelAfter!.order).toEqual([]);
