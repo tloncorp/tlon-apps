@@ -5094,7 +5094,9 @@ export async function monitorTlonProvider(
           return;
         }
         try {
-          const refreshResult = await settingsManager.load();
+          const refreshResult = await settingsManager.load({
+            logSnapshot: false,
+          });
           applySettingsSnapshot(refreshResult.settings, 'refresh', {
             fresh: refreshResult.fresh,
           });
