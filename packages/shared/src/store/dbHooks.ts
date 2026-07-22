@@ -50,8 +50,9 @@ export const useCurrentChats = (
     // Older settled-delete ghosts can leave `lastPostId` nulled while the old
     // `lastPostAt` survives. Treat this metadata shape only as a candidate:
     // ordinary deletes can produce it while the local post cache is partial.
-    // The DB check below gates recomputation on the actual persisted ghost row.
-    const staleChannelIds = new Set<string>();
+    // The DB check below gates recomputation on the actual persisted ghost row
+    // whose `receivedAt` matches the stale `lastPostAt`.
+    const staleChannels = new Map<string, number>();
     const chats = [
       ...query.data.pinned,
       ...query.data.pending,
@@ -61,17 +62,20 @@ export const useCurrentChats = (
       const channels =
         chat.type === 'channel' ? [chat.channel] : chat.group.channels ?? [];
       for (const channel of channels) {
-        if (channel.lastPostId === null && channel.lastPostAt !== null) {
-          staleChannelIds.add(channel.id);
+        if (channel.lastPostId === null && channel.lastPostAt != null) {
+          staleChannels.set(channel.id, channel.lastPostAt);
         }
       }
     }
-    if (staleChannelIds.size === 0) return;
+    if (staleChannels.size === 0) return;
 
     void (async () => {
-      const ghostChannelIds = await db.getSettledDeletedGhostChannelIds([
-        ...staleChannelIds,
-      ]);
+      const ghostChannelIds = await db.getSettledDeletedGhostChannelIds(
+        [...staleChannels].map(([channelId, lastPostAt]) => ({
+          channelId,
+          lastPostAt,
+        }))
+      );
       for (const channelId of ghostChannelIds) {
         await db.recomputeChannelLastPost({ channelId });
       }

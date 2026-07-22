@@ -1384,6 +1384,8 @@ describe('getSettledDeletedGhostChannelIds', () => {
     });
   }
 
+  const GHOST_RECEIVED_AT = 5_000;
+
   test('returns only channels with an acknowledged, unsequenced settled-delete ghost', async () => {
     const ghostChannel = 'ghost-evidence-channel';
     const inFlightChannel = 'in-flight-delete-channel';
@@ -1395,28 +1397,53 @@ describe('getSettledDeletedGhostChannelIds', () => {
       }))
     );
     await seedPost(ghostChannel, 'settled-ghost', {
+      receivedAt: GHOST_RECEIVED_AT,
       isDeleted: true,
       deleteStatus: 'sent',
     });
     await seedPost(inFlightChannel, 'in-flight-delete', {
+      receivedAt: GHOST_RECEIVED_AT,
       deliveryStatus: 'pending',
       isDeleted: true,
       deleteStatus: 'sent',
     });
     await seedPost(ordinaryDeleteChannel, 'ordinary-delete', {
+      receivedAt: GHOST_RECEIVED_AT,
       sequenceNum: 42,
       deliveryStatus: null,
       isDeleted: true,
       deleteStatus: 'sent',
     });
 
-    const ids = await queries.getSettledDeletedGhostChannelIds([
-      ghostChannel,
-      inFlightChannel,
-      ordinaryDeleteChannel,
-    ]);
+    const ids = await queries.getSettledDeletedGhostChannelIds(
+      [ghostChannel, inFlightChannel, ordinaryDeleteChannel].map(
+        (channelId) => ({ channelId, lastPostAt: GHOST_RECEIVED_AT })
+      )
+    );
 
     expect(ids).toEqual([ghostChannel]);
+  });
+
+  test('excludes a ghost row whose receivedAt does not match the stale lastPostAt', async () => {
+    // The stale `lastPostId: null` shape came from an ordinary delete of a
+    // different, newer head (nulled while the local cache was partial); the
+    // channel only incidentally also holds an older settled-delete ghost.
+    // Recomputing here would blank/rewind the real preview, so match the
+    // specific ghost row before repairing.
+    const channel = 'mismatched-ghost-channel';
+    await queries.insertChannels([{ id: channel, type: 'chat' }]);
+    await seedPost(channel, 'older-ghost', {
+      receivedAt: GHOST_RECEIVED_AT,
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+
+    const staleLastPostAt = GHOST_RECEIVED_AT + 1_000;
+    const ids = await queries.getSettledDeletedGhostChannelIds([
+      { channelId: channel, lastPostAt: staleLastPostAt },
+    ]);
+
+    expect(ids).toEqual([]);
   });
 });
 

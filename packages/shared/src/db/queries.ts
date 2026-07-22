@@ -4650,20 +4650,39 @@ export const getPendingPosts = createReadQuery(
 );
 
 /**
- * Return only channels containing the persisted TLON-5911 ghost shape. This
- * lets preview repair distinguish a settled acknowledged delete from ordinary
- * `lastPostId: null` states that may have only a partial local post cache.
+ * Return only channels whose persisted TLON-5911 ghost row is the same post
+ * that left the stale preview behind. This lets preview repair distinguish a
+ * settled acknowledged delete from ordinary `lastPostId: null` states that may
+ * have only a partial local post cache.
+ *
+ * A candidate is `{ channelId, lastPostAt }`: `deletePost` nulls
+ * `channels.lastPostId` but leaves `lastPostAt` at the deleted head's
+ * `receivedAt`, so the ghost row that produced the stale shape has a matching
+ * `receivedAt`. Matching on it avoids recomputing (and thereby blanking or
+ * rewinding) a head that an unrelated ordinary delete nulled while the local
+ * post cache was only partial, even when the channel happens to also hold an
+ * older settled-delete ghost.
  */
 export const getSettledDeletedGhostChannelIds = createReadQuery(
   'getSettledDeletedGhostChannelIds',
-  async (channelIds: string[], ctx: QueryCtx) => {
-    if (channelIds.length === 0) return [];
+  async (
+    candidates: { channelId: string; lastPostAt: number }[],
+    ctx: QueryCtx
+  ) => {
+    if (candidates.length === 0) return [];
     const rows = await ctx.db
       .selectDistinct({ channelId: $posts.channelId })
       .from($posts)
       .where(
         and(
-          inArray($posts.channelId, channelIds),
+          or(
+            ...candidates.map((candidate) =>
+              and(
+                eq($posts.channelId, candidate.channelId),
+                eq($posts.receivedAt, candidate.lastPostAt)
+              )
+            )
+          ),
           eq($posts.isDeleted, true),
           eq($posts.deleteStatus, 'sent'),
           eq($posts.sequenceNum, 0),

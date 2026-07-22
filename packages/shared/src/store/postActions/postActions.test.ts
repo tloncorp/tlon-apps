@@ -1699,4 +1699,53 @@ describe('deleting a pinned post', () => {
     const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
     expect(channelAfter!.order).toEqual([post.id]);
   });
+
+  // A pinned post can also be an acknowledged-but-unsequenced send. When the
+  // delete poke's ack is lost but the server confirms the delete, the
+  // verification branches must run the same guarded hard-delete as the success
+  // path — otherwise the `sequenceNum: 0` ghost (and its live overlay) is left
+  // behind exactly like TLON-5911, just reached via the lost-ack path.
+  async function seedPinnedUnsequencedPost(): Promise<db.Post> {
+    const channel = (await db.getChannel({ id: GROUP_CHANNEL }))!;
+    const post = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 0,
+      content: [{ inline: [friendlyUniqueString()] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [post] });
+    await db.updateChannel({ id: GROUP_CHANNEL, order: [post.id] });
+    return post;
+  }
+
+  test('lost ack via isDeleted hard-deletes an unsequenced pinned post', async () => {
+    const post = await seedPinnedUnsequencedPost();
+    vi.mocked(poke).mockRejectedValue(new Error('ack lost'));
+    vi.spyOn(api, 'getPostWithReplies').mockResolvedValue({
+      ...post,
+      isDeleted: true,
+    });
+
+    await deletePost({ post });
+
+    expect(await fetchPost(post.id)).toBeUndefined();
+    const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channelAfter!.order).toEqual([]);
+  });
+
+  test('lost ack via 404 hard-deletes an unsequenced pinned post', async () => {
+    const post = await seedPinnedUnsequencedPost();
+    vi.mocked(poke).mockRejectedValue(new Error('ack lost'));
+    vi.spyOn(api, 'getPostWithReplies').mockRejectedValue(
+      new api.BadResponseError(404, '')
+    );
+
+    await deletePost({ post });
+
+    expect(await fetchPost(post.id)).toBeUndefined();
+    const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channelAfter!.order).toEqual([]);
+  });
 });
