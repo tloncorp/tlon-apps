@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/tlon-skill-linux-arm64",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Tlon skill binary for Linux arm64",
   "os": [
     "linux"
