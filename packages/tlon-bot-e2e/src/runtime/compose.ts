@@ -10,6 +10,8 @@ import type {
 } from '../drivers/types.js';
 import { buildComposeProcessEnv } from './env.js';
 
+const DEFAULT_DOWN_TIMEOUT_MS = 60_000;
+
 interface RunOptions {
   allowFailure?: boolean;
   env?: Record<string, string>;
@@ -18,7 +20,10 @@ interface RunOptions {
   timeoutMs?: number;
 }
 
-export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
+export function createComposeHandle(
+  ctx: RuntimeContext,
+  commandRunner: typeof runCommand = runCommand
+): ComposeHandle {
   const composeFiles = ctx.composeFiles.map((file) => path.resolve(file));
   for (const file of composeFiles) {
     if (!path.isAbsolute(file)) {
@@ -35,7 +40,7 @@ export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
     args: string[],
     opts: RunOptions = {}
   ): Promise<ExecResult> => {
-    const result = await runCommand(
+    const result = await commandRunner(
       'docker',
       ['compose', ...fileArgs(composeFiles), ...args],
       {
@@ -96,7 +101,7 @@ export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
       const tailArgs =
         typeof opts.tail === 'number' ? [`--tail=${opts.tail}`] : [];
       const result = await runCompose(['logs', ...tailArgs, ...services], {
-        allowFailure: true,
+        allowFailure: opts.allowFailure ?? true,
         stream: false,
         timeoutMs: opts.timeoutMs,
       });
@@ -111,11 +116,93 @@ export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
     },
 
     async down(opts = {}) {
-      await runCompose(['down', ...(opts.volumes === false ? [] : ['-v'])], {
-        allowFailure: true,
-      });
+      const timeoutMs = opts.timeoutMs ?? DEFAULT_DOWN_TIMEOUT_MS;
+      const deadline = Date.now() + timeoutMs;
+      const remaining = () => Math.max(0, deadline - Date.now());
+      const failures: string[] = [];
+
+      const downResult = await runCompose(
+        ['down', ...(opts.volumes === false ? [] : ['-v'])],
+        { allowFailure: true, timeoutMs: remaining() }
+      );
+      if (downResult.exitCode !== 0 && !opts.allowFailure) {
+        failures.push(
+          `docker compose down failed with exit ${downResult.exitCode}\n` +
+            downResult.stderr.trim()
+        );
+      }
+
+      if (opts.verify) {
+        const projectName = ctx.composeProjectName;
+        const containerListing = await commandRunner(
+          'docker',
+          [
+            'ps',
+            '-a',
+            '--filter',
+            `label=com.docker.compose.project=${projectName}`,
+            '--format',
+            '{{.ID}}\\t{{.Names}}',
+          ],
+          { env, cwd: ctx.packageDir, stream: false, timeoutMs: remaining() }
+        );
+        const volumeListing = await commandRunner(
+          'docker',
+          [
+            'volume',
+            'ls',
+            '--filter',
+            `label=com.docker.compose.project=${projectName}`,
+            '--format',
+            '{{.Name}}',
+          ],
+          { env, cwd: ctx.packageDir, stream: false, timeoutMs: remaining() }
+        );
+
+        if (containerListing.exitCode !== 0) {
+          failures.push(
+            `docker ps -a (verify) failed with exit ` +
+              `${containerListing.exitCode}\n` +
+              containerListing.stderr.trim()
+          );
+        }
+        if (volumeListing.exitCode !== 0) {
+          failures.push(
+            `docker volume ls (verify) failed with exit ` +
+              `${volumeListing.exitCode}\n` +
+              volumeListing.stderr.trim()
+          );
+        }
+
+        const leakedContainers = nonBlankLines(containerListing.stdout);
+        const leakedVolumes = nonBlankLines(volumeListing.stdout);
+        const leakGroups: string[] = [];
+        if (leakedContainers.length > 0) {
+          leakGroups.push(`leaked containers:\n${leakedContainers.join('\n')}`);
+        }
+        if (leakedVolumes.length > 0) {
+          leakGroups.push(`leaked volumes:\n${leakedVolumes.join('\n')}`);
+        }
+        if (leakGroups.length > 0) {
+          failures.push(leakGroups.join('\n'));
+        }
+      }
+
+      if (failures.length > 0) {
+        throw new Error(
+          `compose teardown failed for project ${ctx.composeProjectName}:\n` +
+            failures.join('\n')
+        );
+      }
     },
   };
+}
+
+function nonBlankLines(output: string): string[] {
+  return output
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 function fileArgs(files: string[]): string[] {

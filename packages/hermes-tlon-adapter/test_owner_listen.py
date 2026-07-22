@@ -197,7 +197,10 @@ class SettingsEventTests(unittest.TestCase):
         }
         for raw in (put, {"settings-event": put}):
             event = ol.parse_settings_event(raw)
-            self.assertEqual(event, ol.SettingsEvent(key="ownerListenEnabled", value=False))
+            self.assertEqual(
+                event,
+                ol.SettingsEvent(key="ownerListenEnabled", value=False),
+            )
 
     def test_parse_del_entry(self):
         event = ol.parse_settings_event(
@@ -211,7 +214,10 @@ class SettingsEventTests(unittest.TestCase):
                 }
             }
         )
-        self.assertEqual(event, ol.SettingsEvent(key="ownerListenDisabledChannels", value=None))
+        self.assertEqual(
+            event,
+            ol.SettingsEvent(key="ownerListenDisabledChannels", value=None),
+        )
 
     def test_parse_ignores_other_desks_buckets_and_shapes(self):
         wrong_desk = {

@@ -196,6 +196,17 @@ def settings_put_entry(key: str, value: Any) -> dict[str, Any]:
     }
 
 
+def settings_del_entry(key: str) -> dict[str, Any]:
+    """JSON payload for a %settings del-entry poke (mark settings-event)."""
+    return {
+        "del-entry": {
+            "desk": SETTINGS_DESK,
+            "bucket-key": SETTINGS_BUCKET,
+            "entry-key": key,
+        }
+    }
+
+
 @dataclass(frozen=True)
 class SettingsEvent:
     """A put or delete for one entry in our settings bucket.
