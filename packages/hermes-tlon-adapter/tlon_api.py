@@ -1124,8 +1124,12 @@ class TlonSSEClient:
                 connect=60,
             ),
         ) as resp:
-            if resp.status == 404:
-                raise TlonChannelError("Tlon channel reaped", status=404)
+            if resp.status in (404, 410):
+                # _send_actions already treats 404/410 as a stale, reaped
+                # channel; the SSE GET must agree, or a 410 would be
+                # classified as a resumable transport fault and the adapter
+                # would re-GET a dead channel forever.
+                raise TlonChannelError("Tlon channel reaped", status=resp.status)
             if resp.status in (401, 403):
                 raise TlonChannelError(
                     f"Tlon channel unauthorized: HTTP {resp.status}", status=resp.status

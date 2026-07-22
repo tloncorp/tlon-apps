@@ -1563,11 +1563,12 @@ class TlonSSEClientResumeTests(unittest.TestCase):
         self.assertEqual(acked, [121])
         self.assertEqual(client._last_acked_event_id, 121)
 
-    def test_status_mapping_404_401_403_500(self):
+    def test_status_mapping_404_410_401_403_500(self):
         fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
 
         for status, expected_type, expected_status in [
             (404, tlon_api.TlonChannelError, 404),
+            (410, tlon_api.TlonChannelError, 410),
             (401, tlon_api.TlonChannelError, 401),
             (403, tlon_api.TlonChannelError, 403),
         ]:
