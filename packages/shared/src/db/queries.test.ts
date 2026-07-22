@@ -3,7 +3,7 @@ import { v0PeersToClientProfiles } from '@tloncorp/api';
 import { toClientGroupsV7 } from '@tloncorp/api';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 import * as schema from '../db/schema';
 import { syncContacts, syncInitData } from '../store/sync';
@@ -1350,6 +1350,86 @@ describe('deleteUnsequencedAcknowledgedPost', () => {
     await queries.updatePost({ id: post.id, sequenceNum: 42 });
 
     const deleted = await queries.deleteUnsequencedAcknowledgedPost(post.id);
+
+    expect(deleted).toBeNull();
+    expect(await queries.getPost({ postId: post.id })).toMatchObject({
+      id: post.id,
+      sequenceNum: 42,
+    });
+  });
+});
+
+describe('deleteSettledUnsequencedDeletedPost', () => {
+  const channelId = 'settled-delete-on-send-channel';
+
+  async function seedPost(id: string, overrides: Partial<Post> = {}) {
+    const post = {
+      id,
+      type: 'chat',
+      channelId,
+      authorId: '~zod',
+      sentAt: Date.now(),
+      receivedAt: Date.now(),
+      sequenceNum: 0,
+      deliveryStatus: 'sent',
+      isDeleted: true,
+      deleteStatus: 'sent',
+      content: JSON.stringify([{ inline: ['seed'] }]),
+      syncedAt: Date.now(),
+      ...overrides,
+    } as Post;
+    await queries.insertChannelPosts({ posts: [post] });
+    return post;
+  }
+
+  beforeEach(async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  });
+
+  test('removes a settled-delete row once its send resolves to sent', async () => {
+    const post = await seedPost('settled-delete-delivered');
+
+    const deleted = await queries.deleteSettledUnsequencedDeletedPost(post.id);
+
+    expect(deleted?.id).toBe(post.id);
+    expect(await queries.getPost({ postId: post.id })).toBeNull();
+  });
+
+  test('leaves a normally delivered post untouched', async () => {
+    // Same acknowledged/unsequenced shape but NOT deleted — must never be
+    // removed just because its send resolved.
+    const post = await seedPost('live-delivered', {
+      isDeleted: false,
+      deleteStatus: null,
+    });
+
+    const deleted = await queries.deleteSettledUnsequencedDeletedPost(post.id);
+
+    expect(deleted).toBeNull();
+    expect(await queries.getPost({ postId: post.id })).toMatchObject({
+      id: post.id,
+    });
+  });
+
+  test('waits while the send is still in flight', async () => {
+    const post = await seedPost('settled-delete-in-flight', {
+      deliveryStatus: 'pending',
+    });
+
+    const deleted = await queries.deleteSettledUnsequencedDeletedPost(post.id);
+
+    expect(deleted).toBeNull();
+    expect(await queries.getPost({ postId: post.id })).toMatchObject({
+      id: post.id,
+    });
+  });
+
+  test('preserves a sequenced echo that wins the race', async () => {
+    const post = await seedPost('settled-delete-sequenced', {
+      sequenceNum: 42,
+    });
+
+    const deleted = await queries.deleteSettledUnsequencedDeletedPost(post.id);
 
     expect(deleted).toBeNull();
     expect(await queries.getPost({ postId: post.id })).toMatchObject({

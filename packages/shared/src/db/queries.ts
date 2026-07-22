@@ -4204,6 +4204,39 @@ export const deleteUnsequencedAcknowledgedPost = createWriteQuery(
   ['posts']
 );
 
+/**
+ * Finish a settled delete once the original send finally resolves to `sent`.
+ *
+ * Covers the ordering where a user deletes an optimistic post while its send
+ * is still `enqueued`/`pending`: the delete can be acknowledged before
+ * delivery flips the row to `sent`, so `deleteUnsequencedAcknowledgedPost`
+ * matches nothing at delete time (delivery isn't acknowledged yet) and the
+ * settled-delete row lingers. When `markPostSent` later flips delivery to
+ * `sent`, this removes the row. The `isDeleted` / `deleteStatus` / delivery
+ * guard is enforced in the DELETE predicate so it can never touch a normally
+ * delivered post, and returns the row only when it actually removed it.
+ */
+export const deleteSettledUnsequencedDeletedPost = createWriteQuery(
+  'deleteSettledUnsequencedDeletedPost',
+  async (postId: string, ctx: QueryCtx) => {
+    const deleted = await ctx.db
+      .delete($posts)
+      .where(
+        and(
+          eq($posts.id, postId),
+          eq($posts.isDeleted, true),
+          eq($posts.deleteStatus, 'sent'),
+          eq($posts.sequenceNum, 0),
+          isNull($posts.parentId),
+          eq($posts.deliveryStatus, 'sent')
+        )
+      )
+      .returning();
+    return deleted[0] ?? null;
+  },
+  ['posts']
+);
+
 export const markPostAsDeleted = createWriteQuery(
   'markPostAsDeleted',
   async (postId: string, ctx: QueryCtx) => {
