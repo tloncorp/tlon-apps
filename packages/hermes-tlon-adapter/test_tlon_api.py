@@ -469,6 +469,55 @@ class TlonSSEClientTests(unittest.TestCase):
 
         asyncio.run(run())
 
+    def test_optional_subscription_error_is_skipped_not_raised(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+        client = tlon_api.TlonSSEClient(cfg)
+        client._subscriptions[3] = ("steward", "/v1/lens")
+        client._optional_subscriptions.add(3)
+        client._last_acked_event_id = 100
+
+        async def run():
+            result = await client._parse_sse_payload(
+                'id: 24\ndata: {"id":3,"response":"subscribe","err":"no-such-agent"}\n\n'
+            )
+            self.assertIsNone(result)
+
+        asyncio.run(run())
+        # The dead optional sub is forgotten so its later facts aren't matched.
+        self.assertNotIn(3, client._subscriptions)
+        self.assertNotIn(3, client._optional_subscriptions)
+
+    def test_optional_subscription_quit_forces_reconnect(self):
+        # `optional` only suppresses the initial unavailability. Once the
+        # subscription is established, a quit must raise so the stream
+        # reconnects and re-subscribes — otherwise the adapter goes
+        # permanently deaf to (e.g.) owner Retry facts.
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+        client = tlon_api.TlonSSEClient(cfg)
+        client._subscriptions[4] = ("steward", "/v1/lens")
+        client._optional_subscriptions.add(4)
+        client._last_acked_event_id = 100
+
+        async def run():
+            with self.assertRaisesRegex(ConnectionError, "subscription quit.*steward"):
+                await client._parse_sse_payload(
+                    'id: 25\ndata: {"id":4,"response":"quit"}\n\n'
+                )
+
+        asyncio.run(run())
+
     def test_non_graceful_close_abandons_channel_without_unsubscribing(self):
         cfg = tlon_api.TlonConfig.from_env(
             env={
@@ -1082,6 +1131,200 @@ class MessageParsingTests(unittest.TestCase):
         self.assertEqual(message.message_id, "dm-reply")
         self.assertEqual(message.reply_to_message_id, "dm-root")
         self.assertEqual(message.blob, blob)
+
+
+class ReactionParsingTests(unittest.TestCase):
+    def test_config_reaction_level_defaults_and_invalid_values(self):
+        required = {
+            "TLON_NODE_URL": "https://zod.tlon.network",
+            "TLON_NODE_ID": "~zod",
+            "TLON_ACCESS_CODE": "code",
+        }
+        self.assertEqual(tlon_api.TlonConfig.from_env(env=required).reaction_level, "minimal")
+        self.assertEqual(
+            tlon_api.TlonConfig.from_env(
+                env={**required, "TLON_REACTION_LEVEL": "EXTENSIVE"}
+            ).reaction_level,
+            "extensive",
+        )
+        self.assertEqual(
+            tlon_api.TlonConfig.from_env(
+                env={**required, "TLON_REACTION_LEVEL": "unexpected"}
+            ).reaction_level,
+            "minimal",
+        )
+
+    def test_channel_snapshot_decodes_plain_bot_any_and_reply_entries(self):
+        raw = {
+            "nest": "chat/~zod/general",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "reacts": {
+                            "~mug": "👍",
+                            "~bot/nick": {
+                                "ship": "~bot",
+                                "nickname": "nick",
+                                "avatar": None,
+                                "react": {"any": "🔥"},
+                            },
+                        }
+                    },
+                }
+            },
+        }
+        snapshot = tlon_api.parse_channel_reacts_snapshot(raw)
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot.post_id, "170.141")
+        self.assertIsNone(snapshot.parent_id)
+        self.assertEqual(snapshot.entries["~mug"], ("👍", "~mug", False))
+        self.assertEqual(snapshot.entries["~bot/nick"], ("🔥", "~bot", True))
+
+        reply_raw = {
+            "nest": "chat/~zod/general",
+            "response": {
+                "post": {
+                    "id": "root",
+                    "r-post": {
+                        "reply": {
+                            "id": "reply",
+                            "r-reply": {"reacts": {"~mug": {"any": ":wave:"}}},
+                        }
+                    },
+                }
+            },
+        }
+        reply = tlon_api.parse_channel_reacts_snapshot(reply_raw)
+        self.assertEqual(reply.post_id, "reply")
+        self.assertEqual(reply.parent_id, "root")
+        self.assertEqual(reply.entries["~mug"], (":wave:", "~mug", False))
+
+    def test_channel_snapshot_rejects_whole_map_on_bad_entry(self):
+        raw = {
+            "nest": "chat/~zod/general",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {"reacts": {"~mug": "👍", "~bad": {"nope": 1}}},
+                }
+            },
+        }
+        self.assertIsNone(tlon_api.parse_channel_reacts_snapshot(raw))
+
+    def test_dm_reactions_cover_add_remove_reply_bot_any_club_and_self(self):
+        add = {
+            "whom": "~mug",
+            "id": "~zod/170.141",
+            "response": {"add-react": {"author": "~mug", "react": {"any": "👍"}}},
+        }
+        reaction = tlon_api.parse_dm_reaction(add, self_ship="~zod")
+        self.assertEqual((reaction.chat_id, reaction.post_id, reaction.emoji, reaction.added), ("~mug", "~zod/170.141", "👍", True))
+        self.assertEqual(reaction.wire_key, "~mug")
+
+        remove = {
+            "whom": "~mug",
+            "id": "~zod/170.141",
+            "response": {"del-react": {"ship": "~bot", "nickname": "nick", "avatar": None}},
+        }
+        removed = tlon_api.parse_dm_reaction(remove, self_ship="~zod")
+        self.assertFalse(removed.added)
+        self.assertEqual(removed.emoji, "")
+        self.assertEqual((removed.wire_key, removed.reactor, removed.reactor_is_bot), ("~bot/nick", "~bot", True))
+
+        reply = {
+            "whom": "~mug",
+            "id": "~zod/root",
+            "response": {
+                "reply": {
+                    "id": "~zod/reply",
+                    "delta": {"add-react": {"author": "~mug", "react": "🔥"}},
+                }
+            },
+        }
+        reply_reaction = tlon_api.parse_dm_reaction(reply, self_ship="~zod")
+        self.assertEqual((reply_reaction.post_id, reply_reaction.parent_id), ("~zod/reply", "~zod/root"))
+        self.assertIsNone(
+            tlon_api.parse_dm_reaction(
+                {**add, "whom": "0v5.legacy"}, self_ship="~zod"
+            )
+        )
+        self.assertIsNone(
+            tlon_api.parse_dm_reaction(
+                {**add, "response": {"add-react": {"author": "~zod", "react": "👍"}}},
+                self_ship="~zod",
+            )
+        )
+
+    def test_bot_reaction_author_allows_null_nickname(self):
+        # nickname is wire type `(unit @t)`: a bot profile without a nickname
+        # serializes null, which must not drop the reaction or reject a snapshot.
+        add = {
+            "whom": "~mug",
+            "id": "~zod/170.141",
+            "response": {
+                "add-react": {
+                    "author": {"ship": "~bot", "nickname": None, "avatar": None},
+                    "react": {"any": "👍"},
+                }
+            },
+        }
+        reaction = tlon_api.parse_dm_reaction(add, self_ship="~zod")
+        self.assertIsNotNone(reaction)
+        self.assertEqual(reaction.reactor, "~bot")
+        self.assertTrue(reaction.reactor_is_bot)
+        self.assertEqual(reaction.emoji, "👍")
+
+        raw = {
+            "nest": "chat/~zod/general",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "reacts": {
+                            "~mug": "👍",
+                            "~bot/": {
+                                "ship": "~bot",
+                                "nickname": None,
+                                "avatar": None,
+                                "react": {"any": "🔥"},
+                            },
+                        }
+                    },
+                }
+            },
+        }
+        snapshot = tlon_api.parse_channel_reacts_snapshot(raw)
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot.entries["~mug"], ("👍", "~mug", False))
+        self.assertEqual(snapshot.entries["~bot/"], ("🔥", "~bot", True))
+
+    def test_include_self_preserves_author_without_changing_dm_partner(self):
+        channel = tlon_api.parse_channel_message(
+            {
+                "nest": "chat/~zod/general",
+                "response": {
+                    "post": {
+                        "id": "170.141",
+                        "r-post": {"set": {"essay": {"author": "~zod", "sent": 1, "content": [{"inline": ["hi"]}]}}},
+                    }
+                },
+            },
+            self_ship="~zod",
+            include_self=True,
+        )
+        dm = tlon_api.parse_dm_message(
+            {
+                "whom": "~mug",
+                "id": "~zod/170.141",
+                "response": {"add": {"essay": {"author": "~zod", "sent": 1, "content": [{"inline": ["hi"]}]}}},
+            },
+            self_ship="~zod",
+            include_self=True,
+        )
+        self.assertEqual(channel.author_id, "~zod")
+        self.assertEqual(dm.author_id, "~zod")
+        self.assertEqual((dm.chat_id, dm.user_id), ("~mug", "~mug"))
 
 
 if __name__ == "__main__":

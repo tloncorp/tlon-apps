@@ -778,11 +778,27 @@ export async function deletePost({ post }: { post: db.Post }) {
     ? await db.getPost({ postId: existingPost.parentId })
     : null;
 
+  // A deleted post can't stay pinned/arranged. The channel host drops it
+  // from the order when it processes the delete (emitting an %order
+  // update); mirror that locally so the pinned banner disappears right
+  // away. No set-order poke here — authors can delete their own posts
+  // without holding the admin role that reordering requires.
+  const channel = await db.getChannel({ id: post.channelId });
+  const orderWithPost = channel?.order?.includes(post.id)
+    ? channel.order
+    : null;
+
   // optimistic update
   deleteFromChannelPosts(post);
   await db.markPostAsDeleted(post.id);
   await db.updatePost({ id: post.id, deleteStatus: 'enqueued' });
   await db.updateChannel({ id: post.channelId, lastPostId: null });
+  if (orderWithPost) {
+    await db.updateChannel({
+      id: post.channelId,
+      order: orderWithPost.filter((id) => id !== post.id),
+    });
+  }
 
   try {
     await db.updatePost({ id: post.id, deleteStatus: 'pending' });
@@ -809,6 +825,32 @@ export async function deletePost({ post }: { post: db.Post }) {
       await finishHardDeletedPost(deletedPost);
     }
   } catch (e) {
+    // A rejected poke may only mean its acknowledgement was lost. Before
+    // restoring a pinned post from a stale snapshot, ask the ship whether
+    // the delete landed. Group-channel post scries omit tombstones, so a 404
+    // is also confirmation that the post is gone.
+    if (orderWithPost) {
+      try {
+        const serverPost = await api.getPostWithReplies({
+          channelId: post.channelId,
+          postId: post.id,
+          authorId: post.authorId,
+        });
+        if (serverPost.isDeleted) {
+          await db.updatePost({ id: post.id, deleteStatus: 'sent' });
+          return;
+        }
+      } catch (verifyError) {
+        if (
+          verifyError instanceof api.BadResponseError &&
+          verifyError.status === 404
+        ) {
+          await db.updatePost({ id: post.id, deleteStatus: 'sent' });
+          return;
+        }
+      }
+    }
+
     console.error('Failed to delete post', e);
 
     // rollback optimistic update
@@ -819,6 +861,9 @@ export async function deletePost({ post }: { post: db.Post }) {
       deleteStatus: 'failed',
     });
     await db.updateChannel({ id: post.channelId, lastPostId: post.id });
+    if (orderWithPost) {
+      await db.updateChannel({ id: post.channelId, order: orderWithPost });
+    }
   }
 }
 

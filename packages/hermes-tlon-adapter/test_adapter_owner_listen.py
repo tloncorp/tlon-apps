@@ -68,12 +68,14 @@ class SendResult:
         error=None,
         raw_response=None,
         retryable=False,
+        continuation_message_ids=(),
     ):
         self.success = success
         self.message_id = message_id
         self.error = error
         self.raw_response = raw_response or {}
         self.retryable = retryable
+        self.continuation_message_ids = tuple(continuation_message_ids)
 
 
 class BasePlatformAdapter:
@@ -274,6 +276,9 @@ class AdapterOwnerListenTests(unittest.TestCase):
             "access_code": "code",
             "channels": ["chat/~pen/general"],
             "owner_ship": "~mug",
+            # Owner-listen/context assertions are independent of reaction id
+            # rendering (covered by test_adapter_reactions).
+            "reaction_level": "off",
         }
         base.update(extra)
         with patch.dict(os.environ, {}, clear=True):

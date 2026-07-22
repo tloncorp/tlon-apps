@@ -20,10 +20,10 @@ import {
 export const POSTS_HELP = `Usage: tlon posts <command>
 
 Commands:
-  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>]
+  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>] [--title <text>]
   reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship] [--blob <json>]
-  react <channel> <post-id> <emoji>     React to a post with an emoji
-  unreact <channel> <post-id>           Remove your reaction from a post
+  react <channel> <post-id> <emoji>     React to a post with an emoji [--parent <post-id>]
+  unreact <channel> <post-id>           Remove your reaction from a post [--parent <post-id>]
   edit <channel> <post-id> <message>    Edit a post's message text
   delete <channel> <post-id>            Delete a post
 
@@ -31,12 +31,14 @@ Send options:
   --blob <json>        Attach a post-blob JSON array (e.g. an a2ui entry)
   --image <url>        Attach an image (direct png/jpeg/gif/webp URL, e.g. from
                        'tlon upload'); message becomes an optional caption
+  --title <text>       Set a title on a gallery (heap/) post
   --sent-at <ms>       Override the send timestamp (unix ms); the post id
                        derives from it. Applies to send and reply.
 
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
   tlon posts send chat/~host/channel "Look at this" --image https://storage.../tree.png
+  tlon posts send heap/~host/gallery "A link or caption" --title "Gallery item"
   tlon posts reply chat/~host/channel 170.141... "Thread reply"
   tlon posts edit chat/~host/channel 170.141... "Updated message"
 
@@ -44,11 +46,12 @@ Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--sent-at <ms>] (message optional with --image)',
+  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--sent-at <ms>] (message optional with --image)',
   reply:
     'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>] [--sent-at <ms>]',
-  react: 'Usage: tlon posts react <channel> <post-id> <emoji>',
-  unreact: 'Usage: tlon posts unreact <channel> <post-id>',
+  react:
+    'Usage: tlon posts react <channel> <post-id> <emoji> [--parent <post-id>]',
+  unreact: 'Usage: tlon posts unreact <channel> <post-id> [--parent <post-id>]',
   edit: 'Usage: tlon posts edit <channel> <post-id> <message>',
   delete: 'Usage: tlon posts delete <channel> <post-id>',
 };
@@ -66,7 +69,7 @@ const POSTS_EDIT_REMOVED_FLAGS_MESSAGE =
   'tlon posts edit no longer supports --title/--image/--content (notebook-only affordances). Edit the message text directly; use `tlon notes` for %notes content.';
 
 const POST_REPLY_OPTION_FLAGS = ['author', 'blob', 'sent-at'] as const;
-const POST_SEND_OPTION_FLAGS = ['blob', 'image', 'sent-at'] as const;
+const POST_SEND_OPTION_FLAGS = ['blob', 'image', 'title', 'sent-at'] as const;
 
 export interface PostReactionInput {
   channelId: string;
@@ -74,6 +77,7 @@ export interface PostReactionInput {
   emoji: string;
   our: string;
   postAuthor: string;
+  parentId?: string;
 }
 
 export interface PostReactionRemoveInput {
@@ -81,6 +85,7 @@ export interface PostReactionRemoveInput {
   postId: string;
   our: string;
   postAuthor: string;
+  parentId?: string;
 }
 
 export interface PostDeleteInput {
@@ -111,6 +116,7 @@ export interface PostSendInput {
   sentAt: number;
   content: Story;
   blob?: string;
+  metadata?: { title?: string };
 }
 
 export interface PostReplyInput {
@@ -172,6 +178,7 @@ type ParsedPostsArgs =
       channelId: string;
       message: string;
       imageUrl?: string;
+      title?: string;
       blob?: string;
       sentAt?: number;
     }
@@ -184,8 +191,14 @@ type ParsedPostsArgs =
       blob?: string;
       sentAt?: number;
     }
-  | { kind: 'react'; channelId: string; postId: string; emoji: string }
-  | { kind: 'unreact'; channelId: string; postId: string }
+  | {
+      kind: 'react';
+      channelId: string;
+      postId: string;
+      emoji: string;
+      parentId?: string;
+    }
+  | { kind: 'unreact'; channelId: string; postId: string; parentId?: string }
   | { kind: 'delete'; channelId: string; postId: string }
   | { kind: 'edit'; channelId: string; postId: string; message: string };
 
@@ -205,6 +218,20 @@ function formatUd(id: string): string {
 
 function formatPostId(postId: string): string {
   return formatUd(extractNumericId(postId));
+}
+
+function optionalReactionParent(
+  args: string[],
+  help: string
+): string | undefined {
+  const idx = args.indexOf('--parent');
+  if (idx === -1) return undefined;
+  // Reject a duplicate `--parent` and a value that is itself an option
+  // token (e.g. `--parent --bogus` reading the next flag as the id).
+  if (args.indexOf('--parent', idx + 1) !== -1) throw usageError(help);
+  const parentId = args[idx + 1];
+  if (!parentId || parentId.startsWith('--')) throw usageError(help);
+  return parentId;
 }
 
 // Optional `--sent-at <unix-ms>`: overrides the send timestamp so a caller
@@ -292,6 +319,18 @@ function validatedBlobFlag(
     throw commandError('--blob must be a JSON array of post-blob entries');
   }
   return blob;
+}
+
+function validatedTitleFlag(args: string[], usage: string): string | undefined {
+  const titleIdx = args.indexOf('--title');
+  if (titleIdx === -1) {
+    return undefined;
+  }
+  const title = args[titleIdx + 1];
+  if (!title || title.startsWith('--')) {
+    throw usageError(usage);
+  }
+  return title;
 }
 
 // Plain `--flag` boundary scan. Edit/reply use this for all their flags — a
@@ -420,12 +459,20 @@ function parseArgs(args: string[]): ParsedPostsArgs {
         throw usageError(POSTS_COMMAND_HELP.send);
       }
       const blob = validatedBlobFlag(args);
+      const title = validatedTitleFlag(args, POSTS_COMMAND_HELP.send);
+      if (title !== undefined && !args[1].startsWith('heap/')) {
+        throw usageError(
+          '--title is only supported for gallery (heap/) posts',
+          POSTS_COMMAND_HELP.send
+        );
+      }
       const sentAt = validatedSentAt(args, POSTS_COMMAND_HELP.send);
       return {
         kind: 'send',
         channelId: args[1],
         message,
         imageUrl,
+        title,
         blob,
         sentAt,
       };
@@ -459,14 +506,37 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       if (!channelId || !postId || !emoji) {
         throw usageError(POSTS_COMMAND_HELP.react);
       }
-      return { kind: 'react', channelId, postId, emoji };
+      // A positional slot filled by an option token (e.g. `--parent` swallowed
+      // into the emoji slot when the emoji is omitted) is a usage error.
+      if (
+        channelId.startsWith('--') ||
+        postId.startsWith('--') ||
+        emoji.startsWith('--')
+      ) {
+        throw usageError(POSTS_COMMAND_HELP.react);
+      }
+      return {
+        kind: 'react',
+        channelId,
+        postId,
+        emoji,
+        parentId: optionalReactionParent(args, POSTS_COMMAND_HELP.react),
+      };
     }
     case 'unreact': {
       const [, channelId, postId] = args;
       if (!channelId || !postId) {
         throw usageError(POSTS_COMMAND_HELP.unreact);
       }
-      return { kind: 'unreact', channelId, postId };
+      if (channelId.startsWith('--') || postId.startsWith('--')) {
+        throw usageError(POSTS_COMMAND_HELP.unreact);
+      }
+      return {
+        kind: 'unreact',
+        channelId,
+        postId,
+        parentId: optionalReactionParent(args, POSTS_COMMAND_HELP.unreact),
+      };
     }
     case 'delete': {
       const [, channelId, postId] = args;
@@ -497,7 +567,12 @@ function parseArgs(args: string[]): ParsedPostsArgs {
 }
 
 async function reactToPost(
-  parsed: { channelId: string; postId: string; emoji: string },
+  parsed: {
+    channelId: string;
+    postId: string;
+    emoji: string;
+    parentId?: string;
+  },
   deps: PostsDeps
 ): Promise<void> {
   const our = deps.getCurrentUserId();
@@ -507,11 +582,12 @@ async function reactToPost(
     emoji: parsed.emoji,
     our,
     postAuthor: our,
+    ...(parsed.parentId ? { parentId: formatPostId(parsed.parentId) } : {}),
   });
 }
 
 async function unreactToPost(
-  parsed: { channelId: string; postId: string },
+  parsed: { channelId: string; postId: string; parentId?: string },
   deps: PostsDeps
 ): Promise<void> {
   const our = deps.getCurrentUserId();
@@ -520,6 +596,7 @@ async function unreactToPost(
     postId: formatPostId(parsed.postId),
     our,
     postAuthor: our,
+    ...(parsed.parentId ? { parentId: formatPostId(parsed.parentId) } : {}),
   });
 }
 
@@ -550,6 +627,7 @@ async function sendPost(
     channelId: string;
     message: string;
     imageUrl?: string;
+    title?: string;
     blob?: string;
     sentAt?: number;
   },
@@ -571,6 +649,7 @@ async function sendPost(
     sentAt: parsed.sentAt ?? deps.now(),
     content,
     blob: parsed.blob,
+    ...(parsed.title ? { metadata: { title: parsed.title } } : {}),
   });
 }
 

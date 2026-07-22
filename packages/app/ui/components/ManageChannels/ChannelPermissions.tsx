@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { notesPermissionsCompatActive } from '@tloncorp/shared/logic/notesPermissionsCompat';
 import { Icon, IconButton, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
@@ -101,13 +102,16 @@ const actionsColumnWidth = 75;
 
 export function PermissionTable({
   groupRoles,
+  channelType,
 }: {
   groupRoles: db.GroupRole[];
+  channelType?: string;
 }) {
   const { watch, setValue } = useFormContext<ChannelPrivacyFormSchema>();
   const isPrivate = watch('isPrivate');
   const readers = watch('readers');
   const writers = watch('writers');
+  const hasUnifiedPermissions = notesPermissionsCompatActive(channelType);
 
   const displayedRoles = useMemo(() => {
     // Use the union of readers and writers so writer-only roles remain visible
@@ -130,6 +134,25 @@ export function PermissionTable({
       const isCurrentlyWriter = writers.includes(roleId);
       const isCurrentlyReader = readers.includes(roleId);
 
+      if (hasUnifiedPermissions) {
+        const hasAccess = isCurrentlyReader || isCurrentlyWriter;
+        setValue(
+          'readers',
+          hasAccess
+            ? readers.filter((reader) => reader !== roleId)
+            : [...readers, roleId],
+          { shouldDirty: true }
+        );
+        setValue(
+          'writers',
+          hasAccess
+            ? writers.filter((writer) => writer !== roleId)
+            : [...writers, roleId],
+          { shouldDirty: true }
+        );
+        return;
+      }
+
       if (isCurrentlyWriter) {
         // Remove from writers; add to readers if not already there so the role
         // stays visible as read-only instead of vanishing
@@ -149,7 +172,7 @@ export function PermissionTable({
         }
       }
     },
-    [writers, readers, setValue]
+    [writers, readers, setValue, hasUnifiedPermissions]
   );
 
   const handleToggleReader = useCallback(
@@ -168,11 +191,15 @@ export function PermissionTable({
           { shouldDirty: true }
         );
       } else {
-        // Add to readers
+        // Add to readers (and writers when the channel has one shared access
+        // permission, as %notes does).
         setValue('readers', [...readers, roleId], { shouldDirty: true });
+        if (hasUnifiedPermissions && !writers.includes(roleId)) {
+          setValue('writers', [...writers, roleId], { shouldDirty: true });
+        }
       }
     },
-    [readers, writers, setValue]
+    [readers, writers, setValue, hasUnifiedPermissions]
   );
 
   const handleDeleteRole = useCallback(

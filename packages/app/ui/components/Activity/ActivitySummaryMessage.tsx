@@ -174,7 +174,7 @@ function postVerb(channelType: string) {
 
 // Reactions reuse the activity event `content` column to carry the raw react
 // value: a native emoji string, or a custom `{ any }` value.
-function reactDisplayValue(content: unknown): string {
+export function reactDisplayValue(content: unknown): string {
   if (typeof content === 'string') {
     return content;
   }

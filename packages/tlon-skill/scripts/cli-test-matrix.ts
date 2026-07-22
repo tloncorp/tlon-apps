@@ -277,6 +277,24 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     ['posts', 'send', 'chat/~host/channel', 'message', '--image'],
     'Usage: tlon posts send'
   ),
+  usageErrorCase(
+    'posts send missing gallery title value',
+    ['posts', 'send', 'heap/~host/gallery', 'message', '--title'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send rejects an option token as a gallery title value',
+    [
+      'posts',
+      'send',
+      'heap/~zod/gallery',
+      'caption',
+      '--title',
+      '--sent-at',
+      '1234',
+    ],
+    'Usage: tlon posts send'
+  ),
   {
     name: 'posts send rejects non-http image url',
     args: ['posts', 'send', 'chat/~host/channel', '--image', 'ftp://x/y.png'],
@@ -627,6 +645,14 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '--blob',
     '[{"type":"a2ui","version":1,"messages":[]}]',
   ]),
+  authRequiredCase('posts send heap title reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    'message',
+    '--title',
+    'Gallery item',
+  ]),
   authRequiredCase('posts send image-only reaches auth', [
     'posts',
     'send',
@@ -809,6 +835,24 @@ export const POSTS_FAMILY_CASES: CliCase[] = [
     '170.141',
     'Updated message',
   ]),
+  {
+    ...usageErrorCase(
+      'posts send title on chat nest refuses before auth',
+      [
+        'posts',
+        'send',
+        'chat/~host/channel',
+        'message',
+        '--title',
+        'Chat title',
+      ],
+      '--title is only supported for gallery (heap/) posts'
+    ),
+    stderrIncludes: [
+      '--title is only supported for gallery (heap/) posts',
+      'Usage: tlon posts send',
+    ],
+  },
   // The minimal help-literal: `--help` in the message slot is treated as edit
   // message content, so this reaches auth instead of printing help.
   authRequiredCase('posts edit minimal help-literal reaches auth', [
@@ -851,6 +895,150 @@ export const POSTS_FAMILY_CASES: CliCase[] = [
     'chat/~host/channel',
     '170.141',
     '--help',
+  ]),
+];
+
+// `--parent` on the four react/unreact commands (posts + dms families):
+// malformed values are rejected locally (an option-like value or a
+// duplicate flag), and a well-formed value reaches auth — exercising
+// main()'s wiring end to end, not just the exported parser helpers.
+export const REACTION_PARENT_CASES: CliCase[] = [
+  usageErrorCase(
+    'posts react rejects option-like --parent value',
+    [
+      'posts',
+      'react',
+      'chat/~host/channel',
+      '170.141',
+      '👍',
+      '--parent',
+      '--bogus',
+    ],
+    'Usage: tlon posts react'
+  ),
+  usageErrorCase(
+    'posts react rejects duplicate --parent',
+    [
+      'posts',
+      'react',
+      'chat/~host/channel',
+      '170.142',
+      '👍',
+      '--parent',
+      '170.141',
+      '--parent',
+      '170.140',
+    ],
+    'Usage: tlon posts react'
+  ),
+  usageErrorCase(
+    'posts unreact rejects option-like --parent value',
+    [
+      'posts',
+      'unreact',
+      'chat/~host/channel',
+      '170.141',
+      '--parent',
+      '--bogus',
+    ],
+    'Usage: tlon posts unreact'
+  ),
+  usageErrorCase(
+    'posts unreact rejects duplicate --parent',
+    [
+      'posts',
+      'unreact',
+      'chat/~host/channel',
+      '170.142',
+      '--parent',
+      '170.141',
+      '--parent',
+      '170.140',
+    ],
+    'Usage: tlon posts unreact'
+  ),
+  usageErrorCase(
+    'dms react rejects option-like --parent value',
+    ['dms', 'react', '~zod', '~zod/170.141', '👍', '--parent', '--bogus'],
+    'Usage: tlon dms react'
+  ),
+  usageErrorCase(
+    'dms react rejects duplicate --parent',
+    [
+      'dms',
+      'react',
+      '~zod',
+      '~zod/170.142',
+      '👍',
+      '--parent',
+      '~zod/170.141',
+      '--parent',
+      '~zod/170.140',
+    ],
+    'Usage: tlon dms react'
+  ),
+  usageErrorCase(
+    'dms unreact rejects option-like --parent value',
+    ['dms', 'unreact', '~zod', '~zod/170.141', '--parent', '--bogus'],
+    'Usage: tlon dms unreact'
+  ),
+  usageErrorCase(
+    'dms unreact rejects duplicate --parent',
+    [
+      'dms',
+      'unreact',
+      '~zod',
+      '~zod/170.142',
+      '--parent',
+      '~zod/170.141',
+      '--parent',
+      '~zod/170.140',
+    ],
+    'Usage: tlon dms unreact'
+  ),
+  usageErrorCase(
+    'posts react rejects --parent swallowed into the omitted emoji slot',
+    ['posts', 'react', 'chat/~host/channel', '170.142', '--parent', '170.141'],
+    'Usage: tlon posts react'
+  ),
+  usageErrorCase(
+    'dms react rejects --parent swallowed into the omitted emoji slot',
+    ['dms', 'react', '~zod', '~zod/170.142', '--parent', '~zod/170.141'],
+    'Usage: tlon dms react'
+  ),
+  authRequiredCase('posts react with --parent reaches auth', [
+    'posts',
+    'react',
+    'chat/~host/channel',
+    '170.142',
+    '👍',
+    '--parent',
+    '170.141',
+  ]),
+  authRequiredCase('posts unreact with --parent reaches auth', [
+    'posts',
+    'unreact',
+    'chat/~host/channel',
+    '170.142',
+    '--parent',
+    '170.141',
+  ]),
+  authRequiredCase('dms react with --parent reaches auth', [
+    'dms',
+    'react',
+    '~zod',
+    '~zod/170.142',
+    '👍',
+    '--parent',
+    '~zod/170.141',
+  ]),
+  authRequiredCase('dms unreact with --parent reaches auth', [
+    'dms',
+    'unreact',
+    '~zod',
+    '~zod/170.142',
+    '--parent',
+    '~zod/170.141',
   ]),
 ];
 
@@ -1411,6 +1599,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NESTED_HELP_CASES,
   ...LITERAL_OPTION_LIKE_VALUE_CASES,
   ...POSTS_FAMILY_CASES,
+  ...REACTION_PARENT_CASES,
   ...NOTES_FAMILY_CASES,
   ...NOTES_CHANNEL_KIND_CASES,
   ...NOTES_CONTENT_UNSUPPORTED_CASES,
