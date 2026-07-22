@@ -19,7 +19,7 @@ import {
   AnalyticsEvent,
   checkInputForInvite,
   createDevLogger,
-  trackProductEvent,
+  trackEvent,
 } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
 import { debounce } from 'lodash';
@@ -76,7 +76,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
           telemetryId: telemetryId(),
         });
         if (appInvite) {
-          trackProductEvent(AnalyticsEvent.InviteOpened);
+          trackEvent(AnalyticsEvent.InviteOpened);
           setLure(appInvite);
           return;
         } else {

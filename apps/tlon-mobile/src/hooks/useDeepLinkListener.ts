@@ -3,11 +3,7 @@ import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import { useTypedReset } from '@tloncorp/app/navigation/utils';
-import {
-  AnalyticsEvent,
-  createDevLogger,
-  trackProductEvent,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useRef } from 'react';
 
@@ -30,7 +26,7 @@ export const useDeepLinkListener = () => {
           context: 'Handling deeplink click',
           lure: lure.id,
         });
-        trackProductEvent(AnalyticsEvent.InviteOpened);
+        trackEvent(AnalyticsEvent.InviteOpened);
         try {
           if (lure.shouldAutoJoin || !ship) {
             // if the lure was clicked prior to authenticating, no-op for now.

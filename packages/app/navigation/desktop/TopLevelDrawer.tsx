@@ -3,7 +3,7 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { DrawerNavigationState } from '@react-navigation/native';
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useRef, useState } from 'react';
@@ -97,7 +97,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           // intentionally leave undotted for now
           shouldShowUnreads={false}
           onPress={() => {
-            trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+            trackEvent(AnalyticsEvent.NavigationTabSelected, {
               tab: 'Home',
             });
             restoreHomeState();
@@ -110,7 +110,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Messages')}
           shouldShowUnreads={false}
           onPress={() => {
-            trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+            trackEvent(AnalyticsEvent.NavigationTabSelected, {
               tab: 'Messages',
             });
             saveHomeState();
@@ -128,7 +128,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Activity')}
           testID="ActivityNavIcon"
           onPress={() => {
-            trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+            trackEvent(AnalyticsEvent.NavigationTabSelected, {
               tab: 'Activity',
             });
             saveHomeState();
@@ -142,7 +142,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           id={userId}
           focused={isRouteActive('Contacts')}
           onPress={() => {
-            trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+            trackEvent(AnalyticsEvent.NavigationTabSelected, {
               tab: 'Contacts',
             });
             saveHomeState();
@@ -176,7 +176,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Settings')}
           shouldShowUnreads={false}
           onPress={() => {
-            trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+            trackEvent(AnalyticsEvent.NavigationTabSelected, {
               tab: 'Settings',
             });
             saveHomeState();

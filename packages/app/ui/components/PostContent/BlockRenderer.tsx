@@ -1,7 +1,7 @@
 import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import {
   AnalyticsEvent,
-  trackProductEvent,
+  trackEvent,
   useMutableCallback,
 } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
@@ -516,7 +516,7 @@ export function LinkBlock({
       return;
     }
 
-    trackProductEvent(AnalyticsEvent.ExternalLinkOpened);
+    trackEvent(AnalyticsEvent.ExternalLinkOpened);
 
     if (Platform.OS === 'web') {
       window.open(block.url, '_blank', 'noopener,noreferrer');

@@ -1,8 +1,4 @@
-import {
-  AnalyticsEvent,
-  createDevLogger,
-  trackProductEvent,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import { queryClient } from '@tloncorp/shared';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -27,7 +23,7 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     clearShip();
     clearLure();
     clearDeepLink();
-    trackProductEvent(AnalyticsEvent.LogoutCompleted);
+    trackEvent(AnalyticsEvent.LogoutCompleted);
     clearTelemetry();
     clearSessionStorageItems();
     store.updateSession(null);

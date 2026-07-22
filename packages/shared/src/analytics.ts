@@ -1,7 +1,7 @@
 import { useDebugStore } from './debug';
 import { AnalyticsEvent } from './domain';
 
-export function trackProductEvent(
+export function trackEvent(
   event: AnalyticsEvent,
   properties: Record<string, unknown> = {}
 ) {

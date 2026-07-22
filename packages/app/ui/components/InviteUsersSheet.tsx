@@ -1,4 +1,4 @@
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import React, { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,7 +24,7 @@ const InviteUsersSheetComponent = ({
 
   useEffect(() => {
     if (open && groupId) {
-      trackProductEvent(AnalyticsEvent.InviteSurfaceOpened);
+      trackEvent(AnalyticsEvent.InviteSurfaceOpened);
     }
   }, [groupId, open]);
 

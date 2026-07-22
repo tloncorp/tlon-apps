@@ -6,11 +6,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FlashListRef } from '@shopify/flash-list';
 import { markInvitesRead } from '@tloncorp/api';
-import {
-  AnalyticsEvent,
-  createDevLogger,
-  trackProductEvent,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -271,7 +267,7 @@ export function ChatListScreenView({
   );
 
   const handlePressTab = useCallback((tab: TabName) => {
-    trackProductEvent(AnalyticsEvent.HomeFilterSelected, {
+    trackEvent(AnalyticsEvent.HomeFilterSelected, {
       tab,
     });
     setActiveTab(tab);
@@ -339,14 +335,14 @@ export function ChatListScreenView({
         Keyboard.dismiss();
       }
       if (!showSearchInput) {
-        trackProductEvent(AnalyticsEvent.HomeSearchOpened, {
+        trackEvent(AnalyticsEvent.HomeSearchOpened, {
           tab: activeTab,
         });
       }
       setShowSearchInput(!showSearchInput);
     } else {
       if (!isOpen) {
-        trackProductEvent(AnalyticsEvent.HomeSearchOpened, {
+        trackEvent(AnalyticsEvent.HomeSearchOpened, {
           tab: activeTab,
         });
       }
@@ -371,7 +367,7 @@ export function ChatListScreenView({
   }, []);
 
   const handlePressTryAll = useCallback(() => {
-    trackProductEvent(AnalyticsEvent.HomeFilterSelected, {
+    trackEvent(AnalyticsEvent.HomeFilterSelected, {
       tab: 'home',
     });
     setActiveTab('home');

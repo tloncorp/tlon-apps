@@ -3,6 +3,7 @@ import * as api from '@tloncorp/api';
 import { debounce } from 'lodash';
 import { useEffect, useMemo } from 'react';
 
+import { trackEvent } from '../analytics';
 import * as db from '../db';
 import type { WrappedQuery } from '../db/query';
 import { createDevLogger } from '../debug';
@@ -13,7 +14,6 @@ import {
   withRetry,
 } from '../logic';
 import { collectDescendantFolderIds } from '../logic/notesTree';
-import { trackProductEvent } from '../productAnalytics';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const logger = createDevLogger('notesActions', false);
@@ -373,7 +373,7 @@ export async function createNotebookNote({
     noteId: note.noteId,
   });
   if (createdNote) {
-    trackProductEvent(AnalyticsEvent.NoteCreated);
+    trackEvent(AnalyticsEvent.NoteCreated);
   }
   return createdNote;
 }
@@ -405,7 +405,7 @@ export async function createNotebookFolder({
       ),
   });
   if (folder) {
-    trackProductEvent(AnalyticsEvent.NotesFolderCreated);
+    trackEvent(AnalyticsEvent.NotesFolderCreated);
   }
   return folder;
 }
@@ -467,7 +467,7 @@ export async function saveNotebookNote({
     noteId: note.noteId,
   });
   if (savedNote) {
-    trackProductEvent(AnalyticsEvent.NoteSaved);
+    trackEvent(AnalyticsEvent.NoteSaved);
   }
   return savedNote;
 }
@@ -489,7 +489,7 @@ export async function publishNotebookNote({
     html: renderPublishedNoteHtml({ title, body }),
   });
   await waitForPublishedNoteState(notebookFlag, noteId, true);
-  trackProductEvent(AnalyticsEvent.NotePublished);
+  trackEvent(AnalyticsEvent.NotePublished);
   return publishedNotePath(notebookFlag, noteId);
 }
 
@@ -505,7 +505,7 @@ export async function unpublishNotebookNote({
     noteId,
   });
   await waitForPublishedNoteState(notebookFlag, noteId, false);
-  trackProductEvent(AnalyticsEvent.NoteUnpublished);
+  trackEvent(AnalyticsEvent.NoteUnpublished);
 }
 
 export async function moveNotebookNote({
@@ -525,7 +525,7 @@ export async function moveNotebookNote({
   await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     snapshotNoteMatches(snapshot, noteId, (note) => note.folderId === folderId)
   );
-  trackProductEvent(AnalyticsEvent.NoteMoved);
+  trackEvent(AnalyticsEvent.NoteMoved);
 }
 
 export async function renameNotebookFolder({
@@ -550,7 +550,7 @@ export async function renameNotebookFolder({
   await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     snapshotFolderMatches(snapshot, folder.folderId, (f) => f.name === nextName)
   );
-  trackProductEvent(AnalyticsEvent.NotesFolderRenamed);
+  trackEvent(AnalyticsEvent.NotesFolderRenamed);
 }
 
 export async function moveNotebookFolder({
@@ -578,7 +578,7 @@ export async function moveNotebookFolder({
       (f) => f.parentFolderId === parentFolderId
     )
   );
-  trackProductEvent(AnalyticsEvent.NotesFolderMoved);
+  trackEvent(AnalyticsEvent.NotesFolderMoved);
 }
 
 function snapshotFolderMatches(
@@ -617,7 +617,7 @@ export async function deleteNotebookNote({
     notebookFlag,
     (snapshot) => !findSnapshotNote(snapshot, noteId)
   );
-  trackProductEvent(AnalyticsEvent.NoteDeleted);
+  trackEvent(AnalyticsEvent.NoteDeleted);
 }
 
 export async function deleteNotebookFolder({
@@ -644,7 +644,7 @@ export async function deleteNotebookFolder({
         !snapshot.folders.some((nextFolder) => nextFolder.folderId === folderId)
     )
   );
-  trackProductEvent(AnalyticsEvent.NotesFolderDeleted);
+  trackEvent(AnalyticsEvent.NotesFolderDeleted);
 }
 
 export async function markNotesNotebookOpened(notebookFlag: string) {

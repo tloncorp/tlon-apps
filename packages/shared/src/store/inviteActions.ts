@@ -7,6 +7,7 @@ import {
 import * as api from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
 
+import { trackEvent } from '../analytics';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, HostedShipInfo, getConstants } from '../domain';
@@ -19,7 +20,6 @@ import {
   getFlagParts,
   withRetry,
 } from '../logic';
-import { trackProductEvent } from '../productAnalytics';
 import { syncGroupPreviews } from './sync/syncGroupPreviews';
 
 const logger = createDevLogger('inviteActions', false);
@@ -297,7 +297,7 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
         context: 'Success, bit invite deeplink lure while logged in',
         lure: invite.id,
       });
-      trackProductEvent(AnalyticsEvent.InviteRedeemed);
+      trackEvent(AnalyticsEvent.InviteRedeemed);
     } catch (err) {
       logger.trackEvent(AnalyticsEvent.InviteError, {
         error: err,

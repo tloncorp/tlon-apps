@@ -1,5 +1,5 @@
 import * as ub from '@tloncorp/api/urbit';
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -76,7 +76,7 @@ export const ChatOptionsProvider = ({
 
   const openSheet = useCallback(
     (chatId: string, chatType: 'group' | 'channel') => {
-      trackProductEvent(AnalyticsEvent.ChatOptionsOpened, { type: chatType });
+      trackEvent(AnalyticsEvent.ChatOptionsOpened, { type: chatType });
       setChat({
         id: chatId,
         type: chatType,
@@ -184,7 +184,7 @@ export const ChatOptionsProvider = ({
 
   const updateVolume = useCallback(
     (level: ub.NotificationLevel | null) => {
-      trackProductEvent(AnalyticsEvent.NotificationLevelChanged, {
+      trackEvent(AnalyticsEvent.NotificationLevelChanged, {
         level: level ?? 'default',
       });
       if (chat?.type === 'group' && group) {
@@ -242,7 +242,7 @@ export const ChatOptionsProvider = ({
 
   const markGroupRead = useCallback(() => {
     if (groupId) {
-      trackProductEvent(AnalyticsEvent.ChatMarkedRead);
+      trackEvent(AnalyticsEvent.ChatMarkedRead);
       store.markGroupRead(groupId, true);
     }
     closeSheet();
@@ -251,7 +251,7 @@ export const ChatOptionsProvider = ({
   const markChannelRead = useCallback(
     ({ includeThreads }: { includeThreads?: boolean } = {}) => {
       if (channelId) {
-        trackProductEvent(AnalyticsEvent.ChatMarkedRead);
+        trackEvent(AnalyticsEvent.ChatMarkedRead);
         store.markChannelRead({
           id: channelId,
           groupId: groupId,
@@ -264,7 +264,7 @@ export const ChatOptionsProvider = ({
 
   const setChannelSortPreference = useCallback(
     (sortBy: 'recency' | 'arranged') => {
-      trackProductEvent(AnalyticsEvent.ChannelSortChanged, { sort: sortBy });
+      trackEvent(AnalyticsEvent.ChannelSortChanged, { sort: sortBy });
       db.channelSortPreference.setValue(sortBy);
       closeSheet();
     },

@@ -3,13 +3,13 @@ import { isGroupChannelId } from '@tloncorp/api/client';
 import * as ub from '@tloncorp/api/urbit';
 import { whomIsMultiDm } from '@tloncorp/api/urbit';
 
+import { trackEvent } from '../analytics';
 import * as db from '../db';
 import { QueryCtx } from '../db/query';
 import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
-import { trackProductEvent } from '../productAnalytics';
 
 const logger = createDevLogger('activityActions', false);
 
@@ -107,7 +107,7 @@ export async function muteThread({
     });
     const volume = ub.getVolumeMap('soft', true);
     await api.adjustVolumeSetting(source, volume);
-    trackProductEvent(AnalyticsEvent.ThreadMuted, {
+    trackEvent(AnalyticsEvent.ThreadMuted, {
       channelType: channel.type,
     });
   } catch (e) {
@@ -139,7 +139,7 @@ export async function unmuteThread({
   try {
     const { source } = api.getThreadSource({ channel, post: thread });
     await api.adjustVolumeSetting(source, null);
-    trackProductEvent(AnalyticsEvent.ThreadUnmuted, {
+    trackEvent(AnalyticsEvent.ThreadUnmuted, {
       channelType: channel.type,
     });
   } catch (e) {

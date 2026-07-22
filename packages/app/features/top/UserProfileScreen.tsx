@@ -1,10 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
-import {
-  AnalyticsEvent,
-  createDevLogger,
-  trackProductEvent,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -57,7 +53,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const { navigateToBotSettings, resetToDm } = useRootNavigation();
 
   useEffect(() => {
-    trackProductEvent(AnalyticsEvent.ProfileOpened);
+    trackEvent(AnalyticsEvent.ProfileOpened);
   }, [userId]);
 
   useEffect(() => {

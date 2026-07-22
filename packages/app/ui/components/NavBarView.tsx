@@ -1,4 +1,4 @@
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
@@ -33,7 +33,7 @@ export const NavBarView = ({
   };
   const pressTab = (routeName: string, navigate?: () => void) => {
     const wasAlreadyActive = isRouteActive(routeName);
-    trackProductEvent(AnalyticsEvent.NavigationTabSelected, { tab: routeName });
+    trackEvent(AnalyticsEvent.NavigationTabSelected, { tab: routeName });
     if (wasAlreadyActive && onPressActiveTab) {
       onPressActiveTab();
     } else {

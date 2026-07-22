@@ -1,4 +1,4 @@
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import {
   GroupMentionInlineData,
   InlineData,
@@ -189,7 +189,7 @@ export function InlineText({
 
 export function InlineLink({ inline: node }: { inline: LinkInlineData }) {
   const handlePress = useCallback(() => {
-    trackProductEvent(AnalyticsEvent.ExternalLinkOpened);
+    trackEvent(AnalyticsEvent.ExternalLinkOpened);
     if (Platform.OS === 'web') {
       window.open(node.href, '_blank', 'noopener,noreferrer');
     } else {

@@ -1,4 +1,4 @@
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Pressable, Text } from '@tloncorp/ui';
@@ -28,7 +28,7 @@ export function PersonalInviteSheet({
 
   useEffect(() => {
     if (open) {
-      trackProductEvent(AnalyticsEvent.InviteSurfaceOpened);
+      trackEvent(AnalyticsEvent.InviteSurfaceOpened);
     }
   }, [open]);
 

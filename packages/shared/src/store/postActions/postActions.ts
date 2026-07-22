@@ -2,11 +2,11 @@ import * as api from '@tloncorp/api';
 import { toPostContent } from '@tloncorp/api';
 import * as urbit from '@tloncorp/api/urbit';
 
+import { trackEvent } from '../../analytics';
 import * as db from '../../db';
 import type * as domain from '../../domain';
 import { AnalyticsEvent, Attachment, PostDataDraft } from '../../domain';
 import * as logic from '../../logic';
-import { trackProductEvent } from '../../productAnalytics';
 import * as Transcription from '../../transcription';
 import { sessionActionQueue } from '../SessionActionQueue';
 import {
@@ -370,7 +370,7 @@ async function _sendPost({
 
     logger.crumb('done sending post');
     if (draft && !existingPost) {
-      trackProductEvent(AnalyticsEvent.ContentSendCompleted, {
+      trackEvent(AnalyticsEvent.ContentSendCompleted, {
         type: channel.type,
         isReply: draft.replyToPostId != null,
       });
@@ -378,7 +378,7 @@ async function _sendPost({
       if (
         draft.attachments.some((attachment) => attachment.type === 'voicememo')
       ) {
-        trackProductEvent(AnalyticsEvent.VoiceMemoSent);
+        trackEvent(AnalyticsEvent.VoiceMemoSent);
       }
     }
   } catch (e) {
@@ -685,7 +685,7 @@ async function _editPost({
       lastEditImage: null,
     });
     logger.log('editPost update done');
-    trackProductEvent(AnalyticsEvent.PostEditCompleted);
+    trackEvent(AnalyticsEvent.PostEditCompleted);
   } catch (e) {
     console.error('Failed to edit post', e);
     logger.log('editPost failed', e);
@@ -928,7 +928,7 @@ export async function reportPost({
       api.reportPost(userId, groupId, post.channelId, post)
     );
     await hidePost({ post });
-    trackProductEvent(AnalyticsEvent.PostReported);
+    trackEvent(AnalyticsEvent.PostReported);
   } catch (e) {
     logger.trackError('Failed to report post', e);
 

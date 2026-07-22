@@ -3,7 +3,7 @@ import {
   AnalyticsEvent,
   createDevLogger,
   downloadImageForWeb,
-  trackProductEvent,
+  trackEvent,
 } from '@tloncorp/shared';
 import {
   GestureMediaViewer,
@@ -94,7 +94,7 @@ async function downloadMedia({
   if (isWeb) {
     try {
       await downloadImageForWeb(uri);
-      trackProductEvent(AnalyticsEvent.MediaDownloaded, {
+      trackEvent(AnalyticsEvent.MediaDownloaded, {
         mediaType,
       });
     } catch (error) {
@@ -219,7 +219,7 @@ async function downloadMedia({
 
       try {
         await MediaLibrary.Asset.create(downloadedFile.uri);
-        trackProductEvent(AnalyticsEvent.MediaDownloaded, {
+        trackEvent(AnalyticsEvent.MediaDownloaded, {
           mediaType,
         });
         Alert.alert('Success', `${Noun} saved to your photos!`);
@@ -718,7 +718,7 @@ export default function MediaViewerScreen(props: Props) {
 
   useEffect(() => {
     if (!missingUri) {
-      trackProductEvent(AnalyticsEvent.MediaOpened, {
+      trackEvent(AnalyticsEvent.MediaOpened, {
         mediaType,
       });
     }

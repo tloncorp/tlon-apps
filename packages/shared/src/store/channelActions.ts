@@ -7,13 +7,13 @@ import { TimeoutError } from '@tloncorp/api';
 import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
 import { isEqual } from 'lodash';
 
+import { trackEvent } from '../analytics';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { notesPermissionsCompatActive } from '../logic/notesPermissionsCompat';
-import { trackProductEvent } from '../productAnalytics';
 import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
@@ -466,7 +466,7 @@ export async function pinPostToChannel({
 
   try {
     await api.setOrder(channel.id, nextOrder);
-    trackProductEvent(AnalyticsEvent.PostPinned, {
+    trackEvent(AnalyticsEvent.PostPinned, {
       channelType: channel.type,
     });
   } catch (e) {
@@ -503,7 +503,7 @@ export async function unpinPostFromChannel({
 
   try {
     await api.setOrder(channel.id, nextOrder);
-    trackProductEvent(AnalyticsEvent.PostUnpinned, {
+    trackEvent(AnalyticsEvent.PostUnpinned, {
       channelType: channel.type,
     });
   } catch (e) {
@@ -632,7 +632,7 @@ export async function reorderPinnedItems({
     // stale slot. Only the optimistic write above is the full merged order.
     const after = await db.getPinnedItems();
     await db.setPinnedItemsOrder(normalizeOrder(backendPayload, after));
-    trackProductEvent(AnalyticsEvent.PinnedChatsReordered);
+    trackEvent(AnalyticsEvent.PinnedChatsReordered);
     return true;
   } catch (e) {
     console.error('Failed to reorder pinned items', e);

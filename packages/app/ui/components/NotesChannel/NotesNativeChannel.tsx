@@ -17,7 +17,7 @@ import {
   publishedNotePath,
   publishedNoteUrl,
   renameNotebookFolder,
-  trackProductEvent,
+  trackEvent,
   unpublishNotebookNote,
   useMutableCallback,
   usePublishedNotesForNotebook,
@@ -297,7 +297,7 @@ export function NotesNativeChannel({
       note: db.NotesNote,
       options?: { focusTitle?: boolean; startInEdit?: boolean }
     ) => {
-      trackProductEvent(AnalyticsEvent.NoteOpened);
+      trackEvent(AnalyticsEvent.NoteOpened);
       if (options?.focusTitle) {
         setFocusTitleNoteId(note.noteId);
       }
@@ -325,7 +325,7 @@ export function NotesNativeChannel({
   });
 
   const openFolder = useMutableCallback((folder: db.NotesFolder) => {
-    trackProductEvent(AnalyticsEvent.NotesFolderOpened);
+    trackEvent(AnalyticsEvent.NotesFolderOpened);
     navigation.dispatch(
       StackActions.push('NotesFolder', {
         channelId,

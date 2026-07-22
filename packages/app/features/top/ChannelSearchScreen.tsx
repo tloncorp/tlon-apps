@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   AnalyticsEvent,
-  trackProductEvent,
+  trackEvent,
   useChannel,
   useChannelSearch,
   useGroup,
@@ -47,7 +47,7 @@ export default function ChannelSearchScreen(props: Props) {
   const { resetToChannel } = useRootNavigation();
   const navigateToPost = useCallback(
     (post: db.Post) => {
-      trackProductEvent(AnalyticsEvent.ChannelSearchResultSelected, {
+      trackEvent(AnalyticsEvent.ChannelSearchResultSelected, {
         type: post.parentId ? 'reply' : 'post',
       });
       if (post.parentId) {

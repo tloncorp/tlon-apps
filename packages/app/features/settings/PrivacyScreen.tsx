@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Text, useIsWindowNarrow } from '@tloncorp/ui';
@@ -77,7 +77,7 @@ export function PrivacySettingsScreen(props: Props) {
         attestation: phoneAttest,
         discoverability: nextDiscoveryValue,
       });
-      trackProductEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
         enabled: nextDiscoveryState,
         setting: 'phone_discovery',
       });
@@ -89,7 +89,7 @@ export function PrivacySettingsScreen(props: Props) {
 
   const toggleSetTelemetry = useCallback(() => {
     const nextDisabledState = !state.telemetryDisabled;
-    trackProductEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+    trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
       enabled: !nextDisabledState,
       setting: 'usage_statistics',
     });
@@ -102,7 +102,7 @@ export function PrivacySettingsScreen(props: Props) {
     setState((prev) => ({ ...prev, disableNicknames: nextValue }));
     try {
       await store.updateCalmSetting('disableNicknames', nextValue);
-      trackProductEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
         enabled: !nextValue,
         setting: 'nicknames',
       });
@@ -117,7 +117,7 @@ export function PrivacySettingsScreen(props: Props) {
     setState((prev) => ({ ...prev, disableAvatars: nextValue }));
     try {
       await store.updateCalmSetting('disableAvatars', nextValue);
-      trackProductEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
         enabled: !nextValue,
         setting: 'avatars',
       });
@@ -132,7 +132,7 @@ export function PrivacySettingsScreen(props: Props) {
     setState((prev) => ({ ...prev, disableTlonInfraEnhancement: nextValue }));
     try {
       await store.updateDisableTlonInfraEnhancement(nextValue);
-      trackProductEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
         enabled: !nextValue,
         setting: 'tlon_helpers',
       });

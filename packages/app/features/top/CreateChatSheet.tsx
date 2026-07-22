@@ -1,9 +1,5 @@
 import * as store from '@tloncorp/shared';
-import {
-  AnalyticsEvent,
-  createDevLogger,
-  trackProductEvent,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   cloneElement,
@@ -307,7 +303,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
 
   const open = useCallback(() => {
     if (step === 'initial') {
-      trackProductEvent(AnalyticsEvent.CreateMenuOpened);
+      trackEvent(AnalyticsEvent.CreateMenuOpened);
       setStep('selectType');
     }
   }, [step]);
@@ -327,7 +323,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   );
 
   const handleTypeSelected = useCallback((type: ChatType) => {
-    trackProductEvent(AnalyticsEvent.CreateOptionSelected, {
+    trackEvent(AnalyticsEvent.CreateOptionSelected, {
       option: type,
     });
     if (type === 'group') {
@@ -340,7 +336,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
 
   const handleGroupTypeSelected = useCallback(
     (groupType: GroupType, templateId?: store.GroupTemplateId) => {
-      trackProductEvent(AnalyticsEvent.CreateOptionSelected, {
+      trackEvent(AnalyticsEvent.CreateOptionSelected, {
         option: groupType,
       });
       if (groupType === 'quick') {

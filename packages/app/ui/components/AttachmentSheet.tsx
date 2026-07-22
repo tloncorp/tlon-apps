@@ -4,7 +4,7 @@ import {
   PLACEHOLDER_ASSET_URI,
   VoiceMemoAttachment,
   createDevLogger,
-  trackProductEvent,
+  trackEvent,
 } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
@@ -116,7 +116,7 @@ export default function AttachmentSheet({
           attachAssets(normalizedUploadIntents);
         }
         onAttach?.(normalizedUploadIntents);
-        trackProductEvent(AnalyticsEvent.AttachmentAdded);
+        trackEvent(AnalyticsEvent.AttachmentAdded);
       }
     },
     [attachAssets, attachToContext, onAttach]
@@ -212,7 +212,7 @@ export default function AttachmentSheet({
         duration: duration ?? undefined,
         mimeType: getMimeType(audioFileUri) ?? undefined,
       };
-      trackProductEvent(AnalyticsEvent.AttachmentAdded);
+      trackEvent(AnalyticsEvent.AttachmentAdded);
       audioRecorder.dismiss();
 
       // If possible, try sending post immediately.
@@ -303,7 +303,7 @@ export default function AttachmentSheet({
               attachAssets(normalizedUploadIntents);
             }
             onAttach?.(normalizedUploadIntents);
-            trackProductEvent(AnalyticsEvent.AttachmentAdded);
+            trackEvent(AnalyticsEvent.AttachmentAdded);
           }
         } else {
           // If user canceled, remove the placeholder

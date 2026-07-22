@@ -1,4 +1,4 @@
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
@@ -30,7 +30,7 @@ export function GlobalSearch({
 
   const onPressItem = useCallback(
     async (item: db.Chat) => {
-      trackProductEvent(AnalyticsEvent.GlobalSearchResultSelected, {
+      trackEvent(AnalyticsEvent.GlobalSearchResultSelected, {
         type: item.type === 'group' ? 'group' : item.channel.type,
       });
       if (item.type === 'group') {
@@ -112,7 +112,7 @@ export function GlobalSearch({
 
   useEffect(() => {
     if (isOpen) {
-      trackProductEvent(AnalyticsEvent.GlobalSearchOpened);
+      trackEvent(AnalyticsEvent.GlobalSearchOpened);
       inputRef.current?.focus();
       setSearchQuery('');
     }

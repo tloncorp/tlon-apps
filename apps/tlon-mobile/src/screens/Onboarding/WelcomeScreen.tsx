@@ -14,7 +14,7 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,7 +35,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   useCheckAppInstalled();
 
   const handlePressSignup = useCallback(() => {
-    trackProductEvent(AnalyticsEvent.OnboardingPathSelected, {
+    trackEvent(AnalyticsEvent.OnboardingPathSelected, {
       path: 'signup',
     });
     navigation.navigate('Signup');
@@ -107,7 +107,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                 <OnboardingButton
                   secondary
                   onPress={() => {
-                    trackProductEvent(AnalyticsEvent.OnboardingPathSelected, {
+                    trackEvent(AnalyticsEvent.OnboardingPathSelected, {
                       path: 'invite',
                     });
                     navigation.navigate('PasteInviteLink');
@@ -138,7 +138,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               action={{
                 title: 'Log in with phone number',
                 action: () => {
-                  trackProductEvent(AnalyticsEvent.OnboardingPathSelected, {
+                  trackEvent(AnalyticsEvent.OnboardingPathSelected, {
                     path: 'login',
                   });
                   setOpen(false);
@@ -153,7 +153,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               action={{
                 title: 'Log in with email',
                 action: () => {
-                  trackProductEvent(AnalyticsEvent.OnboardingPathSelected, {
+                  trackEvent(AnalyticsEvent.OnboardingPathSelected, {
                     path: 'login',
                   });
                   setOpen(false);
@@ -167,7 +167,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           <ActionSheet.ContentBlock alignItems="center">
             <Pressable
               onPress={() => {
-                trackProductEvent(AnalyticsEvent.OnboardingPathSelected, {
+                trackEvent(AnalyticsEvent.OnboardingPathSelected, {
                   path: 'connect_ship',
                 });
                 setOpen(false);
