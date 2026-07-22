@@ -1,7 +1,7 @@
 import { getLocales } from 'expo-localization';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Controller, UseFormReturn } from 'react-hook-form';
+import { Controller, UseFormReturn, useFormState } from 'react-hook-form';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import {
@@ -35,6 +35,7 @@ export function PhoneNumberInput({ form, shouldFocus = true }: Props) {
   const [country, setCountry] = useState(defaultCountry);
   const inputRef = useRef<TransformerTextInputInstance>(null);
   const theme = useTheme();
+  const { errors } = useFormState({ control: form.control });
 
   // One international transformer: the calling code is part of the editable
   // text and the country is detected from it as the user types.
@@ -63,7 +64,7 @@ export function PhoneNumberInput({ form, shouldFocus = true }: Props) {
           <Field
             width={'100%'}
             label="Phone Number"
-            error={form.formState.errors.phoneNumber?.message}
+            error={errors.phoneNumber?.message}
           >
             <View
               style={{

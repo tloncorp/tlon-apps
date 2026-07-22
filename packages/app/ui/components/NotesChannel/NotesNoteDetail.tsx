@@ -923,9 +923,6 @@ export function NotesNoteDetail({
                   editable={canEdit}
                   frameStyle={{
                     flex: 1,
-                    // Bleed the frame left by its own padding + border so
-                    // the text inside aligns with the note text column.
-                    marginLeft: -(getTokenValue('$xl', 'space') + 1),
                   }}
                   testID="NotesTitleInput"
                 />

@@ -1143,6 +1143,15 @@ class TlonSSEClient:
                 raise TlonChannelError(
                     f"Tlon channel unauthorized: HTTP {resp.status}", status=resp.status
                 )
+            if resp.status == 500:
+                # Eyre answers 500 for a channel it can no longer serve.
+                # Resuming would re-GET the same dead channel forever, leaving
+                # the bot deaf; @tloncorp/api's client resets the channel on
+                # this status too (packages/api/src/http-api/Urbit.ts:491-494).
+                text = await resp.text()
+                raise TlonChannelError(
+                    f"Tlon SSE failed: HTTP 500 {text[:200]}", status=500
+                )
             if resp.status != 200:
                 text = await resp.text()
                 raise ConnectionError(f"Tlon SSE failed: HTTP {resp.status} {text[:200]}")

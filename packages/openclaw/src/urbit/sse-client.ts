@@ -491,9 +491,6 @@ export class UrbitSSEClient {
       if (eventId > this.lastHeardEventId) {
         this.lastHeardEventId = eventId;
         if (eventId - this.lastAcknowledgedEventId > this.ackThreshold) {
-          this.logger.log?.(
-            `[SSE] Acking event ${eventId} (last acked: ${this.lastAcknowledgedEventId})`
-          );
           this.ack(eventId).catch((err) => {
             this.logger.error?.(
               `Failed to ack event ${eventId}: ${String(err)}`
@@ -512,14 +509,13 @@ export class UrbitSSEClient {
         err?: unknown;
       };
 
-      // Log poke ack/nack responses (normally silent — critical for debugging DM delivery issues)
+      // Successful poke acknowledgements are routine stream traffic. Keep failures
+      // observable without emitting an info log for every successful poke.
       if (parsed.response === 'poke') {
         if (parsed.err) {
           this.logger.error?.(
             `[SSE] Poke NACK id=${parsed.id}: ${JSON.stringify(parsed.err)}`
           );
-        } else {
-          this.logger.log?.(`[SSE] Poke ack id=${parsed.id}`);
         }
         return;
       }

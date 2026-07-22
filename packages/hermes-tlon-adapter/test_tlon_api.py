@@ -1563,7 +1563,7 @@ class TlonSSEClientResumeTests(unittest.TestCase):
         self.assertEqual(acked, [121])
         self.assertEqual(client._last_acked_event_id, 121)
 
-    def test_status_mapping_404_410_401_403_500(self):
+    def test_status_mapping_channel_fatal_vs_resumable(self):
         fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
 
         for status, expected_type, expected_status in [
@@ -1571,6 +1571,7 @@ class TlonSSEClientResumeTests(unittest.TestCase):
             (410, tlon_api.TlonChannelError, 410),
             (401, tlon_api.TlonChannelError, 401),
             (403, tlon_api.TlonChannelError, 403),
+            (500, tlon_api.TlonChannelError, 500),
         ]:
             client = self._make_client()
             session = FakeSSESession(responses=[(status, [])])
@@ -1583,8 +1584,10 @@ class TlonSSEClientResumeTests(unittest.TestCase):
                     asyncio.run(run())
                 self.assertEqual(cm.exception.status, expected_status)
 
+        # A non-500 server error stays resume-able: only 500 means Eyre cannot
+        # serve this channel any more.
         client = self._make_client()
-        session = FakeSSESession(responses=[(500, [])])
+        session = FakeSSESession(responses=[(503, [])])
         client._session = session
         with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
             with self.assertRaises(ConnectionError) as cm:
