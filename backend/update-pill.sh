@@ -145,10 +145,9 @@ get_desk_hash() {
 function usage()
 {
     cat <<EOF
-Usage: $0 [-fus] <base-rev> <groups-rev>
+Usage: $0 [-fus] <base-ref> <groups-ref>
 
-Generate a pill containing %base and %groups desks
-at specified revisions.
+Generate a pill containing %base and %groups desks at the specified Git references.
 
 Options:
     -f  force skip desk hash check
@@ -301,52 +300,39 @@ then
     fatal "Unable to boot $ship"
 fi
 
+# Prepare a repository at a remote ref. The ref may be a branch, tag,
+# full ref (for example refs/pull/123/head), or fetchable commit hash.
+prepare_git_checkout() {
+    local dir=$1
+    local url=$2
+    local ref=$3
+
+    if [[ ! -e "$dir" ]]
+    then
+        git init -q "$dir" || fatal "Failed to initialize $dir"
+        git -C "$dir" remote add origin "$url"
+    elif [[ ! -d "$dir/.git" ]]
+    then
+        fatal "$dir exists but is not a git repository"
+    fi
+
+    git -C "$dir" remote set-url origin "$url"
+    git -C "$dir" fetch -q --depth=1 origin "$ref" ||
+        fatal "Failed to fetch $url at $ref"
+    git -C "$dir" checkout -q --force --detach FETCH_HEAD ||
+        fatal "Failed to check out $url at $ref"
+}
+
 # Prepare base and groups repositories
 #
 base_url="https://github.com/urbit/urbit"
 groups_url="https://github.com/tloncorp/tlon-apps"
 
-if [[ ! -d ./urbit-git ]]
-then
-    if ! git clone -q -c advice.detachedHead=false --depth=1 --branch $base_rev $base_url urbit-git;
-    then
-        fatal "Failed to clone urbit repository"
-    fi
-else
-    git -C urbit-git fetch -q --depth=1 origin \
-        "refs/tags/$base_rev:refs/tags/$base_rev" ||
-        fatal "Failed to fetch from urbit repository at $base_rev"
-fi
+prepare_git_checkout urbit-git "$base_url" "$base_rev"
+prepare_git_checkout tlon-apps-git "$groups_url" "$groups_rev"
 
-if ! ( cd urbit-git && git show-ref -q "refs/tags/$base_rev")
-then
-    fatal "$base_rev is not a valid version in urbit repository"
-else
-    git -C urbit-git restore pkg/base-dev/sur/aquarium.hoon
-    git -C urbit-git checkout -q $base_rev
-fi
-
-
-if [[ ! -d ./tlon-apps-git ]]
-then
-    if ! git clone -q -c advice.detachedHead=false --depth=1 --branch $groups_rev $groups_url tlon-apps-git;
-    then
-        fatal "Failed to clone tlon-apps repository at $groups_rev"
-    fi
-else
-    git -C tlon-apps-git fetch -q --depth=1 origin \
-        "refs/tags/$groups_rev:refs/tags/$groups_rev" ||
-        fatal "Failed to fetch from tlon-apps repository at $groups_rev"
-fi
-
-if ! ( cd tlon-apps-git && git show-ref -q "refs/tags/$groups_rev")
-then
-    fatal "$groups_rev is not a valid version in tlon-apps repository"
-else
-    (cd tlon-apps-git && git checkout -q $groups_rev)
-fi
-
-groups_hash=`(cd tlon-apps-git && git rev-parse --short HEAD)`
+base_hash=$(git -C urbit-git rev-parse --short HEAD)
+groups_hash=$(git -C tlon-apps-git rev-parse --short HEAD)
 
 http_port=9123
 $vere --loom 33 --http-port $http_port -t $pier &
@@ -442,8 +428,8 @@ then
     fi
 fi
 
-safe_base_rev=$(printf '%s' "$base_rev" | tr './' '-')
-pill_name="groups-$safe_base_rev-$groups_hash"
+safe_base_rev=$(printf '%s' "$base_rev" | sed 's/[^A-Za-z0-9_-]/-/g')
+pill_name="groups-$safe_base_rev-$base_hash-$groups_hash"
 pill_file=$pill_name.pill
 
 if [[ ! -e ./$pill_file ]]
