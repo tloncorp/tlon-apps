@@ -41,22 +41,32 @@ test('should generate an invite link and be able to redeem group/personal invite
   await helpers.openGroupSettings(zodPage);
   await helpers.navigateBack(zodPage);
 
-  await expect(zodPage.getByText('Invite Friends')).toBeVisible({
+  const groupInviteCopyButton = zodPage.getByRole('button', {
+    name: 'Copy invite link',
+  });
+  await expect(groupInviteCopyButton).toBeVisible({
     timeout: 15000,
   });
 
-  await zodPage.getByText('Invite Friends').click();
+  await groupInviteCopyButton.click();
 
   const clipboardText: string = await zodPage.evaluate(
     'navigator.clipboard.readText()'
   );
-  expect(clipboardText).toContain('join.tlon.io');
+  // either canonical host passes so flipping CANONICAL_INVITE_HOST
+  // after the DNS flip doesn't break this spec
+  expect(clipboardText).toMatch(/https:\/\/(join|invite)\.tlon\.io\//);
   const token = clipboardText.split('/').pop();
   expect(token).toBeDefined();
 
   // Grab zod's personal invite token
   await zodPage.getByTestId('PersonalInviteNavIcon').click();
-  await zodPage.getByText('Share Invite Link').click();
+  const personalInviteSheet = zodPage.getByRole('dialog', {
+    name: 'Invite Friends to Tlon Messenger',
+  });
+  await personalInviteSheet
+    .getByRole('button', { name: 'Copy invite link' })
+    .click();
   const zodClipboardText: string = await zodPage.evaluate(
     'navigator.clipboard.readText()'
   );

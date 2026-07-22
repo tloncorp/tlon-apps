@@ -30,6 +30,8 @@ DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS = 300
 DEFAULT_SSE_READ_TIMEOUT_SECONDS = 60.0
 DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES = 3
 DEFAULT_CONTEXT_MESSAGES = 20
+REACTION_LEVELS = frozenset({"off", "ack", "minimal", "extensive"})
+DEFAULT_REACTION_LEVEL = "minimal"
 
 
 def normalize_ship(ship: str) -> str:
@@ -238,6 +240,7 @@ class TlonConfig:
     context_lens_owner: str = ""
     context_lens_store_path: str = ""
     sse_read_timeout_seconds: float = DEFAULT_SSE_READ_TIMEOUT_SECONDS
+    reaction_level: str = DEFAULT_REACTION_LEVEL
     # Force the hosted (memex) image-upload path. Opt-in: only true when the
     # operator sets TLON_HOSTING. Read once where the env is reliably present
     # (the adapter at startup) and carried via this field into CLI invocations,
@@ -548,6 +551,20 @@ class TlonConfig:
             ),
             DEFAULT_SSE_READ_TIMEOUT_SECONDS,
         )
+        reaction_level = _env_first(
+            env,
+            ("TLON_REACTION_LEVEL",),
+            extra,
+            ("reaction_level",),
+            DEFAULT_REACTION_LEVEL,
+        ).lower()
+        if reaction_level not in REACTION_LEVELS:
+            logger.warning(
+                "[tlon] invalid TLON_REACTION_LEVEL=%r; using %s",
+                reaction_level,
+                DEFAULT_REACTION_LEVEL,
+            )
+            reaction_level = DEFAULT_REACTION_LEVEL
 
         auto_discover = parse_bool(
             _env_or_extra(env, ("TLON_AUTO_DISCOVER",), extra, ("auto_discover",))
@@ -602,6 +619,7 @@ class TlonConfig:
             context_lens_owner=context_lens_owner,
             context_lens_store_path=context_lens_store_path,
             sse_read_timeout_seconds=sse_read_timeout_seconds,
+            reaction_level=reaction_level,
         )
 
     def is_complete(self) -> bool:
@@ -1345,6 +1363,42 @@ class TlonIncomingMessage:
     content: Any = None
     blob: Optional[str] = None
     author_is_bot: bool = False
+    # The essay author is distinct from user_id for self echoes in DMs: the
+    # conversation/user remains the partner while this identifies the sender.
+    author_id: str = ""
+    # Set for a synthetic reaction event so its visible id is the actual
+    # reacted post rather than the synthetic event identity.
+    reactable_target_id: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class TlonReaction:
+    """One decoded reaction transition or snapshot entry.
+
+    ``wire_key`` remains the serialized identity used for state comparisons;
+    ``reactor`` is the ship used for authorization and loop protection.
+    """
+
+    chat_type: str
+    chat_id: str
+    post_id: str
+    parent_id: Optional[str]
+    wire_key: str
+    reactor: str
+    reactor_is_bot: bool
+    emoji: str
+    added: bool
+    raw: Any
+
+
+@dataclass(frozen=True)
+class ChannelReactsSnapshot:
+    chat_id: str
+    post_id: str
+    parent_id: Optional[str]
+    # wire key -> (exact decoded emoji, normalized ship, is bot identity)
+    entries: dict[str, tuple[str, str, bool]]
+    raw: Any
 
 
 def extract_message_text(content: Any) -> str:
@@ -1364,6 +1418,17 @@ def extract_message_text(content: Any) -> str:
                     parts.append(_extract_block_text(block["block"]))
         return " ".join(part for part in parts if part).strip()
     return str(content)
+
+
+def extract_message_title(content: Any) -> str:
+    """Return a user-visible essay title when the wire payload has one."""
+    if not isinstance(content, Mapping):
+        return ""
+    meta = content.get("meta")
+    if not isinstance(meta, Mapping):
+        return ""
+    title = meta.get("title")
+    return title.strip() if isinstance(title, str) else ""
 
 
 def _extract_inline_text(inlines: Any) -> str:
@@ -1394,11 +1459,32 @@ def _extract_inline_text(inlines: Any) -> str:
                 parts.append(str(item["inline-code"]))
             elif "code" in item:
                 parts.append(str(item["code"]))
+            elif "task" in item and isinstance(item["task"], Mapping):
+                task = item["task"]
+                marker = "[x] " if task.get("checked") else "[ ] "
+                parts.append(marker + _extract_inline_text(task.get("content")))
             elif "break" in item:
                 parts.append("\n")
             elif "tag" in item:
                 parts.append(f"#{item['tag']}")
     return "".join(parts)
+
+
+def _extract_listing_text(listing: Any) -> str:
+    """Extract all text carried by recursive story listing nodes."""
+    if not isinstance(listing, Mapping):
+        return ""
+    item = listing.get("item")
+    if isinstance(item, list):
+        return _extract_inline_text(item)
+    list_node = listing.get("list")
+    if not isinstance(list_node, Mapping):
+        return ""
+    parts = [_extract_inline_text(list_node.get("contents"))]
+    items = list_node.get("items")
+    if isinstance(items, list):
+        parts.extend(_extract_listing_text(child) for child in items)
+    return "\n".join(part for part in parts if part)
 
 
 def _extract_block_text(block: dict[str, Any]) -> str:
@@ -1407,6 +1493,20 @@ def _extract_block_text(block: dict[str, Any]) -> str:
         return f"[image: {image.get('alt') or image.get('src') or ''}]"
     if "cite" in block:
         return "[quoted message]"
+    if "link" in block and isinstance(block["link"], Mapping):
+        link = block["link"]
+        url = str(link.get("url") or "").strip()
+        meta = link.get("meta")
+        title = ""
+        if isinstance(meta, Mapping):
+            title = str(meta.get("title") or meta.get("description") or "").strip()
+        if title and url:
+            return f"[link: {title} — {url}]"
+        return f"[link: {url}]" if url else "[link]"
+    if "header" in block and isinstance(block["header"], Mapping):
+        return _extract_inline_text(block["header"].get("content"))
+    if "listing" in block:
+        return _extract_listing_text(block["listing"])
     if "code" in block and isinstance(block["code"], dict):
         code = block["code"]
         lang = code.get("lang") or ""
@@ -1427,10 +1527,159 @@ def author_is_bot_meta(author: Any) -> bool:
     return isinstance(author, Mapping) and bool(author.get("ship"))
 
 
+def _decode_react_value(value: Any) -> str:
+    """Decode Tlon's ``$react`` JSON without silently accepting bad values."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, Mapping) and isinstance(value.get("any"), str):
+        return str(value["any"])
+    raise ValueError("reaction value is not a string or {any: string}")
+
+
+def _reaction_author(author: Any) -> tuple[str, str, bool]:
+    """Return (wire_key, normalized_ship, is_bot) for a reaction author."""
+    if isinstance(author, str) and author.strip():
+        return author, normalize_ship(author), False
+    if isinstance(author, Mapping):
+        ship = normalize_ship(str(author.get("ship") or ""))
+        if not ship:
+            raise ValueError("bot reaction author is missing ship")
+        # nickname is wire type `(unit @t)`: null/missing is legal for bot
+        # profiles without a nickname, so fall back to an empty suffix.
+        nickname = author.get("nickname")
+        suffix = nickname if isinstance(nickname, str) else ""
+        return f"{author.get('ship')}/{suffix}", ship, True
+    raise ValueError("reaction author is not a ship or bot identity")
+
+
+def parse_channel_reacts_snapshot(event: Any) -> Optional[ChannelReactsSnapshot]:
+    """Decode a complete channels /v2 reaction map without applying a diff."""
+    if not isinstance(event, dict):
+        return None
+    nest = event.get("nest")
+    response = event.get("response")
+    if not isinstance(nest, str) or not nest or not isinstance(response, dict):
+        return None
+    post = response.get("post")
+    r_post = post.get("r-post") if isinstance(post, dict) else None
+    if not isinstance(post, dict) or not isinstance(r_post, dict):
+        return None
+
+    post_id = post.get("id")
+    parent_id: Optional[str] = None
+    reacts = r_post.get("reacts")
+    reply = r_post.get("reply")
+    if isinstance(reply, dict):
+        r_reply = reply.get("r-reply")
+        if isinstance(r_reply, dict) and "reacts" in r_reply:
+            reacts = r_reply.get("reacts")
+            post_id = reply.get("id")
+            parent_id = str(post.get("id") or "") or None
+
+    if not isinstance(reacts, dict) or not post_id:
+        return None
+
+    try:
+        entries: dict[str, tuple[str, str, bool]] = {}
+        for wire_key, raw_value in reacts.items():
+            if not isinstance(wire_key, str) or not wire_key:
+                raise ValueError("reaction map key is not a non-empty string")
+            if "/" in wire_key:
+                if not isinstance(raw_value, Mapping):
+                    raise ValueError("bot reaction map entry is not an object")
+                reactor = normalize_ship(str(raw_value.get("ship") or ""))
+                if not reactor:
+                    raise ValueError("bot reaction map entry is missing ship")
+                emoji = _decode_react_value(raw_value.get("react"))
+                entries[wire_key] = (emoji, reactor, True)
+            else:
+                reactor = normalize_ship(wire_key)
+                if not reactor:
+                    raise ValueError("reaction map key is not a ship")
+                entries[wire_key] = (_decode_react_value(raw_value), reactor, False)
+    except (TypeError, ValueError) as exc:
+        logger.warning("[tlon] ignoring malformed channel reaction snapshot: %s", exc)
+        return None
+
+    return ChannelReactsSnapshot(
+        chat_id=nest,
+        post_id=str(post_id),
+        parent_id=parent_id,
+        entries=entries,
+        raw=event,
+    )
+
+
+def _is_plain_patp(ship: Any) -> bool:
+    return bool(re.fullmatch(r"~[a-z][a-z-]*", normalize_ship(str(ship or ""))))
+
+
+def parse_dm_reaction(event: Any, *, self_ship: str) -> Optional[TlonReaction]:
+    """Decode one chat /v3 add-react or del-react transition.
+
+    Legacy group-DM events share this subscription but cannot be delivered by
+    the one-to-one DM send path, so they are intentionally excluded here.
+    """
+    if not isinstance(event, dict):
+        return None
+    whom = event.get("whom")
+    response = event.get("response")
+    if not isinstance(whom, str) or not _is_plain_patp(whom) or not isinstance(response, dict):
+        return None
+    root_id = event.get("id")
+    if not root_id:
+        return None
+
+    delta: Any = response
+    post_id: Any = root_id
+    parent_id: Optional[str] = None
+    reply = response.get("reply")
+    if isinstance(reply, dict) and isinstance(reply.get("delta"), dict):
+        delta = reply["delta"]
+        post_id = reply.get("id")
+        parent_id = str(root_id)
+    if not isinstance(delta, dict) or not post_id:
+        return None
+
+    added = "add-react" in delta
+    removed = "del-react" in delta
+    if added == removed:
+        return None
+    try:
+        if added:
+            payload = delta.get("add-react")
+            if not isinstance(payload, Mapping):
+                raise ValueError("add-react is not an object")
+            wire_key, reactor, reactor_is_bot = _reaction_author(payload.get("author"))
+            emoji = _decode_react_value(payload.get("react"))
+        else:
+            wire_key, reactor, reactor_is_bot = _reaction_author(delta.get("del-react"))
+            emoji = ""
+    except (TypeError, ValueError) as exc:
+        logger.warning("[tlon] ignoring malformed DM reaction: %s", exc)
+        return None
+
+    if reactor == normalize_ship(self_ship):
+        return None
+    return TlonReaction(
+        chat_type="dm",
+        chat_id=normalize_ship(whom),
+        post_id=str(post_id),
+        parent_id=parent_id,
+        wire_key=wire_key,
+        reactor=reactor,
+        reactor_is_bot=reactor_is_bot,
+        emoji=emoji,
+        added=added,
+        raw=event,
+    )
+
+
 def parse_channel_message(
     event: Any,
     *,
     self_ship: str,
+    include_self: bool = False,
 ) -> Optional[TlonIncomingMessage]:
     if not isinstance(event, dict):
         return None
@@ -1472,11 +1721,15 @@ def parse_channel_message(
         return None
 
     sender = extract_author_ship(content.get("author"))
-    if not sender or sender == normalize_ship(self_ship):
+    if not sender or (not include_self and sender == normalize_ship(self_ship)):
         return None
 
     story_content = content.get("content")
     text = extract_message_text(story_content)
+    if nest.startswith("heap/"):
+        title = extract_message_title(content)
+        if title:
+            text = "\n".join(part for part in (title, text) if part)
     raw_blob = content.get("blob")
     blob = raw_blob if isinstance(raw_blob, str) and raw_blob.strip() else None
     if not text.strip() and not blob:
@@ -1504,6 +1757,7 @@ def parse_channel_message(
         content=story_content,
         blob=blob,
         author_is_bot=author_is_bot_meta(content.get("author")),
+        author_id=sender,
     )
 
 
@@ -1511,6 +1765,7 @@ def parse_dm_message(
     event: Any,
     *,
     self_ship: str,
+    include_self: bool = False,
 ) -> Optional[TlonIncomingMessage]:
     if not isinstance(event, dict):
         return None
@@ -1542,7 +1797,7 @@ def parse_dm_message(
         return None
 
     sender = extract_author_ship(content.get("author"))
-    if not sender or sender == normalize_ship(self_ship):
+    if not sender or (not include_self and sender == normalize_ship(self_ship)):
         return None
 
     partner = normalize_ship(str(whom)) if isinstance(whom, str) else ""
@@ -1569,6 +1824,7 @@ def parse_dm_message(
         content=story_content,
         blob=blob,
         author_is_bot=author_is_bot_meta(content.get("author")),
+        author_id=sender,
     )
 
 

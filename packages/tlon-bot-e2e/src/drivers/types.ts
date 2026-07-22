@@ -1,6 +1,8 @@
 import type {
   FakeModelClient,
+  ModelAuxiliaryCallKind,
   ReceivedCall,
+  ScriptOptions,
   Step,
 } from '../fake-model/index.js';
 
@@ -101,7 +103,7 @@ export interface ComposeHandle {
   ps(opts?: { timeoutMs?: number }): Promise<ComposeServiceState[]>;
   logs(
     services?: string[],
-    opts?: { tail?: number; timeoutMs?: number }
+    opts?: { tail?: number; timeoutMs?: number; allowFailure?: boolean }
   ): Promise<string>;
   exec(
     service: string,
@@ -143,9 +145,7 @@ export interface SendMessageArgs {
 
 export interface ModelScript {
   steps: Step[];
-  options?: {
-    allowExtraCalls?: number;
-  };
+  options?: ScriptOptions;
   expectations?: ModelScriptExpectations;
 }
 
@@ -156,7 +156,6 @@ export interface ModelScriptExpectations {
     exact?: string[];
   };
   expectedCallCount?: number;
-  allowedAuxiliaryCalls?: ModelAuxiliaryCallKind[];
   expectedCallSequence?: Array<{
     kind: 'model_request' | 'tool_call' | 'final_model_text';
     toolName?: string;
@@ -173,10 +172,11 @@ export interface ModelScriptExpectations {
   };
 }
 
-export type ModelAuxiliaryCallKind = 'hermes_title_generation';
+export type { ModelAuxiliaryCallKind };
 
 export interface ModelScriptAdapter {
   replyText(text: string): ModelScript;
+  replyTexts(texts: string[]): ModelScript;
   sendMessage(args: SendMessageArgs): ModelScript;
   readOrAdmin(command: string, finalText?: string): ModelScript;
   imageSearch(query: string): ModelScript;

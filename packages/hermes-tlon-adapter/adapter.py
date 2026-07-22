@@ -15,7 +15,9 @@ import os
 import re
 import shutil
 import time
+import unicodedata
 import uuid
+from collections import OrderedDict, deque
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -73,9 +75,12 @@ from .channel_access import (
 )
 from .cite import resolve_cites
 from .history import (
+    MessageCache,
     build_channel_context,
     build_thread_context,
     fetch_channel_history,
+    fetch_post,
+    fetch_reply,
     fetch_thread_context,
 )
 from .media import (
@@ -153,10 +158,14 @@ from .tlon_api import (
     TlonConfig,
     TlonGatewayStatus,
     TlonIncomingMessage,
+    TlonReaction,
     TlonSSEClient,
+    ChannelReactsSnapshot,
     format_post_id,
     normalize_ship,
+    parse_channel_reacts_snapshot,
     parse_channel_message,
+    parse_dm_reaction,
     parse_dm_message,
 )
 from .presence import (
@@ -168,11 +177,13 @@ from .presence import (
     set_active_computing_presence_tracker,
 )
 from .tlon_tool import (
+    CREDENTIAL_FLAGS_WITH_VALUE,
     TLON_TOOL_DESCRIPTION,
     TLON_TOOL_SCHEMA,
     check_tlon_tool_requirements,
     handle_tlon_tool,
     resolve_tlon_skill_path,
+    split_tlon_command,
 )
 
 logger = logging.getLogger(__name__)
@@ -218,6 +229,7 @@ OPTIONAL_ENV = [
     "TLON_OWNER_LISTEN_DISABLED_CHANNELS",
     "TLON_OWNER_LISTEN_ENABLED_CHANNELS",
     "TLON_CONTEXT_MESSAGES",
+    "TLON_REACTION_LEVEL",
     "TLON_TELEMETRY",
     "TLON_TELEMETRY_API_KEY",
     "TLON_TELEMETRY_HOST",
@@ -241,7 +253,9 @@ except ImportError:
 
 def _is_dm_chat_id(chat_id: str) -> bool:
     chat = str(chat_id or "").strip()
-    return bool(chat.startswith("~") and normalize_ship(chat) == chat)
+    return bool(
+        chat.startswith("~") and "/" not in chat and normalize_ship(chat) == chat
+    )
 
 
 # `/tlon ...` debug namespace. Does not match `/tlon-version` (legacy alias)
@@ -517,8 +531,10 @@ def _processing_outcome_value(outcome: Any) -> Optional[str]:
 # ContextLensTrigger union the client renders (context-lens.ts).
 _LENS_TRIGGER_MAP = {
     "dm": "dm",
+    "reaction": "reaction",
     "mention": "mention",
     "owner-listen": "owner-listen",
+    "owner-blob": "owner-blob",
     "participated-thread": "thread",
     "retry": "retry",
     # A free (unprompted) channel response has no dedicated trigger in the
@@ -537,7 +553,9 @@ def _lens_trigger(dispatch_reason: str, *, is_dm: bool) -> str:
 
 
 def _lens_run_kind(dispatch_reason: str) -> str:
-    return "owner_listen" if dispatch_reason == "owner-listen" else "conversation"
+    if dispatch_reason in ("owner-listen", "owner-blob"):
+        return "owner_listen"
+    return "conversation"
 
 
 def _lens_final_status(
@@ -594,6 +612,143 @@ def is_connected(config) -> bool:
     return TlonConfig.from_env(extra).is_complete()
 
 
+def _reaction_state_value(emoji: str) -> str:
+    """Bound comparison value for a wire react, preserving ordinary emojis."""
+    value = str(emoji)
+    if len(value) <= 256:
+        return value
+    return "sha256:" + hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _reaction_wire_metadata(wire_key: str) -> tuple[str, bool]:
+    """Recover actor metadata from the stable state key for removal events."""
+    if "/" in wire_key:
+        return normalize_ship(wire_key.split("/", 1)[0]), True
+    return normalize_ship(wire_key), False
+
+
+class ReactionState:
+    """Bounded reaction state that turns snapshots/deltas into transitions."""
+
+    def __init__(self, *, posts_per_conversation: int = 200, conversations: int = 64) -> None:
+        self.posts_per_conversation = posts_per_conversation
+        self.conversations = conversations
+        # Values are exact short reacts / digests. None is a DM removal tombstone.
+        self._conversations: OrderedDict[
+            str, OrderedDict[str, dict[str, Optional[str]]]
+        ] = OrderedDict()
+
+    @staticmethod
+    def _conversation_key(chat_type: str, chat_id: str) -> str:
+        return f"{chat_type}:{chat_id}"
+
+    def _post_entries(self, chat_type: str, chat_id: str, post_id: str) -> dict[str, Optional[str]]:
+        key = self._conversation_key(chat_type, chat_id)
+        posts = self._conversations.get(key)
+        if posts is None:
+            posts = OrderedDict()
+            self._conversations[key] = posts
+        self._conversations.move_to_end(key)
+        entries = posts.get(str(post_id))
+        if entries is None:
+            entries = {}
+            posts[str(post_id)] = entries
+        posts.move_to_end(str(post_id))
+        while len(posts) > self.posts_per_conversation:
+            posts.popitem(last=False)
+        while len(self._conversations) > self.conversations:
+            self._conversations.popitem(last=False)
+        return entries
+
+    def apply_channel_snapshot(self, snapshot: ChannelReactsSnapshot) -> list[TlonReaction]:
+        prior = dict(self._post_entries("group", snapshot.chat_id, snapshot.post_id))
+        current = {
+            key: _reaction_state_value(emoji)
+            for key, (emoji, _reactor, _is_bot) in snapshot.entries.items()
+        }
+        transitions: list[TlonReaction] = []
+
+        # A changed map value is a removal followed by a new add, preserving
+        # the state-machine edge instead of treating snapshots as event deltas.
+        for wire_key, prior_emoji in prior.items():
+            if current.get(wire_key) == prior_emoji:
+                continue
+            reactor, reactor_is_bot = _reaction_wire_metadata(wire_key)
+            transitions.append(
+                TlonReaction(
+                    chat_type="group",
+                    chat_id=snapshot.chat_id,
+                    post_id=snapshot.post_id,
+                    parent_id=snapshot.parent_id,
+                    wire_key=wire_key,
+                    reactor=reactor,
+                    reactor_is_bot=reactor_is_bot,
+                    emoji=prior_emoji or "",
+                    added=False,
+                    raw=snapshot.raw,
+                )
+            )
+        for wire_key, (emoji, reactor, reactor_is_bot) in snapshot.entries.items():
+            if prior.get(wire_key) == current[wire_key]:
+                continue
+            transitions.append(
+                TlonReaction(
+                    chat_type="group",
+                    chat_id=snapshot.chat_id,
+                    post_id=snapshot.post_id,
+                    parent_id=snapshot.parent_id,
+                    wire_key=wire_key,
+                    reactor=reactor,
+                    reactor_is_bot=reactor_is_bot,
+                    emoji=emoji,
+                    added=True,
+                    raw=snapshot.raw,
+                )
+            )
+
+        entries = self._post_entries("group", snapshot.chat_id, snapshot.post_id)
+        entries.clear()
+        entries.update(current)
+        return transitions
+
+    def forget_entry(
+        self, chat_type: str, chat_id: str, post_id: str, wire_key: str
+    ) -> None:
+        """Drop one committed entry so a later snapshot re-emits it as an add.
+
+        Snapshots commit before their transitions are handled, so when an
+        added reaction's target classification is unresolved (exact scry
+        failure), the entry must be forgotten — otherwise a redelivered or
+        later diff treats it as already-seen and a reaction on the bot's own
+        post is permanently misfiled as a passive note.
+        """
+        posts = self._conversations.get(self._conversation_key(chat_type, chat_id))
+        if not posts:
+            return
+        entries = posts.get(str(post_id))
+        if entries:
+            entries.pop(wire_key, None)
+
+    def apply_dm_delta(self, reaction: TlonReaction) -> list[TlonReaction]:
+        entries = self._post_entries("dm", reaction.chat_id, reaction.post_id)
+        if reaction.added:
+            value = _reaction_state_value(reaction.emoji)
+            if reaction.wire_key in entries and entries[reaction.wire_key] == value:
+                return []
+            entries[reaction.wire_key] = value
+            return [reaction]
+
+        # An absent remove is real first-observed history, while a None entry
+        # is a tombstone proving this exact delta was already surfaced.
+        if reaction.wire_key in entries and entries[reaction.wire_key] is None:
+            return []
+        entries[reaction.wire_key] = None
+        return [reaction]
+
+    def clear(self) -> None:
+        self._conversations.clear()
+
+
 class TlonAdapter(BasePlatformAdapter):
     MAX_MESSAGE_LENGTH = MAX_MESSAGE_LENGTH
     # Tell Hermes' DeliveryRouter not to truncate before calling send(); this
@@ -645,6 +800,17 @@ class TlonAdapter(BasePlatformAdapter):
         )
         self._seen_ids: set[str] = set()
         self._seen_order: list[str] = []
+        self._reaction_state = ReactionState()
+        self._message_cache = MessageCache()
+        self._pending_reaction_notes: OrderedDict[str, deque[str]] = OrderedDict()
+        # Maps a top-level own-post reaction's synthetic `react/…` dispatch
+        # id to the real reactable post it was about, so send()'s
+        # reply_in_thread fallback (which otherwise threads on the trigger
+        # id) can thread on the actual wire post instead of the synthetic,
+        # nonexistent one. Retained until the bounded cache evicts it or the
+        # adapter disconnects, so retries and additional sends stay anchored
+        # to the real post.
+        self._reaction_reply_targets: OrderedDict[str, str] = OrderedDict()
         self._monitored_channels = set(self.tlon_config.channels)
         self._mention_matcher = self._build_mention_matcher()
         self._bot_nickname: str = ""
@@ -811,6 +977,10 @@ class TlonAdapter(BasePlatformAdapter):
         self._known_bot_ships.clear()
         self._known_bot_consecutive_by_channel.clear()
         self._pending_bot_cap_addendum.clear()
+        self._reaction_state.clear()
+        self._message_cache.clear()
+        self._pending_reaction_notes.clear()
+        self._reaction_reply_targets.clear()
         self._processed_dm_invites.clear()
         self._processed_group_invites.clear()
         self._telemetry.flush()
@@ -1694,6 +1864,8 @@ class TlonAdapter(BasePlatformAdapter):
         if not self._is_owner(message.user_id):
             return False
         reply_parent_id = None if ctx_nest is None else message.reply_to_message_id
+        if ctx_nest and ctx_nest.startswith("heap/") and not reply_parent_id:
+            reply_parent_id = message.message_id
         if is_owner_listen_command(command_text):
             if self._mark_seen(message):
                 self._telemetry.control_command("owner-listen")
@@ -1940,6 +2112,208 @@ class TlonAdapter(BasePlatformAdapter):
             logger.exception("[tlon] %s event handler failed", event.app)
             self._telemetry.error("event_handler", exc, app=event.app)
 
+    @staticmethod
+    def _reaction_conversation_key(chat_type: str, chat_id: str) -> str:
+        return f"{chat_type}:{chat_id}"
+
+    @staticmethod
+    def _collapse_reaction_text(value: Any, limit: int, *, structural: bool = False) -> str:
+        # Every Unicode Cc control (C0 *and* C1, e.g. U+009B) collapses to a
+        # space; format/mark characters like ZWJ (Cf) and emoji variation
+        # selectors (Mn) are untouched, so multi-codepoint emoji survive.
+        raw = str(value or "")
+        text = "".join(
+            " " if unicodedata.category(ch) == "Cc" else ch for ch in raw
+        )
+        text = " ".join(text.split())
+        if structural:
+            text = text.replace("[", "(").replace("]", ")")
+        return text[:limit]
+
+    def _encode_reaction_note(self, reaction: TlonReaction, target: Any) -> str:
+        action = "added" if reaction.added else "removed"
+        emoji = self._collapse_reaction_text(reaction.emoji, 32, structural=True)
+        reactor = self._collapse_reaction_text(reaction.reactor, 80, structural=True)
+        post_id = self._collapse_reaction_text(reaction.post_id, 80, structural=True)
+        author = self._collapse_reaction_text(
+            getattr(target, "author", "unknown"), 80, structural=True
+        )
+        snippet = self._collapse_reaction_text(
+            getattr(target, "content", ""), 200, structural=True
+        )
+        kind = "DM " if reaction.chat_type == "dm" else ""
+        note = (
+            f"Tlon {kind}reaction {action}: {emoji or '(unknown)'} by {reactor} "
+            f"on message {post_id} (by {author})"
+        )
+        if snippet:
+            note += f' (message: "{snippet}")'
+        return note[:300]
+
+    def _queue_reaction_note(self, reaction: TlonReaction, target: Any) -> None:
+        key = self._reaction_conversation_key(reaction.chat_type, reaction.chat_id)
+        notes = self._pending_reaction_notes.get(key)
+        if notes is None:
+            notes = deque(maxlen=10)
+            self._pending_reaction_notes[key] = notes
+        self._pending_reaction_notes.move_to_end(key)
+        notes.append(self._encode_reaction_note(reaction, target))
+        while len(self._pending_reaction_notes) > 64:
+            self._pending_reaction_notes.popitem(last=False)
+
+    async def _lookup_reaction_target(
+        self, reaction: TlonReaction, snapshot_cache: Optional[dict] = None
+    ) -> Any:
+        # `snapshot_cache` — when supplied by the caller — memoizes the
+        # lookup (including a failed/None result) for the lifetime of one
+        # SSE event's transitions, so a snapshot with several authorized
+        # entries for the same post makes at most one exact scry instead of
+        # one per transition (a failing scry has a 30s timeout, and the SSE
+        # reader processes events serially). It is never persisted beyond
+        # that one call, so a later event still retries a prior failure.
+        cache_key = (reaction.chat_type, reaction.chat_id, reaction.post_id)
+        if snapshot_cache is not None and cache_key in snapshot_cache:
+            return snapshot_cache[cache_key]
+
+        cached = self._message_cache.lookup(reaction.chat_id, reaction.post_id)
+        if cached is not None or reaction.chat_type != "group" or self._sse is None:
+            if snapshot_cache is not None:
+                snapshot_cache[cache_key] = cached
+            return cached
+        if reaction.parent_id:
+            fetched = await fetch_reply(
+                self._sse.scry,
+                reaction.chat_id,
+                reaction.parent_id,
+                reaction.post_id,
+            )
+        else:
+            fetched = await fetch_post(self._sse.scry, reaction.chat_id, reaction.post_id)
+        # A failed scry, or one that can't identify the author, remains a
+        # cache miss so a later event retries exact classification; only
+        # entries with a decodable author become durable cache knowledge
+        # (an "unknown"-author entry can't classify ownership, so caching it
+        # would permanently misclassify the post — F-3).
+        if fetched is not None and fetched.author and fetched.author != "unknown":
+            self._message_cache.record(
+                reaction.chat_id, fetched.post_id or reaction.post_id, fetched.author, fetched.content
+            )
+        if snapshot_cache is not None:
+            snapshot_cache[cache_key] = fetched
+        return fetched
+
+    def _is_own_reaction_target(self, reaction: TlonReaction, target: Any) -> bool:
+        bot = normalize_ship(self.tlon_config.ship_name)
+        if reaction.chat_type == "dm":
+            author = str(reaction.post_id).split("/", 1)[0]
+            return normalize_ship(author) == bot
+        return normalize_ship(str(getattr(target, "author", ""))) == bot
+
+    async def _handle_reaction(
+        self, reaction: TlonReaction, snapshot_cache: Optional[dict] = None
+    ) -> None:
+        if reaction.reactor == normalize_ship(self.tlon_config.ship_name):
+            return
+        if reaction.reactor_is_bot:
+            self._learn_known_bot_ship(reaction.reactor)
+        is_dm = reaction.chat_type == "dm"
+        if not self._user_authorized(
+            reaction.reactor, is_dm=is_dm, nest="" if is_dm else reaction.chat_id
+        ):
+            logger.info("[tlon] ignoring unauthorized reaction from %s", reaction.reactor)
+            return
+
+        target = await self._lookup_reaction_target(reaction, snapshot_cache)
+        if self._is_own_reaction_target(reaction, target) and reaction.added:
+            emoji = self._collapse_reaction_text(reaction.emoji, 32)
+            snippet = self._collapse_reaction_text(
+                getattr(target, "content", ""), 200
+            )
+            text = f'{emoji} (reacting to: "{snippet}")' if snippet else emoji
+            message = TlonIncomingMessage(
+                chat_id=reaction.chat_id,
+                chat_name=reaction.chat_id,
+                chat_type=reaction.chat_type,
+                user_id=reaction.reactor,
+                user_name=reaction.reactor,
+                text=text,
+                message_id=(
+                    # Event identity only (decision 10) — never shown to the
+                    # model or resolved on the wire. The react component is
+                    # arbitrary `@t`, so it is bounded the same way
+                    # `_reaction_state_value` bounds reaction state (digest
+                    # over 256 chars), keeping this id (which flows into
+                    # LensRun.message_id and presence run ids) from growing
+                    # unbounded while staying deterministic.
+                    f"react/{reaction.post_id}/{reaction.reactor}/"
+                    f"{_reaction_state_value(reaction.emoji)}"
+                ),
+                reply_to_message_id=reaction.parent_id,
+                sent_at=datetime.now(tz=timezone.utc),
+                raw=reaction.raw,
+                author_is_bot=reaction.reactor_is_bot,
+                author_id=reaction.reactor,
+                reactable_target_id=reaction.post_id,
+            )
+            if not is_dm and not self._passes_group_loop_safety(message):
+                return
+            await self._dispatch_message(
+                message,
+                is_dm=is_dm,
+                mark_seen=False,
+                dispatch_reason="reaction",
+            )
+            return
+
+        # An unresolved channel classification (scry failed, or the payload
+        # had no decodable author) must stay retryable: the snapshot already
+        # committed this entry, so without forgetting it a later reacts diff
+        # on the post is a no-op and an own-post reaction would be lost as a
+        # passive note forever. Forgetting the entry makes the next diff
+        # re-emit the add and retry exact classification once the scry
+        # recovers. Resolved non-own targets are final — no rollback.
+        if reaction.added and not is_dm:
+            author = str(getattr(target, "author", "") or "")
+            if target is None or not author or author == "unknown":
+                self._reaction_state.forget_entry(
+                    reaction.chat_type,
+                    reaction.chat_id,
+                    reaction.post_id,
+                    reaction.wire_key,
+                )
+
+        self._queue_reaction_note(reaction, target)
+
+    async def _dispatch_reaction_transitions(self, transitions: list) -> None:
+        """Handle every transition from one snapshot/delta event.
+
+        Transitions for one event (all naming the same post) share a single
+        target lookup (I1) instead of one exact scry per transition, and a
+        failure handling one transition is logged and does not stop the
+        remaining transitions of the same, already-committed snapshot from
+        being handled (I2) — the SSE reader only ever sees this one event as
+        having succeeded, so a raise here would otherwise lose the rest of
+        the snapshot permanently (redelivery is a no-op diff once state is
+        committed).
+        """
+        if not transitions:
+            return
+        snapshot_cache: dict = {}
+        for reaction in transitions:
+            try:
+                await self._handle_reaction(reaction, snapshot_cache)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.exception(
+                    "[tlon] reaction handler failed for %s in %s",
+                    reaction.post_id,
+                    reaction.chat_id,
+                )
+                self._telemetry.error(
+                    "reaction_handler", exc, chat_type=reaction.chat_type
+                )
+
     async def _handle_channel_event(self, raw: Any) -> None:
         if not isinstance(raw, dict):
             return
@@ -1953,8 +2327,23 @@ class TlonAdapter(BasePlatformAdapter):
             else:
                 return
 
-        message = parse_channel_message(raw, self_ship=self.tlon_config.ship_name)
+        message = parse_channel_message(
+            raw, self_ship=self.tlon_config.ship_name, include_self=True
+        )
         if message is None:
+            snapshot = parse_channel_reacts_snapshot(raw)
+            if snapshot is not None:
+                await self._dispatch_reaction_transitions(
+                    self._reaction_state.apply_channel_snapshot(snapshot)
+                )
+            return
+        self._message_cache.record(
+            message.chat_id,
+            message.message_id,
+            message.author_id or message.user_id,
+            message.text,
+        )
+        if message.author_id == normalize_ship(self.tlon_config.ship_name):
             return
         if message.author_is_bot:
             self._learn_known_bot_ship(message.user_id)
@@ -1980,6 +2369,7 @@ class TlonAdapter(BasePlatformAdapter):
             owner_ship=self.tlon_config.owner_ship,
             bot_ship=self.tlon_config.ship_name,
         )
+        is_owner_blob = bool(message.blob) and self._is_owner(message.user_id)
         is_participated_thread = self._is_participated_thread(message)
         is_free_response = self.tlon_config.group_free_response_enabled(message.chat_id)
         decision = resolve_attention(
@@ -1989,6 +2379,7 @@ class TlonAdapter(BasePlatformAdapter):
                 has_text=bool(clean_text or message.blob),
                 is_mentioned=is_mentioned,
                 is_owner_listen=is_owner_listen,
+                is_owner_blob=is_owner_blob,
                 is_free_response=is_free_response,
                 is_participated_thread=is_participated_thread,
             )
@@ -2023,8 +2414,23 @@ class TlonAdapter(BasePlatformAdapter):
         if isinstance(raw, list):
             await self._handle_dm_invites(raw)
             return
-        message = parse_dm_message(raw, self_ship=self.tlon_config.ship_name)
+        message = parse_dm_message(
+            raw, self_ship=self.tlon_config.ship_name, include_self=True
+        )
         if message is None:
+            reaction = parse_dm_reaction(raw, self_ship=self.tlon_config.ship_name)
+            if reaction is not None:
+                await self._dispatch_reaction_transitions(
+                    self._reaction_state.apply_dm_delta(reaction)
+                )
+            return
+        self._message_cache.record(
+            message.chat_id,
+            message.message_id,
+            message.author_id or message.user_id,
+            message.text,
+        )
+        if message.author_id == normalize_ship(self.tlon_config.ship_name):
             return
         if await self._maybe_handle_control_command(
             message, message.text.strip(), ctx_nest=None
@@ -2298,6 +2704,8 @@ class TlonAdapter(BasePlatformAdapter):
                     current_text=clean_text,
                     current_id=message.message_id,
                     limit=limit,
+                    include_ids=self.tlon_config.reaction_level
+                    in {"minimal", "extensive"},
                 )
             else:
                 entries = await fetch_channel_history(scry, message.chat_id, limit)
@@ -2307,6 +2715,8 @@ class TlonAdapter(BasePlatformAdapter):
                     current_id=message.message_id,
                     is_mention=reason == "mention",
                     limit=limit,
+                    include_ids=self.tlon_config.reaction_level
+                    in {"minimal", "extensive"},
                 )
         except Exception as exc:
             logger.debug("[tlon] context fetch failed for %s: %s", message.chat_id, exc)
@@ -2383,6 +2793,42 @@ class TlonAdapter(BasePlatformAdapter):
         if mark_seen and not self._mark_seen(message):
             return
 
+        if (
+            dispatch_reason == "reaction"
+            and message.reactable_target_id
+            and not message.reply_to_message_id
+        ):
+            # Top-level own-post reaction: there is no thread root, so
+            # source.thread_id will be None and send()'s reply_in_thread
+            # fallback would otherwise thread on message.message_id — the
+            # synthetic `react/…` event id, not a real wire post (I3).
+            # Record the real reactable target so send() can recover it.
+            self._reaction_reply_targets[message.message_id] = message.reactable_target_id
+            self._reaction_reply_targets.move_to_end(message.message_id)
+            while len(self._reaction_reply_targets) > 200:
+                self._reaction_reply_targets.popitem(last=False)
+
+        notes_key = self._reaction_conversation_key(message.chat_type, message.chat_id)
+        pending_notes = tuple(self._pending_reaction_notes.get(notes_key, ()))
+        dispatch_text = message.text
+        if pending_notes:
+            dispatch_text = (
+                "[Recent reactions in this conversation]\n"
+                + "\n".join(pending_notes)
+                + "\n\n"
+                + dispatch_text
+            )
+        if self.tlon_config.reaction_level in {"minimal", "extensive"}:
+            target_id = message.reactable_target_id or message.message_id
+            marker = (
+                "reacted message id"
+                if message.reactable_target_id
+                else "message id"
+            )
+            dispatch_text += f"\n\n[{marker}: {target_id}]"
+            if message.reply_to_message_id:
+                dispatch_text += f"\n[thread root: {message.reply_to_message_id}]"
+
         self._telemetry.start_reply(
             message.chat_id,
             chat_type="dm" if is_dm else "groupChannel",
@@ -2412,7 +2858,7 @@ class TlonAdapter(BasePlatformAdapter):
             )
             prepared = prepared_media or PreparedMedia()
             event_kwargs = {
-                "text": message.text,
+                "text": dispatch_text,
                 "message_type": _message_type_member(prepared.message_type),
                 "source": source,
                 "raw_message": message.raw,
@@ -2433,6 +2879,18 @@ class TlonAdapter(BasePlatformAdapter):
                 setattr(event, "media_urls", media_urls)
                 setattr(event, "media_types", media_types)
             await self.handle_message(event)
+            # Peeked notes are committed only after core accepted the event;
+            # failed/duplicate/unauthorized dispatches leave them untouched.
+            if pending_notes:
+                notes = self._pending_reaction_notes.get(notes_key)
+                if notes is not None:
+                    for note in pending_notes:
+                        if notes and notes[0] == note:
+                            notes.popleft()
+                        else:
+                            break
+                    if not notes:
+                        self._pending_reaction_notes.pop(notes_key, None)
         except Exception:
             # Dispatch raised before on_processing_complete could finalize the
             # run (e.g. _route_stream_event catches and skips handle_message
@@ -2756,12 +3214,37 @@ class TlonAdapter(BasePlatformAdapter):
         # conversation is already a thread (metadata.thread_id carries the
         # thread ROOT, which is what Tlon replies must attach to). This holds
         # for both group channels and DMs — DM threads thread too.
-        # reply_in_thread=true restores always-thread-on-the-trigger.
+        # reply_in_thread=true restores always-thread-on-the-trigger. Gallery
+        # posts always anchor reactive replies to the trigger: a new heap post
+        # is a separate gallery item, not a conversational reply.
         thread_parent = str(metadata.get("thread_id") or "") or None
-        if thread_parent is None and self.tlon_config.reply_in_thread:
-            thread_parent = reply_to
+        if thread_parent is None and (
+            self.tlon_config.reply_in_thread or chat_id.startswith("heap/")
+        ):
+            # A top-level own-post reaction's `reply_to` is core's generic
+            # trigger anchor, i.e. the synthetic `react/<post>/<reactor>/
+            # <emoji>` event id — never a real wire post. Recover the actual
+            # reacted post recorded by _dispatch_message (I3) so the fallback
+            # threads onto something that exists; anything else (an ordinary
+            # message's own id) has no entry here and falls through as-is.
+            thread_parent = (
+                self._reaction_reply_targets.get(reply_to)
+                if reply_to
+                else None
+            ) or reply_to
         is_thread_reply = bool(thread_parent)
+        # parentAuthor: honor what Hermes passes. For one-to-one DMs the writ
+        # id itself is author-prefixed, so derive that exact prefix when core
+        # did not supply metadata (not the partner default the CLI would
+        # otherwise assume).
         parent_author = metadata.get("parent_author") or None
+        if (
+            not parent_author
+            and is_thread_reply
+            and _is_dm_chat_id(chat_id)
+            and "/" in thread_parent
+        ):
+            parent_author = normalize_ship(thread_parent.split("/", 1)[0])
         # Stamp each delivered chunk with a pointer to its lens run so the
         # client can open the run from the message (badge / message actions),
         # matching OpenClaw. Only when a run is active for this conversation.
@@ -2955,6 +3438,8 @@ def _env_enablement() -> dict | None:
         seed["owner_listen_enabled_channels"] = ",".join(tlon.owner_listen_enabled_channels)
     if tlon.context_messages != DEFAULT_CONTEXT_MESSAGES:
         seed["context_messages"] = tlon.context_messages
+    if tlon.reaction_level != "minimal":
+        seed["reaction_level"] = tlon.reaction_level
     if tlon.telemetry_enabled:
         seed["telemetry"] = True
     if tlon.telemetry_api_key:
@@ -3009,13 +3494,55 @@ def _tool_access_block(message: str) -> dict:
     return {"action": "block", "message": message}
 
 
+def _non_owner_reaction_carveout(args: Optional[dict], config: TlonConfig) -> Optional[str]:
+    """Return None only for a narrowly-scoped current-chat reaction command."""
+    command = str((args or {}).get("command") or "")
+    parsed, parse_error = split_tlon_command(command)
+    if parse_error or len(parsed) < 3:
+        return "Blocked: non-owner Tlon sessions may only react in the current conversation."
+    if any(
+        arg in CREDENTIAL_FLAGS_WITH_VALUE
+        or any(arg.startswith(f"{flag}=") for flag in CREDENTIAL_FLAGS_WITH_VALUE)
+        for arg in parsed
+    ):
+        return (
+            "Blocked: non-owner reactions cannot use credential override flags; "
+            "they must use this bot account in the current conversation."
+        )
+    # Do not use the tool parser's global-flag skipping here: the subcommand
+    # must literally be first, preventing a prefix override from authenticating
+    # the right-looking target as another account.
+    family, action = parsed[0].lower(), parsed[1].lower()
+    if family not in {"posts", "dms"} or action not in {"react", "unreact"}:
+        return "Blocked: non-owner Tlon sessions may only react in the current conversation."
+    if config.reaction_level not in {"minimal", "extensive"}:
+        return (
+            "Blocked: agent reactions are disabled "
+            f'(TLON_REACTION_LEVEL="{config.reaction_level}"). '
+            "Set TLON_REACTION_LEVEL to minimal or extensive to enable."
+        )
+    chat_id = str(_session_env("HERMES_SESSION_CHAT_ID", "")).strip()
+    if not chat_id:
+        return "Blocked: no current Tlon conversation is available for this reaction."
+    expected_family = "dms" if _is_dm_chat_id(chat_id) else "posts"
+    if family != expected_family:
+        return (
+            f"Blocked: use {expected_family} react|unreact for the current "
+            f"{'one-to-one DM' if expected_family == 'dms' else 'channel'} conversation."
+        )
+    target = str(parsed[2] or "").strip()
+    if not target or target.casefold() != chat_id.casefold():
+        return "Blocked: non-owner reactions may target only the current conversation."
+    return None
+
+
 def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwargs: Any) -> Optional[dict]:
-    del args
     if _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
         return None
 
     tool = str(tool_name or "").strip()
-    owner = TlonConfig.from_env().owner_ship
+    tlon = TlonConfig.from_env()
+    owner = tlon.owner_ship
     if not owner:
         return _tool_access_block(
             "Blocked: Tlon owner identity is not configured. Set TLON_OWNER_SHIP "
@@ -3039,6 +3566,21 @@ def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwar
             "identity is available."
         )
     if sender != owner:
+        if tool == "tlon":
+            parsed, _parse_error = split_tlon_command(
+                str((args or {}).get("command") or "")
+            )
+            reaction_attempt = any(
+                parsed[index].lower() in {"posts", "dms"}
+                and index + 1 < len(parsed)
+                and parsed[index + 1].lower() in {"react", "unreact"}
+                for index in range(len(parsed))
+            )
+            if reaction_attempt:
+                reaction_block = _non_owner_reaction_carveout(args, tlon)
+                if reaction_block is None:
+                    return None
+                return _tool_access_block(reaction_block)
         return _tool_access_block(f"Blocked: {tool} is owner-only in Tlon chats.")
     return None
 
@@ -3071,6 +3613,31 @@ async def _standalone_send(
         "chat_id": chat_id,
         "message_id": result.message_id,
     }
+
+
+def _reaction_platform_hint(level: str) -> str:
+    if level == "minimal":
+        guidance = (
+            "React ONLY when truly relevant: acknowledge important requests or "
+            "confirmations, and express genuine sentiment sparingly. Avoid routine "
+            "messages and your own replies. Aim for at most one reaction per 5-10 exchanges."
+        )
+    elif level == "extensive":
+        guidance = (
+            "Feel free to react liberally when natural: acknowledge messages, express "
+            "sentiment and personality, react to interesting content or humor, and confirm "
+            "understanding or agreement."
+        )
+    else:
+        return ""
+    return (
+        f" Reactions are enabled for Tlon in {level.upper()} mode. {guidance} "
+        "Message ids and thread roots appear in […] markers. For channels use "
+        "'posts react <nest> <post-id> \"<emoji>\"'; for one-to-one DMs use "
+        "'dms react <ship> <message-id> \"<emoji>\"'. For a thread reply add "
+        "'--parent <thread-root-id>'; use unreact to remove your reaction. Non-owner "
+        "sessions may react only in the current conversation."
+    )
 
 
 def register(ctx) -> None:
@@ -3156,7 +3723,14 @@ def register(ctx) -> None:
             "group you host or a one-to-one DM), use the tlon tool's posts "
             "send with that target; reserve dms send for group-DM club IDs "
             "starting with 0v. Sending plain text to the current conversation "
-            "that way is blocked. To send an image anywhere — including the "
+            "that way is blocked, except that posts send heap/~host/name creates "
+            "a new top-level gallery item. Galleries use heap/~host/name. Reply "
+            "normally in a gallery to comment on the triggering post; posts send "
+            "heap/~host/name \"text or URL\" creates a new top-level item and is "
+            "allowed even in the current gallery (optional --title \"...\"). React "
+            "to a gallery comment with posts react heap/~host/name <comment-id> "
+            "<emoji> --parent <post-id>; delete with posts delete heap/~host/name "
+            "<post-id>. To send an image anywhere — including the "
             "current conversation — first 'tlon upload <direct-image-url>', then "
             "'tlon posts send <target> [caption] --image <uploaded-url>'. "
             "The platform adapter directly handles owner chat commands for "
@@ -3167,5 +3741,6 @@ def register(ctx) -> None:
             "binary — debug info). Point the owner at those commands when asked "
             "rather than changing configuration yourself. "
             "Use concise plain text and basic markdown."
+            + _reaction_platform_hint(TlonConfig.from_env().reaction_level)
         ),
     )

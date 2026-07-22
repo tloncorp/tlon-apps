@@ -1,5 +1,6 @@
 import {
   Urbit,
+  addReaction,
   configureClient,
   createGroup,
   deleteGroup,
@@ -50,10 +51,26 @@ export interface BotProfileInput {
 export interface ChannelPost {
   id?: string;
   authorId?: string;
+  parentId?: string | null;
   sentAt?: number;
   sequenceNum?: number | null;
   text: string;
   content?: unknown;
+}
+
+export interface PostWithReplies {
+  root: {
+    id: string;
+    author: string;
+    text: string;
+    parentId?: string;
+  };
+  replies: Array<{
+    id: string;
+    author: string;
+    text: string;
+    parentId?: string;
+  }>;
 }
 
 export interface PostRef {
@@ -75,6 +92,11 @@ export interface StateReader {
     bucket: string
   ): Promise<Record<string, unknown>>;
   channelPosts(channelId: string, count?: number): Promise<ChannelPost[]>;
+  postWithReplies(params: {
+    channelId: string;
+    rootId: string;
+    rootAuthor: string;
+  }): Promise<PostWithReplies>;
   latestSequenceFrom(
     peerShip: string,
     authorShip: string,
@@ -285,6 +307,29 @@ export class TlonActorClient {
     return ref;
   }
 
+  async addReact(params: {
+    channelId: string;
+    postId: string;
+    react: string;
+    postAuthor: string;
+    parentId?: string;
+    parentAuthorId?: string;
+  }): Promise<void> {
+    await this.withClient(async () => {
+      await addReaction({
+        channelId: params.channelId,
+        postId: params.postId,
+        emoji: params.react,
+        our: this.shipName,
+        postAuthor: normalizeShip(params.postAuthor),
+        parentId: params.parentId,
+        parentAuthorId: params.parentAuthorId
+          ? normalizeShip(params.parentAuthorId)
+          : undefined,
+      });
+    });
+  }
+
   async createGroupWithChannel(params: {
     title: string;
     members?: string[];
@@ -421,6 +466,22 @@ export class TlonActorClient {
             mode: 'newest',
           });
           return (result.posts ?? []).map(postFromApi);
+        });
+      },
+
+      postWithReplies: async ({ channelId, rootId, rootAuthor }) => {
+        return this.withClient(async () => {
+          const post = await getPostWithReplies({
+            channelId,
+            postId: rootId,
+            authorId: normalizeShip(rootAuthor),
+          });
+          return {
+            root: normalizedThreadPost(post),
+            replies: ((post as { replies?: unknown[] }).replies ?? []).map(
+              normalizedThreadPost
+            ),
+          };
         });
       },
 
@@ -637,6 +698,7 @@ function postFromApi(post: unknown): ChannelPost {
   const raw = post as {
     id?: string;
     authorId?: string;
+    parentId?: string | null;
     sentAt?: number;
     sequenceNum?: number | null;
     textContent?: string | null;
@@ -647,10 +709,29 @@ function postFromApi(post: unknown): ChannelPost {
     authorId: raw.authorId,
     sentAt: raw.sentAt,
     sequenceNum: raw.sequenceNum,
+    parentId: raw.parentId,
     text: (
       raw.textContent ?? storyInputText((raw.content ?? []) as Story)
     ).trim(),
     content: raw.content,
+  };
+}
+
+function normalizedThreadPost(post: unknown): {
+  id: string;
+  author: string;
+  text: string;
+  parentId?: string;
+} {
+  const normalized = postFromApi(post);
+  if (!normalized.id || !normalized.authorId) {
+    throw new Error('Expected fetched post to include an id and author.');
+  }
+  return {
+    id: normalized.id,
+    author: normalized.authorId,
+    text: normalized.text,
+    ...(normalized.parentId ? { parentId: normalized.parentId } : {}),
   };
 }
 

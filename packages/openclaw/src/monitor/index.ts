@@ -101,12 +101,18 @@ import {
   removePendingApproval,
 } from './approval.js';
 import {
+  handleChannelReaction,
+  processChannelReactionSnapshot,
+} from './channel-reactions.js';
+import { buildReplayMessageText, resolveCites } from './cite.js';
+import {
   type ApprovalCommandBridge,
   removeBridge,
   setBridge,
 } from './command-bridge.js';
 import { createComputingPresenceTracker } from './computing-presence.js';
 import { fetchAllChannels, fetchInitData } from './discovery.js';
+import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
   buildThreadContextMessage,
   cacheMessage,
@@ -115,6 +121,7 @@ import {
   fetchThreadContextHistory,
   getChannelHistory,
   lookupCachedMessage,
+  lookupOrFetchCachedChannelMessage,
   renderHistoryContent,
 } from './history.js';
 import {
@@ -132,6 +139,7 @@ import {
   setLastNudgeStageShadow,
   setLastOwnerActivity,
 } from './nudge-state.js';
+import { recordSentTlonReply } from './output.js';
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
@@ -145,18 +153,16 @@ import {
 import { resolveSettingsMirrorSync } from './settings-sync.js';
 import { resolveTlonSourceReplyDeliveryMode } from './source-reply-delivery.js';
 import {
-  type ParsedCite,
   extractCites,
-  extractMessageText,
   formatModelName,
-  isBotMentioned,
   isChannelRestricted,
   isDmAllowed,
   isOwnerListenSlashCommand,
   isSummarizationRequest,
+  prepareInboundText,
   sanitizeMessageText,
   shouldEngageInGroup,
-  stripBotMention,
+  stripBotMentionOutsidePlaceholders,
 } from './utils.js';
 import { probeWebSearchBootStatus } from './web-search-status.js';
 
@@ -357,6 +363,9 @@ export async function monitorTlonProvider(
   const accountCode = account.code;
 
   const botShipName = normalizeShip(account.ship);
+  if (!botShipName) {
+    throw new Error('Tlon account ship is empty after normalization');
+  }
   const tlonSkillVersion = await resolveTlonSkillVersion();
   let effectiveOwnerShip: string | null = account.ownerShip
     ? normalizeShip(account.ownerShip)
@@ -983,9 +992,10 @@ export async function monitorTlonProvider(
       try {
         return serializeBlobField(
           buildApprovalA2UIBlob(approval, ctx, {
-            // Source messages live on the bot's account. A separate owner may
-            // not have the corresponding DM or group channel in local state.
-            includeSourceNavigation: effectiveOwnerShip === botShipName,
+            // DM sources live in the bot's own DM history, which a separate
+            // owner cannot open. Channel-mention sources live in the group
+            // channel, so they stay linked for any owner (TLON-6198).
+            recipientSeesBotDms: effectiveOwnerShip === botShipName,
           })
         );
       } catch (err) {
@@ -1391,51 +1401,11 @@ export async function monitorTlonProvider(
       runtime.log?.('[tlon] No group channels to monitor (DMs only)');
     }
 
-    // Helper to resolve cited message content
-    async function resolveCiteContent(
-      cite: ParsedCite
-    ): Promise<string | null> {
-      if (cite.type !== 'chan' || !cite.nest || !cite.postId) {
-        return null;
-      }
-
-      try {
-        // Scry for the specific post: /v4/{nest}/posts/post/{postId}
-        const scryPath = `/channels/v4/${cite.nest}/posts/post/${cite.postId}.json`;
-        runtime.log?.(`[tlon] Fetching cited post: ${scryPath}`);
-
-        const data: any = await api!.scry(scryPath);
-
-        // Extract text from the post's essay content
-        if (data?.essay?.content) {
-          const text = extractMessageText(data.essay.content);
-          return text || null;
-        }
-
-        return null;
-      } catch (err) {
-        runtime.log?.(`[tlon] Failed to fetch cited post: ${String(err)}`);
-        return null;
-      }
-    }
-
-    // Resolve all cites in message content and return quoted text
-    async function resolveAllCites(content: unknown): Promise<string> {
-      const cites = extractCites(content);
-      if (cites.length === 0) {
-        return '';
-      }
-
-      const resolved: string[] = [];
-      for (const cite of cites) {
-        const text = await resolveCiteContent(cite);
-        if (text) {
-          const author = cite.author || 'unknown';
-          resolved.push(`> ${author} wrote: ${text}`);
-        }
-      }
-
-      return resolved.length > 0 ? resolved.join('\n') + '\n\n' : '';
+    async function resolveCitedContent(story: unknown): Promise<string> {
+      return resolveCites(api!, story, {
+        runtime,
+        signal: opts.abortSignal,
+      });
     }
 
     // Helper to save pending approvals to settings store
@@ -1857,10 +1827,21 @@ export async function monitorTlonProvider(
               runtime.log?.(
                 `[tlon] Processing original message from ${approval.requestingShip} after approval`
               );
+              const replayMessage = await buildReplayMessageText(
+                approval.originalMessage,
+                api!,
+                { runtime, signal: opts.abortSignal }
+              );
               await processMessage({
                 messageId: approval.originalMessage.messageId,
                 senderShip: approval.requestingShip,
-                messageText: approval.originalMessage.messageText,
+                messageText: replayMessage.messageText,
+                ...(replayMessage.citedContent
+                  ? { citedContent: replayMessage.citedContent }
+                  : {}),
+                ...(replayMessage.gateText !== undefined
+                  ? { gateText: replayMessage.gateText }
+                  : {}),
                 trigger: 'dm',
                 messageContent: approval.originalMessage.messageContent,
                 isGroup: false,
@@ -1881,10 +1862,21 @@ export async function monitorTlonProvider(
                 runtime.log?.(
                   `[tlon] Processing original message from ${approval.requestingShip} in ${approval.channelNest} after approval`
                 );
+                const replayMessage = await buildReplayMessageText(
+                  approval.originalMessage,
+                  api!,
+                  { runtime, signal: opts.abortSignal }
+                );
                 await processMessage({
                   messageId: approval.originalMessage.messageId,
                   senderShip: approval.requestingShip,
-                  messageText: approval.originalMessage.messageText,
+                  messageText: replayMessage.messageText,
+                  ...(replayMessage.citedContent
+                    ? { citedContent: replayMessage.citedContent }
+                    : {}),
+                  ...(replayMessage.gateText !== undefined
+                    ? { gateText: replayMessage.gateText }
+                    : {}),
                   trigger: approval.originalMessage.isThreadReply
                     ? 'thread'
                     : 'mention',
@@ -2008,6 +2000,11 @@ export async function monitorTlonProvider(
             runtime.error?.(
               `[tlon] Failed to build pending approvals A2UI blob: ${String(err)}`
             );
+          },
+          {
+            // Same visibility rule as buildApprovalBlobField: only DM sources
+            // are restricted to recipients on the bot's own account.
+            recipientSeesBotDms: effectiveOwnerShip === botShipName,
           }
         );
 
@@ -2163,6 +2160,9 @@ export async function monitorTlonProvider(
       messageId: string;
       senderShip: string;
       messageText: string;
+      citedContent?: string;
+      /** Cite-free rendering used only for message-level gates. */
+      gateText?: string;
       trigger?: ContextLensTrigger;
       cachesHistory?: boolean;
       messageContent?: unknown; // Raw Tlon content for media extraction
@@ -2195,23 +2195,34 @@ export async function monitorTlonProvider(
       // the reply is still delivered as a thread reply.
       const deliverParentId = params.replyParentId ?? parentId;
       const groupChannel = channelNest; // For compatibility
-      let messageText = sanitizeMessageText(params.messageText);
-      const rawMessageText = messageText; // Preserve original before any modifications
+      const rawMessageText = sanitizeMessageText(params.messageText);
+      let currentMessageText = rawMessageText;
       const previewText = (text: string, max = 180) => {
         const compact = sanitizeMessageText(text).replace(/\s+/g, ' ').trim();
         return compact.length > max ? `${compact.slice(0, max - 1)}…` : compact;
       };
 
-      // Strip bot mention EARLY, before thread context is prepended.
+      // Strip the sender's bot mention before cite or thread context is prepended.
       // This ensures [Current message] in thread context won't contain the bot ship name,
       // which was causing the agent to mistake it for its own message and return NO_REPLY.
       if (isGroup) {
-        messageText = stripBotMention(messageText, botShipName);
+        currentMessageText = stripBotMentionOutsidePlaceholders(
+          currentMessageText,
+          botShipName
+        );
       }
-      const trigger: ContextLensTrigger =
-        isGroup && groupChannel && isSummarizationRequest(messageText)
-          ? 'summarization'
-          : params.trigger ?? 'unknown';
+      const gateText = sanitizeMessageText(
+        params.gateText ?? currentMessageText
+      );
+      const isChannelSummaryRequest =
+        isGroup && Boolean(groupChannel) && isSummarizationRequest(gateText);
+      const trigger: ContextLensTrigger = isChannelSummaryRequest
+        ? 'summarization'
+        : params.trigger ?? 'unknown';
+      const citedContent = sanitizeMessageText(params.citedContent ?? '');
+      let messageText = citedContent
+        ? `${citedContent}\n\n${currentMessageText}`
+        : currentMessageText;
 
       const route = core.channel.routing.resolveAgentRoute({
         cfg,
@@ -2601,7 +2612,7 @@ export async function monitorTlonProvider(
         }
       }
 
-      if (isGroup && groupChannel && isSummarizationRequest(messageText)) {
+      if (isChannelSummaryRequest && groupChannel) {
         try {
           const history = await getChannelHistory(
             api,
@@ -2877,7 +2888,7 @@ export async function monitorTlonProvider(
 
       // Use raw text (no thread context) for command detection so "/status" is recognized
       const commandBody = isGroup
-        ? stripBotMention(rawMessageText, botShipName)
+        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
         : rawMessageText;
 
       const ctxPayload = core.channel.reply.finalizeInboundContext({
@@ -3014,28 +3025,30 @@ export async function monitorTlonProvider(
 
       const typingCallbacks = presenceConversationId
         ? createTypingCallbacks({
-            start: async () => {
-              await computingPresence.refreshRun({
+            start: () => {
+              computingPresence.refreshRun({
                 conversationId: presenceConversationId,
                 runId: presenceRunId,
               });
+              return Promise.resolve();
             },
-            stop: async () => {
-              await computingPresence.stopRun({
+            stop: () => {
+              computingPresence.stopRun({
                 conversationId: presenceConversationId,
                 runId: presenceRunId,
               });
+              return Promise.resolve();
             },
             onStartError: (err: unknown) => {
               runtime.error?.(
-                `[tlon] Failed to start computing presence for ${presenceConversationId}: ${
+                `[tlon] Failed to enqueue computing presence for ${presenceConversationId}: ${
                   err instanceof Error ? err.stack ?? err.message : String(err)
                 }`
               );
             },
             onStopError: (err: unknown) => {
               runtime.error?.(
-                `[tlon] Failed to stop computing presence for ${presenceConversationId}: ${
+                `[tlon] Failed to enqueue computing presence stop for ${presenceConversationId}: ${
                   err instanceof Error ? err.stack ?? err.message : String(err)
                 }`
               );
@@ -3045,10 +3058,6 @@ export async function monitorTlonProvider(
             // callbacks, killing the thinking indicator for the rest of long
             // runs. stopRun is already wired to deliver/idle/cleanup.
             maxDurationMs: 0,
-            // The SDK default (2) trips the keepalive permanently after two
-            // transient poke failures, which lets the ship-side presence expire
-            // mid-run. Failures are already logged via onStartError.
-            maxConsecutiveFailures: 5,
           })
         : undefined;
 
@@ -3076,18 +3085,18 @@ export async function monitorTlonProvider(
           });
           logContextLens(lens.lensId, 'model_selected');
         },
-        onAssistantMessageStart: async () => {
+        onAssistantMessageStart: () => {
           if (presenceConversationId) {
-            await computingPresence.clearToolCalls({
+            computingPresence.clearToolCalls({
               conversationId: presenceConversationId,
               runId: presenceRunId,
             });
           }
         },
-        onToolStart: async (payload) => {
+        onToolStart: (payload) => {
           const toolName = payload.name ?? 'unknown';
           if (presenceConversationId) {
-            await computingPresence.addToolCall({
+            computingPresence.addToolCall({
               conversationId: presenceConversationId,
               runId: presenceRunId,
               toolName,
@@ -3274,18 +3283,19 @@ export async function monitorTlonProvider(
                     contextLenses.recordPersistence(lens.lensId, {
                       postsReply: true,
                     });
-                    if (outputMessageId) {
-                      contextLenses.recordOutput(lens.lensId, {
-                        messageId: outputMessageId,
-                        conversationId: isGroup
-                          ? groupChannel ?? ''
-                          : senderShip,
-                        kind: isGroup ? 'channel' : 'dm',
-                        sentAt: Date.now(),
-                        preview: previewText(replyText),
-                        chunkIndex: deliveredMessageCount - 1,
-                      });
-                    }
+                    recordSentTlonReply({
+                      botShipName,
+                      contextLenses,
+                      deliveredMessageCount,
+                      groupChannel,
+                      isGroup,
+                      lensId: lens.lensId,
+                      outputMessageId,
+                      replyBlob,
+                      replyPreview: previewText(replyText),
+                      replyText,
+                      senderShip,
+                    });
                     contextLenses.recordPersistenceEvent(lens.lensId, {
                       kind: 'conversation_state',
                       action: 'created',
@@ -3305,7 +3315,7 @@ export async function monitorTlonProvider(
                         : 0;
 
                     if (presenceConversationId) {
-                      await computingPresence.stopRun({
+                      computingPresence.stopRun({
                         conversationId: presenceConversationId,
                         runId: presenceRunId,
                       });
@@ -3440,84 +3450,95 @@ export async function monitorTlonProvider(
           response?.post?.['r-post']?.reply?.['r-reply']?.reacts;
         const effectiveReacts = reacts || replyReacts;
         if (effectiveReacts && typeof effectiveReacts === 'object') {
+          const rootPostId = replyReacts ? response?.post?.id : undefined;
           const postId = replyReacts
             ? response?.post?.['r-post']?.reply?.id ??
               response?.post?.id ??
               'unknown'
             : response?.post?.id ?? 'unknown';
-          for (const [reactShip, reactEmoji] of Object.entries(
-            effectiveReacts as Record<string, string>
-          )) {
-            const ship = normalizeShip(reactShip);
-            if (!ship || ship === botShipName) {
-              continue;
-            }
-            try {
-              const route = core.channel.routing.resolveAgentRoute({
-                cfg,
-                channel: 'tlon',
-                accountId: opts.accountId ?? undefined,
-                peer: { kind: 'group', id: nest },
-              });
-              // Look up the reacted-to message content for context
-              const cached = lookupCachedMessage(nest, postId);
-              const contentSnippet = cached?.content
-                ? ` (message: "${cached.content.substring(0, 200)}${cached.content.length > 200 ? '...' : ''}")`
-                : '';
-              const authorInfo = cached?.author
-                ? ` (by ${formatShipWithNickname(cached.author)})`
-                : '';
-              const reactorDisplay = formatShipWithNickname(ship);
-              const eventText = `Tlon reaction in ${nest}: ${reactEmoji} by ${reactorDisplay} on post ${postId}${authorInfo}${contentSnippet}`;
-              runtime.log?.(`[tlon] REACTION: ${eventText}`);
-
-              // If reacting to the bot's own message, dispatch as a real message
-              // so the agent runs immediately (e.g. thumbs-up as "yes")
-              if (cached?.author === botShipName) {
-                // Include context so agent knows what was reacted to, since we're
-                // deliberately omitting thread context (parentId) to avoid the agent
-                // suppressing responses when it sees its own message in thread history.
-                const reactionParentId = replyReacts
-                  ? response?.post?.id ?? postId
-                  : postId;
-                const reactText = cached?.content
-                  ? `${reactEmoji} (reacting to: "${cached.content}")`
-                  : reactEmoji;
-                runtime.log?.(
-                  `[tlon] Dispatching channel reaction as message: ${reactEmoji} from ${ship}`
+          await processChannelReactionSnapshot({
+            botShip: botShipName,
+            reactions: effectiveReacts as Record<string, string>,
+            postId,
+            rootPostId,
+            normalizeShip,
+            // Every reactor in this snapshot reacted to the same target. Resolve
+            // it once so a missing/deleted target cannot retry its scry per reactor.
+            resolveTarget: (targetPostId, targetRootPostId) =>
+              lookupOrFetchCachedChannelMessage(
+                api,
+                nest,
+                targetPostId,
+                targetRootPostId,
+                runtime
+              ),
+            handleReaction: async ({
+              emoji: reactEmoji,
+              reactor: ship,
+              target: reactionTarget,
+            }) => {
+              try {
+                const route = core.channel.routing.resolveAgentRoute({
+                  cfg,
+                  channel: 'tlon',
+                  accountId: opts.accountId ?? undefined,
+                  peer: { kind: 'group', id: nest },
+                });
+                await handleChannelReaction({
+                  botShip: botShipName,
+                  emoji: reactEmoji,
+                  formatShip: formatShipWithNickname,
+                  nest,
+                  postId,
+                  reactor: ship,
+                  rootPostId,
+                  target: reactionTarget,
+                  log: (message) => runtime.log?.(message),
+                  // If reacting to the bot's own message, dispatch as a real
+                  // message so the agent runs immediately (e.g. thumbs-up as
+                  // "yes"). Omit thread context to avoid the agent suppressing
+                  // responses to its own message, but preserve the reply parent
+                  // for delivery.
+                  dispatchAgent: async ({ messageText, replyParentId }) => {
+                    runtime.log?.(
+                      `[tlon] Dispatching channel reaction as message: ${reactEmoji} from ${ship}`
+                    );
+                    const parsed = parseChannelNest(nest);
+                    await processMessage({
+                      messageId: `react-${postId}-${ship}-${Date.now()}`,
+                      senderShip: ship,
+                      messageText,
+                      trigger: 'reaction',
+                      cachesHistory: true,
+                      isGroup: true,
+                      channelNest: nest,
+                      hostShip: parsed?.hostShip,
+                      channelName: parsed?.channelName,
+                      timestamp: Date.now(),
+                      replyParentId, // Thread reply for delivery only
+                    });
+                  },
+                  // Reactions on other people's messages are passive system
+                  // events, including targets whose author cannot be resolved.
+                  enqueueSystemEvent: (eventText) => {
+                    core.system.enqueueSystemEvent(eventText, {
+                      sessionKey: route.sessionKey,
+                      contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
+                      // Route any resulting system/heartbeat turn back to Tlon.
+                      deliveryContext: tlonDeliveryContext(
+                        `tlon:${nest}`,
+                        route.accountId
+                      ),
+                    });
+                  },
+                });
+              } catch (err: any) {
+                runtime.error?.(
+                  `[tlon] Error handling reaction: ${err?.message ?? String(err)}`
                 );
-                const parsed = parseChannelNest(nest);
-                await processMessage({
-                  messageId: `react-${postId}-${ship}-${Date.now()}`,
-                  senderShip: ship,
-                  messageText: reactText,
-                  trigger: 'reaction',
-                  cachesHistory: true,
-                  isGroup: true,
-                  channelNest: nest,
-                  hostShip: parsed?.hostShip,
-                  channelName: parsed?.channelName,
-                  timestamp: Date.now(),
-                  replyParentId: reactionParentId, // Thread reply for delivery only
-                });
-              } else {
-                // For reactions on other people's messages, just enqueue as system event
-                core.system.enqueueSystemEvent(eventText, {
-                  sessionKey: route.sessionKey,
-                  contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
-                  // Route any resulting system/heartbeat turn back to Tlon.
-                  deliveryContext: tlonDeliveryContext(
-                    `tlon:${nest}`,
-                    route.accountId
-                  ),
-                });
               }
-            } catch (err: any) {
-              runtime.error?.(
-                `[tlon] Error handling reaction: ${err?.message ?? String(err)}`
-              );
-            }
-          }
+            },
+          });
           return;
         }
 
@@ -3545,19 +3566,20 @@ export async function monitorTlonProvider(
           return;
         }
 
-        // Resolve any cited/quoted messages first
-        const citedContent = await resolveAllCites(content.content);
-        const rawText = extractMessageText(content.content);
-        const messageText = citedContent + rawText;
-        const hasBlob = Boolean((content as any)?.blob);
-        if (!messageText.trim() && !hasBlob) {
+        const { rawText, engagementText, mentioned } = prepareInboundText(
+          content.content,
+          botShipName,
+          botNickname ?? undefined
+        );
+        const hasBlob = Boolean(content.blob);
+        if (!rawText.trim() && !hasBlob) {
           return;
         }
 
         // Cache ALL messages (including bot's own) so reaction lookups have context
         cacheMessage(nest, {
           author: senderShip,
-          content: messageText,
+          content: rawText,
           timestamp: content.sent || Date.now(),
           id: messageId,
           blob: content.blob ?? null,
@@ -3624,11 +3646,6 @@ export async function monitorTlonProvider(
         // 3. Owner blob-only message (image/file with no text from owner)
         // 4. Owner-listen: owner posts in an owner/bot-hosted channel and the
         //    channel is not in the per-channel disabled list
-        const mentioned = isBotMentioned(
-          messageText,
-          botShipName,
-          botNickname ?? undefined
-        );
         const inParticipatedThread = Boolean(
           isThreadReply && parentId && participatedThreads.has(parentId)
         );
@@ -3729,10 +3746,10 @@ export async function monitorTlonProvider(
                     type: 'channel',
                     requestingShip: senderShip,
                     channelNest: nest,
-                    messagePreview: messageText.substring(0, 100),
+                    messagePreview: rawText.substring(0, 100),
                     originalMessage: {
                       messageId: messageId ?? '',
-                      messageText,
+                      messageText: rawText,
                       messageContent: content.content,
                       timestamp: content.sent || Date.now(),
                       parentId: parentId ?? undefined,
@@ -3755,10 +3772,13 @@ export async function monitorTlonProvider(
         }
 
         const parsed = parseChannelNest(nest);
+        const citedContent = await resolveCitedContent(content.content);
         await processMessage({
           messageId: messageId ?? '',
           senderShip,
-          messageText,
+          messageText: rawText,
+          ...(citedContent ? { citedContent } : {}),
+          gateText: engagementText,
           trigger,
           cachesHistory: true,
           messageContent: content.content, // Pass raw content for media extraction
@@ -3942,7 +3962,10 @@ export async function monitorTlonProvider(
                   cachesHistory: true,
                   isGroup: false,
                   timestamp: Date.now(),
-                  replyParentId: messageId, // Thread reply for delivery only
+                  replyParentId: dmReactionReplyParentId(
+                    botShipName,
+                    messageId
+                  ), // Thread reply for delivery only
                 });
               } else {
                 const contentSnippet = cached?.content
@@ -4004,10 +4027,15 @@ export async function monitorTlonProvider(
         const authorShip = normalizeShip(extractAuthorShip(dmContent.author));
         const partnerShip = extractDmPartnerShip(whom);
         const senderShip = partnerShip || authorShip;
+        const { rawText, engagementText } = prepareInboundText(
+          dmContent.content,
+          botShipName,
+          botNickname ?? undefined
+        );
 
         // Cache DM messages (including bot's own) so reaction lookups have context
         const dmCacheKey = `dm/${whom}`;
-        const rawCacheText = extractMessageText(dmContent.content);
+        const rawCacheText = rawText;
         const hasDmBlob = Boolean(dmContent.blob);
         if (rawCacheText.trim() || hasDmBlob) {
           cacheMessage(dmCacheKey, {
@@ -4034,12 +4062,8 @@ export async function monitorTlonProvider(
           );
         }
 
-        // Resolve any cited/quoted messages first
-        const citedContent = await resolveAllCites(dmContent.content);
-        const rawText = extractMessageText(dmContent.content);
-        const messageText = citedContent + rawText;
-        const hasBlob = Boolean((dmContent as any)?.blob);
-        if (!messageText.trim() && !hasBlob) {
+        const hasBlob = Boolean(dmContent.blob);
+        if (!rawText.trim() && !hasBlob) {
           return;
         }
 
@@ -4048,34 +4072,17 @@ export async function monitorTlonProvider(
           runtime.log?.(
             `[tlon] Processing DM from owner ${senderShip}${isDmThreadReply ? ` (thread reply, parent=${dmReplyParentId}, replyId=${effectiveMessageId})` : ''}`
           );
-          await processMessage({
-            messageId: effectiveMessageId ?? '',
-            senderShip,
-            messageText,
-            trigger: 'dm',
-            cachesHistory: Boolean(rawCacheText.trim()),
-            messageContent: dmContent.content,
-            blobField: dmContent.blob,
-            isGroup: false,
-            timestamp: dmContent.sent || Date.now(),
-            parentId: dmReplyParentId,
-            isThreadReply: isDmThreadReply,
-          });
-          return;
-        }
-
-        // For DMs from others, check allowlist
-        if (!isDmAllowed(senderShip, effectiveDmAllowlist)) {
+        } else if (!isDmAllowed(senderShip, effectiveDmAllowlist)) {
           // If owner is configured, queue approval request
           if (effectiveOwnerShip) {
             const approval = createPendingApproval(
               {
                 type: 'dm',
                 requestingShip: senderShip,
-                messagePreview: messageText.substring(0, 100),
+                messagePreview: rawText.substring(0, 100),
                 originalMessage: {
                   messageId: effectiveMessageId ?? '',
-                  messageText,
+                  messageText: rawText,
                   messageContent: dmContent.content,
                   timestamp: dmContent.sent || Date.now(),
                   parentId: dmReplyParentId,
@@ -4097,10 +4104,13 @@ export async function monitorTlonProvider(
           return;
         }
 
+        const citedContent = await resolveCitedContent(dmContent.content);
         await processMessage({
           messageId: effectiveMessageId ?? '',
           senderShip,
-          messageText,
+          messageText: rawText,
+          ...(citedContent ? { citedContent } : {}),
+          gateText: engagementText,
           trigger: 'dm',
           cachesHistory: Boolean(rawCacheText.trim()),
           messageContent: dmContent.content, // Pass raw content for media extraction
@@ -4322,10 +4332,26 @@ export async function monitorTlonProvider(
                 : ''
             }`
           );
+          const replay = dispatch.messageContent
+            ? await buildReplayMessageText(
+                {
+                  messageText: dispatch.messageText,
+                  messageContent: dispatch.messageContent,
+                },
+                api!,
+                { runtime, signal: opts.abortSignal }
+              )
+            : { messageText: dispatch.messageText };
           await processMessage({
             messageId: lens.messageId,
             senderShip: dispatch.senderShip,
-            messageText: dispatch.messageText,
+            messageText: replay.messageText,
+            ...(replay.citedContent
+              ? { citedContent: replay.citedContent }
+              : {}),
+            ...(replay.gateText !== undefined
+              ? { gateText: replay.gateText }
+              : {}),
             blobField: dispatch.blobField,
             ...(dispatch.messageContent
               ? { messageContent: dispatch.messageContent }

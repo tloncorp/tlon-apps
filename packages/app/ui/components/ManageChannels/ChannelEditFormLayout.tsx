@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { KeyboardAvoidingView, useIsWindowNarrow } from '@tloncorp/ui';
 import { ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View } from 'tamagui';
@@ -45,16 +45,23 @@ export function ChannelEditFormLayout({
         useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={rightControls}
       />
-      <ScrollView
-        flex={1}
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={{
-          minHeight: '100%',
-          paddingBottom: insets.bottom,
-        }}
-      >
-        {children}
-      </ScrollView>
+      {/* Keyboard avoidance wraps only the scrollable content, not the
+          ScreenHeader. On Android the shared KeyboardAvoidingView uses
+          behavior="position", which shifts its subtree up when the keyboard
+          opens; including the header there leaves it stranded under the status
+          bar after the keyboard is dismissed (TLON-6173). */}
+      <KeyboardAvoidingView style={{ flex: 1 }}>
+        <ScrollView
+          flex={1}
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{
+            minHeight: '100%',
+            paddingBottom: insets.bottom,
+          }}
+        >
+          {children}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

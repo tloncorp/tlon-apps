@@ -27,10 +27,12 @@ load_module("tlon_api")
 history = load_module("history")
 
 
-def essay(author, text, sent, *, blob=None):
+def essay(author, text, sent, *, blob=None, title=None):
     payload = {"author": author, "sent": sent, "content": [{"inline": [text]}]}
     if blob is not None:
         payload["blob"] = blob
+    if title is not None:
+        payload["meta"] = {"title": title}
     return payload
 
 
@@ -149,23 +151,99 @@ class ParseChannelHistoryTests(unittest.TestCase):
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0].author, "~mug")
 
+    def test_fetch_chat_history_hides_essay_title(self):
+        nest = "chat/~pen/general"
+        path = f"/channels/v4/{nest}/posts/newest/1/outline"
+        payload = {
+            "posts": {
+                "1": {
+                    "essay": essay(
+                        "~mug",
+                        "visible chat text",
+                        1000,
+                        title="hidden chat metadata",
+                    ),
+                    "seal": {"id": "1"},
+                }
+            }
+        }
+
+        entries = asyncio.run(
+            history.fetch_channel_history(make_scry({path: payload}), nest, 1)
+        )
+
+        self.assertEqual([entry.content for entry in entries], ["visible chat text"])
+
     def test_non_dict_payload(self):
         self.assertEqual(history.parse_channel_history(None), [])
         self.assertEqual(history.parse_channel_history("nope"), [])
 
 
 class ParseThreadTests(unittest.TestCase):
-    def test_replies_list_with_memo(self):
+    def test_replies_list_with_reply_essay(self):
         payload = {
             "replies": [
-                {"memo": essay("~ten", "second", 2000), "seal": {"id": "2"}},
-                {"memo": essay("~mug", "first", 1000), "seal": {"id": "1"}},
+                {
+                    "reply-essay": essay("~ten", "second", 2000),
+                    "seal": {"id": "2", "parent-id": "0", "reacts": {}},
+                    "revision": "0",
+                },
+                {
+                    "reply-essay": essay("~mug", "first", 1000),
+                    "seal": {"id": "1", "parent-id": "0", "reacts": {}},
+                    "revision": "0",
+                },
             ]
         }
         entries = history.parse_thread_replies(payload)
         self.assertEqual([entry.content for entry in entries], ["first", "second"])
 
-    def test_reply_blob_renders_compactly(self):
+    def test_replies_dict_with_reply_essay(self):
+        payload = {
+            "replies": {
+                "2": {
+                    "reply-essay": essay("~ten", "second", 2000),
+                    "seal": {"id": "2", "parent-id": "0", "reacts": {}},
+                    "revision": "0",
+                },
+                "1": {
+                    "reply-essay": essay("~mug", "first", 1000),
+                    "seal": {"id": "1", "parent-id": "0", "reacts": {}},
+                    "revision": "0",
+                },
+            }
+        }
+
+        entries = history.parse_thread_replies(payload)
+
+        self.assertEqual([entry.content for entry in entries], ["first", "second"])
+        self.assertEqual([entry.post_id for entry in entries], ["1", "2"])
+
+    def test_nested_reply_set_prefers_reply_essay_over_memo(self):
+        payload = {
+            "replies": [
+                {
+                    "id": "2",
+                    "r-reply": {
+                        "set": {
+                            "reply-essay": essay("~ten", "reply essay", 2000),
+                            "memo": essay("~ten", "legacy memo", 2000),
+                            "seal": {
+                                "id": "2",
+                                "parent-id": "0",
+                                "reacts": {},
+                            },
+                        }
+                    },
+                }
+            ]
+        }
+
+        entries = history.parse_thread_replies(payload)
+
+        self.assertEqual([entry.content for entry in entries], ["reply essay"])
+
+    def test_memo_reply_blob_remains_tolerated(self):
         blob = json.dumps(
             [
                 {
@@ -200,6 +278,19 @@ class ParseThreadTests(unittest.TestCase):
             self.assertEqual(entry.content, "root")
             self.assertEqual(entry.post_id, "7")
 
+    def test_exact_reply_accepts_memo_and_reply_essay(self):
+        reply = essay("~mug", "reply", 1000)
+        entries = [
+            history.parse_exact_reply(
+                {"seal": {"id": "8"}, "revision": 1, "memo": reply}, "8"
+            ),
+            history.parse_exact_reply(
+                {"seal": {"id": "8"}, "revision": 1, "reply-essay": reply}, "8"
+            ),
+        ]
+
+        self.assertEqual(entries, [history.HistoryEntry("~mug", "reply", 1000.0, "8")] * 2)
+
     def test_fetch_thread_context_orders_parent_first_and_dedupes(self):
         nest = "chat/~pen/general"
         payloads = {
@@ -217,6 +308,49 @@ class ParseThreadTests(unittest.TestCase):
             history.fetch_thread_context(make_scry(payloads), nest, "170141", 5)
         )
         self.assertEqual([entry.content for entry in entries], ["root", "reply"])
+
+    def test_fetch_heap_thread_context_includes_reply_essay_comment_title(self):
+        nest = "heap/~pen/gallery"
+        replies_payload = {
+            "replies": [
+                {
+                    "reply-essay": essay(
+                        "~ten",
+                        "gallery comment",
+                        1000,
+                        title="Comment title",
+                    ),
+                    "seal": {
+                        "id": "170142",
+                        "parent-id": "170141",
+                        "reacts": {},
+                    },
+                    "revision": "0",
+                }
+            ]
+        }
+        payloads = {
+            f"/channels/v4/{nest}/posts/post/170.141": {
+                "post": {
+                    "essay": essay("~mug", "gallery parent", 500),
+                    "seal": {"id": "170141"},
+                }
+            },
+            f"/channels/v4/{nest}/posts/post/id/170.141/replies/newest/5": replies_payload,
+        }
+
+        entries = asyncio.run(
+            history.fetch_thread_context(make_scry(payloads), nest, "170141", 5)
+        )
+
+        self.assertEqual(
+            [entry.content for entry in entries],
+            ["gallery parent", "Comment title\ngallery comment"],
+        )
+        chat_entries = history.parse_thread_replies(
+            replies_payload, "chat/~pen/general"
+        )
+        self.assertEqual([entry.content for entry in chat_entries], ["gallery comment"])
 
     def test_fetch_thread_context_survives_partial_failures(self):
         nest = "chat/~pen/general"

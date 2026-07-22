@@ -4,7 +4,9 @@ import { RNFile, getCurrentUserId } from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
 import { Attachment } from '@tloncorp/api/types/attachment';
 import { da, render } from '@urbit/aura';
-import * as FileSystem from 'expo-file-system/legacy';
+// Aliased so it doesn't shadow the global web File used elsewhere in this
+// module.
+import { File as ExpoFile } from 'expo-file-system';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
 import * as db from '../../db';
@@ -336,36 +338,64 @@ export const performUpload = async (
       forcePathStyle: true,
     });
 
-    const headers = {
-      'Content-Type': contentType ?? 'application/octet-stream',
-      'Cache-Control': 'public, max-age=3600',
-      'x-amz-acl': 'public-read', // necessary for digital ocean spaces
+    // ACL travels in the signed query string only (the presigner hoists it;
+    // SignedHeaders=host). Unsigned x-amz-* wire headers are forbidden by AWS
+    // SigV4, so we never send an ACL header — except DO Spaces, whose legacy
+    // wire shape includes it. Content-Type/Cache-Control are ordinary unsigned
+    // metadata headers. Non-DO browser uploads omit Cache-Control to avoid new
+    // CORS preflight requirements (narrow AllowedHeaders on existing buckets);
+    // this leaves a Cache-Control metadata gap on those objects. GCS
+    // uniform-bucket-level-access rejects any ACL with 400, hence the single
+    // retry without it.
+    const isDO = new URL(endpointUrl).hostname.endsWith(
+      '.digitaloceanspaces.com'
+    );
+
+    const presign = async (includeAcl: boolean) => {
+      const headers: Record<string, string> = {
+        'Content-Type': contentType ?? 'application/octet-stream',
+      };
+      if (isDO) {
+        headers['Cache-Control'] = 'public, max-age=3600';
+        if (includeAcl) {
+          headers['x-amz-acl'] = 'public-read';
+        }
+      }
+
+      const command = new PutObjectCommand({
+        Bucket: config.currentBucket,
+        Key: fileKey,
+        ContentType: headers['Content-Type'],
+        CacheControl: isDO ? headers['Cache-Control'] : undefined,
+        ...(includeAcl ? { ACL: 'public-read' as const } : {}),
+      });
+
+      const signedUrl = await getSignedUrl(client, command, {
+        expiresIn: 3600,
+        signableHeaders: new Set(Object.keys(headers)),
+      });
+
+      return { signedUrl, headers };
     };
 
-    const command = new PutObjectCommand({
-      Bucket: config.currentBucket,
-      Key: fileKey,
-      ContentType: headers['Content-Type'],
-      CacheControl: headers['Cache-Control'],
-      ACL: headers['x-amz-acl'],
-    });
-
-    const signedUrl = await getSignedUrl(client, command, {
-      expiresIn: 3600,
-      signableHeaders: new Set(Object.keys(headers)),
-    });
-
+    let { signedUrl, headers } = await presign(true);
     logger.log('Signed URL:', signedUrl);
     logger.log('Headers to be sent:', headers);
 
-    const isDigitalOcean = signedUrl.includes('digitaloceanspaces.com');
+    try {
+      await uploadFile(signedUrl, sourceUri, headers, isWeb);
+    } catch (e) {
+      if (e instanceof UploadResponseError && e.status === 400) {
+        logger.log(
+          'ACL rejected (400); retrying upload without ACL for uniform-access buckets'
+        );
+        ({ signedUrl, headers } = await presign(false));
+        await uploadFile(signedUrl, sourceUri, headers, isWeb);
+      } else {
+        throw e;
+      }
+    }
 
-    await uploadFile(
-      signedUrl,
-      sourceUri,
-      isDigitalOcean ? headers : undefined,
-      isWeb
-    );
     return config.publicUrlBase
       ? new URL(fileKey, config.publicUrlBase).toString()
       : signedUrl.split('?')[0];
@@ -374,6 +404,14 @@ export const performUpload = async (
     throw new Error('invalid storage configuration');
   }
 };
+
+class UploadResponseError extends Error {
+  status: number;
+  constructor(status: number) {
+    super(`Got bad upload response ${status}`);
+    this.status = status;
+  }
+}
 
 async function uploadFile(
   presignedUrl: string,
@@ -416,18 +454,18 @@ async function uploadFile(
       headers,
     });
     if (!response.ok) {
-      throw new Error(`Got bad upload response ${response.status}`);
+      throw new UploadResponseError(response.status);
     }
     return response;
   } else {
-    const response = await FileSystem.uploadAsync(presignedUrl, assetUri, {
+    const response = await new ExpoFile(assetUri).upload(presignedUrl, {
       httpMethod: 'PUT',
       headers,
     });
 
     if (response.status !== 200) {
       console.log(escapeLog(response.body));
-      throw new Error(`Got bad upload response ${response.status}`);
+      throw new UploadResponseError(response.status);
     }
     return response;
   }

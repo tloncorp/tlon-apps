@@ -96,6 +96,7 @@ class TlonToolGuardTests(unittest.TestCase):
             ('posts send ~friend "hi"', "chat/~zod/general"),  # in a channel, DM someone
             ('dms send 0v5.abcde "hi"', "chat/~zod/general"),  # in a channel, group-DM someone
             ('posts reply chat/~bot/general 170.141 "hi"', "~owner"),
+            ('posts send heap/~zod/gallery "new gallery item"', "chat/~zod/general"),
         ]
         for command, chat_id in cases:
             with self.subTest(command=command):
@@ -138,6 +139,84 @@ class TlonToolGuardTests(unittest.TestCase):
         )
         self.assertIsNotNone(blocked)
         self.assertIn("--image", blocked)  # block message teaches the escape
+
+    def test_current_gallery_send_is_allowed_but_gallery_reply_stays_blocked(self):
+        send_args, send_error = tlon_tool.split_tlon_command(
+            'posts send heap/~zod/gallery "new gallery item"'
+        )
+        reply_args, reply_error = tlon_tool.split_tlon_command(
+            'posts reply heap/~zod/gallery 170.141 "gallery comment"'
+        )
+
+        self.assertIsNone(send_error)
+        self.assertIsNone(reply_error)
+        self.assertIsNone(
+            tlon_tool.check_tlon_tool_command(
+                send_args, session_chat_id="heap/~zod/gallery"
+            )
+        )
+        blocked = tlon_tool.check_tlon_tool_command(
+            reply_args, session_chat_id="heap/~zod/gallery"
+        )
+        self.assertIsNotNone(blocked)
+        self.assertIn("current conversation", blocked)
+
+    def test_heap_comment_reactions_and_gallery_delete_are_allowed(self):
+        react_args, react_error = tlon_tool.split_tlon_command(
+            'posts react heap/~zod/gallery 170.142 "🔥" --parent 170.141'
+        )
+        delete_args, delete_error = tlon_tool.split_tlon_command(
+            "posts delete heap/~zod/gallery 170.141"
+        )
+
+        self.assertIsNone(react_error)
+        self.assertIsNone(delete_error)
+        self.assertIsNone(
+            tlon_tool.check_tlon_tool_command(react_args, reaction_level="minimal")
+        )
+        self.assertIsNone(tlon_tool.check_tlon_tool_command(delete_args))
+        blocked = tlon_tool.check_tlon_tool_command(react_args, reaction_level="off")
+        self.assertIsNotNone(blocked)
+        self.assertIn("reactions are disabled", blocked)
+
+    def test_tool_description_includes_gallery_guidance(self):
+        description = tlon_tool.TLON_TOOL_DESCRIPTION
+        command_description = tlon_tool.TLON_TOOL_SCHEMA["parameters"]["properties"][
+            "command"
+        ]["description"]
+
+        self.assertIn("heap/~host/name", description)
+        self.assertIn("--parent <post-id>", description)
+        self.assertIn("posts delete heap/~host/name", description)
+        self.assertIn("heap/~host/name", command_description)
+        self.assertIn("--parent <post-id>", command_description)
+
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, *_args, **_kwargs):
+                pass
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        context = RecordingContext()
+        adapter_mod.register(context)
+        platform_hint = context.platform["platform_hint"]
+
+        self.assertIn("Sending plain text to the current conversation", platform_hint)
+        self.assertIn("except that posts send heap/~host/name", platform_hint)
+        self.assertIn("Reply normally in a gallery to comment on the triggering post", platform_hint)
+        self.assertIn("allowed even in the current gallery", platform_hint)
+        self.assertIn("--parent <post-id>", platform_hint)
+        self.assertIn("posts delete heap/~host/name <post-id>", platform_hint)
 
     def test_blocks_notebook(self):
         args, error = tlon_tool.split_tlon_command('notebook diary/~zod/notes "Title"')
@@ -495,6 +574,91 @@ class TlonSessionGateTests(unittest.TestCase):
             block = adapter_mod.block_tlon_session_tool("tlon", self.NOTES_WRITE)
 
         self.assertIsNone(block)
+
+
+class ReactionToolGateTests(unittest.TestCase):
+    def test_reaction_level_blocks_off_and_ack_but_allows_enabled_levels(self):
+        args, error = tlon_tool.split_tlon_command(
+            'posts react chat/~pen/general 170.141 "👍"'
+        )
+        self.assertIsNone(error)
+        for level in ("off", "ack"):
+            with self.subTest(level=level):
+                blocked = tlon_tool.check_tlon_tool_command(args, reaction_level=level)
+                self.assertIn("TLON_REACTION_LEVEL", blocked)
+        for level in ("minimal", "extensive"):
+            with self.subTest(level=level):
+                self.assertIsNone(
+                    tlon_tool.check_tlon_tool_command(args, reaction_level=level)
+                )
+
+    def _gate(self, command, **env):
+        base = {
+            "HERMES_SESSION_PLATFORM": "tlon",
+            "HERMES_SESSION_USER_ID": "~mug",
+            "HERMES_SESSION_CHAT_ID": "chat/~pen/general",
+            "TLON_OWNER_SHIP": "~pen",
+            "TLON_REACTION_LEVEL": "minimal",
+        }
+        base.update(env)
+        with patch.dict(os.environ, base, clear=True):
+            return adapter_mod.block_tlon_session_tool("tlon", {"command": command})
+
+    def test_non_owner_reaction_carveout_is_bound_to_current_conversation(self):
+        self.assertIsNone(
+            self._gate('posts react chat/~pen/general 170.141 "👍"')
+        )
+        self.assertIn(
+            "use posts",
+            self._gate('dms react ~mug ~pen/170.141 "👍"')["message"],
+        )
+        self.assertIn(
+            "current conversation",
+            self._gate('posts react chat/~pen/else 170.141 "👍"')["message"],
+        )
+        self.assertIn(
+            "owner-only",
+            self._gate('posts delete chat/~pen/general 170.141')["message"],
+        )
+        self.assertIn("owner-only", self._gate('posts "unterminated')["message"])
+
+    def test_non_owner_reaction_blocks_credentials_and_wrong_dm_family(self):
+        for command in (
+            '--ship ~other posts react chat/~pen/general 170.141 "👍"',
+            '--config file posts react chat/~pen/general 170.141 "👍"',
+            '--url=https://other posts react chat/~pen/general 170.141 "👍"',
+        ):
+            with self.subTest(command=command):
+                self.assertIn("credential override", self._gate(command)["message"])
+        self.assertIsNone(
+            self._gate(
+                'dms unreact ~mug ~pen/170.141',
+                HERMES_SESSION_CHAT_ID="~mug",
+            )
+        )
+        self.assertIn(
+            "use dms",
+            self._gate(
+                'posts react ~mug 170.141 "👍"',
+                HERMES_SESSION_CHAT_ID="~mug",
+            )["message"],
+        )
+        self.assertIn(
+            "disabled",
+            self._gate(
+                'posts react chat/~pen/general 170.141 "👍"',
+                TLON_REACTION_LEVEL="ack",
+            )["message"],
+        )
+
+    def test_owner_keeps_unrestricted_tlon_access(self):
+        self.assertIsNone(
+            self._gate(
+                'posts react chat/~other/else 170.141 "👍"',
+                HERMES_SESSION_USER_ID="~pen",
+                TLON_REACTION_LEVEL="off",
+            )
+        )
 
 
 if __name__ == "__main__":
