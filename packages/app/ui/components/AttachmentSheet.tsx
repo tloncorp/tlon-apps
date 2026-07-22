@@ -42,6 +42,7 @@ export default function AttachmentSheet({
   onAttach,
   mediaType,
   allowVideoInMediaPicker,
+  allowMultipleSelection = false,
   attachToContext = true,
 }: {
   isOpen: boolean;
@@ -51,6 +52,7 @@ export default function AttachmentSheet({
   onAttach?: (assets: Attachment.UploadIntent[]) => void;
   mediaType: 'image' | 'all';
   allowVideoInMediaPicker?: boolean;
+  allowMultipleSelection?: boolean;
   attachToContext?: boolean;
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
@@ -266,19 +268,23 @@ export default function AttachmentSheet({
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: pickerMediaTypes,
           allowsEditing: false,
+          allowsMultipleSelection: allowMultipleSelection,
+          selectionLimit: allowMultipleSelection ? 0 : 1,
+          orderedSelection: allowMultipleSelection,
           quality: 0.5,
           exif: false,
           shouldDownloadFromNetwork: true,
         });
 
         if (!result.canceled) {
-          const realAsset = result.assets[0];
-          const normalizedAsset = normalizeImagePickerAssetForUpload(realAsset);
-
           const { uploadIntents: normalizedUploadIntents, errorMessage } =
-            await normalizeUploadIntents([
-              imagePickerAssetToUploadIntent(normalizedAsset),
-            ]);
+            await normalizeUploadIntents(
+              result.assets.map((asset) =>
+                imagePickerAssetToUploadIntent(
+                  normalizeImagePickerAssetForUpload(asset)
+                )
+              )
+            );
 
           // Remove placeholder before attaching the selected media so validation
           // does not reject the real attachment as "extra".
@@ -330,6 +336,7 @@ export default function AttachmentSheet({
     clearAttachments,
     onOpenChange,
     mediaLibraryPermissionStatus,
+    allowMultipleSelection,
     pickerMediaTypes,
     requestMediaLibraryPermission,
     placeholderUploadIntent,
@@ -340,13 +347,15 @@ export default function AttachmentSheet({
   const startFilePicker = useCallback(async () => {
     onOpenChange(false);
 
-    const { uploadIntents, errorMessage } = await pickFile();
+    const { uploadIntents, errorMessage } = await pickFile(
+      ['*/*'],
+      allowMultipleSelection
+    );
     if (errorMessage) {
       Alert.alert('Unable to attach', errorMessage);
-      return;
     }
     await attachNormalizedUploadIntents(uploadIntents);
-  }, [attachNormalizedUploadIntents, onOpenChange]);
+  }, [allowMultipleSelection, attachNormalizedUploadIntents, onOpenChange]);
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>

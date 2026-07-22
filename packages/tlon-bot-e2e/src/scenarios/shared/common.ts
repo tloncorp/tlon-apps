@@ -28,6 +28,8 @@ import {
   monitorGroupChannels,
   settingsBucket,
   waitForSettingsEntries,
+  waitForSettingsKeysAbsent,
+  withNudgeSettingsIsolation,
   withSettingsEntry,
 } from './isolation.js';
 import {
@@ -51,6 +53,9 @@ const CRON_FIRED_WAIT_MS = {
 } satisfies Record<DriverName, number>;
 const CRON_JOB_REMOVAL_WAIT_MS = 15_000;
 const CRON_SCENARIO_SETUP_MARGIN_MS = 60_000;
+const NUDGE_DELIVERY_WAIT_MS = 90_000;
+const NUDGE_CLEANUP_WAIT_MS = 45_000;
+const NUDGE_DUPLICATE_WINDOW_MS = 15_000;
 const REACTION_PROVENANCE_BY_DRIVER = {
   hermes: 'latest-user',
   openclaw: 'latest-user',
@@ -1347,7 +1352,163 @@ export const commonScenarios: readonly SharedScenario[] = [
       await expectNoModelCalls(ctx.fakeModel, droppedKey);
     }
   ),
+
+  testScenario(
+    'nudge-delivery-and-reengagement',
+    {
+      timeoutMs: () =>
+        NUDGE_DELIVERY_WAIT_MS +
+        NUDGE_CLEANUP_WAIT_MS * 2 +
+        MODEL_CALL_WAIT_MS +
+        NUDGE_DUPLICATE_WINDOW_MS +
+        LOOP_TIMEOUT_MARGIN_MS,
+    },
+    async ({ ctx, driver, actors }) => {
+      const isolation = await withNudgeSettingsIsolation(actors);
+      const sentinelAt = Date.now();
+      await isolation.set('lastOwnerMessageAt', sentinelAt);
+      await isolation.set(
+        'lastOwnerMessageDate',
+        new Date(sentinelAt).toISOString().slice(0, 10)
+      );
+      await waitForSettingsEntries(actors, {
+        lastOwnerMessageAt: sentinelAt,
+      });
+
+      await isolation.set('nudgeActiveHoursStart', '00:00');
+      await isolation.set('nudgeActiveHoursEnd', '00:00');
+      await waitForSettingsEntries(actors, {
+        nudgeActiveHoursStart: '00:00',
+        nudgeActiveHoursEnd: '00:00',
+      });
+      isolation.confirmClosedWindow();
+      await isolation.delete('lastNudgeStage');
+      await isolation.delete('pendingNudge');
+      await waitForSettingsKeysAbsent(actors, [
+        'lastNudgeStage',
+        'pendingNudge',
+      ]);
+
+      const dmBaseline = await actors.owner.state.latestSequenceFrom(
+        actors.bot.ship,
+        actors.bot.ship
+      );
+      const idleAt = Date.now() - 8 * 24 * 60 * 60 * 1000;
+      await isolation.set('lastOwnerMessageAt', idleAt);
+      await isolation.set(
+        'lastOwnerMessageDate',
+        new Date(idleAt).toISOString().slice(0, 10)
+      );
+      await isolation.set('nudgeActiveHoursEnd', '24:00');
+
+      const nudge = await waitFor(
+        async () => {
+          const posts = await actors.owner.state.channelPosts(
+            actors.bot.ship,
+            40
+          );
+          return posts.find(
+            (post) =>
+              post.authorId === actors.bot.ship &&
+              typeof post.sequenceNum === 'number' &&
+              post.sequenceNum > dmBaseline &&
+              post.text.includes('Hey! Quick ideas for your week:')
+          );
+        },
+        {
+          timeoutMs: NUDGE_DELIVERY_WAIT_MS,
+          intervalMs: 500,
+          description: 'stage-1 re-engagement nudge DM',
+        }
+      );
+      const nudgeSequence = nudge.sequenceNum ?? dmBaseline;
+      await waitFor(
+        async () => {
+          const bucket = await settingsBucket(actors);
+          const pending = parsePendingNudge(bucket.pendingNudge);
+          return bucket.lastNudgeStage === 1 && pending?.stage === 1
+            ? true
+            : undefined;
+        },
+        {
+          timeoutMs: NUDGE_CLEANUP_WAIT_MS,
+          intervalMs: 500,
+          description: 'persisted stage-1 pending nudge',
+        }
+      );
+
+      const key = scenarioKey('nudge-reengagement');
+      const reply = `Nudge re-engagement reply ${key}`;
+      const script = driver.model.replyText(reply);
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+      const replyAt = Date.now();
+      await actors.owner.sendDm(`${tag} Re-engaging after the nudge.`);
+
+      await waitFor(
+        async () => {
+          const bucket = await settingsBucket(actors);
+          return typeof bucket.lastOwnerMessageAt === 'number' &&
+            bucket.lastOwnerMessageAt >= replyAt &&
+            !Object.prototype.hasOwnProperty.call(bucket, 'lastNudgeStage') &&
+            !Object.prototype.hasOwnProperty.call(bucket, 'pendingNudge')
+            ? true
+            : undefined;
+        },
+        {
+          timeoutMs: NUDGE_CLEANUP_WAIT_MS,
+          intervalMs: 500,
+          description: 'nudge re-engagement cleanup',
+        }
+      );
+      const calls = await waitForModelCalls(ctx.fakeModel, key);
+      if (
+        !calls.some((call) =>
+          call.userText.includes('[Context: You recently sent')
+        )
+      ) {
+        throw new Error(
+          'Expected owner re-engagement model request to include nudge context.'
+        );
+      }
+      await expectModelExpectations(ctx.fakeModel, key, script);
+
+      const started = Date.now();
+      while (Date.now() - started < NUDGE_DUPLICATE_WINDOW_MS) {
+        await sleep(500);
+        const posts = await actors.owner.state.channelPosts(
+          actors.bot.ship,
+          40
+        );
+        const duplicate = posts.find(
+          (post) =>
+            post.authorId === actors.bot.ship &&
+            typeof post.sequenceNum === 'number' &&
+            post.sequenceNum > nudgeSequence &&
+            post.text.includes('Hey! Quick ideas for your week:')
+        );
+        if (duplicate) {
+          throw new Error('Received a duplicate stage-1 re-engagement nudge.');
+        }
+      }
+    }
+  ),
 ];
+
+function parsePendingNudge(value: unknown): { stage?: unknown } | undefined {
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return parsed && typeof parsed === 'object'
+        ? (parsed as { stage?: unknown })
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return value && typeof value === 'object'
+    ? (value as { stage?: unknown })
+    : undefined;
+}
 
 function scenarioKey(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random()

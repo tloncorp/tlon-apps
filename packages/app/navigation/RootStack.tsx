@@ -13,9 +13,13 @@ import { ContextLensRunsScreen } from '../features/lens/ContextLensRunsScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
+import { BotApiKeySettingsScreen } from '../features/settings/BotApiKeySettingsScreen';
+import { BotChannelRuleSettingsScreen } from '../features/settings/BotChannelRuleSettingsScreen';
+import { BotChannelRulesScreen } from '../features/settings/BotChannelRulesScreen';
 import { BotMcpSettingsScreen } from '../features/settings/BotMcpSettingsScreen';
-import { BotOtherSettingsScreen } from '../features/settings/BotOtherSettingsScreen';
+import { BotModelSettingsScreen } from '../features/settings/BotModelSettingsScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
+import { BotShipListSettingsScreen } from '../features/settings/BotShipListSettingsScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
@@ -129,8 +133,28 @@ export function RootStack() {
         options={{ gestureEnabled: false }}
       />
       <Root.Screen
-        name="BotOtherSettings"
-        component={BotOtherSettingsScreen}
+        name="BotModelSettings"
+        component={BotModelSettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotApiKeySettings"
+        component={BotApiKeySettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotShipListSettings"
+        component={BotShipListSettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotChannelRulesSettings"
+        component={BotChannelRulesScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotChannelRuleSettings"
+        component={BotChannelRuleSettingsScreen}
         options={{ gestureEnabled: false }}
       />
       <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />

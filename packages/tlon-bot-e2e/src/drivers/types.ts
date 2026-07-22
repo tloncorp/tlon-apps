@@ -111,7 +111,12 @@ export interface ComposeHandle {
     args: string[],
     opts?: { env?: Record<string, string>; cwd?: string }
   ): Promise<ExecResult>;
-  down(opts?: { volumes?: boolean }): Promise<void>;
+  down(opts?: {
+    volumes?: boolean;
+    allowFailure?: boolean;
+    verify?: boolean;
+    timeoutMs?: number;
+  }): Promise<void>;
 }
 
 export interface BotDriver {

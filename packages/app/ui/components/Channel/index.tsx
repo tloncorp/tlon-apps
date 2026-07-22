@@ -596,9 +596,9 @@ export function Channel({
       getDraft,
       group,
       onPresentationModeChange: setDraftInputPresentationMode,
-      sendPostFromDraft: async (draft) => {
+      sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
-        await finalizeAndSendPost(draft);
+        await finalizeAndSendPost(draft, options);
         if (!draft.isEdit) {
           scrollToNewMessage();
         }
