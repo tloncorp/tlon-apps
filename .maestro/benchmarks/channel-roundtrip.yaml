@@ -1,14 +1,25 @@
 appId: io.tlon.groups
 ---
-# Start on a group's channel list. Keeping all rounds in one Maestro process
-# avoids paying driver startup for every navigation sample.
+# Start on Home or on a group's channel list. Keeping all rounds in one Maestro
+# process avoids paying driver startup for every navigation sample.
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: 'ChatListItem-${GROUP_TITLE}-pinned'
+    timeout: 120000
+- tapOn:
+    id: 'ChatListItem-${GROUP_TITLE}-pinned'
+- extendedWaitUntil:
+    visible:
+      id: 'GroupChannelsHeaderTrigger'
+    timeout: 30000
 - assertVisible:
     id: 'GroupChannelsHeaderTrigger'
 - repeat:
     times: 3
     commands:
       - tapOn:
-          id: 'ChannelListItem-${CHANNEL_TITLE}'
+          id: 'ChannelListItem-.*${CHANNEL_TITLE}.*'
       - extendedWaitUntil:
           visible:
             id: 'MessageInput'
