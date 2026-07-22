@@ -142,7 +142,7 @@ fi
 
 active_native_builds() {
   ps -axo pid=,command= | awk -v own_pid="$$" '
-    $1 != own_pid && ($0 ~ /[x]codebuild .* (-workspace|-project|-scheme|archive|build)/ || $0 ~ /[e]xpo (run:ios|run:android)/ || $0 ~ /[e]as (build|build:run).*--local/) { print }
+    $1 != own_pid && ($0 ~ /[x]codebuild .* (-workspace|-project|-scheme|archive|build)/ || $0 ~ /[Gg]radle.* (assemble|bundle|install|build)/ || $0 ~ /[e]as (build|build:run).*--local/) { print }
   '
 }
 
