@@ -257,7 +257,6 @@ interface ChannelProps {
   posts: db.Post[] | null;
   group: db.Group | null;
   groupIsLoading?: boolean;
-  groupError?: Error | null;
   goBack: () => void;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
@@ -300,7 +299,6 @@ export function Channel({
   selectedPostId,
   group,
   groupIsLoading,
-  // groupError, // Not currently used but available if needed for error handling
   goBack,
   goToChatDetails,
   goToSearch,

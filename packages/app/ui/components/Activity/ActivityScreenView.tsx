@@ -70,7 +70,7 @@ export function ActivityScreenView({
     setTimeout(() => {
       store.advanceActivitySeenMarker(newestTimestamp);
     }, 1000);
-  }, [newestTimestamp, store]);
+  }, [newestTimestamp]);
 
   useEffect(() => {
     if (

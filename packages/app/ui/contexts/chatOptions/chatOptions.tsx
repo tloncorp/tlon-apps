@@ -15,8 +15,6 @@ export type { ChatOptionsContextValue };
 
 type ChatOptionsProviderProps = {
   children: ReactNode;
-  useChannel?: typeof store.useChannel;
-  useGroup?: typeof store.useGroup;
   onPressGroupMeta?: (
     groupId: string,
     fromBlankChannel?: boolean,
@@ -35,10 +33,8 @@ type ChatOptionsProviderProps = {
     id: string;
     groupId?: string;
   }) => void;
-  onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
   onLeaveChannel?: (groupId: string, channelId: string) => void;
-  onPressDeleteGroup?: () => void;
   initialChat?: {
     id: string;
     type: 'group' | 'channel';
@@ -49,8 +45,6 @@ type ChatOptionsProviderProps = {
 export const ChatOptionsProvider = ({
   children,
   initialChat,
-  useChannel = store.useChannel,
-  useGroup = store.useGroup,
   onPressGroupMeta,
   onPressGroupMembers = noop,
   onPressManageChannels,
@@ -121,7 +115,7 @@ export const ChatOptionsProvider = ({
   const isChannel = chat?.type === 'channel';
   const isGroup = chat?.type === 'group';
 
-  const { data: channel } = useChannel({
+  const { data: channel } = store.useChannel({
     id: isChannel ? chat.id : undefined,
   });
   const channelTitle = useChannelTitle(channel ?? null);
@@ -129,7 +123,7 @@ export const ChatOptionsProvider = ({
     ? chat.id
     : channel?.groupId ?? initialChat?.groupId ?? undefined;
   const channelId = isChannel ? chat.id : undefined;
-  const { data: group } = useGroup({
+  const { data: group } = store.useGroup({
     id: groupId,
   });
 
@@ -352,7 +346,6 @@ export const ChatOptionsProvider = ({
 
   const contextValue: ChatOptionsContextValue = useMemo(
     () => ({
-      useGroup,
       group,
       channel,
       markGroupRead,
@@ -376,7 +369,6 @@ export const ChatOptionsProvider = ({
       setChat: updateChat,
     }),
     [
-      useGroup,
       group,
       channel,
       markGroupRead,

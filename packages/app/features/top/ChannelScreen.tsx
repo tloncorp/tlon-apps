@@ -63,7 +63,6 @@ export default function ChannelScreen(props: Props) {
     channel,
     group,
     groupIsLoading,
-    groupError,
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
@@ -399,7 +398,6 @@ export default function ChannelScreen(props: Props) {
   return (
     <ChatOptionsProvider
       initialChat={initialChat}
-      useGroup={store.useGroup}
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
@@ -416,7 +414,6 @@ export default function ChannelScreen(props: Props) {
           hasOlderPosts={postsQuery.hasNextPage}
           group={group}
           groupIsLoading={groupIsLoading}
-          groupError={groupError}
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
           goBack={navigationRef.current.goBack}
