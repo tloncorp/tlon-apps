@@ -15,10 +15,7 @@ import {
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
-import {
-  didSignUp,
-  finishingSelfHostedLogin as selfHostedLoginStatus,
-} from '@tloncorp/shared/db';
+import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -28,46 +25,21 @@ import type { OnboardingStackParamList } from '../../types';
 export const Text = TlonText.Text;
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Welcome'>;
-type OnboardingPath = 'signup' | 'invite' | 'login' | 'connect_ship';
-
-function trackOnboardingPath(path: OnboardingPath) {
-  trackProductEvent(AnalyticsEvent.OnboardingPathSelected, {
-    path,
-    source: 'welcome',
-  });
-}
-
 export const WelcomeScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { bottom, top } = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const { isAuthenticated } = useShip();
-  const { value: hasSignedUp, isLoading: isSignUpStatusLoading } =
-    didSignUp.useStorageItem();
   const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
 
   useCheckAppInstalled();
 
-  useEffect(() => {
-    if (isSignUpStatusLoading) return;
-    trackProductEvent(AnalyticsEvent.OnboardingStarted, {
-      entry: hasSignedUp ? 'returning_session' : 'fresh_install',
-    });
-  }, [hasSignedUp, isSignUpStatusLoading]);
-
   const handlePressSignup = useCallback(() => {
-    trackOnboardingPath('signup');
+    trackProductEvent(AnalyticsEvent.OnboardingPathSelected, {
+      path: 'signup',
+    });
     navigation.navigate('Signup');
   }, [navigation]);
-
-  const handlePressLogin = useCallback(
-    (method: 'phone' | 'email') => {
-      trackOnboardingPath('login');
-      setOpen(false);
-      navigation.navigate('TlonLogin', { initialLoginMethod: method });
-    },
-    [navigation]
-  );
 
   useEffect(() => {
     if (lureMeta) {
@@ -135,7 +107,9 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                 <OnboardingButton
                   secondary
                   onPress={() => {
-                    trackOnboardingPath('invite');
+                    trackProductEvent(AnalyticsEvent.OnboardingPathSelected, {
+                      path: 'invite',
+                    });
                     navigation.navigate('PasteInviteLink');
                   }}
                   label="Join with an invite"
@@ -163,21 +137,39 @@ export const WelcomeScreen = ({ navigation }: Props) => {
             <ActionSheet.Action
               action={{
                 title: 'Log in with phone number',
-                action: () => handlePressLogin('phone'),
+                action: () => {
+                  trackProductEvent(AnalyticsEvent.OnboardingPathSelected, {
+                    path: 'login',
+                  });
+                  setOpen(false);
+                  navigation.navigate('TlonLogin', {
+                    initialLoginMethod: 'phone',
+                  });
+                },
               }}
             />
             <ActionSheet.Action
               testID="log-in-with-email"
               action={{
                 title: 'Log in with email',
-                action: () => handlePressLogin('email'),
+                action: () => {
+                  trackProductEvent(AnalyticsEvent.OnboardingPathSelected, {
+                    path: 'login',
+                  });
+                  setOpen(false);
+                  navigation.navigate('TlonLogin', {
+                    initialLoginMethod: 'email',
+                  });
+                },
               }}
             />
           </ActionSheet.ActionGroup>
           <ActionSheet.ContentBlock alignItems="center">
             <Pressable
               onPress={() => {
-                trackOnboardingPath('connect_ship');
+                trackProductEvent(AnalyticsEvent.OnboardingPathSelected, {
+                  path: 'connect_ship',
+                });
                 setOpen(false);
                 navigation.navigate('ShipLogin');
               }}

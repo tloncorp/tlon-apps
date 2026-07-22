@@ -1,8 +1,6 @@
 import * as store from '@tloncorp/shared';
 import {
   AnalyticsEvent,
-  type CreateTelemetrySource,
-  type HomeTelemetryFilter,
   createDevLogger,
   trackProductEvent,
 } from '@tloncorp/shared';
@@ -282,13 +280,9 @@ const CreateChatFormContent = ({
 export const CreateChatSheet = forwardRef(function CreateChatSheet(
   {
     defaultOpen,
-    analyticsActiveFilter,
-    analyticsSource = 'unknown',
     trigger,
   }: {
     defaultOpen?: boolean;
-    analyticsActiveFilter?: HomeTelemetryFilter;
-    analyticsSource?: CreateTelemetrySource;
     trigger?: React.ReactNode;
   },
   ref: React.Ref<CreateChatSheetMethods>
@@ -313,14 +307,10 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
 
   const open = useCallback(() => {
     if (step === 'initial') {
-      trackProductEvent(AnalyticsEvent.CreateMenuOpened, {
-        activeFilter: analyticsActiveFilter,
-        presentation: isWindowNarrow ? 'sheet' : 'dialog',
-        source: analyticsSource,
-      });
+      trackProductEvent(AnalyticsEvent.CreateMenuOpened);
       setStep('selectType');
     }
-  }, [analyticsActiveFilter, analyticsSource, isWindowNarrow, step]);
+  }, [step]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -336,34 +326,22 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     [step]
   );
 
-  const handleTypeSelected = useCallback(
-    (type: ChatType) => {
-      trackProductEvent(AnalyticsEvent.CreateOptionSelected, {
-        option:
-          type === 'dm'
-            ? 'direct_message'
-            : type === 'joinGroup'
-              ? 'join_group'
-              : 'group',
-        source: analyticsSource,
-        stage: 'conversation_type',
-      });
-      if (type === 'group') {
-        // Navigate to group type selection instead of directly to member selection
-        setStep('selectGroupType');
-      } else {
-        setStep(`create${capitalize(type)}` as Step);
-      }
-    },
-    [analyticsSource]
-  );
+  const handleTypeSelected = useCallback((type: ChatType) => {
+    trackProductEvent(AnalyticsEvent.CreateOptionSelected, {
+      option: type,
+    });
+    if (type === 'group') {
+      // Navigate to group type selection instead of directly to member selection
+      setStep('selectGroupType');
+    } else {
+      setStep(`create${capitalize(type)}` as Step);
+    }
+  }, []);
 
   const handleGroupTypeSelected = useCallback(
     (groupType: GroupType, templateId?: store.GroupTemplateId) => {
       trackProductEvent(AnalyticsEvent.CreateOptionSelected, {
-        option: groupType === 'quick' ? 'quick_group' : 'group_template',
-        source: analyticsSource,
-        stage: 'group_type',
+        option: groupType,
       });
       if (groupType === 'quick') {
         // Quick group goes to member selection without template
@@ -379,7 +357,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         }
       }
     },
-    [analyticsSource]
+    []
   );
 
   const handleTitleSubmitted = useCallback((title: string) => {

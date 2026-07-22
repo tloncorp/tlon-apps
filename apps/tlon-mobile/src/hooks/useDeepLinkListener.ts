@@ -30,10 +30,7 @@ export const useDeepLinkListener = () => {
           context: 'Handling deeplink click',
           lure: lure.id,
         });
-        trackProductEvent(AnalyticsEvent.InviteOpened, {
-          inviteType: lure.inviteType === 'user' ? 'personal' : 'group',
-          source: 'deep_link',
-        });
+        trackProductEvent(AnalyticsEvent.InviteOpened);
         try {
           if (lure.shouldAutoJoin || !ship) {
             // if the lure was clicked prior to authenticating, no-op for now.

@@ -11,11 +11,7 @@ import {
   YStack,
   useTheme,
 } from '@tloncorp/app/ui';
-import {
-  AnalyticsEvent,
-  createDevLogger,
-  trackProductEvent,
-} from '@tloncorp/shared';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   getNicknameErrorMessage,
@@ -60,9 +56,6 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
   });
 
   const onSubmit = handleSubmit(({ nickname }) => {
-    trackProductEvent(AnalyticsEvent.OnboardingStepCompleted, {
-      step: 'nickname',
-    });
     signupContext.setOnboardingValues({
       nickname,
       userWasReadyAt: Date.now(),

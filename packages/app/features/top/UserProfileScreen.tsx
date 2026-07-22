@@ -57,13 +57,8 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const { navigateToBotSettings, resetToDm } = useRootNavigation();
 
   useEffect(() => {
-    trackProductEvent(AnalyticsEvent.ProfileOpened, {
-      hasChannelContext: Boolean(params?.channelId),
-      hasGroupContext: Boolean(params?.groupId),
-      isSelf: userId === currentUserId,
-      source: 'profile_screen',
-    });
-  }, [currentUserId, params?.channelId, params?.groupId, userId]);
+    trackProductEvent(AnalyticsEvent.ProfileOpened);
+  }, [userId]);
 
   useEffect(() => {
     if (userId && userId !== currentUserId) {

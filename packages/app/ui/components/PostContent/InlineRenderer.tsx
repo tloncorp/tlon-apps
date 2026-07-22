@@ -189,7 +189,7 @@ export function InlineText({
 
 export function InlineLink({ inline: node }: { inline: LinkInlineData }) {
   const handlePress = useCallback(() => {
-    trackProductEvent(AnalyticsEvent.ExternalLinkOpened, { source: 'post' });
+    trackProductEvent(AnalyticsEvent.ExternalLinkOpened);
     if (Platform.OS === 'web') {
       window.open(node.href, '_blank', 'noopener,noreferrer');
     } else {

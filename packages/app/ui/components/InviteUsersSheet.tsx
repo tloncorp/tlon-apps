@@ -24,10 +24,7 @@ const InviteUsersSheetComponent = ({
 
   useEffect(() => {
     if (open && groupId) {
-      trackProductEvent(AnalyticsEvent.InviteSurfaceOpened, {
-        inviteType: 'group',
-        source: 'group_options',
-      });
+      trackProductEvent(AnalyticsEvent.InviteSurfaceOpened);
     }
   }, [groupId, open]);
 

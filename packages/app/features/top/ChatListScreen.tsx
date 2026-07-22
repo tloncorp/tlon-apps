@@ -27,12 +27,7 @@ import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
-import { useTrackSearchPerformed } from '../../hooks/useTrackSearchPerformed';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
-import {
-  getChatListTelemetryEntity,
-  toHomeTelemetryFilter,
-} from '../../lib/featureUsageTelemetry';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -254,18 +249,6 @@ export function ChatListScreenView({
   const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
   const onPressChat = useCallback(
     async (item: db.Chat) => {
-      trackProductEvent(AnalyticsEvent.ChatListItemSelected, {
-        ...logic.getModelAnalytics(
-          item.type === 'group'
-            ? { group: item.group }
-            : { channel: item.channel }
-        ),
-        activeFilter: toHomeTelemetryFilter(activeTab),
-        entityType: getChatListTelemetryEntity(item),
-        isSearchResult: searchQuery.trim() !== '',
-        itemState: item.isPending ? 'pending' : 'joined',
-        source: 'home_list',
-      });
       if (item.type === 'group') {
         if (item.isPending) {
           setSelectedGroupId(item.id);
@@ -284,21 +267,15 @@ export function ChatListScreenView({
         navigateToChannel(item.channel);
       }
     },
-    [activeTab, navigateToGroup, navigateToChannel, searchQuery]
+    [navigateToGroup, navigateToChannel]
   );
 
-  const handlePressTab = useCallback(
-    (tab: TabName) => {
-      trackProductEvent(AnalyticsEvent.HomeFilterSelected, {
-        tab: toHomeTelemetryFilter(tab),
-        previousTab: toHomeTelemetryFilter(activeTab),
-        source: 'tap',
-        wasAlreadyActive: tab === activeTab,
-      });
-      setActiveTab(tab);
-    },
-    [activeTab]
-  );
+  const handlePressTab = useCallback((tab: TabName) => {
+    trackProductEvent(AnalyticsEvent.HomeFilterSelected, {
+      tab,
+    });
+    setActiveTab(tab);
+  }, []);
 
   const handlePressAddChat = useCallback(() => {
     // Close the filter input (and its keyboard) before opening the sheet so
@@ -363,18 +340,14 @@ export function ChatListScreenView({
       }
       if (!showSearchInput) {
         trackProductEvent(AnalyticsEvent.HomeSearchOpened, {
-          activeFilter: toHomeTelemetryFilter(activeTab),
-          presentation: 'inline',
-          source: 'home_header',
+          tab: activeTab,
         });
       }
       setShowSearchInput(!showSearchInput);
     } else {
       if (!isOpen) {
         trackProductEvent(AnalyticsEvent.HomeSearchOpened, {
-          activeFilter: toHomeTelemetryFilter(activeTab),
-          presentation: 'global',
-          source: 'home_header',
+          tab: activeTab,
         });
       }
       setIsOpen(!isOpen);
@@ -399,13 +372,10 @@ export function ChatListScreenView({
 
   const handlePressTryAll = useCallback(() => {
     trackProductEvent(AnalyticsEvent.HomeFilterSelected, {
-      tab: 'all',
-      previousTab: toHomeTelemetryFilter(activeTab),
-      source: 'empty_search',
-      wasAlreadyActive: activeTab === 'home',
+      tab: 'home',
     });
     setActiveTab('home');
-  }, [activeTab, setActiveTab]);
+  }, [setActiveTab]);
 
   const handlePressClear = useCallback(() => {
     setSearchQuery('');
@@ -419,14 +389,6 @@ export function ChatListScreenView({
     ...resolvedChats,
     searchQuery,
     activeTab,
-  });
-  useTrackSearchPerformed({
-    query: searchQuery,
-    resultCount: displayData.reduce(
-      (count, section) => count + section.data.length,
-      0
-    ),
-    surface: 'home',
   });
   const handleChatListLoad = useCallback(() => {
     if (chats) {
@@ -485,8 +447,6 @@ export function ChatListScreenView({
                   ) : (
                     <CreateChatSheet
                       ref={createChatSheetRef}
-                      analyticsActiveFilter={toHomeTelemetryFilter(activeTab)}
-                      analyticsSource="home_header"
                       trigger={<ScreenHeader.IconButton type="Add" />}
                     />
                   )}
@@ -551,13 +511,7 @@ export function ChatListScreenView({
         />
       </ChatOptionsProvider>
 
-      {isWindowNarrow && (
-        <CreateChatSheet
-          ref={createChatSheetRef}
-          analyticsActiveFilter={toHomeTelemetryFilter(activeTab)}
-          analyticsSource="home_header"
-        />
-      )}
+      {isWindowNarrow && <CreateChatSheet ref={createChatSheetRef} />}
       <PersonalInviteSheet
         open={personalInviteOpen}
         onOpenChange={() => setPersonalInviteOpen(false)}

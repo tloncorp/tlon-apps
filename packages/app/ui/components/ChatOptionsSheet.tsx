@@ -1,9 +1,4 @@
 import * as ub from '@tloncorp/api/urbit';
-import {
-  AnalyticsEvent,
-  getChatTelemetryScope,
-  trackProductEvent,
-} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
@@ -15,7 +10,6 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from 'react';
 import { Popover, isWeb } from 'tamagui';
@@ -67,28 +61,11 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   onOpenChange: propOnOpenChange,
   trigger,
 }: ChatOptionsSheetProps) {
-  const { open: contextOpen, setChat, group, channel } = useChatOptions();
+  const { open: contextOpen, setChat, group } = useChatOptions();
 
   // Use props for explicit control (popovers)
   // For sheets, this will be false and context.open will handle state
   const isOpen = propOpen ?? false;
-  const trackedOpenRef = useRef(false);
-
-  useEffect(() => {
-    if (!isOpen) {
-      trackedOpenRef.current = false;
-      return;
-    }
-    if (!chat || trackedOpenRef.current) return;
-    if (chat.type === 'channel' && !channel) return;
-
-    trackedOpenRef.current = true;
-    trackProductEvent(AnalyticsEvent.ChatOptionsOpened, {
-      scope:
-        chat.type === 'group' ? 'group' : getChatTelemetryScope(channel!.type),
-      source: 'unknown',
-    });
-  }, [channel, chat, isOpen]);
 
   // Handle open state changes
   const handleOpenChange = useCallback(
@@ -428,31 +405,20 @@ function SortChannelsSheetContent({
 }) {
   const { setChannelSortPreference } = useChatOptions();
 
-  const setSort = useCallback(
-    (sort: 'recency' | 'arranged') => {
-      setChannelSortPreference?.(sort);
-      trackProductEvent(AnalyticsEvent.ChannelSortChanged, {
-        sort: sort === 'arranged' ? 'arrangement' : 'recency',
-        source: 'group_options',
-      });
-    },
-    [setChannelSortPreference]
-  );
-
   const sortActions = useMemo(
     () =>
       createActionGroups([
         'neutral',
         {
           title: 'Sort by recency',
-          action: () => setSort('recency'),
+          action: () => setChannelSortPreference?.('recency'),
         },
         {
           title: 'Sort by arrangement',
-          action: () => setSort('arranged'),
+          action: () => setChannelSortPreference?.('arranged'),
         },
       ]),
-    [setSort]
+    [setChannelSortPreference]
   );
 
   return (
@@ -905,7 +871,7 @@ function NotificationsSheetContent({
           startIcon: 'ChevronLeft',
         },
       ]),
-    [currentLevel, isWindowNarrow, onPressBack, options, updateVolume]
+    [currentLevel, updateVolume, isWindowNarrow, onPressBack, options]
   );
   return (
     <ChatOptionsSheetContent

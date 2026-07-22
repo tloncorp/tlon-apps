@@ -7,7 +7,6 @@ import {
   AnalyticsSeverity,
   HostedNodeStatus,
   createDevLogger,
-  trackProductEvent,
 } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
@@ -156,14 +155,6 @@ export function useOnboardingHelpers() {
         email: params.email,
         phoneNumber: params.phoneNumber,
         client: 'tlon-mobile',
-      });
-      trackProductEvent(AnalyticsEvent.LoginCompleted, {
-        accountType: 'hosted',
-        method: params.email
-          ? 'email'
-          : params.phoneNumber
-            ? 'phone'
-            : 'unknown',
       });
 
       if (maybeAccountIssue) {

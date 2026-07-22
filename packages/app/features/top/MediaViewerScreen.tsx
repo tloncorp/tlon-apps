@@ -96,7 +96,6 @@ async function downloadMedia({
       await downloadImageForWeb(uri);
       trackProductEvent(AnalyticsEvent.MediaDownloaded, {
         mediaType,
-        source: 'media_viewer',
       });
     } catch (error) {
       logger.trackError('Download error:', error);
@@ -222,7 +221,6 @@ async function downloadMedia({
         await MediaLibrary.Asset.create(downloadedFile.uri);
         trackProductEvent(AnalyticsEvent.MediaDownloaded, {
           mediaType,
-          source: 'media_viewer',
         });
         Alert.alert('Success', `${Noun} saved to your photos!`);
       } catch (saveError) {
@@ -352,10 +350,6 @@ function VideoViewer({
     }
     hasTrackedPlaybackStartRef.current = true;
     logger.trackEvent(AnalyticsEvent.VideoPlaybackStarted, { src: uri });
-    trackProductEvent(AnalyticsEvent.MediaPlaybackStarted, {
-      mediaType: 'video',
-      source: 'media_viewer',
-    });
   }, [uri]);
 
   useEffect(() => {
@@ -726,7 +720,6 @@ export default function MediaViewerScreen(props: Props) {
     if (!missingUri) {
       trackProductEvent(AnalyticsEvent.MediaOpened, {
         mediaType,
-        source: 'media_viewer',
       });
     }
   }, [mediaType, missingUri, viewerId]);

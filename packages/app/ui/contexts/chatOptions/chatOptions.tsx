@@ -1,9 +1,5 @@
 import * as ub from '@tloncorp/api/urbit';
-import {
-  AnalyticsEvent,
-  getChatTelemetryScope,
-  trackProductEvent,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -80,6 +76,7 @@ export const ChatOptionsProvider = ({
 
   const openSheet = useCallback(
     (chatId: string, chatType: 'group' | 'channel') => {
+      trackProductEvent(AnalyticsEvent.ChatOptionsOpened, { type: chatType });
       setChat({
         id: chatId,
         type: chatType,
@@ -186,23 +183,14 @@ export const ChatOptionsProvider = ({
   }, [chat, channel, group]);
 
   const updateVolume = useCallback(
-    async (level: ub.NotificationLevel | null) => {
-      let succeeded = false;
-      let scope: 'group' | ReturnType<typeof getChatTelemetryScope> | null =
-        null;
+    (level: ub.NotificationLevel | null) => {
+      trackProductEvent(AnalyticsEvent.NotificationLevelChanged, {
+        level: level ?? 'default',
+      });
       if (chat?.type === 'group' && group) {
-        scope = 'group';
-        succeeded = await store.setGroupVolumeLevel({ group, level });
+        store.setGroupVolumeLevel({ group, level });
       } else if (chat?.type === 'channel' && channel) {
-        scope = getChatTelemetryScope(channel.type);
-        succeeded = await store.setChannelVolumeLevel({ channel, level });
-      }
-      if (succeeded && scope) {
-        trackProductEvent(AnalyticsEvent.NotificationLevelChanged, {
-          level: level ?? 'default',
-          scope,
-          source: 'chat_options',
-        });
+        store.setChannelVolumeLevel({ channel, level });
       }
     },
     [channel, chat, group]
@@ -252,40 +240,31 @@ export const ChatOptionsProvider = ({
     setLeaveChannelDialogOpen(true);
   }, [channelTitle, channel]);
 
-  const markGroupRead = useCallback(async () => {
+  const markGroupRead = useCallback(() => {
     if (groupId) {
-      const succeeded = await store.markGroupRead(groupId, true);
-      if (succeeded) {
-        trackProductEvent(AnalyticsEvent.ChatMarkedRead, {
-          scope: 'group',
-          source: 'chat_options',
-        });
-      }
+      trackProductEvent(AnalyticsEvent.ChatMarkedRead);
+      store.markGroupRead(groupId, true);
     }
     closeSheet();
   }, [closeSheet, groupId]);
 
   const markChannelRead = useCallback(
-    async ({ includeThreads }: { includeThreads?: boolean } = {}) => {
-      if (channelId && channel) {
-        const succeeded = await store.markChannelRead({
+    ({ includeThreads }: { includeThreads?: boolean } = {}) => {
+      if (channelId) {
+        trackProductEvent(AnalyticsEvent.ChatMarkedRead);
+        store.markChannelRead({
           id: channelId,
           groupId: groupId,
           includeThreads,
         });
-        if (succeeded) {
-          trackProductEvent(AnalyticsEvent.ChatMarkedRead, {
-            scope: getChatTelemetryScope(channel.type),
-            source: 'chat_options',
-          });
-        }
       }
     },
-    [channel, channelId, groupId]
+    [channelId, groupId]
   );
 
   const setChannelSortPreference = useCallback(
     (sortBy: 'recency' | 'arranged') => {
+      trackProductEvent(AnalyticsEvent.ChannelSortChanged, { sort: sortBy });
       db.channelSortPreference.setValue(sortBy);
       closeSheet();
     },

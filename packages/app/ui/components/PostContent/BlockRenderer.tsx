@@ -516,7 +516,7 @@ export function LinkBlock({
       return;
     }
 
-    trackProductEvent(AnalyticsEvent.ExternalLinkOpened, { source: 'post' });
+    trackProductEvent(AnalyticsEvent.ExternalLinkOpened);
 
     if (Platform.OS === 'web') {
       window.open(block.url, '_blank', 'noopener,noreferrer');

@@ -36,11 +36,10 @@ export const FilteredChatList = React.memo(
       listType?: TabName;
       searchQuery: string;
       onPressItem: (item: db.Chat) => void;
-      onResultCountChange?: (count: number) => void;
       listProps?: Partial<ComponentProps<typeof FlashList>>;
     }
   >(function FilteredChatList(
-    { searchQuery, listType, listProps, onPressItem, onResultCountChange },
+    { searchQuery, listType, listProps, onPressItem },
     ref
   ) {
     const listRef = useRef<FlashListRef<ChatListItemData>>(null);
@@ -69,12 +68,6 @@ export const FilteredChatList = React.memo(
         }),
       [displayData]
     );
-
-    useEffect(() => {
-      onResultCountChange?.(
-        displayData.reduce((count, section) => count + section.data.length, 0)
-      );
-    }, [displayData, onResultCountChange]);
 
     // Find first non-header item when search query changes
     // Only reset selection when search query changes

@@ -43,11 +43,11 @@ export function useChatVolumeOptions() {
   // Re-tapping it must keep inheriting rather than pin a concrete override —
   // otherwise future app-default changes would stop applying to this chat.
   const setVolume = useCallback(
-    async (level: ub.NotificationLevel | null) => {
+    (level: ub.NotificationLevel | null) => {
       if (isInheriting && level === currentLevel) {
         return;
       }
-      await updateVolume(level);
+      updateVolume(level);
     },
     [isInheriting, currentLevel, updateVolume]
   );

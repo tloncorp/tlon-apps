@@ -76,13 +76,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
           telemetryId: telemetryId(),
         });
         if (appInvite) {
-          trackProductEvent(AnalyticsEvent.InviteOpened, {
-            inviteType: appInvite.inviteType === 'user' ? 'personal' : 'group',
-            source: 'paste',
-          });
-          trackProductEvent(AnalyticsEvent.OnboardingStepCompleted, {
-            step: 'invite',
-          });
+          trackProductEvent(AnalyticsEvent.InviteOpened);
           setLure(appInvite);
           return;
         } else {

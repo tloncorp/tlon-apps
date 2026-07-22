@@ -8,7 +8,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -53,9 +52,6 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
     // That will happen in AllowNotificationsScreen
     signupContext.setOnboardingValues({
       notificationLevel: selectedLevel,
-    });
-    trackProductEvent(AnalyticsEvent.OnboardingStepCompleted, {
-      step: 'notifications',
     });
     navigation.push('AllowNotifications');
   }, [selectedLevel, signupContext, navigation]);

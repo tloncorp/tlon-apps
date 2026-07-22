@@ -7,10 +7,8 @@ import {
   useGroup,
 } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
-import { useTrackSearchPerformed } from '../../hooks/useTrackSearchPerformed';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -47,32 +45,10 @@ export default function ChannelSearchScreen(props: Props) {
     useChannelSearch(channelId, query);
 
   const { resetToChannel } = useRootNavigation();
-  const trackedOpenRef = useRef(false);
-
-  useEffect(() => {
-    if (channelQuery.data && !trackedOpenRef.current) {
-      trackedOpenRef.current = true;
-      trackProductEvent(AnalyticsEvent.ChannelSearchOpened, {
-        channelType: channelQuery.data.type,
-        source: 'channel_header',
-      });
-    }
-  }, [channelQuery.data]);
-
-  useTrackSearchPerformed({
-    query,
-    resultCount: posts?.length ?? 0,
-    settled: !loading,
-    surface: 'channel',
-  });
-
   const navigateToPost = useCallback(
     (post: db.Post) => {
       trackProductEvent(AnalyticsEvent.ChannelSearchResultSelected, {
-        ...logic.getModelAnalytics({ post }),
-        hasQuery: query.trim() !== '',
-        resultType: post.parentId ? 'reply' : 'post',
-        source: 'channel_search',
+        type: post.parentId ? 'reply' : 'post',
       });
       if (post.parentId) {
         props.navigation.replace('Post', {
@@ -87,7 +63,7 @@ export default function ChannelSearchScreen(props: Props) {
         });
       }
     },
-    [props.navigation, query, resetToChannel, groupId]
+    [props.navigation, resetToChannel, groupId]
   );
 
   const isWindowNarrow = useIsWindowNarrow();

@@ -85,20 +85,7 @@ function PostScreenContent({
 
   useEffect(() => {
     if (!channelType) return;
-    if (channelType === 'gallery') {
-      trackProductEvent(AnalyticsEvent.GalleryPostOpened, {
-        source: 'unknown',
-      });
-    } else if (channelType === 'notebook') {
-      trackProductEvent(AnalyticsEvent.NotebookPostOpened, {
-        source: 'unknown',
-      });
-    } else {
-      trackProductEvent(AnalyticsEvent.ThreadOpened, {
-        channelType,
-        source: 'unknown',
-      });
-    }
+    trackProductEvent(AnalyticsEvent.PostOpened, { type: channelType });
   }, [channelType, postId]);
 
   const handleDeletePost = useCallback(

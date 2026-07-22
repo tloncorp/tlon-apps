@@ -1,6 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  trackProductEvent,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
@@ -89,6 +93,7 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
     if (!channelQuery.data) {
       return;
     }
+    trackProductEvent(AnalyticsEvent.ChannelSearchOpened);
     navigation.push('ChannelSearch', {
       channelId: channelQuery.data.id ?? null,
       groupId: channelQuery.data.groupId ?? '',

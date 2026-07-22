@@ -1,9 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  AnalyticsEvent,
-  createDevLogger,
-  trackProductEvent,
-} from '@tloncorp/shared';
+import { createDevLogger } from '@tloncorp/shared';
 import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert, KeyboardAvoidingView, Platform } from 'react-native';
@@ -52,10 +48,6 @@ export function UserBugReportScreen({ navigation }: Props) {
         logger.crumb(submission.additionalNotes);
       }
       logger.trackError('User manually submitted a bug report');
-      trackProductEvent(AnalyticsEvent.BugReportSubmitted, {
-        hasAdditionalNotes: submission.additionalNotes.trim() !== '',
-        source: 'settings',
-      });
       showAlert();
     },
     []

@@ -13,10 +13,6 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import {
-  getCountTelemetryBucket,
-  trackProductEvent,
-} from '../productAnalytics';
 import { pinGroup } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);
@@ -196,9 +192,6 @@ export async function createGroup(params: {
       ...logic.getModelAnalytics({ group: params.group }),
       initialMemberCount: params.memberIds?.length ?? 0,
     });
-    trackProductEvent(AnalyticsEvent.GroupCreationCompleted, {
-      source: 'create_flow',
-    });
 
     return resultGroup;
   } catch (e) {
@@ -326,10 +319,6 @@ export async function inviteGroupMembers({
 
   try {
     await api.inviteGroupMembers({ groupId, contactIds });
-    trackProductEvent(AnalyticsEvent.GroupInvitationsSent, {
-      countBucket: getCountTelemetryBucket(contactIds.length),
-      source: 'member_picker',
-    });
   } catch (e) {
     logger.trackError('Failed to invite group members', e);
     // rollback optimistic update
@@ -1337,7 +1326,7 @@ export async function markGroupRead(groupId: string, deep: boolean = false) {
   const group = await db.getGroup({ id: groupId });
   if (!group) {
     logger.error('Group not found', groupId);
-    return false;
+    return;
   }
   // optimistic update
   const existingUnread = await db.getGroupUnread({ groupId: group.id });
@@ -1347,14 +1336,12 @@ export async function markGroupRead(groupId: string, deep: boolean = false) {
 
   try {
     await api.readGroup(group, deep);
-    return true;
   } catch (e) {
     logger.error('Failed to read group', e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertGroupUnreads([existingUnread]);
     }
-    return false;
   }
 }
 

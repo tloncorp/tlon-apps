@@ -25,7 +25,6 @@ import {
   AnalyticsEvent,
   AnalyticsSeverity,
   createDevLogger,
-  trackProductEvent,
 } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
@@ -102,10 +101,6 @@ export const SignupScreen = ({ navigation }: Props) => {
       email: emailForm.getValues().email,
     });
 
-    trackProductEvent(AnalyticsEvent.OnboardingStepCompleted, {
-      step: 'signup',
-    });
-
     navigation.navigate('CheckOTP', {
       mode: 'signup',
       otpMethod,
@@ -163,10 +158,6 @@ export const SignupScreen = ({ navigation }: Props) => {
 
       handleSuccess();
     } catch (err) {
-      trackProductEvent(AnalyticsEvent.OnboardingFailed, {
-        errorCode: err instanceof HostingError ? 'hosting_error' : 'unknown',
-        step: 'signup',
-      });
       setRemoteError(`Something bad happened. Err: ${err.toString()}`);
       if (err instanceof HostingError) {
         if (err.details.status === 409) {

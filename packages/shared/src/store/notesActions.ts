@@ -13,10 +13,7 @@ import {
   withRetry,
 } from '../logic';
 import { collectDescendantFolderIds } from '../logic/notesTree';
-import {
-  type NotesTelemetrySource,
-  trackProductEvent,
-} from '../productAnalytics';
+import { trackProductEvent } from '../productAnalytics';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const logger = createDevLogger('notesActions', false);
@@ -340,13 +337,11 @@ export async function createNotebookNote({
   folderId,
   title,
   body = '',
-  analyticsSource = 'unknown',
 }: {
   notebookFlag: string;
   folderId: number;
   title: string;
   body?: string;
-  analyticsSource?: NotesTelemetrySource;
 }) {
   const note = await createAndFindNewItem({
     notebookFlag,
@@ -378,10 +373,7 @@ export async function createNotebookNote({
     noteId: note.noteId,
   });
   if (createdNote) {
-    trackProductEvent(AnalyticsEvent.NoteCreated, {
-      hadInitialBody: body !== '',
-      source: analyticsSource,
-    });
+    trackProductEvent(AnalyticsEvent.NoteCreated);
   }
   return createdNote;
 }
@@ -390,12 +382,10 @@ export async function createNotebookFolder({
   notebookFlag,
   parentFolderId,
   name,
-  analyticsSource = 'unknown',
 }: {
   notebookFlag: string;
   parentFolderId?: number | null;
   name: string;
-  analyticsSource?: NotesTelemetrySource;
 }) {
   const parentId = parentFolderId ?? null;
   const folder = await createAndFindNewItem({
@@ -415,9 +405,7 @@ export async function createNotebookFolder({
       ),
   });
   if (folder) {
-    trackProductEvent(AnalyticsEvent.NotesFolderCreated, {
-      source: analyticsSource,
-    });
+    trackProductEvent(AnalyticsEvent.NotesFolderCreated);
   }
   return folder;
 }
@@ -460,7 +448,7 @@ export async function saveNotebookNote({
     });
   }
 
-  const saveConfirmed = await syncNotesNotebookUntil(
+  await syncNotesNotebookUntil(
     notebookFlag,
     (snapshot) => {
       const updated = findSnapshotNote(snapshot, note.noteId);
@@ -478,12 +466,8 @@ export async function saveNotebookNote({
     notebookFlag,
     noteId: note.noteId,
   });
-  if (savedNote && saveConfirmed) {
-    trackProductEvent(AnalyticsEvent.NoteSaved, {
-      changedBody: shouldUpdateBody,
-      changedTitle: shouldRename,
-      source: 'notes_editor',
-    });
+  if (savedNote) {
+    trackProductEvent(AnalyticsEvent.NoteSaved);
   }
   return savedNote;
 }
@@ -505,7 +489,7 @@ export async function publishNotebookNote({
     html: renderPublishedNoteHtml({ title, body }),
   });
   await waitForPublishedNoteState(notebookFlag, noteId, true);
-  trackProductEvent(AnalyticsEvent.NotePublished, { source: 'notes_tree' });
+  trackProductEvent(AnalyticsEvent.NotePublished);
   return publishedNotePath(notebookFlag, noteId);
 }
 
@@ -521,7 +505,7 @@ export async function unpublishNotebookNote({
     noteId,
   });
   await waitForPublishedNoteState(notebookFlag, noteId, false);
-  trackProductEvent(AnalyticsEvent.NoteUnpublished, { source: 'notes_tree' });
+  trackProductEvent(AnalyticsEvent.NoteUnpublished);
 }
 
 export async function moveNotebookNote({
@@ -538,12 +522,10 @@ export async function moveNotebookNote({
     noteId,
     folder: folderId,
   });
-  const moveConfirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     snapshotNoteMatches(snapshot, noteId, (note) => note.folderId === folderId)
   );
-  if (moveConfirmed) {
-    trackProductEvent(AnalyticsEvent.NoteMoved, { source: 'notes_tree' });
-  }
+  trackProductEvent(AnalyticsEvent.NoteMoved);
 }
 
 export async function renameNotebookFolder({
@@ -565,20 +547,10 @@ export async function renameNotebookFolder({
     folderId: folder.folderId,
     name: nextName,
   });
-  const renameConfirmed = await syncNotesNotebookUntil(
-    notebookFlag,
-    (snapshot) =>
-      snapshotFolderMatches(
-        snapshot,
-        folder.folderId,
-        (f) => f.name === nextName
-      )
+  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+    snapshotFolderMatches(snapshot, folder.folderId, (f) => f.name === nextName)
   );
-  if (renameConfirmed) {
-    trackProductEvent(AnalyticsEvent.NotesFolderRenamed, {
-      source: 'notes_tree',
-    });
-  }
+  trackProductEvent(AnalyticsEvent.NotesFolderRenamed);
 }
 
 export async function moveNotebookFolder({
@@ -599,18 +571,14 @@ export async function moveNotebookFolder({
     folderId: folder.folderId,
     parent: parentFolderId,
   });
-  const moveConfirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     snapshotFolderMatches(
       snapshot,
       folder.folderId,
       (f) => f.parentFolderId === parentFolderId
     )
   );
-  if (moveConfirmed) {
-    trackProductEvent(AnalyticsEvent.NotesFolderMoved, {
-      source: 'notes_tree',
-    });
-  }
+  trackProductEvent(AnalyticsEvent.NotesFolderMoved);
 }
 
 function snapshotFolderMatches(
@@ -645,13 +613,11 @@ export async function deleteNotebookNote({
 }) {
   await api.notes.deleteNote({ flag: notebookFlag, noteId });
   await db.deleteNotesNote({ notebookFlag, noteId });
-  const deleteConfirmed = await syncNotesNotebookUntil(
+  await syncNotesNotebookUntil(
     notebookFlag,
     (snapshot) => !findSnapshotNote(snapshot, noteId)
   );
-  if (deleteConfirmed) {
-    trackProductEvent(AnalyticsEvent.NoteDeleted, { source: 'notes_tree' });
-  }
+  trackProductEvent(AnalyticsEvent.NoteDeleted);
 }
 
 export async function deleteNotebookFolder({
@@ -672,22 +638,13 @@ export async function deleteNotebookFolder({
     recursive: true,
   });
   await db.deleteNotesFolders({ notebookFlag, folderIds });
-  const deleteConfirmed = await syncNotesNotebookUntil(
-    notebookFlag,
-    (snapshot) =>
-      folderIds.every(
-        (folderId) =>
-          !snapshot.folders.some(
-            (nextFolder) => nextFolder.folderId === folderId
-          )
-      )
+  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+    folderIds.every(
+      (folderId) =>
+        !snapshot.folders.some((nextFolder) => nextFolder.folderId === folderId)
+    )
   );
-  if (deleteConfirmed) {
-    trackProductEvent(AnalyticsEvent.NotesFolderDeleted, {
-      containedFolders: folderIds.length > 1,
-      source: 'notes_tree',
-    });
-  }
+  trackProductEvent(AnalyticsEvent.NotesFolderDeleted);
 }
 
 export async function markNotesNotebookOpened(notebookFlag: string) {

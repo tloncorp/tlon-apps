@@ -48,7 +48,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
       logger.trackError('could not reset db on logout');
       return;
     }
-    trackProductEvent(AnalyticsEvent.LogoutCompleted, { source: 'unknown' });
+    trackProductEvent(AnalyticsEvent.LogoutCompleted);
     // delay DB reset to next tick to avoid race conditions
     setTimeout(() => resetDb());
 

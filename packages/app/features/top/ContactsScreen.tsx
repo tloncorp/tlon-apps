@@ -56,18 +56,10 @@ export default function ContactsScreen(props: Props) {
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
-      trackProductEvent(AnalyticsEvent.ContactProfileSelected, {
-        contactType:
-          contact.id === currentUser
-            ? 'self'
-            : contact.isContactSuggestion
-              ? 'suggestion'
-              : 'contact',
-        source: 'contacts_list',
-      });
+      trackProductEvent(AnalyticsEvent.ContactProfileSelected);
       navigate('UserProfile', { userId: contact.id });
     },
-    [currentUser, navigate]
+    [navigate]
   );
 
   const onAddContact = useCallback((contact: db.Contact) => {

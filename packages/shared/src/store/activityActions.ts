@@ -109,7 +109,6 @@ export async function muteThread({
     await api.adjustVolumeSetting(source, volume);
     trackProductEvent(AnalyticsEvent.ThreadMuted, {
       channelType: channel.type,
-      source: 'post_actions',
     });
   } catch (e) {
     logger.trackError('ActivityAction: Failed to mute thread', {
@@ -142,7 +141,6 @@ export async function unmuteThread({
     await api.adjustVolumeSetting(source, null);
     trackProductEvent(AnalyticsEvent.ThreadUnmuted, {
       channelType: channel.type,
-      source: 'post_actions',
     });
   } catch (e) {
     logger.trackError('ActivityAction: Failed to unmute thread', {
@@ -264,7 +262,6 @@ export async function setGroupVolumeLevel(params: {
       source,
       params.level ? ub.getVolumeMap(params.level, true) : null
     );
-    return true;
   } catch (e) {
     // rollback
     logger.trackError('ActivityAction: Failed to set group volume level', {
@@ -275,7 +272,6 @@ export async function setGroupVolumeLevel(params: {
     if (existingGroup?.volumeSettings) {
       await db.setVolumes({ volumes: [existingGroup.volumeSettings] });
     }
-    return false;
   }
 }
 
@@ -324,7 +320,6 @@ export async function setChannelVolumeLevel(params: {
       source,
       params.level ? ub.getVolumeMap(params.level, true) : null
     );
-    return true;
   } catch (e) {
     // rollback
     logger.trackError('ActivityAction: Failed to set channel volume level', {
@@ -343,7 +338,6 @@ export async function setChannelVolumeLevel(params: {
         ],
       });
     }
-    return false;
   }
 }
 

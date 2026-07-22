@@ -4,7 +4,6 @@ import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
-import { trackProductEvent } from '../productAnalytics';
 import * as GroupActions from './groupActions';
 import { syncContacts } from './sync/syncContacts';
 import { syncGroup } from './sync/syncGroup';
@@ -374,13 +373,6 @@ export async function updateCurrentUserProfile(
         }
       }
     }
-    trackProductEvent(AnalyticsEvent.ProfileUpdateCompleted, {
-      changedAvatar: update.avatarImage !== undefined,
-      changedBio: update.bio !== undefined,
-      changedNickname: update.nickname !== undefined,
-      changedPinnedGroups: false,
-      changedStatus: update.status !== undefined,
-    });
   } catch (e) {
     console.error('Error updating profile', e);
     // Rollback the update
@@ -434,13 +426,6 @@ export async function updateProfilePinnedGroups(newPinned: db.Group[]) {
 
   try {
     await api.setPinnedGroups(newPinnedIds);
-    trackProductEvent(AnalyticsEvent.ProfileUpdateCompleted, {
-      changedAvatar: false,
-      changedBio: false,
-      changedNickname: false,
-      changedPinnedGroups: true,
-      changedStatus: false,
-    });
   } catch (e) {
     // Rollback the update
     await db.setPinnedGroups({ groupIds: existingPinnedIds });

@@ -1,9 +1,7 @@
 import * as api from '@tloncorp/api';
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 
 import * as db from '../db';
-import { useDebugStore } from '../debug';
-import { AnalyticsEvent } from '../domain';
 import { publishedNotePath, publishedNoteUrl } from '../logic';
 import { setupDatabaseTestSuite } from '../test/helpers';
 import {
@@ -25,13 +23,6 @@ import {
 } from './notesActions';
 
 setupDatabaseTestSuite();
-
-const capture = vi.fn();
-
-beforeEach(() => {
-  capture.mockReset();
-  useDebugStore.getState().initializeErrorLogger({ capture });
-});
 
 const notebookSummary: api.NotesNotebookDetail = {
   id: notebookFlag,
@@ -68,7 +59,6 @@ function makeApiNoteSummary(note: db.NotesNote): api.NotesNote {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  useDebugStore.setState({ errorLogger: null });
 });
 
 test('saveNotebookNote preserves an empty title', async () => {
@@ -232,11 +222,6 @@ test('createNotebookNote uses a fresh baseline before finding the created note',
   });
 
   expect(note?.noteId).toBe(createdNote.noteId);
-  expect(capture).toHaveBeenCalledWith(AnalyticsEvent.NoteCreated, {
-    hadInitialBody: false,
-    schemaVersion: 1,
-    source: 'unknown',
-  });
 });
 
 test('createNotebookNote does not return an existing note when create sync times out', async () => {
@@ -265,10 +250,6 @@ test('createNotebookNote does not return an existing note when create sync times
   });
 
   expect(note).toBeNull();
-  expect(capture).not.toHaveBeenCalledWith(
-    AnalyticsEvent.NoteCreated,
-    expect.anything()
-  );
 });
 
 test('createNotebookNote hydrates created note details when list notes omit them', async () => {
@@ -367,12 +348,6 @@ test('saveNotebookNote hydrates saved note details when list notes omit them', a
     bodyMd: savedNote.bodyMd,
     revision: savedNote.revision,
   });
-  expect(capture).toHaveBeenCalledWith(AnalyticsEvent.NoteSaved, {
-    changedBody: true,
-    changedTitle: false,
-    schemaVersion: 1,
-    source: 'notes_editor',
-  });
 });
 
 test('deleteNotebookNote waits for the deleted note to disappear from sync', async () => {
@@ -406,10 +381,6 @@ test('deleteNotebookNote waits for the deleted note to disappear from sync', asy
   await expect(
     db.getNotesNote({ notebookFlag, noteId: note.noteId })
   ).resolves.toBeNull();
-  expect(capture).toHaveBeenCalledWith(AnalyticsEvent.NoteDeleted, {
-    schemaVersion: 1,
-    source: 'notes_tree',
-  });
 });
 
 test('deleteNotebookNote keeps the local delete when sync stays stale', async () => {
@@ -434,10 +405,6 @@ test('deleteNotebookNote keeps the local delete when sync stays stale', async ()
   await expect(
     db.getNotesNote({ notebookFlag, noteId: note.noteId })
   ).resolves.toBeNull();
-  expect(capture).not.toHaveBeenCalledWith(
-    AnalyticsEvent.NoteDeleted,
-    expect.anything()
-  );
 });
 
 test('publishNotebookNote renders current markdown and marks note published', async () => {
@@ -464,10 +431,6 @@ test('publishNotebookNote renders current markdown and marks note published', as
   expect(publishNotesNote.mock.calls[0]?.[0].html).toContain(
     '<title>Public &amp; safe</title>'
   );
-  expect(capture).toHaveBeenCalledWith(AnalyticsEvent.NotePublished, {
-    schemaVersion: 1,
-    source: 'notes_tree',
-  });
 });
 
 test('publishedNoteUrl builds links from the ship URL', () => {
@@ -504,10 +467,6 @@ test('unpublishNotebookNote waits for the note to leave published records', asyn
   expect(unpublishNotesNote).toHaveBeenCalledWith({
     flag: notebookFlag,
     noteId: 3,
-  });
-  expect(capture).toHaveBeenCalledWith(AnalyticsEvent.NoteUnpublished, {
-    schemaVersion: 1,
-    source: 'notes_tree',
   });
 });
 

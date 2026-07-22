@@ -87,26 +87,6 @@ export function ActivityScreenView({
     }
   }, [moveSeenMarker, newestTimestamp, isFocused, activitySeenMarker]);
 
-  const trackActivityDestination = useCallback(
-    (
-      destination:
-        | 'channel_post'
-        | 'thread'
-        | 'reaction'
-        | 'group_invite'
-        | 'profile',
-      properties: Record<string, string | boolean | null> = {}
-    ) => {
-      trackProductEvent(AnalyticsEvent.ActivityDestinationSelected, {
-        ...properties,
-        activeFilter: activeTab,
-        destination,
-        source: 'activity_list',
-      });
-    },
-    [activeTab]
-  );
-
   const handlePressEvent = useCallback(
     async (event: db.ActivityEvent) => {
       switch (event.type) {
@@ -117,10 +97,6 @@ export function ActivityScreenView({
               ...logic.getModelAnalytics({ channel: event.channel }),
               type: 'channelPost',
             });
-            trackActivityDestination(
-              'channel_post',
-              logic.getModelAnalytics({ channel: event.channel })
-            );
             if (event.postId) {
               goToChannel(event.channel, event.postId);
             } else {
@@ -133,10 +109,6 @@ export function ActivityScreenView({
                 ...logic.getModelAnalytics({ channel }),
                 type: 'channelPost',
               });
-              trackActivityDestination(
-                'channel_post',
-                logic.getModelAnalytics({ channel })
-              );
               goToChannel(channel, event.postId!);
             }
           } else {
@@ -148,7 +120,6 @@ export function ActivityScreenView({
           logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
             type: 'channelThread',
           });
-          trackActivityDestination('thread');
           if (event.parent) {
             goToThread(event.parent);
           } else if (event.parentId) {
@@ -165,23 +136,17 @@ export function ActivityScreenView({
             logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
               type: 'reaction',
             });
-            trackActivityDestination('reaction');
             goToThread(event.parent);
           } else if (event.parentId) {
             logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
               type: 'reaction',
             });
-            trackActivityDestination('reaction');
             goToThread(db.assembleParentPostFromActivityEvent(event));
           } else if (event.channel) {
             logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
               ...logic.getModelAnalytics({ channel: event.channel }),
               type: 'reaction',
             });
-            trackActivityDestination(
-              'reaction',
-              logic.getModelAnalytics({ channel: event.channel })
-            );
             if (event.postId) {
               goToChannel(event.channel, event.postId);
             } else {
@@ -194,10 +159,6 @@ export function ActivityScreenView({
                 ...logic.getModelAnalytics({ channel }),
                 type: 'reaction',
               });
-              trackActivityDestination(
-                'reaction',
-                logic.getModelAnalytics({ channel })
-              );
               goToChannel(channel, event.postId ?? undefined);
             } else {
               console.warn('No channel found for react', event);
@@ -212,10 +173,6 @@ export function ActivityScreenView({
               ...logic.getModelAnalytics({ group: event.group }),
               type: 'groupInvite',
             });
-            trackActivityDestination(
-              'group_invite',
-              logic.getModelAnalytics({ group: event.group })
-            );
             goToGroup(event.group);
           } else {
             console.warn('No group found for group-ask', event);
@@ -226,7 +183,6 @@ export function ActivityScreenView({
             logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
               type: 'profileUpdate',
             });
-            trackActivityDestination('profile');
             goToUserProfile(event.contactUserId);
           }
           break;
@@ -234,13 +190,7 @@ export function ActivityScreenView({
           break;
       }
     },
-    [
-      goToChannel,
-      goToThread,
-      goToGroup,
-      goToUserProfile,
-      trackActivityDestination,
-    ]
+    [goToChannel, goToThread, goToGroup, goToUserProfile]
   );
 
   const events = useMemo(
@@ -252,8 +202,6 @@ export function ActivityScreenView({
     (tab: db.ActivityBucket) => {
       trackProductEvent(AnalyticsEvent.ActivityFilterSelected, {
         tab,
-        previousTab: activeTab,
-        wasAlreadyActive: tab === activeTab,
       });
       if (tab !== activeTab) {
         setActiveTab(tab);
@@ -368,9 +316,7 @@ export function ActivityScreenContent({
       await setBadgeCountAsync(0);
     }
     await store.markAllRead();
-    trackProductEvent(AnalyticsEvent.ActivityMarkedAllRead, {
-      source: 'activity_overflow',
-    });
+    trackProductEvent(AnalyticsEvent.ActivityMarkedAllRead);
   }, []);
 
   const handleInviteFriends = useCallback(() => {

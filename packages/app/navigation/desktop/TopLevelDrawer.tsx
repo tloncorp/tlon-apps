@@ -59,24 +59,6 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
     }
   }, [props.state, isRouteActive]);
 
-  const trackNavigation = useCallback(
-    (tab: 'home' | 'messages' | 'activity' | 'contacts' | 'settings') => {
-      const currentRoute = props.state.routes[props.state.index]?.name;
-      const previousTab = currentRoute
-        ? (currentRoute.toLowerCase() as typeof tab)
-        : 'other';
-      trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
-        tab,
-        previousTab,
-        source: 'desktop_sidebar',
-        wasAlreadyActive: isRouteActive(
-          `${tab.charAt(0).toUpperCase()}${tab.slice(1)}` as keyof RootDrawerParamList
-        ),
-      });
-    },
-    [isRouteActive, props.state]
-  );
-
   const restoreHomeState = useCallback(() => {
     try {
       const currentScreenIsHome = isRouteActive('Home');
@@ -115,7 +97,9 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           // intentionally leave undotted for now
           shouldShowUnreads={false}
           onPress={() => {
-            trackNavigation('home');
+            trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+              tab: 'Home',
+            });
             restoreHomeState();
           }}
           testID="HomeNavIcon"
@@ -126,7 +110,9 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Messages')}
           shouldShowUnreads={false}
           onPress={() => {
-            trackNavigation('messages');
+            trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+              tab: 'Messages',
+            });
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -142,7 +128,9 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Activity')}
           testID="ActivityNavIcon"
           onPress={() => {
-            trackNavigation('activity');
+            trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+              tab: 'Activity',
+            });
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -154,7 +142,9 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           id={userId}
           focused={isRouteActive('Contacts')}
           onPress={() => {
-            trackNavigation('contacts');
+            trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+              tab: 'Contacts',
+            });
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -186,7 +176,9 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Settings')}
           shouldShowUnreads={false}
           onPress={() => {
-            trackNavigation('settings');
+            trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+              tab: 'Settings',
+            });
             saveHomeState();
             props.navigation.reset({
               index: 0,

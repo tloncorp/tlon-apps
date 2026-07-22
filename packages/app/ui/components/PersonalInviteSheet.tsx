@@ -28,10 +28,7 @@ export function PersonalInviteSheet({
 
   useEffect(() => {
     if (open) {
-      trackProductEvent(AnalyticsEvent.InviteSurfaceOpened, {
-        inviteType: 'personal',
-        source: 'home',
-      });
+      trackProductEvent(AnalyticsEvent.InviteSurfaceOpened);
     }
   }, [open]);
 

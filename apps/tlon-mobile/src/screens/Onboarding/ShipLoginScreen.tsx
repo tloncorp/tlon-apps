@@ -18,11 +18,7 @@ import {
 } from '@tloncorp/app/ui';
 import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
-import {
-  AnalyticsEvent,
-  createDevLogger,
-  trackProductEvent,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -96,9 +92,6 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
         accessCode.trim()
       );
       if (authCookie) {
-        trackProductEvent(AnalyticsEvent.OnboardingStepCompleted, {
-          step: 'ship_login',
-        });
         await setFinishingSelfHostedLogin(true);
         const shipId = getShipFromCookie(authCookie);
 
@@ -125,10 +118,6 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
         );
       }
     } catch (err) {
-      trackProductEvent(AnalyticsEvent.OnboardingFailed, {
-        errorCode: 'self_hosted_login_failed',
-        step: 'ship_login',
-      });
       setRemoteError((err as Error).message);
     }
 

@@ -1,11 +1,8 @@
 import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
 
-import { useTrackSearchPerformed } from '../../hooks/useTrackSearchPerformed';
-import { getChatListTelemetryEntity } from '../../lib/featureUsageTelemetry';
 import {
   TextInput,
   TextInputRef,
@@ -28,26 +25,13 @@ export function GlobalSearch({
 }: GlobalSearchProps) {
   const { isOpen, setIsOpen } = useGlobalSearch();
   const [searchQuery, setSearchQuery] = useState('');
-  const [resultCount, setResultCount] = useState(0);
   const inputRef = useRef<TextInputRef>(null);
   const listRef = useRef<FilteredChatListRef>(null);
-  useTrackSearchPerformed({
-    query: searchQuery,
-    resultCount,
-    surface: 'global',
-  });
 
   const onPressItem = useCallback(
     async (item: db.Chat) => {
       trackProductEvent(AnalyticsEvent.GlobalSearchResultSelected, {
-        ...logic.getModelAnalytics(
-          item.type === 'group'
-            ? { group: item.group }
-            : { channel: item.channel }
-        ),
-        entityType: getChatListTelemetryEntity(item),
-        hasQuery: searchQuery.trim() !== '',
-        source: 'global_search',
+        type: item.type === 'group' ? 'group' : item.channel.type,
       });
       if (item.type === 'group') {
         navigateToGroup(item.group.id);
@@ -56,7 +40,7 @@ export function GlobalSearch({
       }
       setIsOpen(false);
     },
-    [navigateToGroup, navigateToChannel, searchQuery, setIsOpen]
+    [navigateToGroup, navigateToChannel, setIsOpen]
   );
 
   const handleNavigationKey = useCallback(
@@ -128,12 +112,9 @@ export function GlobalSearch({
 
   useEffect(() => {
     if (isOpen) {
-      trackProductEvent(AnalyticsEvent.GlobalSearchOpened, {
-        source: 'keyboard_or_header',
-      });
+      trackProductEvent(AnalyticsEvent.GlobalSearchOpened);
       inputRef.current?.focus();
       setSearchQuery('');
-      setResultCount(0);
     }
   }, [isOpen]);
 
@@ -197,7 +178,6 @@ export function GlobalSearch({
               searchQuery={searchQuery}
               ref={listRef}
               onPressItem={onPressItem}
-              onResultCountChange={setResultCount}
             />
           )}
         </YStack>

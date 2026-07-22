@@ -13,7 +13,7 @@ import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { notesPermissionsCompatActive } from '../logic/notesPermissionsCompat';
-import { getChatTelemetryScope, trackProductEvent } from '../productAnalytics';
+import { trackProductEvent } from '../productAnalytics';
 import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
@@ -106,10 +106,6 @@ export async function createChannel({
       readers,
       writers,
     });
-    trackProductEvent(AnalyticsEvent.ChannelCreationCompleted, {
-      channelType: channelType as 'chat' | 'notebook' | 'gallery',
-      restricted: Boolean(readers?.length || writers?.length),
-    });
     return newChannel;
   } catch (e) {
     // rollback optimistic update
@@ -178,11 +174,6 @@ async function createNotesChannel({
 
     syncNotesNotebook(createdNotebookFlag).catch((e) => {
       logger.error('Failed to sync notes notebook after channel create', e);
-    });
-
-    trackProductEvent(AnalyticsEvent.ChannelCreationCompleted, {
-      channelType: 'notes',
-      restricted: readers.length > 0,
     });
 
     return newChannel;
@@ -477,7 +468,6 @@ export async function pinPostToChannel({
     await api.setOrder(channel.id, nextOrder);
     trackProductEvent(AnalyticsEvent.PostPinned, {
       channelType: channel.type,
-      source: 'post_actions',
     });
   } catch (e) {
     console.error('Failed to pin post', e);
@@ -515,7 +505,6 @@ export async function unpinPostFromChannel({
     await api.setOrder(channel.id, nextOrder);
     trackProductEvent(AnalyticsEvent.PostUnpinned, {
       channelType: channel.type,
-      source: 'post_actions',
     });
   } catch (e) {
     console.error('Failed to unpin post', e);
@@ -643,19 +632,7 @@ export async function reorderPinnedItems({
     // stale slot. Only the optimistic write above is the full merged order.
     const after = await db.getPinnedItems();
     await db.setPinnedItemsOrder(normalizeOrder(backendPayload, after));
-    const changedItemId = normalized.find(
-      (itemId, index) => previousOrder[index] !== itemId
-    );
-    const changedPin = before.find((pin) => pin.itemId === changedItemId);
-    if (changedPin) {
-      trackProductEvent(AnalyticsEvent.PinnedChatsReordered, {
-        itemType:
-          changedPin.type === 'group' || changedPin.type === 'channel'
-            ? changedPin.type
-            : getChatTelemetryScope(changedPin.type),
-        source: 'drag',
-      });
-    }
+    trackProductEvent(AnalyticsEvent.PinnedChatsReordered);
     return true;
   } catch (e) {
     console.error('Failed to reorder pinned items', e);
@@ -805,7 +782,7 @@ export async function markChannelRead({
   }
 
   if (existingChannel.isPendingChannel) {
-    return true;
+    return;
   }
 
   try {
@@ -815,7 +792,6 @@ export async function markChannelRead({
       groupId: existingChannel.groupId,
       deep: !!includeThreads,
     });
-    return true;
   } catch (e) {
     logger.error('Failed to read channel', { id, groupId }, e);
     // rollback optimistic update
@@ -828,7 +804,6 @@ export async function markChannelRead({
     if (didUpdateGroupUnread && existingGroupUnread) {
       await db.insertGroupUnreads([existingGroupUnread]);
     }
-    return false;
   }
 }
 

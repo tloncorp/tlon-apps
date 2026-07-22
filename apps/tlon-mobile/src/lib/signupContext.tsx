@@ -3,11 +3,7 @@
 import * as api from '@tloncorp/api';
 import { useBootSequence } from '@tloncorp/app/hooks/useBootSequence';
 import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
-import {
-  AnalyticsEvent as ProductAnalyticsEvent,
-  createDevLogger,
-  trackProductEvent,
-} from '@tloncorp/shared';
+import { createDevLogger } from '@tloncorp/shared';
 import { didSignUp, signupData } from '@tloncorp/shared/db';
 import {
   AnalyticsEvent,
@@ -95,9 +91,6 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         postHog,
       };
       runPostSignupActions(postSignupParams);
-      trackProductEvent(ProductAnalyticsEvent.OnboardingCompleted, {
-        accountType: 'hosted',
-      });
       logger.trackEvent('hosted signup report', {
         ...bootReport,
         userSatWaitingFor: values.userWasReadyAt

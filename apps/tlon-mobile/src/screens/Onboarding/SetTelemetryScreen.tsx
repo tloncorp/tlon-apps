@@ -7,7 +7,6 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/app/ui';
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import { finishingSelfHostedLogin } from '@tloncorp/shared/db';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useState } from 'react';
@@ -24,16 +23,6 @@ export const SetTelemetryScreen = (_: Props) => {
     finishingSelfHostedLogin.useStorageItem();
 
   const handleNext = useCallback(() => {
-    trackProductEvent(AnalyticsEvent.OnboardingStepCompleted, {
-      step: 'telemetry',
-    });
-    trackProductEvent(AnalyticsEvent.LoginCompleted, {
-      accountType: 'self_hosted',
-      method: 'access_code',
-    });
-    trackProductEvent(AnalyticsEvent.OnboardingCompleted, {
-      accountType: 'self_hosted',
-    });
     if (!isEnabled) {
       posthog?.optOut();
     }

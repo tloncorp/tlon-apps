@@ -27,6 +27,8 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     clearShip();
     clearLure();
     clearDeepLink();
+    trackProductEvent(AnalyticsEvent.LogoutCompleted);
+    clearTelemetry();
     clearSessionStorageItems();
     store.updateSession(null);
     store.clearSyncStartLock();
@@ -36,8 +38,6 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
       logger.trackError('could not reset db on logout');
       return;
     }
-    trackProductEvent(AnalyticsEvent.LogoutCompleted, { source: 'unknown' });
-    clearTelemetry();
     // delay DB reset to next tick to avoid race conditions
     setTimeout(() => resetDb());
   }, [clearDeepLink, clearLure, clearShip, resetDb, clearTelemetry]);

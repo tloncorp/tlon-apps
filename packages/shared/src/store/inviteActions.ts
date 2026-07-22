@@ -297,10 +297,7 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
         context: 'Success, bit invite deeplink lure while logged in',
         lure: invite.id,
       });
-      trackProductEvent(AnalyticsEvent.InviteRedeemed, {
-        inviteType: 'group',
-        source: 'deep_link',
-      });
+      trackProductEvent(AnalyticsEvent.InviteRedeemed);
     } catch (err) {
       logger.trackEvent(AnalyticsEvent.InviteError, {
         error: err,
