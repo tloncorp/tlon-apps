@@ -9,6 +9,29 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
+## metro@0.84.4
+
+Why:
+Metro's transform cache includes each module's path relative to `projectRoot`.
+Our fast worktrees share installed dependencies with a prepared worktree, so
+Metro resolves those dependency symlinks to the prepared worktree's absolute
+path. Identical files then receive different cache keys in different worktrees.
+
+What it does:
+Adds an opt-in `unstable_getCanonicalCachePath` transformer hook used only for
+the cache-key path. The actual path passed to the transform worker is unchanged.
+The mobile shared-cache configuration uses it to express workspace files and
+`node_modules` files relative to stable logical roots.
+
+Validation:
+Populate the shared cache with `mobile:fast:start` in one clean worktree, then
+request the same iOS bundle from a source-identical linked worktree. The second
+bundle should reuse transforms rather than re-running Babel workers.
+
+Removal:
+Drop this patch when Metro exposes an equivalent cache-key path hook upstream,
+or when fast worktrees no longer share dependency trees through symlinks.
+
 ## @gorhom/bottom-sheet@5.2.14
 
 Local patch:

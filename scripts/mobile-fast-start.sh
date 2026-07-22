@@ -253,7 +253,7 @@ metro_environment=(
 )
 if [[ "$keep_compilers" -eq 0 ]]; then
   metro_environment+=(
-    "TLON_METRO_SHARED_CACHE_DIR=$shared_cache_base/fast-compilers-off"
+    "TLON_METRO_SHARED_CACHE_DIR=$shared_cache_base/fast-compilers-off-canonical-v1"
     "TLON_REACT_COMPILER_DISABLED=1"
     "TLON_TAMAGUI_COMPILER_DISABLED=1"
   )

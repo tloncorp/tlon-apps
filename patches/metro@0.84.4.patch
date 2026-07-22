@@ -1,0 +1,29 @@
+diff --git a/src/DeltaBundler/Transformer.js b/src/DeltaBundler/Transformer.js
+index 6dc9cd86b67aa436c045873828422b40e9150d36..30d6966bf2eeb9d2b72862e1ed7804d5ae1cf2e7 100644
+--- a/src/DeltaBundler/Transformer.js
++++ b/src/DeltaBundler/Transformer.js
+@@ -28,8 +28,10 @@ class Transformer {
+       getTransformOptions: _getTransformOptions,
+       transformVariants: _transformVariants,
+       unstable_workerThreads: _workerThreads,
++      unstable_getCanonicalCachePath: getCanonicalCachePath,
+       ...transformerConfig
+     } = this._config.transformer;
++    this._getCanonicalCachePath = getCanonicalCachePath;
+     const transformerOptions = {
+       transformerPath: this._config.transformerPath,
+       transformerConfig,
+@@ -75,10 +77,13 @@ class Transformer {
+       this._config.projectRoot,
+       filePath,
+     );
++    const cachePath = this._getCanonicalCachePath
++      ? this._getCanonicalCachePath(filePath, localPath)
++      : localPath;
+     const partialKey = (0, _metroCache.stableHash)([
+       this._baseHash,
+-      (0, _pathUtils.normalizePathSeparatorsToPosix)(localPath),
++      (0, _pathUtils.normalizePathSeparatorsToPosix)(cachePath),
+       customTransformOptions,
+       dev,
+       experimentalImportSupport,
