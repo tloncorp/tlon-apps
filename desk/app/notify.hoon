@@ -4,6 +4,7 @@
     default-agent, verb, dbug, agentio
 /$  activity-event-to-json    %activity-event    %json
 /$  activity-event-to-json-1  %activity-event-1  %json
+/$  activity-event-to-json-2  %activity-event-2  %json
 ::
 |%
 +$  card  card:agent:gall
@@ -86,6 +87,13 @@
       base-state-0
   ==
 ::
++$  state-9
+  $:  %9
+      last-timer=time
+      notifications=(map time-id:av event-9)
+      base-state-0
+  ==
+::
 +$  event-7
   $:  =event:v8:av
       ::TODO  if we poked the provider instead, we could track time-to-ack
@@ -94,6 +102,12 @@
 ::
 +$  event-8
   $:  =event:v9:av
+      ::TODO  if we poked the provider instead, we could track time-to-ack
+      first-req=(unit @da)
+  ==
+::
++$  event-9
+  $:  =event:v10:av
       ::TODO  if we poked the provider instead, we could track time-to-ack
       first-req=(unit @da)
   ==
@@ -108,9 +122,10 @@
       state-6
       state-7
       state-8
+      state-9
   ==
 ::
-+$  current-state  state-8
++$  current-state  state-9
 ::
 ++  migrate-state
   |=  old=versioned-state
@@ -124,7 +139,8 @@
     %5  $(old (migrate-5-to-6 old))
     %6  $(old (migrate-6-to-7 old))
     %7  $(old (migrate-7-to-8 old))
-    %8  old
+    %8  $(old (migrate-8-to-9 old))
+    %9  old
   ==
 ::
 ++  migrate-0-to-1
@@ -167,6 +183,11 @@
   ^-  state-8
   [%8 last-timer notifications |3]:old
 ::
+++  migrate-8-to-9
+  |=  old=state-8
+  ^-  state-9
+  [%9 last-timer notifications |3]:old
+::
 ::  +log: specialized wrapper for logging library
 ::
 ++  log
@@ -206,8 +227,8 @@
   ::
   ++  on-init
     :_  this
-    :*  (~(watch-our pass:io /activity) %activity /v5/notifications)
-        (~(watch-our pass:io /reads) %activity /v5/reads)
+    :*  (~(watch-our pass:io /activity) %activity /v6/notifications)
+        (~(watch-our pass:io /reads) %activity /v6/reads)
         (~(wait pass:io /clear) (add now.bowl clear-interval))
         [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]
       ::
@@ -224,20 +245,20 @@
       ?.  (lth -.old-state %7)  ~
       [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]~
     =/  migrated  (migrate-state old-state)
-    =?  caz  (lth -.old-state %8)
+    =?  caz  (lth -.old-state %9)
       :~  [%pass /activity %agent [our.bowl %activity] %leave ~]
           [%pass /reads %agent [our.bowl %activity] %leave ~]
-          (~(watch-our pass:io /activity) %activity /v5/notifications)
-          (~(watch-our pass:io /reads) %activity /v5/reads)
+          (~(watch-our pass:io /activity) %activity /v6/notifications)
+          (~(watch-our pass:io /reads) %activity /v6/reads)
       ==
     =?  caz  !(~(has by wex.bowl) [/activity our.bowl %activity])
-      :-  (~(watch-our pass:io /activity) %activity /v5/notifications)
+      :-  (~(watch-our pass:io /activity) %activity /v6/notifications)
       ?.  =(~rivfur-livmet our.bowl)  caz
       :_  caz
       [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
     =?  caz  !(~(has by wex.bowl) [/reads our.bowl %activity])
       :_  caz
-      (~(watch-our pass:io /reads) %activity /v5/reads)
+      (~(watch-our pass:io /reads) %activity /v6/reads)
     [caz this(state migrated)]
   ::
   ++  on-poke
@@ -375,9 +396,9 @@
         [(poke:pass [who.act %notify] %notify-provider-action !>(pact))]~
       ::
           %send-message
-        =+  .^(=activity:v8:av %gx (scry:io %activity /v4/activity/activity-summary-4))
+        =+  .^(=activity:v10:av %gx (scry:io %activity /v6/activity/activity-summary-6))
         =/  notify-count=@ud
-          notify-count:(~(gut by activity) [%base ~] *activity-summary:a)
+          notify-count:(~(gut by activity) [%base ~] *activity-summary:v10:av)
         =/  v1-paths
           %+  murn  ~(tap by sup.bowl)
           |=  [duct ship =path]
@@ -399,7 +420,7 @@
         [~ state]
       =/  [[ext=(unit @ta) site=(pole @t)] args=*]
         (rash url.request ;~(plug apat:de-purl:html yque:de-purl:html))
-      ?.  ?=([%apps %groups %'~' %notify %note uid=@ format=?(%activity-event-1 %activity-event %hark-yarn) ~] site)
+      ?.  ?=([%apps %groups %'~' %notify %note uid=@ format=?(%activity-event-2 %activity-event-1 %activity-event %hark-yarn) ~] site)
         [~ state]
       ?.  ?=([~ %json] ext)
         [~ state]
@@ -415,7 +436,9 @@
       %+  give-simple-payload  eyre-id
       ?-  format.site
           %activity-event
-        ?~  event-8=(v8:event:v9:ac event.u.event)
+        ?~  event-9=(v9:event:v10:ac event.u.event)
+          [[404 ~] ~]
+        ?~  event-8=(v8:event:v9:ac u.event-9)
           [[404 ~] ~]
         :-  [200 ['content-type' 'application-json'] ~]
         %-  some
@@ -424,11 +447,20 @@
         (activity-event-to-json time-id u.event-8)
       ::
           %activity-event-1
+        ?~  event-9=(v9:event:v10:ac event.u.event)
+          [[404 ~] ~]
         :-  [200 ['content-type' 'application-json'] ~]
         %-  some
         %-  as-octs:mimes:html
         %-  en:json:html
-        (activity-event-to-json-1 time-id event.u.event)
+        (activity-event-to-json-1 time-id u.event-9)
+      ::
+          %activity-event-2
+        :-  [200 ['content-type' 'application-json'] ~]
+        %-  some
+        %-  as-octs:mimes:html
+        %-  en:json:html
+        (activity-event-to-json-2 time-id event.u.event)
       ::
           %hark-yarn
         [[410 ~] ~]
@@ -498,8 +530,9 @@
     ::
         [%x %note uid=@ %activity-event ~]
       =/  =uid  (need (mate (slaw %da uid.pole) (slaw %uv uid.pole)))
-      =/  event=event-8  (~(got by notifications) `@`uid)
-      ?~  time-event=(v8:time-event:v9:ac [`@da`uid event.event])  [~ ~]
+      =/  event=event-9  (~(got by notifications) `@`uid)
+      ?~  time-event-9=(v9:time-event:v10:ac [`@da`uid event.event])  [~ ~]
+      ?~  time-event=(v8:time-event:v9:ac u.time-event-9)  [~ ~]
       ``activity-event+!>(u.time-event)
     ::
         [%x %provider-state ~]  ``noun+!>(provider-state)
@@ -521,12 +554,12 @@
         [%activity ~]
       ?+  -.sign  (on-agent:def wire sign)
           %fact
-        ?.  ?=(%activity-event-1 p.cage.sign)
+        ?.  ?=(%activity-event-2 p.cage.sign)
           `this
-        =+  !<([=time-id:av =event:v9:av] q.cage.sign)
-        =+  .^(=activity:v9:av %gx (scry:io %activity /v5/activity/activity-summary-5))
+        =+  !<([=time-id:av =event:v10:av] q.cage.sign)
+        =+  .^(=activity:v10:av %gx (scry:io %activity /v6/activity/activity-summary-6))
         =/  notify-count=@ud
-          notify-count:(~(gut by activity) [%base ~] *activity-summary:v9:av)
+          notify-count:(~(gut by activity) [%base ~] *activity-summary:v10:av)
         =/  [v0-paths=(list path) v1-paths=(list path)]
           %+  roll  ~(tap by sup.bowl)
           |=  [[duct ship =path] v0=(list path) v1=(list path)]
@@ -548,23 +581,23 @@
           %kick
         %-  (tell:l %info 'notify activity kick' ~)
         :_  this
-        [%pass wire %agent [our.bowl %activity] %watch /v5/notifications]~
+        [%pass wire %agent [our.bowl %activity] %watch /v6/notifications]~
       ==
     ::
         [%reads ~]
       ?+  -.sign  (on-agent:def wire sign)
           %fact
-        ?.  ?=(%activity-update-5 p.cage.sign)
+        ?.  ?=(%activity-update-6 p.cage.sign)
           `this
-        =+  !<(=update:v9:av q.cage.sign)
+        =+  !<(=update:v10:av q.cage.sign)
         ?.  ?=(%read -.update)
           %-  (tell:l %error (crip "unexpected fact {<-.update>}") ~)
           `this
         ?^  unread.activity-summary.update
           `this
-        =+  .^(=activity:v9:av %gx (scry:io %activity /v5/activity/activity-summary-5))
+        =+  .^(=activity:v10:av %gx (scry:io %activity /v6/activity/activity-summary-6))
         =/  notify-count=@ud
-          notify-count:(~(gut by activity) [%base ~] *activity-summary:v9:av)
+          notify-count:(~(gut by activity) [%base ~] *activity-summary:v10:av)
         :_  this
         =/  v1-paths
           %+  murn  ~(tap by sup.bowl)
@@ -572,7 +605,7 @@
           ?:  ?=([%notify *] path)  ~
           `path
         ?~  v1-paths  ~
-        =/  source=@t  (string-source:v9:enjs:aj source.update)
+        =/  source=@t  (string-source:v10:enjs:aj source.update)
         =/  =update:v1
           ::  the "newest" item in a recently read activity source
           ::  is what we need to know which notifications to dismiss
@@ -582,7 +615,7 @@
           %kick
         %-  (tell:l %info 'notify reads kick' ~)
         :_  this
-        [%pass wire %agent [our.bowl %activity] %watch /v5/reads]~
+        [%pass wire %agent [our.bowl %activity] %watch /v6/reads]~
       ==
     ::
     ::  subscription from provider to client

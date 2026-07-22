@@ -67,6 +67,211 @@
   ::
   ++  allowed  (lead %s)
   ::
+  ++  v10
+    =,  v9
+    |%
+    ++  string-source
+      |=  s=source:v10:av
+      ^-  cord
+      ?.  ?=(?(%notebook %note) -.s)
+        (string-source:v8 s)
+      ?-  -.s
+        %notebook  (rap 3 'notebook/' (print-flag:enjs:gj flag.s) ~)
+      ::
+          %note
+        %+  rap  3
+        :~  'note/'
+            (print-flag:enjs:gj notebook.s)
+            '/'
+            (scot %ud id.s)
+        ==
+      ==
+    ::
+    ++  source
+      |=  s=source:v10:av
+      ?.  ?=(?(%notebook %note) -.s)
+        (source:v8 s)
+      %-  pairs
+      ?-  -.s
+          %notebook
+        :~  :-  %notebook
+            %-  pairs
+            :~  flag+(flag:enjs:gj flag.s)
+                group+?~(group.s ~ (flag:enjs:gj u.group.s))
+            ==
+        ==
+      ::
+          %note
+        :~  :-  %note
+            %-  pairs
+            :~  id+s+(scot %ud id.s)
+                notebook+(flag:enjs:gj notebook.s)
+                group+?~(group.s ~ (flag:enjs:gj u.group.s))
+            ==
+        ==
+      ==
+    ++  activity-summary
+      |=  sum=activity-summary:v10:av
+      %-  pairs
+      :~  recency+(time newest.sum)
+          recency-uv+s+(scot %uv newest.sum)
+          count+(numb count.sum)
+          notify-count+(numb notify-count.sum)
+          notify+b+notify.sum
+          unread/?~(unread.sum ~ (unread-point u.unread.sum))
+      ==
+    ::
+    ++  activity-summary-full
+      |=  sum=activity-summary:v10:av
+      %-  pairs
+      :~  recency+(time newest.sum)
+          count+(numb count.sum)
+          notify-count+(numb notify-count.sum)
+          notify+b+notify.sum
+          unread/?~(unread.sum ~ (unread-point u.unread.sum))
+        ::
+          :-  %children
+          a+(turn ~(tap in children.sum) (cork string-source (lead %s)))
+      ==
+    ::
+    ++  activity-bundle
+      |=  ab=activity-bundle:v10:av
+      %-  pairs
+      :~  source+(source source.ab)
+          source-key+s+(string-source source.ab)
+          latest+s+(scot %ud latest.ab)
+          events+a+(turn events.ab time-event)
+      ==
+    ++  event
+      |=  e=event:v10:av
+      ?.  ?=(?(%note-create %note-edit) -<.e)
+        (event:v9 e)
+      %-  pairs
+      :_  [notified+b+notified.e]~
+      :-  -<.e
+      %-  pairs
+      :~  id+s+(scot %ud id.e)
+          folder+s+(scot %ud folder.e)
+          notebook+(flag:enjs:gj notebook.e)
+          group+?~(group.e ~ (flag:enjs:gj u.group.e))
+          title+s+title.e
+          author+(ship author.e)
+      ==
+    ++  stream
+      |=  s=stream:v10:av
+      %-  pairs
+      %+  turn  (tap:on-event:v10:av s)
+      |=  [=time:z e=event:v10:av]
+      [(scot %ud time) (event e)]
+    ::
+    ++  indices
+      |=  ind=indices:v10:av
+      %-  pairs
+      %+  turn  ~(tap by ind)
+      |=  [sc=source:v10:av st=stream:v10:av r=reads:v10:av bump=^time]
+      :-  (string-source sc)
+      %-  pairs
+      :~  stream+(stream st)
+          reads+(reads r)
+          last-self-activity+(time bump)
+      ==
+    ::
+    ++  activity
+      |=  [ac=activity:v10:av full=?]
+      %-  pairs
+      %+  turn  ~(tap by ac)
+      |=  [s=source:v10:av sum=activity-summary:v10:av]
+      :-  (string-source s)
+      ?.  full  (activity-summary sum)
+      (activity-summary-full sum)
+    ::
+    ++  activity-pairs
+      |=  activity=(list [source:v10:av activity-summary:v10:av])
+      :-  %a
+      %+  turn
+        activity
+      |=  [s=source:v10:av as=activity-summary:v10:av]
+      %-  pairs
+      :~  source+(source s)
+          activity+(activity-summary as)
+      ==
+    ::
+    ++  full-info
+      |=  fi=full-info:v10:av
+      %-  pairs
+      :~  indices+(indices indices.fi)
+          activity+(activity activity.fi &)
+          settings+(volume-settings volume-settings.fi)
+      ==
+    ++  volume-settings
+      |=  vs=volume-settings:v10:av
+      %-  pairs
+      %+  turn  ~(tap by vs)
+      |=  [s=source:v10:av v=volume-map:v10:av]
+      [(string-source s) (volume-map v)]
+    ::
+    ++  volume-map
+      |=  vm=volume-map:v10:av
+      %-  pairs
+      %+  turn  ~(tap by vm)
+      |=  [e=event-type:v10:av v=volume:v10:av]
+      [e (volume v)]
+    ++  feed
+      |=  f=feed:v10:av
+      %-  pairs
+      :~  feed+a+(turn feed.f activity-bundle)
+          summaries+(activity summaries.f |)
+      ==
+    ::
+    ++  feed-init
+      |=  fi=feed-init:v10:av
+      %-  pairs
+      :~  all+a+(turn all.fi activity-bundle)
+          mentions+a+(turn mentions.fi activity-bundle)
+          replies+a+(turn replies.fi activity-bundle)
+          summaries+(activity summaries.fi |)
+      ==
+    ++  time-event
+      |=  te=time-event:v10:av
+      %-  pairs
+      :~  time+s+(scot %ud time.te)
+          event+(event event.te)
+      ==
+    ++  update
+      |=  u=update:v10:av
+      %+  frond  -.u
+      ?-  -.u
+        %add  (added +.u)
+        %del  (source +.u)
+        %read  (read +.u)
+        %activity  (activity +.u |)
+        %adjust  (adjusted +.u)
+        %allow-notifications  (allowed +.u)
+      ==
+    ++  added
+      |=  [src=source:v10:av te=time-event:v10:av]
+      %-  pairs
+      :~  source+(source src)
+          source-key+s+(string-source src)
+          time+(time time.te)
+          event+(event event.te)
+      ==
+    ::
+    ++  read
+      |=  [s=source:v10:av as=activity-summary:v10:av]
+      %-  pairs
+      :~  source+(source s)
+          activity+(activity-summary as)
+      ==
+    ::
+    ++  adjusted
+      |=  [s=source:v10:av v=(unit volume-map:v10:av)]
+      %-  pairs
+      :~  source+(source s)
+          volume+?~(v ~ (volume-map u.v))
+      ==
+    --
+  ::
   ++  v9
     =,  v8
     |%
@@ -908,6 +1113,109 @@
     :~  id/msg-id
         time/(se %ud)
     ==
+  ++  v10
+    =,  v9
+    |%
+    ++  event-type
+      %-  perk
+      :~  %post-mention
+          %reply-mention
+          %dm-post-mention
+          %dm-reply-mention
+          %post
+          %reply
+          %react
+          %dm-invite
+          %dm-post
+          %dm-reply
+          %dm-react
+          %flag-post
+          %flag-reply
+          %group-ask
+          %group-join
+          %group-kick
+          %group-role
+          %group-invite
+          %note-create
+          %note-edit
+      ==
+    ++  action
+      ^-  $-(json action:v10:av)
+      %-  of
+      :~  add/add
+          clear-group-invites/ul
+          del/source
+          read/read
+          adjust/adjust
+          allow-notifications/(su (perk %all %some %none ~))
+      ==
+    ++  add  incoming-event
+    ++  read
+      ^-  $-(json [source:v10:av read-action:v10:av])
+      %-  ot
+      :~  source/source
+          action/read-action
+      ==
+    ++  adjust
+      %-  ot
+      :~  source/source
+          volume/(mu volume-map)
+      ==
+    ++  source
+      ^-  $-(json source:v10:av)
+      %-  of
+      :~  base/ul
+          group/flag:dejs:gj
+          dm/whom
+          channel/channel-source
+          thread/thread-source
+          dm-thread/dm-thread-source
+          notebook/notebook-source
+          note/note-source
+      ==
+    ++  notebook-source
+      %-  ot
+      :~  flag/flag:dejs:gj
+          group/(mu flag:dejs:gj)
+      ==
+    ++  note-source
+      %-  ot
+      :~  id/id
+          notebook/flag:dejs:gj
+          group/(mu flag:dejs:gj)
+      ==
+    ++  incoming-event
+      ^-  $-(json incoming-event:v10:av)
+      %-  of
+      :~  post/post-event
+          reply/reply-event
+          react/react-event
+          chan-init/chan-init-event
+          dm-invite/whom
+          dm-post/dm-post-event
+          dm-reply/dm-reply-event
+          dm-react/dm-react-event
+          flag-post/flag-post-event
+          flag-reply/flag-reply-event
+          group-ask/group-event
+          group-join/group-event
+          group-kick/group-event
+          group-invite/group-event
+          group-role/group-role-event
+          note-create/note-event
+          note-edit/note-event
+      ==
+    ++  note-event
+      %-  ot
+      :~  id/id
+          folder/id
+          notebook/flag:dejs:gj
+          group/(mu flag:dejs:gj)
+          title/so
+          author/ship
+      ==
+    ++  volume-map  (op event-type volume)
+    --
   ++  v9
     =,  v8
     |%

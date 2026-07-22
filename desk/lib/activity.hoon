@@ -17,6 +17,15 @@
       :~  [%channel channel.source group.source]
           [%group group.source]
       ==
+    ::
+        %notebook
+      ?~  group.source  ~
+      ~[[%group u.group.source]]
+    ::
+        %note
+      :-  [%notebook notebook.source group.source]
+      ?~  group.source  ~
+      ~[[%group u.group.source]]
     ==
   ::
   ++  get-parent
@@ -32,13 +41,15 @@
         %channel  [%group group.source]
         %dm-thread  [%dm whom.source]
         %thread  [%channel channel.source group.source]
+        %notebook  ?~(group.source [%base ~] [%group u.group.source])
+        %note  [%notebook notebook.source group.source]
       ==
     ?.  (~(has by indices) parent)  ~
     `parent
   ++  get-children  ::  direct children only
     |=  [=indices:a =source:a]
     ^-  (list source:a)
-    ?:  ?=(?(%thread %dm-thread %contact) -.source)  ~
+    ?:  ?=(?(%thread %dm-thread %contact %note) -.source)  ~
     ::NOTE  +rep:by is ~4x faster than (skim (tap:in (key:by))), at least for
     ::      larger inputs. .indices can get quite big, and we get-children
     ::      very often, so it's important for this arm to be fast!
@@ -49,14 +60,20 @@
     ::      due to call overhead.
     =*  s  source:a
     ?-  -.source
-      %base     |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
-                ?=(?(%group %dm) -.src)
-      %group    |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
-                &(?=(%channel -.src) =(flag.source group.src))
-      %channel  |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
-                &(?=(%thread -.src) =(nest.source channel.src))
-      %dm       |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
-                &(?=(%dm-thread -.src) =(whom.source whom.src))
+      %base      |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
+                 ?|  ?=(?(%group %dm) -.src)
+                     &(?=(%notebook -.src) ?=(~ group.src))
+                 ==
+      %group     |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
+                 ?|  &(?=(%channel -.src) =(flag.source group.src))
+                     &(?=(%notebook -.src) =(`flag.source group.src))
+                 ==
+      %channel   |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
+                 &(?=(%thread -.src) =(nest.source channel.src))
+      %dm        |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
+                 &(?=(%dm-thread -.src) =(whom.source whom.src))
+      %notebook  |=  [[src=s *] out=(list s)]  =;  f=?  ?:(f [src out] out)
+                 &(?=(%note -.src) =(flag.source notebook.src))
     ==
   ::
   ++  get-order
@@ -65,7 +82,9 @@
     %~  got  by
     ^~
     %-  my
-    :~  [%contact 7]
+    :~  [%note 9]
+        [%notebook 8]
+        [%contact 7]
         [%thread 6]
         [%dm-thread 5]
         [%channel 4]
@@ -86,6 +105,9 @@
       %channel    (get-volumes vs %group group.source)
       %thread     (get-volumes vs %channel channel.source group.source)
       %contact    (get-volumes vs %base ~)
+      %notebook   ?~  group.source  (get-volumes vs %base ~)
+                  (get-volumes vs %group u.group.source)
+      %note       (get-volumes vs %notebook notebook.source group.source)
     ==
   ::
   ++  sort-sources
@@ -173,6 +195,9 @@
       %flag-reply     [%group group.event]
       %contact        [%contact who.event]
     ::
+      %note-create    [%note id.event notebook.event group.event]
+      %note-edit      [%note id.event notebook.event group.event]
+    ::
     ==
   ::
   ++  event-type
@@ -204,6 +229,8 @@
       %reply-mention  &
       %dm-post-mention  &
       %dm-reply-mention  &
+      %note-create  &
+      %note-edit  &
     ==
   ::
   ++  get-volume
@@ -310,19 +337,22 @@
     =*  is-flag  ?=(?(%flag-post %flag-reply) -<.event)
     =*  is-group  ?=(?(%group-ask %group-invite) -<.event)
     =*  is-react  ?=(?(%react %dm-react) -<.event)
-    =*  supported  |(is-msg is-react is-init is-flag is-group)
+    =*  is-note  ?=(?(%note-create %note-edit) -<.event)
+    =*  supported  |(is-msg is-react is-init is-flag is-group is-note)
     ?.  supported  $(stream rest)
     =?  notified  &(notify.volume notified.event)  &
     =?  notify-count  &(notify.volume notified.event)  +(notify-count)
     =.  newest  (max newest time)
     ?.  ?&  unreads.volume
-            ?=(?(%dm-post %dm-reply %post %reply %group-ask) -<.event)
+            ?=(?(%dm-post %dm-reply %post %reply %group-ask %note-create %note-edit) -<.event)
         ==
       $(stream rest)
     =.  total  +(total)
     =.  main   +(main)
     =?  main-notified  &(notify:volume notified.event)  &
-    ?:  ?=(%group-ask -<.event)
+    ::  note events carry no message-key, so they can't anchor
+    ::  an unread-point; count them like %group-ask
+    ?:  ?=(?(%group-ask %note-create %note-edit) -<.event)
       $(stream rest)
     =.  last
       ?~  last  `key.event

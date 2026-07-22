@@ -27,15 +27,15 @@
   ;<  *  bind:m  (do-init dap activity-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
   =/  pre-4=indices:v4:av
-    (v4:indices:v8:ac (v8:indices:v9:ac pre))
+    (v4:indices:v8:ac (v8:indices:v9:ac (v9:indices:v10:ac pre)))
   =/  activity-4=activity:v4:av
-    (v4:activity:v8:ac (v8:activity:v9:ac activity))
+    (v4:activity:v8:ac (v8:activity:v9:ac (v9:activity:v10:ac activity)))
   ;<  *  bind:m  (do-load activity-agent `!>([%5 %some pre-4 activity-4 ~]))
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre)) !>(count))
   ;<  new=vase  bind:m  get-save
   =/  want-indices  post
-  =+  !<(=state-10 new)
-  =/  new-indices  indices.state-10
+  =+  !<(=state-11 new)
+  =/  new-indices  indices.state-11
   (ex-equal !>(new-indices) !>(want-indices))
 ::
 ++  test-fix-init
@@ -47,11 +47,11 @@
   ;<  *  bind:m  (do-init dap activity-agent)
     ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
     =/  indices-4=indices:v4:av
-      (v4:indices:v8:ac (v8:indices:v9:ac indices))
+      (v4:indices:v8:ac (v8:indices:v9:ac (v9:indices:v10:ac indices)))
     =/  pre-fix-4=activity:v4:av
-      (v4:activity:v8:ac (v8:activity:v9:ac pre-fix))
+      (v4:activity:v8:ac (v8:activity:v9:ac (v9:activity:v10:ac pre-fix)))
     =/  volumes-4=volume-settings:v4:av
-      (v4:volume-settings:v8:ac (v8:volume-settings:v9:ac volumes))
+      (v4:volume-settings:v8:ac (v8:volume-settings:v9:ac (v9:volume-settings:v10:ac volumes)))
   =/  start-state  [%6 %some indices-4 pre-fix-4 volumes-4]
   ;<  caz=(list card:agent:gall)  bind:m  (do-load activity-agent `!>(start-state))
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre-fix)) !>(11))
@@ -64,14 +64,14 @@
   ;<  *  bind:m  (do-poke noun+!>(%adjust-old-default))
   ;<  *  bind:m  (do-poke noun+!>(%fix-init-unreads))
   ;<  new=vase  bind:m  get-save
-  =+  !<(=state-10 new)
-  (ex-equal !>(activity.state-10) !>(post-fix))
-+$  state-10
-  $:  %10
-      allowed=notifications-allowed:v9:av
-      =indices:v9:av
-      =activity:v9:av
-      =volume-settings:v9:av
+  =+  !<(=state-11 new)
+  (ex-equal !>(activity.state-11) !>(post-fix))
++$  state-11
+  $:  %11
+      allowed=notifications-allowed:v10:av
+      =indices:v10:av
+      =activity:v10:av
+      =volume-settings:v10:av
   ==
 +$  index-pair  [=source:a =index:a]
 +$  dms  (map ship dm:ch)
