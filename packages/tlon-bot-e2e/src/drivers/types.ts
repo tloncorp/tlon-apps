@@ -140,6 +140,14 @@ export interface BotDriver {
    * ignore. Omitting it means the driver has no benign background calls.
    */
   isBenignModelCall?(call: ReceivedCall): boolean;
+  /**
+   * Log substrings that prove an SSE stream fault occurred, used by the
+   * sse-resume scenario to confirm the disconnect was observed before it
+   * reconnects the network. Driver-specific because the two adapters log
+   * differently (and OpenClaw only surfaces a silent hang via its watchdog).
+   * The wait resolves when any marker appears in the bot logs.
+   */
+  streamFaultLogMarkers: readonly string[];
   model: ModelScriptAdapter;
 }
 
