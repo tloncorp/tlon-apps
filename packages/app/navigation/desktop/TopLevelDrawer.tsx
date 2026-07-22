@@ -3,6 +3,7 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { DrawerNavigationState } from '@react-navigation/native';
+import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useRef, useState } from 'react';
@@ -58,6 +59,24 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
     }
   }, [props.state, isRouteActive]);
 
+  const trackNavigation = useCallback(
+    (tab: 'home' | 'messages' | 'activity' | 'contacts' | 'settings') => {
+      const currentRoute = props.state.routes[props.state.index]?.name;
+      const previousTab = currentRoute
+        ? (currentRoute.toLowerCase() as typeof tab)
+        : 'other';
+      trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+        tab,
+        previousTab,
+        source: 'desktop_sidebar',
+        wasAlreadyActive: isRouteActive(
+          `${tab.charAt(0).toUpperCase()}${tab.slice(1)}` as keyof RootDrawerParamList
+        ),
+      });
+    },
+    [isRouteActive, props.state]
+  );
+
   const restoreHomeState = useCallback(() => {
     try {
       const currentScreenIsHome = isRouteActive('Home');
@@ -95,7 +114,10 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           // hasUnreads={(unreadCount?.channels ?? 0) > 0}
           // intentionally leave undotted for now
           shouldShowUnreads={false}
-          onPress={restoreHomeState}
+          onPress={() => {
+            trackNavigation('home');
+            restoreHomeState();
+          }}
           testID="HomeNavIcon"
         />
         <NavIcon
@@ -104,6 +126,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Messages')}
           shouldShowUnreads={false}
           onPress={() => {
+            trackNavigation('messages');
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -119,6 +142,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Activity')}
           testID="ActivityNavIcon"
           onPress={() => {
+            trackNavigation('activity');
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -130,6 +154,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           id={userId}
           focused={isRouteActive('Contacts')}
           onPress={() => {
+            trackNavigation('contacts');
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -161,6 +186,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Settings')}
           shouldShowUnreads={false}
           onPress={() => {
+            trackNavigation('settings');
             saveHomeState();
             props.navigation.reset({
               index: 0,

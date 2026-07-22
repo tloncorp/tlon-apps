@@ -3,7 +3,11 @@ import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import { useTypedReset } from '@tloncorp/app/navigation/utils';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  trackProductEvent,
+} from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useRef } from 'react';
 
@@ -25,6 +29,10 @@ export const useDeepLinkListener = () => {
         logger.trackEvent(AnalyticsEvent.InviteDebug, {
           context: 'Handling deeplink click',
           lure: lure.id,
+        });
+        trackProductEvent(AnalyticsEvent.InviteOpened, {
+          inviteType: lure.inviteType === 'user' ? 'personal' : 'group',
+          source: 'deep_link',
         });
         try {
           if (lure.shouldAutoJoin || !ship) {

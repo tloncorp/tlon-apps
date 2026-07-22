@@ -2,6 +2,7 @@ import {
   AnalyticsEvent,
   createDevLogger,
   enableGroupLinks,
+  trackProductEvent,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -43,6 +44,12 @@ export function InviteFriendsToTlonButton({
 
   useEffect(() => {
     logger.trackEvent('Invite Button Shown', { group: group?.id });
+    if (group?.id) {
+      trackProductEvent(AnalyticsEvent.InviteSurfaceOpened, {
+        inviteType: 'group',
+        source: 'group_options',
+      });
+    }
   }, [group?.id]);
 
   const trackInviteShared = useCallback(() => {
@@ -59,17 +66,24 @@ export function InviteFriendsToTlonButton({
 
     await doCopy();
     trackInviteShared();
+    trackProductEvent(AnalyticsEvent.InviteShareCompleted, {
+      inviteType: 'group',
+      method: 'copy',
+      source: 'invite_surface',
+    });
   }, [doCopy, group, shareUrl, status, trackInviteShared]);
 
   const handleShareInviteLink = useCallback(async () => {
     if (!shareUrl || status !== 'ready' || !group) return;
 
     try {
+      let method: 'copy' | 'native_share' = 'native_share';
       if (isWeb) {
         if (typeof navigator.share === 'function') {
           await navigator.share({ url: shareUrl });
         } else {
           await doCopy();
+          method = 'copy';
         }
       } else {
         const result = await Share.share({
@@ -80,6 +94,11 @@ export function InviteFriendsToTlonButton({
       }
 
       trackInviteShared();
+      trackProductEvent(AnalyticsEvent.InviteShareCompleted, {
+        inviteType: 'group',
+        method,
+        source: 'invite_surface',
+      });
     } catch (error) {
       console.error('Error sharing:', error);
     }

@@ -15,7 +15,12 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
-import { checkInputForInvite, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  checkInputForInvite,
+  createDevLogger,
+  trackProductEvent,
+} from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -71,6 +76,13 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
           telemetryId: telemetryId(),
         });
         if (appInvite) {
+          trackProductEvent(AnalyticsEvent.InviteOpened, {
+            inviteType: appInvite.inviteType === 'user' ? 'personal' : 'group',
+            source: 'paste',
+          });
+          trackProductEvent(AnalyticsEvent.OnboardingStepCompleted, {
+            step: 'invite',
+          });
           setLure(appInvite);
           return;
         } else {

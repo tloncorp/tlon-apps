@@ -1,4 +1,8 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  trackProductEvent,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button, useCopy } from '@tloncorp/ui';
 import { useCallback } from 'react';
@@ -28,17 +32,24 @@ export function PersonalInviteButton() {
 
     await doCopy();
     trackInviteShared();
+    trackProductEvent(AnalyticsEvent.InviteShareCompleted, {
+      inviteType: 'personal',
+      method: 'copy',
+      source: 'invite_surface',
+    });
   }, [doCopy, inviteLink, isLoading, trackInviteShared]);
 
   const handleShareInviteLink = useCallback(async () => {
     if (isLoading || !inviteLink) return;
 
     try {
+      let method: 'copy' | 'native_share' = 'native_share';
       if (isWeb) {
         if (typeof navigator.share === 'function') {
           await navigator.share({ url: inviteLink });
         } else {
           await doCopy();
+          method = 'copy';
         }
       } else {
         const result = await Share.share({
@@ -49,6 +60,11 @@ export function PersonalInviteButton() {
       }
 
       trackInviteShared();
+      trackProductEvent(AnalyticsEvent.InviteShareCompleted, {
+        inviteType: 'personal',
+        method,
+        source: 'invite_surface',
+      });
     } catch (error) {
       console.error('Error sharing:', error);
     }

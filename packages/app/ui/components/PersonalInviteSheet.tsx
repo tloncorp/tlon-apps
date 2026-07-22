@@ -1,7 +1,8 @@
+import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Pressable, Text } from '@tloncorp/ui';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import QRCode from 'react-qr-code';
 import { View, YStack, useTheme } from 'tamagui';
 
@@ -24,6 +25,15 @@ export function PersonalInviteSheet({
   if (open) {
     hasOpenedRef.current = true;
   }
+
+  useEffect(() => {
+    if (open) {
+      trackProductEvent(AnalyticsEvent.InviteSurfaceOpened, {
+        inviteType: 'personal',
+        source: 'home',
+      });
+    }
+  }, [open]);
 
   return (
     <ActionSheet

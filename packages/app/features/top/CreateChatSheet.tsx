@@ -1,5 +1,11 @@
 import * as store from '@tloncorp/shared';
-import { createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  type CreateTelemetrySource,
+  type HomeTelemetryFilter,
+  createDevLogger,
+  trackProductEvent,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   cloneElement,
@@ -276,9 +282,13 @@ const CreateChatFormContent = ({
 export const CreateChatSheet = forwardRef(function CreateChatSheet(
   {
     defaultOpen,
+    analyticsActiveFilter,
+    analyticsSource = 'unknown',
     trigger,
   }: {
     defaultOpen?: boolean;
+    analyticsActiveFilter?: HomeTelemetryFilter;
+    analyticsSource?: CreateTelemetrySource;
     trigger?: React.ReactNode;
   },
   ref: React.Ref<CreateChatSheetMethods>
@@ -299,6 +309,18 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     store.GroupTemplateId | undefined
   >(undefined);
   const [groupTitle, setGroupTitle] = useState<string | undefined>(undefined);
+  const isWindowNarrow = useIsWindowNarrow();
+
+  const open = useCallback(() => {
+    if (step === 'initial') {
+      trackProductEvent(AnalyticsEvent.CreateMenuOpened, {
+        activeFilter: analyticsActiveFilter,
+        presentation: isWindowNarrow ? 'sheet' : 'dialog',
+        source: analyticsSource,
+      });
+      setStep('selectType');
+    }
+  }, [analyticsActiveFilter, analyticsSource, isWindowNarrow, step]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -314,17 +336,35 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     [step]
   );
 
-  const handleTypeSelected = useCallback((type: ChatType) => {
-    if (type === 'group') {
-      // Navigate to group type selection instead of directly to member selection
-      setStep('selectGroupType');
-    } else {
-      setStep(`create${capitalize(type)}` as Step);
-    }
-  }, []);
+  const handleTypeSelected = useCallback(
+    (type: ChatType) => {
+      trackProductEvent(AnalyticsEvent.CreateOptionSelected, {
+        option:
+          type === 'dm'
+            ? 'direct_message'
+            : type === 'joinGroup'
+              ? 'join_group'
+              : 'group',
+        source: analyticsSource,
+        stage: 'conversation_type',
+      });
+      if (type === 'group') {
+        // Navigate to group type selection instead of directly to member selection
+        setStep('selectGroupType');
+      } else {
+        setStep(`create${capitalize(type)}` as Step);
+      }
+    },
+    [analyticsSource]
+  );
 
   const handleGroupTypeSelected = useCallback(
     (groupType: GroupType, templateId?: store.GroupTemplateId) => {
+      trackProductEvent(AnalyticsEvent.CreateOptionSelected, {
+        option: groupType === 'quick' ? 'quick_group' : 'group_template',
+        source: analyticsSource,
+        stage: 'group_type',
+      });
       if (groupType === 'quick') {
         // Quick group goes to member selection without template
         setSelectedTemplateId(undefined);
@@ -339,7 +379,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         }
       }
     },
-    []
+    [analyticsSource]
   );
 
   const handleTitleSubmitted = useCallback((title: string) => {
@@ -366,7 +406,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   useImperativeHandle(
     ref,
     () => ({
-      open: () => setStep((step) => (step === 'initial' ? 'selectType' : step)),
+      open,
       close: () => {
         setStep('initial');
         setSelectedTemplateId(undefined);
@@ -374,10 +414,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         setSelectedContactIds([]);
       },
     }),
-    []
+    [open]
   );
 
-  const isWindowNarrow = useIsWindowNarrow();
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
 
   const handleSelectDmContact = useCallback(
@@ -402,10 +441,10 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   const triggerWithOnPress = useMemo(() => {
     if (!trigger || !isValidElement(trigger)) return null;
     return cloneElement(trigger, {
-      onPress: () => setStep(step === 'initial' ? 'selectType' : step),
+      onPress: open,
       'data-testid': 'CreateChatSheetTrigger',
     } as Partial<{ onPress: () => void; 'data-testid': string }>);
-  }, [trigger, step]);
+  }, [open, trigger]);
 
   return !isWindowNarrow ? (
     <>

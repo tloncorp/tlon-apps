@@ -10,6 +10,7 @@ import {
   AnalyticsEvent,
   AnalyticsSeverity,
   createDevLogger,
+  trackProductEvent,
 } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -96,6 +97,14 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           actionName: 'Verification Submitted',
           ...accountCreds,
         });
+
+        trackProductEvent(AnalyticsEvent.AccountCreated, {
+          method: otpMethod,
+          hadInvite: Boolean(signupParams.lureId),
+        });
+        trackProductEvent(AnalyticsEvent.OnboardingStepCompleted, {
+          step: 'otp',
+        });
         trackOnboardingAction({
           actionName: 'Account Created',
           lure: signupParams.lureId,
@@ -121,6 +130,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     [
       accountCreds,
       inviteMetadata,
+      otpMethod,
       recaptcha,
       signUpHostedUser,
       signupParams.lureId,
@@ -155,6 +165,13 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           await handleLogin({ otp: code, ...accountCreds });
         }
       } catch (e) {
+        trackProductEvent(AnalyticsEvent.OnboardingFailed, {
+          errorCode:
+            e instanceof HostingError
+              ? `hosting_${e.details.status}`
+              : 'unknown',
+          step: mode === 'signup' ? 'otp' : 'login',
+        });
         const SIGNUP_OTP_INCORRECT_STATUS = 400;
         const LOGIN_OTP_INCORRECT_STATUS = 401;
         if (
@@ -185,6 +202,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       mode,
       navigation,
       params.mode,
+      inviteMetadata?.id,
       signupContext,
       store.HostingAccountIssue.NoInventory,
       store.HostingAccountIssue.RequiresVerification,

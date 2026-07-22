@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect } from 'react';
@@ -80,6 +81,25 @@ function PostScreenContent({
   });
 
   const currentUserId = useCurrentUserId();
+  const channelType = channel?.type;
+
+  useEffect(() => {
+    if (!channelType) return;
+    if (channelType === 'gallery') {
+      trackProductEvent(AnalyticsEvent.GalleryPostOpened, {
+        source: 'unknown',
+      });
+    } else if (channelType === 'notebook') {
+      trackProductEvent(AnalyticsEvent.NotebookPostOpened, {
+        source: 'unknown',
+      });
+    } else {
+      trackProductEvent(AnalyticsEvent.ThreadOpened, {
+        channelType,
+        source: 'unknown',
+      });
+    }
+  }, [channelType, postId]);
 
   const handleDeletePost = useCallback(
     async (post: db.Post) => {

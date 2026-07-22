@@ -189,6 +189,7 @@ export const MessagesSidebar = memo(
                   />
                   <CreateChatSheet
                     ref={createChatSheetRef}
+                    analyticsSource="messages_header"
                     trigger={<ScreenHeader.IconButton type="Add" />}
                   />
                 </>

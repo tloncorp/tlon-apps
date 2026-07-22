@@ -1,6 +1,10 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import { preSig } from '@tloncorp/api/lib/urbit';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  trackProductEvent,
+} from '@tloncorp/shared';
 import { ShipInfo, storage } from '@tloncorp/shared/db';
 import type { ReactNode } from 'react';
 import {
@@ -8,6 +12,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import { Platform, TurboModuleRegistry } from 'react-native';
@@ -59,6 +64,7 @@ const emptyShip: ShipInfo = {
 export const ShipProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [shipInfo, setShipInfo] = useState(emptyShip);
+  const activeShipRef = useRef<string | undefined>(undefined);
 
   const setShip = useCallback(
     ({
@@ -94,6 +100,13 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
         needsSplashSequence,
         splashSequenceMode,
       };
+
+      if (activeShipRef.current && activeShipRef.current !== ship) {
+        trackProductEvent(AnalyticsEvent.AccountSwitched, {
+          source: 'ship_picker',
+        });
+      }
+      activeShipRef.current = ship;
 
       // Save to React Native stoage
       storage.shipInfo.setValue(nextShipInfo);
@@ -171,6 +184,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
   }, [setShip]);
 
   const clearShip = useCallback(() => {
+    activeShipRef.current = undefined;
     setShipInfo(emptyShip);
     storage.shipInfo.resetValue();
   }, []);

@@ -1,5 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ub from '@tloncorp/api/urbit';
+import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Button } from '@tloncorp/ui';
@@ -54,6 +55,10 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
     async (level: ub.NotificationLevel) => {
       if (level === baseVolumeSetting) return;
       await store.setBaseVolumeLevel({ level });
+      trackProductEvent(AnalyticsEvent.NotificationPreferenceChanged, {
+        setting: 'default_level',
+        value: level,
+      });
     },
     [baseVolumeSetting]
   );
@@ -65,6 +70,10 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
       } else {
         await store.setChannelVolumeLevel({ channel: exception, level: null });
       }
+      trackProductEvent(AnalyticsEvent.NotificationPreferenceChanged, {
+        setting: 'override_removed',
+        value: db.isGroup(exception) ? 'group' : 'channel',
+      });
     },
     []
   );

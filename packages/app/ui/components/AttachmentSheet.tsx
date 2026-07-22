@@ -1,8 +1,11 @@
 import {
+  AnalyticsEvent,
   Attachment,
   PLACEHOLDER_ASSET_URI,
   VoiceMemoAttachment,
   createDevLogger,
+  getCountTelemetryBucket,
+  trackProductEvent,
 } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
@@ -33,6 +36,20 @@ import {
 import { useDraftInputContext } from './draftInputs/shared';
 
 const logger = createDevLogger('AttachmentSheet', true);
+
+function trackAttachmentsAdded(intents: Attachment.UploadIntent[]) {
+  const attachmentTypes = intents.map((intent) => {
+    if (intent.type === 'image') return 'image' as const;
+    if (intent.video) return 'video' as const;
+    if (intent.type === 'fileUri' && intent.voiceMemo) return 'voice' as const;
+    return 'file' as const;
+  });
+  trackProductEvent(AnalyticsEvent.AttachmentAdded, {
+    attachmentTypes: [...new Set(attachmentTypes)],
+    countBucket: getCountTelemetryBucket(intents.length),
+    source: 'unknown',
+  });
+}
 
 export default function AttachmentSheet({
   isOpen: showAttachmentSheet,
@@ -114,6 +131,7 @@ export default function AttachmentSheet({
           attachAssets(normalizedUploadIntents);
         }
         onAttach?.(normalizedUploadIntents);
+        trackAttachmentsAdded(normalizedUploadIntents);
       }
     },
     [attachAssets, attachToContext, onAttach]
@@ -209,6 +227,11 @@ export default function AttachmentSheet({
         duration: duration ?? undefined,
         mimeType: getMimeType(audioFileUri) ?? undefined,
       };
+      trackProductEvent(AnalyticsEvent.AttachmentAdded, {
+        attachmentTypes: ['voice'],
+        countBucket: '1',
+        source: 'composer',
+      });
       audioRecorder.dismiss();
 
       // If possible, try sending post immediately.
@@ -299,6 +322,7 @@ export default function AttachmentSheet({
               attachAssets(normalizedUploadIntents);
             }
             onAttach?.(normalizedUploadIntents);
+            trackAttachmentsAdded(normalizedUploadIntents);
           }
         } else {
           // If user canceled, remove the placeholder

@@ -6,6 +6,13 @@ import * as db from '../../db';
 import type * as domain from '../../domain';
 import { AnalyticsEvent, Attachment, PostDataDraft } from '../../domain';
 import * as logic from '../../logic';
+import {
+  contentHasMentions,
+  getContentTelemetryKind,
+  getCountTelemetryBucket,
+  getVoiceMemoDurationBucket,
+  trackProductEvent,
+} from '../../productAnalytics';
 import * as Transcription from '../../transcription';
 import { sessionActionQueue } from '../SessionActionQueue';
 import {
@@ -165,11 +172,15 @@ export async function finalizeAndSendPost(
 }
 
 /** Prefer using finalizeAndSendPost where possible for optimistic updates. */
-async function sendFinalizedPost(postData: domain.PostDataFinalizedParent) {
+async function sendFinalizedPost(
+  postData: domain.PostDataFinalizedParent,
+  onCompleted?: () => void
+) {
   return await _sendPost({
     channelId: postData.channelId,
     buildOptimisticPostData: () => postData,
     buildFinalizedPostData: async () => postData,
+    onCompleted,
   });
 }
 
@@ -180,6 +191,7 @@ async function _sendPost({
   draft,
   existingPost,
   onEnqueued,
+  onCompleted,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData?: () => domain.PostDataFinalizedParent;
@@ -190,6 +202,7 @@ async function _sendPost({
   existingPost?: db.Post;
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
+  onCompleted?: () => void;
 }) {
   const authorId = api.getCurrentUserId();
 
@@ -368,6 +381,30 @@ async function _sendPost({
     }
 
     logger.crumb('done sending post');
+    if (draft && !existingPost) {
+      trackProductEvent(AnalyticsEvent.ContentSendCompleted, {
+        attachmentCountBucket: getCountTelemetryBucket(
+          draft.attachments.length
+        ),
+        channelType: channel.type,
+        contentKind: getContentTelemetryKind(draft),
+        hadMentions: contentHasMentions(draft.content),
+        isBotDm: logic.isBotDmChannel({ post: cachePost, channel }),
+        isReply: draft.replyToPostId != null,
+      });
+
+      const voiceMemo = draft.attachments.find(
+        (attachment) => attachment.type === 'voicememo'
+      );
+      if (voiceMemo?.type === 'voicememo') {
+        trackProductEvent(AnalyticsEvent.VoiceMemoSent, {
+          channelType: channel.type,
+          durationBucket: getVoiceMemoDurationBucket(voiceMemo.duration),
+          isReply: draft.replyToPostId != null,
+        });
+      }
+    }
+    onCompleted?.();
   } catch (e) {
     logger.trackEvent(
       cachePost.parentId == null
@@ -507,18 +544,25 @@ export async function forwardPost({
     return;
   }
 
-  return sendFinalizedPost({
-    channelId,
-    content: [{ block: { cite: urbitReference } }],
-    replyToPostId: null,
-    metadata:
-      channel.type === 'notebook'
-        ? {
-            title:
-              post.title && post.title !== '' ? post.title : 'Forwarded post',
-          }
-        : undefined,
-  });
+  return sendFinalizedPost(
+    {
+      channelId,
+      content: [{ block: { cite: urbitReference } }],
+      replyToPostId: null,
+      metadata:
+        channel.type === 'notebook'
+          ? {
+              title:
+                post.title && post.title !== '' ? post.title : 'Forwarded post',
+            }
+          : undefined,
+    },
+    () =>
+      trackProductEvent(AnalyticsEvent.ForwardCompleted, {
+        itemType: 'post',
+        targetChannelType: channel.type,
+      })
+  );
 }
 
 export async function forwardGroup({
@@ -554,17 +598,24 @@ export async function forwardGroup({
       return;
     }
 
-    return sendFinalizedPost({
-      channelId: channel.id,
-      content: [{ block: { cite: urbitReference } }],
-      replyToPostId: null,
-      metadata:
-        channel.type === 'notebook'
-          ? {
-              title: group.title ? `${group.title} group` : 'Forwarded group',
-            }
-          : undefined,
-    });
+    return sendFinalizedPost(
+      {
+        channelId: channel.id,
+        content: [{ block: { cite: urbitReference } }],
+        replyToPostId: null,
+        metadata:
+          channel.type === 'notebook'
+            ? {
+                title: group.title ? `${group.title} group` : 'Forwarded group',
+              }
+            : undefined,
+      },
+      () =>
+        trackProductEvent(AnalyticsEvent.ForwardCompleted, {
+          itemType: 'group',
+          targetChannelType: channel.type,
+        })
+    );
   } catch (error) {
     logger.trackError('Failed to forward group', error);
     throw error;
@@ -607,6 +658,7 @@ export async function editPostUsingDraft(draft: domain.PostDataDraftEdit) {
 
   await _editPost({
     postBeforeEdit,
+    analyticsDraft: draft,
     buildOptimisticPostData: () =>
       finalizePostDraftUsingLocalAttachments(draft),
     buildFinalizedPostData: () => finalizePostDraft(draft),
@@ -615,10 +667,12 @@ export async function editPostUsingDraft(draft: domain.PostDataDraftEdit) {
 
 async function _editPost({
   postBeforeEdit,
+  analyticsDraft,
   buildFinalizedPostData,
   buildOptimisticPostData,
 }: {
   postBeforeEdit: db.Post;
+  analyticsDraft?: domain.PostDataDraftEdit;
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedEdit>;
   buildOptimisticPostData: () => domain.PostDataFinalizedEdit;
 }) {
@@ -672,6 +726,13 @@ async function _editPost({
       lastEditImage: null,
     });
     logger.log('editPost update done');
+    if (analyticsDraft) {
+      trackProductEvent(AnalyticsEvent.PostEditCompleted, {
+        channelType: analyticsDraft.channelType,
+        contentKind: getContentTelemetryKind(analyticsDraft),
+        isReply: analyticsDraft.replyToPostId != null,
+      });
+    }
   } catch (e) {
     console.error('Failed to edit post', e);
     logger.log('editPost failed', e);
@@ -914,6 +975,13 @@ export async function reportPost({
       api.reportPost(userId, groupId, post.channelId, post)
     );
     await hidePost({ post });
+    const channel = await db.getChannel({ id: post.channelId });
+    if (channel) {
+      trackProductEvent(AnalyticsEvent.PostReported, {
+        channelType: channel.type,
+        source: 'post_actions',
+      });
+    }
   } catch (e) {
     logger.trackError('Failed to report post', e);
 

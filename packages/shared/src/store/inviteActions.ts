@@ -19,6 +19,7 @@ import {
   getFlagParts,
   withRetry,
 } from '../logic';
+import { trackProductEvent } from '../productAnalytics';
 import { syncGroupPreviews } from './sync/syncGroupPreviews';
 
 const logger = createDevLogger('inviteActions', false);
@@ -295,6 +296,10 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
       logger.trackEvent(AnalyticsEvent.InviteDebug, {
         context: 'Success, bit invite deeplink lure while logged in',
         lure: invite.id,
+      });
+      trackProductEvent(AnalyticsEvent.InviteRedeemed, {
+        inviteType: 'group',
+        source: 'deep_link',
       });
     } catch (err) {
       logger.trackEvent(AnalyticsEvent.InviteError, {

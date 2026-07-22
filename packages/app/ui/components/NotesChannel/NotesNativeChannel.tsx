@@ -5,6 +5,7 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import {
+  AnalyticsEvent,
   createNotebookFolder,
   createNotebookNote,
   deleteNotebookFolder,
@@ -16,6 +17,7 @@ import {
   publishedNotePath,
   publishedNoteUrl,
   renameNotebookFolder,
+  trackProductEvent,
   unpublishNotebookNote,
   useMutableCallback,
   usePublishedNotesForNotebook,
@@ -293,8 +295,16 @@ export function NotesNativeChannel({
   const openNote = useMutableCallback(
     (
       note: db.NotesNote,
-      options?: { focusTitle?: boolean; startInEdit?: boolean }
+      options?: {
+        analyticsSource?: 'notes_tree' | 'created_note' | 'rename_action';
+        focusTitle?: boolean;
+        startInEdit?: boolean;
+      }
     ) => {
+      trackProductEvent(AnalyticsEvent.NoteOpened, {
+        presentation: useDesktopSplit ? 'split' : 'screen',
+        source: options?.analyticsSource ?? 'notes_tree',
+      });
       if (options?.focusTitle) {
         setFocusTitleNoteId(note.noteId);
       }
@@ -322,6 +332,9 @@ export function NotesNativeChannel({
   });
 
   const openFolder = useMutableCallback((folder: db.NotesFolder) => {
+    trackProductEvent(AnalyticsEvent.NotesFolderOpened, {
+      source: 'notes_tree',
+    });
     navigation.dispatch(
       StackActions.push('NotesFolder', {
         channelId,
@@ -357,12 +370,17 @@ export function NotesNativeChannel({
     setIsCreatingNote(true);
     await runAction('Failed to create note', async () => {
       const note = await createNotebookNote({
+        analyticsSource: 'manual',
         notebookFlag,
         folderId: targetFolderId,
         title: '',
       });
       if (note) {
-        openNote(note, { focusTitle: true, startInEdit: true });
+        openNote(note, {
+          analyticsSource: 'created_note',
+          focusTitle: true,
+          startInEdit: true,
+        });
       }
     });
     setIsCreatingNote(false);
@@ -382,6 +400,7 @@ export function NotesNativeChannel({
     setIsCreatingFolder(true);
     await runAction('Failed to create folder', async () => {
       await createNotebookFolder({
+        analyticsSource: 'manual',
         notebookFlag,
         parentFolderId,
         name: newFolderName.trim(),
@@ -495,7 +514,10 @@ export function NotesNativeChannel({
 
   const handleRenameNote = useMutableCallback((note: db.NotesNote) => {
     if (!canEdit) return;
-    openNote(note, { focusTitle: true });
+    openNote(note, {
+      analyticsSource: 'rename_action',
+      focusTitle: true,
+    });
   });
 
   const openPublishedUrl = useMutableCallback(async (url: string) => {

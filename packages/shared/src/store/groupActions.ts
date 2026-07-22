@@ -13,6 +13,10 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
+import {
+  getCountTelemetryBucket,
+  trackProductEvent,
+} from '../productAnalytics';
 import { pinGroup } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);
@@ -192,6 +196,9 @@ export async function createGroup(params: {
       ...logic.getModelAnalytics({ group: params.group }),
       initialMemberCount: params.memberIds?.length ?? 0,
     });
+    trackProductEvent(AnalyticsEvent.GroupCreationCompleted, {
+      source: 'create_flow',
+    });
 
     return resultGroup;
   } catch (e) {
@@ -319,6 +326,10 @@ export async function inviteGroupMembers({
 
   try {
     await api.inviteGroupMembers({ groupId, contactIds });
+    trackProductEvent(AnalyticsEvent.GroupInvitationsSent, {
+      countBucket: getCountTelemetryBucket(contactIds.length),
+      source: 'member_picker',
+    });
   } catch (e) {
     logger.trackError('Failed to invite group members', e);
     // rollback optimistic update

@@ -1,7 +1,15 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useChannel, useChannelSearch, useGroup } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  getSearchResultTelemetryBucket,
+  trackProductEvent,
+  useChannel,
+  useChannelSearch,
+  useGroup,
+} from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import { useCallback, useState } from 'react';
+import * as logic from '@tloncorp/shared/logic';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
@@ -39,9 +47,43 @@ export default function ChannelSearchScreen(props: Props) {
     useChannelSearch(channelId, query);
 
   const { resetToChannel } = useRootNavigation();
+  const trackedOpenRef = useRef(false);
+  const lastTrackedQueryRef = useRef('');
+
+  useEffect(() => {
+    if (channelQuery.data && !trackedOpenRef.current) {
+      trackedOpenRef.current = true;
+      trackProductEvent(AnalyticsEvent.ChannelSearchOpened, {
+        channelType: channelQuery.data.type,
+        source: 'channel_header',
+      });
+    }
+  }, [channelQuery.data]);
+
+  useEffect(() => {
+    const normalizedQuery = query.trim();
+    if (
+      normalizedQuery === '' ||
+      loading ||
+      normalizedQuery === lastTrackedQueryRef.current
+    ) {
+      return;
+    }
+    lastTrackedQueryRef.current = normalizedQuery;
+    trackProductEvent(AnalyticsEvent.SearchPerformed, {
+      resultCountBucket: getSearchResultTelemetryBucket(posts?.length ?? 0),
+      surface: 'channel',
+    });
+  }, [loading, posts?.length, query]);
 
   const navigateToPost = useCallback(
     (post: db.Post) => {
+      trackProductEvent(AnalyticsEvent.ChannelSearchResultSelected, {
+        ...logic.getModelAnalytics({ post }),
+        hasQuery: query.trim() !== '',
+        resultType: post.parentId ? 'reply' : 'post',
+        source: 'channel_search',
+      });
       if (post.parentId) {
         props.navigation.replace('Post', {
           postId: post.parentId,
@@ -55,7 +97,7 @@ export default function ChannelSearchScreen(props: Props) {
         });
       }
     },
-    [props.navigation, resetToChannel, groupId]
+    [props.navigation, query, resetToChannel, groupId]
   );
 
   const isWindowNarrow = useIsWindowNarrow();

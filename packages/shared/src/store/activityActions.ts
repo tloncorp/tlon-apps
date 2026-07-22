@@ -7,7 +7,9 @@ import * as db from '../db';
 import { QueryCtx } from '../db/query';
 import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
+import { trackProductEvent } from '../productAnalytics';
 
 const logger = createDevLogger('activityActions', false);
 
@@ -105,6 +107,10 @@ export async function muteThread({
     });
     const volume = ub.getVolumeMap('soft', true);
     await api.adjustVolumeSetting(source, volume);
+    trackProductEvent(AnalyticsEvent.ThreadMuted, {
+      channelType: channel.type,
+      source: 'post_actions',
+    });
   } catch (e) {
     logger.trackError('ActivityAction: Failed to mute thread', {
       error: e,
@@ -134,6 +140,10 @@ export async function unmuteThread({
   try {
     const { source } = api.getThreadSource({ channel, post: thread });
     await api.adjustVolumeSetting(source, null);
+    trackProductEvent(AnalyticsEvent.ThreadUnmuted, {
+      channelType: channel.type,
+      source: 'post_actions',
+    });
   } catch (e) {
     logger.trackError('ActivityAction: Failed to unmute thread', {
       error: e,

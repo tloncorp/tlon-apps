@@ -1,5 +1,9 @@
 import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
-import { useMutableCallback } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  trackProductEvent,
+  useMutableCallback,
+} from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
@@ -511,6 +515,8 @@ export function LinkBlock({
     if (!urlIsValid) {
       return;
     }
+
+    trackProductEvent(AnalyticsEvent.ExternalLinkOpened, { source: 'post' });
 
     if (Platform.OS === 'web') {
       window.open(block.url, '_blank', 'noopener,noreferrer');

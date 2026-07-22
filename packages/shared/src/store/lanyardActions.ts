@@ -3,6 +3,10 @@ import * as api from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
+import {
+  getCountTelemetryBucket,
+  trackProductEvent,
+} from '../productAnalytics';
 
 const logger = createDevLogger('lanyardActions', true);
 
@@ -286,6 +290,10 @@ export async function discoverContacts(
     // against the next time we send a request
     await db.lastPhoneContactSetRequest.setValue(JSON.stringify(phoneNumbers));
     await db.lastLanyardSalt.setValue(nextSalt);
+    trackProductEvent(AnalyticsEvent.ContactDiscoveryCompleted, {
+      matchedCountBucket: getCountTelemetryBucket(matches.length),
+      source: 'contact_book',
+    });
     return matches;
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {

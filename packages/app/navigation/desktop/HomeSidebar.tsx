@@ -294,6 +294,8 @@ export const HomeSidebar = memo(
                   />
                   <CreateChatSheet
                     ref={createChatSheetRef}
+                    analyticsActiveFilter="all"
+                    analyticsSource="home_header"
                     trigger={<ScreenHeader.IconButton type="Add" />}
                   />
                 </>

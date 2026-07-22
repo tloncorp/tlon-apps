@@ -6,13 +6,18 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FlashListRef } from '@shopify/flash-list';
 import { markInvitesRead } from '@tloncorp/api';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  getSearchResultTelemetryBucket,
+  trackProductEvent,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
-import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
+import { Text, YStack } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
@@ -24,6 +29,10 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
+import {
+  getChatListTelemetryEntity,
+  toHomeTelemetryFilter,
+} from '../../lib/featureUsageTelemetry';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -245,6 +254,18 @@ export function ChatListScreenView({
   const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
   const onPressChat = useCallback(
     async (item: db.Chat) => {
+      trackProductEvent(AnalyticsEvent.ChatListItemSelected, {
+        ...logic.getModelAnalytics(
+          item.type === 'group'
+            ? { group: item.group }
+            : { channel: item.channel }
+        ),
+        activeFilter: toHomeTelemetryFilter(activeTab),
+        entityType: getChatListTelemetryEntity(item),
+        isSearchResult: searchQuery.trim() !== '',
+        itemState: item.isPending ? 'pending' : 'joined',
+        source: 'home_list',
+      });
       if (item.type === 'group') {
         if (item.isPending) {
           setSelectedGroupId(item.id);
@@ -263,7 +284,20 @@ export function ChatListScreenView({
         navigateToChannel(item.channel);
       }
     },
-    [navigateToGroup, navigateToChannel]
+    [activeTab, navigateToGroup, navigateToChannel, searchQuery]
+  );
+
+  const handlePressTab = useCallback(
+    (tab: TabName) => {
+      trackProductEvent(AnalyticsEvent.HomeFilterSelected, {
+        tab: toHomeTelemetryFilter(tab),
+        previousTab: toHomeTelemetryFilter(activeTab),
+        source: 'tap',
+        wasAlreadyActive: tab === activeTab,
+      });
+      setActiveTab(tab);
+    },
+    [activeTab]
   );
 
   const handlePressAddChat = useCallback(() => {
@@ -327,11 +361,25 @@ export function ChatListScreenView({
         setSearchQuery('');
         Keyboard.dismiss();
       }
+      if (!showSearchInput) {
+        trackProductEvent(AnalyticsEvent.HomeSearchOpened, {
+          activeFilter: toHomeTelemetryFilter(activeTab),
+          presentation: 'inline',
+          source: 'home_header',
+        });
+      }
       setShowSearchInput(!showSearchInput);
     } else {
+      if (!isOpen) {
+        trackProductEvent(AnalyticsEvent.HomeSearchOpened, {
+          activeFilter: toHomeTelemetryFilter(activeTab),
+          presentation: 'global',
+          source: 'home_header',
+        });
+      }
       setIsOpen(!isOpen);
     }
-  }, [showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
+  }, [activeTab, showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -350,8 +398,14 @@ export function ChatListScreenView({
   }, []);
 
   const handlePressTryAll = useCallback(() => {
+    trackProductEvent(AnalyticsEvent.HomeFilterSelected, {
+      tab: 'all',
+      previousTab: toHomeTelemetryFilter(activeTab),
+      source: 'empty_search',
+      wasAlreadyActive: activeTab === 'home',
+    });
     setActiveTab('home');
-  }, [setActiveTab]);
+  }, [activeTab, setActiveTab]);
 
   const handlePressClear = useCallback(() => {
     setSearchQuery('');
@@ -366,6 +420,23 @@ export function ChatListScreenView({
     searchQuery,
     activeTab,
   });
+  const lastTrackedSearchRef = useRef('');
+  useEffect(() => {
+    const normalizedQuery = searchQuery.trim();
+    if (
+      normalizedQuery === '' ||
+      normalizedQuery === lastTrackedSearchRef.current
+    ) {
+      return;
+    }
+    lastTrackedSearchRef.current = normalizedQuery;
+    trackProductEvent(AnalyticsEvent.SearchPerformed, {
+      resultCountBucket: getSearchResultTelemetryBucket(
+        displayData.reduce((count, section) => count + section.data.length, 0)
+      ),
+      surface: 'home',
+    });
+  }, [displayData, searchQuery]);
   const handleChatListLoad = useCallback(() => {
     if (chats) {
       reportChatListFirstPaint();
@@ -423,6 +494,8 @@ export function ChatListScreenView({
                   ) : (
                     <CreateChatSheet
                       ref={createChatSheetRef}
+                      analyticsActiveFilter={toHomeTelemetryFilter(activeTab)}
+                      analyticsSource="home_header"
                       trigger={<ScreenHeader.IconButton type="Add" />}
                     />
                   )}
@@ -434,7 +507,10 @@ export function ChatListScreenView({
               chats.pending.length ||
               chats.pinned.length) ? (
               <>
-                <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
+                <ChatListTabs
+                  onPressTab={handlePressTab}
+                  activeTab={activeTab}
+                />
                 <ChatListSearch
                   query={searchQuery}
                   onQueryChange={setSearchQuery}
@@ -484,7 +560,13 @@ export function ChatListScreenView({
         />
       </ChatOptionsProvider>
 
-      {isWindowNarrow && <CreateChatSheet ref={createChatSheetRef} />}
+      {isWindowNarrow && (
+        <CreateChatSheet
+          ref={createChatSheetRef}
+          analyticsActiveFilter={toHomeTelemetryFilter(activeTab)}
+          analyticsSource="home_header"
+        />
+      )}
       <PersonalInviteSheet
         open={personalInviteOpen}
         onOpenChange={() => setPersonalInviteOpen(false)}

@@ -89,6 +89,7 @@ export function useNotesImportController({
           }
 
           const folder = await createNotebookFolder({
+            analyticsSource: 'import',
             notebookFlag: importNotebookFlag,
             parentFolderId,
             name: segment,
@@ -113,6 +114,7 @@ export function useNotesImportController({
           noteTitlesByFolder.set(folderId, existingTitles);
           const title = makeUniqueNoteTitle(item.title, existingTitles);
           const note = await createNotebookNote({
+            analyticsSource: 'import',
             notebookFlag: importNotebookFlag,
             folderId,
             title,

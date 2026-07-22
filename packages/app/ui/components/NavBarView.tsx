@@ -1,7 +1,9 @@
+import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
+import { getNavigationTelemetryTab } from '../../lib/featureUsageTelemetry';
 import { triggerHaptic } from '../utils';
 import { AvatarNavIcon, NavBar, NavIcon } from './NavBar';
 import ProfileStatusSheet from './ProfileStatusSheet';
@@ -31,7 +33,17 @@ export const NavBarView = ({
     return currentRoute === routeName;
   };
   const pressTab = (routeName: string, navigate?: () => void) => {
-    if (isRouteActive(routeName) && onPressActiveTab) {
+    const wasAlreadyActive = isRouteActive(routeName);
+    const tab = getNavigationTelemetryTab(routeName);
+    if (tab !== 'other') {
+      trackProductEvent(AnalyticsEvent.NavigationTabSelected, {
+        tab,
+        previousTab: getNavigationTelemetryTab(currentRoute),
+        source: 'bottom_navigation',
+        wasAlreadyActive,
+      });
+    }
+    if (wasAlreadyActive && onPressActiveTab) {
       onPressActiveTab();
     } else {
       navigate?.();

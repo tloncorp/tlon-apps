@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
@@ -55,9 +56,18 @@ export default function ContactsScreen(props: Props) {
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
+      trackProductEvent(AnalyticsEvent.ContactProfileSelected, {
+        contactType:
+          contact.id === currentUser
+            ? 'self'
+            : contact.isContactSuggestion
+              ? 'suggestion'
+              : 'contact',
+        source: 'contacts_list',
+      });
       navigate('UserProfile', { userId: contact.id });
     },
-    [navigate]
+    [currentUser, navigate]
   );
 
   const onAddContact = useCallback((contact: db.Contact) => {

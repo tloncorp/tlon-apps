@@ -1,4 +1,5 @@
 import * as ub from '@tloncorp/api/urbit';
+import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
@@ -71,6 +72,10 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   const handleOpenChange = useCallback(
     (open: boolean, clearChat = true) => {
       if (open && chat) {
+        trackProductEvent(AnalyticsEvent.ChatOptionsOpened, {
+          scope: chat.type,
+          source: 'unknown',
+        });
         // Set chat state for both popovers and sheets
         contextOpen(chat.id, chat.type);
       } else if (!open) {
@@ -289,6 +294,14 @@ export function GroupOptionsSheetContent({
     }
   }, [onPressInvite]);
 
+  const handleMarkGroupRead = useCallback(() => {
+    markGroupRead();
+    trackProductEvent(AnalyticsEvent.ChatMarkedRead, {
+      scope: 'group',
+      source: 'chat_options',
+    });
+  }, [markGroupRead]);
+
   const handlePressChatDetails = useCallback(() => {
     onPressChatDetails({ type: 'group', id: group.id });
   }, [group.id, onPressChatDetails]);
@@ -316,7 +329,7 @@ export function GroupOptionsSheetContent({
           },
           canMarkRead && {
             title: 'Mark all as read',
-            action: wrappedAction.bind(null, markGroupRead),
+            action: wrappedAction.bind(null, handleMarkGroupRead),
           },
           {
             title: isPinned ? 'Unpin' : 'Pin',
@@ -367,7 +380,7 @@ export function GroupOptionsSheetContent({
       canSortChannels,
       handlePressChatDetails,
       isPinned,
-      markGroupRead,
+      handleMarkGroupRead,
       onPressNotifications,
       onPressSort,
       togglePinned,
@@ -405,20 +418,31 @@ function SortChannelsSheetContent({
 }) {
   const { setChannelSortPreference } = useChatOptions();
 
+  const setSort = useCallback(
+    (sort: 'recency' | 'arranged') => {
+      setChannelSortPreference?.(sort);
+      trackProductEvent(AnalyticsEvent.ChannelSortChanged, {
+        sort: sort === 'arranged' ? 'arrangement' : 'recency',
+        source: 'group_options',
+      });
+    },
+    [setChannelSortPreference]
+  );
+
   const sortActions = useMemo(
     () =>
       createActionGroups([
         'neutral',
         {
           title: 'Sort by recency',
-          action: () => setChannelSortPreference?.('recency'),
+          action: () => setSort('recency'),
         },
         {
           title: 'Sort by arrangement',
-          action: () => setChannelSortPreference?.('arranged'),
+          action: () => setSort('arranged'),
         },
       ]),
-    [setChannelSortPreference]
+    [setSort]
   );
 
   return (
@@ -671,6 +695,19 @@ export function ChannelOptionsSheetContent({
     [channel.volumeSettings, baseVolumeLevel]
   );
 
+  const handleMarkChannelRead = useCallback(() => {
+    markChannelRead({ includeThreads: true });
+    trackProductEvent(AnalyticsEvent.ChatMarkedRead, {
+      scope:
+        channel.type === 'groupDm'
+          ? 'group_dm'
+          : channel.type === 'dm'
+            ? 'dm'
+            : 'channel',
+      source: 'chat_options',
+    });
+  }, [channel.type, markChannelRead]);
+
   const actionGroups: ActionGroup[] = useMemo(
     () =>
       createActionGroups(
@@ -689,9 +726,7 @@ export function ChannelOptionsSheetContent({
           },
           canMarkRead && {
             title: 'Mark as read',
-            action: wrappedAction.bind(null, () =>
-              markChannelRead({ includeThreads: true })
-            ),
+            action: wrappedAction.bind(null, handleMarkChannelRead),
           },
         ],
         channel.type === 'groupDm' && [
@@ -757,7 +792,7 @@ export function ChannelOptionsSheetContent({
       wrappedAction,
       togglePinned,
       canMarkRead,
-      markChannelRead,
+      handleMarkChannelRead,
       onPressChannelMeta,
       onPressChannelMembers,
       group,
@@ -852,6 +887,25 @@ function NotificationsSheetContent({
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const { currentLevel, options, updateVolume } = useChatVolumeOptions();
+  const { group, channel } = useChatOptions();
+
+  const handleUpdateVolume = useCallback(
+    (level: ub.NotificationLevel | null) => {
+      updateVolume(level);
+      trackProductEvent(AnalyticsEvent.NotificationLevelChanged, {
+        level: level ?? 'default',
+        scope: group
+          ? channel
+            ? 'channel'
+            : 'group'
+          : channel?.type === 'groupDm'
+            ? 'group_dm'
+            : 'dm',
+        source: 'chat_options',
+      });
+    },
+    [channel, group, updateVolume]
+  );
 
   const notificationActions = useMemo(
     () =>
@@ -861,7 +915,7 @@ function NotificationsSheetContent({
           ({ title, value }): Action => ({
             title,
             accent: currentLevel === value ? 'positive' : 'neutral',
-            action: () => updateVolume(value),
+            action: () => handleUpdateVolume(value),
             endIcon: currentLevel === value ? 'Checkmark' : undefined,
           })
         ),
@@ -871,7 +925,7 @@ function NotificationsSheetContent({
           startIcon: 'ChevronLeft',
         },
       ]),
-    [currentLevel, updateVolume, isWindowNarrow, onPressBack, options]
+    [currentLevel, handleUpdateVolume, isWindowNarrow, onPressBack, options]
   );
   return (
     <ChatOptionsSheetContent

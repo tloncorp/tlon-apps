@@ -2,7 +2,11 @@
 // Branch context and methods removed here because a) it's not used and
 // b) it breaks the web build because it relies on react-native-branch,
 // which isn't made for web.
-import { createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  trackProductEvent,
+} from '@tloncorp/shared';
 import { clearAuthInfo, isElectronEnv } from '@tloncorp/shared';
 import { queryClient } from '@tloncorp/shared';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
@@ -20,6 +24,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
 
   const handleLogout = useCallback(async () => {
     logger.info('Logging out');
+    trackProductEvent(AnalyticsEvent.LogoutCompleted, { source: 'unknown' });
     queryClient.clear();
     store.removeClient();
     clearShip();
