@@ -6,6 +6,9 @@
 
 set -eu
 
+# Always run in ./backend
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
+
 fatal() {
     echo "❌ $1" >&2
     exit 1
@@ -211,29 +214,39 @@ groups_repo="https://github.com/tloncorp/tlon-apps"
 storage_url="gs://bootstrap.urbit.org"
 
 arch=`uname -m`
+platform=""
 
 case $OSTYPE in
-  linux* )
+  linux*)
     platform=linux
     case $arch in
-      x86_64 )
-        arch=x86_64
-        ;;
-      arm64 | aarch64 )
-        arch=aarch64
-        ;;
+      x86_64)
+          arch=x86_64
+          ;;
+      arm64 | aarch64)
+          arch=aarch64
+          ;;
+      *)
+          fatal "Unsupported arch $arch"
     esac ;;
-  darwin* )
+  darwin*)
     platform=macos
     case $arch in
-      x86_64 )
-        arch=x86_64
-        ;;
-      arm64  )
-        arch=aarch64
-        ;;
+      x86_64)
+          arch=x86_64
+          ;;
+      arm64)
+          arch=aarch64
+          ;;
+      *)
+          fatal "Unsupported arch $arch"
+          ;;
     esac ;;
+  *)
+      fatal "Unsupported platform $OSTYPE"
+      ;;
 esac
+
 
 if [[ -z $platform ]]
 then
@@ -262,15 +275,12 @@ pier="./$ship"
 if [[ -d $pier ]]
 then
     echo "pier $pier exists, verifying boot"
-    $vere -x $pier
 
-    if [[ $? == 0 ]]
+    if $vere -x $pier
     then
         echo "✅ $ship ready"
     else
-        # fatal "$ship fails to boot"
-        # TODO restore
-        echo "$ship fails to boot"
+        fatal "$ship fails to boot"
     fi
 fi
 
@@ -298,11 +308,18 @@ then
     then
         fatal "Failed to clone urbit repository"
     fi
+else
+    git -C urbit-git fetch -q --depth=1 origin \
+        "refs/tags/$base_rev:refs/tags/$base_rev" ||
+        fatal "Failed to fetch from urbit repository at $base_rev"
 fi
 
 if ! ( cd urbit-git && git show-ref -q "refs/tags/$base_rev")
 then
     fatal "$base_rev is not a valid version in urbit repository"
+else
+    git -C urbit-git restore pkg/base-dev/sur/aquarium.hoon
+    git -C urbit-git checkout -q $base_rev
 fi
 
 
@@ -310,13 +327,19 @@ if [[ ! -d ./tlon-apps-git ]]
 then
     if ! git clone -q -c advice.detachedHead=false --depth=1 --branch $groups_rev $groups_url tlon-apps-git;
     then
-        fatal "Failed to clone tlon-apps repository"
+        fatal "Failed to clone tlon-apps repository at $groups_rev"
     fi
+else
+    git -C tlon-apps-git fetch -q --depth=1 origin \
+        "refs/tags/$groups_rev:refs/tags/$groups_rev" ||
+        fatal "Failed to fetch from tlon-apps repository at $groups_rev"
 fi
 
 if ! ( cd tlon-apps-git && git show-ref -q "refs/tags/$groups_rev")
 then
-    fatal "$base_rev is not a valid version in tlon-apps repository"
+    fatal "$groups_rev is not a valid version in tlon-apps repository"
+else
+    (cd tlon-apps-git && git checkout -q $groups_rev)
 fi
 
 groups_hash=`(cd tlon-apps-git && git rev-parse --short HEAD)`
@@ -328,12 +351,27 @@ vere_pid=$!
 stop_vere() {
     echo "Shutting down vere $vere_pid"
     kill -TERM $vere_pid
+	wait $vere_pid
 }
 
 function await_ship
 {
-    while ! curl -s "http://localhost:$http_port/~/login" > /dev/null
+    local timeout=1800
+    local deadline=$((SECONDS + timeout))
+    local url="http://localhost:$http_port/~/login"
+
+    while ! curl --fail --silent --max-time 2 "$url" > /dev/null
     do
+        if ! kill -0 "$vere_pid" 2> /dev/null
+        then
+            fatal "Vere exited while waiting for $url"
+        fi
+
+        if (( SECONDS >= deadline ))
+        then
+            fatal "Timed out after ${timeout}s waiting for $url"
+        fi
+
         sleep 1
     done
 }
@@ -384,43 +422,39 @@ run_thread_silent "revive %groups" $pier <<HOON
 ;<  =bowl  bind:m  get-bowl
 ;<  ~  bind:m
   (send-raw-card %pass /live %arvo %c [%zest %groups %live])
-(pure:m !>(&))
-HOON
-
-if [[ "$groups_old_cz" == `get_desk_hash %groups` ]] && ! $force
-then
-    fatal "Groups desk has not updated, override with -f to continue"
-else
-    echo "⚠️ Groups desk has not updated, forced to continue"
-fi
-
-run_thread_silent "revive %groups" $pier <<HOON
-=/  m  (strand ,vase)
-;<  =bowl  bind:m  get-bowl
-;<  ~  bind:m
-  (send-raw-card %pass /live %arvo %c [%zest %groups %live])
+;<  ~  bind:m  (sleep ~s0)
 (pure:m !>(&))
 HOON
 
 await_ship
 
-pill_name="groups-$groups_hash"
+if [[ "$groups_old_cz" == `get_desk_hash %groups` ]]
+then
+    if ! $force
+    then
+        fatal "Groups desk has not updated, override with -f to continue"
+    else
+        echo "⚠️ Groups desk has not updated, forced to continue"
+    fi
+fi
+
+pill_name="groups-${base_rev//\//-}-$groups_hash"
 pill_file=$pill_name.pill
 
 if [[ ! -e ./$pill_file ]]
 then
     echo "➡️ Generating pill $pill_name, please standby"
 
-    run_thread_silent "generate pill" $pier <<HOON
-=/  m  (strand ,vase)
-;<  =bowl  bind:m  get-bowl
-=/  lens-command
-  :-  dojo+\'+pill/brass %base %groups\'
-  output-pill+\'$pill_name/pill\'
-;<  ~  bind:m
-  (poke-our %dojo lens-command+!>([%$ lens-command]))
-(pure:m !>(&))
-HOON
+    run_thread_silent "generate pill" $pier <<-HOON
+	=/  m  (strand ,vase)
+	;<  =bowl  bind:m  get-bowl
+	=/  lens-command
+	:-  dojo+\'+pill/brass %base %groups\'
+	output-pill+\'$pill_name/pill\'
+	;<  ~  bind:m
+	(poke-our %dojo lens-command+!>([%$ lens-command]))
+	(pure:m !>(&))
+	HOON
 
     await_ship
 
@@ -442,6 +476,9 @@ trap - EXIT
 if $verify
 then
     echo "⚙️ Verifying pill"
+
+	rm -rf ./nec
+
     if $vere -F nec -c nec -B $pill_file -x 
     then
         echo "☑️ Pill verified"
@@ -465,6 +502,7 @@ then
     echo "⬆️ Uploading $pill_file to storage"
 
     if ! gcloud storage cp $pill_file $storage_url/$pill_file
+    then
         fatal "Upload failed"
     fi
 fi
@@ -480,7 +518,7 @@ then
 
     # Only cleanup the pill if it was successfully uploaded
     #
-    if upload
+    if $upload
     then
         rm -rf $pill_file
     fi
