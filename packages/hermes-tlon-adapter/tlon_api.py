@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -16,6 +17,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, Optional, Sequence
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,12 @@ DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES = 3
 DEFAULT_CONTEXT_MESSAGES = 20
 REACTION_LEVELS = frozenset({"off", "ack", "minimal", "extensive"})
 DEFAULT_REACTION_LEVEL = "minimal"
+
+DEFAULT_NUDGE_TICK_INTERVAL_MS = 15 * 60 * 1000
+
+
+class TlonTerminalActionError(ConnectionError):
+    """A channel action rejected by Eyre, so retrying it cannot help."""
 
 
 def normalize_ship(ship: str) -> str:
@@ -163,8 +171,11 @@ def _parse_float(value: Any, default: float) -> float:
 
 def _parse_int(value: Any, default: int) -> int:
     try:
-        parsed = int(float(str(value).strip()))
-    except (TypeError, ValueError):
+        raw = float(str(value).strip())
+        if not math.isfinite(raw):
+            return default
+        parsed = int(raw)
+    except (TypeError, ValueError, OverflowError):
         return default
     return parsed if parsed > 0 else default
 
@@ -188,6 +199,17 @@ def _parse_strict_non_negative_int(value: Any, default: int) -> int:
     if not parsed.is_integer():
         return default
     return int(parsed) if parsed >= 0 else default
+
+
+def _valid_timezone(value: str) -> str:
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError):
+        return ""
+    return value
 
 
 def _format_da_from_unix_millis(value: float) -> str:
@@ -236,6 +258,12 @@ class TlonConfig:
     gateway_status_lease_seconds: float = DEFAULT_GATEWAY_LEASE_SECONDS
     gateway_status_active_window_seconds: int = DEFAULT_GATEWAY_ACTIVE_WINDOW_SECONDS
     gateway_status_reply_cooldown_seconds: int = DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS
+    reengagement_enabled: bool = False
+    nudge_tick_interval_ms: int = DEFAULT_NUDGE_TICK_INTERVAL_MS
+    nudge_active_hours_start: Optional[str] = None
+    nudge_active_hours_end: Optional[str] = None
+    nudge_active_hours_timezone: Optional[str] = None
+    user_timezone: Optional[str] = None
     context_lens_enabled: bool = False
     context_lens_owner: str = ""
     context_lens_store_path: str = ""
@@ -519,6 +547,47 @@ class TlonConfig:
             ),
             DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS,
         )
+        reengagement_enabled = parse_bool_default(
+            _env_or_extra(
+                env,
+                ("TLON_REENGAGEMENT_ENABLED",),
+                extra,
+                ("reengagement_enabled",),
+                "false",
+            ),
+            False,
+        )
+        nudge_tick_interval_ms = _parse_int(
+            _env_or_extra(
+                env,
+                ("TLON_NUDGE_TICK_INTERVAL_MS",),
+                extra,
+                ("nudge_tick_interval_ms",),
+                DEFAULT_NUDGE_TICK_INTERVAL_MS,
+            ),
+            DEFAULT_NUDGE_TICK_INTERVAL_MS,
+        )
+        nudge_active_hours_start = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_START",),
+            extra,
+            ("nudge_active_hours_start",),
+        ) or None
+        nudge_active_hours_end = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_END",),
+            extra,
+            ("nudge_active_hours_end",),
+        ) or None
+        nudge_active_hours_timezone = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_TIMEZONE",),
+            extra,
+            ("nudge_active_hours_timezone",),
+        ) or None
+        user_timezone = _valid_timezone(
+            _env_first(env, ("TLON_TIMEZONE",), extra, ("user_timezone",))
+        ) or None
         context_lens_enabled = parse_bool(
             _env_or_extra(
                 env,
@@ -615,6 +684,12 @@ class TlonConfig:
             gateway_status_lease_seconds=gateway_status_lease_seconds,
             gateway_status_active_window_seconds=gateway_status_active_window_seconds,
             gateway_status_reply_cooldown_seconds=gateway_status_reply_cooldown_seconds,
+            reengagement_enabled=reengagement_enabled,
+            nudge_tick_interval_ms=nudge_tick_interval_ms,
+            nudge_active_hours_start=nudge_active_hours_start,
+            nudge_active_hours_end=nudge_active_hours_end,
+            nudge_active_hours_timezone=nudge_active_hours_timezone,
+            user_timezone=user_timezone,
             context_lens_enabled=context_lens_enabled,
             context_lens_owner=context_lens_owner,
             context_lens_store_path=context_lens_store_path,
@@ -1080,9 +1155,15 @@ class TlonSSEClient:
         ) as resp:
             if resp.status not in (200, 204):
                 text = await resp.text()
-                raise ConnectionError(
-                    f"Tlon channel action failed: HTTP {resp.status} {text[:200]}"
-                )
+                message = f"Tlon channel action failed: HTTP {resp.status} {text[:200]}"
+                # A malformed or unauthorized client action will not recover
+                # by replaying it.  A 404/410 can be a stale, reaped channel
+                # URL and recover after reconnect; rate limits,
+                # request-timeout/too-early responses, server errors, and
+                # other non-4xx responses may also recover.
+                if 400 <= resp.status < 500 and resp.status not in (404, 408, 410, 425, 429):
+                    raise TlonTerminalActionError(message)
+                raise ConnectionError(message)
 
     async def _parse_sse_payload(self, payload: str) -> Optional[TlonSSEEvent]:
         event_id: Optional[int] = None
@@ -1420,6 +1501,17 @@ def extract_message_text(content: Any) -> str:
     return str(content)
 
 
+def extract_message_title(content: Any) -> str:
+    """Return a user-visible essay title when the wire payload has one."""
+    if not isinstance(content, Mapping):
+        return ""
+    meta = content.get("meta")
+    if not isinstance(meta, Mapping):
+        return ""
+    title = meta.get("title")
+    return title.strip() if isinstance(title, str) else ""
+
+
 def _extract_inline_text(inlines: Any) -> str:
     if isinstance(inlines, str):
         return inlines
@@ -1448,11 +1540,32 @@ def _extract_inline_text(inlines: Any) -> str:
                 parts.append(str(item["inline-code"]))
             elif "code" in item:
                 parts.append(str(item["code"]))
+            elif "task" in item and isinstance(item["task"], Mapping):
+                task = item["task"]
+                marker = "[x] " if task.get("checked") else "[ ] "
+                parts.append(marker + _extract_inline_text(task.get("content")))
             elif "break" in item:
                 parts.append("\n")
             elif "tag" in item:
                 parts.append(f"#{item['tag']}")
     return "".join(parts)
+
+
+def _extract_listing_text(listing: Any) -> str:
+    """Extract all text carried by recursive story listing nodes."""
+    if not isinstance(listing, Mapping):
+        return ""
+    item = listing.get("item")
+    if isinstance(item, list):
+        return _extract_inline_text(item)
+    list_node = listing.get("list")
+    if not isinstance(list_node, Mapping):
+        return ""
+    parts = [_extract_inline_text(list_node.get("contents"))]
+    items = list_node.get("items")
+    if isinstance(items, list):
+        parts.extend(_extract_listing_text(child) for child in items)
+    return "\n".join(part for part in parts if part)
 
 
 def _extract_block_text(block: dict[str, Any]) -> str:
@@ -1461,6 +1574,20 @@ def _extract_block_text(block: dict[str, Any]) -> str:
         return f"[image: {image.get('alt') or image.get('src') or ''}]"
     if "cite" in block:
         return "[quoted message]"
+    if "link" in block and isinstance(block["link"], Mapping):
+        link = block["link"]
+        url = str(link.get("url") or "").strip()
+        meta = link.get("meta")
+        title = ""
+        if isinstance(meta, Mapping):
+            title = str(meta.get("title") or meta.get("description") or "").strip()
+        if title and url:
+            return f"[link: {title} — {url}]"
+        return f"[link: {url}]" if url else "[link]"
+    if "header" in block and isinstance(block["header"], Mapping):
+        return _extract_inline_text(block["header"].get("content"))
+    if "listing" in block:
+        return _extract_listing_text(block["listing"])
     if "code" in block and isinstance(block["code"], dict):
         code = block["code"]
         lang = code.get("lang") or ""
@@ -1680,6 +1807,10 @@ def parse_channel_message(
 
     story_content = content.get("content")
     text = extract_message_text(story_content)
+    if nest.startswith("heap/"):
+        title = extract_message_title(content)
+        if title:
+            text = "\n".join(part for part in (title, text) if part)
     raw_blob = content.get("blob")
     blob = raw_blob if isinstance(raw_blob, str) and raw_blob.strip() else None
     if not text.strip() and not blob:

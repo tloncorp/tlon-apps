@@ -86,9 +86,9 @@ Telemetry is disabled by default. The plugin only sends telemetry events when `c
 
 Every event carries content-free version identity: `harness: "openclaw"`, `pluginVersion`, `pluginCommit`, `pluginFingerprint`, plus Hermes-compatible `adapterVersion` and `adapterFingerprint` fields for shared PostHog charts.
 
-When enabled, the plugin captures `TlonBot Gateway Connected` after subscriptions are active, `TlonBot Reply Handled` after each OpenClaw reply flow, `TlonBot Outbound Routed` for route-dependent sends, and heartbeat nudge events. `TlonBot Gateway Connected` also includes the resolved `tlon` CLI version as `tlonSkillVersion`. These summarize counts, routing, model/tool usage, and delivery status, but do not log message content.
+When enabled, the plugin captures `TlonBot Gateway Connected` after subscriptions are active, `TlonBot Reply Handled` after each OpenClaw reply flow, `TlonBot Outbound Routed` for route-dependent sends, and heartbeat nudge events. Expected authentication failures during the first three minutes of a moon outage are captured as `TlonBot Auth Attempt Failed`; continued failures become `TlonBot Plugin Error` events with cumulative `downMs`, `attempt`, and `authPhase` properties. `TlonBot Gateway Connected` also includes the resolved `tlon` CLI version as `tlonSkillVersion`. These summarize counts, routing, model/tool usage, and delivery status, but do not log message content.
 
-Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`ok`/`error`/`skipped` status, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
+Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
 
 The plugin does not enable telemetry automatically just because an API key is present. `enabled: true` is required so open-source installs do not phone home by default.
 
@@ -131,6 +131,7 @@ The owner can send these commands via DM:
 
 ```
 Harness: OpenClaw
+Harness Version: 2026.5.28
 Adapter Version: 0.4.3
 Tlon Skill: 0.3.2
 Fingerprint: fp1:8aa23ca2bc8d

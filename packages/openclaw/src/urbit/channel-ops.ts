@@ -66,7 +66,12 @@ export async function scryUrbitPath(
     UrbitChannelDeps,
     'baseUrl' | 'cookie' | 'ssrfPolicy' | 'lookupFn' | 'fetchImpl'
   >,
-  params: { path: string; auditContext: string }
+  params: {
+    path: string;
+    auditContext: string;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }
 ): Promise<unknown> {
   const scryPath = `/~/scry${params.path}`;
   const { response, release } = await urbitFetch({
@@ -79,7 +84,8 @@ export async function scryUrbitPath(
     ssrfPolicy: deps.ssrfPolicy,
     lookupFn: deps.lookupFn,
     fetchImpl: deps.fetchImpl,
-    timeoutMs: 30_000,
+    timeoutMs: params.timeoutMs ?? 30_000,
+    signal: params.signal,
     auditContext: params.auditContext,
   });
 

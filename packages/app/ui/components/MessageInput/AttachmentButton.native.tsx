@@ -28,6 +28,7 @@ export default function AttachmentButton({
         isOpen={showInputSelector}
         onOpenChange={setShowInputSelector}
         mediaType="all"
+        allowMultipleSelection
       />
     </>
   );

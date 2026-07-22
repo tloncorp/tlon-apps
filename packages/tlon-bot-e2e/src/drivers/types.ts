@@ -103,14 +103,19 @@ export interface ComposeHandle {
   ps(opts?: { timeoutMs?: number }): Promise<ComposeServiceState[]>;
   logs(
     services?: string[],
-    opts?: { tail?: number; timeoutMs?: number }
+    opts?: { tail?: number; timeoutMs?: number; allowFailure?: boolean }
   ): Promise<string>;
   exec(
     service: string,
     args: string[],
     opts?: { env?: Record<string, string>; cwd?: string }
   ): Promise<ExecResult>;
-  down(opts?: { volumes?: boolean }): Promise<void>;
+  down(opts?: {
+    volumes?: boolean;
+    allowFailure?: boolean;
+    verify?: boolean;
+    timeoutMs?: number;
+  }): Promise<void>;
 }
 
 export interface BotDriver {

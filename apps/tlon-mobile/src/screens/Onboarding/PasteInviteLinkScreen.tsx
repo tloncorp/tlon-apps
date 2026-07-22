@@ -19,7 +19,7 @@ import { checkInputForInvite, createDevLogger } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -46,7 +46,6 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
     control,
     formState: { errors },
     setValue,
-    watch,
   } = useForm<FormData>({
     defaultValues: {
       inviteLink: DEFAULT_INVITE_LINK_URL,
@@ -96,7 +95,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
   );
 
   // watch for changes to the input & check for valid invite links
-  const inviteLinkValue = watch('inviteLink');
+  const inviteLinkValue = useWatch({ control, name: 'inviteLink' });
   useEffect(() => {
     debouncedInputHandler(inviteLinkValue);
   }, [inviteLinkValue, debouncedInputHandler]);
