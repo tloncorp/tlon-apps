@@ -40,7 +40,7 @@ tbody tr:last-child{border-bottom:0}
 th,td{border:0;max-width:280px;padding:16px 12px;vertical-align:top;overflow-wrap:anywhere}
 th:first-child,td:first-child{padding-left:0}
 th{background:transparent;color:var(--tertiary-text);font-weight:400}
-.tlon-table-cell-content{width:max-content;max-width:280px}
+.tlon-table-cell-content{display:inline-block;width:max-content;max-width:280px}
 .tlon-table-data-cell{width:1px}
 .tlon-table-spacer{padding:0}
 .tlon-published-footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--border);color:var(--tertiary-text);font-size:12px}

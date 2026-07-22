@@ -355,6 +355,30 @@ describe('markdownToStory', () => {
         },
       ]);
     });
+
+    it('preserves literal markdown syntax and pipes in table cells', () => {
+      const story = markdownToStory(
+        '| Value |\n| --- |\n| \\*literal\\* |\n| a \\| b |'
+      );
+
+      expect(convertContent(story, null)).toEqual([
+        {
+          type: 'table',
+          header: {
+            cells: [{ content: [{ type: 'text', text: 'Value' }] }],
+          },
+          rows: [
+            {
+              cells: [{ content: [{ type: 'text', text: '*literal*' }] }],
+            },
+            {
+              cells: [{ content: [{ type: 'text', text: 'a | b' }] }],
+            },
+          ],
+          align: [null],
+        },
+      ]);
+    });
   });
 
   describe('mixed content', () => {

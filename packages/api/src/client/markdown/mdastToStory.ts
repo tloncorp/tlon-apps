@@ -16,6 +16,8 @@ import type {
   Text,
   ThematicBreak,
 } from 'mdast';
+import { gfmToMarkdown } from 'mdast-util-gfm';
+import { toMarkdown } from 'mdast-util-to-markdown';
 
 import { Story, Verse, VerseBlock, VerseInline } from '../../urbit/channel';
 import {
@@ -43,6 +45,17 @@ import {
 } from '../../urbit/content';
 import type { GroupMention } from './groupMentionPlugin';
 import type { ShipMention } from './shipMentionPlugin';
+
+const tableMentionHandlers = {
+  handlers: {
+    shipMention(node: { value: string }) {
+      return `~${node.value}`;
+    },
+    groupMention(node: { value: string }) {
+      return `@${node.value}`;
+    },
+  },
+} as unknown as NonNullable<Parameters<typeof toMarkdown>[1]>;
 
 /**
  * Check if a node is a ship mention (custom node type from our plugin).
@@ -397,47 +410,15 @@ function blockquoteToVerse(blockquote: MdastBlockquote): VerseInline {
 function tableToVerse(node: RootContent): VerseInline | null {
   if (node.type !== 'table') return null;
 
-  const table = node as {
-    align?: Array<'left' | 'center' | 'right' | null>;
-    children: Array<{
-      children: Array<{ children: PhrasingContent[] }>;
-    }>;
-  };
-
-  // Extract rows from table
-  const rows: string[][] = [];
-  for (const row of table.children) {
-    const cells: string[] = [];
-    for (const cell of row.children) {
-      // Extract text from cell children
-      const text = cell.children
-        .map((child: PhrasingContent) => {
-          if (child.type === 'text') return (child as Text).value;
-          return '';
-        })
-        .join('');
-      cells.push(text);
-    }
-    rows.push(cells);
-  }
-
-  const separator = (rows[0] ?? []).map((_, index) => {
-    switch (table.align?.[index]) {
-      case 'left':
-        return ':---';
-      case 'center':
-        return ':---:';
-      case 'right':
-        return '---:';
-      default:
-        return '---';
-    }
-  });
-  const tableRows =
-    rows.length > 0 ? [rows[0], separator, ...rows.slice(1)] : [];
-  const tableText = tableRows
-    .map((row) => '| ' + row.join(' | ') + ' |')
-    .join('\n');
+  const tableText = toMarkdown(node as Parameters<typeof toMarkdown>[0], {
+    extensions: [
+      gfmToMarkdown({
+        // Keep alignment delimiters parseable by remark-gfm after serialization.
+        stringLength: (value) => Math.max(value.length, 4),
+      }),
+      tableMentionHandlers,
+    ],
+  }).trimEnd();
   return { inline: [tableText] };
 }
 

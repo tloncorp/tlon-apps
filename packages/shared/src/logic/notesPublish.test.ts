@@ -33,6 +33,9 @@ test('renderPublishedNoteHtml renders markdown tables', () => {
     '<th class="tlon-table-spacer" aria-hidden="true"></th>'
   );
   expect(html).toContain('<div class="tlon-table-cell-content">Name</div>');
+  expect(html).toContain(
+    '.tlon-table-cell-content{display:inline-block;width:max-content;max-width:280px}'
+  );
   expect(html).toContain('class="tlon-table-data-cell"');
   expect(html).toContain('tr{border-bottom:1px solid var(--border)}');
 });
