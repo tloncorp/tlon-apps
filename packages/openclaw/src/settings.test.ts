@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   APPROVAL_TTL_MS,
@@ -461,13 +461,15 @@ describe('Settings: createSettingsManager.load', () => {
   });
 
   it('returns an empty snapshot on the first load failure', async () => {
+    const log = vi.fn();
+    const error = vi.fn();
     const manager = createSettingsManager(
       {
         scry: async () => {
           throw new Error('desk unavailable');
         },
       } as never,
-      { log: () => undefined }
+      { log, error }
     );
 
     await expect(manager.load()).resolves.toEqual({
@@ -475,6 +477,10 @@ describe('Settings: createSettingsManager.load', () => {
       fresh: false,
     });
     expect(manager.current).toEqual({});
+    expect(log).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith(
+      '[settings] Load failed (keeping previous settings): Error: desk unavailable'
+    );
   });
 
   it('logs a compact settings summary without full pending approval messages', async () => {
@@ -518,5 +524,22 @@ describe('Settings: createSettingsManager.load', () => {
     expect(loadedLog).not.toContain('secret preview');
     expect(loadedLog).not.toContain('secret full message');
     expect(loadedLog).not.toContain('secret content');
+  });
+
+  it('can suppress the snapshot summary for periodic refreshes', async () => {
+    const log = vi.fn();
+    const manager = createSettingsManager(
+      {
+        scry: async () => ({
+          all: { moltbot: { tlon: { ownerShip: '~zod' } } },
+        }),
+      } as never,
+      { log }
+    );
+
+    await manager.load({ logSnapshot: false });
+
+    expect(log).not.toHaveBeenCalled();
+    expect(manager.current).toEqual({ ownerShip: '~zod' });
   });
 });

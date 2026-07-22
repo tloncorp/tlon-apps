@@ -46,6 +46,8 @@ EVENT_SSE_RECONNECT = "TlonBot SSE Reconnect"
 EVENT_APPROVAL = "TlonBot Approval Event"
 EVENT_CONTROL_COMMAND = "TlonBot Control Command"
 EVENT_TELEMETRY_TEST = "TlonBot Telemetry Test"
+EVENT_HEARTBEAT_NUDGE_SENT = "TlonBot Heartbeat Nudge Sent"
+EVENT_HEARTBEAT_NUDGE_REENGAGED = "TlonBot Heartbeat Nudge Reengaged"
 
 HARNESS = "hermes"
 
@@ -310,6 +312,7 @@ class TlonTelemetry:
         self._capture_warned = False
         self._missing_owner_warned = False
         self._identified = False
+        self._identified_owners: set[str] = set()
         self._identified_as = ""
         self._events_captured = 0
         self._last_event = ""
@@ -379,7 +382,13 @@ class TlonTelemetry:
         """Merge identity properties stamped on every event (version info)."""
         self._common.update(props)
 
-    def capture(self, event: str, properties: Optional[Mapping[str, Any]] = None) -> None:
+    def capture(
+        self,
+        event: str,
+        properties: Optional[Mapping[str, Any]] = None,
+        *,
+        distinct_id: Optional[str] = None,
+    ) -> None:
         """Capture an event against the owner's PostHog person.
 
         Mirrors OpenClaw: the owner ship is the distinct id (so bot events
@@ -388,7 +397,9 @@ class TlonTelemetry:
         """
         if self._client is None:
             return
-        owner = self.config.owner_ship
+        # An empty per-event override is meaningful: OpenClaw drops it rather
+        # than attributing the event to the currently configured owner.
+        owner = self.config.owner_ship if distinct_id is None else distinct_id
         if not owner:
             if not self._missing_owner_warned:
                 self._missing_owner_warned = True
@@ -428,7 +439,7 @@ class TlonTelemetry:
 
     def _ensure_identified(self, owner: str) -> None:
         """One-time identify so the owner person carries bot attributes."""
-        if self._identified:
+        if owner in self._identified_owners:
             return
         self._identified = True
         props = {
@@ -454,6 +465,7 @@ class TlonTelemetry:
                 )
                 return
             self._identified_as = owner
+            self._identified_owners.add(owner)
             logger.info(
                 "[tlon] telemetry identify enqueued (%s): owner %s (bot %s)",
                 method,
@@ -724,6 +736,52 @@ class TlonTelemetry:
 
     def control_command(self, command: str) -> None:
         self.capture(EVENT_CONTROL_COMMAND, {"command": command})
+
+    def nudge_sent(
+        self,
+        *,
+        stage: int,
+        target: str,
+        success: bool,
+        message_id: Optional[str],
+        sent_at_ms: Optional[int],
+    ) -> None:
+        self.capture(
+            EVENT_HEARTBEAT_NUDGE_SENT,
+            {
+                "trigger": "heartbeat",
+                "nudgeStage": stage,
+                "nudgeTarget": target,
+                "channel": "tlon",
+                "success": success,
+                "accountId": "hermes",
+                "messageId": message_id,
+                "nudgeSentAtMs": sent_at_ms,
+            },
+        )
+
+    def nudge_reengaged(
+        self,
+        *,
+        stage: int,
+        nudge_sent_at: float,
+        reengaged_at: int,
+        account_id: str,
+        owner_ship: str,
+    ) -> None:
+        self.capture(
+            EVENT_HEARTBEAT_NUDGE_REENGAGED,
+            {
+                "nudgeStage": stage,
+                "nudgeSentAt": nudge_sent_at,
+                "reengagedAt": reengaged_at,
+                "reengagementDelayMs": reengaged_at - nudge_sent_at,
+                "channel": "tlon",
+                "accountId": account_id,
+                "ownerShip": owner_ship,
+            },
+            distinct_id=owner_ship,
+        )
 
     # ── diagnostics ──────────────────────────────────────────────────────
 

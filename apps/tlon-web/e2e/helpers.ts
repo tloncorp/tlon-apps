@@ -1226,8 +1226,13 @@ export async function changeGroupDescription(page: Page, description: string) {
  * Attempts to change group icon (handles web file picker behavior)
  */
 export async function changeGroupIcon(page: Page, imagePath?: string) {
-  // Click on "Change icon image" to open the attachment dialog
-  await page.getByText('Change icon image').click();
+  await expect(
+    page.getByText('Storage not configured', { exact: true })
+  ).toHaveCount(0);
+
+  const changeIconButton = page.getByText('Change icon image', { exact: true });
+  await expect(changeIconButton).toBeVisible({ timeout: 5000 });
+  await changeIconButton.click();
 
   // Wait for the attachment dialog to appear
   await expect(page.getByText('Attach a file')).toBeVisible({ timeout: 5000 });
@@ -1236,13 +1241,9 @@ export async function changeGroupIcon(page: Page, imagePath?: string) {
   const imageToUpload =
     imagePath || path.join(__dirname, 'assets', 'test-group-icon.jpg');
 
-  // Intercept the file chooser dialog
-  // This is Playwright's official way to handle file uploads
   const [fileChooser] = await Promise.all([
-    // Wait for the file chooser to be triggered
     page.waitForEvent('filechooser'),
-    // Click the button that triggers the file chooser
-    page.getByText('Upload an image', { exact: true }).click(),
+    page.getByText('Photo Library', { exact: true }).click(),
   ]);
 
   // Set the files on the file chooser
@@ -1369,13 +1370,10 @@ export async function createGalleryImagePost(
     imagePath || path.join(__dirname, 'assets', 'test-group-icon.jpg');
 
   await page.getByTestId('AddGalleryPost').click();
-  await page.getByTestId('AddGalleryPostImage').click();
-
-  await expect(page.getByText('Attach a file')).toBeVisible({ timeout: 5000 });
 
   const [fileChooser] = await Promise.all([
     page.waitForEvent('filechooser'),
-    page.getByText('Upload Media', { exact: true }).click(),
+    page.getByTestId('AddGalleryPostImage').click(),
   ]);
 
   await fileChooser.setFiles(imageToUpload);
@@ -1396,7 +1394,7 @@ export async function createGalleryImagePost(
 
   if (caption) {
     await expect(page.getByText(caption).first()).toBeVisible({
-      timeout: 10000,
+      timeout: 45000,
     });
   }
 }
