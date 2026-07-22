@@ -125,6 +125,22 @@ class TlonConfigTests(unittest.TestCase):
 
         self.assertEqual(cfg.sse_read_timeout_seconds, 12.5)
 
+    def test_non_finite_nudge_tick_interval_falls_back_to_default(self):
+        required = {
+            "TLON_NODE_URL": "https://zod.tlon.network",
+            "TLON_NODE_ID": "~zod",
+            "TLON_ACCESS_CODE": "code",
+        }
+        for interval in ("Infinity", "1e309"):
+            with self.subTest(interval=interval):
+                cfg = tlon_api.TlonConfig.from_env(
+                    env={**required, "TLON_NUDGE_TICK_INTERVAL_MS": interval}
+                )
+                self.assertEqual(
+                    cfg.nudge_tick_interval_ms,
+                    tlon_api.DEFAULT_NUDGE_TICK_INTERVAL_MS,
+                )
+
     def test_from_env_accepts_attention_and_loop_settings(self):
         cfg = tlon_api.TlonConfig.from_env(
             env={
@@ -320,7 +336,9 @@ class FakeSSESession:
 
 
 class FakeActionResponse:
-    status = 204
+    def __init__(self, status=204, text=""):
+        self.status = status
+        self._text = text
 
     async def __aenter__(self):
         return self
@@ -329,12 +347,13 @@ class FakeActionResponse:
         return False
 
     async def text(self):
-        return ""
+        return self._text
 
 
 class FakeActionSession:
-    def __init__(self):
+    def __init__(self, status=204):
         self.put_calls = []
+        self.status = status
 
     def put(self, url, *, json, headers, timeout):
         self.put_calls.append(
@@ -345,7 +364,7 @@ class FakeActionSession:
                 "timeout": timeout,
             }
         )
-        return FakeActionResponse()
+        return FakeActionResponse(self.status, "action rejected")
 
     async def close(self):
         pass
@@ -424,6 +443,33 @@ class TlonSSEClientTests(unittest.TestCase):
         self.assertEqual(action["ship"], "zod")
         self.assertEqual(action["app"], "hood")
         self.assertEqual(action["mark"], "helm-hi")
+
+    def test_action_status_classifies_only_nonretryable_4xx_as_terminal(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+
+        for status in (404, 408, 410, 425, 429, 500, 503):
+            client = tlon_api.TlonSSEClient(cfg)
+            client._session = FakeActionSession(status)
+            client.channel_url = "https://zod.tlon.network/~/channel/test"
+            with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+                with self.assertRaises(ConnectionError) as raised:
+                    asyncio.run(client._send_actions([]))
+            self.assertNotIsInstance(raised.exception, tlon_api.TlonTerminalActionError)
+
+        for status in (400, 403):
+            client = tlon_api.TlonSSEClient(cfg)
+            client._session = FakeActionSession(status)
+            client.channel_url = "https://zod.tlon.network/~/channel/test"
+            with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+                with self.assertRaises(tlon_api.TlonTerminalActionError):
+                    asyncio.run(client._send_actions([]))
 
     def test_parse_acknowledges_id_only_sse_frames(self):
         cfg = tlon_api.TlonConfig.from_env(

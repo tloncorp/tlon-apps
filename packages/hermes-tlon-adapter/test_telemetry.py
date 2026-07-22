@@ -174,6 +174,14 @@ class EnablementTests(unittest.TestCase):
         self.assertEqual(fake.captures, [])
         self.assertEqual(fake.identifies, [])
 
+    def test_empty_distinct_id_override_drops_event(self):
+        tel, fake = make_telemetry()
+
+        tel.capture("TlonBot Heartbeat Nudge Reengaged", {}, distinct_id="")
+
+        self.assertEqual(fake.captures, [])
+        self.assertEqual(fake.identifies, [])
+
     def test_flush_keeps_client_close_shuts_down(self):
         tel, fake = make_telemetry()
         tel.flush()

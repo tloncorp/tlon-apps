@@ -289,6 +289,10 @@ class AdapterApprovalTests(unittest.TestCase):
         adapter._sse = FakeSSE()
         adapter._cli = FakeCLI()
         adapter._settings_loaded = True
+        # These approval fixtures begin after the normal settings bootstrap;
+        # leave the nudge pending-state owner initialized so they do not model
+        # the separate failed-bootstrap recovery path.
+        adapter._pending_nudge_rehydrated = True
         return adapter
 
     def dispatches(self, adapter, raw, *, dm=False):
