@@ -31,6 +31,7 @@ import {
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
+import { finishSettledDeleteOnDelivery } from '../postActions/finishSettledDelete';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import { getSession, setSession, updateSession } from '../session';
@@ -38,10 +39,7 @@ import { migrateLegacyContextLensFlag } from '../settingsActions';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
 import { clearChannelPostsQueries } from '../useChannelPosts/queries';
-import {
-  addToChannelPosts,
-  removeFromChannelPosts,
-} from '../useChannelPosts/subscriptions';
+import { addToChannelPosts } from '../useChannelPosts/subscriptions';
 import { logger } from './logger';
 import { syncContacts } from './syncContacts';
 import { syncGroup } from './syncGroup';
@@ -1631,26 +1629,15 @@ export const handleChannelsUpdate = async (
       );
       break;
     }
-    case 'markPostSent': {
+    case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' }, ctx);
       // If this row's delete already settled while the send was still in
       // flight, the guarded hard-delete couldn't run at delete time (delivery
       // wasn't acknowledged yet). Now that delivery has resolved, finish it so
       // a mounted channel's live snapshot doesn't keep rendering the
       // settled-delete row as a tombstone until remount.
-      const removed = await db.deleteSettledUnsequencedDeletedPost(
-        update.cacheId,
-        ctx
-      );
-      if (removed) {
-        removeFromChannelPosts(removed);
-        await db.recomputeChannelLastPost(
-          { channelId: removed.channelId },
-          ctx
-        );
-      }
+      await finishSettledDeleteOnDelivery(update.cacheId, ctx);
       break;
-    }
     case 'initialPostsOnChannelJoin':
       await db.insertChannelPosts(
         {
