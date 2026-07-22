@@ -4,7 +4,7 @@ import * as domain from '@tloncorp/shared/domain';
 import { Button, LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { useCallback, useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFormState } from 'react-hook-form';
 import { View, YStack } from 'tamagui';
 
 import { useStore } from '../contexts/storeContext';
@@ -79,6 +79,7 @@ function SubmitPhoneNumPane(props: { attestation: db.Attestation | null }) {
       phoneNumber: '',
     },
   });
+  const { isValid } = useFormState({ control: phoneForm.control });
 
   const onSubmit = useCallback(async () => {
     try {
@@ -133,7 +134,7 @@ function SubmitPhoneNumPane(props: { attestation: db.Attestation | null }) {
       <Button
         onPress={onSubmit}
         loading={isSubmitting}
-        disabled={isSubmitting || !phoneForm.formState.isValid}
+        disabled={isSubmitting || !isValid}
         marginTop="$2xl"
         label="Connect Phone Number"
         centered
