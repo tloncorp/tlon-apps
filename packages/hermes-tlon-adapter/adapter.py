@@ -199,6 +199,7 @@ from .presence import (
 )
 from .sanitize import (
     ends_with_directive_prefix,
+    find_executable_block_directives,
     find_block_directives,
     strip_block_directives,
     strip_trailing_directive_prefix,
@@ -3864,9 +3865,10 @@ class TlonAdapter(BasePlatformAdapter):
         content: str,
         reply_to: Optional[str],
     ) -> tuple[str, bool]:
-        directives = find_block_directives(content)
-        if not directives:
+        if not find_block_directives(content):
             return content, False
+
+        directives = find_executable_block_directives(content)
 
         reply_id = str(reply_to or "")
         message_key = (chat_id, reply_id)

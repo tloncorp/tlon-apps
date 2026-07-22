@@ -469,6 +469,40 @@ class BlockDirectiveSendTests(unittest.TestCase):
         self.assertEqual(adapter._cli.sent[0][2], "Refused.")
         self.assertNotIn("BLOCK_USER", adapter._cli.sent[0][2])
 
+    def test_correlated_dm_inline_quoted_directive_is_strip_only(self):
+        adapter, _event = self.correlated_adapter()
+
+        result = asyncio.run(
+            adapter.send(
+                "~attacker",
+                "The syntax [BLOCK_USER: ~attacker | example] must be standalone.",
+                reply_to="m1",
+            )
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(self.block_pokes(adapter), [])
+        self.assertEqual(self.notifications(adapter), [])
+        self.assertEqual(
+            adapter._cli.sent[0][2], "The syntax  must be standalone."
+        )
+
+    def test_correlated_dm_whitespace_wrapped_standalone_directive_executes(self):
+        adapter, _event = self.correlated_adapter()
+
+        result = asyncio.run(
+            adapter.send(
+                "~attacker",
+                "Refused.\n  [BLOCK_USER: ~attacker | example] \t",
+                reply_to="m1",
+            )
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(len(self.block_pokes(adapter)), 1)
+        self.assertEqual(len(self.notifications(adapter)), 1)
+        self.assertEqual(adapter._cli.sent[0][2], "Refused.")
+
     def test_directive_block_removes_allowlisted_sender_and_denies_next_dm(self):
         adapter = make_adapter()
         adapter._sse = FakeSSE()
@@ -484,7 +518,7 @@ class BlockDirectiveSendTests(unittest.TestCase):
         async def run_scenario():
             await adapter._handle_dm_event(dm_event("first", message_id="m1"))
             result = await adapter.send(
-                "~attacker", "Blocked. " + self.directive, reply_to="m1"
+                "~attacker", "Blocked.\n" + self.directive, reply_to="m1"
             )
             await adapter._handle_dm_event(dm_event("second", message_id="m2"))
             return result
@@ -539,7 +573,7 @@ class BlockDirectiveSendTests(unittest.TestCase):
         adapter, _event = self.correlated_adapter(extra={"owner_ship": "~MuG"})
         raw_secret = "DO NOT LOG THIS REASON"
         content = (
-            f"safe [BLOCK_USER: ~mUg | {raw_secret}] "
+            f"safe\n[BLOCK_USER: ~mUg | {raw_secret}]\n"
             f"[BLOCK_USER: ~third-party | {raw_secret}]"
         )
 
@@ -587,7 +621,9 @@ class BlockDirectiveSendTests(unittest.TestCase):
                     )
                 with self.assertLogs(adapter_mod.logger, level="WARNING") as captured:
                     result = asyncio.run(
-                        adapter.send(chat_id, "visible " + self.directive, reply_to=reply_to)
+                        adapter.send(
+                            chat_id, "visible\n" + self.directive, reply_to=reply_to
+                        )
                     )
                 self.assertTrue(result.success)
                 self.assertEqual(self.block_pokes(adapter), [])
@@ -643,8 +679,8 @@ class BlockDirectiveSendTests(unittest.TestCase):
     def test_multiple_directives_are_all_evaluated_and_stripped(self):
         adapter, _event = self.correlated_adapter()
         content = (
-            "visible [BLOCK_USER: ~third | no] "
-            "[BLOCK_USER: ~attacker | yes] "
+            "visible\n[BLOCK_USER: ~third | no]\n"
+            "[BLOCK_USER: ~attacker | yes]\n"
             "[BLOCK_USER: ~attacker | duplicate]"
         )
 
@@ -678,7 +714,9 @@ class BlockDirectiveSendTests(unittest.TestCase):
         )
 
         result = asyncio.run(
-            adapter.send("~attacker", "still visible " + self.directive, reply_to="m1")
+            adapter.send(
+                "~attacker", "still visible\n" + self.directive, reply_to="m1"
+            )
         )
 
         self.assertTrue(result.success)
@@ -706,10 +744,10 @@ class BlockDirectiveSendTests(unittest.TestCase):
         async def send_concurrently():
             return await asyncio.gather(
                 adapter.send(
-                    "~attacker", "first " + self.directive, reply_to="m1"
+                    "~attacker", "first\n" + self.directive, reply_to="m1"
                 ),
                 adapter.send(
-                    "~attacker", "second " + self.directive, reply_to="m1"
+                    "~attacker", "second\n" + self.directive, reply_to="m1"
                 ),
             )
 
@@ -734,7 +772,7 @@ class BlockDirectiveSendTests(unittest.TestCase):
         async def send_around_disconnect():
             send_task = asyncio.create_task(
                 adapter.send(
-                    "~attacker", "visible " + self.directive, reply_to="m1"
+                    "~attacker", "visible\n" + self.directive, reply_to="m1"
                 )
             )
             await poke_started.wait()
@@ -761,10 +799,10 @@ class BlockDirectiveSendTests(unittest.TestCase):
         )
 
         first = asyncio.run(
-            adapter.send("~attacker", "visible " + self.directive, reply_to="m1")
+            adapter.send("~attacker", "visible\n" + self.directive, reply_to="m1")
         )
         second = asyncio.run(
-            adapter.send("~attacker", "visible " + self.directive, reply_to="m1")
+            adapter.send("~attacker", "visible\n" + self.directive, reply_to="m1")
         )
 
         self.assertFalse(first.success)
@@ -775,7 +813,7 @@ class BlockDirectiveSendTests(unittest.TestCase):
 
         dispatch(adapter, "~attacker", "~attacker", "m1")
         third = asyncio.run(
-            adapter.send("~attacker", "new reply " + self.directive, reply_to="m1")
+            adapter.send("~attacker", "new reply\n" + self.directive, reply_to="m1")
         )
         self.assertTrue(third.success)
         self.assertEqual(len(self.block_pokes(adapter)), 2)
@@ -786,7 +824,7 @@ class BlockDirectiveSendTests(unittest.TestCase):
         asyncio.run(adapter.on_processing_complete(event, None))
 
         result = asyncio.run(
-            adapter.send("~attacker", "visible " + self.directive, reply_to="m1")
+            adapter.send("~attacker", "visible\n" + self.directive, reply_to="m1")
         )
         self.assertTrue(result.success)
         self.assertEqual(self.block_pokes(adapter), [])
@@ -805,7 +843,7 @@ class BlockDirectiveSendTests(unittest.TestCase):
                 )
             )
         result = asyncio.run(
-            adapter.send("~attacker", "visible " + self.directive, reply_to="m2")
+            adapter.send("~attacker", "visible\n" + self.directive, reply_to="m2")
         )
         self.assertTrue(result.success)
         self.assertEqual(self.block_pokes(adapter), [])
@@ -813,7 +851,7 @@ class BlockDirectiveSendTests(unittest.TestCase):
     def test_disconnect_clears_both_dispatch_state_maps(self):
         adapter, _event = self.correlated_adapter()
         asyncio.run(
-            adapter.send("~attacker", "visible " + self.directive, reply_to="m1")
+            adapter.send("~attacker", "visible\n" + self.directive, reply_to="m1")
         )
         self.assertTrue(adapter._inflight_senders)
         self.assertTrue(adapter._executed_block_directives)
@@ -830,10 +868,10 @@ class BlockDirectiveSendTests(unittest.TestCase):
         dispatch(adapter, "~attacker", "~attacker", "m1")
         dispatch(adapter, "~attacker", "~attacker", "m2")
         asyncio.run(
-            adapter.send("~attacker", "two " + self.directive, reply_to="m2")
+            adapter.send("~attacker", "two\n" + self.directive, reply_to="m2")
         )
         asyncio.run(
-            adapter.send("~attacker", "one " + self.directive, reply_to="m1")
+            adapter.send("~attacker", "one\n" + self.directive, reply_to="m1")
         )
 
         dispatch(adapter, "~attacker", "~attacker", "m3")
@@ -849,7 +887,7 @@ class BlockDirectiveSendTests(unittest.TestCase):
             adapter._executed_block_directives,
         )
         asyncio.run(
-            adapter.send("~attacker", "retry " + self.directive, reply_to="m2")
+            adapter.send("~attacker", "retry\n" + self.directive, reply_to="m2")
         )
         self.assertEqual(len(self.block_pokes(adapter)), 2)
 
@@ -859,7 +897,7 @@ class BlockDirectiveSendTests(unittest.TestCase):
             adapter._executed_block_directives,
         )
         asyncio.run(
-            adapter.send("~attacker", "fresh " + self.directive, reply_to="m2")
+            adapter.send("~attacker", "fresh\n" + self.directive, reply_to="m2")
         )
         self.assertEqual(len(self.block_pokes(adapter)), 3)
 
@@ -923,7 +961,7 @@ class BlockDirectiveSendTests(unittest.TestCase):
         first = asyncio.run(adapter.send("~attacker", self.directive, reply_to=None))
         followup = asyncio.run(
             adapter.send(
-                "~attacker", "refused " + self.directive, reply_to="outer"
+                "~attacker", "refused\n" + self.directive, reply_to="outer"
             )
         )
         self.assertTrue(first.success)

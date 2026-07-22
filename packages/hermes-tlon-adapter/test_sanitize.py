@@ -53,6 +53,24 @@ class BlockDirectiveTests(unittest.TestCase):
         self.assertFalse(sanitize.ends_with_directive_prefix(text))
         self.assertEqual(sanitize.strip_trailing_directive_prefix(text), (text, False))
 
+    def test_executable_directives_must_be_standalone(self):
+        inline = "The syntax [BLOCK_USER: ~zod | example] must be on its own line."
+        standalone = "Before\n  [BLOCK_USER: ~zod | example] \t\nAfter"
+
+        self.assertEqual(sanitize.find_executable_block_directives(inline), [])
+        self.assertEqual(
+            sanitize.find_executable_block_directives(standalone),
+            [("~zod", "example")],
+        )
+
+    def test_executable_directive_allows_multiline_reason(self):
+        text = "Before\n[BLOCK_USER: ~zod | prompt\ninjection]\nAfter"
+
+        self.assertEqual(
+            sanitize.find_executable_block_directives(text),
+            [("~zod", "prompt\ninjection")],
+        )
+
     def test_galaxy_planet_and_moon_names(self):
         ships = ("~zod", "~sampel-palnet", "~doznec-salfun-naptel-haswyn")
         text = " ".join(f"[BLOCK_USER: {ship} | abuse]" for ship in ships)
