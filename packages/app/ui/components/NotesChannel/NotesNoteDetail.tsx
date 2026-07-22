@@ -1,4 +1,5 @@
 import {
+  NotesNoteConflictError,
   convertContent,
   markdownToStory,
   normalizeNotebookNoteTitle,
@@ -241,6 +242,13 @@ export function NotesNoteDetail({
   const [bodyInputWidth, setBodyInputWidth] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
+  // The host's copy of the note after a save hit a genuine revision
+  // conflict. While set, autosave is suspended and the banner offers the
+  // user the resolution (keep mine / use theirs) — a blind retry can never
+  // succeed since the editor's base revision is stale by definition.
+  const [conflictNote, setConflictNote] = useState<
+    NotesNoteConflictError['remoteNote'] | null
+  >(null);
   const [isPreviewing, setPreviewMode] = useNotePreviewMode(
     notebookFlag,
     noteId,
@@ -432,6 +440,7 @@ export function NotesNoteDetail({
     if (!sameNote) {
       setSaveState('idle');
       setError(null);
+      setConflictNote(null);
     }
   }, [draftBase, isDirty, preserveScrollOffset, selectedNote]);
 
@@ -484,68 +493,132 @@ export function NotesNoteDetail({
     []
   );
 
-  const saveSelectedNote = useCallback(async () => {
-    if (!notebookFlag || !draftBase || !canEdit) return false;
-    const bodyToSave = bodyDraftRef.current;
-    const dirty =
-      normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
-      bodyToSave !== draftBase.bodyMd;
-    if (!dirty) return true;
-    preserveScrollOffset();
-    setSaveState('saving');
+  const saveSelectedNote = useCallback(
+    async (baseOverride?: db.NotesNote) => {
+      const base = baseOverride ?? draftBase;
+      if (!notebookFlag || !base || !canEdit) return false;
+      const bodyToSave = bodyDraftRef.current;
+      const dirty =
+        normalizeNotebookNoteTitle(titleDraft) !== base.title ||
+        bodyToSave !== base.bodyMd;
+      if (!dirty) return true;
+      preserveScrollOffset();
+      setSaveState('saving');
+      setError(null);
+      rememberNotesNoteDraftSnapshot({
+        notebookFlag,
+        noteId: base.noteId,
+        title: titleDraft,
+        body: bodyToSave,
+        isDirty: true,
+        updatedAt: Date.now(),
+      });
+      try {
+        const updated = await runSave(
+          notebookFlag,
+          base,
+          titleDraft,
+          bodyToSave
+        );
+        // Rebase onto the saved revision; keystrokes typed during the save
+        // leave the drafts dirty against it, so the next cycle saves them.
+        if (updated) {
+          setDraftBase(updated);
+        }
+        clearDraftStash(notebookFlag, base.noteId, {
+          title: titleDraft,
+          body: bodyToSave,
+        });
+        clearMatchingNotesNoteDraftSnapshot({
+          notebookFlag,
+          noteId: base.noteId,
+          title: titleDraft,
+          body: bodyToSave,
+        });
+        setSaveState('saved');
+        return true;
+      } catch (e) {
+        setSaveState('error');
+        const message = errorMessage(e, 'Failed to save note');
+        trackNotesActionError('save note', e, message, {
+          noteId: base.noteId,
+        });
+        setError(message);
+        if (e instanceof NotesNoteConflictError) {
+          setConflictNote(e.remoteNote);
+        }
+        return false;
+      }
+    },
+    [
+      canEdit,
+      draftBase,
+      notebookFlag,
+      preserveScrollOffset,
+      runSave,
+      titleDraft,
+    ]
+  );
+
+  // Genuine conflict resolution, mirroring the ship-served notes app: the
+  // user picks a side. "Keep mine" rebases the editor's base onto the
+  // host's copy (so the next save asserts the host revision) and saves the
+  // drafts over it; "Use theirs" adopts the host's copy and discards the
+  // local drafts.
+  const rebaseDraftOnConflict = useCallback(
+    (base: db.NotesNote, remote: NotesNoteConflictError['remoteNote']) => ({
+      ...base,
+      title: remote.title ?? base.title,
+      bodyMd: remote.bodyMd ?? base.bodyMd,
+      revision: remote.revision ?? base.revision,
+      updatedAt: remote.updatedAt ?? base.updatedAt,
+      updatedBy: remote.updatedBy ?? base.updatedBy,
+    }),
+    []
+  );
+
+  const resolveConflictKeepMine = useCallback(() => {
+    if (!conflictNote || !draftBase) return;
+    const rebased = rebaseDraftOnConflict(draftBase, conflictNote);
+    setConflictNote(null);
     setError(null);
-    rememberNotesNoteDraftSnapshot({
+    setDraftBase(rebased);
+    void saveSelectedNote(rebased);
+  }, [conflictNote, draftBase, rebaseDraftOnConflict, saveSelectedNote]);
+
+  const resolveConflictUseTheirs = useCallback(() => {
+    if (!conflictNote || !draftBase || !notebookFlag) return;
+    const adopted = rebaseDraftOnConflict(draftBase, conflictNote);
+    setConflictNote(null);
+    setError(null);
+    setDraftBase(adopted);
+    setTitleDraft(adopted.title);
+    setBodyDraft(adopted.bodyMd);
+    // Drop the crash-insurance stashes for the discarded drafts, or the
+    // restore effect would resurrect them against the adopted revision.
+    clearDraftStash(notebookFlag, draftBase.noteId, {
+      title: titleDraft,
+      body: bodyDraftRef.current,
+    });
+    clearMatchingNotesNoteDraftSnapshot({
       notebookFlag,
       noteId: draftBase.noteId,
       title: titleDraft,
-      body: bodyToSave,
-      isDirty: true,
-      updatedAt: Date.now(),
+      body: bodyDraftRef.current,
     });
-    try {
-      const updated = await runSave(
-        notebookFlag,
-        draftBase,
-        titleDraft,
-        bodyToSave
-      );
-      // Rebase onto the saved revision; keystrokes typed during the save
-      // leave the drafts dirty against it, so the next cycle saves them.
-      if (updated) {
-        setDraftBase(updated);
-      }
-      clearDraftStash(notebookFlag, draftBase.noteId, {
-        title: titleDraft,
-        body: bodyToSave,
-      });
-      clearMatchingNotesNoteDraftSnapshot({
-        notebookFlag,
-        noteId: draftBase.noteId,
-        title: titleDraft,
-        body: bodyToSave,
-      });
-      setSaveState('saved');
-      return true;
-    } catch (e) {
-      setSaveState('error');
-      const message = errorMessage(e, 'Failed to save note');
-      trackNotesActionError('save note', e, message, {
-        noteId: draftBase.noteId,
-      });
-      setError(message);
-      return false;
-    }
+    setSaveState('idle');
   }, [
-    canEdit,
+    conflictNote,
     draftBase,
     notebookFlag,
-    preserveScrollOffset,
-    runSave,
+    rebaseDraftOnConflict,
     titleDraft,
   ]);
 
   useEffect(() => {
-    if (!canEdit || saveState === 'saving') return;
+    // A pending conflict suspends autosave: retrying against a stale base
+    // can never succeed, and the user hasn't picked a side yet.
+    if (!canEdit || saveState === 'saving' || conflictNote) return;
     if (!isDirty) {
       // Edits were reverted back to the saved content; there's nothing to
       // save, so don't leave a stale "Not synced" showing.
@@ -559,7 +632,7 @@ export function NotesNoteDetail({
       saveSelectedNote();
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timeout);
-  }, [canEdit, isDirty, saveSelectedNote, saveState]);
+  }, [canEdit, conflictNote, isDirty, saveSelectedNote, saveState]);
 
   // Save target for flushes that run outside the React data flow (unmount
   // cleanup, AppState changes). Synced in an effect so a selection-change
@@ -616,7 +689,15 @@ export function NotesNoteDetail({
         }
         setSaveState('saved');
       })
-      .catch(() => {});
+      .catch((e) => {
+        // No-ops after unmount; while mounted, surface a conflict so the
+        // resolution banner appears instead of a silently-failed flush.
+        if (e instanceof NotesNoteConflictError) {
+          setConflictNote(e.remoteNote);
+          setError(e.message);
+          setSaveState('error');
+        }
+      });
   }, [preserveScrollOffset, runSave]);
 
   // Flush unsaved work when switching notes or unmounting — the poke
@@ -818,7 +899,20 @@ export function NotesNoteDetail({
 
   return (
     <YStack flex={1} backgroundColor="$background">
-      {error ? <NotesBanner message={error} tone="negative" /> : null}
+      {error ? (
+        <NotesBanner
+          message={error}
+          tone="negative"
+          actions={
+            conflictNote
+              ? [
+                  { label: 'Keep mine', onPress: resolveConflictKeepMine },
+                  { label: 'Use theirs', onPress: resolveConflictUseTheirs },
+                ]
+              : undefined
+          }
+        />
+      ) : null}
       <ScrollView
         ref={scrollViewRef}
         flex={1}

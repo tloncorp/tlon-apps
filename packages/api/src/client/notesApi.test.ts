@@ -10,6 +10,7 @@ import {
 
 import {
   NotesV1PendingWriteError,
+  NotesV1WriteError,
   deleteNotesNotebookBestEffort,
   deleteNotesNotebookStrict,
   formatNotesFlag,
@@ -585,6 +586,53 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
       '/notes/~/v1/notebooks/~zod/blog/notes/12',
       'PUT',
       { body: 'x' }
+    );
+  });
+
+  test('updateNoteBody surfaces a typed conflict error with a tang message', async () => {
+    requestJsonMock.mockResolvedValue({
+      requestId: '0vconflict',
+      body: {
+        type: 'error',
+        errorType: 'conflict',
+        message: ['revision-mismatch: expected 2, current 3'],
+      },
+    });
+
+    const error = await rejectionError(
+      notesV1.updateNoteBody({
+        flag: 'notes/~zod/blog',
+        noteId: 12,
+        body: 'x',
+        expectedRevision: 2,
+      })
+    );
+
+    expect(error).toBeInstanceOf(NotesV1WriteError);
+    const writeError = error as NotesV1WriteError;
+    expect(writeError.errorType).toBe('conflict');
+    expect(writeError.message).toBe(
+      '%notes error: revision-mismatch: expected 2, current 3'
+    );
+  });
+
+  test('error envelopes without errorType still throw with a message', async () => {
+    requestJsonMock.mockResolvedValue({
+      body: { type: 'error', message: 'not-authorized' },
+    });
+
+    const error = await rejectionError(
+      notesV1.updateNoteBody({
+        flag: 'notes/~zod/blog',
+        noteId: 12,
+        body: 'x',
+      })
+    );
+
+    expect(error).toBeInstanceOf(NotesV1WriteError);
+    expect((error as NotesV1WriteError).errorType).toBeUndefined();
+    expect((error as NotesV1WriteError).message).toBe(
+      '%notes error: not-authorized'
     );
   });
 

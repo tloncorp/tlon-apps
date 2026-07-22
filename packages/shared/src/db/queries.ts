@@ -555,6 +555,37 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
   ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
 );
 
+export const updateNotesNote = createWriteQuery(
+  'updateNotesNote',
+  async (
+    {
+      notebookFlag,
+      noteId,
+      ...update
+    }: {
+      notebookFlag: string;
+      noteId: number;
+    } & Partial<
+      Pick<
+        NotesNote,
+        'bodyMd' | 'revision' | 'title' | 'updatedAt' | 'updatedBy'
+      >
+    >,
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($notesNotes)
+      .set(update)
+      .where(
+        and(
+          eq($notesNotes.notebookFlag, notebookFlag),
+          eq($notesNotes.noteId, noteId)
+        )
+      );
+  },
+  ['notesNotes']
+);
+
 export const deleteNotesNote = createWriteQuery(
   'deleteNotesNote',
   async (

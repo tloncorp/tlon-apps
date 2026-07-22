@@ -419,12 +419,7 @@ export async function saveNotebookNote({
   // The body update must land before the rename: it asserts expectedRevision,
   // which any other mutation would invalidate. Don't parallelize these.
   if (shouldUpdateBody) {
-    await api.notes.updateNoteBody({
-      flag: notebookFlag,
-      noteId: note.noteId,
-      body,
-      expectedRevision: note.revision,
-    });
+    await updateNotebookNoteBody({ notebookFlag, note, body });
   }
 
   if (shouldRename) {
@@ -450,6 +445,100 @@ export async function saveNotebookNote({
       : undefined
   );
   return db.getNotesNote({ notebookFlag, noteId: note.noteId });
+}
+
+// A revision conflict that isn't ours to auto-resolve: the note on the host
+// diverged from the editor's base. Carries the host's copy so the UI can
+// offer a real resolution instead of a blind retry (which can never succeed —
+// the editor's base revision stays stale while it holds unsaved changes).
+export class NotesNoteConflictError extends Error {
+  readonly remoteNote: api.NotesNote;
+
+  constructor(remoteNote: api.NotesNote) {
+    super('This note was changed elsewhere. Your unsaved changes are kept.');
+    this.name = 'NotesNoteConflictError';
+    this.remoteNote = remoteNote;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+// Body content this client last successfully sent per note. Used to recognize
+// a revision conflict caused by our *own* already-applied write — e.g. the
+// read-back after an earlier save never landed locally — which is safe to
+// rebase over, unlike a genuinely divergent remote edit.
+const lastSavedNoteBody = new Map<string, string>();
+
+async function updateNotebookNoteBody({
+  notebookFlag,
+  note,
+  body,
+}: {
+  notebookFlag: string;
+  note: db.NotesNote;
+  body: string;
+}) {
+  const noteKey = `${notebookFlag}/${note.noteId}`;
+  const expectedRevision = note.revision;
+  try {
+    await api.notes.updateNoteBody({
+      flag: notebookFlag,
+      noteId: note.noteId,
+      body,
+      expectedRevision,
+    });
+  } catch (e) {
+    if (!api.isNotesV1ConflictError(e)) {
+      throw e;
+    }
+    const remote = await api.notes.getNote({
+      flag: notebookFlag,
+      noteId: note.noteId,
+    });
+    const remoteRevision = remote.revision ?? 0;
+    if (remote.bodyMd === body) {
+      // Our exact content is already on the host (an unload flush or an
+      // earlier retry landed) — nothing left to send.
+      lastSavedNoteBody.set(noteKey, body);
+      await persistNoteWrite(notebookFlag, note.noteId, body, remoteRevision);
+      return;
+    }
+    if (remote.bodyMd === lastSavedNoteBody.get(noteKey)) {
+      // The "conflicting" revision is our own previous save whose read-back
+      // never landed locally. The draft evolved from that content, so
+      // rebasing onto the host's revision loses nothing.
+      await api.notes.updateNoteBody({
+        flag: notebookFlag,
+        noteId: note.noteId,
+        body,
+        expectedRevision: remoteRevision,
+      });
+      lastSavedNoteBody.set(noteKey, body);
+      await persistNoteWrite(
+        notebookFlag,
+        note.noteId,
+        body,
+        remoteRevision + 1
+      );
+      return;
+    }
+    throw new NotesNoteConflictError(remote);
+  }
+  lastSavedNoteBody.set(noteKey, body);
+  await persistNoteWrite(notebookFlag, note.noteId, body, expectedRevision + 1);
+}
+
+// A successful body update moves the note to exactly expectedRevision + 1
+// (the host bumps by one). Persist that immediately instead of relying on
+// the snapshot read-back: the post-save poll gives up silently when replica
+// propagation is slow, and a save that reports success while leaving the
+// stale revision in the local DB wedges every later save on a conflict.
+async function persistNoteWrite(
+  notebookFlag: string,
+  noteId: number,
+  bodyMd: string,
+  revision: number
+) {
+  await db.updateNotesNote({ notebookFlag, noteId, bodyMd, revision });
 }
 
 export async function publishNotebookNote({
