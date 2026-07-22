@@ -390,9 +390,9 @@ suspend_desk %webterm
 
 mount_desk %base
 
-# Prevent spurious patch failure
+git -C ./urbit-git restore pkg/base-dev/sur/aquarium.hoon
 
-if ! patch --merge ./urbit-git/pkg/base-dev/sur/aquarium.hoon < ./aqua.patch
+if ! patch ./urbit-git/pkg/base-dev/sur/aquarium.hoon < ./aqua.patch
 then
     fatal "Failed to patch /sur/aquarium.hoon"
 fi
