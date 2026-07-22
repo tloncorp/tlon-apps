@@ -70,8 +70,12 @@ run_thread() {
     then
         echo $result
         cat $out_file >&2
-        fatal "Thread failed: $desc"
+		rm $out_file
+        
+		fatal "Thread failed: $desc"
     else
+		rm $out_file
+
         echo "➡️ $desc" >&2
 
         echo $result | sed 's/\[0 %avow 0 %noun \(.\+\)\]/\1/'
@@ -350,8 +354,8 @@ vere_pid=$!
 
 stop_vere() {
     echo "Shutting down vere $vere_pid"
-    kill -TERM $vere_pid
-	wait $vere_pid
+    kill -TERM $vere_pid 2> /dev/null || true
+    wait $vere_pid || true
 }
 
 function await_ship
@@ -438,7 +442,8 @@ then
     fi
 fi
 
-pill_name="groups-${base_rev//\//-}-$groups_hash"
+safe_base_rev=$(printf '%s' "$base_rev" | tr './' '-')
+pill_name="groups-$safe_base_rev-$groups_hash"
 pill_file=$pill_name.pill
 
 if [[ ! -e ./$pill_file ]]
