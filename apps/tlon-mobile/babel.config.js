@@ -32,7 +32,7 @@ module.exports = function (api) {
               reactCompilerEnvironment !== 'production',
           },
           panicThreshold:
-            reactCompilerEnvironment === 'production' ? 'NONE' : undefined,
+            reactCompilerEnvironment === 'production' ? 'none' : undefined,
           customOptOutDirectives: ['widget', 'use no memo', 'use no forget'],
         },
       ],
