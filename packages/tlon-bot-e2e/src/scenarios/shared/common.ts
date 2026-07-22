@@ -3,7 +3,10 @@ import { expect } from 'vitest';
 import type { RuntimeContext } from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import {
+  connectComposeNetwork,
+  disconnectComposeNetwork,
   execInComposeService,
+  readComposeServiceLogs,
   startComposeService,
   stopComposeService,
 } from '../../runtime/docker-direct.js';
@@ -1196,6 +1199,78 @@ export const commonScenarios: readonly SharedScenario[] = [
         afterResetScript
       );
       await expectNoModelCalls(ctx.fakeModel, droppedKey);
+    }
+  ),
+
+  testScenario(
+    'sse-resume-replays-events-missed-while-disconnected',
+    { drivers: ['hermes'], orderDependent: true, timeoutMs: 300_000 },
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await openChannelAccess(actors, fixture.channelId);
+
+      const key = scenarioKey('sse-resume');
+      const reply = `SSE resume reply ${key}`;
+      const script = driver.model.replyText(reply);
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+
+      const baseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+
+      const since = new Date().toISOString();
+
+      await disconnectComposeNetwork(ctx, ctx.services.bot);
+      let reconnected = false;
+      actors.bot.teardown(
+        async () => {
+          if (!reconnected) {
+            await connectComposeNetwork(ctx, ctx.services.bot);
+          }
+        },
+        { label: `reconnect network for ${ctx.services.bot}` }
+      );
+
+      await actors.owner.sendChannelPost({
+        channelId: fixture.channelId,
+        content: storyWithMention(
+          actors.bot.ship,
+          `${tag} Mention while the bot is disconnected.`
+        ),
+      });
+
+      // The stream fault surfaces as the sock_read timeout (~60 s, see
+      // TLON_SSE_READ_TIMEOUT_SECONDS in drivers/hermes.ts) or immediately as
+      // a reset/EOF. Either way the adapter logs "SSE stream error".
+      await waitFor(
+        async () => {
+          const logs = await readComposeServiceLogs(ctx, ctx.services.bot, {
+            since,
+          });
+          return logs.includes('SSE stream error') ? true : undefined;
+        },
+        {
+          timeoutMs: 120_000,
+          intervalMs: 2_000,
+          description:
+            'SSE stream error in bot logs (confirms the fault occurred)',
+        }
+      );
+
+      await connectComposeNetwork(ctx, ctx.services.bot);
+      reconnected = true;
+
+      await waitForModelCalls(ctx.fakeModel, key);
+      await waitForBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        reply,
+        baseline
+      );
+      await expectModelExpectations(ctx.fakeModel, key, script);
     }
   ),
 ];

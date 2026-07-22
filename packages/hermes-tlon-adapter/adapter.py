@@ -154,6 +154,7 @@ from .tlon_api import (
     DEFAULT_CONTEXT_MESSAGES,
     MAX_MESSAGE_LENGTH,
     TlonAuthError,
+    TlonChannelError,
     TlonCLI,
     TlonConfig,
     TlonGatewayStatus,
@@ -2036,35 +2037,61 @@ class TlonAdapter(BasePlatformAdapter):
             finally:
                 self._sse = None
 
+    def _can_reauthenticate(self) -> bool:
+        return not bool(self.tlon_config.cookie)
+
     async def _run_stream(self) -> None:
         backoff_idx = 0
+
+        def _established() -> None:
+            nonlocal backoff_idx
+            backoff_idx = 0
+
+        async def _backoff_and_report(exc: BaseException, *, mode: str) -> None:
+            nonlocal backoff_idx
+            delay = RECONNECT_BACKOFF_SECONDS[
+                min(backoff_idx, len(RECONNECT_BACKOFF_SECONDS) - 1)
+            ]
+            backoff_idx += 1
+            self._telemetry.sse_reconnect(
+                attempt=backoff_idx, delay_seconds=delay, error=exc, mode=mode
+            )
+            await asyncio.sleep(delay)
+
         while self._running:
             try:
                 if self._sse is None:
-                    await self._connect_sse()
-                    # Settings events do not replay, so re-sync owner-listen
-                    # state after every reconnect.
-                    await self._load_settings_state()
-                    # Native DM invites are likewise missed while disconnected
-                    # (an unknown ship, a now-allowlisted ship, or a flag flip
-                    # that happened during the outage). Catch up, but don't let
-                    # a failure here masquerade as a stream error and cycle
-                    # reconnects.
                     try:
-                        await self._process_pending_dm_invites()
-                    except Exception as exc:
-                        logger.warning(
-                            "[tlon] reconnect invite catch-up failed: %s", exc
-                        )
-                    # Contacts facts do not replay either; catch up on renames
-                    # (or clears) missed while disconnected.
-                    await self._load_bot_profile()
+                        await self._connect_sse()
+                        # Settings events do not replay, so re-sync owner-listen
+                        # state after every reconnect.
+                        await self._load_settings_state()
+                        # Native DM invites are likewise missed while disconnected
+                        # (an unknown ship, a now-allowlisted ship, or a flag flip
+                        # that happened during the outage). Catch up, but don't let
+                        # a failure here masquerade as a stream error and cycle
+                        # reconnects.
+                        try:
+                            await self._process_pending_dm_invites()
+                        except Exception as exc:
+                            logger.warning(
+                                "[tlon] reconnect invite catch-up failed: %s", exc
+                            )
+                        # Contacts facts do not replay either; catch up on renames
+                        # (or clears) missed while disconnected.
+                        await self._load_bot_profile()
+                    except BaseException:
+                        await self._close_sse(graceful=False)
+                        raise
                 assert self._sse is not None
-                async for event in self._sse.events():
-                    if not self._running:
-                        return
-                    backoff_idx = 0
-                    await self._route_stream_event(event)
+                stream = self._sse.events(on_open=_established)
+                try:
+                    async for event in stream:
+                        if not self._running:
+                            return
+                        await self._route_stream_event(event)
+                finally:
+                    await stream.aclose()
             except asyncio.CancelledError:
                 return
             except TlonAuthError as exc:
@@ -2077,17 +2104,29 @@ class TlonAdapter(BasePlatformAdapter):
                 self._telemetry.error("sse", exc, operation="authenticate")
                 self._set_fatal_error("auth", str(exc), retryable=False)
                 return
+            except TlonChannelError as exc:
+                if not self._running:
+                    return
+                if exc.status in (401, 403) and not self._can_reauthenticate():
+                    await self._close_sse(graceful=False)
+                    self._telemetry.error("sse", exc, operation="channel")
+                    self._set_fatal_error("auth", str(exc), retryable=False)
+                    return
+                logger.warning("[tlon] SSE channel lost, rebuilding: %s", exc)
+                await self._close_sse(graceful=False)
+                await _backoff_and_report(exc, mode="rebuild")
             except Exception as exc:
                 if not self._running:
                     return
-                logger.warning("[tlon] SSE stream error: %s", exc)
-                await self._close_sse(graceful=False)
-                delay = RECONNECT_BACKOFF_SECONDS[min(backoff_idx, len(RECONNECT_BACKOFF_SECONDS) - 1)]
-                backoff_idx += 1
-                self._telemetry.sse_reconnect(
-                    attempt=backoff_idx, delay_seconds=delay, error=exc
-                )
-                await asyncio.sleep(delay)
+                if self._sse is None:
+                    logger.warning("[tlon] SSE setup failed, retrying: %s", exc)
+                    await _backoff_and_report(exc, mode="rebuild")
+                else:
+                    logger.warning(
+                        "[tlon] SSE stream error (resuming from event %s): %s",
+                        self._sse.last_heard_event_id, exc,
+                    )
+                    await _backoff_and_report(exc, mode="resume")
 
     async def _route_stream_event(self, event: Any) -> None:
         """Dispatch one SSE event; a handler bug must not masquerade as a

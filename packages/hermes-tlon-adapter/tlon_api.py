@@ -869,6 +869,19 @@ class TlonAuthError(ConnectionError):
     """The ship rejected our credentials (bad access code) — unrecoverable."""
 
 
+class TlonChannelError(ConnectionError):
+    """The Eyre channel or one of its subscriptions is gone; the caller must
+    rebuild the channel rather than resume it.
+
+    `status` is the HTTP status when the fault came from the channel GET, and
+    None when it came from a subscription nack/quit.
+    """
+
+    def __init__(self, message: str, *, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status = status
+
+
 class TlonSSEClient:
     """Eyre SSE channel client for subscriptions."""
 
@@ -885,8 +898,13 @@ class TlonSSEClient:
         # installed). Their nacks/quits are logged and skipped rather than
         # raised, so one dead optional sub can't tear down the whole stream.
         self._optional_subscriptions: set[int] = set()
+        self._last_heard_event_id = -1
         self._last_acked_event_id = -1
         self._ack_threshold = 20
+
+    @property
+    def last_heard_event_id(self) -> int:
+        return self._last_heard_event_id
 
     async def authenticate(self) -> str:
         import aiohttp
@@ -928,6 +946,10 @@ class TlonSSEClient:
             await self.authenticate()
         self.channel_id = f"{int(time.time())}-{uuid.uuid4().hex[:8]}"
         self.channel_url = f"{self.url}/~/channel/{self.channel_id}"
+        self._last_heard_event_id = -1
+        self._last_acked_event_id = -1
+        self._subscriptions.clear()
+        self._optional_subscriptions.clear()
         await self._send_actions(
             [
                 {
@@ -1005,7 +1027,9 @@ class TlonSSEClient:
                 raise ConnectionError(f"Tlon scry failed: HTTP {resp.status} {text[:200]}")
             return await resp.json()
 
-    async def events(self) -> AsyncIterator[TlonSSEEvent]:
+    async def events(
+        self, *, on_open: Optional[Callable[[], None]] = None
+    ) -> AsyncIterator[TlonSSEEvent]:
         import aiohttp
 
         if self.channel_url is None:
@@ -1013,18 +1037,29 @@ class TlonSSEClient:
         assert self._session is not None
         assert self.channel_url is not None
 
+        headers = {"Accept": "text/event-stream"}
+        if self._last_heard_event_id >= 0:
+            headers["Last-Event-ID"] = str(self._last_heard_event_id)
         async with self._session.get(
             self.channel_url,
-            headers={"Accept": "text/event-stream"},
+            headers=headers,
             timeout=aiohttp.ClientTimeout(
                 total=None,
                 sock_read=self.config.sse_read_timeout_seconds,
                 connect=60,
             ),
         ) as resp:
+            if resp.status == 404:
+                raise TlonChannelError("Tlon channel reaped", status=404)
+            if resp.status in (401, 403):
+                raise TlonChannelError(
+                    f"Tlon channel unauthorized: HTTP {resp.status}", status=resp.status
+                )
             if resp.status != 200:
                 text = await resp.text()
                 raise ConnectionError(f"Tlon SSE failed: HTTP {resp.status} {text[:200]}")
+            if on_open is not None:
+                on_open()
 
             buffer = ""
             async for chunk in resp.content.iter_any():
@@ -1096,9 +1131,13 @@ class TlonSSEClient:
             elif line.startswith("data:"):
                 data_parts.append(line.split(":", 1)[1].lstrip())
 
-        if event_id is not None and event_id - self._last_acked_event_id > self._ack_threshold:
-            self._last_acked_event_id = event_id
-            asyncio.create_task(self._ack(event_id))
+        if event_id is not None:
+            if event_id <= self._last_heard_event_id:
+                return None
+            self._last_heard_event_id = event_id
+            if event_id - self._last_acked_event_id > self._ack_threshold:
+                self._last_acked_event_id = event_id
+                asyncio.create_task(self._ack(event_id))
 
         if not data_parts:
             return None
@@ -1126,7 +1165,7 @@ class TlonSSEClient:
                     self._subscriptions.pop(sub_id, None)
                     self._optional_subscriptions.discard(sub_id)
                     return None
-                raise ConnectionError(
+                raise TlonChannelError(
                     f"Tlon subscription failed for {app} {path}: {str(raw.get('err'))[:200]}"
                 )
             return None
@@ -1139,7 +1178,7 @@ class TlonSSEClient:
                 # WAS established and has now dropped (e.g. an agent/desk
                 # reload), so force the reconnect path to re-subscribe rather
                 # than silently going deaf to future facts.
-                raise ConnectionError(f"Tlon subscription quit for {app} {path}")
+                raise TlonChannelError(f"Tlon subscription quit for {app} {path}")
             return None
 
         if response == "poke":

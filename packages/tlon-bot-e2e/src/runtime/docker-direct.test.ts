@@ -3,7 +3,10 @@ import { describe, expect, test, vi } from 'vitest';
 import type { RuntimeContext } from '../drivers/types.js';
 import {
   type DockerCommandRunner,
+  connectComposeNetwork,
+  disconnectComposeNetwork,
   execInComposeService,
+  readComposeServiceLogs,
   resolveComposeContainer,
   restartComposeService,
   startComposeService,
@@ -88,6 +91,68 @@ describe('direct Docker compose-service helpers', () => {
         run
       )
     ).resolves.toMatchObject({ exitCode: 17, stderr: 'cron failed' });
+  });
+
+  test('disconnects a service from the compose network', async () => {
+    const run = commandRunner([{ stdout: 'container-id\n' }, {}]);
+
+    await expect(
+      disconnectComposeNetwork(context(), 'bot', run)
+    ).resolves.toBeUndefined();
+    expect(run).toHaveBeenCalledWith(
+      'docker',
+      ['network', 'disconnect', 'tlon-bot-e2e-unit_default', 'container-id'],
+      expect.objectContaining({ timeoutMs: 60_000 })
+    );
+  });
+
+  test('connects a service to the compose network', async () => {
+    const run = commandRunner([{ stdout: 'container-id\n' }, {}]);
+
+    await expect(
+      connectComposeNetwork(context(), 'bot', run)
+    ).resolves.toBeUndefined();
+    expect(run).toHaveBeenCalledWith(
+      'docker',
+      ['network', 'connect', 'tlon-bot-e2e-unit_default', 'container-id'],
+      expect.objectContaining({ timeoutMs: 60_000 })
+    );
+  });
+
+  test('reads service logs combining stdout and stderr with --since', async () => {
+    const run = commandRunner([
+      { stdout: 'container-id\n' },
+      { stdout: 'line1\n', stderr: 'line2\n' },
+    ]);
+
+    const logs = await readComposeServiceLogs(
+      context(),
+      'bot',
+      { since: '2026-07-21T00:00:00.000Z' },
+      run
+    );
+    expect(logs).toBe('line1\n\nline2\n');
+    expect(run).toHaveBeenCalledWith(
+      'docker',
+      ['logs', '--since', '2026-07-21T00:00:00.000Z', 'container-id'],
+      expect.objectContaining({ timeoutMs: 60_000 })
+    );
+  });
+
+  test('readComposeServiceLogs fails loudly on nonzero exit', async () => {
+    const run = commandRunner([
+      { stdout: 'container-id\n' },
+      { stdout: '', stderr: 'no such container', exitCode: 1 },
+    ]);
+
+    await expect(
+      readComposeServiceLogs(
+        context(),
+        'bot',
+        { since: '2026-07-21T00:00:00.000Z' },
+        run
+      )
+    ).rejects.toThrow(/read logs for service bot failed/);
   });
 });
 
