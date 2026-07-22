@@ -1,6 +1,9 @@
 module.exports = function (api) {
+  // The mobile fast loop may skip the expensive whole-app compilers during
+  // iteration. Normal builds and final validation keep both enabled.
   const reactCompilerEnvironment = api.caller((caller) => {
     if (
+      process.env.TLON_REACT_COMPILER_DISABLED === '1' ||
       !caller?.supportsReactCompiler ||
       caller.isNodeModule ||
       caller.isServer ||
@@ -10,6 +13,8 @@ module.exports = function (api) {
     }
     return caller.isDev === false ? 'production' : 'development';
   });
+  const disableTamaguiCompiler =
+    process.env.TLON_TAMAGUI_COMPILER_DISABLED === '1';
 
   return {
     presets: [
@@ -43,7 +48,7 @@ module.exports = function (api) {
           extensions: ['.sql'],
         },
       ],
-      [
+      !disableTamaguiCompiler && [
         '@tamagui/babel-plugin',
         {
           config: './tamagui.config.ts',
