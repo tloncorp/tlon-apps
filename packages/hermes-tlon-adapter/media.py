@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Optional, Sequence
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
+from .sanitize import strip_block_directives
+
 logger = logging.getLogger(__name__)
 
 MAX_BLOB_DOWNLOAD_BYTES = 100 * 1024 * 1024
@@ -296,10 +298,13 @@ async def prepare_inbound_media(
             continue
 
         mime_type = _clean_mime(media.mime_type) or _clean_mime(fetched.content_type)
-        filename = (
+        selected_filename = (
             media.filename
             or fetched.filename
             or _filename_from_url(fetched.final_url or media.uri)
+        )
+        filename = (
+            strip_block_directives(selected_filename).strip()
             or _fallback_filename(media, mime_type)
         )
         try:

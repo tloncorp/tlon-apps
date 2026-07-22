@@ -197,6 +197,13 @@ from .presence import (
     handle_pre_tool_call,
     set_active_computing_presence_tracker,
 )
+from .sanitize import (
+    ends_with_directive_prefix,
+    find_executable_block_directives,
+    find_block_directives,
+    strip_block_directives,
+    strip_trailing_directive_prefix,
+)
 from .tlon_tool import (
     CREDENTIAL_FLAGS_WITH_VALUE,
     TLON_TOOL_DESCRIPTION,
@@ -300,6 +307,7 @@ _NUDGE_SNAPSHOT_FIELDS = {
 # transport backpressure rather than accumulating unbounded work under
 # sustained overload.
 _STREAM_EVENT_QUEUE_MAXSIZE = 1024
+_OWNER_BLOCK_REASON_MAX_CHARS = 500
 
 try:
     import aiohttp as _aiohttp  # noqa: F401
@@ -826,6 +834,8 @@ class ReactionState:
 
 class TlonAdapter(BasePlatformAdapter):
     MAX_MESSAGE_LENGTH = MAX_MESSAGE_LENGTH
+    SUPPORTS_MESSAGE_EDITING = False
+    _DISPATCH_STATE_CAPACITY = 1000
     # Tell Hermes' DeliveryRouter not to truncate before calling send(); this
     # adapter preserves oversized replies by splitting them into Tlon posts.
     splits_long_messages = True
@@ -937,6 +947,10 @@ class TlonAdapter(BasePlatformAdapter):
         self._known_bot_ships: set[str] = set()
         self._known_bot_consecutive_by_channel: dict[str, int] = {}
         self._pending_bot_cap_addendum: dict[str, tuple[str, str]] = {}
+        self._inflight_senders: OrderedDict[tuple[str, str], str] = OrderedDict()
+        self._executed_block_directives: OrderedDict[
+            tuple[str, str, str], None
+        ] = OrderedDict()
         # Lens output IDs derive from --sent-at. Reserve strictly increasing
         # values so quick consecutive sends cannot collide on the same post ID.
         self._last_lens_sent_at = 0
@@ -1111,6 +1125,12 @@ class TlonAdapter(BasePlatformAdapter):
         self._known_bot_ships.clear()
         self._known_bot_consecutive_by_channel.clear()
         self._pending_bot_cap_addendum.clear()
+        for message_key in list(self._inflight_senders):
+            self._remove_dispatch_state(message_key)
+        for directive_key in list(self._executed_block_directives):
+            self._remove_dispatch_state(directive_key[:2])
+        self._inflight_senders.clear()
+        self._executed_block_directives.clear()
         self._reaction_state.clear()
         self._message_cache.clear()
         self._pending_reaction_notes.clear()
@@ -1584,7 +1604,9 @@ class TlonAdapter(BasePlatformAdapter):
         ``clean_text`` is the inbound text BEFORE media/context enrichment, so a
         retry re-runs _prepare_dispatch_payload / _with_group_context cleanly.
         """
-        seed: dict[str, Any] = {"messageText": clean_text or ""}
+        seed: dict[str, Any] = {
+            "messageText": strip_block_directives(clean_text)
+        }
         if message.blob:
             seed["blobField"] = message.blob
         if message.content is not None:
@@ -1598,17 +1620,27 @@ class TlonAdapter(BasePlatformAdapter):
     @staticmethod
     def _message_preview_text(message: TlonIncomingMessage, text: str) -> str:
         preview = render_content_with_blob(text, message.blob, compact=False).strip()
+        preview = strip_block_directives(preview).strip()
         return preview or "[attachment]"
 
-    async def _queue_dm_approval(self, message: TlonIncomingMessage) -> None:
+    async def _queue_dm_approval(
+        self, message: TlonIncomingMessage, clean_text: str
+    ) -> None:
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
             return
+        if not clean_text.strip() and not message.blob:
+            logger.info(
+                "[tlon] ignoring empty request after sanitization from unauthorized ship"
+            )
+            return
+        original = self._original_message_payload(message)
+        original["messageText"] = clean_text
         await self._queue_approval(
             approval_kind="dm",
             requesting_ship=message.user_id,
-            message_preview=self._message_preview_text(message, message.text),
-            original_message=self._original_message_payload(message),
+            message_preview=self._message_preview_text(message, clean_text),
+            original_message=original,
         )
 
     async def _queue_channel_approval(
@@ -1616,6 +1648,11 @@ class TlonAdapter(BasePlatformAdapter):
     ) -> None:
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
+            return
+        if not clean_text.strip() and not message.blob:
+            logger.info(
+                "[tlon] ignoring empty request after sanitization from unauthorized ship"
+            )
             return
         original = self._original_message_payload(message)
         original["messageText"] = clean_text
@@ -1728,12 +1765,51 @@ class TlonAdapter(BasePlatformAdapter):
                 requestType=approval_type(approval),
             )
 
+    async def _notify_owner(
+        self, target: str, reason: str, *, block_succeeded: bool = True
+    ) -> None:
+        owner = self.tlon_config.owner_ship
+        if not owner:
+            return
+        if block_succeeded:
+            action = f"Blocked {target}"
+        else:
+            action = f"Tried to block {target} but the block failed."
+        reason = str(reason or "")
+        if len(reason) > _OWNER_BLOCK_REASON_MAX_CHARS:
+            reason = reason[: _OWNER_BLOCK_REASON_MAX_CHARS - 1].rstrip() + "…"
+        text = f"[Agent Action] {action}\nReason: {reason}"[:MAX_MESSAGE_LENGTH]
+        with cli_context("owner_notification"):
+            result = await self._cli.run_command(("posts", "send", owner, text))
+        if not result.success:
+            logger.warning("[tlon] block notification to owner failed")
+            self._telemetry.error(
+                "moderation",
+                result.error or "notification send failed",
+                operation="owner_notification",
+            )
+
     async def _persist_pending_approvals(self) -> None:
         # JSON string, not a raw list of dicts: %settings values cannot hold
         # objects (the poke would be nacked). Matches OpenClaw's encoding.
         await self._persist_settings_entry(
             SETTINGS_KEY_PENDING_APPROVALS, json.dumps(self._pending_approvals)
         )
+
+    async def _drop_pending_approvals_for(
+        self, ship: str, *, types: tuple[str, ...] | None = None
+    ) -> int:
+        remaining = [
+            item
+            for item in self._pending_approvals
+            if approval_ship(item) != ship
+            or (types is not None and approval_type(item) not in types)
+        ]
+        removed = len(self._pending_approvals) - len(remaining)
+        if removed:
+            self._pending_approvals = remaining
+            await self._persist_pending_approvals()
+        return removed
 
     async def _persist_channel_rules(self) -> bool:
         return await self._persist_settings_entry(
@@ -1982,19 +2058,8 @@ class TlonAdapter(BasePlatformAdapter):
         if not await self._block_ship(ship):
             return f"Could not block {ship}."
         await self._remove_from_dm_allowlist(ship)
-        removed = [
-            item
-            for item in self._pending_approvals
-            if approval_ship(item) == ship
-        ]
-        if removed:
-            self._pending_approvals = [
-                item
-                for item in self._pending_approvals
-                if approval_ship(item) != ship
-            ]
-            await self._persist_pending_approvals()
-        suffix = f" Removed {len(removed)} pending request(s)." if removed else ""
+        removed = await self._drop_pending_approvals_for(ship)
+        suffix = f" Removed {removed} pending request(s)." if removed else ""
         self._telemetry.approval_event("banned", "ship")
         return f"Blocked {ship}.{suffix}"
 
@@ -2785,6 +2850,9 @@ class TlonAdapter(BasePlatformAdapter):
         ):
             logger.info("[tlon] ignoring unauthorized reaction from %s", reaction.reactor)
             return
+        if is_dm and await self._is_ship_blocked(reaction.reactor):
+            logger.info("[tlon] ignoring DM reaction from blocked ship")
+            return
 
         target = await self._lookup_reaction_target(reaction, snapshot_cache)
         if self._is_own_reaction_target(reaction, target) and reaction.added:
@@ -2931,6 +2999,7 @@ class TlonAdapter(BasePlatformAdapter):
             message, clean_text, ctx_nest=message.chat_id
         ):
             return
+        sanitized_text = strip_block_directives(clean_text)
 
         is_authorized = self._user_authorized(
             message.user_id, is_dm=False, nest=message.chat_id
@@ -2959,7 +3028,7 @@ class TlonAdapter(BasePlatformAdapter):
         if not decision.dispatch:
             if decision.reason == "unauthorized":
                 if is_mentioned and _is_patp(message.user_id):
-                    await self._queue_channel_approval(message, clean_text)
+                    await self._queue_channel_approval(message, sanitized_text)
                 else:
                     logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
             return
@@ -2980,7 +3049,7 @@ class TlonAdapter(BasePlatformAdapter):
             dispatch_reason=decision.reason,
             prepared_media=prepared_media,
             pending_nudge=nudge_hook.inject_context,
-            retry_seed=self._build_retry_seed(message, clean_text),
+            retry_seed=self._build_retry_seed(message, sanitized_text),
         )
 
     async def _handle_dm_event(
@@ -3018,15 +3087,19 @@ class TlonAdapter(BasePlatformAdapter):
             message, message.text.strip(), ctx_nest=None
         ):
             return
+        sanitized_text = strip_block_directives(message.text)
         if not self._user_authorized(message.user_id, is_dm=True):
             if _is_patp(message.user_id):
-                await self._queue_dm_approval(message)
+                await self._queue_dm_approval(message, sanitized_text)
             else:
                 logger.info(
                     "[tlon] ignoring unauthorized message in %s", message.chat_id
                 )
             return
-        retry_seed = self._build_retry_seed(message, message.text)
+        if await self._is_ship_blocked(message.user_id):
+            logger.info("[tlon] ignoring DM from blocked ship")
+            return
+        retry_seed = self._build_retry_seed(message, sanitized_text)
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(
             message, message.text
         )
@@ -3379,6 +3452,8 @@ class TlonAdapter(BasePlatformAdapter):
         if mark_seen and not self._mark_seen(message):
             return
 
+        message = replace(message, text=strip_block_directives(message.text))
+
         if (
             dispatch_reason == "reaction"
             and message.reactable_target_id
@@ -3465,6 +3540,9 @@ class TlonAdapter(BasePlatformAdapter):
                 event = MessageEvent(**event_kwargs)
                 setattr(event, "media_urls", media_urls)
                 setattr(event, "media_types", media_types)
+            self._remember_dispatch_sender(
+                (message.chat_id, str(message.message_id)), message.user_id
+            )
             await self.handle_message(event)
             # Peeked notes are committed only after core accepted the event;
             # failed/duplicate/unauthorized dispatches leave them untouched.
@@ -3483,6 +3561,9 @@ class TlonAdapter(BasePlatformAdapter):
             # run (e.g. _route_stream_event catches and skips handle_message
             # errors). Close it out as an error so the lens UI shows a terminal
             # state and the run doesn't leak until the next prune.
+            self._remove_dispatch_state(
+                (message.chat_id, str(message.message_id))
+            )
             await self._finish_lens_run_on_error(message.chat_id)
             raise
 
@@ -3674,6 +3755,15 @@ class TlonAdapter(BasePlatformAdapter):
         )
 
     async def on_processing_complete(self, event: MessageEvent, outcome: Any) -> None:
+        source = getattr(event, "source", None)
+        chat_id = str(getattr(source, "chat_id", "") or "")
+        message_id = str(
+            getattr(source, "message_id", None)
+            or getattr(event, "message_id", None)
+            or ""
+        )
+        if chat_id and message_id:
+            self._remove_dispatch_state((chat_id, message_id))
         await self._computing_presence.stop_run(
             conversation_id=event.source.chat_id,
             run_id=self._presence_run_id(event),
@@ -3694,6 +3784,35 @@ class TlonAdapter(BasePlatformAdapter):
                 delivery_failed=delivery_failed,
             ),
         )
+
+    def _remove_dispatch_state(self, message_key: tuple[str, str]) -> None:
+        self._inflight_senders.pop(message_key, None)
+        stale = [
+            directive_key
+            for directive_key in self._executed_block_directives
+            if directive_key[:2] == message_key
+        ]
+        for directive_key in stale:
+            self._executed_block_directives.pop(directive_key, None)
+
+    def _remember_dispatch_sender(
+        self, message_key: tuple[str, str], sender: str
+    ) -> None:
+        self._remove_dispatch_state(message_key)
+        self._inflight_senders[message_key] = normalize_ship(sender).lower()
+        self._inflight_senders.move_to_end(message_key)
+        while len(self._inflight_senders) > self._DISPATCH_STATE_CAPACITY:
+            oldest = next(iter(self._inflight_senders))
+            self._remove_dispatch_state(oldest)
+
+    def _remember_executed_block(
+        self, directive_key: tuple[str, str, str]
+    ) -> None:
+        self._executed_block_directives[directive_key] = None
+        self._executed_block_directives.move_to_end(directive_key)
+        while len(self._executed_block_directives) > self._DISPATCH_STATE_CAPACITY:
+            oldest = next(iter(self._executed_block_directives))
+            self._remove_dispatch_state(oldest[:2])
 
     @staticmethod
     def _presence_run_id(event: MessageEvent) -> str:
@@ -3757,6 +3876,70 @@ class TlonAdapter(BasePlatformAdapter):
             )
         return result, sent_at_ms
 
+    async def _process_block_directives(
+        self,
+        chat_id: str,
+        content: str,
+        reply_to: Optional[str],
+    ) -> tuple[str, bool]:
+        if not find_block_directives(content):
+            return content, False
+
+        directives = find_executable_block_directives(content)
+
+        reply_id = str(reply_to or "")
+        message_key = (chat_id, reply_id)
+        tracked_sender = self._inflight_senders.get(message_key)
+        owner = normalize_ship(self.tlon_config.owner_ship).lower()
+
+        for raw_target, reason in directives:
+            target = normalize_ship(raw_target).lower()
+            if owner and target == owner:
+                logger.warning(
+                    "[tlon] block directive rejected: target is configured owner"
+                )
+                continue
+            if not reply_id:
+                logger.warning(
+                    "[tlon] block directive rejected: missing reply correlation"
+                )
+                continue
+            if tracked_sender is None:
+                logger.warning(
+                    "[tlon] block directive rejected: unknown reply correlation"
+                )
+                continue
+            if not _is_dm_chat_id(chat_id):
+                logger.warning(
+                    "[tlon] block directive rejected: conversation is not a direct message"
+                )
+                continue
+            dm_counterparty = normalize_ship(chat_id).lower()
+            if tracked_sender != dm_counterparty:
+                logger.warning(
+                    "[tlon] block directive rejected: correlated sender is not DM counterparty"
+                )
+                continue
+            if target != tracked_sender:
+                logger.warning(
+                    "[tlon] block directive rejected: target is not correlated sender"
+                )
+                continue
+
+            directive_key = (chat_id, reply_id, target)
+            if directive_key in self._executed_block_directives:
+                continue
+            self._remember_executed_block(directive_key)
+            if not await self._block_ship(target):
+                self._executed_block_directives.pop(directive_key, None)
+                await self._notify_owner(target, reason, block_succeeded=False)
+                continue
+            await self._remove_from_dm_allowlist(target)
+            await self._drop_pending_approvals_for(target, types=("dm",))
+            await self._notify_owner(target, reason)
+
+        return strip_block_directives(content).strip(), True
+
     async def send(
         self,
         chat_id: str,
@@ -3772,21 +3955,65 @@ class TlonAdapter(BasePlatformAdapter):
         accompany non-empty content because the deployed CLI does not support
         blob-only posts.
         """
-        pending = self._pending_bot_cap_addendum.get(chat_id)
-        addendum = ""
-        if pending and reply_to and str(reply_to) == pending[1]:
-            addendum = (
-                "\n\n---\n_This is my last response to "
-                f"{pending[0]} for now. To continue our conversation, "
-                "someone will need to mention me._"
-            )
-        content = (content or "") + addendum
         metadata = metadata or {}
+        content = str(content or "")
+        if metadata.get("expect_edits") and ends_with_directive_prefix(content):
+            return SendResult(success=False, retryable=False)
+
+        incomplete_stripped = False
+        if not metadata.get("expect_edits"):
+            content, incomplete_stripped = strip_trailing_directive_prefix(content)
+
         caller_blob = metadata.get("blob")
         if not (isinstance(caller_blob, str) and caller_blob.strip()):
             # A whitespace-only string is treated as ABSENT, same as None:
             # it never fires the blob-requires-content guard below.
             caller_blob = None
+
+        content, complete_stripped = await self._process_block_directives(
+            chat_id, content, reply_to
+        )
+        directive_syntax_stripped = incomplete_stripped or complete_stripped
+        if directive_syntax_stripped:
+            content = content.rstrip()
+
+        pending = self._pending_bot_cap_addendum.get(chat_id)
+        correlated_pending = (
+            pending
+            if pending is not None and reply_to == pending[1]
+            else None
+        )
+        if directive_syntax_stripped and not content.strip():
+            if caller_blob is None:
+                if (
+                    correlated_pending is not None
+                    and self._pending_bot_cap_addendum.get(chat_id)
+                    == correlated_pending
+                ):
+                    self._pending_bot_cap_addendum.pop(chat_id, None)
+                return SendResult(success=True, retryable=False)
+            blob_error = (
+                "metadata['blob'] requires non-empty content "
+                "(no blob-only CLI transport)"
+            )
+            self._telemetry.record_delivery(chat_id, content=content, success=False)
+            self._lens.record_delivery_failure(chat_id, error=blob_error)
+            return SendResult(
+                success=False,
+                message_id=None,
+                error=blob_error,
+                raw_response={},
+                retryable=False,
+            )
+
+        addendum = ""
+        if correlated_pending is not None:
+            addendum = (
+                "\n\n---\n_This is my last response to "
+                f"{correlated_pending[0]} for now. To continue our conversation, "
+                "someone will need to mention me._"
+            )
+        content += addendum
         if caller_blob is not None and not content.strip():
             blob_error = "metadata['blob'] requires non-empty content (no blob-only CLI transport)"
             self._telemetry.record_delivery(chat_id, content=content, success=False)
@@ -3923,7 +4150,7 @@ class TlonAdapter(BasePlatformAdapter):
         if delivered and is_thread_reply and thread_parent:
             self._participated_threads.add(self._thread_key(chat_id, thread_parent))
         if addendum and (result.success or result.returncode != 124):
-            if self._pending_bot_cap_addendum.get(chat_id) == pending:
+            if self._pending_bot_cap_addendum.get(chat_id) == correlated_pending:
                 self._pending_bot_cap_addendum.pop(chat_id, None)
         return SendResult(
             success=delivered,
@@ -4188,6 +4415,14 @@ async def _standalone_send(
     tlon = TlonConfig.from_env(extra)
     if not tlon.is_complete():
         return {"error": "tlon standalone send: TLON node URL/id/access code not configured"}
+    message = strip_block_directives(message).strip()
+    if not message:
+        return {
+            "success": True,
+            "platform": "tlon",
+            "chat_id": chat_id,
+            "message_id": None,
+        }
     cli = TlonCLI(tlon)
     if thread_id:
         parent_author = chat_id if _is_dm_chat_id(chat_id) else None
