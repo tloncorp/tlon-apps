@@ -151,6 +151,7 @@ class StreamLoopTests(unittest.TestCase):
     def _patch_catchups(self, adapter, calls):
         async def record_settings():
             calls.append("settings")
+            return True
 
         async def record_invites():
             calls.append("invites")
@@ -346,6 +347,7 @@ class StreamLoopTests(unittest.TestCase):
             if connect_count[0] == 0:
                 connect_count[0] += 1
                 raise ConnectionError("settings failed")
+            return True
 
         async def ok_invites():
             pass
@@ -397,7 +399,7 @@ class StreamLoopTests(unittest.TestCase):
         )
 
         async def ok_settings():
-            pass
+            return True
 
         async def ok_invites():
             pass

@@ -1036,10 +1036,15 @@ class AdapterNudgeTests(unittest.IsolatedAsyncioTestCase):
             await release.wait()
 
         class ReconnectedSSE:
-            async def events(self):
+            async def events(self, *, on_open=None):
+                if on_open is not None:
+                    on_open()
                 await asyncio.Future()
                 if False:
                     yield None
+
+            async def close(self, *, graceful=True):
+                return None
 
         async def connect_sse():
             adapter._sse = ReconnectedSSE()
@@ -1084,7 +1089,9 @@ class AdapterNudgeTests(unittest.IsolatedAsyncioTestCase):
                 self.events_yielded = asyncio.Event()
                 self.closed = False
 
-            async def events(self):
+            async def events(self, *, on_open=None):
+                if on_open is not None:
+                    on_open()
                 yield SimpleNamespace(
                     app="channels",
                     json={

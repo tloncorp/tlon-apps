@@ -1629,6 +1629,7 @@ class AdapterAttentionTests(unittest.TestCase):
 
         async def record_settings():
             calls.append("settings")
+            return True
 
         async def record_profile():
             calls.append("profile")
