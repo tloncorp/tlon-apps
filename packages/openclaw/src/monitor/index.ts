@@ -414,6 +414,7 @@ export async function monitorTlonProvider(
   runtime.log?.(
     `[tlon] version: ${formatTlonVersionIdentity({
       markdown: false,
+      harnessVersion: core.version,
       tlonSkillVersion,
     }).replace(/\n/g, ' | ')}`
   );
