@@ -5,8 +5,8 @@ import { createContext } from 'react';
 export type ChatOptionsContextValue = {
   group?: db.Group | null;
   channel?: db.Channel | null;
-  markGroupRead: () => void;
-  markChannelRead: (options?: { includeThreads?: boolean }) => void;
+  markGroupRead: () => Promise<void>;
+  markChannelRead: (options?: { includeThreads?: boolean }) => Promise<void>;
   onPressGroupMeta: (fromBlankChannel?: boolean) => void;
   onPressGroupMembers: () => void;
   onPressManageChannels: () => void;
@@ -24,7 +24,7 @@ export type ChatOptionsContextValue = {
   togglePinned: () => void;
   leaveGroup: () => Promise<void>;
   leaveChannel: () => void;
-  updateVolume: (level: ub.NotificationLevel | null) => void;
+  updateVolume: (level: ub.NotificationLevel | null) => Promise<void>;
   setChannelSortPreference?: (sortBy: 'recency' | 'arranged') => void;
   open: (chatId: string, chatType: 'group' | 'channel') => void;
   setChat: (chat: { id: string; type: 'group' | 'channel' } | null) => void;

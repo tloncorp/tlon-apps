@@ -1,7 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   AnalyticsEvent,
-  getSearchResultTelemetryBucket,
   trackProductEvent,
   useChannel,
   useChannelSearch,
@@ -11,6 +10,7 @@ import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { useTrackSearchPerformed } from '../../hooks/useTrackSearchPerformed';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -48,7 +48,6 @@ export default function ChannelSearchScreen(props: Props) {
 
   const { resetToChannel } = useRootNavigation();
   const trackedOpenRef = useRef(false);
-  const lastTrackedQueryRef = useRef('');
 
   useEffect(() => {
     if (channelQuery.data && !trackedOpenRef.current) {
@@ -60,21 +59,12 @@ export default function ChannelSearchScreen(props: Props) {
     }
   }, [channelQuery.data]);
 
-  useEffect(() => {
-    const normalizedQuery = query.trim();
-    if (
-      normalizedQuery === '' ||
-      loading ||
-      normalizedQuery === lastTrackedQueryRef.current
-    ) {
-      return;
-    }
-    lastTrackedQueryRef.current = normalizedQuery;
-    trackProductEvent(AnalyticsEvent.SearchPerformed, {
-      resultCountBucket: getSearchResultTelemetryBucket(posts?.length ?? 0),
-      surface: 'channel',
-    });
-  }, [loading, posts?.length, query]);
+  useTrackSearchPerformed({
+    query,
+    resultCount: posts?.length ?? 0,
+    settled: !loading,
+    surface: 'channel',
+  });
 
   const navigateToPost = useCallback(
     (post: db.Post) => {

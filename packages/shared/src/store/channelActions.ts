@@ -13,7 +13,7 @@ import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
 import { notesPermissionsCompatActive } from '../logic/notesPermissionsCompat';
-import { trackProductEvent } from '../productAnalytics';
+import { getChatTelemetryScope, trackProductEvent } from '../productAnalytics';
 import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
@@ -649,7 +649,10 @@ export async function reorderPinnedItems({
     const changedPin = before.find((pin) => pin.itemId === changedItemId);
     if (changedPin) {
       trackProductEvent(AnalyticsEvent.PinnedChatsReordered, {
-        itemType: changedPin.type === 'groupDm' ? 'group_dm' : changedPin.type,
+        itemType:
+          changedPin.type === 'group' || changedPin.type === 'channel'
+            ? changedPin.type
+            : getChatTelemetryScope(changedPin.type),
         source: 'drag',
       });
     }
@@ -802,7 +805,7 @@ export async function markChannelRead({
   }
 
   if (existingChannel.isPendingChannel) {
-    return;
+    return true;
   }
 
   try {
@@ -812,6 +815,7 @@ export async function markChannelRead({
       groupId: existingChannel.groupId,
       deep: !!includeThreads,
     });
+    return true;
   } catch (e) {
     logger.error('Failed to read channel', { id, groupId }, e);
     // rollback optimistic update
@@ -824,6 +828,7 @@ export async function markChannelRead({
     if (didUpdateGroupUnread && existingGroupUnread) {
       await db.insertGroupUnreads([existingGroupUnread]);
     }
+    return false;
   }
 }
 

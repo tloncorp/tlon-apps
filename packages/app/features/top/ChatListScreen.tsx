@@ -9,7 +9,6 @@ import { markInvitesRead } from '@tloncorp/api';
 import {
   AnalyticsEvent,
   createDevLogger,
-  getSearchResultTelemetryBucket,
   trackProductEvent,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -28,6 +27,7 @@ import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
+import { useTrackSearchPerformed } from '../../hooks/useTrackSearchPerformed';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
 import {
   getChatListTelemetryEntity,
@@ -420,23 +420,14 @@ export function ChatListScreenView({
     searchQuery,
     activeTab,
   });
-  const lastTrackedSearchRef = useRef('');
-  useEffect(() => {
-    const normalizedQuery = searchQuery.trim();
-    if (
-      normalizedQuery === '' ||
-      normalizedQuery === lastTrackedSearchRef.current
-    ) {
-      return;
-    }
-    lastTrackedSearchRef.current = normalizedQuery;
-    trackProductEvent(AnalyticsEvent.SearchPerformed, {
-      resultCountBucket: getSearchResultTelemetryBucket(
-        displayData.reduce((count, section) => count + section.data.length, 0)
-      ),
-      surface: 'home',
-    });
-  }, [displayData, searchQuery]);
+  useTrackSearchPerformed({
+    query: searchQuery,
+    resultCount: displayData.reduce(
+      (count, section) => count + section.data.length,
+      0
+    ),
+    surface: 'home',
+  });
   const handleChatListLoad = useCallback(() => {
     if (chats) {
       reportChatListFirstPaint();

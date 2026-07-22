@@ -24,7 +24,6 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
 
   const handleLogout = useCallback(async () => {
     logger.info('Logging out');
-    trackProductEvent(AnalyticsEvent.LogoutCompleted, { source: 'unknown' });
     queryClient.clear();
     store.removeClient();
     clearShip();
@@ -49,6 +48,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
       logger.trackError('could not reset db on logout');
       return;
     }
+    trackProductEvent(AnalyticsEvent.LogoutCompleted, { source: 'unknown' });
     // delay DB reset to next tick to avoid race conditions
     setTimeout(() => resetDb());
 

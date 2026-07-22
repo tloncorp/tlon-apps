@@ -103,7 +103,7 @@ export const ShipProvider = ({ children }: { children: ReactNode }) => {
 
       if (activeShipRef.current && activeShipRef.current !== ship) {
         trackProductEvent(AnalyticsEvent.AccountSwitched, {
-          source: 'ship_picker',
+          source: 'session_replacement',
         });
       }
       activeShipRef.current = ship;

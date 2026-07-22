@@ -4,6 +4,7 @@ import { useDebugStore } from './debug';
 import { AnalyticsEvent } from './domain';
 import {
   contentHasMentions,
+  getChatTelemetryScope,
   getContentTelemetryKind,
   getCountTelemetryBucket,
   getSearchResultTelemetryBucket,
@@ -61,62 +62,21 @@ describe('trackProductEvent', () => {
     expect(AnalyticsEvent.VideoPlaybackStarted).toBe('Video Playback Started');
   });
 
-  it('keeps every new feature-usage event name unique', () => {
-    const events = [
-      AnalyticsEvent.ThreadOpened,
-      AnalyticsEvent.GalleryPostOpened,
-      AnalyticsEvent.NotebookPostOpened,
-      AnalyticsEvent.MediaOpened,
-      AnalyticsEvent.ExternalLinkOpened,
-      AnalyticsEvent.ContentSendCompleted,
-      AnalyticsEvent.PostEditCompleted,
-      AnalyticsEvent.AttachmentAdded,
-      AnalyticsEvent.VoiceMemoSent,
-      AnalyticsEvent.ChannelSearchOpened,
-      AnalyticsEvent.SearchPerformed,
-      AnalyticsEvent.ChatOptionsOpened,
-      AnalyticsEvent.NotificationLevelChanged,
-      AnalyticsEvent.ChatMarkedRead,
-      AnalyticsEvent.ChannelSortChanged,
-      AnalyticsEvent.PinnedChatsReordered,
-      AnalyticsEvent.PostPinned,
-      AnalyticsEvent.PostUnpinned,
-      AnalyticsEvent.ThreadMuted,
-      AnalyticsEvent.ThreadUnmuted,
-      AnalyticsEvent.PostReported,
-      AnalyticsEvent.OnboardingStarted,
-      AnalyticsEvent.OnboardingPathSelected,
-      AnalyticsEvent.AccountCreated,
-      AnalyticsEvent.OnboardingStepCompleted,
-      AnalyticsEvent.OnboardingCompleted,
-      AnalyticsEvent.OnboardingFailed,
-      AnalyticsEvent.LoginCompleted,
-      AnalyticsEvent.InviteSurfaceOpened,
-      AnalyticsEvent.InviteShareCompleted,
-      AnalyticsEvent.InviteOpened,
-      AnalyticsEvent.InviteRedeemed,
-      AnalyticsEvent.GroupInvitationsSent,
-      AnalyticsEvent.GroupCreationCompleted,
-      AnalyticsEvent.ChannelCreationCompleted,
-      AnalyticsEvent.ProfileUpdateCompleted,
-      AnalyticsEvent.ForwardCompleted,
-      AnalyticsEvent.NotificationPreferenceChanged,
-      AnalyticsEvent.PrivacyPreferenceChanged,
-      AnalyticsEvent.AccountSwitched,
-      AnalyticsEvent.LogoutCompleted,
-      AnalyticsEvent.BugReportSubmitted,
-      AnalyticsEvent.ContactDiscoveryCompleted,
-      AnalyticsEvent.ProfileOpened,
-    ];
-
+  it('keeps analytics event names unique', () => {
+    const events = Object.values(AnalyticsEvent);
     expect(new Set(events).size).toBe(events.length);
-    expect(events).not.toContain(AnalyticsEvent.ActionTappedChat);
-    expect(events).not.toContain(AnalyticsEvent.InviteShared);
-    expect(events).not.toContain(AnalyticsEvent.UserLoggedIn);
   });
 });
 
 describe('privacy-safe product analytics helpers', () => {
+  it.each([
+    ['chat', 'channel'],
+    ['dm', 'direct_message'],
+    ['groupDm', 'group_message'],
+  ] as const)('labels a %s chat as %s', (type, expected) => {
+    expect(getChatTelemetryScope(type)).toBe(expected);
+  });
+
   it.each([
     [-1, '0'],
     [0, '0'],

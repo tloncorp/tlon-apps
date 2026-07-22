@@ -1,5 +1,9 @@
 import * as ub from '@tloncorp/api/urbit';
-import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  getChatTelemetryScope,
+  trackProductEvent,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
@@ -11,6 +15,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Popover, isWeb } from 'tamagui';
@@ -62,20 +67,33 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   onOpenChange: propOnOpenChange,
   trigger,
 }: ChatOptionsSheetProps) {
-  const { open: contextOpen, setChat, group } = useChatOptions();
+  const { open: contextOpen, setChat, group, channel } = useChatOptions();
 
   // Use props for explicit control (popovers)
   // For sheets, this will be false and context.open will handle state
   const isOpen = propOpen ?? false;
+  const trackedOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      trackedOpenRef.current = false;
+      return;
+    }
+    if (!chat || trackedOpenRef.current) return;
+    if (chat.type === 'channel' && !channel) return;
+
+    trackedOpenRef.current = true;
+    trackProductEvent(AnalyticsEvent.ChatOptionsOpened, {
+      scope:
+        chat.type === 'group' ? 'group' : getChatTelemetryScope(channel!.type),
+      source: 'unknown',
+    });
+  }, [channel, chat, isOpen]);
 
   // Handle open state changes
   const handleOpenChange = useCallback(
     (open: boolean, clearChat = true) => {
       if (open && chat) {
-        trackProductEvent(AnalyticsEvent.ChatOptionsOpened, {
-          scope: chat.type,
-          source: 'unknown',
-        });
         // Set chat state for both popovers and sheets
         contextOpen(chat.id, chat.type);
       } else if (!open) {
@@ -294,14 +312,6 @@ export function GroupOptionsSheetContent({
     }
   }, [onPressInvite]);
 
-  const handleMarkGroupRead = useCallback(() => {
-    markGroupRead();
-    trackProductEvent(AnalyticsEvent.ChatMarkedRead, {
-      scope: 'group',
-      source: 'chat_options',
-    });
-  }, [markGroupRead]);
-
   const handlePressChatDetails = useCallback(() => {
     onPressChatDetails({ type: 'group', id: group.id });
   }, [group.id, onPressChatDetails]);
@@ -329,7 +339,7 @@ export function GroupOptionsSheetContent({
           },
           canMarkRead && {
             title: 'Mark all as read',
-            action: wrappedAction.bind(null, handleMarkGroupRead),
+            action: wrappedAction.bind(null, markGroupRead),
           },
           {
             title: isPinned ? 'Unpin' : 'Pin',
@@ -380,7 +390,7 @@ export function GroupOptionsSheetContent({
       canSortChannels,
       handlePressChatDetails,
       isPinned,
-      handleMarkGroupRead,
+      markGroupRead,
       onPressNotifications,
       onPressSort,
       togglePinned,
@@ -695,19 +705,6 @@ export function ChannelOptionsSheetContent({
     [channel.volumeSettings, baseVolumeLevel]
   );
 
-  const handleMarkChannelRead = useCallback(() => {
-    markChannelRead({ includeThreads: true });
-    trackProductEvent(AnalyticsEvent.ChatMarkedRead, {
-      scope:
-        channel.type === 'groupDm'
-          ? 'group_dm'
-          : channel.type === 'dm'
-            ? 'dm'
-            : 'channel',
-      source: 'chat_options',
-    });
-  }, [channel.type, markChannelRead]);
-
   const actionGroups: ActionGroup[] = useMemo(
     () =>
       createActionGroups(
@@ -726,7 +723,9 @@ export function ChannelOptionsSheetContent({
           },
           canMarkRead && {
             title: 'Mark as read',
-            action: wrappedAction.bind(null, handleMarkChannelRead),
+            action: wrappedAction.bind(null, () =>
+              markChannelRead({ includeThreads: true })
+            ),
           },
         ],
         channel.type === 'groupDm' && [
@@ -792,7 +791,7 @@ export function ChannelOptionsSheetContent({
       wrappedAction,
       togglePinned,
       canMarkRead,
-      handleMarkChannelRead,
+      markChannelRead,
       onPressChannelMeta,
       onPressChannelMembers,
       group,
@@ -887,25 +886,6 @@ function NotificationsSheetContent({
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const { currentLevel, options, updateVolume } = useChatVolumeOptions();
-  const { group, channel } = useChatOptions();
-
-  const handleUpdateVolume = useCallback(
-    (level: ub.NotificationLevel | null) => {
-      updateVolume(level);
-      trackProductEvent(AnalyticsEvent.NotificationLevelChanged, {
-        level: level ?? 'default',
-        scope: group
-          ? channel
-            ? 'channel'
-            : 'group'
-          : channel?.type === 'groupDm'
-            ? 'group_dm'
-            : 'dm',
-        source: 'chat_options',
-      });
-    },
-    [channel, group, updateVolume]
-  );
 
   const notificationActions = useMemo(
     () =>
@@ -915,7 +895,7 @@ function NotificationsSheetContent({
           ({ title, value }): Action => ({
             title,
             accent: currentLevel === value ? 'positive' : 'neutral',
-            action: () => handleUpdateVolume(value),
+            action: () => updateVolume(value),
             endIcon: currentLevel === value ? 'Checkmark' : undefined,
           })
         ),
@@ -925,7 +905,7 @@ function NotificationsSheetContent({
           startIcon: 'ChevronLeft',
         },
       ]),
-    [currentLevel, handleUpdateVolume, isWindowNarrow, onPressBack, options]
+    [currentLevel, isWindowNarrow, onPressBack, options, updateVolume]
   );
   return (
     <ChatOptionsSheetContent

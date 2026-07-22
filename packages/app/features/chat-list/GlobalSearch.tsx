@@ -1,13 +1,10 @@
-import {
-  AnalyticsEvent,
-  getSearchResultTelemetryBucket,
-  trackProductEvent,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, trackProductEvent } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
 
+import { useTrackSearchPerformed } from '../../hooks/useTrackSearchPerformed';
 import { getChatListTelemetryEntity } from '../../lib/featureUsageTelemetry';
 import {
   TextInput,
@@ -31,27 +28,14 @@ export function GlobalSearch({
 }: GlobalSearchProps) {
   const { isOpen, setIsOpen } = useGlobalSearch();
   const [searchQuery, setSearchQuery] = useState('');
+  const [resultCount, setResultCount] = useState(0);
   const inputRef = useRef<TextInputRef>(null);
   const listRef = useRef<FilteredChatListRef>(null);
-  const lastTrackedQueryRef = useRef('');
-
-  const handleResultCountChange = useCallback(
-    (count: number) => {
-      const normalizedQuery = searchQuery.trim();
-      if (
-        normalizedQuery === '' ||
-        normalizedQuery === lastTrackedQueryRef.current
-      ) {
-        return;
-      }
-      lastTrackedQueryRef.current = normalizedQuery;
-      trackProductEvent(AnalyticsEvent.SearchPerformed, {
-        resultCountBucket: getSearchResultTelemetryBucket(count),
-        surface: 'global',
-      });
-    },
-    [searchQuery]
-  );
+  useTrackSearchPerformed({
+    query: searchQuery,
+    resultCount,
+    surface: 'global',
+  });
 
   const onPressItem = useCallback(
     async (item: db.Chat) => {
@@ -149,7 +133,7 @@ export function GlobalSearch({
       });
       inputRef.current?.focus();
       setSearchQuery('');
-      lastTrackedQueryRef.current = '';
+      setResultCount(0);
     }
   }, [isOpen]);
 
@@ -213,7 +197,7 @@ export function GlobalSearch({
               searchQuery={searchQuery}
               ref={listRef}
               onPressItem={onPressItem}
-              onResultCountChange={handleResultCountChange}
+              onResultCountChange={setResultCount}
             />
           )}
         </YStack>

@@ -1,7 +1,7 @@
 import {
   AnalyticsEvent,
   createDevLogger,
-  trackProductEvent,
+  trackInviteShareCompleted,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button, useCopy } from '@tloncorp/ui';
@@ -32,11 +32,7 @@ export function PersonalInviteButton() {
 
     await doCopy();
     trackInviteShared();
-    trackProductEvent(AnalyticsEvent.InviteShareCompleted, {
-      inviteType: 'personal',
-      method: 'copy',
-      source: 'invite_surface',
-    });
+    trackInviteShareCompleted('personal', 'copy');
   }, [doCopy, inviteLink, isLoading, trackInviteShared]);
 
   const handleShareInviteLink = useCallback(async () => {
@@ -60,11 +56,7 @@ export function PersonalInviteButton() {
       }
 
       trackInviteShared();
-      trackProductEvent(AnalyticsEvent.InviteShareCompleted, {
-        inviteType: 'personal',
-        method,
-        source: 'invite_surface',
-      });
+      trackInviteShareCompleted('personal', method);
     } catch (error) {
       console.error('Error sharing:', error);
     }

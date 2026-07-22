@@ -41,9 +41,17 @@ export type SearchResultTelemetryBucket = '0' | '1-5' | '6-20' | '21+';
 export type ChatTelemetryScope =
   | 'group'
   | 'channel'
-  | 'dm'
-  | 'group_dm'
+  | 'direct_message'
+  | 'group_message'
   | 'thread';
+
+export function getChatTelemetryScope(
+  type: ChannelTelemetryType
+): Exclude<ChatTelemetryScope, 'group' | 'thread'> {
+  if (type === 'dm') return 'direct_message';
+  if (type === 'groupDm') return 'group_message';
+  return 'channel';
+}
 
 export function getCountTelemetryBucket(count: number): CountTelemetryBucket {
   if (count <= 0) return '0';
@@ -301,7 +309,7 @@ export type ProductAnalyticsEventProperties = {
     source: 'group_options';
   };
   [AnalyticsEvent.PinnedChatsReordered]: {
-    itemType: 'group' | 'channel' | 'dm' | 'group_dm';
+    itemType: Exclude<ChatTelemetryScope, 'thread'>;
     source: 'drag';
   };
   [AnalyticsEvent.PostPinned]: {
@@ -409,7 +417,7 @@ export type ProductAnalyticsEventProperties = {
       | 'avatars';
   };
   [AnalyticsEvent.AccountSwitched]: {
-    source: 'ship_picker';
+    source: 'session_replacement';
   };
   [AnalyticsEvent.LogoutCompleted]: {
     source: 'settings' | 'session_expired' | 'unknown';
@@ -453,5 +461,16 @@ export function trackProductEvent<
   useDebugStore.getState().errorLogger?.capture(event, {
     schemaVersion: 1,
     ...properties,
+  });
+}
+
+export function trackInviteShareCompleted(
+  inviteType: 'personal' | 'group',
+  method: 'copy' | 'native_share'
+) {
+  trackProductEvent(AnalyticsEvent.InviteShareCompleted, {
+    inviteType,
+    method,
+    source: 'invite_surface',
   });
 }

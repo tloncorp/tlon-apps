@@ -2,7 +2,7 @@ import {
   AnalyticsEvent,
   createDevLogger,
   enableGroupLinks,
-  trackProductEvent,
+  trackInviteShareCompleted,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -44,12 +44,6 @@ export function InviteFriendsToTlonButton({
 
   useEffect(() => {
     logger.trackEvent('Invite Button Shown', { group: group?.id });
-    if (group?.id) {
-      trackProductEvent(AnalyticsEvent.InviteSurfaceOpened, {
-        inviteType: 'group',
-        source: 'group_options',
-      });
-    }
   }, [group?.id]);
 
   const trackInviteShared = useCallback(() => {
@@ -66,11 +60,7 @@ export function InviteFriendsToTlonButton({
 
     await doCopy();
     trackInviteShared();
-    trackProductEvent(AnalyticsEvent.InviteShareCompleted, {
-      inviteType: 'group',
-      method: 'copy',
-      source: 'invite_surface',
-    });
+    trackInviteShareCompleted('group', 'copy');
   }, [doCopy, group, shareUrl, status, trackInviteShared]);
 
   const handleShareInviteLink = useCallback(async () => {
@@ -94,11 +84,7 @@ export function InviteFriendsToTlonButton({
       }
 
       trackInviteShared();
-      trackProductEvent(AnalyticsEvent.InviteShareCompleted, {
-        inviteType: 'group',
-        method,
-        source: 'invite_surface',
-      });
+      trackInviteShareCompleted('group', method);
     } catch (error) {
       console.error('Error sharing:', error);
     }
