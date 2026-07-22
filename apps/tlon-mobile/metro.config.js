@@ -13,11 +13,11 @@ const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
 const baseConfig = getSentryExpoConfig(projectRoot);
 
-// Shared Metro transform cache across worktrees on this machine.
-// metro-transform-worker keys are content-addressed (relative paths only),
-// and Expo's `_expoRelativeProjectRoot` is workspace-relative, so identical
-// sources in different worktrees produce identical keys. Partition by
-// resolved RN+Expo version so upgrades don't poison the cache.
+// Shared Metro transform cache across worktrees on this machine. Keep values
+// in the transformer config independent of the checkout path: Metro includes
+// that object in its global transform key. Package requests are resolved by the
+// worker at runtime but remain identical across source-identical worktrees.
+// Partition by resolved RN+Expo version so upgrades don't poison the cache.
 //
 // Off by default to avoid affecting normal dev workflows. Opt in with
 // TLON_METRO_SHARED_CACHE_ENABLED=1 (e.g., set in the agent-loop harness or by
@@ -43,7 +43,7 @@ const sharedCacheStores =
 const config = {
   ...(sharedCacheStores ? { cacheStores: sharedCacheStores } : {}),
   transformer: {
-    babelTransformerPath: require.resolve('react-native-svg-transformer'),
+    babelTransformerPath: 'react-native-svg-transformer',
     // Enable inlineRequires (off by default in Expo) to defer module eval until
     // first use, speeding up cold start.
     getTransformOptions: async () => ({

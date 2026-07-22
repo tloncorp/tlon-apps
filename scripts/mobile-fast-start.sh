@@ -16,6 +16,8 @@ Options:
   --scheme SCHEME     App URL scheme (default: io.tlon.groups)
   --build-native      Build and install the development client before Metro
   --skip-eas-cache    Skip the EAS native-cache lookup during --build-native
+  --allow-concurrent-native-build
+                      Start even if another native build is using the machine
   --keep-compilers    Enable the normal React and Tamagui compiler transforms
   --no-launch         Start Metro without opening the app
   -h, --help          Show this help
@@ -33,6 +35,7 @@ keep_compilers=0
 launch_app=1
 build_native=0
 skip_eas_cache=0
+allow_concurrent_native_build="${TLON_MOBILE_ALLOW_CONCURRENT_NATIVE_BUILD:-0}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -58,6 +61,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-eas-cache)
       skip_eas_cache=1
+      shift
+      ;;
+    --allow-concurrent-native-build)
+      allow_concurrent_native_build=1
       shift
       ;;
     --keep-compilers)
@@ -133,16 +140,27 @@ if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
   exit 1
 fi
 
-if pgrep -fal xcodebuild | rg -F "destination id=$device_udid" >/dev/null \
-  || pgrep -fal expo | rg "run:ios.*--device(=| )$device_udid" >/dev/null; then
+active_native_builds() {
+  ps -axo pid=,command= | awk -v own_pid="$$" '
+    $1 != own_pid && ($0 ~ /[x]codebuild .* (-workspace|-project|-scheme|archive|build)/ || $0 ~ /[e]xpo (run:ios|run:android)/ || $0 ~ /[e]as (build|build:run).*--local/) { print }
+  '
+}
+
+native_builds="$(active_native_builds)"
+if [[ -n "$native_builds" && "$allow_concurrent_native_build" != "1" ]]; then
   cat >&2 <<EOF
-Another native build is targeting simulator $device_udid. Wait for it to finish
-or use a different simulator so the installed app is not replaced mid-run.
+Another native build is already using this machine:
+$native_builds
+
+Wait for it to finish so the native build and JavaScript loop do not starve each
+other, or pass --allow-concurrent-native-build to override.
 EOF
   exit 1
 fi
 
 lease_dir="${TMPDIR:-/tmp}/tlon-mobile-simulator-${device_udid}.lease"
+native_lease_dir="${TMPDIR:-/tmp}/tlon-mobile-native-build.lease"
+native_lease_acquired=0
 if ! mkdir "$lease_dir" 2>/dev/null; then
   lease_pid="$(sed -n '1p' "$lease_dir/pid" 2>/dev/null || true)"
   if [[ -n "$lease_pid" ]] && kill -0 "$lease_pid" 2>/dev/null; then
@@ -157,6 +175,28 @@ if ! mkdir "$lease_dir" 2>/dev/null; then
 fi
 printf '%s\n' "$$" > "$lease_dir/pid"
 
+if [[ "$build_native" -eq 1 ]]; then
+  if ! mkdir "$native_lease_dir" 2>/dev/null; then
+    native_lease_pid="$(sed -n '1p' "$native_lease_dir/pid" 2>/dev/null || true)"
+    if [[ -n "$native_lease_pid" ]] && kill -0 "$native_lease_pid" 2>/dev/null; then
+      echo "A mobile native build is already running as process $native_lease_pid." >&2
+      rm -f "$lease_dir/pid"
+      rmdir "$lease_dir" 2>/dev/null || true
+      exit 1
+    fi
+    rm -f "$native_lease_dir/pid"
+    if ! rmdir "$native_lease_dir" 2>/dev/null \
+      || ! mkdir "$native_lease_dir" 2>/dev/null; then
+      echo "Could not recover stale native-build lease $native_lease_dir." >&2
+      rm -f "$lease_dir/pid"
+      rmdir "$lease_dir" 2>/dev/null || true
+      exit 1
+    fi
+  fi
+  printf '%s\n' "$$" > "$native_lease_dir/pid"
+  native_lease_acquired=1
+fi
+
 metro_pid=""
 cleanup() {
   if [[ -n "$metro_pid" ]] && kill -0 "$metro_pid" 2>/dev/null; then
@@ -165,6 +205,10 @@ cleanup() {
   fi
   rm -f "$lease_dir/pid"
   rmdir "$lease_dir" 2>/dev/null || true
+  if [[ "$native_lease_acquired" -eq 1 ]]; then
+    rm -f "$native_lease_dir/pid"
+    rmdir "$native_lease_dir" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT INT TERM
 
@@ -174,7 +218,7 @@ if [[ "$build_native" -eq 1 ]]; then
     native_environment+=("TLON_EAS_CACHE_DISABLED=1")
   fi
 
-  echo "Building and installing the development client while holding the simulator lease..."
+  echo "Building and installing the development client while holding the machine and simulator leases..."
   (
     cd "$repo_root"
     env "${native_environment[@]}" \

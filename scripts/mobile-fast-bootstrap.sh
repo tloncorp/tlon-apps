@@ -4,12 +4,18 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: scripts/mobile-fast-bootstrap.sh /absolute/path/to/prepared-worktree
+Usage:
+  scripts/mobile-fast-bootstrap.sh [--allow-concurrent-native-build] /absolute/path/to/prepared-worktree
+  scripts/mobile-fast-bootstrap.sh --prepare-artifacts
 
 Prepares a fresh worktree for mobile JavaScript work by linking its dependency
-tree to an already-installed worktree, then generating the two required local
-artifacts. The dependency manifests, platform, architecture, Node ABI, and pnpm
-version must match exactly.
+tree to an already-installed worktree. Generated editor and Tailwind artifacts
+are copied when a signed, source-identical set exists; otherwise they are built.
+The dependency manifests, platform, architecture, Node ABI, and pnpm version
+must match exactly.
+
+--prepare-artifacts rebuilds and signs the artifacts in the current worktree so
+it can seed source-identical worktrees.
 
 Do not run pnpm install in a linked worktree. Remove its node_modules directories
 and perform a normal install when dependencies change.
@@ -21,28 +27,97 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   exit 0
 fi
 
-if [[ $# -ne 1 ]]; then
+prepare_artifacts=0
+allow_concurrent_native_build="${TLON_MOBILE_ALLOW_CONCURRENT_NATIVE_BUILD:-0}"
+seed_path=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --prepare-artifacts)
+      prepare_artifacts=1
+      shift
+      ;;
+    --allow-concurrent-native-build)
+      allow_concurrent_native_build=1
+      shift
+      ;;
+    *)
+      if [[ -n "$seed_path" ]]; then
+        usage >&2
+        exit 2
+      fi
+      seed_path="$1"
+      shift
+      ;;
+  esac
+done
+
+if [[ "$prepare_artifacts" -eq 1 && -n "$seed_path" ]] \
+  || [[ "$prepare_artifacts" -eq 0 && -z "$seed_path" ]]; then
   usage >&2
   exit 2
 fi
 
 target_root="$(git rev-parse --show-toplevel)"
-seed_root="$(cd "$1" && git rev-parse --show-toplevel)"
 
-if [[ "$target_root" == "$seed_root" ]]; then
-  echo "The prepared worktree must be different from the target worktree." >&2
-  exit 1
+active_native_builds() {
+  ps -axo pid=,command= | awk -v own_pid="$$" '
+    $1 != own_pid && ($0 ~ /[x]codebuild .* (-workspace|-project|-scheme|archive|build)/ || $0 ~ /[e]xpo (run:ios|run:android)/ || $0 ~ /[e]as (build|build:run).*--local/) { print }
+  '
+}
+
+if [[ "$allow_concurrent_native_build" != "1" ]]; then
+  native_builds="$(active_native_builds)"
+  if [[ -n "$native_builds" ]]; then
+    cat >&2 <<EOF
+A native build is already using this machine. Starting bootstrap now is likely
+to make both loops slower:
+$native_builds
+
+Wait for it to finish, or pass --allow-concurrent-native-build to override.
+EOF
+    exit 1
+  fi
 fi
 
-if [[ ! -d "$seed_root/node_modules" || ! -e "$seed_root/node_modules/expo" ]]; then
-  echo "The prepared worktree does not have a complete root dependency installation." >&2
-  exit 1
-fi
+artifact_tree_signature() {
+  local root="$1"
+  shift
 
-if [[ -e "$target_root/node_modules" || -L "$target_root/node_modules" ]]; then
-  echo "The target already has node_modules. Refusing to replace it." >&2
-  exit 1
-fi
+  if [[ -n "$(git -C "$root" status --porcelain --untracked-files=all -- "$@")" ]]; then
+    return 1
+  fi
+
+  (
+    cd "$root"
+    for source_path in "$@"; do
+      printf '%s\0' "$source_path"
+      git rev-parse "HEAD:$source_path"
+    done
+  ) | shasum -a 256 | awk '{print $1}'
+}
+
+editor_signature() {
+  artifact_tree_signature "$1" packages/editor
+}
+
+tailwind_signature() {
+  artifact_tree_signature "$1" \
+    apps/tlon-mobile packages/app packages/ui
+}
+
+write_artifact_manifest() {
+  local root="$1"
+  local dependency="$2"
+  local editor="$3"
+  local tailwind="$4"
+
+  cat > "$root/node_modules/.tlon-generated-artifacts" <<EOF
+dependency_signature=$dependency
+editor_signature=$editor
+tailwind_signature=$tailwind
+EOF
+}
 
 dependency_signature() {
   local root="$1"
@@ -69,6 +144,58 @@ dependency_signature() {
     } | shasum -a 256 | awk '{print $1}'
   )
 }
+
+build_and_sign_artifacts() {
+  local root="$1"
+  local dependency editor tailwind
+
+  dependency="$(dependency_signature "$root")"
+  editor="$(editor_signature "$root" || true)"
+  tailwind="$(tailwind_signature "$root" || true)"
+
+  echo "Building the editor package..."
+  (cd "$root" && corepack pnpm --filter @tloncorp/editor build)
+  editor_at=$SECONDS
+
+  echo "Generating mobile Tailwind artifacts..."
+  (cd "$root" && corepack pnpm --filter tlon-mobile run generate:tailwind)
+  tailwind_at=$SECONDS
+
+  if [[ -n "$editor" && -n "$tailwind" ]]; then
+    write_artifact_manifest "$root" "$dependency" "$editor" "$tailwind"
+  else
+    rm -f "$root/node_modules/.tlon-generated-artifacts"
+    echo "Artifacts were built but not signed because relevant source files are dirty."
+  fi
+}
+
+if [[ "$prepare_artifacts" -eq 1 ]]; then
+  if [[ ! -e "$target_root/node_modules/expo" ]]; then
+    echo "Dependencies are not installed in $target_root." >&2
+    exit 1
+  fi
+  started_at=$SECONDS
+  build_and_sign_artifacts "$target_root"
+  echo "Prepared and signed generated artifacts in $((SECONDS - started_at))s."
+  exit 0
+fi
+
+seed_root="$(cd "$seed_path" && git rev-parse --show-toplevel)"
+
+if [[ "$target_root" == "$seed_root" ]]; then
+  echo "The prepared worktree must be different from the target worktree." >&2
+  exit 1
+fi
+
+if [[ ! -d "$seed_root/node_modules" || ! -e "$seed_root/node_modules/expo" ]]; then
+  echo "The prepared worktree does not have a complete root dependency installation." >&2
+  exit 1
+fi
+
+if [[ -e "$target_root/node_modules" || -L "$target_root/node_modules" ]]; then
+  echo "The target already has node_modules. Refusing to replace it." >&2
+  exit 1
+fi
 
 echo "Checking that dependency inputs match..."
 target_signature="$(dependency_signature "$target_root")"
@@ -146,13 +273,40 @@ EOF
 linked_at=$SECONDS
 echo "Dependency linking completed in $((linked_at - started_at))s."
 
-echo "Building the editor package..."
-(cd "$target_root" && corepack pnpm --filter @tloncorp/editor build)
-editor_at=$SECONDS
+target_editor_signature="$(editor_signature "$target_root" || true)"
+target_tailwind_signature="$(tailwind_signature "$target_root" || true)"
+artifact_manifest="$seed_root/node_modules/.tlon-generated-artifacts"
+reuse_artifacts=0
 
-echo "Generating mobile Tailwind artifacts..."
-(cd "$target_root" && corepack pnpm --filter tlon-mobile run generate:tailwind)
-tailwind_at=$SECONDS
+if [[ -n "$target_editor_signature" && -n "$target_tailwind_signature" \
+  && -f "$artifact_manifest" ]]; then
+  # shellcheck disable=SC1090
+  source "$artifact_manifest"
+  if [[ "${dependency_signature:-}" == "$seed_signature" \
+    && "${editor_signature:-}" == "$target_editor_signature" \
+    && "${tailwind_signature:-}" == "$target_tailwind_signature" \
+    && -f "$seed_root/packages/editor/dist/index.html" \
+    && -f "$seed_root/apps/tlon-mobile/tailwind.css" \
+    && -f "$seed_root/apps/tlon-mobile/tailwind.json" ]]; then
+    reuse_artifacts=1
+  fi
+fi
+
+if [[ "$reuse_artifacts" -eq 1 ]]; then
+  echo "Copying source-identical generated artifacts..."
+  mkdir -p "$target_root/packages/editor/dist"
+  cp -R "$seed_root/packages/editor/dist/." "$target_root/packages/editor/dist/"
+  cp "$seed_root/apps/tlon-mobile/tailwind.css" \
+    "$seed_root/apps/tlon-mobile/tailwind.json" \
+    "$target_root/apps/tlon-mobile/"
+  write_artifact_manifest \
+    "$target_root" "$seed_signature" \
+    "$target_editor_signature" "$target_tailwind_signature"
+  editor_at=$SECONDS
+  tailwind_at=$SECONDS
+else
+  build_and_sign_artifacts "$target_root"
+fi
 
 echo "Checking the Expo configuration..."
 (cd "$target_root" && corepack pnpm --filter tlon-mobile exec expo config --type public --json >/dev/null)
@@ -162,7 +316,7 @@ cat <<EOF
 
 Mobile worktree ready in $((finished_at - started_at))s:
   dependencies: $((linked_at - started_at))s
-  editor build: $((editor_at - linked_at))s
+  editor:       $((editor_at - linked_at))s
   Tailwind:     $((tailwind_at - editor_at))s
   Expo check:   $((finished_at - tailwind_at))s
 
