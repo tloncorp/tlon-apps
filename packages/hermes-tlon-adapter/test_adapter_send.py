@@ -509,6 +509,25 @@ class BlockDirectiveSendTests(unittest.TestCase):
             adapter._cli.sent[0][2], "The syntax  must be standalone."
         )
 
+    def test_correlated_dm_inline_directive_before_footer_is_strip_only(self):
+        adapter, _event = self.correlated_adapter(sender="~zod")
+
+        result = asyncio.run(
+            adapter.send(
+                "~zod",
+                "quoting [BLOCK_USER: ~zod | example] is not standalone\n[footer]",
+                reply_to="m1",
+            )
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(self.block_pokes(adapter), [])
+        self.assertEqual(self.notifications(adapter), [])
+        self.assertEqual(
+            adapter._cli.sent[0][2],
+            "quoting  is not standalone\n[footer]",
+        )
+
     def test_correlated_dm_whitespace_wrapped_standalone_directive_executes(self):
         adapter, _event = self.correlated_adapter()
 

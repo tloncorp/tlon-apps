@@ -63,12 +63,36 @@ class BlockDirectiveTests(unittest.TestCase):
             [("~zod", "example")],
         )
 
+    def test_inline_directive_cannot_expand_through_later_closing_bracket(self):
+        text = (
+            "quoting [BLOCK_USER: ~zod | example] is not standalone\n"
+            "[footer]"
+        )
+
+        self.assertEqual(sanitize.find_executable_block_directives(text), [])
+        self.assertEqual(
+            sanitize.find_block_directives(text),
+            [("~zod", "example")],
+        )
+        self.assertEqual(
+            sanitize.strip_block_directives(text),
+            "quoting  is not standalone\n[footer]",
+        )
+
     def test_executable_directive_allows_multiline_reason(self):
         text = "Before\n[BLOCK_USER: ~zod | prompt\ninjection]\nAfter"
 
         self.assertEqual(
             sanitize.find_executable_block_directives(text),
             [("~zod", "prompt\ninjection")],
+        )
+
+    def test_executable_directive_stops_before_separate_footer_line(self):
+        text = "[BLOCK_USER: ~zod | example]\n[footer]"
+
+        self.assertEqual(
+            sanitize.find_executable_block_directives(text),
+            [("~zod", "example")],
         )
 
     def test_galaxy_planet_and_moon_names(self):
