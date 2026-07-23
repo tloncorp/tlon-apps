@@ -931,6 +931,7 @@ export async function leaveGroupChannel(channelId: string) {
     } else {
       await api.leaveChannel(channelId);
     }
+    trackEvent(AnalyticsEvent.ChannelLeft, { type: channel.type });
   } catch (e) {
     console.error('Failed to leave channel', e);
     // Only rollback on actual errors (not TimeoutError)

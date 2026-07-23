@@ -1,3 +1,4 @@
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import { formatMemorySize } from '@tloncorp/shared/utils';
 import {
   FilePreview,
@@ -84,9 +85,11 @@ export function FileUploadPreview({
   );
 
   const navigateToFile = useMemo(() => {
-    if (file.fileUri == null) return undefined;
-    return () => {
-      file.fileUri && openExternalLink(file.fileUri);
+    const fileUri = file.fileUri;
+    if (fileUri == null) return undefined;
+    return async () => {
+      await openExternalLink(fileUri);
+      trackEvent(AnalyticsEvent.FileOpened);
     };
   }, [file.fileUri, openExternalLink]);
 
@@ -162,9 +165,11 @@ export function FileUploadLockup({
     [file]
   );
   const navigateToFile = useMemo(() => {
-    if (file.fileUri == null) return undefined;
-    return () => {
-      file.fileUri && openExternalLink(file.fileUri);
+    const fileUri = file.fileUri;
+    if (fileUri == null) return undefined;
+    return async () => {
+      await openExternalLink(fileUri);
+      trackEvent(AnalyticsEvent.FileOpened);
     };
   }, [file.fileUri, openExternalLink]);
   const [containerLayout, setContainerLayout] =

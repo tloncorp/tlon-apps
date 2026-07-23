@@ -1,5 +1,5 @@
 import * as api from '@tloncorp/api';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { getTextContent } from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useRef } from 'react';
@@ -111,6 +111,10 @@ export default function useDesktopNotifications(isClientReady: boolean) {
 
       try {
         logger.log('Notification clicked:', data);
+        trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
+          surface: 'desktop',
+          notificationType: data.type,
+        });
         await api.markChatRead(data.channelId);
 
         // In the future, we could add navigation logic here

@@ -164,12 +164,17 @@ export async function createGroupFromTemplate(
 
   newGroup.channels = channels;
 
-  return createGroup({ group: newGroup, memberIds: params.memberIds ?? [] });
+  return createGroup({
+    group: newGroup,
+    memberIds: params.memberIds ?? [],
+    templateId: params.templateId,
+  });
 }
 
 export async function createGroup(params: {
   group: db.Group;
   memberIds?: string[];
+  templateId?: GroupTemplateId;
 }): Promise<db.Group> {
   const placeHolderTitle = await getPlaceholderTitle(params);
 
@@ -191,6 +196,7 @@ export async function createGroup(params: {
     logger.trackEvent(AnalyticsEvent.ActionCreateGroup, {
       ...logic.getModelAnalytics({ group: params.group }),
       initialMemberCount: params.memberIds?.length ?? 0,
+      templateId: params.templateId,
     });
 
     return resultGroup;

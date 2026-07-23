@@ -1,5 +1,5 @@
 import * as api from '@tloncorp/api';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { getTextContent, useMutableRef } from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useRef } from 'react';
@@ -237,6 +237,10 @@ async function showGroupNotification({
   );
 
   notification.onclick = () => {
+    trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
+      surface: 'browser',
+      notificationType: activityEvent.type,
+    });
     window.focus();
     navigateOnClick(groupId);
     notification.close();
@@ -369,6 +373,10 @@ export default function useBrowserNotifications() {
         });
 
         notification.onclick = () => {
+          trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
+            surface: 'browser',
+            notificationType: activityEvent.type,
+          });
           window.focus();
           navigateToBrowserNotificationTarget(
             {

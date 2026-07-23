@@ -375,7 +375,12 @@ export function VoiceMemoBlock({
             cursor="pointer"
             hoverStyle={{ backgroundColor: '$positiveBackground' }}
             pressStyle={{ opacity: 0.5 }}
-            onPress={togglePlayback}
+            onPress={() => {
+              if (status === null || status === 'paused') {
+                trackEvent(AnalyticsEvent.VoiceMemoPlaybackRequested);
+              }
+              togglePlayback();
+            }}
           >
             {(() => {
               switch (status) {

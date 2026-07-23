@@ -373,6 +373,7 @@ async function _sendPost({
       trackEvent(AnalyticsEvent.ContentSendCompleted, {
         type: channel.type,
         isReply: draft.replyToPostId != null,
+        attachmentTypes: draft.attachments.map((attachment) => attachment.type),
       });
 
       if (

@@ -1,4 +1,5 @@
 import { TalkSidebarFilter } from '@tloncorp/api/urbit';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
 
@@ -11,6 +12,7 @@ export function MessagesFilterMenu({ children }: PropsWithChildren) {
 
   const handleAction = useCallback((value: TalkSidebarFilter) => {
     return () => {
+      trackEvent(AnalyticsEvent.MessagesFilterSelected, { filter: value });
       store.changeMessageFilter(value);
       setIsOpen(false);
     };

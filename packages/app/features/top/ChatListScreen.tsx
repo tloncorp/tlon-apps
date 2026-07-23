@@ -249,21 +249,21 @@ export function ChatListScreenView({
         if (item.isPending) {
           setSelectedGroupId(item.id);
         } else {
-          logger.trackEvent(
-            AnalyticsEvent.ActionTappedChat,
-            logic.getModelAnalytics({ group: item.group })
-          );
+          logger.trackEvent(AnalyticsEvent.ActionTappedChat, {
+            ...logic.getModelAnalytics({ group: item.group }),
+            source: searchQuery.trim() ? 'home_search' : 'chat_list',
+          });
           navigateToGroup(item.group.id);
         }
       } else {
-        logger.trackEvent(
-          AnalyticsEvent.ActionTappedChat,
-          logic.getModelAnalytics({ channel: item.channel })
-        );
+        logger.trackEvent(AnalyticsEvent.ActionTappedChat, {
+          ...logic.getModelAnalytics({ channel: item.channel }),
+          source: searchQuery.trim() ? 'home_search' : 'chat_list',
+        });
         navigateToChannel(item.channel);
       }
     },
-    [navigateToGroup, navigateToChannel]
+    [navigateToGroup, navigateToChannel, searchQuery]
   );
 
   const handlePressTab = useCallback((tab: TabName) => {
