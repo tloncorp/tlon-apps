@@ -56,7 +56,7 @@ run_thread() {
     local TIMEOUT=600
     local id=0
 
-    local hoon=$(cat - | awk '{ printf "%s%s", sep, $0; sep="  "}')
+    local hoon=$(awk '{ printf "%s%s", "\\0a", $0 }')
     local card="[$id %fyrd [%base %khan-eval %noun [%ted-eval '$hoon']]]"
 
     out_file=`mktemp`
@@ -466,15 +466,15 @@ if $verify
 then
     echo "⚙️ Verifying pill"
 
-    test_pier=`mktemp -d`
+    test_dir=`mktemp -d`
 
-    if $vere -F nec -c $test_pier -B $pill_file -x
+    if $vere -F nec -B $pill_file -x -c $test_dir/nec
     then
         echo "☑️ Pill verified"
-        rm -rf $test_pier
+        rm -rf $test_dir
     else
         echo "❌ Pill failed verification!"
-        rm -rf $test_pier
+        rm -rf $test_dir
         exit 1
     fi
 else
