@@ -211,6 +211,15 @@ export function NotesNativeChannel({
     [folders, notes]
   );
   const activeFolderId = folderId ?? rootFolderId;
+  const displayedFolderId =
+    folderId != null && folders.some((folder) => folder.folderId === folderId)
+      ? folderId
+      : null;
+  useEffect(() => {
+    if (displayedFolderId !== null) {
+      trackEvent(AnalyticsEvent.NotesFolderOpened);
+    }
+  }, [displayedFolderId]);
   const treeRows = useMemo(
     () =>
       buildFolderContentsRows({
@@ -324,7 +333,6 @@ export function NotesNativeChannel({
   });
 
   const openFolder = useMutableCallback((folder: db.NotesFolder) => {
-    trackEvent(AnalyticsEvent.NotesFolderOpened);
     navigation.dispatch(
       StackActions.push('NotesFolder', {
         channelId,
