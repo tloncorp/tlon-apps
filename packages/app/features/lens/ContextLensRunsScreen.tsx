@@ -15,7 +15,7 @@ import {
 } from '../../ui';
 import {
   TONE_COLORS,
-  formatWallTime,
+  formatWallDateTime,
   runMeta,
   runPreview,
   statusLabel,
@@ -115,7 +115,7 @@ export function ContextLensRunsScreen(props: Props) {
                     </SizableText>
                   </XStack>
                   <SizableText size="$s" color="$tertiaryText" flexShrink={0}>
-                    {formatWallTime(row.lens.updatedAt)}
+                    {formatWallDateTime(row.lens.updatedAt)}
                   </SizableText>
                 </XStack>
                 <SizableText size="$s" color="$secondaryText" numberOfLines={2}>
