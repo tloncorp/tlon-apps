@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { ScrollViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SizeTokens } from 'tamagui';
 import { ScrollView } from 'tamagui';
@@ -7,6 +8,7 @@ type SpacingValue = number | SizeTokens;
 
 interface SettingsContentScrollViewProps {
   children: ReactNode;
+  contentInsetAdjustmentBehavior?: ScrollViewProps['contentInsetAdjustmentBehavior'];
   gap?: SpacingValue;
   maxWidth?: number;
   paddingBottom?: SpacingValue;
@@ -17,6 +19,7 @@ interface SettingsContentScrollViewProps {
 
 export function SettingsContentScrollView({
   children,
+  contentInsetAdjustmentBehavior,
   gap,
   maxWidth = 600,
   paddingBottom,
@@ -32,6 +35,7 @@ export function SettingsContentScrollView({
 
   return (
     <ScrollView
+      contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
       style={{
         flex: 1,
         width: '100%',

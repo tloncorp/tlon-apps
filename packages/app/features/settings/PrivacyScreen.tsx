@@ -5,7 +5,7 @@ import * as store from '@tloncorp/shared/store';
 import { Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Switch } from 'react-native';
-import { YStack } from 'tamagui';
+import { YStack, isWeb } from 'tamagui';
 
 import { useTelemetry } from '../../hooks/useTelemetry';
 import { RootStackParamList } from '../../navigation/types';
@@ -178,13 +178,15 @@ export function PrivacySettingsScreen(props: Props) {
 
   return (
     <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        borderBottom
-        backAction={
-          isWindowNarrow ? () => props.navigation.goBack() : undefined
-        }
-        title="Privacy Settings"
-      />
+      {isWeb && (
+        <ScreenHeader
+          borderBottom
+          backAction={
+            isWindowNarrow ? () => props.navigation.goBack() : undefined
+          }
+          title="Privacy Settings"
+        />
+      )}
       <View
         flex={1}
         width="100%"
