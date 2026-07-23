@@ -262,6 +262,7 @@ export async function setGroupVolumeLevel(params: {
       source,
       params.level ? ub.getVolumeMap(params.level, true) : null
     );
+    return true;
   } catch (e) {
     // rollback
     logger.trackError('ActivityAction: Failed to set group volume level', {
@@ -272,6 +273,7 @@ export async function setGroupVolumeLevel(params: {
     if (existingGroup?.volumeSettings) {
       await db.setVolumes({ volumes: [existingGroup.volumeSettings] });
     }
+    return false;
   }
 }
 
@@ -320,6 +322,7 @@ export async function setChannelVolumeLevel(params: {
       source,
       params.level ? ub.getVolumeMap(params.level, true) : null
     );
+    return true;
   } catch (e) {
     // rollback
     logger.trackError('ActivityAction: Failed to set channel volume level', {
@@ -338,6 +341,7 @@ export async function setChannelVolumeLevel(params: {
         ],
       });
     }
+    return false;
   }
 }
 

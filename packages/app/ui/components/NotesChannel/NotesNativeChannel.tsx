@@ -366,6 +366,7 @@ export function NotesNativeChannel({
         title: '',
       });
       if (note) {
+        trackEvent(AnalyticsEvent.NoteCreated);
         openNote(note, { focusTitle: true, startInEdit: true });
       }
     });
@@ -385,11 +386,14 @@ export function NotesNativeChannel({
     const parentFolderId = newFolderParentId ?? rootFolderId;
     setIsCreatingFolder(true);
     await runAction('Failed to create folder', async () => {
-      await createNotebookFolder({
+      const folder = await createNotebookFolder({
         notebookFlag,
         parentFolderId,
         name: newFolderName.trim(),
       });
+      if (folder) {
+        trackEvent(AnalyticsEvent.NotesFolderCreated);
+      }
       setNewFolderName('');
       setNewFolderParentId(null);
       setAddFolderOpen(false);

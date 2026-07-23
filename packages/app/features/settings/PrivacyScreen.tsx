@@ -145,7 +145,10 @@ export function PrivacySettingsScreen(props: Props) {
       });
     } catch (e) {
       triggerHaptic('error');
-      setState((prev) => ({ ...prev, disableAvatars: !nextValue }));
+      setState((prev) => ({
+        ...prev,
+        disableTlonInfraEnhancement: !nextValue,
+      }));
     }
   }, [state.disableTlonInfraEnhancement]);
 

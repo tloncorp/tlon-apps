@@ -213,6 +213,7 @@ export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
       severity: AnalyticsSeverity.Medium,
     });
     await db.insertSettings({ disableTlonInfraEnhancement: oldValue });
+    throw e;
   }
 }
 

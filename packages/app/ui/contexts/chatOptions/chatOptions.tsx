@@ -183,14 +183,17 @@ export const ChatOptionsProvider = ({
   }, [chat, channel, group]);
 
   const updateVolume = useCallback(
-    (level: ub.NotificationLevel | null) => {
-      trackEvent(AnalyticsEvent.NotificationLevelChanged, {
-        level: level ?? 'default',
-      });
+    async (level: ub.NotificationLevel | null) => {
+      let didUpdate = false;
       if (chat?.type === 'group' && group) {
-        store.setGroupVolumeLevel({ group, level });
+        didUpdate = await store.setGroupVolumeLevel({ group, level });
       } else if (chat?.type === 'channel' && channel) {
-        store.setChannelVolumeLevel({ channel, level });
+        didUpdate = await store.setChannelVolumeLevel({ channel, level });
+      }
+      if (didUpdate) {
+        trackEvent(AnalyticsEvent.NotificationLevelChanged, {
+          level: level ?? 'default',
+        });
       }
     },
     [channel, chat, group]

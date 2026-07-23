@@ -369,7 +369,7 @@ async function _sendPost({
     }
 
     logger.crumb('done sending post');
-    if (draft && !existingPost) {
+    if (draft) {
       trackEvent(AnalyticsEvent.ContentSendCompleted, {
         type: channel.type,
         isReply: draft.replyToPostId != null,
@@ -489,6 +489,7 @@ export async function retrySendPost({
   await _sendPost({
     channelId: draft.channelId,
     buildFinalizedPostData: () => finalizePostDraft(draft),
+    draft,
     existingPost: post,
   });
 }

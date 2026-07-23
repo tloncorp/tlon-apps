@@ -18,6 +18,7 @@ import {
   deleteFailedPost,
   deletePost,
   finalizeAndSendPost,
+  retrySendPost,
 } from './postActions';
 
 const TEST_CHANNEL = '~zod';
@@ -218,6 +219,7 @@ describe('finalizeAndSendPost', () => {
     vi.useRealTimers();
     vi.mocked(scry).mockClear();
     vi.mocked(poke).mockClear();
+    useDebugStore.setState({ errorLogger: null });
     updateSession(null);
   });
 
@@ -309,6 +311,37 @@ describe('finalizeAndSendPost', () => {
       content: expect.stringContaining(message),
       deliveryStatus: 'failed',
     });
+  });
+
+  test('tracks completion when a failed send succeeds on retry', async () => {
+    const capture = vi.fn();
+    useDebugStore.getState().initializeErrorLogger({ capture });
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    vi.mocked(poke).mockRejectedValueOnce(new Error('send failed'));
+
+    const initialSend = finalizeAndSendPost(buildTestDraft());
+    await vi.runOnlyPendingTimersAsync();
+    await initialSend;
+
+    const failedPost = await fetchLatestPostFromDb();
+    expect(failedPost).toMatchObject({ deliveryStatus: 'failed' });
+    expect(failedPost?.draft).toBeTruthy();
+
+    vi.mocked(poke).mockResolvedValue(0);
+    const channel = await db.getChannel({ id: TEST_CHANNEL });
+    const retry = retrySendPost({
+      channel: channel!,
+      post: failedPost!,
+    });
+    await vi.runOnlyPendingTimersAsync();
+    await retry;
+
+    expect(
+      capture.mock.calls.filter(
+        ([event]) => event === AnalyticsEvent.ContentSendCompleted
+      )
+    ).toHaveLength(1);
   });
 
   test('session connection lost during upload', async () => {

@@ -77,7 +77,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
         });
         if (appInvite) {
           trackEvent(AnalyticsEvent.InviteOpened);
-          setLure(appInvite);
+          setLure({ ...appInvite, inviteOpenedTracked: true });
           return;
         } else {
           if (input.length > 4) {

@@ -341,11 +341,6 @@ export function ChatListScreenView({
       }
       setShowSearchInput(!showSearchInput);
     } else {
-      if (!isOpen) {
-        trackEvent(AnalyticsEvent.HomeSearchOpened, {
-          tab: activeTab,
-        });
-      }
       setIsOpen(!isOpen);
     }
   }, [activeTab, showSearchInput, isWindowNarrow, isOpen, setIsOpen]);

@@ -283,8 +283,16 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
       };
 
       try {
-        // TODO: CORS doesn't work right now for POST, so we can't actually handle this response.
-        await fetch(endpoint, options);
+        // Browsers may return an opaque response when CORS hides the status.
+        const response = await fetch(endpoint, options);
+        if (!response.ok && response.type !== 'opaque') {
+          logger.trackError(AnalyticsEvent.InviteError, {
+            context: 'invite provider rejected lure',
+            inviteId: invite.id,
+            status: response.status,
+          });
+          return;
+        }
       } catch (e) {
         logger.trackError(AnalyticsEvent.InviteError, {
           error: e,

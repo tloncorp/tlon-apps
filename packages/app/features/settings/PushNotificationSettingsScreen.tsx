@@ -65,11 +65,14 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
 
   const removeException = useCallback(
     async (exception: db.Group | db.Channel) => {
-      if (db.isGroup(exception)) {
-        await store.setGroupVolumeLevel({ group: exception, level: null });
-      } else {
-        await store.setChannelVolumeLevel({ channel: exception, level: null });
-      }
+      const didRemove = db.isGroup(exception)
+        ? await store.setGroupVolumeLevel({ group: exception, level: null })
+        : await store.setChannelVolumeLevel({
+            channel: exception,
+            level: null,
+          });
+      if (!didRemove) return;
+
       trackEvent(AnalyticsEvent.NotificationPreferenceChanged, {
         setting: 'override_removed',
         value: db.isGroup(exception) ? 'group' : 'channel',

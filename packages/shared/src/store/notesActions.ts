@@ -372,9 +372,6 @@ export async function createNotebookNote({
     notebookFlag,
     noteId: note.noteId,
   });
-  if (createdNote) {
-    trackEvent(AnalyticsEvent.NoteCreated);
-  }
   return createdNote;
 }
 
@@ -404,9 +401,6 @@ export async function createNotebookFolder({
           folder.name === name && (folder.parentFolderId ?? null) === parentId
       ),
   });
-  if (folder) {
-    trackEvent(AnalyticsEvent.NotesFolderCreated);
-  }
   return folder;
 }
 
