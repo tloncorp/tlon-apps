@@ -730,6 +730,84 @@ class StreamLoopTests(unittest.TestCase):
         self.assertEqual(len(sse_instances), 2)
         self.assertIsNone(adapter._fatal_error)
 
+    def test_is_fatal_auth_rejection_predicate(self):
+        fixed = self.make_adapter({"cookie": "urbauth=abc123"})
+        reauth = self.make_adapter()  # access code only -> can re-authenticate
+        # Fixed cookie + a 401/403 on either the channel GET or an action PUT.
+        self.assertTrue(
+            fixed._is_fatal_auth_rejection(
+                tlon_api.TlonChannelError("x", status=401)
+            )
+        )
+        self.assertTrue(
+            fixed._is_fatal_auth_rejection(
+                tlon_api.TlonTerminalActionError("x", status=403)
+            )
+        )
+        # A config that can re-authenticate is never fatal.
+        self.assertFalse(
+            reauth._is_fatal_auth_rejection(
+                tlon_api.TlonTerminalActionError("x", status=401)
+            )
+        )
+        # Non-auth status, or a non-channel/action exception, is never fatal.
+        self.assertFalse(
+            fixed._is_fatal_auth_rejection(
+                tlon_api.TlonChannelError("reaped", status=404)
+            )
+        )
+        self.assertFalse(fixed._is_fatal_auth_rejection(ConnectionError("nope")))
+
+    def _run_connect_with_setup_error(self, extra, exc):
+        """Drive connect() where _connect_sse raises at startup, isolating the
+        except-handler cleanup from real collaborators."""
+        adapter = self.make_adapter(extra)
+
+        async def boom():
+            raise exc
+
+        async def anoop(*a, **k):
+            return None
+
+        adapter._connect_sse = boom
+        adapter._stop_nudge_collaborators = anoop
+        adapter._stop_event_worker = anoop
+        adapter._close_sse = anoop
+        adapter._reset_nudge_state = lambda *a, **k: None
+        errors = []
+        adapter._telemetry = types.SimpleNamespace(
+            error=lambda *a, **kw: errors.append((a, kw)),
+        )
+        with patch.object(adapter_mod, "_cli_available", return_value=True):
+            result = asyncio.run(adapter.connect())
+        return adapter, result, errors
+
+    def test_connect_fixed_cookie_terminal_auth_is_fatal(self):
+        # A rejected fixed cookie surfaces at STARTUP via connect()->_connect_sse
+        # (open/subscribe raise TlonTerminalActionError), before _run_stream is
+        # ever scheduled. It must be fatal, not restart churn.
+        for status in (401, 403):
+            with self.subTest(status=status):
+                adapter, result, errors = self._run_connect_with_setup_error(
+                    {"cookie": "urbauth=abc123"},
+                    tlon_api.TlonTerminalActionError(
+                        f"HTTP {status}", status=status
+                    ),
+                )
+                self.assertFalse(result)
+                self.assertIsNotNone(adapter._fatal_error)
+                self.assertEqual(adapter._fatal_error["code"], "auth")
+                self.assertFalse(adapter._fatal_error["retryable"])
+                self.assertEqual(errors[0][1].get("operation"), "channel")
+
+    def test_connect_ship_code_terminal_auth_is_not_fatal(self):
+        adapter, result, _ = self._run_connect_with_setup_error(
+            {},  # access code only -> can re-authenticate
+            tlon_api.TlonTerminalActionError("HTTP 401", status=401),
+        )
+        self.assertFalse(result)
+        self.assertIsNone(adapter._fatal_error)
+
     def test_auth_error_is_fatal(self):
         adapter = self.make_adapter()
 

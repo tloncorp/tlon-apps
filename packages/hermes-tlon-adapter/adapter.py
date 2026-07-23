@@ -1068,12 +1068,24 @@ class TlonAdapter(BasePlatformAdapter):
             self._set_fatal_error("auth", str(exc), retryable=False)
             return False
         except Exception as exc:
-            logger.error("[tlon] connect failed: %s", exc, exc_info=True)
-            self._telemetry.error("connect", exc)
+            # A fixed cookie the ship rejects surfaces here at startup —
+            # open()/subscribe() raise TlonTerminalActionError (401/403), which
+            # is a ConnectionError subclass, not TlonAuthError, so it lands in
+            # this generic handler rather than the fatal branch above. Without
+            # this check the gateway would restart-loop against a dead cookie.
+            fatal_auth = self._is_fatal_auth_rejection(exc)
+            if fatal_auth:
+                logger.error("[tlon] connect failed, credentials rejected: %s", exc)
+                self._telemetry.error("connect", exc, operation="channel")
+            else:
+                logger.error("[tlon] connect failed: %s", exc, exc_info=True)
+                self._telemetry.error("connect", exc)
             await self._stop_nudge_collaborators()
             await self._stop_event_worker()
             await self._close_sse(graceful=False)
             self._reset_nudge_state()
+            if fatal_auth:
+                self._set_fatal_error("auth", str(exc), retryable=False)
             return False
 
     async def disconnect(self) -> None:
@@ -2421,6 +2433,19 @@ class TlonAdapter(BasePlatformAdapter):
     def _can_reauthenticate(self) -> bool:
         return not bool(self.tlon_config.cookie)
 
+    def _is_fatal_auth_rejection(self, exc: BaseException) -> bool:
+        """A 401/403 on the channel GET (``TlonChannelError``) or on an
+        open/subscribe PUT (``TlonTerminalActionError``) is unrecoverable when
+        the config cannot mint fresh credentials — i.e. a fixed ``TLON_COOKIE``
+        the ship rejects. Retrying such a config only hammers the ship, so it
+        must be surfaced as fatal from both the initial ``connect()`` and the
+        ``_run_stream`` reconnect loop."""
+        return (
+            isinstance(exc, (TlonChannelError, TlonTerminalActionError))
+            and getattr(exc, "status", None) in (401, 403)
+            and not self._can_reauthenticate()
+        )
+
     async def _run_stream(self) -> None:
         backoff_idx = 0
 
@@ -2499,7 +2524,7 @@ class TlonAdapter(BasePlatformAdapter):
                 self._nudge_settings_ready = False
                 self._nudge_load_generation += 1
                 await self._stop_nudge_settings_retry()
-                if exc.status in (401, 403) and not self._can_reauthenticate():
+                if self._is_fatal_auth_rejection(exc):
                     await self._close_sse(graceful=False)
                     self._telemetry.error("sse", exc, operation="channel")
                     self._set_fatal_error("auth", str(exc), retryable=False)
@@ -2514,11 +2539,7 @@ class TlonAdapter(BasePlatformAdapter):
                     self._nudge_settings_ready = False
                     self._nudge_load_generation += 1
                     await self._stop_nudge_settings_retry()
-                    if (
-                        isinstance(exc, TlonTerminalActionError)
-                        and exc.status in (401, 403)
-                        and not self._can_reauthenticate()
-                    ):
+                    if self._is_fatal_auth_rejection(exc):
                         # Setup rejects auth in open()/subscribe() (a channel
                         # PUT) rather than on the SSE GET, so it never reaches
                         # the TlonChannelError branch. Same policy applies: a
