@@ -152,7 +152,10 @@ import {
 } from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
 import { resolveTlonSourceReplyDeliveryMode } from './source-reply-delivery.js';
-import { parseSseWatchdogIntervalMs } from './sse-watchdog-config.js';
+import {
+  parseSseStaleThresholdMs,
+  parseSseWatchdogIntervalMs,
+} from './sse-watchdog-config.js';
 import {
   extractCites,
   formatModelName,
@@ -476,9 +479,12 @@ export async function monitorTlonProvider(
   // Stream-watchdog thresholds are normally hardcoded defaults in the client.
   // The E2E harness overrides them via env so a detached-network fault surfaces
   // within the scenario's wait window (see TLON_NUDGE_TICK_INTERVAL_MS for the
-  // same harness-knob precedent). Only applied when they parse as finite.
-  const sseStaleEnv = process.env.TLON_SSE_STALE_THRESHOLD_MS;
-  const sseStaleOverride = sseStaleEnv ? Number(sseStaleEnv) : NaN;
+  // same harness-knob precedent). Only applied when they parse to a safe value;
+  // the stale parser rejects negative/whitespace typos so they can't silently
+  // disable the watchdog (only an explicit 0 does).
+  const sseStaleOverride = parseSseStaleThresholdMs(
+    process.env.TLON_SSE_STALE_THRESHOLD_MS
+  );
   const sseWatchdogOverride = parseSseWatchdogIntervalMs(
     process.env.TLON_SSE_WATCHDOG_INTERVAL_MS
   );
@@ -487,7 +493,7 @@ export async function monitorTlonProvider(
     api = new UrbitSSEClient(account.url, cookie, {
       ship: botShipName,
       ssrfPolicy,
-      ...(Number.isFinite(sseStaleOverride)
+      ...(sseStaleOverride !== undefined
         ? { streamStaleThresholdMs: sseStaleOverride }
         : {}),
       ...(sseWatchdogOverride !== undefined
