@@ -14,7 +14,7 @@ import {
   useImage,
 } from '@shopify/react-native-skia';
 import * as store from '@tloncorp/shared/store';
-import { ComponentType, useEffect, useState } from 'react';
+import { ComponentType, useEffect, useMemo, useState } from 'react';
 import { type ImageSourcePropType, Platform } from 'react-native';
 import { useTheme } from 'tamagui';
 
@@ -155,9 +155,21 @@ export function NativeTabNavigator() {
   const { data: currentUser } = store.useContact({ id: currentUserId });
   const roundedAvatarSource = useRoundedAvatarSource(currentUser?.avatarImage);
   const haveUnreadActivity = store.useHaveUnreadUnseenActivity();
+  const backgroundColor = theme.background?.val;
+  const navigationTheme = useMemo(() => {
+    const baseTheme = activeTheme === 'dark' ? DarkTheme : DefaultTheme;
+
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        background: backgroundColor ?? baseTheme.colors.background,
+      },
+    };
+  }, [activeTheme, backgroundColor]);
 
   return (
-    <ThemeProvider value={activeTheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={navigationTheme}>
       <Tabs.Navigator
         initialRouteName="ChatList"
         backBehavior="history"
