@@ -361,7 +361,7 @@ export async function monitorTlonProvider(
   opts: MonitorTlonOpts = {}
 ): Promise<void> {
   const core = getTlonRuntime();
-  const cfg = core.config.loadConfig();
+  const cfg = core.config.current();
   if (cfg.channels?.tlon?.enabled === false) {
     return;
   }
