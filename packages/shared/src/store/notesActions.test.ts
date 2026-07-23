@@ -1010,6 +1010,35 @@ test('adoptNotebookNoteRemote refuses to downgrade a row that advanced past the 
   });
 });
 
+test('adoptNotebookNoteRemote keeps newer same-revision metadata', async () => {
+  // Renames/moves don't bump the revision: a rename synced after the
+  // conflict copy was captured leaves the row at the same revision with
+  // newer metadata.
+  const note = makeNote('Renamed while deciding');
+  const renamedRow = {
+    ...note,
+    title: 'Newer synced title',
+    updatedAt: (note.updatedAt ?? 0) + 1_000,
+  };
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [renamedRow],
+    members: [],
+  });
+
+  const staleConflictCopy = makeApiNotesNote(note);
+  const adopted = await adoptNotebookNoteRemote({
+    notebookFlag,
+    remote: staleConflictCopy,
+  });
+
+  expect(adopted).toMatchObject({ title: 'Newer synced title' });
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject({ title: 'Newer synced title' });
+});
+
 test('adoptNotebookNoteRemote persists the host copy locally', async () => {
   const note = makeNote('Local note');
   await db.saveNotesNotebookSnapshot({

@@ -771,6 +771,17 @@ export function NotesNoteDetail({
         // reportConflict drops it if the selection has since moved on.
         if (e instanceof NotesNoteConflictError) {
           reportConflict(flag, e);
+          return;
+        }
+        // Non-conflict failures (e.g. an unclassifiable conflict from a
+        // lagging replica) must not fail silently either: while this note
+        // is still in the editor, show the error so autosave/user retries.
+        // After unmount the durable stash carries the edits, and the
+        // stash-restore pass surfaces a conflict if the note moved on.
+        const ctx = flushCtxRef.current;
+        if (ctx?.flag === flag && ctx.base?.noteId === base.noteId) {
+          setSaveState('error');
+          setError(errorMessage(e, 'Failed to save note'));
         }
       });
   }, [clearConflict, preserveScrollOffset, reportConflict, runSave]);
@@ -809,6 +820,12 @@ export function NotesNoteDetail({
   // clean too, but its restore pass hasn't run yet, so its stash survives.
   useEffect(() => {
     if (!notebookFlag || !draftBase) return;
+    // While a conflict is pending, leave the stash alone. A restored
+    // conflict pairs old drafts with the row's newer base — re-stashing
+    // would stamp them with the new baseRevision, and a restart would then
+    // restore them as ordinary drafts whose autosave silently overwrites
+    // the remote work the conflict was protecting.
+    if (conflictNote) return;
     if (!isDirty) {
       if (stashRestoreCheckedRef.current === stashRestoreKey) {
         clearDraftStash(notebookFlag, draftBase.noteId);
@@ -826,6 +843,7 @@ export function NotesNoteDetail({
     }));
   }, [
     bodyDraft,
+    conflictNote,
     draftBase,
     isDirty,
     notebookFlag,
@@ -835,8 +853,7 @@ export function NotesNoteDetail({
 
   // Restore a stashed draft after a crash/kill. Only restore while the
   // editor is clean and the row is still at the stash's base revision —
-  // then pushing the restored draft can't clobber anyone's newer work. A
-  // stash from an older revision is superseded; drop it.
+  // then pushing the restored draft can't clobber anyone's newer work.
   useEffect(() => {
     if (!notebookFlag || !draftBase || isDirty || !stashRestoreKey) return;
     if (stashRestoreCheckedRef.current === stashRestoreKey) return;
@@ -846,7 +863,29 @@ export function NotesNoteDetail({
       const stash = stashes[draftStashKey(notebookFlag, draftBase.noteId)];
       if (cancelled || !stash) return;
       if (stash.baseRevision !== draftBase.revision) {
-        clearDraftStash(notebookFlag, draftBase.noteId);
+        if (
+          stash.title === draftBase.title &&
+          stash.body === draftBase.bodyMd
+        ) {
+          // The stashed content is exactly what the row now holds — the
+          // save landed (e.g. a late flush succeeded). Nothing to recover.
+          clearDraftStash(notebookFlag, draftBase.noteId);
+          return;
+        }
+        // The stashed edits never landed and the note moved on (a flush
+        // hit a conflict and the session ended before recovery could run).
+        // Restoring them as plain drafts would be worse than dropping
+        // them: their base revision is now current, so the next autosave
+        // would silently overwrite the newer remote work. Surface it as
+        // the standing conflict it is — row as "theirs", stash as "mine" —
+        // which also suspends autosave until the user picks a side.
+        setTitleDraft(stash.title);
+        setBodyDraft(stash.body);
+        setConflictNote(draftBase);
+        setError(
+          'This note was changed elsewhere. Your unsaved changes are kept.'
+        );
+        setSaveState('error');
         return;
       }
       if (stash.title !== draftBase.title || stash.body !== draftBase.bodyMd) {

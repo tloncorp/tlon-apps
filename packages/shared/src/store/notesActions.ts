@@ -635,12 +635,20 @@ export async function adoptNotebookNoteRemote({
   // The conflict copy was captured when the banner appeared; the local row
   // can have advanced past it (another remote edit synced while the user
   // decided). Adopting would downgrade the row — keep it and let the
-  // editor converge on the fresher copy instead.
+  // editor converge on the fresher copy instead. Renames/moves don't bump
+  // the revision, so equal revisions break ties on updatedAt, mirroring
+  // the snapshot merge.
   const current = await db.getNotesNote({
     notebookFlag,
     noteId: remote.noteId,
   });
-  if (current && (remote.revision ?? 0) < current.revision) {
+  const remoteRevision = remote.revision ?? 0;
+  if (
+    current &&
+    (remoteRevision < current.revision ||
+      (remoteRevision === current.revision &&
+        (remote.updatedAt ?? 0) < (current.updatedAt ?? 0)))
+  ) {
     return current;
   }
   await db.updateNotesNote({
