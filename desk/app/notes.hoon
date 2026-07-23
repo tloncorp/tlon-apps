@@ -1028,14 +1028,14 @@
         &((gte `@`c 0x1.f3fb) (lte `@`c 0x1.f3ff))  ::  skin tones
         &((gte `@`c 0x300) (lte `@`c 0x36f))  ::  combining marks
     ==
-  =/  keep=(list @c)  (scag limit chars)
+  ::  walk the kept slice in reverse so cluster glue peels off the end
+  =/  peek=(list @c)  (flop (scag limit chars))
   =/  nxt=@c  (snag limit chars)
   |-  ^-  @t
-  ?~  keep  ''
-  =/  last=@c  (rear keep)
-  ?.  |((glue last) (glue nxt))
-    (crip (tufa keep))
-  $(keep (snip keep), nxt last)
+  ?~  peek  ''
+  ?.  |((glue i.peek) (glue nxt))
+    (crip (tufa (flop peek)))
+  $(peek t.peek, nxt i.peek)
 ::  +give-said: one %fact (preview or %notes-denied) then an immediate
 ::  %kick, mirroring %channels' single-shot said flow. Public notebooks
 ::  preview for anyone. Unlike +can-view-flag (which treats an unsynced
