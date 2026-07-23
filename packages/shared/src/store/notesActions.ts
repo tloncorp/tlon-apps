@@ -632,6 +632,17 @@ export async function adoptNotebookNoteRemote({
   notebookFlag: string;
   remote: api.NotesNote;
 }) {
+  // The conflict copy was captured when the banner appeared; the local row
+  // can have advanced past it (another remote edit synced while the user
+  // decided). Adopting would downgrade the row — keep it and let the
+  // editor converge on the fresher copy instead.
+  const current = await db.getNotesNote({
+    notebookFlag,
+    noteId: remote.noteId,
+  });
+  if (current && (remote.revision ?? 0) < current.revision) {
+    return current;
+  }
   await db.updateNotesNote({
     notebookFlag,
     noteId: remote.noteId,

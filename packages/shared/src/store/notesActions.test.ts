@@ -971,6 +971,45 @@ test('saveNotebookNote rethrows the raw error when the retry races and the repli
   await expect(attempt).rejects.toBeInstanceOf(api.NotesV1WriteError);
 }, 15_000);
 
+test('adoptNotebookNoteRemote refuses to downgrade a row that advanced past the copy', async () => {
+  const note = makeNote('Advanced note');
+  const advancedRow = {
+    ...note,
+    bodyMd: 'newer synced body',
+    revision: note.revision + 4,
+  };
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [advancedRow],
+    members: [],
+  });
+
+  // The conflict banner's captured copy is older than what the row has
+  // since synced to.
+  const staleConflictCopy = makeApiNotesNote({
+    ...note,
+    bodyMd: 'older conflict copy',
+    revision: note.revision + 1,
+  });
+
+  const adopted = await adoptNotebookNoteRemote({
+    notebookFlag,
+    remote: staleConflictCopy,
+  });
+
+  expect(adopted).toMatchObject({
+    bodyMd: 'newer synced body',
+    revision: advancedRow.revision,
+  });
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject({
+    bodyMd: 'newer synced body',
+    revision: advancedRow.revision,
+  });
+});
+
 test('adoptNotebookNoteRemote persists the host copy locally', async () => {
   const note = makeNote('Local note');
   await db.saveNotesNotebookSnapshot({

@@ -543,6 +543,21 @@ export function NotesNoteDetail({
     []
   );
 
+  // Counterpart to reportConflict: a save that SUCCEEDS for the current
+  // note supersedes any conflict still showing. The save chain is FIFO, so
+  // a stale queued save (e.g. a background flush from before a "Keep mine"
+  // resolution) can reject and re-arm the banner after the resolution
+  // cleared it; without this, the banner sticks and autosave stays
+  // suspended even though the rebased save landed.
+  const clearConflict = useCallback((flag: string, noteId: number) => {
+    const ctx = flushCtxRef.current;
+    if (!ctx || ctx.flag !== flag || ctx.base?.noteId !== noteId) {
+      return;
+    }
+    setConflictNote(null);
+    setError(null);
+  }, []);
+
   const saveSelectedNote = useCallback(
     async (baseOverride?: db.NotesNote) => {
       const base = baseOverride ?? draftBase;
@@ -586,6 +601,7 @@ export function NotesNoteDetail({
           body: bodyToSave,
         });
         setSaveState('saved');
+        clearConflict(notebookFlag, base.noteId);
         return true;
       } catch (e) {
         const message = errorMessage(e, 'Failed to save note');
@@ -610,6 +626,7 @@ export function NotesNoteDetail({
     },
     [
       canEdit,
+      clearConflict,
       draftBase,
       notebookFlag,
       preserveScrollOffset,
@@ -746,6 +763,7 @@ export function NotesNoteDetail({
           setDraftBase(updated);
         }
         setSaveState('saved');
+        clearConflict(flag, base.noteId);
       })
       .catch((e) => {
         // No-ops after unmount; while mounted, surface a conflict so the
@@ -755,7 +773,7 @@ export function NotesNoteDetail({
           reportConflict(flag, e);
         }
       });
-  }, [preserveScrollOffset, reportConflict, runSave]);
+  }, [clearConflict, preserveScrollOffset, reportConflict, runSave]);
 
   // Flush unsaved work when switching notes or unmounting — the poke
   // outlives the component.
