@@ -754,11 +754,14 @@ describe('UrbitSSEClient', () => {
       isConnected: boolean;
       lastHeardEventId: number;
       lastAcknowledgedEventId: number;
+      lastConfirmedAckEventId: number;
+      suppressNextStreamErrorFanout: boolean;
       channelEpoch: number;
       channelReaped: boolean;
       streamDownSince: number | null;
       streamController: { abort: () => void } | null;
       streamRelease: (() => Promise<void>) | null;
+      ack: (eventId: number) => Promise<void>;
       attemptReconnect: () => Promise<void>;
       markStreamDown: () => void;
       startStreamWatchdog: () => void;
@@ -1512,6 +1515,398 @@ describe('UrbitSSEClient', () => {
       expect(
         (client as unknown as { streamRelease: unknown }).streamRelease
       ).toBeNull();
+    });
+
+    describe('event-id regression detection', () => {
+      const encoder = new TextEncoder();
+
+      // A stream we can enqueue frames into, so processStream's for-await runs
+      // the real buffering path (one chunk → multiple processEvent calls).
+      const controllableStream = () => {
+        let ctrl!: ReadableStreamDefaultController<Uint8Array>;
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            ctrl = controller;
+          },
+        });
+        return { body, ctrl };
+      };
+
+      it('a low-id frame (<= acked cursor) tears down and the next attempt rebuilds', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const { createUrbitChannel } = await import('./channel-ops.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        const mockCreate = vi.mocked(createUrbitChannel);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0 }
+        );
+        const eventHandler1 = vi.fn();
+        const errHandler1 = vi.fn();
+        const eventHandler2 = vi.fn();
+        const errHandler2 = vi.fn();
+        await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler1,
+          err: errHandler1,
+        });
+        await client.subscribe({
+          app: 'channels',
+          path: '/v4',
+          event: eventHandler2,
+          err: errHandler2,
+        });
+
+        priv(client).lastHeardEventId = 500;
+        priv(client).lastAcknowledgedEventId = 480;
+        priv(client).lastConfirmedAckEventId = 480;
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        const { body, ctrl } = controllableStream();
+        const p = client.processStream(body);
+        await vi.advanceTimersByTimeAsync(1);
+        // A revived channel restarts ids near 0; id 3 <= confirmed acked 480 is
+        // impossible from our own channel.
+        ctrl.enqueue(
+          encoder.encode('id: 3\ndata: {"id":1,"json":{"n":1}}\n\n')
+        );
+        await vi.advanceTimersByTimeAsync(1);
+
+        // The frame is NOT dispatched; every handler is told via err exactly
+        // once; the channel is marked reaped and the stream aborted.
+        expect(eventHandler1).not.toHaveBeenCalled();
+        expect(eventHandler2).not.toHaveBeenCalled();
+        expect(errHandler1).toHaveBeenCalledTimes(1);
+        expect(errHandler2).toHaveBeenCalledTimes(1);
+        expect(String(errHandler1.mock.calls[0][0].message)).toMatch(
+          /id regression/
+        );
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+
+        // End the (mock) stream so processStream's finally drives the reconnect.
+        const originalChannelId = client.channelId;
+        mockUrbitFetch.mockResolvedValue(openStreamResult());
+        ctrl.close();
+        await vi.advanceTimersByTimeAsync(5_000);
+        await p;
+
+        // channelReaped forced the REBUILD branch: a fresh channel was created
+        // and both cursors were reset.
+        expect(mockCreate).toHaveBeenCalledTimes(1);
+        expect(client.channelId).not.toBe(originalChannelId);
+        expect(priv(client).lastHeardEventId).toBe(-1);
+        expect(priv(client).lastAcknowledgedEventId).toBe(-1);
+        expect(priv(client).lastConfirmedAckEventId).toBe(-1);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+
+      it('a legit redelivery inside (acked, heard] is replay-dropped, not a rebuild', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+        priv(client).lastHeardEventId = 500;
+        priv(client).lastAcknowledgedEventId = 480;
+        priv(client).lastConfirmedAckEventId = 480;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        // id 490 is in the unacked redelivery window (480, 500]: above the
+        // confirmed ack floor, a normal resume replay, silently dropped by the
+        // existing replay-drop.
+        client.processEvent('id: 490\ndata: {"id":1,"json":{"n":1}}');
+
+        expect(eventHandler).not.toHaveBeenCalled();
+        expect(errHandler).not.toHaveBeenCalled();
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+      });
+
+      it('is inert on a fresh channel (acked cursor -1)', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        // Default cursors (-1/-1/-1): id 0 on a young channel must dispatch.
+        expect(priv(client).lastHeardEventId).toBe(-1);
+        expect(priv(client).lastAcknowledgedEventId).toBe(-1);
+        expect(priv(client).lastConfirmedAckEventId).toBe(-1);
+        client.processEvent('id: 0\ndata: {"id":1,"json":{"n":1}}');
+
+        expect(eventHandler).toHaveBeenCalledWith({ n: 1 });
+        expect(errHandler).not.toHaveBeenCalled();
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+      });
+
+      it('fires once when multiple low-id frames arrive in one chunk', async () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { autoReconnect: false, streamStaleThresholdMs: 0 }
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+        priv(client).lastHeardEventId = 500;
+        priv(client).lastAcknowledgedEventId = 480;
+        priv(client).lastConfirmedAckEventId = 480;
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        const { body, ctrl } = controllableStream();
+        const p = client.processStream(body);
+        await vi.advanceTimersByTimeAsync(1);
+        // Two low-id frames buffered in a single chunk.
+        ctrl.enqueue(
+          encoder.encode(
+            'id: 1\ndata: {"id":1,"json":{"n":1}}\n\nid: 2\ndata: {"id":1,"json":{"n":2}}\n\n'
+          )
+        );
+        await vi.advanceTimersByTimeAsync(1);
+
+        // The channelReaped early-return stops the second frame from re-firing.
+        expect(eventHandler).not.toHaveBeenCalled();
+        expect(errHandler).toHaveBeenCalledTimes(1);
+        expect(String(errHandler.mock.calls[0][0].message)).toMatch(
+          /id regression/
+        );
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+        expect(priv(client).channelReaped).toBe(true);
+
+        ctrl.close();
+        await p;
+      });
+
+      it('an optimistic-but-unconfirmed cursor does not misfire on a healthy resume replay', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 500;
+        priv(client).lastAcknowledgedEventId = 480; // optimistic (set pre-PUT)
+        priv(client).lastConfirmedAckEventId = 100; // only 100 is pruned
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        // id 200 <= optimistic 480 but > confirmed 100 (and <= heard 500): a
+        // legit replay from Eyre's pre-prune queue. Must be replay-dropped, NOT
+        // a rebuild — keying off the optimistic cursor would misfire here.
+        client.processEvent('id: 200\ndata: {"id":1,"json":{"n":1}}');
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+        expect(errHandler).not.toHaveBeenCalled();
+        expect(eventHandler).not.toHaveBeenCalled();
+
+        // id 50 <= confirmed 100: permanently pruned, impossible from our own
+        // channel → rebuild.
+        client.processEvent('id: 50\ndata: {"id":1,"json":{"n":2}}');
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+        expect(errHandler).toHaveBeenCalledTimes(1);
+      });
+
+      it('ack() advances the confirmed cursor only on a successful PUT', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        expect(priv(client).lastConfirmedAckEventId).toBe(-1);
+
+        // A confirmed (ok) ack PUT advances the floor to the acked id.
+        mockUrbitFetch.mockResolvedValue(okPutResult());
+        await priv(client).ack(120);
+        expect(priv(client).lastConfirmedAckEventId).toBe(120);
+
+        // Out-of-order: a later-confirmed LOWER id must not regress the floor.
+        await priv(client).ack(100);
+        expect(priv(client).lastConfirmedAckEventId).toBe(120);
+
+        // A failed ack PUT (!ok → throws) leaves the confirmed cursor unchanged.
+        mockUrbitFetch.mockResolvedValue({
+          response: { ok: false, status: 500 } as unknown as Response,
+          finalUrl: 'https://example.com',
+          release: vi.fn().mockResolvedValue(undefined),
+        });
+        await expect(priv(client).ack(200)).rejects.toThrow();
+        expect(priv(client).lastConfirmedAckEventId).toBe(120);
+      });
+
+      it('a stale ack for the old channel does not repopulate the confirmed cursor after rebuild', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+
+        let resolveAck!: () => void;
+        const ackResponse = new Promise<void>((resolve) => {
+          resolveAck = resolve;
+        });
+        mockUrbitFetch.mockImplementation(
+          () =>
+            ackResponse.then(() => ({
+              response: { ok: true, status: 200 },
+              finalUrl: 'https://example.com',
+              release: vi.fn().mockResolvedValue(undefined),
+            })) as ReturnType<typeof mockUrbitFetch>
+        );
+
+        client.channelId = 'chan-A';
+        priv(client).lastConfirmedAckEventId = 400;
+
+        const ackPromise = priv(client).ack(500);
+
+        client.channelId = 'chan-B';
+        priv(client).lastConfirmedAckEventId = -1;
+
+        resolveAck();
+        await ackPromise;
+
+        expect(priv(client).lastConfirmedAckEventId).toBe(-1);
+      });
+
+      it('an ack on the same channel still advances the confirmed cursor', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+
+        let resolveAck!: () => void;
+        const ackResponse = new Promise<void>((resolve) => {
+          resolveAck = resolve;
+        });
+        mockUrbitFetch.mockImplementation(
+          () =>
+            ackResponse.then(() => ({
+              response: { ok: true, status: 200 },
+              finalUrl: 'https://example.com',
+              release: vi.fn().mockResolvedValue(undefined),
+            })) as ReturnType<typeof mockUrbitFetch>
+        );
+
+        client.channelId = 'chan-A';
+        priv(client).lastConfirmedAckEventId = 100;
+
+        const ackPromise = priv(client).ack(200);
+
+        resolveAck();
+        await ackPromise;
+
+        expect(priv(client).lastConfirmedAckEventId).toBe(200);
+      });
+
+      it('a throwing err handler still completes teardown and notifies the rest', () => {
+        const error = vi.fn();
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { logger: { error } }
+        );
+        const errHandler1 = vi.fn(() => {
+          throw new Error('handler boom');
+        });
+        const errHandler2 = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler1,
+        });
+        void client.subscribe({
+          app: 'channels',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler2,
+        });
+
+        priv(client).lastHeardEventId = 500;
+        priv(client).lastAcknowledgedEventId = 480;
+        priv(client).lastConfirmedAckEventId = 480;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 3\ndata: {"id":1,"json":{"n":1}}');
+
+        // Teardown ran despite the first handler throwing...
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+        // ...and the second handler was still notified.
+        expect(errHandler1).toHaveBeenCalledTimes(1);
+        expect(errHandler2).toHaveBeenCalledTimes(1);
+        expect(String(errHandler2.mock.calls[0][0].message)).toMatch(
+          /id regression/
+        );
+        // The throw was logged, not propagated.
+        expect(error).toHaveBeenCalledWith(
+          expect.stringContaining('regression err handler threw')
+        );
+      });
+
+      it('a clean EOF clears suppressNextStreamErrorFanout', async () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { autoReconnect: false }
+        );
+        priv(client).suppressNextStreamErrorFanout = true;
+
+        const p = client.processStream(closingStream());
+        await vi.advanceTimersByTimeAsync(1);
+        await p;
+
+        expect(priv(client).suppressNextStreamErrorFanout).toBe(false);
+      });
     });
   });
 });

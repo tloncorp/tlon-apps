@@ -109,6 +109,14 @@ export class UrbitSSEClient {
   // Event ack tracking - must ack every ~50 events to keep channel healthy
   private lastHeardEventId = -1;
   private lastAcknowledgedEventId = -1;
+  /**
+   * The highest event id whose ack PUT was actually ACCEPTED by Eyre (advanced
+   * only on a confirmed ok response, via max to tolerate out-of-order async ack
+   * completions). This is the floor for event-id regression detection: unlike
+   * the optimistic lastAcknowledgedEventId (set before the PUT is sent), a
+   * confirmed ack means Eyre has permanently pruned those ids.
+   */
+  private lastConfirmedAckEventId = -1;
   private readonly ackThreshold = 20;
 
   /**
@@ -402,6 +410,13 @@ export class UrbitSSEClient {
           this.processEvent(eventData);
         }
       }
+      // Clean EOF (the loop completed without throwing): clear the suppression
+      // flag here, NOT in finally. A clean end racing our abort must not leave
+      // the flag set to swallow the NEXT unrelated stream error. The throwing
+      // path skips this line (finally runs first, awaiting attemptReconnect
+      // before the error reaches openStream's .catch, where the flag is meant
+      // to be consumed).
+      this.suppressNextStreamErrorFanout = false;
     } finally {
       // The stream is done (EOF or error): drop the connected flag
       // unconditionally so a client that won't auto-reconnect isn't left
@@ -448,6 +463,49 @@ export class UrbitSSEClient {
     }
 
     if (!data) {
+      return;
+    }
+
+    // Event-id regression: the floor must be a CONFIRMED ack, not the optimistic
+    // cursor. A resume GET replays from Eyre's pre-prune queue (on-get-request
+    // binds the channel before acknowledge-events prunes, then builds the replay
+    // from that pre-prune binding), so only confirmed-acked — permanently pruned
+    // — ids are guaranteed never to be re-sent. An id at or below the confirmed
+    // cursor therefore cannot come from our own channel: it means the channel was
+    // reaped while we were down and then silently recreated by an outbound poke
+    // (a PUT to a missing channel id creates it; its GET returns 200, so the
+    // resume status check cannot see this). The revived channel has no
+    // subscriptions — force a rebuild.
+    if (
+      eventId !== null &&
+      this.lastConfirmedAckEventId >= 0 &&
+      eventId <= this.lastConfirmedAckEventId
+    ) {
+      if (this.aborted || this.channelReaped) {
+        return; // teardown already in flight; don't double-fire
+      }
+      this.logger.error?.(
+        `[SSE] Event id regression: heard id ${eventId} <= last confirmed acked ${this.lastConfirmedAckEventId}; channel was recreated out from under us — rebuilding`
+      );
+      const regressionError = new Error(
+        `SSE event id regression (heard ${eventId}, confirmed acked ${this.lastConfirmedAckEventId}); channel recreated — rebuilding`
+      );
+      // Tear down BEFORE notifying handlers so a throwing handler can't strand
+      // the client on the dead channel; isolate each handler so one throw can't
+      // stop the others.
+      this.channelReaped = true;
+      this.suppressNextStreamErrorFanout = true;
+      this.markStreamDown();
+      this.streamController?.abort();
+      for (const { err } of this.eventHandlers.values()) {
+        try {
+          err?.(regressionError);
+        } catch (e) {
+          this.logger.error?.(
+            `[SSE] regression err handler threw: ${String(e)}`
+          );
+        }
+      }
       return;
     }
 
@@ -572,6 +630,7 @@ export class UrbitSSEClient {
   }
 
   private async ack(eventId: number): Promise<void> {
+    const ackChannelId = this.channelId;
     this.lastAcknowledgedEventId = eventId;
 
     const ackData = {
@@ -601,6 +660,20 @@ export class UrbitSSEClient {
     try {
       if (!response.ok) {
         throw new Error(`Ack failed with status ${response.status}`);
+      }
+      // Advance the confirmed cursor only when the ack resolved for the CURRENT
+      // channel. A rebuild (which re-mints channelId and resets the cursor)
+      // invalidates an in-flight ack for the old channel, and its stale
+      // old-channel id must not repopulate the confirmed floor. A resume keeps
+      // the same channelId, so its acks remain valid — this only skips acks
+      // whose channel was rebuilt out from under them. Use max to tolerate
+      // out-of-order async ack completions (a later id confirmed before an
+      // earlier one must not regress the floor).
+      if (this.channelId === ackChannelId) {
+        this.lastConfirmedAckEventId = Math.max(
+          this.lastConfirmedAckEventId,
+          eventId
+        );
       }
     } finally {
       await release();
@@ -668,6 +741,7 @@ export class UrbitSSEClient {
         ).toString();
         this.lastHeardEventId = -1;
         this.lastAcknowledgedEventId = -1;
+        this.lastConfirmedAckEventId = -1;
         await this.connect();
       } else {
         this.logger.log?.(
