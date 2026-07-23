@@ -473,6 +473,32 @@ const lastSavedNoteState = new Map<
   { body: string; revision: number }
 >();
 
+// Poll the note read until it reports a revision other than `staleRevision`,
+// or null if it never does within the retry budget. Used by conflict
+// recovery: a conflict proves the host is not at `staleRevision`, so a read
+// still reporting it is a replica that hasn't caught up yet, not an answer.
+async function fetchNotePastRevision(
+  notebookFlag: string,
+  noteId: number,
+  staleRevision: number
+): Promise<api.NotesNote | null> {
+  let latest: api.NotesNote | null = null;
+  try {
+    await withRetry(async () => {
+      latest = await api.notes.getNote({ flag: notebookFlag, noteId });
+      if ((latest.revision ?? 0) === staleRevision) {
+        throw notYetSynced;
+      }
+    }, notesRetryOptions);
+  } catch (e) {
+    if (e !== notYetSynced) {
+      throw e;
+    }
+    return null;
+  }
+  return latest;
+}
+
 async function updateNotebookNoteBody({
   notebookFlag,
   note,
@@ -496,10 +522,21 @@ async function updateNotebookNoteBody({
     if (!api.isNotesV1ConflictError(e)) {
       throw e;
     }
-    const remote = await api.notes.getNote({
-      flag: notebookFlag,
-      noteId: note.noteId,
-    });
+    // On subscribed notebooks the v1 GET serves our ship's replica, which
+    // can still hold the very copy the host just rejected (its broadcast
+    // may not have arrived). Classifying against that stale copy builds a
+    // nonsense conflict — "theirs" identical to our base, and a resolution
+    // that retries the same rejected revision. Wait for the replica to move
+    // past the rejected revision; if it doesn't, we can't classify yet, so
+    // rethrow and let the next autosave cycle try again.
+    const remote = await fetchNotePastRevision(
+      notebookFlag,
+      note.noteId,
+      expectedRevision
+    );
+    if (!remote) {
+      throw e;
+    }
     const remoteRevision = remote.revision ?? 0;
     if (remote.bodyMd === body) {
       // Our exact content is already on the host (an unload flush or an
@@ -530,8 +567,15 @@ async function updateNotebookNoteBody({
         if (!api.isNotesV1ConflictError(retryError)) {
           throw retryError;
         }
+        // Best effort: surface the raced writer's copy if the replica has
+        // it; fall back to what we already fetched (it is at least past
+        // the originally rejected revision).
         throw new NotesNoteConflictError(
-          await api.notes.getNote({ flag: notebookFlag, noteId: note.noteId })
+          (await fetchNotePastRevision(
+            notebookFlag,
+            note.noteId,
+            remoteRevision
+          )) ?? remote
         );
       }
       lastSavedNoteState.set(noteKey, {

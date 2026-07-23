@@ -718,6 +718,121 @@ test('saveNotebookNote surfaces a typed conflict when the host content diverged'
   expect(updateNoteBody).toHaveBeenCalledTimes(1);
 });
 
+test('saveNotebookNote waits out a stale replica before classifying a conflict', async () => {
+  const note = makeNote('Laggy replica note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  // The host rejected our revision, but the subscriber replica still
+  // serves the pre-conflict copy on the first read; the remote edit's
+  // broadcast lands between polls.
+  const staleReplica = makeApiNotesNote(note);
+  const advancedRemote = {
+    ...note,
+    bodyMd: 'remote edit that caused the conflict',
+    revision: note.revision + 1,
+  };
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
+    makeApiNotesNote(advancedRemote),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  const getNote = vi
+    .spyOn(api.notes, 'getNote')
+    .mockResolvedValueOnce(staleReplica)
+    .mockResolvedValueOnce(staleReplica)
+    .mockResolvedValue(makeApiNotesNote(advancedRemote));
+  vi.spyOn(api.notes, 'updateNoteBody').mockRejectedValue(
+    new api.NotesV1WriteError('%notes error: revision-mismatch', 'conflict')
+  );
+
+  const attempt = saveNotebookNote({
+    notebookFlag,
+    note,
+    title: note.title,
+    body: 'my draft',
+  });
+
+  // The stale reads must not be classified: "theirs" is the advanced copy,
+  // never the replica echo of our own base.
+  await expect(attempt).rejects.toBeInstanceOf(NotesNoteConflictError);
+  await expect(attempt).rejects.toMatchObject({
+    remoteNote: expect.objectContaining({
+      bodyMd: advancedRemote.bodyMd,
+      revision: advancedRemote.revision,
+    }),
+  });
+  expect(getNote.mock.calls.length).toBeGreaterThanOrEqual(3);
+});
+
+test('saveNotebookNote rethrows the raw conflict when the replica never advances', async () => {
+  const note = makeNote('Stuck replica note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([makeApiNotesNote(note)]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'getNote').mockResolvedValue(makeApiNotesNote(note));
+  vi.spyOn(api.notes, 'updateNoteBody').mockRejectedValue(
+    new api.NotesV1WriteError('%notes error: revision-mismatch', 'conflict')
+  );
+
+  const attempt = saveNotebookNote({
+    notebookFlag,
+    note,
+    title: note.title,
+    body: 'my draft',
+  });
+
+  // Unclassifiable — must NOT become a NotesNoteConflictError built from
+  // the stale echo; the raw typed error lets the next autosave retry.
+  await expect(attempt).rejects.toBeInstanceOf(api.NotesV1WriteError);
+}, 15_000);
+
+test('saveNotesNotebookSnapshot does not regress a locally persisted newer revision', async () => {
+  const note = makeNote('Write-through note');
+  const snapshot = {
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  };
+  await db.saveNotesNotebookSnapshot(snapshot);
+
+  // The save path's write-through lands a newer body + revision...
+  await db.updateNotesNote({
+    notebookFlag,
+    noteId: note.noteId,
+    bodyMd: 'freshly saved body',
+    revision: note.revision + 1,
+  });
+
+  // ...then a sync that fetched before the save lands with the old copy.
+  await db.saveNotesNotebookSnapshot(snapshot);
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject({
+    bodyMd: 'freshly saved body',
+    revision: note.revision + 1,
+  });
+});
+
 test('adoptNotebookNoteRemote persists the host copy locally', async () => {
   const note = makeNote('Local note');
   await db.saveNotesNotebookSnapshot({
