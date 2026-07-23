@@ -666,7 +666,6 @@ export function NotesNoteDetail({
   const resolveConflictUseTheirs = useCallback(() => {
     if (!conflictNote || !draftBase || !notebookFlag) return;
     const adopted = rebaseDraftOnConflict(draftBase, conflictNote);
-    const discardedBody = bodyDraftRef.current;
     setConflictNote(null);
     setError(null);
     setDraftBase(adopted);
@@ -685,27 +684,16 @@ export function NotesNoteDetail({
     // over it. (The draft-loading effect also skips rows that trail the
     // base revision, covering the render gap until this write lands.)
     void adoptNotebookNoteRemote({ notebookFlag, remote: conflictNote });
-    // Drop the crash-insurance stashes for the discarded drafts, or the
-    // restore effect would resurrect them against the adopted revision.
-    clearDraftStash(notebookFlag, draftBase.noteId, {
-      title: titleDraft,
-      body: discardedBody,
-    });
-    clearMatchingNotesNoteDraftSnapshot({
-      notebookFlag,
-      noteId: draftBase.noteId,
-      title: titleDraft,
-      body: discardedBody,
-    });
+    // Drop this note's crash-insurance stashes unconditionally: the user
+    // just discarded the local side. A content-matched clear would miss a
+    // stash frozen at the PRE-conflict draft (the stash writer pauses
+    // while the banner is up, so typing during it leaves the stash stale),
+    // and the restore effect would resurrect that discarded text as a
+    // fresh conflict.
+    clearDraftStash(notebookFlag, draftBase.noteId);
+    clearNotesNoteDraftSnapshot(notebookFlag, draftBase.noteId);
     setSaveState('idle');
-  }, [
-    canEdit,
-    conflictNote,
-    draftBase,
-    notebookFlag,
-    rebaseDraftOnConflict,
-    titleDraft,
-  ]);
+  }, [canEdit, conflictNote, draftBase, notebookFlag, rebaseDraftOnConflict]);
 
   useEffect(() => {
     // A pending conflict suspends autosave: retrying against a stale base

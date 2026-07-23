@@ -617,9 +617,14 @@ async function updateNotebookNoteBody({
 // Persist a write's outcome to the local row. The revision comes from the
 // response payload when present, else the response contract (a successful
 // body update lands on exactly expectedRevision + 1) — no read-back either
-// way. The payload also carries the host's authoritative updatedAt /
-// updatedBy stamps; persisting them lets the snapshot merge's equal-revision
-// tiebreak defend this write against stale snapshots already in flight.
+// way. The payload is the host's authoritative post-write note, so every
+// field it carries is persisted (explicit write fields win): a body PUT
+// applied on top of another client's same-revision rename/move returns
+// their title/folder, and persisting only our own fields would fabricate a
+// row that the snapshot merge then defends against the very snapshot
+// carrying the remote metadata. The host stamps also let the merge's
+// equal-revision tiebreak defend this write against stale snapshots
+// already in flight.
 async function persistNoteWrite(
   notebookFlag: string,
   noteId: number,
@@ -628,6 +633,8 @@ async function persistNoteWrite(
     title?: string;
     revision?: number;
     applied?: {
+      title?: string | null;
+      folderId?: number | null;
       updatedAt?: number | null;
       updatedBy?: string | null;
     } | null;
@@ -637,9 +644,11 @@ async function persistNoteWrite(
   await db.updateNotesNote({
     notebookFlag,
     noteId,
-    ...fields,
+    ...(applied?.title != null ? { title: applied.title } : {}),
+    ...(applied?.folderId != null ? { folderId: applied.folderId } : {}),
     ...(applied?.updatedAt != null ? { updatedAt: applied.updatedAt } : {}),
     ...(applied?.updatedBy != null ? { updatedBy: applied.updatedBy } : {}),
+    ...fields,
   });
 }
 

@@ -352,6 +352,9 @@ test('saveNotebookNote persists host stamps from write-response payloads', async
       id: note.noteId,
       title: 'Renamed by host payload',
       bodyMd: 'updated body',
+      // Another client's same-revision move rode along on the host row —
+      // the payload's folder is authoritative.
+      folderId: rootFolder.folderId + 7,
       revision: note.revision + 1,
       updatedAt: hostStamp,
       updatedBy: '~zod',
@@ -382,6 +385,7 @@ test('saveNotebookNote persists host stamps from write-response payloads', async
   ).resolves.toMatchObject({
     title: 'Renamed by host payload',
     bodyMd: 'updated body',
+    folderId: rootFolder.folderId + 7,
     revision: note.revision + 1,
     updatedAt: hostStamp + 1,
     updatedBy: '~zod',

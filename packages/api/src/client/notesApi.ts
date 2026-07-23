@@ -868,18 +868,22 @@ async function createNoteV1({
   assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
 }
 
-// The ok envelope of a note write carries the applied update
-// ({type: 'note-updated', note: {...}}) with the host's authoritative
-// revision and server-stamped updatedAt/updatedBy. Extract it when present;
-// null for no-change (no update emitted), bare bodies, or unexpected shapes.
+// The ok envelope of a note write carries the applied update, nested per
+// the u-notebook encoder: body.response.update is the notebook-scoped
+// wrapper ({type: 'note-update', noteUpdate: {...}}) and the inner
+// noteUpdate ({type: 'note-updated', note: {...}}) holds the note with the
+// host's authoritative revision and server-stamped updatedAt/updatedBy.
+// Extract it when present; null for no-change (no update emitted), bare
+// bodies, or unexpected shapes.
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 function noteFromWriteEnvelope(res: any): NotesV1Note | null {
   const update = res?.body?.response?.update;
-  if (!update || update.type !== 'note-updated' || !update.note) {
+  const noteUpdate = update?.type === 'note-update' ? update.noteUpdate : null;
+  if (!noteUpdate || noteUpdate.type !== 'note-updated' || !noteUpdate.note) {
     return null;
   }
   try {
-    return normalizeNoteV1(update.note);
+    return normalizeNoteV1(noteUpdate.note);
   } catch {
     return null;
   }

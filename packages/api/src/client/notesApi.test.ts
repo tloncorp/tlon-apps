@@ -602,22 +602,33 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
   });
 
   test('note writes extract the applied note from the ok envelope', async () => {
+    // Mirrors the v1 encoder exactly: response %update wraps the
+    // notebook-scoped u-notebook ({type: 'note-update', noteUpdate}) whose
+    // inner u-note carries the applied note (lib/notes/json.hoon).
     const envelope = {
       requestId: '0vok',
       body: {
         type: 'ok',
         response: {
           type: 'update',
+          host: '~zod',
+          flagName: 'blog',
+          time: 1700000000000,
           update: {
-            type: 'note-updated',
-            id: 12,
-            note: {
+            type: 'note-update',
+            host: '~zod',
+            flagName: 'blog',
+            noteUpdate: {
+              type: 'note-updated',
               id: 12,
-              title: 'T',
-              bodyMd: 'x',
-              revision: 4,
-              updatedAt: 1234,
-              updatedBy: '~zod',
+              note: {
+                id: 12,
+                title: 'T',
+                bodyMd: 'x',
+                revision: 4,
+                updatedAt: 1234,
+                updatedBy: '~zod',
+              },
             },
           },
         },
@@ -636,13 +647,39 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
       notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
     ).resolves.toMatchObject({ id: 12, updatedAt: 1234 });
 
+    // A flat (unwrapped) update payload is not the wire shape — it must
+    // degrade to null rather than be mistaken for the applied note.
+    requestJsonMock.mockResolvedValue({
+      body: {
+        type: 'ok',
+        response: {
+          type: 'update',
+          update: {
+            type: 'note-updated',
+            id: 12,
+            note: { id: 12, title: 'T' },
+          },
+        },
+      },
+    });
+    await expect(
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
+    ).resolves.toBeNull();
+
     // Malformed payloads degrade to null, never throw past a passing write.
     requestJsonMock.mockResolvedValue({
       body: {
         type: 'ok',
         response: {
           type: 'update',
-          update: { type: 'note-updated', id: 12, note: { title: 'no id' } },
+          update: {
+            type: 'note-update',
+            noteUpdate: {
+              type: 'note-updated',
+              id: 12,
+              note: { title: 'no id' },
+            },
+          },
         },
       },
     });
