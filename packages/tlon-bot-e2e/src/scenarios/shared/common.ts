@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 
-import type { RuntimeContext } from '../../drivers/types.js';
+import type { DriverName, RuntimeContext } from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import {
   execInComposeService,
@@ -15,6 +15,13 @@ import type {
 } from '../../tlon/index.js';
 import { normalizeShip } from '../../tlon/index.js';
 import type { ScenarioActor, ScenarioActors } from './actors.js';
+import {
+  type CronCleanupTarget,
+  cleanupCronJobAndArtifacts,
+  settleCronJobCreation,
+  waitForCronJobCreated,
+  waitForCronJobRemoved,
+} from './cron.js';
 import { type SharedScenario, testScenario } from './dsl.js';
 import {
   allowDmFrom,
@@ -27,6 +34,7 @@ import {
 } from './isolation.js';
 import {
   type BenignModelCallPredicate,
+  MODEL_EXPECTATION_SETTLE_MS,
   benignModelCallPredicate,
   expectModelExpectations,
   expectNoModelCalls,
@@ -38,6 +46,13 @@ const NEGATIVE_SETTLE_MS = 12_000;
 const MODEL_CALL_WAIT_MS = 90_000;
 const BOT_REPLY_WAIT_MS = 90_000;
 const LOOP_TIMEOUT_MARGIN_MS = 60_000;
+const CRON_CREATE_PROMPT_WAIT_MS = 120_000;
+const CRON_FIRED_WAIT_MS = {
+  hermes: 150_000,
+  openclaw: 240_000,
+} satisfies Record<DriverName, number>;
+const CRON_JOB_REMOVAL_WAIT_MS = 15_000;
+const CRON_SCENARIO_SETUP_MARGIN_MS = 60_000;
 const NUDGE_DELIVERY_WAIT_MS = 90_000;
 const NUDGE_CLEANUP_WAIT_MS = 45_000;
 const NUDGE_DUPLICATE_WINDOW_MS = 15_000;
@@ -908,8 +923,8 @@ export const commonScenarios: readonly SharedScenario[] = [
     expect(settledReplies[0]?.parentId).toBe(botReply.id);
   }),
 
-  // TLON-6150 (https://linear.app/tlon/issue/TLON-6150) tracks the model-driven,
-  // cron-enabled capability partition intentionally excluded from this scenario.
+  // TLON-6150 (https://linear.app/tlon/issue/TLON-6150) adds the model-driven
+  // cron partition below; this scenario remains the no-agent sender-path check.
   testScenario(
     'hermes-cron-delivery-targets-home-conversation',
     { drivers: ['hermes'] },
@@ -986,6 +1001,140 @@ export const commonScenarios: readonly SharedScenario[] = [
         ctx.fakeModel,
         isBenign,
         modelBaseline
+      );
+    }
+  ),
+
+  testScenario(
+    'cron-model-driven-turn-delivers-to-origin',
+    { capabilities: ['cron'], timeoutMs: cronModelDrivenScenarioTimeoutMs },
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await allowDmFrom(actors, actors.thirdParty.ship);
+      const routeKey = scenarioKey('cron-mdl-route');
+      const routeReply = `Third-party route seed ${routeKey}`;
+      const routeScript = driver.model.looseReplyText(routeReply);
+      const routeTag = await registerModelScript(
+        ctx.fakeModel,
+        routeKey,
+        routeScript
+      );
+      const routeResult = await actors.thirdParty.prompt(
+        `${routeTag} Establish the competing DM route.`,
+        { timeoutMs: BOT_REPLY_WAIT_MS }
+      );
+      expectPromptSuccess(routeResult, routeReply);
+      await expectModelExpectations(ctx.fakeModel, routeKey, routeScript);
+
+      const isBenign = benignModelCallPredicate(driver);
+      const modelBaseline = await modelCallCount(ctx.fakeModel, isBenign);
+      const expectedFinalModelCallCount = modelBaseline + 3;
+      const ownerBaseline = await conversationBaseline(
+        actors.owner,
+        actors.bot.ship
+      );
+      const thirdPartyBaseline = await conversationBaseline(
+        actors.thirdParty,
+        actors.bot.ship
+      );
+      const channelBaseline = await conversationBaseline(
+        actors.owner,
+        fixture.channelId
+      );
+
+      const firedKey = scenarioKey('cron-mdl-fired');
+      const marker = `Cron fired marker ${firedKey}`;
+      const firedScript = driver.model.looseReplyText(marker);
+      const firedTag = await registerModelScript(
+        ctx.fakeModel,
+        firedKey,
+        firedScript
+      );
+
+      const jobName = `shared-cron-${scenarioKey('job')}`;
+      const cleanupTarget: CronCleanupTarget = {
+        name: jobName,
+        creationSettled: Promise.resolve(),
+      };
+      actors.bot.teardown(
+        async () => {
+          await cleanupCronJobAndArtifacts(ctx, driver.name, cleanupTarget);
+        },
+        { label: `remove cron job artifacts ${jobName}` }
+      );
+
+      const createKey = scenarioKey('cron-mdl-create');
+      const confirmText = `Cron job scheduled ${createKey}`;
+      const createScript = driver.model.createCronJob({
+        name: jobName,
+        firedPrompt: `${firedTag} Reply with the scripted cron marker text.`,
+        finalText: confirmText,
+      });
+      const createTag = await registerModelScript(
+        ctx.fakeModel,
+        createKey,
+        createScript
+      );
+
+      const createResultPromise = actors.owner.prompt(
+        `${createTag} Schedule the scripted one-shot cron job.`,
+        { timeoutMs: CRON_CREATE_PROMPT_WAIT_MS }
+      );
+      const createdJobPromise = waitForCronJobCreated(
+        ctx,
+        driver.name,
+        jobName,
+        CRON_CREATE_PROMPT_WAIT_MS
+      ).then((job) => {
+        cleanupTarget.id = job.id;
+        return job;
+      });
+      const [createResult, createdJob] = await settleCronJobCreation(
+        cleanupTarget,
+        createResultPromise,
+        createdJobPromise
+      );
+      expectPromptSuccess(createResult, confirmText);
+      await expectModelExpectations(ctx.fakeModel, createKey, createScript);
+
+      const firedCalls = await waitForModelCalls(
+        ctx.fakeModel,
+        firedKey,
+        1,
+        CRON_FIRED_WAIT_MS[driver.name]
+      );
+      expect(firedCalls[0]?.provenance).toBe('latest-user');
+
+      await waitForConversationTextAfterBaseline(
+        actors.owner,
+        actors.bot.ship,
+        marker,
+        ownerBaseline
+      );
+      await expectNoConversationTextAfterBaseline(
+        actors.thirdParty,
+        actors.bot.ship,
+        marker,
+        thirdPartyBaseline
+      );
+      await expectNoConversationTextAfterBaseline(
+        actors.owner,
+        fixture.channelId,
+        marker,
+        channelBaseline
+      );
+
+      await waitForCronJobRemoved(
+        ctx,
+        driver.name,
+        createdJob.id,
+        CRON_JOB_REMOVAL_WAIT_MS
+      );
+      await expectModelExpectations(ctx.fakeModel, firedKey, firedScript);
+      await expectNoNewModelCallsAfterSettle(
+        ctx.fakeModel,
+        isBenign,
+        expectedFinalModelCallCount
       );
     }
   ),
@@ -1410,7 +1559,8 @@ async function expectNoDirectReply(
 async function waitForModelCalls(
   fakeModel: FakeModelClient,
   key: string,
-  minCalls = 1
+  minCalls = 1,
+  timeoutMs = MODEL_CALL_WAIT_MS
 ): Promise<ReceivedCall[]> {
   return waitFor(
     async () => {
@@ -1419,7 +1569,7 @@ async function waitForModelCalls(
       return primaryCalls.length >= minCalls ? primaryCalls : undefined;
     },
     {
-      timeoutMs: MODEL_CALL_WAIT_MS,
+      timeoutMs,
       intervalMs: 500,
       description: `model call(s) for ${key}`,
     }
@@ -1934,6 +2084,23 @@ function knownBotLoopScenarioTimeoutMs(ctx: RuntimeContext): number {
     (allowedBotTurns + 2) * (MODEL_CALL_WAIT_MS + BOT_REPLY_WAIT_MS);
   const settleBudget = NEGATIVE_SETTLE_MS * 3;
   return dispatchWaitBudget + settleBudget + LOOP_TIMEOUT_MARGIN_MS;
+}
+
+function cronModelDrivenScenarioTimeoutMs(): number {
+  const promptBudget = BOT_REPLY_WAIT_MS + CRON_CREATE_PROMPT_WAIT_MS;
+  const cronBudget =
+    Math.max(...Object.values(CRON_FIRED_WAIT_MS)) +
+    BOT_REPLY_WAIT_MS +
+    CRON_JOB_REMOVAL_WAIT_MS;
+  const negativeSettleBudget = NEGATIVE_SETTLE_MS * 3;
+  const modelExpectationBudget = MODEL_EXPECTATION_SETTLE_MS * 2 * 3;
+  return (
+    promptBudget +
+    cronBudget +
+    negativeSettleBudget +
+    modelExpectationBudget +
+    CRON_SCENARIO_SETUP_MARGIN_MS
+  );
 }
 
 async function waitForBotChannelReply(

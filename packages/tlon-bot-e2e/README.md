@@ -55,7 +55,7 @@ pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:openclaw
 
 The runner allocates host ports by default, renders a unique compose project name per capability partition, scrubs ambient compose env, starts shared `ships` and `fake-model` services, then starts the selected bot service through the driver.
 
-Current common baseline scenarios are:
+Current common scenarios are:
 
 -   no-model connectivity checks across bot, owner, and third-party ships
 -   owner DM text reply
@@ -73,10 +73,18 @@ Current common baseline scenarios are:
 -   DM thread anchoring, including a check that the follow-up does not appear in the main DM
 -   stop/start replay coverage is selected and visibly skipped pending [TLON-6098](https://linear.app/tlon/issue/TLON-6098): neither runtime replays messages received while the bot is down; the intact scenario remains the regression gate when reconnect replay lands
 -   Hermes-only no-agent cron delivery to `TLON_HOME_CHANNEL`, with a future one-shot fired through `run_one_job(..., adapters=None, loop=None)` so the test uses the standalone sender path without racing the gateway ticker
+-   model-driven cron creation, scheduler firing, and origin delivery on both drivers in the `cron` capability partition
 
 The reaction scenarios cover dispatch and acknowledgement anchoring only. `packages/openclaw/src/monitor/history.test.ts` is the deterministic gate for pre-echo ID normalization and exact-reply cache-miss fetching.
 
-The cron scenario deliberately covers Hermes only. OpenClaw's existing package-level heartbeat coverage verifies its proactive target today; the symmetric shared proactive scenario is tracked by TLON-5931. A model-driven cron turn is tracked by [TLON-6150: bot e2e: cron-enabled capability partition (model-driven cron turn)](https://linear.app/tlon/issue/TLON-6150).
+Run the model-driven cron scenario alone with:
+
+```bash
+TLON_BOT_E2E_SCENARIO_PARTITIONS=cron pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:hermes
+TLON_BOT_E2E_SCENARIO_PARTITIONS=cron pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:openclaw
+```
+
+The no-agent cron scenario deliberately covers Hermes only. OpenClaw's existing package-level heartbeat coverage verifies its proactive target today; the symmetric shared proactive scenario is tracked by TLON-5931.
 
 ## Current gates
 
@@ -121,9 +129,9 @@ The Hermes E2E compose path does not load `packages/hermes-tlon-adapter/.env`. I
 -   `model.default: tlon-test-scripted`
 -   `model.base_url: http://fake-model:4000/v1`
 -   `model.api_mode: chat_completions`
--   baseline `platform_toolsets.tlon: [tlon, no_mcp]`
+-   `platform_toolsets.tlon: [tlon, no_mcp]` in baseline, or `[tlon, cronjob, no_mcp]` when the cron partition sets `HERMES_E2E_ENABLE_CRONJOB=1`
 -   empty `mcp_servers`
--   `agent.disabled_toolsets: [cronjob]`
+-   `agent.disabled_toolsets: [cronjob]` in baseline and no disabled cronjob toolset in the cron partition
 
 The fake ship service preserves the current rube-27 / `vere-v4.5` runtime pairing and deterministic fakezod access codes. Startup logs include artifact URLs, cache hit/miss state, byte sizes, and checksum results. The rube archive checks use the MD5 ETags exposed by `bootstrap.urbit.org`; the Vere archive uses a checked SHA-256.
 

@@ -23,7 +23,8 @@ export interface DockerExecOptions {
 export async function resolveComposeContainer(
   ctx: RuntimeContext,
   service: string,
-  run: DockerCommandRunner = runCommand
+  run: DockerCommandRunner = runCommand,
+  timeoutMs = DOCKER_TIMEOUT_MS
 ): Promise<string> {
   const result = await runDocker(
     ctx,
@@ -37,7 +38,8 @@ export async function resolveComposeContainer(
       '--filter',
       `label=com.docker.compose.service=${service}`,
     ],
-    run
+    run,
+    timeoutMs
   );
   requireSuccess(result, `resolve service ${service}`);
   const containers = result.stdout
@@ -112,7 +114,24 @@ export async function execInComposeService(
   opts: DockerExecOptions = {},
   run: DockerCommandRunner = runCommand
 ): Promise<ExecResult> {
-  const container = await resolveComposeContainer(ctx, service, run);
+  const deadlineAtMs = Date.now() + (opts.timeoutMs ?? DOCKER_TIMEOUT_MS);
+  const container = await resolveComposeContainer(
+    ctx,
+    service,
+    run,
+    remainingTimeoutMs(deadlineAtMs, `resolve service ${service}`)
+  );
+  const timeoutMs = remainingTimeoutMs(deadlineAtMs, `exec service ${service}`);
+  return execInContainer(ctx, container, argv, { ...opts, timeoutMs }, run);
+}
+
+export async function execInContainer(
+  ctx: RuntimeContext,
+  container: string,
+  argv: string[],
+  opts: DockerExecOptions = {},
+  run: DockerCommandRunner = runCommand
+): Promise<ExecResult> {
   const envArgs = Object.entries(opts.env ?? {}).flatMap(([key, value]) => [
     '--env',
     `${key}=${value}`,
@@ -123,6 +142,14 @@ export async function execInComposeService(
     run,
     opts.timeoutMs
   );
+}
+
+function remainingTimeoutMs(deadlineAtMs: number, action: string): number {
+  const remainingMs = deadlineAtMs - Date.now();
+  if (remainingMs <= 0) {
+    throw new Error(`Docker timeout expired before ${action}.`);
+  }
+  return remainingMs;
 }
 
 interface DockerContainerState {
