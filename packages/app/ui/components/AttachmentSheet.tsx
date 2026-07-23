@@ -46,6 +46,7 @@ export default function AttachmentSheet({
   allowVideoInMediaPicker,
   allowMultipleSelection = false,
   attachToContext = true,
+  trackAttachmentAdded = false,
 }: {
   isOpen: boolean;
   showClearOption?: boolean;
@@ -56,6 +57,7 @@ export default function AttachmentSheet({
   allowVideoInMediaPicker?: boolean;
   allowMultipleSelection?: boolean;
   attachToContext?: boolean;
+  trackAttachmentAdded?: boolean;
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
@@ -107,11 +109,11 @@ export default function AttachmentSheet({
       const didAttach =
         (attachToContext && attachAssets(uploadIntents) > 0) || !!onAttach;
       onAttach?.(uploadIntents);
-      if (didAttach) {
+      if (didAttach && trackAttachmentAdded) {
         trackEvent(AnalyticsEvent.AttachmentAdded);
       }
     },
-    [attachAssets, attachToContext, onAttach]
+    [attachAssets, attachToContext, onAttach, trackAttachmentAdded]
   );
 
   const attachNormalizedUploadIntents = useCallback(

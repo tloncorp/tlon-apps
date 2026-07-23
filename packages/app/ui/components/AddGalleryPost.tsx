@@ -91,6 +91,7 @@ export default function AddGalleryPost({
           mediaType="all"
           allowMultipleSelection
           attachToContext={false}
+          trackAttachmentAdded
         />
       )}
     </>

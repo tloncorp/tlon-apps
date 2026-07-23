@@ -59,6 +59,12 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
     }
   }, [props.state, isRouteActive]);
 
+  const trackTabSelection = (tab: keyof RootDrawerParamList) => {
+    if (!isRouteActive(tab)) {
+      trackEvent(AnalyticsEvent.NavigationTabSelected, { tab });
+    }
+  };
+
   const restoreHomeState = useCallback(() => {
     try {
       const currentScreenIsHome = isRouteActive('Home');
@@ -97,9 +103,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           // intentionally leave undotted for now
           shouldShowUnreads={false}
           onPress={() => {
-            trackEvent(AnalyticsEvent.NavigationTabSelected, {
-              tab: 'Home',
-            });
+            trackTabSelection('Home');
             restoreHomeState();
           }}
           testID="HomeNavIcon"
@@ -110,9 +114,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Messages')}
           shouldShowUnreads={false}
           onPress={() => {
-            trackEvent(AnalyticsEvent.NavigationTabSelected, {
-              tab: 'Messages',
-            });
+            trackTabSelection('Messages');
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -128,9 +130,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Activity')}
           testID="ActivityNavIcon"
           onPress={() => {
-            trackEvent(AnalyticsEvent.NavigationTabSelected, {
-              tab: 'Activity',
-            });
+            trackTabSelection('Activity');
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -142,9 +142,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           id={userId}
           focused={isRouteActive('Contacts')}
           onPress={() => {
-            trackEvent(AnalyticsEvent.NavigationTabSelected, {
-              tab: 'Contacts',
-            });
+            trackTabSelection('Contacts');
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -176,9 +174,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Settings')}
           shouldShowUnreads={false}
           onPress={() => {
-            trackEvent(AnalyticsEvent.NavigationTabSelected, {
-              tab: 'Settings',
-            });
+            trackTabSelection('Settings');
             saveHomeState();
             props.navigation.reset({
               index: 0,
