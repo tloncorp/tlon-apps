@@ -2041,13 +2041,13 @@
                   =(':' (end 3^1 q.c-reply.c-post.a-channel))
               ==
           ==
-      =/  source=(unit source:a)
+      =/  source=(unit source:v9:av)
         ?.  ?=(%reply -.c-post.a-channel)
           `[%channel nest group.perm.channel]
         =/  id  id.c-post.a-channel
         =/  post  (got:on-v-posts:c posts.channel id)
         ?:  ?=(%| -.post)  ~
-        =/  =message-key:a
+        =/  =message-key:av
           [[(get-author-ship:utils author.post) id] id]
         `[%thread [message-key nest group.perm.channel]]
       =?  ca-core  ?=(^ source)  (send:ca-activity [%bump u.source] ~)

@@ -1,6 +1,6 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
-/-  n=notes, mcp-proxy
+/-  n=notes, mcp-proxy, av=activity-ver
 /+  default-agent, dbug, verb, server
 /=  notes-json  /lib/notes/json
 ::  static web assets, imported straight from files and served as-is. The
@@ -16,7 +16,7 @@
 ::
 |%
 +$  card  card:agent:gall
-+$  current-state  state-15:n
++$  current-state  state-16:n
 --
 ::
 =|  current-state
@@ -119,7 +119,8 @@
   |^
   =+  !<(old=any-state vase)
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
-  ?>  ?=(%15 -.old)
+  =?  old  ?=(%15 -.old)  (state-15-to-16 old)
+  ?>  ?=(%16 -.old)
   =.  state  old
   ::  NB: no api-key mint here. +on-init mints one on fresh install; at load
   ::  an empty api-key means an operator ran %clear-api-key, and re-minting
@@ -140,7 +141,8 @@
   ==
   ::
   +$  any-state
-    $%  state-15:n
+    $%  state-16:n
+        state-15:n
         state-14:n
     ==
   ::  state-14-to-15: drop the vestigial rid-counter; all other fields carry.
@@ -150,6 +152,13 @@
     |=  s=state-14:n
     ^-  state-15:n
     [%15 books.s next-id.s published.s invites.s requests.s api-key.s]
+  ::  state-15-to-16: add the empty note-edits coalescing map.
+  ::
+  ++  state-15-to-16
+    ~>  %spin.['state-15-to-16']
+    |=  s=state-15:n
+    ^-  state-16:n
+    [%16 books.s next-id.s published.s invites.s requests.s api-key.s ~]
   --
 ::
 ++  poke
@@ -798,6 +807,14 @@
       ?~  p.sign  cor
       ((slog leaf+"mcp-proxy register/refresh failed" u.p.sign) cor)
     ==
+  ::  fire-and-forget %activity submissions; log nacks
+  ::
+      [%activity %submit ~]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog leaf+"notes: activity submission failed" u.p.sign) cor)
+    ==
   ==
 ::
 ++  arvo
@@ -995,6 +1012,98 @@
   ?~  matches  ~|(notebook-not-found+nid !!)
   i.matches
 ::  +notebooks-changed-card: a fact telling subscribed UIs to re-scry notebooks
+::
+::  %activity integration. Every ship that applies a note mutation (the
+::  host via +se-update, subscribers via +no-response) submits activity
+::  events to its own %activity agent, so unread state is local per member.
+::  Self-authored changes submit nothing.
+::
+++  activity-running
+  =/  base=path  /(scot %p our.bowl)/activity/(scot %da now.bowl)
+  .^(? %gu (weld base /$))
+::
+++  submit-activity
+  |=  action=action:v10:av
+  ^+  cor
+  ?.  activity-running  cor
+  %-  emit
+  :*  %pass  /activity/submit
+      %agent  [our.bowl %activity]
+      %poke  activity-action-2+!>(action)
+  ==
+::  +note-activity: translate an applied u-note into %activity actions.
+::
+::    %created  -> %add %note-create
+::    %updated  -> %del-event the author's previous unread edit event (if
+::                 any), then %add %note-edit; the note-edits map remembers
+::                 what we last submitted so the pair coalesces to at most
+::                 one unread edit event per note per author
+::    %deleted  -> %del the note source (regardless of author)
+::
+++  note-activity
+  |=  [=flag:n group=(unit flag:n) id=@ud upd=u-note:n]
+  ^+  cor
+  =/  book=[p=@p q=@tas]  [ship.flag name.flag]
+  =/  grp=(unit [p=@p q=@tas])
+    (bind group |=(f=flag:n [ship.f name.f]))
+  =/  =source:v10:av  [%note id book grp]
+  ?-  -.upd
+      %created
+    ?:  =(our.bowl created-by.note.upd)  cor
+    %-  submit-activity
+    :*  %add  %note-create
+        id  folder-id.note.upd  book  grp
+        title.note.upd  created-by.note.upd
+    ==
+  ::
+      %updated
+    ?:  =(our.bowl updated-by.note.upd)  cor
+    =/  key  [flag id updated-by.note.upd]
+    =/  prev  (~(get by note-edits) key)
+    =?  cor  ?=(^ prev)
+      %-  submit-activity
+      :*  %del-event  source
+          %note-edit
+          id  folder.u.prev  book  grp
+          title.u.prev  updated-by.note.upd
+      ==
+    =.  note-edits
+      (~(put by note-edits) key [folder-id.note.upd title.note.upd])
+    %-  submit-activity
+    :*  %add  %note-edit
+        id  folder-id.note.upd  book  grp
+        title.note.upd  updated-by.note.upd
+    ==
+  ::
+      %deleted
+    =.  cor  (drop-note-edits flag `id)
+    (submit-activity [%del source])
+  ::
+      ?(%published %unpublished %history-archived)
+    cor
+  ==
+::  +notebook-activity-gone: a notebook was deleted or left; drop its
+::  %activity source (children included) and its coalescing entries.
+::
+++  notebook-activity-gone
+  |=  [=flag:n group=(unit flag:n)]
+  ^+  cor
+  =.  cor  (drop-note-edits flag ~)
+  %-  submit-activity
+  :+  %del  %notebook
+  :-  [ship.flag name.flag]
+  (bind group |=(f=flag:n [ship.f name.f]))
+::
+++  drop-note-edits
+  |=  [target=flag:n nid=(unit @ud)]
+  ^+  cor
+  %=    cor
+      note-edits
+    %-  malt
+    %+  skip  ~(tap by note-edits)
+    |=  [k=[=flag:n note-id=@ud author=ship] v=[folder=@ud title=@t]]
+    &(=(target flag.k) |(?=(~ nid) =(u.nid note-id.k)))
+  ==
 ::
 ++  notebooks-changed-card
   ^-  card
@@ -1447,6 +1556,8 @@
   ::
   ++  se-abet
     ^+  cor
+    =?  cor  gone
+      (notebook-activity-gone flag group.notebook-state)
     =.  books
       ?:  gone
         (~(del by books) flag)
@@ -1471,6 +1582,8 @@
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =.  log  (put:log-on:n log [ts upd])
     =.  last-update  `[ts upd]
+    =?  cor  ?=(%note -.upd)
+      (note-activity flag group.notebook-state [id u-note]:upd)
     %-  give
     :+  %fact  ~[se-sub-path (weld se-area /stream)]
     notes-response+!>(`response:n`[%update flag [ts upd]])
@@ -1828,6 +1941,16 @@
         %-  ~(rep in del-nids)
         |=  [n=@ud acc=_published]
         (~(del by acc) [flag n])
+      ::  the wire update only names the folder, so clean up the removed
+      ::  notes' %activity sources here, where the ids are still known
+      =.  cor
+        =/  nids  ~(tap in del-nids)
+        |-  ^+  cor
+        ?~  nids  cor
+        %=  $
+          nids  t.nids
+          cor   (note-activity flag group.notebook-state i.nids [%deleted ~])
+        ==
       (se-update [%folder fid [%deleted ~]])
     ::  non-recursive: fail if has children
     =/  children=(list @ud)
@@ -2165,6 +2288,8 @@
   ::
   ++  no-abet
     ^+  cor
+    =?  cor  gone
+      (notebook-activity-gone flag group.notebook-state)
     =.  books
       ?:  gone
         (~(del by books) flag)
@@ -2419,6 +2544,13 @@
       (emil ?~(rep ~[stream] ~[stream u.rep]))
     ::
         %update
+      =?  cor  ?=(%note -.u-notebook.update.response)
+        %:  note-activity
+          flag
+          group.notebook-state
+          id.u-notebook.update.response
+          u-note.u-notebook.update.response
+        ==
       =.  no-core  (no-apply-update flag.response update.response)
       %-  give
       [%fact [/v0/notes/(scot %p ship.flag)/[name.flag]/stream]~ notes-response+!>(response)]

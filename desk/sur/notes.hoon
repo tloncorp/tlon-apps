@@ -380,6 +380,21 @@
   --
 ::  Versioned state — newest first
 ::
+::  state-16: adds note-edits, the %activity edit-coalescing memory. For
+::  each (notebook, note, author) we remember the folder/title of the last
+::  %note-edit event submitted to %activity, so the next edit can %del-event
+::  the previous one — at most one unread edit event per note per author.
+::
++$  state-16
+  $:  %16
+      books=(map flag [=net =notebook-state])
+      next-id=@ud
+      published=(map [=flag note-id=@ud] @t)
+      invites=(map flag invite-info)
+      requests=requests:v1
+      api-key=(unit @t)
+      note-edits=(map [=flag note-id=@ud author=ship] [folder=@ud title=@t])
+  ==
 ::  state-15: drops the vestigial rid-counter — request-ids are minted
 ::  directly from bowl.eny (unique per event), so the counter is dead weight.
 ::
@@ -407,6 +422,6 @@
       rid-counter=@ud
   ==
 ::
-+$  state  state-15
++$  state  state-16
 ::
 --

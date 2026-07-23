@@ -108,6 +108,8 @@
       [%flag-post key=message-key channel=nest:cv group=flag:gv]
       [%flag-reply key=message-key parent=message-key channel=nest:cv group=flag:gv]
       [%contact contact-event]
+      [%note-create note-event]
+      [%note-edit note-event]
   ==
 ::
 +$  post-event
@@ -162,6 +164,19 @@
   $:  who=ship
       update=(pair @tas value:t)
   ==
+::  $note-event: a note created or edited in a notebook
+::
+::    .notebook mirrors the shape of a group flag: host ship + name.
+::    .group is set when the notebook is a group channel.
+::
++$  note-event
+  $:  id=@ud
+      folder=@ud
+      notebook=flag:gv
+      group=(unit flag:gv)
+      title=@t
+      author=ship
+  ==
 ::
 ::  $source: where the activity is happening
 +$  source
@@ -172,6 +187,8 @@
       [%dm =whom]
       [%dm-thread key=message-key =whom]
       [%contact who=ship]
+      [%notebook =flag:gv group=(unit flag:gv)]
+      [%note id=@ud notebook=flag:gv group=(unit flag:gv)]
   ==
 ::
 ::  $index: the stream of activity and read state for a source
@@ -246,6 +263,8 @@
       %flag-post
       %flag-reply
       %contact
+      %note-create
+      %note-edit
   ==
 +$  time-event  [=time =event]
 ++  on-event        ((on time event) lte)
@@ -274,6 +293,8 @@
       [%group-join & |]
       [%group-role & |]
       [%contact | |]
+      [%note-create & &]
+      [%note-edit & &]
   ==
 ++  old-volumes
   ^~

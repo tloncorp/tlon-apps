@@ -2,6 +2,188 @@
 ::
 /-  av=activity-ver
 |%
+++  v10
+  |%
+  ++  source
+    |%
+    ++  v9
+      |=  =source:v10:av
+      ^-  (unit source:v9:av)
+      ?:  ?=(?(%notebook %note) -.source)  ~
+      `source
+    --
+  ++  full-info
+    |%
+    ++  v9
+      |=  fi=full-info:v10:av
+      ^-  full-info:v9:av
+      :*  (v9:indices indices.fi)
+          (v9:activity activity.fi)
+          (v9:volume-settings volume-settings.fi)
+      ==
+    --
+  ++  indices
+    |%
+    ++  v9
+      |=  =indices:v10:av
+      ^-  indices:v9:av
+      %-  ~(gas by *indices:v9:av)
+      %+  murn  ~(tap by indices)
+      |=  [=source:v10:av =index:v10:av]
+      ^-  (unit [source:v9:av index:v9:av])
+      ?~  src=(v9:^source source)  ~
+      `[u.src (v9:^index index)]
+    --
+  ++  index
+    |%
+    ++  v9
+      |=  =index:v10:av
+      ^-  index:v9:av
+      [(v9:stream stream.index) reads.index bump.index]
+    --
+  ++  stream
+    |%
+    ++  v9
+      |=  =stream:v10:av
+      ^-  stream:v9:av
+      %+  gas:on-event:v9:av
+        *stream:v9:av
+      (murn (tap:on-event:v10:av stream) v9:time-event)
+    --
+  ++  activity
+    |%
+    ++  v9
+      |=  =activity:v10:av
+      ^-  activity:v9:av
+      %-  ~(gas by *activity:v9:av)
+      %+  murn  ~(tap by activity)
+      |=  [=source:v10:av =activity-summary:v10:av]
+      ^-  (unit [source:v9:av activity-summary:v9:av])
+      ?~  src=(v9:^source source)  ~
+      `[u.src (v9:^activity-summary activity-summary)]
+    --
+  ++  activity-summary
+    |%
+    ++  v9
+      |=  =activity-summary:v10:av
+      ^-  activity-summary:v9:av
+      :*  newest.activity-summary
+          count.activity-summary
+          notify-count.activity-summary
+          notify.activity-summary
+          unread.activity-summary
+        ::
+          %-  ~(gas in *(set source:v9:av))
+          %+  murn  ~(tap in children.activity-summary)
+          |=  =source:v10:av
+          (v9:^source source)
+        ::
+          reads.activity-summary
+      ==
+    --
+  ++  volume-settings
+    |%
+    ++  v9
+      |=  =volume-settings:v10:av
+      ^-  volume-settings:v9:av
+      %-  ~(gas by *volume-settings:v9:av)
+      %+  murn  ~(tap by volume-settings)
+      |=  [=source:v10:av =volume-map:v10:av]
+      ^-  (unit [source:v9:av volume-map:v9:av])
+      ?~  src=(v9:^source source)  ~
+      `[u.src (v9:^volume-map volume-map)]
+    --
+  ++  volume-map
+    |%
+    ++  v9
+      |=  =volume-map:v10:av
+      ^-  volume-map:v9:av
+      %-  ~(gas by *volume-map:v9:av)
+      %+  murn  ~(tap by volume-map)
+      |=  [=event-type:v10:av =volume:v10:av]
+      ^-  (unit [event-type:v9:av volume:v9:av])
+      ?:  ?=(?(%note-create %note-edit) event-type)  ~
+      `[event-type volume]
+    --
+  ++  feed
+    |%
+    ++  v9
+      |=  =feed:v10:av
+      ^-  feed:v9:av
+      :-  (murn feed.feed v9:activity-bundle)
+      (v9:activity summaries.feed)
+    --
+  ++  activity-bundle
+    |%
+    ++  v9
+      |=  =activity-bundle:v10:av
+      ^-  (unit activity-bundle:v9:av)
+      ?~  src=(v9:source source.activity-bundle)  ~
+      ?~  events=(murn events.activity-bundle v9:time-event)  ~
+      %-  some
+      :*  u.src
+          latest.activity-bundle
+          events
+      ==
+    --
+  ++  feed-init
+    |%
+    ++  v9
+      |=  =feed-init:v10:av
+      ^-  feed-init:v9:av
+      :*  (murn all.feed-init v9:activity-bundle)
+          (murn mentions.feed-init v9:activity-bundle)
+          (murn replies.feed-init v9:activity-bundle)
+          (v9:activity summaries.feed-init)
+      ==
+    --
+  ++  update
+    |%
+    ++  v9
+      |=  =update:v10:av
+      ^-  (unit update:v9:av)
+      ?-    -.update
+          %add
+        ?~  src=(v9:source source.update)  ~
+        ?~  ev=(v9:time-event +>.update)  ~
+        `[%add u.src u.ev]
+      ::
+          %del
+        ?~  src=(v9:source source.update)  ~
+        `[%del u.src]
+      ::
+          %read
+        ?~  src=(v9:source source.update)  ~
+        `[%read u.src (v9:activity-summary activity-summary.update)]
+      ::
+          %activity
+        `[%activity (v9:activity activity.update)]
+      ::
+          %adjust
+        ?~  src=(v9:source source.update)  ~
+        `[%adjust u.src (bind volume-map.update v9:volume-map)]
+      ::
+          %allow-notifications
+        `[%allow-notifications allow.update]
+      ==
+    --
+  ++  time-event
+    |%
+    ++  v9
+      |=  =time-event:v10:av
+      ^-  (unit time-event:v9:av)
+      ?:  ?=(?(%note-create %note-edit) -<.event.time-event)  ~
+      `time-event
+    --
+  ++  event
+    |%
+    ++  v9
+      |=  =event:v10:av
+      ^-  (unit event:v9:av)
+      ?:  ?=(?(%note-create %note-edit) -<.event)  ~
+      `event
+    --
+  --
 ++  v9
   |%
   ++  full-info
