@@ -641,10 +641,9 @@
       (give-said ~ flag nid src.bowl)
     ::  refuse to fetch over the network on another ship's behalf
     ?>  =(src.bowl our.bowl)
-    ::  nonce'd wire: a finished request's sub can linger in wex until the
-    ::  host acks the %leave, which would block an identical re-watch.
-    =/  =wire
-      /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)/(scot %uv eny.bowl)
+    =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+    ?:  (~(has by wex.bowl) [wire ship.flag %notes])
+      cor
     (emit %pass wire %agent [ship.flag %notes] %watch (said-path flag nid))
   ::
       [%v1 %notes ship=@ name=@ %request requester=@ id=@ ~]
@@ -796,7 +795,7 @@
         %poke-ack  cor
     ==
   ::
-      [%said ship=@ name=@ %note id=@ nonce=@ ~]
+      [%said ship=@ name=@ %note id=@ ~]
     ::  proxied note-preview answer from a notebook host: relay to our
     ::  /v0/said subscribers (nack/foreign mark coerced to %notes-denied).
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
@@ -817,8 +816,7 @@
           (give %fact paths cage.sign)
         (give %fact paths notes-denied+!>(~))
       =.  cor  (give %kick paths ~)
-      =/  =wire
-        /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)/[nonce.pole]
+      =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
       (emit %pass wire %agent [ship.flag %notes] %leave ~)
     ==
   ::
@@ -1013,7 +1011,9 @@
   ^-  path
   /v0/said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
 ::  +said-snippet: leading slice of body-md, cut on a codepoint (not
-::  byte) boundary so multi-byte UTF-8 never gets split.
+::  byte) boundary, then backed off past any grapheme-cluster glue
+::  (zwj sequences, variation selectors, skin tones, combining marks)
+::  so a family emoji never loses its kids.
 ::
 ++  said-snippet
   |=  body=@t
@@ -1021,7 +1021,21 @@
   =/  limit=@ud  400
   =/  chars=(list @c)  (tuba (trip body))
   ?:  (lte (lent chars) limit)  body
-  (crip (tufa (scag limit chars)))
+  =/  glue
+    |=  c=@c
+    ?|  =(`@`c 0x200d)                        ::  zero-width joiner
+        =(`@`c 0xfe0e)  =(`@`c 0xfe0f)        ::  variation selectors
+        &((gte `@`c 0x1.f3fb) (lte `@`c 0x1.f3ff))  ::  skin tones
+        &((gte `@`c 0x300) (lte `@`c 0x36f))  ::  combining marks
+    ==
+  =/  keep=(list @c)  (scag limit chars)
+  =/  nxt=@c  (snag limit chars)
+  |-  ^-  @t
+  ?~  keep  ''
+  =/  last=@c  (rear keep)
+  ?.  |((glue last) (glue nxt))
+    (crip (tufa keep))
+  $(keep (snip keep), nxt last)
 ::  +give-said: one %fact (preview or %notes-denied) then an immediate
 ::  %kick, mirroring %channels' single-shot said flow. Public notebooks
 ::  preview for anyone. Unlike +can-view-flag (which treats an unsynced
