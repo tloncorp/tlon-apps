@@ -102,6 +102,18 @@ export default function AttachmentSheet({
     [useVideoInMediaPicker]
   );
 
+  const attachUploadIntents = useCallback(
+    (uploadIntents: Attachment.UploadIntent[]) => {
+      const didAttach =
+        (attachToContext && attachAssets(uploadIntents) > 0) || !!onAttach;
+      onAttach?.(uploadIntents);
+      if (didAttach) {
+        trackEvent(AnalyticsEvent.AttachmentAdded);
+      }
+    },
+    [attachAssets, attachToContext, onAttach]
+  );
+
   const attachNormalizedUploadIntents = useCallback(
     async (uploadIntents: Attachment.UploadIntent[]) => {
       const { uploadIntents: normalizedUploadIntents, errorMessage } =
@@ -112,14 +124,10 @@ export default function AttachmentSheet({
       }
 
       if (normalizedUploadIntents.length > 0) {
-        if (attachToContext) {
-          attachAssets(normalizedUploadIntents);
-        }
-        onAttach?.(normalizedUploadIntents);
-        trackEvent(AnalyticsEvent.AttachmentAdded);
+        attachUploadIntents(normalizedUploadIntents);
       }
     },
-    [attachAssets, attachToContext, onAttach]
+    [attachUploadIntents]
   );
 
   const takePicture = useCallback(
@@ -212,11 +220,11 @@ export default function AttachmentSheet({
         duration: duration ?? undefined,
         mimeType: getMimeType(audioFileUri) ?? undefined,
       };
-      trackEvent(AnalyticsEvent.AttachmentAdded);
       audioRecorder.dismiss();
 
       // If possible, try sending post immediately.
       if (draftInputContext != null) {
+        trackEvent(AnalyticsEvent.AttachmentAdded);
         const ui = Attachment.toUploadIntent(attachment);
         if (ui.needsUpload) {
           uploadAssets([ui], {
@@ -241,9 +249,9 @@ export default function AttachmentSheet({
               }),
           replyToPostId: null,
         });
-      } else {
+      } else if (addAttachment(attachment)) {
         // otherwise, add attachment to draft
-        addAttachment(attachment);
+        trackEvent(AnalyticsEvent.AttachmentAdded);
       }
     },
   });
@@ -299,11 +307,7 @@ export default function AttachmentSheet({
           }
 
           if (normalizedUploadIntents.length > 0) {
-            if (attachToContext) {
-              attachAssets(normalizedUploadIntents);
-            }
-            onAttach?.(normalizedUploadIntents);
-            trackEvent(AnalyticsEvent.AttachmentAdded);
+            attachUploadIntents(normalizedUploadIntents);
           }
         } else {
           // If user canceled, remove the placeholder
@@ -337,6 +341,7 @@ export default function AttachmentSheet({
     }, 50);
   }, [
     attachAssets,
+    attachUploadIntents,
     attachToContext,
     clearAttachments,
     onOpenChange,
@@ -345,7 +350,6 @@ export default function AttachmentSheet({
     pickerMediaTypes,
     requestMediaLibraryPermission,
     placeholderUploadIntent,
-    onAttach,
     removePlaceholderAttachment,
   ]);
 

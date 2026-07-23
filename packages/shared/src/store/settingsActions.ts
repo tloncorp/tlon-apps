@@ -225,6 +225,7 @@ export async function updateEnableTelemetry(value: boolean) {
     // optimistic update
     await db.insertSettings({ enableTelemetry: value });
     await api.setSetting('enableTelemetry', value);
+    return true;
   } catch (e) {
     logger.trackError('Error updating telemetry setting', {
       error: e,
@@ -232,6 +233,7 @@ export async function updateEnableTelemetry(value: boolean) {
       severity: AnalyticsSeverity.Medium,
     });
     await db.insertSettings({ enableTelemetry: oldValue });
+    return false;
   }
 }
 

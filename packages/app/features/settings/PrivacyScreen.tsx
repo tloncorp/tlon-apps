@@ -95,20 +95,30 @@ export function PrivacySettingsScreen(props: Props) {
     }
   }, [phoneAttest, state.phoneDiscoverable]);
 
-  const toggleSetTelemetry = useCallback(() => {
+  const toggleSetTelemetry = useCallback(async () => {
     const nextDisabledState = !state.telemetryDisabled;
     setState((prev) => ({ ...prev, telemetryDisabled: nextDisabledState }));
 
+    const didUpdate = await store.updateEnableTelemetry(!nextDisabledState);
+    if (!didUpdate) {
+      triggerHaptic('error');
+      setState((prev) => ({
+        ...prev,
+        telemetryDisabled: !nextDisabledState,
+      }));
+      return;
+    }
+
     // Opt in before capturing enablement; capture disablement before opting out.
     if (!nextDisabledState) {
-      telemetry.setDisabled(false);
+      await telemetry.setDisabled(false, false);
     }
     trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
       enabled: !nextDisabledState,
       setting: 'usage_statistics',
     });
     if (nextDisabledState) {
-      telemetry.setDisabled(true);
+      await telemetry.setDisabled(true, false);
     }
   }, [state.telemetryDisabled, telemetry]);
 

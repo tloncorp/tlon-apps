@@ -29,8 +29,7 @@ export default function AttachmentButton({
       if (errorMessage) {
         Alert.alert('Unable to attach', errorMessage);
       }
-      if (uploadIntents.length > 0) {
-        attachAssets(uploadIntents);
+      if (attachAssets(uploadIntents) > 0) {
         trackEvent(AnalyticsEvent.AttachmentAdded);
       }
       return;

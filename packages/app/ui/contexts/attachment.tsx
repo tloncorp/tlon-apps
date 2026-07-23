@@ -27,12 +27,12 @@ import { canAddAttachment } from './attachmentRules';
 
 export type AttachmentState = {
   attachments: Attachment[];
-  addAttachment: (attachment: Attachment) => void;
+  addAttachment: (attachment: Attachment) => boolean;
   removeAttachment: (attachment: Attachment) => void;
   clearAttachments: () => void;
   resetAttachments: (attachments: Attachment[]) => void;
   waitForAttachmentUploads: () => Promise<FinalizedAttachment[]>;
-  attachAssets: (assets: Attachment.UploadIntent[]) => void;
+  attachAssets: (assets: Attachment.UploadIntent[]) => number;
   uploadAssets: (
     assets: Attachment.UploadIntent[],
     options?: { skipAddToAttachmentList?: boolean }
@@ -42,12 +42,12 @@ export type AttachmentState = {
 
 const defaultState: AttachmentState = {
   attachments: [],
-  addAttachment: () => {},
+  addAttachment: () => false,
   removeAttachment: () => {},
   clearAttachments: () => {},
   resetAttachments: () => {},
   uploadAssets: async () => [],
-  attachAssets: () => {},
+  attachAssets: () => 0,
   waitForAttachmentUploads: async () => [],
   canUpload: true,
 };
@@ -203,14 +203,19 @@ export const AttachmentProvider = ({
     }
     stateRef.current = next.attachments;
     setState(next.attachments);
+    return next.errorMessage == null;
   }, []);
 
   const handleAttachAssets = useCallback(
-    (uploadIntents: Attachment.UploadIntent[]) => {
-      uploadIntents.forEach((uploadIntent) =>
-        handleAddAttachment(Attachment.fromUploadIntent(uploadIntent))
-      );
-    },
+    (uploadIntents: Attachment.UploadIntent[]) =>
+      uploadIntents.reduce(
+        (acceptedCount, uploadIntent) =>
+          acceptedCount +
+          Number(
+            handleAddAttachment(Attachment.fromUploadIntent(uploadIntent))
+          ),
+        0
+      ),
     [handleAddAttachment]
   );
 
