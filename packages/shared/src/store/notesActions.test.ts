@@ -72,9 +72,7 @@ test('saveNotebookNote preserves an empty title', async () => {
     members: [],
   });
 
-  const renameNote = vi
-    .spyOn(api.notes, 'renameNote')
-    .mockResolvedValue(undefined);
+  const renameNote = vi.spyOn(api.notes, 'renameNote').mockResolvedValue(null);
 
   const saved = await saveNotebookNote({
     notebookFlag,
@@ -306,10 +304,8 @@ test('saveNotebookNote persists sent content from the response contract, no read
   const listNotes = vi.spyOn(api.notes, 'listNotes');
   const updateNoteBody = vi
     .spyOn(api.notes, 'updateNoteBody')
-    .mockResolvedValue('ok');
-  const renameNote = vi
-    .spyOn(api.notes, 'renameNote')
-    .mockResolvedValue(undefined);
+    .mockResolvedValue({ status: 'ok', note: null });
+  const renameNote = vi.spyOn(api.notes, 'renameNote').mockResolvedValue(null);
 
   const saved = await saveNotebookNote({
     notebookFlag,
@@ -337,6 +333,58 @@ test('saveNotebookNote persists sent content from the response contract, no read
     title: 'New title',
     bodyMd: 'updated body',
     revision: note.revision + 1,
+  });
+});
+
+test('saveNotebookNote persists host stamps from write-response payloads', async () => {
+  const note = makeNote('Stamped note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  const hostStamp = (note.updatedAt ?? 0) + 5_000;
+  vi.spyOn(api.notes, 'updateNoteBody').mockResolvedValue({
+    status: 'ok',
+    note: {
+      id: note.noteId,
+      title: 'Renamed by host payload',
+      bodyMd: 'updated body',
+      revision: note.revision + 1,
+      updatedAt: hostStamp,
+      updatedBy: '~zod',
+    },
+  });
+  vi.spyOn(api.notes, 'renameNote').mockResolvedValue({
+    id: note.noteId,
+    title: 'Renamed by host payload',
+    bodyMd: 'updated body',
+    revision: note.revision + 1,
+    updatedAt: hostStamp + 1,
+    updatedBy: '~zod',
+  });
+
+  await saveNotebookNote({
+    notebookFlag,
+    note,
+    title: 'Renamed by host payload',
+    body: 'updated body',
+  });
+
+  // The row carries the host's stamps, so the snapshot merge's
+  // equal-revision tiebreak defends this write against a stale snapshot
+  // already in flight (which is exactly how a rename-only save would
+  // otherwise get reverted).
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject({
+    title: 'Renamed by host payload',
+    bodyMd: 'updated body',
+    revision: note.revision + 1,
+    updatedAt: hostStamp + 1,
+    updatedBy: '~zod',
   });
 });
 
@@ -405,7 +453,7 @@ test('saveNotebookNote rebases onto its own previous save and retries once', asy
     .mockResolvedValue(makeApiNotesNote(firstSaved));
   const updateNoteBody = vi
     .spyOn(api.notes, 'updateNoteBody')
-    .mockResolvedValue('ok');
+    .mockResolvedValue({ status: 'ok', note: null });
 
   // Save 1 lands `firstBody` at revision + 1 on the host.
   await saveNotebookNote({
@@ -428,7 +476,7 @@ test('saveNotebookNote rebases onto its own previous save and retries once', asy
     .mockRejectedValueOnce(
       new api.NotesV1WriteError('%notes error: revision-mismatch', 'conflict')
     )
-    .mockResolvedValueOnce('ok');
+    .mockResolvedValueOnce({ status: 'ok', note: null });
   listNotes.mockResolvedValue([makeApiNotesNote(secondSaved)]);
   getNote.mockResolvedValue(makeApiNotesNote(firstSaved));
 
@@ -462,7 +510,10 @@ test('saveNotebookNote keeps the local revision when the host reports no-change'
   });
 
   // The host body already matched, so the revision was NOT bumped.
-  vi.spyOn(api.notes, 'updateNoteBody').mockResolvedValue('no-change');
+  vi.spyOn(api.notes, 'updateNoteBody').mockResolvedValue({
+    status: 'no-change',
+    note: null,
+  });
 
   const saved = await saveNotebookNote({
     notebookFlag,
@@ -504,7 +555,7 @@ test('saveNotebookNote does not auto-rebase over a remote revert to our old cont
     .mockResolvedValue(makeApiNotesNote(firstSaved));
   const updateNoteBody = vi
     .spyOn(api.notes, 'updateNoteBody')
-    .mockResolvedValue('ok');
+    .mockResolvedValue({ status: 'ok', note: null });
 
   // Save 1 seeds the last-saved cache with firstBody at revision + 1.
   await saveNotebookNote({
@@ -568,7 +619,7 @@ test('saveNotebookNote surfaces a conflict when the rebased retry races another 
     .mockResolvedValue(makeApiNotesNote(firstSaved));
   const updateNoteBody = vi
     .spyOn(api.notes, 'updateNoteBody')
-    .mockResolvedValue('ok');
+    .mockResolvedValue({ status: 'ok', note: null });
 
   // Save 1 seeds the last-saved cache.
   await saveNotebookNote({
@@ -888,7 +939,7 @@ test('saveNotebookNote rethrows the raw error when the retry races and the repli
   );
   const updateNoteBody = vi
     .spyOn(api.notes, 'updateNoteBody')
-    .mockResolvedValue('ok');
+    .mockResolvedValue({ status: 'ok', note: null });
 
   await saveNotebookNote({
     notebookFlag,

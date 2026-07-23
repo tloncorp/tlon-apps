@@ -423,24 +423,23 @@ export async function saveNotebookNote({
   }
 
   if (shouldRename) {
-    await api.notes.renameNote({
+    const applied = await api.notes.renameNote({
       flag: notebookFlag,
       noteId: note.noteId,
       title: nextTitle,
     });
     // A successful rename means the host's title is exactly the string we
-    // sent (renames don't bump the revision). Persist it directly — no
-    // read-back needed, same contract-based reasoning as the body/revision
-    // write-through above.
-    await db.updateNotesNote({
-      notebookFlag,
-      noteId: note.noteId,
-      title: nextTitle,
+    // sent (renames don't bump the revision). Persist it with the response
+    // payload's host-stamped updatedAt/updatedBy, so a stale snapshot
+    // already in flight can't win the equal-revision tiebreak and reload
+    // the old title over this write.
+    await persistNoteWrite(notebookFlag, note.noteId, {
+      title: applied?.title ?? nextTitle,
+      applied,
     });
   }
 
-  // Everything we sent is persisted; server-stamped metadata (updatedAt /
-  // updatedBy) arrives via the subscription-triggered sync moments later.
+  // Everything the writes determined is persisted from their responses.
   // No read-back wait: the old poll-until-visible loop here is what
   // silently returned stale revisions when the replica lagged.
   return db.getNotesNote({ notebookFlag, noteId: note.noteId });
@@ -545,7 +544,11 @@ async function updateNotebookNoteBody({
       // Our exact content is already on the host (an unload flush or an
       // earlier retry landed) — nothing left to send.
       lastSavedNoteState.set(noteKey, { body, revision: remoteRevision });
-      await persistNoteWrite(notebookFlag, note.noteId, body, remoteRevision);
+      await persistNoteWrite(notebookFlag, note.noteId, {
+        bodyMd: body,
+        revision: remoteRevision,
+        applied: remote,
+      });
       return;
     }
     const lastSaved = lastSavedNoteState.get(noteKey);
@@ -559,8 +562,9 @@ async function updateNotebookNoteBody({
       // draft evolved from that content; rebasing onto the host's revision
       // loses nothing. The retry itself can race another writer — surface
       // that as a fresh conflict rather than a generic failure.
+      let retryResult: api.NotesV1NoteWriteResult;
       try {
-        await api.notes.updateNoteBody({
+        retryResult = await api.notes.updateNoteBody({
           flag: notebookFlag,
           noteId: note.noteId,
           body,
@@ -584,41 +588,59 @@ async function updateNotebookNoteBody({
         }
         throw new NotesNoteConflictError(raced);
       }
-      lastSavedNoteState.set(noteKey, {
-        body,
-        revision: remoteRevision + 1,
+      const retryRevision = retryResult.note?.revision ?? remoteRevision + 1;
+      lastSavedNoteState.set(noteKey, { body, revision: retryRevision });
+      await persistNoteWrite(notebookFlag, note.noteId, {
+        bodyMd: body,
+        revision: retryRevision,
+        applied: retryResult.note,
       });
-      await persistNoteWrite(
-        notebookFlag,
-        note.noteId,
-        body,
-        remoteRevision + 1
-      );
       return;
     }
     throw new NotesNoteConflictError(remote);
   }
   // %no-change means the host body already matched and the revision was NOT
   // bumped — persisting expected + 1 would put the local DB one revision
-  // ahead of the host and re-wedge the next save.
+  // ahead of the host and re-wedge the next save. When the ok envelope
+  // carries the applied note, its revision is authoritative.
   const nextRevision =
-    result === 'no-change' ? expectedRevision : expectedRevision + 1;
+    result.note?.revision ??
+    (result.status === 'no-change' ? expectedRevision : expectedRevision + 1);
   lastSavedNoteState.set(noteKey, { body, revision: nextRevision });
-  await persistNoteWrite(notebookFlag, note.noteId, body, nextRevision);
+  await persistNoteWrite(notebookFlag, note.noteId, {
+    bodyMd: body,
+    revision: nextRevision,
+    applied: result.note,
+  });
 }
 
-// A successful body update moves the note to exactly expectedRevision + 1
-// (the host bumps by one), so the local row can be written from the response
-// contract alone — no read-back. A save that reported success while leaving
-// a stale revision in the local DB would wedge every later save on a
-// conflict.
+// Persist a write's outcome to the local row. The revision comes from the
+// response payload when present, else the response contract (a successful
+// body update lands on exactly expectedRevision + 1) — no read-back either
+// way. The payload also carries the host's authoritative updatedAt /
+// updatedBy stamps; persisting them lets the snapshot merge's equal-revision
+// tiebreak defend this write against stale snapshots already in flight.
 async function persistNoteWrite(
   notebookFlag: string,
   noteId: number,
-  bodyMd: string,
-  revision: number
+  write: {
+    bodyMd?: string;
+    title?: string;
+    revision?: number;
+    applied?: {
+      updatedAt?: number | null;
+      updatedBy?: string | null;
+    } | null;
+  }
 ) {
-  await db.updateNotesNote({ notebookFlag, noteId, bodyMd, revision });
+  const { applied, ...fields } = write;
+  await db.updateNotesNote({
+    notebookFlag,
+    noteId,
+    ...fields,
+    ...(applied?.updatedAt != null ? { updatedAt: applied.updatedAt } : {}),
+    ...(applied?.updatedBy != null ? { updatedBy: applied.updatedBy } : {}),
+  });
 }
 
 // Persist the host's copy of a note locally — used when the user resolves

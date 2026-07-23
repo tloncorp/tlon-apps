@@ -593,12 +593,62 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
     await expect(
       notesV1.updateNoteBody({ flag: 'notes/~zod/blog', noteId: 12, body: 'x' })
-    ).resolves.toBe('ok');
+    ).resolves.toMatchObject({ status: 'ok', note: null });
 
     requestJsonMock.mockResolvedValue({ body: { type: 'no-change' } });
     await expect(
       notesV1.updateNoteBody({ flag: 'notes/~zod/blog', noteId: 12, body: 'x' })
-    ).resolves.toBe('no-change');
+    ).resolves.toMatchObject({ status: 'no-change', note: null });
+  });
+
+  test('note writes extract the applied note from the ok envelope', async () => {
+    const envelope = {
+      requestId: '0vok',
+      body: {
+        type: 'ok',
+        response: {
+          type: 'update',
+          update: {
+            type: 'note-updated',
+            id: 12,
+            note: {
+              id: 12,
+              title: 'T',
+              bodyMd: 'x',
+              revision: 4,
+              updatedAt: 1234,
+              updatedBy: '~zod',
+            },
+          },
+        },
+      },
+    };
+
+    requestJsonMock.mockResolvedValue(envelope);
+    await expect(
+      notesV1.updateNoteBody({ flag: 'notes/~zod/blog', noteId: 12, body: 'x' })
+    ).resolves.toMatchObject({
+      status: 'ok',
+      note: { id: 12, revision: 4, updatedAt: 1234, updatedBy: '~zod' },
+    });
+
+    await expect(
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
+    ).resolves.toMatchObject({ id: 12, updatedAt: 1234 });
+
+    // Malformed payloads degrade to null, never throw past a passing write.
+    requestJsonMock.mockResolvedValue({
+      body: {
+        type: 'ok',
+        response: {
+          type: 'update',
+          update: { type: 'note-updated', id: 12, note: { title: 'no id' } },
+        },
+      },
+    });
+    await expect(
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
+    ).resolves.toBeNull();
   });
 
   test('updateNoteBody surfaces a typed conflict error with a tang message', async () => {
@@ -730,11 +780,11 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     await expect(
       notesV1.deleteNote({ flag: 'notes/~zod/blog', noteId: 1 })
     ).resolves.toBeUndefined();
-    // explicit ok envelope
+    // explicit ok envelope without an update payload → null applied note
     requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
     await expect(
       notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 1, title: 'x' })
-    ).resolves.toBeUndefined();
+    ).resolves.toBeNull();
     // error / pending / unexpected envelopes reject
     for (const body of [
       { type: 'error', message: 'nope' },

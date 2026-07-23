@@ -868,9 +868,31 @@ async function createNoteV1({
   assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
 }
 
-// Returns whether the host applied the write: 'no-change' means the body
-// already matched and the note's revision was NOT bumped — callers tracking
-// revisions must not advance theirs.
+// The ok envelope of a note write carries the applied update
+// ({type: 'note-updated', note: {...}}) with the host's authoritative
+// revision and server-stamped updatedAt/updatedBy. Extract it when present;
+// null for no-change (no update emitted), bare bodies, or unexpected shapes.
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+function noteFromWriteEnvelope(res: any): NotesV1Note | null {
+  const update = res?.body?.response?.update;
+  if (!update || update.type !== 'note-updated' || !update.note) {
+    return null;
+  }
+  try {
+    return normalizeNoteV1(update.note);
+  } catch {
+    return null;
+  }
+}
+
+export interface NotesV1NoteWriteResult {
+  // 'no-change' means the body already matched and the note's revision was
+  // NOT bumped — callers tracking revisions must not advance theirs.
+  status: 'ok' | 'no-change';
+  // The applied note from the response payload, when the host emitted one.
+  note: NotesV1Note | null;
+}
+
 async function updateNoteBodyV1({
   flag,
   noteId,
@@ -881,7 +903,7 @@ async function updateNoteBodyV1({
   noteId: number;
   body: string;
   expectedRevision?: number;
-}): Promise<'ok' | 'no-change'> {
+}): Promise<NotesV1NoteWriteResult> {
   const normalized = normalizeNotesTarget(flag);
   const payload: { body: string; expectedRevision?: number } = { body };
   if (expectedRevision !== undefined) {
@@ -889,7 +911,10 @@ async function updateNoteBodyV1({
   }
   const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', payload);
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
-  return res?.body?.type === 'no-change' ? 'no-change' : 'ok';
+  return {
+    status: res?.body?.type === 'no-change' ? 'no-change' : 'ok',
+    note: noteFromWriteEnvelope(res),
+  };
 }
 
 async function renameNoteV1({
@@ -900,12 +925,13 @@ async function renameNoteV1({
   flag: NotesTarget;
   noteId: number;
   title: string;
-}): Promise<void> {
+}): Promise<NotesV1Note | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', {
     title,
   });
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
+  return noteFromWriteEnvelope(res);
 }
 
 async function moveNoteV1({
