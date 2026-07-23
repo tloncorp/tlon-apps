@@ -23,7 +23,6 @@ export async function pokeUrbitChannel(
     mark: string;
     json: unknown;
     auditContext: string;
-    signal?: AbortSignal;
   }
 ): Promise<number> {
   const pokeId = Date.now();
@@ -51,7 +50,6 @@ export async function pokeUrbitChannel(
     lookupFn: deps.lookupFn,
     fetchImpl: deps.fetchImpl,
     timeoutMs: 30_000,
-    signal: params.signal,
     auditContext: params.auditContext,
   });
 
@@ -110,7 +108,7 @@ export async function scryUrbitPath(
 
 export async function createUrbitChannel(
   deps: UrbitChannelDeps,
-  params: { body: unknown; auditContext: string; signal?: AbortSignal }
+  params: { body: unknown; auditContext: string }
 ): Promise<void> {
   const { response, release } = await urbitFetch({
     baseUrl: deps.baseUrl,
@@ -127,7 +125,6 @@ export async function createUrbitChannel(
     lookupFn: deps.lookupFn,
     fetchImpl: deps.fetchImpl,
     timeoutMs: 30_000,
-    signal: params.signal,
     auditContext: params.auditContext,
   });
 
@@ -143,10 +140,7 @@ export async function createUrbitChannel(
   }
 }
 
-export async function wakeUrbitChannel(
-  deps: UrbitChannelDeps,
-  params?: { signal?: AbortSignal }
-): Promise<void> {
+export async function wakeUrbitChannel(deps: UrbitChannelDeps): Promise<void> {
   const { response, release } = await urbitFetch({
     baseUrl: deps.baseUrl,
     path: `/~/channel/${deps.channelId}`,
@@ -171,7 +165,6 @@ export async function wakeUrbitChannel(
     lookupFn: deps.lookupFn,
     fetchImpl: deps.fetchImpl,
     timeoutMs: 30_000,
-    signal: params?.signal,
     auditContext: 'tlon-urbit-channel-wake',
   });
 

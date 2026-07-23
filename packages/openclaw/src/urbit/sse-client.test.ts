@@ -54,8 +54,6 @@ describe('UrbitSSEClient', () => {
       const callArgs = mockUrbitFetch.mock.calls[0][0];
       expect(callArgs.path).toContain('/~/channel/');
       expect(callArgs.init.method).toBe('PUT');
-      // sendSubscription must NOT carry the outbound-abort signal: aborting an
-      // in-flight subscribe-while-connected leaves a sub the resume never re-sends.
       expect(callArgs.signal).toBeUndefined();
 
       const body = JSON.parse(callArgs.init.body as string);
@@ -342,45 +340,6 @@ describe('UrbitSSEClient', () => {
       // New sub ID should be 2
       expect(body[0].id).toBe(2);
       expect(client.subscriptions).toHaveLength(2);
-    });
-
-    it('threads the outbound-abort signal into the post-quit resubscribe PUT', async () => {
-      const { urbitFetch } = await import('./fetch.js');
-      const mockUrbitFetch = vi.mocked(urbitFetch);
-      mockUrbitFetch.mockResolvedValue({
-        response: { ok: true, status: 200 },
-        finalUrl: 'https://example.com',
-        release: vi.fn().mockResolvedValue(undefined),
-      });
-
-      const client = new UrbitSSEClient(
-        'https://example.com',
-        'urbauth-~zod=123'
-      );
-      (client as { isConnected: boolean }).isConnected = true;
-
-      await client.subscribe({
-        app: 'channels',
-        path: '/v4',
-        event: vi.fn(),
-        quit: vi.fn(),
-      });
-      mockUrbitFetch.mockClear();
-
-      const outboundSignal = (
-        client as unknown as { outboundAbort: AbortController }
-      ).outboundAbort.signal;
-
-      client.processEvent('id: 1\ndata: {"id":1,"response":"quit"}');
-      await vi.advanceTimersByTimeAsync(2100);
-
-      // The resubscribe PUT (unlike a plain subscribe-while-connected) must carry
-      // the outbound-abort signal so a stream drop can cancel it mid-flight.
-      const subCall = mockUrbitFetch.mock.calls.find(
-        (call) => call[0].auditContext === 'tlon-urbit-subscribe'
-      );
-      expect(subCall).toBeDefined();
-      expect(subCall?.[0].signal).toBe(outboundSignal);
     });
 
     it('does not resubscribe if client is aborted', async () => {
@@ -797,13 +756,11 @@ describe('UrbitSSEClient', () => {
       lastAcknowledgedEventId: number;
       channelEpoch: number;
       channelReaped: boolean;
-      reconnecting: boolean;
-      outboundAbort: AbortController;
       streamDownSince: number | null;
       streamController: { abort: () => void } | null;
       streamRelease: (() => Promise<void>) | null;
       attemptReconnect: () => Promise<void>;
-      enterReconnecting: () => void;
+      markStreamDown: () => void;
       startStreamWatchdog: () => void;
       stopStreamWatchdog: () => void;
     };
@@ -1213,9 +1170,9 @@ describe('UrbitSSEClient', () => {
       priv(client).streamController = { abort: vi.fn() };
       priv(client).startStreamWatchdog();
 
-      // Watchdog fires → enterReconnecting; channelReaped stays false → resume.
+      // Watchdog fires → markStreamDown; channelReaped stays false → resume.
       await vi.advanceTimersByTimeAsync(1_600);
-      expect(priv(client).reconnecting).toBe(true);
+      expect(client.isConnected).toBe(false);
       expect(priv(client).channelReaped).toBe(false);
 
       // Stop the watchdog (and disable its restart) so the event-less mock
@@ -1238,7 +1195,7 @@ describe('UrbitSSEClient', () => {
       priv(client).stopStreamWatchdog();
     });
 
-    it('gates poke() by lifecycle: allowed initial/connected, rejected reconnecting/closed', async () => {
+    it('poke() rejects after close() and is allowed before the first connect', async () => {
       const { pokeUrbitChannel } = await import('./channel-ops.js');
       const mockPoke = vi.mocked(pokeUrbitChannel);
 
@@ -1247,131 +1204,19 @@ describe('UrbitSSEClient', () => {
         'urbauth-~zod=123'
       );
 
-      // Initial state (before first connect): allowed — a startup
-      // config-migration poke runs while isConnected is still false.
+      // Before the first connect: allowed (isConnected is still false).
       await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
       expect(mockPoke).toHaveBeenCalledTimes(1);
 
-      // Connected: allowed.
-      client.isConnected = true;
-      await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
-      expect(mockPoke).toHaveBeenCalledTimes(2);
-
-      // Reconnecting: rejected, no channel-action PUT issued.
-      priv(client).reconnecting = true;
-      await expect(
-        client.poke({ app: 'hood', mark: 'helm-hi', json: {} })
-      ).rejects.toThrow(/reconnecting/);
-      expect(mockPoke).toHaveBeenCalledTimes(2);
-
-      // Closed (aborted): rejected.
-      priv(client).reconnecting = false;
+      // After close(): rejected — the channel is unsubscribed/DELETEd.
       client.aborted = true;
       await expect(
         client.poke({ app: 'hood', mark: 'helm-hi', json: {} })
       ).rejects.toThrow(/closed/);
-      expect(mockPoke).toHaveBeenCalledTimes(2);
+      expect(mockPoke).toHaveBeenCalledTimes(1);
     });
 
-    it('a rejected poke during reconnect leaves the 404 reap to drive a rebuild', async () => {
-      const { pokeUrbitChannel } = await import('./channel-ops.js');
-      const { urbitFetch } = await import('./fetch.js');
-      const mockPoke = vi.mocked(pokeUrbitChannel);
-      const mockUrbitFetch = vi.mocked(urbitFetch);
-      mockUrbitFetch
-        .mockResolvedValueOnce(errorResult(404))
-        .mockResolvedValue(openStreamResult());
-
-      const client = new UrbitSSEClient(
-        'https://example.com',
-        'urbauth-~zod=123',
-        { streamStaleThresholdMs: 0 }
-      );
-      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
-      const originalChannelId = client.channelId;
-
-      // Stream dropped → reconnecting: the heartbeat poke is rejected, so it
-      // can't recreate the reaped channel out from under resume classification.
-      priv(client).enterReconnecting();
-      await expect(
-        client.poke({ app: 'gateway', mark: 'json', json: {} })
-      ).rejects.toThrow(/reconnecting/);
-      expect(mockPoke).not.toHaveBeenCalled();
-
-      // The resume GET 404s → reap → the following attempt rebuilds.
-      priv(client).streamDownSince = Date.now();
-      const p = priv(client).attemptReconnect();
-      await vi.advanceTimersByTimeAsync(20_000);
-      await p;
-
-      expect(client.channelId).not.toBe(originalChannelId);
-      client.aborted = true;
-      priv(client).stopStreamWatchdog();
-    });
-
-    it('aborts in-flight outbound pokes when the stream drops', async () => {
-      const { pokeUrbitChannel } = await import('./channel-ops.js');
-      const mockPoke = vi.mocked(pokeUrbitChannel);
-
-      const client = new UrbitSSEClient(
-        'https://example.com',
-        'urbauth-~zod=123'
-      );
-      client.isConnected = true;
-
-      const signalBefore = priv(client).outboundAbort.signal;
-      await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
-      // The poke was threaded the current outbound-abort signal.
-      expect(mockPoke.mock.calls[0][1].signal).toBe(signalBefore);
-      expect(signalBefore.aborted).toBe(false);
-
-      // Stream drops → enterReconnecting aborts the in-flight poke's signal and
-      // installs a fresh controller for the next connected period.
-      priv(client).enterReconnecting();
-      expect(signalBefore.aborted).toBe(true);
-      expect(priv(client).outboundAbort.signal).not.toBe(signalBefore);
-    });
-
-    it('close() cancels an in-flight poke via outboundAbort', async () => {
-      const { pokeUrbitChannel } = await import('./channel-ops.js');
-      const { urbitFetch } = await import('./fetch.js');
-      const mockPoke = vi.mocked(pokeUrbitChannel);
-      const mockUrbitFetch = vi.mocked(urbitFetch);
-      mockUrbitFetch.mockResolvedValue(okPutResult());
-
-      const client = new UrbitSSEClient(
-        'https://example.com',
-        'urbauth-~zod=123'
-      );
-      client.isConnected = true;
-
-      let capturedSignal: AbortSignal | undefined;
-      mockPoke.mockImplementation(
-        (_deps, params) =>
-          new Promise<number>((_resolve, reject) => {
-            capturedSignal = params.signal;
-            params.signal?.addEventListener('abort', () => {
-              reject(
-                new DOMException('The operation was aborted.', 'AbortError')
-              );
-            });
-          })
-      );
-
-      const pokePromise = client.poke({
-        app: 'hood',
-        mark: 'helm-hi',
-        json: {},
-      });
-      await vi.advanceTimersByTimeAsync(0);
-
-      await client.close();
-
-      await expect(pokePromise).rejects.toThrow(/aborted/i);
-      expect(capturedSignal?.aborted).toBe(true);
-    });
-
-    it('gates pokes before a slow release settles, then resumes', async () => {
+    it('drops isConnected before a slow release settles, then resumes', async () => {
       const { urbitFetch } = await import('./fetch.js');
       const mockUrbitFetch = vi.mocked(urbitFetch);
       mockUrbitFetch.mockResolvedValue(openStreamResult());
@@ -1394,20 +1239,16 @@ describe('UrbitSSEClient', () => {
       const p = client.processStream(closingStream());
       await vi.advanceTimersByTimeAsync(1);
 
-      // reconnecting flipped true BEFORE the release await → pokes gated.
-      expect(priv(client).reconnecting).toBe(true);
+      // isConnected flips false BEFORE the slow release await settles
+      // (markStreamDown ordering fix).
       expect(client.isConnected).toBe(false);
-      await expect(
-        client.poke({ app: 'hood', mark: 'helm-hi', json: {} })
-      ).rejects.toThrow(/reconnecting/);
 
       resolveRelease();
       await vi.advanceTimersByTimeAsync(5_000);
       await p;
 
-      // Resume succeeded → pokes re-admitted.
+      // Resume succeeded → connected again.
       expect(client.isConnected).toBe(true);
-      expect(priv(client).reconnecting).toBe(false);
       client.aborted = true;
       priv(client).stopStreamWatchdog();
     });
@@ -1434,7 +1275,6 @@ describe('UrbitSSEClient', () => {
       // The rejecting release was swallowed and the reconnect loop still ran
       // (resume → connected) rather than stranding isConnected=true.
       expect(client.isConnected).toBe(true);
-      expect(priv(client).reconnecting).toBe(false);
       client.aborted = true;
       priv(client).stopStreamWatchdog();
     });
@@ -1574,7 +1414,6 @@ describe('UrbitSSEClient', () => {
 
       expect(client.isConnected).toBe(false);
       expect(mockWake).not.toHaveBeenCalled();
-      expect(priv(client).outboundAbort.signal.aborted).toBe(true);
       const phases = streamRecoverySpy.mock.calls.map((c) => c[0].phase);
       expect(phases).not.toContain('reconnected');
       expect(phases).not.toContain('reconnect_failed');

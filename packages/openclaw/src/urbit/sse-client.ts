@@ -135,24 +135,6 @@ export class UrbitSSEClient {
    * channel.
    */
   private channelReaped = false;
-  /**
-   * Poke-gate lifecycle flag. True only during the reconnect loop, so outbound
-   * pokes (e.g. the gateway-status heartbeat) can't recreate a reaped channel
-   * out from under resume classification. `initial` and `connected` poke
-   * normally; `reconnecting` and `closed` reject.
-   */
-  private reconnecting = false;
-  /**
-   * Cancels in-flight outbound poke, ack, channel create/wake, and post-quit
-   * resubscribe PUTs the instant the stream drops. A heartbeat poke PUT issued
-   * before the drop can otherwise land on a restarted ship and recreate the
-   * channel before the resume GET; an in-flight resubscribe PUT can recreate a
-   * reaped channel the same way (its retry loop re-sends, and `if (this.aborted)
-   * return` stops it after close, so aborting it is safe). Plain `subscribe()`
-   * PUTs are NOT threaded this signal: they don't retry, so aborting one would
-   * silently lose the subscription. Aborted + replaced in enterReconnecting().
-   */
-  private outboundAbort = new AbortController();
 
   constructor(url: string, cookie: string, options: UrbitSseOptions = {}) {
     const ctx = getUrbitContext(url, options.ship);
@@ -213,16 +195,13 @@ export class UrbitSSEClient {
     return subId;
   }
 
-  private async sendSubscription(
-    subscription: {
-      id: number;
-      action: 'subscribe';
-      ship: string;
-      app: string;
-      path: string;
-    },
-    opts?: { signal?: AbortSignal }
-  ) {
+  private async sendSubscription(subscription: {
+    id: number;
+    action: 'subscribe';
+    ship: string;
+    app: string;
+    path: string;
+  }) {
     const { response, release } = await urbitFetch({
       baseUrl: this.url,
       path: `/~/channel/${this.channelId}`,
@@ -238,7 +217,6 @@ export class UrbitSSEClient {
       lookupFn: this.lookupFn,
       fetchImpl: this.fetchImpl,
       timeoutMs: 30_000,
-      signal: opts?.signal,
       auditContext: 'tlon-urbit-subscribe',
     });
 
@@ -274,7 +252,6 @@ export class UrbitSSEClient {
     await createUrbitChannel(deps, {
       body: createBody,
       auditContext: 'tlon-urbit-channel-create',
-      signal: this.outboundAbort.signal,
     });
     // Channel + subs now exist on the ship: clear the reap flag and bump the
     // epoch here (not after openStream) so a pending resubscribeAfterQuit sees
@@ -283,7 +260,7 @@ export class UrbitSSEClient {
     this.channelEpoch += 1;
     if (this.aborted) return;
     // Best-effort pulse; its failure degrades to resume, not re-mint.
-    await wakeUrbitChannel(deps, { signal: this.outboundAbort.signal });
+    await wakeUrbitChannel(deps);
     if (this.aborted) return;
     await this.openStream();
     if (this.aborted) {
@@ -295,14 +272,13 @@ export class UrbitSSEClient {
   }
 
   /**
-   * Post-openStream bookkeeping: mark the client connected and re-admit pokes.
+   * Post-openStream bookkeeping: mark the client connected.
    * Guarded on `aborted` so a client closed mid-connect is never marked
    * connected.
    */
   private afterStreamOpen() {
     if (this.aborted) return;
     this.isConnected = true;
-    this.reconnecting = false;
     this.reconnectAttempts = 0;
     this.lastEventAt = Date.now();
     this.startStreamWatchdog();
@@ -321,16 +297,14 @@ export class UrbitSSEClient {
   }
 
   /**
-   * Enter the reconnecting state: drop the connected flag, gate outbound pokes,
-   * record downtime, and cancel any in-flight outbound poke/ack/create/wake so
-   * it can't recreate a reaped channel on a restarted ship. Idempotent.
+   * Drop the connected flag and record downtime BEFORE any awaited teardown.
+   * The ordering matters: isConnected must be false before the (possibly slow)
+   * release await so concurrent callers observe the stream as down immediately.
+   * Idempotent.
    */
-  private enterReconnecting() {
+  private markStreamDown() {
     this.isConnected = false;
-    this.reconnecting = true;
     this.streamDownSince ??= Date.now();
-    this.outboundAbort.abort();
-    this.outboundAbort = new AbortController();
   }
 
   async openStream() {
@@ -430,15 +404,15 @@ export class UrbitSSEClient {
       }
     } finally {
       // The stream is done (EOF or error): drop the connected flag
-      // unconditionally so a non-reconnecting client isn't left marked
-      // connected. enterReconnecting() setting it again is a no-op.
+      // unconditionally so a client that won't auto-reconnect isn't left
+      // marked connected. markStreamDown() setting it again is a no-op.
       this.isConnected = false;
-      // Decide first, then gate pokes BEFORE the (possibly slow) release so a
-      // heartbeat poke can't sneak in during teardown. A release rejection is
-      // logged, never thrown, so reconnect still runs.
+      // Drop the connected flag BEFORE the (possibly slow) release so
+      // concurrent callers observe the stream as down immediately. A release
+      // rejection is logged, never thrown, so reconnect still runs.
       const willReconnect = !this.aborted && this.autoReconnect;
       if (willReconnect) {
-        this.enterReconnecting();
+        this.markStreamDown();
       }
       try {
         await this.releaseStream();
@@ -550,16 +524,11 @@ export class UrbitSSEClient {
   }
 
   async poke(params: { app: string; mark: string; json: unknown }) {
-    // Entry gate: reject once closed, and for the whole reconnect window. Do
-    // NOT gate on `!isConnected` — a legitimate config-migration poke runs at
-    // startup before the first connect() (isConnected still false) and must be
-    // allowed. A channel-action PUT creates the channel, so an unguarded
-    // heartbeat poke could recreate a reaped channel empty mid-reconnect.
+    // After close() the channel is unsubscribed/DELETEd on the ship. A stale
+    // poke from an old monitor (e.g. across a config-reload restart) would
+    // otherwise recreate that channel as a side effect, so reject once closed.
     if (this.aborted) {
       throw new Error('SSE client closed; poke rejected');
-    }
-    if (this.reconnecting) {
-      throw new Error('SSE channel reconnecting; poke rejected');
     }
     return await pokeUrbitChannel(
       {
@@ -574,10 +543,6 @@ export class UrbitSSEClient {
       {
         ...params,
         auditContext: 'tlon-urbit-poke',
-        // In-flight cancellation: aborted by enterReconnecting() the instant
-        // the stream drops, so this poke PUT (like ack/create/wake) can't land
-        // on a restarted ship and recreate the channel before the resume GET.
-        signal: this.outboundAbort.signal,
       }
     );
   }
@@ -630,7 +595,6 @@ export class UrbitSSEClient {
       lookupFn: this.lookupFn,
       fetchImpl: this.fetchImpl,
       timeoutMs: 10_000,
-      signal: this.outboundAbort.signal,
       auditContext: 'tlon-urbit-ack',
     });
 
@@ -798,10 +762,9 @@ export class UrbitSSEClient {
       this.lastEventAt = Date.now();
       this.streamDownSince ??= Date.now();
       this.suppressNextStreamErrorFanout = true;
-      // Gate pokes and cancel in-flight poke/ack/create/wake before the abort
-      // so the abort→finally gap can't admit a channel-recreating poke.
-      // Idempotent with the processStream finally.
-      this.enterReconnecting();
+      // Drop the connected flag before the abort so the abort→finally gap
+      // observes the stream as down. Idempotent with the processStream finally.
+      this.markStreamDown();
       this.streamController?.abort();
     }, this.streamWatchdogIntervalMs);
     if (typeof this.watchdogTimer === 'object') {
@@ -888,9 +851,7 @@ export class UrbitSSEClient {
       }
 
       try {
-        await this.sendSubscription(newSub, {
-          signal: this.outboundAbort.signal,
-        });
+        await this.sendSubscription(newSub);
         this.logger.log?.(
           `[SSE] Resubscribed to ${oldSub.app}${oldSub.path} successfully (new id=${newSubId})`
         );
@@ -921,8 +882,6 @@ export class UrbitSSEClient {
 
   async close() {
     this.aborted = true;
-    // Cancel any in-flight outbound poke/ack/create/wake so it can't recreate the channel after the unsubscribe/DELETE below.
-    this.outboundAbort.abort();
     this.isConnected = false;
     this.stopStreamWatchdog();
     this.streamController?.abort();
