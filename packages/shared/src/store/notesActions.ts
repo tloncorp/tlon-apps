@@ -442,7 +442,7 @@ export async function saveNotebookNote({
     });
   }
 
-  await syncNotesNotebookUntil(
+  const confirmed = await syncNotesNotebookUntil(
     notebookFlag,
     (snapshot) => {
       const updated = findSnapshotNote(snapshot, note.noteId);
@@ -460,7 +460,7 @@ export async function saveNotebookNote({
     notebookFlag,
     noteId: note.noteId,
   });
-  if (savedNote) {
+  if (confirmed && savedNote) {
     trackEvent(AnalyticsEvent.NoteSaved);
   }
   return savedNote;
@@ -516,10 +516,12 @@ export async function moveNotebookNote({
     noteId,
     folder: folderId,
   });
-  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+  const confirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     snapshotNoteMatches(snapshot, noteId, (note) => note.folderId === folderId)
   );
-  trackEvent(AnalyticsEvent.NoteMoved);
+  if (confirmed) {
+    trackEvent(AnalyticsEvent.NoteMoved);
+  }
 }
 
 export async function renameNotebookFolder({
@@ -541,10 +543,12 @@ export async function renameNotebookFolder({
     folderId: folder.folderId,
     name: nextName,
   });
-  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+  const confirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     snapshotFolderMatches(snapshot, folder.folderId, (f) => f.name === nextName)
   );
-  trackEvent(AnalyticsEvent.NotesFolderRenamed);
+  if (confirmed) {
+    trackEvent(AnalyticsEvent.NotesFolderRenamed);
+  }
 }
 
 export async function moveNotebookFolder({
@@ -565,14 +569,16 @@ export async function moveNotebookFolder({
     folderId: folder.folderId,
     parent: parentFolderId,
   });
-  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+  const confirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     snapshotFolderMatches(
       snapshot,
       folder.folderId,
       (f) => f.parentFolderId === parentFolderId
     )
   );
-  trackEvent(AnalyticsEvent.NotesFolderMoved);
+  if (confirmed) {
+    trackEvent(AnalyticsEvent.NotesFolderMoved);
+  }
 }
 
 function snapshotFolderMatches(
@@ -607,11 +613,13 @@ export async function deleteNotebookNote({
 }) {
   await api.notes.deleteNote({ flag: notebookFlag, noteId });
   await db.deleteNotesNote({ notebookFlag, noteId });
-  await syncNotesNotebookUntil(
+  const confirmed = await syncNotesNotebookUntil(
     notebookFlag,
     (snapshot) => !findSnapshotNote(snapshot, noteId)
   );
-  trackEvent(AnalyticsEvent.NoteDeleted);
+  if (confirmed) {
+    trackEvent(AnalyticsEvent.NoteDeleted);
+  }
 }
 
 export async function deleteNotebookFolder({
@@ -632,13 +640,15 @@ export async function deleteNotebookFolder({
     recursive: true,
   });
   await db.deleteNotesFolders({ notebookFlag, folderIds });
-  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+  const confirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     folderIds.every(
       (folderId) =>
         !snapshot.folders.some((nextFolder) => nextFolder.folderId === folderId)
     )
   );
-  trackEvent(AnalyticsEvent.NotesFolderDeleted);
+  if (confirmed) {
+    trackEvent(AnalyticsEvent.NotesFolderDeleted);
+  }
 }
 
 export async function markNotesNotebookOpened(notebookFlag: string) {

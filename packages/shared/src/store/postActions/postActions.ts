@@ -369,13 +369,14 @@ async function _sendPost({
     }
 
     logger.crumb('done sending post');
-    if (draft) {
-      trackEvent(AnalyticsEvent.ContentSendCompleted, {
-        type: channel.type,
-        isReply: draft.replyToPostId != null,
-        attachmentTypes: draft.attachments.map((attachment) => attachment.type),
-      });
+    trackEvent(AnalyticsEvent.ContentSendCompleted, {
+      type: channel.type,
+      isReply: draft?.replyToPostId != null,
+      attachmentTypes:
+        draft?.attachments.map((attachment) => attachment.type) ?? [],
+    });
 
+    if (draft) {
       if (
         draft.attachments.some((attachment) => attachment.type === 'voicememo')
       ) {

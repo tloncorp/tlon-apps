@@ -18,6 +18,7 @@ import {
   deleteFailedPost,
   deletePost,
   finalizeAndSendPost,
+  forwardPost,
   retrySendPost,
 } from './postActions';
 import { verifyPostDelivery } from './verifyPostDelivery';
@@ -343,6 +344,38 @@ describe('finalizeAndSendPost', () => {
         ([event]) => event === AnalyticsEvent.ContentSendCompleted
       )
     ).toHaveLength(1);
+  });
+
+  test('tracks completion when a post is forwarded', async () => {
+    const capture = vi.fn();
+    useDebugStore.getState().initializeErrorLogger({ capture });
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+
+    const initialSend = finalizeAndSendPost(buildTestDraft());
+    await vi.runOnlyPendingTimersAsync();
+    await initialSend;
+
+    const originalPost = await fetchLatestPostFromDb();
+    capture.mockClear();
+
+    const forward = forwardPost({
+      postId: originalPost!.id,
+      channelId: TEST_CHANNEL,
+    });
+    await vi.runOnlyPendingTimersAsync();
+    await forward;
+
+    expect(
+      capture.mock.calls.filter(
+        ([event]) => event === AnalyticsEvent.ContentSendCompleted
+      )
+    ).toEqual([
+      [
+        AnalyticsEvent.ContentSendCompleted,
+        { type: 'chat', isReply: false, attachmentTypes: [] },
+      ],
+    ]);
   });
 
   test('tracks completion when delivery is verified after a connection error', async () => {

@@ -1,4 +1,4 @@
-import { Attachment } from '@tloncorp/shared/domain';
+import { AnalyticsEvent, Attachment, trackEvent } from '@tloncorp/shared';
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
@@ -25,6 +25,7 @@ export default function AddGalleryPost({
     }
     if (uploadIntents.length > 0) {
       onSetMedia(uploadIntents);
+      trackEvent(AnalyticsEvent.AttachmentAdded);
     }
   }, [setRoute, onSetMedia]);
 
