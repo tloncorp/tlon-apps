@@ -2,7 +2,7 @@ import type { JsonRpcObject } from '@tloncorp/acp';
 import { EventEmitter } from 'node:events';
 import { describe, expect, test } from 'vitest';
 
-import type { InboundTlonMessage } from './routing.js';
+import type { InboundTlonMessage } from './messages.js';
 import { AcpSessionManager } from './session-manager.js';
 import { MemorySessionStore } from './session-store.js';
 

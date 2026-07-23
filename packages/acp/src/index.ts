@@ -11,15 +11,5 @@ export {
   type JsonRpcId,
   type JsonRpcObject,
 } from './client.js';
-export { AcpPump, validateFrame } from './pump.js';
-export {
-  type AcpMessage,
-  type AcpPeer,
-  type AcpTransport,
-  type AcpUpdate,
-  parseAcpUpdate,
-} from './types.js';
-export {
-  UrbitAcpTransport,
-  type UrbitAcpTransportOptions,
-} from './urbit-transport.js';
+export { StdioAcpTransport, validateFrame } from './stdio-transport.js';
+export { type AcpMessage, type AcpTransport, type AcpUpdate } from './types.js';

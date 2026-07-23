@@ -1,19 +1,19 @@
 import { describe, expect, test, vi } from 'vitest';
 
 import { AcpClient } from './client.js';
-import type { AcpPeer, AcpTransport, AcpUpdateHandler } from './types.js';
+import type { AcpTransport, AcpUpdateHandler } from './types.js';
 
 class FakeTransport implements AcpTransport {
   handler: AcpUpdateHandler | null = null;
-  sent: Array<{ target: AcpPeer; frame: Record<string, unknown> }> = [];
+  sent: Array<Record<string, unknown>> = [];
   acked: number[] = [];
 
   async open() {}
   async disconnect() {}
 
-  async send(target: AcpPeer, payload: string) {
+  async send(payload: string) {
     const frame = JSON.parse(payload) as Record<string, unknown>;
-    this.sent.push({ target, frame });
+    this.sent.push(frame);
     if (frame.method === 'initialize') {
       queueMicrotask(() => {
         this.push({
@@ -25,11 +25,11 @@ class FakeTransport implements AcpTransport {
     }
   }
 
-  async ack(_target: AcpPeer, through: number) {
+  async ack(through: number) {
     this.acked.push(through);
   }
 
-  async subscribe(_target: AcpPeer, handler: AcpUpdateHandler) {
+  async subscribe(handler: AcpUpdateHandler) {
     this.handler = handler;
     return () => {
       this.handler = null;
@@ -60,7 +60,7 @@ describe('AcpClient', () => {
       cwd: '/tmp',
       mcpServers: [],
     });
-    const request = transport.sent.at(-1)!.frame;
+    const request = transport.sent.at(-1)!;
     transport.push({
       jsonrpc: '2.0',
       id: request.id,
@@ -90,7 +90,7 @@ describe('AcpClient', () => {
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(transport.sent.at(-1)?.frame).toMatchObject({
+    expect(transport.sent.at(-1)).toMatchObject({
       id: 99,
       result: { outcome: { outcome: 'selected', optionId: 'reject' } },
     });

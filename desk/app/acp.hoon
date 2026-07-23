@@ -1,19 +1,24 @@
-::  acp: generic ship-side transport for Agent Client Protocol
+::  acp: ship-side Tlon Messenger bus for external agent workers
 ::
-::    ACP is bidirectional JSON-RPC. This agent deliberately treats every
-::    envelope as opaque NDJSON text so protocol negotiation, extensions, and
-::    future versions pass through unchanged. It provides durable ordered queues;
-::    a local process only has to translate Eyre subscribe/poke traffic to
-::    the adapter's newline-delimited stdio stream.
+::    %acp subscribes to Messenger activity, applies bot routing policy, and
+::    exposes durable normalized requests. A worker may run any harness and
+::    return plain-text replies without monitoring chat or channels itself.
 ::
-/-  ac=acp
-/+  default-agent, verb, dbug
+/-  ac=acp, av=activity-ver, cv=chat-ver, c=channels, st=story
+/+  default-agent, verb, dbug, cu=channel-utils
 |%
 +$  card  card:agent:gall
-+$  state-0  [%0 connections=(map connection-id:v1:ac connection:v1:ac)]
-++  max-connections       32
-++  max-queued-per-peer   10.000
-++  max-payload-bytes     1.048.576
++$  state-0
+  $:  %0
+      routing=(unit routing:ac)
+      requests=(map @ud request:ac)
+      delivering=(set @ud)
+      seen=(set message-key:v9:av)
+      next-request=@ud
+  ==
+++  max-requests       10.000
+++  max-seen           10.000
+++  max-reply-bytes    1.048.576
 --
 =|  state-0
 =*  state  -
@@ -25,15 +30,18 @@
   +*  this  .
       def   ~(. (default-agent this %.n) bowl)
       cor   ~(. +> [bowl ~])
-  ++  on-init  `this
+  ++  on-init
+    ^-  (quip card _this)
+    =.  next-request.state  1
+    [~[watch-activity:cor] this]
   ++  on-save  !>(state)
   ++  on-load
     |=  old=vase
     ^-  (quip card _this)
-    =/  attempt  (mule |.(!<(state-0 old)))
-    ?:  ?=(%& -.attempt)  `this(state p.attempt)
-    %-  (slog 'acp: incompatible pre-release state, resetting queues' ~)
-    `this
+    =/  loaded  (mule |.(!<(state-0 old)))
+    ?:  ?=(%& -.loaded)  `this(state p.loaded)
+    %-  (slog 'acp: resetting incompatible state' ~)
+    `this(state [%0 ~ ~ ~ ~ 1])
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -50,7 +58,11 @@
     ^-  (unit (unit cage))
     ?>  =(src our):bowl
     (peek:cor path)
-  ++  on-agent  |=([=wire =sign:agent:gall] `this)
+  ++  on-agent
+    |=  [=wire =sign:agent:gall]
+    ^-  (quip card _this)
+    =^  cards  state  abet:(agent:cor wire sign)
+    [cards this]
   ++  on-arvo   |=([=wire sign=sign-arvo] `this)
   ++  on-leave  |=(path `this)
   ++  on-fail
@@ -70,135 +82,181 @@
   ^+  cor
   ?>  =(src.bowl our.bowl)
   ?>  =(%acp-action-1 mark)
-  =+  !<(=action:v1:ac vase)
+  =+  !<(=action:ac vase)
   ?-  -.action
-    %open   (open connection.action)
-    %send   (send connection.action target.action payload.action)
-    %ack    (ack connection.action target.action through.action)
-    %close  (close connection.action reason.action)
-    %drop   (drop connection.action)
+    %configure  (configure routing.action)
+    %reply      (reply sequence.action text.action)
   ==
 ::
 ++  watch
   |=  =path
   ^+  cor
   ?+  path  ~|(bad-acp-watch-path+path !!)
-    [%v1 @ ?(%client %agent) ~]
-      =/  id=connection-id:v1:ac  i.t.path
-      =/  target=peer:v1:ac  i.t.t.path
-      =/  con  (~(get by connections.state) id)
-      ?~  con  ~|(unknown-acp-connection+id !!)
-      =.  cor  (give-update [%connection id open.u.con ?~(closed.u.con ~ `reason.u.closed.u.con)] id target)
-      (give-update [%messages id target (queued u.con target)] id target)
+    [%worker ~]
+      =.  cor  (give-update [%configuration routing.state])
+      (give-update [%requests queued-requests])
   ==
 ::
 ++  peek
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
-      [%x %v1 @ ?(%client %agent) ~]
-    =/  id=connection-id:v1:ac  i.t.t.path
-    =/  target=peer:v1:ac  i.t.t.t.path
-    =/  con  (~(get by connections.state) id)
-    ?~  con  [~ ~]
-    ``acp-update-1+!>(`update:v1:ac`[%messages id target (queued u.con target)])
+      [%x %requests ~]
+    ``acp-update-1+!>(`update:ac`[%requests queued-requests])
+  ::
+      [%x %configuration ~]
+    ``acp-update-1+!>(`update:ac`[%configuration routing.state])
   ==
 ::
 ++  give-update
-  |=  [=update:v1:ac id=connection-id:v1:ac target=peer:v1:ac]
+  |=  update=update:ac
   ^+  cor
-  (give %fact ~[/v1/[id]/[target]] %acp-update-1 !>(update))
+  (give %fact ~[/worker] %acp-update-1 !>(update))
 ::
-++  give-connection
-  |=  [id=connection-id:v1:ac open=? reason=(unit @t)]
-  ^+  cor
-  =.  cor  (give-update [%connection id open reason] id %client)
-  (give-update [%connection id open reason] id %agent)
+++  watch-activity
+  ^-  card
+  [%pass /activity %agent [our.bowl %activity] %watch /v5]
 ::
-++  open
-  |=  id=connection-id:v1:ac
+++  agent
+  |=  [=wire =sign:agent:gall]
   ^+  cor
-  =/  old  (~(get by connections.state) id)
-  ?^  old
-    ?>  open.u.old
-    (give-connection id & ~)
-  ?>  (lth ~(wyt by connections.state) max-connections)
-  =/  con=connection:v1:ac  [& now.bowl ~ 1 1 ~ ~]
-  =.  connections.state  (~(put by connections.state) id con)
-  (give-connection id & ~)
+  ?+  wire  cor
+      [%activity ~]
+    ?+    -.sign  cor
+        %fact
+      ?.  ?=(%activity-update-5 p.cage.sign)  cor
+      =+  !<(=update:v9:av q.cage.sign)
+      ?.  ?=(%add -.update)  cor
+      (handle-activity event.update)
+    ::
+        %kick
+      (emit watch-activity)
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ((slog 'acp: activity watch nacked' u.p.sign) cor)
+    ==
+  ::
+      [%reply @ ~]
+    =/  sequence=@ud  (slav %ud i.t.wire)
+    ?+  -.sign  cor
+      %poke-ack
+        =.  delivering.state  (~(del in delivering.state) sequence)
+        ?~  p.sign
+          =.  requests.state  (~(del by requests.state) sequence)
+          (give-update [%completed sequence])
+        (give-update [%failed sequence 'Messenger rejected reply'])
+    ==
+  ==
 ::
-++  send
-  |=  [id=connection-id:v1:ac target=peer:v1:ac payload=@t]
+++  configure
+  |=  new=routing:ac
   ^+  cor
-  ?>  (lte (met 3 payload) max-payload-bytes)
-  =/  old  (~(get by connections.state) id)
-  ?~  old  ~|(unknown-acp-connection+id !!)
-  ?>  open.u.old
-  =/  seq  ?:(=(target %client) next-to-client.u.old next-to-agent.u.old)
-  =/  msg=message:v1:ac  [seq now.bowl payload]
-  =/  con=connection:v1:ac  u.old
-  ?:  =(target %client)
-    ?>  (lth ~(wyt by to-client.con) max-queued-per-peer)
-    =.  to-client.con  (~(put by to-client.con) seq msg)
-    =.  next-to-client.con  +(seq)
-    =.  connections.state  (~(put by connections.state) id con)
-    (give-update [%messages id target ~[msg]] id target)
-  ?>  (lth ~(wyt by to-agent.con) max-queued-per-peer)
-  =.  to-agent.con  (~(put by to-agent.con) seq msg)
-  =.  next-to-agent.con  +(seq)
-  =.  connections.state  (~(put by connections.state) id con)
-  (give-update [%messages id target ~[msg]] id target)
+  =.  routing.state  `new
+  (give-update [%configuration `new])
 ::
-++  ack
-  |=  [id=connection-id:v1:ac target=peer:v1:ac through=@ud]
+++  handle-activity
+  |=  event=event:v9:av
   ^+  cor
-  =/  old  (~(get by connections.state) id)
-  ?~  old  ~|(unknown-acp-connection+id !!)
-  =/  con=connection:v1:ac  u.old
-  ?:  =(target %client)
-    =.  to-client.con  (drop-through to-client.con through)
-    =.  connections.state  (~(put by connections.state) id con)
-    cor
-  =.  to-agent.con  (drop-through to-agent.con through)
-  =.  connections.state  (~(put by connections.state) id con)
-  cor
-::
-++  close
-  |=  [id=connection-id:v1:ac reason=@t]
-  ^+  cor
-  =/  old  (~(get by connections.state) id)
-  ?~  old  ~|(unknown-acp-connection+id !!)
-  ?.  open.u.old  cor
-  =/  con  u.old(open |, closed `[now.bowl reason])
-  =.  connections.state  (~(put by connections.state) id con)
-  (give-connection id | `reason)
-::
-++  drop
-  |=  id=connection-id:v1:ac
-  ^+  cor
-  =/  old  (~(get by connections.state) id)
-  ?~  old  cor
-  ?>  ?&  =(open.u.old |)
-          =(~ to-client.u.old)
-          =(~ to-agent.u.old)
+  ?~  routing.state  cor
+  =/  item=(unit [conversation=conversation:ac sender=ship content=story:st mention=? key=message-key:v9:av])
+    ?+  -<.event  ~
+        %dm-post
+      ?.  ?=(%ship -.whom.event)  ~
+      `[conversation=[%dm p.whom.event] sender=p.id.key.event content=content.event mention=mention.event key=key.event]
+    ::
+        %dm-reply
+      ?.  ?=(%ship -.whom.event)  ~
+      `[conversation=[%dm p.whom.event] sender=p.id.key.event content=content.event mention=mention.event key=key.event]
+    ::
+        %post
+      `[conversation=[%channel kind.channel.event ship.channel.event name.channel.event] sender=p.id.key.event content=content.event mention=mention.event key=key.event]
+    ::
+        %reply
+      `[conversation=[%channel kind.channel.event ship.channel.event name.channel.event] sender=p.id.key.event content=content.event mention=mention.event key=key.event]
+    ==
+  ?~  item  cor
+  =*  entry  u.item
+  =*  route  u.routing.state
+  ?:  =(sender.entry our.bowl)  cor
+  ?:  (~(has in seen.state) key.entry)  cor
+  =/  allowed=?
+    ?-  -.conversation.entry
+        %dm
+      ?|  =(sender.entry owner.route)
+          (~(has in allowed-dms.route) sender.entry)
       ==
-  cor(connections.state (~(del by connections.state) id))
+    ::
+        %channel
+      =/  nest  [kind.conversation.entry host.conversation.entry name.conversation.entry]
+      ?&  (~(has in channels.route) nest)
+          ?|  =(sender.entry owner.route)
+              (~(has in allowed-channel-ships.route) sender.entry)
+          ==
+          ?|  !require-channel-mention.route
+              mention.entry
+              ?&  owner-listen.route
+                  =(sender.entry owner.route)
+                  ?|  =(host.conversation.entry owner.route)
+                      =(host.conversation.entry our.bowl)
+                  ==
+              ==
+          ==
+      ==
+    ==
+  ?.  allowed  cor
+  =/  text  (flatten:cu content.entry)
+  ?:  =(0 text)  cor
+  ?>  (lth ~(wyt by requests.state) max-requests)
+  =/  sequence  next-request.state
+  =/  request=request:ac
+    :*  sequence
+        now.bowl
+        conversation.entry
+        sender.entry
+        (rap 3 (scot %p sender.entry) '/' (scot %da time.key.entry) ~)
+        text
+    ==
+  =.  next-request.state  +(sequence)
+  =.  requests.state  (~(put by requests.state) sequence request)
+  =.  seen.state
+    ?:  (gte ~(wyt in seen.state) max-seen)
+      (silt ~[key.entry])
+    (~(put in seen.state) key.entry)
+  (give-update [%requests ~[request]])
 ::
-++  queued
-  |=  [con=connection:v1:ac target=peer:v1:ac]
-  ^-  (list message:v1:ac)
-  =/  queue  ?:(=(target %client) to-client.con to-agent.con)
+++  reply
+  |=  [sequence=@ud text=@t]
+  ^+  cor
+  ?>  (lte (met 3 text) max-reply-bytes)
+  =/  got  (~(get by requests.state) sequence)
+  ?~  got  ~|(unknown-acp-request+sequence !!)
+  ?:  (~(has in delivering.state) sequence)  cor
+  =.  delivering.state  (~(put in delivering.state) sequence)
+  =/  content=story:st  ~[[%inline ~[text]]]
+  ?-  -.conversation.u.got
+      %dm
+    =/  =essay:v7:cv  [[content our.bowl now.bowl] chat+/ ~ ~]
+    =/  =diff:dm:v7:cv  [[our.bowl now.bowl] %add essay `now.bowl]
+    =/  =action:dm:v7:cv  [ship.conversation.u.got diff]
+    =/  outbound=card
+      [%pass /reply/(scot %ud sequence) %agent [our.bowl %chat] %poke %chat-dm-action-2 !>(action)]
+    (emit outbound)
+  ::
+      %channel
+    =/  nest=nest:c  [kind.conversation.u.got host.conversation.u.got name.conversation.u.got]
+    =/  essay=essay:c  [[content our.bowl now.bowl] [kind.conversation.u.got ~] ~ ~]
+    =/  action=a-channels:c  [%channel nest [%post [%add essay]]]
+    =/  outbound=card
+      [%pass /reply/(scot %ud sequence) %agent [our.bowl %channels] %poke %channel-action-1 !>(action)]
+    (emit outbound)
+  ==
+::
+++  queued-requests
+  ^-  (list request:ac)
   =/  sorted
-    %+  sort  ~(tap by queue)
-    |=  [a=[@ud message:v1:ac] b=[@ud message:v1:ac]]
-    (lth -.a -.b)
-  (turn sorted |=([@ud msg=message:v1:ac] msg))
-::
-++  drop-through
-  |=  [queue=(map @ud message:v1:ac) through=@ud]
-  ^-  (map @ud message:v1:ac)
-  %+  roll  ~(tap by queue)
-  |=  [[seq=@ud msg=message:v1:ac] acc=(map @ud message:v1:ac)]
-  ?:  (lte seq through)  acc
-  (~(put by acc) seq msg)
+    %+  sort  ~(tap by requests.state)
+    |=  [left=[@ud request:ac] right=[@ud request:ac]]
+    (lth -.left -.right)
+  (turn sorted |=([@ud value=request:ac] value))
 --

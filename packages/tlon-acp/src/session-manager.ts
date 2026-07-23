@@ -1,8 +1,7 @@
 import type { JsonRpcObject } from '@tloncorp/acp';
 
-import type { InboundTlonMessage } from './routing.js';
+import { type InboundTlonMessage, asRecord } from './messages.js';
 import type { SessionStore } from './session-store.js';
-import { asRecord } from './story.js';
 
 export interface ProtocolClient {
   request(method: string, params: unknown): Promise<unknown>;
@@ -48,14 +47,14 @@ export class AcpSessionManager {
 
   prompt(message: InboundTlonMessage): Promise<string> {
     if (!this.started) throw new Error('ACP session manager is not started');
-    const previous = this.turns.get(message.key) ?? Promise.resolve();
+    const priorTurn = this.turns.get(message.key) ?? Promise.resolve();
     let resolve!: (value: string) => void;
     let reject!: (reason: unknown) => void;
     const result = new Promise<string>((res, rej) => {
       resolve = res;
       reject = rej;
     });
-    const turn = previous
+    const turn = priorTurn
       .catch(() => undefined)
       .then(async () => {
         try {

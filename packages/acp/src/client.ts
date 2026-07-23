@@ -52,7 +52,6 @@ export class AcpClient extends EventEmitter<AcpClientEvents> {
     try {
       await this.transport.open();
       this.unsubscribe = await this.transport.subscribe(
-        'client',
         this.handleUpdate,
         this.fail
       );
@@ -116,18 +115,6 @@ export class AcpClient extends EventEmitter<AcpClientEvents> {
   }
 
   private readonly handleUpdate = (update: AcpUpdate): void => {
-    if ('connection' in update) {
-      if (!update.open) {
-        this.fail(
-          new Error(
-            `ACP connection ${update.connection} closed: ${
-              update.reason ?? 'no reason'
-            }`
-          )
-        );
-      }
-      return;
-    }
     for (const message of update.messages) {
       if (message.sequence > this.lastAcked) {
         this.queued.set(message.sequence, message);
@@ -153,7 +140,7 @@ export class AcpClient extends EventEmitter<AcpClientEvents> {
       this.queued.delete(message.sequence);
       if (message.sequence <= this.lastAcked) continue;
       await this.handleFrame(parseFrame(message.payload));
-      await this.transport.ack('client', message.sequence);
+      await this.transport.ack(message.sequence);
       this.lastAcked = message.sequence;
     }
   }
@@ -220,7 +207,7 @@ export class AcpClient extends EventEmitter<AcpClientEvents> {
   }
 
   private async send(frame: JsonRpcObject): Promise<void> {
-    await this.transport.send('agent', JSON.stringify(frame));
+    await this.transport.send(JSON.stringify(frame));
   }
 
   private requireRunning(): void {

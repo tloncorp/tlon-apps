@@ -1,64 +1,61 @@
-::  %acp-action-1: manage a generic, bidirectional ACP connection
+::  %acp-action-1: configure and consume the Tlon agent message bus
 ::
 /-  a=acp
-=>  |%
-    +$  jsn  json
-    --
-|_  act=action:v1:a
+/+  cj=channel-json
+=*  z  ..zuse
+|_  act=action:a
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  act
   ++  json
     =,  enjs:format
-    =/  as-string  |=(value=@t `jsn`[%s value])
-    =/  as-number  |=(value=@ud `jsn`(numb value))
-    ^-  jsn
+    =/  ship-json  |=(value=@p s+(scot %p value))
+    =/  nest-json
+      |=  value=[kind=?(%chat %diary %heap) host=@p name=@tas]
+      ^-  json:z
+      (nest:enjs:cj value)
+    =/  routing-json
+      |=  value=routing:a
+      ^-  json:z
+      %-  pairs
+      :~  owner+(ship-json owner.value)
+          allowed-dms+a+(turn ~(tap in allowed-dms.value) ship-json)
+          allowed-channel-ships+a+(turn ~(tap in allowed-channel-ships.value) ship-json)
+          channels+a+(turn ~(tap in channels.value) nest-json)
+          require-channel-mention+b+require-channel-mention.value
+          owner-listen+b+owner-listen.value
+      ==
+    ^-  json:z
     ?-  -.act
-        %open
-      (frond 'open' (frond 'connection' s+connection.act))
+        %configure
+      (frond 'configure' (routing-json routing.act))
     ::
-        %send
-      %-  frond  :-  'send'
+        %reply
+      %-  frond  :-  'reply'
       %-  pairs
-      :~  connection+(as-string connection.act)
-          target+(as-string target.act)
-          payload+(as-string payload.act)
+      :~  sequence+(numb sequence.act)
+          text+s+text.act
       ==
-    ::
-        %ack
-      %-  frond  :-  'ack'
-      %-  pairs
-      :~  connection+(as-string connection.act)
-          target+(as-string target.act)
-          through+(as-number through.act)
-      ==
-    ::
-        %close
-      %-  frond  :-  'close'
-      %-  pairs
-      :~  connection+(as-string connection.act)
-          reason+(as-string reason.act)
-      ==
-    ::
-        %drop
-      (frond 'drop' (frond 'connection' s+connection.act))
     ==
   --
 ++  grab
   |%
-  ++  noun  action:v1:a
+  ++  noun  action:a
   ++  json
     =,  dejs:format
-    |=  jon=jsn
-    ^-  action:v1:a
-    %.  jon
+    =/  routing-json
+      %-  ot
+      :~  owner+(se %p)
+          allowed-dms+(cu sy (ar (se %p)))
+          allowed-channel-ships+(cu sy (ar (se %p)))
+          channels+(cu sy (ar nest:dejs:cj))
+          require-channel-mention+bo
+          owner-listen+bo
+      ==
     %-  of
-    :~  [%open (ot connection+so ~)]
-        [%send (ot connection+so target+(su (perk %client %agent ~)) payload+so ~)]
-        [%ack (ot connection+so target+(su (perk %client %agent ~)) through+ni ~)]
-        [%close (ot connection+so reason+so ~)]
-        [%drop (ot connection+so ~)]
+    :~  [%configure routing-json]
+        [%reply (ot sequence+ni text+so ~)]
     ==
   --
 --

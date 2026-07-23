@@ -1,12 +1,9 @@
 {
   "name": "@tloncorp/acp",
   "version": "0.0.1",
-  "description": "Generic Urbit Gall to Agent Client Protocol stdio bridge",
+  "description": "Agent Client Protocol client and stdio transport",
   "license": "MIT",
   "type": "module",
-  "bin": {
-    "tlon-acp": "./dist/cli.js"
-  },
   "files": [
     "dist/",
     "examples/",
@@ -24,9 +21,6 @@
     "build": "tsc",
     "tsc": "tsc --noEmit",
     "test": "vitest run"
-  },
-  "dependencies": {
-    "@tloncorp/api": "workspace:^"
   },
   "devDependencies": {
     "@types/node": "^25.4.0",

@@ -1,120 +1,155 @@
-::  tests for the generic %acp duplex transport
+::  tests for the %acp Messenger bus
 ::
-/-  a=acp
+/-  ac=acp, av=activity-ver, cv=chat-ver, st=story
 /+  *test-agent
 /=  agent  /app/acp
 |%
 ++  dap  %acp
-+$  state-0  [%0 connections=(map connection-id:v1:a connection:v1:a)]
-++  payload-a  '{"jsonrpc":"2.0","id":0,"method":"initialize"}'
-++  payload-b  '{"jsonrpc":"2.0","id":0,"result":{"protocolVersion":1}}'
++$  state-0
+  $:  %0
+      routing=(unit routing:ac)
+      requests=(map @ud request:ac)
+      delivering=(set @ud)
+      seen=(set message-key:v9:av)
+      next-request=@ud
+  ==
+::
+++  scries
+  |=  =path
+  ^-  (unit vase)
+  ?+  path  ~
+    [%gu @ %activity @ %$ ~]  `!>(&)
+  ==
 ::
 ++  setup
   =/  m  (mare ,~)
   ^-  form:m
+  ;<  *  bind:m  (set-scry-gate scries)
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
   ;<  *  bind:m  (do-init dap agent)
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2026.7.22)))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2026.7.23)))
   (pure:m ~)
 ::
-++  open
+++  configure
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  *  bind:m  (do-poke %acp-action-1 !>(`action:v1:a`[%open 'conn-1']))
+  =/  route=routing:ac  [~zod (sy ~[~bus]) (sy ~[~bus]) (sy ~[[%chat ~zod %general]]) & &]
+  ;<  *  bind:m  (do-poke %acp-action-1 !>(`action:ac`[%configure route]))
   (pure:m ~)
 ::
-++  test-open-creates-connection
+++  dm-fact
+  |=  [sender=ship text=@t time=@da]
+  ^-  [wire gill:gall sign:agent:gall]
+  =/  key=message-key:v9:av  [[sender time] time]
+  =/  event=event:v9:av
+    [[%dm-post key [%ship sender] ~[[%inline ~[text]]] %.n] %.n %.n]
+  =/  update=update:v9:av  [%add [%dm %ship sender] time event]
+  [/activity [~dev %activity] [%fact %activity-update-5 !>(update)]]
+::
+++  channel-fact
+  |=  [sender=ship text=@t mention=? time=@da]
+  ^-  [wire gill:gall sign:agent:gall]
+  =/  key=message-key:v9:av  [[sender time] time]
+  =/  channel  [%chat ~zod %general]
+  =/  group  [~zod %test]
+  =/  event=event:v9:av
+    [[%post key channel group ~[[%inline ~[text]]] mention] %.n %.n]
+  =/  update=update:v9:av  [%add [%channel channel group] time event]
+  [/activity [~dev %activity] [%fact %activity-update-5 !>(update)]]
+::
+++  test-init-watches-activity
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
+  ;<  caz=(list card)  bind:m  (do-init dap agent)
+  %+  ex-cards  caz
+  ~[(ex-card [%pass /activity %agent [~dev %activity] %watch /v5])]
+::
+++  test-owner-dm-is-queued
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  *  bind:m  open
-  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
-  =/  con  (~(get by connections.st) 'conn-1')
-  ?>  ?=(^ con)
-  (ex-equal !>(open.u.con) !>(&))
-::
-++  test-client-to-agent-envelope-is-queued
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  ~  bind:m  setup
-  ;<  ~  bind:m  open
-  ;<  caz=(list card)  bind:m
-    (do-poke %acp-action-1 !>(`action:v1:a`[%send 'conn-1' %agent payload-a]))
+  ;<  ~  bind:m  configure
+  ;<  caz=(list card)  bind:m  (do-agent (dm-fact ~zod 'hello' ~2026.7.23))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-fact
-        :*  ~[/v1/conn-1/agent]
+        :*  ~[/worker]
             %acp-update-1
-            !>(`update:v1:a`[%messages 'conn-1' %agent ~[[1 ~2026.7.22 payload-a]]])
+            !>(`update:ac`[%requests ~[[1 ~2026.7.23 [%dm ~zod] ~zod '~zod/~2026.07.23' 'hello']]])
         ==
     ==
-  ;<  res=cage  bind:m  (got-peek /x/v1/conn-1/agent)
-  (ex-equal q.res !>(`update:v1:a`[%messages 'conn-1' %agent ~[[1 ~2026.7.22 payload-a]]]))
+  ;<  res=cage  bind:m  (got-peek /x/requests)
+  (ex-equal q.res !>(`update:ac`[%requests ~[[1 ~2026.7.23 [%dm ~zod] ~zod '~zod/~2026.07.23' 'hello']]]))
 ::
-++  test-directions-have-independent-sequences
+++  test-unlisted-dm-is-ignored
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  open
-  ;<  *  bind:m
-    (do-poke %acp-action-1 !>(`action:v1:a`[%send 'conn-1' %agent payload-a]))
-  ;<  *  bind:m
-    (do-poke %acp-action-1 !>(`action:v1:a`[%send 'conn-1' %client payload-b]))
-  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
-  =/  con  (~(get by connections.st) 'conn-1')
-  ?>  ?=(^ con)
-  ?:  ?&  =(~(wyt by to-agent.u.con) 1)
-          =(~(wyt by to-client.u.con) 1)
-          =(next-to-agent.u.con 2)
-          =(next-to-client.u.con 2)
-      ==
-    (ex-equal !>(&) !>(&))
-  (ex-equal !>(|) !>(&))
+  ;<  ~  bind:m  configure
+  ;<  caz=(list card)  bind:m  (do-agent (dm-fact ~nec 'nope' ~2026.7.23))
+  (ex-cards caz ~)
 ::
-++  test-ack-is-cumulative-for-one-peer
+++  test-mentioned-channel-message-is-queued
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  open
-  ;<  *  bind:m
-    (do-poke %acp-action-1 !>(`action:v1:a`[%send 'conn-1' %agent payload-a]))
-  ;<  *  bind:m
-    (do-poke %acp-action-1 !>(`action:v1:a`[%send 'conn-1' %client payload-b]))
-  ;<  *  bind:m
-    (do-poke %acp-action-1 !>(`action:v1:a`[%ack 'conn-1' %agent 1]))
-  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
-  =/  con  (~(get by connections.st) 'conn-1')
-  ?>  ?=(^ con)
-  ?:  ?&  =(~ to-agent.u.con)
-          =(~(wyt by to-client.u.con) 1)
-      ==
-    (ex-equal !>(&) !>(&))
-  (ex-equal !>(|) !>(&))
+  ;<  ~  bind:m  configure
+  ;<  caz=(list card)  bind:m
+    (do-agent (channel-fact ~bus 'channel question' & ~2026.7.23))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/worker]
+            %acp-update-1
+            !>(`update:ac`[%requests ~[[1 ~2026.7.23 [%channel %chat ~zod %general] ~bus '~bus/~2026.07.23' 'channel question']]])
+        ==
+    ==
+  (pure:m ~)
 ::
-++  test-close-rejects-new-messages
+++  test-unmentioned-channel-message-is-ignored
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  open
-  ;<  *  bind:m
-    (do-poke %acp-action-1 !>(`action:v1:a`[%close 'conn-1' 'adapter exited']))
-  %-  ex-fail
-  (do-poke %acp-action-1 !>(`action:v1:a`[%send 'conn-1' %agent payload-a]))
+  ;<  ~  bind:m  configure
+  ;<  caz=(list card)  bind:m
+    (do-agent (channel-fact ~bus 'background' | ~2026.7.23))
+  (ex-cards caz ~)
 ::
-++  test-foreign-pokes-are-rejected
+++  test-reply-pokes-chat
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  %-  ex-fail
-  %-  (do-as ~zod)
-  (do-poke %acp-action-1 !>(`action:v1:a`[%open 'conn-1']))
+  ;<  ~  bind:m  configure
+  ;<  *  bind:m  (do-agent (dm-fact ~zod 'hello' ~2026.7.23))
+  ;<  caz=(list card)  bind:m
+    (do-poke %acp-action-1 !>(`action:ac`[%reply 1 'hi']))
+  =/  content=story:st  ~[[%inline ~['hi']]]
+  =/  essay=essay:v7:cv  [[content ~dev ~2026.7.23] chat+/ ~ ~]
+  =/  diff=diff:dm:v7:cv  [[~dev ~2026.7.23] %add essay `~2026.7.23]
+  %+  ex-cards  caz
+  ~[(ex-poke /reply/(scot %ud 1) [~dev %chat] %chat-dm-action-2 !>(`action:dm:v7:cv`[~zod diff]))]
+::
+++  test-successful-delivery-completes-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  configure
+  ;<  *  bind:m  (do-agent (dm-fact ~zod 'hello' ~2026.7.23))
+  ;<  *  bind:m  (do-poke %acp-action-1 !>(`action:ac`[%reply 1 'hi']))
+  ;<  caz=(list card)  bind:m
+    (do-agent [/reply/(scot %ud 1) [~dev %chat] [%poke-ack ~]])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    ~[(ex-fact ~[/worker] %acp-update-1 !>(`update:ac`[%completed 1]))]
+  ;<  res=cage  bind:m  (got-peek /x/requests)
+  (ex-equal q.res !>(`update:ac`[%requests ~]))
 --

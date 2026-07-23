@@ -1,12 +1,11 @@
 import { isAbsolute, resolve } from 'node:path';
 
-import { type RoutingPolicy, normalizeShip } from './routing.js';
+import { type RoutingPolicy, normalizeShip } from './messages.js';
 
 export type BotConfig = {
   ship: string;
   url: string;
   code: string;
-  connection: string;
   cwd: string;
   stateFile: string;
   adapterHome?: string;
@@ -38,7 +37,6 @@ export function readConfig(
     ship: normalizeShip(ship),
     url: required(env.TLON_URL, 'TLON_URL'),
     code: required(env.TLON_CODE, 'TLON_CODE'),
-    connection: env.ACP_CONNECTION ?? 'tlon-bot',
     cwd,
     stateFile: resolve(env.ACP_STATE_FILE ?? '.tlon-acp/sessions.json'),
     adapterHome,
@@ -52,12 +50,10 @@ export function readConfig(
         ? 'The `tlon` CLI is available in PATH and is already configured for this bot ship. You may use it when the request requires Tlon tools.'
         : env.TLON_ACP_TOOL_INSTRUCTIONS,
     routing: {
-      botShip: ship,
       ownerShip,
       allowedDmShips: csv(env.TLON_ACP_DM_ALLOWLIST),
       allowedChannelShips: csv(env.TLON_ACP_CHANNEL_ALLOWLIST),
       channels: csv(env.TLON_ACP_CHANNELS),
-      mentions: csv(env.TLON_ACP_MENTIONS),
       requireChannelMention: env.TLON_ACP_REQUIRE_MENTION !== 'false',
       ownerListen: env.TLON_ACP_OWNER_LISTEN !== 'false',
     },

@@ -1,34 +1,34 @@
-::  acp: generic durable transport for Agent Client Protocol connections
+::  acp: durable Tlon Messenger bus for external agent workers
 ::
 |%
-+$  connection-id  @t
-+$  peer  ?(%client %agent)
-+$  message
++$  conversation
+  $%  [%dm =ship]
+      [%channel kind=?(%chat %diary %heap) host=ship name=term]
+  ==
++$  routing
+  $:  owner=ship
+      allowed-dms=(set ship)
+      allowed-channel-ships=(set ship)
+      channels=(set [kind=?(%chat %diary %heap) host=ship name=term])
+      require-channel-mention=?
+      owner-listen=?
+  ==
++$  request
   $:  sequence=@ud
-      sent=@da
-      payload=@t
+      received=@da
+      =conversation
+      sender=ship
+      message-id=@t
+      text=@t
   ==
-+$  connection
-  $:  open=?
-      opened=@da
-      closed=(unit [at=@da reason=@t])
-      next-to-client=@ud
-      next-to-agent=@ud
-      to-client=(map @ud message)
-      to-agent=(map @ud message)
-  ==
-::  %send's target is the peer that should receive the JSON-RPC envelope.
-::  %ack is cumulative for that target's queue.
 +$  action
-  $%  [%open connection=connection-id]
-      [%send connection=connection-id target=peer payload=@t]
-      [%ack connection=connection-id target=peer through=@ud]
-      [%close connection=connection-id reason=@t]
-      [%drop connection=connection-id]
+  $%  [%configure =routing]
+      [%reply sequence=@ud text=@t]
   ==
 +$  update
-  $%  [%connection connection=connection-id open=? reason=(unit @t)]
-      [%messages connection=connection-id target=peer messages=(list message)]
+  $%  [%configuration routing=(unit routing)]
+      [%requests requests=(list request)]
+      [%completed sequence=@ud]
+      [%failed sequence=@ud reason=@t]
   ==
-++  v1  .
 --
