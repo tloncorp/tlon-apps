@@ -462,11 +462,16 @@ export class NotesNoteConflictError extends Error {
   }
 }
 
-// Body content this client last successfully sent per note. Used to recognize
-// a revision conflict caused by our *own* already-applied write — e.g. the
-// read-back after an earlier save never landed locally — which is safe to
-// rebase over, unlike a genuinely divergent remote edit.
-const lastSavedNoteBody = new Map<string, string>();
+// The exact state (content + resulting revision) this client last
+// successfully wrote per note. Used to recognize a revision conflict caused
+// by our *own* already-applied write — e.g. the read-back after an earlier
+// save never landed locally — which is safe to rebase over. Both fields must
+// match: content alone would also match a *remote* edit that restored our
+// old text (e.g. via note history), which is a genuine conflict.
+const lastSavedNoteState = new Map<
+  string,
+  { body: string; revision: number }
+>();
 
 async function updateNotebookNoteBody({
   notebookFlag,
@@ -479,8 +484,9 @@ async function updateNotebookNoteBody({
 }) {
   const noteKey = `${notebookFlag}/${note.noteId}`;
   const expectedRevision = note.revision;
+  let result: Awaited<ReturnType<typeof api.notes.updateNoteBody>>;
   try {
-    await api.notes.updateNoteBody({
+    result = await api.notes.updateNoteBody({
       flag: notebookFlag,
       noteId: note.noteId,
       body,
@@ -498,21 +504,40 @@ async function updateNotebookNoteBody({
     if (remote.bodyMd === body) {
       // Our exact content is already on the host (an unload flush or an
       // earlier retry landed) — nothing left to send.
-      lastSavedNoteBody.set(noteKey, body);
+      lastSavedNoteState.set(noteKey, { body, revision: remoteRevision });
       await persistNoteWrite(notebookFlag, note.noteId, body, remoteRevision);
       return;
     }
-    if (remote.bodyMd === lastSavedNoteBody.get(noteKey)) {
-      // The "conflicting" revision is our own previous save whose read-back
-      // never landed locally. The draft evolved from that content, so
-      // rebasing onto the host's revision loses nothing.
-      await api.notes.updateNoteBody({
-        flag: notebookFlag,
-        noteId: note.noteId,
+    const lastSaved = lastSavedNoteState.get(noteKey);
+    if (
+      lastSaved &&
+      remote.bodyMd === lastSaved.body &&
+      remoteRevision === lastSaved.revision
+    ) {
+      // The "conflicting" revision is exactly the state our own previous
+      // save produced, so its read-back just never landed locally. The
+      // draft evolved from that content; rebasing onto the host's revision
+      // loses nothing. The retry itself can race another writer — surface
+      // that as a fresh conflict rather than a generic failure.
+      try {
+        await api.notes.updateNoteBody({
+          flag: notebookFlag,
+          noteId: note.noteId,
+          body,
+          expectedRevision: remoteRevision,
+        });
+      } catch (retryError) {
+        if (!api.isNotesV1ConflictError(retryError)) {
+          throw retryError;
+        }
+        throw new NotesNoteConflictError(
+          await api.notes.getNote({ flag: notebookFlag, noteId: note.noteId })
+        );
+      }
+      lastSavedNoteState.set(noteKey, {
         body,
-        expectedRevision: remoteRevision,
+        revision: remoteRevision + 1,
       });
-      lastSavedNoteBody.set(noteKey, body);
       await persistNoteWrite(
         notebookFlag,
         note.noteId,
@@ -523,8 +548,13 @@ async function updateNotebookNoteBody({
     }
     throw new NotesNoteConflictError(remote);
   }
-  lastSavedNoteBody.set(noteKey, body);
-  await persistNoteWrite(notebookFlag, note.noteId, body, expectedRevision + 1);
+  // %no-change means the host body already matched and the revision was NOT
+  // bumped — persisting expected + 1 would put the local DB one revision
+  // ahead of the host and re-wedge the next save.
+  const nextRevision =
+    result === 'no-change' ? expectedRevision : expectedRevision + 1;
+  lastSavedNoteState.set(noteKey, { body, revision: nextRevision });
+  await persistNoteWrite(notebookFlag, note.noteId, body, nextRevision);
 }
 
 // A successful body update moves the note to exactly expectedRevision + 1

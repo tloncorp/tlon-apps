@@ -327,7 +327,7 @@ test('saveNotebookNote hydrates saved note details when list notes omit them', a
     .mockResolvedValue(makeApiNotesNote(savedNote));
   const updateNoteBody = vi
     .spyOn(api.notes, 'updateNoteBody')
-    .mockResolvedValue(undefined);
+    .mockResolvedValue('ok');
 
   const saved = await saveNotebookNote({
     notebookFlag,
@@ -370,7 +370,7 @@ test('saveNotebookNote persists the bumped revision when read-back stays stale',
   vi.spyOn(api.notes, 'listNotes').mockResolvedValue([makeApiNotesNote(note)]);
   vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
   vi.spyOn(api.notes, 'getNote').mockResolvedValue(makeApiNotesNote(note));
-  vi.spyOn(api.notes, 'updateNoteBody').mockResolvedValue(undefined);
+  vi.spyOn(api.notes, 'updateNoteBody').mockResolvedValue('ok');
 
   const saved = await saveNotebookNote({
     notebookFlag,
@@ -453,7 +453,7 @@ test('saveNotebookNote rebases onto its own previous save and retries once', asy
     .mockResolvedValue(makeApiNotesNote(firstSaved));
   const updateNoteBody = vi
     .spyOn(api.notes, 'updateNoteBody')
-    .mockResolvedValue(undefined);
+    .mockResolvedValue('ok');
 
   // Save 1 lands `firstBody` at revision + 1 on the host.
   await saveNotebookNote({
@@ -476,7 +476,7 @@ test('saveNotebookNote rebases onto its own previous save and retries once', asy
     .mockRejectedValueOnce(
       new api.NotesV1WriteError('%notes error: revision-mismatch', 'conflict')
     )
-    .mockResolvedValueOnce(undefined);
+    .mockResolvedValueOnce('ok');
   listNotes.mockResolvedValue([makeApiNotesNote(secondSaved)]);
   getNote.mockResolvedValue(makeApiNotesNote(firstSaved));
 
@@ -496,6 +496,177 @@ test('saveNotebookNote rebases onto its own previous save and retries once', asy
   expect(saved).toMatchObject({
     bodyMd: secondBody,
     revision: secondSaved.revision,
+  });
+});
+
+test('saveNotebookNote keeps the local revision when the host reports no-change', async () => {
+  const note = makeNote('Converging note');
+  const body = 'body already on host';
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  const hostNote = { ...note, bodyMd: body };
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
+    makeApiNotesNote(hostNote),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'getNote').mockResolvedValue(makeApiNotesNote(hostNote));
+  // The host body already matched, so the revision was NOT bumped.
+  vi.spyOn(api.notes, 'updateNoteBody').mockResolvedValue('no-change');
+
+  const saved = await saveNotebookNote({
+    notebookFlag,
+    note,
+    title: note.title,
+    body,
+  });
+
+  // Persisting expected + 1 here would leave the local DB one revision
+  // ahead of the host and wedge the next save on a phantom conflict.
+  expect(saved).toMatchObject({ bodyMd: body, revision: note.revision });
+});
+
+test('saveNotebookNote does not auto-rebase over a remote revert to our old content', async () => {
+  const note = makeNote('Reverted note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  const firstBody = 'our earlier save';
+  const firstSaved = {
+    ...note,
+    bodyMd: firstBody,
+    revision: note.revision + 1,
+  };
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
+    makeApiNotesNote(firstSaved),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  const getNote = vi
+    .spyOn(api.notes, 'getNote')
+    .mockResolvedValue(makeApiNotesNote(firstSaved));
+  const updateNoteBody = vi
+    .spyOn(api.notes, 'updateNoteBody')
+    .mockResolvedValue('ok');
+
+  // Save 1 seeds the last-saved cache with firstBody at revision + 1.
+  await saveNotebookNote({
+    notebookFlag,
+    note,
+    title: note.title,
+    body: firstBody,
+  });
+
+  // Meanwhile other edits landed and someone restored our old content via
+  // note history: same bytes as our cached save, but at a later revision.
+  // That is a genuine conflict — auto-rebasing would silently overwrite
+  // the restore.
+  const revertedRemote = {
+    ...note,
+    bodyMd: firstBody,
+    revision: firstSaved.revision + 3,
+  };
+  updateNoteBody.mockRejectedValue(
+    new api.NotesV1WriteError('%notes error: revision-mismatch', 'conflict')
+  );
+  getNote.mockResolvedValue(makeApiNotesNote(revertedRemote));
+
+  const attempt = saveNotebookNote({
+    notebookFlag,
+    note: firstSaved,
+    title: note.title,
+    body: 'draft typed after our save',
+  });
+
+  await expect(attempt).rejects.toBeInstanceOf(NotesNoteConflictError);
+  // Only the failed initial PUT from save 2 — no rebased retry.
+  expect(updateNoteBody).toHaveBeenCalledTimes(2);
+});
+
+test('saveNotebookNote surfaces a conflict when the rebased retry races another edit', async () => {
+  const note = makeNote('Racing note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  const firstBody = 'first draft';
+  const firstSaved = {
+    ...note,
+    bodyMd: firstBody,
+    revision: note.revision + 1,
+  };
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
+    makeApiNotesNote(firstSaved),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  const getNote = vi
+    .spyOn(api.notes, 'getNote')
+    .mockResolvedValue(makeApiNotesNote(firstSaved));
+  const updateNoteBody = vi
+    .spyOn(api.notes, 'updateNoteBody')
+    .mockResolvedValue('ok');
+
+  // Save 1 seeds the last-saved cache.
+  await saveNotebookNote({
+    notebookFlag,
+    note,
+    title: note.title,
+    body: firstBody,
+  });
+
+  // Save 2 conflicts; the recovery fetch matches our own save, but another
+  // edit lands between that fetch and the rebased retry, so the retry
+  // conflicts too. It must surface the latest remote copy as a typed
+  // conflict, not escape as a generic error.
+  const racedRemote = {
+    ...note,
+    bodyMd: 'racing writer content',
+    revision: firstSaved.revision + 1,
+  };
+  const conflict = new api.NotesV1WriteError(
+    '%notes error: revision-mismatch',
+    'conflict'
+  );
+  updateNoteBody.mockRejectedValue(conflict);
+  getNote
+    .mockResolvedValueOnce(makeApiNotesNote(firstSaved))
+    .mockResolvedValueOnce(makeApiNotesNote(racedRemote));
+
+  const attempt = saveNotebookNote({
+    notebookFlag,
+    note,
+    title: note.title,
+    body: 'first draft plus more typing',
+  });
+
+  await expect(attempt).rejects.toBeInstanceOf(NotesNoteConflictError);
+  await expect(attempt).rejects.toMatchObject({
+    remoteNote: expect.objectContaining({
+      bodyMd: racedRemote.bodyMd,
+      revision: racedRemote.revision,
+    }),
   });
 });
 

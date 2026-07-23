@@ -589,6 +589,18 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     );
   });
 
+  test('updateNoteBody distinguishes applied writes from no-change', async () => {
+    requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
+    await expect(
+      notesV1.updateNoteBody({ flag: 'notes/~zod/blog', noteId: 12, body: 'x' })
+    ).resolves.toBe('ok');
+
+    requestJsonMock.mockResolvedValue({ body: { type: 'no-change' } });
+    await expect(
+      notesV1.updateNoteBody({ flag: 'notes/~zod/blog', noteId: 12, body: 'x' })
+    ).resolves.toBe('no-change');
+  });
+
   test('updateNoteBody surfaces a typed conflict error with a tang message', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: '0vconflict',

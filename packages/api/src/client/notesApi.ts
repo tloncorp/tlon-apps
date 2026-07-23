@@ -868,6 +868,9 @@ async function createNoteV1({
   assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
 }
 
+// Returns whether the host applied the write: 'no-change' means the body
+// already matched and the note's revision was NOT bumped — callers tracking
+// revisions must not advance theirs.
 async function updateNoteBodyV1({
   flag,
   noteId,
@@ -878,7 +881,7 @@ async function updateNoteBodyV1({
   noteId: number;
   body: string;
   expectedRevision?: number;
-}): Promise<void> {
+}): Promise<'ok' | 'no-change'> {
   const normalized = normalizeNotesTarget(flag);
   const payload: { body: string; expectedRevision?: number } = { body };
   if (expectedRevision !== undefined) {
@@ -886,6 +889,7 @@ async function updateNoteBodyV1({
   }
   const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', payload);
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
+  return res?.body?.type === 'no-change' ? 'no-change' : 'ok';
 }
 
 async function renameNoteV1({
