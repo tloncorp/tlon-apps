@@ -120,6 +120,23 @@ export class UrbitSSEClient {
   private readonly ackThreshold = 20;
 
   /**
+   * Always-on per-poke floor ledger (pokeId → lastHeardEventId snapshot at send
+   * time). Invariant: on a single Eyre channel generation, a poke's ack event is
+   * created AFTER the poke arrives at the ship, so its event id STRICTLY EXCEEDS
+   * every event id the client had heard when it SENT the poke. Every poke is
+   * tagged unconditionally; every matching ack is judged independently — no
+   * arming, no disarming.
+   *
+   * The recreating poke on a reaped channel is necessarily tracked: all channel
+   * PUTs while down go through poke() (subscribe() sends nothing while
+   * disconnected, ack actions generate no response events), and its ack is
+   * new-generation event 0, delivered first in replay id-order, with 0 <= floor
+   * whenever we ever heard an event.
+   */
+  private pokeFloors = new Map<number, number>();
+  private lastPokeId = 0;
+
+  /**
    * Incremented right after the channel is created in connect() — before the
    * wake PUT and the stream GET. A pending post-quit resubscribe watches this:
    * a bump means the new eyre channel was created with the full subscription
@@ -466,6 +483,57 @@ export class UrbitSSEClient {
       return;
     }
 
+    // Per-poke floor validation (reap-revival detector). On a single Eyre channel
+    // generation, the ack event for a poke is created AFTER the poke arrives at
+    // the ship, so its event id STRICTLY EXCEEDS every event id the client had
+    // heard when it SENT the poke. An ack arriving with eventId <= floor proves
+    // the counter restarted → channel recreated → rebuild. Each ack judges only
+    // its own poke; a healthy ack resolves only that entry. This block must stay
+    // BEFORE the replay-drop so the new-gen event-0 ack is not swallowed as a
+    // duplicate.
+    if (this.pokeFloors.size > 0 && eventId !== null) {
+      let parsedPoke: { id?: number; response?: string } | null = null;
+      try {
+        parsedPoke = JSON.parse(data);
+      } catch {
+        parsedPoke = null;
+      }
+      if (
+        parsedPoke &&
+        parsedPoke.response === 'poke' &&
+        typeof parsedPoke.id === 'number'
+      ) {
+        const floor = this.pokeFloors.get(parsedPoke.id);
+        if (floor !== undefined) {
+          if (eventId <= floor) {
+            if (!this.aborted && !this.channelReaped) {
+              this.logger.error?.(
+                `[SSE] Validation poke ${parsedPoke.id} acked at event id ${eventId} <= floor ${floor}; channel recreated — rebuilding`
+              );
+              const err = new Error(
+                `SSE channel recreated (poke ${parsedPoke.id} acked at event ${eventId} <= floor ${floor}) — rebuilding`
+              );
+              this.channelReaped = true;
+              this.suppressNextStreamErrorFanout = true;
+              this.markStreamDown();
+              this.streamController?.abort();
+              for (const { err: h } of this.eventHandlers.values()) {
+                try {
+                  h?.(err);
+                } catch (e) {
+                  this.logger.error?.(
+                    `[SSE] validation err handler threw: ${String(e)}`
+                  );
+                }
+              }
+            }
+            return;
+          }
+          this.pokeFloors.delete(parsedPoke.id);
+        }
+      }
+    }
+
     // Event-id regression: the floor must be a CONFIRMED ack, not the optimistic
     // cursor. A resume GET replays from Eyre's pre-prune queue (on-get-request
     // binds the channel before acknowledge-events prunes, then builds the replay
@@ -588,6 +656,29 @@ export class UrbitSSEClient {
     if (this.aborted) {
       throw new Error('SSE client closed; poke rejected');
     }
+    // Monotonic id: max(Date.now(), last+1) prevents same-ms collisions and
+    // clock-jump reuse.
+    const pokeId = Math.max(Date.now(), this.lastPokeId + 1);
+    this.lastPokeId = pokeId;
+    if (this.pokeFloors.size >= 4096) {
+      // A full ledger means thousands of poke acks never came back — this
+      // channel generation is unrecoverable. Escalate to a rebuild (which
+      // clears the ledger) instead of silently degrading to untracked pokes,
+      // which could leave a revived, subscription-less channel undetectable.
+      if (!this.aborted && !this.channelReaped) {
+        this.logger.error?.(
+          `[SSE] Poke-floor ledger full (${this.pokeFloors.size}); forcing channel rebuild`
+        );
+        this.channelReaped = true;
+        this.markStreamDown();
+        this.streamController?.abort();
+      }
+    } else {
+      this.pokeFloors.set(pokeId, this.lastHeardEventId);
+    }
+    // A rejection is delivery-ambiguous (pokeUrbitChannel can get an OK response
+    // then reject from release() in its finally). A stale entry blocks nothing:
+    // it resolves via ack-match, rebuild clear, or never (bounded by the cap).
     return await pokeUrbitChannel(
       {
         baseUrl: this.url,
@@ -600,6 +691,7 @@ export class UrbitSSEClient {
       },
       {
         ...params,
+        pokeId,
         auditContext: 'tlon-urbit-poke',
       }
     );
@@ -714,15 +806,18 @@ export class UrbitSSEClient {
     await new Promise((resolve) => setTimeout(resolve, delay));
     if (this.aborted) return;
 
-    // Capture the mode once: resume is the default; rebuild only when the
-    // channel itself is gone (reaped/dead, signalled by a 404/410/500 stream GET).
-    const rebuild = this.channelReaped;
-
     try {
       if (this.onReconnect) {
         await this.onReconnect(this);
       }
       if (this.aborted) return;
+
+      // Capture the mode AFTER the onReconnect await: a cap-escalation (or any
+      // channelReaped set) landing during that await has no live stream
+      // controller to abort, so this read is its only path into the rebuild
+      // branch. Resume is the default; rebuild only when the channel itself is
+      // gone. No awaits between this read and the branch below.
+      const rebuild = this.channelReaped;
 
       // connect()/afterStreamOpen() reset the attempt counter on success;
       // capture it first for the recovery event.
@@ -742,6 +837,7 @@ export class UrbitSSEClient {
         this.lastHeardEventId = -1;
         this.lastAcknowledgedEventId = -1;
         this.lastConfirmedAckEventId = -1;
+        this.pokeFloors.clear();
         await this.connect();
       } else {
         this.logger.log?.(

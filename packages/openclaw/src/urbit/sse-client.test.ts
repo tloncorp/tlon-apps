@@ -761,6 +761,8 @@ describe('UrbitSSEClient', () => {
       streamDownSince: number | null;
       streamController: { abort: () => void } | null;
       streamRelease: (() => Promise<void>) | null;
+      pokeFloors: Map<number, number>;
+      lastPokeId: number;
       ack: (eventId: number) => Promise<void>;
       attemptReconnect: () => Promise<void>;
       markStreamDown: () => void;
@@ -979,6 +981,51 @@ describe('UrbitSSEClient', () => {
         priv(client).stopStreamWatchdog();
       }
     );
+
+    it('channelReaped set during the onReconnect await forces the rebuild branch', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const { createUrbitChannel } = await import('./channel-ops.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const mockCreate = vi.mocked(createUrbitChannel);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        {
+          streamStaleThresholdMs: 0,
+          onReconnect: (c) => {
+            // Simulate a mid-reconnect cap escalation: the stream is already
+            // down, so the abort it issues hits a null streamController and the
+            // only path into the rebuild branch is this channelReaped set.
+            priv(c).channelReaped = true;
+          },
+        }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      // Seed a non-default cursor and a poke-floor entry to prove the rebuild
+      // resets them.
+      priv(client).lastHeardEventId = 7;
+      priv(client).pokeFloors = new Map([[12345, 7]]);
+      priv(client).channelReaped = false;
+      priv(client).streamDownSince = Date.now();
+      const originalChannelId = client.channelId;
+
+      const p = priv(client).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await p;
+
+      // The onReconnect hook set channelReaped = true during the await, so the
+      // rebuild branch ran (not resume): a fresh channel was created, cursors
+      // reset, and the poke-floor ledger cleared.
+      expect(mockCreate).toHaveBeenCalledTimes(1);
+      expect(client.channelId).not.toBe(originalChannelId);
+      expect(priv(client).lastHeardEventId).toBe(-1);
+      expect(priv(client).pokeFloors.size).toBe(0);
+
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
 
     it('a stream GET 500 is treated as a dead channel and rebuilds', async () => {
       const { urbitFetch } = await import('./fetch.js');
@@ -1906,6 +1953,319 @@ describe('UrbitSSEClient', () => {
         await p;
 
         expect(priv(client).suppressNextStreamErrorFanout).toBe(false);
+      });
+    });
+
+    describe('always-on per-poke floor ledger', () => {
+      it('detects a recreated channel at floor 0 (catch-up killer)', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 0;
+        priv(client).lastConfirmedAckEventId = -1;
+        priv(client).pokeFloors = new Map([[12345, 0]]);
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 0\ndata: {"response":"poke","id":12345}');
+
+        expect(eventHandler).not.toHaveBeenCalled();
+        expect(errHandler).toHaveBeenCalledTimes(1);
+        expect(String(errHandler.mock.calls[0][0].message)).toMatch(
+          /recreated/
+        );
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('detects a recreated channel when ack id <= floor (3 <= 5)', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 5;
+        priv(client).lastConfirmedAckEventId = -1;
+        priv(client).pokeFloors = new Map([[12345, 5]]);
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 3\ndata: {"response":"poke","id":12345}');
+
+        expect(errHandler).toHaveBeenCalledTimes(1);
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('a healthy ack resolves ONLY its own entry and falls through', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 50;
+        priv(client).lastConfirmedAckEventId = -1;
+        priv(client).pokeFloors = new Map([
+          [111, 50],
+          [222, 120],
+        ]);
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 100\ndata: {"response":"poke","id":111}');
+
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+        expect(errHandler).not.toHaveBeenCalled();
+        expect(priv(client).pokeFloors.has(111)).toBe(false);
+        expect(priv(client).pokeFloors.has(222)).toBe(true);
+        expect(priv(client).pokeFloors.get(222)).toBe(120);
+        expect(priv(client).lastHeardEventId).toBe(100);
+      });
+
+      it('an unknown poke id is ignored (map unchanged)', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 0;
+        priv(client).lastConfirmedAckEventId = -1;
+        priv(client).pokeFloors = new Map([[12345, 0]]);
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 0\ndata: {"response":"poke","id":999}');
+
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+        expect(errHandler).not.toHaveBeenCalled();
+        expect(priv(client).pokeFloors.size).toBe(1);
+        expect(priv(client).pokeFloors.get(12345)).toBe(0);
+      });
+
+      it('poke() always tags with monotonic ids (no stream-down required)', async () => {
+        const { pokeUrbitChannel } = await import('./channel-ops.js');
+        const mockPoke = vi.mocked(pokeUrbitChannel);
+        const nowSpy = vi.spyOn(Date, 'now');
+        nowSpy.mockReturnValue(1000);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).isConnected = true;
+        priv(client).lastHeardEventId = 42;
+
+        await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+
+        expect(mockPoke).toHaveBeenCalledTimes(1);
+        const firstParams = mockPoke.mock.calls[0][1];
+        expect(firstParams.pokeId).toBe(1000);
+        expect(priv(client).pokeFloors.get(1000)).toBe(42);
+
+        nowSpy.mockReturnValue(1000);
+        await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+        const secondParams = mockPoke.mock.calls[1][1];
+        expect(secondParams.pokeId).toBe(1001);
+        expect(secondParams.pokeId).toBeGreaterThan(firstParams.pokeId);
+        expect(priv(client).pokeFloors.size).toBe(2);
+
+        nowSpy.mockRestore();
+      });
+
+      it('rejection does NOT delete the ledger entry', async () => {
+        const { pokeUrbitChannel } = await import('./channel-ops.js');
+        const mockPoke = vi.mocked(pokeUrbitChannel);
+        const nowSpy = vi.spyOn(Date, 'now');
+        nowSpy.mockReturnValue(5000);
+        mockPoke.mockRejectedValueOnce(new Error('PUT rejected'));
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).lastHeardEventId = 10;
+
+        await expect(
+          client.poke({ app: 'hood', mark: 'helm-hi', json: {} })
+        ).rejects.toThrow('PUT rejected');
+
+        expect(priv(client).pokeFloors.has(5000)).toBe(true);
+        expect(priv(client).pokeFloors.get(5000)).toBe(10);
+
+        nowSpy.mockRestore();
+      });
+
+      it('a full poke-floor ledger forces a rebuild instead of skipping tracking', async () => {
+        const { pokeUrbitChannel } = await import('./channel-ops.js');
+        const mockPoke = vi.mocked(pokeUrbitChannel);
+        mockPoke.mockResolvedValue(undefined);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).lastHeardEventId = 7;
+        const seeded = new Map<number, number>();
+        for (let i = 0; i < 4096; i += 1) {
+          seeded.set(i + 1, 0);
+        }
+        priv(client).pokeFloors = seeded;
+        priv(client).lastPokeId = 4096;
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+
+        // A full ledger is itself proof the channel is broken: escalate to a
+        // rebuild instead of degrading to untracked pokes.
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+        expect(priv(client).isConnected).toBe(false);
+        // No insert happened (the ledger stays at the cap)...
+        expect(priv(client).pokeFloors.size).toBe(4096);
+        expect(priv(client).pokeFloors.has(1)).toBe(true);
+        // ...but the poke itself still proceeded and resolved.
+        expect(mockPoke).toHaveBeenCalledTimes(1);
+        expect(mockPoke.mock.calls[0][1].pokeId).toBeDefined();
+      });
+
+      it('below the cap, poke() inserts normally and does not reap', async () => {
+        const { pokeUrbitChannel } = await import('./channel-ops.js');
+        const mockPoke = vi.mocked(pokeUrbitChannel);
+        mockPoke.mockResolvedValue(undefined);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).lastHeardEventId = 7;
+        const seeded = new Map<number, number>();
+        for (let i = 0; i < 4095; i += 1) {
+          seeded.set(i + 1, 0);
+        }
+        priv(client).pokeFloors = seeded;
+        priv(client).lastPokeId = 4095;
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+
+        const pokeId = mockPoke.mock.calls[0][1].pokeId as number;
+        expect(priv(client).pokeFloors.size).toBe(4096);
+        expect(priv(client).pokeFloors.get(pokeId)).toBe(7);
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+        expect(priv(client).isConnected).toBe(true);
+      });
+
+      it('the rebuild path clears the ledger', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const { createUrbitChannel } = await import('./channel-ops.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        const mockCreate = vi.mocked(createUrbitChannel);
+        mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0 }
+        );
+        await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+
+        priv(client).pokeFloors = new Map([
+          [12345, 50],
+          [67890, 100],
+        ]);
+        priv(client).channelReaped = true;
+        priv(client).streamDownSince = Date.now();
+
+        const p = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(20_000);
+        await p;
+
+        expect(mockCreate).toHaveBeenCalledTimes(1);
+        expect(priv(client).pokeFloors.size).toBe(0);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+
+      it('hung-socket: poke tagged without markStreamDown, low ack triggers teardown', async () => {
+        const { pokeUrbitChannel } = await import('./channel-ops.js');
+        const mockPoke = vi.mocked(pokeUrbitChannel);
+        const nowSpy = vi.spyOn(Date, 'now');
+        nowSpy.mockReturnValue(99999);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler,
+        });
+
+        priv(client).isConnected = true;
+        priv(client).lastHeardEventId = 200;
+        priv(client).lastConfirmedAckEventId = -1;
+
+        await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+        expect(mockPoke.mock.calls[0][1].pokeId).toBe(99999);
+        expect(priv(client).pokeFloors.get(99999)).toBe(200);
+
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 0\ndata: {"response":"poke","id":99999}');
+
+        expect(errHandler).toHaveBeenCalledTimes(1);
+        expect(String(errHandler.mock.calls[0][0].message)).toMatch(
+          /recreated/
+        );
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+
+        nowSpy.mockRestore();
       });
     });
   });

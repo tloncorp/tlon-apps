@@ -23,9 +23,10 @@ export async function pokeUrbitChannel(
     mark: string;
     json: unknown;
     auditContext: string;
+    pokeId?: number;
   }
 ): Promise<number> {
-  const pokeId = Date.now();
+  const pokeId = params.pokeId ?? Date.now();
   const pokeData = {
     id: pokeId,
     action: 'poke',
