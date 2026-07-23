@@ -59,7 +59,9 @@ export class TlonMessenger {
     if (!text.trim()) return;
     await sendPost({
       channelId: message.target,
-      authorId: this.options.ship,
+      authorId: this.options.ship.startsWith('~')
+        ? this.options.ship
+        : `~${this.options.ship}`,
       sentAt: Date.now(),
       content: plainStory(text) as unknown as Story,
     });
