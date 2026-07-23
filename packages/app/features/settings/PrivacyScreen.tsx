@@ -89,12 +89,19 @@ export function PrivacySettingsScreen(props: Props) {
 
   const toggleSetTelemetry = useCallback(() => {
     const nextDisabledState = !state.telemetryDisabled;
+    setState((prev) => ({ ...prev, telemetryDisabled: nextDisabledState }));
+
+    // Opt in before capturing enablement; capture disablement before opting out.
+    if (!nextDisabledState) {
+      telemetry.setDisabled(false);
+    }
     trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
       enabled: !nextDisabledState,
       setting: 'usage_statistics',
     });
-    setState((prev) => ({ ...prev, telemetryDisabled: nextDisabledState }));
-    telemetry.setDisabled(nextDisabledState);
+    if (nextDisabledState) {
+      telemetry.setDisabled(true);
+    }
   }, [state.telemetryDisabled, telemetry]);
 
   const toggleDisableNicknames = useCallback(async () => {
