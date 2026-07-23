@@ -10,13 +10,18 @@ export function MessagesFilterMenu({ children }: PropsWithChildren) {
   const { data } = store.useMessagesFilter();
   const talkFilter = data ?? 'Direct Messages';
 
-  const handleAction = useCallback((value: TalkSidebarFilter) => {
-    return () => {
-      trackEvent(AnalyticsEvent.MessagesFilterSelected, { filter: value });
-      store.changeMessageFilter(value);
-      setIsOpen(false);
-    };
-  }, []);
+  const handleAction = useCallback(
+    (value: TalkSidebarFilter) => {
+      return () => {
+        if (value !== talkFilter) {
+          trackEvent(AnalyticsEvent.MessagesFilterSelected, { filter: value });
+          store.changeMessageFilter(value);
+        }
+        setIsOpen(false);
+      };
+    },
+    [talkFilter]
+  );
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {

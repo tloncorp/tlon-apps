@@ -1,4 +1,4 @@
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { invokeContactsMatchedHandler } from '@tloncorp/shared/store';
@@ -47,6 +47,7 @@ export function useContactDiscovery(
         // Bail if a newer run has superseded us — its results are
         // authoritative, and ours would clobber state.
         if (pendingDiscoveryRef.current !== promise) return;
+        trackEvent(AnalyticsEvent.ContactDiscoveryCompleted);
         if (newMatches.length > 0) {
           const matchedPhones = new Set(newMatches.map(([phone]) => phone));
           const matched = contacts.filter(

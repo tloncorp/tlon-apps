@@ -196,10 +196,10 @@ export function ActivityScreenView({
 
   const handleTabPress = useCallback(
     (tab: db.ActivityBucket) => {
-      trackEvent(AnalyticsEvent.ActivityFilterSelected, {
-        tab,
-      });
       if (tab !== activeTab) {
+        trackEvent(AnalyticsEvent.ActivityFilterSelected, {
+          tab,
+        });
         setActiveTab(tab);
       }
     },

@@ -1,6 +1,5 @@
 import * as api from '@tloncorp/api';
 
-import { trackEvent } from '../analytics';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
@@ -289,7 +288,6 @@ export async function discoverContacts(
     // against the next time we send a request
     await db.lastPhoneContactSetRequest.setValue(JSON.stringify(phoneNumbers));
     await db.lastLanyardSalt.setValue(nextSalt);
-    trackEvent(AnalyticsEvent.ContactDiscoveryCompleted);
     return matches;
   } catch (e) {
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {

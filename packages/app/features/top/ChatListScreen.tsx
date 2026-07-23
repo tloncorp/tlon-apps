@@ -266,12 +266,17 @@ export function ChatListScreenView({
     [navigateToGroup, navigateToChannel, searchQuery]
   );
 
-  const handlePressTab = useCallback((tab: TabName) => {
-    trackEvent(AnalyticsEvent.HomeFilterSelected, {
-      tab,
-    });
-    setActiveTab(tab);
-  }, []);
+  const handlePressTab = useCallback(
+    (tab: TabName) => {
+      if (tab !== activeTab) {
+        trackEvent(AnalyticsEvent.HomeFilterSelected, {
+          tab,
+        });
+        setActiveTab(tab);
+      }
+    },
+    [activeTab]
+  );
 
   const handlePressAddChat = useCallback(() => {
     // Close the filter input (and its keyboard) before opening the sheet so
