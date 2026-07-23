@@ -541,6 +541,29 @@ async function persistNoteWrite(
   await db.updateNotesNote({ notebookFlag, noteId, bodyMd, revision });
 }
 
+// Persist the host's copy of a note locally — used when the user resolves
+// a revision conflict with "use theirs". Without this the editor's reactive
+// row still holds the stale pre-conflict content and would immediately
+// reload it over the adoption.
+export async function adoptNotebookNoteRemote({
+  notebookFlag,
+  remote,
+}: {
+  notebookFlag: string;
+  remote: api.NotesNote;
+}) {
+  await db.updateNotesNote({
+    notebookFlag,
+    noteId: remote.noteId,
+    title: remote.title,
+    bodyMd: remote.bodyMd ?? '',
+    revision: remote.revision ?? 0,
+    updatedAt: remote.updatedAt ?? null,
+    updatedBy: remote.updatedBy ?? null,
+  });
+  return db.getNotesNote({ notebookFlag, noteId: remote.noteId });
+}
+
 export async function publishNotebookNote({
   notebookFlag,
   noteId,

@@ -1,5 +1,6 @@
 import {
   NotesNoteConflictError,
+  adoptNotebookNoteRemote,
   convertContent,
   markdownToStory,
   normalizeNotebookNoteTitle,
@@ -430,7 +431,18 @@ export function NotesNoteDetail({
   // overwriting the remote work.
   useEffect(() => {
     const sameNote = (selectedNote?.id ?? null) === (draftBase?.id ?? null);
-    if (sameNote && (isDirty || selectedNote === draftBase)) return;
+    // Never adopt a row that trails the base's revision: right after a save
+    // or a conflict resolution the reactive row lags the persisted write by
+    // a render or two, and reloading it would regress the editor onto stale
+    // content and a stale revision.
+    const rowTrailsBase =
+      sameNote &&
+      selectedNote != null &&
+      draftBase != null &&
+      selectedNote.revision < draftBase.revision;
+    if (sameNote && (isDirty || selectedNote === draftBase || rowTrailsBase)) {
+      return;
+    }
     if (sameNote) {
       preserveScrollOffset();
     }
@@ -493,6 +505,44 @@ export function NotesNoteDetail({
     []
   );
 
+  // Save target for flushes that run outside the React data flow (unmount
+  // cleanup, AppState changes). Synced in an effect so a selection-change
+  // cleanup still sees the previous note as its base rather than the new
+  // render's; the draft refs lag in step, keeping base and drafts paired.
+  const flushCtxRef = useRef<{
+    flag: string | null | undefined;
+    base: db.NotesNote | null;
+    canEdit: boolean;
+  } | null>(null);
+  useEffect(() => {
+    flushCtxRef.current = {
+      flag: notebookFlag,
+      base: draftBase,
+      canEdit,
+    };
+  });
+
+  // A conflict from an async save is only actionable while its note is
+  // still the one in the editor. A note-switch flush can reject after the
+  // selection moved on; resolving that stale conflict would rebase the
+  // newly-selected note with the old note's content, so drop it instead.
+  const reportConflict = useCallback(
+    (flag: string, conflict: NotesNoteConflictError) => {
+      const ctx = flushCtxRef.current;
+      if (
+        !ctx ||
+        ctx.flag !== flag ||
+        ctx.base?.noteId !== conflict.remoteNote.noteId
+      ) {
+        return;
+      }
+      setConflictNote(conflict.remoteNote);
+      setError(conflict.message);
+      setSaveState('error');
+    },
+    []
+  );
+
   const saveSelectedNote = useCallback(
     async (baseOverride?: db.NotesNote) => {
       const base = baseOverride ?? draftBase;
@@ -545,7 +595,7 @@ export function NotesNoteDetail({
         });
         setError(message);
         if (e instanceof NotesNoteConflictError) {
-          setConflictNote(e.remoteNote);
+          reportConflict(notebookFlag, e);
         }
         return false;
       }
@@ -555,6 +605,7 @@ export function NotesNoteDetail({
       draftBase,
       notebookFlag,
       preserveScrollOffset,
+      reportConflict,
       runSave,
       titleDraft,
     ]
@@ -594,6 +645,11 @@ export function NotesNoteDetail({
     setDraftBase(adopted);
     setTitleDraft(adopted.title);
     setBodyDraft(adopted.bodyMd);
+    // Persist the host's copy locally so the reactive row catches up with
+    // the adoption instead of reloading the stale pre-conflict content
+    // over it. (The draft-loading effect also skips rows that trail the
+    // base revision, covering the render gap until this write lands.)
+    void adoptNotebookNoteRemote({ notebookFlag, remote: conflictNote });
     // Drop the crash-insurance stashes for the discarded drafts, or the
     // restore effect would resurrect them against the adopted revision.
     clearDraftStash(notebookFlag, draftBase.noteId, {
@@ -633,23 +689,6 @@ export function NotesNoteDetail({
     }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timeout);
   }, [canEdit, conflictNote, isDirty, saveSelectedNote, saveState]);
-
-  // Save target for flushes that run outside the React data flow (unmount
-  // cleanup, AppState changes). Synced in an effect so a selection-change
-  // cleanup still sees the previous note as its base rather than the new
-  // render's; the draft refs lag in step, keeping base and drafts paired.
-  const flushCtxRef = useRef<{
-    flag: string | null | undefined;
-    base: db.NotesNote | null;
-    canEdit: boolean;
-  } | null>(null);
-  useEffect(() => {
-    flushCtxRef.current = {
-      flag: notebookFlag,
-      base: draftBase,
-      canEdit,
-    };
-  });
 
   const flushPendingSave = useCallback(() => {
     const bodyToSave = bodyDraftRef.current;
@@ -692,13 +731,12 @@ export function NotesNoteDetail({
       .catch((e) => {
         // No-ops after unmount; while mounted, surface a conflict so the
         // resolution banner appears instead of a silently-failed flush.
+        // reportConflict drops it if the selection has since moved on.
         if (e instanceof NotesNoteConflictError) {
-          setConflictNote(e.remoteNote);
-          setError(e.message);
-          setSaveState('error');
+          reportConflict(flag, e);
         }
       });
-  }, [preserveScrollOffset, runSave]);
+  }, [preserveScrollOffset, reportConflict, runSave]);
 
   // Flush unsaved work when switching notes or unmounting — the poke
   // outlives the component.

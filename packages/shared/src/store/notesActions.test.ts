@@ -14,6 +14,7 @@ import {
 } from '../test/notesFixtures';
 import {
   NotesNoteConflictError,
+  adoptNotebookNoteRemote,
   createNotebookNote,
   deleteNotebookNote,
   noteIsPublished,
@@ -544,6 +545,39 @@ test('saveNotebookNote surfaces a typed conflict when the host content diverged'
     }),
   });
   expect(updateNoteBody).toHaveBeenCalledTimes(1);
+});
+
+test('adoptNotebookNoteRemote persists the host copy locally', async () => {
+  const note = makeNote('Local note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  const remote = makeApiNotesNote({
+    ...note,
+    title: 'Remote title',
+    bodyMd: 'remote body',
+    revision: note.revision + 2,
+    updatedAt: 500,
+  });
+
+  const adopted = await adoptNotebookNoteRemote({ notebookFlag, remote });
+
+  expect(adopted).toMatchObject({
+    title: 'Remote title',
+    bodyMd: 'remote body',
+    revision: note.revision + 2,
+  });
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject({
+    title: 'Remote title',
+    bodyMd: 'remote body',
+    revision: note.revision + 2,
+  });
 });
 
 test('deleteNotebookNote waits for the deleted note to disappear from sync', async () => {
