@@ -300,13 +300,8 @@ test('createNotebookNote hydrates created note details when list notes omit them
   });
 });
 
-test('saveNotebookNote hydrates saved note details when list notes omit them', async () => {
+test('saveNotebookNote persists sent content from the response contract, no read-back', async () => {
   const note = makeNote('Draft note');
-  const savedNote = {
-    ...note,
-    bodyMd: 'updated body',
-    revision: note.revision + 1,
-  };
   await db.saveNotesNotebookSnapshot({
     notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
     folders: [rootFolder],
@@ -314,41 +309,41 @@ test('saveNotebookNote hydrates saved note details when list notes omit them', a
     members: [],
   });
 
-  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
-    makeApiNotesFolder(rootFolder),
-  ]);
-  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
-    makeApiNoteSummary(savedNote),
-  ]);
-  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
-  const getNote = vi
-    .spyOn(api.notes, 'getNote')
-    .mockResolvedValue(makeApiNotesNote(savedNote));
+  const getNote = vi.spyOn(api.notes, 'getNote');
+  const listNotes = vi.spyOn(api.notes, 'listNotes');
   const updateNoteBody = vi
     .spyOn(api.notes, 'updateNoteBody')
     .mockResolvedValue('ok');
+  const renameNote = vi
+    .spyOn(api.notes, 'renameNote')
+    .mockResolvedValue(undefined);
 
   const saved = await saveNotebookNote({
     notebookFlag,
     note,
-    title: note.title,
-    body: savedNote.bodyMd,
+    title: 'New title',
+    body: 'updated body',
   });
 
   expect(updateNoteBody).toHaveBeenCalledWith({
     flag: notebookFlag,
     noteId: note.noteId,
-    body: savedNote.bodyMd,
+    body: 'updated body',
     expectedRevision: note.revision,
   });
-  expect(getNote).toHaveBeenCalledWith({
-    flag: { host: '~zod', name: 'native-notes' },
+  expect(renameNote).toHaveBeenCalledWith({
+    flag: notebookFlag,
     noteId: note.noteId,
+    title: 'New title',
   });
+  // Successful writes fully determine the result — the save path must not
+  // fetch anything to learn what it just wrote.
+  expect(getNote).not.toHaveBeenCalled();
+  expect(listNotes).not.toHaveBeenCalled();
   expect(saved).toMatchObject({
-    bodyMd: savedNote.bodyMd,
-    revision: savedNote.revision,
+    title: 'New title',
+    bodyMd: 'updated body',
+    revision: note.revision + 1,
   });
 });
 

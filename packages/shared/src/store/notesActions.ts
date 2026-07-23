@@ -428,22 +428,21 @@ export async function saveNotebookNote({
       noteId: note.noteId,
       title: nextTitle,
     });
+    // A successful rename means the host's title is exactly the string we
+    // sent (renames don't bump the revision). Persist it directly — no
+    // read-back needed, same contract-based reasoning as the body/revision
+    // write-through above.
+    await db.updateNotesNote({
+      notebookFlag,
+      noteId: note.noteId,
+      title: nextTitle,
+    });
   }
 
-  await syncNotesNotebookUntil(
-    notebookFlag,
-    (snapshot) => {
-      const updated = findSnapshotNote(snapshot, note.noteId);
-      return Boolean(
-        updated &&
-          (!shouldRename || updated.title === nextTitle) &&
-          (!shouldUpdateBody || updated.bodyMd === body)
-      );
-    },
-    shouldUpdateBody
-      ? { hydrateNoteIds: [note.noteId], requireHydratedNotes: true }
-      : undefined
-  );
+  // Everything we sent is persisted; server-stamped metadata (updatedAt /
+  // updatedBy) arrives via the subscription-triggered sync moments later.
+  // No read-back wait: the old poll-until-visible loop here is what
+  // silently returned stale revisions when the replica lagged.
   return db.getNotesNote({ notebookFlag, noteId: note.noteId });
 }
 
