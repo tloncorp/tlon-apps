@@ -762,8 +762,10 @@ class StreamLoopTests(unittest.TestCase):
         """Drive connect() where _connect_sse raises at startup, isolating the
         except-handler cleanup from real collaborators."""
         adapter = self.make_adapter(extra)
+        connect_attempted = []
 
         async def boom():
+            connect_attempted.append(True)
             raise exc
 
         async def anoop(*a, **k):
@@ -778,8 +780,12 @@ class StreamLoopTests(unittest.TestCase):
         adapter._telemetry = types.SimpleNamespace(
             error=lambda *a, **kw: errors.append((a, kw)),
         )
-        with patch.object(adapter_mod, "_cli_available", return_value=True):
+        with (
+            patch.object(adapter_mod, "AIOHTTP_AVAILABLE", True),
+            patch.object(adapter_mod, "_cli_available", return_value=True),
+        ):
             result = asyncio.run(adapter.connect())
+        self.assertEqual(connect_attempted, [True])
         return adapter, result, errors
 
     def test_connect_fixed_cookie_terminal_auth_is_fatal(self):
@@ -801,12 +807,14 @@ class StreamLoopTests(unittest.TestCase):
                 self.assertEqual(errors[0][1].get("operation"), "channel")
 
     def test_connect_ship_code_terminal_auth_is_not_fatal(self):
-        adapter, result, _ = self._run_connect_with_setup_error(
+        adapter, result, errors = self._run_connect_with_setup_error(
             {},  # access code only -> can re-authenticate
             tlon_api.TlonTerminalActionError("HTTP 401", status=401),
         )
         self.assertFalse(result)
         self.assertIsNone(adapter._fatal_error)
+        self.assertEqual(len(errors), 1)
+        self.assertNotIn("operation", errors[0][1])
 
     def test_auth_error_is_fatal(self):
         adapter = self.make_adapter()
