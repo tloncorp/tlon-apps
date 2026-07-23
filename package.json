@@ -15,6 +15,7 @@
     "build:editor": "pnpm --filter '@tloncorp/editor' build",
     "build:tlon-skill": "pnpm --filter '@tloncorp/tlon-skill' build",
     "build:acp": "pnpm --filter '@tloncorp/acp' build",
+    "build:tlon-acp": "pnpm --filter '@tloncorp/tlon-acp' build",
     "build:openclaw": "pnpm --filter '@tloncorp/openclaw' build",
     "build:web": "pnpm --filter 'tlon-web' build",
     "build:mobile": "pnpm --filter 'tlon-mobile' build",

@@ -15,6 +15,7 @@ export type AcpPumpEvents = {
   error: [error: Error];
   frameToAgent: [sequence: number];
   frameToClient: [];
+  ready: [];
 };
 
 export class AcpPump extends EventEmitter<AcpPumpEvents> {
@@ -42,6 +43,7 @@ export class AcpPump extends EventEmitter<AcpPumpEvents> {
         this.handleUpdate,
         this.fail
       );
+      this.emit('ready');
       const exit = await this.adapter.exited;
       await this.outputPromise;
       return exit;

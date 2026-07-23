@@ -4,6 +4,13 @@ export {
   type SpawnAdapterOptions,
   spawnAdapter,
 } from './adapter.js';
+export {
+  AcpClient,
+  type AcpClientEvents,
+  type AcpClientOptions,
+  type JsonRpcId,
+  type JsonRpcObject,
+} from './client.js';
 export { AcpPump, validateFrame } from './pump.js';
 export {
   type AcpMessage,
