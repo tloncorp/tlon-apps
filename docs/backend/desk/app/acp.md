@@ -71,3 +71,23 @@ unacknowledged queue.
 The queue is transport replay, not ACP conversation persistence. ACP session
 creation/loading/resumption remain protocol operations carried inside the JSON
 envelopes and implemented by the selected adapter.
+
+## Reference worker
+
+`packages/acp` contains the generic `tlon-acp` stdio worker. It reuses the
+monorepo's `@tloncorp/api` Urbit channel client and accepts the adapter command
+as configuration:
+
+```bash
+URBIT_URL=http://127.0.0.1:8080 \
+URBIT_SHIP=~sampel-palnet \
+URBIT_CODE=sampel-palnet-sampel-dozzod \
+ACP_CONNECTION=demo \
+node packages/acp/dist/cli.js -- codex-acp
+```
+
+The worker acks an agent-bound message only after writing it to adapter stdin.
+Adapter stdout is serialized into acknowledged pokes bound for the client
+queue. This gives at-least-once delivery across a process crash: a crash after
+the adapter accepts a frame but before the ACK reaches the ship may replay that
+frame.
