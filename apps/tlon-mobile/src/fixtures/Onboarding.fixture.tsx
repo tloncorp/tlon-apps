@@ -5,6 +5,7 @@ import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
 import { group } from '@tloncorp/app/fixtures/fakeData';
 import { Theme } from '@tloncorp/app/ui';
 import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
+import { HostingAccountIssue } from '@tloncorp/shared/store';
 import { PropsWithChildren, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -75,6 +76,8 @@ function OnboardingFixture({
             getLandscapeAuthCookie: () => Promise.resolve('abc'),
             checkPhoneVerify: async () => undefined,
             requestPhoneVerify: async () => undefined,
+            signUpHostedUser: async () => undefined,
+            logInHostedUser: async () => HostingAccountIssue.NoAssignedShip,
             //@ts-expect-error partial implementation
             hostingApi: {
               signUpHostingUser: async () => Promise.resolve(sampleUser),

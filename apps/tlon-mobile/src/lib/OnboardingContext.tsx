@@ -15,6 +15,8 @@ interface OnboardingContextValue {
   getLandscapeAuthCookie: typeof getLandscapeAuthCookie;
   checkPhoneVerify: typeof store.checkPhoneVerify;
   requestPhoneVerify: typeof store.requestPhoneVerify;
+  signUpHostedUser: typeof store.signUpHostedUser;
+  logInHostedUser: typeof store.logInHostedUser;
 }
 
 export const OnboardingContext = createContext<OnboardingContextValue>({
@@ -24,6 +26,8 @@ export const OnboardingContext = createContext<OnboardingContextValue>({
   hostingApi,
   checkPhoneVerify: store.checkPhoneVerify,
   requestPhoneVerify: store.requestPhoneVerify,
+  signUpHostedUser: store.signUpHostedUser,
+  logInHostedUser: store.logInHostedUser,
 });
 
 export const OnboardingProvider = OnboardingContext.Provider;

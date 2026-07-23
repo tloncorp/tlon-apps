@@ -38,7 +38,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
   const [otp, setOtp] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { hostingApi } = useOnboardingContext();
+  const { hostingApi, signUpHostedUser } = useOnboardingContext();
   const signupContext = useSignupContext();
   const signupParams = useSignupParams();
   const { handleLogin } = useOnboardingHelpers();
@@ -81,7 +81,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           platform: selectRecaptchaPlatform(),
         };
 
-        const maybeAccountIssue = await store.signUpHostedUser({
+        const maybeAccountIssue = await signUpHostedUser({
           otp,
           inviteId: signupParams.lureId,
           priorityToken: signupParams.priorityToken,
@@ -122,6 +122,7 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
       accountCreds,
       inviteMetadata,
       recaptcha,
+      signUpHostedUser,
       signupParams.lureId,
       signupParams.priorityToken,
     ]

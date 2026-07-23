@@ -13,6 +13,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
+import { useOnboardingContext } from '../lib/OnboardingContext';
 import { clearHostingNativeCookie } from '../lib/hostingAuth';
 import { useSignupContext } from '../lib/signupContext';
 import { OnboardingStackParamList } from '../types';
@@ -24,6 +25,7 @@ export function useOnboardingHelpers() {
   const signupContext = useSignupContext();
   const configureUrbitClient = useConfigureUrbitClient();
   const { setShip, ship, shipUrl } = useShip();
+  const { logInHostedUser } = useOnboardingContext();
 
   const checkAccountStatusAndNavigate = useCallback(async () => {
     const accountIssue = await store.checkAccountStatus();
@@ -144,7 +146,7 @@ export function useOnboardingHelpers() {
 
       // Step 1: Attempt login and handle account issues
       logger.log('attempting to log in', params);
-      const maybeAccountIssue = await store.logInHostedUser(params);
+      const maybeAccountIssue = await logInHostedUser(params);
 
       // clear native managed cookie since we set manually
       await clearHostingNativeCookie();
@@ -227,7 +229,13 @@ export function useOnboardingHelpers() {
         handleRevivalOnboarding(nextShipInfo);
       }
     },
-    [handleRevivalOnboarding, navigation, setShip, signupContext]
+    [
+      handleRevivalOnboarding,
+      logInHostedUser,
+      navigation,
+      setShip,
+      signupContext,
+    ]
   );
 
   return {
