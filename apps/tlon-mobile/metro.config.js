@@ -13,11 +13,10 @@ const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
 const baseConfig = getSentryExpoConfig(projectRoot);
 
-// Shared Metro transform cache across worktrees on this machine.
-// metro-transform-worker keys are content-addressed (relative paths only),
-// and Expo's `_expoRelativeProjectRoot` is workspace-relative, so identical
-// sources in different worktrees produce identical keys. Partition by
-// resolved RN+Expo version so upgrades don't poison the cache.
+// Shared Metro transform cache across worktrees on this machine. Linked
+// dependencies resolve to the prepared worktree, so the opt-in canonical path
+// hook below removes the checkout path from otherwise content-addressed keys.
+// Partition by resolved RN+Expo version so upgrades don't poison the cache.
 //
 // Off by default to avoid affecting normal dev workflows. Opt in with
 // TLON_METRO_SHARED_CACHE_ENABLED=1 (e.g., set in the agent-loop harness or by
@@ -33,6 +32,29 @@ const sharedCacheStores =
   process.env.TLON_METRO_SHARED_CACHE_ENABLED === '1'
     ? [new FileStore({ root: sharedCacheRoot })]
     : undefined;
+const getCanonicalCachePath = sharedCacheStores
+  ? (filePath, localPath) => {
+      const normalizedFilePath = filePath.split(path.sep).join('/');
+      const nodeModulesMarker = '/node_modules/';
+      const nodeModulesIndex = normalizedFilePath.indexOf(nodeModulesMarker);
+
+      if (nodeModulesIndex !== -1) {
+        return `node_modules/${normalizedFilePath.slice(
+          nodeModulesIndex + nodeModulesMarker.length
+        )}`;
+      }
+
+      const workspacePath = path.relative(workspaceRoot, filePath);
+      if (
+        !workspacePath.startsWith(`..${path.sep}`) &&
+        workspacePath !== '..'
+      ) {
+        return workspacePath;
+      }
+
+      return localPath;
+    }
+  : undefined;
 
 /**
  * Metro configuration
@@ -44,6 +66,9 @@ const config = {
   ...(sharedCacheStores ? { cacheStores: sharedCacheStores } : {}),
   transformer: {
     babelTransformerPath: require.resolve('react-native-svg-transformer'),
+    ...(getCanonicalCachePath
+      ? { unstable_getCanonicalCachePath: getCanonicalCachePath }
+      : {}),
     // Enable inlineRequires (off by default in Expo) to defer module eval until
     // first use, speeding up cold start.
     getTransformOptions: async () => ({

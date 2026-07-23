@@ -2,5 +2,6 @@
   "expo.jsEngine": "hermes",
   "ios.useFrameworks": "static",
   "ios.forceStaticLinking": "[\"RNFBApp\",\"RNFBCrashlytics\",\"RNFBPerf\"]",
+  "apple.ccacheEnabled": "true",
   "newArchEnabled": "true"
 }

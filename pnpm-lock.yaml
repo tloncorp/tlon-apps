@@ -38,6 +38,7 @@ patchedDependencies:
   drizzle-orm: 834dc52d077cfbc1aab821e9960422d59032b5e4684b82f56bf452cb0d5db1a7
   expo-background-task: 3daff8d4e5dad45164c728ef157cd94381f3c69e621f0d0af42cde77694fa9d3
   expo-image-manipulator: a0cad1b916a3f3d549acf65332d547d04190f2d46d14756c6ae74c0330f6a7b3
+  metro@0.84.4: 4bc6188fd86196406d897ee6f2929bd4056d81a951297973bdb994404c740f0e
   react-cosmos: 658acdaf59c16d70e54b6b0b9d522593cd973839891ed5446a3dd3045d4e37eb
   react-native-country-codes-picker: 53c90d297e1cc4991af0f2d72d0f33a68e8be46e75bdf3da919a20160791bee5
   react-native-gesture-handler: e6fc0413229a6f38cc4b2432f69ea6cc8692cc4d611e47452f4c65678df5caf4
@@ -16047,7 +16048,7 @@ snapshots:
 
   '@expo/metro@56.0.0':
     dependencies:
-      metro: 0.84.4
+      metro: 0.84.4(patch_hash=4bc6188fd86196406d897ee6f2929bd4056d81a951297973bdb994404c740f0e)
       metro-babel-transformer: 0.84.4
       metro-cache: 0.84.4
       metro-cache-key: 0.84.4
@@ -17561,7 +17562,7 @@ snapshots:
       '@react-native/dev-middleware': 0.86.0
       debug: 4.4.3
       invariant: 2.2.4
-      metro: 0.84.4
+      metro: 0.84.4(patch_hash=4bc6188fd86196406d897ee6f2929bd4056d81a951297973bdb994404c740f0e)
       metro-config: 0.84.4
       metro-core: 0.84.4
       semver: 7.7.3
@@ -25116,7 +25117,7 @@ snapshots:
       connect: 3.7.0
       flow-enums-runtime: 0.0.6
       jest-validate: 29.7.0
-      metro: 0.84.4
+      metro: 0.84.4(patch_hash=4bc6188fd86196406d897ee6f2929bd4056d81a951297973bdb994404c740f0e)
       metro-cache: 0.84.4
       metro-core: 0.84.4
       metro-runtime: 0.84.4
@@ -25203,7 +25204,7 @@ snapshots:
       '@babel/parser': 7.29.7
       '@babel/types': 7.29.7
       flow-enums-runtime: 0.0.6
-      metro: 0.84.4
+      metro: 0.84.4(patch_hash=4bc6188fd86196406d897ee6f2929bd4056d81a951297973bdb994404c740f0e)
       metro-babel-transformer: 0.84.4
       metro-cache: 0.84.4
       metro-cache-key: 0.84.4
@@ -25216,7 +25217,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  metro@0.84.4:
+  metro@0.84.4(patch_hash=4bc6188fd86196406d897ee6f2929bd4056d81a951297973bdb994404c740f0e):
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/core': 7.29.0

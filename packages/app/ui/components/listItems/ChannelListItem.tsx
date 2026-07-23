@@ -126,10 +126,16 @@ export function ChannelListItem({
   const groupTitle = utils.useGroupTitle(model.group);
   const isDmType = model.type === 'dm' || model.type === 'groupDm';
   const dmMembers = isDmType ? model.members : [];
+  const rowTestID = isDmType
+    ? `ChannelListItem-${model.id}`
+    : `ChannelListItem-${model.title}`;
 
   return (
     <View ref={containerRef}>
       <Pressable
+        testID={isWeb ? undefined : rowTestID}
+        accessibilityLabel={isWeb ? undefined : title ?? undefined}
+        accessibilityRole={isWeb ? undefined : 'button'}
         borderRadius="$xl"
         onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
@@ -143,11 +149,7 @@ export function ChannelListItem({
         <ListItem
           onLayout={onLayout}
           {...props}
-          testID={
-            model.type === 'dm' || model.type === 'groupDm'
-              ? `ChannelListItem-${model.id}`
-              : `ChannelListItem-${model.title}`
-          }
+          testID={isWeb ? rowTestID : undefined}
         >
           {StartIcon !== undefined ? (
             StartIcon
