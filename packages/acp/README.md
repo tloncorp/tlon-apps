@@ -2,6 +2,8 @@
 
 `tlon-acp` is a generic bridge between the `%acp` Gall agent and an Agent Client Protocol adapter that speaks newline-delimited JSON-RPC over stdio. It does not translate Tlon messages or contain provider-specific protocol logic.
 
+For a complete Tlon Messenger bot walkthrough, including Codex and Claude authentication, see [`@tloncorp/tlon-acp`](../tlon-acp/README.md).
+
 ## Run
 
 Build the package, install `%acp` on the target desk, then launch any ACP adapter:
