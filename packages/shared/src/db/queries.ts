@@ -530,27 +530,24 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
       );
 
       // Snapshots race the save path's immediate write-through (which
-      // persists body + revision the moment a note PUT succeeds): a sync
-      // that fetched before the save but lands after it would silently
-      // regress the row. Revisions are monotonic per note, so an incoming
-      // revision below the stored one proves the snapshot is stale for
-      // that note — keep the locally persisted fields. Read inside the
-      // transaction so the comparison can't itself race the write-through.
-      const currentNotes = await txCtx.db
-        .select({
-          noteId: $notesNotes.noteId,
-          bodyMd: $notesNotes.bodyMd,
-          revision: $notesNotes.revision,
-        })
-        .from($notesNotes)
-        .where(eq($notesNotes.notebookFlag, notebook.id));
+      // persists a note the moment a PUT succeeds): a sync that fetched
+      // before the save but lands after it would silently regress the row.
+      // Revisions are monotonic per note, so an incoming revision below the
+      // stored one proves the snapshot is stale for that note — keep the
+      // stored row wholesale. Splicing only some newer fields onto the
+      // stale copy would fabricate a row that never existed on the host
+      // (e.g. new revision + old title). Read inside the transaction so
+      // the comparison can't itself race the write-through.
+      const currentNotes = await txCtx.db.query.notesNotes.findMany({
+        where: eq($notesNotes.notebookFlag, notebook.id),
+      });
       const currentByNoteId = new Map(
         currentNotes.map((note) => [note.noteId, note])
       );
       const mergedNotes = notes.map((incoming) => {
         const current = currentByNoteId.get(incoming.noteId);
         return current && current.revision > incoming.revision
-          ? { ...incoming, bodyMd: current.bodyMd, revision: current.revision }
+          ? { ...current, syncedAt: incoming.syncedAt }
           : incoming;
       });
 

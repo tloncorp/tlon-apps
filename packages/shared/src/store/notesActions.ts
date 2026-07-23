@@ -473,10 +473,13 @@ const lastSavedNoteState = new Map<
   { body: string; revision: number }
 >();
 
-// Poll the note read until it reports a revision other than `staleRevision`,
-// or null if it never does within the retry budget. Used by conflict
-// recovery: a conflict proves the host is not at `staleRevision`, so a read
-// still reporting it is a replica that hasn't caught up yet, not an answer.
+// Poll the note read until it reports a revision GREATER than
+// `staleRevision`, or null if it never does within the retry budget. Used by
+// conflict recovery: a conflict proves the host has moved past
+// `staleRevision`, so any read at or below it (the rejected copy itself, or
+// an even older one — the replica can trail our local write-through) is a
+// replica that hasn't caught up yet, not an answer. Classifying against it
+// would offer content older than the user's own base as "theirs".
 async function fetchNotePastRevision(
   notebookFlag: string,
   noteId: number,
@@ -486,7 +489,7 @@ async function fetchNotePastRevision(
   try {
     await withRetry(async () => {
       latest = await api.notes.getNote({ flag: notebookFlag, noteId });
-      if ((latest.revision ?? 0) === staleRevision) {
+      if ((latest.revision ?? 0) <= staleRevision) {
         throw notYetSynced;
       }
     }, notesRetryOptions);

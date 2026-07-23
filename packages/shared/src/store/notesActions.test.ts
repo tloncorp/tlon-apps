@@ -814,10 +814,12 @@ test('saveNotesNotebookSnapshot does not regress a locally persisted newer revis
   };
   await db.saveNotesNotebookSnapshot(snapshot);
 
-  // The save path's write-through lands a newer body + revision...
+  // A conflict resolved with "use theirs" adopts the host copy — body,
+  // revision, AND title — via the same local write path.
   await db.updateNotesNote({
     notebookFlag,
     noteId: note.noteId,
+    title: 'Adopted title',
     bodyMd: 'freshly saved body',
     revision: note.revision + 1,
   });
@@ -825,11 +827,64 @@ test('saveNotesNotebookSnapshot does not regress a locally persisted newer revis
   // ...then a sync that fetched before the save lands with the old copy.
   await db.saveNotesNotebookSnapshot(snapshot);
 
+  // The stored row must survive wholesale: splicing only body/revision
+  // onto the stale copy would fabricate a new-revision row with the old
+  // title, which the editor would then adopt.
   await expect(
     db.getNotesNote({ notebookFlag, noteId: note.noteId })
   ).resolves.toMatchObject({
+    title: 'Adopted title',
     bodyMd: 'freshly saved body',
     revision: note.revision + 1,
+  });
+});
+
+test('saveNotebookNote ignores replica reads trailing below the rejected revision', async () => {
+  // Local state is ahead of the replica: the write-through landed rev 2
+  // locally, the replica still serves rev 1, and the host rejected rev 2
+  // because it moved on to rev 3.
+  const base = makeNote('Trailing replica note');
+  const localNote = { ...base, bodyMd: 'our saved body', revision: 2 };
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [localNote],
+    members: [],
+  });
+
+  const trailingReplica = { ...base, bodyMd: 'ancient body', revision: 1 };
+  const advancedRemote = { ...base, bodyMd: 'newest host body', revision: 3 };
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
+    makeApiNotesNote(advancedRemote),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'getNote')
+    .mockResolvedValueOnce(makeApiNotesNote(trailingReplica))
+    .mockResolvedValue(makeApiNotesNote(advancedRemote));
+  vi.spyOn(api.notes, 'updateNoteBody').mockRejectedValue(
+    new api.NotesV1WriteError('%notes error: revision-mismatch', 'conflict')
+  );
+
+  const attempt = saveNotebookNote({
+    notebookFlag,
+    note: localNote,
+    title: localNote.title,
+    body: 'my draft',
+  });
+
+  // The rev-1 read is older than the user's own base — offering it as
+  // "theirs" would let a resolution regress the note. Only the advanced
+  // copy may be classified.
+  await expect(attempt).rejects.toBeInstanceOf(NotesNoteConflictError);
+  await expect(attempt).rejects.toMatchObject({
+    remoteNote: expect.objectContaining({
+      bodyMd: advancedRemote.bodyMd,
+      revision: advancedRemote.revision,
+    }),
   });
 });
 
