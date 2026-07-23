@@ -1,7 +1,9 @@
+import type { NativeBottomTabNavigationProp } from '@react-navigation/bottom-tabs/unstable';
 import {
   NavigationProp,
   useIsFocused,
   useNavigation,
+  useScrollToTop,
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FlashListRef } from '@shopify/flash-list';
@@ -10,9 +12,16 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Keyboard } from 'react-native';
-import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
+import { Text, YStack, isWeb, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
@@ -24,7 +33,10 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
-import type { RootStackParamList } from '../../navigation/types';
+import type {
+  NativeTabParamList,
+  RootStackParamList,
+} from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
@@ -55,6 +67,12 @@ import {
 
 const logger = createDevLogger('ChatListScreen', false);
 
+const nativeHeaderIcons = {
+  add: require('../../navigation/assets/header-add.png'),
+  invite: require('../../navigation/assets/header-add-person.png'),
+  search: require('../../navigation/assets/header-search.png'),
+} as const;
+
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
 export default function ChatListScreen(props: Props) {
@@ -78,12 +96,18 @@ export function ChatListScreenView({
   previewGroupFromInviteNotification?: boolean;
   focusedChannelId?: string;
 }) {
+  const theme = useTheme();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const nativeTabNavigation =
+    useNavigation<
+      NativeBottomTabNavigationProp<NativeTabParamList, 'ChatList'>
+    >();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const personalInvite = db.personalInviteLink.useValue();
   const { isOpen, setIsOpen } = useGlobalSearch();
   const { scrollRef: chatListRef, onPressActiveTab } =
     useScrollTabToTop<FlashListRef<ChatListItemData>>();
+  useScrollToTop(chatListRef);
 
   const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
@@ -373,6 +397,93 @@ export function ChatListScreenView({
     }
   }, [chats]);
 
+  useLayoutEffect(() => {
+    if (isWeb) {
+      return;
+    }
+
+    nativeTabNavigation.setOptions({
+      headerLeft: () =>
+        personalInvite ? (
+          <ScreenHeader.IconButton
+            type="AddPerson"
+            onPress={handlePersonalInvitePress}
+          />
+        ) : null,
+      headerRight: () => (
+        <View flexDirection="row" alignItems="center">
+          <ScreenHeader.IconButton
+            type="Search"
+            onPress={handleSearchInputToggled}
+          />
+          <ScreenHeader.IconButton
+            type="Add"
+            onPress={handlePressAddChat}
+            testID="CreateChatSheetTrigger"
+            color={showHomeAddTooltip ? '$positiveActionText' : '$primaryText'}
+            backgroundColor={
+              showHomeAddTooltip ? '$positiveBackground' : 'transparent'
+            }
+          />
+        </View>
+      ),
+      unstable_headerLeftItems: () =>
+        personalInvite
+          ? [
+              {
+                type: 'button',
+                label: 'Invite people',
+                accessibilityLabel: 'Invite people',
+                icon: {
+                  type: 'image',
+                  source: nativeHeaderIcons.invite,
+                },
+                identifier: 'invite-people',
+                onPress: handlePersonalInvitePress,
+                sharesBackground: true,
+              },
+            ]
+          : [],
+      unstable_headerRightItems: () => [
+        {
+          type: 'button',
+          label: 'Search',
+          accessibilityLabel: 'Search',
+          icon: {
+            type: 'image',
+            source: nativeHeaderIcons.search,
+          },
+          identifier: 'search',
+          onPress: handleSearchInputToggled,
+          sharesBackground: true,
+        },
+        {
+          type: 'button',
+          label: 'Add a chat',
+          accessibilityLabel: 'Add a chat',
+          icon: {
+            type: 'image',
+            source: nativeHeaderIcons.add,
+          },
+          identifier: 'add-chat',
+          onPress: handlePressAddChat,
+          sharesBackground: true,
+          tintColor: showHomeAddTooltip
+            ? theme.positiveActionText?.val
+            : undefined,
+        },
+      ],
+    });
+  }, [
+    handlePersonalInvitePress,
+    handlePressAddChat,
+    handleSearchInputToggled,
+    nativeTabNavigation,
+    personalInvite,
+    showHomeAddTooltip,
+    theme.positiveActionText?.val,
+  ]);
+
   return (
     <RequestsProvider
       usePostReference={store.usePostReference}
@@ -386,56 +497,62 @@ export function ChatListScreenView({
         onPressInvite={handlePressInvite}
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
-          <View userSelect="none" flex={1}>
-            <ScreenHeader
-              title="Home"
-              subtitle={syncSubtitle}
-              loadingSubtitle={loadingSubtitle}
-              showSubtitle={true}
-              leftControls={
-                personalInvite ? (
-                  <ScreenHeader.IconButton
-                    type="AddPerson"
-                    onPress={handlePersonalInvitePress}
-                  />
-                ) : undefined
-              }
-              rightControls={
-                <>
-                  <ScreenHeader.IconButton
-                    type="Search"
-                    onPress={handleSearchInputToggled}
-                  />
-                  {isWindowNarrow ? (
-                    <View position="relative" alignItems="flex-end">
-                      <ScreenHeader.IconButton
-                        type="Add"
-                        onPress={handlePressAddChat}
-                        testID="CreateChatSheetTrigger"
-                        color={
-                          isWindowNarrow && showHomeAddTooltip
-                            ? '$positiveActionText'
-                            : '$primaryText'
-                        }
-                        backgroundColor={
-                          isWindowNarrow && showHomeAddTooltip
-                            ? '$positiveBackground'
-                            : 'transparent'
-                        }
-                      />
-                      {isWindowNarrow && showHomeAddTooltip && (
-                        <WayfindingNotice.HomeAddTooltip />
-                      )}
-                    </View>
-                  ) : (
-                    <CreateChatSheet
-                      ref={createChatSheetRef}
-                      trigger={<ScreenHeader.IconButton type="Add" />}
+          <View
+            userSelect="none"
+            flex={1}
+            backgroundColor={theme.background?.val}
+          >
+            {isWeb && (
+              <ScreenHeader
+                title="Home"
+                subtitle={syncSubtitle}
+                loadingSubtitle={loadingSubtitle}
+                showSubtitle={true}
+                leftControls={
+                  personalInvite ? (
+                    <ScreenHeader.IconButton
+                      type="AddPerson"
+                      onPress={handlePersonalInvitePress}
                     />
-                  )}
-                </>
-              }
-            />
+                  ) : undefined
+                }
+                rightControls={
+                  <>
+                    <ScreenHeader.IconButton
+                      type="Search"
+                      onPress={handleSearchInputToggled}
+                    />
+                    {isWindowNarrow ? (
+                      <View position="relative" alignItems="flex-end">
+                        <ScreenHeader.IconButton
+                          type="Add"
+                          onPress={handlePressAddChat}
+                          testID="CreateChatSheetTrigger"
+                          color={
+                            isWindowNarrow && showHomeAddTooltip
+                              ? '$positiveActionText'
+                              : '$primaryText'
+                          }
+                          backgroundColor={
+                            isWindowNarrow && showHomeAddTooltip
+                              ? '$positiveBackground'
+                              : 'transparent'
+                          }
+                        />
+                        {isWindowNarrow && showHomeAddTooltip && (
+                          <WayfindingNotice.HomeAddTooltip />
+                        )}
+                      </View>
+                    ) : (
+                      <CreateChatSheet
+                        ref={createChatSheetRef}
+                        trigger={<ScreenHeader.IconButton type="Add" />}
+                      />
+                    )}
+                  </>
+                }
+              />
+            )}
             {chats &&
             (chats.unpinned.length ||
               chats.pending.length ||
@@ -491,7 +608,9 @@ export function ChatListScreenView({
         />
       </ChatOptionsProvider>
 
-      {isWindowNarrow && <CreateChatSheet ref={createChatSheetRef} />}
+      {(isWindowNarrow || !isWeb) && (
+        <CreateChatSheet ref={createChatSheetRef} />
+      )}
       <PersonalInviteSheet
         open={personalInviteOpen}
         onOpenChange={() => setPersonalInviteOpen(false)}

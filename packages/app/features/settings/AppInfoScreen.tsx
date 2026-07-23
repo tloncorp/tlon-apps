@@ -22,6 +22,7 @@ import {
   View,
   XStack,
   YStack,
+  isWeb,
   useIsWindowNarrow,
 } from '../../ui';
 
@@ -116,14 +117,18 @@ export function AppInfoScreen(props: Props) {
 
   return (
     <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        title="App info"
-        borderBottom
-        backAction={
-          isWindowNarrow ? () => props.navigation.goBack() : undefined
-        }
-      />
-      <SettingsContentScrollView>
+      {isWeb && (
+        <ScreenHeader
+          title="App info"
+          borderBottom
+          backAction={
+            isWindowNarrow ? () => props.navigation.goBack() : undefined
+          }
+        />
+      )}
+      <SettingsContentScrollView
+        contentInsetAdjustmentBehavior={isWeb ? undefined : 'automatic'}
+      >
         <YStack
           marginTop="$xl"
           marginHorizontal="$2xl"

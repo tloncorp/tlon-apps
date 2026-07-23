@@ -20,6 +20,7 @@ import { useRequiredUpdate } from '@tloncorp/app/hooks/useRequiredUpdate';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
+import { useActiveTheme } from '@tloncorp/app/provider';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
@@ -90,7 +91,7 @@ const useSplashHider = () => {
 
 // Android notification tap handler passes initial params here
 const App = () => {
-  const isDarkMode = useIsDarkMode();
+  const isDarkTheme = useActiveTheme() === 'dark';
   const updateRequired = useRequiredUpdate();
 
   if (updateRequired) {
@@ -98,8 +99,8 @@ const App = () => {
       <View height={'100%'} width={'100%'} backgroundColor="$background">
         <RequiredUpdateScreen />
         <StatusBar
-          backgroundColor={isDarkMode ? 'black' : 'white'}
-          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+          backgroundColor={isDarkTheme ? 'black' : 'white'}
+          barStyle={isDarkTheme ? 'light-content' : 'dark-content'}
         />
       </View>
     );
@@ -109,7 +110,7 @@ const App = () => {
 };
 
 const MainApp = () => {
-  const isDarkMode = useIsDarkMode();
+  const isDarkTheme = useActiveTheme() === 'dark';
   const {
     isLoading,
     connected,
@@ -167,8 +168,8 @@ const MainApp = () => {
         </View>
       )}
       <StatusBar
-        backgroundColor={isDarkMode ? 'black' : 'white'}
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={isDarkTheme ? 'black' : 'white'}
+        barStyle={isDarkTheme ? 'light-content' : 'dark-content'}
       />
     </View>
   );
