@@ -4,14 +4,18 @@ import type {
   RouteProp,
 } from '@react-navigation/native';
 
-export type RootStackParamList = {
-  VerifierStub: undefined;
+export type NativeTabParamList = {
   Contacts: undefined;
-  Empty: undefined;
   ChatList:
     | { previewGroupId: string; previewGroupFromInviteNotification?: boolean }
     | undefined;
   Activity: undefined;
+};
+
+export type RootStackParamList = NativeTabParamList & {
+  MainTabs: NavigatorScreenParams<NativeTabParamList> | undefined;
+  VerifierStub: undefined;
+  Empty: undefined;
   Settings: undefined;
   DM: {
     channelId: string;

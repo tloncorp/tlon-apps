@@ -1,5 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import {
+  NativeStackScreenProps,
+  createNativeStackNavigator,
+} from '@react-navigation/native-stack';
+import { useLayoutEffect } from 'react';
 import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
@@ -45,7 +49,9 @@ import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
-import type { RootStackParamList } from './types';
+import { NativeTabNavigator } from './NativeTabNavigator';
+import { getNativeTabRoute } from './nativeTabs';
+import type { NativeTabParamList, RootStackParamList } from './types';
 import { mediaViewerScreenOptions } from './utils';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
@@ -66,118 +72,197 @@ export function RootStack() {
 
   return (
     <Root.Navigator
-      initialRouteName={'ChatList'}
+      initialRouteName={Platform.OS === 'web' ? 'ChatList' : 'MainTabs'}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: theme.background?.val },
       }}
     >
-      {/* top level tabs */}
-      <Root.Screen
-        name="Contacts"
-        component={ContactsScreen}
-        options={{ animation: 'none', gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="ChatList"
-        component={ChatListScreen}
-        options={{ animation: 'none', gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="Activity"
-        component={ActivityScreen}
-        options={{ animation: 'none', gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          animation: contactsTabEnabled ? undefined : 'none',
-          gestureEnabled: false,
-        }}
-      />
+      <Root.Group>
+        {/* top level tabs */}
+        {Platform.OS !== 'web' ? (
+          <>
+            <Root.Screen
+              name="MainTabs"
+              component={NativeTabNavigator}
+              options={{ animation: 'none', gestureEnabled: false }}
+            />
+            {/*
+             * Existing notifications, links, and reset helpers target these
+             * route names directly. Keep them as adapters while the native tab
+             * shell rolls out, then reset into the corresponding nested tab.
+             */}
+            <Root.Screen
+              name="Contacts"
+              component={NativeTabRedirect}
+              options={{ animation: 'none', gestureEnabled: false }}
+            />
+            <Root.Screen
+              name="ChatList"
+              component={NativeTabRedirect}
+              options={{ animation: 'none', gestureEnabled: false }}
+            />
+            <Root.Screen
+              name="Activity"
+              component={NativeTabRedirect}
+              options={{ animation: 'none', gestureEnabled: false }}
+            />
+          </>
+        ) : (
+          <>
+            <Root.Screen
+              name="Contacts"
+              component={ContactsScreen}
+              options={{ animation: 'none', gestureEnabled: false }}
+            />
+            <Root.Screen
+              name="ChatList"
+              component={ChatListScreen}
+              options={{ animation: 'none', gestureEnabled: false }}
+            />
+            <Root.Screen
+              name="Activity"
+              component={ActivityScreen}
+              options={{ animation: 'none', gestureEnabled: false }}
+            />
+          </>
+        )}
+        <Root.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{
+            animation: contactsTabEnabled ? undefined : 'none',
+            gestureEnabled: false,
+          }}
+        />
 
-      {/* individual screens */}
-      <Root.Screen name="AddContacts" component={AddContactsScreen} />
-      <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
-      <Root.Screen name="Channel" component={ChannelScreen} />
-      <Root.Screen name="DM" component={ChannelScreen} />
-      <Root.Screen name="GroupDM" component={ChannelScreen} />
-      <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
-      <Root.Screen name="ContextLensRuns" component={ContextLensRunsScreen} />
-      <Root.Screen name="ContextLensRun" component={ContextLensRunScreen} />
-      <Root.Screen name="Post" component={PostScreen} />
-      <Root.Screen name="NotesDetail" component={NotesDetailScreen} />
-      <Root.Screen name="NotesFolder" component={NotesFolderScreen} />
-      <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
-      <Root.Screen
-        name="MediaViewer"
-        component={MediaViewerScreen}
-        options={mediaViewerScreenOptions}
-      />
-      <Root.Screen name="ChatDetails" component={ChatDetailsScreen} />
-      <Root.Screen name="ChatVolume" component={ChatVolumeScreen} />
-      <Root.Screen
-        name="ManageAccount"
-        component={ManageAccountScreen}
-        options={{ gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="BotSettings"
-        component={BotSettingsScreen}
-        options={{ gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="BotMcpSettings"
-        component={BotMcpSettingsScreen}
-        options={{ gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="BotModelSettings"
-        component={BotModelSettingsScreen}
-        options={{ gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="BotApiKeySettings"
-        component={BotApiKeySettingsScreen}
-        options={{ gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="BotShipListSettings"
-        component={BotShipListSettingsScreen}
-        options={{ gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="BotChannelRulesSettings"
-        component={BotChannelRulesScreen}
-        options={{ gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="BotChannelRuleSettings"
-        component={BotChannelRuleSettingsScreen}
-        options={{ gestureEnabled: false }}
-      />
-      <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />
-      <Root.Screen name="Theme" component={ThemeScreen} />
-      <Root.Screen name="AppInfo" component={AppInfoScreen} />
-      <Root.Screen name="FeatureFlags" component={FeatureFlagScreen} />
-      <Root.Screen
-        name="PushNotificationSettings"
-        component={PushNotificationSettingsScreen}
-      />
-      <Root.Screen name="UserProfile" component={UserProfileScreen} />
-      <Root.Screen name="Attestation" component={AttestationScreen} />
-      <Root.Screen name="EditProfile" component={EditProfileScreen} />
-      <Root.Screen name="WompWomp" component={UserBugReportScreen} />
-      <Root.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
-      <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
-      <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
-      <Root.Screen name="ChannelTemplate" component={ChannelTemplateScreen} />
-      <Root.Screen
-        name="InviteSystemContacts"
-        component={InviteSystemContactsScreen}
-      />
-      <Root.Screen name="InviteUsers" component={InviteUsersScreen} />
+        {/* individual screens */}
+        <Root.Screen name="AddContacts" component={AddContactsScreen} />
+        <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
+        <Root.Screen name="Channel" component={ChannelScreen} />
+        <Root.Screen name="DM" component={ChannelScreen} />
+        <Root.Screen name="GroupDM" component={ChannelScreen} />
+        <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
+        <Root.Screen name="ContextLensRuns" component={ContextLensRunsScreen} />
+        <Root.Screen name="ContextLensRun" component={ContextLensRunScreen} />
+        <Root.Screen name="Post" component={PostScreen} />
+        <Root.Screen name="NotesDetail" component={NotesDetailScreen} />
+        <Root.Screen name="NotesFolder" component={NotesFolderScreen} />
+        <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
+        <Root.Screen
+          name="MediaViewer"
+          component={MediaViewerScreen}
+          options={mediaViewerScreenOptions}
+        />
+        <Root.Screen name="ChatDetails" component={ChatDetailsScreen} />
+        <Root.Screen name="ChatVolume" component={ChatVolumeScreen} />
+        <Root.Screen
+          name="ManageAccount"
+          component={ManageAccountScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Root.Screen
+          name="BotSettings"
+          component={BotSettingsScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Root.Screen
+          name="BotMcpSettings"
+          component={BotMcpSettingsScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Root.Screen
+          name="BotModelSettings"
+          component={BotModelSettingsScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Root.Screen
+          name="BotApiKeySettings"
+          component={BotApiKeySettingsScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Root.Screen
+          name="BotShipListSettings"
+          component={BotShipListSettingsScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Root.Screen
+          name="BotChannelRulesSettings"
+          component={BotChannelRulesScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Root.Screen
+          name="BotChannelRuleSettings"
+          component={BotChannelRuleSettingsScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Root.Screen
+          name="BlockedUsers"
+          component={BlockedUsersScreen}
+          options={nativeHeaderOptions('Blocked users')}
+        />
+        <Root.Screen
+          name="Theme"
+          component={ThemeScreen}
+          options={nativeHeaderOptions('Theme')}
+        />
+        <Root.Screen
+          name="AppInfo"
+          component={AppInfoScreen}
+          options={nativeHeaderOptions('App info')}
+        />
+        <Root.Screen name="FeatureFlags" component={FeatureFlagScreen} />
+        <Root.Screen
+          name="PushNotificationSettings"
+          component={PushNotificationSettingsScreen}
+        />
+        <Root.Screen name="UserProfile" component={UserProfileScreen} />
+        <Root.Screen name="Attestation" component={AttestationScreen} />
+        <Root.Screen name="EditProfile" component={EditProfileScreen} />
+        <Root.Screen name="WompWomp" component={UserBugReportScreen} />
+        <Root.Screen
+          name="PrivacySettings"
+          component={PrivacySettingsScreen}
+          options={nativeHeaderOptions('Privacy Settings')}
+        />
+        <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
+        <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
+        <Root.Screen name="ChannelTemplate" component={ChannelTemplateScreen} />
+        <Root.Screen
+          name="InviteSystemContacts"
+          component={InviteSystemContactsScreen}
+        />
+        <Root.Screen name="InviteUsers" component={InviteUsersScreen} />
+      </Root.Group>
     </Root.Navigator>
   );
+}
+
+function nativeHeaderOptions(title: string) {
+  if (Platform.OS === 'web') {
+    return undefined;
+  }
+
+  return {
+    headerShown: true,
+    headerBackButtonDisplayMode: 'minimal' as const,
+    headerShadowVisible: false,
+    title,
+  };
+}
+
+type NativeTabName = keyof NativeTabParamList;
+
+function NativeTabRedirect({
+  navigation,
+  route,
+}: NativeStackScreenProps<RootStackParamList, NativeTabName>) {
+  useLayoutEffect(() => {
+    navigation.reset({
+      index: 0,
+      routes: [getNativeTabRoute(route.name, route.params)],
+    });
+  }, [navigation, route.name, route.params]);
+
+  return null;
 }

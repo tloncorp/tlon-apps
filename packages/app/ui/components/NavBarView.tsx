@@ -1,19 +1,13 @@
 import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
+import { isWeb } from 'tamagui';
 
 import { triggerHaptic } from '../utils';
 import { AvatarNavIcon, NavBar, NavIcon } from './NavBar';
 import ProfileStatusSheet from './ProfileStatusSheet';
 
-export const NavBarView = ({
-  navigateToHome,
-  navigateToNotifications,
-  navigateToContacts,
-  onPressActiveTab,
-  currentRoute,
-  currentUserId,
-}: {
+type NavBarViewProps = {
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToContacts?: () => void;
@@ -21,8 +15,22 @@ export const NavBarView = ({
   onPressActiveTab?: () => void;
   currentRoute: string;
   currentUserId: string;
-  showContactsTab?: boolean;
-}) => {
+};
+
+export const NavBarView = isWeb ? LegacyNavBarView : EmptyNavBarView;
+
+function EmptyNavBarView(_props: NavBarViewProps) {
+  return null;
+}
+
+function LegacyNavBarView({
+  navigateToHome,
+  navigateToNotifications,
+  navigateToContacts,
+  onPressActiveTab,
+  currentRoute,
+  currentUserId,
+}: NavBarViewProps) {
   const [showStatusSheet, setShowStatusSheet] = useState(false);
   const isRouteActive = (routeName: string | string[]) => {
     if (Array.isArray(routeName)) {
@@ -92,4 +100,4 @@ export const NavBarView = ({
       )}
     </NavBar>
   );
-};
+}

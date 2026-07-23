@@ -49,11 +49,13 @@ export function BlockedUsersScreen(props: Props) {
 
   return (
     <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        backAction={isNarrow ? () => props.navigation.goBack() : undefined}
-        title="Blocked users"
-        borderBottom
-      />
+      {isWeb && (
+        <ScreenHeader
+          backAction={isNarrow ? () => props.navigation.goBack() : undefined}
+          title="Blocked users"
+          borderBottom
+        />
+      )}
       <View
         flex={1}
         width="100%"
