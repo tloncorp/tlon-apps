@@ -13,7 +13,10 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
-import { activityVersionSupportsReactions } from '../../logic';
+import {
+  activityVersionSupportsNotes,
+  activityVersionSupportsReactions,
+} from '../../logic';
 import { perfMark, perfTime } from '../../perfLog';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -512,16 +515,23 @@ export const syncAppInfo = async (ctx?: SyncCtx) => {
   api.setActivitySupportsReactions(
     activityVersionSupportsReactions(appInfo?.groupsVersion)
   );
+  api.setActivitySupportsNotes(
+    activityVersionSupportsNotes(appInfo?.groupsVersion)
+  );
   return db.appInfo.setValue(appInfo);
 };
 
-// Resolves the backend's reaction capability from the last-known (persisted)
-// groups version and applies it to the activity client before it picks endpoint
-// versions. A fresh version is fetched by syncAppInfo, which also updates this.
+// Resolves the backend's reaction/notes capabilities from the last-known
+// (persisted) groups version and applies them to the activity client before
+// it picks endpoint versions. A fresh version is fetched by syncAppInfo,
+// which also updates this.
 export const syncReactionSupport = async () => {
   const appInfo = await db.appInfo.getValue();
   api.setActivitySupportsReactions(
     activityVersionSupportsReactions(appInfo?.groupsVersion)
+  );
+  api.setActivitySupportsNotes(
+    activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
 };
 

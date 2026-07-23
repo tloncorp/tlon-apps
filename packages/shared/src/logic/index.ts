@@ -3,6 +3,7 @@ export * from './contextLens';
 export * from './embed';
 export * from './semver';
 export * from './reactionSupport';
+export * from './notesActivitySupport';
 export * from './notesPublish';
 export * from './notesPermissionsCompat';
 export * from '@tloncorp/api/lib/types';

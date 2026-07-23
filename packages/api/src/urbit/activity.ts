@@ -33,7 +33,9 @@ export type ExtendedEventType =
   | 'group-role'
   | 'flag-post'
   | 'flag-reply'
-  | 'contact';
+  | 'contact'
+  | 'note-create'
+  | 'note-edit';
 
 export type NotificationLevel = 'hush' | 'soft' | 'default' | 'medium' | 'loud';
 
@@ -197,6 +199,26 @@ export interface DmReactEvent {
   };
 }
 
+// A note created or edited in a %notes notebook. Numeric ids arrive as
+// strings (scot %ud); notebook is a flag string ('~zod/journal'); group is
+// set when the notebook is a group channel.
+export interface NoteEventPayload {
+  id: string;
+  folder: string;
+  notebook: string;
+  group: string | null;
+  title: string;
+  author: string;
+}
+
+export interface NoteCreateEvent {
+  'note-create': NoteEventPayload;
+}
+
+export interface NoteEditEvent {
+  'note-edit': NoteEventPayload;
+}
+
 export type ActivityIncomingEvent =
   | GroupKickEvent
   | GroupJoinEvent
@@ -212,7 +234,9 @@ export type ActivityIncomingEvent =
   | ReplyEvent
   | ReactEvent
   | DmReactEvent
-  | ContactEvent;
+  | ContactEvent
+  | NoteCreateEvent
+  | NoteEditEvent;
 
 export type ActivityEvent = {
   notified: boolean;
@@ -241,13 +265,23 @@ export interface ChannelSource {
   channel: { nest: string; group: string };
 }
 
+export interface NotebookSource {
+  notebook: { flag: string; group: string | null };
+}
+
+export interface NoteSource {
+  note: { id: string; notebook: string; group: string | null };
+}
+
 export type Source =
   | DmSource
   | { base: null }
   | { group: string }
   | ChannelSource
   | { thread: { key: MessageKey; channel: string; group: string } }
-  | { 'dm-thread': { key: MessageKey; whom: Whom } };
+  | { 'dm-thread': { key: MessageKey; whom: Whom } }
+  | NotebookSource
+  | NoteSource;
 
 export interface MessageKey {
   id: string;
@@ -411,6 +445,16 @@ export function sourceToString(source: Source, stripPrefix = false): string {
     return 'base';
   }
 
+  if ('notebook' in source) {
+    const key = source.notebook.flag;
+    return stripPrefix ? key : `notebook/${key}`;
+  }
+
+  if ('note' in source) {
+    const key = `${source.note.notebook}/${source.note.id}`;
+    return stripPrefix ? key : `note/${key}`;
+  }
+
   throw new Error('Invalid activity source');
 }
 
@@ -441,6 +485,12 @@ const notifyOffEvents: ExtendedEventType[] = [
 // when inferring a level — adding them there would change level inference.
 const reactEvents: ExtendedEventType[] = ['react', 'dm-react'];
 
+// notes events notify like posts: on at loud/medium/default, off at
+// soft/hush. Kept separate from onEvents/notifyOffEvents for the same
+// level-inference reason as reacts, but unlike reacts they do count as
+// unreads.
+const noteEvents: ExtendedEventType[] = ['note-create', 'note-edit'];
+
 const allEvents: ExtendedEventType[] = [
   'post',
   'post-mention',
@@ -460,6 +510,8 @@ const allEvents: ExtendedEventType[] = [
   'group-role',
   'flag-post',
   'flag-reply',
+  'note-create',
+  'note-edit',
 ];
 
 // Reacts never contribute to unread badges (the backend excludes them from
@@ -530,8 +582,8 @@ export function getVolumeMap(
       acc[e] = { unreads: u, notify: false };
     }
 
-    // posts and reacts notify at medium/default, off at soft
-    if (e === 'post' || reactEvents.includes(e)) {
+    // posts, reacts, and notes notify at medium/default, off at soft
+    if (e === 'post' || reactEvents.includes(e) || noteEvents.includes(e)) {
       acc[e] = {
         unreads: u,
         notify: level === 'medium' || level === 'default',

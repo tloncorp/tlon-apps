@@ -11,6 +11,7 @@ import type { ActionGroup } from '../ActionSheet';
 import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
+import { UnreadDot } from '../UnreadDot';
 import { NotesActionMenu } from './NotesActions';
 import { noteTimestampMs } from './notesTree';
 
@@ -20,6 +21,7 @@ export function FolderTreeRow({
   isDeleting,
   label,
   noteCount,
+  unread = false,
   onDelete,
   onCreateFolder,
   onCreateNote,
@@ -32,6 +34,7 @@ export function FolderTreeRow({
   isDeleting: boolean;
   label: string;
   noteCount: number;
+  unread?: boolean;
   onDelete: (folder: db.NotesFolder) => void;
   onCreateFolder: (folder: db.NotesFolder) => void;
   onCreateNote: (folder: db.NotesFolder) => void;
@@ -112,6 +115,7 @@ export function FolderTreeRow({
       </ListItem.MainContent>
       <ListItem.EndContent>
         <XStack alignItems="center" gap="$xs">
+          {unread ? <UnreadDot testID={`NotesFolderUnread-${label}`} /> : null}
           {actionsMenu}
           <Icon type="ChevronRight" color="$tertiaryText" size="$m" />
         </XStack>
@@ -127,6 +131,7 @@ export function NoteRow({
   publishDisabled,
   publishedUrl,
   selected = false,
+  unread = false,
   onDelete,
   onMove,
   onPress,
@@ -141,6 +146,7 @@ export function NoteRow({
   publishDisabled: boolean;
   publishedUrl?: string | null;
   selected?: boolean;
+  unread?: boolean;
   onDelete: () => void;
   onMove: () => void;
   onPress: () => void;
@@ -263,9 +269,12 @@ export function NoteRow({
           <ListItem.Subtitle>{bodyPreview}</ListItem.Subtitle>
         ) : null}
       </ListItem.MainContent>
-      {updatedAt || actionsMenu ? (
+      {updatedAt || actionsMenu || unread ? (
         <ListItem.EndContent>
           <XStack alignItems="center" gap="$xs">
+            {unread ? (
+              <UnreadDot testID={`NotesNoteUnread-${note.noteId}`} />
+            ) : null}
             {updatedAt ? (
               <ListItem.Time time={updatedAt} letterSpacing={0} />
             ) : null}

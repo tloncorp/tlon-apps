@@ -32,6 +32,7 @@ interface Config
   loggingOut: boolean;
   lastStatus: string;
   activitySupportsReactions: boolean;
+  activitySupportsNotes: boolean;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -118,6 +119,9 @@ const config: Config = {
   // Off until the app confirms the backend's groups version ships reactions.
   // Drives which %activity endpoint versions the client uses (feed/sub/marks).
   activitySupportsReactions: false,
+  // Off until the app confirms the backend's groups version ships notes
+  // activity (v10 %activity endpoints).
+  activitySupportsNotes: false,
 };
 
 // Whether the connected backend supports reaction activity (v9 %activity
@@ -130,6 +134,17 @@ export const setActivitySupportsReactions = (value: boolean) => {
 
 export const getActivitySupportsReactions = (): boolean => {
   return config.activitySupportsReactions;
+};
+
+// Whether the connected backend supports notes activity (v10 %activity
+// endpoints: v6 subscription, v7 feed, activity-action-2 mark). Same pattern
+// as reactions above; defaults false so old backends get older endpoints.
+export const setActivitySupportsNotes = (value: boolean) => {
+  config.activitySupportsNotes = value;
+};
+
+export const getActivitySupportsNotes = (): boolean => {
+  return config.activitySupportsNotes;
 };
 
 export const client = new Proxy(
