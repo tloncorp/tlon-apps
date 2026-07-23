@@ -7,7 +7,7 @@ import {
   useGroup,
 } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
@@ -43,6 +43,10 @@ export default function ChannelSearchScreen(props: Props) {
   const [query, setQuery] = useState('');
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
     useChannelSearch(channelId, query);
+
+  useEffect(() => {
+    trackEvent(AnalyticsEvent.ChannelSearchOpened);
+  }, [channelId]);
 
   const { resetToChannel } = useRootNavigation();
   const navigateToPost = useCallback(

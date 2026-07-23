@@ -109,9 +109,13 @@ export function PrivacySettingsScreen(props: Props) {
       return;
     }
 
-    // Opt in before capturing enablement; capture disablement before opting out.
+    // Ensure capture is enabled before recording the preference change.
     if (!nextDisabledState) {
       await telemetry.setDisabled(false, false);
+    } else {
+      // The optimistic setting observer may already have opted PostHog out.
+      // Re-enable it for this explicit change, then restore the opt-out below.
+      telemetry.optIn();
     }
     trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
       enabled: !nextDisabledState,
