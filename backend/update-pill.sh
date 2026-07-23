@@ -70,11 +70,11 @@ run_thread() {
     then
         echo $result
         cat $out_file >&2
-		rm $out_file
+        rm $out_file
         
-		fatal "Thread failed: $desc"
+        fatal "Thread failed: $desc"
     else
-		rm $out_file
+        rm $out_file
 
         echo "➡️ $desc" >&2
 
@@ -119,10 +119,9 @@ commit_desk() {
 }
 
 suspend_desk() {
-	
-	desk=$1
+    desk=$1
 
-	run_thread_silent "suspend $desk" $pier <<-HOON
+    run_thread_silent "suspend $desk" $pier <<-HOON
 	=/  m  (strand ,vase)
 	;<  =bowl  bind:m  get-bowl
 	;<  ~  bind:m
@@ -133,9 +132,9 @@ suspend_desk() {
 
 get_desk_hash() {
 
-	desk=$1
+    desk=$1
 
-	run_thread "retrieve hash for $desk" $pier <<-HOON
+    run_thread "retrieve hash for $desk" $pier <<-HOON
 	=/  m  (strand ,vase)  
 	;<  hash=@uvI  bind:m  (scry @uvI %cz \`path\`[$desk ~])
 	(pure:m !>(hash))  
@@ -418,6 +417,8 @@ HOON
 
 await_ship
 
+# FIXME: a bug is here
+#
 if [[ "$groups_old_cz" == `get_desk_hash %groups` ]]
 then
     if ! $force
@@ -439,10 +440,10 @@ then
 	=/  m  (strand ,vase)
 	;<  =bowl  bind:m  get-bowl
 	=/  lens-command
-	:-  dojo+\'+pill/brass %base %groups\'
-	output-pill+\'$pill_name/pill\'
+	  :-  dojo+\'+pill/brass %base %groups\'
+	  output-pill+\'$pill_name/pill\'
 	;<  ~  bind:m
-	(poke-our %dojo lens-command+!>([%$ lens-command]))
+	  (poke-our %dojo lens-command+!>([%$ lens-command]))
 	(pure:m !>(&))
 	HOON
 
@@ -467,7 +468,7 @@ if $verify
 then
     echo "⚙️ Verifying pill"
 
-	rm -rf ./nec
+    rm -rf ./nec
 
     if $vere -F nec -c nec -B $pill_file -x 
     then
