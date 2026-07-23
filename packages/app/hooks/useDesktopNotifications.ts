@@ -10,6 +10,7 @@ const logger = createDevLogger('useDesktopNotifications', false);
 
 interface NotificationData {
   type: string;
+  notificationType?: string;
   channelId?: string;
   groupId?: string;
 }
@@ -91,6 +92,7 @@ export default function useDesktopNotifications(isClientReady: boolean) {
           body,
           data: {
             type: 'channel',
+            notificationType: activityEvent.type,
             channelId: activityEvent.channelId,
             groupId: channel.groupId,
           },
@@ -113,7 +115,7 @@ export default function useDesktopNotifications(isClientReady: boolean) {
         logger.log('Notification clicked:', data);
         trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
           surface: 'desktop',
-          notificationType: data.type,
+          notificationType: data.notificationType ?? data.type,
         });
         await api.markChatRead(data.channelId);
 

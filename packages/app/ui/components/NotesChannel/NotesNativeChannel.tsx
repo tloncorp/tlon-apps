@@ -284,6 +284,12 @@ export function NotesNativeChannel({
   }, [selectNoteInPane, selectedNoteId, treeRows, useDesktopSplit]);
 
   useEffect(() => {
+    if (useDesktopSplit && selectedNoteId !== null) {
+      trackEvent(AnalyticsEvent.NoteOpened);
+    }
+  }, [selectedNoteId, useDesktopSplit]);
+
+  useEffect(() => {
     if (
       selectedNoteId !== null &&
       !notes.some((note) => note.noteId === selectedNoteId)
@@ -297,7 +303,9 @@ export function NotesNativeChannel({
       note: db.NotesNote,
       options?: { focusTitle?: boolean; startInEdit?: boolean }
     ) => {
-      trackEvent(AnalyticsEvent.NoteOpened);
+      if (!useDesktopSplit) {
+        trackEvent(AnalyticsEvent.NoteOpened);
+      }
       if (options?.focusTitle) {
         setFocusTitleNoteId(note.noteId);
       }

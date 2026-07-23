@@ -33,7 +33,9 @@ export const NavBarView = ({
   };
   const pressTab = (routeName: string, navigate?: () => void) => {
     const wasAlreadyActive = isRouteActive(routeName);
-    trackEvent(AnalyticsEvent.NavigationTabSelected, { tab: routeName });
+    trackEvent(AnalyticsEvent.NavigationTabSelected, {
+      tab: routeName === 'ChatList' ? 'Home' : routeName,
+    });
     if (wasAlreadyActive && onPressActiveTab) {
       onPressActiveTab();
     } else {

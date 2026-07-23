@@ -39,17 +39,16 @@ export function useChatVolumeOptions() {
   const effectiveLevel = isInheriting ? baseVolume : rawLevel;
   const currentLevel = normalizeLevelToOptions(effectiveLevel, options);
 
-  // While inheriting, the checked row only reflects the inherited default.
-  // Re-tapping it must keep inheriting rather than pin a concrete override —
-  // otherwise future app-default changes would stop applying to this chat.
+  // Re-tapping the checked row is not a change. While inheriting, skipping it
+  // also avoids pinning a concrete override for the current app default.
   const setVolume = useCallback(
     (level: ub.NotificationLevel | null) => {
-      if (isInheriting && level === currentLevel) {
+      if (level === currentLevel) {
         return;
       }
       updateVolume(level);
     },
-    [isInheriting, currentLevel, updateVolume]
+    [currentLevel, updateVolume]
   );
 
   return { currentLevel, options, updateVolume: setVolume };
