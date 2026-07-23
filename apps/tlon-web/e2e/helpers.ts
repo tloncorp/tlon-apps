@@ -358,12 +358,34 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
   await expect(acceptButton).toBeVisible({ timeout: 10000 });
   await acceptButton.click();
 
-  // Wait for joining to complete and "Go to group" button to appear
-  await expect(page.getByText('Go to group')).toBeVisible({ timeout: 45000 });
+  // A completed join closes the preview and returns to Home. "Go to group"
+  // can appear during that transition, but clicking it races the sheet closing.
+  // Wait for every non-terminal preview state to disappear instead.
+  await expect(async () => {
+    await expect(acceptButton).not.toBeVisible();
+    await expect(
+      page.getByText('Joining, please wait...', { exact: true })
+    ).not.toBeVisible();
+    await expect(
+      page.getByText('Go to group', { exact: true })
+    ).not.toBeVisible();
+    await expect(
+      page.getByText('Joining failed', { exact: true })
+    ).not.toBeVisible();
+  }).toPass({
+    timeout: 45000,
+    intervals: [500, 1000],
+  });
 
-  // Click "Go to group"
-  await page.getByText('Go to group').click();
-  await page.waitForTimeout(1000);
+  // Enter the joined group through its stable Home row. Besides proving that
+  // the join is usable, this clears the transient NEW state that otherwise
+  // masks unread counts in subsequent assertions.
+  const joinedGroupRow = namedInviteRow?.first() ?? untitledInviteRow.first();
+  await expect(joinedGroupRow).toBeVisible({ timeout: 15000 });
+  await joinedGroupRow.click();
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 15000,
+  });
 }
 
 export async function rejectGroupInvite(page: Page) {
