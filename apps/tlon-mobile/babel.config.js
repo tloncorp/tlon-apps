@@ -51,7 +51,13 @@ module.exports = function (api) {
           experimentalFlattenThemesOnNative: true,
         },
       ],
-      'react-native-worklets/plugin',
+      [
+        'react-native-worklets/plugin',
+        {
+          bundleMode: true,
+          strictGlobal: true,
+        },
+      ],
     ].filter(Boolean),
   };
 };
