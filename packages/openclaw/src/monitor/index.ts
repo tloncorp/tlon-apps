@@ -152,6 +152,7 @@ import {
 } from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
 import { resolveTlonSourceReplyDeliveryMode } from './source-reply-delivery.js';
+import { parseSseWatchdogIntervalMs } from './sse-watchdog-config.js';
 import {
   extractCites,
   formatModelName,
@@ -478,8 +479,9 @@ export async function monitorTlonProvider(
   // same harness-knob precedent). Only applied when they parse as finite.
   const sseStaleEnv = process.env.TLON_SSE_STALE_THRESHOLD_MS;
   const sseStaleOverride = sseStaleEnv ? Number(sseStaleEnv) : NaN;
-  const sseWatchdogEnv = process.env.TLON_SSE_WATCHDOG_INTERVAL_MS;
-  const sseWatchdogOverride = sseWatchdogEnv ? Number(sseWatchdogEnv) : NaN;
+  const sseWatchdogOverride = parseSseWatchdogIntervalMs(
+    process.env.TLON_SSE_WATCHDOG_INTERVAL_MS
+  );
   try {
     cookie = await authenticateWithRetry();
     api = new UrbitSSEClient(account.url, cookie, {
@@ -488,7 +490,7 @@ export async function monitorTlonProvider(
       ...(Number.isFinite(sseStaleOverride)
         ? { streamStaleThresholdMs: sseStaleOverride }
         : {}),
-      ...(Number.isFinite(sseWatchdogOverride)
+      ...(sseWatchdogOverride !== undefined
         ? { streamWatchdogIntervalMs: sseWatchdogOverride }
         : {}),
       logger: {
