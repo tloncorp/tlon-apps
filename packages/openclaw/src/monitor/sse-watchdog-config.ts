@@ -22,7 +22,9 @@ export function parseSseWatchdogIntervalMs(
  * <= 0), so it is accepted. Negative/fractional/NaN/Infinity/unsafe values — and
  * empty/whitespace strings, which Number() coerces to 0 — are rejected so a typo
  * can't silently disable the watchdog (the bot's only recovery from a hung
- * socket); only an explicit `0` disables it.
+ * socket); only the literal string '0' disables it. '-0' parses to -0, which
+ * passes isSafeInteger and >= 0 but disables the watchdog via the <= 0 bail —
+ * rejected explicitly via Object.is.
  */
 export function parseSseStaleThresholdMs(
   raw: string | undefined
@@ -31,7 +33,12 @@ export function parseSseStaleThresholdMs(
     return undefined;
   }
   const v = Number(raw);
-  if (Number.isSafeInteger(v) && v >= 0 && v <= 2_147_483_647) {
+  if (
+    Number.isSafeInteger(v) &&
+    !Object.is(v, -0) &&
+    v >= 0 &&
+    v <= 2_147_483_647
+  ) {
     return v;
   }
   return undefined;

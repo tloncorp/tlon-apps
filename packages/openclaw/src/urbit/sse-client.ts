@@ -117,23 +117,42 @@ export class UrbitSSEClient {
    * confirmed ack means Eyre has permanently pruned those ids.
    */
   private lastConfirmedAckEventId = -1;
+  /**
+   * The confirmed-ack floor snapshotted when the current stream's GET was
+   * issued (set in openStream, immediately before the urbitFetch GET). Eyre
+   * prunes anything confirmed BEFORE the GET binds, so those ids cannot appear
+   * in that stream's replay; anything confirming AFTER the bind MAY legitimately
+   * appear. The live lastConfirmedAckEventId keeps advancing for ack bookkeeping,
+   * but detection for the CURRENT stream must use the value captured when its GET
+   * was issued; a later-confirming in-flight ack must not raise the detection
+   * floor mid-stream.
+   */
+  private confirmedFloorAtStreamBind = -1;
   private readonly ackThreshold = 20;
 
   /**
-   * Always-on per-poke floor ledger (pokeId → lastHeardEventId snapshot at send
-   * time). Invariant: on a single Eyre channel generation, a poke's ack event is
-   * created AFTER the poke arrives at the ship, so its event id STRICTLY EXCEEDS
-   * every event id the client had heard when it SENT the poke. Every poke is
-   * tagged unconditionally; every matching ack is judged independently — no
-   * arming, no disarming.
+   * Always-on per-action floor ledger (actionId → lastHeardEventId snapshot at
+   * send time). Tracks BOTH response-producing channel actions — pokes and
+   * subscribes. Invariant: on a single Eyre channel generation, the ack event
+   * for either action is created AFTER the PUT arrives at the ship, so its event
+   * id STRICTLY EXCEEDS every event id the client had heard when it SENT the
+   * action. Every action is tagged unconditionally; every matching ack is judged
+   * independently — no arming, no disarming.
+   *
+   * Id-space non-collision: subscription request ids are small integers
+   * (subscriptions.length + 1), while poke ids are ~Date.now()-scale, so the
+   * two share this single map without collision.
    *
    * The recreating poke on a reaped channel is necessarily tracked: all channel
    * PUTs while down go through poke() (subscribe() sends nothing while
    * disconnected, ack actions generate no response events), and its ack is
    * new-generation event 0, delivered first in replay id-order, with 0 <= floor
-   * whenever we ever heard an event.
+   * whenever we ever heard an event. A pending resubscribeAfterQuit retry is a
+   * channel-reviving PUT surface too (isConnected stays true during a silent
+   * hang), so subscribes are tracked for the same reason.
    */
-  private pokeFloors = new Map<number, number>();
+  private actionFloors = new Map<number, number>();
+  private pendingSubscriptionIds = new Set<number>();
   private lastPokeId = 0;
 
   /**
@@ -160,6 +179,14 @@ export class UrbitSSEClient {
    * channel.
    */
   private channelReaped = false;
+
+  /**
+   * Incremented synchronously at the top of processStream's finally; lets a
+   * concurrent reconnect attempt detect that the stream it just opened has
+   * already ended (clean EOF or error), in which case the reader's finally
+   * owns recovery.
+   */
+  private streamEndCount = 0;
 
   constructor(url: string, cookie: string, options: UrbitSseOptions = {}) {
     const ctx = getUrbitContext(url, options.ship);
@@ -213,9 +240,12 @@ export class UrbitSSEClient {
       try {
         await this.sendSubscription(subscription);
       } catch (error) {
+        this.pendingSubscriptionIds.add(subId);
         const handler = this.eventHandlers.get(subId);
         handler?.err?.(error);
       }
+    } else {
+      this.pendingSubscriptionIds.add(subId);
     }
     return subId;
   }
@@ -227,6 +257,11 @@ export class UrbitSSEClient {
     app: string;
     path: string;
   }) {
+    // Floor snapshot at send; no cap-escalation here — the poke path escalates
+    // within a heartbeat.
+    if (this.actionFloors.size < 4096) {
+      this.actionFloors.set(subscription.id, this.lastHeardEventId);
+    }
     const { response, release } = await urbitFetch({
       baseUrl: this.url,
       path: `/~/channel/${this.channelId}`,
@@ -274,6 +309,7 @@ export class UrbitSSEClient {
     const createBody = this.subscriptions.filter((sub) =>
       this.eventHandlers.has(sub.id)
     );
+    const sentSubIds = this.subscriptions.map((s) => s.id);
     await createUrbitChannel(deps, {
       body: createBody,
       auditContext: 'tlon-urbit-channel-create',
@@ -283,6 +319,11 @@ export class UrbitSSEClient {
     // its sub was recreated even if the stream GET then fails.
     this.channelReaped = false;
     this.channelEpoch += 1;
+    // Only the ids in the create snapshot were sent; a subscribe() landing
+    // during the create await stays pending for the resume flush / next rebuild.
+    for (const id of sentSubIds) {
+      this.pendingSubscriptionIds.delete(id);
+    }
     if (this.aborted) return;
     // Best-effort pulse; its failure degrades to resume, not re-mint.
     await wakeUrbitChannel(deps);
@@ -351,24 +392,29 @@ export class UrbitSSEClient {
       headers['Last-Event-ID'] = String(this.lastHeardEventId);
     }
 
-    const { response, release } = await urbitFetch({
-      baseUrl: this.url,
-      path: `/~/channel/${this.channelId}`,
-      init: {
-        method: 'GET',
-        headers,
-      },
-      ssrfPolicy: this.ssrfPolicy,
-      lookupFn: this.lookupFn,
-      fetchImpl: this.fetchImpl,
-      signal: controller.signal,
-      auditContext: 'tlon-urbit-sse-stream',
-    });
+    let fetchResult;
+    try {
+      this.confirmedFloorAtStreamBind = this.lastConfirmedAckEventId;
+      fetchResult = await urbitFetch({
+        baseUrl: this.url,
+        path: `/~/channel/${this.channelId}`,
+        init: {
+          method: 'GET',
+          headers,
+        },
+        ssrfPolicy: this.ssrfPolicy,
+        lookupFn: this.lookupFn,
+        fetchImpl: this.fetchImpl,
+        signal: controller.signal,
+        auditContext: 'tlon-urbit-sse-stream',
+      });
+    } finally {
+      // Cleared on resolve AND reject: the timer only guards the initial fetch.
+      clearTimeout(timeoutId);
+    }
+    const { response, release } = fetchResult;
 
     this.streamRelease = release;
-
-    // Clear timeout once connection established (headers received).
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const status = response.status;
@@ -434,7 +480,16 @@ export class UrbitSSEClient {
       // before the error reaches openStream's .catch, where the flag is meant
       // to be consumed).
       this.suppressNextStreamErrorFanout = false;
+    } catch (error) {
+      // The rethrown error reaches openStream's .catch only after the finally
+      // block's attemptReconnect completes (possibly much later). Log the
+      // original failure NOW so a long outage isn't silent about its cause.
+      if (!this.aborted) {
+        this.logger.error?.(`[SSE] Stream failed: ${String(error)}`);
+      }
+      throw error;
     } finally {
+      this.streamEndCount += 1;
       // The stream is done (EOF or error): drop the connected flag
       // unconditionally so a client that won't auto-reconnect isn't left
       // marked connected. markStreamDown() setting it again is a no-op.
@@ -460,6 +515,14 @@ export class UrbitSSEClient {
   }
 
   processEvent(eventData: string) {
+    // Once close() has run or a detector has proven the channel generation
+    // dead, every remaining buffered frame belongs to that dead generation —
+    // discard them all (the rebuild recreates subscriptions and replays
+    // nothing stale). Placed before the liveness refresh so a dead stream
+    // cannot feed the watchdog either.
+    if (this.aborted || this.channelReaped) {
+      return;
+    }
     this.lastEventAt = Date.now();
     const lines = eventData.split('\n');
     let data: string | null = null;
@@ -468,10 +531,15 @@ export class UrbitSSEClient {
     for (const line of lines) {
       if (line.startsWith('id: ')) {
         // Strict numeric parse: only a pure digit string is a valid Eyre event
-        // id. `12x` must NOT become `12` (parseInt would coerce it).
+        // id. `12x` must NOT become `12` (parseInt would coerce it). Overflowing
+        // or unsafe ids (Infinity, > MAX_SAFE_INTEGER) are rejected too — they
+        // would alias or permanently deafen the replay-drop.
         const rawId = line.substring(4);
         if (/^\d+$/.test(rawId)) {
-          eventId = parseInt(rawId, 10);
+          const parsedId = parseInt(rawId, 10);
+          if (Number.isSafeInteger(parsedId)) {
+            eventId = parsedId;
+          }
         }
       }
       if (line.startsWith('data: ')) {
@@ -483,35 +551,38 @@ export class UrbitSSEClient {
       return;
     }
 
-    // Per-poke floor validation (reap-revival detector). On a single Eyre channel
-    // generation, the ack event for a poke is created AFTER the poke arrives at
-    // the ship, so its event id STRICTLY EXCEEDS every event id the client had
-    // heard when it SENT the poke. An ack arriving with eventId <= floor proves
-    // the counter restarted → channel recreated → rebuild. Each ack judges only
-    // its own poke; a healthy ack resolves only that entry. This block must stay
-    // BEFORE the replay-drop so the new-gen event-0 ack is not swallowed as a
-    // duplicate.
-    if (this.pokeFloors.size > 0 && eventId !== null) {
-      let parsedPoke: { id?: number; response?: string } | null = null;
+    // Per-action floor validation (reap-revival detector). On a single Eyre
+    // channel generation, the ack event for a poke or subscribe is created AFTER
+    // the PUT arrives at the ship, so its event id STRICTLY EXCEEDS every event
+    // id the client had heard when it SENT the action. An ack arriving with
+    // eventId <= floor proves the counter restarted → channel recreated →
+    // rebuild. Subscribes are tracked for the same reason: a pending
+    // resubscribeAfterQuit retry is a channel-reviving PUT surface (isConnected
+    // stays true during a silent hang). Each ack judges only its own action; a
+    // healthy ack resolves only that entry. This block must stay BEFORE the
+    // replay-drop so the new-gen event-0 ack is not swallowed as a duplicate.
+    if (this.actionFloors.size > 0 && eventId !== null) {
+      let parsedAction: { id?: number; response?: string } | null = null;
       try {
-        parsedPoke = JSON.parse(data);
+        parsedAction = JSON.parse(data);
       } catch {
-        parsedPoke = null;
+        parsedAction = null;
       }
       if (
-        parsedPoke &&
-        parsedPoke.response === 'poke' &&
-        typeof parsedPoke.id === 'number'
+        parsedAction &&
+        (parsedAction.response === 'poke' ||
+          parsedAction.response === 'subscribe') &&
+        typeof parsedAction.id === 'number'
       ) {
-        const floor = this.pokeFloors.get(parsedPoke.id);
+        const floor = this.actionFloors.get(parsedAction.id);
         if (floor !== undefined) {
           if (eventId <= floor) {
             if (!this.aborted && !this.channelReaped) {
               this.logger.error?.(
-                `[SSE] Validation poke ${parsedPoke.id} acked at event id ${eventId} <= floor ${floor}; channel recreated — rebuilding`
+                `[SSE] Validation action ${parsedAction.id} acked at event id ${eventId} <= floor ${floor}; channel recreated — rebuilding`
               );
               const err = new Error(
-                `SSE channel recreated (poke ${parsedPoke.id} acked at event ${eventId} <= floor ${floor}) — rebuilding`
+                `SSE channel recreated (action ${parsedAction.id} acked at event ${eventId} <= floor ${floor}) — rebuilding`
               );
               this.channelReaped = true;
               this.suppressNextStreamErrorFanout = true;
@@ -529,34 +600,37 @@ export class UrbitSSEClient {
             }
             return;
           }
-          this.pokeFloors.delete(parsedPoke.id);
+          this.actionFloors.delete(parsedAction.id);
         }
       }
     }
 
-    // Event-id regression: the floor must be a CONFIRMED ack, not the optimistic
-    // cursor. A resume GET replays from Eyre's pre-prune queue (on-get-request
+    // Event-id regression: the floor must be the confirmed-ack snapshot taken
+    // when this stream's GET was issued (confirmedFloorAtStreamBind), not the
+    // live cursor. A resume GET replays from Eyre's pre-prune queue (on-get-request
     // binds the channel before acknowledge-events prunes, then builds the replay
-    // from that pre-prune binding), so only confirmed-acked — permanently pruned
-    // — ids are guaranteed never to be re-sent. An id at or below the confirmed
-    // cursor therefore cannot come from our own channel: it means the channel was
-    // reaped while we were down and then silently recreated by an outbound poke
-    // (a PUT to a missing channel id creates it; its GET returns 200, so the
-    // resume status check cannot see this). The revived channel has no
-    // subscriptions — force a rebuild.
+    // from that pre-prune binding), so only ids confirmed BEFORE the bind —
+    // permanently pruned — are guaranteed never to be re-sent. An ack that
+    // confirms AFTER the bind (an in-flight PUT resolving late) may legitimately
+    // appear in the replay and must not raise the detection floor mid-stream. An
+    // id at or below the bind-time snapshot therefore cannot come from our own
+    // channel: it means the channel was reaped while we were down and then
+    // silently recreated by an outbound poke (a PUT to a missing channel id
+    // creates it; its GET returns 200, so the resume status check cannot see
+    // this). The revived channel has no subscriptions — force a rebuild.
     if (
       eventId !== null &&
-      this.lastConfirmedAckEventId >= 0 &&
-      eventId <= this.lastConfirmedAckEventId
+      this.confirmedFloorAtStreamBind >= 0 &&
+      eventId <= this.confirmedFloorAtStreamBind
     ) {
       if (this.aborted || this.channelReaped) {
         return; // teardown already in flight; don't double-fire
       }
       this.logger.error?.(
-        `[SSE] Event id regression: heard id ${eventId} <= last confirmed acked ${this.lastConfirmedAckEventId}; channel was recreated out from under us — rebuilding`
+        `[SSE] Event id regression: heard id ${eventId} <= confirmed floor at stream bind ${this.confirmedFloorAtStreamBind}; channel was recreated out from under us — rebuilding`
       );
       const regressionError = new Error(
-        `SSE event id regression (heard ${eventId}, confirmed acked ${this.lastConfirmedAckEventId}); channel recreated — rebuilding`
+        `SSE event id regression (heard ${eventId}, confirmed floor at bind ${this.confirmedFloorAtStreamBind}); channel recreated — rebuilding`
       );
       // Tear down BEFORE notifying handlers so a throwing handler can't strand
       // the client on the dead channel; isolate each handler so one throw can't
@@ -660,21 +734,21 @@ export class UrbitSSEClient {
     // clock-jump reuse.
     const pokeId = Math.max(Date.now(), this.lastPokeId + 1);
     this.lastPokeId = pokeId;
-    if (this.pokeFloors.size >= 4096) {
-      // A full ledger means thousands of poke acks never came back — this
+    if (this.actionFloors.size >= 4096) {
+      // A full ledger means thousands of action acks never came back — this
       // channel generation is unrecoverable. Escalate to a rebuild (which
-      // clears the ledger) instead of silently degrading to untracked pokes,
+      // clears the ledger) instead of silently degrading to untracked actions,
       // which could leave a revived, subscription-less channel undetectable.
       if (!this.aborted && !this.channelReaped) {
         this.logger.error?.(
-          `[SSE] Poke-floor ledger full (${this.pokeFloors.size}); forcing channel rebuild`
+          `[SSE] Action-floor ledger full (${this.actionFloors.size}); forcing channel rebuild`
         );
         this.channelReaped = true;
         this.markStreamDown();
         this.streamController?.abort();
       }
     } else {
-      this.pokeFloors.set(pokeId, this.lastHeardEventId);
+      this.actionFloors.set(pokeId, this.lastHeardEventId);
     }
     // A rejection is delivery-ambiguous (pokeUrbitChannel can get an OK response
     // then reject from release() in its finally). A stale entry blocks nothing:
@@ -837,7 +911,8 @@ export class UrbitSSEClient {
         this.lastHeardEventId = -1;
         this.lastAcknowledgedEventId = -1;
         this.lastConfirmedAckEventId = -1;
-        this.pokeFloors.clear();
+        this.confirmedFloorAtStreamBind = -1;
+        this.actionFloors.clear();
         await this.connect();
       } else {
         this.logger.log?.(
@@ -846,11 +921,80 @@ export class UrbitSSEClient {
         // Keep channelId/channelUrl and channelEpoch unchanged so a pending
         // resubscribeAfterQuit can still send its own replacement PUT.
         await this.openStream();
+        const endCountAtOpen = this.streamEndCount;
+        // openStream() starts the stream reader fire-and-forget, so already-buffered
+        // replay frames (the usual carrier of reap-revival proof: a tracked ack at
+        // or below its floor arrives in the same response buffer as the headers)
+        // have not been processed yet when it resolves. Yield one macrotask so the
+        // reader consumes buffered data before we judge the resume healthy. Frames
+        // that arrive later over the network are inherently racy — recovery
+        // telemetry is provisional, and a post-recovery detection still tears down
+        // and rebuilds correctly.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (this.aborted) return;
+        if (this.streamEndCount !== endCountAtOpen) {
+          // The stream we just opened already ended (instant EOF or error). Its
+          // reader's finally owns the next reconnect attempt — do not declare this
+          // resume successful, reset the attempt counter, or emit recovery telemetry.
+          return;
+        }
+        if (this.channelReaped) {
+          // The first replay frame already proved the channel was recreated (a
+          // detector aborted the fresh stream). The reader's finally drives the
+          // rebuild — do not mark a dead stream connected or reset the attempt
+          // counter here.
+          return;
+        }
         this.afterStreamOpen();
+        // Subs registered while the stream was down were never sent; a resume keeps
+        // the old channel so connect() will not send them — flush here
+        // (sendSubscription also records them in the action-floor ledger, so a
+        // revived channel is still detected). resubscribeAfterQuit manages its own
+        // replacement sub outside subscribe() — unaffected.
+        for (const subId of [...this.pendingSubscriptionIds]) {
+          const sub = this.subscriptions.find((s) => s.id === subId);
+          if (!sub || !this.eventHandlers.has(subId)) {
+            // Stale entry (unsubscribed or superseded by a post-quit replacement) —
+            // never re-send a handlerless subscription.
+            this.pendingSubscriptionIds.delete(subId);
+            continue;
+          }
+          // Claim the id BEFORE the PUT so an overlapping reconnect flush
+          // (stream died mid-PUT) cannot double-send it. A failed send
+          // restores the id for the next flush/rebuild — but only if no
+          // rebuild ran while the PUT was in flight: a rebuild bumps
+          // channelEpoch and recreates every registered subscription via
+          // connect(), so a stale failed PUT from the old channel must not
+          // resurrect the id (a later resume flush would double-subscribe it
+          // on the rebuilt channel).
+          this.pendingSubscriptionIds.delete(subId);
+          const epochAtClaim = this.channelEpoch;
+          try {
+            await this.sendSubscription(sub);
+          } catch (error) {
+            if (this.channelEpoch === epochAtClaim) {
+              this.pendingSubscriptionIds.add(subId);
+            }
+            this.logger.error?.(
+              `[SSE] Pending subscription ${sub.app}${sub.path} failed on resume: ${String(error)}`
+            );
+          }
+        }
+        if (
+          this.aborted ||
+          this.channelReaped ||
+          this.streamEndCount !== endCountAtOpen
+        ) {
+          // The stream ended (or the channel was proven dead) while the pending
+          // subscriptions were being flushed. The reader's finally owns recovery —
+          // do not emit a success event for a stream that is already gone.
+          return;
+        }
       }
 
-      // A close() that raced the connect must not emit a false reconnect-success.
-      if (this.aborted) return;
+      // A close() that raced the connect, or a detector that fired during
+      // stream startup (either branch), must not emit a false reconnect-success.
+      if (this.aborted || this.channelReaped) return;
       this.logger.log?.('[SSE] Reconnection successful!');
       const downtimeMs = this.streamDownSince
         ? Date.now() - this.streamDownSince
@@ -981,6 +1125,9 @@ export class UrbitSSEClient {
     this.subscriptions.push(newSub);
     this.eventHandlers.set(newSubId, handlers);
     this.eventHandlers.delete(oldSubId);
+    // The replacement supersedes the old id; it must never be re-sent by the
+    // resume flush (which would orphan/double-subscribe the handlerless entry).
+    this.pendingSubscriptionIds.delete(oldSubId);
     const epochAtRegistration = this.channelEpoch;
     const downSince = Date.now();
 

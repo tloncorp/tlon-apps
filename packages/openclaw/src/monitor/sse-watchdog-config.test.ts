@@ -35,6 +35,7 @@ describe('parseSseStaleThresholdMs', () => {
     ['empty string', ''],
     ['negative', '-5'],
     ['minus one', '-1'],
+    ['negative zero', '-0'],
     ['fractional', '1.5'],
     ['NaN', 'NaN'],
     ['Infinity', 'Infinity'],
