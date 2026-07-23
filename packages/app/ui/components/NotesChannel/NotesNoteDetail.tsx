@@ -1,5 +1,6 @@
 import {
   convertContent,
+  markNoteRead,
   markdownToStory,
   normalizeNotebookNoteTitle,
   saveNotebookNote,
@@ -260,6 +261,14 @@ export function NotesNoteDetail({
     notebookFlag,
     { syncEnabled }
   );
+  // Every path that displays a note lands here (desktop split pane, mobile
+  // detail screen, deep links), so this is the single mark-read hook point.
+  useEffect(() => {
+    if (!notebookFlag || noteId === null) {
+      return;
+    }
+    markNoteRead({ notebookFlag, noteId });
+  }, [notebookFlag, noteId]);
   const selectedNote =
     noteId === null
       ? null

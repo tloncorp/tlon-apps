@@ -17,6 +17,7 @@ import {
   publishedNoteUrl,
   renameNotebookFolder,
   unpublishNotebookNote,
+  useLiveThreadUnreadsByChannel,
   useMutableCallback,
   usePublishedNotesForNotebook,
 } from '@tloncorp/shared';
@@ -66,6 +67,7 @@ import {
   buildFolderDestinationRows,
   buildFolderNoteCounts,
   buildFolderRows,
+  buildFolderUnreadCounts,
   getFolderLabel,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
@@ -207,6 +209,22 @@ export function NotesNativeChannel({
   const folderNoteCounts = useMemo(
     () => buildFolderNoteCounts(folders, notes),
     [folders, notes]
+  );
+  // Per-note unreads ride thread unreads keyed by the raw note id; roll them
+  // up the folder tree so every ancestor of an unread note shows a dot.
+  const { data: noteUnreads } = useLiveThreadUnreadsByChannel(channelId);
+  const unreadNoteIds = useMemo(() => {
+    const ids = new Set<number>();
+    noteUnreads?.forEach((unread) => {
+      if ((unread.count ?? 0) > 0) {
+        ids.add(Number(unread.threadId));
+      }
+    });
+    return ids;
+  }, [noteUnreads]);
+  const folderUnreadCounts = useMemo(
+    () => buildFolderUnreadCounts(folders, notes, unreadNoteIds),
+    [folders, notes, unreadNoteIds]
   );
   const activeFolderId = folderId ?? rootFolderId;
   const treeRows = useMemo(
@@ -808,6 +826,7 @@ export function NotesNativeChannel({
   const notesTreePane = (
     <NotesTreePane
       canEdit={canEdit}
+      folderUnreadCounts={folderUnreadCounts}
       getPublishedNoteUrl={getPublishedNoteUrl}
       isDeletingFolder={isDeletingFolder}
       isNotePublished={isNotePublished}
@@ -815,6 +834,7 @@ export function NotesNativeChannel({
       publishDisabled={publishingAction !== null}
       selectedNoteId={useDesktopSplit ? selectedNoteId : null}
       treeRows={treeRows}
+      unreadNoteIds={unreadNoteIds}
       onDeleteFolder={handleDeleteFolder}
       onDeleteNote={handleDeleteNote}
       onMoveFolder={openMoveFolderDialog}

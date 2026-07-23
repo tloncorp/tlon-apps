@@ -13,7 +13,13 @@ import {
   parseGroupId,
   udToDate,
 } from './apiUtils';
-import { getActivitySupportsReactions, poke, scry, subscribe } from './urbit';
+import {
+  getActivitySupportsNotes,
+  getActivitySupportsReactions,
+  poke,
+  scry,
+  subscribe,
+} from './urbit';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('activityApi', false);
@@ -21,13 +27,28 @@ const logger = createDevLogger('activityApi', false);
 export async function getGroupAndChannelUnreads() {
   const activity = await scry<ub.Activity>({
     app: 'activity',
-    path: '/v4/activity',
+    // v6 is the v10-native summary (carries notebook/note sources); v4
+    // down-converts and drops them. Old backends don't serve v6.
+    path: getActivitySupportsNotes() ? '/v6/activity' : '/v4/activity',
   });
   const deserialized = toClientUnreads(activity);
   return deserialized;
 }
 
 export async function getThreadUnreadsByChannel(channel: db.Channel) {
+  if (channel.type === 'notes') {
+    // notes channels track per-note unreads instead of thread unreads; the
+    // chat-shaped threads scry below doesn't exist for them
+    if (!getActivitySupportsNotes()) {
+      return [];
+    }
+    const { host, name } = parseGroupChannelId(channel.id);
+    const activity = await scry<ub.Activity>({
+      app: 'activity',
+      path: `/v6/activity/notes/${host}/${name}`,
+    });
+    return toClientUnreads(activity).threadActivity;
+  }
   let scryPath = '';
   if (getChannelIdType(channel.id) === 'channel' && channel.groupId) {
     const groupParts = parseGroupId(channel.groupId);
@@ -64,10 +85,13 @@ export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
 
 export const ACTIVITY_SOURCE_PAGESIZE = 30;
 
-// v6 is the v9-native feed (carries reacts); v5 down-converts to v8 and strips
-// them. Old backends don't serve v6, so only request it once the backend is
-// known to support reactions.
-function feedVersion(): 'v6' | 'v5' {
+// v7 is the v10-native feed (carries notes events), v6 the v9-native one
+// (reacts, no notes), and v5 down-converts to v8. Old backends don't serve
+// the newer paths, so only request what the backend is known to support.
+function feedVersion(): 'v7' | 'v6' | 'v5' {
+  if (getActivitySupportsNotes()) {
+    return 'v7';
+  }
   return getActivitySupportsReactions() ? 'v6' : 'v5';
 }
 
@@ -482,9 +506,16 @@ export function subscribeToActivity(
   options?: { includeInvites?: boolean }
 ): Promise<number> {
   return subscribe<ub.ActivityUpdate>(
-    // v5 is the v9-native update stream (carries reacts); v4 down-converts to
-    // v8 and drops them. Old backends don't serve v5, so fall back to v4.
-    { app: 'activity', path: getActivitySupportsReactions() ? '/v5' : '/v4' },
+    // v6 is the v10-native update stream (notes), v5 the v9-native one
+    // (reacts), v4 the oldest. Fall back by backend capability.
+    {
+      app: 'activity',
+      path: getActivitySupportsNotes()
+        ? '/v6'
+        : getActivitySupportsReactions()
+          ? '/v5'
+          : '/v4',
+    },
     async (update: ub.ActivityUpdate) => {
       logger.log(
         'activity update',
@@ -530,6 +561,16 @@ export function subscribeToActivity(
                   source.threadId,
                   summary,
                   source.channelType
+                ),
+              });
+              break;
+            case 'note':
+              handler({
+                type: 'updateThreadUnread',
+                activity: toNoteUnread(
+                  source.channelId,
+                  source.noteId,
+                  summary
                 ),
               });
               break;
@@ -685,8 +726,17 @@ function stripReactVolumeKeys(action: ub.ActivityAction): ub.ActivityAction {
 }
 
 export function activityAction(action: ub.ActivityAction) {
-  // activity-action-1 (v9) parses react keys; the agent accepts both marks. Old
-  // backends only have the v8 activity-action mark, so use it and strip reacts.
+  // activity-action-2 (v10) parses notebook/note sources and note event
+  // keys; activity-action-1 (v9) parses react keys; the agent accepts all
+  // marks. Old backends only have the v8 activity-action mark, so use it and
+  // strip reacts.
+  if (getActivitySupportsNotes()) {
+    return {
+      app: 'activity',
+      mark: 'activity-action-2',
+      json: action,
+    };
+  }
   const supportsReactions = getActivitySupportsReactions();
   return {
     app: 'activity',
@@ -741,6 +791,13 @@ export const readChannel = async ({
     source = { dm: { ship: channelId } };
   } else if (channelType == 'groupDm') {
     source = { dm: { club: channelId } };
+  } else if (channelType === 'notes') {
+    // notebooks are their own source kind, not %channel
+    if (!getActivitySupportsNotes()) {
+      return;
+    }
+    const { host, name } = parseGroupChannelId(channelId);
+    source = { notebook: { flag: `${host}/${name}`, group: groupId ?? null } };
   } else {
     source = { channel: { nest: channelId, group: groupId! } };
   }
@@ -830,6 +887,41 @@ export const readThread = async ({
   });
 };
 
+export const readNote = async ({
+  channelId,
+  noteId,
+  groupId,
+}: {
+  channelId: string;
+  noteId: string;
+  groupId?: string | null;
+}) => {
+  if (!getActivitySupportsNotes()) {
+    return;
+  }
+  const { host, name } = parseGroupChannelId(channelId);
+  const source: ub.Source = {
+    note: {
+      // the backend parses ids as canonical @ud text, which dots every
+      // three digits
+      id: formatUd(noteId),
+      notebook: `${host}/${name}`,
+      group: groupId ?? null,
+    },
+  };
+  const action = activityAction({
+    read: { source, action: { all: { time: null, deep: false } } },
+  });
+  logger.log(`reading note ${noteId} in ${channelId}`, action);
+
+  // simple retry logic to avoid failed read leading to lingering unread state
+  return backOff(() => poke(action), {
+    delayFirstAttempt: false,
+    startingDelay: 2000,
+    numOfAttempts: 4,
+  });
+};
+
 export function markInvitesRead() {
   return backOff(
     () =>
@@ -908,13 +1000,20 @@ interface ClientContactSource {
   contactUserId: string;
 }
 
+interface ClientNoteSource {
+  type: 'note';
+  channelId: string;
+  noteId: string;
+}
+
 export type ClientSource =
   | ClientBaseSource
   | ClientGroupSource
   | ClientChannelSource
   | ClientThreadSource
   | ClientUnknownSource
-  | ClientContactSource;
+  | ClientContactSource
+  | ClientNoteSource;
 
 export function sourceIdToSource(sourceId: string): ClientSource {
   if (sourceId === 'base') {
@@ -967,6 +1066,23 @@ export function sourceIdToSource(sourceId: string): ClientSource {
       type: 'contact',
       contactUserId,
     };
+  }
+
+  // notebook-level unreads ride channel unreads under the notes nest
+  if (sourceType === 'notebook') {
+    const host = parts[1];
+    const name = parts[2];
+    return { type: 'channel', channelId: `notes/${host}/${name}` };
+  }
+
+  // per-note unreads ride thread unreads, keyed by the note id. The wire
+  // renders @ud with dot grouping (12.345); strip it so the id matches
+  // db.NotesNote.noteId's plain decimal.
+  if (sourceType === 'note') {
+    const host = parts[1];
+    const name = parts[2];
+    const noteId = parts[3].replace(/\./g, '');
+    return { type: 'note', channelId: `notes/${host}/${name}`, noteId };
   }
 
   return { type: 'unknown' };
@@ -1153,6 +1269,22 @@ export const toClientUnreads = (activity: ub.Activity): db.ActivityInit => {
         )
       );
     }
+
+    if (activityId === 'notebook') {
+      const channelId = `notes/${rest.join('/')}`;
+      channelUnreads.push(toChannelUnread(channelId, summary, 'channel'));
+    }
+
+    if (activityId === 'note') {
+      const [host, name, noteId] = rest;
+      threadActivity.push(
+        toNoteUnread(
+          `notes/${host}/${name}`,
+          noteId.replace(/\./g, ''),
+          summary
+        )
+      );
+    }
   });
 
   return { baseUnread, channelUnreads, threadActivity, groupUnreads };
@@ -1192,6 +1324,26 @@ export const toChannelUnread = (
     firstUnreadPostReceivedAt: firstUnreadPostId
       ? udToDate(firstUnreadPostId)
       : null,
+  };
+};
+
+// Per-note unreads ride the thread-unread shape, keyed by the raw decimal
+// note id (NOT canonicalized: getCanonicalPostId would dot-format it and
+// break matching against db.NotesNote.noteId). Note events carry no
+// message-key, so there is never a first-unread anchor.
+export const toNoteUnread = (
+  channelId: string,
+  noteId: string,
+  summary: ub.ActivitySummary
+): db.ThreadUnreadState => {
+  return {
+    channelId,
+    threadId: noteId,
+    updatedAt: summary.recency,
+    count: summary.count,
+    notify: summary.notify,
+    firstUnreadPostId: null,
+    firstUnreadPostReceivedAt: null,
   };
 };
 

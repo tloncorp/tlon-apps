@@ -627,6 +627,55 @@ export async function markNotesNotebookOpened(notebookFlag: string) {
   });
 }
 
+// Marks a single note read in %activity. Per-note unreads ride the
+// thread-unread table keyed by (notes/<flag>, <note id>); mirror
+// markThreadRead's optimistic flow: clear locally, decrement the channel and
+// group rollup counts, poke, roll back on failure.
+export async function markNoteRead({
+  notebookFlag,
+  noteId,
+}: {
+  notebookFlag: string;
+  noteId: number;
+}) {
+  const channelId = `notes/${notebookFlag}`;
+  const threadId = String(noteId);
+  const existingUnread = await db.getThreadActivity({
+    channelId,
+    postId: threadId,
+  });
+  if (!existingUnread) {
+    return;
+  }
+
+  await db.clearThreadUnread({ channelId, threadId });
+  const existingCount = existingUnread.count ?? 0;
+  const channel = await db.getChannel({ id: channelId });
+  if (existingCount > 0) {
+    await db.updateChannelUnreadCount({
+      channelId,
+      decrement: existingCount,
+    });
+    if (channel?.groupId) {
+      await db.updateGroupUnreadCount({
+        groupId: channel.groupId,
+        decrement: existingCount,
+      });
+    }
+  }
+
+  try {
+    await api.readNote({
+      channelId,
+      noteId: threadId,
+      groupId: channel?.groupId,
+    });
+  } catch (e) {
+    logger.error('failed to mark note read', channelId, noteId, e);
+    await db.insertThreadUnreads([existingUnread]);
+  }
+}
+
 async function notesNotebookIsJoined(flag: api.NotesFlag) {
   const notebooks = await api.notes.listNotebooks();
   return notebooks.some(

@@ -348,6 +348,40 @@ export function buildFolderNoteCounts(
   return counts;
 }
 
+// Rolls unread notes up their folder ancestry, so an unread note in D puts a
+// dot on A -> B -> C -> D. Same ancestor walk as buildFolderNoteCounts.
+export function buildFolderUnreadCounts(
+  folders: db.NotesFolder[],
+  notes: db.NotesNote[],
+  unreadNoteIds: Set<number>
+) {
+  const counts = new Map<number, number>();
+  const parentByFolderId = new Map<number, number | null>();
+  folders.forEach((folder) => {
+    counts.set(folder.folderId, 0);
+    parentByFolderId.set(folder.folderId, folder.parentFolderId ?? null);
+  });
+
+  notes.forEach((note) => {
+    if (!unreadNoteIds.has(note.noteId)) {
+      return;
+    }
+    const visited = new Set<number>();
+    let folderId: number | null = note.folderId;
+    while (
+      folderId !== null &&
+      counts.has(folderId) &&
+      !visited.has(folderId)
+    ) {
+      visited.add(folderId);
+      counts.set(folderId, (counts.get(folderId) ?? 0) + 1);
+      folderId = parentByFolderId.get(folderId) ?? null;
+    }
+  });
+
+  return counts;
+}
+
 export function getFolderLabel(folder: db.NotesFolder | null | undefined) {
   if (!folder) return 'Folder';
   return folder.name === '/' ? 'Root' : folder.name;
