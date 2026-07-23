@@ -249,6 +249,19 @@
       ==
     `+.+>+>+.i.caz
   $(caz t.caz)
+::  +find-fact-vase: vase of the first %give %fact card whose cage
+::  carries the given mark, if any. cage layout per +http-status:
+::  mark at -.+>+, vase at +.+>+.
+::
+++  find-fact-vase
+  |=  [caz=(list card) m=mark]
+  ^-  (unit vase)
+  ?~  caz  ~
+  ?:  ?&  ?=([%give %fact * *] i.caz)
+          =(-.+>+.i.caz m)
+      ==
+    `+.+>+.i.caz
+  $(caz t.caz)
 ::
 ::  +init-zod: init agent as ~zod; discard cards
 ::
@@ -377,6 +390,23 @@
   |=  s=state
   ?~  caz
     |+['expected cards but got none']~
+  &+[~ s]
+::  +ex-conflict-response: assert the cards carry a typed
+::  [%error %conflict *] response-update (the stale-revision path), and
+::  no broadcast %notes-response fact (the update must not have applied).
+::
+++  ex-conflict-response
+  |=  caz=(list card)
+  =/  m  (mare ,~)
+  ^-  form:m
+  |=  s=state
+  ?~  van=(find-fact-vase caz %notes-response-update-1)
+    |+['no notes-response-update-1 fact emitted']~
+  =+  !<(ru=response-update:v1:n u.van)
+  ?.  ?=([%error %conflict *] body.ru)
+    |+['response-update body is not %error %conflict']~
+  ?:  (has-fact-mark caz %notes-response)
+    |+['conflicting update was still broadcast to subscribers']~
   &+[~ s]
 ::  +ex-json: assert cage has mark %json
 ::
@@ -810,7 +840,9 @@
   =+  !<(group-channel-del:n u.van)
   &+[~ s2]
 ::  ====  test-update-note-mismatched-revision-rejects  ====
-::  Stale expected-revision crashes; note still readable after.
+::  Stale expected-revision finalizes a typed %conflict response-update
+::  (not a crash, which would nack the proxying ship's poke and surface
+::  as an opaque %unknown); note untouched and still readable after.
 ::
 ++  test-update-note-mismatched-revision-rejects
   %-  eval-mare
@@ -824,12 +856,14 @@
   ;<  *  b  (poke-a [%notebook f [%create-note 2 'Note' 'v1']])
   ;<  *  b  (poke-a [%notebook f [%note 3 [%update 'v2' 0]]])
   ;<  *  b  (poke-a [%notebook f [%note 3 [%update 'v3' 1]]])
-  ::  revision is now 2; expected-revision=1 is stale — must crash
-  ;<  ~  b  (ex-fail (poke-a [%notebook f [%note 3 [%update 'v4' 1]]]))
+  ::  revision is now 2; expected-revision=1 is stale — typed %conflict
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%note 3 [%update 'v4' 1]]])
+  ;<  ~  b  (ex-conflict-response caz)
   ;<  nt=cage  b  (peek-nt f 3)
   (ex-mark nt %notes-note)
 ::  ====  test-update-note-stale-zero-rejects  ====
-::  expected-revision=0 on a note with revision>0 must crash (strict, no force-update).
+::  expected-revision=0 on a note with revision>0 must reject with a
+::  typed %conflict (strict, no force-update sentinel).
 ::
 ++  test-update-note-stale-zero-rejects
   %-  eval-mare
@@ -842,8 +876,9 @@
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
   ;<  *  b  (poke-a [%notebook f [%create-note 2 'Note' 'v1']])
   ;<  *  b  (poke-a [%notebook f [%note 3 [%update 'v2' 0]]])
-  ::  revision is now 1; expected-revision=0 is stale — must crash
-  ;<  ~  b  (ex-fail (poke-a [%notebook f [%note 3 [%update 'clobbered' 0]]]))
+  ::  revision is now 1; expected-revision=0 is stale — typed %conflict
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%note 3 [%update 'clobbered' 0]]])
+  ;<  ~  b  (ex-conflict-response caz)
   ;<  nt=cage  b  (peek-nt f 3)
   (ex-mark nt %notes-note)
 ::  ====  test-update-note-at-revision-zero-succeeds  ====

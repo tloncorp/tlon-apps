@@ -529,11 +529,40 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
         NOTES_SNAPSHOT_BATCH_SIZE
       );
 
+      // Snapshots race the save path's immediate write-through (which
+      // persists a note the moment a PUT succeeds): a sync that fetched
+      // before the save but lands after it would silently regress the row.
+      // Revisions are monotonic per note, so an incoming revision below the
+      // stored one proves the snapshot is stale for that note — keep the
+      // stored row wholesale. Splicing only some newer fields onto the
+      // stale copy would fabricate a row that never existed on the host
+      // (e.g. new revision + old title). Read inside the transaction so
+      // the comparison can't itself race the write-through.
+      const currentNotes = await txCtx.db.query.notesNotes.findMany({
+        where: eq($notesNotes.notebookFlag, notebook.id),
+      });
+      const currentByNoteId = new Map(
+        currentNotes.map((note) => [note.noteId, note])
+      );
+      // Renames and moves don't bump the revision, so equal revisions are
+      // ordered by updatedAt (both stamped by the host clock).
+      const mergedNotes = notes.map((incoming) => {
+        const current = currentByNoteId.get(incoming.noteId);
+        const currentIsNewer =
+          current &&
+          (current.revision > incoming.revision ||
+            (current.revision === incoming.revision &&
+              (current.updatedAt ?? 0) > (incoming.updatedAt ?? 0)));
+        return currentIsNewer
+          ? { ...current, syncedAt: incoming.syncedAt }
+          : incoming;
+      });
+
       await txCtx.db
         .delete($notesNotes)
         .where(eq($notesNotes.notebookFlag, notebook.id));
       await batchAction(
-        notes,
+        mergedNotes,
         async (batch) => {
           await txCtx.db.insert($notesNotes).values(batch);
         },
@@ -553,6 +582,37 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
     });
   },
   ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+export const updateNotesNote = createWriteQuery(
+  'updateNotesNote',
+  async (
+    {
+      notebookFlag,
+      noteId,
+      ...update
+    }: {
+      notebookFlag: string;
+      noteId: number;
+    } & Partial<
+      Pick<
+        NotesNote,
+        'bodyMd' | 'folderId' | 'revision' | 'title' | 'updatedAt' | 'updatedBy'
+      >
+    >,
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($notesNotes)
+      .set(update)
+      .where(
+        and(
+          eq($notesNotes.notebookFlag, notebookFlag),
+          eq($notesNotes.noteId, noteId)
+        )
+      );
+  },
+  ['notesNotes']
 );
 
 export const deleteNotesNote = createWriteQuery(

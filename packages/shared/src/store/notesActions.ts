@@ -419,37 +419,282 @@ export async function saveNotebookNote({
   // The body update must land before the rename: it asserts expectedRevision,
   // which any other mutation would invalidate. Don't parallelize these.
   if (shouldUpdateBody) {
-    await api.notes.updateNoteBody({
-      flag: notebookFlag,
-      noteId: note.noteId,
-      body,
-      expectedRevision: note.revision,
-    });
+    await updateNotebookNoteBody({ notebookFlag, note, body });
   }
 
   if (shouldRename) {
-    await api.notes.renameNote({
+    const applied = await api.notes.renameNote({
       flag: notebookFlag,
       noteId: note.noteId,
       title: nextTitle,
     });
+    // A successful rename means the host's title is exactly the string we
+    // sent (renames don't bump the revision). Persist it with the response
+    // payload's host-stamped updatedAt/updatedBy, so a stale snapshot
+    // already in flight can't win the equal-revision tiebreak and reload
+    // the old title over this write.
+    await persistNoteWrite(notebookFlag, note.noteId, {
+      title: applied?.title ?? nextTitle,
+      applied,
+    });
   }
 
-  await syncNotesNotebookUntil(
-    notebookFlag,
-    (snapshot) => {
-      const updated = findSnapshotNote(snapshot, note.noteId);
-      return Boolean(
-        updated &&
-          (!shouldRename || updated.title === nextTitle) &&
-          (!shouldUpdateBody || updated.bodyMd === body)
-      );
-    },
-    shouldUpdateBody
-      ? { hydrateNoteIds: [note.noteId], requireHydratedNotes: true }
-      : undefined
-  );
+  // Everything the writes determined is persisted from their responses.
+  // No read-back wait: the old poll-until-visible loop here is what
+  // silently returned stale revisions when the replica lagged.
   return db.getNotesNote({ notebookFlag, noteId: note.noteId });
+}
+
+// A revision conflict that isn't ours to auto-resolve: the note on the host
+// diverged from the editor's base. Carries the host's copy so the UI can
+// offer a real resolution instead of a blind retry (which can never succeed —
+// the editor's base revision stays stale while it holds unsaved changes).
+export class NotesNoteConflictError extends Error {
+  readonly remoteNote: api.NotesNote;
+
+  constructor(remoteNote: api.NotesNote) {
+    super('This note was changed elsewhere. Your unsaved changes are kept.');
+    this.name = 'NotesNoteConflictError';
+    this.remoteNote = remoteNote;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+// The exact state (content + resulting revision) this client last
+// successfully wrote per note. Used to recognize a revision conflict caused
+// by our *own* already-applied write — e.g. an earlier save applied on the
+// host but its local persist never landed (the process died in between) —
+// which is safe to rebase over. Both fields must
+// match: content alone would also match a *remote* edit that restored our
+// old text (e.g. via note history), which is a genuine conflict.
+const lastSavedNoteState = new Map<
+  string,
+  { body: string; revision: number }
+>();
+
+// Poll the note read until it reports a revision GREATER than
+// `staleRevision`, or null if it never does within the retry budget. Used by
+// conflict recovery: a conflict proves the host has moved past
+// `staleRevision`, so any read at or below it (the rejected copy itself, or
+// an even older one — the replica can trail our local write-through) is a
+// replica that hasn't caught up yet, not an answer. Classifying against it
+// would offer content older than the user's own base as "theirs".
+async function fetchNotePastRevision(
+  notebookFlag: string,
+  noteId: number,
+  staleRevision: number
+): Promise<api.NotesNote | null> {
+  let latest: api.NotesNote | null = null;
+  try {
+    await withRetry(async () => {
+      latest = await api.notes.getNote({ flag: notebookFlag, noteId });
+      if ((latest.revision ?? 0) <= staleRevision) {
+        throw notYetSynced;
+      }
+    }, notesRetryOptions);
+  } catch (e) {
+    if (e !== notYetSynced) {
+      throw e;
+    }
+    return null;
+  }
+  return latest;
+}
+
+async function updateNotebookNoteBody({
+  notebookFlag,
+  note,
+  body,
+}: {
+  notebookFlag: string;
+  note: db.NotesNote;
+  body: string;
+}) {
+  const noteKey = `${notebookFlag}/${note.noteId}`;
+  const expectedRevision = note.revision;
+  let result: Awaited<ReturnType<typeof api.notes.updateNoteBody>>;
+  try {
+    result = await api.notes.updateNoteBody({
+      flag: notebookFlag,
+      noteId: note.noteId,
+      body,
+      expectedRevision,
+    });
+  } catch (e) {
+    if (!api.isNotesV1ConflictError(e)) {
+      throw e;
+    }
+    // On subscribed notebooks the v1 GET serves our ship's replica, which
+    // can still hold the very copy the host just rejected (its broadcast
+    // may not have arrived). Classifying against that stale copy builds a
+    // nonsense conflict — "theirs" identical to our base, and a resolution
+    // that retries the same rejected revision. Wait for the replica to move
+    // past the rejected revision; if it doesn't, we can't classify yet, so
+    // rethrow and let the next autosave cycle try again.
+    const remote = await fetchNotePastRevision(
+      notebookFlag,
+      note.noteId,
+      expectedRevision
+    );
+    if (!remote) {
+      throw e;
+    }
+    const remoteRevision = remote.revision ?? 0;
+    if (remote.bodyMd === body) {
+      // Our exact content is already on the host (an unload flush or an
+      // earlier retry landed) — nothing left to send.
+      lastSavedNoteState.set(noteKey, { body, revision: remoteRevision });
+      await persistNoteWrite(notebookFlag, note.noteId, {
+        bodyMd: body,
+        revision: remoteRevision,
+        applied: remote,
+      });
+      return;
+    }
+    const lastSaved = lastSavedNoteState.get(noteKey);
+    if (
+      lastSaved &&
+      remote.bodyMd === lastSaved.body &&
+      remoteRevision === lastSaved.revision
+    ) {
+      // The "conflicting" revision is exactly the state our own previous
+      // save produced, so only its local persist never landed. The
+      // draft evolved from that content; rebasing onto the host's revision
+      // loses nothing. The retry itself can race another writer — surface
+      // that as a fresh conflict rather than a generic failure.
+      let retryResult: api.NotesV1NoteWriteResult;
+      try {
+        retryResult = await api.notes.updateNoteBody({
+          flag: notebookFlag,
+          noteId: note.noteId,
+          body,
+          expectedRevision: remoteRevision,
+        });
+      } catch (retryError) {
+        if (!api.isNotesV1ConflictError(retryError)) {
+          throw retryError;
+        }
+        // Surface the raced writer's copy once the replica has it. If it
+        // hasn't advanced yet, rethrow the raw error instead of building a
+        // conflict from `remote` — that copy is our OWN previous save, and
+        // offering it as "theirs" would let a resolution regress the note.
+        const raced = await fetchNotePastRevision(
+          notebookFlag,
+          note.noteId,
+          remoteRevision
+        );
+        if (!raced) {
+          throw retryError;
+        }
+        throw new NotesNoteConflictError(raced);
+      }
+      const retryRevision = retryResult.note?.revision ?? remoteRevision + 1;
+      lastSavedNoteState.set(noteKey, { body, revision: retryRevision });
+      await persistNoteWrite(notebookFlag, note.noteId, {
+        bodyMd: body,
+        revision: retryRevision,
+        applied: retryResult.note,
+      });
+      return;
+    }
+    throw new NotesNoteConflictError(remote);
+  }
+  // %no-change means the host body already matched and the revision was NOT
+  // bumped — persisting expected + 1 would put the local DB one revision
+  // ahead of the host and re-wedge the next save. When the ok envelope
+  // carries the applied note, its revision is authoritative.
+  const nextRevision =
+    result.note?.revision ??
+    (result.status === 'no-change' ? expectedRevision : expectedRevision + 1);
+  lastSavedNoteState.set(noteKey, { body, revision: nextRevision });
+  await persistNoteWrite(notebookFlag, note.noteId, {
+    bodyMd: body,
+    revision: nextRevision,
+    applied: result.note,
+  });
+}
+
+// Persist a write's outcome to the local row. The revision comes from the
+// response payload when present, else the response contract (a successful
+// body update lands on exactly expectedRevision + 1) — no read-back either
+// way. The payload is the host's authoritative post-write note, so every
+// field it carries is persisted (explicit write fields win): a body PUT
+// applied on top of another client's same-revision rename/move returns
+// their title/folder, and persisting only our own fields would fabricate a
+// row that the snapshot merge then defends against the very snapshot
+// carrying the remote metadata. The host stamps also let the merge's
+// equal-revision tiebreak defend this write against stale snapshots
+// already in flight.
+async function persistNoteWrite(
+  notebookFlag: string,
+  noteId: number,
+  write: {
+    bodyMd?: string;
+    title?: string;
+    revision?: number;
+    applied?: {
+      title?: string | null;
+      folderId?: number | null;
+      updatedAt?: number | null;
+      updatedBy?: string | null;
+    } | null;
+  }
+) {
+  const { applied, ...fields } = write;
+  await db.updateNotesNote({
+    notebookFlag,
+    noteId,
+    ...(applied?.title != null ? { title: applied.title } : {}),
+    ...(applied?.folderId != null ? { folderId: applied.folderId } : {}),
+    ...(applied?.updatedAt != null ? { updatedAt: applied.updatedAt } : {}),
+    ...(applied?.updatedBy != null ? { updatedBy: applied.updatedBy } : {}),
+    ...fields,
+  });
+}
+
+// Persist the host's copy of a note locally — used when the user resolves
+// a revision conflict with "use theirs". Without this the editor's reactive
+// row still holds the stale pre-conflict content and would immediately
+// reload it over the adoption.
+export async function adoptNotebookNoteRemote({
+  notebookFlag,
+  remote,
+}: {
+  notebookFlag: string;
+  remote: api.NotesNote;
+}) {
+  // The conflict copy was captured when the banner appeared; the local row
+  // can have advanced past it (another remote edit synced while the user
+  // decided). Adopting would downgrade the row — keep it and let the
+  // editor converge on the fresher copy instead. Renames/moves don't bump
+  // the revision, so equal revisions break ties on updatedAt, mirroring
+  // the snapshot merge.
+  const current = await db.getNotesNote({
+    notebookFlag,
+    noteId: remote.noteId,
+  });
+  const remoteRevision = remote.revision ?? 0;
+  if (
+    current &&
+    (remoteRevision < current.revision ||
+      (remoteRevision === current.revision &&
+        (remote.updatedAt ?? 0) < (current.updatedAt ?? 0)))
+  ) {
+    return current;
+  }
+  await db.updateNotesNote({
+    notebookFlag,
+    noteId: remote.noteId,
+    title: remote.title,
+    bodyMd: remote.bodyMd ?? '',
+    // The conflicting edit can ride along with a move; leave the folder
+    // untouched when the read omits it.
+    ...(remote.folderId != null ? { folderId: remote.folderId } : {}),
+    revision: remote.revision ?? 0,
+    updatedAt: remote.updatedAt ?? null,
+    updatedBy: remote.updatedBy ?? null,
+  });
+  return db.getNotesNote({ notebookFlag, noteId: remote.noteId });
 }
 
 export async function publishNotebookNote({

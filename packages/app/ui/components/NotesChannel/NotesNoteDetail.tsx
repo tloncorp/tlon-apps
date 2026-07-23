@@ -1,4 +1,6 @@
 import {
+  NotesNoteConflictError,
+  adoptNotebookNoteRemote,
   convertContent,
   markdownToStory,
   normalizeNotebookNoteTitle,
@@ -241,6 +243,13 @@ export function NotesNoteDetail({
   const [bodyInputWidth, setBodyInputWidth] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
+  // The host's copy of the note after a save hit a genuine revision
+  // conflict. While set, autosave is suspended and the banner offers the
+  // user the resolution (keep mine / use theirs) — a blind retry can never
+  // succeed since the editor's base revision is stale by definition.
+  const [conflictNote, setConflictNote] = useState<
+    NotesNoteConflictError['remoteNote'] | null
+  >(null);
   const [isPreviewing, setPreviewMode] = useNotePreviewMode(
     notebookFlag,
     noteId,
@@ -422,7 +431,18 @@ export function NotesNoteDetail({
   // overwriting the remote work.
   useEffect(() => {
     const sameNote = (selectedNote?.id ?? null) === (draftBase?.id ?? null);
-    if (sameNote && (isDirty || selectedNote === draftBase)) return;
+    // Never adopt a row that trails the base's revision: right after a save
+    // or a conflict resolution the reactive row lags the persisted write by
+    // a render or two, and reloading it would regress the editor onto stale
+    // content and a stale revision.
+    const rowTrailsBase =
+      sameNote &&
+      selectedNote != null &&
+      draftBase != null &&
+      selectedNote.revision < draftBase.revision;
+    if (sameNote && (isDirty || selectedNote === draftBase || rowTrailsBase)) {
+      return;
+    }
     if (sameNote) {
       preserveScrollOffset();
     }
@@ -432,6 +452,7 @@ export function NotesNoteDetail({
     if (!sameNote) {
       setSaveState('idle');
       setError(null);
+      setConflictNote(null);
     }
   }, [draftBase, isDirty, preserveScrollOffset, selectedNote]);
 
@@ -484,83 +505,6 @@ export function NotesNoteDetail({
     []
   );
 
-  const saveSelectedNote = useCallback(async () => {
-    if (!notebookFlag || !draftBase || !canEdit) return false;
-    const bodyToSave = bodyDraftRef.current;
-    const dirty =
-      normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
-      bodyToSave !== draftBase.bodyMd;
-    if (!dirty) return true;
-    preserveScrollOffset();
-    setSaveState('saving');
-    setError(null);
-    rememberNotesNoteDraftSnapshot({
-      notebookFlag,
-      noteId: draftBase.noteId,
-      title: titleDraft,
-      body: bodyToSave,
-      isDirty: true,
-      updatedAt: Date.now(),
-    });
-    try {
-      const updated = await runSave(
-        notebookFlag,
-        draftBase,
-        titleDraft,
-        bodyToSave
-      );
-      // Rebase onto the saved revision; keystrokes typed during the save
-      // leave the drafts dirty against it, so the next cycle saves them.
-      if (updated) {
-        setDraftBase(updated);
-      }
-      clearDraftStash(notebookFlag, draftBase.noteId, {
-        title: titleDraft,
-        body: bodyToSave,
-      });
-      clearMatchingNotesNoteDraftSnapshot({
-        notebookFlag,
-        noteId: draftBase.noteId,
-        title: titleDraft,
-        body: bodyToSave,
-      });
-      setSaveState('saved');
-      return true;
-    } catch (e) {
-      setSaveState('error');
-      const message = errorMessage(e, 'Failed to save note');
-      trackNotesActionError('save note', e, message, {
-        noteId: draftBase.noteId,
-      });
-      setError(message);
-      return false;
-    }
-  }, [
-    canEdit,
-    draftBase,
-    notebookFlag,
-    preserveScrollOffset,
-    runSave,
-    titleDraft,
-  ]);
-
-  useEffect(() => {
-    if (!canEdit || saveState === 'saving') return;
-    if (!isDirty) {
-      // Edits were reverted back to the saved content; there's nothing to
-      // save, so don't leave a stale "Not synced" showing.
-      if (saveState === 'dirty') {
-        setSaveState('idle');
-      }
-      return;
-    }
-    setSaveState('dirty');
-    const timeout = setTimeout(() => {
-      saveSelectedNote();
-    }, AUTOSAVE_DEBOUNCE_MS);
-    return () => clearTimeout(timeout);
-  }, [canEdit, isDirty, saveSelectedNote, saveState]);
-
   // Save target for flushes that run outside the React data flow (unmount
   // cleanup, AppState changes). Synced in an effect so a selection-change
   // cleanup still sees the previous note as its base rather than the new
@@ -577,6 +521,198 @@ export function NotesNoteDetail({
       canEdit,
     };
   });
+
+  // A conflict from an async save is only actionable while its note is
+  // still the one in the editor. A note-switch flush can reject after the
+  // selection moved on; resolving that stale conflict would rebase the
+  // newly-selected note with the old note's content, so drop it instead.
+  const reportConflict = useCallback(
+    (flag: string, conflict: NotesNoteConflictError) => {
+      const ctx = flushCtxRef.current;
+      if (
+        !ctx ||
+        ctx.flag !== flag ||
+        ctx.base?.noteId !== conflict.remoteNote.noteId
+      ) {
+        return;
+      }
+      setConflictNote(conflict.remoteNote);
+      setError(conflict.message);
+      setSaveState('error');
+    },
+    []
+  );
+
+  // Counterpart to reportConflict: a save that SUCCEEDS for the current
+  // note supersedes any conflict still showing. The save chain is FIFO, so
+  // a stale queued save (e.g. a background flush from before a "Keep mine"
+  // resolution) can reject and re-arm the banner after the resolution
+  // cleared it; without this, the banner sticks and autosave stays
+  // suspended even though the rebased save landed.
+  const clearConflict = useCallback((flag: string, noteId: number) => {
+    const ctx = flushCtxRef.current;
+    if (!ctx || ctx.flag !== flag || ctx.base?.noteId !== noteId) {
+      return;
+    }
+    setConflictNote(null);
+    setError(null);
+  }, []);
+
+  const saveSelectedNote = useCallback(
+    async (baseOverride?: db.NotesNote) => {
+      const base = baseOverride ?? draftBase;
+      if (!notebookFlag || !base || !canEdit) return false;
+      const bodyToSave = bodyDraftRef.current;
+      const dirty =
+        normalizeNotebookNoteTitle(titleDraft) !== base.title ||
+        bodyToSave !== base.bodyMd;
+      if (!dirty) return true;
+      preserveScrollOffset();
+      setSaveState('saving');
+      setError(null);
+      rememberNotesNoteDraftSnapshot({
+        notebookFlag,
+        noteId: base.noteId,
+        title: titleDraft,
+        body: bodyToSave,
+        isDirty: true,
+        updatedAt: Date.now(),
+      });
+      try {
+        const updated = await runSave(
+          notebookFlag,
+          base,
+          titleDraft,
+          bodyToSave
+        );
+        // Rebase onto the saved revision; keystrokes typed during the save
+        // leave the drafts dirty against it, so the next cycle saves them.
+        if (updated) {
+          setDraftBase(updated);
+        }
+        clearDraftStash(notebookFlag, base.noteId, {
+          title: titleDraft,
+          body: bodyToSave,
+        });
+        clearMatchingNotesNoteDraftSnapshot({
+          notebookFlag,
+          noteId: base.noteId,
+          title: titleDraft,
+          body: bodyToSave,
+        });
+        setSaveState('saved');
+        clearConflict(notebookFlag, base.noteId);
+        return true;
+      } catch (e) {
+        const message = errorMessage(e, 'Failed to save note');
+        trackNotesActionError('save note', e, message, {
+          noteId: base.noteId,
+        });
+        if (e instanceof NotesNoteConflictError) {
+          reportConflict(notebookFlag, e);
+          return false;
+        }
+        // Only surface the failure while its note is still in the editor —
+        // an autosave that rejects after the user switched notes must not
+        // mark the newly-selected note as failed. (reportConflict applies
+        // the same guard for conflicts.)
+        const ctx = flushCtxRef.current;
+        if (ctx?.flag === notebookFlag && ctx.base?.noteId === base.noteId) {
+          setSaveState('error');
+          setError(message);
+        }
+        return false;
+      }
+    },
+    [
+      canEdit,
+      clearConflict,
+      draftBase,
+      notebookFlag,
+      preserveScrollOffset,
+      reportConflict,
+      runSave,
+      titleDraft,
+    ]
+  );
+
+  // Genuine conflict resolution, mirroring the ship-served notes app: the
+  // user picks a side. "Keep mine" rebases the editor's base onto the
+  // host's copy (so the next save asserts the host revision) and saves the
+  // drafts over it; "Use theirs" adopts the host's copy and discards the
+  // local drafts.
+  const rebaseDraftOnConflict = useCallback(
+    (base: db.NotesNote, remote: NotesNoteConflictError['remoteNote']) => ({
+      ...base,
+      title: remote.title ?? base.title,
+      bodyMd: remote.bodyMd ?? base.bodyMd,
+      folderId: remote.folderId ?? base.folderId,
+      revision: remote.revision ?? base.revision,
+      updatedAt: remote.updatedAt ?? base.updatedAt,
+      updatedBy: remote.updatedBy ?? base.updatedBy,
+    }),
+    []
+  );
+
+  const resolveConflictKeepMine = useCallback(() => {
+    if (!conflictNote || !draftBase) return;
+    const rebased = rebaseDraftOnConflict(draftBase, conflictNote);
+    setConflictNote(null);
+    setError(null);
+    setDraftBase(rebased);
+    void saveSelectedNote(rebased);
+  }, [conflictNote, draftBase, rebaseDraftOnConflict, saveSelectedNote]);
+
+  const resolveConflictUseTheirs = useCallback(() => {
+    if (!conflictNote || !draftBase || !notebookFlag) return;
+    const adopted = rebaseDraftOnConflict(draftBase, conflictNote);
+    setConflictNote(null);
+    setError(null);
+    setDraftBase(adopted);
+    setTitleDraft(adopted.title);
+    setBodyDraft(adopted.bodyMd);
+    // Sync the out-of-band flush inputs in the same tick. The draft refs
+    // and flush context normally catch up in post-commit effects; a
+    // background/unmount flush firing inside that gap would pair the
+    // discarded drafts with the pre-adoption base and queue a save of the
+    // very content the user just chose to throw away.
+    titleDraftRef.current = adopted.title;
+    bodyDraftRef.current = adopted.bodyMd;
+    flushCtxRef.current = { flag: notebookFlag, base: adopted, canEdit };
+    // Persist the host's copy locally so the reactive row catches up with
+    // the adoption instead of reloading the stale pre-conflict content
+    // over it. (The draft-loading effect also skips rows that trail the
+    // base revision, covering the render gap until this write lands.)
+    void adoptNotebookNoteRemote({ notebookFlag, remote: conflictNote });
+    // Drop this note's crash-insurance stashes unconditionally: the user
+    // just discarded the local side. A content-matched clear would miss a
+    // stash frozen at the PRE-conflict draft (the stash writer pauses
+    // while the banner is up, so typing during it leaves the stash stale),
+    // and the restore effect would resurrect that discarded text as a
+    // fresh conflict.
+    clearDraftStash(notebookFlag, draftBase.noteId);
+    clearNotesNoteDraftSnapshot(notebookFlag, draftBase.noteId);
+    setSaveState('idle');
+  }, [canEdit, conflictNote, draftBase, notebookFlag, rebaseDraftOnConflict]);
+
+  useEffect(() => {
+    // A pending conflict suspends autosave: retrying against a stale base
+    // can never succeed, and the user hasn't picked a side yet.
+    if (!canEdit || saveState === 'saving' || conflictNote) return;
+    if (!isDirty) {
+      // Edits were reverted back to the saved content; there's nothing to
+      // save, so don't leave a stale "Not synced" showing.
+      if (saveState === 'dirty') {
+        setSaveState('idle');
+      }
+      return;
+    }
+    setSaveState('dirty');
+    const timeout = setTimeout(() => {
+      saveSelectedNote();
+    }, AUTOSAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timeout);
+  }, [canEdit, conflictNote, isDirty, saveSelectedNote, saveState]);
 
   const flushPendingSave = useCallback(() => {
     const bodyToSave = bodyDraftRef.current;
@@ -615,9 +751,28 @@ export function NotesNoteDetail({
           setDraftBase(updated);
         }
         setSaveState('saved');
+        clearConflict(flag, base.noteId);
       })
-      .catch(() => {});
-  }, [preserveScrollOffset, runSave]);
+      .catch((e) => {
+        // No-ops after unmount; while mounted, surface a conflict so the
+        // resolution banner appears instead of a silently-failed flush.
+        // reportConflict drops it if the selection has since moved on.
+        if (e instanceof NotesNoteConflictError) {
+          reportConflict(flag, e);
+          return;
+        }
+        // Non-conflict failures (e.g. an unclassifiable conflict from a
+        // lagging replica) must not fail silently either: while this note
+        // is still in the editor, show the error so autosave/user retries.
+        // After unmount the durable stash carries the edits, and the
+        // stash-restore pass surfaces a conflict if the note moved on.
+        const ctx = flushCtxRef.current;
+        if (ctx?.flag === flag && ctx.base?.noteId === base.noteId) {
+          setSaveState('error');
+          setError(errorMessage(e, 'Failed to save note'));
+        }
+      });
+  }, [clearConflict, preserveScrollOffset, reportConflict, runSave]);
 
   // Flush unsaved work when switching notes or unmounting — the poke
   // outlives the component.
@@ -653,6 +808,12 @@ export function NotesNoteDetail({
   // clean too, but its restore pass hasn't run yet, so its stash survives.
   useEffect(() => {
     if (!notebookFlag || !draftBase) return;
+    // While a conflict is pending, leave the stash alone. A restored
+    // conflict pairs old drafts with the row's newer base — re-stashing
+    // would stamp them with the new baseRevision, and a restart would then
+    // restore them as ordinary drafts whose autosave silently overwrites
+    // the remote work the conflict was protecting.
+    if (conflictNote) return;
     if (!isDirty) {
       if (stashRestoreCheckedRef.current === stashRestoreKey) {
         clearDraftStash(notebookFlag, draftBase.noteId);
@@ -670,6 +831,7 @@ export function NotesNoteDetail({
     }));
   }, [
     bodyDraft,
+    conflictNote,
     draftBase,
     isDirty,
     notebookFlag,
@@ -679,8 +841,7 @@ export function NotesNoteDetail({
 
   // Restore a stashed draft after a crash/kill. Only restore while the
   // editor is clean and the row is still at the stash's base revision —
-  // then pushing the restored draft can't clobber anyone's newer work. A
-  // stash from an older revision is superseded; drop it.
+  // then pushing the restored draft can't clobber anyone's newer work.
   useEffect(() => {
     if (!notebookFlag || !draftBase || isDirty || !stashRestoreKey) return;
     if (stashRestoreCheckedRef.current === stashRestoreKey) return;
@@ -690,7 +851,29 @@ export function NotesNoteDetail({
       const stash = stashes[draftStashKey(notebookFlag, draftBase.noteId)];
       if (cancelled || !stash) return;
       if (stash.baseRevision !== draftBase.revision) {
-        clearDraftStash(notebookFlag, draftBase.noteId);
+        if (
+          stash.title === draftBase.title &&
+          stash.body === draftBase.bodyMd
+        ) {
+          // The stashed content is exactly what the row now holds — the
+          // save landed (e.g. a late flush succeeded). Nothing to recover.
+          clearDraftStash(notebookFlag, draftBase.noteId);
+          return;
+        }
+        // The stashed edits never landed and the note moved on (a flush
+        // hit a conflict and the session ended before recovery could run).
+        // Restoring them as plain drafts would be worse than dropping
+        // them: their base revision is now current, so the next autosave
+        // would silently overwrite the newer remote work. Surface it as
+        // the standing conflict it is — row as "theirs", stash as "mine" —
+        // which also suspends autosave until the user picks a side.
+        setTitleDraft(stash.title);
+        setBodyDraft(stash.body);
+        setConflictNote(draftBase);
+        setError(
+          'This note was changed elsewhere. Your unsaved changes are kept.'
+        );
+        setSaveState('error');
         return;
       }
       if (stash.title !== draftBase.title || stash.body !== draftBase.bodyMd) {
@@ -818,7 +1001,20 @@ export function NotesNoteDetail({
 
   return (
     <YStack flex={1} backgroundColor="$background">
-      {error ? <NotesBanner message={error} tone="negative" /> : null}
+      {error ? (
+        <NotesBanner
+          message={error}
+          tone="negative"
+          actions={
+            conflictNote
+              ? [
+                  { label: 'Keep mine', onPress: resolveConflictKeepMine },
+                  { label: 'Use theirs', onPress: resolveConflictUseTheirs },
+                ]
+              : undefined
+          }
+        />
+      ) : null}
       <ScrollView
         ref={scrollViewRef}
         flex={1}

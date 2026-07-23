@@ -1949,9 +1949,16 @@
     =/  =note:n
       (~(got by notes.notebook-state) nid)
     ?>  (se-can-edit src.bowl)
-    ::  strict optimistic concurrency check (no force-update sentinel)
+    ::  strict optimistic concurrency check (no force-update sentinel).
+    ::  A stale revision finalizes as a typed %conflict rather than
+    ::  crashing: a crash nacks the proxying ship's poke, which it can
+    ::  only report as %unknown — indistinguishable from a transient
+    ::  failure, so clients can't run conflict recovery.
     ?:  !=(revision.note expected-revision)
-      ~|(%revision-mismatch !!)
+      =/  msg=tape
+        %+  weld  "revision-mismatch: expected {<expected-revision>}"
+        ", current {<revision.note>}"
+      (se-finalize-with [%error %conflict ~[leaf+msg]])
     ::  no-op early-out: body unchanged
     ?:  =(body-md.note body)
       se-core
