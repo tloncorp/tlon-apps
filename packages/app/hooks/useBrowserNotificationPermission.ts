@@ -44,6 +44,7 @@ export function useBrowserNotificationPermission() {
     trackEvent(AnalyticsEvent.ActionsNotifPermsChecked, {
       isGranted: nextPermission === 'granted',
       canAskAgain: nextPermission === 'default',
+      $set: { pushNotifsGranted: nextPermission === 'granted' },
     });
     return nextPermission;
   }, []);

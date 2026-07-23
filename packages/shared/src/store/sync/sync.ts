@@ -568,6 +568,7 @@ export const syncSystemContacts = async (
 };
 
 export type ContactDiscoveryResult = {
+  didDiscover: boolean;
   newMatches: [string, string][];
 };
 
@@ -577,7 +578,10 @@ export const syncContactDiscovery = async (
 ): Promise<ContactDiscoveryResult> => {
   logger.log('syncContactDiscovery: starting');
   const invokeHandler = opts?.invokeHandler !== false;
-  const empty: ContactDiscoveryResult = { newMatches: [] };
+  const empty: ContactDiscoveryResult = {
+    didDiscover: false,
+    newMatches: [],
+  };
   const isMocked = isLanyardMockEnabled();
   const currentUserId = api.getCurrentUserId();
   const currentUserAttestations = await db.getUserAttestations({
@@ -613,12 +617,14 @@ export const syncContactDiscovery = async (
     return empty;
   }
 
+  let didDiscover = false;
   try {
     const matches = (
       await syncQueue.add('discoverContacts', ctx, () =>
         discoverContacts(phoneNumbers)
       )
     ).filter((match) => match[1] !== currentUserId);
+    didDiscover = true;
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
 
     const { newMatches } = await partitionDiscoveryMatches(matches, {
@@ -684,7 +690,7 @@ export const syncContactDiscovery = async (
       await invokeContactsMatchedHandler(newMatchIds);
     }
 
-    return { newMatches };
+    return { didDiscover, newMatches };
   } catch (error) {
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -692,7 +698,7 @@ export const syncContactDiscovery = async (
       severity: AnalyticsSeverity.Critical,
       error,
     });
-    return empty;
+    return { ...empty, didDiscover };
   }
 };
 

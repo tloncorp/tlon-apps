@@ -28,6 +28,7 @@ export function useContactDiscovery(
     db.SystemContact[]
   >([]);
   const pendingDiscoveryRef = useRef<Promise<{
+    didDiscover: boolean;
     newMatches: [string, string][];
   }> | null>(null);
   const hasShownMatchesRef = useRef(false);
@@ -43,11 +44,13 @@ export function useContactDiscovery(
       });
       pendingDiscoveryRef.current = promise;
       try {
-        const { newMatches } = await promise;
+        const { didDiscover, newMatches } = await promise;
         // Bail if a newer run has superseded us — its results are
         // authoritative, and ours would clobber state.
         if (pendingDiscoveryRef.current !== promise) return;
-        trackEvent(AnalyticsEvent.ContactDiscoveryCompleted);
+        if (didDiscover) {
+          trackEvent(AnalyticsEvent.ContactDiscoveryCompleted);
+        }
         if (newMatches.length > 0) {
           const matchedPhones = new Set(newMatches.map(([phone]) => phone));
           const matched = contacts.filter(

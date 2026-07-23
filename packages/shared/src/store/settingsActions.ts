@@ -16,10 +16,12 @@ export async function changeMessageFilter(filter: TalkSidebarFilter) {
   try {
     // optimistic update
     await db.insertSettings({ messagesFilter: filter });
-    return api.setSetting('messagesFilter', filter);
+    await api.setSetting('messagesFilter', filter);
+    return true;
   } catch (e) {
     console.error('Failed to change message filter', e);
     await db.insertSettings({ messagesFilter: oldFilter });
+    return false;
   }
 }
 

@@ -150,7 +150,7 @@ export function ContactBookPrompt(props: {
           Alert.alert('Success', 'Your contacts have been synced.');
         });
         const result = await store.syncContactDiscovery().catch(() => null);
-        if (result) {
+        if (result?.didDiscover) {
           trackEvent(AnalyticsEvent.ContactDiscoveryCompleted);
         }
         contactBookNag.eliminate();

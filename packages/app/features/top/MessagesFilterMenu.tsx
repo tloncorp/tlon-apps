@@ -12,12 +12,16 @@ export function MessagesFilterMenu({ children }: PropsWithChildren) {
 
   const handleAction = useCallback(
     (value: TalkSidebarFilter) => {
-      return () => {
-        if (value !== talkFilter) {
-          trackEvent(AnalyticsEvent.MessagesFilterSelected, { filter: value });
-          store.changeMessageFilter(value);
-        }
+      return async () => {
         setIsOpen(false);
+        if (value !== talkFilter) {
+          const didChange = await store.changeMessageFilter(value);
+          if (didChange) {
+            trackEvent(AnalyticsEvent.MessagesFilterSelected, {
+              filter: value,
+            });
+          }
+        }
       };
     },
     [talkFilter]

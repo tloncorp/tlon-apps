@@ -1,8 +1,10 @@
 import {
+  AnalyticsEvent,
   convertContent,
   markdownToStory,
   normalizeNotebookNoteTitle,
   saveNotebookNote,
+  trackEvent,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
@@ -265,6 +267,12 @@ export function NotesNoteDetail({
       ? null
       : notes.find((note) => note.noteId === noteId) ?? null;
   const selectedNoteRowId = selectedNote?.id ?? null;
+
+  useEffect(() => {
+    if (selectedNoteRowId !== null) {
+      trackEvent(AnalyticsEvent.NoteOpened);
+    }
+  }, [selectedNoteRowId]);
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(
