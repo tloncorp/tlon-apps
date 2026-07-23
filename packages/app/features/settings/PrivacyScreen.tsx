@@ -73,10 +73,18 @@ export function PrivacySettingsScreen(props: Props) {
       : 'hidden';
     setState((prev) => ({ ...prev, phoneDiscoverable: nextDiscoveryState }));
     try {
-      await store.updateAttestationDiscoverability({
+      const didUpdate = await store.updateAttestationDiscoverability({
         attestation: phoneAttest,
         discoverability: nextDiscoveryValue,
       });
+      if (!didUpdate) {
+        triggerHaptic('error');
+        setState((prev) => ({
+          ...prev,
+          phoneDiscoverable: !nextDiscoveryState,
+        }));
+        return;
+      }
       trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
         enabled: nextDiscoveryState,
         setting: 'phone_discovery',

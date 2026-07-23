@@ -20,6 +20,7 @@ import {
   finalizeAndSendPost,
   retrySendPost,
 } from './postActions';
+import { verifyPostDelivery } from './verifyPostDelivery';
 
 const TEST_CHANNEL = '~zod';
 const LOCAL_URI = 'LOCAL_URI';
@@ -342,6 +343,42 @@ describe('finalizeAndSendPost', () => {
         ([event]) => event === AnalyticsEvent.ContentSendCompleted
       )
     ).toHaveLength(1);
+  });
+
+  test('tracks completion when delivery is verified after a connection error', async () => {
+    const capture = vi.fn();
+    useDebugStore.getState().initializeErrorLogger({ capture });
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    vi.mocked(poke).mockRejectedValueOnce(new Error('aborted'));
+
+    const initialSend = finalizeAndSendPost(buildTestDraft());
+    await vi.runOnlyPendingTimersAsync();
+    await initialSend;
+
+    const post = await fetchLatestPostFromDb();
+    expect(post).toMatchObject({
+      deliveryStatus: 'needs_verification',
+      draft: expect.anything(),
+    });
+    vi.spyOn(api, 'getChannelPosts').mockResolvedValue({
+      posts: [{ ...post!, id: 'verified-server-post' }],
+      numStubs: 0,
+      numDeletes: 0,
+      newestSequenceNum: null,
+    });
+
+    await expect(verifyPostDelivery(post!)).resolves.toBe(true);
+
+    expect(
+      capture.mock.calls.filter(
+        ([event]) => event === AnalyticsEvent.ContentSendCompleted
+      )
+    ).toHaveLength(1);
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'sent',
+      draft: null,
+    });
   });
 
   test('session connection lost during upload', async () => {

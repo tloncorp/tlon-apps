@@ -198,6 +198,7 @@ export async function updateAttestationDiscoverability({
       type: attestation.type,
       discoverability,
     });
+    return true;
   } catch (e) {
     // Rollback
     await db.updateAttestation({ attestation });
@@ -206,6 +207,7 @@ export async function updateAttestationDiscoverability({
       severity: AnalyticsSeverity.Critical,
       error: e,
     });
+    return false;
   }
 }
 

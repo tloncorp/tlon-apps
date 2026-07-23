@@ -1,7 +1,8 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared';
 import { Button, LoadingSpinner } from '@tloncorp/ui';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack, getTokenValue } from 'tamagui';
 
@@ -24,6 +25,12 @@ export function InviteUsersScreen() {
   const { bottom } = useSafeAreaInsets();
   const { data: group } = store.useGroup({ id: groupId ?? '' });
   const disabledIds = store.useGroupsNegotiationClashes();
+
+  useEffect(() => {
+    if (groupId) {
+      trackEvent(AnalyticsEvent.InviteSurfaceOpened);
+    }
+  }, [groupId]);
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();
