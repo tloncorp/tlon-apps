@@ -588,14 +588,22 @@ export function NotesNoteDetail({
         setSaveState('saved');
         return true;
       } catch (e) {
-        setSaveState('error');
         const message = errorMessage(e, 'Failed to save note');
         trackNotesActionError('save note', e, message, {
           noteId: base.noteId,
         });
-        setError(message);
         if (e instanceof NotesNoteConflictError) {
           reportConflict(notebookFlag, e);
+          return false;
+        }
+        // Only surface the failure while its note is still in the editor —
+        // an autosave that rejects after the user switched notes must not
+        // mark the newly-selected note as failed. (reportConflict applies
+        // the same guard for conflicts.)
+        const ctx = flushCtxRef.current;
+        if (ctx?.flag === notebookFlag && ctx.base?.noteId === base.noteId) {
+          setSaveState('error');
+          setError(message);
         }
         return false;
       }
