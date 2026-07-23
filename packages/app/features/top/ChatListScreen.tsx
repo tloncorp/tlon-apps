@@ -34,7 +34,6 @@ import {
   NavigationProvider,
   PersonalInviteSheet,
   Pressable,
-  RequestsProvider,
   ScreenHeader,
   View,
   triggerHaptic,
@@ -97,6 +96,7 @@ export function ChatListScreenView({
   const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
 
   const [showSearchInput, setShowSearchInput] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const isFocused = useIsFocused();
 
   const { data: chats } = store.useCurrentChats({
@@ -267,12 +267,19 @@ export function ChatListScreenView({
   );
 
   const handlePressAddChat = useCallback(() => {
+    // Close the filter input (and its keyboard) before opening the sheet so
+    // the keyboard can't overlap it and trap touches (TLON-6187).
+    if (showSearchInput) {
+      setSearchQuery('');
+      setShowSearchInput(false);
+      Keyboard.dismiss();
+    }
     db.wayfindingProgress.setValue((prev) => ({
       ...prev,
       tappedHomeAdd: true,
     }));
     createChatSheetRef.current?.open();
-  }, []);
+  }, [showSearchInput]);
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -310,8 +317,6 @@ export function ChatListScreenView({
       identifyTlonEmployee();
     }
   }, [isTlonEmployee]);
-
-  const [searchQuery, setSearchQuery] = useState('');
 
   const isWindowNarrow = useIsWindowNarrow();
   const showHomeAddTooltip = store.useShowHomeAddTooltip();
@@ -368,13 +373,7 @@ export function ChatListScreenView({
   }, [chats]);
 
   return (
-    <RequestsProvider
-      usePostReference={store.usePostReference}
-      useChannel={store.useChannelPreview}
-      usePost={store.usePostWithRelations}
-      useApp={db.appInfo.useValue}
-      useGroup={store.useGroupPreview}
-    >
+    <>
       <ChatOptionsProvider
         {...useChatSettingsNavigation()}
         onPressInvite={handlePressInvite}
@@ -491,7 +490,7 @@ export function ChatListScreenView({
         onOpenChange={() => setPersonalInviteOpen(false)}
         onPressInviteFriends={handleInviteFriends}
       />
-    </RequestsProvider>
+    </>
   );
 }
 

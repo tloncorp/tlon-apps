@@ -26,11 +26,9 @@ import {
   View,
   XStack,
   YStack,
-  useStore,
 } from '@tloncorp/app/ui';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -62,7 +60,6 @@ export function GettingNodeReadyScreen({
   navigation,
   route: { params },
 }: Props) {
-  const store = useStore();
   const isFocused = useIsFocused();
   const lastWasFocused = useRef(true);
   const { setShip } = useShip();
@@ -142,15 +139,7 @@ export function GettingNodeReadyScreen({
         }, 2000);
       }
     }
-  }, [
-    navigation,
-    onboardingHelpers,
-    phase,
-    setShip,
-    shipInfo,
-    store,
-    updateProgress,
-  ]);
+  }, [navigation, onboardingHelpers, phase, setShip, shipInfo, updateProgress]);
 
   // If we came back to this screen, make sure we reset
   useEffect(() => {

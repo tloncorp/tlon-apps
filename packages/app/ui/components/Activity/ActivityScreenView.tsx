@@ -15,7 +15,6 @@ import {
 import { View, XStack, isWeb, useStyle } from 'tamagui';
 
 import { NavigationProvider } from '../../contexts/navigation';
-import { useStore } from '../../contexts/storeContext';
 import { useIsDarkTheme } from '../../utils/colorUtils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
@@ -54,7 +53,6 @@ export function ActivityScreenView({
   onInviteFriends?: () => void;
   scrollRef?: React.RefObject<FlatList | null>;
 }) {
-  const store = useStore();
   const { data: activitySeenMarker } = store.useActivitySeenMarker();
   const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
   const currentFetcher = bucketFetchers[activeTab];
@@ -72,7 +70,7 @@ export function ActivityScreenView({
     setTimeout(() => {
       store.advanceActivitySeenMarker(newestTimestamp);
     }, 1000);
-  }, [newestTimestamp, store]);
+  }, [newestTimestamp]);
 
   useEffect(() => {
     if (

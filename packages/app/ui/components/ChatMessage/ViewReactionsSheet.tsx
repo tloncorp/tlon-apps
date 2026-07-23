@@ -1,8 +1,8 @@
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useMemo } from 'react';
 
 import { AppDataContextProvider, useCalm } from '../../contexts/appDataContext';
-import { useStore } from '../../contexts/storeContext';
 import { ActionSheet } from '../ActionSheet';
 import { ViewReactionsPane } from './ViewReactionsPane';
 
@@ -15,7 +15,6 @@ export function ViewReactionsSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const store = useStore();
   const { data: contacts } = store.useContacts();
   const calmSettings = useCalm();
 

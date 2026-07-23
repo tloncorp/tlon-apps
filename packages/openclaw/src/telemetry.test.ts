@@ -920,6 +920,8 @@ describe('telemetry tool tracking', () => {
             errorKind: report.event.errorKind ?? null,
             errorText: report.event.errorText,
             attempt: report.event.attempt ?? null,
+            downMs: report.event.downMs ?? null,
+            authPhase: report.event.authPhase ?? null,
           });
           break;
         case 'telemetry':
@@ -1699,6 +1701,40 @@ describe('telemetry tool tracking', () => {
     );
   });
 
+  it('captures expected auth failures separately from plugin errors', () => {
+    const telemetry = createEnabledTelemetry()!;
+
+    telemetry.captureAuthAttemptFailed({
+      harness: 'openclaw',
+      pluginErrorSource: 'auth',
+      authPhase: 'startup',
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      errorKind: 'TimeoutError',
+      errorText: 'request timed out',
+      attempt: 3,
+      downMs: 45_000,
+    });
+
+    expect(postHogMocks.capture).toHaveBeenLastCalledWith({
+      distinctId: '~zod',
+      event: 'TlonBot Auth Attempt Failed',
+      properties: expect.objectContaining({
+        harness: 'openclaw',
+        pluginErrorSource: 'auth',
+        authPhase: 'startup',
+        accountId: 'default',
+        ownerShip: '~zod',
+        botShip: '~nec',
+        errorKind: 'TimeoutError',
+        errorText: 'request timed out',
+        attempt: 3,
+        downMs: 45_000,
+      }),
+    });
+  });
+
   it('captures telemetry observer failures', () => {
     const telemetry = createEnabledTelemetry()!;
     bindErrorReporter(telemetry);
@@ -1912,7 +1948,8 @@ describe('cron telemetry capture', () => {
     const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
     expect(call.event).toBe('TlonBot Cron Run');
     expect(call.distinctId).toBe('~zod');
-    expect(call.properties.status).toBe('error');
+    expect(call.properties.cronStatus).toBe('error');
+    expect(call.properties).not.toHaveProperty('status');
     expect(call.properties.cronError).toBe('model timed out');
     expect(call.properties.durationMs).toBe(1_234);
     expect(call.properties.deliveryStatus).toBe('not-delivered');

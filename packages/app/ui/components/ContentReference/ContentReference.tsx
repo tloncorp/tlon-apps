@@ -4,6 +4,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getChannelType } from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import { ContentReference } from '@tloncorp/shared/domain';
+import {
+  useChannelPreview,
+  useGroupPreview,
+  useNoteReference,
+  usePostReference,
+} from '@tloncorp/shared/store';
 import { IconType } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import React from 'react';
@@ -12,7 +18,6 @@ import { View, XStack, styled } from 'tamagui';
 
 import type { RootStackParamList } from '../../../navigation/types';
 import { useNavigation } from '../../contexts/navigation';
-import { useRequests } from '../../contexts/requests';
 import { useGroupTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
@@ -94,14 +99,13 @@ export function PostReferenceLoader({
   postId: string;
   replyId?: string;
 }) {
-  const { usePostReference, useChannel, useGroup } = useRequests();
   const postQuery = usePostReference({
     channelId,
     postId,
     replyId,
   });
-  const { data: channel } = useChannel({ id: channelId });
-  const { data: group } = useGroup(channel?.groupId ?? '');
+  const { data: channel } = useChannelPreview({ id: channelId });
+  const { data: group } = useGroupPreview(channel?.groupId ?? '');
   const { onPressRef, onPressGroupRef } = useNavigation();
   const handlePress = useCallback(async () => {
     if (channel && postQuery.data && group && group.currentUserIsMember) {
@@ -281,9 +285,8 @@ export function GroupReferenceLoaderComponent({
 }: {
   groupId: string;
 } & ReferenceProps) {
-  const { useGroup } = useRequests();
   const { onPressGroupRef } = useNavigation();
-  const { data: group, isLoading, isError, error } = useGroup(groupId);
+  const { data: group, isLoading, isError, error } = useGroupPreview(groupId);
   const onPress = useBoundHandler(group, onPressGroupRef);
 
   return (
@@ -365,11 +368,10 @@ export function NotesNoteReferenceLoader({
   channelId: string;
   noteId: string;
 }) {
-  const { useNoteReference, useChannel } = useRequests();
   const noteQuery = useNoteReference({ channelId, noteId });
   // public-notebook previews hydrate for non-members, but NotesDetail only
   // reads locally synced channels — don't offer a tap into a blank screen
-  const { data: channel } = useChannel({ id: channelId });
+  const { data: channel } = useChannelPreview({ id: channelId });
   const navigation =
     useReactNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const preview = noteQuery.data;

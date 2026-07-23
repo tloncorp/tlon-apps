@@ -202,6 +202,34 @@ describe('NativeDb', () => {
     expect(sharedDbSpies.setClient).toHaveBeenCalledTimes(1);
   });
 
+  it('supports an isolated database without resetting app sync state', async () => {
+    const firstConnection = sqliteRuntime.makeConnection();
+    const secondConnection = sqliteRuntime.makeConnection();
+    sqliteRuntime.enqueueConnection(firstConnection);
+    sqliteRuntime.enqueueConnection(secondConnection);
+    const db = new NativeDb({
+      databaseName: 'tlon-cosmos.sqlite',
+      resetSyncStateOnPurge: false,
+    });
+
+    await db.setupDb();
+    await db.purgeDb();
+
+    expect(sqliteRuntime.open).toHaveBeenNthCalledWith(1, {
+      location: 'default',
+      name: 'tlon-cosmos.sqlite',
+    });
+    expect(sqliteRuntime.open).toHaveBeenNthCalledWith(2, {
+      location: 'default',
+      name: 'tlon-cosmos.sqlite',
+    });
+    expect(firstConnection.delete).toHaveBeenCalledTimes(1);
+    expect(sharedDbSpies.resetHeadsSyncedAt).not.toHaveBeenCalled();
+    expect(sharedDbSpies.resetChangesSyncedAt).not.toHaveBeenCalled();
+    expect(sharedDbSpies.resetDidSyncInitialPosts).not.toHaveBeenCalled();
+    expect(sharedDbSpies.resetUserHasCompletedFirstSync).not.toHaveBeenCalled();
+  });
+
   it('setupDb serializes concurrent calls behind one setupPromise', async () => {
     let releaseFirstPragma: (() => void) | undefined;
     const firstPragma = new Promise<void>((resolve) => {

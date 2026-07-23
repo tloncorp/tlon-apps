@@ -21,6 +21,11 @@ export const REQUIRED_SENTINEL_TABLES = [
   schema.activityEvents,
 ].map((table) => getTableName(table));
 
+type NativeDbOptions = {
+  databaseName?: string;
+  resetSyncStateOnPurge?: boolean;
+};
+
 export class NativeDb extends BaseDb {
   private connection: SQLiteConnection | null = null;
   private isProcessingChanges: boolean = false;
@@ -28,6 +33,17 @@ export class NativeDb extends BaseDb {
   private didMigrate: boolean = false;
   private setupPromise: Promise<void> | null = null;
   private readyPromise: Promise<void> | null = null;
+  private readonly databaseName: string;
+  private readonly resetSyncStateOnPurge: boolean;
+
+  constructor({
+    databaseName = 'tlon.sqlite',
+    resetSyncStateOnPurge = true,
+  }: NativeDbOptions = {}) {
+    super();
+    this.databaseName = databaseName;
+    this.resetSyncStateOnPurge = resetSyncStateOnPurge;
+  }
 
   async setupDb() {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
@@ -62,7 +78,7 @@ export class NativeDb extends BaseDb {
         this.connection = new OPSQLite$SQLiteConnection(
           // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
           // this, you should change that too.
-          open({ location: 'default', name: 'tlon.sqlite' })
+          open({ location: 'default', name: this.databaseName })
         );
         // Experimental SQLite settings. May cause crashes. More here:
         // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
@@ -138,8 +154,10 @@ export class NativeDb extends BaseDb {
         context: 'purgeDb: closed the connection, cleared the client',
       });
 
-      // reset values related to tracking db sync state
-      await resetDbSyncState();
+      if (this.resetSyncStateOnPurge) {
+        // reset values related to tracking db sync state
+        await resetDbSyncState();
+      }
 
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'purgeDb: completed purge, recreating',

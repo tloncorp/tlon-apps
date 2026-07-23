@@ -1,10 +1,8 @@
-import { spyOn } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { setContactsMatchedHandler } from '@tloncorp/shared/store';
 import React, { useEffect, useMemo } from 'react';
 import { useValue } from 'react-cosmos/client';
 
-import { StoreProvider, createNoOpStore } from '../ui';
 import { BotChatPreview } from '../ui/components/Wayfinding/BotChatPreview';
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import {
@@ -193,8 +191,12 @@ function InvitePaneFixture() {
     console.log('Invite pane action pressed');
   }, []);
 
-  const stubStore = useMemo(() => {
-    const base = createNoOpStore();
+  const syncSystemContacts = useMemo(
+    () => async () => initialSystemContacts,
+    []
+  );
+
+  const syncContactDiscovery = useMemo(() => {
     const phones = initialSystemContacts
       .map((c) => c.phoneNumber)
       .filter((p): p is string => !!p);
@@ -206,32 +208,22 @@ function InvitePaneFixture() {
         FIXTURE_MOCK_SHIPS[i % FIXTURE_MOCK_SHIPS.length],
       ]);
 
-    return spyOn(
-      // The store object isn't typed for these stubs cleanly; cast to keep
-      // the fixture readable.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      spyOn(
-        base,
-        'syncSystemContacts',
-        (async () => initialSystemContacts) as any
-      ),
-      'syncContactDiscovery',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (async () => {
-        await new Promise((r) => setTimeout(r, latencyMs));
-        if (discoveryFails) {
-          throw new Error('fixture: discovery failed');
-        }
-        return { newMatches };
-      }) as any
-    );
+    return async () => {
+      await new Promise((r) => setTimeout(r, latencyMs));
+      if (discoveryFails) {
+        throw new Error('fixture: discovery failed');
+      }
+      return { newMatches };
+    };
   }, [matchCount, latencyMs, discoveryFails]);
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <StoreProvider stub={stubStore}>
-        <InvitePane onActionPress={handleAction} />
-      </StoreProvider>
+      <InvitePane
+        onActionPress={handleAction}
+        syncSystemContacts={syncSystemContacts}
+        syncContactDiscovery={syncContactDiscovery}
+      />
     </FixtureWrapper>
   );
 }

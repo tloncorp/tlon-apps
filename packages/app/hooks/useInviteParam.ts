@@ -5,15 +5,14 @@ import {
   getMetadataFromInviteToken,
   withRetry,
 } from '@tloncorp/shared';
+import * as store from '@tloncorp/shared/store';
 import { useEffect } from 'react';
 
 import { ActualRootDrawerParamList } from '../navigation/types';
-import { useStore } from '../ui';
 
 const logger = createDevLogger('useInviteParam', true);
 
 export function useInviteParam() {
-  const store = useStore();
   const navigation =
     useNavigation<DrawerNavigationProp<ActualRootDrawerParamList>>();
 
@@ -68,5 +67,5 @@ export function useInviteParam() {
     }
 
     runEffect();
-  }, [navigation, store]);
+  }, [navigation]);
 }

@@ -8,13 +8,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import {
-  useCanUpload,
-  useChannelPreview,
-  useGroupPreview,
-  usePostReference,
-  usePostWithRelations,
-} from '@tloncorp/shared/store';
+import { useCanUpload } from '@tloncorp/shared/store';
 import React, {
   useCallback,
   useEffect,
@@ -69,7 +63,6 @@ export default function ChannelScreen(props: Props) {
     channel,
     group,
     groupIsLoading,
-    groupError,
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
@@ -405,7 +398,6 @@ export default function ChannelScreen(props: Props) {
   return (
     <ChatOptionsProvider
       initialChat={initialChat}
-      useGroup={store.useGroup}
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
@@ -422,7 +414,6 @@ export default function ChannelScreen(props: Props) {
           hasOlderPosts={postsQuery.hasNextPage}
           group={group}
           groupIsLoading={groupIsLoading}
-          groupError={groupError}
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
           goBack={navigationRef.current.goBack}
@@ -439,11 +430,7 @@ export default function ChannelScreen(props: Props) {
           onScrollStartReached={loadNewer}
           onPressRef={navigateToRef}
           markRead={handleMarkRead}
-          usePost={usePostWithRelations}
-          usePostReference={usePostReference}
-          useGroup={useGroupPreview}
           onGroupAction={performGroupAction}
-          useChannel={useChannelPreview}
           storeDraft={storeDraft}
           clearDraft={clearDraft}
           getDraft={getDraft}

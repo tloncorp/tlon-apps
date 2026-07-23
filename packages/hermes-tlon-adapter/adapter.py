@@ -18,10 +18,10 @@ import time
 import unicodedata
 import uuid
 from collections import OrderedDict, deque
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Sequence
+from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
@@ -113,6 +113,26 @@ from .owner_listen import (
     settings_group_channels,
     settings_put_entry,
 )
+from .nudge import (
+    ActiveHoursBaseline,
+    NudgeSettingsSnapshot,
+    OwnerActivityPersistence,
+    PendingNudge,
+    PendingNudgePersistence,
+    SETTINGS_KEY_LAST_NUDGE_STAGE,
+    SETTINGS_KEY_LAST_OWNER_MESSAGE_AT,
+    SETTINGS_KEY_LAST_OWNER_MESSAGE_DATE,
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_END,
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_START,
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_TIMEZONE,
+    SETTINGS_KEY_PENDING_NUDGE,
+    TlonNudgeScheduler,
+    _valid_epoch_ms,
+    is_nudge_eligible,
+    owner_activity_from_snapshot,
+    parse_last_nudge_stage,
+    parse_pending_nudge,
+)
 from .image_search import (
     IMAGE_SEARCH_TOOL_DESCRIPTION,
     IMAGE_SEARCH_TOOL_SCHEMA,
@@ -161,6 +181,7 @@ from .tlon_api import (
     TlonReaction,
     TlonSSEClient,
     ChannelReactsSnapshot,
+    TlonTerminalActionError,
     format_post_id,
     normalize_ship,
     parse_channel_reacts_snapshot,
@@ -175,6 +196,13 @@ from .presence import (
     handle_post_api_request,
     handle_pre_tool_call,
     set_active_computing_presence_tracker,
+)
+from .sanitize import (
+    ends_with_directive_prefix,
+    find_executable_block_directives,
+    find_block_directives,
+    strip_block_directives,
+    strip_trailing_directive_prefix,
 )
 from .tlon_tool import (
     CREDENTIAL_FLAGS_WITH_VALUE,
@@ -238,10 +266,48 @@ OPTIONAL_ENV = [
     "TLON_SSE_READ_TIMEOUT_SECONDS",
     "TLON_GATEWAY_STATUS",
     "TLON_GATEWAY_STATUS_OWNER",
+    "TLON_REENGAGEMENT_ENABLED",
+    "TLON_NUDGE_TICK_INTERVAL_MS",
+    "TLON_NUDGE_ACTIVE_HOURS_START",
+    "TLON_NUDGE_ACTIVE_HOURS_END",
+    "TLON_NUDGE_ACTIVE_HOURS_TIMEZONE",
+    "TLON_TIMEZONE",
     "BRAVE_SEARCH_API_KEY",
     "BRAVE_API_KEY",
 ]
 _TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
+
+
+@dataclass(frozen=True)
+class _NudgeHookResult:
+    pending: Optional[PendingNudge] = None
+    inject_context: bool = False
+
+
+@dataclass(frozen=True)
+class _StreamWorkItem:
+    app: str
+    raw: Any
+    message: Optional[TlonIncomingMessage] = None
+    nudge_hook: _NudgeHookResult = _NudgeHookResult()
+    nudge_settings_handled: bool = False
+
+
+_NUDGE_SNAPSHOT_FIELDS = {
+    SETTINGS_KEY_LAST_OWNER_MESSAGE_AT: "last_owner_message_at",
+    SETTINGS_KEY_LAST_OWNER_MESSAGE_DATE: "last_owner_message_date",
+    SETTINGS_KEY_PENDING_NUDGE: "pending_nudge_raw",
+    SETTINGS_KEY_LAST_NUDGE_STAGE: "last_nudge_stage",
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_START: "active_hours_start",
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_END: "active_hours_end",
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_TIMEZONE: "active_hours_timezone",
+}
+
+# Absorb a normal slow dispatch without stalling SSE ingestion, but apply
+# transport backpressure rather than accumulating unbounded work under
+# sustained overload.
+_STREAM_EVENT_QUEUE_MAXSIZE = 1024
+_OWNER_BLOCK_REASON_MAX_CHARS = 500
 
 try:
     import aiohttp as _aiohttp  # noqa: F401
@@ -588,6 +654,23 @@ def _epoch_ms(value: Any) -> Optional[int]:
     return None
 
 
+def _nudge_reply_context(nudge: PendingNudge, text: str) -> str:
+    sent_at = (
+        datetime.fromtimestamp(nudge.sent_at / 1000, timezone.utc)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
+    content = (
+        f"Message content:\n\n{nudge.content}\n\n" if nudge.content else ""
+    )
+    return (
+        f"[Context: You recently sent {nudge.owner_ship} a stage-{nudge.stage} "
+        f"re-engagement nudge at {sent_at}. {content}"
+        "The owner's reply below may be responding to that nudge.]\n\n"
+        f"{text}"
+    )
+
+
 def _cli_available(cli: str | None = None) -> bool:
     candidate = cli or os.getenv("TLON_CLI", "tlon")
     if not candidate:
@@ -751,6 +834,8 @@ class ReactionState:
 
 class TlonAdapter(BasePlatformAdapter):
     MAX_MESSAGE_LENGTH = MAX_MESSAGE_LENGTH
+    SUPPORTS_MESSAGE_EDITING = False
+    _DISPATCH_STATE_CAPACITY = 1000
     # Tell Hermes' DeliveryRouter not to truncate before calling send(); this
     # adapter preserves oversized replies by splitting them into Tlon posts.
     splits_long_messages = True
@@ -776,6 +861,49 @@ class TlonAdapter(BasePlatformAdapter):
         self._connected_at = 0.0
         self._sse: Optional[TlonSSEClient] = None
         self._stream_task: Optional[asyncio.Task] = None
+        self._event_queue: Optional[asyncio.Queue[_StreamWorkItem]] = None
+        self._event_worker_task: Optional[asyncio.Task] = None
+        self._nudge_snapshot = NudgeSettingsSnapshot()
+        self._nudge_owner_activity: Optional[tuple[int, str]] = None
+        self._nudge_stage_shadow = 0
+        self._pending_nudge: Optional[PendingNudge] = None
+        self._pending_nudge_rehydrated = False
+        self._nudge_seen_ids: set[str] = set()
+        self._nudge_seen_order: list[str] = []
+        self._nudge_load_seeded = False
+        self._nudge_settings_ready = False
+        self._nudge_settings_retry_task: Optional[asyncio.Task] = None
+        self._nudge_load_lock = asyncio.Lock()
+        self._nudge_load_generation = 0
+        self._nudge_activity_persistence = OwnerActivityPersistence(
+            poke=self._nudge_poke,
+            error=lambda message: logger.warning("%s", message),
+        )
+        self._pending_nudge_persistence = PendingNudgePersistence(
+            poke=self._nudge_poke,
+            error=lambda message: logger.warning("%s", message),
+        )
+        self._nudge_scheduler = TlonNudgeScheduler(
+            enabled=self.tlon_config.reengagement_enabled,
+            owner_ship=self.tlon_config.owner_ship,
+            bot_ship=self.tlon_config.ship_name,
+            interval_ms=self.tlon_config.nudge_tick_interval_ms,
+            get_snapshot=lambda: self._nudge_snapshot,
+            settings_ready=lambda: self._nudge_settings_ready,
+            get_activity=lambda: self._nudge_owner_activity,
+            set_activity=self._set_nudge_owner_activity,
+            get_stage=lambda: self._nudge_stage_shadow,
+            set_stage=self._set_nudge_stage,
+            get_active_hours_baseline=self._nudge_active_hours_baseline,
+            get_pending=lambda: self._pending_nudge,
+            set_pending=self._set_pending_nudge,
+            send_dm=self._send_nudge_dm,
+            activity_persistence=self._nudge_activity_persistence,
+            pending_persistence=self._pending_nudge_persistence,
+            poke=self._nudge_poke,
+            telemetry=self._telemetry,
+            error=lambda message: logger.warning("%s", message),
+        )
         self._gateway_status = TlonGatewayStatus(
             self.tlon_config,
             on_error=lambda operation, exc: self._telemetry.error(
@@ -819,6 +947,10 @@ class TlonAdapter(BasePlatformAdapter):
         self._known_bot_ships: set[str] = set()
         self._known_bot_consecutive_by_channel: dict[str, int] = {}
         self._pending_bot_cap_addendum: dict[str, tuple[str, str]] = {}
+        self._inflight_senders: OrderedDict[tuple[str, str], str] = OrderedDict()
+        self._executed_block_directives: OrderedDict[
+            tuple[str, str, str], None
+        ] = OrderedDict()
         # Lens output IDs derive from --sent-at. Reserve strictly increasing
         # values so quick consecutive sends cannot collide on the same post ID.
         self._last_lens_sent_at = 0
@@ -891,11 +1023,16 @@ class TlonAdapter(BasePlatformAdapter):
             )
             set_active_telemetry(self._telemetry)
             await self._load_bot_profile()
-            await self._load_settings_state()
+            settings_loaded = await self._load_settings_state()
+            self._nudge_settings_ready = settings_loaded
+            if not settings_loaded:
+                self._start_nudge_settings_retry()
             await self._process_pending_dm_invites()
             await self._process_pending_group_invites()
             await self._start_gateway_status()
             await self._start_lens()
+            self._start_event_worker()
+            self._nudge_scheduler.start()
             self._stream_task = asyncio.create_task(self._run_stream())
             self._computing_presence.bind_loop(asyncio.get_running_loop())
             set_active_computing_presence_tracker(self._computing_presence)
@@ -946,11 +1083,18 @@ class TlonAdapter(BasePlatformAdapter):
         except Exception as exc:
             logger.error("[tlon] connect failed: %s", exc, exc_info=True)
             self._telemetry.error("connect", exc)
+            await self._stop_nudge_collaborators()
+            await self._stop_event_worker()
             await self._close_sse(graceful=False)
+            self._reset_nudge_state()
             return False
 
     async def disconnect(self) -> None:
         self._mark_disconnected()
+        self._nudge_settings_ready = False
+        self._nudge_load_generation += 1
+        await self._stop_nudge_settings_retry()
+        await self._nudge_scheduler.stop()
         if self._connected_at:
             self._telemetry.gateway_disconnected(
                 uptime_seconds=int(time.monotonic() - self._connected_at),
@@ -960,9 +1104,6 @@ class TlonAdapter(BasePlatformAdapter):
         clear_active_telemetry(self._telemetry)
         clear_active_computing_presence_tracker(self._computing_presence)
         clear_active_recorder(self._lens)
-        await self._computing_presence.close()
-        await self._stop_gateway_status("shutdown")
-        await self._stop_lens()
         if self._stream_task is not None:
             self._stream_task.cancel()
             try:
@@ -970,13 +1111,26 @@ class TlonAdapter(BasePlatformAdapter):
             except asyncio.CancelledError:
                 pass
             self._stream_task = None
+        await self._stop_event_worker()
+        await self._nudge_activity_persistence.flush(final=True)
+        await self._pending_nudge_persistence.flush(final=True)
+        await self._computing_presence.close()
+        await self._stop_gateway_status("shutdown")
+        await self._stop_lens()
         await self._close_sse()
+        self._reset_nudge_state()
         self._seen_ids.clear()
         self._seen_order.clear()
         self._participated_threads.clear()
         self._known_bot_ships.clear()
         self._known_bot_consecutive_by_channel.clear()
         self._pending_bot_cap_addendum.clear()
+        for message_key in list(self._inflight_senders):
+            self._remove_dispatch_state(message_key)
+        for directive_key in list(self._executed_block_directives):
+            self._remove_dispatch_state(directive_key[:2])
+        self._inflight_senders.clear()
+        self._executed_block_directives.clear()
         self._reaction_state.clear()
         self._message_cache.clear()
         self._pending_reaction_notes.clear()
@@ -1010,7 +1164,66 @@ class TlonAdapter(BasePlatformAdapter):
         owner = self.tlon_config.owner_ship
         return bool(owner) and normalize_ship(ship) == owner
 
-    async def _load_settings_state(self) -> None:
+    def _nudge_active_hours_baseline(self) -> ActiveHoursBaseline:
+        return ActiveHoursBaseline(
+            start=self.tlon_config.nudge_active_hours_start,
+            end=self.tlon_config.nudge_active_hours_end,
+            timezone=self.tlon_config.nudge_active_hours_timezone,
+            user_timezone=self.tlon_config.user_timezone,
+        )
+
+    def _set_nudge_owner_activity(
+        self, activity: Optional[tuple[int, str]]
+    ) -> None:
+        self._nudge_owner_activity = activity
+
+    def _set_nudge_stage(self, stage: int) -> None:
+        self._nudge_stage_shadow = stage if stage in (1, 2, 3) else 0
+
+    def _set_pending_nudge(self, nudge: Optional[PendingNudge]) -> None:
+        self._pending_nudge = nudge
+        self._pending_nudge_rehydrated = True
+
+    async def _current_sse_poke(self, app: str, mark: str, payload: Any) -> Any:
+        if self._sse is None:
+            raise ConnectionError("Tlon SSE is unavailable")
+        return await self._sse.poke(app, mark, payload)
+
+    async def _nudge_poke(
+        self,
+        app: str,
+        mark: str,
+        payload: Any,
+    ) -> Any:
+        try:
+            return await self._current_sse_poke(app, mark, payload)
+        except TlonTerminalActionError:
+            raise
+        except (ConnectionError, OSError) as exc:
+            raise ConnectionError(str(exc)) from exc
+        except Exception as exc:
+            if self._sse is None or type(exc).__module__.startswith("aiohttp"):
+                raise ConnectionError(str(exc)) from exc
+            raise
+
+    async def _send_nudge_dm(self, text: str, sent_at_ms: int) -> Any:
+        with cli_context("owner_notification"):
+            return await self._cli.send_message(
+                self.tlon_config.owner_ship, text, sent_at=sent_at_ms
+            )
+
+    def _reset_nudge_state(self) -> None:
+        self._nudge_snapshot = NudgeSettingsSnapshot()
+        self._nudge_owner_activity = None
+        self._nudge_stage_shadow = 0
+        self._pending_nudge = None
+        self._pending_nudge_rehydrated = False
+        self._nudge_seen_ids.clear()
+        self._nudge_seen_order.clear()
+        self._nudge_load_seeded = False
+        self._nudge_settings_ready = False
+
+    async def _load_settings_state(self) -> bool:
         """Load adapter state from the ship's %settings store.
 
         The settings store is the durable source of truth (owner-listen
@@ -1020,50 +1233,58 @@ class TlonAdapter(BasePlatformAdapter):
         has no entry.
         """
         if self._sse is None:
-            return
+            return False
         defaults = self._owner_listen_env_defaults()
-        try:
-            payload = await self._sse.scry("/settings/all")
-        except Exception as exc:
-            # Keep the current snapshot (env defaults at boot, plus any toggles
-            # applied since) rather than resetting it.
-            logger.warning("[tlon] settings load failed; keeping current state: %s", exc)
-            self._telemetry.error("settings", exc, operation="load")
-            return
-        bucket = parse_settings_bucket(payload)
-        self._owner_listen = owner_listen_state_from_settings(bucket, defaults=defaults)
-        new_group_channels = settings_group_channels(bucket)
-        removed_group_channels = (
-            self._settings_group_channels
-            - new_group_channels
-            - set(self.tlon_config.channels)
-        )
-        self._monitored_channels.difference_update(removed_group_channels)
-        self._monitored_channels.update(new_group_channels)
-        self._settings_group_channels = new_group_channels
-        self._pending_approvals = prune_expired(
-            parse_pending_approvals(bucket.get(SETTINGS_KEY_PENDING_APPROVALS)),
-            time.time() * 1000.0,
-        )
-        self._settings_dm_allowlist = parse_dm_allowlist(
-            bucket.get(SETTINGS_KEY_DM_ALLOWLIST)
-        )
-        if SETTINGS_KEY_GROUP_INVITE_ALLOWLIST in bucket:
-            self._settings_group_invite_allowlist = parse_dm_allowlist(
-                bucket.get(SETTINGS_KEY_GROUP_INVITE_ALLOWLIST)
+        async with self._nudge_load_lock:
+            generation = self._nudge_load_generation
+            sse = self._sse
+            if sse is None:
+                return False
+            try:
+                payload = await sse.scry("/settings/all")
+            except Exception as exc:
+                # Keep the current snapshot (env defaults at boot, plus any toggles
+                # applied since) rather than resetting it.
+                logger.warning("[tlon] settings load failed; keeping current state: %s", exc)
+                self._telemetry.error("settings", exc, operation="load")
+                return False
+            if generation != self._nudge_load_generation or sse is not self._sse:
+                return False
+            bucket = parse_settings_bucket(payload)
+            self._owner_listen = owner_listen_state_from_settings(bucket, defaults=defaults)
+            new_group_channels = settings_group_channels(bucket)
+            removed_group_channels = (
+                self._settings_group_channels
+                - new_group_channels
+                - set(self.tlon_config.channels)
             )
-        self._channel_rules = parse_channel_rules(bucket.get(SETTINGS_KEY_CHANNEL_RULES))
-        self._settings_default_authorized_ships = parse_ship_list(
-            bucket.get(SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS)
-        )
-        self._auto_accept_dm_invites = settings_bool(
-            bucket.get(SETTINGS_KEY_AUTO_ACCEPT_DM_INVITES), False
-        )
-        self._auto_discover = settings_bool(
-            bucket.get(SETTINGS_KEY_AUTO_DISCOVER_CHANNELS),
-            self.tlon_config.auto_discover,
-        )
-        self._settings_loaded = True
+            self._monitored_channels.difference_update(removed_group_channels)
+            self._monitored_channels.update(new_group_channels)
+            self._settings_group_channels = new_group_channels
+            self._pending_approvals = prune_expired(
+                parse_pending_approvals(bucket.get(SETTINGS_KEY_PENDING_APPROVALS)),
+                time.time() * 1000.0,
+            )
+            self._settings_dm_allowlist = parse_dm_allowlist(
+                bucket.get(SETTINGS_KEY_DM_ALLOWLIST)
+            )
+            if SETTINGS_KEY_GROUP_INVITE_ALLOWLIST in bucket:
+                self._settings_group_invite_allowlist = parse_dm_allowlist(
+                    bucket.get(SETTINGS_KEY_GROUP_INVITE_ALLOWLIST)
+                )
+            self._channel_rules = parse_channel_rules(bucket.get(SETTINGS_KEY_CHANNEL_RULES))
+            self._settings_default_authorized_ships = parse_ship_list(
+                bucket.get(SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS)
+            )
+            self._auto_accept_dm_invites = settings_bool(
+                bucket.get(SETTINGS_KEY_AUTO_ACCEPT_DM_INVITES), False
+            )
+            self._auto_discover = settings_bool(
+                bucket.get(SETTINGS_KEY_AUTO_DISCOVER_CHANNELS),
+                self.tlon_config.auto_discover,
+            )
+            self._apply_nudge_settings_bucket(bucket)
+            self._settings_loaded = True
         logger.info(
             "[tlon] settings loaded: owner-listen=%s muted=%s enabled-channels=%s "
             "pending-approvals=%d approved-dms=%d channel-rules=%d "
@@ -1078,6 +1299,109 @@ class TlonAdapter(BasePlatformAdapter):
             self._auto_accept_dm_invites,
             self._auto_discover,
         )
+        return True
+
+    async def _load_nudge_settings_only(self) -> bool:
+        if self._sse is None:
+            return False
+        async with self._nudge_load_lock:
+            generation = self._nudge_load_generation
+            sse = self._sse
+            if sse is None:
+                return False
+            try:
+                payload = await sse.scry("/settings/all")
+            except Exception as exc:
+                logger.warning("[tlon] nudge settings reload failed: %s", exc)
+                self._telemetry.error("settings", exc, operation="nudge_reload")
+                return False
+            if generation != self._nudge_load_generation or sse is not self._sse:
+                return False
+            self._apply_nudge_settings_bucket(parse_settings_bucket(payload))
+        return True
+
+    def _apply_nudge_settings_bucket(
+        self,
+        bucket: Mapping[str, Any],
+    ) -> None:
+        """Atomically load settings while keeping scheduler shadows monotonic.
+
+        Scries can race our local settings pokes, so a seeded load only adopts
+        a newer owner activity or a higher nudge stage. A snapshot with newer
+        activity also adopts its stage wholesale; live subscription events
+        remain authoritative in both directions and are handled separately
+        below.
+        """
+        incoming = NudgeSettingsSnapshot.from_bucket(bucket)
+        incoming_activity = owner_activity_from_snapshot(incoming)
+        incoming_stage = parse_last_nudge_stage(incoming.last_nudge_stage) or 0
+
+        # The settings snapshot is last-writer-wins for active-hours and is
+        # still the raw source for pendingNudge hydration.  The two shadows the
+        # scheduler reads are reconciled independently below.
+        self._nudge_snapshot = incoming
+        if not self._nudge_load_seeded:
+            self._nudge_owner_activity = incoming_activity
+            self._set_nudge_stage(incoming_stage)
+            self._nudge_load_seeded = True
+        else:
+            current_activity = self._nudge_owner_activity
+            incoming_activity_is_newer = incoming_activity is not None and (
+                current_activity is None or incoming_activity[0] > current_activity[0]
+            )
+            if incoming_activity_is_newer:
+                self._set_nudge_owner_activity(incoming_activity)
+                # Both harnesses persist activity put-entries before the stage
+                # del-entry, so strictly newer activity marks a newer owner
+                # cycle: adopt its stage even when it clears or lowers. A
+                # stale scry can only carry activity <= our shadow and stays
+                # on the raise-only path. Caveat: if we already observed the
+                # activity put live and then missed the ordered stage
+                # deletion (disconnect mid-batch), the equal-activity load
+                # retains the old stage until still-newer owner activity.
+                self._set_nudge_stage(incoming_stage)
+            elif incoming_stage > self._nudge_stage_shadow:
+                self._set_nudge_stage(incoming_stage)
+
+        if not self._pending_nudge_rehydrated:
+            pending = parse_pending_nudge(self._nudge_snapshot.pending_nudge_raw)
+            self._set_pending_nudge(pending)
+            if pending is not None and not is_nudge_eligible(
+                pending, int(time.time() * 1000)
+            ):
+                self._set_pending_nudge(None)
+                self._pending_nudge_persistence.enqueue(None)
+
+    def _start_nudge_settings_retry(self) -> None:
+        if self._nudge_settings_retry_task is None or self._nudge_settings_retry_task.done():
+            self._nudge_settings_retry_task = asyncio.create_task(
+                self._retry_nudge_settings_load()
+            )
+
+    async def _retry_nudge_settings_load(self) -> None:
+        delay = 1.0
+        while self._sse is not None and not self._nudge_settings_ready:
+            await asyncio.sleep(delay)
+            if await self._load_nudge_settings_only():
+                self._nudge_settings_ready = True
+                return
+            delay = min(delay * 2, 30.0)
+
+    async def _stop_nudge_settings_retry(self) -> None:
+        if self._nudge_settings_retry_task is not None:
+            self._nudge_settings_retry_task.cancel()
+            try:
+                await self._nudge_settings_retry_task
+            except asyncio.CancelledError:
+                pass
+            self._nudge_settings_retry_task = None
+
+    async def _stop_nudge_collaborators(self) -> None:
+        self._nudge_settings_ready = False
+        await self._stop_nudge_settings_retry()
+        await self._nudge_scheduler.stop()
+        await self._nudge_activity_persistence.flush(final=True)
+        await self._pending_nudge_persistence.flush(final=True)
 
     async def _persist_settings_entry(self, key: str, value: Any) -> bool:
         if self._sse is None:
@@ -1091,7 +1415,9 @@ class TlonAdapter(BasePlatformAdapter):
             self._telemetry.error("settings", exc, operation="persist", key=key)
             return False
 
-    async def _handle_settings_event(self, raw: Any) -> None:
+    async def _handle_settings_event(
+        self, raw: Any, *, nudge_handled: bool = False
+    ) -> None:
         """Hot-reload owner-listen state from live %settings updates.
 
         Covers writes from outside this process (Landscape, an OpenClaw
@@ -1101,6 +1427,8 @@ class TlonAdapter(BasePlatformAdapter):
         event = parse_settings_event(raw)
         if event is None:
             return
+        if not nudge_handled:
+            self._apply_nudge_settings_event(event)
         if event.key == SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS:
             self._settings_default_authorized_ships = parse_ship_list(event.value)
             return
@@ -1166,6 +1494,67 @@ class TlonAdapter(BasePlatformAdapter):
                 sorted(self._owner_listen.enabled_channels),
             )
 
+    def _apply_nudge_settings_event(self, event: Any) -> bool:
+        key = getattr(event, "key", "")
+        if key not in _NUDGE_SNAPSHOT_FIELDS:
+            return False
+        value = getattr(event, "value", None)
+        if (
+            key == SETTINGS_KEY_LAST_OWNER_MESSAGE_AT
+            and value is not None
+            and _valid_epoch_ms(value) is None
+        ):
+            # Ignore a malformed activity instant entirely.  It is a handled
+            # settings event, so the ordered worker does not retry it after
+            # the fast tap and accidentally apply a poisoned snapshot.
+            return True
+        # Subscription events are trusted and fully authoritative, including
+        # deletes and external backdates. Only the scry/load path is
+        # monotonic, because a scry can be stale relative to local writes.
+        # Invalidate an already-started load before applying every snapshot
+        # field: the load replaces the entire snapshot, not only the scheduler
+        # shadows, so it could otherwise restore stale active hours or pending
+        # nudge data.
+        candidate = replace(self._nudge_snapshot)
+        candidate.apply(key, value)
+        activity: Optional[tuple[int, str]] = None
+        stage: Optional[int] = None
+        pending: Optional[PendingNudge] = None
+        clear_expired_pending = False
+        if key in (
+            SETTINGS_KEY_LAST_OWNER_MESSAGE_AT,
+            SETTINGS_KEY_LAST_OWNER_MESSAGE_DATE,
+        ):
+            activity = owner_activity_from_snapshot(candidate)
+        elif key == SETTINGS_KEY_LAST_NUDGE_STAGE:
+            stage = parse_last_nudge_stage(candidate.last_nudge_stage) or 0
+        elif key == SETTINGS_KEY_PENDING_NUDGE and not self._pending_nudge_rehydrated:
+            pending = parse_pending_nudge(candidate.pending_nudge_raw)
+            if pending is not None:
+                clear_expired_pending = not is_nudge_eligible(
+                    pending, int(time.time() * 1000)
+                )
+
+        # Do all candidate derivation before publishing any part of the live
+        # state. If a future parser or derivation raises above, the fast-tap
+        # fallback can safely leave this prior state in place for the worker.
+        self._nudge_snapshot = candidate
+        self._nudge_load_seeded = True
+        self._nudge_load_generation += 1
+        if key in (
+            SETTINGS_KEY_LAST_OWNER_MESSAGE_AT,
+            SETTINGS_KEY_LAST_OWNER_MESSAGE_DATE,
+        ):
+            self._set_nudge_owner_activity(activity)
+        elif key == SETTINGS_KEY_LAST_NUDGE_STAGE:
+            self._set_nudge_stage(stage or 0)
+        elif pending is not None:
+            self._set_pending_nudge(pending)
+            if clear_expired_pending:
+                self._set_pending_nudge(None)
+                self._pending_nudge_persistence.enqueue(None)
+        return True
+
     def _user_authorized(self, ship: str, *, is_dm: bool, nest: str = "") -> bool:
         """Env/owner authorization plus settings-store grants.
 
@@ -1215,7 +1604,9 @@ class TlonAdapter(BasePlatformAdapter):
         ``clean_text`` is the inbound text BEFORE media/context enrichment, so a
         retry re-runs _prepare_dispatch_payload / _with_group_context cleanly.
         """
-        seed: dict[str, Any] = {"messageText": clean_text or ""}
+        seed: dict[str, Any] = {
+            "messageText": strip_block_directives(clean_text)
+        }
         if message.blob:
             seed["blobField"] = message.blob
         if message.content is not None:
@@ -1229,17 +1620,27 @@ class TlonAdapter(BasePlatformAdapter):
     @staticmethod
     def _message_preview_text(message: TlonIncomingMessage, text: str) -> str:
         preview = render_content_with_blob(text, message.blob, compact=False).strip()
+        preview = strip_block_directives(preview).strip()
         return preview or "[attachment]"
 
-    async def _queue_dm_approval(self, message: TlonIncomingMessage) -> None:
+    async def _queue_dm_approval(
+        self, message: TlonIncomingMessage, clean_text: str
+    ) -> None:
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
             return
+        if not clean_text.strip() and not message.blob:
+            logger.info(
+                "[tlon] ignoring empty request after sanitization from unauthorized ship"
+            )
+            return
+        original = self._original_message_payload(message)
+        original["messageText"] = clean_text
         await self._queue_approval(
             approval_kind="dm",
             requesting_ship=message.user_id,
-            message_preview=self._message_preview_text(message, message.text),
-            original_message=self._original_message_payload(message),
+            message_preview=self._message_preview_text(message, clean_text),
+            original_message=original,
         )
 
     async def _queue_channel_approval(
@@ -1247,6 +1648,11 @@ class TlonAdapter(BasePlatformAdapter):
     ) -> None:
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
+            return
+        if not clean_text.strip() and not message.blob:
+            logger.info(
+                "[tlon] ignoring empty request after sanitization from unauthorized ship"
+            )
             return
         original = self._original_message_payload(message)
         original["messageText"] = clean_text
@@ -1359,12 +1765,51 @@ class TlonAdapter(BasePlatformAdapter):
                 requestType=approval_type(approval),
             )
 
+    async def _notify_owner(
+        self, target: str, reason: str, *, block_succeeded: bool = True
+    ) -> None:
+        owner = self.tlon_config.owner_ship
+        if not owner:
+            return
+        if block_succeeded:
+            action = f"Blocked {target}"
+        else:
+            action = f"Tried to block {target} but the block failed."
+        reason = str(reason or "")
+        if len(reason) > _OWNER_BLOCK_REASON_MAX_CHARS:
+            reason = reason[: _OWNER_BLOCK_REASON_MAX_CHARS - 1].rstrip() + "…"
+        text = f"[Agent Action] {action}\nReason: {reason}"[:MAX_MESSAGE_LENGTH]
+        with cli_context("owner_notification"):
+            result = await self._cli.run_command(("posts", "send", owner, text))
+        if not result.success:
+            logger.warning("[tlon] block notification to owner failed")
+            self._telemetry.error(
+                "moderation",
+                result.error or "notification send failed",
+                operation="owner_notification",
+            )
+
     async def _persist_pending_approvals(self) -> None:
         # JSON string, not a raw list of dicts: %settings values cannot hold
         # objects (the poke would be nacked). Matches OpenClaw's encoding.
         await self._persist_settings_entry(
             SETTINGS_KEY_PENDING_APPROVALS, json.dumps(self._pending_approvals)
         )
+
+    async def _drop_pending_approvals_for(
+        self, ship: str, *, types: tuple[str, ...] | None = None
+    ) -> int:
+        remaining = [
+            item
+            for item in self._pending_approvals
+            if approval_ship(item) != ship
+            or (types is not None and approval_type(item) not in types)
+        ]
+        removed = len(self._pending_approvals) - len(remaining)
+        if removed:
+            self._pending_approvals = remaining
+            await self._persist_pending_approvals()
+        return removed
 
     async def _persist_channel_rules(self) -> bool:
         return await self._persist_settings_entry(
@@ -1613,19 +2058,8 @@ class TlonAdapter(BasePlatformAdapter):
         if not await self._block_ship(ship):
             return f"Could not block {ship}."
         await self._remove_from_dm_allowlist(ship)
-        removed = [
-            item
-            for item in self._pending_approvals
-            if approval_ship(item) == ship
-        ]
-        if removed:
-            self._pending_approvals = [
-                item
-                for item in self._pending_approvals
-                if approval_ship(item) != ship
-            ]
-            await self._persist_pending_approvals()
-        suffix = f" Removed {len(removed)} pending request(s)." if removed else ""
+        removed = await self._drop_pending_approvals_for(ship)
+        suffix = f" Removed {removed} pending request(s)." if removed else ""
         self._telemetry.approval_event("banned", "ship")
         return f"Blocked {ship}.{suffix}"
 
@@ -2016,18 +2450,30 @@ class TlonAdapter(BasePlatformAdapter):
 
     async def _connect_sse(self) -> None:
         await self._close_sse()
-        self._sse = TlonSSEClient(self.tlon_config)
-        await self._sse.authenticate()
-        await self._sse.open()
-        await self._sse.subscribe("channels", "/v2")
-        await self._sse.subscribe("chat", "/v3")
-        await self._sse.subscribe("settings", f"/desk/{SETTINGS_DESK}")
-        await self._sse.subscribe("groups", "/v1/foreigns")
-        await self._sse.subscribe("contacts", "/v1/news")
-        # Owner-requested retries arrive as %steward /v1/lens facts. Optional:
-        # if %steward isn't installed the nack is skipped, not fatal.
-        if self._lens.enabled:
-            await self._sse.subscribe("steward", "/v1/lens", optional=True)
+        sse = TlonSSEClient(self.tlon_config)
+        try:
+            await sse.authenticate()
+            await sse.open()
+            await sse.subscribe("channels", "/v2")
+            await sse.subscribe("chat", "/v3")
+            await sse.subscribe("settings", f"/desk/{SETTINGS_DESK}")
+            await sse.subscribe("groups", "/v1/foreigns")
+            await sse.subscribe("contacts", "/v1/news")
+            # Owner-requested retries arrive as %steward /v1/lens facts.
+            # Optional: if %steward isn't installed the nack is skipped, not
+            # fatal.
+            if self._lens.enabled:
+                await sse.subscribe("steward", "/v1/lens", optional=True)
+        except BaseException:
+            try:
+                await sse.close(graceful=False)
+            except BaseException:
+                pass
+            raise
+        # The persistence queues resolve this pointer at poke time.  Do not
+        # expose the client until its authentication, channel open, and
+        # subscriptions have all completed.
+        self._sse = sse
 
     async def _close_sse(self, *, graceful: bool = True) -> None:
         if self._sse is not None:
@@ -2043,8 +2489,16 @@ class TlonAdapter(BasePlatformAdapter):
                 if self._sse is None:
                     await self._connect_sse()
                     # Settings events do not replay, so re-sync owner-listen
-                    # state after every reconnect.
-                    await self._load_settings_state()
+                    # state after every reconnect.  The worker may still be
+                    # processing facts captured before the disconnect; drain
+                    # those first so this ordinary full snapshot cannot make
+                    # authorization/approval/owner-listen decisions for an
+                    # earlier queued message observe future state.
+                    await self._drain_event_worker()
+                    loaded = await self._load_settings_state()
+                    self._nudge_settings_ready = loaded
+                    if not loaded:
+                        self._start_nudge_settings_retry()
                     # Native DM invites are likewise missed while disconnected
                     # (an unknown ship, a now-allowlisted ship, or a flag flip
                     # that happened during the outage). Catch up, but don't let
@@ -2081,6 +2535,9 @@ class TlonAdapter(BasePlatformAdapter):
                 if not self._running:
                     return
                 logger.warning("[tlon] SSE stream error: %s", exc)
+                self._nudge_settings_ready = False
+                self._nudge_load_generation += 1
+                await self._stop_nudge_settings_retry()
                 await self._close_sse(graceful=False)
                 delay = RECONNECT_BACKOFF_SECONDS[min(backoff_idx, len(RECONNECT_BACKOFF_SECONDS) - 1)]
                 backoff_idx += 1
@@ -2089,28 +2546,199 @@ class TlonAdapter(BasePlatformAdapter):
                 )
                 await asyncio.sleep(delay)
 
-    async def _route_stream_event(self, event: Any) -> None:
-        """Dispatch one SSE event; a handler bug must not masquerade as a
-        stream error (which would trigger a spurious reconnect). The bad event
-        is reported and skipped, and the stream keeps flowing."""
+    def _start_event_worker(self) -> None:
+        self._event_queue = asyncio.Queue(maxsize=_STREAM_EVENT_QUEUE_MAXSIZE)
+        self._event_worker_task = asyncio.create_task(self._run_event_worker())
+
+    async def _stop_event_worker(self) -> None:
+        if self._event_worker_task is not None:
+            self._event_worker_task.cancel()
+            try:
+                await self._event_worker_task
+            except asyncio.CancelledError:
+                pass
+            self._event_worker_task = None
+        self._event_queue = None
+
+    async def _drain_event_worker(self) -> None:
+        """Wait for pre-reconnect SSE work before applying a full snapshot."""
+        queue = self._event_queue
+        worker = self._event_worker_task
+        if queue is not None and worker is not None and not worker.done():
+            await queue.join()
+
+    async def _run_event_worker(self) -> None:
+        assert self._event_queue is not None
+        while True:
+            item = await self._event_queue.get()
+            try:
+                await self._process_stream_item(item)
+            except asyncio.CancelledError:
+                raise
+            finally:
+                self._event_queue.task_done()
+
+    async def _process_stream_item(self, item: _StreamWorkItem) -> None:
         try:
-            if event.app == "channels":
-                await self._handle_channel_event(event.json)
-            elif event.app == "chat":
-                await self._handle_dm_event(event.json)
-            elif event.app == "settings":
-                await self._handle_settings_event(event.json)
-            elif event.app == "groups":
-                await self._handle_foreigns(event.json)
-            elif event.app == "contacts":
-                self._handle_contacts_event(event.json)
-            elif event.app == "steward":
-                await self._handle_steward_event(event.json)
+            if item.app == "channels":
+                if self._event_queue is None:
+                    await self._handle_channel_event(item.raw)
+                else:
+                    await self._handle_channel_event(
+                        item.raw, message=item.message, nudge_hook=item.nudge_hook
+                    )
+            elif item.app == "chat":
+                if self._event_queue is None:
+                    await self._handle_dm_event(item.raw)
+                else:
+                    await self._handle_dm_event(
+                        item.raw, message=item.message, nudge_hook=item.nudge_hook
+                    )
+            elif item.app == "settings":
+                await self._handle_settings_event(
+                    item.raw, nudge_handled=item.nudge_settings_handled
+                )
+            elif item.app == "groups":
+                await self._handle_foreigns(item.raw)
+            elif item.app == "contacts":
+                self._handle_contacts_event(item.raw)
+            elif item.app == "steward":
+                await self._handle_steward_event(item.raw)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            logger.exception("[tlon] %s event handler failed", event.app)
-            self._telemetry.error("event_handler", exc, app=event.app)
+            logger.exception("[tlon] %s event handler failed", item.app)
+            self._telemetry.error("event_handler", exc, app=item.app)
+
+    async def _route_stream_event(self, event: Any) -> None:
+        """Apply nudge-critical state before the bounded ordered worker queue.
+
+        The queue cap makes sustained overload backpressure the SSE reader.
+        Nudge state must remain fresh even while enqueueing blocks, so its
+        synchronous fast-tap always runs before the queue operation.
+        """
+        app = getattr(event, "app", "")
+        raw = getattr(event, "json", None)
+        item = _StreamWorkItem(app=app, raw=raw)
+        try:
+            if app == "channels" and isinstance(raw, dict):
+                message = parse_channel_message(
+                    raw, self_ship=self.tlon_config.ship_name, include_self=True
+                )
+                if message is not None:
+                    item = _StreamWorkItem(
+                        app=app,
+                        raw=raw,
+                        message=message,
+                        nudge_hook=self._observe_nudge_owner_message(
+                            message, is_dm=False
+                        ),
+                    )
+            elif app == "chat" and not isinstance(raw, list):
+                message = parse_dm_message(
+                    raw, self_ship=self.tlon_config.ship_name, include_self=True
+                )
+                if message is not None:
+                    item = _StreamWorkItem(
+                        app=app,
+                        raw=raw,
+                        message=message,
+                        nudge_hook=self._observe_nudge_owner_message(
+                            message, is_dm=True
+                        ),
+                    )
+            elif app == "settings":
+                settings_event = parse_settings_event(raw)
+                handled = settings_event is not None and self._apply_nudge_settings_event(
+                    settings_event
+                )
+                item = _StreamWorkItem(
+                    app=app, raw=raw, nudge_settings_handled=handled
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            # A malformed fast-tap must not escape to _run_stream, where it
+            # would be treated as a failed SSE connection. Keep the plain item
+            # so the existing guarded worker can log and skip its dispatch.
+            logger.warning("[tlon] %s event fast-tap failed: %s", app, exc)
+            self._telemetry.error("event_fast_tap", exc, app=app)
+        if self._event_queue is not None:
+            await self._event_queue.put(item)
+        else:
+            await self._process_stream_item(item)
+
+    def _mark_nudge_seen(self, message: TlonIncomingMessage) -> bool:
+        key = f"{message.chat_type}:{message.chat_id}:{message.message_id}"
+        if key in self._nudge_seen_ids:
+            return False
+        self._nudge_seen_ids.add(key)
+        self._nudge_seen_order.append(key)
+        if len(self._nudge_seen_order) > 1000:
+            self._nudge_seen_ids.discard(self._nudge_seen_order.pop(0))
+        return True
+
+    def _observe_nudge_owner_message(
+        self, message: TlonIncomingMessage, *, is_dm: bool
+    ) -> _NudgeHookResult:
+        # DM parses set user_id to the conversation partner and author_id to
+        # the actual sender, so with include_self=True the bot's own outbound
+        # echo carries user_id=owner. Gate on the true author — a self echo
+        # (including the nudge DM itself) must never count as owner activity
+        # or clear just-written stage/pending state.
+        author = normalize_ship(message.author_id or message.user_id)
+        if (
+            author == normalize_ship(self.tlon_config.ship_name)
+            or not self._is_owner(author)
+            or not self._mark_nudge_seen(message)
+        ):
+            return _NudgeHookResult()
+        at = _epoch_ms(message.sent_at)
+        if at is None:
+            return _NudgeHookResult()
+        # Advance-only, like the load path. Post edits re-deliver `r-post.set`
+        # with the ORIGINAL creation `sent`, so an owner editing an old post
+        # (with the dedup ring empty after a restart) would otherwise backdate
+        # the activity shadow — and persist that stale instant — making an
+        # active owner look idle for 7/14/30 days. A strictly older instant
+        # never advances state; same-instant messages still process normally.
+        current_activity = self._nudge_owner_activity
+        if current_activity is not None and at < current_activity[0]:
+            return _NudgeHookResult()
+        date = datetime.fromtimestamp(at / 1000, timezone.utc).date().isoformat()
+        # Owner activity is trusted just like a live settings event.  It can
+        # arrive while a boot/retry scry is in flight, so make a later load
+        # reconcile against this shadow (or discard the already-started one).
+        self._nudge_load_seeded = True
+        self._nudge_load_generation += 1
+        self._nudge_owner_activity = (at, date)
+        self._nudge_snapshot.last_owner_message_at = at
+        self._nudge_snapshot.last_owner_message_date = date
+        pending = self._pending_nudge
+        was_rehydrated = self._pending_nudge_rehydrated
+        will_clear = self._nudge_stage_shadow > 0 or pending is not None or not was_rehydrated
+        if will_clear:
+            self._set_nudge_stage(0)
+        self._nudge_activity_persistence.enqueue(at, date, will_clear)
+        eligible = bool(pending and is_nudge_eligible(pending, at))
+        if pending is not None:
+            if eligible:
+                self._telemetry.nudge_reengaged(
+                    stage=pending.stage,
+                    nudge_sent_at=pending.sent_at,
+                    reengaged_at=at,
+                    account_id=pending.account_id,
+                    owner_ship=pending.owner_ship,
+                )
+            self._set_pending_nudge(None)
+            self._pending_nudge_persistence.enqueue(None)
+        elif not was_rehydrated:
+            self._set_pending_nudge(None)
+            self._pending_nudge_persistence.enqueue(None)
+        return _NudgeHookResult(
+            pending=pending,
+            inject_context=bool(pending is not None and eligible and is_dm),
+        )
 
     @staticmethod
     def _reaction_conversation_key(chat_type: str, chat_id: str) -> str:
@@ -2222,6 +2850,9 @@ class TlonAdapter(BasePlatformAdapter):
         ):
             logger.info("[tlon] ignoring unauthorized reaction from %s", reaction.reactor)
             return
+        if is_dm and await self._is_ship_blocked(reaction.reactor):
+            logger.info("[tlon] ignoring DM reaction from blocked ship")
+            return
 
         target = await self._lookup_reaction_target(reaction, snapshot_cache)
         if self._is_own_reaction_target(reaction, target) and reaction.added:
@@ -2314,12 +2945,24 @@ class TlonAdapter(BasePlatformAdapter):
                     "reaction_handler", exc, chat_type=reaction.chat_type
                 )
 
-    async def _handle_channel_event(self, raw: Any) -> None:
+    async def _handle_channel_event(
+        self,
+        raw: Any,
+        *,
+        message: Optional[TlonIncomingMessage] = None,
+        nudge_hook: _NudgeHookResult = _NudgeHookResult(),
+    ) -> None:
         if not isinstance(raw, dict):
             return
         nest = raw.get("nest")
         if not isinstance(nest, str) or not nest:
             return
+        if message is None:
+            message = parse_channel_message(
+                raw, self_ship=self.tlon_config.ship_name, include_self=True
+            )
+            if message is not None:
+                nudge_hook = self._observe_nudge_owner_message(message, is_dm=False)
         if nest not in self._monitored_channels:
             if self._auto_discover and (nest.startswith("chat/") or nest.startswith("heap/")):
                 self._monitored_channels.add(nest)
@@ -2327,9 +2970,6 @@ class TlonAdapter(BasePlatformAdapter):
             else:
                 return
 
-        message = parse_channel_message(
-            raw, self_ship=self.tlon_config.ship_name, include_self=True
-        )
         if message is None:
             snapshot = parse_channel_reacts_snapshot(raw)
             if snapshot is not None:
@@ -2359,6 +2999,7 @@ class TlonAdapter(BasePlatformAdapter):
             message, clean_text, ctx_nest=message.chat_id
         ):
             return
+        sanitized_text = strip_block_directives(clean_text)
 
         is_authorized = self._user_authorized(
             message.user_id, is_dm=False, nest=message.chat_id
@@ -2387,7 +3028,7 @@ class TlonAdapter(BasePlatformAdapter):
         if not decision.dispatch:
             if decision.reason == "unauthorized":
                 if is_mentioned and _is_patp(message.user_id):
-                    await self._queue_channel_approval(message, clean_text)
+                    await self._queue_channel_approval(message, sanitized_text)
                 else:
                     logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
             return
@@ -2407,16 +3048,26 @@ class TlonAdapter(BasePlatformAdapter):
             mark_seen=False,
             dispatch_reason=decision.reason,
             prepared_media=prepared_media,
-            retry_seed=self._build_retry_seed(message, clean_text),
+            pending_nudge=nudge_hook.inject_context,
+            retry_seed=self._build_retry_seed(message, sanitized_text),
         )
 
-    async def _handle_dm_event(self, raw: Any) -> None:
+    async def _handle_dm_event(
+        self,
+        raw: Any,
+        *,
+        message: Optional[TlonIncomingMessage] = None,
+        nudge_hook: _NudgeHookResult = _NudgeHookResult(),
+    ) -> None:
         if isinstance(raw, list):
             await self._handle_dm_invites(raw)
             return
-        message = parse_dm_message(
-            raw, self_ship=self.tlon_config.ship_name, include_self=True
-        )
+        if message is None:
+            message = parse_dm_message(
+                raw, self_ship=self.tlon_config.ship_name, include_self=True
+            )
+            if message is not None:
+                nudge_hook = self._observe_nudge_owner_message(message, is_dm=True)
         if message is None:
             reaction = parse_dm_reaction(raw, self_ship=self.tlon_config.ship_name)
             if reaction is not None:
@@ -2436,22 +3087,29 @@ class TlonAdapter(BasePlatformAdapter):
             message, message.text.strip(), ctx_nest=None
         ):
             return
+        sanitized_text = strip_block_directives(message.text)
         if not self._user_authorized(message.user_id, is_dm=True):
             if _is_patp(message.user_id):
-                await self._queue_dm_approval(message)
+                await self._queue_dm_approval(message, sanitized_text)
             else:
                 logger.info(
                     "[tlon] ignoring unauthorized message in %s", message.chat_id
                 )
             return
-        retry_seed = self._build_retry_seed(message, message.text)
+        if await self._is_ship_blocked(message.user_id):
+            logger.info("[tlon] ignoring DM from blocked ship")
+            return
+        retry_seed = self._build_retry_seed(message, sanitized_text)
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(
             message, message.text
         )
+        if nudge_hook.inject_context and nudge_hook.pending is not None:
+            dispatch_text = _nudge_reply_context(nudge_hook.pending, dispatch_text)
         await self._dispatch_message(
             replace(message, text=dispatch_text),
             is_dm=True,
             prepared_media=prepared_media,
+            pending_nudge=nudge_hook.inject_context,
             retry_seed=retry_seed,
         )
 
@@ -2776,6 +3434,7 @@ class TlonAdapter(BasePlatformAdapter):
         mark_seen: bool = True,
         dispatch_reason: str = "dm",
         prepared_media: PreparedMedia | None = None,
+        pending_nudge: bool = False,
         retry_seed: dict[str, Any] | None = None,
         retry_of: str | None = None,
         skip_authorization: bool = False,
@@ -2792,6 +3451,8 @@ class TlonAdapter(BasePlatformAdapter):
             return
         if mark_seen and not self._mark_seen(message):
             return
+
+        message = replace(message, text=strip_block_directives(message.text))
 
         if (
             dispatch_reason == "reaction"
@@ -2840,6 +3501,7 @@ class TlonAdapter(BasePlatformAdapter):
             message,
             is_dm=is_dm,
             dispatch_reason=dispatch_reason,
+            pending_nudge=pending_nudge,
             retry_seed=retry_seed,
             retry_of=retry_of,
         )
@@ -2878,6 +3540,9 @@ class TlonAdapter(BasePlatformAdapter):
                 event = MessageEvent(**event_kwargs)
                 setattr(event, "media_urls", media_urls)
                 setattr(event, "media_types", media_types)
+            self._remember_dispatch_sender(
+                (message.chat_id, str(message.message_id)), message.user_id
+            )
             await self.handle_message(event)
             # Peeked notes are committed only after core accepted the event;
             # failed/duplicate/unauthorized dispatches leave them untouched.
@@ -2896,6 +3561,9 @@ class TlonAdapter(BasePlatformAdapter):
             # run (e.g. _route_stream_event catches and skips handle_message
             # errors). Close it out as an error so the lens UI shows a terminal
             # state and the run doesn't leak until the next prune.
+            self._remove_dispatch_state(
+                (message.chat_id, str(message.message_id))
+            )
             await self._finish_lens_run_on_error(message.chat_id)
             raise
 
@@ -2911,6 +3579,7 @@ class TlonAdapter(BasePlatformAdapter):
         *,
         is_dm: bool,
         dispatch_reason: str,
+        pending_nudge: bool = False,
         retry_seed: dict[str, Any] | None = None,
         retry_of: str | None = None,
     ) -> None:
@@ -2934,6 +3603,7 @@ class TlonAdapter(BasePlatformAdapter):
                 preview=message.text or None,
                 thread_messages=1 if message.reply_to_message_id else 0,
                 emits_telemetry=self._telemetry.enabled,
+                pending_nudge=pending_nudge,
                 retry_seed=retry_seed,
                 retry_of=retry_of,
             )
@@ -2970,7 +3640,7 @@ class TlonAdapter(BasePlatformAdapter):
         Only ``retry-requested`` is actionable here: an owner tapped Retry on a
         finalized run's lens card, so the bot ship should re-dispatch it.
         ``entry`` / ``recent`` facts are our own echoes and are ignored. This
-        runs inline on the (serial) SSE loop, so a retry can't race a live run
+        runs in the serial event worker, so a retry can't race a live run
         in the same conversation.
         """
         if not self._lens.enabled or not isinstance(raw, dict):
@@ -3085,6 +3755,15 @@ class TlonAdapter(BasePlatformAdapter):
         )
 
     async def on_processing_complete(self, event: MessageEvent, outcome: Any) -> None:
+        source = getattr(event, "source", None)
+        chat_id = str(getattr(source, "chat_id", "") or "")
+        message_id = str(
+            getattr(source, "message_id", None)
+            or getattr(event, "message_id", None)
+            or ""
+        )
+        if chat_id and message_id:
+            self._remove_dispatch_state((chat_id, message_id))
         await self._computing_presence.stop_run(
             conversation_id=event.source.chat_id,
             run_id=self._presence_run_id(event),
@@ -3105,6 +3784,35 @@ class TlonAdapter(BasePlatformAdapter):
                 delivery_failed=delivery_failed,
             ),
         )
+
+    def _remove_dispatch_state(self, message_key: tuple[str, str]) -> None:
+        self._inflight_senders.pop(message_key, None)
+        stale = [
+            directive_key
+            for directive_key in self._executed_block_directives
+            if directive_key[:2] == message_key
+        ]
+        for directive_key in stale:
+            self._executed_block_directives.pop(directive_key, None)
+
+    def _remember_dispatch_sender(
+        self, message_key: tuple[str, str], sender: str
+    ) -> None:
+        self._remove_dispatch_state(message_key)
+        self._inflight_senders[message_key] = normalize_ship(sender).lower()
+        self._inflight_senders.move_to_end(message_key)
+        while len(self._inflight_senders) > self._DISPATCH_STATE_CAPACITY:
+            oldest = next(iter(self._inflight_senders))
+            self._remove_dispatch_state(oldest)
+
+    def _remember_executed_block(
+        self, directive_key: tuple[str, str, str]
+    ) -> None:
+        self._executed_block_directives[directive_key] = None
+        self._executed_block_directives.move_to_end(directive_key)
+        while len(self._executed_block_directives) > self._DISPATCH_STATE_CAPACITY:
+            oldest = next(iter(self._executed_block_directives))
+            self._remove_dispatch_state(oldest[:2])
 
     @staticmethod
     def _presence_run_id(event: MessageEvent) -> str:
@@ -3168,6 +3876,70 @@ class TlonAdapter(BasePlatformAdapter):
             )
         return result, sent_at_ms
 
+    async def _process_block_directives(
+        self,
+        chat_id: str,
+        content: str,
+        reply_to: Optional[str],
+    ) -> tuple[str, bool]:
+        if not find_block_directives(content):
+            return content, False
+
+        directives = find_executable_block_directives(content)
+
+        reply_id = str(reply_to or "")
+        message_key = (chat_id, reply_id)
+        tracked_sender = self._inflight_senders.get(message_key)
+        owner = normalize_ship(self.tlon_config.owner_ship).lower()
+
+        for raw_target, reason in directives:
+            target = normalize_ship(raw_target).lower()
+            if owner and target == owner:
+                logger.warning(
+                    "[tlon] block directive rejected: target is configured owner"
+                )
+                continue
+            if not reply_id:
+                logger.warning(
+                    "[tlon] block directive rejected: missing reply correlation"
+                )
+                continue
+            if tracked_sender is None:
+                logger.warning(
+                    "[tlon] block directive rejected: unknown reply correlation"
+                )
+                continue
+            if not _is_dm_chat_id(chat_id):
+                logger.warning(
+                    "[tlon] block directive rejected: conversation is not a direct message"
+                )
+                continue
+            dm_counterparty = normalize_ship(chat_id).lower()
+            if tracked_sender != dm_counterparty:
+                logger.warning(
+                    "[tlon] block directive rejected: correlated sender is not DM counterparty"
+                )
+                continue
+            if target != tracked_sender:
+                logger.warning(
+                    "[tlon] block directive rejected: target is not correlated sender"
+                )
+                continue
+
+            directive_key = (chat_id, reply_id, target)
+            if directive_key in self._executed_block_directives:
+                continue
+            self._remember_executed_block(directive_key)
+            if not await self._block_ship(target):
+                self._executed_block_directives.pop(directive_key, None)
+                await self._notify_owner(target, reason, block_succeeded=False)
+                continue
+            await self._remove_from_dm_allowlist(target)
+            await self._drop_pending_approvals_for(target, types=("dm",))
+            await self._notify_owner(target, reason)
+
+        return strip_block_directives(content).strip(), True
+
     async def send(
         self,
         chat_id: str,
@@ -3183,21 +3955,65 @@ class TlonAdapter(BasePlatformAdapter):
         accompany non-empty content because the deployed CLI does not support
         blob-only posts.
         """
-        pending = self._pending_bot_cap_addendum.get(chat_id)
-        addendum = ""
-        if pending and reply_to and str(reply_to) == pending[1]:
-            addendum = (
-                "\n\n---\n_This is my last response to "
-                f"{pending[0]} for now. To continue our conversation, "
-                "someone will need to mention me._"
-            )
-        content = (content or "") + addendum
         metadata = metadata or {}
+        content = str(content or "")
+        if metadata.get("expect_edits") and ends_with_directive_prefix(content):
+            return SendResult(success=False, retryable=False)
+
+        incomplete_stripped = False
+        if not metadata.get("expect_edits"):
+            content, incomplete_stripped = strip_trailing_directive_prefix(content)
+
         caller_blob = metadata.get("blob")
         if not (isinstance(caller_blob, str) and caller_blob.strip()):
             # A whitespace-only string is treated as ABSENT, same as None:
             # it never fires the blob-requires-content guard below.
             caller_blob = None
+
+        content, complete_stripped = await self._process_block_directives(
+            chat_id, content, reply_to
+        )
+        directive_syntax_stripped = incomplete_stripped or complete_stripped
+        if directive_syntax_stripped:
+            content = content.rstrip()
+
+        pending = self._pending_bot_cap_addendum.get(chat_id)
+        correlated_pending = (
+            pending
+            if pending is not None and reply_to == pending[1]
+            else None
+        )
+        if directive_syntax_stripped and not content.strip():
+            if caller_blob is None:
+                if (
+                    correlated_pending is not None
+                    and self._pending_bot_cap_addendum.get(chat_id)
+                    == correlated_pending
+                ):
+                    self._pending_bot_cap_addendum.pop(chat_id, None)
+                return SendResult(success=True, retryable=False)
+            blob_error = (
+                "metadata['blob'] requires non-empty content "
+                "(no blob-only CLI transport)"
+            )
+            self._telemetry.record_delivery(chat_id, content=content, success=False)
+            self._lens.record_delivery_failure(chat_id, error=blob_error)
+            return SendResult(
+                success=False,
+                message_id=None,
+                error=blob_error,
+                raw_response={},
+                retryable=False,
+            )
+
+        addendum = ""
+        if correlated_pending is not None:
+            addendum = (
+                "\n\n---\n_This is my last response to "
+                f"{correlated_pending[0]} for now. To continue our conversation, "
+                "someone will need to mention me._"
+            )
+        content += addendum
         if caller_blob is not None and not content.strip():
             blob_error = "metadata['blob'] requires non-empty content (no blob-only CLI transport)"
             self._telemetry.record_delivery(chat_id, content=content, success=False)
@@ -3334,7 +4150,7 @@ class TlonAdapter(BasePlatformAdapter):
         if delivered and is_thread_reply and thread_parent:
             self._participated_threads.add(self._thread_key(chat_id, thread_parent))
         if addendum and (result.success or result.returncode != 124):
-            if self._pending_bot_cap_addendum.get(chat_id) == pending:
+            if self._pending_bot_cap_addendum.get(chat_id) == correlated_pending:
                 self._pending_bot_cap_addendum.pop(chat_id, None)
         return SendResult(
             success=delivered,
@@ -3599,6 +4415,14 @@ async def _standalone_send(
     tlon = TlonConfig.from_env(extra)
     if not tlon.is_complete():
         return {"error": "tlon standalone send: TLON node URL/id/access code not configured"}
+    message = strip_block_directives(message).strip()
+    if not message:
+        return {
+            "success": True,
+            "platform": "tlon",
+            "chat_id": chat_id,
+            "message_id": None,
+        }
     cli = TlonCLI(tlon)
     if thread_id:
         parent_author = chat_id if _is_dm_chat_id(chat_id) else None
