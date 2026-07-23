@@ -597,7 +597,7 @@ export const updateNotesNote = createWriteQuery(
     } & Partial<
       Pick<
         NotesNote,
-        'bodyMd' | 'revision' | 'title' | 'updatedAt' | 'updatedBy'
+        'bodyMd' | 'folderId' | 'revision' | 'title' | 'updatedAt' | 'updatedBy'
       >
     >,
     ctx: QueryCtx

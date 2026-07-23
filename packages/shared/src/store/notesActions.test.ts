@@ -984,6 +984,7 @@ test('adoptNotebookNoteRemote persists the host copy locally', async () => {
     ...note,
     title: 'Remote title',
     bodyMd: 'remote body',
+    folderId: rootFolder.folderId + 5,
     revision: note.revision + 2,
     updatedAt: 500,
   });
@@ -993,6 +994,7 @@ test('adoptNotebookNoteRemote persists the host copy locally', async () => {
   expect(adopted).toMatchObject({
     title: 'Remote title',
     bodyMd: 'remote body',
+    folderId: rootFolder.folderId + 5,
     revision: note.revision + 2,
   });
   await expect(

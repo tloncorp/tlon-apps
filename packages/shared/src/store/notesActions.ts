@@ -637,6 +637,9 @@ export async function adoptNotebookNoteRemote({
     noteId: remote.noteId,
     title: remote.title,
     bodyMd: remote.bodyMd ?? '',
+    // The conflicting edit can ride along with a move; leave the folder
+    // untouched when the read omits it.
+    ...(remote.folderId != null ? { folderId: remote.folderId } : {}),
     revision: remote.revision ?? 0,
     updatedAt: remote.updatedAt ?? null,
     updatedBy: remote.updatedBy ?? null,

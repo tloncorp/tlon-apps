@@ -629,6 +629,7 @@ export function NotesNoteDetail({
       ...base,
       title: remote.title ?? base.title,
       bodyMd: remote.bodyMd ?? base.bodyMd,
+      folderId: remote.folderId ?? base.folderId,
       revision: remote.revision ?? base.revision,
       updatedAt: remote.updatedAt ?? base.updatedAt,
       updatedBy: remote.updatedBy ?? base.updatedBy,
