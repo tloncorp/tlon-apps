@@ -1,6 +1,9 @@
 import { expect, test } from 'vitest';
 
+import { contentReferenceToCite, toContentReference } from '../client/postsApi';
 import {
+  getNoteReferencePath,
+  noteToContentReference,
   postToContentReference,
   referenceLookupId,
 } from '../client/references';
@@ -61,4 +64,49 @@ test('postToContentReference emits only postId and path for a top-level post', (
   });
   expect('replyId' in reference).toBe(false);
   expect(path).toBe(`/1/chan/${CHANNEL_ID}/msg/${PARENT_ID}`);
+});
+
+const NOTES_CHANNEL_ID = 'notes/~zod/my-notebook';
+
+test('toContentReference parses a notes chan cite as a note reference', () => {
+  const reference = toContentReference({
+    chan: { nest: NOTES_CHANNEL_ID, where: '/note/3' },
+  });
+  expect(reference).toEqual({
+    type: 'reference',
+    referenceType: 'note',
+    channelId: NOTES_CHANNEL_ID,
+    noteId: '3',
+  });
+});
+
+test('toContentReference strips dot-grouping from note ids', () => {
+  const reference = toContentReference({
+    chan: { nest: NOTES_CHANNEL_ID, where: '/note/1.234' },
+  });
+  expect(reference).toEqual({
+    type: 'reference',
+    referenceType: 'note',
+    channelId: NOTES_CHANNEL_ID,
+    noteId: '1234',
+  });
+});
+
+test('toContentReference rejects a notes cite with a non-note where path', () => {
+  expect(
+    toContentReference({
+      chan: { nest: NOTES_CHANNEL_ID, where: '/msg/123' },
+    })
+  ).toBeNull();
+});
+
+test('contentReferenceToCite round-trips a note reference', () => {
+  const [path, reference] = noteToContentReference(NOTES_CHANNEL_ID, 3);
+  expect(path).toBe(`/1/chan/${NOTES_CHANNEL_ID}/note/3`);
+  expect(getNoteReferencePath(NOTES_CHANNEL_ID, 3)).toBe(path);
+  const cite = contentReferenceToCite(reference);
+  expect(cite).toEqual({
+    chan: { nest: NOTES_CHANNEL_ID, where: '/note/3' },
+  });
+  expect(toContentReference(cite)).toEqual(reference);
 });

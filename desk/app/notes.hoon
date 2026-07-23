@@ -626,6 +626,26 @@
     ?>  =(src.bowl our.bowl)
     cor
   ::
+      [%v0 %said ship=@ name=@ %note id=@ ~]
+    ::  single-shot note reference preview: answer from state if we can,
+    ::  else proxy one watch to the host and relay its answer in +agent.
+    =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
+    =/  nid=@ud  (slav %ud id.pole)
+    ::  a just-joined %sub placeholder (init=|) has no note state yet and
+    ::  would answer %notes-denied for a real note — proxy instead.
+    =/  ready=?
+      ?~  entry=(get-book flag)  |
+      ?:  ?=(%pub -.net.u.entry)  &
+      init.net.u.entry
+    ?:  |(=(our.bowl ship.flag) ready)
+      (give-said ~ flag nid src.bowl)
+    ::  refuse to fetch over the network on another ship's behalf
+    ?>  =(src.bowl our.bowl)
+    =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+    ?:  (~(has by wex.bowl) [wire ship.flag %notes])
+      cor
+    (emit %pass wire %agent [ship.flag %notes] %watch (said-path flag nid))
+  ::
       [%v1 %notes ship=@ name=@ %request requester=@ id=@ ~]
     ::  Per-request path. Subscribers attach here while awaiting their
     ::  response-update. Path's `ship`/`name` segment is the notebook
@@ -773,6 +793,31 @@
     ::  on the ack — the local entry is already gone either way.
     ?+  -.sign  cor
         %poke-ack  cor
+    ==
+  ::
+      [%said ship=@ name=@ %note id=@ ~]
+    ::  proxied note-preview answer from a notebook host: relay to our
+    ::  /v0/said subscribers (nack/foreign mark coerced to %notes-denied).
+    =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
+    =/  nid=@ud  (slav %ud id.pole)
+    =/  paths=(list path)  ~[(said-path flag nid)]
+    ?+  -.sign  cor
+        %watch-ack
+      ?~  p.sign  cor
+      =.  cor  (give %fact paths notes-denied+!>(~))
+      (give %kick paths ~)
+    ::
+        %kick
+      (give %kick paths ~)
+    ::
+        %fact
+      =.  cor
+        ?:  ?=(?(%notes-said %notes-denied) p.cage.sign)
+          (give %fact paths cage.sign)
+        (give %fact paths notes-denied+!>(~))
+      =.  cor  (give %kick paths ~)
+      =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+      (emit %pass wire %agent [ship.flag %notes] %leave ~)
     ==
   ::
       [%notes %req ship=@ name=@ id=@ %watch ~]
@@ -959,6 +1004,75 @@
   ::  revocation rather than a replication gap.
   ?.  (group-synced u.grp)  &
   (group-can-read u.grp flag who)
+::  +said-path: subscription path for a single note-preview request
+::
+++  said-path
+  |=  [=flag:n nid=@ud]
+  ^-  path
+  /v0/said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+::  +said-snippet: leading slice of body-md, cut on a codepoint (not
+::  byte) boundary, then backed off past any grapheme-cluster glue
+::  (zwj sequences, variation selectors, skin tones, combining marks)
+::  so a family emoji never loses its kids.
+::
+++  said-snippet
+  |=  body=@t
+  ^-  @t
+  =/  limit=@ud  400
+  =/  chars=(list @c)  (tuba (trip body))
+  ?:  (lte (lent chars) limit)  body
+  =/  glue
+    |=  c=@c
+    ?|  =(`@`c 0x200d)                        ::  zero-width joiner
+        =(`@`c 0xfe0e)  =(`@`c 0xfe0f)        ::  variation selectors
+        &((gte `@`c 0x1.f3fb) (lte `@`c 0x1.f3ff))  ::  skin tones
+        &((gte `@`c 0x300) (lte `@`c 0x36f))  ::  combining marks
+    ==
+  ::  walk the kept slice in reverse so cluster glue peels off the end
+  =/  peek=(list @c)  (flop (scag limit chars))
+  =/  nxt=@c  (snag limit chars)
+  |-  ^-  @t
+  ?~  peek  ''
+  ?.  |((glue i.peek) (glue nxt))
+    (crip (tufa (flop peek)))
+  $(peek t.peek, nxt i.peek)
+::  +give-said: one %fact (preview or %notes-denied) then an immediate
+::  %kick, mirroring %channels' single-shot said flow. Public notebooks
+::  preview for anyone. Unlike +can-view-flag (which treats an unsynced
+::  group as viewable so subscriptions only drop on real revocations),
+::  previews fail closed: no synced group, no snippet.
+::
+++  give-said
+  |=  [paths=(list path) =flag:n nid=@ud who=ship]
+  ^+  cor
+  =/  =cage
+    ?~  entry=(get-book flag)  notes-denied+!>(~)
+    =*  bs  notebook-state.u.entry
+    ::  mirrors +se-member-join: visibility only means something for
+    ::  non-group notebooks; group mode's sole authority is can-read
+    =/  can-view=?
+      ?~  grp=group.bs
+        ?|  =(%public visibility.bs)
+            !=(~ (~(get by members.bs) who))
+        ==
+      ?&  (group-synced u.grp)
+          (group-can-read u.grp flag who)
+      ==
+    ?.  can-view
+      notes-denied+!>(~)
+    ?~  nt=(~(get by notes.bs) nid)  notes-denied+!>(~)
+    :-  %notes-said
+    !>  ^-  said:n
+    :-  flag
+    :*  nid
+        title.u.nt
+        (said-snippet body-md.u.nt)
+        created-by.u.nt
+        updated-at.u.nt
+        title.notebook.bs
+    ==
+  =.  cor  (give %fact paths cage)
+  (give %kick paths ~)
 ::  +recheck-group-access: a fact arrived for group `changed`, so read
 ::  permissions there may have shifted. Re-run can-read for every remote
 ::  subscriber on a hosted notebook bound to that group and %kick any who've
