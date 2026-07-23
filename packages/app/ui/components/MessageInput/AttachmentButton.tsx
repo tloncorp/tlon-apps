@@ -1,3 +1,4 @@
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
@@ -30,6 +31,7 @@ export default function AttachmentButton({
       }
       if (uploadIntents.length > 0) {
         attachAssets(uploadIntents);
+        trackEvent(AnalyticsEvent.AttachmentAdded);
       }
       return;
     }

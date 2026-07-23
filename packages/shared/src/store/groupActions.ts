@@ -1332,7 +1332,7 @@ export async function markGroupRead(groupId: string, deep: boolean = false) {
   const group = await db.getGroup({ id: groupId });
   if (!group) {
     logger.error('Group not found', groupId);
-    return;
+    return false;
   }
   // optimistic update
   const existingUnread = await db.getGroupUnread({ groupId: group.id });
@@ -1342,12 +1342,14 @@ export async function markGroupRead(groupId: string, deep: boolean = false) {
 
   try {
     await api.readGroup(group, deep);
+    return true;
   } catch (e) {
     logger.error('Failed to read group', e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertGroupUnreads([existingUnread]);
     }
+    return false;
   }
 }
 

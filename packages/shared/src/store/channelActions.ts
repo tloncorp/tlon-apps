@@ -782,7 +782,7 @@ export async function markChannelRead({
   }
 
   if (existingChannel.isPendingChannel) {
-    return;
+    return true;
   }
 
   try {
@@ -792,6 +792,7 @@ export async function markChannelRead({
       groupId: existingChannel.groupId,
       deep: !!includeThreads,
     });
+    return true;
   } catch (e) {
     logger.error('Failed to read channel', { id, groupId }, e);
     // rollback optimistic update
@@ -804,6 +805,7 @@ export async function markChannelRead({
     if (didUpdateGroupUnread && existingGroupUnread) {
       await db.insertGroupUnreads([existingGroupUnread]);
     }
+    return false;
   }
 }
 

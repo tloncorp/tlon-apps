@@ -243,33 +243,36 @@ export const ChatOptionsProvider = ({
     setLeaveChannelDialogOpen(true);
   }, [channelTitle, channel]);
 
-  const markGroupRead = useCallback(() => {
-    if (groupId) {
-      trackEvent(AnalyticsEvent.ChatMarkedRead);
-      store.markGroupRead(groupId, true);
-    }
+  const markGroupRead = useCallback(async () => {
     closeSheet();
+    if (groupId && (await store.markGroupRead(groupId, true))) {
+      trackEvent(AnalyticsEvent.ChatMarkedRead);
+    }
   }, [closeSheet, groupId]);
 
   const markChannelRead = useCallback(
-    ({ includeThreads }: { includeThreads?: boolean } = {}) => {
-      if (channelId) {
-        trackEvent(AnalyticsEvent.ChatMarkedRead);
-        store.markChannelRead({
+    async ({ includeThreads }: { includeThreads?: boolean } = {}) => {
+      if (
+        channelId &&
+        (await store.markChannelRead({
           id: channelId,
           groupId: groupId,
           includeThreads,
-        });
+        }))
+      ) {
+        trackEvent(AnalyticsEvent.ChatMarkedRead);
       }
     },
     [channelId, groupId]
   );
 
   const setChannelSortPreference = useCallback(
-    (sortBy: 'recency' | 'arranged') => {
-      trackEvent(AnalyticsEvent.ChannelSortChanged, { sort: sortBy });
-      db.channelSortPreference.setValue(sortBy);
+    async (sortBy: 'recency' | 'arranged') => {
       closeSheet();
+      if ((await db.channelSortPreference.getValue(true)) !== sortBy) {
+        await db.channelSortPreference.setValue(sortBy);
+        trackEvent(AnalyticsEvent.ChannelSortChanged, { sort: sortBy });
+      }
     },
     [closeSheet]
   );
