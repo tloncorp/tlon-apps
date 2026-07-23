@@ -497,11 +497,7 @@ export function ChatListScreenView({
         onPressInvite={handlePressInvite}
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
-          <View
-            userSelect="none"
-            flex={1}
-            backgroundColor={theme.background?.val}
-          >
+          <View userSelect="none" flex={1}>
             {isWeb && (
               <ScreenHeader
                 title="Home"
