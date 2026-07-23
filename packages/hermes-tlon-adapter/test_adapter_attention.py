@@ -1809,7 +1809,7 @@ class AdapterAttentionTests(unittest.TestCase):
         calls = []
 
         class ResyncSSE:
-            async def events(self):
+            async def events(self, *, on_open=None):
                 adapter._running = False
                 if False:  # pragma: no cover - makes events() an async generator
                     yield None
@@ -1819,6 +1819,7 @@ class AdapterAttentionTests(unittest.TestCase):
 
         async def record_settings():
             calls.append("settings")
+            return True
 
         async def record_profile():
             calls.append("profile")

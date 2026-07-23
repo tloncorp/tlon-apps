@@ -554,6 +554,15 @@ class DiscreteEventTests(unittest.TestCase):
         self.assertNotIn("~zod", first["detail"])
         self.assertEqual(second["errorType"], "error")
 
+    def test_sse_reconnect_mode_field(self):
+        tel, fake = make_telemetry()
+        tel.sse_reconnect(attempt=1, delay_seconds=2, error=ConnectionError("x"))
+        tel.sse_reconnect(attempt=2, delay_seconds=5, error=ConnectionError("y"), mode="resume")
+
+        events = fake.events("TlonBot SSE Reconnect")
+        self.assertEqual(events[0]["mode"], "rebuild")
+        self.assertEqual(events[1]["mode"], "resume")
+
 
 class DiagnosticsHelperTests(unittest.TestCase):
     def test_mask_api_key(self):

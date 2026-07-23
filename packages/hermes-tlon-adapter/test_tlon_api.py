@@ -284,43 +284,75 @@ class FakeClientTimeout:
 
 
 class FakeSSEContent:
-    def __init__(self, chunks):
+    def __init__(self, chunks, block_event=None):
         self.chunks = chunks
+        self.block_event = block_event
 
     async def iter_any(self):
         for chunk in self.chunks:
             yield chunk
+        if self.block_event is not None:
+            await self.block_event.wait()
 
 
 class FakeSSEResponse:
-    def __init__(self, chunks):
-        self.status = 200
-        self.content = FakeSSEContent(chunks)
+    def __init__(self, chunks, status=200, block_event=None, text_error=None):
+        self.status = status
+        self.content = FakeSSEContent(chunks, block_event=block_event)
+        self.entered = False
+        self.released = False
+        self._text_error = text_error
 
     async def __aenter__(self):
+        self.entered = True
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
+        self.released = True
         return False
 
     async def text(self):
+        if self._text_error is not None:
+            raise self._text_error
         return ""
 
 
 class FakeSSESession:
-    def __init__(self, chunks):
+    def __init__(self, chunks=None, responses=None, block_event=None, text_error=None):
         self.chunks = chunks
+        self.responses = responses or []
         self.timeout = None
+        self.get_calls = []
+        self.last_response = None
+        self.block_event = block_event
+        self.text_error = text_error
 
     def get(self, url, *, headers, timeout):
         self.timeout = timeout
-        return FakeSSEResponse(self.chunks)
+        self.get_calls.append({"url": url, "headers": headers, "timeout": timeout})
+        if self.responses:
+            status, chunks = self.responses.pop(0)
+            resp = FakeSSEResponse(
+                chunks,
+                status=status,
+                block_event=self.block_event,
+                text_error=self.text_error,
+            )
+        else:
+            resp = FakeSSEResponse(
+                self.chunks or [],
+                block_event=self.block_event,
+                text_error=self.text_error,
+            )
+        self.last_response = resp
+        return resp
 
 
 class FakeActionResponse:
-    def __init__(self, status=204, text=""):
+    def __init__(self, status=204, text="", text_error=None):
         self.status = status
         self._text = text
+        self._text_error = text_error
 
     async def __aenter__(self):
         return self
@@ -329,13 +361,16 @@ class FakeActionResponse:
         return False
 
     async def text(self):
+        if self._text_error is not None:
+            raise self._text_error
         return self._text
 
 
 class FakeActionSession:
-    def __init__(self, status=204):
+    def __init__(self, status=204, text_error=None):
         self.put_calls = []
         self.status = status
+        self.text_error = text_error
 
     def put(self, url, *, json, headers, timeout):
         self.put_calls.append(
@@ -346,7 +381,9 @@ class FakeActionSession:
                 "timeout": timeout,
             }
         )
-        return FakeActionResponse(self.status, "action rejected")
+        return FakeActionResponse(
+            self.status, "action rejected", text_error=self.text_error
+        )
 
     async def close(self):
         pass
@@ -452,6 +489,56 @@ class TlonSSEClientTests(unittest.TestCase):
             with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
                 with self.assertRaises(tlon_api.TlonTerminalActionError):
                     asyncio.run(client._send_actions([]))
+
+    def test_action_terminal_class_survives_unreadable_body(self):
+        # A stalled/truncated rejection body must not downgrade a terminal
+        # 401/403 to a generic ConnectionError — the classification is made
+        # from the status alone, before the body is read.
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        for status in (401, 403):
+            client = tlon_api.TlonSSEClient(cfg)
+            client._session = FakeActionSession(
+                status, text_error=RuntimeError("body stalled")
+            )
+            client.channel_url = "https://zod.tlon.network/~/channel/test"
+            with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+                with self.assertRaises(tlon_api.TlonTerminalActionError) as raised:
+                    asyncio.run(client._send_actions([]))
+            self.assertEqual(raised.exception.status, status)
+
+    def test_sse_500_raises_channel_error_without_reading_body(self):
+        # A stalled/truncated 500 body must not defeat dead-channel recovery:
+        # events() must raise TlonChannelError(status=500) even when text()
+        # would itself raise, so _run_stream rebuilds rather than resumes.
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+        client = tlon_api.TlonSSEClient(cfg)
+        client.channel_url = "https://zod.tlon.network/~/channel/test"
+        client._session = FakeSSESession(
+            responses=[(500, [])], text_error=RuntimeError("body stalled")
+        )
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            with self.assertRaises(tlon_api.TlonChannelError) as raised:
+
+                async def run():
+                    async for _ in client.events():
+                        pass
+
+                asyncio.run(run())
+        self.assertEqual(raised.exception.status, 500)
 
     def test_parse_acknowledges_id_only_sse_frames(self):
         cfg = tlon_api.TlonConfig.from_env(
@@ -1371,6 +1458,368 @@ class ReactionParsingTests(unittest.TestCase):
         self.assertEqual(channel.author_id, "~zod")
         self.assertEqual(dm.author_id, "~zod")
         self.assertEqual((dm.chat_id, dm.user_id), ("~mug", "~mug"))
+
+
+class TlonSSEClientResumeTests(unittest.TestCase):
+    def _make_client(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+        client = tlon_api.TlonSSEClient(cfg)
+        client.channel_id = "test-channel"
+        client.channel_url = "https://zod.tlon.network/~/channel/test-channel"
+        return client
+
+    def _diff_chunk(self, event_id, sub_id=1, app="channels", path="/v2"):
+        data = json.dumps({"id": sub_id, "response": "diff", "json": {"hello": True}})
+        return f"id: {event_id}\ndata: {data}\n\n".encode()
+
+    def test_first_connect_sends_no_last_event_id(self):
+        client = self._make_client()
+        session = FakeSSESession(responses=[(200, [self._diff_chunk(1)])])
+        client._session = session
+
+        async def run():
+            events = []
+            try:
+                async for ev in client.events():
+                    events.append(ev)
+            except ConnectionError:
+                pass
+            return events
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run())
+
+        self.assertEqual(len(session.get_calls), 1)
+        self.assertNotIn("Last-Event-ID", session.get_calls[0]["headers"])
+
+    def test_resume_sends_last_event_id(self):
+        client = self._make_client()
+        session = FakeSSESession(
+            responses=[
+                (200, [self._diff_chunk(7), self._diff_chunk(21)]),
+                (200, [self._diff_chunk(30)]),
+            ]
+        )
+        client._session = session
+
+        async def run():
+            try:
+                async for _ in client.events():
+                    pass
+            except ConnectionError:
+                pass
+            try:
+                async for _ in client.events():
+                    pass
+            except ConnectionError:
+                pass
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run())
+
+        self.assertNotIn("Last-Event-ID", session.get_calls[0]["headers"])
+        self.assertEqual(session.get_calls[1]["headers"]["Last-Event-ID"], "21")
+
+    def test_event_id_zero_is_delivered_and_resumed(self):
+        client = self._make_client()
+        session = FakeSSESession(
+            responses=[
+                (200, [self._diff_chunk(0)]),
+                (200, [self._diff_chunk(1)]),
+            ]
+        )
+        client._session = session
+
+        async def run():
+            events = []
+            try:
+                async for ev in client.events():
+                    events.append(ev)
+            except ConnectionError:
+                pass
+            try:
+                async for ev in client.events():
+                    events.append(ev)
+            except ConnectionError:
+                pass
+            return events
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            events = asyncio.run(run())
+
+        self.assertEqual(len(events), 2)
+        self.assertEqual(events[0].event_id, 0)
+        self.assertEqual(session.get_calls[1]["headers"]["Last-Event-ID"], "0")
+
+    def test_open_resets_cursor_and_subscriptions(self):
+        client = self._make_client()
+        client._last_heard_event_id = 42
+        client._last_acked_event_id = 42
+        client._subscriptions[1] = ("channels", "/v2")
+        client._optional_subscriptions.add(1)
+        session = FakeActionSession()
+        client._session = session
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(client.open())
+
+        self.assertEqual(client._last_heard_event_id, -1)
+        self.assertEqual(client._last_acked_event_id, -1)
+        self.assertEqual(client._subscriptions, {})
+        self.assertEqual(client._optional_subscriptions, set())
+
+        sse_session = FakeSSESession(responses=[(200, [self._diff_chunk(1)])])
+        client._session = sse_session
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            async def run():
+                try:
+                    async for _ in client.events():
+                        pass
+                except ConnectionError:
+                    pass
+            asyncio.run(run())
+        self.assertNotIn("Last-Event-ID", sse_session.get_calls[0]["headers"])
+
+    def test_replayed_event_not_yielded_and_no_ack(self):
+        client = self._make_client()
+        client._last_heard_event_id = 30
+        client._last_acked_event_id = -1
+        acked = []
+
+        async def fake_ack(event_id):
+            acked.append(event_id)
+
+        client._ack = fake_ack
+
+        async def run():
+            result = await client._parse_sse_payload("id: 25\ndata: {\"id\":1,\"response\":\"diff\",\"json\":{}}\n\n")
+            return result
+
+        result = asyncio.run(run())
+        self.assertIsNone(result)
+        self.assertEqual(acked, [])
+        self.assertEqual(client._last_heard_event_id, 30)
+        self.assertEqual(client._last_acked_event_id, -1)
+
+    def test_ack_threshold_fires_for_new_ids_only(self):
+        client = self._make_client()
+        client._last_heard_event_id = 100
+        client._last_acked_event_id = 100
+        acked = []
+
+        async def fake_ack(event_id):
+            acked.append(event_id)
+
+        client._ack = fake_ack
+
+        async def run():
+            await client._parse_sse_payload("id: 105\ndata: {\"id\":1,\"response\":\"diff\",\"json\":{}}\n\n")
+            await asyncio.sleep(0)
+            await client._parse_sse_payload("id: 121\ndata: {\"id\":1,\"response\":\"diff\",\"json\":{}}\n\n")
+            await asyncio.sleep(0)
+
+        asyncio.run(run())
+        self.assertEqual(acked, [121])
+        self.assertEqual(client._last_acked_event_id, 121)
+
+    def test_status_mapping_channel_fatal_vs_resumable(self):
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+
+        for status, expected_type, expected_status in [
+            (404, tlon_api.TlonChannelError, 404),
+            (410, tlon_api.TlonChannelError, 410),
+            (401, tlon_api.TlonChannelError, 401),
+            (403, tlon_api.TlonChannelError, 403),
+            (500, tlon_api.TlonChannelError, 500),
+        ]:
+            client = self._make_client()
+            session = FakeSSESession(responses=[(status, [])])
+            client._session = session
+            with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+                with self.assertRaises(expected_type) as cm:
+                    async def run():
+                        async for _ in client.events():
+                            pass
+                    asyncio.run(run())
+                self.assertEqual(cm.exception.status, expected_status)
+
+        # A non-500 server error stays resume-able: only 500 means Eyre cannot
+        # serve this channel any more.
+        client = self._make_client()
+        session = FakeSSESession(responses=[(503, [])])
+        client._session = session
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            with self.assertRaises(ConnectionError) as cm:
+                async def run():
+                    async for _ in client.events():
+                        pass
+                asyncio.run(run())
+            self.assertNotIsInstance(cm.exception, tlon_api.TlonChannelError)
+
+    def test_subscription_nack_and_quit_raise_channel_error(self):
+        client = self._make_client()
+        client._subscriptions[1] = ("channels", "/v2")
+        client._subscriptions[2] = ("chat", "/v3")
+
+        async def run_nack():
+            await client._parse_sse_payload(
+                'id: 1\ndata: {"id":1,"response":"subscribe","err":"nope"}\n\n'
+            )
+
+        with self.assertRaises(tlon_api.TlonChannelError) as cm:
+            asyncio.run(run_nack())
+        self.assertIsNone(cm.exception.status)
+
+        async def run_quit():
+            await client._parse_sse_payload(
+                'id: 2\ndata: {"id":2,"response":"quit"}\n\n'
+            )
+
+        with self.assertRaises(tlon_api.TlonChannelError) as cm:
+            asyncio.run(run_quit())
+        self.assertIsNone(cm.exception.status)
+
+    def test_optional_subscription_nack_still_skips(self):
+        client = self._make_client()
+        client._subscriptions[3] = ("steward", "/v1/lens")
+        client._optional_subscriptions.add(3)
+
+        async def run():
+            return await client._parse_sse_payload(
+                'id: 1\ndata: {"id":3,"response":"subscribe","err":"no-agent"}\n\n'
+            )
+
+        result = asyncio.run(run())
+        self.assertIsNone(result)
+        self.assertNotIn(3, client._subscriptions)
+
+    def test_on_open_fires_once_after_200_before_first_event(self):
+        client = self._make_client()
+        session = FakeSSESession(responses=[(200, [self._diff_chunk(1)])])
+        client._session = session
+        calls = []
+
+        async def run():
+            try:
+                async for ev in client.events(on_open=lambda: calls.append("open")):
+                    calls.append("event")
+            except ConnectionError:
+                pass
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run())
+
+        self.assertEqual(calls, ["open", "event"])
+
+    def test_on_open_not_called_on_failed_get(self):
+        client = self._make_client()
+        session = FakeSSESession(responses=[(500, [])])
+        client._session = session
+        calls = []
+
+        async def run():
+            async for _ in client.events(on_open=lambda: calls.append("open")):
+                pass
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            with self.assertRaises(ConnectionError):
+                asyncio.run(run())
+
+        self.assertEqual(calls, [])
+
+    def test_response_context_released_on_normal_end(self):
+        client = self._make_client()
+        session = FakeSSESession(responses=[(200, [self._diff_chunk(1)])])
+        client._session = session
+
+        async def run():
+            async for _ in client.events():
+                pass
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            with self.assertRaises(ConnectionError):
+                asyncio.run(run())
+
+        self.assertTrue(session.last_response.entered)
+        self.assertTrue(session.last_response.released)
+
+    def test_response_context_released_on_iteration_error(self):
+        client = self._make_client()
+        chunks = [self._diff_chunk(1), self._diff_chunk(2)]
+        session = FakeSSESession(responses=[(200, chunks)])
+        client._session = session
+
+        async def run():
+            async for _ in client.events():
+                raise RuntimeError("consumer error")
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            with self.assertRaises(RuntimeError):
+                asyncio.run(run())
+
+        self.assertTrue(session.last_response.entered)
+        self.assertTrue(session.last_response.released)
+
+    def test_response_context_released_on_cancellation(self):
+        client = self._make_client()
+        block = asyncio.Event()
+        session = FakeSSESession(
+            responses=[(200, [self._diff_chunk(1)])], block_event=block
+        )
+        client._session = session
+
+        async def run():
+            async def consumer():
+                async for _ in client.events():
+                    pass
+
+            task = asyncio.ensure_future(consumer())
+            await asyncio.sleep(0.01)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run())
+
+        self.assertTrue(session.last_response.entered)
+        self.assertTrue(session.last_response.released)
+
+    def test_response_context_released_on_aclose(self):
+        client = self._make_client()
+        chunks = [self._diff_chunk(1), self._diff_chunk(2), self._diff_chunk(3)]
+        session = FakeSSESession(responses=[(200, chunks)])
+        client._session = session
+
+        async def run():
+            stream = client.events()
+            async for ev in stream:
+                await stream.aclose()
+                break
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run())
+
+        self.assertTrue(session.last_response.entered)
+        self.assertTrue(session.last_response.released)
 
 
 if __name__ == "__main__":
