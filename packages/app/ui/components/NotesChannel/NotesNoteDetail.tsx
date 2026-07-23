@@ -648,11 +648,20 @@ export function NotesNoteDetail({
   const resolveConflictUseTheirs = useCallback(() => {
     if (!conflictNote || !draftBase || !notebookFlag) return;
     const adopted = rebaseDraftOnConflict(draftBase, conflictNote);
+    const discardedBody = bodyDraftRef.current;
     setConflictNote(null);
     setError(null);
     setDraftBase(adopted);
     setTitleDraft(adopted.title);
     setBodyDraft(adopted.bodyMd);
+    // Sync the out-of-band flush inputs in the same tick. The draft refs
+    // and flush context normally catch up in post-commit effects; a
+    // background/unmount flush firing inside that gap would pair the
+    // discarded drafts with the pre-adoption base and queue a save of the
+    // very content the user just chose to throw away.
+    titleDraftRef.current = adopted.title;
+    bodyDraftRef.current = adopted.bodyMd;
+    flushCtxRef.current = { flag: notebookFlag, base: adopted, canEdit };
     // Persist the host's copy locally so the reactive row catches up with
     // the adoption instead of reloading the stale pre-conflict content
     // over it. (The draft-loading effect also skips rows that trail the
@@ -662,16 +671,17 @@ export function NotesNoteDetail({
     // restore effect would resurrect them against the adopted revision.
     clearDraftStash(notebookFlag, draftBase.noteId, {
       title: titleDraft,
-      body: bodyDraftRef.current,
+      body: discardedBody,
     });
     clearMatchingNotesNoteDraftSnapshot({
       notebookFlag,
       noteId: draftBase.noteId,
       title: titleDraft,
-      body: bodyDraftRef.current,
+      body: discardedBody,
     });
     setSaveState('idle');
   }, [
+    canEdit,
     conflictNote,
     draftBase,
     notebookFlag,
