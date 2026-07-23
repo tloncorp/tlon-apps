@@ -174,11 +174,16 @@ const MainApp = () => {
   );
 };
 
-export default function ConnectedApp() {
+type MigrationState = ReturnType<typeof useMigrations>;
+
+export function ConnectedAppContent({
+  migrationState,
+}: {
+  migrationState: MigrationState;
+}) {
   const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
   const routeNameRef = useRef<string>(undefined);
-  const migrationState = useMigrations();
   const splashIsHidden = useSplashHider();
   const navigationLogging = useNavigationLogging();
 
@@ -231,6 +236,12 @@ export default function ConnectedApp() {
       </NavigationContainer>
     </FeatureFlagConnectedInstrumentationProvider>
   );
+}
+
+export default function ConnectedApp() {
+  const migrationState = useMigrations();
+
+  return <ConnectedAppContent migrationState={migrationState} />;
 }
 
 // This is rendered as a component because I didn't have any better ideas

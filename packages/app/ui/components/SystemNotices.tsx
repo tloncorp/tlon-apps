@@ -1,5 +1,6 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Alert } from 'react-native';
@@ -8,7 +9,6 @@ import { XStack, YStack, isWeb, styled } from 'tamagui';
 import { useContactPermissions } from '../../hooks/useContactPermissions';
 import { useNag } from '../../hooks/useNag';
 import { useNotificationPermissions } from '../../lib/notifications';
-import { useStore } from '../contexts/storeContext';
 
 const logger = createDevLogger('SystemNotices', false);
 
@@ -133,7 +133,6 @@ export function ContactBookPrompt(props: {
   onRequestAccess: () => void;
   onOpenSettings: () => void;
 }) {
-  const store = useStore();
   const perms = useContactPermissions();
   const contactBookNag = useNag({
     key: 'contactBookPrompt',
@@ -160,7 +159,7 @@ export function ContactBookPrompt(props: {
     } else {
       perms.openSettings();
     }
-  }, [contactBookNag, perms, store]);
+  }, [contactBookNag, perms]);
 
   if (
     isWeb ||
@@ -239,8 +238,6 @@ export function ConnectedJoinRequestNotice({
   group?: db.Group | null;
   onViewRequests: () => void;
 }) {
-  const store = useStore();
-
   // see if we have any pending join requests that haven't been dismissed
   const hasRelevantJoinRequests = useMemo(() => {
     if (group && group.joinRequests && group.joinRequests.length > 0) {
@@ -261,14 +258,14 @@ export function ConnectedJoinRequestNotice({
         dismissedAt: Date.now(),
       });
     }
-  }, [group, store]);
+  }, [group]);
 
   // clear any unread counts for the join requests whenever displayed
   useEffect(() => {
     if (group && hasRelevantJoinRequests) {
       store.markGroupRead(group.id, false);
     }
-  }, [group, hasRelevantJoinRequests, store]);
+  }, [group, hasRelevantJoinRequests]);
 
   if (!hasRelevantJoinRequests) {
     return null;

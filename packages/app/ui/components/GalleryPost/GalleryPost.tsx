@@ -9,6 +9,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { parsePostBlob } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { omit } from '@tloncorp/shared/utils';
 import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { differenceInDays } from 'date-fns';
@@ -26,8 +27,6 @@ import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
 import type { MinimalRenderItemProps } from '../../contexts/componentsKits';
-import { useRequests } from '../../contexts/requests';
-import { useStore } from '../../contexts/storeContext';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -294,7 +293,6 @@ export function GalleryPostFooter({
   onPressRetry?: () => void;
 } & ComponentProps<typeof XStack>) {
   const isWindowNarrow = useIsWindowNarrow();
-  const store = useStore();
   const retryVerb = useMemo(() => {
     if (isWindowNarrow) {
       return 'Tap';
@@ -363,10 +361,9 @@ export function GalleryPostDetailView({
   post: db.Post;
   onPressImage?: (post: db.Post, uri?: string) => void;
 }) {
-  const { usePost } = useRequests();
-  // we use usePost so we can get updated reactions
+  // we use usePostWithRelations so we can get updated reactions
   // and reply count
-  const { data: livePost } = usePost({ id: post.id });
+  const { data: livePost } = store.usePostWithRelations({ id: post.id });
   const logger = createDevLogger('GalleryPostDetailView', true);
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();

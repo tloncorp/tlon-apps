@@ -1,9 +1,9 @@
 import * as domain from '@tloncorp/shared/domain';
+import * as store from '@tloncorp/shared/store';
 import { Button } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 
 import { AppDataContextProvider } from '../contexts/appDataContext';
-import { useStore } from '../contexts/storeContext';
 import { ActionSheet } from './ActionSheet';
 import { SigilAvatar } from './Avatar';
 
@@ -19,7 +19,6 @@ export function StoppedNodePushSheet({
   onOpenChange,
   notifPerms,
 }: Props) {
-  const store = useStore();
   const { data: contacts } = store.useContacts();
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange} modal>

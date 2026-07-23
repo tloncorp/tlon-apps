@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Pressable, Text } from '@tloncorp/ui';
 import { useMemo, useRef } from 'react';
 import QRCode from 'react-qr-code';
 import { View, YStack, useTheme } from 'tamagui';
 
-import { useStore } from '../contexts/storeContext';
 import { ActionSheet } from './ActionSheet';
 import { ListItem } from './ListItem';
 import { PersonalInviteButton } from './PersonalInviteButton';
@@ -52,7 +52,6 @@ const PersonalInviteSheetContent = ({
 }: {
   onPressInviteFriends: () => void;
 }) => {
-  const store = useStore();
   const inviteLink = db.personalInviteLink.useValue();
   const theme = useTheme();
 

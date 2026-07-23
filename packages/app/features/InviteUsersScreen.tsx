@@ -12,7 +12,6 @@ import {
   NavigationProvider,
   PaddedBlock,
   ScreenHeader,
-  useStore,
 } from '../ui';
 import { InviteFriendsToTlonButton } from '../ui/components/InviteFriendsToTlonButton';
 
@@ -23,8 +22,7 @@ export function InviteUsersScreen() {
   const route = useRoute<InviteUsersScreenRouteProp>();
   const { groupId } = route.params ?? {};
   const { bottom } = useSafeAreaInsets();
-  const appStore = useStore();
-  const { data: group } = appStore.useGroup({ id: groupId ?? '' });
+  const { data: group } = store.useGroup({ id: groupId ?? '' });
   const disabledIds = store.useGroupsNegotiationClashes();
 
   const handleGoBack = useCallback(() => {

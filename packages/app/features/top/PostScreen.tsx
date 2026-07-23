@@ -14,7 +14,6 @@ import {
   PostScreenView,
   useCurrentUserId,
 } from '../../ui';
-import { useStore } from '../../ui/contexts/storeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
@@ -65,7 +64,7 @@ function PostScreenContent({
   const postId = post.id;
   const navigation = useNavigation();
   const { group, channel, negotiationStatus, editingPost, setEditingPost } =
-    useStore().useChannelContext({
+    store.useChannelContext({
       channelId: channelId,
       draftKey: store.draftKeyFor.thread({
         parentPostId: postId,

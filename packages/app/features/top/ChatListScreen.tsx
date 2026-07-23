@@ -34,7 +34,6 @@ import {
   NavigationProvider,
   PersonalInviteSheet,
   Pressable,
-  RequestsProvider,
   ScreenHeader,
   View,
   triggerHaptic,
@@ -374,13 +373,7 @@ export function ChatListScreenView({
   }, [chats]);
 
   return (
-    <RequestsProvider
-      usePostReference={store.usePostReference}
-      useChannel={store.useChannelPreview}
-      usePost={store.usePostWithRelations}
-      useApp={db.appInfo.useValue}
-      useGroup={store.useGroupPreview}
-    >
+    <>
       <ChatOptionsProvider
         {...useChatSettingsNavigation()}
         onPressInvite={handlePressInvite}
@@ -497,7 +490,7 @@ export function ChatListScreenView({
         onOpenChange={() => setPersonalInviteOpen(false)}
         onPressInviteFriends={handleInviteFriends}
       />
-    </RequestsProvider>
+    </>
   );
 }
 
