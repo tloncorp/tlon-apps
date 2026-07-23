@@ -134,7 +134,7 @@ export function ChannelListItem({
     <View ref={containerRef}>
       <Pressable
         testID={isWeb ? undefined : rowTestID}
-        accessibilityLabel={isWeb ? undefined : title}
+        accessibilityLabel={isWeb ? undefined : title ?? undefined}
         accessibilityRole={isWeb ? undefined : 'button'}
         borderRadius="$xl"
         onPress={open ? undefined : handlePress}
