@@ -1,15 +1,20 @@
 import * as db from '@tloncorp/shared/db';
 import { PropsWithChildren, useEffect, useState } from 'react';
 
-import { setupDb, useMigrations } from '../lib/webDb';
+import { useMigrations } from '../lib/baseDb';
+import { WebDb } from '../lib/webDb';
 import { fixturePosts } from './contentHelpers';
 import { group } from './fakeData';
+
+const cosmosDb = new WebDb({ enableStoragePersistence: false });
 
 // Cosmos renders components that read the local SQLite database through the
 // statically imported store hooks. Boot the in-memory web database, run
 // migrations, and seed it with the shared fixture data so those hooks return
-// something. No urbit client is configured — writes and syncs fail fast, and
-// reads of unseeded data resolve empty.
+// something. Storage persistence is disabled so fixture data and sync state
+// cannot affect the developer's normal web database. No urbit client is
+// configured — writes and syncs fail fast, and reads of unseeded data resolve
+// empty.
 async function seed() {
   try {
     await db.insertGroups({ groups: [group] });
@@ -20,7 +25,7 @@ async function seed() {
 }
 
 function MigrateAndSeed({ children }: PropsWithChildren) {
-  const { success, error } = useMigrations();
+  const { success, error } = useMigrations(cosmosDb);
   const [seeded, setSeeded] = useState(false);
 
   useEffect(() => {
@@ -40,7 +45,7 @@ export function CosmosDbProvider({ children }: PropsWithChildren) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setupDb().then(() => setReady(true));
+    cosmosDb.setupDb().then(() => setReady(true));
   }, []);
 
   return ready ? <MigrateAndSeed>{children}</MigrateAndSeed> : null;
