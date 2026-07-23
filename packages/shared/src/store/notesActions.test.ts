@@ -888,6 +888,89 @@ test('saveNotebookNote ignores replica reads trailing below the rejected revisio
   });
 });
 
+test('saveNotesNotebookSnapshot keeps newer metadata at an equal revision', async () => {
+  // Renames/moves don't bump the revision, so a stale snapshot can carry
+  // the same revision with older metadata.
+  const note = makeNote('Renamed note');
+  const staleSnapshot = {
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  };
+  await db.saveNotesNotebookSnapshot(staleSnapshot);
+
+  // An adoption writes a newer title at the SAME revision (host rename).
+  await db.updateNotesNote({
+    notebookFlag,
+    noteId: note.noteId,
+    title: 'Adopted rename',
+    updatedAt: (note.updatedAt ?? 0) + 1_000,
+  });
+
+  await db.saveNotesNotebookSnapshot(staleSnapshot);
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject({ title: 'Adopted rename' });
+});
+
+test('saveNotebookNote rethrows the raw error when the retry races and the replica lags', async () => {
+  const note = makeNote('Retry-lag note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  const firstBody = 'first draft';
+  const firstSaved = {
+    ...note,
+    bodyMd: firstBody,
+    revision: note.revision + 1,
+  };
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
+    makeApiNotesNote(firstSaved),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  // The replica serves our own previous save forever: good enough to
+  // classify the first conflict as own-echo, but it never advances past
+  // the rebased retry's rejected revision.
+  vi.spyOn(api.notes, 'getNote').mockResolvedValue(
+    makeApiNotesNote(firstSaved)
+  );
+  const updateNoteBody = vi
+    .spyOn(api.notes, 'updateNoteBody')
+    .mockResolvedValue('ok');
+
+  await saveNotebookNote({
+    notebookFlag,
+    note,
+    title: note.title,
+    body: firstBody,
+  });
+
+  updateNoteBody.mockRejectedValue(
+    new api.NotesV1WriteError('%notes error: revision-mismatch', 'conflict')
+  );
+
+  const attempt = saveNotebookNote({
+    notebookFlag,
+    note,
+    title: note.title,
+    body: 'first draft plus more typing',
+  });
+
+  // Building a conflict from our own previous save would offer the user's
+  // discarded past as "theirs" — the raw error must escape instead.
+  await expect(attempt).rejects.toBeInstanceOf(api.NotesV1WriteError);
+}, 15_000);
+
 test('adoptNotebookNoteRemote persists the host copy locally', async () => {
   const note = makeNote('Local note');
   await db.saveNotesNotebookSnapshot({

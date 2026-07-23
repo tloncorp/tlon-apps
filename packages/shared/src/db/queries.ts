@@ -544,9 +544,16 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
       const currentByNoteId = new Map(
         currentNotes.map((note) => [note.noteId, note])
       );
+      // Renames and moves don't bump the revision, so equal revisions are
+      // ordered by updatedAt (both stamped by the host clock).
       const mergedNotes = notes.map((incoming) => {
         const current = currentByNoteId.get(incoming.noteId);
-        return current && current.revision > incoming.revision
+        const currentIsNewer =
+          current &&
+          (current.revision > incoming.revision ||
+            (current.revision === incoming.revision &&
+              (current.updatedAt ?? 0) > (incoming.updatedAt ?? 0)));
+        return currentIsNewer
           ? { ...current, syncedAt: incoming.syncedAt }
           : incoming;
       });

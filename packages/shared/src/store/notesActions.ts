@@ -570,16 +570,19 @@ async function updateNotebookNoteBody({
         if (!api.isNotesV1ConflictError(retryError)) {
           throw retryError;
         }
-        // Best effort: surface the raced writer's copy if the replica has
-        // it; fall back to what we already fetched (it is at least past
-        // the originally rejected revision).
-        throw new NotesNoteConflictError(
-          (await fetchNotePastRevision(
-            notebookFlag,
-            note.noteId,
-            remoteRevision
-          )) ?? remote
+        // Surface the raced writer's copy once the replica has it. If it
+        // hasn't advanced yet, rethrow the raw error instead of building a
+        // conflict from `remote` — that copy is our OWN previous save, and
+        // offering it as "theirs" would let a resolution regress the note.
+        const raced = await fetchNotePastRevision(
+          notebookFlag,
+          note.noteId,
+          remoteRevision
         );
+        if (!raced) {
+          throw retryError;
+        }
+        throw new NotesNoteConflictError(raced);
       }
       lastSavedNoteState.set(noteKey, {
         body,
