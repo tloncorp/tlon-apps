@@ -5,6 +5,7 @@ import {
 } from '@google-cloud/recaptcha-enterprise-react-native';
 import * as hostingApi from '@tloncorp/api';
 import { getLandscapeAuthCookie } from '@tloncorp/api';
+import * as store from '@tloncorp/shared/store';
 import { createContext, useContext } from 'react';
 
 interface OnboardingContextValue {
@@ -12,6 +13,8 @@ interface OnboardingContextValue {
   initRecaptcha: typeof initClient;
   execRecaptchaLogin: () => Promise<string>;
   getLandscapeAuthCookie: typeof getLandscapeAuthCookie;
+  checkPhoneVerify: typeof store.checkPhoneVerify;
+  requestPhoneVerify: typeof store.requestPhoneVerify;
 }
 
 export const OnboardingContext = createContext<OnboardingContextValue>({
@@ -19,6 +22,8 @@ export const OnboardingContext = createContext<OnboardingContextValue>({
   execRecaptchaLogin: () => execute(RecaptchaAction.LOGIN(), 10_000),
   getLandscapeAuthCookie,
   hostingApi,
+  checkPhoneVerify: store.checkPhoneVerify,
+  requestPhoneVerify: store.requestPhoneVerify,
 });
 
 export const OnboardingProvider = OnboardingContext.Provider;

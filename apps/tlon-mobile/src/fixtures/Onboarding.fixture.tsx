@@ -73,6 +73,8 @@ function OnboardingFixture({
             initRecaptcha: () => Promise.resolve('abc'),
             execRecaptchaLogin: () => Promise.resolve('abc'),
             getLandscapeAuthCookie: () => Promise.resolve('abc'),
+            checkPhoneVerify: async () => undefined,
+            requestPhoneVerify: async () => undefined,
             //@ts-expect-error partial implementation
             hostingApi: {
               signUpHostingUser: async () => Promise.resolve(sampleUser),

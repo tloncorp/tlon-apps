@@ -2,11 +2,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 
 import { OTPInput } from '../../components/OnboardingInputs';
 import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
+import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 import { useSignupContext } from '.././../lib/signupContext';
 
@@ -22,13 +22,14 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
   const [error, setError] = useState<string | undefined>();
   const { checkAccountStatusAndNavigate } = useOnboardingHelpers();
   const signupContext = useSignupContext();
+  const { checkPhoneVerify, requestPhoneVerify } = useOnboardingContext();
 
   const handleSubmit = useCallback(
     async (code: string) => {
       setIsSubmitting(true);
 
       try {
-        await store.checkPhoneVerify(code);
+        await checkPhoneVerify(code);
 
         trackOnboardingAction({
           actionName: 'Verification Submitted',
@@ -50,7 +51,13 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
 
       setIsSubmitting(false);
     },
-    [checkAccountStatusAndNavigate, navigation, params.mode, signupContext]
+    [
+      checkAccountStatusAndNavigate,
+      checkPhoneVerify,
+      navigation,
+      params.mode,
+      signupContext,
+    ]
   );
 
   const handleCodeChanged = useCallback(
@@ -65,7 +72,7 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
 
   const handleResend = async () => {
     try {
-      await store.requestPhoneVerify(params.phoneNumber);
+      await requestPhoneVerify(params.phoneNumber);
     } catch (err) {
       console.error('Error resending verification code:', err);
       if (err instanceof Error) {

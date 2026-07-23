@@ -8,11 +8,11 @@ import {
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
-import * as store from '@tloncorp/shared/store';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
+import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<
@@ -32,6 +32,7 @@ export const RequestPhoneVerifyScreen = ({
 }: Props) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
+  const { requestPhoneVerify } = useOnboardingContext();
 
   const form = useForm<FormData>();
   const { handleSubmit } = form;
@@ -39,7 +40,7 @@ export const RequestPhoneVerifyScreen = ({
   const onSubmit = handleSubmit(async ({ phoneNumber }) => {
     setIsSubmitting(true);
     try {
-      await store.requestPhoneVerify(phoneNumber);
+      await requestPhoneVerify(phoneNumber);
       trackOnboardingAction({
         actionName: 'Phone Verification Requested',
       });
