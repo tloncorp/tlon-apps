@@ -6,15 +6,38 @@ describe('markdownToStory', () => {
   describe('ship mentions', () => {
     it('converts plain ship mention', () => {
       const story = markdownToStory('~zod is cool');
-      // Should have inline content with ship mention
-      expect(story).toHaveLength(1);
-      expect(story[0]).toHaveProperty('inline');
-      const inlines = (story[0] as { inline: unknown[] }).inline;
-      // Find ship in inlines
-      const hasShip = inlines.some(
-        (i) => typeof i === 'object' && i !== null && 'ship' in i
-      );
-      expect(hasShip).toBe(true);
+      expect(story).toEqual([
+        {
+          inline: [{ ship: '~zod' }, ' is cool'],
+        },
+      ]);
+    });
+
+    it('converts a valid planet name', () => {
+      expect(markdownToStory('Hello ~sampel-palnet')).toEqual([
+        {
+          inline: ['Hello ', { ship: '~sampel-palnet' }],
+        },
+      ]);
+    });
+
+    it.each(['~word', '~thanks', '~foo-bar', '~zod2'])(
+      'keeps invalid ship candidate %s as plain text',
+      (candidate) => {
+        expect(markdownToStory(`Say ${candidate} here`)).toEqual([
+          {
+            inline: [`Say ${candidate} here`],
+          },
+        ]);
+      }
+    );
+
+    it('keeps an invalid ship candidate as plain text inside formatting', () => {
+      expect(markdownToStory('**~word**')).toEqual([
+        {
+          inline: [{ bold: ['~word'] }],
+        },
+      ]);
     });
 
     it('converts ship name wrapped in bold', () => {
