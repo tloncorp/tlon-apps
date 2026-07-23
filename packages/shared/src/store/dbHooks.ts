@@ -36,13 +36,55 @@ export const useAllChannels = ({ enabled }: { enabled?: boolean }) => {
 export const useCurrentChats = (
   queryConfig?: CustomQueryConfig<GroupedChats>
 ): UseQueryResult<GroupedChats | null> => {
-  return useQuery({
+  const query = useQuery({
     queryFn: async () => {
       return db.getChats();
     },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
     ...queryConfig,
   });
+
+  useEffect(() => {
+    if (!query.data) return;
+
+    // Older settled-delete ghosts can leave `lastPostId` nulled while the old
+    // `lastPostAt` survives. Treat this metadata shape only as a candidate:
+    // ordinary deletes can produce it while the local post cache is partial.
+    // The DB check below gates recomputation on the actual persisted ghost row
+    // whose `receivedAt` matches the stale `lastPostAt`.
+    const staleChannels = new Map<string, number>();
+    const chats = [
+      ...query.data.pinned,
+      ...query.data.pending,
+      ...query.data.unpinned,
+    ];
+    for (const chat of chats) {
+      const channels =
+        chat.type === 'channel' ? [chat.channel] : chat.group.channels ?? [];
+      for (const channel of channels) {
+        if (channel.lastPostId === null && channel.lastPostAt != null) {
+          staleChannels.set(channel.id, channel.lastPostAt);
+        }
+      }
+    }
+    if (staleChannels.size === 0) return;
+
+    void (async () => {
+      const ghostChannelIds = await db.getSettledDeletedGhostChannelIds(
+        [...staleChannels].map(([channelId, lastPostAt]) => ({
+          channelId,
+          lastPostAt,
+        }))
+      );
+      for (const channelId of ghostChannelIds) {
+        await db.recomputeChannelLastPost({ channelId });
+      }
+    })().catch((error) => {
+      console.error('Failed to repair stale channel previews', error);
+    });
+  }, [query.data]);
+
+  return query;
 };
 
 // Probe %notes once to detect whether the notes desk is installed on the

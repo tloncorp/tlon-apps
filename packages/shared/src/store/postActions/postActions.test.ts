@@ -13,6 +13,8 @@ import { getClient, setupDatabaseTestSuite } from '../../test/helpers';
 import { updateSession } from '../session';
 import { setUploadState } from '../storage';
 import * as sync from '../sync';
+import { subscribeToDeletedPosts } from '../useChannelPosts/subscriptions';
+import type { DeletedPostState } from '../useChannelPosts/subscriptions';
 import { mergePendingPosts } from '../useMergePendingPosts';
 import {
   deleteFailedPost,
@@ -742,11 +744,14 @@ describe('clearing a failed optimistic post', () => {
     // Pending merge layer is clean.
     const pending = await db.getPendingPosts(TEST_CHANNEL);
     expect(pending.map((p) => p.id)).not.toContain(post.id);
+    // A mounted channel can still hold the pre-delete snapshot in its
+    // session-local `newPosts` array. The hard-delete event marks that input
+    // removed so it disappears immediately without a remount.
     const merged = mergePendingPosts({
-      newPosts: [],
+      newPosts: [post],
       pendingPosts: pending,
       existingPosts: [],
-      deletedPosts: {},
+      deletedPosts: { [post.id]: 'removed' },
       hasNewest: true,
     });
     expect(merged.map((p) => p.id)).not.toContain(post.id);
@@ -1443,6 +1448,119 @@ describe('clearing a failed optimistic post', () => {
   });
 });
 
+// TLON-5911: deleting a server-acknowledged-but-unsequenced send
+// (`deliveryStatus: 'sent'`, `sequenceNum: 0`). Once the server confirms the
+// delete, the sequenced `addPost` that would normally replace the cached row
+// is never coming, so the row must be hard-deleted — otherwise it survives as
+// an `isDeleted` tombstone that `mergePendingPosts` sorts unconfirmed-first,
+// i.e. pinned to the bottom of the chat scroller indefinitely.
+describe('deleting a sent-but-unsequenced post', () => {
+  beforeEach(async () => {
+    await db.insertChannels([
+      db.buildChannel({ id: TEST_CHANNEL, type: 'chat' }),
+    ]);
+    vi.mocked(poke).mockResolvedValue(0);
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+  });
+
+  afterEach(() => {
+    vi.mocked(poke).mockClear();
+    updateSession(null);
+  });
+
+  async function seedSentUnsequencedPost(): Promise<db.Post> {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const post = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 0,
+      content: [{ inline: [friendlyUniqueString()] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [post] });
+    return post;
+  }
+
+  test('deletePost() sends the server delete, then hard-deletes the unsequenced row', async () => {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const previous = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 5,
+      content: [{ inline: ['previous previewable post'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [previous] });
+
+    const post = await seedSentUnsequencedPost();
+    expect((await db.getPendingPosts(TEST_CHANNEL)).map((p) => p.id)).toContain(
+      post.id
+    );
+
+    let liveDeleteState: DeletedPostState | undefined;
+    const unsubscribe = subscribeToDeletedPosts((postId, state) => {
+      if (postId === post.id) liveDeleteState = state;
+    });
+    await deletePost({ post });
+    unsubscribe();
+
+    // Unlike the failed-optimistic short-circuit, the row may exist on the
+    // server, so the delete round trip must happen.
+    expect(poke).toHaveBeenCalled();
+
+    // Once the server confirms, the row is gone — no ghost tombstone left in
+    // the DB or the pending merge layer.
+    expect(await fetchPost(post.id)).toBeUndefined();
+    const pending = await db.getPendingPosts(TEST_CHANNEL);
+    expect(pending.map((p) => p.id)).not.toContain(post.id);
+    expect(liveDeleteState).toBe('removed');
+    const merged = mergePendingPosts({
+      newPosts: [post],
+      pendingPosts: pending,
+      existingPosts: [],
+      deletedPosts: { [post.id]: liveDeleteState! },
+      hasNewest: true,
+    });
+    expect(merged.map((p) => p.id)).not.toContain(post.id);
+
+    // Channel preview repoints to the newest remaining previewable post.
+    const chan = await db.getChannel({ id: TEST_CHANNEL });
+    expect(chan!.lastPostId).toBe(previous.id);
+  });
+
+  test('deletePost() keeps the normal tombstone when the sequenced echo lands during the delete round trip', async () => {
+    const post = await seedSentUnsequencedPost();
+    vi.mocked(poke).mockImplementationOnce(async () => {
+      // The sequenced addPost catches up mid-flight: the row is no longer
+      // unsequenced by the time the delete is acknowledged.
+      await db.updatePost({ id: post.id, sequenceNum: 42 });
+      return 0;
+    });
+
+    await deletePost({ post });
+
+    const rowAfter = await fetchPost(post.id);
+    expect(rowAfter).toBeTruthy();
+    expect(rowAfter!.isDeleted).toBe(true);
+    expect(rowAfter!.sequenceNum).toBe(42);
+  });
+
+  test('deletePost() failure rolls back and does NOT hard-delete the row', async () => {
+    const post = await seedSentUnsequencedPost();
+    vi.mocked(poke).mockRejectedValueOnce(new Error('nack'));
+
+    await deletePost({ post });
+
+    const rowAfter = await fetchPost(post.id);
+    expect(rowAfter).toBeTruthy();
+    expect(rowAfter!.isDeleted).toBeFalsy();
+    expect(rowAfter!.deliveryStatus).toBe('sent');
+    expect(rowAfter!.deleteStatus).toBe('failed');
+  });
+});
+
 // TLON-6133: deleting a post that is pinned/arranged also removes it from
 // the channel order.
 describe('deleting a pinned post', () => {
@@ -1580,5 +1698,54 @@ describe('deleting a pinned post', () => {
     expect((await fetchPost(post.id))!.deleteStatus).toBe('failed');
     const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
     expect(channelAfter!.order).toEqual([post.id]);
+  });
+
+  // A pinned post can also be an acknowledged-but-unsequenced send. When the
+  // delete poke's ack is lost but the server confirms the delete, the
+  // verification branches must run the same guarded hard-delete as the success
+  // path — otherwise the `sequenceNum: 0` ghost (and its live overlay) is left
+  // behind exactly like TLON-5911, just reached via the lost-ack path.
+  async function seedPinnedUnsequencedPost(): Promise<db.Post> {
+    const channel = (await db.getChannel({ id: GROUP_CHANNEL }))!;
+    const post = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 0,
+      content: [{ inline: [friendlyUniqueString()] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [post] });
+    await db.updateChannel({ id: GROUP_CHANNEL, order: [post.id] });
+    return post;
+  }
+
+  test('lost ack via isDeleted hard-deletes an unsequenced pinned post', async () => {
+    const post = await seedPinnedUnsequencedPost();
+    vi.mocked(poke).mockRejectedValue(new Error('ack lost'));
+    vi.spyOn(api, 'getPostWithReplies').mockResolvedValue({
+      ...post,
+      isDeleted: true,
+    });
+
+    await deletePost({ post });
+
+    expect(await fetchPost(post.id)).toBeUndefined();
+    const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channelAfter!.order).toEqual([]);
+  });
+
+  test('lost ack via 404 hard-deletes an unsequenced pinned post', async () => {
+    const post = await seedPinnedUnsequencedPost();
+    vi.mocked(poke).mockRejectedValue(new Error('ack lost'));
+    vi.spyOn(api, 'getPostWithReplies').mockRejectedValue(
+      new api.BadResponseError(404, '')
+    );
+
+    await deletePost({ post });
+
+    expect(await fetchPost(post.id)).toBeUndefined();
+    const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
+    expect(channelAfter!.order).toEqual([]);
   });
 });

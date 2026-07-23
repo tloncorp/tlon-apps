@@ -3,7 +3,7 @@ import { v0PeersToClientProfiles } from '@tloncorp/api';
 import { toClientGroupsV7 } from '@tloncorp/api';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 import * as schema from '../db/schema';
 import { syncContacts, syncInitData } from '../store/sync';
@@ -1216,7 +1216,7 @@ describe('getPendingPosts', () => {
     expect(ids).not.toContain(failedCleared.id);
   });
 
-  test('includes deleted markPostSent / needs_verification rows so the remount path still has a tombstone source', async () => {
+  test('includes deleted markPostSent / needs_verification rows while the delete is not settled', async () => {
     await queries.insertChannels([{ id: channelId, type: 'chat' }]);
     // `markPostSent` catch-up: server already acknowledged, sequenced
     // `addPost` hasn't arrived yet, and the user deleted in the gap.
@@ -1225,6 +1225,7 @@ describe('getPendingPosts', () => {
       deliveryStatus: 'sent',
       sequenceNum: 0,
       isDeleted: true,
+      deleteStatus: null,
     });
     // `needs_verification` may also have reached the server.
     const verifyCleared = await seedPost({
@@ -1232,6 +1233,7 @@ describe('getPendingPosts', () => {
       deliveryStatus: 'needs_verification',
       sequenceNum: 0,
       isDeleted: true,
+      deleteStatus: 'pending',
     });
     const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
     expect(ids).toEqual(
@@ -1246,17 +1248,34 @@ describe('getPendingPosts', () => {
       deliveryStatus: 'enqueued',
       sequenceNum: 0,
       isDeleted: true,
+      deleteStatus: null,
     });
     const pendingCleared = await seedPost({
       id: 'pending-cleared',
       deliveryStatus: 'pending',
       sequenceNum: 0,
       isDeleted: true,
+      deleteStatus: 'pending',
     });
     const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
     expect(ids).toEqual(
       expect.arrayContaining([enqueuedCleared.id, pendingCleared.id])
     );
+  });
+
+  test('excludes settled deleted rows without deleting them from storage', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const settled = await seedPost({
+      id: 'settled-delete',
+      deliveryStatus: 'sent',
+      sequenceNum: 0,
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+
+    const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
+    expect(ids).not.toContain(settled.id);
+    expect(await queries.getPost({ postId: settled.id })).toBeTruthy();
   });
 
   test('excludes confirmed rows (null deliveryStatus) regardless of isDeleted', async () => {
@@ -1289,6 +1308,222 @@ describe('getPendingPosts', () => {
     });
     const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
     expect(ids).not.toContain(reply.id);
+  });
+});
+
+describe('deleteUnsequencedAcknowledgedPost', () => {
+  const channelId = 'conditional-delete-channel';
+
+  async function seedPost(id: string, overrides: Partial<Post> = {}) {
+    const post = {
+      id,
+      type: 'chat',
+      channelId,
+      authorId: '~zod',
+      sentAt: Date.now(),
+      receivedAt: Date.now(),
+      sequenceNum: 0,
+      deliveryStatus: 'sent',
+      content: JSON.stringify([{ inline: ['seed'] }]),
+      syncedAt: Date.now(),
+      ...overrides,
+    } as Post;
+    await queries.insertChannelPosts({ posts: [post] });
+    return post;
+  }
+
+  test('deletes and returns an acknowledged row while it is still unsequenced', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const post = await seedPost('still-unsequenced');
+
+    const deleted = await queries.deleteUnsequencedAcknowledgedPost(post.id);
+
+    expect(deleted?.id).toBe(post.id);
+    expect(await queries.getPost({ postId: post.id })).toBeNull();
+  });
+
+  test('preserves the row when a sequenced echo wins the race', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const post = await seedPost('sequenced-before-delete');
+    // This update represents the addPost echo landing after the caller chose
+    // the hard-delete path but before SQLite executes the guarded DELETE.
+    await queries.updatePost({ id: post.id, sequenceNum: 42 });
+
+    const deleted = await queries.deleteUnsequencedAcknowledgedPost(post.id);
+
+    expect(deleted).toBeNull();
+    expect(await queries.getPost({ postId: post.id })).toMatchObject({
+      id: post.id,
+      sequenceNum: 42,
+    });
+  });
+});
+
+describe('deleteSettledUnsequencedDeletedPost', () => {
+  const channelId = 'settled-delete-on-send-channel';
+
+  async function seedPost(id: string, overrides: Partial<Post> = {}) {
+    const post = {
+      id,
+      type: 'chat',
+      channelId,
+      authorId: '~zod',
+      sentAt: Date.now(),
+      receivedAt: Date.now(),
+      sequenceNum: 0,
+      deliveryStatus: 'sent',
+      isDeleted: true,
+      deleteStatus: 'sent',
+      content: JSON.stringify([{ inline: ['seed'] }]),
+      syncedAt: Date.now(),
+      ...overrides,
+    } as Post;
+    await queries.insertChannelPosts({ posts: [post] });
+    return post;
+  }
+
+  beforeEach(async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  });
+
+  test('removes a settled-delete row once its send resolves to sent', async () => {
+    const post = await seedPost('settled-delete-delivered');
+
+    const deleted = await queries.deleteSettledUnsequencedDeletedPost(post.id);
+
+    expect(deleted?.id).toBe(post.id);
+    expect(await queries.getPost({ postId: post.id })).toBeNull();
+  });
+
+  test('leaves a normally delivered post untouched', async () => {
+    // Same acknowledged/unsequenced shape but NOT deleted — must never be
+    // removed just because its send resolved.
+    const post = await seedPost('live-delivered', {
+      isDeleted: false,
+      deleteStatus: null,
+    });
+
+    const deleted = await queries.deleteSettledUnsequencedDeletedPost(post.id);
+
+    expect(deleted).toBeNull();
+    expect(await queries.getPost({ postId: post.id })).toMatchObject({
+      id: post.id,
+    });
+  });
+
+  test('waits while the send is still in flight', async () => {
+    const post = await seedPost('settled-delete-in-flight', {
+      deliveryStatus: 'pending',
+    });
+
+    const deleted = await queries.deleteSettledUnsequencedDeletedPost(post.id);
+
+    expect(deleted).toBeNull();
+    expect(await queries.getPost({ postId: post.id })).toMatchObject({
+      id: post.id,
+    });
+  });
+
+  test('preserves a sequenced echo that wins the race', async () => {
+    const post = await seedPost('settled-delete-sequenced', {
+      sequenceNum: 42,
+    });
+
+    const deleted = await queries.deleteSettledUnsequencedDeletedPost(post.id);
+
+    expect(deleted).toBeNull();
+    expect(await queries.getPost({ postId: post.id })).toMatchObject({
+      id: post.id,
+      sequenceNum: 42,
+    });
+  });
+});
+
+describe('getSettledDeletedGhostChannelIds', () => {
+  async function seedPost(
+    channelId: string,
+    id: string,
+    overrides: Partial<Post> = {}
+  ) {
+    await queries.insertChannelPosts({
+      posts: [
+        {
+          id,
+          type: 'chat',
+          channelId,
+          authorId: '~zod',
+          sentAt: Date.now(),
+          receivedAt: Date.now(),
+          sequenceNum: 0,
+          deliveryStatus: 'sent',
+          content: JSON.stringify([{ inline: ['seed'] }]),
+          syncedAt: Date.now(),
+          ...overrides,
+        } as Post,
+      ],
+    });
+  }
+
+  const GHOST_RECEIVED_AT = 5_000;
+
+  test('returns only channels with an acknowledged, unsequenced settled-delete ghost', async () => {
+    const ghostChannel = 'ghost-evidence-channel';
+    const inFlightChannel = 'in-flight-delete-channel';
+    const ordinaryDeleteChannel = 'ordinary-delete-channel';
+    await queries.insertChannels(
+      [ghostChannel, inFlightChannel, ordinaryDeleteChannel].map((id) => ({
+        id,
+        type: 'chat' as const,
+      }))
+    );
+    await seedPost(ghostChannel, 'settled-ghost', {
+      receivedAt: GHOST_RECEIVED_AT,
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+    await seedPost(inFlightChannel, 'in-flight-delete', {
+      receivedAt: GHOST_RECEIVED_AT,
+      deliveryStatus: 'pending',
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+    await seedPost(ordinaryDeleteChannel, 'ordinary-delete', {
+      receivedAt: GHOST_RECEIVED_AT,
+      sequenceNum: 42,
+      deliveryStatus: null,
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+
+    const ids = await queries.getSettledDeletedGhostChannelIds(
+      [ghostChannel, inFlightChannel, ordinaryDeleteChannel].map(
+        (channelId) => ({ channelId, lastPostAt: GHOST_RECEIVED_AT })
+      )
+    );
+
+    expect(ids).toEqual([ghostChannel]);
+  });
+
+  test('excludes a ghost row whose receivedAt does not match the stale lastPostAt', async () => {
+    // The stale `lastPostId: null` shape came from an ordinary delete of a
+    // different, newer head (nulled while the local cache was partial); the
+    // channel only incidentally also holds an older settled-delete ghost.
+    // Recomputing here would blank/rewind the real preview, so match the
+    // specific ghost row before repairing.
+    const channel = 'mismatched-ghost-channel';
+    await queries.insertChannels([{ id: channel, type: 'chat' }]);
+    await seedPost(channel, 'older-ghost', {
+      receivedAt: GHOST_RECEIVED_AT,
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+
+    const staleLastPostAt = GHOST_RECEIVED_AT + 1_000;
+    const ids = await queries.getSettledDeletedGhostChannelIds([
+      { channelId: channel, lastPostAt: staleLastPostAt },
+    ]);
+
+    expect(ids).toEqual([]);
   });
 });
 
@@ -1570,6 +1805,32 @@ describe('recomputeChannelLastPost', () => {
     // Skips reply-newest (reply) and top-new-deleted (isDeleted=true).
     expect(channel!.lastPostId).toBe('top-old');
     expect(channel!.lastPostAt).toBe(1000);
+  });
+
+  test('repairs the stale preview shape left by a persisted settled-delete ghost', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await seedTopLevel('previous-post', 1000);
+    await seedTopLevel('persisted-ghost', 2000, {
+      sequenceNum: 0,
+      deliveryStatus: 'sent',
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+    // The legacy delete path nulled only the id, leaving the old timestamp.
+    await queries.updateChannel({
+      id: channelId,
+      lastPostId: null,
+      lastPostAt: 2000,
+    });
+
+    await queries.recomputeChannelLastPost({ channelId });
+
+    const channel = await queries.getChannel({ id: channelId });
+    expect(channel!.lastPostId).toBe('previous-post');
+    expect(channel!.lastPostAt).toBe(1000);
+    // Read-layer repair is non-destructive; the settled row stays inert in
+    // storage and remains available for any later sync reconciliation.
+    expect(await queries.getPost({ postId: 'persisted-ghost' })).toBeTruthy();
   });
 
   test('also repairs parent group lastPostId / lastPostAt when the channel belongs to a group', async () => {
@@ -1889,7 +2150,7 @@ describe('getDeliveryPendingPosts', () => {
     return base;
   }
 
-  test('includes enqueued and pending rows regardless of isDeleted', async () => {
+  test('includes enqueued and pending rows while their delete is not settled', async () => {
     await queries.insertChannels([{ id: channelId, type: 'chat' }]);
     const enqueuedLive = await seedPost({
       id: 'enq-live',
@@ -1900,6 +2161,7 @@ describe('getDeliveryPendingPosts', () => {
       id: 'enq-cleared',
       deliveryStatus: 'enqueued',
       isDeleted: true,
+      deleteStatus: null,
     });
     const pendingLive = await seedPost({
       id: 'pend-live',
@@ -1910,6 +2172,7 @@ describe('getDeliveryPendingPosts', () => {
       id: 'pend-cleared',
       deliveryStatus: 'pending',
       isDeleted: true,
+      deleteStatus: 'pending',
     });
 
     const ids = (await queries.getDeliveryPendingPosts(channelId)).map(
@@ -1980,6 +2243,37 @@ describe('getDeliveryPendingPosts', () => {
       (p) => p.id
     );
     expect(ids).toContain(catchUp.id);
+  });
+
+  test('keeps settled deletes polling while the original send is in flight, then excludes sent ghosts', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const enqueued = await seedPost({
+      id: 'settled-enqueued',
+      deliveryStatus: 'enqueued',
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+    const pending = await seedPost({
+      id: 'settled-pending',
+      deliveryStatus: 'pending',
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+    const sent = await seedPost({
+      id: 'settled-sent',
+      deliveryStatus: 'sent',
+      sequenceNum: 0,
+      isDeleted: true,
+      deleteStatus: 'sent',
+    });
+
+    const ids = (await queries.getDeliveryPendingPosts(channelId)).map(
+      (p) => p.id
+    );
+    expect(ids).toContain(enqueued.id);
+    expect(ids).toContain(pending.id);
+    expect(ids).not.toContain(sent.id);
+    expect(await queries.getPost({ postId: sent.id })).toBeTruthy();
   });
 
   test('excludes sequenced sent rows (the sequenced addPost has already reconciled the row)', async () => {

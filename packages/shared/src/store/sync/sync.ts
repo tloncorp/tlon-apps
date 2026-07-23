@@ -31,6 +31,7 @@ import {
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
+import { finishSettledDeleteOnDelivery } from '../postActions/finishSettledDelete';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import { getSession, setSession, updateSession } from '../session';
@@ -1630,6 +1631,12 @@ export const handleChannelsUpdate = async (
     }
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' }, ctx);
+      // If this row's delete already settled while the send was still in
+      // flight, the guarded hard-delete couldn't run at delete time (delivery
+      // wasn't acknowledged yet). Now that delivery has resolved, finish it so
+      // a mounted channel's live snapshot doesn't keep rendering the
+      // settled-delete row as a tombstone until remount.
+      await finishSettledDeleteOnDelivery(update.cacheId, ctx);
       break;
     case 'initialPostsOnChannelJoin':
       await db.insertChannelPosts(

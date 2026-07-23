@@ -26,6 +26,7 @@ import { expect, test, vi } from 'vitest';
 import rawChannelPostWithRepliesData from '../../../../api/src/__tests__/fixtures/channelPostWithReplies.json';
 import rawChannelPostsData from '../../../../api/src/__tests__/fixtures/channelPosts.json';
 import * as db from '../../db';
+import { batchEffects } from '../../db/query';
 import rawNewestPostData from '../../test/channelNewestPost.json';
 import rawAfterNewestPostData from '../../test/channelPostsAfterNewest.json';
 import rawContactsData from '../../test/contacts.json';
@@ -39,8 +40,10 @@ import {
   setupDatabaseTestSuite,
 } from '../../test/helpers';
 import rawGroupsInit2 from '../../test/init.json';
+import { subscribeToDeletedPosts } from '../useChannelPosts/subscriptions';
 import {
   ensureDmInviteChannel,
+  handleChannelsUpdate,
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
@@ -188,6 +191,9 @@ test('syncChannelWithBackoff keeps polling when a deleted row is still in flight
         deliveryStatus: 'pending',
         // User deleted the optimistic post mid-flight.
         isDeleted: true,
+        // The delete request can settle before the independent original send
+        // lifecycle does. Delivery polling must continue in this shape.
+        deleteStatus: 'sent',
         syncedAt: Date.now(),
       } as unknown as db.Post,
     ],
@@ -195,9 +201,9 @@ test('syncChannelWithBackoff keeps polling when a deleted row is still in flight
 
   // Delivery polling query keeps the row visible — still in flight.
   expect((await db.getDeliveryPendingPosts(channelId)).length).toBe(1);
-  // UI query also surfaces it as a tombstone source so remount renders a
-  // "Message deleted" row instead of a gap while the send reconciles.
-  expect((await db.getPendingPosts(channelId)).length).toBe(1);
+  // The UI pending layer hides the settled deletion, independently of the
+  // original send lifecycle that delivery polling still needs to reconcile.
+  expect((await db.getPendingPosts(channelId)).length).toBe(0);
 });
 
 // TLON-5606 regression guard: deleted rows with the final local-only shape
@@ -276,6 +282,50 @@ test('syncChannelWithBackoff keeps polling across the markPostSent catch-up wind
   expect(
     (await db.getDeliveryPendingPosts(channelId)).map((p) => p.id)
   ).not.toContain(catchUpId);
+});
+
+// A user can delete an optimistic post while its send is still in flight; the
+// delete settles first, so the guarded hard-delete can't run yet. When the
+// send finally resolves, `markPostSent` must finish the hard-delete — both
+// removing the DB row and broadcasting the `'removed'` overlay — so a mounted
+// channel's live snapshot doesn't keep rendering the settled-delete tombstone.
+test('markPostSent finishes a delete that settled while the send was in flight', async () => {
+  const channelId = 'settled-delete-on-send-sync-channel';
+  await db.insertChannels([{ id: channelId, type: 'chat' }]);
+
+  const postId = 'settled-delete-inflight';
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: postId,
+        type: 'chat',
+        channelId,
+        authorId: '~zod',
+        sentAt: Date.now(),
+        receivedAt: Date.now(),
+        sequenceNum: 0,
+        content: JSON.stringify([{ inline: ['deleted while sending'] }]),
+        // Delete already settled, but the send is still in flight.
+        deliveryStatus: 'pending',
+        isDeleted: true,
+        deleteStatus: 'sent',
+        syncedAt: Date.now(),
+      } as unknown as db.Post,
+    ],
+  });
+
+  const removedIds: string[] = [];
+  const unsubscribe = subscribeToDeletedPosts((id, state) => {
+    if (state === 'removed') removedIds.push(id);
+  });
+
+  await batchEffects('test markPostSent', (ctx) =>
+    handleChannelsUpdate({ type: 'markPostSent', cacheId: postId }, ctx)
+  );
+  unsubscribe();
+
+  expect(await db.getPost({ postId })).toBeNull();
+  expect(removedIds).toContain(postId);
 });
 
 test('syncs contacts', async () => {

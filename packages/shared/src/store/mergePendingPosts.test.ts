@@ -631,6 +631,25 @@ describe('mergePendingPosts markPostSent catch-up window', () => {
     expect(merged[0].isDeleted).toBe(true);
   });
 
+  test('drops stale live snapshots once the delete path marks them removed', () => {
+    const sentCatchUp = {
+      ...makePost(10),
+      id: 'marked-sent-removed',
+      sequenceNum: 0,
+      deliveryStatus: 'sent' as const,
+    };
+    const merged = mergePendingPosts({
+      newPosts: [sentCatchUp],
+      pendingPosts: [],
+      existingPosts: [],
+      deletedPosts: { [sentCatchUp.id]: 'removed' },
+      hasNewest: true,
+      filterDeleted: false,
+    });
+
+    expect(merged.map((p) => p.id)).not.toContain(sentCatchUp.id);
+  });
+
   test('still drops a failed, locally-cleared optimistic row (TLON-5606 regression guard)', () => {
     const failed = {
       ...makePost(10),

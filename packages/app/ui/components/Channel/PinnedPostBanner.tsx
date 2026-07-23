@@ -41,7 +41,12 @@ export function PinnedPostBanner({
     }
   }, [pinnedPostId]);
 
-  if (!pinnedPostId || !postQuery.data || isDismissed) {
+  if (
+    !pinnedPostId ||
+    !postQuery.data ||
+    postQuery.data.isDeleted ||
+    isDismissed
+  ) {
     return null;
   }
 

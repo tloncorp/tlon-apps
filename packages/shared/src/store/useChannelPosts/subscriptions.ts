@@ -25,27 +25,33 @@ export const useNewPostListener = (listener: SubscriptionPostListener) => {
   }, [listener]);
 };
 
-type DeletedPostListener = (postId: string, isDeleted: boolean) => void;
+export type DeletedPostState = boolean | 'removed';
+
+type DeletedPostListener = (postId: string, state: DeletedPostState) => void;
 
 const deletedPostListeners: DeletedPostListener[] = [];
 
+export const subscribeToDeletedPosts = (listener: DeletedPostListener) => {
+  deletedPostListeners.push(listener);
+  return () => {
+    const index = deletedPostListeners.indexOf(listener);
+    if (index !== -1) {
+      deletedPostListeners.splice(index, 1);
+    }
+  };
+};
+
 const useDeletedPostListener = (listener: DeletedPostListener) => {
-  useEffect(() => {
-    deletedPostListeners.push(listener);
-    return () => {
-      const index = deletedPostListeners.indexOf(listener);
-      if (index !== -1) {
-        deletedPostListeners.splice(index, 1);
-      }
-    };
-  }, [listener]);
+  useEffect(() => subscribeToDeletedPosts(listener), [listener]);
 };
 
 export const useDeletedPosts = (channelId: string) => {
-  const [deletedPosts, setDeletedPosts] = useState<Record<string, boolean>>({});
+  const [deletedPosts, setDeletedPosts] = useState<
+    Record<string, DeletedPostState>
+  >({});
   const handleDeletedPost = useCallback(
-    (postId: string, isDeleted: boolean) => {
-      setDeletedPosts((value) => ({ ...value, [postId]: isDeleted }));
+    (postId: string, state: DeletedPostState) => {
+      setDeletedPosts((value) => ({ ...value, [postId]: state }));
     },
     []
   );
@@ -65,6 +71,16 @@ export const addToChannelPosts = (post: SubscriptionPost) => {
 
 export const deleteFromChannelPosts = (post: db.Post) => {
   deletedPostListeners.forEach((listener) => listener(post.id, true));
+};
+
+/**
+ * Remove a hard-deleted post from the live merge inputs as well as marking it
+ * deleted. This is distinct from the optimistic delete signal above: the
+ * server outcome is settled, so a stale snapshot in `newPosts` must disappear
+ * instead of rendering as a tombstone until remount.
+ */
+export const removeFromChannelPosts = (post: db.Post) => {
+  deletedPostListeners.forEach((listener) => listener(post.id, 'removed'));
 };
 
 export const rollbackDeletedChannelPost = (post: db.Post) => {

@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 
 import * as db from '../../db';
+import { finishSettledDeleteOnDelivery } from './finishSettledDelete';
 import { logger } from './logger';
 
 /**
@@ -46,6 +47,10 @@ export async function verifyPostDelivery(post: db.Post): Promise<boolean> {
       });
 
       await db.updatePost({ id: post.id, deliveryStatus: 'sent' });
+      // If the user deleted this send while it was in flight and the delete
+      // settled first, delivery only just resolved to `sent` here — finish the
+      // hard-delete so the settled-delete row doesn't linger as a tombstone.
+      await finishSettledDeleteOnDelivery(post.id);
       return true;
     } else {
       logger.crumb('post verified as not delivered', { postId: post.id });

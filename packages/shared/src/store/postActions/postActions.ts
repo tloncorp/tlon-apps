@@ -18,6 +18,7 @@ import * as sync from '../sync';
 import {
   clearChannelPostsQueries,
   deleteFromChannelPosts,
+  removeFromChannelPosts,
   rollbackDeletedChannelPost,
 } from '../useChannelPosts';
 import { logger } from './logger';
@@ -729,6 +730,11 @@ function isUnsentOptimisticRow(post: db.Post): boolean {
 async function clearUnsentPost(post: db.Post) {
   deleteFromChannelPosts(post);
   await db.deletePost(post.id);
+  await finishHardDeletedPost(post);
+}
+
+async function finishHardDeletedPost(post: db.Post) {
+  removeFromChannelPosts(post);
   if (post.parentId) {
     // Optimistic reply creation bumps the parent's replyCount / replyTime /
     // replyContactIds via `addReplyToPost`. Undo that bump, but do not
@@ -794,6 +800,21 @@ export async function deletePost({ post }: { post: db.Post }) {
     ? channel.order
     : null;
 
+  // Mark the delete as server-confirmed and, for an acknowledged optimistic
+  // top-level row, remove it only if it is still unsequenced. The database
+  // predicate checks sequence/status atomically with the DELETE, so an addPost
+  // echo that lands at the last moment preserves the confirmed tombstone.
+  // Runs on both the normal success path and the lost-ack verification
+  // branches — a confirmed delete must never leave a `sequenceNum: 0` ghost
+  // (and its live `isDeleted` overlay) behind, however it was confirmed.
+  const settleConfirmedDelete = async () => {
+    await db.updatePost({ id: post.id, deleteStatus: 'sent' });
+    const deletedPost = await db.deleteUnsequencedAcknowledgedPost(post.id);
+    if (deletedPost) {
+      await finishHardDeletedPost(deletedPost);
+    }
+  };
+
   // optimistic update
   deleteFromChannelPosts(post);
   await db.markPostAsDeleted(post.id);
@@ -820,7 +841,8 @@ export async function deletePost({ post }: { post: db.Post }) {
           })
         : api.deletePost(post.channelId, post.id, post.authorId)
     );
-    await db.updatePost({ id: post.id, deleteStatus: 'sent' });
+
+    await settleConfirmedDelete();
   } catch (e) {
     // A rejected poke may only mean its acknowledgement was lost. Before
     // restoring a pinned post from a stale snapshot, ask the ship whether
@@ -834,7 +856,7 @@ export async function deletePost({ post }: { post: db.Post }) {
           authorId: post.authorId,
         });
         if (serverPost.isDeleted) {
-          await db.updatePost({ id: post.id, deleteStatus: 'sent' });
+          await settleConfirmedDelete();
           return;
         }
       } catch (verifyError) {
@@ -842,7 +864,7 @@ export async function deletePost({ post }: { post: db.Post }) {
           verifyError instanceof api.BadResponseError &&
           verifyError.status === 404
         ) {
-          await db.updatePost({ id: post.id, deleteStatus: 'sent' });
+          await settleConfirmedDelete();
           return;
         }
       }

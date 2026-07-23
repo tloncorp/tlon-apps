@@ -4179,6 +4179,64 @@ export const deletePost = createWriteQuery(
   ['posts']
 );
 
+/**
+ * Delete an acknowledged optimistic top-level post only while it is still
+ * unsequenced. Keeping the state guard in the DELETE predicate closes the
+ * race where a sequenced addPost echo updates the row between a read and a
+ * later unconditional delete.
+ */
+export const deleteUnsequencedAcknowledgedPost = createWriteQuery(
+  'deleteUnsequencedAcknowledgedPost',
+  async (postId: string, ctx: QueryCtx) => {
+    const deleted = await ctx.db
+      .delete($posts)
+      .where(
+        and(
+          eq($posts.id, postId),
+          eq($posts.sequenceNum, 0),
+          isNull($posts.parentId),
+          inArray($posts.deliveryStatus, ['sent', 'needs_verification'])
+        )
+      )
+      .returning();
+    return deleted[0] ?? null;
+  },
+  ['posts']
+);
+
+/**
+ * Finish a settled delete once the original send finally resolves to `sent`.
+ *
+ * Covers the ordering where a user deletes an optimistic post while its send
+ * is still `enqueued`/`pending`: the delete can be acknowledged before
+ * delivery flips the row to `sent`, so `deleteUnsequencedAcknowledgedPost`
+ * matches nothing at delete time (delivery isn't acknowledged yet) and the
+ * settled-delete row lingers. When `markPostSent` later flips delivery to
+ * `sent`, this removes the row. The `isDeleted` / `deleteStatus` / delivery
+ * guard is enforced in the DELETE predicate so it can never touch a normally
+ * delivered post, and returns the row only when it actually removed it.
+ */
+export const deleteSettledUnsequencedDeletedPost = createWriteQuery(
+  'deleteSettledUnsequencedDeletedPost',
+  async (postId: string, ctx: QueryCtx) => {
+    const deleted = await ctx.db
+      .delete($posts)
+      .where(
+        and(
+          eq($posts.id, postId),
+          eq($posts.isDeleted, true),
+          eq($posts.deleteStatus, 'sent'),
+          eq($posts.sequenceNum, 0),
+          isNull($posts.parentId),
+          eq($posts.deliveryStatus, 'sent')
+        )
+      )
+      .returning();
+    return deleted[0] ?? null;
+  },
+  ['posts']
+);
+
 export const markPostAsDeleted = createWriteQuery(
   'markPostAsDeleted',
   async (postId: string, ctx: QueryCtx) => {
@@ -4598,22 +4656,25 @@ export const getPendingPosts = createReadQuery(
         eq($posts.channelId, channelId),
         isNotNull($posts.deliveryStatus),
         not(eq($posts.type, 'reply')),
-        // Exclude only truly local-only deleted sends. Deleted rows whose
-        // `deliveryStatus` is `'sent'` or `'needs_verification'` may still
-        // be server-backed but not yet sequenced; keep them as a DB-backed
-        // tombstone source so the channel remount path still renders them
-        // before the sequenced `addPost` arrives. Enqueued / pending rows
-        // are still in-flight and also remain visible — they either reach
-        // `'sent'` (stay as tombstone) or `'failed'` (vanish on next tick).
+        // Exclude deleted sends once they are either known to be local-only
+        // failures or their server delete has settled. The latter also makes
+        // old ghost rows inert without a startup cleanup task. Rows whose
+        // delete is still in flight remain a tombstone source until the
+        // outcome is known.
         //
-        // SQL NULL handling: `isDeleted` is a nullable boolean. A bare
-        // `not(and(eq(isDeleted, true), ...))` would evaluate to NULL for
-        // rows where `isDeleted IS NULL`, which SQL treats as filter-out.
-        // Enumerate the keep condition explicitly instead.
+        // SQL NULL handling: `isDeleted` and `deleteStatus` are nullable. A
+        // negated conjunction would evaluate to NULL for unset values, which
+        // SQL treats as filter-out, so enumerate the keep cases explicitly.
         or(
           isNull($posts.isDeleted),
           eq($posts.isDeleted, false),
-          not(eq($posts.deliveryStatus, 'failed'))
+          and(
+            not(eq($posts.deliveryStatus, 'failed')),
+            or(
+              isNull($posts.deleteStatus),
+              not(eq($posts.deleteStatus, 'sent'))
+            )
+          )
         )
       ),
     });
@@ -4622,13 +4683,60 @@ export const getPendingPosts = createReadQuery(
 );
 
 /**
+ * Return only channels whose persisted TLON-5911 ghost row is the same post
+ * that left the stale preview behind. This lets preview repair distinguish a
+ * settled acknowledged delete from ordinary `lastPostId: null` states that may
+ * have only a partial local post cache.
+ *
+ * A candidate is `{ channelId, lastPostAt }`: `deletePost` nulls
+ * `channels.lastPostId` but leaves `lastPostAt` at the deleted head's
+ * `receivedAt`, so the ghost row that produced the stale shape has a matching
+ * `receivedAt`. Matching on it avoids recomputing (and thereby blanking or
+ * rewinding) a head that an unrelated ordinary delete nulled while the local
+ * post cache was only partial, even when the channel happens to also hold an
+ * older settled-delete ghost.
+ */
+export const getSettledDeletedGhostChannelIds = createReadQuery(
+  'getSettledDeletedGhostChannelIds',
+  async (
+    candidates: { channelId: string; lastPostAt: number }[],
+    ctx: QueryCtx
+  ) => {
+    if (candidates.length === 0) return [];
+    const rows = await ctx.db
+      .selectDistinct({ channelId: $posts.channelId })
+      .from($posts)
+      .where(
+        and(
+          or(
+            ...candidates.map((candidate) =>
+              and(
+                eq($posts.channelId, candidate.channelId),
+                eq($posts.receivedAt, candidate.lastPostAt)
+              )
+            )
+          ),
+          eq($posts.isDeleted, true),
+          eq($posts.deleteStatus, 'sent'),
+          eq($posts.sequenceNum, 0),
+          isNull($posts.parentId),
+          inArray($posts.deliveryStatus, ['sent', 'needs_verification'])
+        )
+      );
+    return rows.map((row) => row.channelId);
+  },
+  ['posts']
+);
+
+/**
  * Rows that are still in-flight from the sender's perspective, used by
  * `syncChannelWithBackoff` to decide whether delivery polling should
- * continue. Unlike `getPendingPosts` (UI merge input), this does NOT
- * exclude `isDeleted` rows — a user can delete a post mid-flight, and the
- * server still needs to acknowledge the original send before anything is
- * truly settled. `failed` and `needs_verification` are handled by dedicated
- * retry / verification flows, so they are not treated as "still delivering".
+ * continue. Deleted `enqueued` / `pending` rows remain eligible even after
+ * their delete settles: the original send lifecycle is still in flight and
+ * must reconcile independently. Once an unsequenced send is acknowledged as
+ * `sent`, a settled delete makes it inert and it drops out. `failed` and
+ * `needs_verification` are handled by dedicated retry / verification flows,
+ * so they are not treated as "still delivering".
  *
  * Server-acknowledged but unsequenced rows (`deliveryStatus: 'sent'` while
  * still `sequenceNum === 0`) are also included: `markPostSent` sets the
@@ -4648,7 +4756,18 @@ export const getDeliveryPendingPosts = createReadQuery(
         or(
           eq($posts.deliveryStatus, 'enqueued'),
           eq($posts.deliveryStatus, 'pending'),
-          and(eq($posts.deliveryStatus, 'sent'), eq($posts.sequenceNum, 0))
+          and(
+            eq($posts.deliveryStatus, 'sent'),
+            eq($posts.sequenceNum, 0),
+            // Keep nullable values explicit to avoid filtering ordinary rows
+            // via SQL's three-valued logic.
+            or(
+              isNull($posts.isDeleted),
+              eq($posts.isDeleted, false),
+              isNull($posts.deleteStatus),
+              not(eq($posts.deleteStatus, 'sent'))
+            )
+          )
         )
       ),
     });
