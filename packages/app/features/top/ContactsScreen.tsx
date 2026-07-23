@@ -1,3 +1,4 @@
+import { useScrollToTop } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -40,6 +41,7 @@ export default function ContactsScreen(props: Props) {
   const currentUser = useCurrentUserId();
   const { scrollRef, onPressActiveTab } =
     useScrollTabToTop<SectionList<db.Contact>>();
+  useScrollToTop(scrollRef);
 
   const { data: userContacts } = store.useUserContacts();
   const { data: contacts } = store.useContacts();

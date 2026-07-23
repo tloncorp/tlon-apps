@@ -2,8 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useState } from 'react';
-import { YStack } from 'tamagui';
-import { useTheme } from 'tamagui';
+import { YStack, isWeb, useTheme } from 'tamagui';
 
 import { useIsDarkMode } from '../../hooks/useIsDarkMode';
 import { RootStackParamList } from '../../navigation/types';
@@ -71,14 +70,18 @@ export function ThemeScreen(props: Props) {
 
   return (
     <View backgroundColor={theme?.background?.val} flex={1}>
-      <ScreenHeader
-        title="Theme"
-        borderBottom
-        backAction={
-          isWindowNarrow ? () => props.navigation.goBack() : undefined
-        }
-      />
-      <SettingsContentScrollView>
+      {isWeb && (
+        <ScreenHeader
+          title="Theme"
+          borderBottom
+          backAction={
+            isWindowNarrow ? () => props.navigation.goBack() : undefined
+          }
+        />
+      )}
+      <SettingsContentScrollView
+        contentInsetAdjustmentBehavior={isWeb ? undefined : 'automatic'}
+      >
         <YStack flex={1} padding="$l">
           {themes.map((theme) => (
             <Pressable

@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
+  Platform,
   RefreshControl,
   StyleProp,
   ViewStyle,
@@ -345,6 +346,8 @@ export function ActivityScreenContent({
     padding: '$l',
     gap: '$l',
   }) as StyleProp<ViewStyle>;
+  const nativeTabInsetStyle =
+    Platform.OS === 'android' ? { paddingBottom: 100 } : undefined;
 
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
@@ -375,7 +378,7 @@ export function ActivityScreenContent({
                 data={events}
                 renderItem={renderItem}
                 keyExtractor={keyExtractor}
-                contentContainerStyle={containerStyle}
+                contentContainerStyle={[containerStyle, nativeTabInsetStyle]}
                 onEndReached={onEndReached}
                 ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
                 refreshControl={
