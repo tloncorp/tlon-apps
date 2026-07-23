@@ -463,8 +463,9 @@ export class NotesNoteConflictError extends Error {
 
 // The exact state (content + resulting revision) this client last
 // successfully wrote per note. Used to recognize a revision conflict caused
-// by our *own* already-applied write — e.g. the read-back after an earlier
-// save never landed locally — which is safe to rebase over. Both fields must
+// by our *own* already-applied write — e.g. an earlier save applied on the
+// host but its local persist never landed (the process died in between) —
+// which is safe to rebase over. Both fields must
 // match: content alone would also match a *remote* edit that restored our
 // old text (e.g. via note history), which is a genuine conflict.
 const lastSavedNoteState = new Map<
@@ -554,7 +555,7 @@ async function updateNotebookNoteBody({
       remoteRevision === lastSaved.revision
     ) {
       // The "conflicting" revision is exactly the state our own previous
-      // save produced, so its read-back just never landed locally. The
+      // save produced, so only its local persist never landed. The
       // draft evolved from that content; rebasing onto the host's revision
       // loses nothing. The retry itself can race another writer — surface
       // that as a fresh conflict rather than a generic failure.
@@ -607,10 +608,10 @@ async function updateNotebookNoteBody({
 }
 
 // A successful body update moves the note to exactly expectedRevision + 1
-// (the host bumps by one). Persist that immediately instead of relying on
-// the snapshot read-back: the post-save poll gives up silently when replica
-// propagation is slow, and a save that reports success while leaving the
-// stale revision in the local DB wedges every later save on a conflict.
+// (the host bumps by one), so the local row can be written from the response
+// contract alone — no read-back. A save that reported success while leaving
+// a stale revision in the local DB would wedge every later save on a
+// conflict.
 async function persistNoteWrite(
   notebookFlag: string,
   noteId: number,

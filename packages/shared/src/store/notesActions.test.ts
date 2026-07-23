@@ -72,13 +72,6 @@ test('saveNotebookNote preserves an empty title', async () => {
     members: [],
   });
 
-  const renamedNote = makeApiNotesNote(makeNote(''));
-  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
-    makeApiNotesFolder(rootFolder),
-  ]);
-  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([renamedNote]);
-  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
   const renameNote = vi
     .spyOn(api.notes, 'renameNote')
     .mockResolvedValue(undefined);
@@ -347,42 +340,6 @@ test('saveNotebookNote persists sent content from the response contract, no read
   });
 });
 
-test('saveNotebookNote persists the bumped revision when read-back stays stale', async () => {
-  const note = makeNote('Slow replica');
-  await db.saveNotesNotebookSnapshot({
-    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
-    folders: [rootFolder],
-    notes: [note],
-    members: [],
-  });
-
-  // The replica never reflects the write within the poll budget: every
-  // snapshot (and hydration) still carries the pre-save body and revision.
-  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
-    makeApiNotesFolder(rootFolder),
-  ]);
-  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([makeApiNotesNote(note)]);
-  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notes, 'getNote').mockResolvedValue(makeApiNotesNote(note));
-  vi.spyOn(api.notes, 'updateNoteBody').mockResolvedValue('ok');
-
-  const saved = await saveNotebookNote({
-    notebookFlag,
-    note,
-    title: note.title,
-    body: 'freshly typed body',
-  });
-
-  // A successful update deterministically lands on expectedRevision + 1;
-  // the stale read-back must not leave the old revision behind (it would
-  // wedge every later save on a revision conflict).
-  expect(saved).toMatchObject({
-    bodyMd: 'freshly typed body',
-    revision: note.revision + 1,
-  });
-}, 15_000);
-
 test('saveNotebookNote treats a conflict as applied when the host already has our content', async () => {
   const note = makeNote('Flushed note');
   const body = 'flushed body';
@@ -504,16 +461,6 @@ test('saveNotebookNote keeps the local revision when the host reports no-change'
     members: [],
   });
 
-  const hostNote = { ...note, bodyMd: body };
-  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
-    makeApiNotesFolder(rootFolder),
-  ]);
-  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
-    makeApiNotesNote(hostNote),
-  ]);
-  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notes, 'getNote').mockResolvedValue(makeApiNotesNote(hostNote));
   // The host body already matched, so the revision was NOT bumped.
   vi.spyOn(api.notes, 'updateNoteBody').mockResolvedValue('no-change');
 
