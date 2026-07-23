@@ -320,15 +320,15 @@ prepare_git_checkout() {
         fatal "Failed to fetch $url at $ref"
     git -C "$dir" checkout -q --force --detach FETCH_HEAD ||
         fatal "Failed to check out $url at $ref"
+    git -C "$dir" clean -fdx -e '.peru' ||
+        fatal "Failed to clean repository in $dir"
 }
 
 # Prepare base and groups repositories
 #
-base_url="https://github.com/urbit/urbit"
-groups_url="https://github.com/tloncorp/tlon-apps"
 
-prepare_git_checkout urbit-git "$base_url" "$base_rev"
-prepare_git_checkout tlon-apps-git "$groups_url" "$groups_rev"
+prepare_git_checkout urbit-git "$base_repo" "$base_rev"
+prepare_git_checkout tlon-apps-git "$groups_repo" "$groups_rev"
 
 base_hash=$(git -C urbit-git rev-parse --short HEAD)
 groups_hash=$(git -C tlon-apps-git rev-parse --short HEAD)
@@ -375,8 +375,6 @@ suspend_desk %webterm
 
 mount_desk %base
 
-git -C ./urbit-git restore pkg/base-dev/sur/aquarium.hoon
-
 if ! patch ./urbit-git/pkg/base-dev/sur/aquarium.hoon < ./aqua.patch
 then
     fatal "Failed to patch /sur/aquarium.hoon"
@@ -411,7 +409,7 @@ run_thread_silent "revive %groups" $pier <<HOON
 ;<  =bowl  bind:m  get-bowl
 ;<  ~  bind:m
   (send-raw-card %pass /live %arvo %c [%zest %groups %live])
-;<  ~  bind:m  (sleep ~s0)
+;<  ~  bind:m  (sleep ~s0)  ::  allow clay to activate
 (pure:m !>(&))
 HOON
 
@@ -468,15 +466,15 @@ if $verify
 then
     echo "⚙️ Verifying pill"
 
-    rm -rf ./nec
+    test_pier=`mktemp -d`
 
-    if $vere -F nec -c nec -B $pill_file -x 
+    if $vere -F nec -c $test_pier -B $pill_file -x
     then
         echo "☑️ Pill verified"
-        rm -rf ./nec
+        rm -rf $test_pier
     else
         echo "❌ Pill failed verification!"
-        rm -rf ./nec
+        rm -rf $test_pier
         exit 1
     fi
 else
