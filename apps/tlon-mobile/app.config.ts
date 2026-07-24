@@ -123,7 +123,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-contacts',
       {
         contactsPermission:
-          'Tlon Messenger uses your contacts’ names, phone numbers, and email addresses to help you find people you know on the network and invite friends to join. Your contacts are used only for these features and are never shared with other users.',
+          'Tlon Messenger uses your contacts’ names, phone numbers, and email addresses to help you find people you know who are already on the network and to invite others via SMS or email. Your contacts are used only for these features and are never shared with other users.',
       },
     ],
     'expo-audio',
