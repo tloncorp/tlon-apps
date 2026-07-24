@@ -1,8 +1,7 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
 /-  n=notes, mcp-proxy
-/+  default-agent, dbug, verb, server
-/=  notes-json  /lib/notes/json
+/+  default-agent, dbug, verb, server, notes-json
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
 ::  import marks only need to carry the raw bytes.

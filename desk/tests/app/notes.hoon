@@ -8,7 +8,7 @@
 ::
 /-  n=notes
 /+  *test-agent
-/=  notes-json  /lib/notes/json
+/+  notes-json
 /=  notes-agent  /app/notes
 |%
 ++  dap  %notes
