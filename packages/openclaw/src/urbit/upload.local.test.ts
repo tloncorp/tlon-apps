@@ -222,6 +222,26 @@ describe('prepareOutboundMedia (local, real loader)', () => {
     ).rejects.toThrow(/convert it to PNG/);
   });
 
+  it('rejects a local SVG with a >8KiB comment preamble under a non-.svg name (roots only)', async () => {
+    const preamble = '<!--' + 'a'.repeat(70 * 1024) + '-->';
+    const svgPath = writeFixture(
+      'sneaky.xml',
+      preamble + '<svg xmlns="http://www.w3.org/2000/svg"></svg>'
+    );
+    await expect(
+      prepareOutboundMedia(svgPath, { mediaLocalRoots: [tmpdir] })
+    ).rejects.toThrow(/convert it to PNG/);
+    expect(mockUploadFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects a local file with >64KiB of pure whitespace and no root (roots only)', async () => {
+    const wsPath = writeFixture('blank.xml', ' '.repeat(70 * 1024));
+    await expect(
+      prepareOutboundMedia(wsPath, { mediaLocalRoots: [tmpdir] })
+    ).rejects.toThrow(/convert it to PNG/);
+    expect(mockUploadFile).not.toHaveBeenCalled();
+  });
+
   it('strips the MEDIA: prefix for local paths', async () => {
     const pngPath = writeFixture('prefixed.png', validPngBytes());
     mockUploadFile.mockResolvedValue({
@@ -306,7 +326,7 @@ describe('prepareOutboundMedia (local, real loader)', () => {
       });
       expect(result.isImage).toBe(true);
       const fileName = mockUploadFile.mock.calls[0][0].fileName as string;
-      expect(fileName).toMatch(/^upload-\d+\.png$/);
+      expect(fileName).toMatch(/^upload-\d+-[0-9a-f-]{36}\.png$/);
       expect(fileName).toMatch(/^[A-Za-z0-9._-]+$/);
       for (const s of forbidden) {
         expect(fileName).not.toContain(s);

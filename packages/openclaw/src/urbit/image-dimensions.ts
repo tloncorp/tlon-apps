@@ -284,6 +284,8 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
     const n = bytes.length;
     let dims: { height: number; width: number } | null = null;
     let sawScan = false;
+    let scanCount = 0;
+    let seenDnl = false;
     let i = 2;
     for (;;) {
       if (i + 1 >= n) {
@@ -309,6 +311,9 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
       }
       if (marker === 0xd9) {
         if (!dims || !sawScan) {
+          return null;
+        }
+        if (dims.height === 0) {
           return null;
         }
         return { format: 'jpeg', height: dims.height, width: dims.width };
@@ -365,7 +370,34 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
           return null;
         }
         sawScan = true;
+        scanCount += 1;
         i = k;
+        continue;
+      }
+      if (marker === 0xdc) {
+        if (scanCount !== 1 || seenDnl) {
+          return null;
+        }
+        if (i + 2 > n) {
+          return null;
+        }
+        const dnlLen = u16be(bytes, i);
+        if (dnlLen !== 4) {
+          return null;
+        }
+        if (i + dnlLen > n) {
+          return null;
+        }
+        if (!dims) {
+          return null;
+        }
+        const nl = u16be(bytes, i + 2);
+        if (nl === 0) {
+          return null;
+        }
+        dims.height = nl;
+        seenDnl = true;
+        i += dnlLen;
         continue;
       }
       if (i + 2 > n) {

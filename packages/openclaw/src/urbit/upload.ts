@@ -23,6 +23,7 @@
  * success).
  */
 import { uploadFile } from '@tloncorp/api';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { detectMime, extensionForMime } from 'openclaw/plugin-sdk/media-mime';
 // media-runtime is a deprecated barrel, but it is the ONLY export path for
@@ -201,7 +202,22 @@ function isSvgPath(filePath: string): boolean {
   return filePath.toLowerCase().endsWith('.svg');
 }
 
-function hasSvgRoot(text: string): boolean {
+export type SvgProbe = 'svg' | 'non-svg' | 'incomplete';
+
+// Preamble openers valid before an XML root element. When the scan window ends
+// mid-token on a *proper prefix* of one of these, we can't yet decide, so the
+// probe returns 'incomplete' rather than a definitive 'non-svg'. Ordinary
+// XML/text (e.g. "<root") is not a prefix of any opener and stays 'non-svg'.
+const SVG_PREAMBLE_OPENERS = ['<?', '<!--', '<!doctype', '<svg'];
+
+function isTruncatedOpenerPrefix(rest: string): boolean {
+  const r = rest.toLowerCase();
+  return SVG_PREAMBLE_OPENERS.some(
+    (o) => r.length < o.length && o.startsWith(r)
+  );
+}
+
+export function probeSvgRoot(text: string, truncated: boolean): SvgProbe {
   const n = text.length;
   let i = 0;
   const skipWs = () => {
@@ -211,13 +227,16 @@ function hasSvgRoot(text: string): boolean {
   };
   while (i < n) {
     skipWs();
-    if (i >= n || text[i] !== '<') {
-      return false;
+    if (i >= n) {
+      return truncated ? 'incomplete' : 'non-svg';
+    }
+    if (text[i] !== '<') {
+      return 'non-svg';
     }
     if (text.startsWith('<?', i)) {
       const end = text.indexOf('?>', i + 2);
       if (end === -1) {
-        return false;
+        return truncated ? 'incomplete' : 'non-svg';
       }
       i = end + 2;
       continue;
@@ -225,7 +244,7 @@ function hasSvgRoot(text: string): boolean {
     if (text.startsWith('<!--', i)) {
       const end = text.indexOf('-->', i + 4);
       if (end === -1) {
-        return false;
+        return truncated ? 'incomplete' : 'non-svg';
       }
       i = end + 3;
       continue;
@@ -236,14 +255,11 @@ function hasSvgRoot(text: string): boolean {
       for (; j < n; j += 1) {
         const c = text[j];
         if (c === '"' || c === "'") {
-          // Skip quoted string content (e.g. a SYSTEM/PUBLIC literal that
-          // contains '>') so a quoted '>' doesn't terminate the DOCTYPE early.
           const quote = c;
           j += 1;
           while (j < n && text[j] !== quote) {
             j += 1;
           }
-          // j sits on the closing quote (or n); the loop's j+=1 steps past it.
         } else if (c === '[') {
           depth += 1;
         } else if (c === ']') {
@@ -253,7 +269,7 @@ function hasSvgRoot(text: string): boolean {
         }
       }
       if (j >= n) {
-        return false;
+        return truncated ? 'incomplete' : 'non-svg';
       }
       i = j + 1;
       continue;
@@ -261,23 +277,40 @@ function hasSvgRoot(text: string): boolean {
     const rest = text.slice(i);
     if (/^<svg/i.test(rest)) {
       const after = rest[4];
-      return after === undefined || /[\s/>]/.test(after);
+      if (after === undefined) {
+        // Window ended exactly at "<svg" — the name could continue (e.g.
+        // "<svgfoo"), so only treat it as definitive when the whole buffer
+        // ends here; otherwise it is undecided.
+        return truncated ? 'incomplete' : 'svg';
+      }
+      return /[\s/>]/.test(after) ? 'svg' : 'non-svg';
     }
-    return false;
+    if (truncated && isTruncatedOpenerPrefix(rest)) {
+      return 'incomplete';
+    }
+    return 'non-svg';
   }
-  return false;
+  return truncated ? 'incomplete' : 'non-svg';
 }
 
 /**
- * Byte-based SVG detection, independent of declared/sniffed MIME. After
- * stripping a leading UTF-8 / UTF-16LE / UTF-16BE BOM and decoding accordingly
- * (file-type sniffs BOM-marked UTF-16 XML as `application/xml`), reports
- * whether the buffer exposes a root `<svg` element within the first few KB
- * (after an optional XML declaration, comments, PIs, and DOCTYPE). It only
- * routes SVG to link-vs-reject, so a loose prefix match is sufficient — an SVG
- * is never inlined, so no well-formedness validation is needed.
+ * Byte-based SVG probe, independent of declared/sniffed MIME. After stripping a
+ * leading UTF-8 / UTF-16LE / UTF-16BE BOM and decoding accordingly (file-type
+ * sniffs BOM-marked UTF-16 XML as `application/xml`), scans at most 64 KiB of
+ * the buffer for a root `<svg` element (after an optional XML declaration,
+ * comments, PIs, and DOCTYPE). Returns a tri-state:
+ *
+ * - 'svg': a root `<svg` element was found within the window.
+ * - 'non-svg': a definitive non-SVG root element (or non-markup content) was
+ *   reached within the window.
+ * - 'incomplete': the 64 KiB window ended while still consuming otherwise-valid
+ *   preamble (whitespace/comment/PI/DTD) with more buffer bytes remaining — the
+ *   root element was never reached within the scanned window.
+ *
+ * It only routes SVG to link-vs-reject, so a loose prefix match is sufficient —
+ * an SVG is never inlined, so no well-formedness validation is needed.
  */
-export function isSvgBytes(buffer: Buffer | Uint8Array): boolean {
+export function probeSvgBytes(buffer: Buffer | Uint8Array): SvgProbe {
   const bytes = buffer as Uint8Array;
   let offset = 0;
   let encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8';
@@ -295,11 +328,15 @@ export function isSvgBytes(buffer: Buffer | Uint8Array): boolean {
     offset = 2;
     encoding = 'utf-16be';
   }
-  const slice = bytes.subarray(offset, Math.min(bytes.length, offset + 8192));
-  // Node's WHATWG TextDecoder supports the `utf-16be` label directly, so decode
-  // with the detected encoding rather than byte-swapping to LE first.
+  const windowEnd = Math.min(bytes.length, offset + 65536);
+  const truncated = windowEnd < bytes.length;
+  const slice = bytes.subarray(offset, windowEnd);
   const text = new TextDecoder(encoding).decode(slice);
-  return hasSvgRoot(text);
+  return probeSvgRoot(text, truncated);
+}
+
+export function isSvgBytes(buffer: Buffer | Uint8Array): boolean {
+  return probeSvgBytes(buffer) === 'svg';
 }
 
 function cleanFileNameSegment(segment: string): string {
@@ -329,7 +366,7 @@ export function safeUploadFileName(
   let base = dotIdx > 0 ? name.slice(0, dotIdx) : name;
   base = cleanFileNameSegment(base);
   if (!base) {
-    base = `upload-${Date.now()}`;
+    base = `upload-${Date.now()}-${randomUUID()}`;
   }
   const canonicalExt = extensionForMime(effectiveMime);
   if (canonicalExt) {
@@ -390,13 +427,19 @@ export function classifyLoadedMedia(params: {
     };
   }
 
-  if (isSvgBytes(buffer)) {
+  const svgProbe = probeSvgBytes(buffer);
+  if (svgProbe === 'svg') {
     if (!isRemote) {
       throw new Error(
         "SVG files can't be posted as images — convert it to PNG (or upload it and send the URL)"
       );
     }
     return { kind: 'link', effectiveMime: 'image/svg+xml' };
+  }
+  if (svgProbe === 'incomplete' && !isRemote) {
+    throw new Error(
+      "SVG files can't be posted as images — convert it to PNG (or upload it and send the URL)"
+    );
   }
 
   // A definitive byte sniff is ground truth about the content, so it is checked
@@ -516,6 +559,18 @@ function handleUploadFailure(params: {
 
   if (isRemote) {
     if (/^https:\/\//i.test(normalized)) {
+      // ACCEPTED RESIDUAL (documented, not a bug): if the original https URL
+      // redirects to plain http, the hotlinked https URL may be blocked or
+      // upgraded as mixed content by a secure client. The installed OpenClaw
+      // SDK's WebMediaResult does not expose the final/resolved URL after
+      // redirects (core strips finalUrl before returning), so the plugin cannot
+      // detect the downgrade without an undocumented custom fetchImpl or a
+      // duplicate preflight (TOCTOU) — both disproportionate. The only airtight
+      // fix would be removing remote hotlink fallback entirely, which conflicts
+      // with the deliberately-accepted 'preserve useful web-image sharing'
+      // policy. Revisit if OpenClaw exposes finalUrl or a requireHttps loader
+      // option.
+      //
       // console.log, not console.warn: warn-level output from this subsystem
       // does not surface in the harness/CI container logs, which made upload
       // failures fully silent (source-URL fallback with no visible cause). A

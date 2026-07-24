@@ -77,6 +77,54 @@ describe('parseRasterHeader', () => {
     });
   });
 
+  function findSof0Offset(bytes: Uint8Array): number {
+    for (let i = 0; i + 1 < bytes.length; i += 1) {
+      if (bytes[i] === 0xff && bytes[i + 1] === 0xc0) {
+        return i;
+      }
+    }
+    throw new Error('SOF0 marker not found');
+  }
+
+  function findEoiOffset(bytes: Uint8Array): number {
+    for (let i = bytes.length - 2; i >= 0; i -= 1) {
+      if (bytes[i] === 0xff && bytes[i + 1] === 0xd9) {
+        return i;
+      }
+    }
+    throw new Error('EOI marker not found');
+  }
+
+  it('parses a zero-SOF-height JPEG with a valid DNL (height recovered from DNL)', () => {
+    const base = realBaselineJpegBytes();
+    const sofOff = findSof0Offset(base);
+    const mutated = new Uint8Array(base.length + 6);
+    mutated.set(base.subarray(0, sofOff + 5), 0);
+    mutated[sofOff + 5] = 0x00;
+    mutated[sofOff + 6] = 0x00;
+    mutated.set(base.subarray(sofOff + 7), sofOff + 7);
+    const eoiOff = findEoiOffset(mutated);
+    const withDnl = new Uint8Array(mutated.length + 6);
+    withDnl.set(mutated.subarray(0, eoiOff), 0);
+    withDnl.set([0xff, 0xdc, 0x00, 0x04, 0x00, 0x03], eoiOff);
+    withDnl.set(mutated.subarray(eoiOff), eoiOff + 6);
+    expect(parseRasterHeader(withDnl)).toEqual({
+      format: 'jpeg',
+      width: 2,
+      height: 3,
+    });
+  });
+
+  it('returns null for a zero-SOF-height JPEG without DNL', () => {
+    const base = realBaselineJpegBytes();
+    const sofOff = findSof0Offset(base);
+    const mutated = new Uint8Array(base.length);
+    mutated.set(base);
+    mutated[sofOff + 5] = 0x00;
+    mutated[sofOff + 6] = 0x00;
+    expect(parseRasterHeader(mutated)).toBeNull();
+  });
+
   it('parses a complete JPEG with post-EOI padding (regression: no false-reject)', () => {
     expect(parseRasterHeader(jpegPostEoiPaddingBytes())).toEqual({
       format: 'jpeg',

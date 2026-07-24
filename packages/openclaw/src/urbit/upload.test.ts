@@ -109,6 +109,78 @@ describe('isSvgBytes', () => {
   });
 });
 
+describe('probeSvgRoot boundary handling (truncated window)', () => {
+  // When the scan window ends mid-token on a prefix of a preamble opener, the
+  // probe must return 'incomplete' (fail-closed for local sources) rather than
+  // a definitive 'non-svg' that would let a real local SVG slip through.
+  it('treats truncated opener prefixes as incomplete when truncated', async () => {
+    const { probeSvgRoot } = await import('./upload.js');
+    expect(probeSvgRoot('<', true)).toBe('incomplete');
+    expect(probeSvgRoot('<!', true)).toBe('incomplete'); // partial <!-- or <!DOCTYPE
+    expect(probeSvgRoot('<!-', true)).toBe('incomplete'); // partial <!--
+    expect(probeSvgRoot('<!D', true)).toBe('incomplete'); // partial <!DOCTYPE
+    expect(probeSvgRoot('<!doct', true)).toBe('incomplete'); // partial <!DOCTYPE
+    expect(probeSvgRoot('<s', true)).toBe('incomplete'); // partial <svg
+    expect(probeSvgRoot('<svg', true)).toBe('incomplete'); // no delimiter yet
+    expect(probeSvgRoot('   <sv', true)).toBe('incomplete'); // preamble ws + partial
+  });
+
+  it('does not treat ordinary XML/text as incomplete', async () => {
+    const { probeSvgRoot } = await import('./upload.js');
+    expect(probeSvgRoot('<root>', true)).toBe('non-svg');
+    expect(probeSvgRoot('<r', true)).toBe('non-svg'); // not a prefix of any opener
+    expect(probeSvgRoot('<!ENTITY', true)).toBe('non-svg'); // not comment/doctype
+    expect(probeSvgRoot('plain text', true)).toBe('non-svg');
+    expect(probeSvgRoot('<svgx>', true)).toBe('non-svg'); // <svg with a non-delimiter
+  });
+
+  it('stays definitive when the buffer is not truncated', async () => {
+    const { probeSvgRoot } = await import('./upload.js');
+    expect(probeSvgRoot('<svg>', false)).toBe('svg');
+    expect(probeSvgRoot('<svg', false)).toBe('svg'); // whole buffer ends at <svg
+    expect(probeSvgRoot('<!', false)).toBe('non-svg'); // no more bytes coming
+    expect(probeSvgRoot('<root>', false)).toBe('non-svg');
+  });
+});
+
+describe('probeSvgBytes (tri-state)', () => {
+  it('returns svg for a plain SVG root', async () => {
+    const { probeSvgBytes } = await import('./upload.js');
+    expect(probeSvgBytes(Buffer.from('<svg xmlns="x"></svg>'))).toBe('svg');
+    expect(probeSvgBytes(Buffer.from(SVG_XML))).toBe('svg');
+  });
+
+  it('returns non-svg for definitive non-SVG XML', async () => {
+    const { probeSvgBytes } = await import('./upload.js');
+    expect(probeSvgBytes(Buffer.from(NON_SVG_XML))).toBe('non-svg');
+  });
+
+  it('returns svg for SVG with a >8KiB but <64KiB comment preamble', async () => {
+    const { probeSvgBytes } = await import('./upload.js');
+    const preamble = '<!--' + 'a'.repeat(10 * 1024) + '-->';
+    const buf = Buffer.from(preamble + '<svg xmlns="x"></svg>');
+    expect(probeSvgBytes(buf)).toBe('svg');
+  });
+
+  it('returns incomplete for SVG with a >64KiB comment preamble', async () => {
+    const { probeSvgBytes } = await import('./upload.js');
+    const preamble = '<!--' + 'a'.repeat(70 * 1024) + '-->';
+    const buf = Buffer.from(preamble + '<svg xmlns="x"></svg>');
+    expect(probeSvgBytes(buf)).toBe('incomplete');
+  });
+
+  it('returns incomplete for >64KiB of pure whitespace with no root', async () => {
+    const { probeSvgBytes } = await import('./upload.js');
+    const buf = Buffer.from(' '.repeat(70 * 1024) + '<svg xmlns="x"></svg>');
+    expect(probeSvgBytes(buf)).toBe('incomplete');
+  });
+
+  it('returns non-svg for whitespace-only buffer under 64KiB (no more bytes)', async () => {
+    const { probeSvgBytes } = await import('./upload.js');
+    expect(probeSvgBytes(Buffer.from('   '))).toBe('non-svg');
+  });
+});
+
 describe('safeUploadFileName', () => {
   it('replaces unsafe characters and forces the canonical extension', async () => {
     const { safeUploadFileName } = await import('./upload.js');
@@ -123,14 +195,27 @@ describe('safeUploadFileName', () => {
 
   it('generates a name when the candidate is empty or fully stripped', async () => {
     const { safeUploadFileName } = await import('./upload.js');
-    expect(safeUploadFileName('', 'image/png')).toMatch(/^upload-\d+\.png$/);
-    expect(safeUploadFileName('###', 'image/png')).toMatch(/^upload-\d+\.png$/);
+    expect(safeUploadFileName('', 'image/png')).toMatch(
+      /^upload-\d+-[0-9a-f-]{36}\.png$/
+    );
+    expect(safeUploadFileName('###', 'image/png')).toMatch(
+      /^upload-\d+-[0-9a-f-]{36}\.png$/
+    );
   });
 
   it('only emits allowlisted characters', async () => {
     const { safeUploadFileName } = await import('./upload.js');
     const name = safeUploadFileName('we ird??name##.png', 'image/png');
     expect(name).toMatch(/^[A-Za-z0-9._-]+$/);
+  });
+
+  it('generates collision-resistant synthetic names that differ across rapid calls', async () => {
+    const { safeUploadFileName } = await import('./upload.js');
+    const a = safeUploadFileName('', 'image/png');
+    const b = safeUploadFileName('', 'image/png');
+    expect(a).toMatch(/^upload-\d+-[0-9a-f-]{36}\.png$/);
+    expect(b).toMatch(/^upload-\d+-[0-9a-f-]{36}\.png$/);
+    expect(a).not.toBe(b);
   });
 });
 
@@ -363,6 +448,50 @@ describe('classifyLoadedMedia', () => {
     ).toEqual({ kind: 'link', effectiveMime: 'application/xml' });
   });
 
+  it('rejects local SVG with a >8KiB comment preamble (incomplete probe fails closed)', async () => {
+    const { classifyLoadedMedia } = await import('./upload.js');
+    const preamble = '<!--' + 'a'.repeat(70 * 1024) + '-->';
+    const buf = Buffer.from(preamble + '<svg xmlns="x"></svg>');
+    expect(() =>
+      classifyLoadedMedia({
+        buffer: buf,
+        loaderMime: 'application/xml',
+        sniffedMime: 'application/xml',
+        isRemote: false,
+        sourceLabel: 'x',
+      })
+    ).toThrow(/convert it to PNG/);
+  });
+
+  it('rejects local >64KiB whitespace with no root (incomplete probe fails closed)', async () => {
+    const { classifyLoadedMedia } = await import('./upload.js');
+    const buf = Buffer.from(' '.repeat(70 * 1024));
+    expect(() =>
+      classifyLoadedMedia({
+        buffer: buf,
+        loaderMime: 'application/xml',
+        sniffedMime: 'application/xml',
+        isRemote: false,
+        sourceLabel: 'x',
+      })
+    ).toThrow(/convert it to PNG/);
+  });
+
+  it('classifies remote ambiguous XML with huge preamble as a link (incomplete probe falls through)', async () => {
+    const { classifyLoadedMedia } = await import('./upload.js');
+    const preamble = '<!--' + 'a'.repeat(70 * 1024) + '-->';
+    const buf = Buffer.from(preamble + '<root/>');
+    expect(
+      classifyLoadedMedia({
+        buffer: buf,
+        loaderMime: 'application/xml',
+        sniffedMime: 'application/xml',
+        isRemote: true,
+        sourceLabel: 'x',
+      })
+    ).toEqual({ kind: 'link', effectiveMime: 'application/xml' });
+  });
+
   it('classifies application/pdf as a link', async () => {
     const { classifyLoadedMedia } = await import('./upload.js');
     expect(
@@ -552,7 +681,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     await prepareOutboundMedia('https://host/diagram.xml', {});
     expect(uploadFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        fileName: expect.stringMatching(/^upload-\d+\.svg$/),
+        fileName: expect.stringMatching(/^upload-\d+-[0-9a-f-]{36}\.svg$/),
       })
     );
   });
@@ -756,7 +885,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     await prepareOutboundMedia('https://host/photo.png', {});
     expect(uploadFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        fileName: expect.stringMatching(/^upload-\d+\.png$/),
+        fileName: expect.stringMatching(/^upload-\d+-[0-9a-f-]{36}\.png$/),
       })
     );
   });
@@ -770,7 +899,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     await prepareOutboundMedia('https://host/?sig=secret', {});
     expect(uploadFile).toHaveBeenCalledWith(
       expect.objectContaining({
-        fileName: expect.stringMatching(/^upload-\d+\.png$/),
+        fileName: expect.stringMatching(/^upload-\d+-[0-9a-f-]{36}\.png$/),
       })
     );
   });
@@ -783,7 +912,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     const { prepareOutboundMedia } = await import('./upload.js');
     await prepareOutboundMedia('https://host/a%23b.png', {});
     const fileName = uploadFile.mock.calls[0][0].fileName as string;
-    expect(fileName).toMatch(/^upload-\d+\.png$/);
+    expect(fileName).toMatch(/^upload-\d+-[0-9a-f-]{36}\.png$/);
     expect(fileName).toMatch(/^[A-Za-z0-9._-]+$/);
   });
 
@@ -909,7 +1038,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     const { prepareOutboundMedia } = await import('./upload.js');
     await prepareOutboundMedia('https://host/path/file@name.png', {});
     const fileName = uploadFile.mock.calls[0][0].fileName as string;
-    expect(fileName).toMatch(/^upload-\d+\.png$/);
+    expect(fileName).toMatch(/^upload-\d+-[0-9a-f-]{36}\.png$/);
     expect(fileName).toMatch(/^[A-Za-z0-9._-]+$/);
   });
 
@@ -952,7 +1081,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     const { prepareOutboundMedia } = await import('./upload.js');
     await prepareOutboundMedia('https://cdn.example/tok-SECRETVALUE.png', {});
     const fileName = uploadFile.mock.calls[0][0].fileName as string;
-    expect(fileName).toMatch(/^upload-\d+\.png$/);
+    expect(fileName).toMatch(/^upload-\d+-[0-9a-f-]{36}\.png$/);
     expect(fileName).not.toContain('SECRETVALUE');
     expect(fileName).not.toContain('tok');
     expect(fileName).not.toContain('cdn');
