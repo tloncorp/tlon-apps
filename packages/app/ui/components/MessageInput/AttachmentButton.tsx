@@ -1,5 +1,7 @@
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { pickFile } from '../../../utils/filepicker';
@@ -23,9 +25,12 @@ export default function AttachmentButton({
   const handlePress = async () => {
     // On web, skip the sheet and go straight to the system file picker.
     if (isWeb) {
-      const { uploadIntents } = await pickFile();
-      if (uploadIntents.length > 0) {
-        attachAssets(uploadIntents);
+      const { uploadIntents, errorMessage } = await pickFile(['*/*'], true);
+      if (errorMessage) {
+        Alert.alert('Unable to attach', errorMessage);
+      }
+      if (attachAssets(uploadIntents) > 0) {
+        trackEvent(AnalyticsEvent.AttachmentAdded);
       }
       return;
     }
@@ -39,6 +44,8 @@ export default function AttachmentButton({
         isOpen={showInputSelector}
         onOpenChange={setShowInputSelector}
         mediaType="all"
+        allowMultipleSelection
+        trackAttachmentAdded
       />
     </>
   );

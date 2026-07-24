@@ -1,5 +1,5 @@
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { ActionSheet, YStack, useStore } from '@tloncorp/app/ui';
+import { ActionSheet, YStack } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
@@ -7,6 +7,7 @@ import {
   createDevLogger,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
@@ -16,7 +17,6 @@ import { refreshHostingAuth } from '../lib/hostingAuth';
 const logger = createDevLogger('TlonbotRevivalPromptSheet', true);
 
 export function useTlonbotRevivalPrompt() {
-  const store = useStore();
   const { authCookie, authType, setShip, ship, shipUrl } = useShip();
   const [open, setOpen] = useState(false);
   const [snoozed, setSnoozed] = useState(false);
@@ -85,7 +85,7 @@ export function useTlonbotRevivalPrompt() {
           severity: AnalyticsSeverity.High,
         });
       });
-  }, [authCookie, authType, setShip, ship, shipUrl, store]);
+  }, [authCookie, authType, setShip, ship, shipUrl]);
 
   const promptSheet = (
     <TlonbotRevivalPromptSheet

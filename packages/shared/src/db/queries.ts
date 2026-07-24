@@ -40,6 +40,7 @@ import {
   sql,
 } from 'drizzle-orm';
 
+import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
@@ -3767,6 +3768,40 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     posts.map((p) => [p.id, p.channelId])
   );
 
+  const failedEdits = await ctx.db
+    .select({
+      id: $posts.id,
+      editStatus: $posts.editStatus,
+      lastEditContent: $posts.lastEditContent,
+      lastEditTitle: $posts.lastEditTitle,
+      lastEditImage: $posts.lastEditImage,
+    })
+    .from($posts)
+    .where(
+      and(
+        inArray(
+          $posts.id,
+          posts.map((post) => post.id)
+        ),
+        eq($posts.editStatus, 'failed'),
+        isNotNull($posts.lastEditContent)
+      )
+    );
+  const incomingPosts = new Map(posts.map((post) => [post.id, post]));
+  const confirmedEdits = failedEdits.filter((edit) => {
+    const incoming = incomingPosts.get(edit.id);
+    return (
+      incoming?.isEdited === true &&
+      incoming.content === edit.lastEditContent &&
+      (incoming.title ?? '') === (edit.lastEditTitle ?? '') &&
+      (incoming.image ?? '') === (edit.lastEditImage ?? '')
+    );
+  });
+  const confirmedEditIds = new Set(confirmedEdits.map((edit) => edit.id));
+  const unconfirmedEdits = failedEdits.filter(
+    (edit) => !confirmedEditIds.has(edit.id)
+  );
+
   const uniqueChannels = new Set(posts.map((p) => p.channelId)).size;
   await perfTime(
     'insertPostsBatch.total',
@@ -3796,6 +3831,22 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
               set: conflictUpdateSetAll($posts, ['hidden']),
             }),
         { count: posts.length, channels: uniqueChannels }
+      );
+
+      // A sync can carry an older server copy before a timed-out edit lands.
+      // Keep the retry marker until the incoming post matches that edit.
+      await Promise.all(
+        unconfirmedEdits.map((edit) =>
+          ctx.db
+            .update($posts)
+            .set({
+              editStatus: edit.editStatus,
+              lastEditContent: edit.lastEditContent,
+              lastEditTitle: edit.lastEditTitle,
+              lastEditImage: edit.lastEditImage,
+            })
+            .where(eq($posts.id, edit.id))
+        )
       );
 
       const reactions = posts
@@ -3845,6 +3896,9 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
         )
       );
       logger.log('clear matched pending');
+      confirmedEdits.forEach(() =>
+        trackEvent(domain.AnalyticsEvent.PostEditCompleted)
+      );
     },
     { count: posts.length, channels: uniqueChannels }
   );

@@ -1,5 +1,3 @@
-import { spyOn } from '@tloncorp/shared';
-import * as baseStore from '@tloncorp/shared/store';
 import { range } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 import { useValue } from 'react-cosmos/client';
@@ -10,7 +8,6 @@ import {
   AppDataContextProvider,
   Button,
   PostScreenView,
-  StoreProvider,
   Text,
   View,
 } from '../ui';
@@ -113,61 +110,39 @@ export default {
       });
     }, [hasOlderPosts, pendingAction]);
 
-    const store = useMemo(() => {
-      const fail = () => {
-        throw new Error();
-      };
-      // `useChannelContext` is used deep in the post detail screen to
-      // determine how to present the post.
-      return spyOn(baseStore, 'useChannelContext', () => ({
-        // @ts-expect-error - close enough
-        group: data.channel.group,
-        channel: data.channel,
-        // @ts-expect-error - negotiationStatus is hard to stub
-        negotiationStatus: 'todo',
-        getDraft: fail,
-        storeDraft: fail,
-        clearDraft: fail,
-        editingPost: undefined,
-        setEditingPost: fail,
-      }));
-    }, [data.channel]);
-
     const safeAreaInsets = useSafeAreaInsets();
 
     return (
-      <StoreProvider stub={store}>
-        <FixtureWrapper fillWidth fillHeight>
-          <View
-            height={100}
-            paddingTop={safeAreaInsets.top}
-            alignItems="center"
-            justifyContent="center"
-          >
-            <Text>Header</Text>
-          </View>
-          <PresentationalCarouselPostScreenContent
-            {...{
-              flex: 1,
-              width: '100%',
-              initialPostIndex: 2,
-              channel: data.channel,
-              posts: data.posts,
-              fetchNewerPage,
-              fetchOlderPage,
-              channelContext: {
-                group: data.channel.group || null,
-                editingPost: undefined,
-                setEditingPost: undefined,
-                negotiationMatch: true,
-                onPressRetry: undefined,
-                onPressDelete: noop,
-              },
-            }}
-          />
-          {pendingAction.mountControl()}
-        </FixtureWrapper>
-      </StoreProvider>
+      <FixtureWrapper fillWidth fillHeight>
+        <View
+          height={100}
+          paddingTop={safeAreaInsets.top}
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Text>Header</Text>
+        </View>
+        <PresentationalCarouselPostScreenContent
+          {...{
+            flex: 1,
+            width: '100%',
+            initialPostIndex: 2,
+            channel: data.channel,
+            posts: data.posts,
+            fetchNewerPage,
+            fetchOlderPage,
+            channelContext: {
+              group: data.channel.group || null,
+              editingPost: undefined,
+              setEditingPost: undefined,
+              negotiationMatch: true,
+              onPressRetry: undefined,
+              onPressDelete: noop,
+            },
+          }}
+        />
+        {pendingAction.mountControl()}
+      </FixtureWrapper>
     );
   },
 };

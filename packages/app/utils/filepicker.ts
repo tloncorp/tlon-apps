@@ -301,13 +301,16 @@ export async function normalizeUploadIntents(
   };
 }
 
-export async function pickFile(acceptedTypes: string[] = ['*/*']): Promise<{
+export async function pickFile(
+  acceptedTypes: string[] = ['*/*'],
+  multiple = false
+): Promise<{
   uploadIntents: Attachment.UploadIntent[];
   errorMessage: string | null;
 }> {
   const results = await DocumentPicker.getDocumentAsync({
     copyToCacheDirectory: true,
-    multiple: false,
+    multiple,
     type: acceptedTypes,
   });
 

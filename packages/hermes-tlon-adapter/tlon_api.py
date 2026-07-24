@@ -1148,10 +1148,10 @@ class TlonSSEClient:
                 # Resuming would re-GET the same dead channel forever, leaving
                 # the bot deaf; @tloncorp/api's client resets the channel on
                 # this status too (packages/api/src/http-api/Urbit.ts:491-494).
-                text = await resp.text()
-                raise TlonChannelError(
-                    f"Tlon SSE failed: HTTP 500 {text[:200]}", status=500
-                )
+                # Raise before touching the body: a stalled or truncated 500
+                # body would make resp.text() raise a non-channel error, which
+                # falls through to the resume path and defeats the recovery.
+                raise TlonChannelError("Tlon SSE failed: HTTP 500", status=500)
             if resp.status != 200:
                 text = await resp.text()
                 raise ConnectionError(f"Tlon SSE failed: HTTP {resp.status} {text[:200]}")
@@ -1211,15 +1211,25 @@ class TlonSSEClient:
             timeout=aiohttp.ClientTimeout(total=30),
         ) as resp:
             if resp.status not in (200, 204):
-                text = await resp.text()
-                message = f"Tlon channel action failed: HTTP {resp.status} {text[:200]}"
+                status = resp.status
                 # A malformed or unauthorized client action will not recover
                 # by replaying it.  A 404/410 can be a stale, reaped channel
                 # URL and recover after reconnect; rate limits,
                 # request-timeout/too-early responses, server errors, and
                 # other non-4xx responses may also recover.
-                if 400 <= resp.status < 500 and resp.status not in (404, 408, 410, 425, 429):
-                    raise TlonTerminalActionError(message, status=resp.status)
+                #
+                # Classify from the status alone, BEFORE touching the body: a
+                # stalled/truncated rejection body would otherwise make
+                # resp.text() raise, downgrading a terminal 401/403 to a generic
+                # error and defeating the fixed-cookie fatal handling upstream.
+                terminal = 400 <= status < 500 and status not in (404, 408, 410, 425, 429)
+                try:
+                    text = await resp.text()
+                except Exception:
+                    text = ""
+                message = f"Tlon channel action failed: HTTP {status} {text[:200]}"
+                if terminal:
+                    raise TlonTerminalActionError(message, status=status)
                 raise ConnectionError(message)
 
     async def _parse_sse_payload(self, payload: str) -> Optional[TlonSSEEvent]:

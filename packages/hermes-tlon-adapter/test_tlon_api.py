@@ -296,11 +296,12 @@ class FakeSSEContent:
 
 
 class FakeSSEResponse:
-    def __init__(self, chunks, status=200, block_event=None):
+    def __init__(self, chunks, status=200, block_event=None, text_error=None):
         self.status = status
         self.content = FakeSSEContent(chunks, block_event=block_event)
         self.entered = False
         self.released = False
+        self._text_error = text_error
 
     async def __aenter__(self):
         self.entered = True
@@ -311,34 +312,47 @@ class FakeSSEResponse:
         return False
 
     async def text(self):
+        if self._text_error is not None:
+            raise self._text_error
         return ""
 
 
 class FakeSSESession:
-    def __init__(self, chunks=None, responses=None, block_event=None):
+    def __init__(self, chunks=None, responses=None, block_event=None, text_error=None):
         self.chunks = chunks
         self.responses = responses or []
         self.timeout = None
         self.get_calls = []
         self.last_response = None
         self.block_event = block_event
+        self.text_error = text_error
 
     def get(self, url, *, headers, timeout):
         self.timeout = timeout
         self.get_calls.append({"url": url, "headers": headers, "timeout": timeout})
         if self.responses:
             status, chunks = self.responses.pop(0)
-            resp = FakeSSEResponse(chunks, status=status, block_event=self.block_event)
+            resp = FakeSSEResponse(
+                chunks,
+                status=status,
+                block_event=self.block_event,
+                text_error=self.text_error,
+            )
         else:
-            resp = FakeSSEResponse(self.chunks or [], block_event=self.block_event)
+            resp = FakeSSEResponse(
+                self.chunks or [],
+                block_event=self.block_event,
+                text_error=self.text_error,
+            )
         self.last_response = resp
         return resp
 
 
 class FakeActionResponse:
-    def __init__(self, status=204, text=""):
+    def __init__(self, status=204, text="", text_error=None):
         self.status = status
         self._text = text
+        self._text_error = text_error
 
     async def __aenter__(self):
         return self
@@ -347,13 +361,16 @@ class FakeActionResponse:
         return False
 
     async def text(self):
+        if self._text_error is not None:
+            raise self._text_error
         return self._text
 
 
 class FakeActionSession:
-    def __init__(self, status=204):
+    def __init__(self, status=204, text_error=None):
         self.put_calls = []
         self.status = status
+        self.text_error = text_error
 
     def put(self, url, *, json, headers, timeout):
         self.put_calls.append(
@@ -364,7 +381,9 @@ class FakeActionSession:
                 "timeout": timeout,
             }
         )
-        return FakeActionResponse(self.status, "action rejected")
+        return FakeActionResponse(
+            self.status, "action rejected", text_error=self.text_error
+        )
 
     async def close(self):
         pass
@@ -470,6 +489,56 @@ class TlonSSEClientTests(unittest.TestCase):
             with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
                 with self.assertRaises(tlon_api.TlonTerminalActionError):
                     asyncio.run(client._send_actions([]))
+
+    def test_action_terminal_class_survives_unreadable_body(self):
+        # A stalled/truncated rejection body must not downgrade a terminal
+        # 401/403 to a generic ConnectionError — the classification is made
+        # from the status alone, before the body is read.
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        for status in (401, 403):
+            client = tlon_api.TlonSSEClient(cfg)
+            client._session = FakeActionSession(
+                status, text_error=RuntimeError("body stalled")
+            )
+            client.channel_url = "https://zod.tlon.network/~/channel/test"
+            with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+                with self.assertRaises(tlon_api.TlonTerminalActionError) as raised:
+                    asyncio.run(client._send_actions([]))
+            self.assertEqual(raised.exception.status, status)
+
+    def test_sse_500_raises_channel_error_without_reading_body(self):
+        # A stalled/truncated 500 body must not defeat dead-channel recovery:
+        # events() must raise TlonChannelError(status=500) even when text()
+        # would itself raise, so _run_stream rebuilds rather than resumes.
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+        client = tlon_api.TlonSSEClient(cfg)
+        client.channel_url = "https://zod.tlon.network/~/channel/test"
+        client._session = FakeSSESession(
+            responses=[(500, [])], text_error=RuntimeError("body stalled")
+        )
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            with self.assertRaises(tlon_api.TlonChannelError) as raised:
+
+                async def run():
+                    async for _ in client.events():
+                        pass
+
+                asyncio.run(run())
+        self.assertEqual(raised.exception.status, 500)
 
     def test_parse_acknowledges_id_only_sse_frames(self):
         cfg = tlon_api.TlonConfig.from_env(

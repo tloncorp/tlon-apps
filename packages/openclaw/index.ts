@@ -978,6 +978,7 @@ export default defineBundledChannelEntry({
     setTlonSkillVersionResolver(() => readTlonSkillVersion(tlonBinary));
     const renderTlonVersion = async () => ({
       text: formatTlonVersionIdentity({
+        harnessVersion: api.runtime.version,
         tlonSkillVersion: await resolveTlonSkillVersion(),
       }),
     });

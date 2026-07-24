@@ -1,4 +1,4 @@
-import type { Poke } from '../http-api';
+import { type Poke, ThreadResponseBodyError } from '../http-api';
 import { createDevLogger } from '../lib/logger';
 import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import type * as db from '../types/models';
@@ -445,6 +445,23 @@ export const createGroup = async ({
 
     return toClientGroupV7(group.id, result, true);
   } catch (err) {
+    // Only a stalled body after the response headers arrived is safe to
+    // recover from: the create thread has finished, but its response was lost
+    // in transit. A request that times out before headers can still be
+    // creating channels, so a scry could find and return an incomplete group.
+    if (err instanceof ThreadResponseBodyError) {
+      try {
+        const createdGroup = await getGroup(group.id);
+        logger.trackEvent(AnalyticsEvent.DebugGroupCreate, {
+          context: 'group-create-thread response lost, recovered via scry',
+          errorMessage: err.message,
+        });
+        return createdGroup;
+      } catch {
+        // fall through to the original error
+      }
+    }
+
     if (err instanceof BadResponseError) {
       logger.trackEvent('Create Group Error', {
         severity: AnalyticsSeverity.Critical,
