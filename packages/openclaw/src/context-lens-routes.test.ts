@@ -269,6 +269,7 @@ describe('context lens run route', () => {
       save: () => {},
       size: () => 1,
       get: (lensId) => (lensId === stored.lensId ? stored : null),
+      list: () => [stored],
     });
     try {
       const { routes } = setupRoutes();
