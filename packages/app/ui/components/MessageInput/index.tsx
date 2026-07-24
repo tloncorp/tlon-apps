@@ -49,6 +49,7 @@ import { useBranchDomain, useBranchKey } from '../../contexts/appDataContext';
 import { useAttachmentContext } from '../../contexts/attachment';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
+import { usesFloatingMessageInputChrome } from './MessageInputChrome';
 import { hydrateEditPost, processReferenceAndUpdateEditor } from './helpers';
 
 export const DEFAULT_MESSAGE_INPUT_HEIGHT = Platform.OS === 'web' ? 38 : 44;
@@ -806,8 +807,12 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         <YStack
           flex={1}
           paddingHorizontal={paddingHorizontal}
-          borderColor={frameless ? 'transparent' : '$border'}
-          borderWidth={frameless ? 0 : 1}
+          borderColor={
+            frameless || usesFloatingMessageInputChrome
+              ? 'transparent'
+              : '$border'
+          }
+          borderWidth={frameless || usesFloatingMessageInputChrome ? 0 : 1}
           borderRadius={frameless ? 0 : '$xl'}
           maxHeight={bigInput ? undefined : maxInputHeight}
           paddingTop={bigInput && frameless ? '$s' : undefined}

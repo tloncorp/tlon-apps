@@ -1,5 +1,6 @@
 import { useDebouncedValue } from '@tloncorp/shared';
 import { Icon, Text, Pressable as TlonPressable, View } from '@tloncorp/ui';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Children,
   PropsWithChildren,
@@ -12,6 +13,7 @@ import {
   ActivityIndicator,
   Platform,
   Pressable,
+  StyleSheet,
   ViewStyle,
 } from 'react-native';
 import Animated, {
@@ -50,6 +52,7 @@ export const ScreenHeaderComponent = ({
   useHorizontalTitleLayout = false,
   loadingSubtitle,
   testID,
+  floating = false,
 }: PropsWithChildren<{
   title?: string | ReactNode;
   titleIcon?: ReactNode;
@@ -64,8 +67,10 @@ export const ScreenHeaderComponent = ({
   useHorizontalTitleLayout?: boolean;
   loadingSubtitle?: string | null;
   testID?: string;
+  floating?: boolean;
 }>) => {
   const { top } = useSafeAreaInsets();
+  const theme = useTheme();
   const [headerWidth, setHeaderWidth] = useState(0);
   const [leftControlsWidth, setLeftControlsWidth] = useState(0);
   const [rightControlsWidth, setRightControlsWidth] = useState(0);
@@ -229,9 +234,14 @@ export const ScreenHeaderComponent = ({
     <View
       paddingTop={top}
       zIndex={50}
+      position={floating ? 'absolute' : undefined}
+      top={floating ? 0 : undefined}
+      left={floating ? 0 : undefined}
+      right={floating ? 0 : undefined}
+      elevationAndroid={floating && Platform.OS === 'android' ? 1 : undefined}
       backgroundColor={backgroundColor ?? '$background'}
       borderColor="$border"
-      borderBottomWidth={borderBottom ? 1 : 0}
+      borderBottomWidth={!floating && borderBottom ? 1 : 0}
       testID={testID}
       onLayout={(event) => {
         const width = Math.round(event.nativeEvent.layout.width);
@@ -240,6 +250,18 @@ export const ScreenHeaderComponent = ({
         );
       }}
     >
+      {floating && (
+        <LinearGradient
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { bottom: -32 }]}
+          locations={[0, 0.66, 1]}
+          colors={[
+            getVariableValue(theme.background),
+            getVariableValue(theme.background),
+            'transparent',
+          ]}
+        />
+      )}
       <View style={useHorizontalTitleLayout ? horizontalTitleStack : undefined}>
         {/* Only show subtitle on desktop/large screens */}
         {showSubtitle && useHorizontalTitleLayout && (

@@ -29,6 +29,8 @@
     "expo-audio": "*",
     "expo-document-picker": "*",
     "expo-file-system": "*",
+    "expo-glass-effect": "*",
+    "expo-linear-gradient": "*",
     "expo-video": "*",
     "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "*",
