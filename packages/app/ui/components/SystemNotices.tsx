@@ -1,4 +1,4 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Button, Text } from '@tloncorp/ui';
@@ -149,9 +149,10 @@ export function ContactBookPrompt(props: {
         await store.syncSystemContacts().then(() => {
           Alert.alert('Success', 'Your contacts have been synced.');
         });
-        await store.syncContactDiscovery().catch(() => {
-          contactBookNag.eliminate();
-        });
+        const result = await store.syncContactDiscovery().catch(() => null);
+        if (result?.didDiscover) {
+          trackEvent(AnalyticsEvent.ContactDiscoveryCompleted);
+        }
         contactBookNag.eliminate();
       } else {
         contactBookNag.dismiss();

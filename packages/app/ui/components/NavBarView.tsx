@@ -1,3 +1,4 @@
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
@@ -31,7 +32,13 @@ export const NavBarView = ({
     return currentRoute === routeName;
   };
   const pressTab = (routeName: string, navigate?: () => void) => {
-    if (isRouteActive(routeName) && onPressActiveTab) {
+    const wasAlreadyActive = isRouteActive(routeName);
+    if (!wasAlreadyActive) {
+      trackEvent(AnalyticsEvent.NavigationTabSelected, {
+        tab: routeName === 'ChatList' ? 'Home' : routeName,
+      });
+    }
+    if (wasAlreadyActive && onPressActiveTab) {
       onPressActiveTab();
     } else {
       navigate?.();

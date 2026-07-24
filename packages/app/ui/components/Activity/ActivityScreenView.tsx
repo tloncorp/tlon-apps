@@ -1,4 +1,4 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -197,6 +197,9 @@ export function ActivityScreenView({
   const handleTabPress = useCallback(
     (tab: db.ActivityBucket) => {
       if (tab !== activeTab) {
+        trackEvent(AnalyticsEvent.ActivityFilterSelected, {
+          tab,
+        });
         setActiveTab(tab);
       }
     },
@@ -309,6 +312,7 @@ export function ActivityScreenContent({
       await setBadgeCountAsync(0);
     }
     await store.markAllRead();
+    trackEvent(AnalyticsEvent.ActivityMarkedAllRead);
   }, []);
 
   const handleInviteFriends = useCallback(() => {

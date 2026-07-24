@@ -7,6 +7,7 @@ import { TimeoutError } from '@tloncorp/api';
 import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
 import { isEqual } from 'lodash';
 
+import { trackEvent } from '../analytics';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -465,6 +466,9 @@ export async function pinPostToChannel({
 
   try {
     await api.setOrder(channel.id, nextOrder);
+    trackEvent(AnalyticsEvent.PostPinned, {
+      channelType: channel.type,
+    });
   } catch (e) {
     console.error('Failed to pin post', e);
     // Rollback optimistic update
@@ -499,6 +503,9 @@ export async function unpinPostFromChannel({
 
   try {
     await api.setOrder(channel.id, nextOrder);
+    trackEvent(AnalyticsEvent.PostUnpinned, {
+      channelType: channel.type,
+    });
   } catch (e) {
     console.error('Failed to unpin post', e);
     // Rollback optimistic update
@@ -625,6 +632,7 @@ export async function reorderPinnedItems({
     // stale slot. Only the optimistic write above is the full merged order.
     const after = await db.getPinnedItems();
     await db.setPinnedItemsOrder(normalizeOrder(backendPayload, after));
+    trackEvent(AnalyticsEvent.PinnedChatsReordered);
     return true;
   } catch (e) {
     console.error('Failed to reorder pinned items', e);
@@ -774,7 +782,7 @@ export async function markChannelRead({
   }
 
   if (existingChannel.isPendingChannel) {
-    return;
+    return true;
   }
 
   try {
@@ -784,6 +792,7 @@ export async function markChannelRead({
       groupId: existingChannel.groupId,
       deep: !!includeThreads,
     });
+    return true;
   } catch (e) {
     logger.error('Failed to read channel', { id, groupId }, e);
     // rollback optimistic update
@@ -796,6 +805,7 @@ export async function markChannelRead({
     if (didUpdateGroupUnread && existingGroupUnread) {
       await db.insertGroupUnreads([existingGroupUnread]);
     }
+    return false;
   }
 }
 
@@ -923,6 +933,7 @@ export async function leaveGroupChannel(channelId: string) {
     } else {
       await api.leaveChannel(channelId);
     }
+    trackEvent(AnalyticsEvent.ChannelLeft, { type: channel.type });
   } catch (e) {
     console.error('Failed to leave channel', e);
     // Only rollback on actual errors (not TimeoutError)

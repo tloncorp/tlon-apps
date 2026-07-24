@@ -1,5 +1,9 @@
 import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
-import { useMutableCallback } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  trackEvent,
+  useMutableCallback,
+} from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
@@ -371,7 +375,12 @@ export function VoiceMemoBlock({
             cursor="pointer"
             hoverStyle={{ backgroundColor: '$positiveBackground' }}
             pressStyle={{ opacity: 0.5 }}
-            onPress={togglePlayback}
+            onPress={() => {
+              if (status === null || status === 'paused') {
+                trackEvent(AnalyticsEvent.VoiceMemoPlaybackRequested);
+              }
+              togglePlayback();
+            }}
           >
             {(() => {
               switch (status) {
@@ -511,6 +520,8 @@ export function LinkBlock({
     if (!urlIsValid) {
       return;
     }
+
+    trackEvent(AnalyticsEvent.ExternalLinkOpened);
 
     if (Platform.OS === 'web') {
       window.open(block.url, '_blank', 'noopener,noreferrer');

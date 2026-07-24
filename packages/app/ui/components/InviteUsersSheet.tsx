@@ -1,5 +1,6 @@
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActionSheet } from './ActionSheet';
@@ -20,6 +21,12 @@ const InviteUsersSheetComponent = ({
   const hasOpened = useRef(open);
   const { data: group } = store.useGroup({ id: groupId });
   const [isScrolling, setIsScrolling] = useState(false);
+
+  useEffect(() => {
+    if (open && groupId) {
+      trackEvent(AnalyticsEvent.InviteSurfaceOpened);
+    }
+  }, [groupId, open]);
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;

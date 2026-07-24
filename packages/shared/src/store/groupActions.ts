@@ -164,12 +164,17 @@ export async function createGroupFromTemplate(
 
   newGroup.channels = channels;
 
-  return createGroup({ group: newGroup, memberIds: params.memberIds ?? [] });
+  return createGroup({
+    group: newGroup,
+    memberIds: params.memberIds ?? [],
+    templateId: params.templateId,
+  });
 }
 
 export async function createGroup(params: {
   group: db.Group;
   memberIds?: string[];
+  templateId?: GroupTemplateId;
 }): Promise<db.Group> {
   const placeHolderTitle = await getPlaceholderTitle(params);
 
@@ -191,6 +196,7 @@ export async function createGroup(params: {
     logger.trackEvent(AnalyticsEvent.ActionCreateGroup, {
       ...logic.getModelAnalytics({ group: params.group }),
       initialMemberCount: params.memberIds?.length ?? 0,
+      templateId: params.templateId,
     });
 
     return resultGroup;
@@ -1326,7 +1332,7 @@ export async function markGroupRead(groupId: string, deep: boolean = false) {
   const group = await db.getGroup({ id: groupId });
   if (!group) {
     logger.error('Group not found', groupId);
-    return;
+    return false;
   }
   // optimistic update
   const existingUnread = await db.getGroupUnread({ groupId: group.id });
@@ -1336,12 +1342,14 @@ export async function markGroupRead(groupId: string, deep: boolean = false) {
 
   try {
     await api.readGroup(group, deep);
+    return true;
   } catch (e) {
     logger.error('Failed to read group', e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertGroupUnreads([existingUnread]);
     }
+    return false;
   }
 }
 

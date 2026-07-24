@@ -1,5 +1,5 @@
 import * as store from '@tloncorp/shared';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   cloneElement,
@@ -299,6 +299,14 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     store.GroupTemplateId | undefined
   >(undefined);
   const [groupTitle, setGroupTitle] = useState<string | undefined>(undefined);
+  const isWindowNarrow = useIsWindowNarrow();
+
+  const open = useCallback(() => {
+    if (step === 'initial') {
+      trackEvent(AnalyticsEvent.CreateMenuOpened);
+      setStep('selectType');
+    }
+  }, [step]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -315,6 +323,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   );
 
   const handleTypeSelected = useCallback((type: ChatType) => {
+    trackEvent(AnalyticsEvent.CreateOptionSelected, {
+      option: type,
+    });
     if (type === 'group') {
       // Navigate to group type selection instead of directly to member selection
       setStep('selectGroupType');
@@ -325,6 +336,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
 
   const handleGroupTypeSelected = useCallback(
     (groupType: GroupType, templateId?: store.GroupTemplateId) => {
+      trackEvent(AnalyticsEvent.CreateOptionSelected, {
+        option: groupType,
+      });
       if (groupType === 'quick') {
         // Quick group goes to member selection without template
         setSelectedTemplateId(undefined);
@@ -366,7 +380,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   useImperativeHandle(
     ref,
     () => ({
-      open: () => setStep((step) => (step === 'initial' ? 'selectType' : step)),
+      open,
       close: () => {
         setStep('initial');
         setSelectedTemplateId(undefined);
@@ -374,10 +388,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         setSelectedContactIds([]);
       },
     }),
-    []
+    [open]
   );
 
-  const isWindowNarrow = useIsWindowNarrow();
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
 
   const handleSelectDmContact = useCallback(
@@ -402,10 +415,10 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   const triggerWithOnPress = useMemo(() => {
     if (!trigger || !isValidElement(trigger)) return null;
     return cloneElement(trigger, {
-      onPress: () => setStep(step === 'initial' ? 'selectType' : step),
+      onPress: open,
       'data-testid': 'CreateChatSheetTrigger',
     } as Partial<{ onPress: () => void; 'data-testid': string }>);
-  }, [trigger, step]);
+  }, [open, trigger]);
 
   return !isWindowNarrow ? (
     <>

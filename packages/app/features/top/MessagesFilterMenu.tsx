@@ -1,4 +1,5 @@
 import { TalkSidebarFilter } from '@tloncorp/api/urbit';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
 
@@ -9,12 +10,22 @@ export function MessagesFilterMenu({ children }: PropsWithChildren) {
   const { data } = store.useMessagesFilter();
   const talkFilter = data ?? 'Direct Messages';
 
-  const handleAction = useCallback((value: TalkSidebarFilter) => {
-    return () => {
-      store.changeMessageFilter(value);
-      setIsOpen(false);
-    };
-  }, []);
+  const handleAction = useCallback(
+    (value: TalkSidebarFilter) => {
+      return async () => {
+        setIsOpen(false);
+        if (value !== talkFilter) {
+          const didChange = await store.changeMessageFilter(value);
+          if (didChange) {
+            trackEvent(AnalyticsEvent.MessagesFilterSelected, {
+              filter: value,
+            });
+          }
+        }
+      };
+    },
+    [talkFilter]
+  );
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {

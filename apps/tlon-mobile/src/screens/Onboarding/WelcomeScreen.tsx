@@ -14,6 +14,7 @@ import {
   YStack,
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,7 +25,6 @@ import type { OnboardingStackParamList } from '../../types';
 export const Text = TlonText.Text;
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'Welcome'>;
-
 export const WelcomeScreen = ({ navigation }: Props) => {
   const lureMeta = useLureMetadata();
   const { bottom, top } = useSafeAreaInsets();
@@ -34,7 +34,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
 
   useCheckAppInstalled();
 
-  const handlePressInvite = useCallback(() => {
+  const handlePressSignup = useCallback(() => {
+    trackEvent(AnalyticsEvent.OnboardingPathSelected, {
+      path: 'signup',
+    });
     navigation.navigate('Signup');
   }, [navigation]);
 
@@ -80,7 +83,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                 pressStyle={{
                   opacity: 0.5,
                 }}
-                onPress={handlePressInvite}
+                onPress={handlePressSignup}
               >
                 <YStack
                   alignItems="stretch"
@@ -93,22 +96,20 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                 >
                   <OnboardingInviteBlock metadata={lureMeta} />
                   <OnboardingButton
-                    onPress={handlePressInvite}
+                    onPress={handlePressSignup}
                     label="Join with new account"
                   />
                 </YStack>
               </Pressable>
             ) : (
               <YStack gap="$l">
-                <OnboardingButton
-                  onPress={() => {
-                    navigation.navigate('Signup');
-                  }}
-                  label="Sign up"
-                />
+                <OnboardingButton onPress={handlePressSignup} label="Sign up" />
                 <OnboardingButton
                   secondary
                   onPress={() => {
+                    trackEvent(AnalyticsEvent.OnboardingPathSelected, {
+                      path: 'invite',
+                    });
                     navigation.navigate('PasteInviteLink');
                   }}
                   label="Join with an invite"
@@ -137,6 +138,9 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               action={{
                 title: 'Log in with phone number',
                 action: () => {
+                  trackEvent(AnalyticsEvent.OnboardingPathSelected, {
+                    path: 'login',
+                  });
                   setOpen(false);
                   navigation.navigate('TlonLogin', {
                     initialLoginMethod: 'phone',
@@ -149,6 +153,9 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               action={{
                 title: 'Log in with email',
                 action: () => {
+                  trackEvent(AnalyticsEvent.OnboardingPathSelected, {
+                    path: 'login',
+                  });
                   setOpen(false);
                   navigation.navigate('TlonLogin', {
                     initialLoginMethod: 'email',
@@ -160,6 +167,9 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           <ActionSheet.ContentBlock alignItems="center">
             <Pressable
               onPress={() => {
+                trackEvent(AnalyticsEvent.OnboardingPathSelected, {
+                  path: 'connect_ship',
+                });
                 setOpen(false);
                 navigation.navigate('ShipLogin');
               }}

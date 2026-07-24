@@ -13,6 +13,7 @@ import {
   markChannelRead,
   updateChannel,
 } from './channelActions';
+import { markGroupRead } from './groupActions';
 
 setupDatabaseTestSuite();
 
@@ -411,7 +412,7 @@ test('markChannelRead clears stale notification-only group unread after channel 
   await db.insertGroupUnreads([makeGroupUnread()]);
   await db.insertChannelUnreads([makeChannelUnread()]);
 
-  await markChannelRead({ id: channelId, groupId });
+  await expect(markChannelRead({ id: channelId, groupId })).resolves.toBe(true);
 
   expect(await db.getChannelUnread({ channelId })).toMatchObject({
     count: 0,
@@ -421,6 +422,30 @@ test('markChannelRead clears stale notification-only group unread after channel 
     count: 0,
     notify: false,
     notifyCount: 0,
+  });
+});
+
+test('markChannelRead reports failure and restores unread state', async () => {
+  await insertGroupAndChannel();
+  await db.insertChannelUnreads([makeChannelUnread()]);
+  vi.spyOn(api, 'readChannel').mockRejectedValue(new Error('read failed'));
+
+  await expect(markChannelRead({ id: channelId, groupId })).resolves.toBe(
+    false
+  );
+  expect(await db.getChannelUnread({ channelId })).toMatchObject({
+    notify: true,
+  });
+});
+
+test('markGroupRead reports failure and restores unread state', async () => {
+  await insertGroup();
+  await db.insertGroupUnreads([makeGroupUnread()]);
+  vi.spyOn(api, 'readGroup').mockRejectedValue(new Error('read failed'));
+
+  await expect(markGroupRead(groupId)).resolves.toBe(false);
+  expect(await db.getGroupUnread({ groupId })).toMatchObject({
+    notify: true,
   });
 });
 
