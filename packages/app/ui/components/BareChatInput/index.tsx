@@ -53,6 +53,7 @@ import {
   MessageInputContainer,
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
+import { usesFloatingMessageInputChrome } from '../MessageInput/MessageInputChrome';
 import { hydrateEditPost } from '../MessageInput/helpers';
 import type { DraftInputHandle } from '../draftInputs/shared';
 import { PasteableTextInput } from './PasteableTextInput';
@@ -941,8 +942,8 @@ function BareChatInput(
         flex={1}
         backgroundColor={backgroundColor}
         paddingHorizontal={paddingHorizontal}
-        borderColor="$border"
-        borderWidth={1}
+        borderColor={usesFloatingMessageInputChrome ? 'transparent' : '$border'}
+        borderWidth={usesFloatingMessageInputChrome ? 0 : 1}
         borderRadius="$xl"
         maxHeight={maxInputHeight}
         justifyContent="center"

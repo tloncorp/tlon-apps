@@ -19,6 +19,10 @@ import { ContactAvatar } from '../Avatar';
 import ConnectionStatus from '../ConnectionStatus';
 import { GroupAvatar } from '../GroupAvatar';
 import { ScreenHeader } from '../ScreenHeader';
+import {
+  ScreenHeaderControlChrome,
+  ScreenHeaderControlsChrome,
+} from '../ScreenHeaderChrome';
 
 export interface ChannelHeaderItemsContextValue {
   registerItem: (options: { item: ReactElement }) => { remove: () => void };
@@ -119,6 +123,7 @@ export function ChannelHeader({
   showEditButton = false,
   preferProvidedTitle = false,
   post,
+  useFloatingHeaderChrome = false,
 }: {
   title: string;
   titleIcon?: React.ReactNode;
@@ -140,6 +145,7 @@ export function ChannelHeader({
   showEditButton?: boolean;
   preferProvidedTitle?: boolean;
   post?: db.Post;
+  useFloatingHeaderChrome?: boolean;
 }) {
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
@@ -357,6 +363,73 @@ export function ChannelHeader({
     return undefined;
   }, [channel.type, goToProfile, goToChatDetails]);
 
+  const rightControlsContent = (
+    <>
+      {showSearchButton &&
+        (useFloatingHeaderChrome ? (
+          <ScreenHeaderControlChrome>
+            <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
+          </ScreenHeaderControlChrome>
+        ) : (
+          <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
+        ))}
+      {/* this fragment/map is necessary to be able to provide a key to the items */}
+      {contextItems.map((item, index) => (
+        <Fragment key={index}>
+          {useFloatingHeaderChrome ? (
+            <ScreenHeaderControlChrome>{item}</ScreenHeaderControlChrome>
+          ) : (
+            item
+          )}
+        </Fragment>
+      ))}
+      {showEditButton &&
+        (useFloatingHeaderChrome ? (
+          <ScreenHeaderControlChrome>
+            <ScreenHeader.TextButton
+              onPress={goToEdit}
+              testID="ChannelHeaderEditButton"
+              color="$primaryText"
+            >
+              Edit
+            </ScreenHeader.TextButton>
+          </ScreenHeaderControlChrome>
+        ) : (
+          <ScreenHeader.TextButton
+            onPress={goToEdit}
+            testID="ChannelHeaderEditButton"
+            color="$primaryText"
+          >
+            Edit
+          </ScreenHeader.TextButton>
+        ))}
+      {onToggleContextLens &&
+        (useFloatingHeaderChrome ? (
+          <ScreenHeaderControlChrome>
+            <ScreenHeader.IconButton
+              type="RightSidebar"
+              onPress={onToggleContextLens}
+              testID="ContextLensHeaderButton"
+              color={contextLensActive ? '$positiveActionText' : '$primaryText'}
+              backgroundColor={
+                contextLensOpen ? '$secondaryBackground' : 'transparent'
+              }
+            />
+          </ScreenHeaderControlChrome>
+        ) : (
+          <ScreenHeader.IconButton
+            type="RightSidebar"
+            onPress={onToggleContextLens}
+            testID="ContextLensHeaderButton"
+            color={contextLensActive ? '$positiveActionText' : '$primaryText'}
+            backgroundColor={
+              contextLensOpen ? '$secondaryBackground' : 'transparent'
+            }
+          />
+        ))}
+    </>
+  );
+
   return (
     <ScreenHeader
       title={headerTitle}
@@ -374,6 +447,7 @@ export function ChannelHeader({
       testID="ChannelHeaderTitle"
       showSubtitle={!hideIdentity}
       borderBottom
+      floating={useFloatingHeaderChrome}
       loadingSubtitle={
         hideIdentity && !registeredLoadingSubtitle
           ? null
@@ -381,37 +455,24 @@ export function ChannelHeader({
       }
       onTitlePress={hideIdentity ? undefined : handleTitlePress}
       useHorizontalTitleLayout={!isWindowNarrow}
-      leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
+      leftControls={
+        goBack &&
+        (useFloatingHeaderChrome ? (
+          <ScreenHeaderControlChrome>
+            <ScreenHeader.BackButton onPress={goBack} />
+          </ScreenHeaderControlChrome>
+        ) : (
+          <ScreenHeader.BackButton onPress={goBack} />
+        ))
+      }
       rightControls={
-        <>
-          {showSearchButton && (
-            <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
-          )}
-          {/* this fragment/map is necessary to be able to provide a key to the items */}
-          {contextItems.map((item, index) => (
-            <Fragment key={index}>{item}</Fragment>
-          ))}
-          {showEditButton && (
-            <ScreenHeader.TextButton
-              onPress={goToEdit}
-              testID="ChannelHeaderEditButton"
-              color="$primaryText"
-            >
-              Edit
-            </ScreenHeader.TextButton>
-          )}
-          {onToggleContextLens && (
-            <ScreenHeader.IconButton
-              type="RightSidebar"
-              onPress={onToggleContextLens}
-              testID="ContextLensHeaderButton"
-              color={contextLensActive ? '$positiveActionText' : '$primaryText'}
-              backgroundColor={
-                contextLensOpen ? '$secondaryBackground' : 'transparent'
-              }
-            />
-          )}
-        </>
+        useFloatingHeaderChrome ? (
+          <ScreenHeaderControlsChrome>
+            {rightControlsContent}
+          </ScreenHeaderControlsChrome>
+        ) : (
+          rightControlsContent
+        )
       }
     />
   );

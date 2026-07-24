@@ -50,6 +50,7 @@ import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
+import { usesFloatingMessageInputChrome } from './MessageInput/MessageInputChrome';
 import { DraftInputContext } from './draftInputs';
 import {
   DraftInputContextProvider,
@@ -529,6 +530,9 @@ function ConnectedHeader({
       description={''}
       showSearchButton={false}
       post={parentPost ?? undefined}
+      useFloatingHeaderChrome={
+        Platform.OS === 'ios' || Platform.OS === 'android'
+      }
       {...passedProps}
     />
   );
@@ -879,7 +883,15 @@ function SinglePostView({
         ) : null}
 
         {canRenderReplyInput && (
-          <View id="reply-container" {...containingProperties}>
+          <View
+            id="reply-container"
+            position={usesFloatingMessageInputChrome ? 'absolute' : undefined}
+            bottom={usesFloatingMessageInputChrome ? 0 : undefined}
+            left={usesFloatingMessageInputChrome ? 0 : undefined}
+            right={usesFloatingMessageInputChrome ? 0 : undefined}
+            zIndex={usesFloatingMessageInputChrome ? 10 : undefined}
+            {...containingProperties}
+          >
             <BareChatInput
               ref={replyDraftInputRef}
               {...threadComposerContext}
