@@ -2175,142 +2175,137 @@
 ::
 ++  setup-said-notebook
   =/  m  (mare ,[f=flag:n =bowl:gall])
-  =*  b  bind:m
   ^-  form:m
-  ;<  ~  b  init-zod
-  ;<  =bowl:gall  b  get-bowl
-  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a %create-notebook 'NB')
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' 'B'])
   (pure:m f bowl)
 ::  ====  test-said-host-answers-member  ====
-::  Host answers its own /v0/said watch with the preview fact + kick.
+::  host answers its own /v0/said watch with the preview fact + kick
 ::
 ++  test-said-host-answers-member
   %-  eval-mare
   =/  m  (mare ,~)
-  =*  b  bind:m
   ^-  form:m
-  ;<  [f=flag:n =bowl:gall]  b  setup-said-notebook
-  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-notebook
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
   %+  ex-cards  caz
   :~  %+  ex-fact  ~
       [%notes-said !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'NB']])]
       (ex-card [%give %kick ~ ~])
   ==
 ::  ====  test-said-private-denies-stranger  ====
-::  A non-member watching a private notebook's /v0/said gets %notes-denied.
+::  a non-member watching a private notebook's /v0/said gets %notes-denied
 ::
 ++  test-said-private-denies-stranger
   %-  eval-mare
   =/  m  (mare ,~)
-  =*  b  bind:m
   ^-  form:m
-  ;<  [f=flag:n =bowl:gall]  b  setup-said-notebook
-  ;<  *  b  (set-src ~bus)
-  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-notebook
+  ;<  caz=(list card)  bind:m
+    ((do-as ~bus) (do-watch (said-watch-path f 3)))
   %+  ex-cards  caz
   :~  (ex-fact ~ %notes-denied !>(~))
       (ex-card [%give %kick ~ ~])
   ==
 ::  ====  test-said-public-answers-stranger  ====
-::  Public notebooks preview for anyone, member or not.
+::  public notebooks preview for anyone, member or not
 ::
 ++  test-said-public-answers-stranger
   %-  eval-mare
   =/  m  (mare ,~)
-  =*  b  bind:m
   ^-  form:m
-  ;<  [f=flag:n =bowl:gall]  b  setup-said-notebook
-  ;<  *  b  (poke-a [%notebook f [%visibility %public]])
-  ;<  *  b  (set-src ~bus)
-  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-notebook
+  ;<  *  bind:m  (poke-a %notebook f [%visibility %public])
+  ;<  caz=(list card)  bind:m
+    ((do-as ~bus) (do-watch (said-watch-path f 3)))
   %+  ex-cards  caz
   :~  %+  ex-fact  ~
       [%notes-said !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'NB']])]
       (ex-card [%give %kick ~ ~])
   ==
-::  ====  test-said-missing-note-denied  ====
+::  ====  test-said-missing-note-errors  ====
+::  a missing note for an authorized viewer is an error, not a denial
 ::
-++  test-said-missing-note-denied
+++  test-said-missing-note-errors
   %-  eval-mare
   =/  m  (mare ,~)
-  =*  b  bind:m
   ^-  form:m
-  ;<  [f=flag:n =bowl:gall]  b  setup-said-notebook
-  ;<  caz=(list card)  b  (do-watch (said-watch-path f 999))
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-notebook
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 999))
   %+  ex-cards  caz
-  :~  (ex-fact ~ %notes-denied !>(~))
+  :~  (ex-fact ~ %notes-error !>(~))
       (ex-card [%give %kick ~ ~])
   ==
 ::  ====  test-said-proxies-and-relays  ====
-::  A watch for a notebook we don't hold proxies to the host; its fact
-::  is relayed, subscribers kicked, and the upstream sub torn down.
+::  a watch for a notebook we don't hold proxies to the host; its fact
+::  is relayed, subscribers kicked, and the upstream sub torn down
 ::
 ++  test-said-proxies-and-relays
   %-  eval-mare
   =/  m  (mare ,~)
-  =*  b  bind:m
   ^-  form:m
-  ;<  ~  b  init-zod
-  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
   =/  f=flag:n  [~bus %nb]
   =/  pax=path  (said-watch-path f 1)
   =/  =wire  /said/(scot %p ~bus)/nb/note/1
-  ;<  caz=(list card)  b  (do-watch pax)
-  ;<  ~  b
+  ;<  caz=(list card)  bind:m  (do-watch pax)
+  ;<  ~  bind:m
     %+  ex-cards  caz
     ~[(ex-card [%pass wire %agent [~bus %notes] %watch pax])]
   =/  sd=said:n  [f [1 'T' 'B' ~bus now.bowl 'NB']]
-  ;<  caz=(list card)  b
+  ;<  caz=(list card)  bind:m
     (do-agent wire [~bus %notes] [%fact %notes-said !>(sd)])
   %+  ex-cards  caz
   :~  (ex-fact ~[pax] %notes-said !>(sd))
       (ex-card [%give %kick ~[pax] ~])
       (ex-card [%pass wire %agent [~bus %notes] %leave ~])
   ==
-::  ====  test-said-nack-coerces-denied  ====
-::  A nacked proxy watch surfaces to local subscribers as %notes-denied.
+::  ====  test-said-nack-becomes-error  ====
+::  a nacked proxy watch is a host-side failure, surfaced as
+::  %notes-error rather than a permission answer
 ::
-++  test-said-nack-coerces-denied
+++  test-said-nack-becomes-error
   %-  eval-mare
   =/  m  (mare ,~)
-  =*  b  bind:m
   ^-  form:m
-  ;<  ~  b  init-zod
-  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
   =/  f=flag:n  [~bus %nb]
   =/  pax=path  (said-watch-path f 1)
   =/  =wire  /said/(scot %p ~bus)/nb/note/1
-  ;<  *  b  (do-watch pax)
-  ;<  caz=(list card)  b
+  ;<  *  bind:m  (do-watch pax)
+  ;<  caz=(list card)  bind:m
     (do-agent wire [~bus %notes] [%watch-ack `~[leaf+"denied"]])
   %+  ex-cards  caz
-  :~  (ex-fact ~[pax] %notes-denied !>(~))
+  :~  (ex-fact ~[pax] %notes-error !>(~))
       (ex-card [%give %kick ~[pax] ~])
   ==
 ::  ====  test-said-snippet-grapheme-cluster  ====
-::  A snippet cut landing inside a zwj emoji family must back off past
-::  the whole cluster, not strand half the family.
+::  a snippet cut landing inside a zwj emoji family must back off past
+::  the whole cluster, not strand half the family
 ::
 ++  test-said-snippet-grapheme-cluster
   %-  eval-mare
   =/  m  (mare ,~)
-  =*  b  bind:m
   ^-  form:m
-  ;<  ~  b  init-zod
-  ;<  =bowl:gall  b  get-bowl
-  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a %create-notebook 'NB')
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
   ::  398 ascii chars, then a 7-codepoint family emoji straddling the
   ::  400-codepoint snippet limit
+  ::
   =/  fam=(list @c)
     :~  `@c`0x1.f468  `@c`0x200d  `@c`0x1.f469  `@c`0x200d
         `@c`0x1.f467  `@c`0x200d  `@c`0x1.f466
     ==
   =/  body=@t  (crip (weld (reap 398 'a') (tufa fam)))
-  ;<  *  b  (poke-a [%notebook f [%create-note 2 'T' body]])
-  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' body])
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
   =/  snip=@t  (crip (reap 398 'a'))
   %+  ex-cards  caz
   :~  %+  ex-fact  ~
@@ -2318,21 +2313,20 @@
       (ex-card [%give %kick ~ ~])
   ==
 ::  ====  test-said-uninit-sub-proxies  ====
-::  A just-joined %sub placeholder (init=|) has no note state; a said
-::  request must proxy to the host rather than answer %notes-denied.
+::  a just-joined %sub placeholder (init=|) has no note state; a said
+::  request must proxy to the host rather than answer %notes-denied
 ::
 ++  test-said-uninit-sub-proxies
   %-  eval-mare
   =/  m  (mare ,~)
-  =*  b  bind:m
   ^-  form:m
-  ;<  ~  b  init-zod
+  ;<  ~  bind:m  init-zod
   =/  f=flag:n  [~bus %nb]
-  ;<  *  b  (poke-a [%join f])
-  ;<  =bowl:gall  b  get-bowl
+  ;<  *  bind:m  (poke-a %join f)
+  ;<  =bowl:gall  bind:m  get-bowl
   =/  pax=path  (said-watch-path f 1)
   =/  =wire  /said/(scot %p ~bus)/nb/note/1
-  ;<  caz=(list card)  b  (do-watch pax)
+  ;<  caz=(list card)  bind:m  (do-watch pax)
   %+  ex-cards  caz
   ~[(ex-card [%pass wire %agent [~bus %notes] %watch pax])]
 ::  +said-group-scry: mock %gu group liveness + %gx can-read for said tests
@@ -2346,69 +2340,64 @@
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
     ~
   `!>(|=([who=ship =nest:n] allowed))
+::  +setup-said-group-notebook: group notebook 'GNB' + one note (id 3)
+::
+++  setup-said-group-notebook
+  =/  m  (mare ,[f=flag:n =bowl:gall])
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  ~  bind:m  (set-scry-gate (said-group-scry & &))
+  ;<  *  bind:m  (poke-a %create-group-notebook 'GNB' [~zod %grp] ~)
+  =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' 'B'])
+  (pure:m f bowl)
 ::  ====  test-said-group-reader-gets-preview  ====
-::  Group notebook, group synced, can-read allows → preview served.
+::  group notebook, group synced, can-read allows: preview served
 ::
 ++  test-said-group-reader-gets-preview
   %-  eval-mare
   =/  m  (mare ,~)
-  =*  b  bind:m
   ^-  form:m
-  ;<  ~  b  init-zod
-  ;<  =bowl:gall  b  get-bowl
-  ;<  ~  b  (set-scry-gate (said-group-scry & &))
-  ;<  *  b  (poke-a [%create-group-notebook 'GNB' [~zod %grp] ~])
-  =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
-  ;<  *  b  (set-src ~bus)
-  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-group-notebook
+  ;<  caz=(list card)  bind:m
+    ((do-as ~bus) (do-watch (said-watch-path f 3)))
   %+  ex-cards  caz
   :~  %+  ex-fact  ~
       [%notes-said !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'GNB']])]
       (ex-card [%give %kick ~ ~])
   ==
 ::  ====  test-said-group-ignores-public-visibility  ====
-::  A group notebook toggled %public must still gate previews on the
+::  a group notebook toggled %public must still gate previews on the
 ::  group's can-read — visibility only means something for non-group
-::  notebooks (mirrors +se-member-join).
+::  notebooks (mirrors +se-member-join)
 ::
 ++  test-said-group-ignores-public-visibility
   %-  eval-mare
   =/  m  (mare ,~)
-  =*  b  bind:m
   ^-  form:m
-  ;<  ~  b  init-zod
-  ;<  =bowl:gall  b  get-bowl
-  ;<  ~  b  (set-scry-gate (said-group-scry & &))
-  ;<  *  b  (poke-a [%create-group-notebook 'GNB' [~zod %grp] ~])
-  =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
-  ;<  *  b  (poke-a [%notebook f [%visibility %public]])
-  ;<  ~  b  (set-scry-gate (said-group-scry & |))
-  ;<  *  b  (set-src ~bus)
-  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-group-notebook
+  ;<  *  bind:m  (poke-a %notebook f [%visibility %public])
+  ;<  ~  bind:m  (set-scry-gate (said-group-scry & |))
+  ;<  caz=(list card)  bind:m
+    ((do-as ~bus) (do-watch (said-watch-path f 3)))
   %+  ex-cards  caz
   :~  (ex-fact ~ %notes-denied !>(~))
       (ex-card [%give %kick ~ ~])
   ==
 ::  ====  test-said-group-unsynced-fails-closed  ====
-::  Group notebook with an unsynced group must deny previews, even though
-::  +can-view-flag treats the same state as viewable for subscriptions.
+::  group notebook with an unsynced group must deny previews, even
+::  though +can-view-flag treats the same state as viewable for
+::  subscriptions
 ::
 ++  test-said-group-unsynced-fails-closed
   %-  eval-mare
   =/  m  (mare ,~)
-  =*  b  bind:m
   ^-  form:m
-  ;<  ~  b  init-zod
-  ;<  =bowl:gall  b  get-bowl
-  ;<  ~  b  (set-scry-gate (said-group-scry & &))
-  ;<  *  b  (poke-a [%create-group-notebook 'GNB' [~zod %grp] ~])
-  =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
-  ;<  *  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
-  ;<  ~  b  (set-scry-gate (said-group-scry | &))
-  ;<  *  b  (set-src ~bus)
-  ;<  caz=(list card)  b  (do-watch (said-watch-path f 3))
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-group-notebook
+  ;<  ~  bind:m  (set-scry-gate (said-group-scry | &))
+  ;<  caz=(list card)  bind:m
+    ((do-as ~bus) (do-watch (said-watch-path f 3)))
   %+  ex-cards  caz
   :~  (ex-fact ~ %notes-denied !>(~))
       (ex-card [%give %kick ~ ~])

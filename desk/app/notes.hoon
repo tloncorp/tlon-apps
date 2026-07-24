@@ -629,6 +629,7 @@
       [%v0 %said ship=@ name=@ %note id=@ ~]
     ::  single-shot note reference preview: answer from state if we can,
     ::  else proxy one watch to the host and relay its answer in +agent.
+    ::
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
     =/  nid=@ud  (slav %ud id.pole)
     ::  a just-joined %sub placeholder (init=|) has no note state yet and
@@ -797,14 +798,16 @@
   ::
       [%said ship=@ name=@ %note id=@ ~]
     ::  proxied note-preview answer from a notebook host: relay to our
-    ::  /v0/said subscribers (nack/foreign mark coerced to %notes-denied).
+    ::  /v0/said subscribers. a nack or foreign mark is a host-side
+    ::  failure, not a permission answer, so it becomes %notes-error.
+    ::
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
     =/  nid=@ud  (slav %ud id.pole)
     =/  paths=(list path)  ~[(said-path flag nid)]
     ?+  -.sign  cor
         %watch-ack
       ?~  p.sign  cor
-      =.  cor  (give %fact paths notes-denied+!>(~))
+      =.  cor  (give %fact paths notes-error+!>(~))
       (give %kick paths ~)
     ::
         %kick
@@ -812,9 +815,9 @@
     ::
         %fact
       =.  cor
-        ?:  ?=(?(%notes-said %notes-denied) p.cage.sign)
+        ?:  ?=(?(%notes-said %notes-denied %notes-error) p.cage.sign)
           (give %fact paths cage.sign)
-        (give %fact paths notes-denied+!>(~))
+        (give %fact paths notes-error+!>(~))
       =.  cor  (give %kick paths ~)
       =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
       (emit %pass wire %agent [ship.flag %notes] %leave ~)
@@ -1010,10 +1013,18 @@
   |=  [=flag:n nid=@ud]
   ^-  path
   /v0/said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
-::  +said-snippet: leading slice of body-md, cut on a codepoint (not
-::  byte) boundary, then backed off past any grapheme-cluster glue
-::  (zwj sequences, variation selectors, skin tones, combining marks)
-::  so a family emoji never loses its kids.
+::  +said-snippet: leading slice of body-md for preview cards
+::
+::  cuts at a codepoint boundary, then backs off past anything that can
+::  glue a grapheme cluster together, dropping the whole trailing
+::  cluster rather than splitting it. this approximates uax #29
+::  extended grapheme clusters; covered: zwj/zwnj sequences, variation
+::  selectors, skin tones, all combining-mark blocks, regional
+::  indicators (a cut between two flags conservatively drops the whole
+::  trailing flag run), and tag sequences. known gaps: hangul jamo
+::  composition and virama-joined indic conjuncts can still split —
+::  valid codepoints, visually altered. full coverage needs the uax
+::  #29 property tables; port them if this ever matters in practice.
 ::
 ++  said-snippet
   |=  body=@t
@@ -1023,10 +1034,16 @@
   ?:  (lte (lent chars) limit)  body
   =/  glue
     |=  c=@c
-    ?|  =(`@`c 0x200d)                        ::  zero-width joiner
-        =(`@`c 0xfe0e)  =(`@`c 0xfe0f)        ::  variation selectors
+    ?|  =(`@`c 0x200d)  =(`@`c 0x200c)            ::  zwj / zwnj
+        &((gte `@`c 0xfe00) (lte `@`c 0xfe0f))    ::  variation selectors
         &((gte `@`c 0x1.f3fb) (lte `@`c 0x1.f3ff))  ::  skin tones
-        &((gte `@`c 0x300) (lte `@`c 0x36f))  ::  combining marks
+        &((gte `@`c 0x1.f1e6) (lte `@`c 0x1.f1ff))  ::  regional indicators
+        &((gte `@`c 0xe.0001) (lte `@`c 0xe.007f))  ::  tag sequences
+        &((gte `@`c 0x300) (lte `@`c 0x36f))      ::  combining diacritics
+        &((gte `@`c 0x1ab0) (lte `@`c 0x1aff))    ::  combining extended
+        &((gte `@`c 0x1dc0) (lte `@`c 0x1dff))    ::  combining supplement
+        &((gte `@`c 0x20d0) (lte `@`c 0x20ff))    ::  combining for symbols
+        &((gte `@`c 0xfe20) (lte `@`c 0xfe2f))    ::  combining half marks
     ==
   ::  walk the kept slice in reverse so cluster glue peels off the end
   =/  peek=(list @c)  (flop (scag limit chars))
@@ -1036,11 +1053,15 @@
   ?.  |((glue i.peek) (glue nxt))
     (crip (tufa (flop peek)))
   $(peek t.peek, nxt i.peek)
-::  +give-said: one %fact (preview or %notes-denied) then an immediate
-::  %kick, mirroring %channels' single-shot said flow. Public notebooks
-::  preview for anyone. Unlike +can-view-flag (which treats an unsynced
-::  group as viewable so subscriptions only drop on real revocations),
-::  previews fail closed: no synced group, no snippet.
+::  +give-said: one %fact then an immediate %kick
+::
+::  mirrors %channels' single-shot said flow. public notebooks preview
+::  for anyone; unlike +can-view-flag (which treats an unsynced group
+::  as viewable so subscriptions only drop on real revocations),
+::  previews fail closed: no synced group, no snippet. %notes-denied
+::  strictly means no permission — a missing note for an authorized
+::  viewer is %notes-error, while missing notebooks stay denied so
+::  existence can't be probed.
 ::
 ++  give-said
   |=  [paths=(list path) =flag:n nid=@ud who=ship]
@@ -1060,7 +1081,7 @@
       ==
     ?.  can-view
       notes-denied+!>(~)
-    ?~  nt=(~(get by notes.bs) nid)  notes-denied+!>(~)
+    ?~  nt=(~(get by notes.bs) nid)  notes-error+!>(~)
     :-  %notes-said
     !>  ^-  said:n
     :-  flag

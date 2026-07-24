@@ -103,7 +103,8 @@ export function notesChannelId(flag: NotesFlag | string): string {
 
 /**
  * Preview payload from the %notes /v0/said single-shot subscription
- * (mark %notes-said). A %notes-denied answer arrives as a null fact.
+ * (mark %notes-said). %notes-denied (no read access) and %notes-error
+ * (missing note, host failure) both arrive as null facts.
  */
 export interface NotesSaidPreview {
   host: string;

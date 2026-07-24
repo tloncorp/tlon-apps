@@ -79,8 +79,6 @@ then
 fi
 
 http_port=9090
-# Fixed ames port: fake ~zod's default port collides with any other fakezod
-# on the machine (e.g. the rube/playwright dev ships).
 ames_port=31999
 if [ ! -d $pier_dir ]
 then
@@ -97,8 +95,6 @@ fi
 echo "Booting ship"
 ($vere --loom 33 --http-port $http_port -p $ames_port -t $pier) &
 vere_pid=$!
-# An orphaned vere keeps the pier and poisons later runs (commits silently
-# no-op against its stale mount mirror) — always reap it, even on ^C/kill.
 trap 'kill -TERM $vere_pid 2>/dev/null' EXIT
 
 function await_ship

@@ -77,8 +77,10 @@ channels:
     title: Single-shot note reference preview
     description: |
       Request/response over a subscription, mirroring %channels' /said:
-      exactly one fact (a `NotesSaid` preview, or null when denied /
-      missing — mark %notes-denied) followed by an immediate kick.
+      exactly one fact followed by an immediate kick. The fact is a
+      `NotesSaid` preview, or a null payload under mark %notes-denied
+      (no read permission) or %notes-error (missing note, host-side
+      failure).
 
       Hosts and local replicas answer from state; otherwise the agent
       proxies one watch to the notebook host and relays the answer.
@@ -229,8 +231,9 @@ components:
       name: notesSaid
       title: Note reference preview
       summary: |
-        Mark %notes-said. A denied or missing note instead delivers a
-        single null fact (mark %notes-denied).
+        Mark %notes-said. Denials deliver a null fact as %notes-denied;
+        missing notes and host-side failures deliver a null fact as
+        %notes-error.
       payload:
         $ref: "#/components/schemas/NotesSaid"
 
