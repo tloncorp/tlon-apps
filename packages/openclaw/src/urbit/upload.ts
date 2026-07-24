@@ -316,50 +316,19 @@ export function probeSvgBytes(buffer: Buffer | Uint8Array): SvgProbe {
   return probeSvgRoot(text, truncated);
 }
 
-export function isSvgBytes(buffer: Buffer | Uint8Array): boolean {
-  return probeSvgBytes(buffer) === 'svg';
-}
-
-function cleanFileNameSegment(segment: string): string {
-  return segment
-    .replace(/[^A-Za-z0-9._-]+/g, '-')
-    .replace(/-{2,}/g, '-')
-    .replace(/^[-.]+|[-.]+$/g, '')
-    .slice(0, 100);
-}
-
 /**
- * Sanitize a candidate upload filename to a bounded `[A-Za-z0-9._-]` allowlist
- * and force the canonical extension for `effectiveMime`.
- *
- * `uploadFile` embeds the name verbatim into the storage object key and
- * custom-storage builds the public URL with `new URL(fileKey, publicUrlBase)`,
- * so a name containing `#`, `?`, whitespace, or percent-encoding yields a
- * syntactically valid but wrong URL (the `#…` becomes a fragment) — a fresh
- * false-success path. The canonical extension replaces any mismatched one (an
- * SVG loaded from `diagram.xml` must become `….svg`, not keep `.xml`).
+ * Synthetic upload filename `upload-<timestamp>-<uuid>.<canonical-ext>`. Never
+ * derived from caller/source text: a path or URL segment can carry secrets, and
+ * a `#`/`?`/whitespace in the storage object key would corrupt the public URL
+ * custom-storage builds with `new URL(fileKey, base)`. The extension is canonical
+ * for `effectiveMime`.
  */
-export function safeUploadFileName(
-  name: string,
+export function syntheticUploadFileName(
   effectiveMime: string | undefined
 ): string {
-  const dotIdx = name.lastIndexOf('.');
-  let base = dotIdx > 0 ? name.slice(0, dotIdx) : name;
-  base = cleanFileNameSegment(base);
-  if (!base) {
-    base = `upload-${Date.now()}-${randomUUID()}`;
-  }
+  const base = `upload-${Date.now()}-${randomUUID()}`;
   const canonicalExt = extensionForMime(effectiveMime);
-  if (canonicalExt) {
-    return `${base}.${canonicalExt.replace(/^\./, '')}`;
-  }
-  if (dotIdx > 0) {
-    const ext = cleanFileNameSegment(name.slice(dotIdx + 1));
-    if (ext) {
-      return `${base}.${ext}`;
-    }
-  }
-  return base;
+  return canonicalExt ? `${base}.${canonicalExt.replace(/^\./, '')}` : base;
 }
 
 /**
@@ -619,7 +588,7 @@ export async function prepareOutboundMedia(
   const height = classified.kind === 'image' ? classified.height : 0;
 
   // Synthetic name only: local paths and remote URL components may contain secrets.
-  const fileName = safeUploadFileName('', effectiveMime);
+  const fileName = syntheticUploadFileName(effectiveMime);
 
   let uploadedUrl: string;
   try {

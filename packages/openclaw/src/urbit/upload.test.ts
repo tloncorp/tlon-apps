@@ -65,47 +65,47 @@ const SVG_DOCTYPE =
 const NON_SVG_XML = '<?xml version="1.0"?><root><item/></root>';
 const GARBAGE = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 
-describe('isSvgBytes', () => {
+describe('probeSvgBytes (SVG detection)', () => {
   it('detects plain, XML-declared, and DOCTYPE-prefixed SVG', async () => {
-    const { isSvgBytes } = await import('./upload.js');
-    expect(isSvgBytes(Buffer.from('<svg xmlns="x"></svg>'))).toBe(true);
-    expect(isSvgBytes(Buffer.from(SVG_XML))).toBe(true);
-    expect(isSvgBytes(Buffer.from(SVG_DOCTYPE))).toBe(true);
+    const { probeSvgBytes } = await import('./upload.js');
+    expect(probeSvgBytes(Buffer.from('<svg xmlns="x"></svg>'))).toBe('svg');
+    expect(probeSvgBytes(Buffer.from(SVG_XML))).toBe('svg');
+    expect(probeSvgBytes(Buffer.from(SVG_DOCTYPE))).toBe('svg');
   });
 
   it('detects UTF-16LE and UTF-16BE BOM-marked SVG', async () => {
-    const { isSvgBytes } = await import('./upload.js');
+    const { probeSvgBytes } = await import('./upload.js');
     expect(
-      isSvgBytes(
+      probeSvgBytes(
         concat(new Uint8Array([0xff, 0xfe]), utf16le('<svg xmlns="x"></svg>'))
       )
-    ).toBe(true);
+    ).toBe('svg');
     expect(
-      isSvgBytes(
+      probeSvgBytes(
         concat(new Uint8Array([0xfe, 0xff]), utf16be('<svg xmlns="x"></svg>'))
       )
-    ).toBe(true);
+    ).toBe('svg');
   });
 
   it('does not treat non-SVG XML or raster bytes as SVG', async () => {
-    const { isSvgBytes } = await import('./upload.js');
-    expect(isSvgBytes(Buffer.from(NON_SVG_XML))).toBe(false);
-    expect(isSvgBytes(validPngBytes())).toBe(false);
+    const { probeSvgBytes } = await import('./upload.js');
+    expect(probeSvgBytes(Buffer.from(NON_SVG_XML))).not.toBe('svg');
+    expect(probeSvgBytes(validPngBytes())).not.toBe('svg');
   });
 
   it('detects SVG after a DOCTYPE whose quoted literal contains ">"', async () => {
-    const { isSvgBytes } = await import('./upload.js');
+    const { probeSvgBytes } = await import('./upload.js');
     // A '>' inside the quoted SYSTEM literal must not terminate the DOCTYPE scan.
     expect(
-      isSvgBytes(
+      probeSvgBytes(
         Buffer.from('<!DOCTYPE svg SYSTEM "foo>bar"><svg xmlns="x"></svg>')
       )
-    ).toBe(true);
+    ).toBe('svg');
     expect(
-      isSvgBytes(
+      probeSvgBytes(
         Buffer.from("<!DOCTYPE svg SYSTEM 'foo>bar'><svg xmlns='x'></svg>")
       )
-    ).toBe(true);
+    ).toBe('svg');
   });
 });
 
@@ -181,38 +181,20 @@ describe('probeSvgBytes (tri-state)', () => {
   });
 });
 
-describe('safeUploadFileName', () => {
-  it('replaces unsafe characters and forces the canonical extension', async () => {
-    const { safeUploadFileName } = await import('./upload.js');
-    expect(safeUploadFileName('chart#1.png', 'image/png')).toBe('chart-1.png');
-    expect(safeUploadFileName('a%23b.png', 'image/png')).toBe('a-23b.png');
-    // Mismatched extension is replaced with the canonical one.
-    expect(safeUploadFileName('diagram.xml', 'image/svg+xml')).toBe(
-      'diagram.svg'
-    );
-    expect(safeUploadFileName('blob.bin', 'image/svg+xml')).toBe('blob.svg');
-  });
-
-  it('generates a name when the candidate is empty or fully stripped', async () => {
-    const { safeUploadFileName } = await import('./upload.js');
-    expect(safeUploadFileName('', 'image/png')).toMatch(
-      /^upload-\d+-[0-9a-f-]{36}\.png$/
-    );
-    expect(safeUploadFileName('###', 'image/png')).toMatch(
-      /^upload-\d+-[0-9a-f-]{36}\.png$/
-    );
-  });
-
-  it('only emits allowlisted characters', async () => {
-    const { safeUploadFileName } = await import('./upload.js');
-    const name = safeUploadFileName('we ird??name##.png', 'image/png');
+describe('syntheticUploadFileName', () => {
+  it('emits an allowlisted upload-<ts>-<uuid> name with the canonical extension', async () => {
+    const { syntheticUploadFileName } = await import('./upload.js');
+    const name = syntheticUploadFileName('image/png');
+    expect(name).toMatch(/^upload-\d+-[0-9a-f-]{36}\.png$/);
     expect(name).toMatch(/^[A-Za-z0-9._-]+$/);
+    // Canonical extension for the mime, regardless of any source name.
+    expect(syntheticUploadFileName('image/svg+xml')).toMatch(/\.svg$/);
   });
 
-  it('generates collision-resistant synthetic names that differ across rapid calls', async () => {
-    const { safeUploadFileName } = await import('./upload.js');
-    const a = safeUploadFileName('', 'image/png');
-    const b = safeUploadFileName('', 'image/png');
+  it('generates collision-resistant names that differ across rapid calls', async () => {
+    const { syntheticUploadFileName } = await import('./upload.js');
+    const a = syntheticUploadFileName('image/png');
+    const b = syntheticUploadFileName('image/png');
     expect(a).toMatch(/^upload-\d+-[0-9a-f-]{36}\.png$/);
     expect(b).toMatch(/^upload-\d+-[0-9a-f-]{36}\.png$/);
     expect(a).not.toBe(b);
