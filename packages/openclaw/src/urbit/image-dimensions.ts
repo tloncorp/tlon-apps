@@ -44,6 +44,59 @@ function ascii(b: Uint8Array, o: number, len: number): string {
   return String.fromCharCode(...b.subarray(o, o + len));
 }
 
+// A VP8 /VP8L chunk qualifies as an image bitstream only when its payload is
+// large enough to hold the variant's fixed header AND carries that header's
+// signature (the VP8 0x9d 0x01 0x2a start code at payload offset 3, or the VP8L
+// 0x2f signature byte at offset 0). FourCC presence alone is not enough.
+function webpChunkIsBitstream(
+  b: Uint8Array,
+  fourcc: string,
+  payload: number,
+  size: number
+): boolean {
+  if (fourcc === 'VP8 ') {
+    return (
+      size >= 10 &&
+      b[payload + 3] === 0x9d &&
+      b[payload + 4] === 0x01 &&
+      b[payload + 5] === 0x2a
+    );
+  }
+  if (fourcc === 'VP8L') {
+    return size >= 5 && b[payload] === 0x2f;
+  }
+  return false;
+}
+
+// An ANMF frame payload begins with a 16-byte frame header; the bytes after it
+// are a bounded RIFF chunk list. True when that nested list holds at least one
+// VP8 /VP8L bitstream subchunk passing webpChunkIsBitstream. `start` is the
+// offset of the ANMF payload and `size` its declared length; the walk never
+// reads past [start+16, start+size) or the buffer.
+function webpAnmfHasBitstream(
+  b: Uint8Array,
+  start: number,
+  size: number
+): boolean {
+  if (size < 16) return false;
+  const listEnd = start + size;
+  let off = start + 16;
+  let found = false;
+  while (off < listEnd) {
+    if (off + 8 > listEnd || off + 8 > b.length) return false; // partial header ⇒ malformed
+    const fourcc = ascii(b, off, 4);
+    const subSize = u32le(b, off + 4);
+    const subPayload = off + 8;
+    const subEnd = subPayload + subSize + (subSize & 1);
+    if (subEnd > listEnd || subEnd > b.length) return false; // overrun
+    if (webpChunkIsBitstream(b, fourcc, subPayload, subSize)) found = true;
+    off = subEnd;
+  }
+  // Require exact tiling AND a real bitstream: an empty, header-only, or
+  // trailing-garbage ANMF is a malformed frame.
+  return found && off === listEnd;
+}
+
 export type RasterInfo = {
   format: 'png' | 'jpeg' | 'gif' | 'webp';
   width: number;
@@ -59,7 +112,9 @@ export type RasterInfo = {
  */
 export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
   // PNG: full 8-byte signature; IHDR is always the first chunk and its length
-  // field must be exactly 13.
+  // field must be exactly 13. After reading IHDR, walk the remaining chunk
+  // sequence requiring at least one IDAT (length > 0) followed by an IEND
+  // (length 0). CRC values are NOT verified and IDAT is NOT inflated.
   if (bytes.length >= 8 && bytes[0] === 0x89 && ascii(bytes, 1, 3) === 'PNG') {
     if (
       bytes[4] !== 0x0d ||
@@ -69,8 +124,6 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
     ) {
       return null;
     }
-    // Need the chunk header (4-byte length + 4-byte type) before reading the
-    // declared IHDR length and type.
     if (bytes.length < 16) {
       return null;
     }
@@ -78,18 +131,47 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
     if (ihdrLen !== 13 || ascii(bytes, 12, 4) !== 'IHDR') {
       return null;
     }
-    // The full declared IHDR chunk — length field (4) + type (4) + the declared
-    // data bytes (ihdrLen) + CRC (4) — must actually be present in the buffer,
-    // not merely claimed by the length field. A truncated header that declares
-    // 13 data bytes but stops short of them (or of the CRC) is rejected.
     if (bytes.length < 8 + 4 + 4 + ihdrLen + 4) {
       return null;
     }
-    return { format: 'png', width: u32be(bytes, 16), height: u32be(bytes, 20) };
+    const width = u32be(bytes, 16);
+    const height = u32be(bytes, 20);
+    let offset = 8 + 4 + 4 + ihdrLen + 4;
+    let sawIdat = false;
+    while (offset + 8 <= bytes.length) {
+      const chunkLen = u32be(bytes, offset);
+      const chunkType = ascii(bytes, offset + 4, 4);
+      const chunkEnd = offset + 4 + 4 + chunkLen + 4;
+      if (chunkEnd > bytes.length) {
+        return null;
+      }
+      if (chunkType === 'IDAT' && chunkLen > 0) {
+        sawIdat = true;
+      }
+      if (chunkType === 'IEND') {
+        if (chunkLen !== 0) {
+          return null;
+        }
+        if (!sawIdat) {
+          return null;
+        }
+        return { format: 'png', width, height };
+      }
+      offset = chunkEnd;
+    }
+    return null;
   }
 
-  // GIF87a / GIF89a (not just "GIF8"): logical-screen descriptor right after
-  // the six-byte signature.
+  // GIF87a / GIF89a: six-byte signature + seven-byte logical-screen descriptor,
+  // then a bounded walk of the block grammar rather than a raw scan for 0x2C
+  // (which a 0x2C inside the global color table or an extension payload would
+  // fool). Skip the Global Color Table when its flag is set (3 * 2^(N+1) bytes
+  // per the packed field), then loop over 0x21 extensions (label + data
+  // sub-blocks, each a length byte + that many bytes, terminated by a 0x00
+  // sub-block), 0x2C image descriptors (skip any Local Color Table, then the
+  // LZW-min-code-size byte + image-data sub-blocks), and the 0x3B trailer.
+  // Require at least one real image descriptor carrying NON-EMPTY image data
+  // before the trailer; every step is bounds-checked against the buffer.
   if (bytes.length >= 4 && ascii(bytes, 0, 4) === 'GIF8') {
     if (bytes.length < 6) {
       return null;
@@ -98,42 +180,203 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
     if (sig !== 'GIF87a' && sig !== 'GIF89a') {
       return null;
     }
-    // The full 7-byte logical-screen descriptor (width, height, packed field,
-    // background color index, pixel aspect ratio) must be present in the buffer,
-    // not just the width/height prefix.
     if (bytes.length < 13) {
       return null;
     }
-    return { format: 'gif', width: u16le(bytes, 6), height: u16le(bytes, 8) };
+    const n = bytes.length;
+    let i = 13;
+    const packed = bytes[10];
+    if (packed & 0x80) {
+      i += 3 * (1 << ((packed & 0x07) + 1));
+      if (i > n) {
+        return null;
+      }
+    }
+    let sawImage = false;
+    for (;;) {
+      if (i >= n) {
+        return null;
+      }
+      const block = bytes[i];
+      if (block === 0x3b) {
+        if (!sawImage) {
+          return null;
+        }
+        return {
+          format: 'gif',
+          width: u16le(bytes, 6),
+          height: u16le(bytes, 8),
+        };
+      }
+      if (block === 0x21) {
+        if (i + 2 > n) {
+          return null;
+        }
+        i += 2;
+        for (;;) {
+          if (i >= n) {
+            return null;
+          }
+          const len = bytes[i];
+          i += 1;
+          if (len === 0) {
+            break;
+          }
+          i += len;
+          if (i > n) {
+            return null;
+          }
+        }
+        continue;
+      }
+      if (block === 0x2c) {
+        i += 1;
+        if (i + 9 > n) {
+          return null;
+        }
+        const imgPacked = bytes[i + 8];
+        i += 9;
+        if (imgPacked & 0x80) {
+          i += 3 * (1 << ((imgPacked & 0x07) + 1));
+          if (i > n) {
+            return null;
+          }
+        }
+        if (i >= n) {
+          return null;
+        }
+        i += 1;
+        let dataBytes = 0;
+        for (;;) {
+          if (i >= n) {
+            return null;
+          }
+          const len = bytes[i];
+          i += 1;
+          if (len === 0) {
+            break;
+          }
+          dataBytes += len;
+          i += len;
+          if (i > n) {
+            return null;
+          }
+        }
+        if (dataBytes > 0) {
+          sawImage = true;
+        }
+        continue;
+      }
+      return null;
+    }
   }
 
-  // JPEG: SOI + segment walk to a start-of-frame marker. Each scanned segment's
-  // length field must be >= 2 and lie within the buffer; the SOF must carry at
-  // least one component and its length must be exactly 8 + components*3.
+  // JPEG: SOI + a bounded marker-grammar walk. Record dimensions from a
+  // start-of-frame segment, then require a Start-Of-Scan segment whose header
+  // (length + component selectors) bounds-checks, followed by at least one byte
+  // of entropy-coded scan data, before a syntactic End-Of-Image marker. Within
+  // the scan, byte-stuffing (0xFF00) and restart markers (0xFFD0–0xFFD7) are
+  // part of the scan, not segment terminators, and multiple scans are tolerated.
+  // The EOI need only appear AFTER the scan data — trailing padding after EOI is
+  // permitted, so complete JPEGs with post-EOI bytes still parse. Nothing is
+  // huffman-decoded or dequantized; this is structural presence + bounds only.
   if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+    const n = bytes.length;
+    let dims: { height: number; width: number } | null = null;
+    let sawScan = false;
     let i = 2;
-    while (i + 3 < bytes.length) {
+    for (;;) {
+      if (i + 1 >= n) {
+        return null;
+      }
       if (bytes[i] !== 0xff) {
         return null;
       }
-      const marker = bytes[i + 1];
-      if (marker === 0xff) {
-        i += 1; // fill byte
+      while (i < n && bytes[i] === 0xff) {
+        i += 1;
+      }
+      if (i >= n) {
+        return null;
+      }
+      const marker = bytes[i];
+      i += 1;
+      if (
+        marker === 0x01 ||
+        marker === 0xd8 ||
+        (marker >= 0xd0 && marker <= 0xd7)
+      ) {
         continue;
       }
-      if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd8)) {
-        i += 2; // standalone marker, no length
+      if (marker === 0xd9) {
+        if (!dims || !sawScan) {
+          return null;
+        }
+        return { format: 'jpeg', height: dims.height, width: dims.width };
+      }
+      if (marker === 0xda) {
+        if (!dims) {
+          return null;
+        }
+        if (i + 2 > n) {
+          return null;
+        }
+        const sosLen = u16be(bytes, i);
+        if (sosLen < 8) {
+          return null;
+        }
+        if (i + sosLen > n) {
+          return null;
+        }
+        const ns = bytes[i + 2];
+        if (ns < 1 || sosLen !== 6 + ns * 2) {
+          return null;
+        }
+        let k = i + sosLen;
+        let scanData = 0;
+        for (;;) {
+          if (k >= n) {
+            return null;
+          }
+          if (bytes[k] !== 0xff) {
+            k += 1;
+            scanData += 1;
+            continue;
+          }
+          if (k + 1 >= n) {
+            return null;
+          }
+          const next = bytes[k + 1];
+          if (next === 0x00) {
+            k += 2;
+            scanData += 1;
+            continue;
+          }
+          if (next >= 0xd0 && next <= 0xd7) {
+            k += 2;
+            continue;
+          }
+          if (next === 0xff) {
+            k += 1;
+            continue;
+          }
+          break;
+        }
+        if (scanData < 1) {
+          return null;
+        }
+        sawScan = true;
+        i = k;
         continue;
       }
-      if (marker === 0xd9 || marker === 0xda) {
-        return null; // EOI/SOS before any SOF
+      if (i + 2 > n) {
+        return null;
       }
-      const segLen = u16be(bytes, i + 2);
+      const segLen = u16be(bytes, i);
       if (segLen < 2) {
         return null;
       }
-      if (i + 2 + segLen > bytes.length) {
-        return null; // segment crosses the buffer boundary
+      if (i + segLen > n) {
+        return null;
       }
       const isSof =
         marker >= 0xc0 &&
@@ -142,25 +385,23 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
         marker !== 0xc8 &&
         marker !== 0xcc;
       if (isSof) {
-        if (i + 9 >= bytes.length) {
+        if (i + 8 > n) {
           return null;
         }
-        const components = bytes[i + 9];
+        const components = bytes[i + 7];
         if (components < 1) {
           return null;
         }
         if (segLen !== 8 + components * 3) {
           return null;
         }
-        return {
-          format: 'jpeg',
-          height: u16be(bytes, i + 5),
-          width: u16be(bytes, i + 7),
+        dims = {
+          height: u16be(bytes, i + 3),
+          width: u16be(bytes, i + 5),
         };
       }
-      i += 2 + segLen;
+      i += segLen;
     }
-    return null;
   }
 
   // WebP: RIFF container; the RIFF size field and the variant chunk size are
@@ -216,11 +457,55 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
       if (chunkSize !== 10) {
         return null;
       }
-      return {
-        format: 'webp',
-        width: u24le(bytes, 24) + 1,
-        height: u24le(bytes, 27) + 1,
-      };
+      const animFlag = (bytes[20] & 0x02) !== 0;
+      const width = u24le(bytes, 24) + 1;
+      const height = u24le(bytes, 27) + 1;
+      // A VP8X extended header alone carries no pixels. Walk the bounded RIFF
+      // chunk list within the RIFF-size bound and require an actual image
+      // bitstream, not merely a chunk FourCC: a static VP8 /VP8L that passes the
+      // minimum-header checks, or — when the animation flag is set — the
+      // mandatory ANIM chunk plus at least one ANMF frame whose payload carries
+      // a nested VP8 /VP8L bitstream. VP8X-only files, empty/header-only image
+      // chunks, and animation flagged without ANIM/a valid frame are rejected.
+      let off = paddedEnd;
+      let hasImage = false;
+      let hasAnim = false;
+      let hasFrame = false;
+      while (off + 8 <= riffEnd && off + 8 <= bytes.length) {
+        const fourcc = ascii(bytes, off, 4);
+        const cSize = u32le(bytes, off + 4);
+        const payload = off + 8;
+        const cEnd = payload + cSize + (cSize & 1);
+        if (cEnd > riffEnd || cEnd > bytes.length) {
+          return null;
+        }
+        if (fourcc === 'VP8 ' || fourcc === 'VP8L') {
+          if (webpChunkIsBitstream(bytes, fourcc, payload, cSize)) {
+            hasImage = true;
+          }
+        } else if (fourcc === 'ANIM') {
+          if (cSize >= 6) {
+            hasAnim = true;
+          }
+        } else if (fourcc === 'ANMF') {
+          // Every ANMF frame must carry a real bitstream; an empty or malformed
+          // frame — even alongside valid ones — makes the animation invalid
+          // (libwebp rejects such files).
+          if (!webpAnmfHasBitstream(bytes, payload, cSize)) {
+            return null;
+          }
+          hasFrame = true;
+        }
+        off = cEnd;
+      }
+      if (animFlag) {
+        if (!hasAnim || !hasFrame) {
+          return null;
+        }
+      } else if (!hasImage) {
+        return null;
+      }
+      return { format: 'webp', width, height };
     }
     return null;
   }

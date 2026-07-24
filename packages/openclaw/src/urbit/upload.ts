@@ -105,20 +105,6 @@ function normalizeMediaUrl(mediaUrl: string): string {
 }
 
 /**
- * Source label for remote error messages and logs: `origin + pathname`,
- * dropping userinfo, query, and fragment so signed-query secrets and embedded
- * credentials never reach logs or error text.
- */
-export function sanitizeMediaUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    return parsed.origin + parsed.pathname;
-  } catch {
-    return '[unparseable URL]';
-  }
-}
-
-/**
  * Detect an authority-form URL (`<scheme>://…`) whose scheme is NOT one the
  * pipeline handles (http/https remote, `media://` passthrough, `file://` local).
  *
@@ -371,13 +357,13 @@ export function safeUploadFileName(
  */
 export function classifyLoadedMedia(params: {
   buffer: Buffer | Uint8Array;
-  declaredMime?: string; // loader contentType
+  loaderMime?: string; // loader-resolved contentType (detectMime byte-sniff precedence already applied by core)
   sniffedMime?: string; // await detectMime({ buffer }) — byte sniff only
   isRemote: boolean;
   sourceLabel: string;
 }): ClassifiedMedia {
-  const { buffer, declaredMime, sniffedMime, isRemote, sourceLabel } = params;
-  const declaredCanon = canon(declaredMime);
+  const { buffer, loaderMime, sniffedMime, isRemote, sourceLabel } = params;
+  const loaderCanon = canon(loaderMime);
   const sniffedCanon = canon(sniffedMime);
 
   const raster = parseRasterHeader(buffer);
@@ -414,7 +400,8 @@ export function classifyLoadedMedia(params: {
   }
 
   // A definitive byte sniff is ground truth about the content, so it is checked
-  // before the (attacker/server-controllable) declared MIME.
+  // before the loader-resolved content type (which core's detectMime already
+  // gives byte-sniff precedence to, but may still be a generic container type).
   //
   // 1. A sniff for a parser-supported format (PNG/JPEG/GIF/WebP) whose header
   //    did not parse must never fall through — garbage/truncated bytes must not
@@ -424,10 +411,10 @@ export function classifyLoadedMedia(params: {
   }
 
   // 2. A sniff for any other image format (AVIF/HEIC/HEIF/BMP/ICO …) is a valid
-  //    image we don't inline. This takes precedence over a conflicting declared
-  //    MIME: bytes that definitively sniff as AVIF are AVIF even if the response
-  //    header claimed `image/jpeg`, so the actionable convert-hint wins over the
-  //    generic "not a valid image".
+  //    image we don't inline. This takes precedence over a conflicting
+  //    loader-resolved content type: bytes that definitively sniff as AVIF are
+  //    AVIF even if the loader resolved `image/jpeg`, so the actionable
+  //    convert-hint wins over the generic "not a valid image".
   if (sniffedCanon?.startsWith('image/')) {
     const fmt = sniffedCanon.slice('image/'.length);
     throw new Error(
@@ -435,21 +422,18 @@ export function classifyLoadedMedia(params: {
     );
   }
 
-  // 3. No definitive sniff: fall back to the declared MIME. A declared
-  //    parser-supported format whose header did not parse must not fall through.
-  if (declaredCanon && PARSEABLE_MIMES.has(declaredCanon)) {
+  // 3. No definitive sniff: fall back to the loader-resolved content type. A
+  //    loader-resolved parser-supported format whose header did not parse must
+  //    not fall through.
+  if (loaderCanon && PARSEABLE_MIMES.has(loaderCanon)) {
     throw new Error(`Media "${sourceLabel}" is not a valid image`);
   }
 
-  if (declaredCanon?.startsWith('image/')) {
+  if (loaderCanon?.startsWith('image/')) {
     throw new Error(`Media "${sourceLabel}" is not a valid image`);
   }
 
-  return { kind: 'link', effectiveMime: declaredCanon };
-}
-
-function basenameFromRemote(url: URL): string {
-  return url.pathname.split('/').pop() ?? '';
+  return { kind: 'link', effectiveMime: loaderCanon };
 }
 
 /**
@@ -462,6 +446,15 @@ function basenameFromRemote(url: URL): string {
  * appears in error message text.
  */
 const LOCAL_MEDIA_LABEL = '[local media reference]';
+
+/**
+ * The remote sourceLabel used in error messages is ALWAYS this fixed placeholder.
+ * Hostnames, subdomains, and path segments can themselves carry tokens or secrets,
+ * so no part of the URL reaches error text or logs. The full normalized URL is
+ * still used internally for fetching and hotlink fallback; this constant only
+ * controls what appears in error message text.
+ */
+const REMOTE_MEDIA_LABEL = '[remote media reference]';
 
 function isTlonHostingForced(): boolean {
   const raw = (process.env.TLON_HOSTING ?? '').trim().toLowerCase();
@@ -593,14 +586,12 @@ export async function prepareOutboundMedia(
     );
   }
 
-  // sourceLabel is safe by construction: remote sources use the parsed URL's
-  // origin+pathname (userinfo/query/fragment dropped) and local sources use the
-  // fixed LOCAL_MEDIA_LABEL placeholder, so caller/model-controlled path text
-  // never reaches an error message. The local path is decoded once above for the
+  // sourceLabel is safe by construction: remote sources use the fixed
+  // REMOTE_MEDIA_LABEL placeholder and local sources use the fixed
+  // LOCAL_MEDIA_LABEL placeholder, so caller/model-controlled text never
+  // reaches an error message. The local path is decoded once above for the
   // SVG check and is not re-decoded here.
-  const sourceLabel = remoteUrl
-    ? sanitizeMediaUrl(normalized)
-    : LOCAL_MEDIA_LABEL;
+  const sourceLabel = remoteUrl ? REMOTE_MEDIA_LABEL : LOCAL_MEDIA_LABEL;
 
   let media: WebMediaResult;
   try {
@@ -627,7 +618,7 @@ export async function prepareOutboundMedia(
 
   const classified = classifyLoadedMedia({
     buffer,
-    declaredMime: media.contentType,
+    loaderMime: media.contentType,
     sniffedMime,
     isRemote,
     sourceLabel,
@@ -638,14 +629,11 @@ export async function prepareOutboundMedia(
   const width = classified.kind === 'image' ? classified.width : 0;
   const height = classified.kind === 'image' ? classified.height : 0;
 
-  // Never derive the uploaded filename from caller-controlled local path text.
-  // Local and media:// sources always get a synthetic filename
-  // (upload-<timestamp>.<ext>). Remote sources use the basename from the parsed
-  // URL object's .pathname — structurally safe because it's extracted from Node's
-  // URL parser fields, not raw text pattern-matching.
-  const fileName = remoteUrl
-    ? safeUploadFileName(basenameFromRemote(remoteUrl), effectiveMime)
-    : safeUploadFileName('', effectiveMime);
+  // Never derive the uploaded filename from caller-controlled text. Both local
+  // and remote sources get a synthetic filename (upload-<timestamp>.<ext>).
+  // Remote URL path segments can carry secrets, so no part of the URL reaches
+  // the storage object key.
+  const fileName = safeUploadFileName('', effectiveMime);
 
   let uploadedUrl: string;
   try {

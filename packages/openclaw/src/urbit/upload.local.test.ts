@@ -13,7 +13,17 @@ import {
 } from 'vitest';
 
 import { parseRasterHeader } from './image-dimensions.js';
-import { pngHeaderBytes, validPngBytes } from './test-fixtures.js';
+import {
+  pngHeaderBytes,
+  realBaselineJpegBytes,
+  realProgressiveJpegBytes,
+  realWebpAnimatedBytes,
+  realWebpLosslessBytes,
+  realWebpLossyBytes,
+  realWebpVp8xStaticBytes,
+  validGifBytes,
+  validPngBytes,
+} from './test-fixtures.js';
 import { prepareOutboundMedia } from './upload.js';
 
 // Local cases use the REAL loadWebMedia + buildOutboundMediaLoadOptions against
@@ -62,6 +72,67 @@ describe('prepareOutboundMedia (local, real loader)', () => {
       format: 'png',
       width: 1,
       height: 1,
+    });
+  });
+
+  it('genuine GIF fixture sniffs as image/gif and parses with real dimensions', async () => {
+    const { detectMime } = await import('openclaw/plugin-sdk/media-mime');
+    const bytes = validGifBytes();
+    expect(await detectMime({ buffer: bytes })).toBe('image/gif');
+    expect(parseRasterHeader(bytes)).toEqual({
+      format: 'gif',
+      width: 1,
+      height: 1,
+    });
+  });
+
+  it('genuine JPEG fixtures sniff as image/jpeg and parse with real dimensions', async () => {
+    const { detectMime } = await import('openclaw/plugin-sdk/media-mime');
+    const baseline = realBaselineJpegBytes();
+    expect(await detectMime({ buffer: baseline })).toBe('image/jpeg');
+    expect(parseRasterHeader(baseline)).toEqual({
+      format: 'jpeg',
+      width: 2,
+      height: 3,
+    });
+    const progressive = realProgressiveJpegBytes();
+    expect(await detectMime({ buffer: progressive })).toBe('image/jpeg');
+    expect(parseRasterHeader(progressive)).toEqual({
+      format: 'jpeg',
+      width: 4,
+      height: 2,
+    });
+  });
+
+  it('genuine WebP fixtures sniff as image/webp and parse with real dimensions', async () => {
+    const { detectMime } = await import('openclaw/plugin-sdk/media-mime');
+    const lossy = realWebpLossyBytes();
+    expect(await detectMime({ buffer: lossy })).toBe('image/webp');
+    expect(parseRasterHeader(lossy)).toEqual({
+      format: 'webp',
+      width: 5,
+      height: 4,
+    });
+    const lossless = realWebpLosslessBytes();
+    expect(await detectMime({ buffer: lossless })).toBe('image/webp');
+    expect(parseRasterHeader(lossless)).toEqual({
+      format: 'webp',
+      width: 5,
+      height: 4,
+    });
+    const vp8xStatic = realWebpVp8xStaticBytes();
+    expect(await detectMime({ buffer: vp8xStatic })).toBe('image/webp');
+    expect(parseRasterHeader(vp8xStatic)).toEqual({
+      format: 'webp',
+      width: 7,
+      height: 3,
+    });
+    const animated = realWebpAnimatedBytes();
+    expect(await detectMime({ buffer: animated })).toBe('image/webp');
+    expect(parseRasterHeader(animated)).toEqual({
+      format: 'webp',
+      width: 6,
+      height: 5,
     });
   });
 

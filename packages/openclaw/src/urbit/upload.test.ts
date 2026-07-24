@@ -5,7 +5,8 @@ import {
   bmpBytes,
   heicBytes,
   icoBytes,
-  pngHeaderBytes,
+  pngCompleteBytes,
+  validPngBytes,
 } from './test-fixtures.js';
 
 // Mock @tloncorp/api's uploadFile everywhere (test-double contract).
@@ -64,25 +65,6 @@ const SVG_DOCTYPE =
 const NON_SVG_XML = '<?xml version="1.0"?><root><item/></root>';
 const GARBAGE = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
 
-describe('sanitizeMediaUrl', () => {
-  it('drops userinfo, query, and fragment', async () => {
-    const { sanitizeMediaUrl } = await import('./upload.js');
-    expect(
-      sanitizeMediaUrl(
-        'https://user:pass@host.example/path/img.png?sig=secret#frag'
-      )
-    ).toBe('https://host.example/path/img.png');
-  });
-
-  it('returns a fixed placeholder for a malformed credentialed URL (never echoes raw input)', async () => {
-    const { sanitizeMediaUrl } = await import('./upload.js');
-    const malformed = 'https://user:pass@host:bad/img.png?sig=secret';
-    expect(sanitizeMediaUrl(malformed)).toBe('[unparseable URL]');
-    expect(sanitizeMediaUrl(malformed)).not.toContain('user:pass');
-    expect(sanitizeMediaUrl(malformed)).not.toContain('sig=secret');
-  });
-});
-
 describe('isSvgBytes', () => {
   it('detects plain, XML-declared, and DOCTYPE-prefixed SVG', async () => {
     const { isSvgBytes } = await import('./upload.js');
@@ -108,7 +90,7 @@ describe('isSvgBytes', () => {
   it('does not treat non-SVG XML or raster bytes as SVG', async () => {
     const { isSvgBytes } = await import('./upload.js');
     expect(isSvgBytes(Buffer.from(NON_SVG_XML))).toBe(false);
-    expect(isSvgBytes(pngHeaderBytes(10, 20))).toBe(false);
+    expect(isSvgBytes(validPngBytes())).toBe(false);
   });
 
   it('detects SVG after a DOCTYPE whose quoted literal contains ">"', async () => {
@@ -153,11 +135,11 @@ describe('safeUploadFileName', () => {
 });
 
 describe('classifyLoadedMedia', () => {
-  it('classifies a structurally complete PNG header as an image with real dims', async () => {
+  it('classifies a genuine complete PNG as an image with real dims', async () => {
     const { classifyLoadedMedia } = await import('./upload.js');
     expect(
       classifyLoadedMedia({
-        buffer: pngHeaderBytes(10, 20),
+        buffer: validPngBytes(10, 20),
         sniffedMime: 'image/png',
         isRemote: false,
         sourceLabel: 'x',
@@ -174,7 +156,7 @@ describe('classifyLoadedMedia', () => {
     const { classifyLoadedMedia } = await import('./upload.js');
     expect(() =>
       classifyLoadedMedia({
-        buffer: pngHeaderBytes(0, 0),
+        buffer: pngCompleteBytes(0, 0),
         sniffedMime: 'image/png',
         isRemote: false,
         sourceLabel: 'x',
@@ -186,7 +168,7 @@ describe('classifyLoadedMedia', () => {
     const { classifyLoadedMedia } = await import('./upload.js');
     expect(() =>
       classifyLoadedMedia({
-        buffer: pngHeaderBytes(100000, 100000),
+        buffer: pngCompleteBytes(100000, 100000),
         sniffedMime: 'image/png',
         isRemote: false,
         sourceLabel: 'x',
@@ -198,7 +180,7 @@ describe('classifyLoadedMedia', () => {
     const { classifyLoadedMedia } = await import('./upload.js');
     expect(() =>
       classifyLoadedMedia({
-        buffer: pngHeaderBytes(10, 20),
+        buffer: validPngBytes(10, 20),
         sniffedMime: 'image/gif',
         isRemote: false,
         sourceLabel: 'x',
@@ -210,7 +192,7 @@ describe('classifyLoadedMedia', () => {
     const { classifyLoadedMedia } = await import('./upload.js');
     expect(() =>
       classifyLoadedMedia({
-        buffer: pngHeaderBytes(10, 20),
+        buffer: validPngBytes(10, 20),
         sniffedMime: undefined,
         isRemote: false,
         sourceLabel: 'x',
@@ -225,7 +207,7 @@ describe('classifyLoadedMedia', () => {
       expect(() =>
         classifyLoadedMedia({
           buffer: GARBAGE,
-          declaredMime: mime,
+          loaderMime: mime,
           sniffedMime: undefined,
           isRemote: false,
           sourceLabel: 'x',
@@ -254,12 +236,12 @@ describe('classifyLoadedMedia', () => {
     }
   );
 
-  it('classifies a structurally complete PNG header with a conflicting declared MIME as a PNG image (raster parse is independent of declaredMime)', async () => {
+  it('classifies a genuine complete PNG with a conflicting loader MIME as a PNG image (raster parse is independent of loaderMime)', async () => {
     const { classifyLoadedMedia } = await import('./upload.js');
     expect(
       classifyLoadedMedia({
-        buffer: pngHeaderBytes(10, 20),
-        declaredMime: 'application/pdf',
+        buffer: validPngBytes(10, 20),
+        loaderMime: 'application/pdf',
         sniffedMime: 'image/png',
         isRemote: true,
         sourceLabel: 'x',
@@ -272,12 +254,12 @@ describe('classifyLoadedMedia', () => {
     });
   });
 
-  it('routes valid SVG with a conflicting declared image/png to the SVG branch (byte detection precedes parser-supported rejection)', async () => {
+  it('routes valid SVG with a conflicting loader image/png to the SVG branch (byte detection precedes parser-supported rejection)', async () => {
     const { classifyLoadedMedia } = await import('./upload.js');
     expect(
       classifyLoadedMedia({
         buffer: Buffer.from(SVG_XML),
-        declaredMime: 'image/png',
+        loaderMime: 'image/png',
         sniffedMime: 'application/xml',
         isRemote: true,
         sourceLabel: 'x',
@@ -307,12 +289,12 @@ describe('classifyLoadedMedia', () => {
     ).not.toThrow(/can't be posted inline/);
   });
 
-  it('throws the AVIF convert hint for avif bytes declared as image/jpeg (sniffed-unsupported precedes declared-parseable)', async () => {
+  it('throws the AVIF convert hint for avif bytes with loader image/jpeg (sniffed-unsupported precedes loader-parseable)', async () => {
     const { classifyLoadedMedia } = await import('./upload.js');
     expect(() =>
       classifyLoadedMedia({
         buffer: avifBytes(),
-        declaredMime: 'image/jpeg',
+        loaderMime: 'image/jpeg',
         sniffedMime: 'image/avif',
         isRemote: true,
         sourceLabel: 'x',
@@ -325,7 +307,7 @@ describe('classifyLoadedMedia', () => {
     expect(
       classifyLoadedMedia({
         buffer: Buffer.from(SVG_XML),
-        declaredMime: 'application/xml',
+        loaderMime: 'application/xml',
         sniffedMime: 'application/xml',
         isRemote: true,
         sourceLabel: 'x',
@@ -347,7 +329,7 @@ describe('classifyLoadedMedia', () => {
       expect(
         classifyLoadedMedia({
           buffer,
-          declaredMime: 'application/xml',
+          loaderMime: 'application/xml',
           sniffedMime: 'application/xml',
           isRemote: true,
           sourceLabel: 'x',
@@ -373,7 +355,7 @@ describe('classifyLoadedMedia', () => {
     expect(
       classifyLoadedMedia({
         buffer: Buffer.from(NON_SVG_XML),
-        declaredMime: 'application/xml',
+        loaderMime: 'application/xml',
         sniffedMime: 'application/xml',
         isRemote: true,
         sourceLabel: 'x',
@@ -386,7 +368,7 @@ describe('classifyLoadedMedia', () => {
     expect(
       classifyLoadedMedia({
         buffer: Buffer.from('%PDF-1.4 garbage'),
-        declaredMime: 'application/pdf',
+        loaderMime: 'application/pdf',
         sniffedMime: 'application/pdf',
         isRemote: true,
         sourceLabel: 'x',
@@ -426,7 +408,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
 
   function mockRemoteImage(contentType = 'image/png') {
     loadWebMedia.mockResolvedValue({
-      buffer: Buffer.from(pngHeaderBytes(10, 20)),
+      buffer: Buffer.from(validPngBytes(10, 20)),
       contentType,
       kind: 'image',
     });
@@ -475,7 +457,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
       const { prepareOutboundMedia } = await import('./upload.js');
       const promise = prepareOutboundMedia('https://host/img.png', {});
       await expect(promise).rejects.toThrow(
-        /Cannot read media "https:\/\/host\/img\.png": Failed to read media/
+        /Cannot read media "\[remote media reference\]": Failed to read media/
       );
       for (const s of forbidden) {
         await expect(promise).rejects.not.toThrow(s);
@@ -514,7 +496,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
       const { prepareOutboundMedia } = await import('./upload.js');
       const promise = prepareOutboundMedia('https://host/img.png', {});
       await expect(promise).rejects.toThrow(
-        `Cannot read media "https://host/img.png": ${phrase}`
+        `Cannot read media "[remote media reference]": ${phrase}`
       );
       // The raw message is never interpolated, even though the discriminator is.
       await expect(promise).rejects.not.toThrow(/secretvalue/);
@@ -556,7 +538,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     expect(result.contentType).toBe('image/svg+xml');
   });
 
-  it('replaces a mismatched extension for SVG bytes (diagram.xml -> .svg)', async () => {
+  it('uses a synthetic filename for remote SVG bytes (never derives from pathname)', async () => {
     loadWebMedia.mockResolvedValue({
       buffer: Buffer.from(SVG_XML),
       contentType: 'application/xml',
@@ -569,7 +551,9 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     const { prepareOutboundMedia } = await import('./upload.js');
     await prepareOutboundMedia('https://host/diagram.xml', {});
     expect(uploadFile).toHaveBeenCalledWith(
-      expect.objectContaining({ fileName: 'diagram.svg' })
+      expect.objectContaining({
+        fileName: expect.stringMatching(/^upload-\d+\.svg$/),
+      })
     );
   });
 
@@ -759,7 +743,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
 
   it('ignores a secret-bearing loader fileName for remote sources', async () => {
     loadWebMedia.mockResolvedValue({
-      buffer: Buffer.from(pngHeaderBytes(10, 20)),
+      buffer: Buffer.from(validPngBytes(10, 20)),
       contentType: 'image/png',
       kind: 'image',
       fileName: 'evil<>.png?x=1',
@@ -771,7 +755,9 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     const { prepareOutboundMedia } = await import('./upload.js');
     await prepareOutboundMedia('https://host/photo.png', {});
     expect(uploadFile).toHaveBeenCalledWith(
-      expect.objectContaining({ fileName: 'photo.png' })
+      expect.objectContaining({
+        fileName: expect.stringMatching(/^upload-\d+\.png$/),
+      })
     );
   });
 
@@ -789,7 +775,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     );
   });
 
-  it('sanitizes a percent-encoded remote pathname filename', async () => {
+  it('uses a synthetic filename for a percent-encoded remote pathname (never derives from URL)', async () => {
     mockRemoteImage();
     uploadFile.mockResolvedValue({
       url: 'https://storage.example/u/a-23b.png',
@@ -797,8 +783,8 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     const { prepareOutboundMedia } = await import('./upload.js');
     await prepareOutboundMedia('https://host/a%23b.png', {});
     const fileName = uploadFile.mock.calls[0][0].fileName as string;
+    expect(fileName).toMatch(/^upload-\d+\.png$/);
     expect(fileName).toMatch(/^[A-Za-z0-9._-]+$/);
-    expect(fileName).toMatch(/\.png$/);
   });
 
   it('strips the MEDIA: prefix for remote URLs', async () => {
@@ -915,7 +901,7 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     }
   );
 
-  it('uses the parsed-pathname basename for remote filenames (allowlist-transformed)', async () => {
+  it('uses a synthetic filename for remote sources (never derives from URL pathname)', async () => {
     mockRemoteImage();
     uploadFile.mockResolvedValue({
       url: 'https://storage.example/u/file.png',
@@ -923,7 +909,52 @@ describe('prepareOutboundMedia (remote, mocked loader)', () => {
     const { prepareOutboundMedia } = await import('./upload.js');
     await prepareOutboundMedia('https://host/path/file@name.png', {});
     const fileName = uploadFile.mock.calls[0][0].fileName as string;
-    expect(fileName).toBe('file-name.png');
+    expect(fileName).toMatch(/^upload-\d+\.png$/);
     expect(fileName).toMatch(/^[A-Za-z0-9._-]+$/);
+  });
+
+  it('never leaks a secret-bearing remote path segment into error text or the uploaded filename', async () => {
+    loadWebMedia.mockResolvedValue({
+      buffer: Buffer.from(validPngBytes(10, 20)),
+      contentType: 'image/png',
+      kind: 'image',
+    });
+    detectMime.mockResolvedValue('image/png');
+    uploadFile.mockRejectedValue(new Error('upload boom'));
+    const { prepareOutboundMedia } = await import('./upload.js');
+    const promise = prepareOutboundMedia(
+      'http://cdn.example/tok-SECRETVALUE.png',
+      {}
+    );
+    await expect(promise).rejects.toThrow(/Failed to upload media/);
+    await expect(promise).rejects.not.toThrow(/SECRETVALUE/);
+    await expect(promise).rejects.not.toThrow(/tok-SECRETVALUE/);
+    await expect(promise).rejects.not.toThrow(/cdn\.example/);
+    for (const call of logSpy.mock.calls) {
+      for (const arg of call) {
+        const s = String(arg);
+        expect(s).not.toContain('SECRETVALUE');
+        expect(s).not.toContain('tok-SECRETVALUE');
+      }
+    }
+  });
+
+  it('uses a synthetic upload filename with no part of the remote path on the upload path', async () => {
+    loadWebMedia.mockResolvedValue({
+      buffer: Buffer.from(validPngBytes(10, 20)),
+      contentType: 'image/png',
+      kind: 'image',
+    });
+    detectMime.mockResolvedValue('image/png');
+    uploadFile.mockResolvedValue({
+      url: 'https://storage.example/u/x.png',
+    });
+    const { prepareOutboundMedia } = await import('./upload.js');
+    await prepareOutboundMedia('https://cdn.example/tok-SECRETVALUE.png', {});
+    const fileName = uploadFile.mock.calls[0][0].fileName as string;
+    expect(fileName).toMatch(/^upload-\d+\.png$/);
+    expect(fileName).not.toContain('SECRETVALUE');
+    expect(fileName).not.toContain('tok');
+    expect(fileName).not.toContain('cdn');
   });
 });
