@@ -5,10 +5,9 @@ import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { memo, useState } from 'react';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, memo, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
-import { SpaceTokens, styled } from 'tamagui';
+import { SpaceTokens } from 'tamagui';
 import {
   ThemeTokens,
   View,
@@ -25,6 +24,12 @@ import Notices from '../Wayfinding/Notices';
 import { GalleryDraftType, useDraftInputContext } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
+import {
+  MessageInputChromeAction,
+  MessageInputChromeBody,
+  MessageInputChromeRow,
+  usesFloatingMessageInputChrome,
+} from './MessageInputChrome';
 
 export interface MessageInputProps {
   shouldBlur: boolean;
@@ -74,12 +79,6 @@ export interface MessageInputProps {
     editor: EditorBridge | null;
   }>;
 }
-
-const AttachmentButtonContainer = styled(View, {
-  $sm: {
-    marginBottom: '$xs',
-  },
-});
 
 export const MessageInputContainer = memo(
   ({
@@ -148,7 +147,11 @@ export const MessageInputContainer = memo(
       <YStack
         width="100%"
         backgroundColor={
-          isEditing ? secondaryBackgroundColor : defaultBackgroundColor
+          usesFloatingMessageInputChrome
+            ? 'transparent'
+            : isEditing
+              ? secondaryBackgroundColor
+              : defaultBackgroundColor
         }
       >
         <InputMentionPopup
@@ -162,81 +165,102 @@ export const MessageInputContainer = memo(
           ref={mentionRef}
         />
         {!frameless ? (
-          <XStack
-            paddingVertical="$s"
-            paddingHorizontal="$xl"
-            gap="$l"
-            alignItems="flex-end"
-            justifyContent="space-between"
-            backgroundColor="$background"
-            disableOptimization
-            onLayout={handleInputLayout}
-          >
+          <MessageInputChromeRow onLayout={handleInputLayout}>
             {goBack ? (
-              <View paddingBottom="$xs">
+              <MessageInputChromeAction>
                 <Button
                   preset="secondary"
+                  backgroundColor={
+                    usesFloatingMessageInputChrome ? 'transparent' : undefined
+                  }
+                  borderColor={
+                    usesFloatingMessageInputChrome ? 'transparent' : undefined
+                  }
                   icon="ChevronLeft"
                   onPress={goBack}
                 />
-              </View>
+              </MessageInputChromeAction>
             ) : null}
 
             {isEditing ? (
-              <View marginBottom="$2xs">
+              <MessageInputChromeAction bottomSpacing="2xs">
                 <Button
                   preset="secondary"
+                  backgroundColor={
+                    usesFloatingMessageInputChrome ? 'transparent' : undefined
+                  }
+                  borderColor={
+                    usesFloatingMessageInputChrome ? 'transparent' : undefined
+                  }
                   icon="Close"
                   onPress={cancelEditing}
                 />
-              </View>
+              </MessageInputChromeAction>
             ) : null}
             {canUpload && showAttachmentButton ? (
-              <AttachmentButtonContainer>
+              <MessageInputChromeAction>
                 <AttachmentButton setShouldBlur={setShouldBlur} />
-              </AttachmentButtonContainer>
+              </MessageInputChromeAction>
             ) : null}
-            {children}
-            {floatingActionButton ? (
-              <View position="absolute" bottom="$l" right="$l">
-                {disableSend ? null : (
-                  <FloatingActionButton
-                    onPress={
-                      isEditing && onPressEdit ? onPressEdit : onPressSend
+            <MessageInputChromeBody
+              isEditing={isEditing}
+              editingTintColor={secondaryBackgroundColor}
+            >
+              {children}
+              {floatingActionButton ? (
+                <View position="absolute" bottom="$l" right="$l">
+                  {disableSend ? null : (
+                    <FloatingActionButton
+                      onPress={
+                        isEditing && onPressEdit ? onPressEdit : onPressSend
+                      }
+                      icon={
+                        <Icon
+                          color={sendError ? 'red' : undefined}
+                          type={sendError ? 'Refresh' : 'ArrowUp'}
+                        />
+                      }
+                    />
+                  )}
+                </View>
+              ) : (
+                <View
+                  marginBottom={
+                    usesFloatingMessageInputChrome ? undefined : '$xs'
+                  }
+                  alignSelf={
+                    usesFloatingMessageInputChrome ? 'center' : undefined
+                  }
+                >
+                  {showWayfindingTooltip && <Notices.ChatInputTooltip />}
+                  {showBotMentionTooltip && <Notices.BotMentionTooltip />}
+                  <Button
+                    preset="secondary"
+                    backgroundColor={
+                      usesFloatingMessageInputChrome ? 'transparent' : undefined
                     }
+                    borderColor={
+                      usesFloatingMessageInputChrome ? 'transparent' : undefined
+                    }
+                    disabled={disableSend}
+                    loading={isSending}
+                    testID="MessageInputSendButton"
+                    onPress={isEditing ? onPressEdit : onPressSend}
                     icon={
-                      <Icon
-                        color={sendError ? 'red' : undefined}
-                        type={sendError ? 'Refresh' : 'ArrowUp'}
-                      />
+                      isEditing ? (
+                        'Checkmark'
+                      ) : (
+                        <Icon
+                          color={sendError ? '$negativeActionText' : undefined}
+                          type="ArrowUp"
+                        />
+                      )
                     }
                   />
-                )}
-              </View>
-            ) : (
-              <View marginBottom="$xs">
-                {showWayfindingTooltip && <Notices.ChatInputTooltip />}
-                {showBotMentionTooltip && <Notices.BotMentionTooltip />}
-                <Button
-                  preset="secondary"
-                  disabled={disableSend}
-                  loading={isSending}
-                  testID="MessageInputSendButton"
-                  onPress={isEditing ? onPressEdit : onPressSend}
-                  icon={
-                    isEditing ? (
-                      'Checkmark'
-                    ) : (
-                      <Icon
-                        color={sendError ? '$negativeActionText' : undefined}
-                        type="ArrowUp"
-                      />
-                    )
-                  }
-                />
-              </View>
-            )}
-          </XStack>
+                </View>
+              )}
+            </MessageInputChromeBody>
+          </MessageInputChromeRow>
         ) : (
           // Note: This **must** be an XStack (not a YStack, View, or Stack), otherwise the WebView in MessageInput will not
           // be interactive on Android.

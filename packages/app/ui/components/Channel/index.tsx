@@ -755,6 +755,9 @@ export function Channel({
                           channel.type === 'dm' ||
                           channel.type === 'groupDm'
                         }
+                        useFloatingHeaderChrome={
+                          Platform.OS === 'ios' || Platform.OS === 'android'
+                        }
                       />
                       {shouldShowPinnedPostBanner && (
                         <PinnedPostBanner
