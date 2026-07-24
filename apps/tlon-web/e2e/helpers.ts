@@ -350,6 +350,10 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
     inviteRow = namedInviteRow.first();
   }
   await expect(inviteRow).toBeVisible({ timeout: 30000 });
+  const inviteGroupId = await inviteRow.getAttribute('data-group-id');
+  if (!inviteGroupId) {
+    throw new Error('Group invite row is missing its stable group ID');
+  }
   await inviteRow.click();
   await page.waitForTimeout(500);
 
@@ -380,8 +384,11 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
   // Enter the joined group through its stable Home row. Besides proving that
   // the join is usable, this clears the transient NEW state that otherwise
   // masks unread counts in subsequent assertions.
-  await expect(inviteRow).toBeVisible({ timeout: 15000 });
-  await inviteRow.click();
+  const joinedGroupRow = page.locator(
+    `[data-group-id=${JSON.stringify(inviteGroupId)}]`
+  );
+  await expect(joinedGroupRow).toBeVisible({ timeout: 15000 });
+  await joinedGroupRow.click();
   await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
     timeout: 15000,
   });
