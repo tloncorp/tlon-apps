@@ -153,7 +153,8 @@ export const tlonPlugin = createChatChannelPlugin({
           '',
           'Tlon gallery channels (heap/~host/name) are for collecting images, links, and media.',
           '- To post to a gallery: use action=send, to=heap/~host/name, message=<text or URL>',
-          '- For image posts, include media=<imageUrl> with an optional message=<caption>',
+          '- media= accepts a public http(s) URL or a file path inside the agent workspace, with an optional message=<caption>. Inline image formats: PNG/JPEG/GIF/WebP. AVIF, HEIC, BMP, ICO, and local SVG must be converted to PNG or JPEG first. A remote SVG URL is posted as a link, not an inline image.',
+          '- Media that cannot be read or uploaded fails the send — do not claim an image was delivered unless the tool call succeeded.',
           '- To react to a gallery comment: use action=react, to=heap/~host/name, messageId=<commentId>, parentId=<postId>, emoji=<emoji>'
         );
 

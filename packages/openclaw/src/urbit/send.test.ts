@@ -130,3 +130,53 @@ describe('sendDm', () => {
     }
   );
 });
+
+describe('buildMediaStory', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetModules();
+  });
+
+  it('builds an image block with real dims for image media', async () => {
+    const { buildMediaStory } = await import('./send.js');
+    const story = buildMediaStory('caption', {
+      url: 'https://x/img.png',
+      isImage: true,
+      width: 10,
+      height: 20,
+      contentType: 'image/png',
+    });
+    expect(story).toContainEqual({
+      block: {
+        image: { src: 'https://x/img.png', alt: '', height: 20, width: 10 },
+      },
+    });
+  });
+
+  it('builds a link inline for non-image media', async () => {
+    const { buildMediaStory } = await import('./send.js');
+    const story = buildMediaStory(undefined, {
+      url: 'https://x/doc.pdf',
+      isImage: false,
+      width: 0,
+      height: 0,
+    });
+    expect(story).toContainEqual({
+      inline: [
+        { link: { href: 'https://x/doc.pdf', content: 'https://x/doc.pdf' } },
+      ],
+    });
+  });
+
+  it('builds a text-only story when there is no media', async () => {
+    const { buildMediaStory } = await import('./send.js');
+    expect(buildMediaStory('hello', undefined)).toEqual([
+      { inline: ['hello'] },
+    ]);
+  });
+
+  it('returns an empty inline for no text and no media', async () => {
+    const { buildMediaStory } = await import('./send.js');
+    expect(buildMediaStory(undefined, undefined)).toEqual([{ inline: [''] }]);
+  });
+});

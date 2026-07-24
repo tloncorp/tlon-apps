@@ -207,14 +207,6 @@ export function createImageBlock(
 }
 
 /**
- * Check if URL looks like an image
- */
-export function isImageUrl(url: string): boolean {
-  const imageExtensions = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?.*)?$/i;
-  return imageExtensions.test(url);
-}
-
-/**
  * Process inlines and extract any image markers into blocks
  */
 function processInlinesForImages(inlines: StoryInline[]): {

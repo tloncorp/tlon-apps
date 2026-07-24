@@ -211,9 +211,10 @@ describe('media', () => {
 
     console.log(`[TEST] Found image DM with src: ${result.src}`);
 
-    // The image URL must have been rewritten by uploadImageFromUrl.
-    // If upload failed, the function silently returns the original URL,
-    // so equality here means the upload did NOT happen.
+    // The image URL must have been rewritten by prepareOutboundMedia to a fresh
+    // uploaded URL. On remote upload failure it deliberately falls back to
+    // hotlinking the original HTTPS URL, so equality with SOURCE_IMAGE_URL would
+    // mean the upload failed and the hotlink fallback returned the original URL.
     expect(result.src).toBeDefined();
     expect(result.src).not.toBe(SOURCE_IMAGE_URL);
   });
