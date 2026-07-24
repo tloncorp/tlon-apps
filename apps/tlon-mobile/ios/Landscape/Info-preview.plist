@@ -59,7 +59,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Tlon needs camera access to take photos for sharing.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>Tlon Messenger wants to access your contacts.</string>
+	<string>Tlon Messenger uses your contacts&#39; names, phone numbers, and email addresses to help you find friends who are already on Tlon and invite others to join. For example, if a contact&#39;s phone number matches an existing Tlon account, we can suggest connecting with them.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Tlon needs access to your microphone to allow you to share audio.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
