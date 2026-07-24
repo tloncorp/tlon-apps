@@ -122,7 +122,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-contacts',
       {
-        contactsPermission: 'Allow Tlon Messenger to access your contacts.',
+        contactsPermission:
+          'Tlon Messenger uses your contacts to help you find people you know who are already on the network and to invite others via SMS or email.',
       },
     ],
     'expo-audio',
