@@ -13,12 +13,18 @@ import {
   useState,
 } from 'react';
 
+import { useShipConnectionStatus } from '../../../features/top/useShipConnectionStatus';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import ConnectionStatus from '../ConnectionStatus';
 import { GroupAvatar } from '../GroupAvatar';
 import { ScreenHeader } from '../ScreenHeader';
+import {
+  getChannelConnectionStatusText,
+  getChannelHeaderLoadingSubtitle,
+  isHostedChannelType,
+} from './ChannelHeader.helpers';
 
 export interface ChannelHeaderItemsContextValue {
   registerItem: (options: { item: ReactElement }) => { remove: () => void };
@@ -177,20 +183,26 @@ export function ChannelHeader({
   const channelHost = useMemo(() => {
     return getChannelHost(channel, currentUserId);
   }, [channel, currentUserId]);
+  const isHostedChannel = isHostedChannelType(channel.type);
+  const channelHostConnectionStatus = useShipConnectionStatus(channelHost, {
+    enabled: isHostedChannel,
+  });
+  const isChannelHostOffline =
+    isHostedChannel &&
+    channelHostConnectionStatus.complete &&
+    channelHostConnectionStatus.status !== 'yes';
+  const channelConnectionStatusText = getChannelConnectionStatusText(
+    connectionStatus,
+    isChannelHostOffline
+  );
 
   const titleText = useMemo(() => {
     return preferProvidedTitle ? title : chatTitle ?? title;
   }, [chatTitle, preferProvidedTitle, title]);
 
   const subtitleText = useMemo(() => {
-    if (connectionStatus !== 'Connected') {
-      const statusText =
-        connectionStatus === 'Connecting' || connectionStatus === 'Reconnecting'
-          ? 'Connecting...'
-          : connectionStatus === 'Idle'
-            ? 'Initializing...'
-            : 'Disconnected';
-      return statusText;
+    if (channelConnectionStatusText) {
+      return channelConnectionStatusText;
     }
 
     // Viewing a post (PostScreenView with a single post/thread)
@@ -265,7 +277,7 @@ export function ChannelHeader({
 
     return '';
   }, [
-    connectionStatus,
+    channelConnectionStatusText,
     channel,
     group,
     chatDescription,
@@ -279,13 +291,12 @@ export function ChannelHeader({
 
   const displayTitle = useDebouncedValue(titleText, 300);
   const displaySubtitle = useDebouncedValue(subtitleText, 300);
-  const headerLoadingSubtitle = registeredLoadingSubtitle
-    ? registeredLoadingSubtitle
-    : showSpinner
-      ? loadingSubtitle
-      : connectionStatus !== 'Connected'
-        ? subtitleText
-        : null;
+  const headerLoadingSubtitle = getChannelHeaderLoadingSubtitle({
+    channelConnectionStatusText,
+    loadingSubtitle,
+    registeredLoadingSubtitle,
+    showSpinner,
+  });
   const headerTitle = displayTitle;
 
   const avatarElement = useMemo(() => {
