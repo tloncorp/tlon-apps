@@ -1,21 +1,15 @@
 /**
- * Plugin-local raster image header parsing (PNG/JPEG/GIF/WebP).
+ * Plugin-local PNG/JPEG/GIF/WebP header parsing, derived from the Tlon skill
+ * parser (`packages/tlon-skill/scripts/image-attach.ts`) but with stricter
+ * structural validation and format detection: besides the canonical magics, the
+ * container length fields are validated, so a magic-valid but zero/absurd-length
+ * file (e.g. a WebP with RIFF size 0 and a VP8X chunk size of 0) is rejected
+ * instead of parsing "successfully" at dimensions no decoder could honor.
  *
- * Derived from `imageDimensions` in `packages/tlon-skill/scripts/image-attach.ts`
- * (byte-reader helpers + PNG/JPEG/GIF/WebP header parsing), but returns the
- * detected format alongside the dimensions and tightens the checks: besides the
- * canonical magics, the container's structural length fields are validated so a
- * magic-valid but zero/absurd-length file (e.g. a WebP with a `RIFF` size of `0`
- * and a `VP8X` chunk size of `0`) is rejected instead of parsing "successfully"
- * with dimensions that no decoder could honor.
- *
- * This is intentionally a private copy rather than a shared export from
- * `@tloncorp/api`: the plugin and the skill are independently published npm
- * artifacts, and `@tloncorp/api` (their only shared dependency) resolves from
- * the npm registry in the plugin's standalone installs
- * (`packages/openclaw/dev/entrypoint.test.sh:40`), so exporting it there would
- * gate this fix on a coordinated api release. The plugin variant is stricter by
- * design.
+ * Kept a private copy — not a shared `@tloncorp/api` export — because the plugin
+ * and skill publish independently, and their shared dep resolves from the npm
+ * registry in the plugin's standalone installs; exporting there would gate this
+ * fix on a coordinated api release.
  *
  * Callers, not the parser, judge dimension validity (positive, bounded).
  */
@@ -83,12 +77,12 @@ function webpAnmfHasBitstream(
   let off = start + 16;
   let found = false;
   while (off < listEnd) {
-    if (off + 8 > listEnd || off + 8 > b.length) return false; // partial header ⇒ malformed
+    if (off + 8 > listEnd || off + 8 > b.length) return false;
     const fourcc = ascii(b, off, 4);
     const subSize = u32le(b, off + 4);
     const subPayload = off + 8;
     const subEnd = subPayload + subSize + (subSize & 1);
-    if (subEnd > listEnd || subEnd > b.length) return false; // overrun
+    if (subEnd > listEnd || subEnd > b.length) return false;
     if (webpChunkIsBitstream(b, fourcc, subPayload, subSize)) found = true;
     off = subEnd;
   }
@@ -374,6 +368,7 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
         i = k;
         continue;
       }
+      // JPEG permits one DNL after the first scan to supply the nonzero line count.
       if (marker === 0xdc) {
         if (scanCount !== 1 || seenDnl) {
           return null;
@@ -446,17 +441,17 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
   ) {
     const riffSize = u32le(bytes, 4);
     if (riffSize === 0 || riffSize + 8 > bytes.length) {
-      return null; // reject 0 and oversized sentinels (e.g. 0xffffffff)
+      return null;
     }
     const riffEnd = 8 + riffSize;
     if (bytes.length < 20) {
-      return null; // no complete chunk header
+      return null;
     }
     const chunk = ascii(bytes, 12, 4);
     const chunkSize = u32le(bytes, 16);
     const paddedEnd = 20 + chunkSize + (chunkSize & 1);
     if (paddedEnd > riffEnd || paddedEnd > bytes.length) {
-      return null; // chunk crosses the RIFF boundary or the buffer
+      return null;
     }
     if (chunk === 'VP8 ') {
       if (chunkSize < 10) {

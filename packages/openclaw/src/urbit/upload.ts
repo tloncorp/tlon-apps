@@ -1,34 +1,20 @@
 /**
- * Prepare outbound media for a Tlon post.
+ * Load, validate, and upload outbound media for a Tlon post. Only byte-verified
+ * PNG/JPEG/GIF/WebP become inline images; failures that prevent a client-viewable
+ * result throw, so the model sees a failed tool call rather than a false success.
  *
- * Replaces the old `uploadImageFromUrl`, which only understood http(s) URLs and
- * silently returned the input on any failure (so a server-local `/pier/...png`
- * path was posted as an image block clients could never load, while the tool
- * still reported `sent`). This pipeline:
- *
- * - loads remote URLs and workspace-local paths through OpenClaw core's
- *   root-allowlisted, byte-verified loader (`loadWebMedia` +
- *   `buildOutboundMediaLoadOptions`);
- * - classifies the loaded bytes into an inline image (PNG/JPEG/GIF/WebP with
- *   real dimensions and a matching byte sniff) or a link, rejecting malformed,
- *   spoofed, or unrenderable image claims instead of posting them;
- * - uploads to Tlon storage with a sanitized filename and a byte-verified MIME;
- * - throws on any failure that would prevent a client-viewable result, so the
- *   model sees a failed tool call rather than a false success.
- *
- * Security invariants: never log or expose URL credentials or signed-query
- * secrets (`SECURITY.md` — "Never log or expose credentials"); sanitization
- * applies to error text/logs/labels/filenames only, never to the URL that gets
- * posted (stripping `?sig=…` would break signed hotlinks while reporting
- * success).
+ * Security invariant (`SECURITY.md` — "Never log or expose credentials"): never
+ * expose source paths/URLs or raw loader/upload error text in diagnostics (thrown
+ * messages, logs) or in uploaded filenames — a signed query or local path can hide
+ * secrets. The full HTTPS URL is preserved only as data for the hotlink fallback,
+ * never as diagnostic text.
  */
 import { uploadFile } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { detectMime, extensionForMime } from 'openclaw/plugin-sdk/media-mime';
-// media-runtime is a deprecated barrel, but it is the ONLY export path for
-// buildOutboundMediaLoadOptions. We use it specifically to preserve core's
-// hostReadCapability byte-verification guard on host reads.
+// Deprecated barrel, but the only export of buildOutboundMediaLoadOptions, which
+// preserves core's host-read byte-verification guard.
 import { buildOutboundMediaLoadOptions } from 'openclaw/plugin-sdk/media-runtime';
 import type { OutboundMediaLoadOptions } from 'openclaw/plugin-sdk/outbound-media';
 import {
@@ -39,17 +25,16 @@ import {
 import { getDefaultSsrFPolicy } from './context.js';
 import { parseRasterHeader } from './image-dimensions.js';
 
-// NOTE: OutboundMediaAccess is NOT exported from the outbound-media subpath at
-// core 2026.5.28 — derive the option types with Pick instead of importing it.
+// OutboundMediaAccess is not exported from this SDK subpath; derive the subset with Pick.
 export type OutboundMediaAccessOpts = Pick<
   OutboundMediaLoadOptions,
   'mediaAccess' | 'mediaLocalRoots' | 'mediaReadFile'
 >;
 
 export type PreparedOutboundMedia = {
-  // Uploaded URL (validated https, no userinfo) — or, on the remote-upload-failure
-  // fallback, the full normalized credential-free ORIGINAL url INCLUDING its query
-  // (signed URLs must remain fetchable; sanitization is for error text/logs only).
+  // Uploaded HTTPS URL, or — on remote-upload-failure fallback — the original
+  // userinfo-free HTTPS URL with its query intact (signed hotlinks must stay
+  // fetchable). Data only: never use it in diagnostics.
   url: string;
   isImage: boolean;
   width: number;
@@ -109,13 +94,10 @@ function normalizeMediaUrl(mediaUrl: string): string {
  * Detect an authority-form URL (`<scheme>://…`) whose scheme is NOT one the
  * pipeline handles (http/https remote, `media://` passthrough, `file://` local).
  *
- * Only the `://` authority form is rejected here. A bare `<word>:<rest>` without
- * `//` — e.g. a workspace-relative filename like `report:2026.png`, or a Windows
- * drive path like `C:\…` / `C:/…` — is an ordinary local path and is left for the
- * root-allowlisted loader to resolve-or-reject against `mediaLocalRoots`. The
- * credential-leak boundary is the output side (fixed category phrases plus the
- * origin+pathname / placeholder source labels), so a non-allowed scheme that
- * lacks the authority form can no longer leak even if it reaches local handling.
+ * Only the `://` authority form is rejected. A bare `<word>:<rest>` without `//`
+ * — a workspace-relative filename like `report:2026.png`, or a Windows drive path
+ * like `C:\…` / `C:/…` — stays a local-path candidate for the root-allowlisted
+ * loader to resolve-or-reject against `mediaLocalRoots`.
  */
 function isDisallowedAuthorityScheme(value: string): boolean {
   const m = /^([A-Za-z][A-Za-z0-9+.-]*):\/\//.exec(value);
@@ -140,9 +122,7 @@ function isDisallowedAuthorityScheme(value: string): boolean {
  * expose) — and compares it against a known allowlist of category tokens. The
  * raw `err.message` is never consulted: it is unbounded free text that may carry
  * credentials or signed-query secrets, so it must never reach an error, log, or
- * filename. This is both actionable (file-not-found vs path-not-allowed vs
- * too-large vs fetch-failed) and airtight (a bounded allowlist of typed
- * discriminator strings mapped to fixed phrases we author).
+ * filename.
  */
 function describeLoadError(err: unknown): string {
   const e = err as { code?: unknown; kind?: unknown; name?: unknown };
@@ -254,6 +234,7 @@ export function probeSvgRoot(text: string, truncated: boolean): SvgProbe {
       let j = i;
       for (; j < n; j += 1) {
         const c = text[j];
+        // A ">" inside a quoted DTD literal does not terminate the DOCTYPE.
         if (c === '"' || c === "'") {
           const quote = c;
           j += 1;
@@ -388,15 +369,16 @@ export function safeUploadFileName(
  *
  * The only formats posted as an inline image block are the four
  * `parseRasterHeader` formats (PNG/JPEG/GIF/WebP — real dimensions + bounded
- * structural header checks + a present, matching byte sniff). Everything else
- * is either rejected with an actionable "convert to PNG/JPEG" error or, for
- * SVG, posted as a link — never as an inline image block.
+ * structural header checks + a present, matching byte sniff). Local SVG and
+ * malformed/unsupported image claims reject with an actionable "convert to
+ * PNG/JPEG" error; remote SVG and non-image media become links.
  */
 export function classifyLoadedMedia(params: {
   buffer: Buffer | Uint8Array;
   loaderMime?: string; // loader-resolved contentType (detectMime byte-sniff precedence already applied by core)
   sniffedMime?: string; // await detectMime({ buffer }) — byte sniff only
   isRemote: boolean;
+  // Fixed diagnostic placeholder only; never source text (see LOCAL/REMOTE_MEDIA_LABEL).
   sourceLabel: string;
 }): ClassifiedMedia {
   const { buffer, loaderMime, sniffedMime, isRemote, sourceLabel } = params;
@@ -436,28 +418,21 @@ export function classifyLoadedMedia(params: {
     }
     return { kind: 'link', effectiveMime: 'image/svg+xml' };
   }
+  // Fail closed for local files: a long valid preamble may still hide an SVG root.
   if (svgProbe === 'incomplete' && !isRemote) {
     throw new Error(
       "SVG files can't be posted as images — convert it to PNG (or upload it and send the URL)"
     );
   }
 
-  // A definitive byte sniff is ground truth about the content, so it is checked
-  // before the loader-resolved content type (which core's detectMime already
-  // gives byte-sniff precedence to, but may still be a generic container type).
-  //
-  // 1. A sniff for a parser-supported format (PNG/JPEG/GIF/WebP) whose header
-  //    did not parse must never fall through — garbage/truncated bytes must not
-  //    post at 0×0.
+  // Byte sniff outranks the loader MIME. A sniffed parser-supported raster whose
+  // header did not parse is malformed — never fall through and post at 0×0.
   if (sniffedCanon && PARSEABLE_MIMES.has(sniffedCanon)) {
     throw new Error(`Media "${sourceLabel}" is not a valid image`);
   }
 
-  // 2. A sniff for any other image format (AVIF/HEIC/HEIF/BMP/ICO …) is a valid
-  //    image we don't inline. This takes precedence over a conflicting
-  //    loader-resolved content type: bytes that definitively sniff as AVIF are
-  //    AVIF even if the loader resolved `image/jpeg`, so the actionable
-  //    convert-hint wins over the generic "not a valid image".
+  // Any other sniffed image format (AVIF/HEIC/BMP/ICO …) is valid but not inlined;
+  // the sniff wins over a conflicting loader MIME so the convert-hint fires.
   if (sniffedCanon?.startsWith('image/')) {
     const fmt = sniffedCanon.slice('image/'.length);
     throw new Error(
@@ -465,9 +440,8 @@ export function classifyLoadedMedia(params: {
     );
   }
 
-  // 3. No definitive sniff: fall back to the loader-resolved content type. A
-  //    loader-resolved parser-supported format whose header did not parse must
-  //    not fall through.
+  // No sniff: fall back to the loader MIME, still rejecting a declared
+  // parser-supported format whose header did not parse.
   if (loaderCanon && PARSEABLE_MIMES.has(loaderCanon)) {
     throw new Error(`Media "${sourceLabel}" is not a valid image`);
   }
@@ -480,23 +454,14 @@ export function classifyLoadedMedia(params: {
 }
 
 /**
- * The local sourceLabel used in error messages is ALWAYS this fixed placeholder
- * — no pattern-matching, no conditional detection. A denylist of suspicious
- * characters can never be airtight (a secret needs no special character to exist
- * inside ordinary-looking path text), so caller/model-controlled local path text
- * never reaches error messages. The decoded local path is still used internally
- * for the SVG check and filesystem reads; this constant only controls what
- * appears in error message text.
+ * Fixed placeholders substituted for the real source in all diagnostics (error
+ * text and logs). The label is ALWAYS one of these constants — never derived
+ * from the path/URL: a denylist can't be airtight (a secret needs no special
+ * character to hide in ordinary-looking path or host text). The real path/URL
+ * stays data-only — used for the SVG check, filesystem reads, fetching, and the
+ * HTTPS hotlink fallback, which does put the original URL in the outbound post.
  */
 const LOCAL_MEDIA_LABEL = '[local media reference]';
-
-/**
- * The remote sourceLabel used in error messages is ALWAYS this fixed placeholder.
- * Hostnames, subdomains, and path segments can themselves carry tokens or secrets,
- * so no part of the URL reaches error text or logs. The full normalized URL is
- * still used internally for fetching and hotlink fallback; this constant only
- * controls what appears in error message text.
- */
 const REMOTE_MEDIA_LABEL = '[remote media reference]';
 
 function isTlonHostingForced(): boolean {
@@ -504,6 +469,7 @@ function isTlonHostingForced(): boolean {
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 
+// Require a directly fetchable HTTPS URL: no userinfo or fragment; queries allowed.
 function isValidUploadedUrl(raw: string): boolean {
   try {
     const u = new URL(raw);
@@ -534,7 +500,8 @@ function bytesToBlobPart(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
  * Apply the upload-failure policy. Remote https sources fall back to hotlinking
  * the full normalized original URL (including its signed query); remote http
  * sources throw (mixed content in the https web client); local sources throw
- * with an actionable message.
+ * with an actionable message. `normalized` may contain signed-query secrets —
+ * return it as fallback data only, never in diagnostic text.
  */
 function handleUploadFailure(params: {
   isRemote: boolean;
@@ -559,23 +526,12 @@ function handleUploadFailure(params: {
 
   if (isRemote) {
     if (/^https:\/\//i.test(normalized)) {
-      // ACCEPTED RESIDUAL (documented, not a bug): if the original https URL
-      // redirects to plain http, the hotlinked https URL may be blocked or
-      // upgraded as mixed content by a secure client. The installed OpenClaw
-      // SDK's WebMediaResult does not expose the final/resolved URL after
-      // redirects (core strips finalUrl before returning), so the plugin cannot
-      // detect the downgrade without an undocumented custom fetchImpl or a
-      // duplicate preflight (TOCTOU) — both disproportionate. The only airtight
-      // fix would be removing remote hotlink fallback entirely, which conflicts
-      // with the deliberately-accepted 'preserve useful web-image sharing'
-      // policy. Revisit if OpenClaw exposes finalUrl or a requireHttps loader
-      // option.
+      // Accepted residual: the loader doesn't expose a redirect's final URL, so
+      // an https source that redirects to http may still fail as a hotlink.
+      // Revisit if WebMediaResult exposes finalUrl or can enforce https.
       //
-      // console.log, not console.warn: warn-level output from this subsystem
-      // does not surface in the harness/CI container logs, which made upload
-      // failures fully silent (source-URL fallback with no visible cause). A
-      // fixed category phrase is logged — the raw upload error is never
-      // interpolated, since it may carry credentials or signed-query secrets.
+      // Use log, not warn: warnings from this subsystem are absent from harness/CI
+      // output. Keep the text fixed — upload errors may contain secrets.
       console.log('[tlon] upload: failed, hotlinking original URL');
       return { url: normalized, isImage, width, height, contentType };
     }
@@ -584,12 +540,8 @@ function handleUploadFailure(params: {
     );
   }
 
-  // The exact-equality check against a known literal thrown by @tloncorp/api's
-  // uploadFile is safe — it compares against a fixed string we author, never
-  // echoing unbounded error text. uploadFile's other failures expose no reliable
-  // bounded discriminator (the HTTP status is interpolated into the free-text
-  // message, with no structured .code/.status field to read), so they keep the
-  // generic 'Media upload failed' phrase rather than a category parsed from text.
+  // Exact-match the one stable uploadFile literal. Its other failures have no
+  // structured discriminator, so never parse or echo their free-text message.
   if (cause === 'No storage credentials configured') {
     throw new Error(
       `Failed to upload local media "${sourceLabel}" to Tlon storage: No storage credentials configured — the ship has no storage configured; configure S3/hosted storage, or pass a public https URL instead.`
@@ -600,23 +552,11 @@ function handleUploadFailure(params: {
   );
 }
 
-/**
- * Load, classify, and upload outbound media, returning a client-viewable result
- * or throwing so the model sees a failed tool call.
- */
 export async function prepareOutboundMedia(
   mediaUrl: string,
   opts: OutboundMediaAccessOpts
 ): Promise<PreparedOutboundMedia> {
   const normalized = normalizeMediaUrl(mediaUrl);
-  // Scheme guard: reject only authority-form URLs (`<scheme>://…`) whose scheme
-  // is not one the pipeline handles (http/https remote, media:// passthrough,
-  // file:// local) — e.g. ftp://, data://, ws://. A bare `<word>:<rest>` without
-  // `//` (a workspace-relative `report:2026.png`, a Windows drive path) is an
-  // ordinary local path and is left for the root-allowlisted loader to
-  // resolve-or-reject; the output-side sanitization is the credential-leak
-  // boundary, so such an input can no longer leak even if it reaches local
-  // handling.
   if (isDisallowedAuthorityScheme(normalized)) {
     throw new Error('Invalid media URL');
   }
@@ -641,11 +581,7 @@ export async function prepareOutboundMedia(
     );
   }
 
-  // sourceLabel is safe by construction: remote sources use the fixed
-  // REMOTE_MEDIA_LABEL placeholder and local sources use the fixed
-  // LOCAL_MEDIA_LABEL placeholder, so caller/model-controlled text never
-  // reaches an error message. The local path is decoded once above for the
-  // SVG check and is not re-decoded here.
+  // Fixed diagnostic placeholder, never caller-controlled source text.
   const sourceLabel = remoteUrl ? REMOTE_MEDIA_LABEL : LOCAL_MEDIA_LABEL;
 
   let media: WebMediaResult;
@@ -660,9 +596,7 @@ export async function prepareOutboundMedia(
       ssrfPolicy: getDefaultSsrFPolicy(),
     });
   } catch (err) {
-    // describeLoadError maps a bounded allowlist of typed discriminator strings
-    // (err.code/kind/name) to fixed phrases — the loader's raw err.message
-    // (unbounded free text, may contain secrets) is never interpolated.
+    // describeLoadError returns a fixed phrase; raw err never interpolated.
     throw new Error(
       `Cannot read media "${sourceLabel}": ${describeLoadError(err)}`
     );
@@ -684,10 +618,7 @@ export async function prepareOutboundMedia(
   const width = classified.kind === 'image' ? classified.width : 0;
   const height = classified.kind === 'image' ? classified.height : 0;
 
-  // Never derive the uploaded filename from caller-controlled text. Both local
-  // and remote sources get a synthetic filename (upload-<timestamp>.<ext>).
-  // Remote URL path segments can carry secrets, so no part of the URL reaches
-  // the storage object key.
+  // Synthetic name only: local paths and remote URL components may contain secrets.
   const fileName = safeUploadFileName('', effectiveMime);
 
   let uploadedUrl: string;
@@ -702,6 +633,7 @@ export async function prepareOutboundMedia(
     });
     uploadedUrl = result.url;
   } catch (err) {
+    // Raw upload text goes only to handleUploadFailure's exact-literal check.
     const cause = err instanceof Error ? err.message : String(err);
     return handleUploadFailure({
       isRemote,
