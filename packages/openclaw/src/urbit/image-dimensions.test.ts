@@ -95,24 +95,32 @@ describe('parseRasterHeader', () => {
     throw new Error('EOI marker not found');
   }
 
-  it('parses a zero-SOF-height JPEG with a valid DNL (height recovered from DNL)', () => {
+  it('rejects any JPEG carrying a DNL marker (libjpeg-turbo cannot honor it)', () => {
+    // Zero-SOF-height + DNL: rejected — libjpeg-turbo (Android/Chromium)
+    // reports zero-height SOF as "DNL not supported".
     const base = realBaselineJpegBytes();
     const sofOff = findSof0Offset(base);
-    const mutated = new Uint8Array(base.length + 6);
-    mutated.set(base.subarray(0, sofOff + 5), 0);
-    mutated[sofOff + 5] = 0x00;
-    mutated[sofOff + 6] = 0x00;
-    mutated.set(base.subarray(sofOff + 7), sofOff + 7);
-    const eoiOff = findEoiOffset(mutated);
-    const withDnl = new Uint8Array(mutated.length + 6);
-    withDnl.set(mutated.subarray(0, eoiOff), 0);
+    const zeroSof = new Uint8Array(base.length + 6);
+    zeroSof.set(base.subarray(0, sofOff + 5), 0);
+    zeroSof[sofOff + 5] = 0x00;
+    zeroSof[sofOff + 6] = 0x00;
+    zeroSof.set(base.subarray(sofOff + 7), sofOff + 7);
+    const eoiOff = findEoiOffset(zeroSof);
+    const withDnl = new Uint8Array(zeroSof.length + 6);
+    withDnl.set(zeroSof.subarray(0, eoiOff), 0);
     withDnl.set([0xff, 0xdc, 0x00, 0x04, 0x00, 0x03], eoiOff);
-    withDnl.set(mutated.subarray(eoiOff), eoiOff + 6);
-    expect(parseRasterHeader(withDnl)).toEqual({
-      format: 'jpeg',
-      width: 2,
-      height: 3,
-    });
+    withDnl.set(zeroSof.subarray(eoiOff), eoiOff + 6);
+    expect(parseRasterHeader(withDnl)).toBeNull();
+
+    // Nonzero SOF + conflicting small DNL: rejected — libjpeg-turbo ignores the
+    // DNL and decodes at the SOF height, so reporting the DNL height would let
+    // an oversized image pass the pixel bounds.
+    const eoiOff2 = findEoiOffset(base);
+    const conflicting = new Uint8Array(base.length + 6);
+    conflicting.set(base.subarray(0, eoiOff2), 0);
+    conflicting.set([0xff, 0xdc, 0x00, 0x04, 0x00, 0x01], eoiOff2);
+    conflicting.set(base.subarray(eoiOff2), eoiOff2 + 6);
+    expect(parseRasterHeader(conflicting)).toBeNull();
   });
 
   it('returns null for a zero-SOF-height JPEG without DNL', () => {
@@ -233,6 +241,31 @@ describe('parseRasterHeader', () => {
 
   it('returns null for a GIF with an image descriptor but empty image data', () => {
     expect(parseRasterHeader(gifEmptyImageDataBytes(3, 3))).toBeNull();
+  });
+
+  it('rejects GIF frames that exceed or fall outside the logical screen', () => {
+    // validGifBytes layout: 6 sig + 7 LSD + 6 GCT, then 0x2c at 19 and the
+    // descriptor fields at 20 (left), 22 (top), 24 (width), 26 (height).
+    const patch = (edit: (b: Uint8Array) => void): Uint8Array => {
+      const b = new Uint8Array(validGifBytes(4, 4));
+      edit(b);
+      return b;
+    };
+    // Frame wider than the canvas.
+    expect(parseRasterHeader(patch((b) => (b[24] = 5)))).toBeNull();
+    // In-bounds frame size, but the offset pushes it past the canvas edge.
+    expect(parseRasterHeader(patch((b) => (b[20] = 1)))).toBeNull();
+    // Zero-dimension frame is unrenderable.
+    expect(parseRasterHeader(patch((b) => (b[24] = 0)))).toBeNull();
+    // Offset frame that stays inside the canvas still parses.
+    expect(
+      parseRasterHeader(
+        patch((b) => {
+          b[20] = 1;
+          b[24] = 3;
+        })
+      )
+    ).toEqual({ format: 'gif', width: 4, height: 4 });
   });
 
   it('returns null for a JPEG with no SOS/EOI (SOI+SOF only)', () => {

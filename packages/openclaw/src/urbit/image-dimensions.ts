@@ -228,6 +228,23 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
         if (i + 9 > n) {
           return null;
         }
+        // GIF89a §20 requires every frame to fit inside the logical screen.
+        // Decoders diverge on violations (clip, reject, or allocate from the
+        // descriptor), so an oversized descriptor behind a small canvas would
+        // bypass the canvas-based pixel bounds. Reject it, and reject empty
+        // frames, which nothing can render.
+        const frameLeft = u16le(bytes, i);
+        const frameTop = u16le(bytes, i + 2);
+        const frameWidth = u16le(bytes, i + 4);
+        const frameHeight = u16le(bytes, i + 6);
+        if (
+          frameWidth === 0 ||
+          frameHeight === 0 ||
+          frameLeft + frameWidth > u16le(bytes, 6) ||
+          frameTop + frameHeight > u16le(bytes, 8)
+        ) {
+          return null;
+        }
         const imgPacked = bytes[i + 8];
         i += 9;
         if (imgPacked & 0x80) {
@@ -278,8 +295,6 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
     const n = bytes.length;
     let dims: { height: number; width: number } | null = null;
     let sawScan = false;
-    let scanCount = 0;
-    let seenDnl = false;
     let i = 2;
     for (;;) {
       if (i + 1 >= n) {
@@ -364,36 +379,17 @@ export function parseRasterHeader(bytes: Uint8Array): RasterInfo | null {
           return null;
         }
         sawScan = true;
-        scanCount += 1;
         i = k;
         continue;
       }
-      // JPEG permits one DNL after the first scan to supply the nonzero line count.
+      // Reject DNL JPEGs outright. T.81 allows DNL to (re)define the line
+      // count, but the deployed decoder ecosystem does not honor it —
+      // libjpeg-turbo (Android, Chromium) ignores DNL and rejects a zero-height
+      // SOF as "DNL not supported" — so any DNL-dependent height is either
+      // undecodable by clients or diverges from what they decode. Accepting
+      // one would recreate the false-success path this parser exists to close.
       if (marker === 0xdc) {
-        if (scanCount !== 1 || seenDnl) {
-          return null;
-        }
-        if (i + 2 > n) {
-          return null;
-        }
-        const dnlLen = u16be(bytes, i);
-        if (dnlLen !== 4) {
-          return null;
-        }
-        if (i + dnlLen > n) {
-          return null;
-        }
-        if (!dims) {
-          return null;
-        }
-        const nl = u16be(bytes, i + 2);
-        if (nl === 0) {
-          return null;
-        }
-        dims.height = nl;
-        seenDnl = true;
-        i += dnlLen;
-        continue;
+        return null;
       }
       if (i + 2 > n) {
         return null;
