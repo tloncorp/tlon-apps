@@ -239,7 +239,7 @@ export const ScreenHeaderComponent = ({
       left={floating ? 0 : undefined}
       right={floating ? 0 : undefined}
       elevationAndroid={floating && Platform.OS === 'android' ? 1 : undefined}
-      backgroundColor={backgroundColor ?? '$background'}
+      backgroundColor={floating ? 'transparent' : backgroundColor ?? '$background'}
       borderColor="$border"
       borderBottomWidth={!floating && borderBottom ? 1 : 0}
       testID={testID}
