@@ -634,6 +634,7 @@ async function persistNoteWrite(
     revision?: number;
     applied?: {
       title?: string | null;
+      bodyMd?: string | null;
       folderId?: number | null;
       revision?: number | null;
       updatedAt?: number | null;
@@ -645,10 +646,16 @@ async function persistNoteWrite(
   // db.updateNotesNote is revision-monotonic: carrying the revision (from
   // the explicit write or the payload) arms its atomic guard, so a newer
   // row synced between our response and this persist is never downgraded.
+  // The payload's fields are persisted as a unit — body INCLUDED: a
+  // rename-only save racing a remote body edit returns the host's newer
+  // body and revision together, and persisting the revision without the
+  // body would fabricate a row that lets the next body edit pass the
+  // optimistic-concurrency check and silently overwrite the remote edit.
   await db.updateNotesNote({
     notebookFlag,
     noteId,
     ...(applied?.title != null ? { title: applied.title } : {}),
+    ...(applied?.bodyMd != null ? { bodyMd: applied.bodyMd } : {}),
     ...(applied?.folderId != null ? { folderId: applied.folderId } : {}),
     ...(applied?.revision != null ? { revision: applied.revision } : {}),
     ...(applied?.updatedAt != null ? { updatedAt: applied.updatedAt } : {}),

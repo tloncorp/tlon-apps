@@ -589,6 +589,22 @@ export function NotesNoteDetail({
         // leave the drafts dirty against it, so the next cycle saves them.
         if (updated) {
           setDraftBase(updated);
+          // A save we did NOT rename in can come back with a different
+          // title: another client renamed, and the response payload's
+          // authoritative note carried it into `updated`. The untouched
+          // title draft still holds the old title — left alone it reads as
+          // a local edit and the next autosave would rename the host note
+          // BACK, silently undoing the other client's rename. Rebase it,
+          // but only when the user had no rename in flight (title matched
+          // the base going in) and didn't touch it during the save.
+          if (
+            normalizeNotebookNoteTitle(titleDraft) === base.title &&
+            titleDraftRef.current === titleDraft &&
+            updated.title !== titleDraft
+          ) {
+            setTitleDraft(updated.title);
+            titleDraftRef.current = updated.title;
+          }
         }
         clearDraftStash(notebookFlag, base.noteId, {
           title: titleDraft,
@@ -769,6 +785,17 @@ export function NotesNoteDetail({
         // the next cycle doesn't re-send a stale revision.
         if (updated) {
           setDraftBase(updated);
+          // Same untouched-title rebase as the foreground save path: a
+          // remote rename carried back by the payload must not leave the
+          // stale title draft looking like a local edit.
+          if (
+            normalizeNotebookNoteTitle(titleToSave) === base.title &&
+            titleDraftRef.current === titleToSave &&
+            updated.title !== titleToSave
+          ) {
+            setTitleDraft(updated.title);
+            titleDraftRef.current = updated.title;
+          }
         }
         setSaveState('saved');
         clearConflict(flag, base.noteId);

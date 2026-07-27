@@ -1007,6 +1007,44 @@ test('adoptNotebookNoteRemote refuses to downgrade a row that advanced past the 
   });
 });
 
+test('rename-only save adopts a raced remote body from the payload', async () => {
+  const note = makeNote('Raced rename');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  // Another client's body edit landed first; the host applied our rename on
+  // top and the payload carries the complete newer note.
+  const remoteBody = 'body edited by someone else';
+  vi.spyOn(api.notes, 'renameNote').mockResolvedValue({
+    id: note.noteId,
+    title: 'Renamed locally',
+    bodyMd: remoteBody,
+    revision: note.revision + 1,
+    updatedAt: (note.updatedAt ?? 0) + 100,
+    updatedBy: '~zod',
+  });
+
+  const saved = await saveNotebookNote({
+    notebookFlag,
+    note,
+    title: 'Renamed locally',
+    body: note.bodyMd, // body untouched locally
+  });
+
+  // Persisting the payload's revision WITHOUT its body would fabricate a
+  // row whose next body edit passes optimistic concurrency and silently
+  // overwrites the remote edit.
+  expect(saved).toMatchObject({
+    title: 'Renamed locally',
+    bodyMd: remoteBody,
+    revision: note.revision + 1,
+  });
+});
+
 test('updateNotesNote is revision-monotonic in a single atomic write', async () => {
   const note = makeNote('Guarded note');
   const row = { ...note, revision: 5, updatedAt: 1_000 };
