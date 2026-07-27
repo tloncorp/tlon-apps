@@ -43,6 +43,20 @@ including the current conversation: `tlon upload <direct-image-url>`, then
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
 
+**Images are the exception: upload them first.** The `message` tool's `media=`
+parameter takes only an uploaded https URL — never a local file path, unlike
+other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or
+stdin, and prints the uploaded URL:
+
+```bash
+tlon upload ./generated-chart.png      # local file — prints the uploaded URL
+tlon upload https://example.com/x.png  # remote URL
+```
+
+Pass that printed URL as `media=`. On hosted deployments the upload must run
+through the owner ship's config (the bot's own ship has no storage):
+`tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`.
+
 > **Removed: diary/notebook channels.** The `%diary` backend has been removed.
 > `tlon notebook`, `--kind diary`, and any `diary/...` nest now fail with an
 > explanatory error pointing at `%notes`. Use the `tlon notes` family for
