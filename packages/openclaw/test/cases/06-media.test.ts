@@ -271,27 +271,48 @@ describe('media', () => {
     );
     expect(followUpWithToolResult).toBeDefined();
 
-    // ── Assert (b): no new bot post carries the token in text OR images ──
+    // ── Assert (b): the media was never delivered, and the plugin posted
+    // nothing of its own.
+    //
+    // OpenClaw core renders a failed tool call back into the conversation
+    // ("⚠️ ✉️ Message: <media> failed" — its `message` display config lists
+    // `media` among the detail keys), so a post mentioning the path is expected
+    // and outside this plugin's control. What must NOT happen is the media
+    // being delivered as an image block, or the plugin posting the caption on
+    // its own before rethrowing.
+    const isCoreFailureNotice = (text: string) =>
+      /^\s*⚠️/.test(text) && /failed/i.test(text);
+
     const posts = await fixtures.userState.channelPosts(fixtures.botShip, 30);
-    const leakedPost = (posts ?? []).find((post) => {
-      const p = post as {
-        authorId?: string;
-        sequenceNum?: number | null;
-        textContent?: string | null;
-        content?: unknown;
-        images?: Array<{ src?: string | null }>;
-      };
-      if (p.authorId !== fixtures.botShip) {
-        return false;
-      }
-      if (!isPostNewerThanSequence(p, baselineSequence)) {
-        return false;
-      }
-      if (extractPostText(p).includes(token)) {
-        return true;
-      }
-      return p.images?.some((img) => img.src?.includes(token)) ?? false;
+    const newBotPosts = (posts ?? [])
+      .map(
+        (post) =>
+          post as {
+            authorId?: string;
+            sequenceNum?: number | null;
+            textContent?: string | null;
+            content?: unknown;
+            images?: Array<{ src?: string | null }>;
+          }
+      )
+      .filter(
+        (p) =>
+          p.authorId === fixtures.botShip &&
+          isPostNewerThanSequence(p, baselineSequence)
+      );
+
+    // No image block anywhere carries the token — the media never landed.
+    const deliveredImage = newBotPosts.find(
+      (p) => p.images?.some((img) => img.src?.includes(token)) ?? false
+    );
+    expect(deliveredImage).toBeUndefined();
+
+    // No post other than core's failure notice mentions the token — the plugin
+    // did not post the caption as a side effect.
+    const pluginPost = newBotPosts.find((p) => {
+      const text = extractPostText(p);
+      return text.includes(token) && !isCoreFailureNotice(text);
     });
-    expect(leakedPost).toBeUndefined();
+    expect(pluginPost).toBeUndefined();
   });
 });

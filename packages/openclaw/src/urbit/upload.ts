@@ -1,4 +1,4 @@
-import { scry, uploadFile } from '@tloncorp/api';
+import { getCurrentUserIsHosted, scry, uploadFile } from '@tloncorp/api';
 import crypto from 'node:crypto';
 import {
   detectMime,
@@ -105,7 +105,21 @@ function strictPostableUrl(u: string): string | null {
   return parsed.href;
 }
 
-async function shipHasCompleteS3Config(): Promise<boolean> {
+/**
+ * Whether `uploadFile` could actually store bytes for this ship.
+ *
+ * Mirrors `uploadFile`'s own backend routing (`@tloncorp/api`
+ * `storageApi.ts`) rather than assuming one backend: it picks Memex when the
+ * client is a hosted node and either the service is `presigned-url` or custom
+ * S3 credentials are absent; otherwise it needs custom S3 credentials, plus a
+ * current bucket for the S3 operation itself.
+ *
+ * The point of checking first is bot moons: they are reached over
+ * localhost/proxy (so they are not hosted nodes by URL) and carry no storage
+ * config, so calling `uploadFile` would fail on every single send. Skipping the
+ * call keeps that path quiet. Genuinely hosted ships still reach Memex.
+ */
+async function shipCanStoreUploads(): Promise<boolean> {
   try {
     const [rawCreds, rawConfig] = await Promise.all([
       scry<{
@@ -119,18 +133,35 @@ async function shipHasCompleteS3Config(): Promise<boolean> {
       }>({ app: 'storage', path: '/credentials' }),
       scry<{
         'storage-update': {
-          configuration: { currentBucket?: string };
+          configuration: { currentBucket?: string; service?: string };
         };
       }>({ app: 'storage', path: '/configuration' }),
     ]);
     const creds = rawCreds['storage-update'].credentials;
     const config = rawConfig['storage-update'].configuration;
-    return Boolean(
-      creds.accessKeyId &&
-        creds.endpoint &&
-        creds.secretAccessKey &&
-        config.currentBucket
+
+    const hasCustomS3 = Boolean(
+      creds.accessKeyId && creds.endpoint && creds.secretAccessKey
     );
+
+    // A fresh ship bunts `service` to %presigned-url, so this arm turns on
+    // only for clients whose URL is a hosted node.
+    if (
+      isHostedClient() &&
+      (config.service === 'presigned-url' || !hasCustomS3)
+    ) {
+      return true;
+    }
+
+    return hasCustomS3 && Boolean(config.currentBucket);
+  } catch {
+    return false;
+  }
+}
+
+function isHostedClient(): boolean {
+  try {
+    return getCurrentUserIsHosted();
   } catch {
     return false;
   }
@@ -209,7 +240,7 @@ export async function prepareOutboundMedia(
     isImage = false;
   }
 
-  const capable = await shipHasCompleteS3Config();
+  const capable = await shipCanStoreUploads();
   if (!capable) {
     return { url: canonical, isImage };
   }

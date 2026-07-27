@@ -17,6 +17,7 @@ vi.mock('openclaw/plugin-sdk/media-mime', () => ({
 vi.mock('@tloncorp/api', () => ({
   uploadFile: vi.fn(),
   scry: vi.fn(),
+  getCurrentUserIsHosted: vi.fn(() => false),
 }));
 
 vi.mock('./context.js', () => ({
@@ -131,6 +132,7 @@ describe('prepareOutboundMedia', () => {
   let mockNormalizeMimeType: ReturnType<typeof vi.fn>;
   let mockUploadFile: ReturnType<typeof vi.fn>;
   let mockScry: ReturnType<typeof vi.fn>;
+  let mockIsHosted: ReturnType<typeof vi.fn>;
   let logSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
@@ -148,6 +150,8 @@ describe('prepareOutboundMedia', () => {
     mockNormalizeMimeType = vi.mocked(mime.normalizeMimeType);
     mockUploadFile = vi.mocked(api.uploadFile);
     mockScry = vi.mocked(api.scry);
+    mockIsHosted = vi.mocked(api.getCurrentUserIsHosted);
+    mockIsHosted.mockReturnValue(false);
 
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     ({ prepareOutboundMedia } = await import('./upload.js'));
@@ -167,6 +171,41 @@ describe('prepareOutboundMedia', () => {
 
   function mockNoStorage() {
     mockScry.mockRejectedValue(new Error('no storage'));
+  }
+
+  /**
+   * A bot moon as actually deployed: reached over localhost/proxy (so not a
+   * hosted node by URL), no credentials, and `service` at its bunted default of
+   * `presigned-url`. `uploadFile` would throw for this ship, so we must not
+   * call it.
+   */
+  function mockMoonShaped() {
+    mockIsHosted.mockReturnValue(false);
+    mockScry.mockImplementation(async ({ path }: { path: string }) => {
+      if (path === '/credentials') {
+        return { 'storage-update': { credentials: {} } };
+      }
+      return {
+        'storage-update': {
+          configuration: { service: 'presigned-url', currentBucket: '' },
+        },
+      };
+    });
+  }
+
+  /** A genuinely hosted ship with no custom S3: `uploadFile` routes to Memex. */
+  function mockHostedPresigned() {
+    mockIsHosted.mockReturnValue(true);
+    mockScry.mockImplementation(async ({ path }: { path: string }) => {
+      if (path === '/credentials') {
+        return { 'storage-update': { credentials: {} } };
+      }
+      return {
+        'storage-update': {
+          configuration: { service: 'presigned-url', currentBucket: '' },
+        },
+      };
+    });
   }
 
   function mockS3Capable() {
@@ -624,6 +663,65 @@ describe('prepareOutboundMedia', () => {
       );
       expect(mockUploadFile).not.toHaveBeenCalled();
       expect(result.url).toBe('https://example.com/image.png');
+    });
+
+    it('moon-shaped (not hosted, default presigned service, no creds) → hotlink, no uploadFile', async () => {
+      mockImageFetch();
+      mockMoonShaped();
+
+      const result = await prepareOutboundMedia(
+        'https://example.com/image.png'
+      );
+      expect(mockUploadFile).not.toHaveBeenCalled();
+      expect(result.url).toBe('https://example.com/image.png');
+    });
+  });
+
+  describe('hosted ship without custom S3 (uploadFile routes to Memex)', () => {
+    it('uploads rather than hotlinking', async () => {
+      mockImageFetch();
+      mockHostedPresigned();
+      mockUploadFile.mockResolvedValue({
+        url: 'https://memex.tlon.network/hosted.png',
+      });
+
+      const result = await prepareOutboundMedia(
+        'https://example.com/image.png'
+      );
+      expect(mockUploadFile).toHaveBeenCalledTimes(1);
+      expect(result.url).toBe('https://memex.tlon.network/hosted.png');
+    });
+
+    it('still uploads when hosted with custom S3 but no current bucket', async () => {
+      mockImageFetch();
+      mockIsHosted.mockReturnValue(true);
+      mockScry.mockImplementation(async ({ path }: { path: string }) => {
+        if (path === '/credentials') {
+          return {
+            'storage-update': {
+              credentials: {
+                accessKeyId: 'ak',
+                endpoint: 'https://s3.example.com',
+                secretAccessKey: 'sk',
+              },
+            },
+          };
+        }
+        return {
+          'storage-update': {
+            configuration: { service: 'presigned-url', currentBucket: '' },
+          },
+        };
+      });
+      mockUploadFile.mockResolvedValue({
+        url: 'https://memex.tlon.network/hosted2.png',
+      });
+
+      const result = await prepareOutboundMedia(
+        'https://example.com/image.png'
+      );
+      expect(mockUploadFile).toHaveBeenCalledTimes(1);
+      expect(result.url).toBe('https://memex.tlon.network/hosted2.png');
     });
   });
 
