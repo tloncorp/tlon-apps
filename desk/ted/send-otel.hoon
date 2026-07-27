@@ -182,9 +182,16 @@
           ==
       ==
   ==
+=/  request-url=@t
+  =/  parsed  (de-purl:html otel)
+  ?.  ?=(^ parsed)
+    otel
+  ?.  ?=(~ q.q.u.parsed)
+    otel
+  (cat 3 otel endpoint)
 =/  =request:http
   :*  %'POST'
-      (cat 3 otel endpoint)
+      request-url
       ~['content-type'^'application/json']
       `(as-octs:mimes:html (en:json:html logs))
   ==
