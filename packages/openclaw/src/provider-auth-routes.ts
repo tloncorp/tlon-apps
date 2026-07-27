@@ -5,6 +5,7 @@ import {
   clearRuntimeAuthProfileStoreSnapshots,
   ensureAuthProfileStore,
   listProfilesForProvider,
+  loadModelCatalog,
   resolveApiKeyForProfile,
   resolveDefaultAgentDir,
 } from 'openclaw/plugin-sdk/agent-runtime';
@@ -50,6 +51,25 @@ type PublicProviderAuthFlow = Omit<ProviderAuthFlow, 'createdAt'>;
 
 const flows = new Map<string, ProviderAuthFlow>();
 const flowWaiters = new Map<string, Set<() => void>>();
+
+type GatewayModelCatalogEntry = {
+  provider?: unknown;
+  id?: unknown;
+  key?: unknown;
+  name?: unknown;
+  api?: unknown;
+  baseUrl?: unknown;
+  available?: unknown;
+};
+
+type SubscriptionModel = {
+  id: string;
+  name?: string;
+};
+
+type SubscriptionModelCatalog = Partial<
+  Record<ProviderId, SubscriptionModel[]>
+>;
 
 function writeJson(res: ServerResponse, statusCode: number, payload: unknown) {
   res.statusCode = statusCode;
@@ -144,6 +164,119 @@ function asRecord(value: unknown): Record<string, unknown> {
     throw new Error('request body must be a JSON object');
   }
   return value as Record<string, unknown>;
+}
+
+function readModelCatalogEntries(value: unknown): GatewayModelCatalogEntry[] {
+  if (!value || typeof value !== 'object') {
+    return [];
+  }
+  const models = (value as { models?: unknown }).models;
+  return Array.isArray(models)
+    ? models.filter(
+        (entry): entry is GatewayModelCatalogEntry =>
+          Boolean(entry) && typeof entry === 'object'
+      )
+    : [];
+}
+
+function normalizeCatalogEntry(entry: GatewayModelCatalogEntry): {
+  provider: string;
+  id: string;
+  name?: string;
+  api?: string;
+  baseUrl?: string;
+  available?: boolean;
+} | null {
+  let provider =
+    typeof entry.provider === 'string' ? entry.provider.trim() : '';
+  let id = typeof entry.id === 'string' ? entry.id.trim() : '';
+  if ((!provider || !id) && typeof entry.key === 'string') {
+    const separator = entry.key.indexOf('/');
+    if (separator > 0 && separator < entry.key.length - 1) {
+      provider ||= entry.key.slice(0, separator).trim();
+      id ||= entry.key.slice(separator + 1).trim();
+    }
+  }
+  if (!provider || !id) {
+    return null;
+  }
+  return {
+    provider,
+    id,
+    ...(typeof entry.name === 'string' && entry.name.trim()
+      ? { name: entry.name.trim() }
+      : {}),
+    ...(typeof entry.api === 'string' && entry.api.trim()
+      ? { api: entry.api.trim() }
+      : {}),
+    ...(typeof entry.baseUrl === 'string' && entry.baseUrl.trim()
+      ? { baseUrl: entry.baseUrl.trim() }
+      : {}),
+    ...(typeof entry.available === 'boolean'
+      ? { available: entry.available }
+      : {}),
+  };
+}
+
+function isOpenAISubscriptionModel(entry: {
+  id: string;
+  api?: string;
+  baseUrl?: string;
+}): boolean {
+  if (
+    entry.api === 'openai-chatgpt-responses' ||
+    entry.baseUrl?.includes('chatgpt.com/backend-api')
+  ) {
+    return true;
+  }
+
+  // Some models.list projections omit transport metadata and expose only a
+  // provider-qualified key. These are the native Codex ids supported by 7.1.
+  return (
+    entry.id.includes('codex') ||
+    /^gpt-5\.(?:4(?:-(?:mini|pro))?|5(?:-pro)?|6-(?:sol|terra|luna))$/.test(
+      entry.id
+    )
+  );
+}
+
+export function extractSubscriptionModels(
+  value: unknown
+): SubscriptionModelCatalog {
+  const catalog: SubscriptionModelCatalog = {};
+  const entries = readModelCatalogEntries(value)
+    .map(normalizeCatalogEntry)
+    .filter((entry) => entry !== null);
+
+  for (const provider of ['openai', 'anthropic'] as const) {
+    const seen = new Set<string>();
+    catalog[provider] = entries
+      .filter((entry) => {
+        if (entry.provider !== provider || !entry.id) {
+          return false;
+        }
+
+        // OpenAI's canonical provider contains both direct Platform API rows
+        // and native ChatGPT/Codex subscription rows. Only the latter can be
+        // powered by the OAuth profile created by this flow.
+        if (provider === 'openai' && !isOpenAISubscriptionModel(entry)) {
+          return false;
+        }
+
+        const id = entry.id;
+        if (seen.has(id)) {
+          return false;
+        }
+        seen.add(id);
+        return true;
+      })
+      .map((entry) => ({
+        id: entry.id,
+        ...(entry.name ? { name: entry.name } : {}),
+      }));
+  }
+
+  return catalog;
 }
 
 function errorMessage(error: unknown, secret?: string): string {
@@ -360,6 +493,60 @@ async function refreshGatewayAuthState(api: OpenClawPluginApi) {
   }
 }
 
+async function loadSubscriptionModelCatalog(
+  api: OpenClawPluginApi
+): Promise<SubscriptionModelCatalog> {
+  let gatewayCatalog: SubscriptionModelCatalog = {};
+  try {
+    const result = await api.runtime.gateway.request('models.list', {
+      view: 'all',
+    });
+    gatewayCatalog = extractSubscriptionModels(result);
+  } catch (error) {
+    api.logger.warn(
+      `[tlon] Subscription model catalog load failed: ${errorMessage(error)}`
+    );
+  }
+
+  if (
+    (gatewayCatalog.openai?.length ?? 0) > 0 &&
+    (gatewayCatalog.anthropic?.length ?? 0) > 0
+  ) {
+    return gatewayCatalog;
+  }
+
+  // Gateway projections can omit availability/transport fields, and older
+  // runtime caches can briefly return no rows immediately after login. Fall
+  // back to OpenClaw's own local 7.1 catalog rather than leaving the picker
+  // blank. The frontend still gates these rows on a connected subscription.
+  try {
+    const cfg = api.runtime.config.current() as OpenClawConfig;
+    const models = await loadModelCatalog({
+      config: cfg,
+      readOnly: true,
+      useCache: false,
+    });
+    const localCatalog = extractSubscriptionModels({ models });
+    return {
+      openai:
+        (gatewayCatalog.openai?.length ?? 0) > 0
+          ? gatewayCatalog.openai
+          : localCatalog.openai,
+      anthropic:
+        (gatewayCatalog.anthropic?.length ?? 0) > 0
+          ? gatewayCatalog.anthropic
+          : localCatalog.anthropic,
+    };
+  } catch (error) {
+    api.logger.warn(
+      `[tlon] Local subscription model catalog load failed: ${errorMessage(
+        error
+      )}`
+    );
+    return gatewayCatalog;
+  }
+}
+
 function includeDetectedAuthFailures(
   api: OpenClawPluginApi,
   value: unknown
@@ -460,11 +647,17 @@ export function registerProviderAuthRoutes(api: OpenClawPluginApi): boolean {
       try {
         if (req.method === 'GET' && suffix === '/status') {
           await refreshExpiredOpenAIProfiles(api);
-          const result = await api.runtime.gateway.request(
-            'models.authStatus',
-            { refresh: true }
-          );
-          writeJson(res, 200, includeDetectedAuthFailures(api, result));
+          const [result, subscriptionModels] = await Promise.all([
+            api.runtime.gateway.request('models.authStatus', {
+              refresh: true,
+            }),
+            loadSubscriptionModelCatalog(api),
+          ]);
+          const status = includeDetectedAuthFailures(api, result);
+          writeJson(res, 200, {
+            ...(status && typeof status === 'object' ? status : {}),
+            subscriptionModels,
+          });
           return;
         }
 
