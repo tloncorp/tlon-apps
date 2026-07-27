@@ -2384,13 +2384,12 @@
   :~  (ex-fact ~[pax] %notes-error !>(~))
       (ex-card [%give %kick ~[pax] ~])
   ==
-::  +test-said-snippet-grapheme-cluster
+::  +test-said-snippet-utf8-boundary: the byte cap never splits utf-8
 ::
-::  a snippet cut landing inside a zwj emoji family must back off past
+::  the 400-byte cut lands two bytes into a 4-byte emoji; the snippet
+::  backs off to the last clean boundary
 ::
-::  the whole cluster, not strand half the family
-::
-++  test-said-snippet-grapheme-cluster
+++  test-said-snippet-utf8-boundary
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -2398,9 +2397,6 @@
   ;<  =bowl:gall  bind:m  get-bowl
   ;<  *  bind:m  (poke-a %create-notebook 'NB')
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  ::  398 ascii chars, then a 7-codepoint family emoji straddling the
-  ::  400-codepoint snippet limit
-  ::
   =/  fam=(list @c)
     :~  `@c`0x1.f468  `@c`0x200d  `@c`0x1.f469  `@c`0x200d
         `@c`0x1.f467  `@c`0x200d  `@c`0x1.f466
@@ -2409,6 +2405,52 @@
   ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' body])
   ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
   =/  snip=@t  (crip (reap 398 'a'))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said !>(`said:n`[f [3 'T' snip our.bowl now.bowl 'NB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-snippet-large-body: truncation is byte-bounded
+::
+++  test-said-snippet-large-body
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a %create-notebook 'NB')
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  body=@t  (crip (weld (reap 400 'a') (reap 10.000 'b')))
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' body])
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
+  =/  snip=@t  (crip (reap 400 'a'))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said !>(`said:n`[f [3 'T' snip our.bowl now.bowl 'NB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-snippet-splits-clusters: documented limitation
+::
+::  the byte cut can land between codepoints of a zwj family; the
+::  result is valid utf-8 with a shortened cluster (the man survives,
+::  the family doesn't)
+::
+++  test-said-snippet-splits-clusters
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a %create-notebook 'NB')
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  fam=(list @c)
+    :~  `@c`0x1.f468  `@c`0x200d  `@c`0x1.f469  `@c`0x200d
+        `@c`0x1.f467  `@c`0x200d  `@c`0x1.f466
+    ==
+  =/  body=@t  (crip (weld (reap 395 'a') (tufa fam)))
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' body])
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
+  =/  snip=@t  (crip (weld (reap 395 'a') (tufa ~[`@c`0x1.f468])))
   %+  ex-cards  caz
   :~  %+  ex-fact  ~
       [%notes-said !>(`said:n`[f [3 'T' snip our.bowl now.bowl 'NB']])]
@@ -2433,54 +2475,6 @@
   ;<  caz=(list card)  bind:m  (do-watch pax)
   %+  ex-cards  caz
   ~[(ex-card [%pass wire %agent [~bus %notes] %watch pax])]
-::  +test-said-snippet-bounded-decode: large bodies slice before decoding
-::
-::  the 1.600-byte cap lands two bytes into a 4-byte emoji; the trim
-::  must drop the split sequence so the slice decodes cleanly, and the
-::  snippet is the plain 400-codepoint cut of the remaining ascii
-::
-++  test-said-snippet-bounded-decode
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  ~  bind:m  init-zod
-  ;<  =bowl:gall  bind:m  get-bowl
-  ;<  *  bind:m  (poke-a %create-notebook 'NB')
-  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  =/  pig=(list @c)  ~[`@c`0x1.f437]
-  =/  body=@t
-    (crip :(weld (reap 1.598 'a') (tufa pig) (reap 5.000 'b')))
-  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' body])
-  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
-  =/  snip=@t  (crip (reap 400 'a'))
-  %+  ex-cards  caz
-  :~  %+  ex-fact  ~
-      [%notes-said !>(`said:n`[f [3 'T' snip our.bowl now.bowl 'NB']])]
-      (ex-card [%give %kick ~ ~])
-  ==
-::  +test-said-snippet-slice-at-limit: sliced body at exactly the limit
-::
-::  401 4-byte emoji slice to exactly 400 codepoints; the next
-::  codepoint is unknown so the backoff conservatively peels one more
-::
-++  test-said-snippet-slice-at-limit
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  ~  bind:m  init-zod
-  ;<  =bowl:gall  bind:m  get-bowl
-  ;<  *  bind:m  (poke-a %create-notebook 'NB')
-  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
-  =/  pigs=(list @c)  (reap 401 `@c`0x1.f437)
-  =/  body=@t  (crip (tufa pigs))
-  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' body])
-  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
-  =/  snip=@t  (crip (tufa (reap 399 `@c`0x1.f437)))
-  %+  ex-cards  caz
-  :~  %+  ex-fact  ~
-      [%notes-said !>(`said:n`[f [3 'T' snip our.bowl now.bowl 'NB']])]
-      (ex-card [%give %kick ~ ~])
-  ==
 ::  +said-group-scry: mock %gu group liveness + %gx can-read for said tests
 ::
 ++  said-group-scry

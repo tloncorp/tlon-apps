@@ -268,7 +268,9 @@ components:
         title: { type: string }
         snippet:
           type: string
-          description: Leading slice (≤400 chars) of the note's markdown body.
+          description: |-
+            Leading slice (at most 400 bytes, cut at a utf-8 boundary)
+            of the note's markdown body.
         author: { type: string, description: Ship that created the note. }
         updatedAt: { type: integer, description: Unix seconds. }
         notebookTitle: { type: string }

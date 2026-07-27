@@ -1012,82 +1012,28 @@
   |=  [=flag:n nid=@ud]
   ^-  path
   /v0/said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
-::  +utf8-head: at most .cap leading bytes of .t, whole sequences only
-::
-::  trailing continuation bytes and the lead byte they belong to are
-::  dropped when the byte cap splits a multi-byte sequence, so the
-::  slice always decodes cleanly.
-::
-++  utf8-head
-  |=  [t=@t cap=@ud]
-  ^-  @t
-  =/  head=@t  `@t`(end [3 cap] t)
-  =/  i=@ud  (dec cap)
-  |-
-  =/  b=@  (cut 3 [i 1] head)
-  ?:  &((gte b 0x80) (lth b 0xc0))
-    ?:  =(0 i)  ''
-    $(i (dec i))
-  =/  need=@ud
-    ?:  (lth b 0x80)  1
-    ?:  (lth b 0xe0)  2
-    ?:  (lth b 0xf0)  3
-    4
-  ?:  (lte (add i need) cap)  head
-  `@t`(end [3 i] head)
 ::  +said-snippet: leading slice of body-md for preview cards
 ::
-::  the decode is bounded before it happens: 400 codepoints span at
-::  most 1.600 utf-8 bytes, so larger bodies are sliced as atoms first
-::  — a multi-megabyte note must not be materialized per preview
-::  request, since public notebooks answer any ship. the slice then
-::  cuts at a codepoint boundary and backs off past anything that can
-::  glue a grapheme cluster together, dropping the whole trailing
-::  cluster rather than splitting it. this approximates uax #29
-::  extended grapheme clusters; covered: zwj/zwnj sequences, variation
-::  selectors, skin tones, all combining-mark blocks, regional
-::  indicators (a cut between two flags conservatively drops the whole
-::  trailing flag run), and tag sequences. known gaps: hangul jamo
-::  composition and virama-joined indic conjuncts can still split —
-::  valid codepoints, visually altered. full coverage needs the uax
-::  #29 property tables; port them if this ever matters in practice.
+::  truncates to at most 400 bytes without decoding, backing off to a
+::  utf-8 boundary so the result is always valid text — a
+::  multi-megabyte note costs the same as a small one, which matters
+::  because public notebooks answer any ship. known limitation: the
+::  cut can split a grapheme cluster (a trailing emoji family may
+::  lose members); the result is valid, just visually shorter. full
+::  cluster handling needs the uax #29 property tables — port them if
+::  this ever matters in practice.
 ::
 ++  said-snippet
   |=  body=@t
   ^-  @t
-  =/  limit=@ud  400
-  =/  cap=@ud  (mul 4 limit)
-  =/  sliced=?  (gth (met 3 body) cap)
-  =?  body  sliced  (utf8-head body cap)
-  =/  chars=(list @c)  (tuba (trip body))
-  =/  count=@ud  (lent chars)
-  ?:  &(!sliced (lte count limit))  body
-  =/  glue
-    |=  c=@c
-    ?|  =(`@`c 0x200d)  =(`@`c 0x200c)            ::  zwj / zwnj
-        &((gte `@`c 0xfe00) (lte `@`c 0xfe0f))    ::  variation selectors
-        &((gte `@`c 0x1.f3fb) (lte `@`c 0x1.f3ff))  ::  skin tones
-        &((gte `@`c 0x1.f1e6) (lte `@`c 0x1.f1ff))  ::  regional indicators
-        &((gte `@`c 0xe.0001) (lte `@`c 0xe.007f))  ::  tag sequences
-        &((gte `@`c 0x300) (lte `@`c 0x36f))      ::  combining diacritics
-        &((gte `@`c 0x1ab0) (lte `@`c 0x1aff))    ::  combining extended
-        &((gte `@`c 0x1dc0) (lte `@`c 0x1dff))    ::  combining supplement
-        &((gte `@`c 0x20d0) (lte `@`c 0x20ff))    ::  combining for symbols
-        &((gte `@`c 0xfe20) (lte `@`c 0xfe2f))    ::  combining half marks
-    ==
-  ::  when the utf-8 trim leaves fewer codepoints than the limit the
-  ::  next codepoint is unknown — treat it as glue so a trailing
-  ::  half-cluster still gets peeled
-  ::
-  =/  cut=@ud  (min limit count)
-  =/  nxt=@c  ?:((gth count cut) (snag cut chars) `@c`0x200d)
-  ::  walk the kept slice in reverse so cluster glue peels off the end
-  =/  peek=(list @c)  (flop (scag cut chars))
-  |-  ^-  @t
-  ?~  peek  ''
-  ?.  |((glue i.peek) (glue nxt))
-    (crip (tufa (flop peek)))
-  $(peek t.peek, nxt i.peek)
+  =/  cap=@ud  400
+  ?:  (lte (met 3 body) cap)  body
+  |-
+  ?:  =(0 cap)  ''
+  =/  b=@  (cut 3 [cap 1] body)
+  ?.  &((gte b 0x80) (lth b 0xc0))
+    `@t`(end [3 cap] body)
+  $(cap (dec cap))
 ::  +give-said: one %fact then an immediate %kick
 ::
 ::  mirrors %channels' single-shot said flow. public notebooks preview
