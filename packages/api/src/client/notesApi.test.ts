@@ -10,6 +10,7 @@ import {
 
 import {
   NotesV1PendingWriteError,
+  NotesV1WriteError,
   deleteNotesNotebookBestEffort,
   deleteNotesNotebookStrict,
   formatNotesFlag,
@@ -588,6 +589,152 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     );
   });
 
+  test('updateNoteBody distinguishes applied writes from no-change', async () => {
+    requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
+    await expect(
+      notesV1.updateNoteBody({ flag: 'notes/~zod/blog', noteId: 12, body: 'x' })
+    ).resolves.toMatchObject({ status: 'ok', note: null });
+
+    requestJsonMock.mockResolvedValue({ body: { type: 'no-change' } });
+    await expect(
+      notesV1.updateNoteBody({ flag: 'notes/~zod/blog', noteId: 12, body: 'x' })
+    ).resolves.toMatchObject({ status: 'no-change', note: null });
+  });
+
+  test('note writes extract the applied note from the ok envelope', async () => {
+    // Mirrors the v1 encoder exactly: response %update wraps the
+    // notebook-scoped u-notebook ({type: 'note-update', noteUpdate}) whose
+    // inner u-note carries the applied note (lib/notes/json.hoon).
+    const envelope = {
+      requestId: '0vok',
+      body: {
+        type: 'ok',
+        response: {
+          type: 'update',
+          host: '~zod',
+          flagName: 'blog',
+          time: 1700000000000,
+          update: {
+            type: 'note-update',
+            host: '~zod',
+            flagName: 'blog',
+            noteUpdate: {
+              type: 'note-updated',
+              id: 12,
+              note: {
+                id: 12,
+                title: 'T',
+                bodyMd: 'x',
+                revision: 4,
+                updatedAt: 1234,
+                updatedBy: '~zod',
+              },
+            },
+          },
+        },
+      },
+    };
+
+    requestJsonMock.mockResolvedValue(envelope);
+    await expect(
+      notesV1.updateNoteBody({ flag: 'notes/~zod/blog', noteId: 12, body: 'x' })
+    ).resolves.toMatchObject({
+      status: 'ok',
+      note: { id: 12, revision: 4, updatedAt: 1234, updatedBy: '~zod' },
+    });
+
+    await expect(
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
+    ).resolves.toMatchObject({ id: 12, updatedAt: 1234 });
+
+    // A flat (unwrapped) update payload is not the wire shape — it must
+    // degrade to null rather than be mistaken for the applied note.
+    requestJsonMock.mockResolvedValue({
+      body: {
+        type: 'ok',
+        response: {
+          type: 'update',
+          update: {
+            type: 'note-updated',
+            id: 12,
+            note: { id: 12, title: 'T' },
+          },
+        },
+      },
+    });
+    await expect(
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
+    ).resolves.toBeNull();
+
+    // Malformed payloads degrade to null, never throw past a passing write.
+    requestJsonMock.mockResolvedValue({
+      body: {
+        type: 'ok',
+        response: {
+          type: 'update',
+          update: {
+            type: 'note-update',
+            noteUpdate: {
+              type: 'note-updated',
+              id: 12,
+              note: { title: 'no id' },
+            },
+          },
+        },
+      },
+    });
+    await expect(
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
+    ).resolves.toBeNull();
+  });
+
+  test('updateNoteBody surfaces a typed conflict error with a tang message', async () => {
+    requestJsonMock.mockResolvedValue({
+      requestId: '0vconflict',
+      body: {
+        type: 'error',
+        errorType: 'conflict',
+        message: ['revision-mismatch: expected 2, current 3'],
+      },
+    });
+
+    const error = await rejectionError(
+      notesV1.updateNoteBody({
+        flag: 'notes/~zod/blog',
+        noteId: 12,
+        body: 'x',
+        expectedRevision: 2,
+      })
+    );
+
+    expect(error).toBeInstanceOf(NotesV1WriteError);
+    const writeError = error as NotesV1WriteError;
+    expect(writeError.errorType).toBe('conflict');
+    expect(writeError.message).toBe(
+      '%notes error: revision-mismatch: expected 2, current 3'
+    );
+  });
+
+  test('error envelopes without errorType still throw with a message', async () => {
+    requestJsonMock.mockResolvedValue({
+      body: { type: 'error', message: 'not-authorized' },
+    });
+
+    const error = await rejectionError(
+      notesV1.updateNoteBody({
+        flag: 'notes/~zod/blog',
+        noteId: 12,
+        body: 'x',
+      })
+    );
+
+    expect(error).toBeInstanceOf(NotesV1WriteError);
+    expect((error as NotesV1WriteError).errorType).toBeUndefined();
+    expect((error as NotesV1WriteError).message).toBe(
+      '%notes error: not-authorized'
+    );
+  });
+
   test('renameNote / moveNote / deleteNote send metadata-only or no body', async () => {
     await notesV1.renameNote({
       flag: 'notes/~zod/blog',
@@ -670,11 +817,11 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     await expect(
       notesV1.deleteNote({ flag: 'notes/~zod/blog', noteId: 1 })
     ).resolves.toBeUndefined();
-    // explicit ok envelope
+    // explicit ok envelope without an update payload → null applied note
     requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
     await expect(
       notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 1, title: 'x' })
-    ).resolves.toBeUndefined();
+    ).resolves.toBeNull();
     // error / pending / unexpected envelopes reject
     for (const body of [
       { type: 'error', message: 'nope' },
