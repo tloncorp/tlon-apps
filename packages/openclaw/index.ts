@@ -30,6 +30,7 @@ import {
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import { registerManagedProviderRuntimes } from './src/managed-provider-runtimes.js';
 import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
@@ -940,6 +941,8 @@ export default defineBundledChannelEntry({
     exportName: 'setTlonRuntime',
   },
   registerFull(api) {
+    registerManagedProviderRuntimes(api);
+
     // ── Gateway-status liveness integration ───────────────────
     //
     // registerFull is NOT a once-per-process call: OpenClaw invokes it once
