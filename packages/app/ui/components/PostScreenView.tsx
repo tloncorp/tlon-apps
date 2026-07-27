@@ -24,7 +24,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { LayoutChangeEvent, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack } from 'tamagui';
 
@@ -51,11 +51,13 @@ import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import { usesFloatingMessageInputChrome } from './MessageInput/MessageInputChrome';
+import { ScrollEdgeElementContainer } from './ScrollEdgeElementContainer';
 import { DraftInputContext } from './draftInputs';
 import {
   DraftInputContextProvider,
   DraftInputHandle,
 } from './draftInputs/shared';
+import { conversationScrollViewNativeID } from './nativeScrollEdgeEffects';
 
 const noop = async () => {};
 
@@ -673,6 +675,10 @@ function SinglePostView({
   const currentUserId = useCurrentUserId();
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
+  const [floatingInputHeight, setFloatingInputHeight] = useState(0);
+  const handleFloatingInputLayout = useCallback((event: LayoutChangeEvent) => {
+    setFloatingInputHeight(event.nativeEvent.layout.height);
+  }, []);
 
   const isEditingParent = useMemo(() => {
     return editingPost && editingPost.id === parentPost?.id;
@@ -855,6 +861,24 @@ function SinglePostView({
     ]
   );
 
+  const replyInput = canRenderReplyInput ? (
+    <BareChatInput
+      ref={replyDraftInputRef}
+      {...threadComposerContext}
+      placeholder="Reply"
+      channelId={threadComposerContext.channel.id}
+      groupId={threadComposerContext.channel.groupId}
+      groupMembers={groupMembers}
+      groupRoles={groupRoles}
+      channelType="chat"
+      showAttachmentButton={isChatLike}
+      showInlineAttachments
+      shouldAutoFocus={
+        (isChatLike && parentPost?.replyCount === 0) || !!editingPost
+      }
+    />
+  ) : null;
+
   return (
     <YStack flex={1}>
       {/* Thread composer context sends new drafts as replies; edits preserve their original target. */}
@@ -879,36 +903,31 @@ function SinglePostView({
             inspectContextLensPost={inspectContextLensPost}
             onOpenContextLens={openContextLensForPost}
             onGoToBotRun={onGoToBotRun}
+            bottomContentInset={
+              Platform.OS === 'ios' && canRenderReplyInput
+                ? floatingInputHeight
+                : 0
+            }
           />
         ) : null}
 
-        {canRenderReplyInput && (
-          <View
-            id="reply-container"
-            position={usesFloatingMessageInputChrome ? 'absolute' : undefined}
-            bottom={usesFloatingMessageInputChrome ? 0 : undefined}
-            left={usesFloatingMessageInputChrome ? 0 : undefined}
-            right={usesFloatingMessageInputChrome ? 0 : undefined}
-            zIndex={usesFloatingMessageInputChrome ? 10 : undefined}
-            {...containingProperties}
-          >
-            <BareChatInput
-              ref={replyDraftInputRef}
-              {...threadComposerContext}
-              placeholder="Reply"
-              channelId={threadComposerContext.channel.id}
-              groupId={threadComposerContext.channel.groupId}
-              groupMembers={groupMembers}
-              groupRoles={groupRoles}
-              channelType="chat"
-              showAttachmentButton={isChatLike}
-              showInlineAttachments
-              shouldAutoFocus={
-                (isChatLike && parentPost?.replyCount === 0) || !!editingPost
+        {replyInput &&
+          (usesFloatingMessageInputChrome ? (
+            <ScrollEdgeElementContainer
+              edge="bottom"
+              scrollViewNativeID={conversationScrollViewNativeID}
+              style={styles.floatingReplyInput}
+              onLayout={
+                Platform.OS === 'ios' ? handleFloatingInputLayout : undefined
               }
-            />
-          </View>
-        )}
+            >
+              <View {...containingProperties}>{replyInput}</View>
+            </ScrollEdgeElementContainer>
+          ) : (
+            <View id="reply-container" {...containingProperties}>
+              {replyInput}
+            </View>
+          ))}
       </DraftInputContextProvider>
       {!negotiationMatch && channel && canWrite && (
         <View
@@ -1119,3 +1138,13 @@ function _CarouselPost({
   );
 }
 const CarouselPost = memo(_CarouselPost);
+
+const styles = StyleSheet.create({
+  floatingReplyInput: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+});

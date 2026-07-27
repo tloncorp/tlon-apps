@@ -3,6 +3,7 @@ import { LayoutChangeEvent } from 'react-native';
 import { View, XStack } from 'tamagui';
 
 export const usesFloatingMessageInputChrome = false;
+export const floatingMessageInputBottomInset = 0;
 
 export function MessageInputChromeRow({
   children,

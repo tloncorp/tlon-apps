@@ -91,16 +91,19 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
         paddingBottom={insets.bottom}
         backgroundColor="$background"
       >
-        <ScreenHeader
-          title="Notifications"
-          backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
-          borderBottom
-        />
+        {!isNative && (
+          <ScreenHeader
+            title="Notifications"
+            backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
+            borderBottom
+          />
+        )}
         <ScrollView
           flex={1}
           paddingHorizontal={'$xl'}
           maxWidth={600}
           marginHorizontal="auto"
+          contentInsetAdjustmentBehavior={isNative ? 'automatic' : undefined}
         >
           <TlonText.Text size={'$body'} marginVertical={'$xl'}>
             Configure what kinds of messages will send you

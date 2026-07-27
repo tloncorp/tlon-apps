@@ -2,6 +2,7 @@ import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import {
+  Icon,
   SectionListHeader,
   Text,
   pluralize,
@@ -9,10 +10,18 @@ import {
 } from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
 import { capitalize } from 'lodash';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { Platform, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
+  XStack,
   YStack,
   getTokenValue,
   getVariableValue,
@@ -21,6 +30,8 @@ import {
 
 import { useShipConnectionStatus } from '../../features/top/useShipConnectionStatus';
 import { useRenderCount } from '../../hooks/useRenderCount';
+import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
+import { usesNativeStackHeader } from '../../navigation/nativeHeaderOptions';
 import { useRootNavigation } from '../../navigation/utils';
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { useChatOptions } from '../contexts/chatOptions';
@@ -75,7 +86,7 @@ export const GroupChannelsScreenView = React.memo(
     const canEdit = hostStatus.complete && hostStatus.status === 'yes';
 
     const chatOptions = useChatOptions();
-    const { navigateToChatDetails } = useRootNavigation();
+    const { navigateToChatDetails, navigation } = useRootNavigation();
 
     const handleTitlePress = useCallback(() => {
       if (group) {
@@ -126,6 +137,82 @@ export const GroupChannelsScreenView = React.memo(
       notebookSidebarContent.groupId === group?.id &&
       notebookSidebarContent.channelId === focusedChannelId &&
       dismissedNotebookSidebarChannelId !== notebookSidebarContent.channelId;
+
+    useLayoutEffect(() => {
+      if (!usesNativeStackHeader || shouldShowNotebookSidebar) {
+        return;
+      }
+
+      navigation.setOptions({
+        headerShown: true,
+        headerBackVisible: true,
+        headerLeft: undefined,
+        unstable_headerLeftItems: undefined,
+        headerTitle: () => (
+          <Pressable
+            accessibilityRole="button"
+            disabled={!group}
+            onPress={handleTitlePress}
+          >
+            <XStack
+              alignItems="center"
+              justifyContent="center"
+              gap="$s"
+              maxWidth={240}
+            >
+              {group ? <GroupAvatar model={group} size="$2xl" /> : null}
+              <ScreenHeader.Title numberOfLines={1} flexShrink={1}>
+                {title ?? 'Channels'}
+              </ScreenHeader.Title>
+              {group ? (
+                <Icon type="ChevronDown" color="$primaryText" size="$s" />
+              ) : null}
+            </XStack>
+          </Pressable>
+        ),
+        headerRight:
+          group && isGroupAdmin
+            ? () => (
+                <ScreenHeader.IconButton
+                  type="EditList"
+                  onPress={() => onPressManageChannels(group.id, false)}
+                  disabled={!canEdit}
+                  aria-label="Edit channels"
+                />
+              )
+            : undefined,
+        unstable_headerRightItems:
+          Platform.OS === 'ios'
+            ? () =>
+                group && isGroupAdmin
+                  ? [
+                      {
+                        type: 'button',
+                        label: 'Edit channels',
+                        accessibilityLabel: 'Edit channels',
+                        icon: {
+                          type: 'image',
+                          source: nativeHeaderIcons.editList,
+                        },
+                        identifier: 'edit-channels',
+                        disabled: !canEdit,
+                        onPress: () => onPressManageChannels(group.id, false),
+                        sharesBackground: true,
+                      },
+                    ]
+                  : []
+            : undefined,
+      });
+    }, [
+      canEdit,
+      group,
+      handleTitlePress,
+      isGroupAdmin,
+      navigation,
+      onPressManageChannels,
+      shouldShowNotebookSidebar,
+      title,
+    ]);
 
     useEffect(() => {
       setDismissedNotebookSidebarChannelId(null);
@@ -285,6 +372,7 @@ export const GroupChannelsScreenView = React.memo(
             title={notebookSidebarContent.title}
             testID="NotebookSidebarBackHeader"
             borderBottom
+            scrollsUnderHeader
             backAction={handleDismissNotebookSidebar}
             rightControls={notebookSidebarContent.actions}
           />
@@ -297,35 +385,39 @@ export const GroupChannelsScreenView = React.memo(
 
     return (
       <View flex={1}>
-        <ScreenHeader
-          // When we're fetching the group from the local database, this component
-          // will initially mount with group undefined, then very quickly load the
-          // group in. Keeping the key consistent as long as the ID is prevents a
-          // full re-render / animation triggering almost immediately after the
-          // component mounts.
-          key={group?.id}
-          title={title}
-          titleIcon={group ? <GroupAvatar model={group} size="$2xl" /> : null}
-          testID="GroupChannelsHeaderTrigger"
-          subtitle={subtitle}
-          showSubtitle={isWindowNarrow}
-          borderBottom={isWindowNarrow}
-          backAction={onBackPressed}
-          onTitlePress={handleTitlePress}
-          rightControls={
-            group && isGroupAdmin ? (
-              <ScreenHeader.IconButton
-                type="EditList"
-                onPress={() => onPressManageChannels(group.id, false)}
-                disabled={!canEdit}
-                aria-label="Edit channels"
-              />
-            ) : null
-          }
-        />
-        {isPersonalGroup && group && (
-          <WayfindingNotice.GroupChannels group={group} />
+        {!usesNativeStackHeader && (
+          <ScreenHeader
+            // When we're fetching the group from the local database, this component
+            // will initially mount with group undefined, then very quickly load the
+            // group in. Keeping the key consistent as long as the ID is prevents a
+            // full re-render / animation triggering almost immediately after the
+            // component mounts.
+            key={group?.id}
+            title={title}
+            titleIcon={group ? <GroupAvatar model={group} size="$2xl" /> : null}
+            testID="GroupChannelsHeaderTrigger"
+            subtitle={subtitle}
+            showSubtitle={isWindowNarrow}
+            borderBottom={isWindowNarrow}
+            backAction={onBackPressed}
+            onTitlePress={handleTitlePress}
+            rightControls={
+              group && isGroupAdmin ? (
+                <ScreenHeader.IconButton
+                  type="EditList"
+                  onPress={() => onPressManageChannels(group.id, false)}
+                  disabled={!canEdit}
+                  aria-label="Edit channels"
+                />
+              ) : null
+            }
+          />
         )}
+        {isPersonalGroup &&
+          group &&
+          (!group.channels || group.channels.length === 0) && (
+            <WayfindingNotice.GroupChannels group={group} />
+          )}
         {group && group.joinStatus === 'joining' ? (
           // Show loading spinner while group is syncing
           <YStack flex={1} justifyContent="center" alignItems="center">
@@ -333,15 +425,25 @@ export const GroupChannelsScreenView = React.memo(
           </YStack>
         ) : group && group.channels && group.channels.length > 0 ? (
           <YStack flex={1} minHeight={0}>
-            <SystemNotices.ConnectedJoinRequestNotice
-              group={group}
-              onViewRequests={onGoToGroupMembers}
-            />
             <FlashList
               data={listItems}
               renderItem={renderItem}
               keyExtractor={keyExtractor}
               getItemType={getItemType}
+              contentInsetAdjustmentBehavior={
+                Platform.OS === 'ios' ? 'automatic' : undefined
+              }
+              ListHeaderComponent={
+                <>
+                  {isPersonalGroup ? (
+                    <WayfindingNotice.GroupChannels group={group} />
+                  ) : null}
+                  <SystemNotices.ConnectedJoinRequestNotice
+                    group={group}
+                    onViewRequests={onGoToGroupMembers}
+                  />
+                </>
+              }
               contentContainerStyle={{
                 paddingTop: getTokenValue('$l'),
                 paddingHorizontal: getTokenValue('$l'),

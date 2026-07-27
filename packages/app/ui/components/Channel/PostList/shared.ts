@@ -70,6 +70,11 @@ export type PostListComponentProps = {
    * Content to display at the visual bottom of the list (below all items).
    */
   listBottomComponent?: React.ReactElement;
+  /**
+   * Extra clearance below a floating header element when positioning an
+   * explicit initial anchor.
+   */
+  topContentInset?: number;
 };
 
 export type PostListComponent = ReturnType<

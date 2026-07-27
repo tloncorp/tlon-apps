@@ -59,6 +59,10 @@ export function useAnchorScrollLock({
   anchor,
   hasNewerPosts,
   shouldMaintainVisibleContentPosition,
+  dataStartIsVisualBottom = true,
+  shouldMirrorViewPosition = false,
+  shouldInitiateScrollWhenAnchorAppears = false,
+  anchorViewOffset = 0,
   collectionLayoutType,
   columnsCount,
 }: {
@@ -67,6 +71,10 @@ export function useAnchorScrollLock({
   anchor: ScrollAnchor | null | undefined;
   hasNewerPosts?: boolean;
   shouldMaintainVisibleContentPosition: boolean;
+  dataStartIsVisualBottom?: boolean;
+  shouldMirrorViewPosition?: boolean;
+  shouldInitiateScrollWhenAnchorAppears?: boolean;
+  anchorViewOffset?: number;
   collectionLayoutType: string;
   columnsCount: number;
 }) {
@@ -116,6 +124,11 @@ export function useAnchorScrollLock({
         : rawIndex,
     [collectionLayoutType, columnsCount]
   );
+  const getEffectiveViewPosition = useCallback(
+    (viewPosition: number) =>
+      shouldMirrorViewPosition ? 1 - viewPosition : viewPosition,
+    [shouldMirrorViewPosition]
+  );
 
   const handleScrollBeginDrag = useCallback(() => {
     setUserHasScrolled(true);
@@ -156,7 +169,9 @@ export function useAnchorScrollLock({
             anchor?.postId === currentAnchorId.current
           ) {
             const retryEffectiveIndex = getEffectiveIndex(idx);
-            const viewPos = anchor?.type === 'unread' ? 1 : 0.5;
+            const viewPos = getEffectiveViewPosition(
+              anchor?.type === 'unread' ? 1 : 0.5
+            );
             logger.log('retrying scroll after failure', {
               index: retryEffectiveIndex,
               attempt: failureRetryCountRef.current,
@@ -166,6 +181,7 @@ export function useAnchorScrollLock({
               flatListRef.current.scrollToIndex({
                 index: retryEffectiveIndex,
                 viewPosition: viewPos,
+                viewOffset: anchorViewOffset,
                 animated: false,
               });
               // Only start a done-timeout if onScrollToIndexFailed did not
@@ -194,76 +210,121 @@ export function useAnchorScrollLock({
     }
   );
 
+  const scrollToAnchorIndex = useMutableCallback((index: number) => {
+    if (
+      userHasScrolledRef.current ||
+      didScrollToAnchor ||
+      !anchor?.postId ||
+      !flatListRef.current ||
+      anchor.postId !== currentAnchorId.current ||
+      scrollPhaseRef.current === 'done'
+    ) {
+      return;
+    }
+
+    const effectiveIndex = getEffectiveIndex(index);
+    const viewPosition = getEffectiveViewPosition(
+      anchor.type === 'unread' ? 1 : 0.5
+    );
+    const isCorrection = scrollPhaseRef.current === 'scrolled';
+
+    logger.log(
+      isCorrection
+        ? 'correction scroll to anchor post'
+        : 'scrolling to anchor post',
+      { id: anchor.postId, index }
+    );
+
+    if (collectionLayoutType === 'grid') {
+      logger.log('Using grid-adjusted index for scrollToIndex:', {
+        originalIndex: index,
+        gridAdjustedIndex: effectiveIndex,
+        columnsCount,
+      });
+    }
+
+    try {
+      flatListRef.current.scrollToIndex({
+        index: effectiveIndex,
+        viewPosition,
+        viewOffset: anchorViewOffset,
+        animated: false,
+      });
+    } catch (e) {
+      logger.error('error scrolling to anchor post', e);
+      scrollPhaseRef.current = 'done';
+      setDidScrollToAnchor(true);
+      return;
+    }
+
+    if (isCorrection) {
+      // Correction done — mark complete immediately.
+      scrollPhaseRef.current = 'done';
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      setDidScrollToAnchor(true);
+      return;
+    }
+
+    // Initial scroll done — allow one re-layout correction.
+    // handleItemLayout is wired to the View's onLayout, so it fires again if
+    // the anchor post's measured height changes. That re-invocation (phase
+    // 'scrolled') does the correction scroll.
+    scrollPhaseRef.current = 'scrolled';
+    // Only start the done-timeout if onScrollToIndexFailed did not already
+    // fire synchronously during scrollToIndex above. If it did, the failure
+    // handler already owns retryTimerRef with a retry scheduled.
+    if (failureRetryCountRef.current === 0) {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = setTimeout(() => {
+        // No re-layout happened — first scroll was accurate enough.
+        if (scrollPhaseRef.current === 'scrolled') {
+          scrollPhaseRef.current = 'done';
+          setDidScrollToAnchor(true);
+        }
+      }, SCROLL_COMPLETED_TIMEOUT_MS);
+    }
+  });
+
+  useEffect(() => {
+    if (
+      !shouldInitiateScrollWhenAnchorAppears ||
+      anchorIndex < 0 ||
+      didScrollToAnchor ||
+      userHasScrolledRef.current ||
+      scrollPhaseRef.current !== 'idle'
+    ) {
+      return;
+    }
+
+    // An upright FlatList can mount while the around-anchor query is still
+    // empty. `initialScrollIndex` is not reapplied when that data arrives, and
+    // the anchor item may be outside the initial render window, so its
+    // `onLayout` never fires. Initiate the same bounded scroll/retry sequence
+    // as soon as the anchor becomes part of the data.
+    const frame = requestAnimationFrame(() => {
+      if (
+        anchorIndexRef.current >= 0 &&
+        scrollPhaseRef.current === 'idle' &&
+        !userHasScrolledRef.current
+      ) {
+        scrollToAnchorIndex(anchorIndexRef.current);
+      }
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [
+    anchorIndex,
+    didScrollToAnchor,
+    scrollToAnchorIndex,
+    shouldInitiateScrollWhenAnchorAppears,
+  ]);
+
   const handleItemLayout = useMutableCallback(
     (post: db.Post, index: number) => {
       renderedPostsRef.current.add(post.id);
 
-      if (
-        !userHasScrolled &&
-        !didScrollToAnchor &&
-        post.id === anchor?.postId &&
-        flatListRef.current &&
-        anchor?.postId === currentAnchorId.current &&
-        scrollPhaseRef.current !== 'done'
-      ) {
-        const effectiveIndex = getEffectiveIndex(index);
-        const viewPosition = anchor.type === 'unread' ? 1 : 0.5;
-        const isCorrection = scrollPhaseRef.current === 'scrolled';
-
-        logger.log(
-          isCorrection
-            ? 'correction scroll to anchor post'
-            : 'scrolling to anchor post',
-          { id: post.id, index }
-        );
-
-        if (collectionLayoutType === 'grid') {
-          logger.log('Using grid-adjusted index for scrollToIndex:', {
-            originalIndex: index,
-            gridAdjustedIndex: effectiveIndex,
-            columnsCount,
-          });
-        }
-
-        try {
-          flatListRef.current.scrollToIndex({
-            index: effectiveIndex,
-            viewPosition,
-            animated: false,
-          });
-        } catch (e) {
-          logger.error('error scrolling to anchor post', e);
-          scrollPhaseRef.current = 'done';
-          setDidScrollToAnchor(true);
-          return;
-        }
-
-        if (isCorrection) {
-          // Correction done — mark complete immediately.
-          scrollPhaseRef.current = 'done';
-          if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-          setDidScrollToAnchor(true);
-        } else {
-          // Initial scroll done — allow one re-layout correction.
-          // handleItemLayout is wired to the View's onLayout, so it fires
-          // again if the anchor post's measured height changes. That
-          // re-invocation (phase 'scrolled') does the correction scroll.
-          scrollPhaseRef.current = 'scrolled';
-          // Only start the done-timeout if onScrollToIndexFailed did not
-          // already fire synchronously during scrollToIndex above.
-          // If it did, failureRetryCountRef.current > 0 and the failure
-          // handler already owns retryTimerRef with a retry scheduled.
-          if (failureRetryCountRef.current === 0) {
-            if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
-            retryTimerRef.current = setTimeout(() => {
-              // No re-layout happened — first scroll was accurate enough.
-              if (scrollPhaseRef.current === 'scrolled') {
-                scrollPhaseRef.current = 'done';
-                setDidScrollToAnchor(true);
-              }
-            }, SCROLL_COMPLETED_TIMEOUT_MS);
-          }
-        }
+      if (post.id === anchor?.postId) {
+        scrollToAnchorIndex(index);
       }
 
       // Set timeout if we've rendered all posts
@@ -281,9 +342,14 @@ export function useAnchorScrollLock({
 
     return {
       minIndexForVisible: 0,
-      autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
+      autoscrollToTopThreshold:
+        dataStartIsVisualBottom && !hasNewerPosts ? 0 : undefined,
     };
-  }, [hasNewerPosts, shouldMaintainVisibleContentPosition]);
+  }, [
+    dataStartIsVisualBottom,
+    hasNewerPosts,
+    shouldMaintainVisibleContentPosition,
+  ]);
 
   // Clean up timers on unmount
   useEffect(() => {

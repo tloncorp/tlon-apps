@@ -189,6 +189,8 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         contextLensSelectedPostId={ctx.contextLensSelectedPostId}
         highlightPostId={highlightPostId}
         listBottomComponent={listBottomComponent}
+        bottomContentInset={ctx.bottomContentInset}
+        topContentInset={ctx.topContentInset}
       />
     );
   }

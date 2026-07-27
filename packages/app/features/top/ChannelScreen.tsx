@@ -30,6 +30,7 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
+import { shouldFallbackFromUnreadCursor } from './ChannelScreen.helpers';
 
 const logger = createDevLogger('ChannelScreen', false);
 
@@ -153,19 +154,20 @@ export default function ChannelScreen(props: Props) {
 
   const { performGroupAction } = useGroupActions();
 
-  const cursor = useMemo(() => {
+  const unreadCursor = useMemo(() => {
     if (!channel) {
       return undefined;
     }
-    const firstUnreadId =
+    return (
       initialChannelUnread &&
       (initialChannelUnread.countWithoutThreads ?? 0) > 0 &&
-      initialChannelUnread?.firstUnreadPostId;
-    return selectedPostId || firstUnreadId;
+      initialChannelUnread.firstUnreadPostId
+    );
     // We only want this to rerun when the channel is loaded for the first time OR if
-    // the selected post route param changes
+    // the initial unread state changes
     // eslint-disable-next-line
-  }, [!!channel, initialChannelUnread, selectedPostId]);
+  }, [!!channel, initialChannelUnread]);
+  const cursor = selectedPostId || unreadCursor;
 
   useEffect(() => {
     if (channel?.id) {
@@ -214,6 +216,29 @@ export default function ChannelScreen(props: Props) {
           firstPageCount: 50,
         }),
   });
+
+  useEffect(() => {
+    if (
+      shouldFallbackFromUnreadCursor({
+        unreadCursor,
+        selectedPostId,
+        clearedCursor,
+        queryFailureCount: postsQuery.failureCount,
+      })
+    ) {
+      logger.log('unread cursor failed; falling back to newest posts', {
+        channelId: currentChannelId,
+        unreadCursor,
+      });
+      setClearedCursor(true);
+    }
+  }, [
+    clearedCursor,
+    currentChannelId,
+    postsQuery.failureCount,
+    selectedPostId,
+    unreadCursor,
+  ]);
 
   useEffect(() => {
     // make sure we always load enough posts to fill the screen or
