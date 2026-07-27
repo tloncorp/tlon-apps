@@ -37,6 +37,7 @@ import { handleOwnerListenCommand } from './src/owner-listen-command.js';
 import { registerProviderAuthRoutes } from './src/provider-auth-routes.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
+import { registerSubscriptionProviderRuntimes } from './src/subscription-provider-runtime.js';
 import { parseTlonTarget } from './src/targets.js';
 import {
   type TlonDiagnosticLogAttributes,
@@ -935,6 +936,8 @@ export default defineChannelPluginEntry({
   plugin: tlonPlugin,
   setRuntime: setTlonRuntime,
   registerFull(api) {
+    registerSubscriptionProviderRuntimes(api);
+
     // ── Gateway-status liveness integration ───────────────────
     //
     // v1 requires exactly one Tlon account. With multiple accounts, multiple

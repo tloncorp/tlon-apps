@@ -5,7 +5,6 @@ import {
   clearRuntimeAuthProfileStoreSnapshots,
   ensureAuthProfileStore,
   listProfilesForProvider,
-  loadModelCatalog,
   resolveApiKeyForProfile,
   resolveDefaultAgentDir,
 } from 'openclaw/plugin-sdk/agent-runtime';
@@ -27,6 +26,9 @@ const FLOW_TTL_MS = 15 * 60_000;
 const START_WAIT_MS = 15_000;
 const MAX_BODY_BYTES = 16 * 1024;
 const ANTHROPIC_PROFILE_ID = 'anthropic:default';
+const OPENAI_CODEX_MODELS_URL =
+  'https://chatgpt.com/backend-api/codex/models?client_version=1.0.0';
+const OPENAI_CODEX_MODELS_TIMEOUT_MS = 10_000;
 
 type ProviderId = 'openai' | 'anthropic';
 type FlowStatus =
@@ -223,11 +225,11 @@ function isOpenAISubscriptionModel(entry: {
   api?: string;
   baseUrl?: string;
 }): boolean {
-  if (
-    entry.api === 'openai-chatgpt-responses' ||
-    entry.baseUrl?.includes('chatgpt.com/backend-api')
-  ) {
-    return true;
+  if (entry.api) {
+    return entry.api === 'openai-chatgpt-responses';
+  }
+  if (entry.baseUrl) {
+    return entry.baseUrl.includes('chatgpt.com/backend-api');
   }
 
   // Some models.list projections omit transport metadata and expose only a
@@ -277,6 +279,57 @@ export function extractSubscriptionModels(
   }
 
   return catalog;
+}
+
+export function extractOpenAICodexModels(value: unknown): SubscriptionModel[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return [];
+  }
+  const rows = (value as { models?: unknown }).models;
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  return rows.flatMap((row) => {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) {
+      return [];
+    }
+    const model = row as Record<string, unknown>;
+    const visibility =
+      typeof model.visibility === 'string'
+        ? model.visibility.trim().toLowerCase()
+        : '';
+    if (visibility && visibility !== 'list') {
+      return [];
+    }
+    if (model.show_in_picker === false || model.showInPicker === false) {
+      return [];
+    }
+
+    const rawId =
+      typeof model.slug === 'string'
+        ? model.slug
+        : typeof model.id === 'string'
+          ? model.id
+          : '';
+    const id = rawId.trim();
+    if (!id || seen.has(id)) {
+      return [];
+    }
+    seen.add(id);
+
+    const rawName =
+      typeof model.display_name === 'string'
+        ? model.display_name
+        : typeof model.displayName === 'string'
+          ? model.displayName
+          : typeof model.name === 'string'
+            ? model.name
+            : '';
+    const name = rawName.trim();
+    return [{ id, ...(name ? { name } : {}) }];
+  });
 }
 
 function errorMessage(error: unknown, secret?: string): string {
@@ -493,58 +546,92 @@ async function refreshGatewayAuthState(api: OpenClawPluginApi) {
   }
 }
 
+async function loadOpenAISubscriptionModels(
+  api: OpenClawPluginApi
+): Promise<SubscriptionModel[]> {
+  const cfg = api.runtime.config.current() as OpenClawConfig;
+  const agentDir = resolveDefaultAgentDir(cfg);
+  const store = ensureAuthProfileStore(agentDir, {
+    allowKeychainPrompt: false,
+    config: cfg,
+  });
+  const models: SubscriptionModel[] = [];
+  const seen = new Set<string>();
+
+  for (const profileId of listProfilesForProvider(store, 'openai')) {
+    const credential = store.profiles[profileId];
+    if (credential?.type !== 'oauth') {
+      continue;
+    }
+    try {
+      const resolved = await resolveApiKeyForProfile({
+        cfg,
+        store,
+        profileId,
+        agentDir,
+      });
+      if (!resolved?.apiKey || resolved.profileType !== 'oauth') {
+        continue;
+      }
+      const resolvedCredential =
+        resolved.credential?.type === 'oauth'
+          ? resolved.credential
+          : credential;
+      const response = await fetch(OPENAI_CODEX_MODELS_URL, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${resolved.apiKey}`,
+          ...(resolvedCredential.accountId
+            ? { 'ChatGPT-Account-ID': resolvedCredential.accountId }
+            : {}),
+        },
+        signal: AbortSignal.timeout(OPENAI_CODEX_MODELS_TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        throw new Error(
+          `Codex model discovery returned HTTP ${response.status}`
+        );
+      }
+      const discovered = extractOpenAICodexModels(await response.json());
+      for (const model of discovered) {
+        if (!seen.has(model.id)) {
+          seen.add(model.id);
+          models.push(model);
+        }
+      }
+    } catch (error) {
+      api.logger.warn(
+        `[tlon] OpenAI subscription model discovery failed for ${profileId}: ${errorMessage(
+          error
+        )}`
+      );
+    }
+  }
+
+  return models;
+}
+
 async function loadSubscriptionModelCatalog(
   api: OpenClawPluginApi
 ): Promise<SubscriptionModelCatalog> {
-  let gatewayCatalog: SubscriptionModelCatalog = {};
-  try {
-    const result = await api.runtime.gateway.request('models.list', {
-      view: 'all',
-    });
-    gatewayCatalog = extractSubscriptionModels(result);
-  } catch (error) {
-    api.logger.warn(
-      `[tlon] Subscription model catalog load failed: ${errorMessage(error)}`
-    );
-  }
-
-  if (
-    (gatewayCatalog.openai?.length ?? 0) > 0 &&
-    (gatewayCatalog.anthropic?.length ?? 0) > 0
-  ) {
-    return gatewayCatalog;
-  }
-
-  // Gateway projections can omit availability/transport fields, and older
-  // runtime caches can briefly return no rows immediately after login. Fall
-  // back to OpenClaw's own local 7.1 catalog rather than leaving the picker
-  // blank. The frontend still gates these rows on a connected subscription.
-  try {
-    const cfg = api.runtime.config.current() as OpenClawConfig;
-    const models = await loadModelCatalog({
-      config: cfg,
-      readOnly: true,
-      useCache: false,
-    });
-    const localCatalog = extractSubscriptionModels({ models });
-    return {
-      openai:
-        (gatewayCatalog.openai?.length ?? 0) > 0
-          ? gatewayCatalog.openai
-          : localCatalog.openai,
-      anthropic:
-        (gatewayCatalog.anthropic?.length ?? 0) > 0
-          ? gatewayCatalog.anthropic
-          : localCatalog.anthropic,
-    };
-  } catch (error) {
-    api.logger.warn(
-      `[tlon] Local subscription model catalog load failed: ${errorMessage(
-        error
-      )}`
-    );
-    return gatewayCatalog;
-  }
+  const [openai, gatewayResult] = await Promise.all([
+    loadOpenAISubscriptionModels(api),
+    api.runtime.gateway
+      .request('models.list', { view: 'all' })
+      .catch((error: unknown) => {
+        api.logger.warn(
+          `[tlon] Anthropic subscription model catalog load failed: ${errorMessage(
+            error
+          )}`
+        );
+        return {};
+      }),
+  ]);
+  const gatewayCatalog = extractSubscriptionModels(gatewayResult);
+  return {
+    openai,
+    anthropic: gatewayCatalog.anthropic ?? [],
+  };
 }
 
 function includeDetectedAuthFailures(

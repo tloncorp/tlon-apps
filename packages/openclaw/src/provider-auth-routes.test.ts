@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  extractOpenAICodexModels,
   extractSubscriptionModels,
   isManagedConfigLockPermissionError,
   parseOpenAIVerificationMessage,
@@ -22,6 +23,13 @@ describe('extractSubscriptionModels', () => {
             provider: 'openai',
             id: 'gpt-5.6',
             name: 'GPT-5.6',
+            api: 'openai-responses',
+            available: true,
+          },
+          {
+            provider: 'openai',
+            id: 'gpt-5.6-luna',
+            name: 'GPT-5.6 Luna API',
             api: 'openai-responses',
             available: true,
           },
@@ -101,6 +109,53 @@ describe('extractSubscriptionModels', () => {
       openai: [{ id: 'gpt-5.6-luna' }],
       anthropic: [],
     });
+  });
+});
+
+describe('extractOpenAICodexModels', () => {
+  it('returns only models exposed in the account picker', () => {
+    expect(
+      extractOpenAICodexModels({
+        models: [
+          {
+            slug: 'gpt-5.6-luna',
+            display_name: 'GPT-5.6 Luna',
+            visibility: 'list',
+            show_in_picker: true,
+          },
+          {
+            id: 'gpt-5.6-sol',
+            name: 'GPT-5.6 Sol',
+            visibility: 'list',
+          },
+          {
+            slug: 'hidden-model',
+            visibility: 'hide',
+          },
+          {
+            slug: 'disabled-model',
+            visibility: 'list',
+            show_in_picker: false,
+          },
+        ],
+      })
+    ).toEqual([
+      { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna' },
+      { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol' },
+    ]);
+  });
+
+  it('deduplicates model ids and ignores malformed rows', () => {
+    expect(
+      extractOpenAICodexModels({
+        models: [
+          { slug: 'gpt-5.6-luna' },
+          { id: 'gpt-5.6-luna', name: 'Duplicate' },
+          { slug: '' },
+          null,
+        ],
+      })
+    ).toEqual([{ id: 'gpt-5.6-luna' }]);
   });
 });
 
