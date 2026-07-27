@@ -3,9 +3,11 @@ import * as api from '@tloncorp/api';
 import { debounce } from 'lodash';
 import { useEffect, useMemo } from 'react';
 
+import { trackEvent } from '../analytics';
 import * as db from '../db';
 import type { WrappedQuery } from '../db/query';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import {
   publishedNotePath,
   renderPublishedNoteHtml,
@@ -366,7 +368,11 @@ export async function createNotebookNote({
     { hydrateNoteIds: [note.noteId], requireHydratedNotes: true }
   );
 
-  return db.getNotesNote({ notebookFlag, noteId: note.noteId });
+  const createdNote = await db.getNotesNote({
+    notebookFlag,
+    noteId: note.noteId,
+  });
+  return createdNote;
 }
 
 export async function createNotebookFolder({
@@ -379,7 +385,7 @@ export async function createNotebookFolder({
   name: string;
 }) {
   const parentId = parentFolderId ?? null;
-  return createAndFindNewItem({
+  const folder = await createAndFindNewItem({
     notebookFlag,
     getItems: (snapshot) => snapshot.folders,
     getId: (folder) => folder.folderId,
@@ -395,6 +401,7 @@ export async function createNotebookFolder({
           folder.name === name && (folder.parentFolderId ?? null) === parentId
       ),
   });
+  return folder;
 }
 
 export async function saveNotebookNote({
@@ -435,7 +442,7 @@ export async function saveNotebookNote({
     });
   }
 
-  await syncNotesNotebookUntil(
+  const confirmed = await syncNotesNotebookUntil(
     notebookFlag,
     (snapshot) => {
       const updated = findSnapshotNote(snapshot, note.noteId);
@@ -449,7 +456,14 @@ export async function saveNotebookNote({
       ? { hydrateNoteIds: [note.noteId], requireHydratedNotes: true }
       : undefined
   );
-  return db.getNotesNote({ notebookFlag, noteId: note.noteId });
+  const savedNote = await db.getNotesNote({
+    notebookFlag,
+    noteId: note.noteId,
+  });
+  if (confirmed && savedNote) {
+    trackEvent(AnalyticsEvent.NoteSaved);
+  }
+  return savedNote;
 }
 
 export async function publishNotebookNote({
@@ -469,6 +483,7 @@ export async function publishNotebookNote({
     html: renderPublishedNoteHtml({ title, body }),
   });
   await waitForPublishedNoteState(notebookFlag, noteId, true);
+  trackEvent(AnalyticsEvent.NotePublished);
   return publishedNotePath(notebookFlag, noteId);
 }
 
@@ -484,6 +499,7 @@ export async function unpublishNotebookNote({
     noteId,
   });
   await waitForPublishedNoteState(notebookFlag, noteId, false);
+  trackEvent(AnalyticsEvent.NoteUnpublished);
 }
 
 export async function moveNotebookNote({
@@ -500,9 +516,12 @@ export async function moveNotebookNote({
     noteId,
     folder: folderId,
   });
-  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+  const confirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     snapshotNoteMatches(snapshot, noteId, (note) => note.folderId === folderId)
   );
+  if (confirmed) {
+    trackEvent(AnalyticsEvent.NoteMoved);
+  }
 }
 
 export async function renameNotebookFolder({
@@ -524,9 +543,12 @@ export async function renameNotebookFolder({
     folderId: folder.folderId,
     name: nextName,
   });
-  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+  const confirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     snapshotFolderMatches(snapshot, folder.folderId, (f) => f.name === nextName)
   );
+  if (confirmed) {
+    trackEvent(AnalyticsEvent.NotesFolderRenamed);
+  }
 }
 
 export async function moveNotebookFolder({
@@ -547,13 +569,16 @@ export async function moveNotebookFolder({
     folderId: folder.folderId,
     parent: parentFolderId,
   });
-  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+  const confirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     snapshotFolderMatches(
       snapshot,
       folder.folderId,
       (f) => f.parentFolderId === parentFolderId
     )
   );
+  if (confirmed) {
+    trackEvent(AnalyticsEvent.NotesFolderMoved);
+  }
 }
 
 function snapshotFolderMatches(
@@ -588,10 +613,13 @@ export async function deleteNotebookNote({
 }) {
   await api.notes.deleteNote({ flag: notebookFlag, noteId });
   await db.deleteNotesNote({ notebookFlag, noteId });
-  await syncNotesNotebookUntil(
+  const confirmed = await syncNotesNotebookUntil(
     notebookFlag,
     (snapshot) => !findSnapshotNote(snapshot, noteId)
   );
+  if (confirmed) {
+    trackEvent(AnalyticsEvent.NoteDeleted);
+  }
 }
 
 export async function deleteNotebookFolder({
@@ -612,12 +640,15 @@ export async function deleteNotebookFolder({
     recursive: true,
   });
   await db.deleteNotesFolders({ notebookFlag, folderIds });
-  await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
+  const confirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     folderIds.every(
       (folderId) =>
         !snapshot.folders.some((nextFolder) => nextFolder.folderId === folderId)
     )
   );
+  if (confirmed) {
+    trackEvent(AnalyticsEvent.NotesFolderDeleted);
+  }
 }
 
 export async function markNotesNotebookOpened(notebookFlag: string) {

@@ -125,12 +125,38 @@ class FakeSSE:
     def __init__(self, payloads=None):
         self.payloads = payloads or {}
         self.scries = []
+        self.open_calls = 0
+        self.subscribe_calls = []
+        self.close_calls = []
+        self.events_calls = []
+        self._events_queue = []
+        self._events_error = None
+        self.last_heard_event_id = -1
 
     async def scry(self, path):
         self.scries.append(path)
         if path in self.payloads:
             return self.payloads[path]
         raise ConnectionError(f"no payload for {path}")
+
+    async def open(self):
+        self.open_calls += 1
+
+    async def subscribe(self, app, path, *, optional=False):
+        self.subscribe_calls.append((app, path, optional))
+        return len(self.subscribe_calls)
+
+    async def close(self, *, graceful=True):
+        self.close_calls.append(graceful)
+
+    async def events(self, *, on_open=None):
+        self.events_calls.append({"on_open": on_open})
+        if on_open is not None:
+            on_open()
+        if self._events_error is not None:
+            raise self._events_error
+        for event in self._events_queue:
+            yield event
 
 
 def retryable_lens(

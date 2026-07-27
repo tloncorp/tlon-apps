@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect } from 'react';
@@ -80,6 +81,12 @@ function PostScreenContent({
   });
 
   const currentUserId = useCurrentUserId();
+  const channelType = channel?.type;
+
+  useEffect(() => {
+    if (!channelType) return;
+    trackEvent(AnalyticsEvent.PostOpened, { type: channelType });
+  }, [channelType, postId]);
 
   const handleDeletePost = useCallback(
     async (post: db.Post) => {

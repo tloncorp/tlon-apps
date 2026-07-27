@@ -1,4 +1,4 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import {
   AppInvite,
@@ -66,6 +66,14 @@ const priorInstallAtLaunch = Promise.all([
 
 const inviteHasMetadata = (invite: Partial<AppInvite>) =>
   Boolean(invite.inviterUserId || invite.invitedGroupId || invite.inviteType);
+
+const markInviteOpened = (
+  invite: Omit<AppInvite, 'shouldAutoJoin'>
+): Omit<AppInvite, 'shouldAutoJoin'> => {
+  if (invite.inviteOpenedTracked) return invite;
+  trackEvent(AnalyticsEvent.InviteOpened);
+  return { ...invite, inviteOpenedTracked: true };
+};
 
 export const Context = createContext({} as ContextValue);
 
@@ -140,9 +148,10 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       invite: Omit<AppInvite, 'shouldAutoJoin'>,
       options: { priorityToken?: string; source?: string } = {}
     ) => {
+      const trackedInvite = markInviteOpened(invite);
       const nextLure: Lure = {
         lure: {
-          ...invite,
+          ...trackedInvite,
           // if not already authenticated, we should run Lure's invite auto-join capability after signing in
           shouldAutoJoin: !isAuthenticatedRef.current,
         },
@@ -218,13 +227,14 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       ) {
         return true;
       }
+      const trackedInvite = markInviteOpened({ id: parsed.token });
       // signed-out taps paint an id-only lure before the fetch so signup
       // params carry the token even while metadata is slow. the paint is
       // in-memory only: persisting the bare copy would clobber same-token
       // cached metadata that the provider-failure fallback below reads back
       if (!isAuthenticatedRef.current) {
         setState({
-          lure: { id: parsed.token, shouldAutoJoin: true },
+          lure: { ...trackedInvite, shouldAutoJoin: true },
           priorityToken: undefined,
           deepLinkPath: undefined,
         });
@@ -268,10 +278,16 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
         // id-only copy persisted during a provider outage)
         return true;
       }
-      setInviteLure(invite ?? { id: parsed.token }, {
-        source,
-        priorityToken: sameTokenSaved ? saved?.priorityToken : undefined,
-      });
+      setInviteLure(
+        {
+          ...(invite ?? trackedInvite),
+          inviteOpenedTracked: true,
+        },
+        {
+          source,
+          priorityToken: sameTokenSaved ? saved?.priorityToken : undefined,
+        }
+      );
       return true;
     },
     [applyWerDeepLink, setInviteLure]

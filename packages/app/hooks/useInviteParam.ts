@@ -1,8 +1,10 @@
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
 import {
+  AnalyticsEvent,
   createDevLogger,
   getMetadataFromInviteToken,
+  trackEvent,
   withRetry,
 } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
@@ -35,6 +37,7 @@ export function useInviteParam() {
         return;
       }
       logger.trackEvent('found metadata for invite token', { inviteToken });
+      trackEvent(AnalyticsEvent.InviteOpened);
 
       if (meta.invitedGroupId) {
         await withRetry(() => store.redeemInviteIfNeeded(meta), {

@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Text, useIsWindowNarrow } from '@tloncorp/ui';
@@ -72,9 +73,21 @@ export function PrivacySettingsScreen(props: Props) {
       : 'hidden';
     setState((prev) => ({ ...prev, phoneDiscoverable: nextDiscoveryState }));
     try {
-      await store.updateAttestationDiscoverability({
+      const didUpdate = await store.updateAttestationDiscoverability({
         attestation: phoneAttest,
         discoverability: nextDiscoveryValue,
+      });
+      if (!didUpdate) {
+        triggerHaptic('error');
+        setState((prev) => ({
+          ...prev,
+          phoneDiscoverable: !nextDiscoveryState,
+        }));
+        return;
+      }
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+        enabled: nextDiscoveryState,
+        setting: 'phone_discovery',
       });
     } catch (e) {
       triggerHaptic('error');
@@ -82,10 +95,35 @@ export function PrivacySettingsScreen(props: Props) {
     }
   }, [phoneAttest, state.phoneDiscoverable]);
 
-  const toggleSetTelemetry = useCallback(() => {
+  const toggleSetTelemetry = useCallback(async () => {
     const nextDisabledState = !state.telemetryDisabled;
     setState((prev) => ({ ...prev, telemetryDisabled: nextDisabledState }));
-    telemetry.setDisabled(nextDisabledState);
+
+    const didUpdate = await store.updateEnableTelemetry(!nextDisabledState);
+    if (!didUpdate) {
+      triggerHaptic('error');
+      setState((prev) => ({
+        ...prev,
+        telemetryDisabled: !nextDisabledState,
+      }));
+      return;
+    }
+
+    // Ensure capture is enabled before recording the preference change.
+    if (!nextDisabledState) {
+      await telemetry.setDisabled(false, false);
+    } else {
+      // The optimistic setting observer may already have opted PostHog out.
+      // Re-enable it for this explicit change, then restore the opt-out below.
+      telemetry.optIn();
+    }
+    trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+      enabled: !nextDisabledState,
+      setting: 'usage_statistics',
+    });
+    if (nextDisabledState) {
+      await telemetry.setDisabled(true, false);
+    }
   }, [state.telemetryDisabled, telemetry]);
 
   const toggleDisableNicknames = useCallback(async () => {
@@ -93,6 +131,10 @@ export function PrivacySettingsScreen(props: Props) {
     setState((prev) => ({ ...prev, disableNicknames: nextValue }));
     try {
       await store.updateCalmSetting('disableNicknames', nextValue);
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+        enabled: !nextValue,
+        setting: 'nicknames',
+      });
     } catch (e) {
       triggerHaptic('error');
       setState((prev) => ({ ...prev, disableNicknames: !nextValue }));
@@ -104,6 +146,10 @@ export function PrivacySettingsScreen(props: Props) {
     setState((prev) => ({ ...prev, disableAvatars: nextValue }));
     try {
       await store.updateCalmSetting('disableAvatars', nextValue);
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+        enabled: !nextValue,
+        setting: 'avatars',
+      });
     } catch (e) {
       triggerHaptic('error');
       setState((prev) => ({ ...prev, disableAvatars: !nextValue }));
@@ -115,9 +161,16 @@ export function PrivacySettingsScreen(props: Props) {
     setState((prev) => ({ ...prev, disableTlonInfraEnhancement: nextValue }));
     try {
       await store.updateDisableTlonInfraEnhancement(nextValue);
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+        enabled: !nextValue,
+        setting: 'tlon_helpers',
+      });
     } catch (e) {
       triggerHaptic('error');
-      setState((prev) => ({ ...prev, disableAvatars: !nextValue }));
+      setState((prev) => ({
+        ...prev,
+        disableTlonInfraEnhancement: !nextValue,
+      }));
     }
   }, [state.disableTlonInfraEnhancement]);
 

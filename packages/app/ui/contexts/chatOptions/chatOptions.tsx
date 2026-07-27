@@ -1,4 +1,5 @@
 import * as ub from '@tloncorp/api/urbit';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -75,6 +76,7 @@ export const ChatOptionsProvider = ({
 
   const openSheet = useCallback(
     (chatId: string, chatType: 'group' | 'channel') => {
+      trackEvent(AnalyticsEvent.ChatOptionsOpened, { type: chatType });
       setChat({
         id: chatId,
         type: chatType,
@@ -181,11 +183,17 @@ export const ChatOptionsProvider = ({
   }, [chat, channel, group]);
 
   const updateVolume = useCallback(
-    (level: ub.NotificationLevel | null) => {
+    async (level: ub.NotificationLevel | null) => {
+      let didUpdate = false;
       if (chat?.type === 'group' && group) {
-        store.setGroupVolumeLevel({ group, level });
+        didUpdate = await store.setGroupVolumeLevel({ group, level });
       } else if (chat?.type === 'channel' && channel) {
-        store.setChannelVolumeLevel({ channel, level });
+        didUpdate = await store.setChannelVolumeLevel({ channel, level });
+      }
+      if (didUpdate) {
+        trackEvent(AnalyticsEvent.NotificationLevelChanged, {
+          level: level ?? 'default',
+        });
       }
     },
     [channel, chat, group]
@@ -235,30 +243,36 @@ export const ChatOptionsProvider = ({
     setLeaveChannelDialogOpen(true);
   }, [channelTitle, channel]);
 
-  const markGroupRead = useCallback(() => {
-    if (groupId) {
-      store.markGroupRead(groupId, true);
-    }
+  const markGroupRead = useCallback(async () => {
     closeSheet();
+    if (groupId && (await store.markGroupRead(groupId, true))) {
+      trackEvent(AnalyticsEvent.ChatMarkedRead);
+    }
   }, [closeSheet, groupId]);
 
   const markChannelRead = useCallback(
-    ({ includeThreads }: { includeThreads?: boolean } = {}) => {
-      if (channelId) {
-        store.markChannelRead({
+    async ({ includeThreads }: { includeThreads?: boolean } = {}) => {
+      if (
+        channelId &&
+        (await store.markChannelRead({
           id: channelId,
           groupId: groupId,
           includeThreads,
-        });
+        }))
+      ) {
+        trackEvent(AnalyticsEvent.ChatMarkedRead);
       }
     },
     [channelId, groupId]
   );
 
   const setChannelSortPreference = useCallback(
-    (sortBy: 'recency' | 'arranged') => {
-      db.channelSortPreference.setValue(sortBy);
+    async (sortBy: 'recency' | 'arranged') => {
       closeSheet();
+      if ((await db.channelSortPreference.getValue(true)) !== sortBy) {
+        await db.channelSortPreference.setValue(sortBy);
+        trackEvent(AnalyticsEvent.ChannelSortChanged, { sort: sortBy });
+      }
     },
     [closeSheet]
   );
