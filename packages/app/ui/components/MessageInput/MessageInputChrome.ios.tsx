@@ -13,6 +13,9 @@ import {
 } from 'react-native';
 
 export const usesFloatingMessageInputChrome = true;
+// Height of the single-line floating row. The channel scroller adds the iOS
+// safe-area inset separately so its final message can clear the composer.
+export const floatingMessageInputBottomInset = 64;
 
 function canUseLiquidGlass() {
   return isGlassEffectAPIAvailable() && isLiquidGlassAvailable();

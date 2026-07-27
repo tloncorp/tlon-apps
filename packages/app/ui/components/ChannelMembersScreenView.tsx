@@ -1,8 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
-import { FlatList, ListRenderItemInfo } from 'react-native';
+import { FlatList, ListRenderItemInfo, Platform } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
+import { usesNativeStackHeader } from '../../navigation/nativeHeaderOptions';
 import ContactName from './ContactName';
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
@@ -33,13 +34,18 @@ export function ChannelMembersScreenView({
 
   return (
     <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        title="Members"
-        loadingSubtitle={channel ? null : 'Loading…'}
-        backAction={goBack}
-      />
+      {!usesNativeStackHeader && (
+        <ScreenHeader
+          title="Members"
+          loadingSubtitle={channel ? null : 'Loading…'}
+          backAction={goBack}
+        />
+      )}
       <FlatList
         data={channel?.members}
+        contentInsetAdjustmentBehavior={
+          Platform.OS === 'ios' ? 'automatic' : undefined
+        }
         contentContainerStyle={{
           paddingHorizontal: getTokenValue('$l', 'size'),
         }}

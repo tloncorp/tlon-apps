@@ -1,16 +1,21 @@
-import { useScrollToTop } from '@react-navigation/native';
+import type { NativeBottomTabNavigationProp } from '@react-navigation/bottom-tabs/unstable';
+import { useNavigation, useScrollToTop } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useMemo } from 'react';
-import { Alert, SectionList } from 'react-native';
+import { useCallback, useLayoutEffect, useMemo } from 'react';
+import { Alert, Platform, SectionList } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useInviteSystemContactHandler } from '../../hooks/useInviteSystemContactHandler';
 import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
 import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
-import type { RootStackParamList } from '../../navigation/types';
+import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
+import type {
+  NativeTabParamList,
+  RootStackParamList,
+} from '../../navigation/types';
 import {
   AppDataContextProvider,
   ContactsScreenView,
@@ -38,6 +43,10 @@ export default function ContactsScreen(props: Props) {
     inviteLink
   );
   const currentUser = useCurrentUserId();
+  const nativeTabNavigation =
+    useNavigation<
+      NativeBottomTabNavigationProp<NativeTabParamList, 'Contacts'>
+    >();
   const { scrollRef, onPressActiveTab } =
     useScrollTabToTop<SectionList<db.Contact>>();
   useScrollToTop(scrollRef);
@@ -54,6 +63,43 @@ export default function ContactsScreen(props: Props) {
   );
 
   useMarkMatchesSeen();
+
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'ios') {
+      return;
+    }
+
+    nativeTabNavigation.setOptions({
+      unstable_headerLeftItems: () => [
+        {
+          type: 'button',
+          label: 'Add contacts',
+          accessibilityLabel: 'Add contacts',
+          icon: {
+            type: 'image',
+            source: nativeHeaderIcons.add,
+          },
+          identifier: 'add-contacts',
+          onPress: () => navigate('AddContacts'),
+          sharesBackground: true,
+        },
+      ],
+      unstable_headerRightItems: () => [
+        {
+          type: 'button',
+          label: 'Settings',
+          accessibilityLabel: 'Settings',
+          icon: {
+            type: 'image',
+            source: nativeHeaderIcons.settings,
+          },
+          identifier: 'contacts-settings',
+          onPress: () => navigate('Settings', undefined, { pop: true }),
+          sharesBackground: true,
+        },
+      ],
+    });
+  }, [nativeTabNavigation, navigate]);
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
@@ -99,26 +145,28 @@ export default function ContactsScreen(props: Props) {
     >
       <View backgroundColor={theme?.background?.val} flex={1} height="100%">
         <View flex={1} width="100%" maxWidth={600} marginHorizontal="auto">
-          <ScreenHeader
-            title="Contacts"
-            borderBottom
-            leftControls={
-              <ScreenHeader.IconButton
-                type="Add"
-                testID="ContactsAddButton"
-                onPress={() => navigate('AddContacts')}
-              />
-            }
-            rightControls={
-              <ScreenHeader.IconButton
-                type="Settings"
-                testID="ContactsSettingsButton"
-                onPress={() => {
-                  navigate('Settings', undefined, { pop: true });
-                }}
-              />
-            }
-          />
+          {Platform.OS !== 'ios' && (
+            <ScreenHeader
+              title="Contacts"
+              borderBottom
+              leftControls={
+                <ScreenHeader.IconButton
+                  type="Add"
+                  testID="ContactsAddButton"
+                  onPress={() => navigate('AddContacts')}
+                />
+              }
+              rightControls={
+                <ScreenHeader.IconButton
+                  type="Settings"
+                  testID="ContactsSettingsButton"
+                  onPress={() => {
+                    navigate('Settings', undefined, { pop: true });
+                  }}
+                />
+              }
+            />
+          )}
           <SystemNotices.ContactBookPrompt
             status="undetermined"
             onDismiss={() => {}}

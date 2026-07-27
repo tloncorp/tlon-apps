@@ -1,5 +1,6 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { ThemeProvider, useFocusEffect } from '@react-navigation/native';
 import {
+  NativeStackNavigationOptions,
   NativeStackScreenProps,
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
@@ -45,19 +46,33 @@ import { NotesDetailScreen } from '../features/top/NotesDetailScreen';
 import { NotesFolderScreen } from '../features/top/NotesFolderScreen';
 import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
+import {
+  conversationScrollEdgeEffects,
+  supportsConversationScrollEdgeEffects,
+} from '../ui/components/nativeScrollEdgeEffects';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { NativeTabNavigator } from './NativeTabNavigator';
+import { getNativeHeaderOptions } from './nativeHeaderOptions';
 import { getNativeTabRoute } from './nativeTabs';
 import type { NativeTabParamList, RootStackParamList } from './types';
+import { useAppNavigationTheme } from './useAppNavigationTheme';
 import { mediaViewerScreenOptions } from './utils';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
 
 export function RootStack() {
-  const isDarkMode = useIsDarkMode();
+  const navigationTheme = useAppNavigationTheme();
+
+  return (
+    <ThemeProvider value={navigationTheme}>
+      <RootStackNavigator isDarkMode={navigationTheme.dark} />
+    </ThemeProvider>
+  );
+}
+
+function RootStackNavigator({ isDarkMode }: { isDarkMode: boolean }) {
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
 
   // Android status bar has a solid color by default, so we clear it
@@ -69,6 +84,7 @@ export function RootStack() {
   });
 
   const theme = useTheme();
+  const conversationScreenOptions = getConversationScreenOptions(isDarkMode);
 
   return (
     <Root.Navigator
@@ -133,28 +149,86 @@ export function RootStack() {
           options={{
             animation: contactsTabEnabled ? undefined : 'none',
             gestureEnabled: false,
+            ...getNativeHeaderOptions({
+              title: 'Settings',
+              isDarkMode,
+              scrollsUnderHeader: true,
+            }),
           }}
         />
 
         {/* individual screens */}
         <Root.Screen name="AddContacts" component={AddContactsScreen} />
         <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
-        <Root.Screen name="Channel" component={ChannelScreen} />
-        <Root.Screen name="DM" component={ChannelScreen} />
-        <Root.Screen name="GroupDM" component={ChannelScreen} />
+        <Root.Screen
+          name="Channel"
+          component={ChannelScreen}
+          options={conversationScreenOptions}
+        />
+        <Root.Screen
+          name="DM"
+          component={ChannelScreen}
+          options={conversationScreenOptions}
+        />
+        <Root.Screen
+          name="GroupDM"
+          component={ChannelScreen}
+          options={conversationScreenOptions}
+        />
         <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
-        <Root.Screen name="ContextLensRuns" component={ContextLensRunsScreen} />
-        <Root.Screen name="ContextLensRun" component={ContextLensRunScreen} />
-        <Root.Screen name="Post" component={PostScreen} />
+        <Root.Screen
+          name="ContextLensRuns"
+          component={ContextLensRunsScreen}
+          options={({ route }) =>
+            getNativeHeaderOptions({
+              title: route.params?.channelId
+                ? 'Bot runs in this channel'
+                : 'Bot runs',
+              isDarkMode,
+              scrollsUnderHeader: true,
+            })
+          }
+        />
+        <Root.Screen
+          name="ContextLensRun"
+          component={ContextLensRunScreen}
+          options={getNativeHeaderOptions({
+            title: 'Bot run',
+            isDarkMode,
+            scrollsUnderHeader: true,
+          })}
+        />
+        <Root.Screen
+          name="Post"
+          component={PostScreen}
+          options={conversationScreenOptions}
+        />
         <Root.Screen name="NotesDetail" component={NotesDetailScreen} />
         <Root.Screen name="NotesFolder" component={NotesFolderScreen} />
-        <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
+        <Root.Screen
+          name="GroupChannels"
+          component={GroupChannelsScreen}
+          options={getNativeHeaderOptions({
+            title: 'Channels',
+            isDarkMode,
+            scrollsUnderHeader: true,
+          })}
+        />
         <Root.Screen
           name="MediaViewer"
           component={MediaViewerScreen}
           options={mediaViewerScreenOptions}
         />
-        <Root.Screen name="ChatDetails" component={ChatDetailsScreen} />
+        <Root.Screen
+          name="ChatDetails"
+          component={ChatDetailsScreen}
+          options={getNativeHeaderOptions({
+            title: 'Info',
+            isDarkMode,
+            scrollsUnderHeader: true,
+            backgroundColor: theme.secondaryBackground?.val,
+          })}
+        />
         <Root.Screen name="ChatVolume" component={ChatVolumeScreen} />
         <Root.Screen
           name="ManageAccount"
@@ -199,33 +273,78 @@ export function RootStack() {
         <Root.Screen
           name="BlockedUsers"
           component={BlockedUsersScreen}
-          options={nativeHeaderOptions('Blocked users')}
+          options={getNativeHeaderOptions({
+            title: 'Blocked users',
+            isDarkMode,
+            scrollsUnderHeader: true,
+          })}
         />
         <Root.Screen
           name="Theme"
           component={ThemeScreen}
-          options={nativeHeaderOptions('Theme')}
+          options={getNativeHeaderOptions({
+            title: 'Theme',
+            isDarkMode,
+            scrollsUnderHeader: true,
+          })}
         />
         <Root.Screen
           name="AppInfo"
           component={AppInfoScreen}
-          options={nativeHeaderOptions('App info')}
+          options={getNativeHeaderOptions({
+            title: 'App info',
+            isDarkMode,
+            scrollsUnderHeader: true,
+          })}
         />
-        <Root.Screen name="FeatureFlags" component={FeatureFlagScreen} />
+        <Root.Screen
+          name="FeatureFlags"
+          component={FeatureFlagScreen}
+          options={getNativeHeaderOptions({
+            title: 'Experimental features',
+            isDarkMode,
+            scrollsUnderHeader: true,
+          })}
+        />
         <Root.Screen
           name="PushNotificationSettings"
           component={PushNotificationSettingsScreen}
+          options={getNativeHeaderOptions({
+            title: 'Notifications',
+            isDarkMode,
+            scrollsUnderHeader: true,
+          })}
         />
         <Root.Screen name="UserProfile" component={UserProfileScreen} />
         <Root.Screen name="Attestation" component={AttestationScreen} />
         <Root.Screen name="EditProfile" component={EditProfileScreen} />
-        <Root.Screen name="WompWomp" component={UserBugReportScreen} />
+        <Root.Screen
+          name="WompWomp"
+          component={UserBugReportScreen}
+          options={getNativeHeaderOptions({
+            title: 'Report a bug',
+            isDarkMode,
+            scrollsUnderHeader: true,
+          })}
+        />
         <Root.Screen
           name="PrivacySettings"
           component={PrivacySettingsScreen}
-          options={nativeHeaderOptions('Privacy Settings')}
+          options={getNativeHeaderOptions({
+            title: 'Privacy Settings',
+            isDarkMode,
+            scrollsUnderHeader: true,
+          })}
         />
-        <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
+        <Root.Screen
+          name="ChannelMembers"
+          component={ChannelMembersScreen}
+          options={getNativeHeaderOptions({
+            title: 'Members',
+            isDarkMode,
+            scrollsUnderHeader: true,
+          })}
+        />
         <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
         <Root.Screen name="ChannelTemplate" component={ChannelTemplateScreen} />
         <Root.Screen
@@ -238,16 +357,27 @@ export function RootStack() {
   );
 }
 
-function nativeHeaderOptions(title: string) {
-  if (Platform.OS === 'web') {
-    return undefined;
+function getConversationScreenOptions(
+  isDarkMode: boolean
+): NativeStackNavigationOptions {
+  if (Platform.OS !== 'ios') {
+    return { headerShown: false };
   }
 
   return {
     headerShown: true,
-    headerBackButtonDisplayMode: 'minimal' as const,
+    headerTransparent: true,
     headerShadowVisible: false,
-    title,
+    headerBackVisible: false,
+    headerBackButtonDisplayMode: 'minimal',
+    headerBlurEffect: supportsConversationScrollEdgeEffects
+      ? undefined
+      : isDarkMode
+        ? 'systemMaterialDark'
+        : 'systemMaterialLight',
+    scrollEdgeEffects: supportsConversationScrollEdgeEffects
+      ? conversationScrollEdgeEffects
+      : undefined,
   };
 }
 

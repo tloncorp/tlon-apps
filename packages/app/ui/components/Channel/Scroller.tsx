@@ -2,6 +2,7 @@ import {
   PostCollectionLayoutType,
   configurationFromChannel,
   createDevLogger,
+  isChatChannel,
   layoutForType,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -10,7 +11,6 @@ import * as store from '@tloncorp/shared/store';
 import {
   DESKTOP_SIDEBAR_WIDTH,
   DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
-  FloatingActionButton,
   Icon,
   LoadingSpinner,
   Modal,
@@ -48,9 +48,11 @@ import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
+import { floatingMessageInputBottomInset } from '../MessageInput/MessageInputChrome';
 import { ChannelDivider } from './ChannelDivider';
 import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
 import { PostList, PostListMethods } from './PostList';
+import { ScrollToBottomButtonChrome } from './ScrollToBottomButtonChrome';
 import type { ScrollAnchor } from './scrollerTypes';
 
 interface PostWithNeighbors {
@@ -103,6 +105,8 @@ const Scroller = forwardRef(
       onGoToBotRun,
       onOpenContextLens,
       contextLensSelectedPostId,
+      bottomContentInset,
+      topContentInset,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -144,6 +148,8 @@ const Scroller = forwardRef(
       onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
       onOpenContextLens?: (post: db.Post) => void;
       contextLensSelectedPostId?: string | null;
+      bottomContentInset?: number;
+      topContentInset?: number;
     },
     ref
   ) => {
@@ -370,6 +376,25 @@ const Scroller = forwardRef(
 
     const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
+    const chatBottomInset = isChatChannel(channel)
+      ? bottomContentInset ?? floatingMessageInputBottomInset + insets.bottom
+      : 0;
+    const scrollButtonBottom =
+      chatBottomInset > 0
+        ? chatBottomInset + getTokens().space.s.val
+        : getTokens().space.m.val;
+    const paddedListBottomComponent = useMemo(() => {
+      if (chatBottomInset === 0) {
+        return listBottomComponent;
+      }
+
+      return (
+        <>
+          {listBottomComponent}
+          <RNView style={{ height: chatBottomInset }} />
+        </>
+      );
+    }, [chatBottomInset, listBottomComponent]);
 
     const contentContainerStyle = useStyle(
       useMemo(() => {
@@ -515,23 +540,10 @@ const Scroller = forwardRef(
     const onInitialScrollCompleted = useCallback(() => {
       setReadyToDisplayPosts(true);
     }, []);
+    const showScrollButton = Boolean(shouldShowScrollButton());
 
     return (
       <View flex={1}>
-        {shouldShowScrollButton() && (
-          <View position="absolute" bottom={'$m'} right={'$l'} zIndex={1000}>
-            <FloatingActionButton
-              icon={
-                isLoading && hasPressedGoToBottom ? (
-                  <LoadingSpinner size="small" />
-                ) : (
-                  <Icon type="ChevronDown" size="$m" />
-                )
-              }
-              onPress={pressedGoToBottom}
-            />
-          </View>
-        )}
         {postsWithNeighbors != null && (
           <PostList
             anchor={anchor}
@@ -562,9 +574,43 @@ const Scroller = forwardRef(
             scrollEnabled={!editingPost}
             style={style}
             listHeaderComponent={listHeaderComponent}
-            listBottomComponent={listBottomComponent}
+            listBottomComponent={paddedListBottomComponent}
+            topContentInset={topContentInset}
           />
         )}
+        {postsWithNeighbors != null &&
+          postsWithNeighbors.length > 0 &&
+          !readyToDisplayPosts && (
+            <View
+              position="absolute"
+              inset={0}
+              alignItems="center"
+              justifyContent="center"
+              pointerEvents="none"
+            >
+              <LoadingSpinner size="small" />
+            </View>
+          )}
+        <View
+          position="absolute"
+          bottom={scrollButtonBottom}
+          left={0}
+          right={0}
+          alignItems="center"
+          pointerEvents={showScrollButton ? 'box-none' : 'none'}
+          zIndex={1000}
+        >
+          <ScrollToBottomButtonChrome
+            onPress={pressedGoToBottom}
+            visible={showScrollButton}
+          >
+            {isLoading && hasPressedGoToBottom ? (
+              <LoadingSpinner size="small" />
+            ) : (
+              <Icon type="ChevronDown" size="$m" />
+            )}
+          </ScrollToBottomButtonChrome>
+        </View>
         {activeMessage !== null && !emojiPickerOpen && (
           <Modal
             visible={activeMessage !== null && !emojiPickerOpen}

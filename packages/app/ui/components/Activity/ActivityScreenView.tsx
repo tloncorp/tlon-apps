@@ -1,10 +1,18 @@
+import type { NativeBottomTabNavigationProp } from '@react-navigation/bottom-tabs/unstable';
+import { useNavigation } from '@react-navigation/native';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
+import { Button, ConfirmDialog, LoadingSpinner, Text } from '@tloncorp/ui';
 import { setBadgeCountAsync } from 'expo-notifications';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   FlatList,
   Image,
@@ -15,6 +23,8 @@ import {
 } from 'react-native';
 import { View, XStack, isWeb, useStyle } from 'tamagui';
 
+import { nativeHeaderIcons } from '../../../navigation/nativeHeaderIcons';
+import type { NativeTabParamList } from '../../../navigation/types';
 import { NavigationProvider } from '../../contexts/navigation';
 import { useStore } from '../../contexts/storeContext';
 import { useIsDarkTheme } from '../../utils/colorUtils';
@@ -295,6 +305,12 @@ export function ActivityScreenContent({
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
+  const [markAllReadConfirmationOpen, setMarkAllReadConfirmationOpen] =
+    useState(false);
+  const navigation =
+    useNavigation<
+      NativeBottomTabNavigationProp<NativeTabParamList, 'Activity'>
+    >();
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -313,6 +329,41 @@ export function ActivityScreenContent({
     }
     await store.markAllRead();
   }, []);
+
+  const requestMarkAllRead = useCallback(() => {
+    setMarkAllReadConfirmationOpen(true);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'ios') {
+      return;
+    }
+
+    navigation.setOptions({
+      unstable_headerRightItems: () => [
+        {
+          type: 'menu',
+          label: 'Activity options',
+          accessibilityLabel: 'Activity options',
+          icon: {
+            type: 'image',
+            source: nativeHeaderIcons.overflow,
+          },
+          identifier: 'activity-options',
+          sharesBackground: true,
+          menu: {
+            items: [
+              {
+                type: 'action',
+                label: 'Mark all as read',
+                onPress: requestMarkAllRead,
+              },
+            ],
+          },
+        },
+      ],
+    });
+  }, [navigation, requestMarkAllRead]);
 
   const handleInviteFriends = useCallback(() => {
     setPersonalInviteOpen(false);
@@ -360,9 +411,10 @@ export function ActivityScreenContent({
             <ActivityHeader
               activeTab={activeTab}
               onTabPress={onPressTab}
-              markAllRead={markAllRead}
+              onRequestMarkAllRead={requestMarkAllRead}
               subtitle={subtitle}
               loadingSubtitle={loadingSubtitle}
+              showScreenHeader={Platform.OS !== 'ios'}
             />
             {currentTabIsEmpty ? (
               <XStack flex={1} justifyContent="center" paddingTop="$6xl">
@@ -400,6 +452,14 @@ export function ActivityScreenContent({
           onOpenChange={setPersonalInviteOpen}
           onPressInviteFriends={handleInviteFriends}
         />
+        <ConfirmDialog
+          open={markAllReadConfirmationOpen}
+          onOpenChange={setMarkAllReadConfirmationOpen}
+          title="Mark all as read"
+          description="Are you sure you want to mark all conversations and notifications as read?"
+          confirmText="Mark all read"
+          onConfirm={markAllRead}
+        />
       </View>
     </NavigationProvider>
   );
@@ -424,7 +484,7 @@ export function ActivityEmptyState({
 
   return (
     <>
-      <ScreenHeader title="Activity" />
+      {Platform.OS !== 'ios' && <ScreenHeader title="Activity" />}
       <View
         flex={1}
         justifyContent="center"

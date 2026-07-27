@@ -1,7 +1,12 @@
+import { useNavigation } from '@react-navigation/native';
+import type {
+  NativeStackHeaderItem,
+  NativeStackNavigationProp,
+} from '@react-navigation/native-stack';
 import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useContact, useNotesDeskAvailable } from '@tloncorp/shared/store';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Icon, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Fragment,
   ReactElement,
@@ -9,10 +14,15 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
+import { ActivityIndicator, Platform, Pressable } from 'react-native';
+import { XStack, useTheme } from 'tamagui';
 
+import { nativeHeaderIcons } from '../../../navigation/nativeHeaderIcons';
+import type { RootStackParamList } from '../../../navigation/types';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
@@ -363,6 +373,30 @@ export function ChannelHeader({
     return undefined;
   }, [channel.type, goToProfile, goToChatDetails]);
 
+  if (Platform.OS === 'ios' && useFloatingHeaderChrome) {
+    return (
+      <NativeChannelHeader
+        title={headerTitle}
+        titleIcon={hideIdentity ? null : avatarElement || titleIcon}
+        loadingTitle={
+          hideIdentity && !registeredLoadingSubtitle
+            ? null
+            : headerLoadingSubtitle
+        }
+        onTitlePress={hideIdentity ? undefined : handleTitlePress}
+        goBack={goBack}
+        goToSearch={goToSearch}
+        showSearchButton={showSearchButton}
+        contextItems={contextItems}
+        showEditButton={showEditButton}
+        goToEdit={goToEdit}
+        onToggleContextLens={onToggleContextLens}
+        contextLensOpen={contextLensOpen}
+        contextLensActive={contextLensActive}
+      />
+    );
+  }
+
   const rightControlsContent = (
     <>
       {showSearchButton &&
@@ -475,5 +509,191 @@ export function ChannelHeader({
         )
       }
     />
+  );
+}
+
+function NativeChannelHeader({
+  title,
+  titleIcon,
+  loadingTitle,
+  onTitlePress,
+  goBack,
+  goToSearch,
+  showSearchButton,
+  contextItems,
+  showEditButton,
+  goToEdit,
+  onToggleContextLens,
+  contextLensOpen,
+  contextLensActive,
+}: {
+  title: string;
+  titleIcon?: React.ReactNode;
+  loadingTitle?: string | null;
+  onTitlePress?: () => void;
+  goBack?: () => void;
+  goToSearch?: () => void;
+  showSearchButton: boolean;
+  contextItems: readonly ReactElement[];
+  showEditButton: boolean;
+  goToEdit?: () => void;
+  onToggleContextLens?: () => void;
+  contextLensOpen: boolean;
+  contextLensActive: boolean;
+}) {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const theme = useTheme();
+
+  useLayoutEffect(() => {
+    const leftItems: NativeStackHeaderItem[] = goBack
+      ? [
+          {
+            type: 'button',
+            label: 'Back',
+            accessibilityLabel: 'Back',
+            icon: {
+              type: 'image',
+              source: nativeHeaderIcons.back,
+            },
+            identifier: 'channel-back',
+            onPress: goBack,
+            sharesBackground: true,
+          },
+        ]
+      : [];
+
+    const rightItems: NativeStackHeaderItem[] = [];
+
+    if (showSearchButton && goToSearch) {
+      rightItems.push({
+        type: 'button',
+        label: 'Search',
+        accessibilityLabel: 'Search',
+        icon: {
+          type: 'image',
+          source: nativeHeaderIcons.search,
+        },
+        identifier: 'channel-search',
+        onPress: goToSearch,
+        sharesBackground: true,
+      });
+    }
+
+    for (const item of contextItems) {
+      rightItems.push({
+        type: 'custom',
+        element: item,
+      });
+    }
+
+    if (showEditButton && goToEdit) {
+      rightItems.push({
+        type: 'button',
+        label: 'Edit',
+        accessibilityLabel: 'Edit',
+        identifier: 'channel-edit',
+        onPress: goToEdit,
+        sharesBackground: true,
+      });
+    }
+
+    if (onToggleContextLens) {
+      rightItems.push({
+        type: 'button',
+        label: 'Toggle context lens',
+        accessibilityLabel: 'Toggle context lens',
+        icon: {
+          type: 'image',
+          source: nativeHeaderIcons.rightSidebar,
+        },
+        identifier: 'channel-context-lens',
+        onPress: onToggleContextLens,
+        selected: contextLensOpen,
+        sharesBackground: true,
+        tintColor: contextLensActive
+          ? theme.positiveActionText?.val
+          : undefined,
+      });
+    }
+
+    navigation.setOptions({
+      title,
+      headerTitle: () => (
+        <NativeChannelHeaderTitle
+          title={title}
+          titleIcon={titleIcon}
+          loadingTitle={loadingTitle}
+          onPress={onTitlePress}
+        />
+      ),
+      unstable_headerLeftItems: () => leftItems,
+      unstable_headerRightItems: () => rightItems,
+    });
+  }, [
+    contextItems,
+    contextLensActive,
+    contextLensOpen,
+    goBack,
+    goToEdit,
+    goToSearch,
+    loadingTitle,
+    navigation,
+    onTitlePress,
+    onToggleContextLens,
+    showEditButton,
+    showSearchButton,
+    theme.positiveActionText?.val,
+    title,
+    titleIcon,
+  ]);
+
+  return null;
+}
+
+function NativeChannelHeaderTitle({
+  title,
+  titleIcon,
+  loadingTitle,
+  onPress,
+}: {
+  title: string;
+  titleIcon?: React.ReactNode;
+  loadingTitle?: string | null;
+  onPress?: () => void;
+}) {
+  const content = (
+    <XStack
+      height={44}
+      maxWidth={220}
+      alignItems="center"
+      justifyContent="center"
+      gap="$s"
+    >
+      {titleIcon}
+      {loadingTitle ? (
+        <ActivityIndicator size="small" />
+      ) : (
+        <Text
+          size="$label/2xl"
+          color="$primaryText"
+          numberOfLines={1}
+          maxWidth={175}
+        >
+          {title}
+        </Text>
+      )}
+      {onPress && !loadingTitle ? (
+        <Icon type="ChevronDown" color="$primaryText" size="$s" />
+      ) : null}
+    </XStack>
+  );
+
+  return onPress ? (
+    <Pressable accessibilityRole="button" onPress={onPress}>
+      {content}
+    </Pressable>
+  ) : (
+    content
   );
 }

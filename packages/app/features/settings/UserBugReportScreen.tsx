@@ -57,11 +57,13 @@ export function UserBugReportScreen({ navigation }: Props) {
 
   return (
     <View backgroundColor="$background" flex={1}>
-      <ScreenHeader
-        title="Report a bug"
-        borderBottom
-        backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
-      />
+      {Platform.OS === 'web' && (
+        <ScreenHeader
+          title="Report a bug"
+          borderBottom
+          backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
+        />
+      )}
       <KeyboardAvoidingView
         style={{
           flex: 1,
@@ -70,7 +72,13 @@ export function UserBugReportScreen({ navigation }: Props) {
           marginHorizontal: 'auto',
         }}
       >
-        <ScrollView flex={1} keyboardDismissMode="on-drag">
+        <ScrollView
+          flex={1}
+          keyboardDismissMode="on-drag"
+          contentInsetAdjustmentBehavior={
+            Platform.OS === 'web' ? undefined : 'automatic'
+          }
+        >
           <FormFrame>
             <FormText>
               If you experienced an issue, let us know! Sending reports helps us

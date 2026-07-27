@@ -33,6 +33,7 @@ export interface DetailViewProps {
     scrollToStart: (opts: { animated?: boolean }) => void;
     scrollToEnd: (opts: { animated?: boolean }) => void;
   } | null>;
+  bottomContentInset?: number;
 }
 
 export const DetailView = ({
@@ -53,6 +54,7 @@ export const DetailView = ({
   anchor,
   highlightPostId,
   scrollerRef,
+  bottomContentInset,
 }: DetailViewProps) => {
   const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
@@ -145,6 +147,7 @@ export const DetailView = ({
         setActiveMessage={setActiveMessage}
         listHeaderComponent={listHeaderComponent}
         listBottomComponent={listBottomComponent}
+        bottomContentInset={bottomContentInset}
       />
     </View>
   );

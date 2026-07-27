@@ -33,6 +33,7 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
+import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
 import type {
   NativeTabParamList,
   RootStackParamList,
@@ -66,12 +67,6 @@ import {
 } from './groupInvitePreview';
 
 const logger = createDevLogger('ChatListScreen', false);
-
-const nativeHeaderIcons = {
-  add: require('../../navigation/assets/header-add.png'),
-  invite: require('../../navigation/assets/header-add-person.png'),
-  search: require('../../navigation/assets/header-search.png'),
-} as const;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 

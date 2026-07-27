@@ -9,6 +9,7 @@ import { useTelemetry } from '../../hooks/useTelemetry';
 import { RootStackParamList } from '../../navigation/types';
 import {
   ScreenHeader,
+  SettingsContentScrollView,
   SizableText,
   View,
   XStack,
@@ -135,11 +136,9 @@ export function PrivacySettingsScreen(props: Props) {
           title="Privacy Settings"
         />
       )}
-      <View
-        flex={1}
-        width="100%"
-        maxWidth={600}
-        marginHorizontal="auto"
+      <SettingsContentScrollView
+        contentInsetAdjustmentBehavior={isWeb ? undefined : 'automatic'}
+        paddingBottom="$3xl"
         paddingHorizontal="$xl"
       >
         <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
@@ -215,7 +214,7 @@ export function PrivacySettingsScreen(props: Props) {
             If enabled, avatar images will be hidden throughout the app.
           </Text>
         </YStack>
-      </View>
+      </SettingsContentScrollView>
     </View>
   );
 }

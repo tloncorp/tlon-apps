@@ -57,6 +57,7 @@ import {
   DraftInputHandle,
   GalleryDraftType,
 } from '../draftInputs/shared';
+import { floatingPinnedPostBannerClearance } from '../nativeScrollEdgeEffects';
 import {
   ConnectedPostView,
   PostCollectionHandle,
@@ -348,6 +349,7 @@ export function Channel({
   onPressScrollToBottom,
 }: ChannelProps) {
   const [inputShouldBlur, setInputShouldBlur] = useState(false);
+  const [floatingInputHeight, setFloatingInputHeight] = useState(0);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
   const [showHeaderLoading, setShowHeaderLoading] = useState(false);
   const headerLoadingShownAtRef = useRef<number | null>(null);
@@ -369,7 +371,19 @@ export function Channel({
   const isGroupDm = isGroupDmChannelId(channel.id);
   const isNotebookOrGallery =
     channel.type === 'notebook' || channel.type === 'gallery';
+  const hasFloatingChatInput =
+    canRead &&
+    canWrite &&
+    negotiationMatch &&
+    !(channel.groupId && !group && !groupIsLoading) &&
+    !channel.isDmInvite &&
+    (channel.contentConfiguration == null
+      ? isChatChannel
+      : ChannelContentConfiguration.draftInput(channel.contentConfiguration)
+          .id === DraftInputId.chat);
   const pinnedPostId = logic.getPinnedPostId(channel);
+  const dismissedPinnedPostBannerIds =
+    db.dismissedPinnedPostBannerIds.useValue();
   // For DMs, get the other participant's ID
   const dmRecipientId = useMemo(() => {
     if (isDM && channel.members) {
@@ -718,6 +732,10 @@ export function Channel({
     editingPost,
     draftInputPresentationMode,
   ]);
+  const shouldReservePinnedPostBannerSpace =
+    shouldShowPinnedPostBanner &&
+    !!pinnedPostId &&
+    !dismissedPinnedPostBannerIds.includes(pinnedPostId);
 
   return (
     <ScrollContextProvider>
@@ -807,6 +825,18 @@ export function Channel({
                                 <View flex={1}>
                                   <PostCollectionContext.Provider
                                     value={{
+                                      bottomContentInset:
+                                        Platform.OS === 'ios'
+                                          ? floatingInputHeight ||
+                                            (hasFloatingChatInput
+                                              ? undefined
+                                              : 0)
+                                          : undefined,
+                                      topContentInset:
+                                        Platform.OS === 'ios' &&
+                                        shouldReservePinnedPostBannerSpace
+                                          ? floatingPinnedPostBannerClearance
+                                          : undefined,
                                       channel,
                                       collectionConfiguration:
                                         channel.contentConfiguration == null
@@ -888,6 +918,11 @@ export function Channel({
                                   <DraftInputView
                                     draftInputContext={draftInputContext}
                                     type={DraftInputId.chat}
+                                    onFloatingHeightChange={
+                                      Platform.OS === 'ios'
+                                        ? setFloatingInputHeight
+                                        : undefined
+                                    }
                                   />
                                 )}
 
@@ -912,6 +947,11 @@ export function Channel({
                                   ChannelContentConfiguration.draftInput(
                                     channel.contentConfiguration
                                   ).id
+                                }
+                                onFloatingHeightChange={
+                                  Platform.OS === 'ios'
+                                    ? setFloatingInputHeight
+                                    : undefined
                                 }
                               />
                             )}

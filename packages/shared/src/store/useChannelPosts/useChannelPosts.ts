@@ -16,7 +16,7 @@ import * as sync from '../sync';
 import { SyncPriority } from '../syncQueue';
 import { useDetectSequenceRegression } from '../useDetectSequenceRegression';
 import { mergePendingPosts } from '../useMergePendingPosts';
-import { queryKeyPrefix } from './queries';
+import { getLatestChannelPostsQueryData, queryKeyPrefix } from './queries';
 import { useDeletedPosts, useNewPostListener } from './subscriptions';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
@@ -49,15 +49,25 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const { enabled } = options;
 
-  const queryKey = useMemo(
+  const queryKeyWithoutMountTime = useMemo(
     () => [
       ...queryKeyPrefix,
       options.channelId,
       options.cursorPostId,
       options.filterDeleted,
-      mountTime,
     ],
-    [options.channelId, options.cursorPostId, options.filterDeleted, mountTime]
+    [options.channelId, options.cursorPostId, options.filterDeleted]
+  );
+
+  const queryKey = useMemo(
+    () => [...queryKeyWithoutMountTime, mountTime],
+    [queryKeyWithoutMountTime, mountTime]
+  );
+
+  const placeholderData = useMemo(
+    () =>
+      getLatestChannelPostsQueryData<PostQueryData>(queryKeyWithoutMountTime),
+    [queryKeyWithoutMountTime]
   );
 
   const initialPageParam = useMemo(() => {
@@ -86,6 +96,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const query = useInfiniteQuery({
     enabled,
     initialPageParam,
+    placeholderData,
     refetchOnMount: false,
     retry(failureCount, error) {
       postsLogger.trackError('failed to load posts', error);
@@ -97,7 +108,8 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     retryDelay: () => 500,
     queryFn: async (ctx): Promise<PostQueryPage> => {
       const queryOptions = await normalizeCursor(
-        ctx.pageParam || initialPageParam
+        (ctx.pageParam as UseChannelPostsPageParams | undefined) ??
+          initialPageParam
       );
 
       const posts = await getLocalFirstPosts(queryOptions);
