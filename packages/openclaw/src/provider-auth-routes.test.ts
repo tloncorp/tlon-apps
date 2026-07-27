@@ -1,6 +1,29 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseOpenAIVerificationMessage } from './provider-auth-routes.js';
+import {
+  isManagedConfigLockPermissionError,
+  parseOpenAIVerificationMessage,
+} from './provider-auth-routes.js';
+
+describe('isManagedConfigLockPermissionError', () => {
+  it('recognizes the root-managed config lock failure', () => {
+    expect(
+      isManagedConfigLockPermissionError(
+        new Error(
+          "EACCES: permission denied, open '/opt/openclaw-managed/moon/openclaw.json.lock'"
+        )
+      )
+    ).toBe(true);
+  });
+
+  it.each([
+    "EACCES: permission denied, open '/pier/moon/auth-profiles.json.lock'",
+    "ENOENT: no such file, open '/opt/openclaw-managed/moon/openclaw.json.lock'",
+    'OpenAI device authorization expired',
+  ])('does not swallow a different auth failure: %s', (message) => {
+    expect(isManagedConfigLockPermissionError(new Error(message))).toBe(false);
+  });
+});
 
 describe('parseOpenAIVerificationMessage', () => {
   it('extracts the OpenAI device URL and one-time code', () => {

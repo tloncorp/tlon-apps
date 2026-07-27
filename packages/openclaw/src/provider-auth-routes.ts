@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
+  clearAuthProfileCooldown,
+  clearRuntimeAuthProfileStoreSnapshots,
   ensureAuthProfileStore,
   listProfilesForProvider,
   resolveApiKeyForProfile,
@@ -8,6 +10,11 @@ import {
 } from 'openclaw/plugin-sdk/agent-runtime';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/plugin-runtime';
+import {
+  removeProviderAuthProfilesWithLock,
+  upsertAuthProfileWithLock,
+  validateAnthropicSetupToken,
+} from 'openclaw/plugin-sdk/provider-auth';
 import {
   type ModelsAuthLoginFlowOptions,
   runModelsAuthLoginFlow,
@@ -18,6 +25,7 @@ export const PROVIDER_AUTH_ROUTE = '/tlon/provider-auth';
 const FLOW_TTL_MS = 15 * 60_000;
 const START_WAIT_MS = 15_000;
 const MAX_BODY_BYTES = 16 * 1024;
+const ANTHROPIC_PROFILE_ID = 'anthropic:default';
 
 type ProviderId = 'openai' | 'anthropic';
 type FlowStatus =
@@ -143,6 +151,14 @@ function errorMessage(error: unknown, secret?: string): string {
   return secret ? raw.split(secret).join('[redacted]') : raw;
 }
 
+export function isManagedConfigLockPermissionError(error: unknown): boolean {
+  const message = errorMessage(error);
+  return (
+    /\bEACCES\b/.test(message) &&
+    /(?:^|[/\\])openclaw\.json\.lock(?:['"]|$)/.test(message)
+  );
+}
+
 export function parseOpenAIVerificationMessage(
   message: string
 ): { verificationUrl: string; userCode: string } | null {
@@ -241,6 +257,17 @@ async function runOpenAIFlow(api: OpenClawPluginApi, flowId: string) {
     });
     updateFlow(flowId, { status: 'complete' });
   } catch (error) {
+    // OpenClaw 7.1 persists the auth profile before applying the provider's
+    // optional model-allowlist patch. Tlon's generated config is intentionally
+    // root-managed, so that final write cannot acquire openclaw.json.lock.
+    // The credential is already durable in the pier-backed auth store.
+    if (isManagedConfigLockPermissionError(error)) {
+      api.logger.info(
+        '[tlon] OpenAI auth saved; skipped optional root-managed config patch'
+      );
+      updateFlow(flowId, { status: 'complete' });
+      return;
+    }
     updateFlow(flowId, { status: 'error', error: errorMessage(error) });
   }
 }
@@ -252,15 +279,34 @@ async function runAnthropicFlow(
 ) {
   updateFlow(flowId, { status: 'authenticating', error: undefined });
   try {
-    await runModelsAuthLoginFlow({
-      provider: 'anthropic',
-      method: 'setup-token',
-      agent: 'main',
-      runtime: createRuntime(api),
-      prompter: createPrompter({ token }),
-      isRemote: true,
-      openUrl: async () => {},
+    const normalizedToken = token.replaceAll(/\s+/g, '').trim();
+    const validationError = validateAnthropicSetupToken(normalizedToken);
+    if (validationError) {
+      throw new Error(validationError);
+    }
+
+    const cfg = api.runtime.config.current() as OpenClawConfig;
+    const agentDir = resolveDefaultAgentDir(cfg);
+    const store = await upsertAuthProfileWithLock({
+      profileId: ANTHROPIC_PROFILE_ID,
+      credential: {
+        type: 'token',
+        provider: 'anthropic',
+        token: normalizedToken,
+      },
+      agentDir,
     });
+    if (!store) {
+      throw new Error(
+        'Failed to update the auth profile store; please try again'
+      );
+    }
+    await clearAuthProfileCooldown({
+      store,
+      profileId: ANTHROPIC_PROFILE_ID,
+      agentDir,
+    });
+    await refreshGatewayAuthState(api);
     updateFlow(flowId, { status: 'complete' });
   } catch (error) {
     updateFlow(flowId, {
@@ -303,6 +349,17 @@ async function refreshExpiredOpenAIProfiles(api: OpenClawPluginApi) {
   }
 }
 
+async function refreshGatewayAuthState(api: OpenClawPluginApi) {
+  clearRuntimeAuthProfileStoreSnapshots();
+  try {
+    await api.runtime.gateway.request('models.authStatus', { refresh: true });
+  } catch (error) {
+    api.logger.warn(
+      `[tlon] Provider auth state refresh failed: ${errorMessage(error)}`
+    );
+  }
+}
+
 function includeDetectedAuthFailures(
   api: OpenClawPluginApi,
   value: unknown
@@ -334,6 +391,23 @@ function includeDetectedAuthFailures(
     providers: result.providers.map((provider) => {
       const providerId =
         typeof provider.provider === 'string' ? provider.provider : '';
+      const profiles = Array.isArray(provider.profiles)
+        ? (provider.profiles as Array<Record<string, unknown>>)
+        : [];
+      const hasSubscriptionProfile = profiles.some((profile) => {
+        if (providerId === 'openai') {
+          return profile.type === 'oauth';
+        }
+        if (providerId === 'anthropic') {
+          return profile.type === 'oauth' || profile.type === 'token';
+        }
+        return true;
+      });
+      const subscriptionStatus =
+        (providerId === 'openai' || providerId === 'anthropic') &&
+        !hasSubscriptionProfile
+          ? { ...provider, status: 'missing', expiry: undefined }
+          : provider;
       const hasDetectedFailure = listProfilesForProvider(
         store,
         providerId
@@ -349,8 +423,12 @@ function includeDetectedAuthFailures(
         );
       });
       return hasDetectedFailure
-        ? { ...provider, status: 'expired', reason: 'auth_failure' }
-        : provider;
+        ? {
+            ...subscriptionStatus,
+            status: 'expired',
+            reason: 'auth_failure',
+          }
+        : subscriptionStatus;
     }),
   };
 }
@@ -459,11 +537,24 @@ export function registerProviderAuthRoutes(api: OpenClawPluginApi): boolean {
             });
             return;
           }
-          const result = await api.runtime.gateway.request(
-            'models.authLogout',
-            { provider }
-          );
-          writeJson(res, 200, result);
+          const cfg = api.runtime.config.current() as OpenClawConfig;
+          const agentDir = resolveDefaultAgentDir(cfg);
+          const store = ensureAuthProfileStore(agentDir, {
+            allowKeychainPrompt: false,
+            config: cfg,
+          });
+          const removedProfiles = listProfilesForProvider(store, provider);
+          const updated = await removeProviderAuthProfilesWithLock({
+            provider,
+            agentDir,
+          });
+          if (!updated) {
+            throw new Error(
+              'Failed to update the auth profile store; please try again'
+            );
+          }
+          await refreshGatewayAuthState(api);
+          writeJson(res, 200, { provider, removedProfiles });
           return;
         }
 
