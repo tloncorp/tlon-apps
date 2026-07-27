@@ -16,6 +16,8 @@ import type {
   Text,
   ThematicBreak,
 } from 'mdast';
+import { gfmToMarkdown } from 'mdast-util-gfm';
+import { toMarkdown } from 'mdast-util-to-markdown';
 
 import { Story, Verse, VerseBlock, VerseInline } from '../../urbit/channel';
 import {
@@ -43,6 +45,17 @@ import {
 } from '../../urbit/content';
 import type { GroupMention } from './groupMentionPlugin';
 import type { ShipMention } from './shipMentionPlugin';
+
+const tableMentionHandlers = {
+  handlers: {
+    shipMention(node: { value: string }) {
+      return `~${node.value}`;
+    },
+    groupMention(node: { value: string }) {
+      return `@${node.value}`;
+    },
+  },
+} as unknown as NonNullable<Parameters<typeof toMarkdown>[1]>;
 
 /**
  * Check if a node is a ship mention (custom node type from our plugin).
@@ -397,28 +410,15 @@ function blockquoteToVerse(blockquote: MdastBlockquote): VerseInline {
 function tableToVerse(node: RootContent): VerseInline | null {
   if (node.type !== 'table') return null;
 
-  // Extract rows from table
-  const rows: string[][] = [];
-  for (const row of (
-    node as {
-      children: Array<{ children: Array<{ children: PhrasingContent[] }> }>;
-    }
-  ).children) {
-    const cells: string[] = [];
-    for (const cell of row.children) {
-      // Extract text from cell children
-      const text = cell.children
-        .map((child: PhrasingContent) => {
-          if (child.type === 'text') return (child as Text).value;
-          return '';
-        })
-        .join('');
-      cells.push(text);
-    }
-    rows.push(cells);
-  }
-
-  const tableText = rows.map((row) => '| ' + row.join(' | ') + ' |').join('\n');
+  const tableText = toMarkdown(node as Parameters<typeof toMarkdown>[0], {
+    extensions: [
+      gfmToMarkdown({
+        // Keep alignment delimiters parseable by remark-gfm after serialization.
+        stringLength: (value) => Math.max(value.length, 4),
+      }),
+      tableMentionHandlers,
+    ],
+  }).trimEnd();
   return { inline: [tableText] };
 }
 

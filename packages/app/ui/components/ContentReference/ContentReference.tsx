@@ -2,6 +2,11 @@
 import { getChannelType } from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import { ContentReference } from '@tloncorp/shared/domain';
+import {
+  useChannelPreview,
+  useGroupPreview,
+  usePostReference,
+} from '@tloncorp/shared/store';
 import { IconType } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import React from 'react';
@@ -9,7 +14,6 @@ import { ComponentProps, useCallback, useContext } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts/navigation';
-import { useRequests } from '../../contexts/requests';
 import { useGroupTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
@@ -83,14 +87,13 @@ export function PostReferenceLoader({
   postId: string;
   replyId?: string;
 }) {
-  const { usePostReference, useChannel, useGroup } = useRequests();
   const postQuery = usePostReference({
     channelId,
     postId,
     replyId,
   });
-  const { data: channel } = useChannel({ id: channelId });
-  const { data: group } = useGroup(channel?.groupId ?? '');
+  const { data: channel } = useChannelPreview({ id: channelId });
+  const { data: group } = useGroupPreview(channel?.groupId ?? '');
   const { onPressRef, onPressGroupRef } = useNavigation();
   const handlePress = useCallback(async () => {
     if (channel && postQuery.data && group && group.currentUserIsMember) {
@@ -270,9 +273,8 @@ export function GroupReferenceLoaderComponent({
 }: {
   groupId: string;
 } & ReferenceProps) {
-  const { useGroup } = useRequests();
   const { onPressGroupRef } = useNavigation();
-  const { data: group, isLoading, isError, error } = useGroup(groupId);
+  const { data: group, isLoading, isError, error } = useGroupPreview(groupId);
   const onPress = useBoundHandler(group, onPressGroupRef);
 
   return (

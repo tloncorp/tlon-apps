@@ -796,6 +796,7 @@ export function BigInput({
           showClearOption={!!imageUri}
           onClearAttachments={handleClearImage}
           mediaType="image"
+          trackAttachmentAdded
         />
       )}
 
@@ -806,6 +807,7 @@ export function BigInput({
           onAttach={handleInlineImageSelect}
           showClearOption={false}
           mediaType="image"
+          trackAttachmentAdded
         />
       )}
     </KeyboardAvoidingView>

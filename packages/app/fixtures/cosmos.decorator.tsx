@@ -1,46 +1,31 @@
 import { NavigationContainer } from '@react-navigation/native';
-import { spyOn } from '@tloncorp/shared';
-import React, { useMemo } from 'react';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared';
+import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import {
-  PortalProvider,
-  StoreProvider,
-  TamaguiProvider,
-  config,
-  createNoOpStore,
-} from '../ui';
+import { PortalProvider, TamaguiProvider, config } from '../ui';
 import { ChannelProvider } from '../ui/contexts/channel';
 import { ComponentsKitProvider } from '../ui/contexts/componentsKits/ComponentsKitProvider';
-import { group, tlonLocalIntros } from './fakeData';
+import { CosmosDbProvider } from './cosmosDb';
+import { tlonLocalIntros } from './fakeData';
 
 // eslint-disable-next-line
 export default ({ children }: { children: React.ReactNode }) => {
-  const store = useMemo(() => {
-    const noOpStore = createNoOpStore();
-    const mockUseGroup = () => ({
-      data: group,
-      isLoading: false,
-      error: null,
-    });
-
-    // @ts-expect-error - fixture mock
-    return spyOn(noOpStore, 'useGroup', mockUseGroup);
-  }, []);
-
   return (
     <TamaguiProvider defaultTheme={'light'} config={config}>
-      <StoreProvider stub={store}>
-        <SafeAreaProvider>
-          <ChannelProvider value={{ channel: tlonLocalIntros }}>
-            <ComponentsKitProvider>
-              <NavigationContainer>
-                <PortalProvider>{children}</PortalProvider>
-              </NavigationContainer>
-            </ComponentsKitProvider>
-          </ChannelProvider>
-        </SafeAreaProvider>
-      </StoreProvider>
+      <QueryClientProvider client={queryClient}>
+        <CosmosDbProvider>
+          <SafeAreaProvider>
+            <ChannelProvider value={{ channel: tlonLocalIntros }}>
+              <ComponentsKitProvider>
+                <NavigationContainer>
+                  <PortalProvider>{children}</PortalProvider>
+                </NavigationContainer>
+              </ComponentsKitProvider>
+            </ChannelProvider>
+          </SafeAreaProvider>
+        </CosmosDbProvider>
+      </QueryClientProvider>
     </TamaguiProvider>
   );
 };

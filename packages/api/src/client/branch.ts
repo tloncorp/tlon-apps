@@ -89,6 +89,7 @@ export interface DeepLinkMetadata {
 export interface AppInvite extends DeepLinkMetadata {
   id: string;
   shouldAutoJoin: boolean;
+  inviteOpenedTracked?: boolean;
 }
 
 export type Lure = {

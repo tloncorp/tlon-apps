@@ -2,6 +2,8 @@ import * as api from '@tloncorp/api';
 import { afterEach, expect, test, vi } from 'vitest';
 
 import * as db from '../db';
+import { useDebugStore } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import { publishedNotePath, publishedNoteUrl } from '../logic';
 import { setupDatabaseTestSuite } from '../test/helpers';
 import {
@@ -59,6 +61,7 @@ function makeApiNoteSummary(note: db.NotesNote): api.NotesNote {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  useDebugStore.setState({ errorLogger: null });
 });
 
 test('saveNotebookNote preserves an empty title', async () => {
@@ -384,6 +387,8 @@ test('deleteNotebookNote waits for the deleted note to disappear from sync', asy
 });
 
 test('deleteNotebookNote keeps the local delete when sync stays stale', async () => {
+  const capture = vi.fn();
+  useDebugStore.getState().initializeErrorLogger({ capture });
   const note = makeNote('Delete me eventually');
   await db.saveNotesNotebookSnapshot({
     notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
@@ -405,6 +410,9 @@ test('deleteNotebookNote keeps the local delete when sync stays stale', async ()
   await expect(
     db.getNotesNote({ notebookFlag, noteId: note.noteId })
   ).resolves.toBeNull();
+  expect(
+    capture.mock.calls.some(([event]) => event === AnalyticsEvent.NoteDeleted)
+  ).toBe(false);
 });
 
 test('publishNotebookNote renders current markdown and marks note published', async () => {

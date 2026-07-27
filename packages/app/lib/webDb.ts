@@ -22,6 +22,10 @@ const ENABLE_DB_FILE_SAVE = IS_SECURE_CONTEXT;
 const MIN_FREE_BYTES_BEFORE_VACUUM = 4 * 1024 * 1024;
 const MIN_FREE_RATIO_BEFORE_VACUUM = 0.25;
 
+type WebDbOptions = {
+  enableStoragePersistence?: boolean;
+};
+
 // crypto.randomUUID() is only available in secure contexts. Polyfill it
 // for plain HTTP so that SQLocal (which uses it internally) can function.
 if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
@@ -36,6 +40,12 @@ if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
 
 export class WebDb extends BaseDb {
   private sqlocal: SQLocalDrizzle | null = null;
+  private readonly enableStoragePersistence: boolean;
+
+  constructor({ enableStoragePersistence = true }: WebDbOptions = {}) {
+    super();
+    this.enableStoragePersistence = enableStoragePersistence;
+  }
 
   async setupDb() {
     if (this.sqlocal || this.client) {
@@ -71,7 +81,7 @@ export class WebDb extends BaseDb {
       // connection to the DB - so make sure we don't do anything until this
       // promise resolves.
       let loadedFromFile = false;
-      if (ENABLE_DB_FILE_LOAD) {
+      if (this.enableStoragePersistence && ENABLE_DB_FILE_LOAD) {
         try {
           loadedFromFile = await this.loadDbFromFile();
           if (loadedFromFile) {
@@ -104,7 +114,7 @@ export class WebDb extends BaseDb {
       // No persisted DB carried sync state forward, so anything we previously
       // tracked in localStorage about "what has been synced" is meaningless.
       // Reset the sync markers so the initial sync hydrates the new DB.
-      if (!loadedFromFile) {
+      if (!loadedFromFile && this.enableStoragePersistence) {
         await resetDbSyncState();
       }
 
@@ -260,7 +270,7 @@ export class WebDb extends BaseDb {
     this.pendingProcessChanges = setTimeout(async () => {
       this.pendingProcessChanges = null;
       await this.processChanges();
-      if (ENABLE_DB_FILE_SAVE) {
+      if (this.enableStoragePersistence && ENABLE_DB_FILE_SAVE) {
         this.saveToFile();
       }
     }, 0);
@@ -279,14 +289,18 @@ export class WebDb extends BaseDb {
   async purgeDb() {
     if (!this.sqlocal) {
       logger.warn('purgeDb called before setupDb, ignoring');
-      await sqliteContent.resetValue();
-      await resetDbSyncState();
+      if (this.enableStoragePersistence) {
+        await sqliteContent.resetValue();
+        await resetDbSyncState();
+      }
       return;
     }
     logger.log('purging sqlite database');
     this.saveToFile.cancel();
-    await sqliteContent.resetValue();
-    await resetDbSyncState();
+    if (this.enableStoragePersistence) {
+      await sqliteContent.resetValue();
+      await resetDbSyncState();
+    }
     await this.sqlocal.destroy();
     this.sqlocal = null;
     this.client = null;

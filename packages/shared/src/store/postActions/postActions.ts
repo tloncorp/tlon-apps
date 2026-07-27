@@ -2,6 +2,7 @@ import * as api from '@tloncorp/api';
 import { toPostContent } from '@tloncorp/api';
 import * as urbit from '@tloncorp/api/urbit';
 
+import { trackEvent } from '../../analytics';
 import * as db from '../../db';
 import type * as domain from '../../domain';
 import { AnalyticsEvent, Attachment, PostDataDraft } from '../../domain';
@@ -368,6 +369,20 @@ async function _sendPost({
     }
 
     logger.crumb('done sending post');
+    trackEvent(AnalyticsEvent.ContentSendCompleted, {
+      type: channel.type,
+      isReply: draft?.replyToPostId != null,
+      attachmentTypes:
+        draft?.attachments.map((attachment) => attachment.type) ?? [],
+    });
+
+    if (draft) {
+      if (
+        draft.attachments.some((attachment) => attachment.type === 'voicememo')
+      ) {
+        trackEvent(AnalyticsEvent.VoiceMemoSent);
+      }
+    }
   } catch (e) {
     logger.trackEvent(
       cachePost.parentId == null
@@ -475,6 +490,7 @@ export async function retrySendPost({
   await _sendPost({
     channelId: draft.channelId,
     buildFinalizedPostData: () => finalizePostDraft(draft),
+    draft,
     existingPost: post,
   });
 }
@@ -672,6 +688,7 @@ async function _editPost({
       lastEditImage: null,
     });
     logger.log('editPost update done');
+    trackEvent(AnalyticsEvent.PostEditCompleted);
   } catch (e) {
     console.error('Failed to edit post', e);
     logger.log('editPost failed', e);
@@ -914,6 +931,7 @@ export async function reportPost({
       api.reportPost(userId, groupId, post.channelId, post)
     );
     await hidePost({ post });
+    trackEvent(AnalyticsEvent.PostReported);
   } catch (e) {
     logger.trackError('Failed to report post', e);
 
