@@ -2,6 +2,7 @@ import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 
 import { type TestFixtures, getFixtures, waitFor } from '../lib/index.js';
 import {
+  extractPostText,
   getLatestSequenceForAuthor,
   isPostNewerThanSequence,
 } from '../lib/post-baseline.js';
@@ -9,6 +10,9 @@ import { fakeModel } from '../support/fake-model/client.js';
 
 const SOURCE_IMAGE_URL =
   'https://storage.googleapis.com/tlon-test-ci-shared/test-images/openclaw-image.png';
+
+const LOCAL_MEDIA_ERROR_TEXT =
+  "Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>` using your owner ship's credentials), then resend with the returned https URL.";
 
 // Poke mark verified against fakezod — see plan §1b.
 // JSON keys must be kebab-case (storage-json/hoon), not camelCase.
@@ -211,10 +215,83 @@ describe('media', () => {
 
     console.log(`[TEST] Found image DM with src: ${result.src}`);
 
-    // The image URL must have been rewritten by uploadImageFromUrl.
-    // If upload failed, the function silently returns the original URL,
+    // The image URL must have been rewritten by uploadFile.
+    // If upload failed, the function falls back to the canonical source URL,
     // so equality here means the upload did NOT happen.
     expect(result.src).toBeDefined();
     expect(result.src).not.toBe(SOURCE_IMAGE_URL);
+  });
+
+  test('local path fails loudly and posts nothing (storage-independent)', async () => {
+    const token = `it-localmedia-${Date.now().toString(36)}`;
+    const key = 'media-local-path-reject';
+    const localPath = `/pier/secret-${token}.png`;
+
+    const baselineSequence = await getLatestSequenceForAuthor(
+      fixtures.userState,
+      fixtures.botShip,
+      fixtures.botShip,
+      30
+    );
+
+    await fakeModel.script(
+      key,
+      [
+        {
+          kind: 'tool_call',
+          name: 'message',
+          args: {
+            action: 'send',
+            target: fixtures.userShip,
+            message: token,
+            media: localPath,
+          },
+        },
+        { kind: 'text', content: 'Done.' },
+      ],
+      { allowExtraCalls: 2 }
+    );
+
+    const response = await fixtures.client.prompt(
+      `[tlon-test:${key}] Send an image (media=${localPath}) with text "${token}".`
+    );
+
+    if (!response.success) {
+      throw new Error(response.error ?? 'Prompt failed');
+    }
+
+    // ── Assert (a): follow-up model request carries the failed tool-result ──
+    const calls = await fakeModel.received(key);
+    const followUpWithToolResult = calls.find((call) =>
+      call.messages?.some(
+        (msg) =>
+          msg.role === 'tool' &&
+          msg.content?.text?.includes(LOCAL_MEDIA_ERROR_TEXT)
+      )
+    );
+    expect(followUpWithToolResult).toBeDefined();
+
+    // ── Assert (b): no new bot post carries the token in text OR images ──
+    const posts = await fixtures.userState.channelPosts(fixtures.botShip, 30);
+    const leakedPost = (posts ?? []).find((post) => {
+      const p = post as {
+        authorId?: string;
+        sequenceNum?: number | null;
+        textContent?: string | null;
+        content?: unknown;
+        images?: Array<{ src?: string | null }>;
+      };
+      if (p.authorId !== fixtures.botShip) {
+        return false;
+      }
+      if (!isPostNewerThanSequence(p, baselineSequence)) {
+        return false;
+      }
+      if (extractPostText(p).includes(token)) {
+        return true;
+      }
+      return p.images?.some((img) => img.src?.includes(token)) ?? false;
+    });
+    expect(leakedPost).toBeUndefined();
   });
 });
