@@ -5,6 +5,7 @@
 ::
 =+  retry=3
 =+  retry-delay=~s5
+=+  endpoint='/v1/logs'
 ::
 =>
 |%
@@ -183,7 +184,7 @@
   ==
 =/  =request:http
   :*  %'POST'
-      otel
+      (cat 3 otel endpoint)
       ~['content-type'^'application/json']
       `(as-octs:mimes:html (en:json:html logs))
   ==
