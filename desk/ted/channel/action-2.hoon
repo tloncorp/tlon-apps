@@ -1,21 +1,20 @@
-::  channel-action: send actions to %channels
+::  channel-action-2: send actions to %channels
 ::
 ::    thread for posting to a channel as this ship, used by the
 ::    alert bot and typically invoked through eyre's spider api.
-::    takes the v7 channel action (%channel-action mark) and
-::    upconverts it before poking %channels.
+::    takes the v10 channel action (%channel-action-2 mark).
 ::
 /-  spider, cv=channels-ver
-/+  io=strandio, ccv=channel-conv
+/+  io=strandio
 =,  strand=strand:spider
 ::
 ^-  thread:spider
 |=  arg=vase
 =/  m  (strand ,vase)
 ^-  form:m
-=+  !<(arg=(unit a-channels:v7:cv) arg)
+=+  !<(arg=(unit a-channels:v10:cv) arg)
 ?~  arg  (pure:m !>(~))
-=/  action  (v10:a-channels:v9:ccv (v9:a-channels:v7:ccv u.arg))
+=/  action  u.arg
 ?>  ?=([%channel ^ %post %add *] action)
 ;<  =bowl:strand  bind:m  get-bowl:io
 =.  sent.essay.c-post.a-channel.action  now.bowl
