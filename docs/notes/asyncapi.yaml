@@ -96,6 +96,10 @@ channels:
     messages:
       notesSaid:
         $ref: "#/components/messages/NotesSaid"
+      notesDenied:
+        $ref: "#/components/messages/NotesDenied"
+      notesError:
+        $ref: "#/components/messages/NotesError"
   requestStream:
     address: "/v1/request/{requestId}"
     title: Per-request response stream (v1)
@@ -153,6 +157,8 @@ operations:
     summary: Fetch one note preview (fact + kick)
     messages:
       - $ref: "#/channels/saidStream/messages/notesSaid"
+      - $ref: "#/channels/saidStream/messages/notesDenied"
+      - $ref: "#/channels/saidStream/messages/notesError"
 
 components:
   messages:
@@ -230,12 +236,23 @@ components:
     NotesSaid:
       name: notesSaid
       title: Note reference preview
-      summary: |
-        Mark %notes-said. Denials deliver a null fact as %notes-denied;
-        missing notes and host-side failures deliver a null fact as
-        %notes-error.
+      summary: Mark %notes-said.
       payload:
         $ref: "#/components/schemas/NotesSaid"
+    NotesDenied:
+      name: notesDenied
+      title: Preview denied
+      summary: Mark %notes-denied — no read permission. Payload is null.
+      payload:
+        type: "null"
+    NotesError:
+      name: notesError
+      title: Preview failed
+      summary: |
+        Mark %notes-error — missing note or host-side failure. Payload
+        is null.
+      payload:
+        type: "null"
 
   schemas:
     # Mirror of openapi.yaml schemas. Kept self-contained so this spec

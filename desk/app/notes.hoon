@@ -1012,9 +1012,36 @@
   |=  [=flag:n nid=@ud]
   ^-  path
   /v0/said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+::  +utf8-head: at most .cap leading bytes of .t, whole sequences only
+::
+::  trailing continuation bytes and the lead byte they belong to are
+::  dropped when the byte cap splits a multi-byte sequence, so the
+::  slice always decodes cleanly.
+::
+++  utf8-head
+  |=  [t=@t cap=@ud]
+  ^-  @t
+  =/  head=@t  `@t`(end [3 cap] t)
+  =/  i=@ud  (dec cap)
+  |-
+  =/  b=@  (cut 3 [i 1] head)
+  ?:  &((gte b 0x80) (lth b 0xc0))
+    ?:  =(0 i)  ''
+    $(i (dec i))
+  =/  need=@ud
+    ?:  (lth b 0x80)  1
+    ?:  (lth b 0xe0)  2
+    ?:  (lth b 0xf0)  3
+    4
+  ?:  (lte (add i need) cap)  head
+  `@t`(end [3 i] head)
 ::  +said-snippet: leading slice of body-md for preview cards
 ::
-::  cuts at a codepoint boundary, then backs off past anything that can
+::  the decode is bounded before it happens: 400 codepoints span at
+::  most 1.600 utf-8 bytes, so larger bodies are sliced as atoms first
+::  — a multi-megabyte note must not be materialized per preview
+::  request, since public notebooks answer any ship. the slice then
+::  cuts at a codepoint boundary and backs off past anything that can
 ::  glue a grapheme cluster together, dropping the whole trailing
 ::  cluster rather than splitting it. this approximates uax #29
 ::  extended grapheme clusters; covered: zwj/zwnj sequences, variation
@@ -1029,8 +1056,12 @@
   |=  body=@t
   ^-  @t
   =/  limit=@ud  400
+  =/  cap=@ud  (mul 4 limit)
+  =/  sliced=?  (gth (met 3 body) cap)
+  =?  body  sliced  (utf8-head body cap)
   =/  chars=(list @c)  (tuba (trip body))
-  ?:  (lte (lent chars) limit)  body
+  =/  count=@ud  (lent chars)
+  ?:  &(!sliced (lte count limit))  body
   =/  glue
     |=  c=@c
     ?|  =(`@`c 0x200d)  =(`@`c 0x200c)            ::  zwj / zwnj
@@ -1044,9 +1075,14 @@
         &((gte `@`c 0x20d0) (lte `@`c 0x20ff))    ::  combining for symbols
         &((gte `@`c 0xfe20) (lte `@`c 0xfe2f))    ::  combining half marks
     ==
+  ::  when the utf-8 trim leaves fewer codepoints than the limit the
+  ::  next codepoint is unknown — treat it as glue so a trailing
+  ::  half-cluster still gets peeled
+  ::
+  =/  cut=@ud  (min limit count)
+  =/  nxt=@c  ?:((gth count cut) (snag cut chars) `@c`0x200d)
   ::  walk the kept slice in reverse so cluster glue peels off the end
-  =/  peek=(list @c)  (flop (scag limit chars))
-  =/  nxt=@c  (snag limit chars)
+  =/  peek=(list @c)  (flop (scag cut chars))
   |-  ^-  @t
   ?~  peek  ''
   ?.  |((glue i.peek) (glue nxt))

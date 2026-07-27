@@ -2433,6 +2433,54 @@
   ;<  caz=(list card)  bind:m  (do-watch pax)
   %+  ex-cards  caz
   ~[(ex-card [%pass wire %agent [~bus %notes] %watch pax])]
+::  +test-said-snippet-bounded-decode: large bodies slice before decoding
+::
+::  the 1.600-byte cap lands two bytes into a 4-byte emoji; the trim
+::  must drop the split sequence so the slice decodes cleanly, and the
+::  snippet is the plain 400-codepoint cut of the remaining ascii
+::
+++  test-said-snippet-bounded-decode
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a %create-notebook 'NB')
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  pig=(list @c)  ~[`@c`0x1.f437]
+  =/  body=@t
+    (crip :(weld (reap 1.598 'a') (tufa pig) (reap 5.000 'b')))
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' body])
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
+  =/  snip=@t  (crip (reap 400 'a'))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said !>(`said:n`[f [3 'T' snip our.bowl now.bowl 'NB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-snippet-slice-at-limit: sliced body at exactly the limit
+::
+::  401 4-byte emoji slice to exactly 400 codepoints; the next
+::  codepoint is unknown so the backoff conservatively peels one more
+::
+++  test-said-snippet-slice-at-limit
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a %create-notebook 'NB')
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  pigs=(list @c)  (reap 401 `@c`0x1.f437)
+  =/  body=@t  (crip (tufa pigs))
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' body])
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
+  =/  snip=@t  (crip (tufa (reap 399 `@c`0x1.f437)))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said !>(`said:n`[f [3 'T' snip our.bowl now.bowl 'NB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
 ::  +said-group-scry: mock %gu group liveness + %gx can-read for said tests
 ::
 ++  said-group-scry
