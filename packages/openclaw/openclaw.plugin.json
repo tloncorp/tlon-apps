@@ -4,6 +4,9 @@
     "tlon"
   ],
   "contracts": {
+    "gatewayMethodDispatch": [
+      "authenticated-request"
+    ],
     "tools": [
       "tlon"
     ]

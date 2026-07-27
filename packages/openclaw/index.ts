@@ -34,6 +34,7 @@ import {
 import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
+import { registerProviderAuthRoutes } from './src/provider-auth-routes.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
 import { parseTlonTarget } from './src/targets.js';
@@ -1067,6 +1068,7 @@ export default defineChannelPluginEntry({
 
     const contextLensRoutesEnabled = registerContextLensRoutes(api);
     const contextLensShipSyncEnabled = initContextLensShipSync(api);
+    registerProviderAuthRoutes(api);
     // Recording and the disk store run when at least one reader path is
     // live: authed gateway routes or %context-lens ship sync.
     const contextLensEnabled =
