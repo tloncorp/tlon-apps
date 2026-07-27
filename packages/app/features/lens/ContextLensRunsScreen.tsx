@@ -3,6 +3,7 @@ import { lensRunMatchesChannel } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Pressable } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
 
 import type { RootStackParamList } from '../../navigation/types';
 import {
@@ -67,12 +68,19 @@ export function ContextLensRunsScreen(props: Props) {
 
   return (
     <YStack flex={1} backgroundColor="$background">
-      <ScreenHeader
-        title={channelId ? 'Bot runs in this channel' : 'Bot runs'}
-        backAction={props.navigation.goBack}
-        borderBottom
-      />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      {Platform.OS === 'web' && (
+        <ScreenHeader
+          title={channelId ? 'Bot runs in this channel' : 'Bot runs'}
+          backAction={props.navigation.goBack}
+          borderBottom
+        />
+      )}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior={
+          Platform.OS === 'web' ? undefined : 'automatic'
+        }
+      >
         <YStack gap="$xs" padding="$l" paddingBottom="$2xl">
           {rows.map((row) => {
             const tone = TONE_COLORS[statusTone(row.lens.status)];

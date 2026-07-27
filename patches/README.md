@@ -82,6 +82,37 @@ Removal:
 Drop this hunk once `gorhom/react-native-bottom-sheet#2711` (or an
 equivalent fix) ships in a release we use.
 
+## expo-modules-core@57.0.6
+
+Local patch:
+`patches/expo-modules-core@57.0.6.patch`
+
+### Swift strict-concurrency failure in EventEmitter
+
+Why:
+Xcode 26.3 rejects the weak `EventEmitter` capture used by Expo Modules Core
+with `sending 'emitter' risks causing data races`. Editing `node_modules`
+unblocks one local build but disappears on the next install, so the same
+compile failure can recur locally and in EAS.
+
+What it does:
+Applies Expo's upstream fix, wrapping the weak emitter in the existing
+`NonisolatedUnsafeWeakVar` sendable box before scheduling work on the
+JavaScript actor. This is an iOS-only source change and does not alter Android
+or web behavior.
+
+Upstream:
+- fix: [expo/expo@d015800](https://github.com/expo/expo/commit/d01580058a40)
+
+Validation:
+- Run `pnpm install --frozen-lockfile` and confirm the patched source is present
+- Compile the iOS app in Release mode with Xcode 26.3
+
+Removal:
+Remove this patch once a published `expo-modules-core` release contains the
+`NonisolatedUnsafeWeakVar` capture and the iOS Release compile passes without
+it. Version 57.0.7 does not yet contain the fix.
+
 ## @10play/tentap-editor@0.5.21
 
 Why:

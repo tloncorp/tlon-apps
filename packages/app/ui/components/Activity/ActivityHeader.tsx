@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback } from 'react';
 import { View } from 'tamagui';
 
@@ -13,15 +13,17 @@ export type ActivityTab = 'all' | 'threads' | 'mentions';
 function ActivityHeaderRaw({
   activeTab,
   onTabPress,
-  markAllRead,
+  onRequestMarkAllRead,
   subtitle,
   loadingSubtitle,
+  showScreenHeader = true,
 }: {
   activeTab: db.ActivityBucket;
   onTabPress: (tab: db.ActivityBucket) => void;
-  markAllRead: () => Promise<void>;
+  onRequestMarkAllRead: () => void;
   subtitle?: string;
   loadingSubtitle?: string | null;
+  showScreenHeader?: boolean;
 }) {
   const [overflowOpen, setOverflowOpen] = React.useState(false);
   const onOverflowOpenChange = useCallback((open: boolean) => {
@@ -31,19 +33,21 @@ function ActivityHeaderRaw({
   return (
     <View>
       <View width="100%">
-        <ScreenHeader
-          title="Activity"
-          subtitle={subtitle}
-          loadingSubtitle={loadingSubtitle}
-        >
-          <ScreenHeader.Controls side="right">
-            <ActivityOverflowMenu
-              open={overflowOpen}
-              onOpenChange={onOverflowOpenChange}
-              markAllRead={markAllRead}
-            />
-          </ScreenHeader.Controls>
-        </ScreenHeader>
+        {showScreenHeader && (
+          <ScreenHeader
+            title="Activity"
+            subtitle={subtitle}
+            loadingSubtitle={loadingSubtitle}
+          >
+            <ScreenHeader.Controls side="right">
+              <ActivityOverflowMenu
+                open={overflowOpen}
+                onOpenChange={onOverflowOpenChange}
+                onRequestMarkAllRead={onRequestMarkAllRead}
+              />
+            </ScreenHeader.Controls>
+          </ScreenHeader>
+        )}
       </View>
       <Tabs>
         <Tabs.Tab
@@ -82,22 +86,17 @@ export const ActivityHeader = React.memo(ActivityHeaderRaw);
 function ActivityOverflowMenu({
   open,
   onOpenChange,
-  markAllRead,
+  onRequestMarkAllRead,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  markAllRead: () => Promise<void>;
+  onRequestMarkAllRead: () => void;
 }) {
-  const [confirmationOpen, setConfirmationOpen] = React.useState(false);
   const isWindowNarrow = useIsWindowNarrow();
   const handleOpenConfirmation = useCallback(() => {
-    setConfirmationOpen(true);
-  }, []);
-
-  const handleMarkAllRead = useCallback(async () => {
     onOpenChange(false);
-    await markAllRead();
-  }, [onOpenChange, markAllRead]);
+    onRequestMarkAllRead();
+  }, [onOpenChange, onRequestMarkAllRead]);
 
   return (
     <ActionSheet
@@ -122,14 +121,6 @@ function ActivityOverflowMenu({
           />
         </ActionSheet.ActionGroup>
       </ActionSheet.Content>
-      <ConfirmDialog
-        open={confirmationOpen}
-        onOpenChange={setConfirmationOpen}
-        title="Mark all as read"
-        description="Are you sure you want to mark all conversations and notifications as read?"
-        confirmText="Mark all read"
-        onConfirm={handleMarkAllRead}
-      />
     </ActionSheet>
   );
 }

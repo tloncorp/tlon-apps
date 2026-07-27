@@ -1,4 +1,4 @@
-import { Switch } from 'react-native';
+import { Platform, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, SizableText, View, XStack, YStack } from 'tamagui';
 
@@ -32,12 +32,17 @@ export function FeatureFlagScreenView({
 
   return (
     <View flex={1} backgroundColor="$background">
-      <ScreenHeader
-        borderBottom
-        backAction={isWindowNarrow ? onBackPressed : undefined}
-        title={'Experimental features'}
-      />
+      {Platform.OS === 'web' && (
+        <ScreenHeader
+          borderBottom
+          backAction={isWindowNarrow ? onBackPressed : undefined}
+          title={'Experimental features'}
+        />
+      )}
       <ScrollView
+        contentInsetAdjustmentBehavior={
+          Platform.OS === 'web' ? undefined : 'automatic'
+        }
         style={{
           flex: 1,
           width: '100%',

@@ -1,32 +1,68 @@
 import { DraftInputId } from '@tloncorp/api';
-import { View } from 'tamagui';
+import { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
 
 import { useComponentsKitContext } from '../../contexts/componentsKits';
 import { usesFloatingMessageInputChrome } from '../MessageInput/MessageInputChrome';
+import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputContextProvider } from '../draftInputs/shared';
+import { conversationScrollViewNativeID } from '../nativeScrollEdgeEffects';
 
-export function DraftInputView(props: {
+export function DraftInputView({
+  draftInputContext,
+  type,
+  onFloatingHeightChange,
+}: {
   draftInputContext: DraftInputContext;
   type: DraftInputId;
+  onFloatingHeightChange?: (height: number) => void;
 }) {
   const { inputs } = useComponentsKitContext();
-  const InputComponent = inputs[props.type];
+  const InputComponent = inputs[type];
+  const isFloatingChatInput =
+    usesFloatingMessageInputChrome && type === DraftInputId.chat;
+
+  useEffect(() => {
+    if (!isFloatingChatInput) {
+      onFloatingHeightChange?.(0);
+    }
+
+    return () => onFloatingHeightChange?.(0);
+  }, [isFloatingChatInput, onFloatingHeightChange]);
+
   if (InputComponent) {
     const input = (
-      <DraftInputContextProvider value={props.draftInputContext}>
-        <InputComponent draftInputContext={props.draftInputContext} />
+      <DraftInputContextProvider value={draftInputContext}>
+        <InputComponent draftInputContext={draftInputContext} />
       </DraftInputContextProvider>
     );
 
-    if (usesFloatingMessageInputChrome && props.type === DraftInputId.chat) {
+    if (isFloatingChatInput) {
       return (
-        <View position="absolute" bottom={0} left={0} right={0} zIndex={10}>
+        <ScrollEdgeElementContainer
+          edge="bottom"
+          scrollViewNativeID={conversationScrollViewNativeID}
+          style={styles.floatingInput}
+          onLayout={(event) =>
+            onFloatingHeightChange?.(event.nativeEvent.layout.height)
+          }
+        >
           {input}
-        </View>
+        </ScrollEdgeElementContainer>
       );
     }
 
     return input;
   }
 }
+
+const styles = StyleSheet.create({
+  floatingInput: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+});

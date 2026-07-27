@@ -5,6 +5,8 @@ import { createContext, useContext } from 'react';
 import type { MinimalRenderItemType, RenderItemType } from './componentsKits';
 
 export interface PostCollectionContextValue {
+  bottomContentInset?: number;
+  topContentInset?: number;
   channel: db.Channel;
   collectionConfiguration?: Record<string, JSONValue>;
   editingPost?: db.Post;

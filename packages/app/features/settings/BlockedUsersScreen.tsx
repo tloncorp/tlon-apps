@@ -9,6 +9,7 @@ import { RootStackParamList } from '../../navigation/types';
 import {
   BlockedContactsWidget,
   ScreenHeader,
+  SettingsContentScrollView,
   View,
   useIsWindowNarrow,
 } from '../../ui';
@@ -56,18 +57,16 @@ export function BlockedUsersScreen(props: Props) {
           borderBottom
         />
       )}
-      <View
-        flex={1}
-        width="100%"
-        maxWidth={600}
-        marginHorizontal="auto"
+      <SettingsContentScrollView
+        contentInsetAdjustmentBehavior={isWeb ? undefined : 'automatic'}
+        paddingBottom="$3xl"
         paddingHorizontal="$xl"
       >
         <BlockedContactsWidget
           blockedContacts={blockedContacts ?? []}
           onBlockedContactPress={onBlockedContactPress}
         />
-      </View>
+      </SettingsContentScrollView>
     </View>
   );
 }

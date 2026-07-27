@@ -3,11 +3,13 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as Clipboard from 'expo-clipboard';
 import { capitalize } from 'lodash';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTokenValue } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { usesNativeStackHeader } from '../../navigation/nativeHeaderOptions';
 import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -104,7 +106,7 @@ function ChatDetailsScreenView() {
     onPressEditChannelMeta,
     onPressEditChannelPrivacy,
   } = useChatSettingsNavigation();
-  const { navigateToGroup, navigateToChannel, navigateBack } =
+  const { navigateToGroup, navigateToChannel, navigateBack, navigation } =
     useRootNavigation();
   const isWindowNarrow = useIsWindowNarrow();
 
@@ -165,6 +167,62 @@ function ChatDetailsScreenView() {
     }
   }, [channel, chatType, group, onPressEditChannelMeta, navigateToGroupMeta]);
 
+  const screenTitle = useMemo(() => {
+    switch (chatType) {
+      case 'group':
+        return 'Group info & settings';
+      case 'channel':
+        return 'Channel info';
+      default:
+        return 'Info';
+    }
+  }, [chatType]);
+
+  useLayoutEffect(() => {
+    if (!usesNativeStackHeader) {
+      return;
+    }
+
+    navigation.setOptions({
+      title: screenTitle,
+      headerRight: currentUserIsAdmin
+        ? () => (
+            <ScreenHeader.TextButton
+              onPress={!actionsEnabled ? undefined : handlePressEdit}
+              disabled={!actionsEnabled}
+              color="$primaryText"
+              testID="DetailsEditButton"
+            >
+              Rename
+            </ScreenHeader.TextButton>
+          )
+        : undefined,
+      unstable_headerRightItems:
+        Platform.OS === 'ios'
+          ? () =>
+              currentUserIsAdmin
+                ? [
+                    {
+                      type: 'button',
+                      label: 'Rename',
+                      accessibilityLabel: 'Rename',
+                      identifier: 'rename-chat',
+                      disabled: !actionsEnabled,
+                      onPress: handlePressEdit,
+                      sharesBackground: true,
+                    },
+                  ]
+                : []
+          : undefined,
+    });
+  }, [
+    actionsEnabled,
+    currentUserIsAdmin,
+    handlePressEdit,
+    navigation,
+    screenTitle,
+  ]);
+
   const handleEditChannelPrivacy = useCallback(
     (channelId: string, groupId: string) => {
       onPressEditChannelPrivacy(channelId, groupId, true);
@@ -192,44 +250,38 @@ function ChatDetailsScreenView() {
     isWindowNarrow,
   ]);
 
-  const getTitle = () => {
-    switch (chatType) {
-      case 'group':
-        return 'Group info & settings';
-      case 'channel':
-        return 'Channel info';
-      default:
-        return 'Info';
-    }
-  };
-
   const hasContent =
     (chatType === 'channel' && channel) || (chatType === 'group' && group);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        testID="ChatDetailsHeader"
-        backgroundColor="$secondaryBackground"
-        backAction={handleGoBack}
-        useHorizontalTitleLayout={!isWindowNarrow}
-        title={getTitle()}
-        rightControls={
-          currentUserIsAdmin ? (
-            <ScreenHeader.TextButton
-              onPress={!actionsEnabled ? undefined : handlePressEdit}
-              disabled={!actionsEnabled}
-              color="$primaryText"
-              testID="DetailsEditButton"
-            >
-              Rename
-            </ScreenHeader.TextButton>
-          ) : null
-        }
-      />
+      {!usesNativeStackHeader && (
+        <ScreenHeader
+          testID="ChatDetailsHeader"
+          backgroundColor="$secondaryBackground"
+          backAction={handleGoBack}
+          useHorizontalTitleLayout={!isWindowNarrow}
+          title={screenTitle}
+          rightControls={
+            currentUserIsAdmin ? (
+              <ScreenHeader.TextButton
+                onPress={!actionsEnabled ? undefined : handlePressEdit}
+                disabled={!actionsEnabled}
+                color="$primaryText"
+                testID="DetailsEditButton"
+              >
+                Rename
+              </ScreenHeader.TextButton>
+            ) : null
+          }
+        />
+      )}
       {hasContent && (
         <ScrollView
           flex={1}
+          contentInsetAdjustmentBehavior={
+            Platform.OS === 'ios' ? 'automatic' : undefined
+          }
           contentContainerStyle={{
             width: '100%',
             maxWidth: 600,

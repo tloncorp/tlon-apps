@@ -3,10 +3,21 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Icon, Text } from '@tloncorp/ui';
 import { useCallback } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { XStack } from 'tamagui';
 
-const BANNER_HEIGHT = 44;
+import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
+import {
+  conversationNavigationBarHeight,
+  conversationScrollViewNativeID,
+  floatingPinnedPostBannerGap,
+  floatingPinnedPostBannerHeight,
+} from '../nativeScrollEdgeEffects';
+import {
+  PinnedPostBannerChrome,
+  usesFloatingPinnedPostBanner,
+} from './PinnedPostBannerChrome';
 
 interface PinnedPostBannerProps {
   channel: db.Channel;
@@ -17,6 +28,7 @@ export function PinnedPostBanner({
   channel,
   onPressPost,
 }: PinnedPostBannerProps) {
+  const insets = useSafeAreaInsets();
   const pinnedPostId = logic.getPinnedPostId(channel);
   const dismissedPinnedPostBannerIds =
     db.dismissedPinnedPostBannerIds.useValue();
@@ -49,42 +61,80 @@ export function PinnedPostBanner({
   const author = post.author || null;
   const previewText = post.textContent?.trim() || 'Pinned post';
 
-  return (
-    <XStack
-      height={BANNER_HEIGHT}
-      paddingHorizontal="$l"
-      backgroundColor="$background"
-      borderBottomWidth={1}
-      borderBottomColor="$border"
-      alignItems="center"
-      gap="$m"
-    >
-      <Pressable onPress={handlePress} style={{ flex: 1 }}>
-        <XStack alignItems="center" gap="$m" flex={1}>
-          <Icon type="Pin" customSize={[16, 16]} color="$primaryText" />
-          <Text
-            size="$label/s"
-            color="$primaryText"
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            flex={1}
-          >
-            {author
-              ? `${author.customNickname || author.peerNickname || author.id}: `
-              : ''}
-            {previewText}
-          </Text>
-        </XStack>
-      </Pressable>
-      <Pressable
-        onPress={(event) => {
-          event.stopPropagation();
-          handleDismiss();
-        }}
-        hitSlop={12}
+  const content = (
+    <PinnedPostBannerChrome>
+      <XStack
+        height={floatingPinnedPostBannerHeight}
+        paddingHorizontal="$l"
+        backgroundColor={
+          usesFloatingPinnedPostBanner ? 'transparent' : '$background'
+        }
+        borderBottomWidth={usesFloatingPinnedPostBanner ? 0 : 1}
+        borderBottomColor="$border"
+        alignItems="center"
+        gap="$m"
       >
-        <Icon type="Close" customSize={[16, 14]} color="$tertiaryText" />
-      </Pressable>
-    </XStack>
+        <Pressable onPress={handlePress} style={styles.post}>
+          <XStack alignItems="center" gap="$m" flex={1}>
+            <Icon type="Pin" customSize={[16, 16]} color="$primaryText" />
+            <Text
+              size="$label/s"
+              color="$primaryText"
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              flex={1}
+            >
+              {author
+                ? `${author.customNickname || author.peerNickname || author.id}: `
+                : ''}
+              {previewText}
+            </Text>
+          </XStack>
+        </Pressable>
+        <Pressable
+          onPress={(event) => {
+            event.stopPropagation();
+            handleDismiss();
+          }}
+          hitSlop={12}
+        >
+          <Icon type="Close" customSize={[16, 14]} color="$tertiaryText" />
+        </Pressable>
+      </XStack>
+    </PinnedPostBannerChrome>
   );
+
+  if (usesFloatingPinnedPostBanner) {
+    return (
+      <ScrollEdgeElementContainer
+        edge="top"
+        scrollViewNativeID={conversationScrollViewNativeID}
+        style={[
+          styles.floating,
+          {
+            top:
+              insets.top +
+              conversationNavigationBarHeight +
+              floatingPinnedPostBannerGap,
+          },
+        ]}
+      >
+        {content}
+      </ScrollEdgeElementContainer>
+    );
+  }
+
+  return content;
 }
+
+const styles = StyleSheet.create({
+  floating: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    zIndex: 20,
+  },
+  post: {
+    flex: 1,
+  },
+});

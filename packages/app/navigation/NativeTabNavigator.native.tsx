@@ -1,11 +1,6 @@
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
 import type { NativeBottomTabScreenProps } from '@react-navigation/bottom-tabs/unstable';
 import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from '@react-navigation/native';
-import {
   ClipOp,
   ImageFormat,
   Skia,
@@ -14,7 +9,7 @@ import {
   useImage,
 } from '@shopify/react-native-skia';
 import * as store from '@tloncorp/shared/store';
-import { ComponentType, useEffect, useMemo, useState } from 'react';
+import { ComponentType, useEffect, useState } from 'react';
 import { type ImageSourcePropType, Platform } from 'react-native';
 import { useTheme } from 'tamagui';
 
@@ -22,7 +17,6 @@ import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { useCurrentUserId } from '../hooks/useCurrentUser';
-import { useActiveTheme } from '../provider';
 import type { NativeTabParamList } from './types';
 
 const Tabs = createNativeBottomTabNavigator<NativeTabParamList>();
@@ -150,81 +144,73 @@ const ContactsTab = ContactsScreen as unknown as ComponentType<
 
 export function NativeTabNavigator() {
   const theme = useTheme();
-  const activeTheme = useActiveTheme();
   const currentUserId = useCurrentUserId();
   const { data: currentUser } = store.useContact({ id: currentUserId });
   const roundedAvatarSource = useRoundedAvatarSource(currentUser?.avatarImage);
   const haveUnreadActivity = store.useHaveUnreadUnseenActivity();
-  const backgroundColor = theme.background?.val;
-  const navigationTheme = useMemo(() => {
-    const baseTheme = activeTheme === 'dark' ? DarkTheme : DefaultTheme;
-
-    return {
-      ...baseTheme,
-      colors: {
-        ...baseTheme.colors,
-        background: backgroundColor ?? baseTheme.colors.background,
-      },
-    };
-  }, [activeTheme, backgroundColor]);
+  const topLevelHeaderOptions = {
+    headerTitleAlign: 'center' as const,
+    headerShadowVisible: false,
+    headerTintColor: theme.primaryText?.val,
+    headerTitleStyle: {
+      color: theme.primaryText?.val,
+      fontSize: 17,
+      fontWeight: '500' as const,
+    },
+  };
 
   return (
-    <ThemeProvider value={navigationTheme}>
-      <Tabs.Navigator
-        initialRouteName="ChatList"
-        backBehavior="history"
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: theme.primaryText?.val,
-          tabBarInactiveTintColor: theme.secondaryText?.val,
-          tabBarActiveIndicatorColor: theme.secondaryBackground?.val,
-          tabBarLabel: Platform.OS === 'ios' ? '' : undefined,
-          tabBarLabelVisibilityMode:
-            Platform.OS === 'android' ? 'unlabeled' : undefined,
-          tabBarControllerMode: Platform.OS === 'ios' ? 'tabBar' : undefined,
-          tabBarMinimizeBehavior:
-            Platform.OS === 'ios' ? 'onScrollDown' : undefined,
+    <Tabs.Navigator
+      initialRouteName="ChatList"
+      backBehavior="history"
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: theme.primaryText?.val,
+        tabBarInactiveTintColor: theme.secondaryText?.val,
+        tabBarActiveIndicatorColor: theme.secondaryBackground?.val,
+        tabBarLabel: Platform.OS === 'ios' ? '' : undefined,
+        tabBarLabelVisibilityMode:
+          Platform.OS === 'android' ? 'unlabeled' : undefined,
+        tabBarControllerMode: Platform.OS === 'ios' ? 'tabBar' : undefined,
+        tabBarMinimizeBehavior:
+          Platform.OS === 'ios' ? 'onScrollDown' : undefined,
+      }}
+    >
+      <Tabs.Screen
+        name="ChatList"
+        component={ChatListTab}
+        options={{
+          title: 'Home',
+          headerShown: true,
+          headerStyle: { backgroundColor: theme.background?.val },
+          ...topLevelHeaderOptions,
+          tabBarIcon: ({ focused }) => tabIcon('home', focused),
         }}
-      >
-        <Tabs.Screen
-          name="ChatList"
-          component={ChatListTab}
-          options={{
-            title: 'Home',
-            headerShown: true,
-            headerTitleAlign: 'center',
-            headerShadowVisible: false,
-            headerStyle: { backgroundColor: theme.background?.val },
-            headerTintColor: theme.primaryText?.val,
-            headerTitleStyle: {
-              color: theme.primaryText?.val,
-              fontSize: 17,
-              fontWeight: '500',
-            },
-            tabBarIcon: ({ focused }) => tabIcon('home', focused),
-          }}
-        />
-        <Tabs.Screen
-          name="Activity"
-          component={ActivityTab}
-          options={{
-            title: 'Activity',
-            tabBarBadge: haveUnreadActivity ? '' : undefined,
-            tabBarIcon: ({ focused }) => tabIcon('activity', focused),
-          }}
-        />
-        <Tabs.Screen
-          name="Contacts"
-          component={ContactsTab}
-          options={{
-            title: 'Contacts',
-            tabBarIcon: ({ focused }) =>
-              Platform.OS === 'ios'
-                ? avatarTabIcon(roundedAvatarSource)
-                : tabIcon('profile', focused),
-          }}
-        />
-      </Tabs.Navigator>
-    </ThemeProvider>
+      />
+      <Tabs.Screen
+        name="Activity"
+        component={ActivityTab}
+        options={{
+          title: 'Activity',
+          headerShown: Platform.OS === 'ios',
+          ...topLevelHeaderOptions,
+          tabBarBadge: haveUnreadActivity ? '' : undefined,
+          tabBarIcon: ({ focused }) => tabIcon('activity', focused),
+        }}
+      />
+      <Tabs.Screen
+        name="Contacts"
+        component={ContactsTab}
+        options={{
+          title: 'Contacts',
+          headerShown: Platform.OS === 'ios',
+          ...topLevelHeaderOptions,
+          tabBarIcon: ({ focused }) =>
+            Platform.OS === 'ios'
+              ? avatarTabIcon(roundedAvatarSource)
+              : tabIcon('profile', focused),
+        }}
+      />
+    </Tabs.Navigator>
   );
 }

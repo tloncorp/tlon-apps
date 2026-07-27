@@ -6,7 +6,7 @@ import {
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { PropsWithChildren, ReactElement } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { AlertDialog, ScrollView, View, XStack, YStack, isWeb } from 'tamagui';
 
 import { ListItem } from './ListItem';
@@ -65,12 +65,18 @@ export function SettingsScreenView(props: Props) {
 
   return (
     <>
-      <ScreenHeader
-        title="Settings"
-        backAction={props.onBackPressed}
-        borderBottom={isWindowNarrow}
-      />
-      <ScrollView>
+      {Platform.OS === 'web' && (
+        <ScreenHeader
+          title="Settings"
+          backAction={props.onBackPressed}
+          borderBottom={isWindowNarrow}
+        />
+      )}
+      <ScrollView
+        contentInsetAdjustmentBehavior={
+          Platform.OS === 'web' ? undefined : 'automatic'
+        }
+      >
         <YStack flex={1} padding="$l" gap="$s">
           <SettingsAction
             title="Notification settings"

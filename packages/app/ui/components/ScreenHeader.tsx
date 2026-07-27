@@ -1,11 +1,21 @@
+import { NavigationContext } from '@react-navigation/native';
+import type {
+  NativeStackHeaderItem,
+  NativeStackNavigationOptions,
+} from '@react-navigation/native-stack';
 import { useDebouncedValue } from '@tloncorp/shared';
 import { Icon, Text, Pressable as TlonPressable, View } from '@tloncorp/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Children,
+  Fragment,
   PropsWithChildren,
+  ReactElement,
   ReactNode,
+  isValidElement,
+  useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -35,6 +45,10 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
+import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
+import { getNativeHeaderOptions } from '../../navigation/nativeHeaderOptions';
+import { useActiveTheme } from '../../provider';
+import { getNativeColorScheme } from '../utils/themeUtils';
 import { LongPressDisclosure } from './LongPressDisclosure';
 
 export const ScreenHeaderComponent = ({
@@ -53,6 +67,8 @@ export const ScreenHeaderComponent = ({
   loadingSubtitle,
   testID,
   floating = false,
+  useNativeHeader = true,
+  scrollsUnderHeader = false,
 }: PropsWithChildren<{
   title?: string | ReactNode;
   titleIcon?: ReactNode;
@@ -68,9 +84,13 @@ export const ScreenHeaderComponent = ({
   loadingSubtitle?: string | null;
   testID?: string;
   floating?: boolean;
+  useNativeHeader?: boolean;
+  scrollsUnderHeader?: boolean;
 }>) => {
   const { top } = useSafeAreaInsets();
   const theme = useTheme();
+  const activeTheme = useActiveTheme();
+  const navigation = useContext(NavigationContext);
   const [headerWidth, setHeaderWidth] = useState(0);
   const [leftControlsWidth, setLeftControlsWidth] = useState(0);
   const [rightControlsWidth, setRightControlsWidth] = useState(0);
@@ -230,6 +250,129 @@ export const ScreenHeaderComponent = ({
     titleContent
   );
 
+  const childControls = getNativeChildControls(children);
+  const nativeLeftControls = (
+    <>
+      {backAction ? <HeaderBackButton onPress={backAction} /> : null}
+      {leftControls}
+      {childControls.left}
+    </>
+  );
+  const nativeRightControls = (
+    <>
+      {rightControls}
+      {childControls.right}
+    </>
+  );
+  const nativeLeftItems = getNativeHeaderItems(
+    nativeLeftControls,
+    'left',
+    theme
+  );
+  const nativeRightItems = getNativeHeaderItems(
+    nativeRightControls,
+    'right',
+    theme
+  );
+  const nativeTitleRef = useRef(interactiveTitleContent);
+  const nativeLeftControlsRef = useRef(nativeLeftControls);
+  const nativeRightControlsRef = useRef(nativeRightControls);
+  const nativeLeftItemsRef = useRef(nativeLeftItems.items);
+  const nativeRightItemsRef = useRef(nativeRightItems.items);
+
+  nativeTitleRef.current = interactiveTitleContent;
+  nativeLeftControlsRef.current = nativeLeftControls;
+  nativeRightControlsRef.current = nativeRightControls;
+  nativeLeftItemsRef.current = nativeLeftItems.items;
+  nativeRightItemsRef.current = nativeRightItems.items;
+
+  const shouldUseNativeHeader =
+    Platform.OS !== 'web' && !floating && useNativeHeader && navigation != null;
+  const usesCustomNativeTitle =
+    typeof title !== 'string' ||
+    titleIcon != null ||
+    onTitlePress != null ||
+    loadingSubtitle !== undefined;
+  const nativeBackgroundColor = resolveNativeHeaderColor(
+    backgroundColor,
+    theme
+  );
+  const nativeTitleText = typeof title === 'string' ? title : '';
+  const hasNativeLeftItems = nativeLeftItems.items.length > 0;
+  const hasNativeRightItems = nativeRightItems.items.length > 0;
+  const nativeHeaderSignature = [
+    nativeTitleText,
+    usesCustomNativeTitle ? 'custom' : 'system',
+    loadingSubtitle ?? '',
+    nativeLeftItems.signature,
+    nativeRightItems.signature,
+    nativeBackgroundColor,
+    scrollsUnderHeader ? 'underlay' : 'contained',
+  ].join('|');
+
+  useLayoutEffect(() => {
+    if (!shouldUseNativeHeader || !navigation) {
+      return;
+    }
+
+    const baseOptions = getNativeHeaderOptions({
+      title: nativeTitleText,
+      isDarkMode: getNativeColorScheme(activeTheme) === 'dark',
+      scrollsUnderHeader,
+      backgroundColor: nativeBackgroundColor,
+    });
+    const options: NativeStackNavigationOptions = {
+      ...baseOptions,
+      headerBackVisible: false,
+      headerTitle: usesCustomNativeTitle
+        ? () => nativeTitleRef.current
+        : undefined,
+      headerLeft:
+        Platform.OS === 'android' && hasNativeLeftItems
+          ? () => (
+              <NativeHeaderControls>
+                {nativeLeftControlsRef.current}
+              </NativeHeaderControls>
+            )
+          : undefined,
+      headerRight:
+        Platform.OS === 'android' && hasNativeRightItems
+          ? () => (
+              <NativeHeaderControls>
+                {nativeRightControlsRef.current}
+              </NativeHeaderControls>
+            )
+          : undefined,
+      unstable_headerLeftItems:
+        Platform.OS === 'ios' ? () => nativeLeftItemsRef.current : undefined,
+      unstable_headerRightItems:
+        Platform.OS === 'ios' ? () => nativeRightItemsRef.current : undefined,
+    };
+
+    navigation.setOptions(options);
+
+    return () => {
+      if (navigation.isFocused()) {
+        navigation.setOptions({ headerShown: false });
+      }
+    };
+  }, [
+    activeTheme,
+    hasNativeLeftItems,
+    hasNativeRightItems,
+    nativeBackgroundColor,
+    nativeHeaderSignature,
+    nativeTitleText,
+    navigation,
+    scrollsUnderHeader,
+    shouldUseNativeHeader,
+    usesCustomNativeTitle,
+  ]);
+
+  if (shouldUseNativeHeader) {
+    return null;
+  }
+
   return (
     <View
       paddingTop={top}
@@ -239,7 +382,9 @@ export const ScreenHeaderComponent = ({
       left={floating ? 0 : undefined}
       right={floating ? 0 : undefined}
       elevationAndroid={floating && Platform.OS === 'android' ? 1 : undefined}
-      backgroundColor={floating ? 'transparent' : backgroundColor ?? '$background'}
+      backgroundColor={
+        floating ? 'transparent' : backgroundColor ?? '$background'
+      }
       borderColor="$border"
       borderBottomWidth={!floating && borderBottom ? 1 : 0}
       testID={testID}
@@ -250,7 +395,7 @@ export const ScreenHeaderComponent = ({
         );
       }}
     >
-      {floating && (
+      {floating && Platform.OS !== 'ios' && (
         <LinearGradient
           pointerEvents="none"
           style={[StyleSheet.absoluteFill, { bottom: -32 }]}
@@ -611,6 +756,237 @@ const HeaderControls = styled(XStack, {
     },
   } as const,
 });
+
+type HeaderControlProps = {
+  children?: ReactNode;
+  color?: ColorTokens;
+  disabled?: boolean;
+  onPress?: () => void;
+  side?: 'left' | 'right';
+  testID?: string;
+  type?: string;
+  accessibilityLabel?: string;
+  'aria-label'?: string;
+};
+
+type ThemeValues = ReturnType<typeof useTheme>;
+
+const nativeIconSources: Record<
+  string,
+  (typeof nativeHeaderIcons)[keyof typeof nativeHeaderIcons]
+> = {
+  Add: nativeHeaderIcons.add,
+  AddPerson: nativeHeaderIcons.invite,
+  ChevronLeft: nativeHeaderIcons.back,
+  EditList: nativeHeaderIcons.editList,
+  Overflow: nativeHeaderIcons.overflow,
+  RightSidebar: nativeHeaderIcons.rightSidebar,
+  Search: nativeHeaderIcons.search,
+  Settings: nativeHeaderIcons.settings,
+};
+
+function NativeHeaderControls({ children }: PropsWithChildren) {
+  return (
+    <XStack height="$4xl" alignItems="center" gap="$l">
+      {children}
+    </XStack>
+  );
+}
+
+function getNativeChildControls(children: ReactNode) {
+  const left: ReactNode[] = [];
+  const right: ReactNode[] = [];
+
+  function append(node: ReactNode) {
+    Children.forEach(node, (child) => {
+      if (!isValidElement<HeaderControlProps>(child)) {
+        return;
+      }
+
+      if (child.type === Fragment) {
+        append(child.props.children);
+        return;
+      }
+
+      if (child.type === HeaderControls) {
+        const destination = child.props.side === 'left' ? left : right;
+        destination.push(child.props.children);
+        return;
+      }
+
+      // Historically, free-form ScreenHeader children were positioned as
+      // actions. Preserve them on the right when moving the owning screen into
+      // a native navigation bar.
+      right.push(child);
+    });
+  }
+
+  append(children);
+
+  return {
+    left: left.length ? <>{left}</> : null,
+    right: right.length ? <>{right}</> : null,
+  };
+}
+
+function getNativeHeaderItems(
+  controls: ReactNode,
+  side: 'left' | 'right',
+  theme: ThemeValues
+): {
+  items: NativeStackHeaderItem[];
+  signature: string;
+} {
+  const items: NativeStackHeaderItem[] = [];
+  const signatures: string[] = [];
+
+  function append(node: ReactNode) {
+    Children.forEach(node, (child) => {
+      if (!isValidElement<HeaderControlProps>(child)) {
+        return;
+      }
+
+      if (child.type === Fragment || child.type === HeaderControls) {
+        append(child.props.children);
+        return;
+      }
+
+      const index = items.length;
+      const identifier = child.props.testID ?? `screen-header-${side}-${index}`;
+      const accessibilityLabel =
+        child.props.accessibilityLabel ?? child.props['aria-label'];
+      const tintColor = resolveNativeHeaderColor(child.props.color, theme);
+
+      if (child.type === HeaderBackButton) {
+        items.push({
+          type: 'button',
+          label: accessibilityLabel ?? 'Back',
+          accessibilityLabel: accessibilityLabel ?? 'Back',
+          icon: {
+            type: 'image',
+            source: nativeHeaderIcons.back,
+          },
+          identifier,
+          onPress: child.props.onPress ?? noop,
+          disabled: child.props.disabled || child.props.onPress == null,
+          sharesBackground: true,
+          tintColor,
+        });
+        signatures.push(
+          `back:${identifier}:${child.props.disabled ? 'disabled' : 'enabled'}`
+        );
+        return;
+      }
+
+      if (child.type === HeaderTextButton) {
+        const label = getTextContent(child.props.children) || 'Action';
+        items.push({
+          type: 'button',
+          label,
+          accessibilityLabel: accessibilityLabel ?? label,
+          identifier,
+          onPress: child.props.onPress ?? noop,
+          disabled: child.props.disabled || child.props.onPress == null,
+          sharesBackground: true,
+          tintColor,
+        });
+        signatures.push(
+          `text:${identifier}:${label}:${
+            child.props.disabled ? 'disabled' : 'enabled'
+          }`
+        );
+        return;
+      }
+
+      if (child.type === HeaderIconButton && child.props.type) {
+        const iconSource = nativeIconSources[child.props.type];
+        if (iconSource) {
+          const label = accessibilityLabel ?? child.props.type;
+          items.push({
+            type: 'button',
+            label,
+            accessibilityLabel: label,
+            icon: {
+              type: 'image',
+              source: iconSource,
+            },
+            identifier,
+            onPress: child.props.onPress ?? noop,
+            disabled: child.props.disabled || child.props.onPress == null,
+            sharesBackground: true,
+            tintColor,
+          });
+          signatures.push(
+            `icon:${identifier}:${child.props.type}:${
+              child.props.disabled ? 'disabled' : 'enabled'
+            }`
+          );
+          return;
+        }
+      }
+
+      items.push({
+        type: 'custom',
+        element: child as ReactElement,
+      });
+      signatures.push(
+        `custom:${identifier}:${getElementDisplayName(child)}:${
+          child.props.disabled ? 'disabled' : 'enabled'
+        }`
+      );
+    });
+  }
+
+  append(controls);
+
+  return {
+    items,
+    signature: signatures.join(','),
+  };
+}
+
+function getTextContent(node: ReactNode): string {
+  return Children.toArray(node)
+    .map((child) =>
+      typeof child === 'string' || typeof child === 'number'
+        ? String(child)
+        : ''
+    )
+    .join('');
+}
+
+function getElementDisplayName(element: ReactElement) {
+  if (typeof element.type === 'string') {
+    return element.type;
+  }
+
+  const type = element.type as {
+    displayName?: string;
+    name?: string;
+  };
+  return type.displayName ?? type.name ?? 'control';
+}
+
+function resolveNativeHeaderColor(
+  color: ColorTokens | string | undefined,
+  theme: ThemeValues
+) {
+  if (!color) {
+    return undefined;
+  }
+
+  if (!color.startsWith('$')) {
+    return color;
+  }
+
+  const themeKey = color.slice(1);
+  const themeValue = (
+    theme as unknown as Record<string, { val?: string } | undefined>
+  )[themeKey];
+  return themeValue?.val;
+}
+
+const noop = () => {};
 
 export const ScreenHeader = withStaticProperties(ScreenHeaderComponent, {
   Controls: HeaderControls,
