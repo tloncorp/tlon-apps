@@ -635,17 +635,22 @@ async function persistNoteWrite(
     applied?: {
       title?: string | null;
       folderId?: number | null;
+      revision?: number | null;
       updatedAt?: number | null;
       updatedBy?: string | null;
     } | null;
   }
 ) {
   const { applied, ...fields } = write;
+  // db.updateNotesNote is revision-monotonic: carrying the revision (from
+  // the explicit write or the payload) arms its atomic guard, so a newer
+  // row synced between our response and this persist is never downgraded.
   await db.updateNotesNote({
     notebookFlag,
     noteId,
     ...(applied?.title != null ? { title: applied.title } : {}),
     ...(applied?.folderId != null ? { folderId: applied.folderId } : {}),
+    ...(applied?.revision != null ? { revision: applied.revision } : {}),
     ...(applied?.updatedAt != null ? { updatedAt: applied.updatedAt } : {}),
     ...(applied?.updatedBy != null ? { updatedBy: applied.updatedBy } : {}),
     ...fields,
@@ -665,23 +670,10 @@ export async function adoptNotebookNoteRemote({
 }) {
   // The conflict copy was captured when the banner appeared; the local row
   // can have advanced past it (another remote edit synced while the user
-  // decided). Adopting would downgrade the row — keep it and let the
-  // editor converge on the fresher copy instead. Renames/moves don't bump
-  // the revision, so equal revisions break ties on updatedAt, mirroring
-  // the snapshot merge.
-  const current = await db.getNotesNote({
-    notebookFlag,
-    noteId: remote.noteId,
-  });
-  const remoteRevision = remote.revision ?? 0;
-  if (
-    current &&
-    (remoteRevision < current.revision ||
-      (remoteRevision === current.revision &&
-        (remote.updatedAt ?? 0) < (current.updatedAt ?? 0)))
-  ) {
-    return current;
-  }
+  // decided), and adopting would downgrade it. db.updateNotesNote's atomic
+  // revision guard (equal revisions tie-broken on updatedAt) skips the
+  // write in that case, and the read below returns whichever copy won —
+  // the editor converges on it either way.
   await db.updateNotesNote({
     notebookFlag,
     noteId: remote.noteId,
@@ -691,8 +683,8 @@ export async function adoptNotebookNoteRemote({
     // untouched when the read omits it.
     ...(remote.folderId != null ? { folderId: remote.folderId } : {}),
     revision: remote.revision ?? 0,
-    updatedAt: remote.updatedAt ?? null,
-    updatedBy: remote.updatedBy ?? null,
+    ...(remote.updatedAt != null ? { updatedAt: remote.updatedAt } : {}),
+    ...(remote.updatedBy != null ? { updatedBy: remote.updatedBy } : {}),
   });
   return db.getNotesNote({ notebookFlag, noteId: remote.noteId });
 }

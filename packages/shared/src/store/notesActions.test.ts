@@ -1007,6 +1007,63 @@ test('adoptNotebookNoteRemote refuses to downgrade a row that advanced past the 
   });
 });
 
+test('updateNotesNote is revision-monotonic in a single atomic write', async () => {
+  const note = makeNote('Guarded note');
+  const row = { ...note, revision: 5, updatedAt: 1_000 };
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [row],
+    members: [],
+  });
+
+  // Older revision: skipped.
+  await db.updateNotesNote({
+    notebookFlag,
+    noteId: note.noteId,
+    bodyMd: 'stale write',
+    revision: 4,
+  });
+  // Equal revision with an older stamp: skipped.
+  await db.updateNotesNote({
+    notebookFlag,
+    noteId: note.noteId,
+    title: 'stale rename',
+    revision: 5,
+    updatedAt: 500,
+  });
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject({
+    bodyMd: row.bodyMd,
+    title: row.title,
+    revision: 5,
+  });
+
+  // Equal revision with a newer stamp: applies (rename/move semantics).
+  await db.updateNotesNote({
+    notebookFlag,
+    noteId: note.noteId,
+    title: 'fresh rename',
+    revision: 5,
+    updatedAt: 2_000,
+  });
+  // Newer revision: applies.
+  await db.updateNotesNote({
+    notebookFlag,
+    noteId: note.noteId,
+    bodyMd: 'fresh body',
+    revision: 6,
+  });
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject({
+    title: 'fresh rename',
+    bodyMd: 'fresh body',
+    revision: 6,
+  });
+});
+
 test('adoptNotebookNoteRemote keeps newer same-revision metadata', async () => {
   // Renames/moves don't bump the revision: a rename synced after the
   // conflict copy was captured leaves the row at the same revision with

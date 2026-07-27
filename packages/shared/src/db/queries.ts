@@ -584,6 +584,14 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
   ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
 );
 
+// Revision-monotonic note write. When the update carries a `revision`, the
+// row is only written if it hasn't already advanced past it (equal revisions
+// break ties on `updatedAt` when the update carries one, mirroring the
+// snapshot merge — renames/moves don't bump the revision). The guard lives
+// in the UPDATE's WHERE clause so the comparison and the write are one
+// atomic statement: a check-then-write across separate queries would race
+// concurrent sync writes. Updates without a `revision` (metadata-only
+// fallbacks) apply unconditionally.
 export const updateNotesNote = createWriteQuery(
   'updateNotesNote',
   async (
@@ -602,15 +610,29 @@ export const updateNotesNote = createWriteQuery(
     >,
     ctx: QueryCtx
   ) => {
+    const conditions = [
+      eq($notesNotes.notebookFlag, notebookFlag),
+      eq($notesNotes.noteId, noteId),
+    ];
+    if (update.revision != null) {
+      const equalRevision =
+        update.updatedAt != null
+          ? and(
+              eq($notesNotes.revision, update.revision),
+              or(
+                isNull($notesNotes.updatedAt),
+                lte($notesNotes.updatedAt, update.updatedAt)
+              )
+            )
+          : eq($notesNotes.revision, update.revision);
+      conditions.push(
+        or(lt($notesNotes.revision, update.revision), equalRevision)!
+      );
+    }
     return ctx.db
       .update($notesNotes)
       .set(update)
-      .where(
-        and(
-          eq($notesNotes.notebookFlag, notebookFlag),
-          eq($notesNotes.noteId, noteId)
-        )
-      );
+      .where(and(...conditions));
   },
   ['notesNotes']
 );

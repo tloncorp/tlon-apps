@@ -655,13 +655,33 @@ export function NotesNoteDetail({
   );
 
   const resolveConflictKeepMine = useCallback(() => {
-    if (!conflictNote || !draftBase) return;
+    if (!conflictNote || !draftBase || !notebookFlag) return;
     const rebased = rebaseDraftOnConflict(draftBase, conflictNote);
     setConflictNote(null);
     setError(null);
     setDraftBase(rebased);
+    // Re-stamp the durable stash against the rebased base in the same tick.
+    // The stash writer pauses while a banner is up, so the stash may still
+    // hold the pre-conflict draft; if it survived the save's content-matched
+    // clear, the restore pass would resurrect that obsolete draft as a
+    // ghost conflict.
+    void db.notesNoteDrafts.setValue((stashes) => ({
+      ...stashes,
+      [draftStashKey(notebookFlag, rebased.noteId)]: {
+        title: titleDraftRef.current,
+        body: bodyDraftRef.current,
+        baseRevision: rebased.revision,
+        stashedAt: Date.now(),
+      },
+    }));
     void saveSelectedNote(rebased);
-  }, [conflictNote, draftBase, rebaseDraftOnConflict, saveSelectedNote]);
+  }, [
+    conflictNote,
+    draftBase,
+    notebookFlag,
+    rebaseDraftOnConflict,
+    saveSelectedNote,
+  ]);
 
   const resolveConflictUseTheirs = useCallback(() => {
     if (!conflictNote || !draftBase || !notebookFlag) return;
