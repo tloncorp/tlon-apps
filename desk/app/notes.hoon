@@ -797,8 +797,8 @@
   ::
       [%said ship=@ name=@ %note id=@ ~]
     ::  proxied note-preview answer from a notebook host: relay to our
-    ::  /v0/said subscribers. a nack or foreign mark is a host-side
-    ::  failure, not a permission answer, so it becomes %notes-error.
+    ::  /v0/said subscribers. remote crashes don't trigger +on-fail at
+    ::  the host, so report them locally.
     ::
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
     =/  nid=@ud  (slav %ud id.pole)
@@ -806,6 +806,7 @@
     ?+  -.sign  cor
         %watch-ack
       ?~  p.sign  cor
+      %-  (slog leaf+"notes: said preview failed on {<ship.flag>}" u.p.sign)
       =.  cor  (give %fact paths notes-error+!>(~))
       (give %kick paths ~)
     ::
@@ -816,6 +817,7 @@
       =.  cor
         ?:  ?=(?(%notes-said %notes-denied %notes-error) p.cage.sign)
           (give %fact paths cage.sign)
+        %-  (slog leaf+"notes: unexpected said mark {<p.cage.sign>}" ~)
         (give %fact paths notes-error+!>(~))
       =.  cor  (give %kick paths ~)
       =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
