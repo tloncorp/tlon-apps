@@ -21,6 +21,20 @@
         'updatedBy'^s+(scot %p updated-by.nb)
     ==
   ::
+  ++  said
+    |=  sd=said:n
+    ^-  json
+    %-  pairs
+    :~  'host'^s+(scot %p ship.flag.sd)
+        'flagName'^s+name.flag.sd
+        'id'^(numb id.note-preview.sd)
+        'title'^s+title.note-preview.sd
+        'snippet'^s+snippet.note-preview.sd
+        'author'^s+(scot %p author.note-preview.sd)
+        'updatedAt'^(numb (unt:chrono:userlib updated-at.note-preview.sd))
+        'notebookTitle'^s+notebook-title.note-preview.sd
+    ==
+  ::
   ++  folder
     |=  fld=folder:n
     ^-  json

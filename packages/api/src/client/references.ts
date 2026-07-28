@@ -31,6 +31,28 @@ export function getGroupReferencePath(groupId: string) {
   return `/1/group/${groupId}`;
 }
 
+export function getNoteReferencePath(
+  channelId: string,
+  noteId: string | number
+) {
+  return `/1/chan/${channelId}/note/${noteId}`;
+}
+
+export function noteToContentReference(
+  channelId: string,
+  noteId: string | number
+): [path: string, reference: ContentReference] {
+  return [
+    getNoteReferencePath(channelId, noteId),
+    {
+      type: 'reference',
+      referenceType: 'note',
+      channelId,
+      noteId: String(noteId),
+    },
+  ];
+}
+
 export function postToContentReference(
   post: db.Post
 ): [path: string, reference: ContentReference] {
