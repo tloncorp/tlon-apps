@@ -1,6 +1,6 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
-/-  n=notes, mcp-proxy
+/-  n=notes, mcp-proxy, av=activity-ver
 /+  default-agent, dbug, verb, server
 /=  notes-json  /lib/notes/json
 ::  static web assets, imported straight from files and served as-is. The
@@ -798,6 +798,14 @@
       ?~  p.sign  cor
       ((slog leaf+"mcp-proxy register/refresh failed" u.p.sign) cor)
     ==
+  ::  fire-and-forget %activity submissions; log nacks
+  ::
+      [%activity %submit ~]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog leaf+"notes: activity submission failed" u.p.sign) cor)
+    ==
   ==
 ::
 ++  arvo
@@ -827,6 +835,13 @@
       ::  late-arriving response on the SSE path.
       =/  rid=request-id:v1:n  (slav %uv id.pole)
       (finalize-pending rid)
+    ::
+        [%activity %edit ship=@ name=@ id=@ t=@ ~]
+      ::  note-activity debounce window closed (see +note-activity)
+      %^    note-activity-wake
+          [(slav %p ship.pole) `@tas`name.pole]
+        (slav %ud id.pole)
+      (slav %da t.pole)
     ==
   ~|(bad-arvo-sign+wire !!)
 ::  utility arms
@@ -995,6 +1010,106 @@
   ?~  matches  ~|(notebook-not-found+nid !!)
   i.matches
 ::  +notebooks-changed-card: a fact telling subscribed UIs to re-scry notebooks
+::
+::  %activity integration. Every ship that applies a note mutation (the
+::  host via +se-update, subscribers via +no-response) submits activity
+::  events to its own %activity agent, so unread state is local per member.
+::  Self-authored changes submit nothing.
+::
+::  +edit-activity-window: trailing debounce for %note-edit submissions.
+::  The editor autosaves every few seconds, so an editing session is a
+::  stream of %updated events; each one (re)arms a quiet window, and the
+::  event is only submitted once the window passes with no further edits —
+::  one event per editing session, sent after the edit has settled.
+::
+++  edit-activity-window  ~m2
+::
+++  activity-running
+  =/  base=path  /(scot %p our.bowl)/activity/(scot %da now.bowl)
+  .^(? %gu (weld base /$))
+::
+++  submit-activity
+  |=  action=action:v10:av
+  ^+  cor
+  ?.  activity-running  cor
+  %-  emit
+  :*  %pass  /activity/submit
+      %agent  [our.bowl %activity]
+      %poke  activity-action-2+!>(action)
+  ==
+::  +note-activity: translate an applied u-note into %activity actions.
+::
+::    %created / %updated -> (re)arm the trailing debounce timer; the
+::                 event is submitted by +note-activity-wake once the
+::                 change settles. Creates debounce too: the client
+::                 creates a note and immediately titles/edits it, which
+::                 would otherwise notify twice in quick succession.
+::    %deleted  -> %del the note source (regardless of author)
+::
+++  note-activity
+  |=  [=flag:n group=(unit flag:n) id=@ud upd=u-note:n]
+  ^+  cor
+  ?-  -.upd
+      ?(%created %updated)
+    ?:  =(our.bowl updated-by.note.upd)  cor
+    ::  the wire carries the updated-at this timer was armed against, so
+    ::  +note-activity-wake can tell whether it is the note's latest
+    ::  change — no timer bookkeeping needed, stale timers just no-op
+    %-  emit
+    :*  %pass
+        %+  weld
+          /activity/edit/(scot %p ship.flag)/[name.flag]
+        /(scot %ud id)/(scot %da updated-at.note.upd)
+        %arvo  %b  %wait
+        (add updated-at.note.upd edit-activity-window)
+    ==
+  ::
+      %deleted
+    %-  submit-activity
+    :^    %del
+        %note
+      id
+    [[ship.flag name.flag] (bind group |=(f=flag:n [ship.f name.f]))]
+  ::
+      ?(%published %unpublished %history-archived)
+    cor
+  ==
+::  +note-activity-wake: a debounce timer fired. Submit an event only if
+::  the timer was armed against the note's latest change; a newer change
+::  re-armed the window with its own timer, so a mismatch means this one
+::  is stale and stays quiet. Event content is read fresh from the note
+::  record: an untouched-since-creation note submits %note-create, one
+::  changed after creation %note-edit (a create followed by edits within
+::  the window resolves to a single %note-edit). Notes or notebooks
+::  deleted mid-window fall out naturally.
+::
+++  note-activity-wake
+  |=  [=flag:n nid=@ud t=@da]
+  ^+  cor
+  ?~  entry=(~(get by books) flag)  cor
+  =*  nbs  notebook-state.u.entry
+  ?~  note=(~(get by notes.nbs) nid)  cor
+  ?.  =(updated-at.u.note t)  cor
+  ?:  =(our.bowl updated-by.u.note)  cor
+  =/  ev=note-event:v10:av
+    :*  nid  folder-id.u.note  [ship.flag name.flag]
+        (bind group.nbs |=(f=flag:n [ship.f name.f]))
+        title.u.note  updated-by.u.note
+    ==
+  %-  submit-activity
+  ?:  =(created-at.u.note updated-at.u.note)
+    [%add %note-create ev]
+  [%add %note-edit ev]
+::  +notebook-activity-gone: a notebook was deleted or left; drop its
+::  %activity source (note children included).
+::
+++  notebook-activity-gone
+  |=  [=flag:n group=(unit flag:n)]
+  ^+  cor
+  %-  submit-activity
+  :+  %del  %notebook
+  :-  [ship.flag name.flag]
+  (bind group |=(f=flag:n [ship.f name.f]))
 ::
 ++  notebooks-changed-card
   ^-  card
@@ -1447,6 +1562,8 @@
   ::
   ++  se-abet
     ^+  cor
+    =?  cor  gone
+      (notebook-activity-gone flag group.notebook-state)
     =.  books
       ?:  gone
         (~(del by books) flag)
@@ -1471,6 +1588,8 @@
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =.  log  (put:log-on:n log [ts upd])
     =.  last-update  `[ts upd]
+    =?  cor  ?=(%note -.upd)
+      (note-activity flag group.notebook-state [id u-note]:upd)
     %-  give
     :+  %fact  ~[se-sub-path (weld se-area /stream)]
     notes-response+!>(`response:n`[%update flag [ts upd]])
@@ -1828,6 +1947,16 @@
         %-  ~(rep in del-nids)
         |=  [n=@ud acc=_published]
         (~(del by acc) [flag n])
+      ::  the wire update only names the folder, so clean up the removed
+      ::  notes' %activity sources here, where the ids are still known
+      =.  cor
+        =/  nids  ~(tap in del-nids)
+        |-  ^+  cor
+        ?~  nids  cor
+        %=  $
+          nids  t.nids
+          cor   (note-activity flag group.notebook-state i.nids [%deleted ~])
+        ==
       (se-update [%folder fid [%deleted ~]])
     ::  non-recursive: fail if has children
     =/  children=(list @ud)
@@ -2165,6 +2294,8 @@
   ::
   ++  no-abet
     ^+  cor
+    =?  cor  gone
+      (notebook-activity-gone flag group.notebook-state)
     =.  books
       ?:  gone
         (~(del by books) flag)
@@ -2419,6 +2550,13 @@
       (emil ?~(rep ~[stream] ~[stream u.rep]))
     ::
         %update
+      =?  cor  ?=(%note -.u-notebook.update.response)
+        %:  note-activity
+          flag
+          group.notebook-state
+          id.u-notebook.update.response
+          u-note.u-notebook.update.response
+        ==
       =.  no-core  (no-apply-update flag.response update.response)
       %-  give
       [%fact [/v0/notes/(scot %p ship.flag)/[name.flag]/stream]~ notes-response+!>(response)]
