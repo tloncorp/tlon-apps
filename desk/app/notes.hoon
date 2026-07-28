@@ -101,7 +101,6 @@
   =.  api-key  `(scot %uv eny.bowl)
   %-  emil
   :~  [%pass /eyre/notes %arvo %e %connect [~ /notes] %notes]
-      [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)]
       ::  watch %groups so we can revoke read access on group-mode notebooks
       ::  when the fleet/roles change (see +recheck-group-access).
       [%pass /groups %agent [our.bowl %groups] %watch /v1/groups]
@@ -133,11 +132,7 @@
   ::  %notes over a suspended standalone desk, whose eyre binding was torn
   ::  down), so without this the HTTP + MCP surface 404/500s. Re-connecting an
   ::  already-bound path is harmless — eyre's %bound ack is ignored in +arvo.
-  ::  Also (re)start the request cleanup timer (stacking timers is fine).
-  %-  emil
-  :~  [%pass /eyre/notes %arvo %e %connect [~ /notes] %notes]
-      [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)]
-  ==
+  (emit [%pass /eyre/notes %arvo %e %connect [~ /notes] %notes])
   ::
   +$  any-state
     $%  state-15:n
@@ -816,11 +811,12 @@
     =/  pole  ;;((pole knot) wire)
     ?+  pole  ~|(bad-arvo-wire+wire !!)
         [%cleanup %requests ~]
-      ::  reschedule and run the cleanup pass. timer behaves the same
-      ::  whether the requests map is empty or populated.
-      =.  requests  (cleanup-requests now.bowl)
-      %-  emit
-      [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)]
+      ::  tombstone: eviction now happens lazily in +register-request, but
+      ::  ships that ran the timer version have self-perpetuating behn
+      ::  chains on this wire (one per agent reload — +load used to arm a
+      ::  fresh one every time without resting the old). Handle the wake
+      ::  without re-arming so each surviving chain drains on its next fire.
+      cor(requests (cleanup-requests now.bowl))
     ::
         [%notes %rewatch ship=@ name=@ ~]
       =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
@@ -1221,6 +1217,9 @@
   ^+  cor
   =/  existing=(unit incoming-request:v1:n)  (~(get by requests) rid)
   ?^  existing  cor
+  ::  evict terminated records while we're here — the map only grows on
+  ::  registration, so sweeping at add time bounds it without a timer
+  =.  requests  (cleanup-requests now.bowl)
   =.  requests
     (~(put by requests) rid [rid eyre-id %sending ~ ~ |])
   cor
