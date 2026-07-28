@@ -1205,7 +1205,10 @@ export const getChats = createReadQuery(
       pin: g.pin,
       timestamp: g.haveInvite
         ? g.unread?.updatedAt ?? 0
-        : g.lastPostAt ?? g.unread?.updatedAt ?? 0,
+        : // whichever is newer: the latest post, or the activity summary's
+          // recency — activity that isn't a post (e.g. a note in a notebook
+          // channel) also reorders the sidebar
+          Math.max(g.lastPostAt ?? 0, g.unread?.updatedAt ?? 0),
       volumeSettings: g.volumeSettings,
       unreadCount: g.unread?.count ?? 0,
       group: g,
