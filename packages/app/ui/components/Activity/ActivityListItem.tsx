@@ -34,7 +34,9 @@ export const ActivityListItem = React.memo(function ActivityListItem({
     event.type === 'flag-post' ||
     event.type === 'flag-reply' ||
     event.type === 'group-ask' ||
-    event.type === 'contact'
+    event.type === 'contact' ||
+    event.type === 'note-create' ||
+    event.type === 'note-edit'
   ) {
     return (
       <Pressable onPress={handlePress}>
@@ -64,7 +66,9 @@ export function ActivityListItemContent({
   const group = newestPost.group ?? undefined;
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
   const modelUnread =
-    summary.type === 'post'
+    summary.type === 'post' ||
+    summary.type === 'note-create' ||
+    summary.type === 'note-edit'
       ? newestPost.channel?.unread ?? null
       : summary.type === 'group-ask'
         ? newestPost.group?.unread ?? null

@@ -400,6 +400,26 @@ function toActivityEvent({
     };
   }
 
+  if ('note-create' in event || 'note-edit' in event) {
+    const type = 'note-create' in event ? 'note-create' : 'note-edit';
+    const noteEvent =
+      'note-create' in event ? event['note-create'] : event['note-edit'];
+    return {
+      ...baseFields,
+      type,
+      // the note id, de-dotted to match db.NotesNote.noteId (the wire
+      // dot-groups @ud)
+      postId: noteEvent.id.replace(/\./g, ''),
+      authorId: noteEvent.author,
+      channelId: `notes/${noteEvent.notebook}`,
+      groupId: noteEvent.group ?? undefined,
+      // reuse the content column to carry the note title as a story so
+      // feed previews render it like post content
+      content: [{ inline: [noteEvent.title] }],
+      isMention: false,
+    };
+  }
+
   return null;
 }
 

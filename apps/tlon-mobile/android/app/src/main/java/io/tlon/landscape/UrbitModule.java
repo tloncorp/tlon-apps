@@ -50,6 +50,14 @@ public class UrbitModule extends ReactContextBaseJavaModule {
         editor.apply();
     }
 
+    // Same pattern for notes activity: gates the v10 (activity-event-2) fetch.
+    @ReactMethod
+    public void setActivitySupportsNotes(boolean supported) {
+        SharedPreferences.Editor editor = SecureStorage.sharedPreferences.edit();
+        editor.putBoolean(SecureStorage.ACTIVITY_SUPPORTS_NOTES_KEY, supported);
+        editor.apply();
+    }
+
     @ReactMethod
     public void updateBadgeCount(int count, String uid) {}
 

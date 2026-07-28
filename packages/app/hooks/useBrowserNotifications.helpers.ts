@@ -129,6 +129,13 @@ export function getBrowserNotificationCopy({
         : null;
   const isReact = activityType === 'react';
   const isDmInvite = activityType === 'dm-invite';
+  // note events carry the note title as their content text
+  const noteVerb =
+    activityType === 'note-create'
+      ? 'added'
+      : activityType === 'note-edit'
+        ? 'edited'
+        : null;
 
   let title = flaggedKind
     ? `Flagged ${flaggedKind}`
@@ -140,11 +147,13 @@ export function getBrowserNotificationCopy({
       : isDmInvite
         ? // the title already names the inviter (DM titles are the counterparty)
           'Invited you to chat'
-        : contentText || 'New message';
+        : noteVerb
+          ? `${contactName || 'Someone'} ${noteVerb} a note${contentText ? `: ${contentText}` : ''}`
+          : contentText || 'New message';
 
   if (groupTitle) {
     title = `${title} in ${groupTitle}`;
-    if (!isReact && !flaggedKind) {
+    if (!isReact && !flaggedKind && !noteVerb) {
       body = contentText
         ? `${contactName || 'Someone'}: ${contentText}`
         : `New message in ${groupTitle}`;

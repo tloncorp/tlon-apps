@@ -47,6 +47,11 @@ class UrbitModule: NSObject {
         UserDefaults.forDefaultAppGroup.set(supported, forKey: SettingsStore.activitySupportsReactionsKey)
     }
 
+    @objc(setActivitySupportsNotes:)
+    func setActivitySupportsNotes(supported: Bool) {
+        UserDefaults.forDefaultAppGroup.set(supported, forKey: SettingsStore.activitySupportsNotesKey)
+    }
+
     @objc(updateBadgeCount:uid:)
     func updateBadgeCount(count: Int, uid: String) {
         Task {

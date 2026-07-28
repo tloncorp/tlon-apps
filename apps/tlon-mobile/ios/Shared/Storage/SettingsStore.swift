@@ -15,6 +15,11 @@ enum SettingsStore {
         UserDefaults.forDefaultAppGroup.bool(forKey: activitySupportsReactionsKey)
     }
 
+    static let activitySupportsNotesKey = "activity.supportsNotes"
+    static var activitySupportsNotes: Bool {
+        UserDefaults.forDefaultAppGroup.bool(forKey: activitySupportsNotesKey)
+    }
+
     static var disableAvatars: Bool = UserDefaults.forDefaultAppGroup.bool(forKey: "settings.calmEngine.disableAvatars") {
         didSet {
             UserDefaults.forDefaultAppGroup.set(disableNicknames, forKey: "settings.calmEngine.disableAvatars")

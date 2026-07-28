@@ -886,6 +886,20 @@ export function getSourceForEvent(event: ActivityEvent): Source {
     };
   }
 
+  if ('note-create' in event) {
+    const note = event['note-create'];
+    return {
+      note: { id: note.id, notebook: note.notebook, group: note.group },
+    };
+  }
+
+  if ('note-edit' in event) {
+    const note = event['note-edit'];
+    return {
+      note: { id: note.id, notebook: note.notebook, group: note.group },
+    };
+  }
+
   return { base: null };
 }
 
