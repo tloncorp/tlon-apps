@@ -186,9 +186,14 @@
   =/  parsed  (de-purl:html otel)
   ?.  ?=(^ parsed)
     otel
-  ?.  ?=(~ q.q.u.parsed)
+  =/  purl  u.parsed
+  ::  preserve endpoints whose path list starts with a non-empty segment
+  ?:  ?&  ?=(^ q.q.purl)
+          !=('' i.q.q.purl)
+      ==
     otel
-  (cat 3 otel endpoint)
+  =.  q.purl  (rash endpoint apat:de-purl:html)
+  (crip (en-purl:html purl))
 =/  =request:http
   :*  %'POST'
       request-url
