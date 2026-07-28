@@ -429,6 +429,7 @@
 ::    /notes/~/v1/notebooks/{host}/{name}/notes/{id}
 ::    /notes/~/v1/notebooks/{host}/{name}/notes/{id}/history
 ::    /notes/~/v1/notebooks/{host}/{name}/members
+::    /notes/~/v1/notebooks/{host}/{name}/search/bounded/text/{from}/{tries}/{needle}
 ::    /notes/~/v1/invites
 ::
 ++  handle-v1-read
@@ -2692,6 +2693,16 @@
         |=  [who=ship r=role:n]
         [who r]
       ``notes-members+!>(mrecords)
+    ::
+        %search
+      ?.  ?=([%bounded %text from=@ tries=@ nedl=@ ~] rest)
+        ~
+      :^  ~  ~  %notes-scam  !>
+      %^    no-search
+          ?:  =(%$ from.rest)  ~
+          `(slav %ud from.rest)
+        (slav %ud tries.rest)
+      (slav %t nedl.rest)
     ==
   ::  +no-watch: handle local UI stream subscription for this notebook
   ::
@@ -2748,6 +2759,79 @@
         |=  [who=ship r=role:n]
         [who r]
       `(member-records:enjs:notes-json mrecords)
+    ::
+        [%search %bounded %text from=@ tries=@ nedl=@ ~]
+      =*  vars  t.t.t.rest
+      :-  ~
+      %-  scam:enjs:notes-json
+      %^    no-search
+          ?:  =(%$ from.i.vars)  ~
+          `(slav %ud from.i.vars)
+        (slav %ud tries.i.t.vars)
+      (slav %t nedl.i.t.t.vars)
     ==
+  ::
+  ::  +no-search: backwards bounded search
+  ::
+  ++  no-search
+    |=  [from=(unit @ud) tries=@ud nedl=@t]
+    ^-  scam:n
+    =/  notes=(list [nid=@ud =note:n])
+      ::NOTE  filtering for u.from prior to sort actually slightly slower
+      ::      (in tested cases)
+      %+  sort  ~(tap by notes.notebook-state)
+      |=([[a=@ud *] [b=@ud *]] (gth a b))
+    =/  from=@ud
+      (fall from ?~(notes 0 +(nid.i.notes)))
+    =|  found=(list note:n)
+    =*  done  [from (flop found)]
+    ?:  =(0 from)       done
+    |^  ?~  notes       =.(from 0 done)
+        ?:  =(0 tries)  done  ::  compute out of bounds
+        ?:  (gte nid.i.notes from)
+          $(notes t.notes)    ::  move into range
+        =.  from   nid.i.notes
+        =.  tries  (dec tries)
+        ?.  ?|  (find nedl title.note.i.notes)
+                (find nedl body-md.note.i.notes)  ::NOTE  treats *markdown* opaquely
+            ==
+          $(notes t.notes)
+        $(notes t.notes, found [note.i.notes found])
+    ::
+    ::NOTE  +find and co from /app/channels, never case-sensitive
+    ++  find
+      |=  [nedl=@t hay=@t]
+      ~>  %spin.['find']
+      ^-  ?
+      =/  nlen  (met 3 nedl)
+      =/  hlen  (met 3 hay)
+      ?:  (lth hlen nlen)
+        |
+      =.  nedl  (cass nedl)
+      =.  hay   (cass hay)
+      =/  pos   0
+      =/  lim   (sub hlen nlen)
+      |-
+      ?:  (gth pos lim)
+        |
+      ?:  =(nedl (cut 3 [pos nlen] hay))
+        &
+      $(pos +(pos))
+    ::
+    ::NOTE  :(cork trip ^cass crip) may be _very slightly_ faster,
+    ::      but not enough to matter
+    ++  cass
+      |=  text=@t
+      ~>  %spin.['cass']
+      ^-  @t
+      %^    run
+          3
+        text
+      |=  dat=@
+      ^-  @
+      ?.  &((gth dat 64) (lth dat 91))
+        dat
+      (add dat 32)
+    --
   --
 --

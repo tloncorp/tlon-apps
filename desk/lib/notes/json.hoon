@@ -367,6 +367,12 @@
     |=  ts=tang
     ^-  json
     [%a ~]
+  ::  +scam: search results
+  ::
+  ++  scam
+    |=  =scam:n
+    ^-  json
+    (pairs 'last'^(numb last.scam) 'notes'^(notes scan.scam) ~)
   ::  v1: request-id-wrapped response shapes
   ::  encoded for delivery over /notes/~/v1 HTTP and /v1 SSE paths.
   ::

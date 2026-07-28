@@ -324,6 +324,12 @@
 ::  $said: single-shot /v0/said response
 ::
 +$  said  [=flag =note-preview]
+::  $scam: bounded search results
+::
++$  scam
+  $:  last=@ud          ::  last note-id that was searched, 0 for end
+      scan=(list note)  ::  search results
+  ==
 ::  Type aliases
 ::
 +$  action    a-notes
