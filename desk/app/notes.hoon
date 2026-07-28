@@ -1,7 +1,7 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
 /-  n=notes, mcp-proxy
-/+  default-agent, dbug, verb, server, notes-json
+/+  default-agent, dbug, verb, server, logs, notes-json
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
 ::  import marks only need to carry the raw bytes.
@@ -81,7 +81,10 @@
   [cards this]
 ::
 ++  on-leave  on-leave:def
-++  on-fail   on-fail:def
+++  on-fail
+  |=  [=term =tang]
+  ^-  (quip card _this)
+  [[(~(on-fail logs bowl /logs) term tang)]~ this]
 --
 ::  helper core
 ::
@@ -89,6 +92,7 @@
 ++  dummy  'freeze-requests-13-snapshot-v1'
 ++  abet  [(flop cards) state]
 ++  cor   .
+++  log   ~(. logs [bowl /logs])
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
@@ -737,6 +741,9 @@
       ::  extracting just the changed group's flag from the r-groups fact
       ::  ([flag r-group] — flag is the head) and rechecking only the
       ::  subscribers of notebooks bound to that group.
+      [%logs ~]
+    cor
+  ::
       [%groups ~]
     ?+  -.sign  cor
         %watch-ack  cor
@@ -806,7 +813,9 @@
     ?+  -.sign  cor
         %watch-ack
       ?~  p.sign  cor
-      %-  (slog leaf+"notes: said preview failed on {<ship.flag>}" u.p.sign)
+      =.  cor
+        %-  emit
+        (fail:log %warn ~[leaf+"said preview failed on {<ship.flag>}"] u.p.sign ~)
       =.  cor  (give %fact paths notes-error+!>(~))
       (give %kick paths ~)
     ::
@@ -817,7 +826,8 @@
       =.  cor
         ?:  ?=(?(%notes-said %notes-denied %notes-error) p.cage.sign)
           (give %fact paths cage.sign)
-        %-  (slog leaf+"notes: unexpected said mark {<p.cage.sign>}" ~)
+        =.  cor
+          (emit (tell:log %warn ~[leaf+"unexpected said mark {<p.cage.sign>}"] ~))
         (give %fact paths notes-error+!>(~))
       =.  cor  (give %kick paths ~)
       =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
