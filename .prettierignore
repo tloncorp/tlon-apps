@@ -39,6 +39,7 @@ dump.sqlite3
 .gitattributes
 clurd
 .obsidian
+.pi
 # From apps/tlon-desktop/.gitignore
 /apps/tlon-desktop/build/
 /apps/tlon-desktop/dist/
