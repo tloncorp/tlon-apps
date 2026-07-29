@@ -141,7 +141,11 @@ export async function createUrbitChannel(
   }
 }
 
-export async function wakeUrbitChannel(deps: UrbitChannelDeps): Promise<void> {
+export async function wakeUrbitChannel(
+  deps: UrbitChannelDeps,
+  params?: { pokeId?: number }
+): Promise<void> {
+  const pokeId = params?.pokeId ?? Date.now();
   const { response, release } = await urbitFetch({
     baseUrl: deps.baseUrl,
     path: `/~/channel/${deps.channelId}`,
@@ -153,7 +157,7 @@ export async function wakeUrbitChannel(deps: UrbitChannelDeps): Promise<void> {
       },
       body: JSON.stringify([
         {
-          id: Date.now(),
+          id: pokeId,
           action: 'poke',
           ship: deps.ship,
           app: 'hood',

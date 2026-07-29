@@ -12,6 +12,10 @@ import { getUrbitContext, normalizeUrbitCookie } from './context.js';
 import { UrbitHttpError } from './errors.js';
 import { urbitFetch } from './fetch.js';
 
+const SUBSCRIPTION_RETRY_FLOOR_MS = 2_000;
+const SUBSCRIPTION_RETRY_CAP_MS = 30_000;
+const SUBSCRIPTION_RETRY_LOG_SAMPLE = 5;
+
 export type UrbitSseLogger = {
   log?: (message: string) => void;
   error?: (message: string) => void;
@@ -155,6 +159,24 @@ export class UrbitSSEClient {
   private pendingSubscriptionIds = new Set<number>();
   private lastPokeId = 0;
 
+  private subscriptionRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
+  private subscriptionRetryFailedTicks = 0;
+  private subscriptionRetryDrainRunning = false;
+  private subscriptionRetryClaimsInFlight = 0;
+
+  /**
+   * Ids of response-producing actions that could legitimately be event 0 of the
+   * CURRENT channel generation. Eyre creates the channel on the first PUT that
+   * touches it, so whichever of our concurrent bootstrap actions lands first
+   * gets event 0 — we cannot know which in advance, so any of them is eligible.
+   * Frozen once the stream opens: after that, event 0 can only mean the counter
+   * restarted, i.e. the channel was reaped and silently recreated.
+   */
+  private generationZeroEligibleActionIds = new Set<number>();
+  private generationZeroEligibilitySaturated = false;
+  private generationBootstrapOpen = true;
+
   /**
    * Incremented right after the channel is created in connect() — before the
    * wake PUT and the stream GET. A pending post-quit resubscribe watches this:
@@ -237,15 +259,22 @@ export class UrbitSSEClient {
     });
 
     if (this.isConnected) {
+      const epochAtSend = this.channelEpoch;
       try {
         await this.sendSubscription(subscription);
       } catch (error) {
-        this.pendingSubscriptionIds.add(subId);
+        if (
+          !this.aborted &&
+          this.channelEpoch === epochAtSend &&
+          this.eventHandlers.has(subId)
+        ) {
+          this.enqueuePendingSubscription(subId);
+        }
         const handler = this.eventHandlers.get(subId);
         handler?.err?.(error);
       }
     } else {
-      this.pendingSubscriptionIds.add(subId);
+      this.enqueuePendingSubscription(subId);
     }
     return subId;
   }
@@ -257,11 +286,17 @@ export class UrbitSSEClient {
     app: string;
     path: string;
   }) {
-    // Floor snapshot at send; no cap-escalation here — the poke path escalates
-    // within a heartbeat.
-    if (this.actionFloors.size < 4096) {
+    // Set only if absent: a same-id retry would otherwise overwrite the original
+    // floor with a higher cursor, and a delayed-but-legitimate ack from the first
+    // attempt could then land at or below the new floor and falsely trigger
+    // channel-recreation detection.
+    if (
+      !this.actionFloors.has(subscription.id) &&
+      this.actionFloors.size < 4096
+    ) {
       this.actionFloors.set(subscription.id, this.lastHeardEventId);
     }
+    this.recordGenerationZeroEligibleId(subscription.id);
     const { response, release } = await urbitFetch({
       baseUrl: this.url,
       path: `/~/channel/${this.channelId}`,
@@ -292,6 +327,162 @@ export class UrbitSSEClient {
     }
   }
 
+  /**
+   * Claim a pending subscription and send it. The claim is the Set.delete()
+   * return value: only the caller that actually removed the id proceeds, so a
+   * concurrent resume flush and retry tick can never both send the same id.
+   * A failed send restores the id only when the channel generation is unchanged
+   * and the handler is still present (a rebuild recreates every registered
+   * subscription itself; a quit supersedes the old id).
+   */
+  private async claimAndSendPendingSubscription(
+    subId: number
+  ): Promise<
+    | { outcome: 'sent' }
+    | {
+        outcome: 'failed';
+        error: unknown;
+        subId: number;
+        app: string;
+        path: string;
+      }
+    | { outcome: 'skipped' }
+  > {
+    const claimed = this.pendingSubscriptionIds.delete(subId);
+    if (!claimed) return { outcome: 'skipped' };
+
+    const sub = this.subscriptions.find((s) => s.id === subId);
+    if (!sub || !this.eventHandlers.has(subId)) {
+      return { outcome: 'skipped' };
+    }
+
+    this.subscriptionRetryClaimsInFlight++;
+    const epochAtClaim = this.channelEpoch;
+    try {
+      await this.sendSubscription(sub);
+      return { outcome: 'sent' };
+    } catch (error) {
+      if (
+        !this.aborted &&
+        this.channelEpoch === epochAtClaim &&
+        this.eventHandlers.has(subId)
+      ) {
+        this.pendingSubscriptionIds.add(subId);
+        this.ensureSubscriptionRetryDrain();
+      }
+      return { outcome: 'failed', error, subId, app: sub.app, path: sub.path };
+    } finally {
+      this.subscriptionRetryClaimsInFlight--;
+      this.reconcileSubscriptionRetryDrain();
+    }
+  }
+
+  private enqueuePendingSubscription(subId: number) {
+    if (this.aborted) return;
+    if (!this.eventHandlers.has(subId)) return;
+    this.pendingSubscriptionIds.add(subId);
+    this.ensureSubscriptionRetryDrain();
+  }
+
+  private ensureSubscriptionRetryDrain() {
+    if (this.aborted) return;
+    if (this.pendingSubscriptionIds.size === 0) return;
+    if (this.subscriptionRetryTimer !== null) return;
+    if (this.subscriptionRetryDrainRunning) return;
+    const timer = setTimeout(() => {
+      void this.runSubscriptionRetryDrainTick();
+    }, this.subscriptionRetryDelayMs);
+    if (typeof timer === 'object') {
+      timer.unref?.();
+    }
+    this.subscriptionRetryTimer = timer;
+  }
+
+  private stopSubscriptionRetryTimer() {
+    if (this.subscriptionRetryTimer !== null) {
+      clearTimeout(this.subscriptionRetryTimer);
+      this.subscriptionRetryTimer = null;
+    }
+  }
+
+  private reconcileSubscriptionRetryDrain() {
+    if (this.aborted) {
+      this.stopSubscriptionRetryTimer();
+      return;
+    }
+    if (this.pendingSubscriptionIds.size > 0) {
+      this.ensureSubscriptionRetryDrain();
+      return;
+    }
+    this.stopSubscriptionRetryTimer();
+    if (
+      this.subscriptionRetryClaimsInFlight === 0 &&
+      !this.subscriptionRetryDrainRunning
+    ) {
+      this.subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
+      this.subscriptionRetryFailedTicks = 0;
+    }
+  }
+
+  private notePendingSubscriptionSendSucceeded() {
+    this.subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
+    this.subscriptionRetryFailedTicks = 0;
+    if (
+      this.pendingSubscriptionIds.size > 0 &&
+      !this.subscriptionRetryDrainRunning
+    ) {
+      this.stopSubscriptionRetryTimer();
+      this.ensureSubscriptionRetryDrain();
+    }
+  }
+
+  private async runSubscriptionRetryDrainTick() {
+    this.subscriptionRetryTimer = null;
+    this.subscriptionRetryDrainRunning = true;
+    try {
+      if (this.aborted) return;
+      if (!this.isConnected) return;
+
+      let successes = 0;
+      let failures = 0;
+      let firstError: unknown = null;
+
+      for (const subId of [...this.pendingSubscriptionIds]) {
+        if (this.aborted || !this.isConnected) break;
+        const result = await this.claimAndSendPendingSubscription(subId);
+        if (result.outcome === 'sent') {
+          successes++;
+        } else if (result.outcome === 'failed') {
+          failures++;
+          firstError ??= result.error;
+        }
+      }
+
+      if (successes > 0) {
+        this.subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
+        this.subscriptionRetryFailedTicks = 0;
+      } else if (failures > 0) {
+        this.subscriptionRetryDelayMs = Math.min(
+          this.subscriptionRetryDelayMs * 2,
+          SUBSCRIPTION_RETRY_CAP_MS
+        );
+        this.subscriptionRetryFailedTicks++;
+        if (
+          this.subscriptionRetryFailedTicks === 1 ||
+          this.subscriptionRetryFailedTicks % SUBSCRIPTION_RETRY_LOG_SAMPLE ===
+            0
+        ) {
+          this.logger.error?.(
+            `[SSE] Subscription retry tick: ${failures} failed, ${this.pendingSubscriptionIds.size} remaining, next delay ${this.subscriptionRetryDelayMs}ms: ${String(firstError)}`
+          );
+        }
+      }
+    } finally {
+      this.subscriptionRetryDrainRunning = false;
+      this.reconcileSubscriptionRetryDrain();
+    }
+  }
+
   async connect() {
     if (this.aborted) return;
     const deps = {
@@ -309,7 +500,10 @@ export class UrbitSSEClient {
     const createBody = this.subscriptions.filter((sub) =>
       this.eventHandlers.has(sub.id)
     );
-    const sentSubIds = this.subscriptions.map((s) => s.id);
+    const sentSubIds = createBody.map(({ id }) => id);
+    for (const sub of createBody) {
+      this.recordGenerationZeroEligibleId(sub.id);
+    }
     await createUrbitChannel(deps, {
       body: createBody,
       auditContext: 'tlon-urbit-channel-create',
@@ -324,9 +518,14 @@ export class UrbitSSEClient {
     for (const id of sentSubIds) {
       this.pendingSubscriptionIds.delete(id);
     }
+    this.subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
+    this.subscriptionRetryFailedTicks = 0;
+    this.reconcileSubscriptionRetryDrain();
     if (this.aborted) return;
     // Best-effort pulse; its failure degrades to resume, not re-mint.
-    await wakeUrbitChannel(deps);
+    const wakePokeId = this.nextActionId();
+    this.recordGenerationZeroEligibleId(wakePokeId);
+    await wakeUrbitChannel(deps, { pokeId: wakePokeId });
     if (this.aborted) return;
     await this.openStream();
     if (this.aborted) {
@@ -347,7 +546,9 @@ export class UrbitSSEClient {
     this.isConnected = true;
     this.reconnectAttempts = 0;
     this.lastEventAt = Date.now();
+    this.generationBootstrapOpen = false;
     this.startStreamWatchdog();
+    this.ensureSubscriptionRetryDrain();
   }
 
   /**
@@ -561,7 +762,7 @@ export class UrbitSSEClient {
     // stays true during a silent hang). Each ack judges only its own action; a
     // healthy ack resolves only that entry. This block must stay BEFORE the
     // replay-drop so the new-gen event-0 ack is not swallowed as a duplicate.
-    if (this.actionFloors.size > 0 && eventId !== null) {
+    if (eventId !== null) {
       let parsedAction: { id?: number; response?: string } | null = null;
       try {
         parsedAction = JSON.parse(data);
@@ -575,31 +776,48 @@ export class UrbitSSEClient {
         typeof parsedAction.id === 'number'
       ) {
         const floor = this.actionFloors.get(parsedAction.id);
-        if (floor !== undefined) {
-          if (eventId <= floor) {
-            if (!this.aborted && !this.channelReaped) {
-              this.logger.error?.(
-                `[SSE] Validation action ${parsedAction.id} acked at event id ${eventId} <= floor ${floor}; channel recreated — rebuilding`
-              );
-              const err = new Error(
-                `SSE channel recreated (action ${parsedAction.id} acked at event ${eventId} <= floor ${floor}) — rebuilding`
-              );
-              this.channelReaped = true;
-              this.suppressNextStreamErrorFanout = true;
-              this.markStreamDown();
-              this.streamController?.abort();
-              for (const { err: h } of this.eventHandlers.values()) {
-                try {
-                  h?.(err);
-                } catch (e) {
-                  this.logger.error?.(
-                    `[SSE] validation err handler threw: ${String(e)}`
-                  );
-                }
+        // Once the cursor has advanced past -1, a replayed event 0 is normal
+        // (resume redelivery) and must not be a false positive — hence the
+        // lastHeardEventId === -1 guard. While saturated the membership set is
+        // incomplete, so the event-zero detector is disabled to avoid false
+        // rebuilds for legitimate bootstrap actions.
+        const ineligibleGenerationZero =
+          !this.generationZeroEligibilitySaturated &&
+          this.lastHeardEventId === -1 &&
+          eventId === 0 &&
+          !this.generationZeroEligibleActionIds.has(parsedAction.id);
+        if (
+          (floor !== undefined && eventId <= floor) ||
+          ineligibleGenerationZero
+        ) {
+          if (!this.aborted && !this.channelReaped) {
+            this.logger.error?.(
+              ineligibleGenerationZero
+                ? `[SSE] Ineligible action ${parsedAction.id} acked at event 0 with cursor -1; channel silently recreated — rebuilding`
+                : `[SSE] Validation action ${parsedAction.id} acked at event id ${eventId} <= floor ${floor}; channel recreated — rebuilding`
+            );
+            const err = new Error(
+              ineligibleGenerationZero
+                ? `SSE channel recreated (ineligible action ${parsedAction.id} acked at event 0 with cursor -1) — rebuilding`
+                : `SSE channel recreated (action ${parsedAction.id} acked at event ${eventId} <= floor ${floor}) — rebuilding`
+            );
+            this.channelReaped = true;
+            this.suppressNextStreamErrorFanout = true;
+            this.markStreamDown();
+            this.streamController?.abort();
+            for (const { err: h } of this.eventHandlers.values()) {
+              try {
+                h?.(err);
+              } catch (e) {
+                this.logger.error?.(
+                  `[SSE] validation err handler threw: ${String(e)}`
+                );
               }
             }
-            return;
           }
+          return;
+        }
+        if (floor !== undefined) {
           this.actionFloors.delete(parsedAction.id);
         }
       }
@@ -663,7 +881,12 @@ export class UrbitSSEClient {
     // Track event ID and send ack if needed
     if (eventId !== null) {
       if (eventId > this.lastHeardEventId) {
+        const firstHeardEvent = this.lastHeardEventId === -1;
         this.lastHeardEventId = eventId;
+        if (firstHeardEvent) {
+          this.generationZeroEligibleActionIds.clear();
+          this.generationZeroEligibilitySaturated = false;
+        }
         if (eventId - this.lastAcknowledgedEventId > this.ackThreshold) {
           this.ack(eventId).catch((err) => {
             this.logger.error?.(
@@ -723,6 +946,28 @@ export class UrbitSSEClient {
     }
   }
 
+  /** Monotonic, collision-free action ids shared by pokes and the wake poke. */
+  private nextActionId(): number {
+    const id = Math.max(Date.now(), this.lastPokeId + 1);
+    this.lastPokeId = id;
+    return id;
+  }
+
+  private recordGenerationZeroEligibleId(id: number) {
+    if (!this.generationBootstrapOpen) return;
+    if (this.generationZeroEligibilitySaturated) return;
+    if (this.generationZeroEligibleActionIds.has(id)) return;
+    if (this.generationZeroEligibleActionIds.size >= 4096) {
+      this.generationZeroEligibleActionIds.clear();
+      this.generationZeroEligibilitySaturated = true;
+      this.logger.log?.(
+        `[SSE] Generation-zero eligibility set saturated at 4096 entries; disabling event-zero detector for this generation`
+      );
+      return;
+    }
+    this.generationZeroEligibleActionIds.add(id);
+  }
+
   async poke(params: { app: string; mark: string; json: unknown }) {
     // After close() the channel is unsubscribed/DELETEd on the ship. A stale
     // poke from an old monitor (e.g. across a config-reload restart) would
@@ -730,10 +975,8 @@ export class UrbitSSEClient {
     if (this.aborted) {
       throw new Error('SSE client closed; poke rejected');
     }
-    // Monotonic id: max(Date.now(), last+1) prevents same-ms collisions and
-    // clock-jump reuse.
-    const pokeId = Math.max(Date.now(), this.lastPokeId + 1);
-    this.lastPokeId = pokeId;
+    const pokeId = this.nextActionId();
+    this.recordGenerationZeroEligibleId(pokeId);
     if (this.actionFloors.size >= 4096) {
       // A full ledger means thousands of action acks never came back — this
       // channel generation is unrecoverable. Escalate to a rebuild (which
@@ -913,6 +1156,9 @@ export class UrbitSSEClient {
         this.lastConfirmedAckEventId = -1;
         this.confirmedFloorAtStreamBind = -1;
         this.actionFloors.clear();
+        this.generationZeroEligibleActionIds.clear();
+        this.generationZeroEligibilitySaturated = false;
+        this.generationBootstrapOpen = true;
         await this.connect();
       } else {
         this.logger.log?.(
@@ -952,32 +1198,9 @@ export class UrbitSSEClient {
         // revived channel is still detected). resubscribeAfterQuit manages its own
         // replacement sub outside subscribe() — unaffected.
         for (const subId of [...this.pendingSubscriptionIds]) {
-          const sub = this.subscriptions.find((s) => s.id === subId);
-          if (!sub || !this.eventHandlers.has(subId)) {
-            // Stale entry (unsubscribed or superseded by a post-quit replacement) —
-            // never re-send a handlerless subscription.
-            this.pendingSubscriptionIds.delete(subId);
-            continue;
-          }
-          // Claim the id BEFORE the PUT so an overlapping reconnect flush
-          // (stream died mid-PUT) cannot double-send it. A failed send
-          // restores the id for the next flush/rebuild — but only if no
-          // rebuild ran while the PUT was in flight: a rebuild bumps
-          // channelEpoch and recreates every registered subscription via
-          // connect(), so a stale failed PUT from the old channel must not
-          // resurrect the id (a later resume flush would double-subscribe it
-          // on the rebuilt channel).
-          this.pendingSubscriptionIds.delete(subId);
-          const epochAtClaim = this.channelEpoch;
-          try {
-            await this.sendSubscription(sub);
-          } catch (error) {
-            if (this.channelEpoch === epochAtClaim) {
-              this.pendingSubscriptionIds.add(subId);
-            }
-            this.logger.error?.(
-              `[SSE] Pending subscription ${sub.app}${sub.path} failed on resume: ${String(error)}`
-            );
+          const result = await this.claimAndSendPendingSubscription(subId);
+          if (result.outcome === 'sent') {
+            this.notePendingSubscriptionSendSucceeded();
           }
         }
         if (
@@ -1128,6 +1351,7 @@ export class UrbitSSEClient {
     // The replacement supersedes the old id; it must never be re-sent by the
     // resume flush (which would orphan/double-subscribe the handlerless entry).
     this.pendingSubscriptionIds.delete(oldSubId);
+    this.reconcileSubscriptionRetryDrain();
     const epochAtRegistration = this.channelEpoch;
     const downSince = Date.now();
 
@@ -1202,6 +1426,14 @@ export class UrbitSSEClient {
     this.isConnected = false;
     this.stopStreamWatchdog();
     this.streamController?.abort();
+    this.stopSubscriptionRetryTimer();
+    this.pendingSubscriptionIds.clear();
+    this.subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
+    this.subscriptionRetryFailedTicks = 0;
+    this.subscriptionRetryDrainRunning = false;
+    this.subscriptionRetryClaimsInFlight = 0;
+    this.generationZeroEligibleActionIds.clear();
+    this.generationZeroEligibilitySaturated = false;
 
     try {
       const unsubscribes = this.subscriptions.map((sub) => ({
