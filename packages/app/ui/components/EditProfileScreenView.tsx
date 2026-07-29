@@ -3,6 +3,7 @@ import {
   getNicknameErrorMessage,
   validateNickname,
 } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import {
   DEFAULT_BOTTOM_PADDING,
   KEYBOARD_EXTRA_PADDING,
@@ -16,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, useTheme } from 'tamagui';
 
 import { useContact, useCurrentUserId } from '../contexts/appDataContext';
-import { useStore } from '../contexts/storeContext';
 import { useKeyboardAwareScroll } from '../hooks/useKeyboardAwareScroll';
 import { SigilAvatar } from './Avatar';
 import { EditAttestationsDisplay } from './EditProfile/EditAttestationsDisplay';
@@ -39,7 +39,6 @@ interface Props {
 }
 
 export function EditProfileScreenView(props: Props) {
-  const store = useStore();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const currentUserId = useCurrentUserId();
@@ -174,7 +173,6 @@ export function EditProfileScreenView(props: Props) {
     isCurrUser,
     isDirty,
     props,
-    store,
     userContact?.avatarImage,
     userContact?.color,
     userContact?.customAvatarImage,
@@ -196,13 +194,10 @@ export function EditProfileScreenView(props: Props) {
     props.onGoBack();
   };
 
-  const handleUpdatePinnedGroups = useCallback(
-    (groups: db.Group[]) => {
-      setPinnedGroups(groups);
-      store.updateProfilePinnedGroups(groups);
-    },
-    [store]
-  );
+  const handleUpdatePinnedGroups = useCallback((groups: db.Group[]) => {
+    setPinnedGroups(groups);
+    store.updateProfilePinnedGroups(groups);
+  }, []);
 
   const isWindowNarrow = useIsWindowNarrow();
 

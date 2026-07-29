@@ -154,7 +154,11 @@ export const tlonPlugin = createChatChannelPlugin({
           'Tlon gallery channels (heap/~host/name) are for collecting images, links, and media.',
           '- To post to a gallery: use action=send, to=heap/~host/name, message=<text or URL>',
           '- For image posts, include media=<imageUrl> with an optional message=<caption>',
-          '- To react to a gallery comment: use action=react, to=heap/~host/name, messageId=<commentId>, parentId=<postId>, emoji=<emoji>'
+          '- To react to a gallery comment: use action=react, to=heap/~host/name, messageId=<commentId>, parentId=<postId>, emoji=<emoji>',
+          '',
+          'IMPORTANT: media= accepts a public https URL only (normally the URL returned by `tlon upload`).',
+          'Local file paths are NOT accepted on this channel (unlike other channels) — upload the file first, then pass the returned https URL.',
+          'Media that cannot be fetched will fail the send — never claim an image was delivered unless the tool call succeeded.'
         );
 
         const level = account.reactionLevel ?? 'minimal';

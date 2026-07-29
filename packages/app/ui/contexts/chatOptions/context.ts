@@ -1,10 +1,8 @@
 import type * as ub from '@tloncorp/api/urbit';
 import type * as db from '@tloncorp/shared/db';
-import type * as store from '@tloncorp/shared/store';
 import { createContext } from 'react';
 
 export type ChatOptionsContextValue = {
-  useGroup: typeof store.useGroup;
   group?: db.Group | null;
   channel?: db.Channel | null;
   markGroupRead: () => void;

@@ -1,3 +1,5 @@
+import { valid } from '@urbit/aura';
+
 /**
  * Tlon Story Format - Rich text converter
  *
@@ -47,7 +49,7 @@ function parseInlineMarkdown(text: string): StoryInline[] {
   while (remaining.length > 0) {
     // Ship mentions: ~sampel-palnet
     const shipMatch = remaining.match(/^(~[a-z][-a-z0-9]*)/);
-    if (shipMatch) {
+    if (shipMatch && valid('p', shipMatch[1])) {
       result.push({ ship: shipMatch[1] });
       remaining = remaining.slice(shipMatch[0].length);
       continue;
@@ -268,7 +270,7 @@ export function textToStory(text: string): Story {
   for (const part of parts) {
     if (!part) continue;
 
-    if (part.match(/^~[a-z]+-[a-z]+(?:-[a-z]+)*$/)) {
+    if (part.match(/^~[a-z]+-[a-z]+(?:-[a-z]+)*$/) && valid('p', part)) {
       inlines.push({ ship: part });
     } else {
       const lines = part.split('\n');

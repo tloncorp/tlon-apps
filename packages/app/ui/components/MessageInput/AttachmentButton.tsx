@@ -1,3 +1,4 @@
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
@@ -28,8 +29,8 @@ export default function AttachmentButton({
       if (errorMessage) {
         Alert.alert('Unable to attach', errorMessage);
       }
-      if (uploadIntents.length > 0) {
-        attachAssets(uploadIntents);
+      if (attachAssets(uploadIntents) > 0) {
+        trackEvent(AnalyticsEvent.AttachmentAdded);
       }
       return;
     }
@@ -44,6 +45,7 @@ export default function AttachmentButton({
         onOpenChange={setShowInputSelector}
         mediaType="all"
         allowMultipleSelection
+        trackAttachmentAdded
       />
     </>
   );

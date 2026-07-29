@@ -174,6 +174,7 @@ from .tlon_api import (
     DEFAULT_CONTEXT_MESSAGES,
     MAX_MESSAGE_LENGTH,
     TlonAuthError,
+    TlonChannelError,
     TlonCLI,
     TlonConfig,
     TlonGatewayStatus,
@@ -1081,12 +1082,24 @@ class TlonAdapter(BasePlatformAdapter):
             self._set_fatal_error("auth", str(exc), retryable=False)
             return False
         except Exception as exc:
-            logger.error("[tlon] connect failed: %s", exc, exc_info=True)
-            self._telemetry.error("connect", exc)
+            # A fixed cookie the ship rejects surfaces here at startup —
+            # open()/subscribe() raise TlonTerminalActionError (401/403), which
+            # is a ConnectionError subclass, not TlonAuthError, so it lands in
+            # this generic handler rather than the fatal branch above. Without
+            # this check the gateway would restart-loop against a dead cookie.
+            fatal_auth = self._is_fatal_auth_rejection(exc)
+            if fatal_auth:
+                logger.error("[tlon] connect failed, credentials rejected: %s", exc)
+                self._telemetry.error("connect", exc, operation="channel")
+            else:
+                logger.error("[tlon] connect failed: %s", exc, exc_info=True)
+                self._telemetry.error("connect", exc)
             await self._stop_nudge_collaborators()
             await self._stop_event_worker()
             await self._close_sse(graceful=False)
             self._reset_nudge_state()
+            if fatal_auth:
+                self._set_fatal_error("auth", str(exc), retryable=False)
             return False
 
     async def disconnect(self) -> None:
@@ -2482,43 +2495,82 @@ class TlonAdapter(BasePlatformAdapter):
             finally:
                 self._sse = None
 
+    def _can_reauthenticate(self) -> bool:
+        return not bool(self.tlon_config.cookie)
+
+    def _is_fatal_auth_rejection(self, exc: BaseException) -> bool:
+        """A 401/403 on the channel GET (``TlonChannelError``) or on an
+        open/subscribe PUT (``TlonTerminalActionError``) is unrecoverable when
+        the config cannot mint fresh credentials — i.e. a fixed ``TLON_COOKIE``
+        the ship rejects. Retrying such a config only hammers the ship, so it
+        must be surfaced as fatal from both the initial ``connect()`` and the
+        ``_run_stream`` reconnect loop."""
+        return (
+            isinstance(exc, (TlonChannelError, TlonTerminalActionError))
+            and getattr(exc, "status", None) in (401, 403)
+            and not self._can_reauthenticate()
+        )
+
     async def _run_stream(self) -> None:
         backoff_idx = 0
+
+        def _established() -> None:
+            nonlocal backoff_idx
+            backoff_idx = 0
+
+        async def _backoff_and_report(exc: BaseException, *, mode: str) -> None:
+            nonlocal backoff_idx
+            delay = RECONNECT_BACKOFF_SECONDS[
+                min(backoff_idx, len(RECONNECT_BACKOFF_SECONDS) - 1)
+            ]
+            backoff_idx += 1
+            self._telemetry.sse_reconnect(
+                attempt=backoff_idx, delay_seconds=delay, error=exc, mode=mode
+            )
+            await asyncio.sleep(delay)
+
         while self._running:
             try:
                 if self._sse is None:
-                    await self._connect_sse()
-                    # Settings events do not replay, so re-sync owner-listen
-                    # state after every reconnect.  The worker may still be
-                    # processing facts captured before the disconnect; drain
-                    # those first so this ordinary full snapshot cannot make
-                    # authorization/approval/owner-listen decisions for an
-                    # earlier queued message observe future state.
-                    await self._drain_event_worker()
-                    loaded = await self._load_settings_state()
-                    self._nudge_settings_ready = loaded
-                    if not loaded:
-                        self._start_nudge_settings_retry()
-                    # Native DM invites are likewise missed while disconnected
-                    # (an unknown ship, a now-allowlisted ship, or a flag flip
-                    # that happened during the outage). Catch up, but don't let
-                    # a failure here masquerade as a stream error and cycle
-                    # reconnects.
                     try:
-                        await self._process_pending_dm_invites()
-                    except Exception as exc:
-                        logger.warning(
-                            "[tlon] reconnect invite catch-up failed: %s", exc
-                        )
-                    # Contacts facts do not replay either; catch up on renames
-                    # (or clears) missed while disconnected.
-                    await self._load_bot_profile()
+                        await self._connect_sse()
+                        # Settings events do not replay, so re-sync owner-listen
+                        # state after every reconnect.  The worker may still be
+                        # processing facts captured before the disconnect; drain
+                        # those first so this ordinary full snapshot cannot make
+                        # authorization/approval/owner-listen decisions for an
+                        # earlier queued message observe future state.
+                        await self._drain_event_worker()
+                        loaded = await self._load_settings_state()
+                        self._nudge_settings_ready = loaded
+                        if not loaded:
+                            self._start_nudge_settings_retry()
+                        # Native DM invites are likewise missed while disconnected
+                        # (an unknown ship, a now-allowlisted ship, or a flag flip
+                        # that happened during the outage). Catch up, but don't let
+                        # a failure here masquerade as a stream error and cycle
+                        # reconnects.
+                        try:
+                            await self._process_pending_dm_invites()
+                        except Exception as exc:
+                            logger.warning(
+                                "[tlon] reconnect invite catch-up failed: %s", exc
+                            )
+                        # Contacts facts do not replay either; catch up on renames
+                        # (or clears) missed while disconnected.
+                        await self._load_bot_profile()
+                    except BaseException:
+                        await self._close_sse(graceful=False)
+                        raise
                 assert self._sse is not None
-                async for event in self._sse.events():
-                    if not self._running:
-                        return
-                    backoff_idx = 0
-                    await self._route_stream_event(event)
+                stream = self._sse.events(on_open=_established)
+                try:
+                    async for event in stream:
+                        if not self._running:
+                            return
+                        await self._route_stream_event(event)
+                finally:
+                    await stream.aclose()
             except asyncio.CancelledError:
                 return
             except TlonAuthError as exc:
@@ -2531,20 +2583,47 @@ class TlonAdapter(BasePlatformAdapter):
                 self._telemetry.error("sse", exc, operation="authenticate")
                 self._set_fatal_error("auth", str(exc), retryable=False)
                 return
-            except Exception as exc:
+            except TlonChannelError as exc:
                 if not self._running:
                     return
-                logger.warning("[tlon] SSE stream error: %s", exc)
                 self._nudge_settings_ready = False
                 self._nudge_load_generation += 1
                 await self._stop_nudge_settings_retry()
+                if self._is_fatal_auth_rejection(exc):
+                    await self._close_sse(graceful=False)
+                    self._telemetry.error("sse", exc, operation="channel")
+                    self._set_fatal_error("auth", str(exc), retryable=False)
+                    return
+                logger.warning("[tlon] SSE channel lost, rebuilding: %s", exc)
                 await self._close_sse(graceful=False)
-                delay = RECONNECT_BACKOFF_SECONDS[min(backoff_idx, len(RECONNECT_BACKOFF_SECONDS) - 1)]
-                backoff_idx += 1
-                self._telemetry.sse_reconnect(
-                    attempt=backoff_idx, delay_seconds=delay, error=exc
-                )
-                await asyncio.sleep(delay)
+                await _backoff_and_report(exc, mode="rebuild")
+            except Exception as exc:
+                if not self._running:
+                    return
+                if self._sse is None:
+                    self._nudge_settings_ready = False
+                    self._nudge_load_generation += 1
+                    await self._stop_nudge_settings_retry()
+                    if self._is_fatal_auth_rejection(exc):
+                        # Setup rejects auth in open()/subscribe() (a channel
+                        # PUT) rather than on the SSE GET, so it never reaches
+                        # the TlonChannelError branch. Same policy applies: a
+                        # configured cookie the ship rejects can never succeed,
+                        # and retrying forever just hammers the ship.
+                        logger.error(
+                            "[tlon] SSE setup auth rejected, stopping: %s", exc
+                        )
+                        self._telemetry.error("sse", exc, operation="setup")
+                        self._set_fatal_error("auth", str(exc), retryable=False)
+                        return
+                    logger.warning("[tlon] SSE setup failed, retrying: %s", exc)
+                    await _backoff_and_report(exc, mode="rebuild")
+                else:
+                    logger.warning(
+                        "[tlon] SSE stream error (resuming from event %s): %s",
+                        self._sse.last_heard_event_id, exc,
+                    )
+                    await _backoff_and_report(exc, mode="resume")
 
     def _start_event_worker(self) -> None:
         self._event_queue = asyncio.Queue(maxsize=_STREAM_EVENT_QUEUE_MAXSIZE)

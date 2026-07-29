@@ -75,7 +75,6 @@ import {
   useAttachmentContext,
   useMappedImageAttachments,
 } from '../../contexts/attachment';
-import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import AttachmentSheet from '../AttachmentSheet';
 import { Field, TextInput, TextInputRef } from '../Form';
@@ -144,7 +143,6 @@ function SplashSequenceComponent(props: {
   hostingBotEnabled?: boolean;
   splashSequenceMode?: db.ShipInfo['splashSequenceMode'];
 }) {
-  const store = useStore();
   const canUpload = useCanUpload();
   const tlonbotRevivalSetup = db.tlonbotRevivalSetup.useValue();
   const [currentPane, setCurrentPane] = React.useState(
@@ -770,7 +768,7 @@ function SplashSequenceComponent(props: {
     } else {
       await store.completeWayfindingSplash();
     }
-  }, [isRevivalSplash, shouldDeferTlonbotSetup, store]);
+  }, [isRevivalSplash, shouldDeferTlonbotSetup]);
 
   const handleSplashCompleted = useCallback(async () => {
     if (finishingSplash) return;
@@ -2416,8 +2414,8 @@ function ConnectContactBookContent(props: {
           </SplashParagraph>
           {shouldShowConnectOption && (
             <SplashParagraph fontWeight="600" color="$primaryText">
-              We don&#39;t store your contacts — they&#39;re only referenced by
-              secure hash.
+              Your contacts are never uploaded — we only send anonymous, hashed
+              identifiers to our server to match you with people you know.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -2463,8 +2461,9 @@ export function InvitePane(props: {
   onActionPress: () => void;
   inviteSystemContacts?: InviteSystemContactsFn;
   isCompleting?: boolean;
+  syncSystemContacts?: typeof store.syncSystemContacts;
+  syncContactDiscovery?: typeof store.syncContactDiscovery;
 }) {
-  const storeContext = useStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteContacts, setShowInviteContacts] = useState(false);
   const [sysContacts, setSysContacts] = useState<db.SystemContact[]>([]);
@@ -2473,7 +2472,7 @@ export function InvitePane(props: {
     discoveredMatches,
     runDiscovery,
     notifyPendingMatches,
-  } = useContactDiscovery();
+  } = useContactDiscovery(props.syncContactDiscovery);
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
 
@@ -2487,7 +2486,9 @@ export function InvitePane(props: {
     let syncedContacts: db.SystemContact[] = [];
     try {
       setIsProcessing(true);
-      syncedContacts = await storeContext.syncSystemContacts();
+      syncedContacts = await (
+        props.syncSystemContacts ?? store.syncSystemContacts
+      )();
       setSysContacts(syncedContacts);
       if (syncedContacts.length === 0) {
         logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
@@ -2508,7 +2509,7 @@ export function InvitePane(props: {
     if (syncedContacts.length > 0) {
       void runDiscovery(syncedContacts);
     }
-  }, [storeContext, runDiscovery]);
+  }, [runDiscovery, props.syncSystemContacts]);
 
   const handleActionPress = useCallback(() => {
     notifyPendingMatches();
