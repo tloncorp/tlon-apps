@@ -140,6 +140,38 @@
   ;<  *  bind:m
     (ex-equal !>((~(has by activity.st) [%note 42 book ~])) !>(|))
   (ex-equal !>((~(has by indices.st) [%note 42 book ~])) !>(|))
+::  %del of a note source refreshes the surviving parents' summaries, so
+::  their unread and notify counts stop including the removed note
+::
+++  test-note-activity-del-refreshes-parents
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (do-init dap activity-agent)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
+  ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
+  =/  book=[p=@p q=@tas]  [~zod %journal]
+  =/  grp=(unit [p=@p q=@tas])  `[~zod %gardening]
+  ;<  *  bind:m
+    %-  do-poke
+    activity-action-2+!>(`action:v10:av`[%add %note-create 42 7 book grp 'T' ~wet])
+  ;<  sv=vase  bind:m  get-save
+  =/  st  !<(state-11 sv)
+  ;<  *  bind:m
+    (ex-equal !>(count:(~(got by activity.st) [%notebook book grp])) !>(1))
+  ;<  *  bind:m
+    %-  do-poke
+    activity-action-2+!>(`action:v10:av`[%del %note 42 book grp])
+  ;<  sv2=vase  bind:m  get-save
+  =/  st2  !<(state-11 sv2)
+  =/  ac  activity.st2
+  ;<  *  bind:m  (ex-equal !>((~(has by ac) [%note 42 book grp])) !>(|))
+  ;<  *  bind:m
+    (ex-equal !>(count:(~(got by ac) [%notebook book grp])) !>(0))
+  ;<  *  bind:m
+    (ex-equal !>(count:(~(got by ac) [%group ~zod %gardening])) !>(0))
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by ac) [%base ~])) !>(0))
+  (ex-equal !>(notify-count:(~(got by ac) [%base ~])) !>(0))
 ::
 ++  test-fix-init
   =+  state-0:fix-init
