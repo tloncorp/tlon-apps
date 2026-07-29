@@ -259,6 +259,10 @@ The `autoAcceptDmInvites` gate follows OpenClaw exactly: only the **owner's** in
 
 **Read the current key, not OpenClaw's legacy duplicate.** OpenClaw historically also has an `autoDiscover` key; the hosting dashboard writes `autoDiscoverChannels`, and that is the only one Hermes reads.
 
+### Agent-initiated blocking
+
+The model can block an abusive DM sender with `[BLOCK_USER: ~ship | reason]`. Execution requires an exact reply correlation in a 1:1 DM, is limited to the currently correlated sender, and can never target the configured owner; directives in group channels, clubs, proactive sends, or uncorrelated replies are strip-only. A successful action blocks future DMs, notifies the owner directly with the reason, and is idempotent across delivery retries for that dispatch generation. Complete directives are stripped from inbound adapter-visible text, history, cites, approval previews, retry seeds, and downloaded document filenames before model dispatch.
+
 ### Divergences from OpenClaw (intentional)
 
 -   **Auto-discover default and scope.** Hermes defaults `autoDiscoverChannels`/`TLON_AUTO_DISCOVER` to **off** (OpenClaw's setup wizard defaults it on), staying conservative/deny-by-default. Scope is also narrower: a reactive per-message check that only adds `chat/`/`heap/` channels the bot is already a member of, versus OpenClaw's proactive discovery of every channel across every joined group on connect. Broadening to that proactive scope is a larger change and out of scope here.

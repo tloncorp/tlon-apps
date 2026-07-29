@@ -79,9 +79,11 @@ export const hermesDriver: BotDriver = {
         TLON_NUDGE_TICK_INTERVAL_MS: '5000',
         TLON_TELEMETRY: 'false',
         TLON_CONTEXT_MESSAGES: '4',
-        // The fake-ship SSE stream does not emit idle heartbeats. Match the
-        // adapter's production default instead of forcing a reconnect every
-        // 15 seconds during otherwise idle scenario setup/settles.
+        // Eyre emits an SSE keepalive (a ':' comment line) every ~20s, even on
+        // an idle channel. The read timeout must sit above that interval or it
+        // fires before each heartbeat and tears the stream down on a ~15s loop
+        // through otherwise idle scenario setup/settles. 60 (the adapter's
+        // production default) clears the 20s heartbeat; the old 15 undercut it.
         TLON_SSE_READ_TIMEOUT_SECONDS: '60',
         TLON_KNOWN_BOT_USERS: knownBotUsers,
         TLON_MAX_CONSECUTIVE_BOT_RESPONSES: maxConsecutiveBotResponses,

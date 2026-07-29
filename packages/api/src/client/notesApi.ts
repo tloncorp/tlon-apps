@@ -1,6 +1,14 @@
 import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
-import { poke, requestJson, scry, subscribe, unsubscribe } from './urbit';
+import { formatUd } from './apiUtils';
+import {
+  poke,
+  requestJson,
+  scry,
+  subscribe,
+  subscribeOnce,
+  unsubscribe,
+} from './urbit';
 
 const logger = createDevLogger('notesApi', false);
 
@@ -91,6 +99,46 @@ export function parseNotesChannelId(
 
 export function notesChannelId(flag: NotesFlag | string): string {
   return `notes/${formatNotesFlag(flag)}`;
+}
+
+/**
+ * Preview payload from the %notes /v0/said single-shot subscription
+ * (mark %notes-said). %notes-denied (no read access) and %notes-error
+ * (missing note, host failure) both arrive as null facts.
+ */
+export interface NotesSaidPreview {
+  host: string;
+  flagName: string;
+  id: number;
+  title: string;
+  snippet: string;
+  author: string;
+  updatedAt: number;
+  notebookTitle: string;
+}
+
+export async function getNoteReference({
+  channelId,
+  noteId,
+}: {
+  channelId: string;
+  noteId: string;
+}): Promise<NotesSaidPreview | null> {
+  const flag = parseNotesChannelId(channelId);
+  if (!flag) {
+    throw new Error(`invalid notes channel id: ${channelId}`);
+  }
+  const data = await subscribeOnce<NotesSaidPreview | null>(
+    {
+      app: 'notes',
+      // the agent parses the id with +slav %ud, so dot-group it (1.234)
+      path: `/v0/said/${flag.host}/${flag.name}/note/${formatUd(noteId)}`,
+    },
+    3000,
+    undefined,
+    { tag: 'getNoteReference' }
+  );
+  return data ?? null;
 }
 
 function ensureSig(host: string): string {
@@ -288,7 +336,7 @@ export type NotesV1RequestBody =
   | { type: 'ok' }
   | { type: 'no-change' }
   | { type: 'notebook'; notebook: NotesV1NotebookSummary }
-  | { type: 'error'; message?: string }
+  | { type: 'error'; message?: string; errorType?: string }
   | { type: 'pending'; status?: string }
   | { type: 'api-key' };
 
@@ -309,6 +357,27 @@ export interface NotesV1PendingWriteErrorOptions {
   requestId?: string;
   status?: string;
   checks?: NotesV1PendingWriteCheck[];
+}
+
+// Typed failure from the %notes action-error union ('conflict',
+// 'not-authorized', 'not-found', ...). `errorType` mirrors the wire's
+// `errorType` field; 'conflict' on a note update means the expectedRevision
+// was stale (optimistic-concurrency check failed on the host).
+export class NotesV1WriteError extends Error {
+  readonly errorType?: string;
+
+  constructor(message: string, errorType?: string) {
+    super(message);
+    this.name = 'NotesV1WriteError';
+    this.errorType = errorType;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export function isNotesV1ConflictError(
+  error: unknown
+): error is NotesV1WriteError {
+  return error instanceof NotesV1WriteError && error.errorType === 'conflict';
 }
 
 export class NotesV1PendingWriteError extends Error {
@@ -607,8 +676,13 @@ function normalizeRequestBodyV1(raw: any): NotesV1RequestBody {
       const message =
         body.message === undefined || body.message === null
           ? undefined
-          : String(body.message);
-      return { type: 'error', message };
+          : errorMessageText(body.message);
+      return {
+        type: 'error',
+        message,
+        errorType:
+          typeof body.errorType === 'string' ? body.errorType : undefined,
+      };
     }
     case 'pending':
       return {
@@ -632,15 +706,28 @@ function normalizeRequestStatusV1(raw: unknown): NotesV1RequestStatus {
 
 // --- envelope handling -----------------------------------------------------
 
+// The wire's `message` is a rendered tang: an array of lines. Older
+// responses may carry a plain string.
+function errorMessageText(raw: any): string {
+  if (typeof raw === 'string') {
+    return raw.trim();
+  }
+  if (Array.isArray(raw)) {
+    return raw.map(String).join('\n').trim();
+  }
+  return raw === undefined || raw === null ? '' : String(raw).trim();
+}
+
 function notesEnvelopeErrorMessage(body: any): string {
-  const raw = body?.message;
-  const detail =
-    typeof raw === 'string'
-      ? raw.trim()
-      : raw === undefined || raw === null
-        ? ''
-        : String(raw).trim();
+  const detail = errorMessageText(body?.message);
   return `%notes error: ${detail || 'backend returned an error without details'}`;
+}
+
+function notesEnvelopeError(body: any): NotesV1WriteError {
+  return new NotesV1WriteError(
+    notesEnvelopeErrorMessage(body),
+    typeof body?.errorType === 'string' ? body.errorType : undefined
+  );
 }
 
 function envelopeRequestId(res: any): string | undefined {
@@ -710,7 +797,7 @@ function unwrapNotebookEnvelope(
     case 'notebook':
       return normalizeNotebookSummaryV1(requireObject(body.notebook));
     case 'error':
-      throw new Error(notesEnvelopeErrorMessage(body));
+      throw notesEnvelopeError(body);
     case 'pending':
       throw pendingWriteError(res, checks);
     default:
@@ -733,7 +820,7 @@ function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
     case 'notebook':
       return;
     case 'error':
-      throw new Error(notesEnvelopeErrorMessage(body));
+      throw notesEnvelopeError(body);
     case 'pending':
       throw pendingWriteError(res, checks);
     default:
@@ -829,6 +916,35 @@ async function createNoteV1({
   assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
 }
 
+// The ok envelope of a note write carries the applied update, nested per
+// the u-notebook encoder: body.response.update is the notebook-scoped
+// wrapper ({type: 'note-update', noteUpdate: {...}}) and the inner
+// noteUpdate ({type: 'note-updated', note: {...}}) holds the note with the
+// host's authoritative revision and server-stamped updatedAt/updatedBy.
+// Extract it when present; null for no-change (no update emitted), bare
+// bodies, or unexpected shapes.
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+function noteFromWriteEnvelope(res: any): NotesV1Note | null {
+  const update = res?.body?.response?.update;
+  const noteUpdate = update?.type === 'note-update' ? update.noteUpdate : null;
+  if (!noteUpdate || noteUpdate.type !== 'note-updated' || !noteUpdate.note) {
+    return null;
+  }
+  try {
+    return normalizeNoteV1(noteUpdate.note);
+  } catch {
+    return null;
+  }
+}
+
+export interface NotesV1NoteWriteResult {
+  // 'no-change' means the body already matched and the note's revision was
+  // NOT bumped — callers tracking revisions must not advance theirs.
+  status: 'ok' | 'no-change';
+  // The applied note from the response payload, when the host emitted one.
+  note: NotesV1Note | null;
+}
+
 async function updateNoteBodyV1({
   flag,
   noteId,
@@ -839,7 +955,7 @@ async function updateNoteBodyV1({
   noteId: number;
   body: string;
   expectedRevision?: number;
-}): Promise<void> {
+}): Promise<NotesV1NoteWriteResult> {
   const normalized = normalizeNotesTarget(flag);
   const payload: { body: string; expectedRevision?: number } = { body };
   if (expectedRevision !== undefined) {
@@ -847,6 +963,10 @@ async function updateNoteBodyV1({
   }
   const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', payload);
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
+  return {
+    status: res?.body?.type === 'no-change' ? 'no-change' : 'ok',
+    note: noteFromWriteEnvelope(res),
+  };
 }
 
 async function renameNoteV1({
@@ -857,12 +977,13 @@ async function renameNoteV1({
   flag: NotesTarget;
   noteId: number;
   title: string;
-}): Promise<void> {
+}): Promise<NotesV1Note | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', {
     title,
   });
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
+  return noteFromWriteEnvelope(res);
 }
 
 async function moveNoteV1({

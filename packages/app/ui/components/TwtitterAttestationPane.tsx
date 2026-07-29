@@ -1,13 +1,13 @@
 import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
+import * as store from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard, Platform, TouchableWithoutFeedback } from 'react-native';
 import { View, YStack } from 'tamagui';
 
-import { useStore } from '../contexts/storeContext';
 import { AttestationPane } from './AttestationPane';
 import { CopyableTextBlock } from './CopyableTextBlock';
 import { ControlledTextField } from './Form';
@@ -79,7 +79,6 @@ function ConfirmTwitterPane(props: {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const store = useStore();
   const [proof, setProof] = useState<string | null>(null);
 
   useEffect(() => {
@@ -188,7 +187,7 @@ ${proof}`;
 
   const handleRevoke = useCallback(() => {
     store.revokeAttestation(props.attestation);
-  }, [props.attestation, store]);
+  }, [props.attestation]);
 
   return (
     <TouchableWithoutFeedback
@@ -255,7 +254,6 @@ ${proof}`;
 function InitiateTwitterPane() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const store = useStore();
   const {
     control,
     handleSubmit,

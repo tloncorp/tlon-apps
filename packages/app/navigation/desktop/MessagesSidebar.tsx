@@ -22,7 +22,6 @@ import {
   GroupPreviewSheet,
   InviteUsersSheet,
   NavigationProvider,
-  RequestsProvider,
   ScreenHeader,
   View,
   useGlobalSearch,
@@ -168,66 +167,57 @@ export const MessagesSidebar = memo(
     useRenderCount('MessagesSidebar');
 
     return (
-      <RequestsProvider
-        usePostReference={store.usePostReference}
-        useChannel={store.useChannelPreview}
-        usePost={store.usePostWithRelations}
-        useApp={db.appInfo.useValue}
-        useGroup={store.useGroupPreview}
+      <ChatOptionsProvider
+        {...useChatSettingsNavigation()}
+        onPressInvite={handleInvite}
       >
-        <ChatOptionsProvider
-          {...useChatSettingsNavigation()}
-          onPressInvite={handleInvite}
-        >
-          <NavigationProvider focusedChannelId={focusedChannelId}>
-            <View userSelect="none" flex={1}>
-              <ScreenHeader
-                title={screenTitle}
-                loadingSubtitle={loadingSubtitle}
-                leftControls={
-                  <MessagesFilterMenu>
-                    <ScreenHeader.IconButton type="Filter" />
-                  </MessagesFilterMenu>
-                }
-                rightControls={
-                  <>
-                    <ScreenHeader.IconButton
-                      type="Search"
-                      onPress={handleSearch}
-                    />
-                    <CreateChatSheet
-                      ref={createChatSheetRef}
-                      trigger={<ScreenHeader.IconButton type="Add" />}
-                    />
-                  </>
-                }
+        <NavigationProvider focusedChannelId={focusedChannelId}>
+          <View userSelect="none" flex={1}>
+            <ScreenHeader
+              title={screenTitle}
+              loadingSubtitle={loadingSubtitle}
+              leftControls={
+                <MessagesFilterMenu>
+                  <ScreenHeader.IconButton type="Filter" />
+                </MessagesFilterMenu>
+              }
+              rightControls={
+                <>
+                  <ScreenHeader.IconButton
+                    type="Search"
+                    onPress={handleSearch}
+                  />
+                  <CreateChatSheet
+                    ref={createChatSheetRef}
+                    trigger={<ScreenHeader.IconButton type="Add" />}
+                  />
+                </>
+              }
+            />
+            {chats && displayData.some((section) => section.data.length > 0) ? (
+              <ChatList
+                data={displayData}
+                allPinnedChats={resolvedChats.pinned}
+                onPressItem={onPressChat}
+                disableScrollAnchoring
+                scrollerTestID="MessagesSidebarChatScroller"
               />
-              {chats &&
-              displayData.some((section) => section.data.length > 0) ? (
-                <ChatList
-                  data={displayData}
-                  allPinnedChats={resolvedChats.pinned}
-                  onPressItem={onPressChat}
-                  disableScrollAnchoring
-                  scrollerTestID="MessagesSidebarChatScroller"
-                />
-              ) : null}
-              <GroupPreviewSheet
-                open={!!selectedGroup}
-                onOpenChange={handleGroupPreviewSheetOpenChange}
-                group={selectedGroup ?? undefined}
-                onActionComplete={handleGroupAction}
-              />
-              <InviteUsersSheet
-                open={inviteSheetGroup !== null}
-                onOpenChange={handleInviteSheetOpenChange}
-                onInviteComplete={() => setInviteSheetGroup(null)}
-                groupId={inviteSheetGroup ?? undefined}
-              />
-            </View>
-          </NavigationProvider>
-        </ChatOptionsProvider>
-      </RequestsProvider>
+            ) : null}
+            <GroupPreviewSheet
+              open={!!selectedGroup}
+              onOpenChange={handleGroupPreviewSheetOpenChange}
+              group={selectedGroup ?? undefined}
+              onActionComplete={handleGroupAction}
+            />
+            <InviteUsersSheet
+              open={inviteSheetGroup !== null}
+              onOpenChange={handleInviteSheetOpenChange}
+              onInviteComplete={() => setInviteSheetGroup(null)}
+              groupId={inviteSheetGroup ?? undefined}
+            />
+          </View>
+        </NavigationProvider>
+      </ChatOptionsProvider>
     );
   }
 );

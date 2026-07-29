@@ -32,6 +32,20 @@ const DEFAULT_POKE_ACK_TIMEOUT = 30000;
 const isBrowser =
   typeof window !== 'undefined' && typeof window.document !== 'undefined';
 
+/**
+ * A thread response began, but its successful response body could not be read.
+ * Consumers may safely treat this as a lost response only because the server
+ * has already sent the response headers.
+ */
+export class ThreadResponseBodyError extends Error {
+  readonly responseHeadersReceived = true;
+
+  constructor(cause: unknown) {
+    super('Thread response body could not be read', { cause });
+    this.name = 'ThreadResponseBodyError';
+  }
+}
+
 //TODO  move into nockjs utils
 function isNoun(a: any): a is Noun {
   return a instanceof Atom || a instanceof Cell;
@@ -948,26 +962,30 @@ export class Urbit {
   }> {
     const { app, path, timeout } = params;
     const signal = timeout ? createTimeoutSignal(timeout) : undefined;
-    const response = await this.fetchFn(
-      `${this.url}/~/scry/${app}${path}.json`,
-      {
-        ...this.fetchOptions,
-        signal,
+    try {
+      const response = await this.fetchFn(
+        `${this.url}/~/scry/${app}${path}.json`,
+        {
+          ...this.fetchOptions,
+          signal,
+        }
+      );
+
+      if (!response.ok) {
+        return Promise.reject(response);
       }
-    );
-    signal?.cleanup();
 
-    if (!response.ok) {
-      return Promise.reject(response);
+      // read the body while the timeout is still armed; see thread()
+      const result = await response.json();
+      const responseSize = response.headers.get('content-length');
+      return {
+        responseStatus: response.status,
+        responseSizeInBytes: Number(responseSize),
+        result,
+      };
+    } finally {
+      signal?.cleanup();
     }
-
-    const result = await response.json();
-    const responseSize = response.headers.get('content-length');
-    return {
-      responseStatus: response.status,
-      responseSizeInBytes: Number(responseSize),
-      result,
-    };
   }
 
   async scryNoun(params: Scry): Promise<Noun> {
@@ -1065,17 +1083,40 @@ export class Urbit {
 
     const signal = timeout ? createTimeoutSignal(timeout) : undefined;
 
-    const result = await this.fetchFn(
-      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
-      {
-        ...this.fetchOptions,
-        signal,
-        method: 'POST',
-        body: JSON.stringify(body),
+    try {
+      const result = await this.fetchFn(
+        `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
+        {
+          ...this.fetchOptions,
+          signal,
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      );
+      // Buffer the body while the timeout is still armed. fetch resolves when
+      // response headers arrive, so an un-timed body read afterwards can hang
+      // indefinitely if the browser stalls the stream (seen on Brave). Buffer
+      // as bytes so non-text output marks pass through unchanged.
+      let responseBody: ArrayBuffer | null = null;
+      try {
+        const buffer = await result.arrayBuffer();
+        responseBody = buffer.byteLength > 0 ? buffer : null;
+      } catch (e) {
+        // The error status arrived with the headers; a stalled or aborted
+        // body read shouldn't mask it, since callers dispatch on status to
+        // distinguish backend failures from transport failures.
+        if (result.ok) {
+          throw new ThreadResponseBodyError(e);
+        }
       }
-    );
-    signal?.cleanup();
-    return result;
+      return new Response(responseBody, {
+        status: result.status,
+        statusText: result.statusText,
+        headers: result.headers,
+      });
+    } finally {
+      signal?.cleanup();
+    }
   }
 
   async getSpinHints(): Promise<string> {
@@ -1143,23 +1184,27 @@ export class Urbit {
       };
     }
 
-    // Make the request
-    const response = await this.fetchFn(`${this.url}${path}`, requestOptions);
-    signal?.cleanup();
+    try {
+      // Make the request
+      const response = await this.fetchFn(`${this.url}${path}`, requestOptions);
 
-    // Handle response
-    if (!response.ok) {
-      return Promise.reject(response);
-    }
+      // Handle response
+      if (!response.ok) {
+        return Promise.reject(response);
+      }
 
-    // Determine response type and parse accordingly
-    const contentType = response.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
-      return response.json();
-    } else if (contentType?.includes('text/')) {
-      return response.text() as unknown as T;
-    } else {
-      return response.blob() as unknown as T;
+      // Determine response type and parse accordingly, reading the body while
+      // the timeout is still armed; see thread()
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        return await response.json();
+      } else if (contentType?.includes('text/')) {
+        return (await response.text()) as unknown as T;
+      } else {
+        return (await response.blob()) as unknown as T;
+      }
+    } finally {
+      signal?.cleanup();
     }
   }
 

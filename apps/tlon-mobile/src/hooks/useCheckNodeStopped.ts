@@ -1,11 +1,11 @@
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { useStore } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
   HostedNodeStatus,
   createDevLogger,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 const logger = createDevLogger('stopped node checker', true);
@@ -17,7 +17,6 @@ export type NodeStatusCheckResult = {
 };
 
 export function useCheckNodeStopped() {
-  const store = useStore();
   const { clearShip } = useShip();
   const checkNodeStopped =
     useCallback(async (): Promise<NodeStatusCheckResult | null> => {
@@ -58,7 +57,7 @@ export function useCheckNodeStopped() {
         // fall through
         return null;
       }
-    }, [clearShip, store]);
+    }, [clearShip]);
 
   return checkNodeStopped;
 }
