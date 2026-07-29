@@ -50,6 +50,7 @@ import {
   setPendingNudge,
   syncPendingNudgeFromStore,
 } from '../pending-nudge.js';
+import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
 import { setSessionRole } from '../session-roles.js';
 import {
@@ -65,6 +66,7 @@ import {
 } from '../targets.js';
 import {
   type TlonDeliverySkipReason,
+  type TlonPluginErrorEvent,
   type TlonPluginErrorSource,
   createTlonTelemetry,
   formatTlonTelemetryErrorText,
@@ -403,7 +405,7 @@ export async function monitorTlonProvider(
       authPhase?: TlonAuthPhase | null;
     }
   ) => {
-    telemetry?.capturePluginError({
+    const event: TlonPluginErrorEvent = {
       harness: 'openclaw',
       pluginErrorSource,
       accountId: account.accountId,
@@ -414,7 +416,8 @@ export async function monitorTlonProvider(
       attempt: extra?.attempt ?? null,
       downMs: extra?.downMs ?? null,
       authPhase: extra?.authPhase ?? null,
-    });
+    };
+    emitTlonPluginErrorTelemetry(event, { postHog: telemetry });
   };
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
   runtime.log?.(
