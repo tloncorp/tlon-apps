@@ -5,11 +5,13 @@ export const HISTORY_WINDOW_INCREMENT = 15;
 export function isExplicitChatAnchorReady({
   anchorId,
   anchorIndex,
+  didTimeoutWaitingForAnchor = false,
 }: {
   anchorId?: string;
   anchorIndex: number;
+  didTimeoutWaitingForAnchor?: boolean;
 }) {
-  return !anchorId || anchorIndex !== -1;
+  return !anchorId || anchorIndex !== -1 || didTimeoutWaitingForAnchor;
 }
 
 export function getExplicitChatWindowStartIndex({

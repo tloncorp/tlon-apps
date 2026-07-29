@@ -30,6 +30,7 @@ import {
   View,
   usePreloadedEmojis,
 } from '@tloncorp/app/ui';
+import { getNativeColorScheme } from '@tloncorp/app/ui/utils/themeUtils';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthog } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
@@ -91,7 +92,7 @@ const useSplashHider = () => {
 
 // Android notification tap handler passes initial params here
 const App = () => {
-  const isDarkTheme = useActiveTheme() === 'dark';
+  const isDarkTheme = getNativeColorScheme(useActiveTheme()) === 'dark';
   const updateRequired = useRequiredUpdate();
 
   if (updateRequired) {
@@ -110,7 +111,7 @@ const App = () => {
 };
 
 const MainApp = () => {
-  const isDarkTheme = useActiveTheme() === 'dark';
+  const isDarkTheme = getNativeColorScheme(useActiveTheme()) === 'dark';
   const {
     isLoading,
     connected,

@@ -30,6 +30,16 @@ describe('isExplicitChatAnchorReady', () => {
       })
     ).toBe(true);
   });
+
+  it('falls back when an explicit anchor never appears', () => {
+    expect(
+      isExplicitChatAnchorReady({
+        anchorId: 'deleted-unread-post',
+        anchorIndex: -1,
+        didTimeoutWaitingForAnchor: true,
+      })
+    ).toBe(true);
+  });
 });
 
 describe('getExplicitChatWindowStartIndex', () => {

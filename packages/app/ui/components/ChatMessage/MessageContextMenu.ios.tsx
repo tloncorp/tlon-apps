@@ -31,7 +31,15 @@ const NativeMessageContextMenu =
 
 const defaultReactions = ['👍', '❤️', '😂'];
 
-export function MessageContextMenu({
+export function MessageContextMenu(props: MessageContextMenuProps) {
+  if (!props.enabled) {
+    return props.children;
+  }
+
+  return <EnabledMessageContextMenu {...props} />;
+}
+
+function EnabledMessageContextMenu({
   children,
   post,
   postActionIds,

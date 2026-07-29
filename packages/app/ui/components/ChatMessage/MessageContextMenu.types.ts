@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 
 export interface MessageContextMenuProps {
   children: ReactNode;
+  enabled: boolean;
   post: db.Post;
   postActionIds: ChannelAction.Id[];
   canReact: boolean;
