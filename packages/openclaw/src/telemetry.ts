@@ -8,6 +8,7 @@ import type {
   TlonProfileUpdateField,
   TlonToolCallContext,
 } from './tlon-tool-command.js';
+import type { TlonAgentTurnSummary } from './turn-recorder.js';
 import type { TlonTelemetryConfig } from './types.js';
 import { getTlonVersionIdentity } from './version.js';
 
@@ -185,6 +186,7 @@ export type TlonReplyOutcomeEvent = {
   model: string | null;
   thinkLevel: string | null;
   toolUsage: ToolUsageSummary;
+  turnSummary: TlonAgentTurnSummary | null;
 };
 
 export type TlonReplyTelemetryStart = {
@@ -244,6 +246,7 @@ export type TlonReplyTelemetryResult = {
   provider: string | null;
   model: string | null;
   thinkLevel: string | null;
+  turnSummary?: TlonAgentTurnSummary;
   dispatchError?: unknown;
 };
 
@@ -1419,6 +1422,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
             activeTrace.params.sessionKey,
             activeTrace.toolTraceCursor
           ),
+          turnSummary: result.turnSummary ?? null,
         });
       },
     };
@@ -1476,6 +1480,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         trace.params.sessionKey,
         trace.toolTraceCursor
       ),
+      turnSummary: null,
     });
   }
 
@@ -1546,6 +1551,11 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         provider: event.provider,
         model: event.model,
         thinkLevel: event.thinkLevel,
+        execution: event.turnSummary?.execution ?? null,
+        result: event.turnSummary?.result ?? null,
+        delivery: event.turnSummary?.delivery ?? null,
+        reason: event.turnSummary?.reason ?? null,
+        trigger: event.turnSummary?.trigger ?? null,
         toolCount: event.toolUsage.calls.length,
         toolNames: event.toolUsage.names,
         toolTotalDurationMs: event.toolUsage.totalDurationMs,

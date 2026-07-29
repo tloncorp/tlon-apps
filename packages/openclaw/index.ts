@@ -66,6 +66,7 @@ import {
   liveToolTraceContentsEnabled,
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
+import { recordActiveTlonTurnToolCall } from './src/turn-recorder.js';
 import { resolveTlonAccount } from './src/types.js';
 import {
   formatTlonVersionIdentity,
@@ -1221,6 +1222,7 @@ export default defineBundledChannelEntry({
 
     api.on('after_tool_call', (event, ctx) => {
       const toolCallId = readToolCallId(event);
+      recordActiveTlonTurnToolCall();
       if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
         api.logger.info(
           formatToolTraceEvent({
