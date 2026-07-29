@@ -104,9 +104,7 @@ export function NotificationsPrompt() {
     <NoticeFrame
       marginBottom={
         Platform.OS === 'ios'
-          ? bottom +
-            IOS_TAB_BAR_HEIGHT +
-            getTokenValue('$l', 'space')
+          ? bottom + IOS_TAB_BAR_HEIGHT + getTokenValue('$l', 'space')
           : undefined
       }
     >
