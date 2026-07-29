@@ -15,13 +15,23 @@ export const topScrollEdgeEffects = {
   right: 'hidden',
 } as const;
 
-export const verticalScrollEdgeEffects = {
-  top: 'soft',
-  bottom: 'soft',
-  left: 'hidden',
-  right: 'hidden',
-} as const;
-
+/**
+ * Identifies the conversation list's scroll view to the native scroll-edge
+ * module, which registers floating elements (composer, pinned banner) against
+ * it via `ScrollEdgeElementContainer`.
+ *
+ * This is applied as a `testID`, because the native side locates the scroll
+ * view by matching `accessibilityIdentifier` - which React Native populates
+ * from `testID`, not from `nativeID`. That makes this string load-bearing for a
+ * production visual effect, not just for tests: renaming it, reusing it, or
+ * stripping testIDs from release builds silently disables the iOS 26 scroll
+ * edge effect on the conversation screen, with no error.
+ *
+ * Both conversation list implementations (PostListFlatList, PostListLegendList)
+ * must apply it. If the native lookup ever moves to a real `nativeID`, update
+ * `ScrollEdgeViewFinder.findTaggedView` in the tlon-scroll-edge-effect module
+ * at the same time.
+ */
 export const conversationScrollViewNativeID =
   'tlon-conversation-scroll-edge-content';
 
@@ -31,8 +41,6 @@ export const floatingPinnedPostBannerGap = 8;
 export const floatingPinnedPostBannerClearance =
   floatingPinnedPostBannerHeight + floatingPinnedPostBannerGap;
 
-export const supportsConversationScrollEdgeEffects =
-  supportsNativeScrollEdgeEffects;
 export const conversationScrollEdgeEffects = {
   top: 'soft',
   bottom: 'soft',

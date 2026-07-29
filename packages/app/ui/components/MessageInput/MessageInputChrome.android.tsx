@@ -2,6 +2,8 @@ import { PropsWithChildren } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { View, XStack } from 'tamagui';
 
+import { floatingChromeMetrics as metrics } from '../floatingChromeMetrics';
+
 export const usesFloatingMessageInputChrome = true;
 export const floatingMessageInputBottomInset = 0;
 
@@ -20,9 +22,9 @@ export function MessageInputChromeRow({
     <XStack
       width="100%"
       alignItems="center"
-      gap={8}
-      paddingHorizontal={12}
-      paddingVertical={8}
+      gap={metrics.rowGap}
+      paddingHorizontal={metrics.rowPaddingHorizontal}
+      paddingVertical={metrics.rowPaddingVertical}
       backgroundColor="transparent"
       onLayout={onLayout}
     >
@@ -39,9 +41,9 @@ export function MessageInputChromeAction({
   return (
     <View
       {...materialSurfaceProps}
-      width={48}
-      height={48}
-      borderRadius={24}
+      width={metrics.controlSize}
+      height={metrics.controlSize}
+      borderRadius={metrics.controlRadius}
       overflow="hidden"
       alignItems="center"
       justifyContent="center"
@@ -62,10 +64,10 @@ export function MessageInputChromeBody({
     <XStack
       {...materialSurfaceProps}
       flex={1}
-      minHeight={48}
-      borderRadius={24}
+      minHeight={metrics.controlSize}
+      borderRadius={metrics.controlRadius}
       alignItems="center"
-      gap={8}
+      gap={metrics.rowGap}
       backgroundColor={
         isEditing ? '$positiveBackground' : '$secondaryBackground'
       }

@@ -14,6 +14,12 @@ import { ScrollAnchor } from './scrollerTypes';
 
 const logger = createDevLogger('useAnchorScrollLock', false);
 
+const MAX_FAILURE_RETRIES = 3;
+const RETRY_INTERVAL_MS = 200;
+const SCROLL_COMPLETED_TIMEOUT_MS = 200;
+/** How long to wait for the anchor before showing posts wherever they land. */
+const ANCHOR_SEARCH_TIMEOUT_MS = 2000;
+
 /**
  * useAnchorScrollLock
  *
@@ -78,9 +84,6 @@ export function useAnchorScrollLock({
   collectionLayoutType: string;
   columnsCount: number;
 }) {
-  const MAX_FAILURE_RETRIES = 3;
-  const RETRY_INTERVAL_MS = 200;
-  const SCROLL_COMPLETED_TIMEOUT_MS = 200;
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [didAnchorSearchTimeout, setDidAnchorSearchTimeout] = useState(false);
   const [didScrollToAnchor, setDidScrollToAnchor] = useState(false);
@@ -97,13 +100,24 @@ export function useAnchorScrollLock({
   const showPostsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  // Read inside the timeout so it can bail if the anchor resolved first. This
+  // deliberately has no cleanup: the deadline runs from the moment posts first
+  // arrive, and re-arming it whenever `posts.length` changes would let an
+  // incrementally-loading channel postpone it indefinitely.
+  const readyToDisplayPostsRef = useRef(readyToDisplayPosts);
+  readyToDisplayPostsRef.current = readyToDisplayPosts;
   useEffect(() => {
     if (posts?.length && !showPostsTimeoutRef.current && !readyToDisplayPosts) {
       showPostsTimeoutRef.current = setTimeout(() => {
+        showPostsTimeoutRef.current = null;
+        if (readyToDisplayPostsRef.current) {
+          // The anchor resolved before the deadline - nothing left to unblock,
+          // and setting state here would re-render every consumer for nothing.
+          return;
+        }
         logger.log('posts are ready for display');
         setDidAnchorSearchTimeout(true);
-        showPostsTimeoutRef.current = null;
-      }, 2000);
+      }, ANCHOR_SEARCH_TIMEOUT_MS);
     }
   }, [posts?.length, readyToDisplayPosts]);
 
@@ -327,10 +341,21 @@ export function useAnchorScrollLock({
         scrollToAnchorIndex(index);
       }
 
-      // Set timeout if we've rendered all posts
+      // Set timeout if we've rendered all posts. The rendered set is only
+      // cleared when the anchor changes, so it can still hold ids from a
+      // previous, longer data window - confirm against the current posts
+      // before declaring the search finished. The cheap size check gates the
+      // O(n) pass, so the common case is unchanged.
       if (posts?.length && renderedPostsRef.current.size >= posts.length) {
-        logger.log('all posts rendered');
-        setDidAnchorSearchTimeout(true);
+        const renderedFromCurrentPosts = posts.reduce(
+          (count, p) =>
+            renderedPostsRef.current.has(p.id) ? count + 1 : count,
+          0
+        );
+        if (renderedFromCurrentPosts >= posts.length) {
+          logger.log('all posts rendered');
+          setDidAnchorSearchTimeout(true);
+        }
       }
     }
   );

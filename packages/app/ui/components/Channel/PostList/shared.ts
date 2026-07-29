@@ -3,12 +3,53 @@ import * as db from '@tloncorp/shared/db';
 import * as React from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
 
+import { useScrollDirectionTracker } from '../../../contexts/scroll';
 import type { ScrollAnchor } from '../scrollerTypes';
 
 export interface PostWithNeighbors {
   post: db.Post;
   newer: db.Post | null;
   older: db.Post | null;
+}
+
+export function getPostId({ post }: PostWithNeighbors) {
+  return post.id;
+}
+
+/**
+ * Scroll tracking shared by both PostList implementations: reports crossings of
+ * the bottom threshold to the owner. The two lists need identical semantics
+ * here, so the effect lives in one place rather than being repeated per list.
+ *
+ * Returns the full tracker, since callers also need `onScroll` and some need
+ * `isAtContentEnd`.
+ */
+export function usePostListBottomTracking({
+  atBottomThreshold,
+  bottomAtEnd,
+  onScrolledToBottom,
+  onScrolledAwayFromBottom,
+}: {
+  atBottomThreshold?: number;
+  bottomAtEnd?: boolean;
+  onScrolledToBottom?: () => void;
+  onScrolledAwayFromBottom?: () => void;
+}) {
+  const tracker = useScrollDirectionTracker({
+    atBottomThreshold,
+    bottomAtEnd,
+  });
+  const { isAtBottom } = tracker;
+
+  React.useEffect(() => {
+    if (isAtBottom) {
+      onScrolledToBottom?.();
+    } else {
+      onScrolledAwayFromBottom?.();
+    }
+  }, [isAtBottom, onScrolledAwayFromBottom, onScrolledToBottom]);
+
+  return tracker;
 }
 
 export interface PostListMethods {

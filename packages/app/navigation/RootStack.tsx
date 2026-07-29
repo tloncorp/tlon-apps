@@ -50,7 +50,7 @@ import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import {
   conversationScrollEdgeEffects,
-  supportsConversationScrollEdgeEffects,
+  supportsNativeScrollEdgeEffects,
 } from '../ui/components/nativeScrollEdgeEffects';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { NativeTabNavigator } from './NativeTabNavigator';
@@ -370,12 +370,12 @@ function getConversationScreenOptions(
     headerShadowVisible: false,
     headerBackVisible: false,
     headerBackButtonDisplayMode: 'minimal',
-    headerBlurEffect: supportsConversationScrollEdgeEffects
+    headerBlurEffect: supportsNativeScrollEdgeEffects
       ? undefined
       : isDarkMode
         ? 'systemMaterialDark'
         : 'systemMaterialLight',
-    scrollEdgeEffects: supportsConversationScrollEdgeEffects
+    scrollEdgeEffects: supportsNativeScrollEdgeEffects
       ? conversationScrollEdgeEffects
       : undefined,
   };

@@ -1,18 +1,16 @@
 import { BlurView } from 'expo-blur';
-import {
-  GlassView,
-  isGlassEffectAPIAvailable,
-  isLiquidGlassAvailable,
-} from 'expo-glass-effect';
+import { GlassView } from 'expo-glass-effect';
 import { PropsWithChildren } from 'react';
 import { StyleSheet } from 'react-native';
+
+import { canUseLiquidGlass, glassFallbackBlurProps } from '../glassChrome.ios';
 
 export const usesFloatingPinnedPostBanner = true;
 
 export function PinnedPostBannerChrome({
   children,
 }: PropsWithChildren<object>) {
-  if (isGlassEffectAPIAvailable() && isLiquidGlassAvailable()) {
+  if (canUseLiquidGlass()) {
     return (
       <GlassView glassEffectStyle="regular" style={styles.chrome}>
         {children}
@@ -21,7 +19,7 @@ export function PinnedPostBannerChrome({
   }
 
   return (
-    <BlurView tint="systemMaterial" intensity={90} style={styles.chrome}>
+    <BlurView {...glassFallbackBlurProps} style={styles.chrome}>
       {children}
     </BlurView>
   );

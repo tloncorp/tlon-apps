@@ -4,7 +4,6 @@ import * as React from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useScrollDirectionTracker } from '../../../contexts/scroll';
 import {
   conversationNavigationBarHeight,
   conversationScrollViewNativeID,
@@ -17,11 +16,9 @@ import {
   PostListComponent,
   PostListMethods,
   PostWithNeighbors,
+  getPostId,
+  usePostListBottomTracking,
 } from './shared';
-
-function getPostId({ post }: PostWithNeighbors) {
-  return post.id;
-}
 
 const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
 
@@ -103,6 +100,10 @@ export const PostList: PostListComponent = React.forwardRef(
       anchorIndex,
       didTimeoutWaitingForAnchor,
     });
+    const unreadAnchorViewOffset =
+      Platform.OS === 'ios'
+        ? insets.top + conversationNavigationBarHeight + topContentInset
+        : 0;
     const initialScrollIndex = React.useMemo(
       () =>
         anchorIndex === -1 || didTimeoutWaitingForAnchor
@@ -111,34 +112,23 @@ export const PostList: PostListComponent = React.forwardRef(
               index: anchorIndex,
               viewPosition: anchor?.type === 'unread' ? 0 : 0.5,
               viewOffset:
-                anchor?.type === 'unread'
-                  ? insets.top +
-                    conversationNavigationBarHeight +
-                    topContentInset
-                  : 0,
+                anchor?.type === 'unread' ? unreadAnchorViewOffset : 0,
             },
       [
         anchor?.type,
         anchorIndex,
         didTimeoutWaitingForAnchor,
-        insets.top,
-        topContentInset,
+        unreadAnchorViewOffset,
       ]
     );
     const latestInitialScrollIndexRef = React.useRef(initialScrollIndex);
     latestInitialScrollIndexRef.current = initialScrollIndex;
-    const { onScroll: handleScroll, isAtBottom } = useScrollDirectionTracker({
+    const { onScroll: handleScroll } = usePostListBottomTracking({
       atBottomThreshold: onScrolledToBottomThreshold,
       bottomAtEnd: true,
+      onScrolledToBottom,
+      onScrolledAwayFromBottom,
     });
-
-    React.useEffect(() => {
-      if (isAtBottom) {
-        onScrolledToBottom?.();
-      } else {
-        onScrolledAwayFromBottom?.();
-      }
-    }, [isAtBottom, onScrolledAwayFromBottom, onScrolledToBottom]);
 
     const handleLoad = React.useCallback(() => {
       if (!isInitialAnchorReady || didStartInitialScrollRef.current) {

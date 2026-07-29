@@ -1,21 +1,15 @@
 import { BlurView } from 'expo-blur';
-import {
-  GlassView,
-  isGlassEffectAPIAvailable,
-  isLiquidGlassAvailable,
-} from 'expo-glass-effect';
+import { GlassView } from 'expo-glass-effect';
 import { Pressable, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 
+import { floatingChromeMetrics as metrics } from '../floatingChromeMetrics';
+import { canUseLiquidGlass, glassFallbackBlurProps } from '../glassChrome.ios';
 import type { ScrollToBottomButtonChromeProps } from './ScrollToBottomButtonChrome.types';
 import {
   scrollToBottomButtonTransitionDuration,
   useScrollToBottomButtonTransition,
 } from './useScrollToBottomButtonTransition';
-
-function canUseLiquidGlass() {
-  return isGlassEffectAPIAvailable() && isLiquidGlassAvailable();
-}
 
 export function ScrollToBottomButtonChrome({
   children,
@@ -64,7 +58,7 @@ export function ScrollToBottomButtonChrome({
   }
 
   return (
-    <BlurView intensity={90} tint="systemMaterial" style={styles.control}>
+    <BlurView {...glassFallbackBlurProps} style={styles.control}>
       {control}
     </BlurView>
   );
@@ -72,9 +66,9 @@ export function ScrollToBottomButtonChrome({
 
 const styles = StyleSheet.create({
   control: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: metrics.controlSize,
+    height: metrics.controlSize,
+    borderRadius: metrics.controlRadius,
     overflow: 'hidden',
   },
   content: {

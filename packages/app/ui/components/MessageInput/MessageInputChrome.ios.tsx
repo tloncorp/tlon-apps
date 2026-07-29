@@ -1,10 +1,5 @@
 import { BlurView } from 'expo-blur';
-import {
-  GlassContainer,
-  GlassView,
-  isGlassEffectAPIAvailable,
-  isLiquidGlassAvailable,
-} from 'expo-glass-effect';
+import { GlassContainer, GlassView } from 'expo-glass-effect';
 import { PropsWithChildren } from 'react';
 import {
   LayoutChangeEvent,
@@ -12,14 +7,13 @@ import {
   StyleSheet,
 } from 'react-native';
 
+import { floatingChromeMetrics as metrics } from '../floatingChromeMetrics';
+import { canUseLiquidGlass, glassFallbackBlurProps } from '../glassChrome.ios';
+
 export const usesFloatingMessageInputChrome = true;
 // Height of the single-line floating row. The channel scroller adds the iOS
 // safe-area inset separately so its final message can clear the composer.
 export const floatingMessageInputBottomInset = 64;
-
-function canUseLiquidGlass() {
-  return isGlassEffectAPIAvailable() && isLiquidGlassAvailable();
-}
 
 export function MessageInputChromeRow({
   children,
@@ -29,7 +23,11 @@ export function MessageInputChromeRow({
 }>) {
   if (canUseLiquidGlass()) {
     return (
-      <GlassContainer spacing={8} style={styles.row} onLayout={onLayout}>
+      <GlassContainer
+        spacing={metrics.rowGap}
+        style={styles.row}
+        onLayout={onLayout}
+      >
         {children}
       </GlassContainer>
     );
@@ -56,7 +54,7 @@ export function MessageInputChromeAction({
   }
 
   return (
-    <BlurView tint="systemMaterial" intensity={90} style={styles.action}>
+    <BlurView {...glassFallbackBlurProps} style={styles.action}>
       {children}
     </BlurView>
   );
@@ -83,11 +81,7 @@ export function MessageInputChromeBody({
   }
 
   return (
-    <BlurView
-      tint="systemMaterial"
-      intensity={90}
-      style={[styles.body, styles.clipped]}
-    >
+    <BlurView {...glassFallbackBlurProps} style={[styles.body, styles.clipped]}>
       {children}
     </BlurView>
   );
@@ -98,26 +92,26 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    gap: metrics.rowGap,
+    paddingHorizontal: metrics.rowPaddingHorizontal,
+    paddingVertical: metrics.rowPaddingVertical,
     backgroundColor: 'transparent',
   },
   action: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: metrics.controlSize,
+    height: metrics.controlSize,
+    borderRadius: metrics.controlRadius,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   body: {
     flex: 1,
-    minHeight: 48,
-    borderRadius: 24,
+    minHeight: metrics.controlSize,
+    borderRadius: metrics.controlRadius,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: metrics.rowGap,
   },
   clipped: {
     overflow: 'hidden',

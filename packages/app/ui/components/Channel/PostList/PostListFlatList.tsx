@@ -5,11 +5,10 @@ import { Platform } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useScrollDirectionTracker } from '../../../contexts/scroll';
 import {
   conversationNavigationBarHeight,
   conversationScrollViewNativeID,
-  supportsConversationScrollEdgeEffects,
+  supportsNativeScrollEdgeEffects,
 } from '../../nativeScrollEdgeEffects';
 import { useAnchorScrollLock } from '../useAnchorScrollLock';
 import {
@@ -22,11 +21,9 @@ import {
   PostListComponent,
   PostListMethods,
   PostWithNeighbors,
+  getPostId,
+  usePostListBottomTracking,
 } from './shared';
-
-function getPostId({ post }: PostWithNeighbors) {
-  return post.id;
-}
 
 export const PostList: PostListComponent = React.forwardRef(
   (
@@ -65,7 +62,7 @@ export const PostList: PostListComponent = React.forwardRef(
     // conversation. On iOS 26, keep the scroll view upright and reverse the
     // single-column chat data explicitly instead.
     const usesExplicitChatOrder = Boolean(
-      supportsConversationScrollEdgeEffects && inverted && numColumns === 1
+      supportsNativeScrollEdgeEffects && inverted && numColumns === 1
     );
     const orderedPosts = React.useMemo(
       () =>
@@ -171,23 +168,15 @@ export const PostList: PostListComponent = React.forwardRef(
       ...remainingAnchorScrollLockFlatlistProps
     } = anchorScrollLockFlatlistProps;
 
-    const {
-      onScroll: handleScroll,
-      isAtBottom,
-      isAtContentEnd,
-    } = useScrollDirectionTracker({
-      atBottomThreshold: onScrolledToBottomThreshold,
-      bottomAtEnd: usesExplicitChatOrder,
-    });
+    const { onScroll: handleScroll, isAtContentEnd } =
+      usePostListBottomTracking({
+        atBottomThreshold: onScrolledToBottomThreshold,
+        bottomAtEnd: usesExplicitChatOrder,
+        onScrolledToBottom,
+        onScrolledAwayFromBottom,
+      });
     const isAtContentEndRef = React.useRef(isAtContentEnd);
     isAtContentEndRef.current = isAtContentEnd;
-    React.useEffect(() => {
-      if (isAtBottom) {
-        onScrolledToBottom?.();
-      } else {
-        onScrolledAwayFromBottom?.();
-      }
-    }, [onScrolledToBottom, onScrolledAwayFromBottom, isAtBottom]);
 
     const renderItemWithExtraProps = React.useCallback<typeof renderItem>(
       ({ item, index }) =>
@@ -475,7 +464,7 @@ export const PostList: PostListComponent = React.forwardRef(
         data={displayedPosts}
         initialScrollIndex={explicitInitialScrollIndex}
         testID={
-          supportsConversationScrollEdgeEffects
+          supportsNativeScrollEdgeEffects
             ? conversationScrollViewNativeID
             : undefined
         }

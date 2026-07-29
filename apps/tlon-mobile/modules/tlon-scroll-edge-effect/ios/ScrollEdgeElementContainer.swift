@@ -2,11 +2,22 @@ import ExpoModulesCore
 import UIKit
 
 public final class ScrollEdgeElementContainer: ExpoView {
+    private static let maxAttachmentAttempts = 100
+
     private var scrollViewNativeID: String?
+    // Held as AnyObject because UIScrollEdgeElementContainerInteraction is iOS
+    // 26+ and this type is not. Unbox through `scrollEdgeInteraction` rather
+    // than casting at each use site.
     private var edgeInteraction: AnyObject?
     private var pendingAttachment: DispatchWorkItem?
     private var attachmentAttempts = 0
+    private var didLogAttachmentFailure = false
     private var edge: UIRectEdge = .bottom
+
+    @available(iOS 26.0, *)
+    private var scrollEdgeInteraction: UIScrollEdgeElementContainerInteraction? {
+        edgeInteraction as? UIScrollEdgeElementContainerInteraction
+    }
 
     public required init(appContext: AppContext? = nil) {
         super.init(appContext: appContext)
@@ -23,9 +34,7 @@ public final class ScrollEdgeElementContainer: ExpoView {
     deinit {
         pendingAttachment?.cancel()
 
-        if #available(iOS 26.0, *),
-           let interaction = edgeInteraction as? UIScrollEdgeElementContainerInteraction
-        {
+        if #available(iOS 26.0, *), let interaction = scrollEdgeInteraction {
             removeInteraction(interaction)
         }
     }
@@ -33,6 +42,7 @@ public final class ScrollEdgeElementContainer: ExpoView {
     override public func didMoveToWindow() {
         super.didMoveToWindow()
         attachmentAttempts = 0
+        didLogAttachmentFailure = false
         attachToScrollViewIfPossible()
     }
 
@@ -48,11 +58,10 @@ public final class ScrollEdgeElementContainer: ExpoView {
 
         scrollViewNativeID = nativeID
         attachmentAttempts = 0
+        didLogAttachmentFailure = false
         pendingAttachment?.cancel()
 
-        if #available(iOS 26.0, *),
-           let interaction = edgeInteraction as? UIScrollEdgeElementContainerInteraction
-        {
+        if #available(iOS 26.0, *), let interaction = scrollEdgeInteraction {
             interaction.scrollView = nil
         }
 
@@ -62,9 +71,7 @@ public final class ScrollEdgeElementContainer: ExpoView {
     func setEdge(_ edge: String?) {
         self.edge = edge == "top" ? .top : .bottom
 
-        if #available(iOS 26.0, *),
-           let interaction = edgeInteraction as? UIScrollEdgeElementContainerInteraction
-        {
+        if #available(iOS 26.0, *), let interaction = scrollEdgeInteraction {
             interaction.edge = self.edge
             if let scrollView = interaction.scrollView {
                 configureEdgeEffect(on: scrollView)
@@ -89,9 +96,7 @@ public final class ScrollEdgeElementContainer: ExpoView {
             return
         }
 
-        if #available(iOS 26.0, *),
-           let interaction = edgeInteraction as? UIScrollEdgeElementContainerInteraction
-        {
+        if #available(iOS 26.0, *), let interaction = scrollEdgeInteraction {
             if let attachedScrollView = interaction.scrollView,
                attachedScrollView.window != nil
             {
@@ -106,6 +111,7 @@ public final class ScrollEdgeElementContainer: ExpoView {
                 pendingAttachment?.cancel()
                 pendingAttachment = nil
                 attachmentAttempts = 0
+                didLogAttachmentFailure = false
                 interaction.scrollView = scrollView
                 configureEdgeEffect(on: scrollView)
 
@@ -126,7 +132,24 @@ public final class ScrollEdgeElementContainer: ExpoView {
     }
 
     private func scheduleAttachmentRetry() {
-        guard attachmentAttempts < 100, pendingAttachment == nil else {
+        guard pendingAttachment == nil else {
+            return
+        }
+
+        guard attachmentAttempts < Self.maxAttachmentAttempts else {
+            // Stop retrying, but say so once. Otherwise the effect simply never
+            // appears with nothing in the log to explain why - the usual cause
+            // is the list's testID being renamed or stripped, since the lookup
+            // matches against accessibilityIdentifier.
+            if !didLogAttachmentFailure {
+                didLogAttachmentFailure = true
+                log.warn(
+                    "ScrollEdgeElementContainer: no scroll view with identifier "
+                        + "'\(scrollViewNativeID ?? "")' found after "
+                        + "\(Self.maxAttachmentAttempts) attempts; scroll edge "
+                        + "effects are inactive for this element."
+                )
+            }
             return
         }
 

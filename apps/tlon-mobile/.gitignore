@@ -319,3 +319,8 @@ render.experimental.xml
 
 # Sentry
 **/sentry.properties
+
+# Bundler installs gems here when using `bundle install --path vendor/bundle`.
+# 27MB of vendored gems; never commit.
+ios/vendor/
+ios/.bundle/
