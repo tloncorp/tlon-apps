@@ -740,9 +740,8 @@ function SinglePostView({
     };
   }, []);
 
-  // Compute a ScrollAnchor from selectedPostId for chat threads.
-  // This wires into useAnchorScrollLock via Scroller, giving us retry/recovery
-  // for unmeasured items instead of a one-shot scrollToIndex.
+  // Compute a ScrollAnchor from selectedPostId for chat threads. Scroller
+  // passes it to PostList so the list can wait for and position the target.
   const threadAnchor: ScrollAnchor | null = useMemo(() => {
     if (isChatChannel && selectedPostId) {
       return { type: 'selected', postId: selectedPostId };
@@ -751,7 +750,7 @@ function SinglePostView({
   }, [isChatChannel, selectedPostId]);
 
   // Trigger the 5s temporary highlight when selectedPostId changes.
-  // Scrolling is handled by the anchor via useAnchorScrollLock.
+  // Scrolling is handled by the PostList anchor.
   useEffect(() => {
     if (isChatChannel && selectedPostId) {
       highlightPost(selectedPostId);

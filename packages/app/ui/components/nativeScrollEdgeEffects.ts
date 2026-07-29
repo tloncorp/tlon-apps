@@ -27,10 +27,9 @@ export const topScrollEdgeEffects = {
  * stripping testIDs from release builds silently disables the iOS 26 scroll
  * edge effect on the conversation screen, with no error.
  *
- * Both conversation list implementations (PostListFlatList, PostListLegendList)
- * must apply it. If the native lookup ever moves to a real `nativeID`, update
- * `ScrollEdgeViewFinder.findTaggedView` in the tlon-scroll-edge-effect module
- * at the same time.
+ * PostList must apply it to every conversation list. If the native lookup ever
+ * moves to a real `nativeID`, update `ScrollEdgeViewFinder.findTaggedView` in
+ * the tlon-scroll-edge-effect module at the same time.
  */
 export const conversationScrollViewNativeID =
   'tlon-conversation-scroll-edge-content';
