@@ -1,8 +1,7 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
 /-  n=notes, mcp-proxy, av=activity-ver
-/+  default-agent, dbug, verb, server
-/=  notes-json  /lib/notes/json
+/+  default-agent, dbug, verb, server, logs, notes-json
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
 ::  import marks only need to carry the raw bytes.
@@ -82,7 +81,10 @@
   [cards this]
 ::
 ++  on-leave  on-leave:def
-++  on-fail   on-fail:def
+++  on-fail
+  |=  [=term =tang]
+  ^-  (quip card _this)
+  [[(~(on-fail logs bowl /logs) term tang)]~ this]
 --
 ::  helper core
 ::
@@ -90,6 +92,7 @@
 ++  dummy  'freeze-requests-13-snapshot-v1'
 ++  abet  [(flop cards) state]
 ++  cor   .
+++  log   ~(. logs [bowl /logs])
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
@@ -621,6 +624,27 @@
     ?>  =(src.bowl our.bowl)
     cor
   ::
+      [%v0 %said ship=@ name=@ %note id=@ ~]
+    ::  single-shot note reference preview: answer from state if we can,
+    ::  else proxy one watch to the host and relay its answer in +agent.
+    ::
+    =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
+    =/  nid=@ud  (slav %ud id.pole)
+    ::  a just-joined %sub placeholder (init=|) has no note state yet and
+    ::  would answer %notes-denied for a real note — proxy instead.
+    =/  ready=?
+      ?~  entry=(get-book flag)  |
+      ?:  ?=(%pub -.net.u.entry)  &
+      init.net.u.entry
+    ?:  |(=(our.bowl ship.flag) ready)
+      (give-said ~ flag nid src.bowl)
+    ::  refuse to fetch over the network on another ship's behalf
+    ?>  =(src.bowl our.bowl)
+    =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+    ?:  (~(has by wex.bowl) [wire ship.flag %notes])
+      cor
+    (emit %pass wire %agent [ship.flag %notes] %watch (said-path flag nid))
+  ::
       [%v1 %notes ship=@ name=@ %request requester=@ id=@ ~]
     ::  Per-request path. Subscribers attach here while awaiting their
     ::  response-update. Path's `ship`/`name` segment is the notebook
@@ -712,6 +736,9 @@
       ::  extracting just the changed group's flag from the r-groups fact
       ::  ([flag r-group] — flag is the head) and rechecking only the
       ::  subscribers of notebooks bound to that group.
+      [%logs ~]
+    cor
+  ::
       [%groups ~]
     ?+  -.sign  cor
         %watch-ack  cor
@@ -768,6 +795,38 @@
     ::  on the ack — the local entry is already gone either way.
     ?+  -.sign  cor
         %poke-ack  cor
+    ==
+  ::
+      [%said ship=@ name=@ %note id=@ ~]
+    ::  proxied note-preview answer from a notebook host: relay to our
+    ::  /v0/said subscribers. remote crashes don't trigger +on-fail at
+    ::  the host, so report them locally.
+    ::
+    =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
+    =/  nid=@ud  (slav %ud id.pole)
+    =/  paths=(list path)  ~[(said-path flag nid)]
+    ?+  -.sign  cor
+        %watch-ack
+      ?~  p.sign  cor
+      =.  cor
+        %-  emit
+        (fail:log %warn ~[leaf+"said preview failed on {<ship.flag>}"] u.p.sign ~)
+      =.  cor  (give %fact paths notes-error+!>(~))
+      (give %kick paths ~)
+    ::
+        %kick
+      (give %kick paths ~)
+    ::
+        %fact
+      =.  cor
+        ?:  ?=(?(%notes-said %notes-denied %notes-error) p.cage.sign)
+          (give %fact paths cage.sign)
+        =.  cor
+          (emit (tell:log %warn ~[leaf+"unexpected said mark {<p.cage.sign>}"] ~))
+        (give %fact paths notes-error+!>(~))
+      =.  cor  (give %kick paths ~)
+      =/  =wire  /said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+      (emit %pass wire %agent [ship.flag %notes] %leave ~)
     ==
   ::
       [%notes %req ship=@ name=@ id=@ %watch ~]
@@ -970,6 +1029,75 @@
   ::  revocation rather than a replication gap.
   ?.  (group-synced u.grp)  &
   (group-can-read u.grp flag who)
+::  +said-path: subscription path for a single note-preview request
+::
+++  said-path
+  |=  [=flag:n nid=@ud]
+  ^-  path
+  /v0/said/(scot %p ship.flag)/[name.flag]/note/(scot %ud nid)
+::  +said-snippet: leading slice of body-md for preview cards
+::
+::  truncates to at most 400 bytes without decoding, backing off to a
+::  utf-8 boundary so the result is always valid text — a
+::  multi-megabyte note costs the same as a small one, which matters
+::  because public notebooks answer any ship. known limitation: the
+::  cut can split a grapheme cluster (a trailing emoji family may
+::  lose members); the result is valid, just visually shorter. full
+::  cluster handling needs the uax #29 property tables — port them if
+::  this ever matters in practice.
+::
+++  said-snippet
+  |=  body=@t
+  ^-  @t
+  =/  cap=@ud  400
+  ?:  (lte (met 3 body) cap)  body
+  |-
+  ?:  =(0 cap)  ''
+  =/  b=@  (cut 3 [cap 1] body)
+  ?.  &((gte b 0x80) (lth b 0xc0))
+    `@t`(end [3 cap] body)
+  $(cap (dec cap))
+::  +give-said: one %fact then an immediate %kick
+::
+::  mirrors %channels' single-shot said flow. public notebooks preview
+::  for anyone; unlike +can-view-flag (which treats an unsynced group
+::  as viewable so subscriptions only drop on real revocations),
+::  previews fail closed: no synced group, no snippet. %notes-denied
+::  strictly means no permission — a missing note for an authorized
+::  viewer is %notes-error, while missing notebooks stay denied so
+::  existence can't be probed.
+::
+++  give-said
+  |=  [paths=(list path) =flag:n nid=@ud who=ship]
+  ^+  cor
+  =/  =cage
+    ?~  entry=(get-book flag)  notes-denied+!>(~)
+    =*  bs  notebook-state.u.entry
+    ::  mirrors +se-member-join: visibility only means something for
+    ::  non-group notebooks; group mode's sole authority is can-read
+    =/  can-view=?
+      ?~  grp=group.bs
+        ?|  =(%public visibility.bs)
+            !=(~ (~(get by members.bs) who))
+        ==
+      ?&  (group-synced u.grp)
+          (group-can-read u.grp flag who)
+      ==
+    ?.  can-view
+      notes-denied+!>(~)
+    ?~  nt=(~(get by notes.bs) nid)  notes-error+!>(~)
+    :-  %notes-said
+    !>  ^-  said:n
+    :-  flag
+    :*  nid
+        title.u.nt
+        (said-snippet body-md.u.nt)
+        created-by.u.nt
+        updated-at.u.nt
+        title.notebook.bs
+    ==
+  =.  cor  (give %fact paths cage)
+  (give %kick paths ~)
 ::  +recheck-group-access: a fact arrived for group `changed`, so read
 ::  permissions there may have shifted. Re-run can-read for every remote
 ::  subscriber on a hosted notebook bound to that group and %kick any who've
@@ -2077,9 +2205,16 @@
     =/  =note:n
       (~(got by notes.notebook-state) nid)
     ?>  (se-can-edit src.bowl)
-    ::  strict optimistic concurrency check (no force-update sentinel)
+    ::  strict optimistic concurrency check (no force-update sentinel).
+    ::  A stale revision finalizes as a typed %conflict rather than
+    ::  crashing: a crash nacks the proxying ship's poke, which it can
+    ::  only report as %unknown — indistinguishable from a transient
+    ::  failure, so clients can't run conflict recovery.
     ?:  !=(revision.note expected-revision)
-      ~|(%revision-mismatch !!)
+      =/  msg=tape
+        %+  weld  "revision-mismatch: expected {<expected-revision>}"
+        ", current {<revision.note>}"
+      (se-finalize-with [%error %conflict ~[leaf+msg]])
     ::  no-op early-out: body unchanged
     ?:  =(body-md.note body)
       se-core

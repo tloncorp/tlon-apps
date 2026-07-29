@@ -6,13 +6,13 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FlashListRef } from '@shopify/flash-list';
 import { markInvitesRead } from '@tloncorp/api';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
-import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
+import { Text, YStack } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
@@ -34,7 +34,6 @@ import {
   NavigationProvider,
   PersonalInviteSheet,
   Pressable,
-  RequestsProvider,
   ScreenHeader,
   View,
   triggerHaptic,
@@ -97,6 +96,7 @@ export function ChatListScreenView({
   const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
 
   const [showSearchInput, setShowSearchInput] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const isFocused = useIsFocused();
 
   const { data: chats } = store.useCurrentChats({
@@ -249,30 +249,49 @@ export function ChatListScreenView({
         if (item.isPending) {
           setSelectedGroupId(item.id);
         } else {
-          logger.trackEvent(
-            AnalyticsEvent.ActionTappedChat,
-            logic.getModelAnalytics({ group: item.group })
-          );
+          logger.trackEvent(AnalyticsEvent.ActionTappedChat, {
+            ...logic.getModelAnalytics({ group: item.group }),
+            source: searchQuery.trim() ? 'home_search' : 'chat_list',
+          });
           navigateToGroup(item.group.id);
         }
       } else {
-        logger.trackEvent(
-          AnalyticsEvent.ActionTappedChat,
-          logic.getModelAnalytics({ channel: item.channel })
-        );
+        logger.trackEvent(AnalyticsEvent.ActionTappedChat, {
+          ...logic.getModelAnalytics({ channel: item.channel }),
+          source: searchQuery.trim() ? 'home_search' : 'chat_list',
+        });
         navigateToChannel(item.channel);
       }
     },
-    [navigateToGroup, navigateToChannel]
+    [navigateToGroup, navigateToChannel, searchQuery]
+  );
+
+  const handlePressTab = useCallback(
+    (tab: TabName) => {
+      if (tab !== activeTab) {
+        trackEvent(AnalyticsEvent.HomeFilterSelected, {
+          tab,
+        });
+        setActiveTab(tab);
+      }
+    },
+    [activeTab]
   );
 
   const handlePressAddChat = useCallback(() => {
+    // Close the filter input (and its keyboard) before opening the sheet so
+    // the keyboard can't overlap it and trap touches (TLON-6187).
+    if (showSearchInput) {
+      setSearchQuery('');
+      setShowSearchInput(false);
+      Keyboard.dismiss();
+    }
     db.wayfindingProgress.setValue((prev) => ({
       ...prev,
       tappedHomeAdd: true,
     }));
     createChatSheetRef.current?.open();
-  }, []);
+  }, [showSearchInput]);
 
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
@@ -311,8 +330,6 @@ export function ChatListScreenView({
     }
   }, [isTlonEmployee]);
 
-  const [searchQuery, setSearchQuery] = useState('');
-
   const isWindowNarrow = useIsWindowNarrow();
   const showHomeAddTooltip = store.useShowHomeAddTooltip();
 
@@ -322,11 +339,16 @@ export function ChatListScreenView({
         setSearchQuery('');
         Keyboard.dismiss();
       }
+      if (!showSearchInput) {
+        trackEvent(AnalyticsEvent.HomeSearchOpened, {
+          tab: activeTab,
+        });
+      }
       setShowSearchInput(!showSearchInput);
     } else {
       setIsOpen(!isOpen);
     }
-  }, [showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
+  }, [activeTab, showSearchInput, isWindowNarrow, isOpen, setIsOpen]);
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -345,6 +367,9 @@ export function ChatListScreenView({
   }, []);
 
   const handlePressTryAll = useCallback(() => {
+    trackEvent(AnalyticsEvent.HomeFilterSelected, {
+      tab: 'home',
+    });
     setActiveTab('home');
   }, [setActiveTab]);
 
@@ -368,13 +393,7 @@ export function ChatListScreenView({
   }, [chats]);
 
   return (
-    <RequestsProvider
-      usePostReference={store.usePostReference}
-      useChannel={store.useChannelPreview}
-      usePost={store.usePostWithRelations}
-      useApp={db.appInfo.useValue}
-      useGroup={store.useGroupPreview}
-    >
+    <>
       <ChatOptionsProvider
         {...useChatSettingsNavigation()}
         onPressInvite={handlePressInvite}
@@ -435,7 +454,10 @@ export function ChatListScreenView({
               chats.pending.length ||
               chats.pinned.length) ? (
               <>
-                <ChatListTabs onPressTab={setActiveTab} activeTab={activeTab} />
+                <ChatListTabs
+                  onPressTab={handlePressTab}
+                  activeTab={activeTab}
+                />
                 <ChatListSearch
                   query={searchQuery}
                   onQueryChange={setSearchQuery}
@@ -491,7 +513,7 @@ export function ChatListScreenView({
         onOpenChange={() => setPersonalInviteOpen(false)}
         onPressInviteFriends={handleInviteFriends}
       />
-    </RequestsProvider>
+    </>
   );
 }
 

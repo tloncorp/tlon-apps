@@ -705,7 +705,7 @@ class TlonTelemetry:
             {"uptimeSeconds": uptime_seconds, "reason": reason},
         )
 
-    def sse_reconnect(self, *, attempt: int, delay_seconds: float, error: Any) -> None:
+    def sse_reconnect(self, *, attempt: int, delay_seconds: float, error: Any, mode: str = "rebuild") -> None:
         self.capture(
             EVENT_SSE_RECONNECT,
             {
@@ -713,6 +713,7 @@ class TlonTelemetry:
                 "delaySeconds": delay_seconds,
                 "errorType": type(error).__name__ if error is not None else None,
                 "detail": scrub_detail(error),
+                "mode": mode,
             },
         )
 

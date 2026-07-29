@@ -5,6 +5,7 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import {
+  AnalyticsEvent,
   createNotebookFolder,
   createNotebookNote,
   deleteNotebookFolder,
@@ -16,6 +17,7 @@ import {
   publishedNotePath,
   publishedNoteUrl,
   renameNotebookFolder,
+  trackEvent,
   unpublishNotebookNote,
   useLiveThreadUnreadsByChannel,
   useMutableCallback,
@@ -227,6 +229,15 @@ export function NotesNativeChannel({
     [folders, notes, unreadNoteIds]
   );
   const activeFolderId = folderId ?? rootFolderId;
+  const displayedFolderId =
+    folderId != null && folders.some((folder) => folder.folderId === folderId)
+      ? folderId
+      : null;
+  useEffect(() => {
+    if (displayedFolderId !== null) {
+      trackEvent(AnalyticsEvent.NotesFolderOpened);
+    }
+  }, [displayedFolderId]);
   const treeRows = useMemo(
     () =>
       buildFolderContentsRows({
@@ -380,6 +391,7 @@ export function NotesNativeChannel({
         title: '',
       });
       if (note) {
+        trackEvent(AnalyticsEvent.NoteCreated);
         openNote(note, { focusTitle: true, startInEdit: true });
       }
     });
@@ -399,11 +411,14 @@ export function NotesNativeChannel({
     const parentFolderId = newFolderParentId ?? rootFolderId;
     setIsCreatingFolder(true);
     await runAction('Failed to create folder', async () => {
-      await createNotebookFolder({
+      const folder = await createNotebookFolder({
         notebookFlag,
         parentFolderId,
         name: newFolderName.trim(),
       });
+      if (folder) {
+        trackEvent(AnalyticsEvent.NotesFolderCreated);
+      }
       setNewFolderName('');
       setNewFolderParentId(null);
       setAddFolderOpen(false);
