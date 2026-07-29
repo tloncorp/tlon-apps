@@ -335,9 +335,7 @@ export class UrbitSSEClient {
    * and the handler is still present (a rebuild recreates every registered
    * subscription itself; a quit supersedes the old id).
    */
-  private async claimAndSendPendingSubscription(
-    subId: number
-  ): Promise<
+  private async claimAndSendPendingSubscription(subId: number): Promise<
     | { outcome: 'sent' }
     | {
         outcome: 'failed';
