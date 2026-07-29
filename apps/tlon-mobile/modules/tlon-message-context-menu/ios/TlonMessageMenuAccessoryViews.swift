@@ -20,6 +20,34 @@ private final class TlonMessageMenuButton: UIButton {
     }
 }
 
+protocol TlonMessageMenuButtonCollection: AnyObject {
+    associatedtype Payload
+    var buttons: [(payload: Payload, button: UIButton)] { get }
+}
+
+extension TlonMessageMenuButtonCollection where Self: UIView {
+    func updateHighlight(at point: CGPoint?) {
+        for (_, button) in buttons {
+            guard let point else {
+                button.isHighlighted = false
+                continue
+            }
+            let localPoint = button.convert(point, from: self)
+            button.isHighlighted = button.bounds.contains(localPoint)
+        }
+    }
+
+    func selectedButton(at point: CGPoint) -> (payload: Payload, button: UIButton)? {
+        for (payload, button) in buttons {
+            let localPoint = button.convert(point, from: self)
+            if button.bounds.contains(localPoint) {
+                return (payload, button)
+            }
+        }
+        return nil
+    }
+}
+
 private final class TlonMessageActionRowView: UIView {
     let button = TlonMessageMenuButton(type: .custom)
     private let iconView = UIImageView()
@@ -92,13 +120,13 @@ private final class TlonMessageActionRowView: UIView {
     }
 }
 
-final class TlonMessageActionListView: UIView {
+final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
     private let blurView = UIVisualEffectView(
         effect: UIBlurEffect(style: .systemMaterialDark)
     )
     private let scrollView = UIScrollView()
     private let stackView = UIStackView()
-    private var buttons: [(id: String, button: UIButton)] = []
+    var buttons: [(payload: String, button: UIButton)] = []
 
     var onSelection: ((String) -> Void)?
 
@@ -155,25 +183,8 @@ final class TlonMessageActionListView: UIView {
         scrollView.contentSize = stackView.bounds.size
     }
 
-    func updateHighlight(at point: CGPoint?) {
-        for (_, button) in buttons {
-            guard let point else {
-                button.isHighlighted = false
-                continue
-            }
-            let localPoint = button.convert(point, from: self)
-            button.isHighlighted = button.bounds.contains(localPoint)
-        }
-    }
-
     func selection(at point: CGPoint) -> String? {
-        for (id, button) in buttons {
-            let localPoint = button.convert(point, from: self)
-            if button.bounds.contains(localPoint) {
-                return id
-            }
-        }
-        return nil
+        selectedButton(at: point)?.payload
     }
 
     private func makeRow(
@@ -204,16 +215,16 @@ final class TlonMessageActionListView: UIView {
         guard sender.tag < buttons.count else {
             return
         }
-        onSelection?(buttons[sender.tag].id)
+        onSelection?(buttons[sender.tag].payload)
     }
 }
 
-final class TlonMessageReactionBarView: UIView {
+final class TlonMessageReactionBarView: UIView, TlonMessageMenuButtonCollection {
     private let blurView = UIVisualEffectView(
         effect: UIBlurEffect(style: .systemMaterialDark)
     )
     private let stackView = UIStackView()
-    private var buttons: [(value: String?, button: UIButton)] = []
+    var buttons: [(payload: String?, button: UIButton)] = []
 
     var onReaction: ((String) -> Void)?
     var onMoreReactions: (() -> Void)?
@@ -268,29 +279,14 @@ final class TlonMessageReactionBarView: UIView {
         stackView.frame = bounds.insetBy(dx: 8, dy: 6)
     }
 
-    func updateHighlight(at point: CGPoint?) {
-        for (_, button) in buttons {
-            guard let point else {
-                button.isHighlighted = false
-                continue
-            }
-            let localPoint = button.convert(point, from: self)
-            button.isHighlighted = button.bounds.contains(localPoint)
-        }
-    }
-
     func selection(at point: CGPoint) -> TlonMessageMenuSelection? {
-        for (value, button) in buttons {
-            let localPoint = button.convert(point, from: self)
-            guard button.bounds.contains(localPoint) else {
-                continue
-            }
-            if let value {
-                return .reaction(value)
-            }
-            return .moreReactions
+        guard let selection = selectedButton(at: point) else {
+            return nil
         }
-        return nil
+        if let value = selection.payload {
+            return .reaction(value)
+        }
+        return .moreReactions
     }
 
     private func makeButton(
@@ -320,7 +316,7 @@ final class TlonMessageReactionBarView: UIView {
         guard sender.tag < buttons.count else {
             return
         }
-        if let value = buttons[sender.tag].value {
+        if let value = buttons[sender.tag].payload {
             onReaction?(value)
         } else {
             onMoreReactions?()

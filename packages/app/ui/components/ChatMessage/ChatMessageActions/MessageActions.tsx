@@ -22,6 +22,7 @@ import {
   DraftInputContext,
   useDraftInputContext,
 } from '../../draftInputs/shared';
+import { isMessageActionVisible } from './messageActionVisibility';
 
 const ENABLE_COPY_JSON = __DEV__;
 
@@ -29,6 +30,8 @@ type DraftTextTarget = Pick<
   DraftInputContext,
   'getDraft' | 'startDraft' | 'storeDraft'
 >;
+
+type RunAfterDismiss = (action: () => void) => void;
 
 export default function MessageActions({
   dismiss,
@@ -47,8 +50,21 @@ export default function MessageActions({
   post: db.Post;
   postActionIds: ChannelAction.Id[];
 }) {
+  const runAfterDismiss = useCallback(
+    (action: () => void) => {
+      if (Platform.OS === 'ios') {
+        dismiss();
+        setTimeout(action, 300);
+      } else {
+        action();
+        dismiss();
+      }
+    },
+    [dismiss]
+  );
   const { actions, performAction } = useMessageActionModel({
     dismiss,
+    runAfterDismiss,
     onReply,
     onEdit,
     onViewReactions,
@@ -114,7 +130,7 @@ export function useMessageActionModel({
   onViewBotRun,
   post,
   postActionIds,
-  presentationAlreadyDismissed = false,
+  runAfterDismiss,
 }: {
   post: db.Post;
   postActionIds: ChannelAction.Id[];
@@ -123,7 +139,7 @@ export function useMessageActionModel({
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
   onViewBotRun?: (post: db.Post) => void;
-  presentationAlreadyDismissed?: boolean;
+  runAfterDismiss: RunAfterDismiss;
 }) {
   const currentUserId = useCurrentUserId();
   const connectionStatus = store.useConnectionStatus();
@@ -142,48 +158,30 @@ export function useMessageActionModel({
   );
 
   const visibleActionIds = useMemo(() => {
-    return postActionIds.filter((actionId) => {
-      const action = ChannelAction.staticSpecForId(actionId);
-      if (action.isNetworkDependent && connectionStatus !== 'Connected') {
-        return false;
-      }
-
-      switch (actionId) {
-        case 'startThread':
-          return !post.deliveryStatus && !post.parentId;
-        case 'muteThread':
-          return Boolean(post.parentId || (post.replyCount || 0) > 0);
-        case 'edit':
-          return (
-            post.authorId === currentUserId ||
-            (channel.type === 'notebook' &&
-              currentUserIsAdmin &&
-              !post.parentId)
-          );
-        case 'delete':
-          return post.authorId === currentUserId || currentUserIsAdmin;
-        case 'viewReactions':
-          return (post.reactions?.length ?? 0) > 0;
-        case 'visibility':
-          return post.authorId !== currentUserId;
-        case 'pinPost':
-          return (
-            currentUserIsAdmin && !post.parentId && pinnedPostId !== post.id
-          );
-        case 'unpinPost':
-          return currentUserIsAdmin && pinnedPostId === post.id;
-        case 'quote':
-          return !!draftInputContext?.canStartDraft;
-        case 'replyToComment':
-          return (
-            !!post.parentId &&
-            post.authorId !== currentUserId &&
-            !!draftInputContext?.canStartDraft
-          );
-        default:
-          return true;
-      }
-    });
+    const isConnected = connectionStatus === 'Connected';
+    const canStartDraft = Boolean(draftInputContext?.canStartDraft);
+    const visibilityPost = {
+      id: post.id,
+      authorId: post.authorId,
+      parentId: post.parentId,
+      deliveryStatus: post.deliveryStatus,
+      replyCount: post.replyCount,
+      reactionCount: post.reactions?.length ?? 0,
+    };
+    return postActionIds.filter((actionId) =>
+      isMessageActionVisible(actionId, {
+        isNetworkDependent: Boolean(
+          ChannelAction.staticSpecForId(actionId).isNetworkDependent
+        ),
+        isConnected,
+        currentUserId,
+        currentUserIsAdmin,
+        canStartDraft,
+        channelType: channel.type,
+        pinnedPostId,
+        post: visibilityPost,
+      })
+    );
   }, [
     postActionIds,
     connectionStatus,
@@ -242,15 +240,7 @@ export function useMessageActionModel({
         if (!onViewBotRun) {
           return;
         }
-        if (Platform.OS === 'ios' && !presentationAlreadyDismissed) {
-          dismiss();
-          setTimeout(() => onViewBotRun(post), 300);
-        } else {
-          onViewBotRun(post);
-          if (!presentationAlreadyDismissed) {
-            dismiss();
-          }
-        }
+        runAfterDismiss(() => onViewBotRun(post));
         return;
       }
 
@@ -273,15 +263,10 @@ export function useMessageActionModel({
               storeDraft: draftInputContext.storeDraft,
             }
           : null,
-        presentationAlreadyDismissed,
+        runAfterDismiss,
       };
       if (id === 'delete') {
-        const { postTerm } = displaySpecForChannelActionId(id, {
-          post,
-          channel,
-          currentUserId,
-          currentUserIsAdmin,
-        });
+        const postTerm = postTermForChannel(channel);
         confirmDeleteAction(postTerm, () => {
           void handleAction(actionArgs);
         });
@@ -293,7 +278,6 @@ export function useMessageActionModel({
       addAttachment,
       channel,
       currentUserId,
-      currentUserIsAdmin,
       dismiss,
       draftInputContext,
       forwardPost,
@@ -302,7 +286,7 @@ export function useMessageActionModel({
       onViewBotRun,
       onViewReactions,
       post,
-      presentationAlreadyDismissed,
+      runAfterDismiss,
     ]
   );
 
@@ -357,7 +341,7 @@ export async function handleAction({
   onForward,
   addAttachment,
   draftTextTarget,
-  presentationAlreadyDismissed = false,
+  runAfterDismiss,
 }: {
   id: ChannelAction.Id;
   post: db.Post;
@@ -371,7 +355,7 @@ export async function handleAction({
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
   draftTextTarget?: DraftTextTarget | null;
-  presentationAlreadyDismissed?: boolean;
+  runAfterDismiss: RunAfterDismiss;
 }) {
   const [path, reference] = logic.postToContentReference(post);
 
@@ -439,17 +423,7 @@ export async function handleAction({
       post.hidden ? store.showPost({ post }) : store.hidePost({ post });
       break;
     case 'forward':
-      // On iOS, dismiss the current modal first, then open the forward sheet
-      // to avoid race condition between two modals
-      if (Platform.OS === 'ios' && !presentationAlreadyDismissed) {
-        dismiss();
-        setTimeout(() => onForward?.(post), 300);
-      } else {
-        onForward?.(post);
-        if (!presentationAlreadyDismissed) {
-          dismiss();
-        }
-      }
+      runAfterDismiss(() => onForward?.(post));
       triggerHaptic('success');
       return; // Early return to avoid double dismiss
     case 'pinPost':
@@ -461,9 +435,7 @@ export async function handleAction({
   }
 
   triggerHaptic('success');
-  if (!presentationAlreadyDismissed) {
-    dismiss();
-  }
+  dismiss();
 }
 
 async function prependTextToDraft(
@@ -544,32 +516,7 @@ async function prependMentionToDraft(
  * the UI context - e.g. the label for `startThread` changes based on channel
  * type.
  */
-export function useDisplaySpecForChannelActionId(
-  id: ChannelAction.Id,
-  {
-    post,
-    channel,
-    currentUserId,
-    currentUserIsAdmin,
-  }: {
-    post: db.Post;
-    channel: db.Channel;
-    currentUserId: string;
-    currentUserIsAdmin: boolean;
-  }
-): {
-  label: string;
-  postTerm: string;
-} {
-  return displaySpecForChannelActionId(id, {
-    post,
-    channel,
-    currentUserId,
-    currentUserIsAdmin,
-  });
-}
-
-function displaySpecForChannelActionId(
+export function displaySpecForChannelActionId(
   id: ChannelAction.Id,
   {
     post,
@@ -587,9 +534,7 @@ function displaySpecForChannelActionId(
   postTerm: string;
 } {
   const isMuted = logic.isMuted(post.volumeSettings?.level, 'thread');
-  const postTerm = ['dm', 'groupDm', 'chat'].includes(channel?.type)
-    ? 'message'
-    : 'post';
+  const postTerm = postTermForChannel(channel);
 
   const spec = (() => {
     switch (id) {
@@ -672,4 +617,8 @@ function displaySpecForChannelActionId(
   })();
 
   return { ...spec, postTerm };
+}
+
+function postTermForChannel(channel: db.Channel) {
+  return ['dm', 'groupDm', 'chat'].includes(channel.type) ? 'message' : 'post';
 }

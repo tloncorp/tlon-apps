@@ -1,5 +1,11 @@
 import UIKit
 
+struct MenuLayout: Equatable {
+    let previewFrame: CGRect
+    let actionFrame: CGRect
+    let reactionFrame: CGRect?
+}
+
 // Presents the native message preview, reaction bar, and action list.
 final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate {
     private enum Animation {
@@ -13,6 +19,30 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     }
 
     private static let backdropColor = UIColor.black.withAlphaComponent(0.32)
+    private static let scaleBounceValues: [NSNumber] = {
+        let sampleCount = max(
+            30,
+            Int(ceil(Animation.scaleBounceDuration * 120))
+        )
+        return (0 ... sampleCount).map { index in
+            let time = Double(index) / Double(sampleCount)
+            let normalizedProgress: Double
+            let scaleProgress: Double
+
+            if time <= Animation.scaleBouncePeak {
+                normalizedProgress = time / Animation.scaleBouncePeak
+                scaleProgress = smootherStep(normalizedProgress)
+            } else {
+                normalizedProgress = (time - Animation.scaleBouncePeak)
+                    / (1 - Animation.scaleBouncePeak)
+                scaleProgress = 1 - smootherStep(normalizedProgress)
+            }
+
+            return NSNumber(
+                value: 1 + Animation.scaleBounce * scaleProgress
+            )
+        }
+    }()
 
     private weak var sourceView: UIView?
     private let sourceSnapshot: UIView
@@ -32,6 +62,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     private var targetPreviewFrame = CGRect.zero
     private var targetActionFrame = CGRect.zero
     private var targetReactionFrame = CGRect.zero
+    private var isPresenting = false
     private var isDismissing = false
     private var appDidEnterBackgroundObserver: NSObjectProtocol?
 
@@ -93,6 +124,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         window.addSubview(self)
         setNeedsLayout()
         layoutIfNeeded()
+        isPresenting = true
 
         previewContainer.frame = sourceFrame
         sourceSnapshot.frame = previewContainer.bounds
@@ -146,6 +178,12 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
                 size: self.targetActionFrame.size
             )
             self.reactionBar?.frame = self.targetReactionFrame
+        } completion: { _ in
+            self.isPresenting = false
+            guard !self.isDismissing else {
+                return
+            }
+            self.applyTargetLayout()
         }
 
         animateScaleBounce()
@@ -174,28 +212,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
 
     private func animateScaleBounce() {
         let animation = CAKeyframeAnimation(keyPath: "transform.scale")
-        let sampleCount = max(
-            30,
-            Int(ceil(Animation.scaleBounceDuration * 120))
-        )
-        animation.values = (0 ... sampleCount).map { index in
-            let time = Double(index) / Double(sampleCount)
-            let normalizedProgress: Double
-            let scaleProgress: Double
-
-            if time <= Animation.scaleBouncePeak {
-                normalizedProgress = time / Animation.scaleBouncePeak
-                scaleProgress = Self.smootherStep(normalizedProgress)
-            } else {
-                normalizedProgress = (time - Animation.scaleBouncePeak)
-                    / (1 - Animation.scaleBouncePeak)
-                scaleProgress = 1 - Self.smootherStep(normalizedProgress)
-            }
-
-            return NSNumber(
-                value: 1 + Animation.scaleBounce * scaleProgress
-            )
-        }
+        animation.values = Self.scaleBounceValues
         animation.calculationMode = .linear
         animation.duration = Animation.scaleBounceDuration
         animation.beginTime = CACurrentMediaTime()
@@ -265,6 +282,38 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         dimView.frame = bounds
 
         let safeInsets = window?.safeAreaInsets ?? safeAreaInsets
+        let layout = Self.resolveLayout(
+            bounds: bounds,
+            safeInsets: safeInsets,
+            sourceFrame: sourceFrame,
+            actionContentHeight: actionList.contentHeight,
+            actionWidth: actionList.menuWidth,
+            reactionSize: reactionBar.map {
+                CGSize(width: $0.barWidth, height: $0.barHeight)
+            },
+            alignment: alignment,
+            accessoryGap: accessoryGap
+        )
+
+        targetPreviewFrame = layout.previewFrame
+        targetActionFrame = layout.actionFrame
+        targetReactionFrame = layout.reactionFrame ?? .zero
+
+        if !isPresenting, !isDismissing {
+            applyTargetLayout()
+        }
+    }
+
+    static func resolveLayout(
+        bounds: CGRect,
+        safeInsets: UIEdgeInsets,
+        sourceFrame: CGRect,
+        actionContentHeight: CGFloat,
+        actionWidth: CGFloat,
+        reactionSize: CGSize?,
+        alignment: TlonMessageMenuAlignment,
+        accessoryGap: CGFloat
+    ) -> MenuLayout {
         let horizontalMargin: CGFloat = 16
         let verticalMargin: CGFloat = 12
         let safeFrame = bounds.inset(by: UIEdgeInsets(
@@ -279,8 +328,8 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
             ? previewWidth / sourceFrame.width
             : 1
         let scaledSourceHeight = sourceFrame.height * previewScale
-        let reactionHeight = reactionBar?.barHeight ?? 0
-        let reactionGap = reactionBar == nil ? 0 : accessoryGap
+        let reactionHeight = reactionSize?.height ?? 0
+        let reactionGap = reactionSize == nil ? 0 : accessoryGap
         let minimumPreviewHeight = min(scaledSourceHeight, 72)
         let maximumActionHeight = max(
             50,
@@ -290,7 +339,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
                 - minimumPreviewHeight
                 - accessoryGap
         )
-        let actionHeight = min(actionList.contentHeight, maximumActionHeight)
+        let actionHeight = min(actionContentHeight, maximumActionHeight)
         let maximumPreviewHeight = max(
             minimumPreviewHeight,
             safeFrame.height
@@ -324,32 +373,57 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
             safeFrame.maxX - previewWidth
         )
 
-        targetPreviewFrame = CGRect(
+        let previewFrame = CGRect(
             x: previewX,
             y: previewY,
             width: previewWidth,
             height: previewHeight
         )
 
-        targetActionFrame = CGRect(
-            x: alignedAccessoryX(width: actionList.menuWidth, safeFrame: safeFrame),
+        func alignedAccessoryX(width: CGFloat) -> CGFloat {
+            let desiredX: CGFloat
+            switch alignment {
+            case .leading:
+                desiredX = previewFrame.minX
+            case .trailing:
+                desiredX = previewFrame.maxX - width
+            }
+
+            return min(
+                max(desiredX, safeFrame.minX),
+                safeFrame.maxX - width
+            )
+        }
+
+        let actionFrame = CGRect(
+            x: alignedAccessoryX(width: actionWidth),
             y: actionY,
-            width: actionList.menuWidth,
+            width: actionWidth,
             height: actionHeight
         )
+
+        let reactionFrame = reactionSize.map {
+            CGRect(
+                x: alignedAccessoryX(width: $0.width),
+                y: reactionY,
+                width: $0.width,
+                height: $0.height
+            )
+        }
+
+        return MenuLayout(
+            previewFrame: previewFrame,
+            actionFrame: actionFrame,
+            reactionFrame: reactionFrame
+        )
+    }
+
+    private func applyTargetLayout() {
+        previewContainer.frame = targetPreviewFrame
         actionMotionView.frame = targetActionFrame
         actionRevealView.frame = actionMotionView.bounds
         actionList.frame = actionMotionView.bounds
-
-        if let reactionBar {
-            targetReactionFrame = CGRect(
-                x: alignedAccessoryX(width: reactionBar.barWidth, safeFrame: safeFrame),
-                y: reactionY,
-                width: reactionBar.barWidth,
-                height: reactionBar.barHeight
-            )
-            reactionBar.frame = targetReactionFrame
-        }
+        reactionBar?.frame = targetReactionFrame
     }
 
     private func actionFrame(attachedTo previewFrame: CGRect) -> CGRect {
@@ -407,21 +481,6 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         }
     }
 
-    private func alignedAccessoryX(width: CGFloat, safeFrame: CGRect) -> CGFloat {
-        let desiredX: CGFloat
-        switch alignment {
-        case .leading:
-            desiredX = targetPreviewFrame.minX
-        case .trailing:
-            desiredX = targetPreviewFrame.maxX - width
-        }
-
-        return min(
-            max(desiredX, safeFrame.minX),
-            safeFrame.maxX - width
-        )
-    }
-
     private func dismiss(with selection: TlonMessageMenuSelection?) {
         guard !isDismissing else {
             return
@@ -444,6 +503,8 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
             options: [.beginFromCurrentState, .allowUserInteraction, .curveEaseIn]
         ) {
             self.dimView.backgroundColor = .clear
+            self.actionRevealView.frame.size.height = 0
+            self.actionRevealView.alpha = 0
         }
 
         UIView.animate(
@@ -453,14 +514,6 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         ) {
             self.previewContainer.backgroundColor = .clear
             self.reactionBar?.alpha = 0
-        }
-
-        UIView.animate(
-            withDuration: 0.18,
-            delay: 0,
-            options: [.beginFromCurrentState, .allowUserInteraction, .curveEaseIn]
-        ) {
-            self.actionRevealView.frame.size.height = 0
         }
 
         UIView.animate(

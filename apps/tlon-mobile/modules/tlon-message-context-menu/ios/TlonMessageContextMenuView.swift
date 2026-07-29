@@ -59,6 +59,10 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         isAccessibilityElement = false
     }
 
+    deinit {
+        presentationView?.dismiss()
+    }
+
     @objc
     private func handlePressIndication(_ recognizer: UILongPressGestureRecognizer) {
         switch recognizer.state {

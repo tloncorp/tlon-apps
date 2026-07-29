@@ -8,6 +8,7 @@ import { View, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
+import { useIsScreenReaderEnabled } from '../../hooks/useIsScreenReaderEnabled';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
@@ -107,10 +108,17 @@ const ChatMessage = ({
     }
   }, []);
 
+  // VoiceOver intercepts touches before they reach the native menu's long-press
+  // recognizer, which would leave message actions unreachable. Fall back to the
+  // JS action sheet - the same path Android and web already use - so the
+  // actions stay available.
+  const isScreenReaderEnabled = useIsScreenReaderEnabled();
+  const usesNativeContextMenu = Platform.OS === 'ios' && !isScreenReaderEnabled;
+
   return (
     <MaskedChatMessage post={post}>
       <MessageContextMenu
-        enabled={Boolean(onLongPress)}
+        enabled={Boolean(onLongPress) && usesNativeContextMenu}
         post={post}
         postActionIds={postActionIds}
         canReact={canWrite}
@@ -121,9 +129,10 @@ const ChatMessage = ({
         onShowEmojiPicker={handleEmojiPickerPressed}
       >
         <Pressable
-          // iOS long presses are owned by the native context-menu host.
+          // iOS long presses are owned by the native context-menu host, except
+          // under a screen reader - see `usesNativeContextMenu`.
           onPress={shouldHandlePress ? handlePress : undefined}
-          onLongPress={Platform.OS === 'ios' ? undefined : handleLongPress}
+          onLongPress={usesNativeContextMenu ? undefined : handleLongPress}
           onMouseEnter={handleHoverIn}
           onMouseLeave={handleHoverOut}
           pressStyle={{}}
@@ -141,7 +150,7 @@ const ChatMessage = ({
               hideProfilePreview,
               hideSentAtTimestamp: hideOverflowMenu || !isHovered,
               isHighlighted,
-              onLongPress: Platform.OS === 'ios' ? undefined : onLongPress,
+              onLongPress: usesNativeContextMenu ? undefined : onLongPress,
               onPressBotRun,
               onPressImage,
               onPressReplies,

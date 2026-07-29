@@ -30,6 +30,8 @@ const NativeMessageContextMenu =
   );
 
 const defaultReactions = ['👍', '❤️', '😂'];
+const noop = () => {};
+const runImmediately = (action: () => void) => action();
 
 export function MessageContextMenu(props: MessageContextMenuProps) {
   if (!props.enabled) {
@@ -56,16 +58,16 @@ function EnabledMessageContextMenu({
     post.reactions ?? [],
     currentUserId
   );
-  const onEmojiSelect = useOnEmojiSelect(post, () => {});
+  const onEmojiSelect = useOnEmojiSelect(post, noop);
   const { actions, performAction } = useMessageActionModel({
     post,
     postActionIds,
-    dismiss: () => {},
+    dismiss: noop,
+    runAfterDismiss: runImmediately,
     onReply,
     onEdit,
     onViewReactions,
     onViewBotRun,
-    presentationAlreadyDismissed: true,
   });
 
   const reactions = useMemo(() => {
