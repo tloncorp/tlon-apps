@@ -30,7 +30,7 @@ import {
   sendDmWithStory,
 } from './urbit/send.js';
 import { markdownToStory } from './urbit/story.js';
-import { uploadImageFromUrl } from './urbit/upload.js';
+import { prepareOutboundMedia } from './urbit/upload.js';
 
 type ResolvedTlonAccount = ReturnType<typeof resolveTlonAccount>;
 type ConfiguredTlonAccount = ResolvedTlonAccount & {
@@ -270,11 +270,11 @@ export const tlonRuntimeOutbound: Pick<
         allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
       },
       async () => {
-        const uploadedUrl = mediaUrl
-          ? await uploadImageFromUrl(mediaUrl)
+        const media = mediaUrl
+          ? await prepareOutboundMedia(mediaUrl)
           : undefined;
         const fromShip = normalizeShip(account.ship);
-        const story = buildMediaStory(text, uploadedUrl);
+        const story = buildMediaStory(text, media);
         const replyId = resolveReplyId(replyToId, threadId);
         const botProfile = await getBotProfile(fromShip);
         if (parsed.kind === 'dm') {

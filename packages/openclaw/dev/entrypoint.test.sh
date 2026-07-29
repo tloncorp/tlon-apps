@@ -38,6 +38,20 @@ mkdir -p /workspace/tlon
 echo "==> Installing plugin dependencies..."
 cd /workspace/tlon
 node scripts/resolve-workspace-deps.mjs package.json --registry
+# When the shared harness packs the workspace @tloncorp/api into a tarball
+# (see tlon-bot-e2e openclaw driver beforeComposeBuild), prefer it over the
+# published registry version so e2e tests exercise in-branch api code.
+# Requires BOTH the explicit opt-in env (set only by the shared harness) AND
+# the tarball file: file-existence alone would let a stale tarball from a
+# prior harness run silently contaminate legacy run.sh / standalone runs.
+if [ "${OPENCLAW_WORKSPACE_API_TARBALL:-0}" = "1" ] \
+  && [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
+  echo "==> Using workspace @tloncorp/api tarball"
+  jq '.dependencies["@tloncorp/api"] = "file:dev/tlon-api-workspace.tgz"' package.json > package.json.tmp \
+    && mv package.json.tmp package.json
+elif [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
+  echo "==> Ignoring workspace @tloncorp/api tarball (no harness opt-in); using registry"
+fi
 # This is a standalone install of the plugin (no root pnpm-workspace.yaml), so
 # the monorepo's pnpm settings aren't in scope. Generate a container-local
 # workspace file: pnpm reads these settings only from pnpm-workspace.yaml
@@ -58,6 +72,21 @@ dangerouslyAllowAllBuilds: true
 minimumReleaseAge: 0
 verifyDepsBeforeRun: false
 PNPM_EOF
+# The tarball's package.json declares ^3.190.0 for the AWS S3 SDK, so this
+# standalone install (no monorepo lockfile in scope) would float to latest.
+# Pin both packages to the exact monorepo lockfile resolution: newer SDK
+# checksum defaults break GCS-compatible endpoints (see storageApi.ts). The
+# pin must live HERE — pnpm 11 ignores a package.json `pnpm` section (it
+# warns "no longer read by pnpm"). If the workspace ever upgrades the SDK
+# intentionally, this pin moves with it.
+if [ "${OPENCLAW_WORKSPACE_API_TARBALL:-0}" = "1" ] \
+  && [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
+  cat >> pnpm-workspace.yaml << 'PNPM_EOF'
+overrides:
+  "@aws-sdk/client-s3": 3.190.0
+  "@aws-sdk/s3-request-presigner": 3.190.0
+PNPM_EOF
+fi
 pnpm install
 pnpm build
 

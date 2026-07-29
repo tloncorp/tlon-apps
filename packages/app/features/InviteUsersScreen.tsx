@@ -1,7 +1,8 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared';
 import { Button, LoadingSpinner } from '@tloncorp/ui';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack, getTokenValue } from 'tamagui';
 
@@ -12,7 +13,6 @@ import {
   NavigationProvider,
   PaddedBlock,
   ScreenHeader,
-  useStore,
 } from '../ui';
 import { InviteFriendsToTlonButton } from '../ui/components/InviteFriendsToTlonButton';
 
@@ -23,9 +23,14 @@ export function InviteUsersScreen() {
   const route = useRoute<InviteUsersScreenRouteProp>();
   const { groupId } = route.params ?? {};
   const { bottom } = useSafeAreaInsets();
-  const appStore = useStore();
-  const { data: group } = appStore.useGroup({ id: groupId ?? '' });
+  const { data: group } = store.useGroup({ id: groupId ?? '' });
   const disabledIds = store.useGroupsNegotiationClashes();
+
+  useEffect(() => {
+    if (groupId) {
+      trackEvent(AnalyticsEvent.InviteSurfaceOpened);
+    }
+  }, [groupId]);
 
   const handleGoBack = useCallback(() => {
     navigation.goBack();

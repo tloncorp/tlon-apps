@@ -105,6 +105,12 @@ TLON_GATEWAY_STATUS=true
 TLON_GATEWAY_STATUS_OWNER=~friend # optional override; defaults to TLON_OWNER_SHIP
 TLON_CONTEXT_LENS=true # off by default; durable bot-run records via %steward
 TLON_CONTEXT_LENS_OWNER=~friend # optional; defaults to TLON_OWNER_SHIP
+TLON_REENGAGEMENT_ENABLED=false # opt in to staged owner nudges
+TLON_NUDGE_TICK_INTERVAL_MS=900000
+TLON_NUDGE_ACTIVE_HOURS_START=09:00
+TLON_NUDGE_ACTIVE_HOURS_END=21:00
+TLON_NUDGE_ACTIVE_HOURS_TIMEZONE=America/New_York
+TLON_TIMEZONE=America/Chicago # used when the active-hours timezone is user
 ```
 
 `TLON_OWNER_SHIP` is required: it defines the owner identity for approvals, owner-only tools such as `tlon`/`cronjob`/MCP/file tools, owner-listen, telemetry identity, and home-channel defaults. Without it, Tlon chat-session tool calls fail closed.
@@ -152,6 +158,16 @@ Restart the Hermes gateway after changing these.
 `TLON_GATEWAY_STATUS` still pokes the legacy `%gateway-status` agent for online/offline notices. Context Lens uses `%steward`. A ship slog of `steward: gateway lease expired…` means steward is alive and a lease timed out; it does not mean Context Lens is disabled.
 
 The adapter also accepts the older `TLON_SHIP_*`, `TLON_URL/TLON_SHIP/TLON_CODE`, and `URBIT_*` aliases and passes them through to the CLI, so it works with the credential resolver in `@tloncorp/tlon-skill`.
+
+### Re-engagement nudges
+
+Set `TLON_REENGAGEMENT_ENABLED=true` to send the OpenClaw-compatible owner DM nudges after 7, 14, and 30 whole days of owner inactivity. The adapter is deliberately default-off; hosted enablement is supplied by the separate hosted entrypoint. State is shared in the `%settings` `moltbot`/`tlon` bucket through `lastOwnerMessageAt`, `lastOwnerMessageDate`, `lastNudgeStage`, and JSON-string `pendingNudge`, so a Hermes/OpenClaw harness switch carries it forward.
+
+Nudges use the runtime-editable `nudgeActiveHoursStart`, `nudgeActiveHoursEnd`, and `nudgeActiveHoursTimezone` keys when present. Each field falls back independently to the matching `TLON_NUDGE_ACTIVE_HOURS_*` env value, then to `09:00`–`21:00 America/New_York`; `user` uses `TLON_TIMEZONE`, and `local` uses the host timezone. The active window is `[start, end)`, supports overnight windows, and equal bounds intentionally disable sends.
+
+For duplicate prevention, `lastNudgeStage` is persisted before the DM is sent; a crash in between can lose one nudge but cannot double-send it. Like OpenClaw, a settings poke accepted by Eyre but later nacked by Gall is treated as accepted: a broken settings agent can therefore allow one duplicate after a failed put, retain a consumed `pendingNudge`, or delay a cleared stage.
+
+During a reconnect outage, a concurrently cleared `lastNudgeStage` is usually recovered by the next successful settings load: a load whose persisted owner activity is strictly newer than the shadow clears the stage. If the activity put was already observed live and only the ordered stage deletion was missed (disconnect mid-batch), the equal-activity load retains the old stage until still-newer owner activity — suppressing, never duplicating, nudges. Both cases require concurrent dual-harness operation; non-concurrent harness switching and single-harness operation are unaffected.
 
 Group attention is deterministic and happens before the model runs. Messages from allowed users dispatch when they mention the node id, bare node id, an alias in `TLON_BOT_MENTIONS`, or the node profile nickname. The nickname is fetched at startup and tracked live via a `contacts /v1/news` subscription: renaming the bot (including during onboarding) updates the wake terms without a restart, clearing the nickname drops that term, and the profile is re-synced after each SSE reconnect. Nickname lookup failures are non-fatal; the adapter falls back to node id, bare node id, and configured aliases.
 
@@ -242,6 +258,10 @@ All seven load on connect, hot-reload live via the `%settings` subscription (no 
 The `autoAcceptDmInvites` gate follows OpenClaw exactly: only the **owner's** invite bypasses the toggle; every other allowlisted ship — env `TLON_ALLOWED_USERS`/`TLON_ALLOW_ALL_USERS`/`TLON_DM_ALLOWLIST` or the settings-store `dmAllowlist` — is gated, and a gated-off invite is left pending in Tlon (not queued as a fresh approval; the ship is already approved). Unknown ships queue for owner approval regardless of the flag.
 
 **Read the current key, not OpenClaw's legacy duplicate.** OpenClaw historically also has an `autoDiscover` key; the hosting dashboard writes `autoDiscoverChannels`, and that is the only one Hermes reads.
+
+### Agent-initiated blocking
+
+The model can block an abusive DM sender with `[BLOCK_USER: ~ship | reason]`. Execution requires an exact reply correlation in a 1:1 DM, is limited to the currently correlated sender, and can never target the configured owner; directives in group channels, clubs, proactive sends, or uncorrelated replies are strip-only. A successful action blocks future DMs, notifies the owner directly with the reason, and is idempotent across delivery retries for that dispatch generation. Complete directives are stripped from inbound adapter-visible text, history, cites, approval previews, retry seeds, and downloaded document filenames before model dispatch.
 
 ### Divergences from OpenClaw (intentional)
 

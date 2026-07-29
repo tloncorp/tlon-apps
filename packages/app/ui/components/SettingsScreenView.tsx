@@ -37,7 +37,11 @@ export function SettingsScreenView(props: Props) {
   const botSettingsFocused =
     props.focusedRouteName === 'BotSettings' ||
     props.focusedRouteName === 'BotMcpSettings' ||
-    props.focusedRouteName === 'BotOtherSettings';
+    props.focusedRouteName === 'BotModelSettings' ||
+    props.focusedRouteName === 'BotApiKeySettings' ||
+    props.focusedRouteName === 'BotShipListSettings' ||
+    props.focusedRouteName === 'BotChannelRulesSettings' ||
+    props.focusedRouteName === 'BotChannelRuleSettings';
 
   const handleLogoutPressed = () => {
     if (isWeb) {

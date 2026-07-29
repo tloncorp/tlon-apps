@@ -10,9 +10,13 @@ import { Platform } from 'react-native';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
+import { BotApiKeySettingsScreen } from '../../features/settings/BotApiKeySettingsScreen';
+import { BotChannelRuleSettingsScreen } from '../../features/settings/BotChannelRuleSettingsScreen';
+import { BotChannelRulesScreen } from '../../features/settings/BotChannelRulesScreen';
 import { BotMcpSettingsScreen } from '../../features/settings/BotMcpSettingsScreen';
-import { BotOtherSettingsScreen } from '../../features/settings/BotOtherSettingsScreen';
+import { BotModelSettingsScreen } from '../../features/settings/BotModelSettingsScreen';
 import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
+import { BotShipListSettingsScreen } from '../../features/settings/BotShipListSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../../features/settings/PrivacyScreen';
@@ -116,6 +120,11 @@ export const SettingsNavigator = () => {
   return (
     <SettingsDrawer.Navigator
       initialRouteName="SettingsEmpty"
+      // Back should return to the previously focused screen (e.g. the
+      // BotSettings hub that holds the Apply bar), not the drawer's first route.
+      // The default 'firstRoute' would strand pending bot edits after
+      // BotSettings -> BotModelSettings -> Done.
+      backBehavior="history"
       drawerContent={DrawerContent}
       screenOptions={{
         headerShown: false,
@@ -151,8 +160,24 @@ export const SettingsNavigator = () => {
         component={BotMcpSettingsScreen}
       />
       <SettingsDrawer.Screen
-        name="BotOtherSettings"
-        component={BotOtherSettingsScreen}
+        name="BotModelSettings"
+        component={BotModelSettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotApiKeySettings"
+        component={BotApiKeySettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotShipListSettings"
+        component={BotShipListSettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotChannelRulesSettings"
+        component={BotChannelRulesScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotChannelRuleSettings"
+        component={BotChannelRuleSettingsScreen}
       />
       <SettingsDrawer.Screen
         name="FeatureFlags"

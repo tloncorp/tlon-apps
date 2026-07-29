@@ -1,10 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 
-import {
-  AppDataContextProvider,
-  RequestsProvider,
-  StoreProvider,
-} from '../../ui';
+import { AppDataContextProvider } from '../../ui';
 import { PostScreenView } from '../../ui';
 import { FixtureWrapper } from '../FixtureWrapper';
 import * as content from '../contentHelpers';
@@ -33,37 +29,25 @@ export const DetailViewFixture = ({
 }) => {
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <StoreProvider>
-        <AppDataContextProvider
-          contacts={Object.values(content.exampleContacts)}
-        >
-          <RequestsProvider
-            useChannel={content.useChannel}
-            useGroup={content.useGroup}
-            usePost={content.usePost}
-            usePostReference={content.usePostReference}
-            useApp={() => {}}
-          >
-            <PostScreenView
-              parentPost={{
-                ...post,
-                ...replyData,
-                channelId: channel.id,
-                channel,
-              }}
-              channel={channel}
-              group={group || null}
-              onPressRetry={async () => {}}
-              onPressDelete={() => {}}
-              negotiationMatch={true}
-              goBack={() => {}}
-              handleGoToUserProfile={() => {}}
-              onGroupAction={() => {}}
-              goToDm={() => {}}
-            />
-          </RequestsProvider>
-        </AppDataContextProvider>
-      </StoreProvider>
+      <AppDataContextProvider contacts={Object.values(content.exampleContacts)}>
+        <PostScreenView
+          parentPost={{
+            ...post,
+            ...replyData,
+            channelId: channel.id,
+            channel,
+          }}
+          channel={channel}
+          group={group || null}
+          onPressRetry={async () => {}}
+          onPressDelete={() => {}}
+          negotiationMatch={true}
+          goBack={() => {}}
+          handleGoToUserProfile={() => {}}
+          onGroupAction={() => {}}
+          goToDm={() => {}}
+        />
+      </AppDataContextProvider>
     </FixtureWrapper>
   );
 };

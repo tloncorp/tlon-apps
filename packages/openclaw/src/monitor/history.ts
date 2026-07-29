@@ -1,27 +1,13 @@
-import type { ClientPostBlobData } from '@tloncorp/api';
+import {
+  type ClientPostBlobData,
+  type PostDataResponse,
+  type ReplyWithMemo,
+  formatUd,
+} from '@tloncorp/api';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
 import { formatBlobForHistory, parseBlobData } from './media.js';
 import { extractMessageText } from './utils.js';
-
-/**
- * Format a number as @ud (with dots every 3 digits from the right)
- * e.g., 170141184507799509469114119040828178432 -> 170.141.184.507.799.509.469.114.119.040.828.178.432
- */
-function formatUd(id: string | number): string {
-  const str = String(id).replace(/\./g, ''); // Remove any existing dots
-  const reversed = str.split('').toReversed();
-  const chunks: string[] = [];
-  for (let i = 0; i < reversed.length; i += 3) {
-    chunks.push(
-      reversed
-        .slice(i, i + 3)
-        .toReversed()
-        .join('')
-    );
-  }
-  return chunks.toReversed().join('.');
-}
 
 export type TlonHistoryEntry = {
   author: string;
@@ -34,30 +20,77 @@ export type TlonHistoryEntry = {
 
 export const MAX_THREAD_CONTEXT_MESSAGES = 20;
 
-type ParentPostEssay = {
-  author?: string | { ship?: string };
-  content?: unknown;
-  sent?: number;
+type ParsedPostPayload = {
+  entry: TlonHistoryEntry;
+  sourceAuthor: string | null;
 };
 
-type ParentPostSeal = {
-  id?: string;
-};
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
 
-type ReplyMemo = ParentPostEssay & {
-  blob?: string | null;
-};
+function parsePostAuthor(author: unknown): string | null {
+  if (typeof author === 'string') {
+    return author;
+  }
+  if (isRecord(author) && typeof author.ship === 'string') {
+    return author.ship;
+  }
+  return null;
+}
 
-type ExactReplyScryResponse = {
-  reply?: {
-    memo?: ReplyMemo;
-    'reply-essay'?: ReplyMemo;
-    seal?: ParentPostSeal;
-  };
-  memo?: ReplyMemo;
-  'reply-essay'?: ReplyMemo;
-  seal?: ParentPostSeal;
-};
+/** Parse the supported single-post and single-reply scry payload shapes. */
+export function parsePostPayload(
+  payload: unknown,
+  fallbackId?: string
+): ParsedPostPayload | null {
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  if (isRecord(payload.essay)) {
+    const post = payload as unknown as PostDataResponse;
+    const sourceAuthor = parsePostAuthor(post.essay.author);
+    const id = post.seal?.id ?? fallbackId;
+    const blob = typeof post.essay.blob === 'string' ? post.essay.blob : null;
+
+    return {
+      entry: {
+        author: sourceAuthor ?? 'unknown',
+        content: extractMessageText(post.essay.content ?? []),
+        timestamp:
+          typeof post.essay.sent === 'number' && post.essay.sent !== 0
+            ? post.essay.sent
+            : Date.now(),
+        ...(id ? { id } : {}),
+        blob,
+      },
+      sourceAuthor,
+    };
+  }
+
+  if (isRecord(payload.memo)) {
+    const reply = payload as unknown as ReplyWithMemo;
+    const sourceAuthor = parsePostAuthor(reply.memo.author);
+    const id = reply.seal?.id ?? fallbackId;
+
+    return {
+      entry: {
+        author: sourceAuthor ?? 'unknown',
+        content: extractMessageText(reply.memo.content ?? []),
+        timestamp:
+          typeof reply.memo.sent === 'number' && reply.memo.sent !== 0
+            ? reply.memo.sent
+            : Date.now(),
+        ...(id ? { id } : {}),
+        blob: null,
+      },
+      sourceAuthor,
+    };
+  }
+
+  return null;
+}
 
 function normalizeMessageId(id: string | number | undefined | null): string {
   const rawId = String(id ?? '');
@@ -163,7 +196,7 @@ export async function lookupOrFetchCachedChannelMessage(
           messageId,
           runtime
         )
-      : await fetchParentPostHistoryEntry(api, channelNest, messageId, runtime);
+      : (await fetchParentPost(api, channelNest, messageId, runtime))?.entry;
     if (fetched?.author && fetched.author !== 'unknown') {
       const echoed = findCachedMessage(
         messageCache.get(channelNest),
@@ -394,17 +427,13 @@ async function fetchParentPost(
   channelNest: string,
   parentId: string,
   runtime?: RuntimeEnv
-): Promise<{ essay: ParentPostEssay; seal?: ParentPostSeal } | null> {
+): Promise<ParsedPostPayload | null> {
   try {
-    // Mirrors resolveCiteContent: channels +on-peek matches `[%post time=@ ~]`, mark goes in `.json` extension.
+    // Channels +on-peek matches `[%post time=@ ~]`; the mark goes in `.json`.
     const scryPath = `/channels/v4/${channelNest}/posts/post/${formatUd(parentId)}.json`;
     runtime?.log?.(`[tlon] Fetching parent post: ${scryPath}`);
-    const data: any = await api.scry(scryPath);
-
-    const post = data?.post ?? data;
-    const essay = post?.essay || post?.memo || post?.['r-post']?.set?.essay;
-    const seal = post?.seal || post?.['r-post']?.set?.seal;
-    return essay ? { essay, seal } : null;
+    const data: unknown = await api.scry(scryPath);
+    return parsePostPayload(data, parentId);
   } catch (error: any) {
     runtime?.log?.(
       `[tlon] Error fetching parent post: ${error?.message ?? String(error)}`
@@ -423,36 +452,14 @@ async function fetchReplyHistoryEntry(
   try {
     const scryPath = `/channels/v4/${channelNest}/posts/post/id/${formatUd(rootPostId)}/replies/reply/id/${formatUd(replyId)}.json`;
     runtime?.log?.(`[tlon] Fetching reply: ${scryPath}`);
-    const data = (await api.scry(scryPath)) as ExactReplyScryResponse | null;
-    const reply = data?.reply ?? data;
-    const memo = reply?.memo ?? reply?.['reply-essay'];
-    if (!memo) {
-      return null;
-    }
-
-    return {
-      author: parentPostAuthor(memo) ?? 'unknown',
-      content: extractMessageText(memo.content || []),
-      timestamp: memo.sent || Date.now(),
-      id: reply?.seal?.id || replyId,
-      blob: memo.blob ?? null,
-    };
+    const data: unknown = await api.scry(scryPath);
+    return parsePostPayload(data, replyId)?.entry ?? null;
   } catch (error: any) {
     runtime?.log?.(
       `[tlon] Error fetching reply: ${error?.message ?? String(error)}`
     );
     return null;
   }
-}
-
-function parentPostAuthor(essay?: ParentPostEssay): string | null {
-  if (typeof essay?.author === 'string') {
-    return essay.author;
-  }
-  if (typeof essay?.author?.ship === 'string') {
-    return essay.author.ship;
-  }
-  return null;
 }
 
 /**
@@ -465,7 +472,7 @@ export async function fetchParentPostAuthor(
   runtime?: RuntimeEnv
 ): Promise<string | null> {
   const parentPost = await fetchParentPost(api, channelNest, parentId, runtime);
-  return parentPostAuthor(parentPost?.essay);
+  return parentPost?.sourceAuthor ?? null;
 }
 
 /**
@@ -482,19 +489,16 @@ export async function fetchParentPostHistoryEntry(
     return null;
   }
 
-  const { essay, seal } = parentPost;
-  const content = extractMessageText(essay.content || []);
-  if (!content) {
+  if (!parentPost.entry.content) {
     runtime?.log?.(`[tlon] Parent post has no text content: ${parentId}`);
+    return null;
   }
 
-  const author = parentPostAuthor(essay) ?? 'unknown';
-
   return {
-    author,
-    content,
-    timestamp: essay.sent || Date.now(),
-    id: seal?.id || parentId,
+    author: parentPost.entry.author,
+    content: parentPost.entry.content,
+    timestamp: parentPost.entry.timestamp,
+    id: parentPost.entry.id ?? parentId,
   };
 }
 

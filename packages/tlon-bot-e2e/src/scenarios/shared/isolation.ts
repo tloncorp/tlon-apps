@@ -106,6 +106,113 @@ export async function withSettingsEntry(
   await sleep(750);
 }
 
+export const NUDGE_SETTINGS_KEYS = [
+  'nudgeActiveHoursStart',
+  'nudgeActiveHoursEnd',
+  'lastOwnerMessageAt',
+  'lastOwnerMessageDate',
+  'lastNudgeStage',
+  'pendingNudge',
+] as const;
+
+type NudgeSettingsKey = (typeof NUDGE_SETTINGS_KEYS)[number];
+
+export interface NudgeSettingsIsolation {
+  set(key: NudgeSettingsKey, value: unknown): Promise<void>;
+  delete(key: NudgeSettingsKey): Promise<void>;
+  confirmClosedWindow(): void;
+}
+
+export async function withNudgeSettingsIsolation(
+  actors: ScenarioActors
+): Promise<NudgeSettingsIsolation> {
+  const snapshot = await settingsBucket(actors);
+  const changed = new Set<NudgeSettingsKey>();
+  let closedWindowConfirmed = false;
+
+  async function restore(key: NudgeSettingsKey): Promise<void> {
+    if (Object.prototype.hasOwnProperty.call(snapshot, key)) {
+      await actors.bot.setSettingsEntry({
+        bucket: SETTINGS_BUCKET,
+        key,
+        value: snapshot[key],
+      });
+    } else {
+      await actors.bot.deleteSettingsEntry({ bucket: SETTINGS_BUCKET, key });
+    }
+  }
+
+  actors.bot.teardown(
+    async () => {
+      const changedKeys = [...changed];
+      const teardownChanged = new Set<NudgeSettingsKey>();
+      // A fresh-activity sentinel alone is not enough to make this safe: if
+      // setup failed before the equal bounds were established, forcing only
+      // end=00:00 could open the default 09:00–00:00 wrap-around window.
+      if (closedWindowConfirmed) {
+        await actors.bot.setSettingsEntry({
+          bucket: SETTINGS_BUCKET,
+          key: 'nudgeActiveHoursEnd',
+          value: '00:00',
+        });
+        teardownChanged.add('nudgeActiveHoursEnd');
+        await waitForSettingsEntries(actors, { nudgeActiveHoursEnd: '00:00' });
+      }
+      for (const key of [
+        'pendingNudge',
+        'lastNudgeStage',
+        'lastOwnerMessageAt',
+        'lastOwnerMessageDate',
+      ] as const) {
+        if (changed.has(key)) {
+          await restore(key);
+        }
+      }
+      for (const key of [
+        'nudgeActiveHoursStart',
+        'nudgeActiveHoursEnd',
+      ] as const) {
+        if (changed.has(key) || teardownChanged.has(key)) {
+          await restore(key);
+        }
+      }
+      if (!closedWindowConfirmed) {
+        for (const key of changedKeys) {
+          if (
+            key !== 'pendingNudge' &&
+            key !== 'lastNudgeStage' &&
+            key !== 'lastOwnerMessageAt' &&
+            key !== 'lastOwnerMessageDate' &&
+            key !== 'nudgeActiveHoursStart' &&
+            key !== 'nudgeActiveHoursEnd'
+          ) {
+            await restore(key);
+          }
+        }
+      }
+    },
+    { kind: 'settings-rollback', label: 'restore nudge settings batch' }
+  );
+
+  return {
+    async set(key, value) {
+      changed.add(key);
+      await actors.bot.setSettingsEntry({
+        bucket: SETTINGS_BUCKET,
+        key,
+        value,
+      });
+    },
+    async delete(key) {
+      changed.add(key);
+      await actors.bot.deleteSettingsEntry({ bucket: SETTINGS_BUCKET, key });
+    },
+    confirmClosedWindow() {
+      closedWindowConfirmed = true;
+    },
+  };
+}
+
 export async function allowDmFrom(
   actors: ScenarioActors,
   ship: string
@@ -189,6 +296,25 @@ export async function waitForSettingsEntries(
       timeoutMs: 8_000,
       intervalMs: 500,
       description: `settings entries ${Object.keys(expected).join(', ')}`,
+    }
+  );
+}
+
+export async function waitForSettingsKeysAbsent(
+  actors: ScenarioActors,
+  keys: readonly string[]
+): Promise<void> {
+  await waitFor(
+    async () => {
+      const bucket = await settingsBucket(actors);
+      return keys.every(
+        (key) => !Object.prototype.hasOwnProperty.call(bucket, key)
+      );
+    },
+    {
+      timeoutMs: 8_000,
+      intervalMs: 500,
+      description: `absent settings keys ${keys.join(', ')}`,
     }
   );
 }

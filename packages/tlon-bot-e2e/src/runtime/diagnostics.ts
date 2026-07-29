@@ -26,6 +26,14 @@ export async function collectRuntimeDiagnostics(
     section(`${ctx.services.bot} logs`, () =>
       compose.logs([ctx.services.bot], { tail, timeoutMs: composeTimeoutMs })
     ),
+    section(`${ctx.services.bot} upload log lines`, async () =>
+      filterUploadLogLines(
+        await compose.logs([ctx.services.bot], {
+          timeoutMs: composeTimeoutMs,
+          allowFailure: false,
+        })
+      )
+    ),
     section(`${ctx.services.fakeModel} logs`, () =>
       compose.logs([ctx.services.fakeModel], {
         tail,
@@ -41,6 +49,20 @@ export async function collectRuntimeDiagnostics(
   ]);
 
   return sections.filter(Boolean).join('\n\n');
+}
+
+export function filterUploadLogLines(logs: string): string {
+  const matching = logs
+    .split('\n')
+    .filter((line) => line.includes('[tlon] upload'));
+  if (matching.length === 0) {
+    return '';
+  }
+  if (matching.length > 400) {
+    const kept = matching.slice(-400);
+    return `<truncated: showing last 400 of ${matching.length} matching lines>\n${kept.join('\n')}`;
+  }
+  return matching.join('\n');
 }
 
 async function composeServiceSnapshot(

@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -16,6 +17,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, Optional, Sequence
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,21 @@ DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES = 3
 DEFAULT_CONTEXT_MESSAGES = 20
 REACTION_LEVELS = frozenset({"off", "ack", "minimal", "extensive"})
 DEFAULT_REACTION_LEVEL = "minimal"
+
+DEFAULT_NUDGE_TICK_INTERVAL_MS = 15 * 60 * 1000
+
+
+class TlonTerminalActionError(ConnectionError):
+    """A channel action rejected by Eyre, so retrying it cannot help.
+
+    `status` is the rejecting HTTP status when known, so callers can tell an
+    auth rejection (401/403) from a malformed action (400/422) without
+    parsing the message.
+    """
+
+    def __init__(self, message: str, *, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 def normalize_ship(ship: str) -> str:
@@ -163,8 +180,11 @@ def _parse_float(value: Any, default: float) -> float:
 
 def _parse_int(value: Any, default: int) -> int:
     try:
-        parsed = int(float(str(value).strip()))
-    except (TypeError, ValueError):
+        raw = float(str(value).strip())
+        if not math.isfinite(raw):
+            return default
+        parsed = int(raw)
+    except (TypeError, ValueError, OverflowError):
         return default
     return parsed if parsed > 0 else default
 
@@ -188,6 +208,17 @@ def _parse_strict_non_negative_int(value: Any, default: int) -> int:
     if not parsed.is_integer():
         return default
     return int(parsed) if parsed >= 0 else default
+
+
+def _valid_timezone(value: str) -> str:
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError):
+        return ""
+    return value
 
 
 def _format_da_from_unix_millis(value: float) -> str:
@@ -236,6 +267,12 @@ class TlonConfig:
     gateway_status_lease_seconds: float = DEFAULT_GATEWAY_LEASE_SECONDS
     gateway_status_active_window_seconds: int = DEFAULT_GATEWAY_ACTIVE_WINDOW_SECONDS
     gateway_status_reply_cooldown_seconds: int = DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS
+    reengagement_enabled: bool = False
+    nudge_tick_interval_ms: int = DEFAULT_NUDGE_TICK_INTERVAL_MS
+    nudge_active_hours_start: Optional[str] = None
+    nudge_active_hours_end: Optional[str] = None
+    nudge_active_hours_timezone: Optional[str] = None
+    user_timezone: Optional[str] = None
     context_lens_enabled: bool = False
     context_lens_owner: str = ""
     context_lens_store_path: str = ""
@@ -519,6 +556,47 @@ class TlonConfig:
             ),
             DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS,
         )
+        reengagement_enabled = parse_bool_default(
+            _env_or_extra(
+                env,
+                ("TLON_REENGAGEMENT_ENABLED",),
+                extra,
+                ("reengagement_enabled",),
+                "false",
+            ),
+            False,
+        )
+        nudge_tick_interval_ms = _parse_int(
+            _env_or_extra(
+                env,
+                ("TLON_NUDGE_TICK_INTERVAL_MS",),
+                extra,
+                ("nudge_tick_interval_ms",),
+                DEFAULT_NUDGE_TICK_INTERVAL_MS,
+            ),
+            DEFAULT_NUDGE_TICK_INTERVAL_MS,
+        )
+        nudge_active_hours_start = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_START",),
+            extra,
+            ("nudge_active_hours_start",),
+        ) or None
+        nudge_active_hours_end = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_END",),
+            extra,
+            ("nudge_active_hours_end",),
+        ) or None
+        nudge_active_hours_timezone = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_TIMEZONE",),
+            extra,
+            ("nudge_active_hours_timezone",),
+        ) or None
+        user_timezone = _valid_timezone(
+            _env_first(env, ("TLON_TIMEZONE",), extra, ("user_timezone",))
+        ) or None
         context_lens_enabled = parse_bool(
             _env_or_extra(
                 env,
@@ -615,6 +693,12 @@ class TlonConfig:
             gateway_status_lease_seconds=gateway_status_lease_seconds,
             gateway_status_active_window_seconds=gateway_status_active_window_seconds,
             gateway_status_reply_cooldown_seconds=gateway_status_reply_cooldown_seconds,
+            reengagement_enabled=reengagement_enabled,
+            nudge_tick_interval_ms=nudge_tick_interval_ms,
+            nudge_active_hours_start=nudge_active_hours_start,
+            nudge_active_hours_end=nudge_active_hours_end,
+            nudge_active_hours_timezone=nudge_active_hours_timezone,
+            user_timezone=user_timezone,
             context_lens_enabled=context_lens_enabled,
             context_lens_owner=context_lens_owner,
             context_lens_store_path=context_lens_store_path,
@@ -869,6 +953,19 @@ class TlonAuthError(ConnectionError):
     """The ship rejected our credentials (bad access code) — unrecoverable."""
 
 
+class TlonChannelError(ConnectionError):
+    """The Eyre channel or one of its subscriptions is gone; the caller must
+    rebuild the channel rather than resume it.
+
+    `status` is the HTTP status when the fault came from the channel GET, and
+    None when it came from a subscription nack/quit.
+    """
+
+    def __init__(self, message: str, *, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status = status
+
+
 class TlonSSEClient:
     """Eyre SSE channel client for subscriptions."""
 
@@ -885,8 +982,13 @@ class TlonSSEClient:
         # installed). Their nacks/quits are logged and skipped rather than
         # raised, so one dead optional sub can't tear down the whole stream.
         self._optional_subscriptions: set[int] = set()
+        self._last_heard_event_id = -1
         self._last_acked_event_id = -1
         self._ack_threshold = 20
+
+    @property
+    def last_heard_event_id(self) -> int:
+        return self._last_heard_event_id
 
     async def authenticate(self) -> str:
         import aiohttp
@@ -928,6 +1030,10 @@ class TlonSSEClient:
             await self.authenticate()
         self.channel_id = f"{int(time.time())}-{uuid.uuid4().hex[:8]}"
         self.channel_url = f"{self.url}/~/channel/{self.channel_id}"
+        self._last_heard_event_id = -1
+        self._last_acked_event_id = -1
+        self._subscriptions.clear()
+        self._optional_subscriptions.clear()
         await self._send_actions(
             [
                 {
@@ -1005,7 +1111,9 @@ class TlonSSEClient:
                 raise ConnectionError(f"Tlon scry failed: HTTP {resp.status} {text[:200]}")
             return await resp.json()
 
-    async def events(self) -> AsyncIterator[TlonSSEEvent]:
+    async def events(
+        self, *, on_open: Optional[Callable[[], None]] = None
+    ) -> AsyncIterator[TlonSSEEvent]:
         import aiohttp
 
         if self.channel_url is None:
@@ -1013,18 +1121,42 @@ class TlonSSEClient:
         assert self._session is not None
         assert self.channel_url is not None
 
+        headers = {"Accept": "text/event-stream"}
+        if self._last_heard_event_id >= 0:
+            headers["Last-Event-ID"] = str(self._last_heard_event_id)
         async with self._session.get(
             self.channel_url,
-            headers={"Accept": "text/event-stream"},
+            headers=headers,
             timeout=aiohttp.ClientTimeout(
                 total=None,
                 sock_read=self.config.sse_read_timeout_seconds,
                 connect=60,
             ),
         ) as resp:
+            if resp.status in (404, 410):
+                # _send_actions already treats 404/410 as a stale, reaped
+                # channel; the SSE GET must agree, or a 410 would be
+                # classified as a resumable transport fault and the adapter
+                # would re-GET a dead channel forever.
+                raise TlonChannelError("Tlon channel reaped", status=resp.status)
+            if resp.status in (401, 403):
+                raise TlonChannelError(
+                    f"Tlon channel unauthorized: HTTP {resp.status}", status=resp.status
+                )
+            if resp.status == 500:
+                # Eyre answers 500 for a channel it can no longer serve.
+                # Resuming would re-GET the same dead channel forever, leaving
+                # the bot deaf; @tloncorp/api's client resets the channel on
+                # this status too (packages/api/src/http-api/Urbit.ts:491-494).
+                # Raise before touching the body: a stalled or truncated 500
+                # body would make resp.text() raise a non-channel error, which
+                # falls through to the resume path and defeats the recovery.
+                raise TlonChannelError("Tlon SSE failed: HTTP 500", status=500)
             if resp.status != 200:
                 text = await resp.text()
                 raise ConnectionError(f"Tlon SSE failed: HTTP {resp.status} {text[:200]}")
+            if on_open is not None:
+                on_open()
 
             buffer = ""
             async for chunk in resp.content.iter_any():
@@ -1079,10 +1211,26 @@ class TlonSSEClient:
             timeout=aiohttp.ClientTimeout(total=30),
         ) as resp:
             if resp.status not in (200, 204):
-                text = await resp.text()
-                raise ConnectionError(
-                    f"Tlon channel action failed: HTTP {resp.status} {text[:200]}"
-                )
+                status = resp.status
+                # A malformed or unauthorized client action will not recover
+                # by replaying it.  A 404/410 can be a stale, reaped channel
+                # URL and recover after reconnect; rate limits,
+                # request-timeout/too-early responses, server errors, and
+                # other non-4xx responses may also recover.
+                #
+                # Classify from the status alone, BEFORE touching the body: a
+                # stalled/truncated rejection body would otherwise make
+                # resp.text() raise, downgrading a terminal 401/403 to a generic
+                # error and defeating the fixed-cookie fatal handling upstream.
+                terminal = 400 <= status < 500 and status not in (404, 408, 410, 425, 429)
+                try:
+                    text = await resp.text()
+                except Exception:
+                    text = ""
+                message = f"Tlon channel action failed: HTTP {status} {text[:200]}"
+                if terminal:
+                    raise TlonTerminalActionError(message, status=status)
+                raise ConnectionError(message)
 
     async def _parse_sse_payload(self, payload: str) -> Optional[TlonSSEEvent]:
         event_id: Optional[int] = None
@@ -1096,9 +1244,13 @@ class TlonSSEClient:
             elif line.startswith("data:"):
                 data_parts.append(line.split(":", 1)[1].lstrip())
 
-        if event_id is not None and event_id - self._last_acked_event_id > self._ack_threshold:
-            self._last_acked_event_id = event_id
-            asyncio.create_task(self._ack(event_id))
+        if event_id is not None:
+            if event_id <= self._last_heard_event_id:
+                return None
+            self._last_heard_event_id = event_id
+            if event_id - self._last_acked_event_id > self._ack_threshold:
+                self._last_acked_event_id = event_id
+                asyncio.create_task(self._ack(event_id))
 
         if not data_parts:
             return None
@@ -1126,7 +1278,7 @@ class TlonSSEClient:
                     self._subscriptions.pop(sub_id, None)
                     self._optional_subscriptions.discard(sub_id)
                     return None
-                raise ConnectionError(
+                raise TlonChannelError(
                     f"Tlon subscription failed for {app} {path}: {str(raw.get('err'))[:200]}"
                 )
             return None
@@ -1139,7 +1291,7 @@ class TlonSSEClient:
                 # WAS established and has now dropped (e.g. an agent/desk
                 # reload), so force the reconnect path to re-subscribe rather
                 # than silently going deaf to future facts.
-                raise ConnectionError(f"Tlon subscription quit for {app} {path}")
+                raise TlonChannelError(f"Tlon subscription quit for {app} {path}")
             return None
 
         if response == "poke":

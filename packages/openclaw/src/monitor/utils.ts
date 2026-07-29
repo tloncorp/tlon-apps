@@ -1,28 +1,43 @@
 import { normalizeShip } from '../targets.js';
 
-// Cite types for message references
-export interface ChanCite {
-  chan: { nest: string; where: string };
-}
-export interface GroupCite {
-  group: string;
-}
-export interface DeskCite {
-  desk: { flag: string; where: string };
-}
-export interface BaitCite {
-  bait: { group: string; graph: string; where: string };
-}
-export type Cite = ChanCite | GroupCite | DeskCite | BaitCite;
-
 export interface ParsedCite {
   type: 'chan' | 'group' | 'desk' | 'bait';
   nest?: string;
-  author?: string;
   postId?: string;
+  replyId?: string;
   group?: string;
   flag?: string;
   where?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+export function parseChannelWhere(where: unknown): {
+  postId?: string;
+  replyId?: string;
+} {
+  if (typeof where !== 'string') {
+    return {};
+  }
+
+  const legacyMatch = /^\/msg\/~[a-z-]+\/([^/]+)$/.exec(where);
+  if (legacyMatch) {
+    return { postId: legacyMatch[1] };
+  }
+
+  const currentMatch = /^\/(?:msg|note|curio)\/([^/]+)(?:\/([^/]+))?$/.exec(
+    where
+  );
+  if (!currentMatch) {
+    return {};
+  }
+
+  return {
+    postId: currentMatch[1],
+    ...(currentMatch[2] ? { replyId: currentMatch[2] } : {}),
+  };
 }
 
 // Extract all cites from message content
@@ -34,33 +49,47 @@ export function extractCites(content: unknown): ParsedCite[] {
   const cites: ParsedCite[] = [];
 
   for (const verse of content) {
-    if (verse?.block?.cite && typeof verse.block.cite === 'object') {
+    if (
+      isRecord(verse) &&
+      isRecord(verse.block) &&
+      isRecord(verse.block.cite)
+    ) {
       const cite = verse.block.cite;
 
-      if (cite.chan && typeof cite.chan === 'object') {
-        const { nest, where } = cite.chan;
-        const whereMatch = where?.match(/\/msg\/(~[a-z-]+)\/(.+)/);
+      if (isRecord(cite.chan)) {
+        const nest = cite.chan.nest;
+        const where = cite.chan.where;
+        const parsedWhere = parseChannelWhere(where);
         cites.push({
           type: 'chan',
-          nest,
-          where,
-          author: whereMatch?.[1],
-          postId: whereMatch?.[2],
+          ...(typeof nest === 'string' ? { nest } : {}),
+          ...(typeof where === 'string' ? { where } : {}),
+          ...parsedWhere,
         });
       } else if (cite.group && typeof cite.group === 'string') {
         cites.push({ type: 'group', group: cite.group });
-      } else if (cite.desk && typeof cite.desk === 'object') {
+      } else if (isRecord(cite.desk)) {
         cites.push({
           type: 'desk',
-          flag: cite.desk.flag,
-          where: cite.desk.where,
+          ...(typeof cite.desk.flag === 'string'
+            ? { flag: cite.desk.flag }
+            : {}),
+          ...(typeof cite.desk.where === 'string'
+            ? { where: cite.desk.where }
+            : {}),
         });
-      } else if (cite.bait && typeof cite.bait === 'object') {
+      } else if (isRecord(cite.bait)) {
         cites.push({
           type: 'bait',
-          group: cite.bait.group,
-          nest: cite.bait.graph,
-          where: cite.bait.where,
+          ...(typeof cite.bait.group === 'string'
+            ? { group: cite.bait.group }
+            : {}),
+          ...(typeof cite.bait.graph === 'string'
+            ? { nest: cite.bait.graph }
+            : {}),
+          ...(typeof cite.bait.where === 'string'
+            ? { where: cite.bait.where }
+            : {}),
         });
       }
     }
@@ -214,6 +243,58 @@ export function stripBotMention(
   return messageText.replace(normalizeShip(botShipName), '').trim();
 }
 
+/**
+ * Whether a line is one of extractMessageText's rendered cite placeholders.
+ *
+ * Cite nests and references are sender-controlled, so callers that search the
+ * rendered message must treat these lines as metadata rather than live text.
+ */
+export function isCitePlaceholderLine(line: string): boolean {
+  return (
+    /^> \[quoted from .+\]$/.test(line) ||
+    line === '> [quoted message]' ||
+    /^> \[ref: .+\]$/.test(line)
+  );
+}
+
+/**
+ * Strip the first bot-ship occurrence outside extractMessageText cite
+ * placeholders. Cite nests are sender-controlled, so a placeholder must not
+ * consume the mention that the sender put in the current message.
+ *
+ * A user-authored line that happens to match a placeholder is treated as a
+ * placeholder too. That ambiguity is acceptable because the rendered format
+ * has no provenance once it reaches this helper.
+ */
+export function stripBotMentionOutsidePlaceholders(
+  messageText: string,
+  botShipName: string
+): string {
+  if (!messageText || !botShipName) {
+    return messageText;
+  }
+
+  const normalizedBotShip = normalizeShip(botShipName);
+  let stripped = false;
+  const text = messageText
+    .split('\n')
+    .map((line) => {
+      if (
+        stripped ||
+        isCitePlaceholderLine(line) ||
+        !line.includes(normalizedBotShip)
+      ) {
+        return line;
+      }
+
+      stripped = true;
+      return line.replace(normalizedBotShip, '');
+    })
+    .join('\n');
+
+  return text.trim();
+}
+
 export function isDmAllowed(
   senderShip: string,
   allowlist: string[] | undefined
@@ -299,7 +380,10 @@ function extractInlineText(items: any[]): string {
     .join('');
 }
 
-export function extractMessageText(content: unknown): string {
+export function extractMessageText(
+  content: unknown,
+  opts: { omitCites?: boolean } = {}
+): string {
   if (!content || !Array.isArray(content)) {
     return '';
   }
@@ -382,18 +466,18 @@ export function extractMessageText(content: unknown): string {
 
         // Cite/quote blocks - parse the reference structure
         if (block.cite && typeof block.cite === 'object') {
+          if (opts.omitCites) {
+            return '';
+          }
           const cite = block.cite;
 
           // ChanCite - reference to a channel message
           if (cite.chan && typeof cite.chan === 'object') {
             const { nest, where } = cite.chan;
-            // where is typically /msg/~author/timestamp
-            const whereMatch = where?.match(/\/msg\/(~[a-z-]+)\/(.+)/);
-            if (whereMatch) {
-              const [, author, _postId] = whereMatch;
-              return `\n> [quoted: ${author} in ${nest}]\n`;
+            if (typeof nest === 'string' && nest.length > 0) {
+              return `\n> [quoted from ${nest}]\n`;
             }
-            return `\n> [quoted from ${nest}]\n`;
+            return '\n> [quoted message]\n';
           }
 
           // GroupCite - reference to a group
@@ -419,6 +503,20 @@ export function extractMessageText(content: unknown): string {
     })
     .join('\n')
     .trim();
+}
+
+export function prepareInboundText(
+  content: unknown,
+  botShipName: string,
+  nickname?: string
+): { rawText: string; engagementText: string; mentioned: boolean } {
+  const rawText = extractMessageText(content);
+  const engagementText = extractMessageText(content, { omitCites: true });
+  return {
+    rawText,
+    engagementText,
+    mentioned: isBotMentioned(engagementText, botShipName, nickname),
+  };
 }
 
 export function isSummarizationRequest(messageText: string): boolean {

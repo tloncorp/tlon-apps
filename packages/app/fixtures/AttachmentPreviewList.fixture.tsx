@@ -1,7 +1,7 @@
 import { Attachment } from '@tloncorp/shared/domain';
 
 import { AttachmentProvider } from '../ui';
-import { AppDataContextProvider, RequestsProvider } from '../ui';
+import { AppDataContextProvider } from '../ui';
 import { AttachmentPreviewList } from '../ui/components/MessageInput/AttachmentPreviewList';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
@@ -9,11 +9,6 @@ import {
   referencedChatPost,
   referencedGalleryPost,
   referencedNotebookPost,
-  useApp,
-  useChannel,
-  useGroup,
-  usePost,
-  usePostReference,
 } from './contentHelpers';
 
 const attachments: Attachment[] = [
@@ -36,21 +31,13 @@ const attachments: Attachment[] = [
 export default (
   <FixtureWrapper fillWidth>
     <AppDataContextProvider contacts={Object.values(exampleContacts)}>
-      <RequestsProvider
-        useChannel={useChannel}
-        useGroup={useGroup}
-        usePost={usePost}
-        usePostReference={usePostReference}
-        useApp={useApp}
+      <AttachmentProvider
+        initialAttachments={attachments}
+        uploadAsset={async () => {}}
+        canUpload={true}
       >
-        <AttachmentProvider
-          initialAttachments={attachments}
-          uploadAsset={async () => {}}
-          canUpload={true}
-        >
-          <AttachmentPreviewList />
-        </AttachmentProvider>
-      </RequestsProvider>
+        <AttachmentPreviewList />
+      </AttachmentProvider>
     </AppDataContextProvider>
   </FixtureWrapper>
 );

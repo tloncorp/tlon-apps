@@ -1,6 +1,9 @@
 import { existsSync } from 'node:fs';
+import { copyFile, mkdtemp, readdir, rm } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
+import { runCommand } from '../runtime/compose.js';
 import {
   attemptSignal,
   waitFor,
@@ -47,11 +50,79 @@ const LEGACY_OPENCLAW_TOOLS = [
 ] as const;
 const BASELINE_OPENCLAW_TOOLS = ['tlon', 'message'] as const;
 
+export function workspaceApiTarballPath(packageDir: string): string {
+  return path.join(packageDir, 'dev', 'tlon-api-workspace.tgz');
+}
+
 export const openclawDriver: BotDriver = {
   name: 'openclaw',
 
   packageDir(seed) {
     return path.join(seed.repoRoot, 'packages/openclaw');
+  },
+
+  async beforeComposeBuild(ctx) {
+    const env = processEnvRecord();
+    const tarballPath = workspaceApiTarballPath(ctx.packageDir);
+
+    console.log('==> Building @tloncorp/api...');
+    const build = await runCommand(
+      'pnpm',
+      ['--filter', '@tloncorp/api', 'build'],
+      {
+        cwd: ctx.repoRoot,
+        env,
+      }
+    );
+    if (build.exitCode !== 0) {
+      throw new Error(
+        `pnpm --filter @tloncorp/api build failed (exit ${build.exitCode}):\n${build.stderr}`
+      );
+    }
+
+    const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'tlon-api-pack-'));
+    try {
+      console.log('==> Packing @tloncorp/api...');
+      const pack = await runCommand(
+        'pnpm',
+        ['--filter', '@tloncorp/api', 'pack', '--pack-destination', tmpDir],
+        { cwd: ctx.repoRoot, env }
+      );
+      if (pack.exitCode !== 0) {
+        throw new Error(
+          `pnpm --filter @tloncorp/api pack failed (exit ${pack.exitCode}):\n${pack.stderr}`
+        );
+      }
+
+      const entries = await readdir(tmpDir);
+      const tgzName = entries.find((entry) => entry.endsWith('.tgz'));
+      if (!tgzName) {
+        throw new Error(
+          `pnpm --filter @tloncorp/api pack produced no .tgz in ${tmpDir}`
+        );
+      }
+      const packedPath = path.join(tmpDir, tgzName);
+
+      const verify = await runCommand('tar', ['-tzf', packedPath], {
+        cwd: tmpDir,
+        env,
+        stream: false,
+      });
+      if (verify.exitCode !== 0 || !verify.stdout.includes('dist/')) {
+        throw new Error(
+          `Packed @tloncorp/api tarball does not contain dist/. ` +
+            `Check packages/api/package.json "files" field.\n` +
+            `tar listing:\n${verify.stdout}`
+        );
+      }
+
+      // copyFile, not rename: os.tmpdir() can sit on a different filesystem
+      // than the checkout (devcontainers), where rename fails with EXDEV.
+      await copyFile(packedPath, tarballPath);
+      console.log(`==> Workspace @tloncorp/api tarball: ${tarballPath}`);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
   },
 
   resolveRuntime(seed): DriverRuntimeSpec {
@@ -106,6 +177,11 @@ export const openclawDriver: BotDriver = {
         OPENCLAW_TEST_TOOLS_ALLOW_JSON: JSON.stringify(
           openClawToolsForPartition(seed)
         ),
+        // Explicit opt-in for the workspace @tloncorp/api tarball packed by
+        // beforeComposeBuild. The entrypoint requires this flag in addition to
+        // the tarball file so a stale tarball can never leak into legacy
+        // (non-harness) container runs.
+        OPENCLAW_WORKSPACE_API_TARBALL: '1',
         TLON_MAX_CONSECUTIVE_BOT_RESPONSES: maxConsecutiveBotResponses,
         TLON_NUDGE_TICK_INTERVAL_MS: '5000',
         TEST_LIVE_TOOL_TRACE: liveToolTrace ?? '0',
@@ -155,6 +231,7 @@ export const openclawDriver: BotDriver = {
   async assertRuntimeConfig(ctx, compose) {
     await assertOpenClawConfig(ctx, compose);
     await assertOpenClawContainerEnv(ctx, compose);
+    await assertOpenClawWorkspaceApi(ctx, compose);
   },
 
   isBenignModelCall(call) {
@@ -445,6 +522,79 @@ console.log(JSON.stringify({ found, model: process.env.MODEL || null, brave: Boo
   }
 }
 
+async function assertOpenClawWorkspaceApi(
+  ctx: RuntimeContext,
+  compose: ComposeHandle
+): Promise<void> {
+  if (ctx.composeEnv.OPENCLAW_WORKSPACE_API_TARBALL !== '1') {
+    return;
+  }
+
+  const probeScript = `const fs = require('fs');
+function readJson(p) {
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; }
+}
+const pkg = readJson('/workspace/tlon/package.json') || {};
+const api = readJson('/workspace/tlon/node_modules/@tloncorp/api/package.json');
+const sdk = readJson('/workspace/tlon/node_modules/@aws-sdk/client-s3/package.json');
+let workspaceYaml = '';
+try { workspaceYaml = fs.readFileSync('/workspace/tlon/pnpm-workspace.yaml', 'utf8'); } catch {}
+console.log(JSON.stringify({
+  dep: (pkg.dependencies || {})['@tloncorp/api'] ?? null,
+  apiVersion: api ? api.version : null,
+  sdkVersion: sdk ? sdk.version : null,
+  tarballExists: fs.existsSync('/workspace/tlon/dev/tlon-api-workspace.tgz'),
+  overridesInWorkspaceYaml: workspaceYaml.includes('@aws-sdk/client-s3'),
+}));`;
+
+  const result = await compose.exec(ctx.services.bot, [
+    'node',
+    '-e',
+    probeScript,
+  ]);
+  assertExecOk(result, 'OpenClaw workspace-api probe');
+  const raw = result.stdout.trim();
+  const parsed = JSON.parse(raw) as {
+    dep: string | null;
+    apiVersion: string | null;
+    sdkVersion: string | null;
+    tarballExists: boolean;
+    overridesInWorkspaceYaml: boolean;
+  };
+
+  const failures: string[] = [];
+  expectWorkspaceApi(
+    parsed.dep === 'file:dev/tlon-api-workspace.tgz',
+    `package.json dependency @tloncorp/api must be file:dev/tlon-api-workspace.tgz, got ${parsed.dep}`
+  );
+  expectWorkspaceApi(
+    parsed.sdkVersion === '3.190.0',
+    `@aws-sdk/client-s3 version must be 3.190.0, got ${parsed.sdkVersion}`
+  );
+  expectWorkspaceApi(
+    parsed.tarballExists === true,
+    'workspace @tloncorp/api tarball /workspace/tlon/dev/tlon-api-workspace.tgz must exist'
+  );
+  expectWorkspaceApi(
+    parsed.overridesInWorkspaceYaml === true,
+    'pnpm-workspace.yaml must override @aws-sdk/client-s3'
+  );
+
+  if (failures.length > 0) {
+    throw new Error(
+      `OpenClaw workspace-api assertion failed:\n` +
+        failures.map((failure) => `- ${failure}`).join('\n') +
+        `\nRaw probe output:\n${raw}`
+    );
+  }
+
+  function expectWorkspaceApi(condition: boolean, message: string) {
+    if (!condition) {
+      failures.push(message);
+    }
+  }
+}
+
 function assertExecOk(
   result: { exitCode: number; stderr: string },
   label: string
@@ -590,4 +740,14 @@ function optionalEnvAllowedForCapabilities(
     return capabilities.has('upload_storage') || capabilities.has('media_blob');
   }
   return true;
+}
+
+function processEnvRecord(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) {
+      env[key] = value;
+    }
+  }
+  return env;
 }

@@ -1,6 +1,6 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import { File } from 'expo-file-system';
 
 export async function getLocalFileSize(uri: string): Promise<number> {
-  const fileInfo = await FileSystem.getInfoAsync(uri);
-  return fileInfo.exists ? fileInfo.size : 0;
+  // File.size is 0 when the file does not exist or cannot be read.
+  return new File(uri).size;
 }

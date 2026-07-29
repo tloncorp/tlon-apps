@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 
 import { createRuntimeContext } from '../runtime/context.js';
 import { allocateRuntimeEndpoints } from '../runtime/ports.js';
-import { openclawDriver } from './openclaw.js';
+import { openclawDriver, workspaceApiTarballPath } from './openclaw.js';
 import type { RuntimeSeed } from './types.js';
 
 const OPTIONAL_ENV_KEYS = [
@@ -74,6 +74,7 @@ describe('OpenClaw driver runtime spec', () => {
       ]),
       TLON_MAX_CONSECUTIVE_BOT_RESPONSES: '3',
       TLON_NUDGE_TICK_INTERVAL_MS: '5000',
+      OPENCLAW_WORKSPACE_API_TARBALL: '1',
     });
     expect(ctx.composeEnv.BRAVE_API_KEY).toBeUndefined();
     expect(ctx.composeEnv.TLONBOT_TOKEN).toBeUndefined();
@@ -213,6 +214,16 @@ describe('OpenClaw driver runtime spec', () => {
       ],
       expectations: { expectedCallCount: 2 },
     });
+  });
+
+  test('exposes beforeComposeBuild hook for workspace api packing', () => {
+    expect(typeof openclawDriver.beforeComposeBuild).toBe('function');
+  });
+
+  test('workspaceApiTarballPath resolves dev/tlon-api-workspace.tgz under packageDir', () => {
+    expect(workspaceApiTarballPath('/repo/packages/openclaw')).toBe(
+      path.join('/repo/packages/openclaw', 'dev', 'tlon-api-workspace.tgz')
+    );
   });
 });
 

@@ -11,16 +11,18 @@ services:
       - "${FAKE_MODEL_PORT:?FAKE_MODEL_PORT is required}:4000"
 
   ships:
-    image: ubuntu:22.04
+    # Node's Debian image supplies a glibc runtime, tar/gzip and an HTTPS client
+    # (node's fetch, with its own CA store) without an apt-get at container
+    # startup. Ship readiness must not depend on Ubuntu's package mirrors: on
+    # 2026-07-22 they degraded to ~500 kB/s and the apt step alone consumed over
+    # half the 180s readiness budget, failing every E2E run for 35+ minutes.
+    # Matches fake-model above, so the stack pulls one base image, not two.
+    image: node:22-bookworm-slim
     command:
       - bash
       - -c
       - |
         set -euo pipefail
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update
-        apt-get install -y --no-install-recommends ca-certificates curl xz-utils coreutils
-        rm -rf /var/lib/apt/lists/*
 
         cd /data
         mkdir -p /cache
@@ -31,6 +33,46 @@ services:
         echo "    zod code: lidlut-tabwed-pillex-ridrup"
         echo "    ten code: lapseg-nolmel-riswen-hopryc"
         echo "    mug code: ravsut-bolryd-hapsum-pastul"
+
+        download() {
+          node - "$$1" "$$2" <<'NODE'
+        const fs = require('node:fs');
+        const { Readable } = require('node:stream');
+        const { pipeline } = require('node:stream/promises');
+        const [url, output] = process.argv.slice(2);
+
+        (async () => {
+          let lastError;
+          for (let attempt = 1; attempt <= 4; attempt += 1) {
+            try {
+              const response = await fetch(url, {
+                redirect: 'follow',
+                signal: AbortSignal.timeout(300_000),
+              });
+              if (!response.ok || !response.body) {
+                throw new Error(`HTTP $${response.status}`);
+              }
+              await pipeline(
+                Readable.fromWeb(response.body),
+                fs.createWriteStream(output)
+              );
+              return;
+            } catch (error) {
+              lastError = error;
+              fs.rmSync(output, { force: true });
+              console.error(`download attempt $${attempt} failed: $${error}`);
+              if (attempt < 4) {
+                await new Promise((resolve) => setTimeout(resolve, 2_000));
+              }
+            }
+          }
+          throw lastError;
+        })().catch((error) => {
+          console.error(error);
+          process.exit(1);
+        });
+        NODE
+        }
 
         artifact() {
           log() { echo "$@" >&2; }
@@ -49,7 +91,7 @@ services:
           else
             log "    cache: miss ($$path)"
             rm -f "$$tmp"
-            if ! curl -fSL --retry 3 --retry-delay 2 --retry-all-errors "$$url" -o "$$tmp"; then
+            if ! download "$$url" "$$tmp"; then
               log "ERROR: failed to download $$name from $$url"
               exit 1
             fi

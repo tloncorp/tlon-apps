@@ -26,7 +26,7 @@ module.exports = {
     },
   },
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint', 'import-x'],
+  plugins: ['@typescript-eslint', 'import-x', 'react-compiler'],
   ignorePatterns: ['dist', 'node_modules', '*.md'],
   overrides: [
     {
@@ -115,6 +115,9 @@ module.exports = {
     'react/react-in-jsx-scope': 'off',
     'react/prop-types': 'off',
     'react/display-name': 'warn',
+    // Surfaces Rules-of-React violations and components the React Compiler
+    // can't optimize. Warn-level during rollout; does not fail lint/CI.
+    'react-compiler/react-compiler': 'warn',
     'no-useless-escape': 'warn',
     'no-restricted-imports': [
       'error',

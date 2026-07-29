@@ -318,6 +318,7 @@ export const ImageInput = XStack.styleable<{
           </ImageInputButtonText>
         </ImageInputButtonFrame>
         <ImageInputPreviewFrame
+          testID="ImageInputPreview"
           height={isWindowNarrow ? undefined : '100%'}
           onPress={handleSheetToggled}
           disabled={!canUpload}

@@ -77,7 +77,6 @@ export type RootStackParamList = {
   ManageAccount: undefined;
   BotSettings: undefined;
   BotMcpSettings: undefined;
-  BotOtherSettings: undefined;
   BotModelSettings: { mode: 'default' | 'fallbacks' };
   BotApiKeySettings: { provider: string };
   BotShipListSettings: {
@@ -186,7 +185,6 @@ export type SettingsDrawerParamList = Pick<
   | 'ManageAccount'
   | 'BotSettings'
   | 'BotMcpSettings'
-  | 'BotOtherSettings'
   | 'BotModelSettings'
   | 'BotApiKeySettings'
   | 'BotShipListSettings'

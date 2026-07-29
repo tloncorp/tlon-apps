@@ -34,7 +34,6 @@ import { useCurrentUserId } from '../contexts/appDataContext';
 import { useAttachmentContext } from '../contexts/attachment';
 import { ChannelProvider } from '../contexts/channel';
 import { NavigationProvider } from '../contexts/navigation';
-import { useStore } from '../contexts/storeContext';
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
@@ -138,9 +137,9 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
       channel,
       clearDraft,
       onPresentationModeChange: noop,
-      sendPostFromDraft: async (draft) => {
+      sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
-        await store.finalizeAndSendPost(draft);
+        await store.finalizeAndSendPost(draft, options);
       },
       setEditingPost,
       setShouldBlur,
@@ -544,7 +543,6 @@ function useMarkThreadAsReadEffect(
     hasThreadUnreadActivity: boolean;
   } | null
 ) {
-  const store = useStore();
   const shouldMarkRead = opts?.shouldMarkRead ?? false;
   const latestReplyId = opts?.mostRecentlyReceivedReply?.id ?? null;
   const hasThreadUnreadActivity = opts?.hasThreadUnreadActivity ?? false;
@@ -578,7 +576,7 @@ function useMarkThreadAsReadEffect(
       });
     }, 150);
     return () => clearTimeout(timeoutId);
-  }, [shouldMarkRead, hasThreadUnreadActivity, latestReplyId, store]);
+  }, [shouldMarkRead, hasThreadUnreadActivity, latestReplyId]);
 }
 
 function SinglePostView({
@@ -622,7 +620,6 @@ function SinglePostView({
 }) {
   const groupMembers = group?.members ?? [];
   const groupRoles = group?.roles ?? [];
-  const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
   const isUserActive = useIsUserActive();
@@ -787,18 +784,18 @@ function SinglePostView({
   );
 
   const sendFromThreadComposer = useCallback(
-    async (draft: domain.PostDataDraft) => {
+    async (draft: domain.PostDataDraft, options?: store.PostSendOptions) => {
       setEditingPost?.(undefined);
       if (draft.isEdit) {
-        await store.finalizeAndSendPost(draft);
+        await store.finalizeAndSendPost(draft, options);
         return;
       }
 
       draft.replyToPostId = parentPost.id;
-      await store.finalizeAndSendPost(draft);
+      await store.finalizeAndSendPost(draft, options);
       scrollToNewReply();
     },
-    [parentPost, store, scrollToNewReply, setEditingPost]
+    [parentPost, scrollToNewReply, setEditingPost]
   );
 
   const isChatLike = useMemo(
@@ -936,9 +933,9 @@ function SinglePostView({
             setEditingPost={setEditingPost}
             shouldBlur={inputShouldBlur}
             setShouldBlur={setInputShouldBlur}
-            sendPostFromDraft={async (draft) => {
+            sendPostFromDraft={async (draft, options) => {
               setEditingPost?.(undefined);
-              await store.finalizeAndSendPost(draft);
+              await store.finalizeAndSendPost(draft, options);
             }}
             getDraft={parentEditDraftCallbacks?.getDraft ?? (async () => null)}
             storeDraft={

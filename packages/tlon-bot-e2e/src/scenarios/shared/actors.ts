@@ -58,6 +58,11 @@ export interface ScenarioActor {
     value: unknown;
     desk?: string;
   }): Promise<void>;
+  deleteSettingsEntry(params: {
+    bucket: string;
+    key: string;
+    desk?: string;
+  }): Promise<void>;
   uploadBlob?(params: UploadBlobParams): Promise<string>;
   teardown(fn: () => Promise<void>, opts?: ScenarioTeardownOptions): void;
 }
@@ -178,6 +183,10 @@ function createScenarioActor(
 
     async setSettingsEntry(params) {
       await client.setSettingsEntry(params);
+    },
+
+    async deleteSettingsEntry(params) {
+      await client.deleteSettingsEntry(params);
     },
 
     teardown(fn, opts = {}) {

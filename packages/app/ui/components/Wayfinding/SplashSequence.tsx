@@ -75,7 +75,6 @@ import {
   useAttachmentContext,
   useMappedImageAttachments,
 } from '../../contexts/attachment';
-import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import AttachmentSheet from '../AttachmentSheet';
 import { Field, TextInput, TextInputRef } from '../Form';
@@ -144,7 +143,6 @@ function SplashSequenceComponent(props: {
   hostingBotEnabled?: boolean;
   splashSequenceMode?: db.ShipInfo['splashSequenceMode'];
 }) {
-  const store = useStore();
   const canUpload = useCanUpload();
   const tlonbotRevivalSetup = db.tlonbotRevivalSetup.useValue();
   const [currentPane, setCurrentPane] = React.useState(
@@ -770,7 +768,7 @@ function SplashSequenceComponent(props: {
     } else {
       await store.completeWayfindingSplash();
     }
-  }, [isRevivalSplash, shouldDeferTlonbotSetup, store]);
+  }, [isRevivalSplash, shouldDeferTlonbotSetup]);
 
   const handleSplashCompleted = useCallback(async () => {
     if (finishingSplash) return;
@@ -2180,8 +2178,7 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
 
 const logger = createDevLogger('SplashSequence', true);
 
-const INVITE_EXPLANATION_TEXT =
-  "Anyone you invite will skip the waitlist. You'll receive a DM when they join.";
+const INVITE_EXPLANATION_TEXT = "You'll receive a DM when they join.";
 
 export function InviteContactsContent(props: {
   onComplete: () => void;
@@ -2464,8 +2461,9 @@ export function InvitePane(props: {
   onActionPress: () => void;
   inviteSystemContacts?: InviteSystemContactsFn;
   isCompleting?: boolean;
+  syncSystemContacts?: typeof store.syncSystemContacts;
+  syncContactDiscovery?: typeof store.syncContactDiscovery;
 }) {
-  const storeContext = useStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteContacts, setShowInviteContacts] = useState(false);
   const [sysContacts, setSysContacts] = useState<db.SystemContact[]>([]);
@@ -2474,7 +2472,7 @@ export function InvitePane(props: {
     discoveredMatches,
     runDiscovery,
     notifyPendingMatches,
-  } = useContactDiscovery();
+  } = useContactDiscovery(props.syncContactDiscovery);
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
 
@@ -2488,7 +2486,9 @@ export function InvitePane(props: {
     let syncedContacts: db.SystemContact[] = [];
     try {
       setIsProcessing(true);
-      syncedContacts = await storeContext.syncSystemContacts();
+      syncedContacts = await (
+        props.syncSystemContacts ?? store.syncSystemContacts
+      )();
       setSysContacts(syncedContacts);
       if (syncedContacts.length === 0) {
         logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
@@ -2509,7 +2509,7 @@ export function InvitePane(props: {
     if (syncedContacts.length > 0) {
       void runDiscovery(syncedContacts);
     }
-  }, [storeContext, runDiscovery]);
+  }, [runDiscovery, props.syncSystemContacts]);
 
   const handleActionPress = useCallback(() => {
     notifyPendingMatches();

@@ -9,7 +9,7 @@ import {
 } from 'react-native-safe-area-context';
 
 import { ShipProvider } from '../contexts/ship';
-import { LoadingSpinner, StoreProvider, View } from '../ui';
+import { LoadingSpinner, View } from '../ui';
 import { ContentReferenceLoaderProvider } from '../ui/components/ContentReference/ContentReference';
 import { ComponentsKitProvider } from '../ui/contexts/componentsKits/ComponentsKitProvider';
 import { NowPlayingProvider } from '../ui/contexts/nowPlaying';
@@ -91,9 +91,7 @@ function GlobalProviderStack({ children }: PropsWithChildren) {
   return (
     <QueryClientProvider client={queryClient}>
       <TelemetryProvider>
-        <StoreProvider>
-          <ShipProvider>{children}</ShipProvider>
-        </StoreProvider>
+        <ShipProvider>{children}</ShipProvider>
       </TelemetryProvider>
     </QueryClientProvider>
   );

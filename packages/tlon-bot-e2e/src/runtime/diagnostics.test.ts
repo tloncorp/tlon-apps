@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import type { ComposeHandle, RuntimeContext } from '../drivers/types.js';
-import { collectRuntimeDiagnostics } from './diagnostics.js';
+import {
+  collectRuntimeDiagnostics,
+  filterUploadLogLines,
+} from './diagnostics.js';
 
 describe('collectRuntimeDiagnostics', () => {
   afterEach(() => {
@@ -9,7 +12,11 @@ describe('collectRuntimeDiagnostics', () => {
   });
 
   test('includes logs, fake-model received calls, and ship readiness', async () => {
-    const logs = vi.fn(async (services: string[]) => `${services[0]} log line`);
+    const logs = vi.fn(async (services: string[]) =>
+      services[0] === 'openclaw'
+        ? 'openclaw log line\n[tlon] upload: started\nnoise\n[tlon] upload: done'
+        : `${services[0]} log line`
+    );
     const ps = vi.fn(async () => [
       {
         name: 'project-bot-1',
@@ -60,6 +67,9 @@ describe('collectRuntimeDiagnostics', () => {
     expect(diagnostics).toContain('"key": "diag-key"');
     expect(diagnostics).toContain('== openclaw logs ==');
     expect(diagnostics).toContain('openclaw log line');
+    expect(diagnostics).toContain('== openclaw upload log lines ==');
+    expect(diagnostics).toContain('[tlon] upload: started');
+    expect(diagnostics).toContain('[tlon] upload: done');
     expect(diagnostics).toContain('== fake-model logs ==');
     expect(diagnostics).toContain('fake-model log line');
     expect(diagnostics).toContain('== ship readiness snapshot ==');
@@ -72,6 +82,10 @@ describe('collectRuntimeDiagnostics', () => {
       tail: 7,
       timeoutMs: 10_000,
     });
+    expect(logs).toHaveBeenCalledWith(['openclaw'], {
+      timeoutMs: 10_000,
+      allowFailure: false,
+    });
     expect(logs).toHaveBeenCalledWith(['fake-model'], {
       tail: 7,
       timeoutMs: 10_000,
@@ -80,6 +94,43 @@ describe('collectRuntimeDiagnostics', () => {
       tail: 7,
       timeoutMs: 10_000,
     });
+  });
+
+  test('renders failed-to-collect when upload log lines call rejects', async () => {
+    const logs = vi.fn(async (services: string[], opts?: { tail?: number }) => {
+      if (services[0] === 'openclaw' && opts?.tail === undefined) {
+        throw new Error('docker compose logs failed with exit 1');
+      }
+      return `${services[0]} log line`;
+    });
+    const ps = vi.fn(async () => []);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL | Request) => {
+        if (String(url).includes('/v1/_received')) {
+          return Response.json({ calls: [], count: 0, epoch: 0 });
+        }
+        return new Response('', {
+          status: 302,
+          headers: { 'set-cookie': 'urbauth=test' },
+        });
+      })
+    );
+
+    const diagnostics = await collectRuntimeDiagnostics(
+      runtimeContext(),
+      { ps, logs } as unknown as ComposeHandle,
+      { tail: 7 }
+    );
+
+    expect(diagnostics).toContain('== openclaw upload log lines ==');
+    expect(diagnostics).toContain(
+      '<failed to collect: docker compose logs failed with exit 1>'
+    );
+    expect(diagnostics).toContain('== openclaw logs ==');
+    expect(diagnostics).toContain('openclaw log line');
+    expect(diagnostics).toContain('== fake-model logs ==');
+    expect(diagnostics).toContain('fake-model log line');
   });
 
   test('bounds hanging HTTP diagnostics with probe timeouts', async () => {
@@ -107,6 +158,44 @@ describe('collectRuntimeDiagnostics', () => {
     expect(diagnostics).toContain('<failed to collect: probe aborted>');
     expect(diagnostics).toContain('zod ~zod http://localhost:8080/~/login');
     expect(diagnostics).toContain('error=probe aborted');
+  });
+});
+
+describe('filterUploadLogLines', () => {
+  test('keeps only [tlon] upload lines', () => {
+    const logs = [
+      'booting ship',
+      '[tlon] upload: started',
+      'random noise',
+      '[tlon] upload: done',
+      'shutdown',
+    ].join('\n');
+
+    expect(filterUploadLogLines(logs)).toBe(
+      '[tlon] upload: started\n[tlon] upload: done'
+    );
+  });
+
+  test('truncates to the last 400 matching lines', () => {
+    const matching = Array.from(
+      { length: 450 },
+      (_, i) => `[tlon] upload: line ${i}`
+    );
+    const logs = ['noise', ...matching, 'more noise'].join('\n');
+
+    const result = filterUploadLogLines(logs);
+    const lines = result.split('\n');
+
+    expect(lines[0]).toBe(
+      '<truncated: showing last 400 of 450 matching lines>'
+    );
+    expect(lines).toHaveLength(401);
+    expect(lines[1]).toBe('[tlon] upload: line 50');
+    expect(lines[400]).toBe('[tlon] upload: line 449');
+  });
+
+  test('returns empty string when no lines match', () => {
+    expect(filterUploadLogLines('foo\nbar\nbaz')).toBe('');
   });
 });
 

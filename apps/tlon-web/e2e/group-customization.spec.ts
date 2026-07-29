@@ -53,10 +53,17 @@ test('should customize group name, icon, and description', async ({
     await helpers.openGroupCustomization(page);
     // Test image upload functionality
     await helpers.changeGroupIcon(page); // This will test the upload interface
-    // Close the attachment sheet after testing
-    // await page.getByTestId('AttachmentSheetCloseButton').first().click();
-    // wait for upload to complete
-    await page.waitForTimeout(10000);
+
+    // Wait deterministically for the upload to complete: the ImageInput
+    // preview src switches from a local/file URI to the S3 remoteUri once
+    // attachment.uploadState.status === 'success'. The testID lives on the
+    // preview frame (Tamagui Image does not surface testID as a DOM
+    // attribute), so poll the inner img — same pattern as the GroupIcon
+    // assertion below.
+    await expect(
+      page.getByTestId('ImageInputPreview').getByRole('img').last()
+    ).toHaveAttribute('src', /^https?:\/\//, { timeout: 45000 });
+
     // press the save button
     await page.getByText('Save').click();
 
@@ -69,15 +76,13 @@ test('should customize group name, icon, and description', async ({
     const groupIcon = page.getByTestId('GroupIcon').first().getByRole('img');
     await expect(groupIcon).toBeVisible({ timeout: 10000 });
 
-    // Get the src attribute and verify it's a URL, not base64
+    // Poll for the src to be an HTTP(S) URL (likely from S3), not base64
+    await expect(groupIcon).toHaveAttribute('src', /^https?:\/\//, {
+      timeout: 15000,
+    });
+
     const iconSrc = await groupIcon.getAttribute('src');
-    expect(iconSrc).toBeTruthy();
-
-    // Check that it's NOT a base64 data URI
     expect(iconSrc).not.toMatch(/^data:image\/(png|jpeg|jpg|gif|webp);base64,/);
-
-    // Check that it IS an HTTP(S) URL (likely from S3)
-    expect(iconSrc).toMatch(/^https?:\/\//);
 
     console.log('✅ Group icon uploaded to S3 successfully:', iconSrc);
     await helpers.navigateBack(page);
