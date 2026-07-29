@@ -1060,11 +1060,34 @@
   |=  =source:a
   ~>  %spin.['del-source']
   ^+  cor
+  =.  cor  (del-source-tree source)
+  ::  parent summaries aggregate their children's counts, so they go
+  ::  stale when a subtree is removed — recompute and push the ones
+  ::  that survive the deletion
+  =/  parents=(list source:a)
+    %+  skim  (get-parents:src source)
+    |=(s=source:a (~(has by indices) s))
+  ?:  =(~ parents)  cor
+  =.  cor
+    =/  todo=(list source:a)  parents
+    |-
+    ?~  todo  cor
+    =.  cor  (refresh-summary i.todo)
+    $(todo t.todo)
+  =/  new-activity=activity:a
+    %+  roll  parents
+    |=  [=source:a out=activity:a]
+    (~(put by out) source (~(gut by activity) source *activity-summary:a))
+  (give-update [%activity new-activity] [%hose ~])
+::
+++  del-source-tree
+  |=  =source:a
+  ^+  cor
   =.  cor
     =/  children  (get-children:src indices source)
     |-
     ?~  children  cor
-    =.  cor  (del-source i.children)
+    =.  cor  (del-source-tree i.children)
     $(children t.children)
   =.  indices  (~(del by indices) source)
   =.  activity  (~(del by activity) source)

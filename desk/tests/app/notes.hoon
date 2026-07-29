@@ -236,6 +236,16 @@
   ?:  ?=([%pass * %agent * %poke *] i.caz)
     `+<.i.caz
   $(caz t.caz)
+::  +find-watch-wire: first %pass %agent %watch card's wire, if any.
+::
+++  find-watch-wire
+  |=  caz=(list card)
+  ^-  (unit wire)
+  |-  ^-  (unit wire)
+  ?~  caz  ~
+  ?:  ?=([%pass * %agent * %watch *] i.caz)
+    `+<.i.caz
+  $(caz t.caz)
 ::  +find-poke-vase: vase of the first %pass %agent %poke card whose cage
 ::  carries the given mark, if any. cage is +>+>+.c (cf. +has-poke-mark,
 ::  which reads its mark via -.); the vase is the cage tail, +..
@@ -2522,6 +2532,76 @@
     |+['expected a %del submission']~
   ?.  ?=(%notebook -.source.act)
     |+['expected %del of the notebook source']~
+  &+[~ s]
+::  a subscriber receiving %folder %deleted mirrors the host's recursive
+::  subtree removal and %dels the removed notes' activity sources — the
+::  wire update only names the folder
+::
+++  test-activity-subscriber-folder-delete-clears-notes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  ~  b  (set-scry-gate activity-scry)
+  =/  f=flag:n  [~bus %shared]
+  ::  join creates the %sub placeholder book and a request watch on the
+  ::  host; the %ok response makes the agent start its stream watch
+  ;<  caz0=(list card)  b  (poke-a [%join f])
+  =/  req-watch=(unit wire)  (find-watch-wire caz0)
+  ~|  %no-join-request-watch-wire
+  ?>  ?=(^ req-watch)
+  ;<  *  b
+    %+  do-agent-drain  u.req-watch
+    :-  [~bus %notes]
+    :+  %fact  %notes-response-update-1
+    !>(`response-update:v1:n`[`@uv`0v0 [%ok *@da [%member-joined ~zod %viewer]]])
+  ::  host snapshot: root folder 1, subfolder 2, note 4 at the root and
+  ::  note 5 inside the subfolder
+  =/  root=folder:n    [1 1 'root' ~ ~bus *@da *@da ~bus]
+  =/  subf=folder:n    [2 1 'sub' `1 ~bus *@da *@da ~bus]
+  =/  kept=note:n      [4 1 1 'kept' ~ 'body' ~bus *@da ~bus *@da 0]
+  =/  doomed=note:n    [5 1 2 'doomed' ~ 'body' ~bus *@da ~bus *@da 0]
+  =/  nb=notebook:n    [1 'NB' ~bus *@da *@da ~bus]
+  =/  nb-state=notebook-state:n
+    :*  nb
+        (~(gas by *members:n) ~[[~bus %owner] [~zod %viewer]])
+        %public
+        (~(gas by *(map @ud folder:n)) ~[[1 root] [2 subf]])
+        (~(gas by *(map @ud note:n)) ~[[4 kept] [5 doomed]])
+        ~  ~
+    ==
+  =/  =wire  /notes/sub/(scot %p ~bus)/shared
+  ;<  *  b
+    %+  do-agent  wire
+    [[~bus %notes] [%fact %notes-response !>(`response:n`[%snapshot f %public nb-state])]]
+  ::  the host deletes the subfolder recursively
+  ;<  caz=(list card)  b
+    %+  do-agent  wire
+    :-  [~bus %notes]
+    [%fact %notes-response !>(`response:n`[%update f [*@da [%folder 2 [%deleted ~]]]])]
+  =/  acts  (activity-actions caz)
+  ;<  sv=vase  b  get-save
+  =/  s15=state-15:n  !<(state-15:n sv)
+  =/  [net:n nbs=notebook-state:n]  (~(got by books.s15) f)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected exactly one activity submission']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%del -.act)
+    |+['expected a %del submission']~
+  ?.  ?=(%note -.source.act)
+    |+['expected %del of a note source']~
+  ?.  =(5 id.source.act)
+    |+['expected the subfolder note id in the source']~
+  ?:  (~(has by folders.nbs) 2)
+    |+['subfolder not removed from local state']~
+  ?.  (~(has by folders.nbs) 1)
+    |+['root folder should survive']~
+  ?:  (~(has by notes.nbs) 5)
+    |+['subfolder note not removed from local state']~
+  ?.  (~(has by notes.nbs) 4)
+    |+['root note should survive']~
   &+[~ s]
 ::  /v0/said: single-shot note reference previews
 ::

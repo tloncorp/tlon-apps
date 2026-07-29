@@ -1234,6 +1234,33 @@
   :+  %del  %notebook
   :-  [ship.flag name.flag]
   (bind group |=(f=flag:n [ship.f name.f]))
+::  +subtree-folder-ids: a folder id plus all its descendants
+::
+++  subtree-folder-ids
+  |=  [folders=(map @ud folder:n) root=@ud]
+  ^-  (set @ud)
+  =/  acc=(set @ud)  (silt ~[root])
+  =/  queue=(list @ud)  ~[root]
+  |-
+  ?~  queue  acc
+  =/  children=(list @ud)
+    %+  murn  ~(tap by folders)
+    |=  [fid=@ud fld=folder:n]
+    ?~  parent-folder-id.fld  ~
+    ?:(=(u.parent-folder-id.fld i.queue) `fid ~)
+  %=  $
+    queue  (weld t.queue children)
+    acc    (~(gas in acc) children)
+  ==
+::  +note-ids-in-folders: ids of the notes living in any of the folders
+::
+++  note-ids-in-folders
+  |=  [notes=(map @ud note:n) fids=(set @ud)]
+  ^-  (set @ud)
+  %-  silt
+  %+  murn  ~(tap by notes)
+  |=  [nid=@ud =note:n]
+  ?:((~(has in fids) folder-id.note) `nid ~)
 ::
 ++  notebooks-changed-card
   ^-  card
@@ -2353,25 +2380,12 @@
   ++  se-subtree-folder-ids
     |=  folder-id=@ud
     ^-  (set @ud)
-    =/  acc=(set @ud)  (silt ~[folder-id])
-    =/  queue=(list @ud)  ~[folder-id]
-    |-
-    ?~  queue  acc
-    =/  children=(list @ud)  (se-folder-children-ids i.queue)
-    %=  $
-      queue  (weld t.queue children)
-      acc    (~(gas in acc) children)
-    ==
+    (subtree-folder-ids folders.notebook-state folder-id)
   ::
   ++  se-note-ids-in-folder-set
     |=  fids=(set @ud)
     ^-  (set @ud)
-    %-  silt
-    %+  murn  ~(tap by notes.notebook-state)
-    |=  [nid=@ud =note:n]
-    ?:  (~(has in fids) folder-id.note)
-      `nid
-    ~
+    (note-ids-in-folders notes.notebook-state fids)
   ::
   ++  se-notes-in-folder
     |=  folder-id=@ud
@@ -2753,8 +2767,35 @@
         (~(put by folders.notebook-state) fid folder.upd)
       no-core
         %deleted
+      ::  a recursive delete removes the folder's whole subtree on the
+      ::  host, but the wire update only names the folder — mirror the
+      ::  removal from local state and clear the removed notes'
+      ::  %activity sources (a non-recursive delete has no descendants,
+      ::  so this degrades to just dropping the folder record)
+      =/  del-fids=(set @ud)
+        (subtree-folder-ids folders.notebook-state fid)
+      =/  del-nids=(set @ud)
+        (note-ids-in-folders notes.notebook-state del-fids)
       =.  folders.notebook-state
-        (~(del by folders.notebook-state) fid)
+        %-  ~(rep in del-fids)
+        |=  [f=@ud acc=_folders.notebook-state]
+        (~(del by acc) f)
+      =.  notes.notebook-state
+        %-  ~(rep in del-nids)
+        |=  [n=@ud acc=_notes.notebook-state]
+        (~(del by acc) n)
+      =.  history.notebook-state
+        %-  ~(rep in del-nids)
+        |=  [n=@ud acc=_history.notebook-state]
+        (~(del by acc) n)
+      =.  cor
+        =/  nids  ~(tap in del-nids)
+        |-  ^+  cor
+        ?~  nids  cor
+        %=  $
+          nids  t.nids
+          cor   (note-activity flag group.notebook-state i.nids [%deleted ~])
+        ==
       no-core
     ==
   ::
