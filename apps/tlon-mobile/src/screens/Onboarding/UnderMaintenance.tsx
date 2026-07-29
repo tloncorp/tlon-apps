@@ -1,17 +1,13 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
-import {
-  OnboardingTextBlock,
-  ScreenHeader,
-  View,
-  useStore,
-} from '@tloncorp/app/ui';
+import { OnboardingTextBlock, ScreenHeader, View } from '@tloncorp/app/ui';
 import { TlonText } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { Button } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { openComposer } from 'react-native-email-link';
@@ -26,7 +22,6 @@ type Props = NativeStackScreenProps<
 const logger = createDevLogger('UnderMaintenanceScreen', true);
 
 export function UnderMaintenanceScreen({ navigation }: Props) {
-  const store = useStore();
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const [loggingOut, setLoggingOut] = useState(false);
@@ -46,7 +41,7 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
     } finally {
       setRechecking(false);
     }
-  }, [navigation, store]);
+  }, [navigation]);
 
   const onLogout = useCallback(async () => {
     setLoggingOut(true);

@@ -29,6 +29,7 @@ export default function AttachmentButton({
         onOpenChange={setShowInputSelector}
         mediaType="all"
         allowMultipleSelection
+        trackAttachmentAdded
       />
     </>
   );

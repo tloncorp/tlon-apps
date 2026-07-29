@@ -6,7 +6,7 @@ export interface TelemetryClient {
   capture: (eventName: string, properties?: Record<string, any>) => void;
   flush: () => Promise<void>;
 
-  setDisabled: (disabled: boolean) => void;
+  setDisabled: (disabled: boolean, updateSettings?: boolean) => Promise<void>;
   captureMandatoryEvent: (event: {
     eventId: string;
     properties?: Record<string, any>;

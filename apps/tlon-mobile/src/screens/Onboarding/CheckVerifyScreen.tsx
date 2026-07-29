@@ -1,17 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import {
-  ScreenHeader,
-  TlonText,
-  View,
-  YStack,
-  useStore,
-} from '@tloncorp/app/ui';
+import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import { useCallback, useState } from 'react';
 
 import { OTPInput } from '../../components/OnboardingInputs';
 import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
+import { useOnboardingContext } from '../../lib/OnboardingContext';
 import type { OnboardingStackParamList } from '../../types';
 import { useSignupContext } from '.././../lib/signupContext';
 
@@ -22,19 +17,19 @@ const PHONE_CODE_LENGTH = 6;
 const logger = createDevLogger('CheckVerifyScreen', true);
 
 export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
-  const store = useStore();
   const [code, setCode] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const { checkAccountStatusAndNavigate } = useOnboardingHelpers();
   const signupContext = useSignupContext();
+  const { checkPhoneVerify, requestPhoneVerify } = useOnboardingContext();
 
   const handleSubmit = useCallback(
     async (code: string) => {
       setIsSubmitting(true);
 
       try {
-        await store.checkPhoneVerify(code);
+        await checkPhoneVerify(code);
 
         trackOnboardingAction({
           actionName: 'Verification Submitted',
@@ -58,10 +53,10 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
     },
     [
       checkAccountStatusAndNavigate,
+      checkPhoneVerify,
       navigation,
       params.mode,
       signupContext,
-      store,
     ]
   );
 
@@ -77,7 +72,7 @@ export const CheckVerifyScreen = ({ navigation, route: { params } }: Props) => {
 
   const handleResend = async () => {
     try {
-      await store.requestPhoneVerify(params.phoneNumber);
+      await requestPhoneVerify(params.phoneNumber);
     } catch (err) {
       console.error('Error resending verification code:', err);
       if (err instanceof Error) {

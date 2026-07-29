@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect } from 'react';
@@ -14,7 +15,6 @@ import {
   PostScreenView,
   useCurrentUserId,
 } from '../../ui';
-import { useStore } from '../../ui/contexts/storeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Post'>;
 
@@ -65,7 +65,7 @@ function PostScreenContent({
   const postId = post.id;
   const navigation = useNavigation();
   const { group, channel, negotiationStatus, editingPost, setEditingPost } =
-    useStore().useChannelContext({
+    store.useChannelContext({
       channelId: channelId,
       draftKey: store.draftKeyFor.thread({
         parentPostId: postId,
@@ -81,6 +81,12 @@ function PostScreenContent({
   });
 
   const currentUserId = useCurrentUserId();
+  const channelType = channel?.type;
+
+  useEffect(() => {
+    if (!channelType) return;
+    trackEvent(AnalyticsEvent.PostOpened, { type: channelType });
+  }, [channelType, postId]);
 
   const handleDeletePost = useCallback(
     async (post: db.Post) => {

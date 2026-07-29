@@ -125,6 +125,50 @@ export async function execInComposeService(
   );
 }
 
+export async function disconnectComposeNetwork(
+  ctx: RuntimeContext,
+  service: string,
+  run: DockerCommandRunner = runCommand
+): Promise<void> {
+  const container = await resolveComposeContainer(ctx, service, run);
+  const result = await runDocker(
+    ctx,
+    ['network', 'disconnect', `${ctx.composeProjectName}_default`, container],
+    run
+  );
+  requireSuccess(result, `disconnect network for service ${service}`);
+}
+
+export async function connectComposeNetwork(
+  ctx: RuntimeContext,
+  service: string,
+  run: DockerCommandRunner = runCommand
+): Promise<void> {
+  const container = await resolveComposeContainer(ctx, service, run);
+  const result = await runDocker(
+    ctx,
+    ['network', 'connect', `${ctx.composeProjectName}_default`, container],
+    run
+  );
+  requireSuccess(result, `connect network for service ${service}`);
+}
+
+export async function readComposeServiceLogs(
+  ctx: RuntimeContext,
+  service: string,
+  opts: { since: string },
+  run: DockerCommandRunner = runCommand
+): Promise<string> {
+  const container = await resolveComposeContainer(ctx, service, run);
+  const result = await runDocker(
+    ctx,
+    ['logs', '--since', opts.since, container],
+    run
+  );
+  requireSuccess(result, `read logs for service ${service}`);
+  return [result.stdout, result.stderr].filter(Boolean).join('\n');
+}
+
 interface DockerContainerState {
   Running: boolean;
   StartedAt: string;

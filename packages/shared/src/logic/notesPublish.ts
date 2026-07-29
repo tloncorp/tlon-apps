@@ -16,7 +16,35 @@ export function publishedNoteUrl(path: string, shipUrl?: string | null) {
   return shipUrl ? new URL(path, shipUrl).toString() : null;
 }
 
-const publishedNoteCss = `body{margin:0;padding:48px 24px;background:#111;color:#f4f4f4;font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:720px;margin:0 auto}h1,h2,h3,h4,h5,h6{line-height:1.2;color:#fff;margin:1.4em 0 .45em}main>h1:first-child{margin-top:0}p,blockquote,pre,ul,ol,table{margin:1em 0}a{color:#8f84ff}code,pre{font-family:"SFMono-Regular","JetBrains Mono",monospace;background:#1d1d1d}code{padding:2px 5px;border-radius:4px}pre{padding:16px;border:1px solid #333;border-radius:8px;overflow:auto}pre code{padding:0;background:transparent}blockquote{border-left:3px solid #8f84ff;padding-left:16px;color:#c2c2c2}hr{border:0;border-top:1px solid #333;margin:2em 0}img,video{max-width:100%;border-radius:8px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #333;padding:8px 10px}th{background:#1d1d1d}.tlon-published-footer{margin-top:48px;padding-top:16px;border-top:1px solid #333;color:#8a8a8a;font-size:12px}`;
+const publishedNoteCss = `
+:root{color-scheme:dark light;--background:#1A1818;--primary-text:#FFFFFF;--tertiary-text:#808080;--border:#333333;--secondary-background:#322E2E;--action-text:#4E91F5}
+@media(prefers-color-scheme:light){:root{--background:#FFFFFF;--primary-text:#1A1818;--tertiary-text:#999999;--border:#E5E5E5;--secondary-background:#F5F5F5;--action-text:#3B80E8}}
+*{box-sizing:border-box}
+body{margin:0;padding:48px 24px;background:var(--background);color:var(--primary-text);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto}
+h1,h2,h3,h4,h5,h6{line-height:1.2;color:var(--primary-text);margin:1.4em 0 .45em}
+main>h1:first-child{margin-top:0;font-size:24px;font-weight:400}
+p,blockquote,pre,ul,ol,.tlon-table-scroll{margin:1em 0}
+a{color:var(--action-text)}
+code,pre{font-family:"SFMono-Regular","JetBrains Mono",monospace;background:var(--secondary-background)}
+code{padding:2px 5px;border-radius:4px}
+pre{padding:16px;border:1px solid var(--border);border-radius:8px;overflow:auto}
+pre code{padding:0;background:transparent}
+blockquote{border-left:3px solid var(--action-text);padding-left:16px;color:var(--tertiary-text)}
+hr{border:0;border-top:1px solid var(--border);margin:2em 0}
+img,video{max-width:100%;border-radius:8px}
+.tlon-table-scroll{max-width:100%;overflow-x:auto}
+table{border-collapse:collapse;width:max-content;min-width:100%;font-size:14px;line-height:20px}
+tr{border-bottom:1px solid var(--border)}
+tbody tr:last-child{border-bottom:0}
+th,td{border:0;max-width:280px;padding:16px 12px;vertical-align:top;overflow-wrap:anywhere}
+th:first-child,td:first-child{padding-left:0}
+th{background:transparent;color:var(--tertiary-text);font-weight:400}
+.tlon-table-cell-content{display:inline-block;width:max-content;max-width:280px}
+.tlon-table-data-cell{width:1px}
+.tlon-table-spacer{padding:0}
+.tlon-published-footer{margin-top:48px;padding-top:16px;border-top:1px solid var(--border);color:var(--tertiary-text);font-size:12px}
+`.trim();
 const inlineStyleTags = {
   bold: 'strong',
   code: 'code',
@@ -162,7 +190,7 @@ function renderTableToHtml(block: Extract<BlockData, { type: 'table' }>) {
   const rows = block.rows
     .map((row) => renderTableRowToHtml(row, block.align, 'td'))
     .join('');
-  return `<table><thead>${header}</thead><tbody>${rows}</tbody></table>`;
+  return `<div class="tlon-table-scroll"><table><thead>${header}</thead><tbody>${rows}</tbody></table></div>`;
 }
 
 function renderTableRowToHtml(
@@ -175,10 +203,10 @@ function renderTableRowToHtml(
       const textAlign = align[index]
         ? ` style="text-align:${align[index]}"`
         : '';
-      return `<${cellTag}${textAlign}>${renderInlinesToHtml(cell.content)}</${cellTag}>`;
+      return `<${cellTag} class="tlon-table-data-cell"${textAlign}><div class="tlon-table-cell-content">${renderInlinesToHtml(cell.content)}</div></${cellTag}>`;
     })
     .join('');
-  return `<tr>${cells}</tr>`;
+  return `<tr>${cells}<${cellTag} class="tlon-table-spacer" aria-hidden="true"></${cellTag}></tr>`;
 }
 
 function referenceLabel(block: Extract<BlockData, { type: 'reference' }>) {
