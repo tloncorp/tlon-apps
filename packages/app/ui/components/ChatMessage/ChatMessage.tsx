@@ -110,6 +110,7 @@ const ChatMessage = ({
   return (
     <MaskedChatMessage post={post}>
       <MessageContextMenu
+        enabled={Boolean(onLongPress)}
         post={post}
         postActionIds={postActionIds}
         canReact={canWrite}

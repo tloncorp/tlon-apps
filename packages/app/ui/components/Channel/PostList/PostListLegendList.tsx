@@ -23,6 +23,8 @@ function getPostId({ post }: PostWithNeighbors) {
   return post.id;
 }
 
+const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
+
 export const PostList: PostListComponent = React.forwardRef(
   (
     {
@@ -69,19 +71,41 @@ export const PostList: PostListComponent = React.forwardRef(
 
       return orderedPosts.findIndex(({ post }) => post.id === anchor.postId);
     }, [anchor?.postId, orderedPosts]);
-    const listMountKey = getExplicitChatListMountKey({
+    const [timedOutAnchorId, setTimedOutAnchorId] = React.useState<
+      string | null
+    >(null);
+    const didTimeoutWaitingForAnchor =
+      !!anchor?.postId && timedOutAnchorId === anchor.postId;
+
+    React.useEffect(() => {
+      if (!anchor?.postId || anchorIndex !== -1 || didTimeoutWaitingForAnchor) {
+        return;
+      }
+
+      const anchorId = anchor.postId;
+      const timeout = setTimeout(() => {
+        setTimedOutAnchorId(anchorId);
+      }, ANCHOR_RESOLUTION_TIMEOUT_MS);
+      return () => clearTimeout(timeout);
+    }, [anchor?.postId, anchorIndex, didTimeoutWaitingForAnchor]);
+
+    const unresolvedListMountKey = getExplicitChatListMountKey({
       enabled: true,
       postCount: orderedPosts.length,
       anchorId: anchor?.postId,
       anchorIndex,
     });
+    const listMountKey = didTimeoutWaitingForAnchor
+      ? `anchor:${anchor.postId}:fallback`
+      : unresolvedListMountKey;
     const isInitialAnchorReady = isExplicitChatAnchorReady({
       anchorId: anchor?.postId,
       anchorIndex,
+      didTimeoutWaitingForAnchor,
     });
     const initialScrollIndex = React.useMemo(
       () =>
-        anchorIndex === -1
+        anchorIndex === -1 || didTimeoutWaitingForAnchor
           ? undefined
           : {
               index: anchorIndex,
@@ -93,7 +117,13 @@ export const PostList: PostListComponent = React.forwardRef(
                     topContentInset
                   : 0,
             },
-      [anchor?.type, anchorIndex, insets.top, topContentInset]
+      [
+        anchor?.type,
+        anchorIndex,
+        didTimeoutWaitingForAnchor,
+        insets.top,
+        topContentInset,
+      ]
     );
     const latestInitialScrollIndexRef = React.useRef(initialScrollIndex);
     latestInitialScrollIndexRef.current = initialScrollIndex;
