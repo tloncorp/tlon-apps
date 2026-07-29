@@ -3249,7 +3249,7 @@ export async function monitorTlonProvider(
                         onSkip: (_payload, info) => {
                           recordDeliverySkip(info.reason);
                         },
-                        deliver: async (payload: ReplyPayload) => {
+                        deliver: async (payload: ReplyPayload, info) => {
                           contextLenses.setStatus(lens.lensId, 'delivering');
                           const blob = getReplyBlob(payload);
                           let replyText = payload.text ?? '';
@@ -3276,7 +3276,10 @@ export async function monitorTlonProvider(
                             recordDeliverySkip('block_directive_only');
                             return;
                           } // Response was only a directive
-                          recordActiveTlonTurnSourceReply();
+                          recordActiveTlonTurnSourceReply({
+                            isError: payload.isError === true,
+                            kind: info.kind,
+                          });
 
                           // Use settings store value if set, otherwise fall back to file config
                           const showSignature = effectiveShowModelSig;

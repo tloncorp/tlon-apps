@@ -28,6 +28,10 @@ const noOpObserver: TlonAgentTurnObserver = {
 
 function recordTurn(params: {
   replyCount?: number;
+  sourceReplies?: Array<{
+    isError?: boolean;
+    kind: 'tool' | 'block' | 'final';
+  }>;
   toolCount?: number;
   deliverySuccessCount?: number;
   deliveryFailureCount?: number;
@@ -37,6 +41,9 @@ function recordTurn(params: {
   turn.run(() => {
     for (let i = 0; i < (params.replyCount ?? 0); i += 1) {
       recordActiveTlonTurnSourceReply();
+    }
+    for (const reply of params.sourceReplies ?? []) {
+      recordActiveTlonTurnSourceReply(reply);
     }
     for (let i = 0; i < (params.toolCount ?? 0); i += 1) {
       recordActiveTlonTurnToolCall();
@@ -61,6 +68,63 @@ describe('Tlon agent turn classification', () => {
         result: 'reply',
         delivery: 'delivered',
         reason: 'reply',
+      },
+    },
+    {
+      name: 'final error reply delivered',
+      input: {
+        sourceReplies: [{ kind: 'final', isError: true }],
+        deliverySuccessCount: 1,
+      },
+      expected: {
+        execution: 'completed',
+        result: 'error_reply',
+        delivery: 'delivered',
+        reason: 'error_reply',
+        finalErrorReplyCount: 1,
+      },
+    },
+    {
+      name: 'final error reply after an action',
+      input: {
+        sourceReplies: [{ kind: 'final', isError: true }],
+        toolCount: 1,
+        deliverySuccessCount: 1,
+      },
+      expected: {
+        execution: 'completed',
+        result: 'error_reply_and_action',
+        delivery: 'delivered',
+        reason: 'error_reply_and_action',
+        finalErrorReplyCount: 1,
+      },
+    },
+    {
+      name: 'intermediate tool error followed by a normal final reply',
+      input: {
+        sourceReplies: [{ kind: 'tool', isError: true }, { kind: 'final' }],
+        deliverySuccessCount: 2,
+      },
+      expected: {
+        execution: 'completed',
+        result: 'reply',
+        delivery: 'delivered',
+        reason: 'reply',
+        finalErrorReplyCount: 0,
+      },
+    },
+    {
+      name: 'recovered final error followed by a normal final reply',
+      input: {
+        sourceReplies: [{ kind: 'final', isError: true }, { kind: 'final' }],
+        deliverySuccessCount: 2,
+      },
+      expected: {
+        execution: 'completed',
+        result: 'reply',
+        delivery: 'delivered',
+        reason: 'reply',
+        finalErrorReplyCount: 1,
       },
     },
     {
@@ -296,6 +360,7 @@ describe('Tlon agent turn classification', () => {
       destinationKind: 'dm',
       durationMs: 1250,
       execution: 'completed',
+      finalErrorReplyCount: 0,
       reason: 'reply_and_action',
       result: 'reply_and_action',
       runId: 'run-1',
@@ -510,6 +575,7 @@ describe('Tlon agent turn OTEL observer', () => {
       'tlon.turn.duration_ms': 2500,
       'tlon.turn.event': 'tlon.agent_turn.terminal',
       'tlon.turn.execution': 'completed',
+      'tlon.turn.final_error_reply_count': 0,
       'tlon.turn.reason': 'reply',
       'tlon.turn.result': 'reply',
       'tlon.turn.run_id': 'run-1',

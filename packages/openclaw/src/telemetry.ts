@@ -1554,6 +1554,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         execution: event.turnSummary?.execution ?? null,
         result: event.turnSummary?.result ?? null,
         delivery: event.turnSummary?.delivery ?? null,
+        finalErrorReplyCount: event.turnSummary?.finalErrorReplyCount ?? null,
         reason: event.turnSummary?.reason ?? null,
         trigger: event.turnSummary?.trigger ?? null,
         toolCount: event.toolUsage.calls.length,

@@ -11,8 +11,10 @@ export type TlonAgentTurnExecution =
 
 export type TlonAgentTurnResult =
   | 'reply'
+  | 'error_reply'
   | 'action_only'
   | 'reply_and_action'
+  | 'error_reply_and_action'
   | 'intentional_silence'
   | 'empty';
 
@@ -82,6 +84,7 @@ export type TlonAgentTurnSummary = TlonAgentTurnStart & {
   deliverySuccessCount: number;
   durationMs: number;
   execution: TlonAgentTurnExecution;
+  finalErrorReplyCount: number;
   reason: TlonAgentTurnReason;
   result: TlonAgentTurnResult;
   sourceReplyCount: number;
@@ -96,6 +99,8 @@ export type TlonAgentTurnObserver = {
 type TlonAgentTurnState = TlonAgentTurnStart & {
   deliveryFailureCount: number;
   deliverySuccessCount: number;
+  finalErrorReplyCount: number;
+  finalNonErrorReplyCount: number;
   finalized: boolean;
   sourceReplyCount: number;
   summary: TlonAgentTurnSummary | null;
@@ -195,6 +200,14 @@ function resolveResult(
     state.sourceReplyCount > 0 ||
     skipReason === 'source_reply_delivery_mode_message_tool_only';
   const acted = state.toolCallCount > 0;
+  const onlyFinalErrorReplies =
+    state.finalErrorReplyCount > 0 && state.finalNonErrorReplyCount === 0;
+  if (replied && onlyFinalErrorReplies && acted) {
+    return 'error_reply_and_action';
+  }
+  if (replied && onlyFinalErrorReplies) {
+    return 'error_reply';
+  }
   if (replied && acted) {
     return 'reply_and_action';
   }
@@ -298,6 +311,7 @@ function buildSummary(
     destinationKind: state.destinationKind,
     durationMs: Math.max(0, terminal.durationMs),
     execution,
+    finalErrorReplyCount: state.finalErrorReplyCount,
     reason: resolveReason({
       delivery,
       execution,
@@ -376,6 +390,7 @@ export function createTlonAgentTurnOtelObserver(options?: {
           'tlon.turn.duration_ms': summary.durationMs,
           'tlon.turn.event': 'tlon.agent_turn.terminal',
           'tlon.turn.execution': summary.execution,
+          'tlon.turn.final_error_reply_count': summary.finalErrorReplyCount,
           'tlon.turn.reason': summary.reason,
           'tlon.turn.result': summary.result,
           'tlon.turn.run_id': summary.runId,
@@ -402,6 +417,8 @@ export function startTlonAgentTurn(
     ship: normalizeShip(input.ship),
     deliveryFailureCount: 0,
     deliverySuccessCount: 0,
+    finalErrorReplyCount: 0,
+    finalNonErrorReplyCount: 0,
     finalized: false,
     sourceReplyCount: 0,
     summary: null,
@@ -434,9 +451,20 @@ function updateActiveTurn(update: (state: TlonAgentTurnState) => void): void {
   update(state);
 }
 
-export function recordActiveTlonTurnSourceReply(): void {
+export function recordActiveTlonTurnSourceReply(reply?: {
+  isError?: boolean;
+  kind: 'tool' | 'block' | 'final';
+}): void {
   updateActiveTurn((state) => {
     state.sourceReplyCount += 1;
+    if (reply?.kind !== 'final') {
+      return;
+    }
+    if (reply.isError === true) {
+      state.finalErrorReplyCount += 1;
+    } else {
+      state.finalNonErrorReplyCount += 1;
+    }
   });
 }
 

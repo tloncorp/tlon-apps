@@ -276,6 +276,7 @@ describe('telemetry tool tracking', () => {
         destinationKind: 'dm',
         durationMs: 250,
         execution: 'completed',
+        finalErrorReplyCount: 0,
         reason: 'delivery_partial',
         result: 'reply_and_action',
         runId: 'run-1',
@@ -293,6 +294,7 @@ describe('telemetry tool tracking', () => {
       execution: 'completed',
       result: 'reply_and_action',
       delivery: 'partial',
+      finalErrorReplyCount: 0,
       reason: 'delivery_partial',
       trigger: 'dm',
     });
