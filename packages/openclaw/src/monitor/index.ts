@@ -3235,9 +3235,10 @@ export async function monitorTlonProvider(
             dispatch: () =>
               turnRecorder.run(async () => {
                 let activeDispatchError: unknown;
+                let activeSourceReplyDeliveryMode: string | null = null;
                 try {
-                  return await core.channel.reply.dispatchReplyWithBufferedBlockDispatcher(
-                    {
+                  return await core.channel.reply
+                    .dispatchReplyWithBufferedBlockDispatcher({
                       ctx: ctxPayload,
                       cfg,
                       replyOptions,
@@ -3420,8 +3421,12 @@ export async function monitorTlonProvider(
                           );
                         },
                       },
-                    }
-                  );
+                    })
+                    .then((result) => {
+                      activeSourceReplyDeliveryMode =
+                        result.sourceReplyDeliveryMode ?? null;
+                      return result;
+                    });
                 } catch (error) {
                   activeDispatchError = error;
                   throw error;
@@ -3432,6 +3437,10 @@ export async function monitorTlonProvider(
                     deliverySkipReason,
                     dispatchError: activeDispatchError,
                     durationMs: Date.now() - dispatchStartTime,
+                    // Core suppresses message-tool-only source replies before
+                    // dispatcher callbacks, so the returned policy mode is the
+                    // only plugin-visible stopgap signal.
+                    sourceReplyDeliveryMode: activeSourceReplyDeliveryMode,
                     timedOut: dispatchTimedOut,
                   });
                 }
@@ -3474,6 +3483,8 @@ export async function monitorTlonProvider(
           deliverySkipReason,
           dispatchError,
           durationMs: dispatchDurationMs,
+          sourceReplyDeliveryMode:
+            dispatchResult?.sourceReplyDeliveryMode ?? null,
           timedOut: dispatchTimedOut,
         });
         contextLenses.recordLifecycle(lens.lensId, {

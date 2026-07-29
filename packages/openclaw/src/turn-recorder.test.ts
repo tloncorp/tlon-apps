@@ -138,10 +138,9 @@ describe('Tlon agent turn classification', () => {
     {
       name: 'skipped reply delivery',
       input: {
-        replyCount: 1,
         terminal: {
           durationMs: 250,
-          deliverySkipReason: 'source_reply_delivery_mode_message_tool_only',
+          sourceReplyDeliveryMode: 'message_tool_only',
         },
       },
       expected: {
@@ -152,9 +151,75 @@ describe('Tlon agent turn classification', () => {
       },
     },
     {
+      name: 'message tool delivery',
+      input: {
+        toolCount: 1,
+        deliverySuccessCount: 1,
+        terminal: {
+          durationMs: 250,
+          sourceReplyDeliveryMode: 'message_tool_only',
+        },
+      },
+      expected: {
+        execution: 'completed',
+        result: 'action_only',
+        delivery: 'delivered',
+        reason: 'action_only',
+      },
+    },
+    {
+      name: 'failed message tool delivery',
+      input: {
+        toolCount: 1,
+        deliveryFailureCount: 1,
+        terminal: {
+          durationMs: 250,
+          sourceReplyDeliveryMode: 'message_tool_only',
+        },
+      },
+      expected: {
+        execution: 'completed',
+        result: 'action_only',
+        delivery: 'failed',
+        reason: 'delivery_failed',
+      },
+    },
+    {
+      name: 'explicit empty skip under message tool policy',
+      input: {
+        terminal: {
+          durationMs: 250,
+          deliverySkipReason: 'empty',
+          sourceReplyDeliveryMode: 'message_tool_only',
+        },
+      },
+      expected: {
+        execution: 'completed',
+        result: 'empty',
+        delivery: 'not_applicable',
+        reason: 'empty',
+      },
+    },
+    {
       name: 'failed execution',
       input: {
         terminal: { durationMs: 250, dispatchError: new Error('boom') },
+      },
+      expected: {
+        execution: 'failed',
+        result: 'empty',
+        delivery: 'not_applicable',
+        reason: 'dispatch_failed',
+      },
+    },
+    {
+      name: 'failed execution under message tool policy',
+      input: {
+        terminal: {
+          durationMs: 250,
+          dispatchError: new Error('boom'),
+          sourceReplyDeliveryMode: 'message_tool_only',
+        },
       },
       expected: {
         execution: 'failed',
@@ -406,10 +471,7 @@ describe('Tlon agent turn OTEL observer', () => {
         name: 'tlon.agent.turns.started',
         value: 1,
         attributes: {
-          account_id: 'hosted',
-          agent_id: 'main',
           destination_kind: 'dm',
-          ship: 'zod',
           trigger: 'dm',
         },
       },
@@ -417,14 +479,11 @@ describe('Tlon agent turn OTEL observer', () => {
         name: 'tlon.agent.turns',
         value: 1,
         attributes: {
-          account_id: 'hosted',
-          agent_id: 'main',
           delivery: 'delivered',
           destination_kind: 'dm',
           execution: 'completed',
           reason: 'reply',
           result: 'reply',
-          ship: 'zod',
           trigger: 'dm',
         },
       },
@@ -432,14 +491,11 @@ describe('Tlon agent turn OTEL observer', () => {
         name: 'tlon.agent.turn.duration',
         value: 2.5,
         attributes: {
-          account_id: 'hosted',
-          agent_id: 'main',
           delivery: 'delivered',
           destination_kind: 'dm',
           execution: 'completed',
           reason: 'reply',
           result: 'reply',
-          ship: 'zod',
           trigger: 'dm',
         },
       },

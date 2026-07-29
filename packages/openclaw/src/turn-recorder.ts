@@ -72,6 +72,7 @@ export type TlonAgentTurnTerminal = {
   deliverySkipReason?: TlonAgentTurnSkipReason | null;
   dispatchError?: unknown;
   durationMs: number;
+  sourceReplyDeliveryMode?: string | null;
   timedOut?: boolean;
 };
 
@@ -151,10 +152,7 @@ function safeObserve(run: () => void): void {
 
 function baseMetricAttributes(turn: TlonAgentTurnStart): MetricAttributes {
   return {
-    ...(turn.accountId ? { account_id: turn.accountId } : {}),
-    ...(turn.agentId ? { agent_id: turn.agentId } : {}),
     destination_kind: turn.destinationKind,
-    ship: turn.ship,
     trigger: turn.trigger,
   };
 }
@@ -191,9 +189,11 @@ function resolveExecution(
 
 function resolveResult(
   state: TlonAgentTurnState,
-  terminal: TlonAgentTurnTerminal
+  skipReason: TlonAgentTurnSkipReason | null
 ): TlonAgentTurnResult {
-  const replied = state.sourceReplyCount > 0;
+  const replied =
+    state.sourceReplyCount > 0 ||
+    skipReason === 'source_reply_delivery_mode_message_tool_only';
   const acted = state.toolCallCount > 0;
   if (replied && acted) {
     return 'reply_and_action';
@@ -204,13 +204,28 @@ function resolveResult(
   if (acted) {
     return 'action_only';
   }
-  if (
-    terminal.deliverySkipReason === 'silent' ||
-    terminal.deliverySkipReason === 'heartbeat'
-  ) {
+  if (skipReason === 'silent' || skipReason === 'heartbeat') {
     return 'intentional_silence';
   }
   return 'empty';
+}
+
+function resolveDeliverySkipReason(
+  state: TlonAgentTurnState,
+  terminal: TlonAgentTurnTerminal
+): TlonAgentTurnSkipReason | null {
+  if (terminal.deliverySkipReason) {
+    return terminal.deliverySkipReason;
+  }
+  if (
+    terminal.sourceReplyDeliveryMode === 'message_tool_only' &&
+    resolveExecution(terminal) === 'completed' &&
+    state.deliverySuccessCount === 0 &&
+    state.deliveryFailureCount === 0
+  ) {
+    return 'source_reply_delivery_mode_message_tool_only';
+  }
+  return null;
 }
 
 function resolveDelivery(
@@ -271,7 +286,8 @@ function buildSummary(
   terminal: TlonAgentTurnTerminal
 ): TlonAgentTurnSummary {
   const execution = resolveExecution(terminal);
-  const result = resolveResult(state, terminal);
+  const deliverySkipReason = resolveDeliverySkipReason(state, terminal);
+  const result = resolveResult(state, deliverySkipReason);
   const delivery = resolveDelivery(state, result);
   return {
     accountId: state.accountId,
@@ -286,7 +302,7 @@ function buildSummary(
       delivery,
       execution,
       result,
-      skipReason: terminal.deliverySkipReason,
+      skipReason: deliverySkipReason,
     }),
     result,
     runId: state.runId,
