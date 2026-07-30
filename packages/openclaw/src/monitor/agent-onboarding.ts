@@ -332,7 +332,7 @@ export function shouldOfferTopicsPicker(opts: {
   if (!opts.senderIsOwner || !opts.groupHostIsOwner) {
     return undefined;
   }
-  if (descriptionHasAgentConfig(opts.groupDescription)) {
+  if (descriptionHasAgentSetup(opts.groupDescription)) {
     return undefined;
   }
   return purposeIdForChoice(opts.messageText);
@@ -530,21 +530,29 @@ export function shouldOfferPickerOnJoin(opts: {
   if (opts.channelHasNoPosts !== true) {
     return false;
   }
-  if (descriptionHasAgentConfig(opts.groupDescription)) {
+  if (descriptionHasAgentSetup(opts.groupDescription)) {
     return false;
   }
   return true;
 }
 
 /**
- * True when a group description already carries an agent config entry.
+ * True when a group's agent setup has actually happened: its config entry
+ * carries a purpose or at least one job.
  *
- * Parses the typed-entry array rather than substring-matching, so a group whose
- * human description merely mentions the type name isn't mistaken for a
+ * A config entry that only names `agents` is a declaration of who may act,
+ * not of what the group does — that's the state a group is in *before*
+ * onboarding (e.g. the client marks the resident agent so its cards render),
+ * and suppressing the pickers because of it would kill the very setup they
+ * exist to run. Purpose and jobs are what onboarding produces, so they are
+ * what "configured" means.
+ *
+ * Parses the typed-entry array rather than substring-matching, so a group
+ * whose human description merely mentions the type name isn't mistaken for a
  * configured one. Tolerant by design: anything unparseable counts as "no
- * config", matching `parseGroupAgentConfig` in @tloncorp/api.
+ * setup", matching `parseGroupAgentConfig` in @tloncorp/api.
  */
-export function descriptionHasAgentConfig(
+export function descriptionHasAgentSetup(
   description: string | null | undefined
 ): boolean {
   if (!description) {
@@ -556,15 +564,26 @@ export function descriptionHasAgentConfig(
   }
   try {
     const entries = JSON.parse(trimmed);
-    return (
-      Array.isArray(entries) &&
-      entries.some(
-        (entry) =>
-          typeof entry === 'object' &&
-          entry !== null &&
-          (entry as { type?: unknown }).type === AGENT_CONFIG_ENTRY_TYPE
-      )
-    );
+    if (!Array.isArray(entries)) {
+      return false;
+    }
+    return entries.some((entry) => {
+      if (
+        typeof entry !== 'object' ||
+        entry === null ||
+        (entry as { type?: unknown }).type !== AGENT_CONFIG_ENTRY_TYPE
+      ) {
+        return false;
+      }
+      const { purpose, jobs } = entry as {
+        purpose?: unknown;
+        jobs?: unknown;
+      };
+      return (
+        (typeof purpose === 'string' && purpose.trim().length > 0) ||
+        (Array.isArray(jobs) && jobs.length > 0)
+      );
+    });
   } catch {
     return false;
   }
@@ -596,7 +615,7 @@ export function shouldOfferPurposePicker(opts: {
   if (!opts.senderIsOwner || !opts.groupHostIsOwner) {
     return false;
   }
-  if (descriptionHasAgentConfig(opts.groupDescription)) {
+  if (descriptionHasAgentSetup(opts.groupDescription)) {
     // Group is already configured — nothing to set up.
     return false;
   }

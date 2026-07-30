@@ -7,7 +7,7 @@ import {
   buildPurposePickerBlob,
   buildTopicsPickerBlob,
   channelHasNoPosts,
-  descriptionHasAgentConfig,
+  descriptionHasAgentSetup,
   findChatNestForGroup,
   findGroupForChannel,
   isPurposePickerChoice,
@@ -346,27 +346,71 @@ describe('shouldOfferPurposePicker', () => {
   });
 });
 
-describe('descriptionHasAgentConfig', () => {
+describe('descriptionHasAgentSetup', () => {
   test('detects a real config entry array', () => {
-    expect(descriptionHasAgentConfig(configuredDescription)).toBe(true);
+    expect(descriptionHasAgentSetup(configuredDescription)).toBe(true);
+  });
+
+  test('an agents-only marker is not setup', () => {
+    // Naming who may act is the state a group is in *before* onboarding
+    // (the client writes it so the agent's cards render). Treating it as
+    // "configured" would suppress the very pickers that do the setup.
+    const marker = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        purpose: '',
+        instructions: '',
+        agents: ['~zod'],
+        jobs: [],
+        updatedAt: 1,
+      },
+    ]);
+    expect(descriptionHasAgentSetup(marker)).toBe(false);
+    // ...and the pickers still offer with the marker present.
+    expect(
+      shouldOfferPurposePicker({ ...baseOpts, groupDescription: marker })
+    ).toBe(true);
+    expect(
+      shouldOfferTopicsPicker({
+        ...baseOpts,
+        groupDescription: marker,
+        messageText: 'A daily digest',
+      })
+    ).toBe('agent-daily-digest');
+  });
+
+  test('a job without a purpose still counts as setup', () => {
+    const jobsOnly = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        purpose: '',
+        instructions: '',
+        agents: ['~zod'],
+        jobs: [{ id: 'daily', enabled: true }],
+        updatedAt: 1,
+      },
+    ]);
+    expect(descriptionHasAgentSetup(jobsOnly)).toBe(true);
   });
 
   test('treats plain human descriptions as unconfigured', () => {
-    expect(descriptionHasAgentConfig('a group about bread')).toBe(false);
-    expect(descriptionHasAgentConfig('')).toBe(false);
-    expect(descriptionHasAgentConfig(null)).toBe(false);
-    expect(descriptionHasAgentConfig(undefined)).toBe(false);
+    expect(descriptionHasAgentSetup('a group about bread')).toBe(false);
+    expect(descriptionHasAgentSetup('')).toBe(false);
+    expect(descriptionHasAgentSetup(null)).toBe(false);
+    expect(descriptionHasAgentSetup(undefined)).toBe(false);
   });
 
   test('does not false-positive on prose that mentions the type name', () => {
     expect(
-      descriptionHasAgentConfig('we use tlon-group-agent-config here')
+      descriptionHasAgentSetup('we use tlon-group-agent-config here')
     ).toBe(false);
   });
 
   test('tolerates malformed json', () => {
-    expect(descriptionHasAgentConfig('[{"type":')).toBe(false);
-    expect(descriptionHasAgentConfig('[1,2,3]')).toBe(false);
+    expect(descriptionHasAgentSetup('[{"type":')).toBe(false);
+    expect(descriptionHasAgentSetup('[1,2,3]')).toBe(false);
   });
 
   test('option ids and titles are stable', () => {
