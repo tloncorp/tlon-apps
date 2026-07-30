@@ -1647,9 +1647,10 @@
   ;<  sv1=vase  b  get-save
   =/  s1=state-15:n  !<(state-15:n sv1)
   ;<  *  b  (jab-bowl |=(bw=bowl bw(now (add now.bw ~d2))))
-  =/  body2=@t
-    '{"requestId":"0v2","action":{"type":"create-notebook","title":"Two"}}'
-  ;<  *  b  (http-post-v1 ~[['x-api-key' key]] body2)
+  ::  the next registration sweeps — via the first-class REST write
+  ::  path, which registers directly like the generic POST does
+  ;<  *  b
+    (http-req-v1 %'POST' ~[['x-api-key' key]] '/notes/~/v1/notebooks' '{"title":"Two"}')
   ;<  sv2=vase  b  get-save
   =/  s2=state-15:n  !<(state-15:n sv2)
   |=  s=state
@@ -1658,8 +1659,6 @@
     |+['expected first request recorded']~
   ?:  (~(has by requests.s2) `@uv`0v1)
     |+['expected stale request evicted on next registration']~
-  ?.  (~(has by requests.s2) `@uv`0v2)
-    |+['expected second request recorded']~
   &+[~ s]
 ::  +test-v1-post-garbage-requestid-no-500
 ::

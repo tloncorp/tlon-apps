@@ -603,6 +603,8 @@
   ?~  act=(build-write-action method ;;(path pax) obj recursive)
     (http-error eyre-id 400 'unsupported write — check method, path, and required fields')
   =/  rid=request-id:v1:n  `@uv`eny.bowl
+  ::  sweep terminated records at registration (see +handle-v1-post)
+  =.  requests  (cleanup-requests now.bowl)
   =.  requests  (~(put by requests) rid [rid `eyre-id %sending ~ ~ |])
   (dispatch-v1-action [rid u.act])
 ::
