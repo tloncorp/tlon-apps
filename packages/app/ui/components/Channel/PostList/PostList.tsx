@@ -1,1 +1,1 @@
-export { PostList } from './PostListFlatList';
+export { PostList } from './PostListLegendList';

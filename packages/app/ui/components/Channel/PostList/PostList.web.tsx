@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { View } from 'react-native';
 
 import { ScrollAnchor } from '../Scroller';
-import { PostList as PostListNative } from './PostListFlatList';
+import { PostList as PostListNative } from './PostListLegendList';
 import { PostListComponent, PostWithNeighbors } from './shared';
 
 const FORCE_MANUAL_SCROLL_ANCHORING: boolean = false;
