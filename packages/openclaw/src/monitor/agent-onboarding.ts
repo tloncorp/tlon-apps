@@ -1,6 +1,4 @@
 import { A2UI } from '@tloncorp/api';
-import { parseGroupAgentConfig } from '@tloncorp/api/types/groupAgentConfig';
-import { agentGroupTemplates } from '@tloncorp/api/types/groupTemplates';
 
 import { type TlonA2UIBlob, makeA2UIBlob } from '../urbit/blob.js';
 
@@ -16,6 +14,41 @@ import { type TlonA2UIBlob, makeA2UIBlob } from '../urbit/blob.js';
  * components.
  */
 
+/**
+ * The picker's options, and the marker that says a group is already
+ * configured.
+ *
+ * Deliberately local rather than imported from `@tloncorp/api`: this plugin is
+ * built outside the monorepo workspace (CI and the dev sandbox resolve
+ * `@tloncorp/api` to a published registry version), so it cannot depend on api
+ * exports until they ship. The authoritative templates live in
+ * `packages/api/src/types/groupTemplates.ts` — keep `id`/`title` in step with
+ * the `PURPOSE_OPTIONS` entries there, and switch to importing them once a
+ * release carries them.
+ */
+export const PURPOSE_OPTIONS = [
+  {
+    id: 'agent-daily-digest',
+    title: 'A daily digest',
+    description:
+      'A short summary of anything you care about, posted every morning.',
+  },
+  {
+    id: 'agent-tracking',
+    title: 'Tracking',
+    description:
+      'You log a thing as it happens. I keep the running picture over time.',
+  },
+  {
+    id: 'agent-research',
+    title: 'Research',
+    description: 'A standing deep-dive I keep updated as new work comes out.',
+  },
+] as const;
+
+/** Mirrors GROUP_AGENT_CONFIG_ENTRY_TYPE in @tloncorp/api. */
+const AGENT_CONFIG_ENTRY_TYPE = 'tlon-group-agent-config';
+
 export const PURPOSE_PICKER_PROMPT =
   "Let's make you a group that does something useful. What should it do?";
 
@@ -24,9 +57,9 @@ export const PURPOSE_PICKER_FOOTER =
 
 /** Plain-text fallback for old clients and notifications. */
 export function purposePickerFallbackText(): string {
-  const options = agentGroupTemplates
-    .map((t) => `• ${t.agent.cardTitle} — ${t.agent.cardDescription}`)
-    .join('\n');
+  const options = PURPOSE_OPTIONS.map(
+    (t) => `• ${t.title} — ${t.description}`
+  ).join('\n');
   return `${PURPOSE_PICKER_PROMPT}\n\n${options}\n\n${PURPOSE_PICKER_FOOTER}`;
 }
 
@@ -41,16 +74,16 @@ export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
       component: 'Column',
       children: [
         'prompt',
-        ...agentGroupTemplates.map((t) => `card-${t.id}`),
+        ...PURPOSE_OPTIONS.map((t) => `card-${t.id}`),
         'footer',
       ],
     },
     { id: 'prompt', component: 'Text', text: PURPOSE_PICKER_PROMPT },
   ];
 
-  for (const template of agentGroupTemplates) {
+  for (const template of PURPOSE_OPTIONS) {
     const { id } = template;
-    const { cardTitle, cardDescription } = template.agent;
+    const { title: cardTitle, description: cardDescription } = template;
     components.push(
       { id: `card-${id}`, component: 'Card', child: `body-${id}` },
       {
@@ -126,12 +159,44 @@ export async function fetchGroupDescription(
   }
 }
 
+/**
+ * True when a group description already carries an agent config entry.
+ *
+ * Parses the typed-entry array rather than substring-matching, so a group whose
+ * human description merely mentions the type name isn't mistaken for a
+ * configured one. Tolerant by design: anything unparseable counts as "no
+ * config", matching `parseGroupAgentConfig` in @tloncorp/api.
+ */
+export function descriptionHasAgentConfig(
+  description: string | null | undefined
+): boolean {
+  if (!description) {
+    return false;
+  }
+  const trimmed = description.trim();
+  if (!trimmed.startsWith('[')) {
+    return false;
+  }
+  try {
+    const entries = JSON.parse(trimmed);
+    return (
+      Array.isArray(entries) &&
+      entries.some(
+        (entry) =>
+          typeof entry === 'object' &&
+          entry !== null &&
+          (entry as { type?: unknown }).type === AGENT_CONFIG_ENTRY_TYPE
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** True when `text` is one of the picker's card titles. */
 export function isPurposePickerChoice(text: string): boolean {
   const trimmed = text.trim().toLowerCase();
-  return agentGroupTemplates.some(
-    (t) => t.agent.cardTitle.toLowerCase() === trimmed
-  );
+  return PURPOSE_OPTIONS.some((t) => t.title.toLowerCase() === trimmed);
 }
 
 /**
@@ -154,7 +219,7 @@ export function shouldOfferPurposePicker(opts: {
   if (!opts.senderIsOwner || !opts.groupHostIsOwner) {
     return false;
   }
-  if (parseGroupAgentConfig(opts.groupDescription)) {
+  if (descriptionHasAgentConfig(opts.groupDescription)) {
     // Group is already configured — nothing to set up.
     return false;
   }

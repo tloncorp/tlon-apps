@@ -1,25 +1,27 @@
 import { A2UI } from '@tloncorp/api';
-import { encodeGroupAgentConfig } from '@tloncorp/api/types/groupAgentConfig';
-import { agentGroupTemplates } from '@tloncorp/api/types/groupTemplates';
 import { describe, expect, test } from 'vitest';
 
 import {
+  PURPOSE_OPTIONS,
   buildPurposePickerBlob,
+  descriptionHasAgentConfig,
   fetchGroupDescription,
   isPurposePickerChoice,
   purposePickerFallbackText,
   shouldOfferPurposePicker,
 } from './agent-onboarding.js';
 
-const configuredDescription = encodeGroupAgentConfig({
-  type: 'tlon-group-agent-config',
-  version: 1,
-  purpose: 'Keeps up with sourdough.',
-  instructions: 'Be useful.',
-  agents: ['~pinser-botter-sampel-palnet'],
-  jobs: [],
-  updatedAt: 1,
-});
+const configuredDescription = JSON.stringify([
+  {
+    type: 'tlon-group-agent-config',
+    version: 1,
+    purpose: 'Keeps up with sourdough.',
+    instructions: 'Be useful.',
+    agents: ['~pinser-botter-sampel-palnet'],
+    jobs: [],
+    updatedAt: 1,
+  },
+]);
 
 const baseOpts = {
   senderIsOwner: true,
@@ -38,7 +40,7 @@ describe('purpose picker card', () => {
     const components = (update as any).updateComponents
       .components as A2UI.Component[];
     const buttons = components.filter((c) => c.component === 'Button');
-    expect(buttons).toHaveLength(agentGroupTemplates.length);
+    expect(buttons).toHaveLength(PURPOSE_OPTIONS.length);
   });
 
   test('each button posts its own card title as the user reply', () => {
@@ -47,7 +49,7 @@ describe('purpose picker card', () => {
     const components = (update as any).updateComponents
       .components as A2UI.Component[];
 
-    for (const template of agentGroupTemplates) {
+    for (const template of PURPOSE_OPTIONS) {
       const button = components.find(
         (c): c is A2UI.Button =>
           c.component === 'Button' && c.id === `pick-${template.id}`
@@ -56,17 +58,17 @@ describe('purpose picker card', () => {
       expect(button!.action?.event.name).toBe(A2UI.action.sendMessage);
       expect(
         (button!.action?.event as A2UI.SendMessageEvent).context.text
-      ).toBe(template.agent.cardTitle);
+      ).toBe(template.title);
       // The posted text must round-trip as a recognized choice, otherwise the
       // picker would be re-offered in response to its own tap.
-      expect(isPurposePickerChoice(template.agent.cardTitle)).toBe(true);
+      expect(isPurposePickerChoice(template.title)).toBe(true);
     }
   });
 
   test('fallback text names every option for old clients', () => {
     const text = purposePickerFallbackText();
-    for (const template of agentGroupTemplates) {
-      expect(text).toContain(template.agent.cardTitle);
+    for (const template of PURPOSE_OPTIONS) {
+      expect(text).toContain(template.title);
     }
   });
 
@@ -119,11 +121,11 @@ describe('shouldOfferPurposePicker', () => {
   });
 
   test('does not re-offer in response to a card tap', () => {
-    for (const template of agentGroupTemplates) {
+    for (const template of PURPOSE_OPTIONS) {
       expect(
         shouldOfferPurposePicker({
           ...baseOpts,
-          messageText: `  ${template.agent.cardTitle.toUpperCase()}  `,
+          messageText: `  ${template.title.toUpperCase()}  `,
         })
       ).toBe(false);
     }
@@ -162,5 +164,65 @@ describe('fetchGroupDescription', () => {
 
   test('returns null without an api client', async () => {
     expect(await fetchGroupDescription(null, flag, {})).toBeNull();
+  });
+});
+
+describe('descriptionHasAgentConfig', () => {
+  test('detects a real config entry array', () => {
+    expect(descriptionHasAgentConfig(configuredDescription)).toBe(true);
+  });
+
+  test('treats plain human descriptions as unconfigured', () => {
+    expect(descriptionHasAgentConfig('a group about bread')).toBe(false);
+    expect(descriptionHasAgentConfig('')).toBe(false);
+    expect(descriptionHasAgentConfig(null)).toBe(false);
+    expect(descriptionHasAgentConfig(undefined)).toBe(false);
+  });
+
+  test('does not false-positive on prose that mentions the type name', () => {
+    expect(
+      descriptionHasAgentConfig('we use tlon-group-agent-config here')
+    ).toBe(false);
+  });
+
+  test('tolerates malformed json', () => {
+    expect(descriptionHasAgentConfig('[{"type":')).toBe(false);
+    expect(descriptionHasAgentConfig('[1,2,3]')).toBe(false);
+  });
+
+  test('option ids and titles match the api templates', () => {
+    // Guards the deliberate duplication: these must track
+    // agentGroupTemplates in packages/api/src/types/groupTemplates.ts.
+    expect(PURPOSE_OPTIONS.map((o) => o.id)).toEqual([
+      'agent-daily-digest',
+      'agent-tracking',
+      'agent-research',
+    ]);
+    expect(PURPOSE_OPTIONS.map((o) => o.title)).toEqual([
+      'A daily digest',
+      'Tracking',
+      'Research',
+    ]);
+  });
+});
+
+// Cross-check the deliberate duplication against the real source of truth.
+// Safe as a test-only import: `**/*.test.ts` is excluded from the tsc build,
+// so the standalone plugin checkout (which resolves @tloncorp/api to a
+// published version) never compiles this, while monorepo tests catch drift.
+describe('PURPOSE_OPTIONS vs api agentGroupTemplates', () => {
+  test('ids, titles and descriptions stay in step', async () => {
+    const { agentGroupTemplates } = await import(
+      '@tloncorp/api/types/groupTemplates'
+    );
+    expect(PURPOSE_OPTIONS.map((o) => o.id)).toEqual(
+      agentGroupTemplates.map((t) => t.id)
+    );
+    expect(PURPOSE_OPTIONS.map((o) => o.title)).toEqual(
+      agentGroupTemplates.map((t) => t.agent.cardTitle)
+    );
+    expect(PURPOSE_OPTIONS.map((o) => o.description)).toEqual(
+      agentGroupTemplates.map((t) => t.agent.cardDescription)
+    );
   });
 });
