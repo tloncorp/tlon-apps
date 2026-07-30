@@ -48,7 +48,7 @@
   ;<  *  bind:m  (do-init dap activity-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
   ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
-  =/  book=[p=@p q=@tas]  [~zod %journal]
+  =/  book=[@p @tas]  [~zod %journal]
   =/  grp=(unit [p=@p q=@tas])  `[~zod %gardening]
   =/  note-src=source:v10:av  [%note 42 book grp]
   ;<  *  bind:m
@@ -72,7 +72,7 @@
   ;<  *  bind:m  (do-init dap activity-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
   ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
-  =/  book=[p=@p q=@tas]  [~zod %journal]
+  =/  book=[@p @tas]  [~zod %journal]
   ;<  *  bind:m
     %-  do-poke
     activity-action-2+!>(`action:v10:av`[%add %note-create 42 7 book ~ 'T' ~wet])
@@ -81,8 +81,11 @@
   =/  ac  activity.st
   ;<  *  bind:m  (ex-equal !>(count:(~(got by ac) [%notebook book ~])) !>(1))
   (ex-equal !>(count:(~(got by ac) [%base ~])) !>(1))
-::  del-event of the prior edit keeps one unread edit per author (the
-::  coalescing %notes relies on), and read %all clears the whole chain
+::  %del-event replaces a previously-added edit, keeping one unread edit
+::  per author. %notes doesn't emit %del-event today — its trailing
+::  debounce already submits at most one event per settled edit session —
+::  this pins %activity's pre-existing coalescing support (used by chat
+::  and channels) for note events. read %all clears the whole chain.
 ::
 ++  test-note-activity-coalesce-and-read
   %-  eval-mare
@@ -91,7 +94,7 @@
   ;<  *  bind:m  (do-init dap activity-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
   ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
-  =/  book=[p=@p q=@tas]  [~zod %journal]
+  =/  book=[@p @tas]  [~zod %journal]
   =/  note-src=source:v10:av  [%note 42 book ~]
   =/  create=incoming-event:v10:av  [%note-create 42 7 book ~ 'T' ~wet]
   =/  edit1=incoming-event:v10:av   [%note-edit 42 7 book ~ 'T' ~wet]
@@ -126,7 +129,7 @@
   ;<  *  bind:m  (do-init dap activity-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
   ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
-  =/  book=[p=@p q=@tas]  [~zod %journal]
+  =/  book=[@p @tas]  [~zod %journal]
   ;<  *  bind:m
     %-  do-poke
     activity-action-2+!>(`action:v10:av`[%add %note-create 42 7 book ~ 'T' ~wet])
@@ -150,7 +153,7 @@
   ;<  *  bind:m  (do-init dap activity-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
   ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
-  =/  book=[p=@p q=@tas]  [~zod %journal]
+  =/  book=[@p @tas]  [~zod %journal]
   =/  grp=(unit [p=@p q=@tas])  `[~zod %gardening]
   ;<  *  bind:m
     %-  do-poke
@@ -172,6 +175,61 @@
     (ex-equal !>(count:(~(got by ac) [%group ~zod %gardening])) !>(0))
   ;<  *  bind:m  (ex-equal !>(count:(~(got by ac) [%base ~])) !>(0))
   (ex-equal !>(notify-count:(~(got by ac) [%base ~])) !>(0))
+::  legacy (v4/v5) consumers never see note sources, so their group and
+::  base rollups have note-derived counts deducted; /v6 keeps them
+::
+++  test-note-activity-legacy-deducts-counts
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (do-init dap activity-agent)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
+  ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
+  =/  book=[@p @tas]  [~zod %journal]
+  =/  grp=(unit [p=@p q=@tas])  `[~zod %gardening]
+  ;<  *  bind:m
+    %-  do-poke
+    activity-action-2+!>(`action:v10:av`[%add %note-create 42 7 book grp 'T' ~wet])
+  ;<  c5=cage  bind:m  (got-peek /x/v5/activity)
+  =+  !<(ac5=activity:v9:av q.c5)
+  ;<  *  bind:m
+    (ex-equal !>(count:(~(got by ac5) [%group ~zod %gardening])) !>(0))
+  ;<  *  bind:m
+    (ex-equal !>(notify-count:(~(got by ac5) [%group ~zod %gardening])) !>(0))
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by ac5) [%base ~])) !>(0))
+  ;<  c6=cage  bind:m  (got-peek /x/v6/activity)
+  =+  !<(ac6=activity:v10:av q.c6)
+  ;<  *  bind:m
+    (ex-equal !>(count:(~(got by ac6) [%group ~zod %gardening])) !>(1))
+  (ex-equal !>(count:(~(got by ac6) [%base ~])) !>(1))
+::  stored volume maps that predate the note keys treat notes like the
+::  posts they sit alongside: a source whose %post notifies keeps
+::  notifying for notes (and a muted one stays muted) instead of
+::  falling back to the quiet [unreads=& notify=|] default
+::
+++  test-note-activity-volume-mirrors-post
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (do-init dap activity-agent)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod, now ~2020.1.1)))
+  ;<  *  bind:m  (do-load activity-agent `!>([%11 %all *indices:v10:av ~ ~]))
+  =/  book=[@p @tas]  [~zod %journal]
+  =/  grp=(unit [p=@p q=@tas])  `[~zod %gardening]
+  ::  a pre-notes volume map: %post notifies, no note keys present
+  =/  vmap=volume-map:v10:av
+    (malt ~[[%post [unreads=& notify=&]]])
+  ;<  *  bind:m
+    %-  do-poke
+    activity-action-2+!>(`action:v10:av`[%adjust [%group ~zod %gardening] `vmap])
+  ;<  *  bind:m
+    %-  do-poke
+    activity-action-2+!>(`action:v10:av`[%add %note-create 42 7 book grp 'T' ~wet])
+  ;<  sv=vase  bind:m  get-save
+  =/  st  !<(state-11 sv)
+  =/  sum  (~(got by activity.st) [%note 42 book grp])
+  ;<  *  bind:m  (ex-equal !>(count.sum) !>(1))
+  (ex-equal !>(notify-count.sum) !>(1))
 ::
 ++  test-fix-init
   =+  state-0:fix-init
@@ -275,7 +333,6 @@
             notify=|
             unread=~
             children=(sy (get-children:src pre-sync source.chnl))
-            reads=[d-1 (my [d1 ~] [d2 ~] [d3 ~] [d4 ~] [d5 ~] ~)]
         ==
       %-  my
       :~  :-  source.thrd1
@@ -285,7 +342,6 @@
               notify=|
               unread=`[[[~dev d0] d0] 2 |]
               children=(sy (get-children:src pre-sync source.thrd1))
-              reads=[d-1 ~]
           ==
         ::
           :-  source.thrd2
@@ -295,7 +351,6 @@
               notify=|
               unread=~
               children=(sy (get-children:src pre-sync source.thrd2))
-              reads=[d2 ~]
           ==
         ::
           [source.chnl chan-sum]
@@ -354,7 +409,6 @@
             notify=|
             unread=`[[[~dev d4] d4] 1 |]
             children=(sy (get-children:src pre-sync source.chnl))
-            reads=[d-1 (my [d1 ~] [d2 ~] [d3 ~] ~)]
         ==
       %-  my
       :~  :-  source.thrd1
@@ -364,7 +418,6 @@
               notify=|
               unread=~
               children=(sy (get-children:src pre-sync source.thrd1))
-              reads=[d-1 ~]
           ==
         ::
           :-  source.thrd2
@@ -374,7 +427,6 @@
               notify=|
               unread=`[[[~dev d5] d5] 1 |]
               children=(sy (get-children:src pre-sync source.thrd2))
-              reads=[d0 ~]
           ==
         ::
           [source.chnl chan-sum]
@@ -440,7 +492,6 @@
             notify=|
             unread=`[[[~dev d4] d4] 1 |]
             children=(sy (get-children:src pre-sync source.chnl))
-            reads=[d3 (my [d3 ~] [d5 ~] ~)]
         ==
       %-  my
       :~  :-  source.thrd1
@@ -450,7 +501,6 @@
               notify=|
               unread=~
               children=(sy (get-children:src pre-sync source.thrd1))
-              reads=[d2 ~]
           ==
         ::
           :-  source.thrd2
@@ -460,7 +510,6 @@
               notify=|
               unread=~
               children=(sy (get-children:src pre-sync source.thrd2))
-              reads=[d0 ~]
           ==
         ::
           [source.chnl chan-sum]
@@ -561,7 +610,6 @@
             notify=|
             unread=~
             children=(sy (get-children:src pre-sync source.chnl1))
-            reads=[d-1 (my [d1 ~] [d2 ~] [d3 ~] [d4 ~] ~)]
         ==
       =/  time-chan2  (add d4 i1)
       =/  time2-2  (add d5 i1)
@@ -572,7 +620,6 @@
             notify=|
             unread=`[[[~dev time-chan2] time-chan2] 1 |]
             children=(sy (get-children:src pre-sync source.chnl2))
-            reads=[(add d3 i1) ~]
         ==
       %-  my
       :~  :-  source.thrd1-1
@@ -582,7 +629,6 @@
               notify=|
               unread=`[[[~dev d0] d0] 2 |]
               children=(sy (get-children:src pre-sync source.thrd1-1))
-              reads=[d-1 ~]
           ==
         ::
           :-  source.thrd1-2
@@ -592,7 +638,6 @@
               notify=|
               unread=~
               children=(sy (get-children:src pre-sync source.thrd1-2))
-              reads=[d2 ~]
           ==
         ::
           :-  source.thrd2-1
@@ -602,7 +647,6 @@
               notify=|
               unread=~
               children=(sy (get-children:src pre-sync source.thrd2-1))
-              reads=[(add d2 i1) ~]
           ==
         ::
           :-  source.thrd2-2
@@ -612,7 +656,6 @@
               notify=|
               unread=`[[[~dev time2-2] time2-2] 1 |]
               children=(sy (get-children:src pre-sync source.thrd2-2))
-              reads=[(add d0 i1) ~]
           ==
         ::
           [source.chnl1 chan-sum1]
@@ -769,17 +812,17 @@
       %-  ~(uni by pre-fix)
       %-  ~(gas by *activity:a)
       :~  :-  source.bad-chnl-migration
-          [d1 0 0 | ~ ~ ~]
+          [d1 0 0 | ~ ~]
           :-  source.chnl
-          [d5 0 0 | ~ (sy source.thrd1 source.thrd2 ~) ~]
+          [d5 0 0 | ~ (sy source.thrd1 source.thrd2 ~)]
           :-  source.grp
-          [d5 0 0 | ~ (sy source.chnl source.bad-chnl-migration ~) ~]
+          [d5 0 0 | ~ (sy source.chnl source.bad-chnl-migration ~)]
           :-  source.read-dm
-          [d4 0 0 | ~ (sy source.dm-thread ~) ~]
+          [d4 0 0 | ~ (sy source.dm-thread ~)]
           :-  source.bad-dm-migration
-          [d1 0 0 | ~ ~ ~]
+          [d1 0 0 | ~ ~]
           :-  source.base
-          [d5 2 1 & ~ ~ ~]
+          [d5 2 1 & ~ ~]
       ==
     --
   --

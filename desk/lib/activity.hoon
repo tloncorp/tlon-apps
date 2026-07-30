@@ -238,6 +238,12 @@
     ^-  volume:a
     =/  source  (source:evt event)
     =/  loudness=volume-map:a  (get-volumes:src vs source)
+    ::  note keys postdate some stored maps; mirror the map's %post
+    ::  setting so a source someone muted (or boosted) before notes
+    ::  existed treats notes the same way it treats posts
+    ?:  ?=(?(%note-create %note-edit) -.event)
+      %+  ~(gut by loudness)  (event-type event)
+      (~(gut by loudness) %post [unreads=& notify=&])
     ?.  ?=(?(%react %dm-react) -.event)
       (~(gut by loudness) (event-type event) [unreads=& notify=|])
     ::  reactions were added after some volume maps were written, so a stored
@@ -327,7 +333,6 @@
           notified
           ?~(last ~ `[u.last main main-notified])
           ?:(?=(%base -.source) ~ (sy children))
-          ~
       ==
     =/  [[=time =event:a] rest=stream:a]  (pop:on-event:a stream)
     =/  volume  (get-volume:evt volume-settings -.event)
