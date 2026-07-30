@@ -235,6 +235,76 @@ describe('nesting', () => {
   });
 });
 
+describe('repeated Story and Markdown conversion', () => {
+  test.each([
+    {
+      name: 'nested blockquotes',
+      story: [
+        {
+          inline: [
+            {
+              blockquote: ['outer', { blockquote: ['inner'] } as Blockquote],
+            } as Blockquote,
+          ],
+        },
+      ] as Story,
+    },
+    {
+      name: 'code inside a blockquote',
+      story: [
+        {
+          inline: [
+            {
+              blockquote: ['before', { code: 'quoted-code()' } as BlockCode],
+            } as Blockquote,
+          ],
+        },
+      ] as Story,
+    },
+    {
+      name: 'code inside task content',
+      story: [
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  {
+                    item: [
+                      {
+                        task: {
+                          checked: true,
+                          content: [
+                            'before',
+                            { code: 'task-code()' } as BlockCode,
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ] as Story,
+    },
+  ])('is idempotent from cycle 2 onward for $name', ({ story }) => {
+    const firstMarkdown = storyToMarkdown(story, { strict: true });
+    const secondMarkdown = storyToMarkdown(markdownToStory(firstMarkdown), {
+      strict: true,
+    });
+    const thirdMarkdown = storyToMarkdown(markdownToStory(secondMarkdown), {
+      strict: true,
+    });
+
+    expect(secondMarkdown).toBe(firstMarkdown);
+    expect(thirdMarkdown).toBe(firstMarkdown);
+  });
+});
+
 describe('task-list serialization', () => {
   function checkedTaskStory(content: Inline[]): Story {
     return [
@@ -973,6 +1043,59 @@ describe('strict mode', () => {
       storyToMdast([{ block: { listing: list } }], { strict: true })
     ).toThrow(/Unknown list discriminator in strict mode: future-list/);
   });
+
+  // Accepted loss: Markdown list markers determine the re-parsed discriminator,
+  // so a legal Story list whose type disagrees with its leaf item is re-typed.
+  // Strict mode intentionally does not make a total round-trip guarantee.
+  test.each([
+    {
+      sourceType: 'unordered',
+      item: [{ task: { checked: true, content: ['done'] } }],
+      markdown: '- [x] done',
+      reparsedType: 'tasklist',
+    },
+    {
+      sourceType: 'ordered',
+      item: [{ task: { checked: false, content: ['todo'] } }],
+      markdown: '1. [ ] todo',
+      reparsedType: 'tasklist',
+    },
+    {
+      sourceType: 'tasklist',
+      item: ['plain'],
+      markdown: '- plain',
+      reparsedType: 'unordered',
+    },
+  ])(
+    'documents $sourceType leaf-item discriminator loss',
+    ({ sourceType, item, markdown, reparsedType }) => {
+      const story = [
+        {
+          block: {
+            listing: {
+              list: {
+                type: sourceType,
+                contents: [],
+                items: [{ item }],
+              },
+            },
+          },
+        },
+      ] as unknown as Story;
+
+      const emitted = storyToMarkdown(story, { strict: true });
+      expect(emitted).toBe(markdown);
+      expect(markdownToStory(emitted)).toMatchObject([
+        {
+          block: {
+            listing: {
+              list: { type: reparsedType },
+            },
+          },
+        },
+      ]);
+    }
+  );
 
   // A `%code` block nested inside an inline mark cannot be rendered faithfully
   // as phrasing content, so strict mode must refuse rather than fall back to a

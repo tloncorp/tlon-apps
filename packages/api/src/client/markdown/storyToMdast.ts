@@ -485,6 +485,13 @@ export function inlinesToMdast(
     }
   };
 
+  const flushPhrasingBeforeBlock = () => {
+    if (phrasing[phrasing.length - 1]?.type === 'break') {
+      phrasing.pop();
+    }
+    flushPhrasing();
+  };
+
   for (const inline of filtered) {
     if (typeof inline === 'string') {
       phrasing.push(...wrapPhrasing([{ type: 'text', value: inline }], marks));
@@ -495,7 +502,7 @@ export function inlinesToMdast(
       const bold = inline as Bold;
       const nestedMarks: PhrasingMark[] = [...marks, 'strong'];
       if (containsBlockInline(bold.bold)) {
-        flushPhrasing();
+        flushPhrasingBeforeBlock();
         result.push(
           ...inlinesToMdast(
             bold.bold,
@@ -519,7 +526,7 @@ export function inlinesToMdast(
       const italics = inline as Italics;
       const nestedMarks: PhrasingMark[] = [...marks, 'emphasis'];
       if (containsBlockInline(italics.italics)) {
-        flushPhrasing();
+        flushPhrasingBeforeBlock();
         result.push(
           ...inlinesToMdast(
             italics.italics,
@@ -547,7 +554,7 @@ export function inlinesToMdast(
       const strike = inline as Strikethrough;
       const nestedMarks: PhrasingMark[] = [...marks, 'delete'];
       if (containsBlockInline(strike.strike)) {
-        flushPhrasing();
+        flushPhrasingBeforeBlock();
         result.push(
           ...inlinesToMdast(
             strike.strike,
@@ -572,7 +579,7 @@ export function inlinesToMdast(
     }
 
     if (isBlockquote(inline)) {
-      flushPhrasing();
+      flushPhrasingBeforeBlock();
       const blockquote = inline as Blockquote;
       const children = inlinesToMdast(
         blockquote.blockquote,
@@ -588,7 +595,7 @@ export function inlinesToMdast(
     }
 
     if (isBlockCode(inline)) {
-      flushPhrasing();
+      flushPhrasingBeforeBlock();
       if (marks.length > 0 && opts?.strict) {
         throw new Error(
           `Cannot render code block faithfully in ${placement} in strict mode`
@@ -602,7 +609,7 @@ export function inlinesToMdast(
     }
 
     if (isCode(inline as unknown as Block)) {
-      flushPhrasing();
+      flushPhrasingBeforeBlock();
       if (marks.length > 0 && opts?.strict) {
         throw new Error(
           `Cannot render code block faithfully in ${placement} in strict mode`
