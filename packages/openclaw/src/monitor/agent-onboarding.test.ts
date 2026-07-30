@@ -5,7 +5,7 @@ import {
   PURPOSE_OPTIONS,
   buildPurposePickerBlob,
   descriptionHasAgentConfig,
-  fetchGroupDescription,
+  findGroupForChannel,
   isPurposePickerChoice,
   purposePickerFallbackText,
   shouldOfferPurposePicker,
@@ -132,41 +132,6 @@ describe('shouldOfferPurposePicker', () => {
   });
 });
 
-describe('fetchGroupDescription', () => {
-  const flag = '~sampel-palnet/home-group';
-
-  test('returns the description for the flag', async () => {
-    const api = {
-      scry: async () => ({ [flag]: { meta: { description: 'hello' } } }),
-    };
-    expect(await fetchGroupDescription(api, flag, {})).toBe('hello');
-  });
-
-  test('returns empty string when the group has no description', async () => {
-    const api = { scry: async () => ({ [flag]: { meta: {} } }) };
-    expect(await fetchGroupDescription(api, flag, {})).toBe('');
-  });
-
-  test('returns null on scry failure so callers can stay silent', async () => {
-    const errors: string[] = [];
-    const api = {
-      scry: async () => {
-        throw new Error('boom');
-      },
-    };
-    expect(
-      await fetchGroupDescription(api, flag, {
-        error: (m) => errors.push(m),
-      })
-    ).toBeNull();
-    expect(errors).toHaveLength(1);
-  });
-
-  test('returns null without an api client', async () => {
-    expect(await fetchGroupDescription(null, flag, {})).toBeNull();
-  });
-});
-
 describe('descriptionHasAgentConfig', () => {
   test('detects a real config entry array', () => {
     expect(descriptionHasAgentConfig(configuredDescription)).toBe(true);
@@ -224,5 +189,75 @@ describe('PURPOSE_OPTIONS vs api agentGroupTemplates', () => {
     expect(PURPOSE_OPTIONS.map((o) => o.description)).toEqual(
       agentGroupTemplates.map((t) => t.agent.cardDescription)
     );
+  });
+});
+
+describe('findGroupForChannel', () => {
+  const nest = 'chat/~ten/onboarding-test-chat';
+  const groups = {
+    '~ten/onboarding-test': {
+      meta: { description: 'a group about bread' },
+      'active-channels': [nest],
+      channels: { [nest]: {} },
+    },
+    '~other/unrelated': {
+      meta: { description: '' },
+      'active-channels': ['chat/~other/x'],
+    },
+  };
+
+  test('resolves flag, host and description for the channel', async () => {
+    const found = await findGroupForChannel(
+      { scry: async () => groups },
+      nest,
+      {}
+    );
+    expect(found).toEqual({
+      flag: '~ten/onboarding-test',
+      host: '~ten',
+      description: 'a group about bread',
+    });
+  });
+
+  test('finds groups via channels map when active-channels is absent', async () => {
+    const found = await findGroupForChannel(
+      {
+        scry: async () => ({
+          '~ten/g': { meta: {}, channels: { [nest]: {} } },
+        }),
+      },
+      nest,
+      {}
+    );
+    expect(found?.flag).toBe('~ten/g');
+    expect(found?.description).toBe('');
+  });
+
+  test('returns null when no group owns the channel', async () => {
+    const found = await findGroupForChannel(
+      { scry: async () => groups },
+      'chat/~zzz/nope',
+      {}
+    );
+    expect(found).toBeNull();
+  });
+
+  test('returns null on scry failure and logs', async () => {
+    const errors: string[] = [];
+    const found = await findGroupForChannel(
+      {
+        scry: async () => {
+          throw new Error('boom');
+        },
+      },
+      nest,
+      { error: (m) => errors.push(m) }
+    );
+    expect(found).toBeNull();
+    expect(errors).toHaveLength(1);
+  });
+
+  test('returns null without an api client', async () => {
+    expect(await findGroupForChannel(null, nest, {})).toBeNull();
   });
 });

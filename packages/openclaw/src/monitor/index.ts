@@ -96,7 +96,7 @@ import {
 } from '../version.js';
 import {
   buildPurposePickerBlob,
-  fetchGroupDescription,
+  findGroupForChannel,
   purposePickerFallbackText,
   shouldOfferPurposePicker,
 } from './agent-onboarding.js';
@@ -3733,27 +3733,17 @@ export async function monitorTlonProvider(
         // the first message with the tappable purpose picker instead of a
         // model turn. Tapping a card posts the choice as the owner's own
         // reply, which falls through to the agent normally.
-        const onboardingGroupFlag = channelToGroup.get(nest);
-        if (
-          parsedDispatchNest &&
-          onboardingGroupFlag &&
-          !onboardingPickerOffered.has(nest) &&
-          isOwner(senderShip) &&
-          parsedDispatchNest.hostShip === effectiveOwnerShip
-        ) {
-          const groupDescription = await fetchGroupDescription(
-            api,
-            onboardingGroupFlag,
-            runtime
-          );
-          if (groupDescription === null) {
-            // Scry failed — say nothing rather than risk offering setup for an
-            // already-configured group. Retried on the next message.
+        if (!onboardingPickerOffered.has(nest) && isOwner(senderShip)) {
+          const onboardingGroup = await findGroupForChannel(api, nest, runtime);
+          if (onboardingGroup === null) {
+            // Couldn't resolve the group (new group, or scry failed) — say
+            // nothing rather than risk offering setup for a configured group.
+            // Retried on the next message.
           } else if (
             shouldOfferPurposePicker({
               senderIsOwner: true,
-              groupHostIsOwner: true,
-              groupDescription,
+              groupHostIsOwner: onboardingGroup.host === effectiveOwnerShip,
+              groupDescription: onboardingGroup.description,
               messageText: rawText ?? '',
               alreadyOffered: false,
             })

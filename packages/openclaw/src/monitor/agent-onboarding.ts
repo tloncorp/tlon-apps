@@ -131,29 +131,66 @@ export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
   return makeA2UIBlob(`agent-onboarding-${surfaceSuffix}`, 'root', components);
 }
 
+export interface ChannelGroupInfo {
+  flag: string;
+  /** the group's host ship, in `~ship` form */
+  host: string;
+  /** `meta.description`, '' when unset */
+  description: string;
+}
+
 /**
- * Read one group's `meta.description` off the ship. Used to tell a
- * not-yet-configured group from a configured one; returns null when the scry
- * fails so a transient error can't cause a spurious re-offer.
+ * Find the group that owns `nest`, with its host and description, in a single
+ * scry.
+ *
+ * Deliberately not using the monitor's channel→group map: that is built from
+ * init data at startup, so a group created after the bot connected — the fresh
+ * account case this feature exists for — isn't in it yet. Returns null when
+ * the group can't be resolved (including scry failure), so callers stay quiet
+ * rather than guessing.
  */
-export async function fetchGroupDescription(
+export async function findGroupForChannel(
   api: { scry: (path: string) => Promise<unknown> } | null,
-  groupFlag: string,
+  nest: string,
   runtime: { error?: (message: string) => void }
-): Promise<string | null> {
+): Promise<ChannelGroupInfo | null> {
   if (!api) {
     return null;
   }
   try {
     const groups = (await api.scry('/groups/v2/groups.json')) as Record<
       string,
-      { meta?: { description?: unknown } }
+      {
+        meta?: { description?: unknown };
+        channels?: Record<string, unknown>;
+        'active-channels'?: unknown;
+      }
     > | null;
-    const description = groups?.[groupFlag]?.meta?.description;
-    return typeof description === 'string' ? description : '';
+    if (!groups) {
+      return null;
+    }
+    for (const [flag, group] of Object.entries(groups)) {
+      const active = Array.isArray(group?.['active-channels'])
+        ? (group['active-channels'] as unknown[])
+        : [];
+      const inGroup =
+        active.includes(nest) ||
+        Object.prototype.hasOwnProperty.call(group?.channels ?? {}, nest);
+      if (!inGroup) {
+        continue;
+      }
+      const host = flag.split('/')[0] ?? '';
+      const description = group?.meta?.description;
+      return {
+        flag,
+        host,
+        description: typeof description === 'string' ? description : '',
+      };
+    }
+    return null;
   } catch (error) {
     runtime.error?.(
-      `[tlon] Failed to scry group description for ${groupFlag}: ${String(error)}`
+      `[tlon] Failed to resolve group for ${nest}: ${String(error)}`
     );
     return null;
   }
