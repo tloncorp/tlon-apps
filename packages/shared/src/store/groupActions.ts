@@ -1,9 +1,5 @@
 import * as api from '@tloncorp/api';
-import {
-  GroupTemplateId,
-  groupTemplatesById,
-} from '@tloncorp/api/types/groupTemplates';
-import { createSectionId, getChannelKindFromType } from '@tloncorp/api/urbit';
+import { createSectionId } from '@tloncorp/api/urbit';
 import isEqual from 'lodash/isEqual';
 
 import * as db from '../db';
@@ -121,60 +117,9 @@ export async function createDefaultGroup(
   return createGroup({ group: newGroup, memberIds: params.memberIds ?? [] });
 }
 
-interface CreateGroupFromTemplateParams {
-  templateId: GroupTemplateId;
-  memberIds?: string[];
-  title?: string;
-}
-
-export async function createGroupFromTemplate(
-  params: CreateGroupFromTemplateParams
-): Promise<db.Group> {
-  const template = groupTemplatesById[params.templateId];
-  const currentUserId = api.getCurrentUserId();
-  const groupSlug = getRandomId();
-  const groupId = `${currentUserId}/${groupSlug}`;
-  const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
-
-  const newGroup: db.Group = {
-    id: groupId,
-    title: params.title ?? template.title,
-    iconImage: groupIconUrl,
-    currentUserIsMember: true,
-    isPersonalGroup: false,
-    hostUserId: currentUserId,
-    currentUserIsHost: true,
-    privacy: 'secret',
-  };
-
-  const channels: db.Channel[] = template.channels.map((channelTemplate) => {
-    const channelSlug = getRandomId();
-    const channelKind = getChannelKindFromType(channelTemplate.type);
-    const channelId = `${channelKind}/${currentUserId}/${channelSlug}`;
-    return {
-      id: channelId,
-      groupId,
-      type: channelTemplate.type,
-      title: channelTemplate.title,
-      description: channelTemplate.description,
-      lastPostSequenceNum: 0,
-      currentUserIsMember: true,
-    };
-  });
-
-  newGroup.channels = channels;
-
-  return createGroup({
-    group: newGroup,
-    memberIds: params.memberIds ?? [],
-    templateId: params.templateId,
-  });
-}
-
 export async function createGroup(params: {
   group: db.Group;
   memberIds?: string[];
-  templateId?: GroupTemplateId;
 }): Promise<db.Group> {
   const placeHolderTitle = await getPlaceholderTitle(params);
 
@@ -196,7 +141,6 @@ export async function createGroup(params: {
     logger.trackEvent(AnalyticsEvent.ActionCreateGroup, {
       ...logic.getModelAnalytics({ group: params.group }),
       initialMemberCount: params.memberIds?.length ?? 0,
-      templateId: params.templateId,
     });
 
     return resultGroup;
