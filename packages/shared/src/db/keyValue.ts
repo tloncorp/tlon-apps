@@ -443,15 +443,6 @@ export const agentOnboardingLanding = createStorageItem<{
   defaultValue: null,
 });
 
-/**
- * Groups whose onboarding opening message has been posted. Keeps first run
- * from posting it twice if the app is relaunched mid-onboarding.
- */
-export const agentOnboardingOpenedGroups = createStorageItem<string[]>({
-  key: 'agentOnboardingOpenedGroups',
-  defaultValue: [],
-});
-
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
   defaultValue: {

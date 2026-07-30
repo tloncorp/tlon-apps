@@ -268,19 +268,9 @@ export function ChatListScreenView({
           const channel = await db.getChannel({ id: landing.channelId });
           if (channel) {
             if (!cancelled) {
+              // The agent opens the conversation itself when it joins a newly
+              // created group, so landing here is all the client does.
               resetToChannel(landing.channelId, { groupId: landing.groupId });
-              // Kick off the conversation: the agent only reacts, so without
-              // an opening line the group sits on its canned welcome.
-              store
-                .sendAgentOnboardingOpeningMessage({
-                  groupId: landing.groupId,
-                  channelId: landing.channelId,
-                })
-                .catch((error) => {
-                  logger.trackError('Failed to open onboarding conversation', {
-                    error,
-                  });
-                });
             }
             return;
           }

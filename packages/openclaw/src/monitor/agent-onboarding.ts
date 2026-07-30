@@ -403,6 +403,139 @@ export async function findGroupForChannel(
   }
 }
 
+export interface GroupChatChannelInfo {
+  nest: string;
+  /** the group's host ship, in `~ship` form */
+  host: string;
+  /** `meta.description`, '' when unset */
+  description: string;
+}
+
+/**
+ * Find a group's chat channel (plus host and description) in a single scry.
+ *
+ * Returns null when the group or its chat channel can't be resolved — for a
+ * group the bot was just invited to, the channels land moments after the join
+ * ack, so callers poll rather than treating null as final.
+ */
+export async function findChatNestForGroup(
+  api: { scry: (path: string) => Promise<unknown> } | null,
+  flag: string,
+  runtime: { error?: (message: string) => void }
+): Promise<GroupChatChannelInfo | null> {
+  if (!api) {
+    return null;
+  }
+  try {
+    const groups = (await api.scry('/groups/v2/groups.json')) as Record<
+      string,
+      {
+        meta?: { description?: unknown };
+        channels?: Record<string, unknown>;
+        'active-channels'?: unknown;
+      }
+    > | null;
+    const group = groups?.[flag];
+    if (!group) {
+      return null;
+    }
+    const active = Array.isArray(group['active-channels'])
+      ? (group['active-channels'] as unknown[])
+      : [];
+    const nest = [...active, ...Object.keys(group.channels ?? {})].find(
+      (key): key is string => typeof key === 'string' && key.startsWith('chat/')
+    );
+    if (!nest) {
+      return null;
+    }
+    const host = flag.split('/')[0] ?? '';
+    const description = group.meta?.description;
+    return {
+      nest,
+      host,
+      description: typeof description === 'string' ? description : '',
+    };
+  } catch (error) {
+    runtime.error?.(
+      `[tlon] Failed to resolve chat channel for ${flag}: ${String(error)}`
+    );
+    return null;
+  }
+}
+
+/**
+ * Whether a channel has no posts yet — the test for "this group was just
+ * created" at invite-accept time, and exactly the condition under which the
+ * agent opening the conversation makes sense.
+ *
+ * Fails closed: returns null when the scry fails or the shape is
+ * unrecognizable, so an unreadable channel is never mistaken for a new one.
+ * (`fetchChannelHistory` is not used here because it returns `[]` on error.)
+ */
+export async function channelHasNoPosts(
+  api: { scry: (path: string) => Promise<unknown> } | null,
+  nest: string,
+  runtime: { error?: (message: string) => void }
+): Promise<boolean | null> {
+  if (!api) {
+    return null;
+  }
+  try {
+    const data = (await api.scry(
+      `/channels/v4/${nest}/posts/newest/1/outline.json`
+    )) as unknown;
+    if (data === null || data === undefined) {
+      return null;
+    }
+    if (Array.isArray(data)) {
+      return data.length === 0;
+    }
+    if (typeof data === 'object') {
+      const posts = (data as { posts?: unknown }).posts;
+      if (posts && typeof posts === 'object') {
+        return Object.keys(posts).length === 0;
+      }
+      return Object.keys(data).length === 0;
+    }
+    return null;
+  } catch (error) {
+    runtime.error?.(
+      `[tlon] Failed to read posts for ${nest}: ${String(error)}`
+    );
+    return null;
+  }
+}
+
+/**
+ * Whether to open a just-joined group with the purpose picker.
+ *
+ * The agent speaks first only in a **newly created** group the owner hosts:
+ * empty chat channel, no agent config, not already offered. An owner adding
+ * the bot to an established group gets silence until they say something (the
+ * message-driven offer handles that). `channelHasNoPosts === null` — couldn't
+ * inspect — counts as not-new.
+ */
+export function shouldOfferPickerOnJoin(opts: {
+  groupHostIsOwner: boolean;
+  groupDescription: string | null | undefined;
+  channelHasNoPosts: boolean | null;
+  alreadyOffered: boolean;
+}): boolean {
+  if (opts.alreadyOffered) {
+    return false;
+  }
+  if (!opts.groupHostIsOwner) {
+    return false;
+  }
+  if (opts.channelHasNoPosts !== true) {
+    return false;
+  }
+  if (descriptionHasAgentConfig(opts.groupDescription)) {
+    return false;
+  }
+  return true;
+}
+
 /**
  * True when a group description already carries an agent config entry.
  *

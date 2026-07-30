@@ -6,11 +6,14 @@ import {
   PURPOSE_TOPICS,
   buildPurposePickerBlob,
   buildTopicsPickerBlob,
+  channelHasNoPosts,
   descriptionHasAgentConfig,
+  findChatNestForGroup,
   findGroupForChannel,
   isPurposePickerChoice,
   purposeIdForChoice,
   purposePickerFallbackText,
+  shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
   topicsPickerFallbackText,
@@ -491,5 +494,136 @@ describe('purpose picker layout selection', () => {
     for (const option of PURPOSE_OPTIONS) {
       expect(isPurposePickerChoice(option.title)).toBe(true);
     }
+  });
+});
+
+describe('findChatNestForGroup', () => {
+  const flag = '~ten/home-group';
+  const groups = {
+    [flag]: {
+      meta: { description: '' },
+      'active-channels': ['chat/~ten/home-group-chat'],
+      channels: { 'chat/~ten/home-group-chat': {} },
+    },
+    '~ten/gallery-only': {
+      meta: { description: '' },
+      'active-channels': ['heap/~ten/pics'],
+      channels: { 'heap/~ten/pics': {} },
+    },
+  };
+  const apiWith = (result: unknown) => ({
+    scry: async () => result,
+  });
+
+  test('resolves the chat nest, host and description', async () => {
+    const info = await findChatNestForGroup(apiWith(groups), flag, {});
+    expect(info).toEqual({
+      nest: 'chat/~ten/home-group-chat',
+      host: '~ten',
+      description: '',
+    });
+  });
+
+  test('returns null for a group not in the scry yet', async () => {
+    // The join ack races the group data landing — callers poll on null.
+    expect(await findChatNestForGroup(apiWith(groups), '~ten/nope', {})).toBe(
+      null
+    );
+  });
+
+  test('returns null for a group with no chat channel', async () => {
+    expect(
+      await findChatNestForGroup(apiWith(groups), '~ten/gallery-only', {})
+    ).toBe(null);
+  });
+
+  test('returns null on scry failure or missing api', async () => {
+    const failing = {
+      scry: async () => {
+        throw new Error('boom');
+      },
+    };
+    expect(await findChatNestForGroup(failing, flag, {})).toBe(null);
+    expect(await findChatNestForGroup(null, flag, {})).toBe(null);
+  });
+});
+
+describe('channelHasNoPosts', () => {
+  const nest = 'chat/~ten/home-group-chat';
+  const apiWith = (result: unknown) => ({
+    scry: async () => result,
+  });
+
+  test('true for an empty posts map', async () => {
+    expect(await channelHasNoPosts(apiWith({ posts: {} }), nest, {})).toBe(
+      true
+    );
+  });
+
+  test('false once anything has been posted', async () => {
+    expect(
+      await channelHasNoPosts(
+        apiWith({ posts: { '170.141': { essay: {} } } }),
+        nest,
+        {}
+      )
+    ).toBe(false);
+  });
+
+  test('fails closed: null on scry failure, missing api, or null result', async () => {
+    // null means "couldn't inspect" — the caller must not treat the channel
+    // as new, or the bot would post into groups it can't read.
+    const failing = {
+      scry: async () => {
+        throw new Error('boom');
+      },
+    };
+    expect(await channelHasNoPosts(failing, nest, {})).toBe(null);
+    expect(await channelHasNoPosts(null, nest, {})).toBe(null);
+    expect(await channelHasNoPosts(apiWith(null), nest, {})).toBe(null);
+  });
+});
+
+describe('shouldOfferPickerOnJoin', () => {
+  const newGroup = {
+    groupHostIsOwner: true,
+    groupDescription: '',
+    channelHasNoPosts: true as boolean | null,
+    alreadyOffered: false,
+  };
+
+  test('offers in a newly created group the owner hosts', () => {
+    expect(shouldOfferPickerOnJoin(newGroup)).toBe(true);
+  });
+
+  test('stays silent in an established group', () => {
+    // Being added to a group with history is not an invitation to run setup.
+    expect(
+      shouldOfferPickerOnJoin({ ...newGroup, channelHasNoPosts: false })
+    ).toBe(false);
+  });
+
+  test('stays silent when the channel could not be inspected', () => {
+    expect(
+      shouldOfferPickerOnJoin({ ...newGroup, channelHasNoPosts: null })
+    ).toBe(false);
+  });
+
+  test('stays silent in groups the owner does not host', () => {
+    expect(
+      shouldOfferPickerOnJoin({ ...newGroup, groupHostIsOwner: false })
+    ).toBe(false);
+  });
+
+  test('stays silent when already configured or already offered', () => {
+    expect(
+      shouldOfferPickerOnJoin({
+        ...newGroup,
+        groupDescription: configuredDescription,
+      })
+    ).toBe(false);
+    expect(shouldOfferPickerOnJoin({ ...newGroup, alreadyOffered: true })).toBe(
+      false
+    );
   });
 });

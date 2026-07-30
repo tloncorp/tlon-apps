@@ -97,8 +97,11 @@ import {
 import {
   buildPurposePickerBlob,
   buildTopicsPickerBlob,
+  channelHasNoPosts,
+  findChatNestForGroup,
   findGroupForChannel,
   purposePickerFallbackText,
+  shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
   topicsPickerFallbackText,
@@ -4994,6 +4997,67 @@ export async function monitorTlonProvider(
       {
         const processedGroupInvites = new Set<string>();
 
+        // A newly created group the owner hosts: the agent opens the
+        // conversation itself, so the client never has to post an opening
+        // line on the user's behalf. The channel lands moments after the
+        // join ack, so poll for it (bounded); every other case — established
+        // group, unreadable state — stays silent and lets the message-driven
+        // offer handle it.
+        const offerOnboardingInNewOwnerGroup = async (groupFlag: string) => {
+          try {
+            const deadline = Date.now() + 45_000;
+            let info: Awaited<ReturnType<typeof findChatNestForGroup>> = null;
+            while (Date.now() < deadline && !opts.abortSignal?.aborted) {
+              info = await findChatNestForGroup(api, groupFlag, runtime);
+              if (info) {
+                break;
+              }
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+            if (!info) {
+              runtime.log?.(
+                `[tlon] Joined ${groupFlag} but never saw its chat channel — skipping onboarding offer`
+              );
+              return;
+            }
+            const shouldOffer = shouldOfferPickerOnJoin({
+              groupHostIsOwner: info.host === effectiveOwnerShip,
+              groupDescription: info.description,
+              channelHasNoPosts: await channelHasNoPosts(
+                api,
+                info.nest,
+                runtime
+              ),
+              alreadyOffered: onboardingPickerOffered.has(info.nest),
+            });
+            if (!shouldOffer) {
+              return;
+            }
+            onboardingPickerOffered.add(info.nest);
+            runtime.log?.(
+              `[tlon] Opening new group ${groupFlag} with the purpose picker`
+            );
+            try {
+              await sendChannelPost({
+                botProfile: getBotProfile(),
+                fromShip: botShipName,
+                nest: info.nest,
+                story: markdownToStory(purposePickerFallbackText()),
+                blob: serializeBlobField(buildPurposePickerBlob(info.nest)),
+              });
+            } catch (error) {
+              onboardingPickerOffered.delete(info.nest);
+              runtime.error?.(
+                `[tlon] Failed to open ${groupFlag} with purpose picker: ${String(error)}`
+              );
+            }
+          } catch (error) {
+            runtime.error?.(
+              `[tlon] Onboarding offer for ${groupFlag} failed: ${String(error)}`
+            );
+          }
+        };
+
         // Helper to process pending invites
         const processPendingInvites = async (foreigns: Foreigns) => {
           if (!foreigns || typeof foreigns !== 'object') {
@@ -5031,6 +5095,7 @@ export async function monitorTlonProvider(
                 runtime.log?.(
                   `[tlon] Auto-accepted group invite from owner: ${groupFlag}`
                 );
+                void offerOnboardingInNewOwnerGroup(groupFlag);
               } catch (err) {
                 runtime.error?.(
                   `[tlon] Failed to accept group invite from owner: ${String(err)}`
