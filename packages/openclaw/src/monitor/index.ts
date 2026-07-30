@@ -50,6 +50,7 @@ import {
   setPendingNudge,
   syncPendingNudgeFromStore,
 } from '../pending-nudge.js';
+import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
 import { setSessionRole } from '../session-roles.js';
 import {
@@ -65,6 +66,7 @@ import {
 } from '../targets.js';
 import {
   type TlonDeliverySkipReason,
+  type TlonPluginErrorEvent,
   type TlonPluginErrorSource,
   createTlonTelemetry,
   formatTlonTelemetryErrorText,
@@ -74,6 +76,12 @@ import {
   setOutboundRouteReporter,
   setSessionTelemetryReporter,
 } from '../telemetry.js';
+import {
+  type TlonAgentTurnSummary,
+  observeActiveTlonTurnDelivery,
+  recordActiveTlonTurnSourceReply,
+  startTlonAgentTurn,
+} from '../turn-recorder.js';
 import { resolveTlonAccount } from '../types.js';
 import { configureTlonApiWithPoke } from '../urbit/api-client.js';
 import {
@@ -401,7 +409,7 @@ export async function monitorTlonProvider(
       authPhase?: TlonAuthPhase | null;
     }
   ) => {
-    telemetry?.capturePluginError({
+    const event: TlonPluginErrorEvent = {
       harness: 'openclaw',
       pluginErrorSource,
       accountId: account.accountId,
@@ -412,7 +420,8 @@ export async function monitorTlonProvider(
       attempt: extra?.attempt ?? null,
       downMs: extra?.downMs ?? null,
       authPhase: extra?.authPhase ?? null,
-    });
+    };
+    emitTlonPluginErrorTelemetry(event, { postHog: telemetry });
   };
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
   runtime.log?.(
@@ -3047,6 +3056,15 @@ export async function monitorTlonProvider(
         account.lifecycle.runTimeoutMs
       );
       const runId = randomUUID();
+      const turnRecorder = startTlonAgentTurn({
+        accountId: account.accountId,
+        agentId: route.agentId,
+        destinationKind: isGroup ? 'group_channel' : 'dm',
+        runId,
+        sessionKey: route.sessionKey,
+        ship: botShipName,
+        trigger,
+      });
       const replyTelemetry = telemetry?.startReply({
         sessionKey: route.sessionKey,
         runId,
@@ -3192,6 +3210,7 @@ export async function monitorTlonProvider(
           }
         | undefined;
       let dispatchError: unknown;
+      let turnSummary: TlonAgentTurnSummary | undefined;
 
       try {
         let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -3236,177 +3255,220 @@ export async function monitorTlonProvider(
               : undefined,
             onRecord: routeDebug,
             dispatch: () =>
-              core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
-                ctx: ctxPayload,
-                cfg,
-                replyOptions,
-                dispatcherOptions: {
-                  responsePrefix,
-                  humanDelay,
-                  typingCallbacks,
-                  onSkip: (_payload, info) => {
-                    recordDeliverySkip(info.reason);
-                  },
-                  deliver: async (payload: ReplyPayload) => {
-                    contextLenses.setStatus(lens.lensId, 'delivering');
-                    const blob = getReplyBlob(payload);
-                    let replyText = payload.text ?? '';
-                    if (!replyText && !blob) {
-                      const hasMedia = Array.isArray(payload.mediaUrls)
-                        ? payload.mediaUrls.length > 0
-                        : Boolean(payload.mediaUrl);
-                      recordDeliverySkip(
-                        hasMedia
-                          ? 'media_only_payload_not_sent'
-                          : 'empty_payload_text'
-                      );
-                      return;
-                    }
+              turnRecorder.run(async () => {
+                let activeDispatchError: unknown;
+                let activeSourceReplyDeliveryMode: string | null = null;
+                try {
+                  return await core.channel.reply
+                    .dispatchReplyWithBufferedBlockDispatcher({
+                      ctx: ctxPayload,
+                      cfg,
+                      replyOptions,
+                      dispatcherOptions: {
+                        responsePrefix,
+                        humanDelay,
+                        typingCallbacks,
+                        onSkip: (_payload, info) => {
+                          recordDeliverySkip(info.reason);
+                        },
+                        deliver: async (payload: ReplyPayload, info) => {
+                          contextLenses.setStatus(lens.lensId, 'delivering');
+                          const blob = getReplyBlob(payload);
+                          let replyText = payload.text ?? '';
+                          if (!replyText && !blob) {
+                            const hasMedia = Array.isArray(payload.mediaUrls)
+                              ? payload.mediaUrls.length > 0
+                              : Boolean(payload.mediaUrl);
+                            recordDeliverySkip(
+                              hasMedia
+                                ? 'media_only_payload_not_sent'
+                                : 'empty_payload_text'
+                            );
+                            return;
+                          }
 
-                    // Process any block directives in the response (strips them from text)
-                    if (replyText) {
-                      replyText = await processBlockDirectives(
-                        replyText,
-                        senderShip
-                      );
-                    }
-                    if (!replyText && !blob) {
-                      recordDeliverySkip('block_directive_only');
-                      return;
-                    } // Response was only a directive
+                          // Process any block directives in the response (strips them from text)
+                          if (replyText) {
+                            replyText = await processBlockDirectives(
+                              replyText,
+                              senderShip
+                            );
+                          }
+                          if (!replyText && !blob) {
+                            recordDeliverySkip('block_directive_only');
+                            return;
+                          } // Response was only a directive
+                          recordActiveTlonTurnSourceReply({
+                            isError: payload.isError === true,
+                            kind: info.kind,
+                          });
 
-                    // Use settings store value if set, otherwise fall back to file config
-                    const showSignature = effectiveShowModelSig;
-                    if (showSignature && replyText) {
-                      const modelCfg = cfg.agents?.defaults?.model;
-                      const modelInfo =
-                        selectedModel ||
-                        (payload as { metadata?: { model?: string } }).metadata
-                          ?.model ||
-                        (payload as { model?: string }).model ||
-                        (route as { model?: string }).model ||
-                        (typeof modelCfg === 'string'
-                          ? modelCfg
-                          : modelCfg?.primary);
-                      replyText = `${replyText}\n\n_[Generated by ${formatModelName(modelInfo)}]_`;
-                    }
+                          // Use settings store value if set, otherwise fall back to file config
+                          const showSignature = effectiveShowModelSig;
+                          if (showSignature && replyText) {
+                            const modelCfg = cfg.agents?.defaults?.model;
+                            const modelInfo =
+                              selectedModel ||
+                              (payload as { metadata?: { model?: string } })
+                                .metadata?.model ||
+                              (payload as { model?: string }).model ||
+                              (route as { model?: string }).model ||
+                              (typeof modelCfg === 'string'
+                                ? modelCfg
+                                : modelCfg?.primary);
+                            replyText = `${replyText}\n\n_[Generated by ${formatModelName(modelInfo)}]_`;
+                          }
 
-                    // Add addendum if this is the last response before bot rate limit
-                    if (
-                      isGroup &&
-                      groupChannel &&
-                      knownBotShips.has(senderShip)
-                    ) {
-                      const count =
-                        consecutiveBotMessages.get(groupChannel) ?? 0;
-                      if (maxBotResponses > 0 && count === maxBotResponses) {
-                        const otherBot = formatShipWithNickname(senderShip);
-                        replyText += `\n\n---\n_This is my last response to ${otherBot} for now. To continue our conversation, someone will need to mention me._`;
-                      }
-                    }
+                          // Add addendum if this is the last response before bot rate limit
+                          if (
+                            isGroup &&
+                            groupChannel &&
+                            knownBotShips.has(senderShip)
+                          ) {
+                            const count =
+                              consecutiveBotMessages.get(groupChannel) ?? 0;
+                            if (
+                              maxBotResponses > 0 &&
+                              count === maxBotResponses
+                            ) {
+                              const otherBot =
+                                formatShipWithNickname(senderShip);
+                              replyText += `\n\n---\n_This is my last response to ${otherBot} for now. To continue our conversation, someone will need to mention me._`;
+                            }
+                          }
 
-                    if (isRouteDebugEnabled()) {
-                      runtime.log?.(
-                        `[tlon][route-debug] deliver ${JSON.stringify({
-                          messageId,
-                          isGroup,
-                          destination: isGroup
-                            ? groupChannel ?? null
-                            : senderShip,
-                          deliverParentId: deliverParentId ?? null,
-                        })}`
-                      );
-                    }
+                          if (isRouteDebugEnabled()) {
+                            runtime.log?.(
+                              `[tlon][route-debug] deliver ${JSON.stringify({
+                                messageId,
+                                isGroup,
+                                destination: isGroup
+                                  ? groupChannel ?? null
+                                  : senderShip,
+                                deliverParentId: deliverParentId ?? null,
+                              })}`
+                            );
+                          }
 
-                    sendAttemptCount += 1;
-                    let outputMessageId: string | null = null;
-                    const replyBlob = combineBlobFields(
-                      blob,
-                      buildContextLensReferenceBlobField(lens.lensId)
-                    );
-                    if (isGroup && groupChannel) {
-                      // Send to any channel type (chat, heap, diary) using the nest directly
-                      const result = await sendChannelPost({
-                        botProfile: getBotProfile(),
-                        fromShip: botShipName,
-                        nest: groupChannel,
-                        story: markdownToStory(replyText),
-                        replyToId: deliverParentId ?? undefined,
-                        blob: replyBlob,
-                      });
-                      outputMessageId = result.messageId;
-                      // Track thread participation for future replies without mention
-                      if (deliverParentId) {
-                        participatedThreads.add(String(deliverParentId));
-                        runtime.log?.(
-                          `[tlon] Now tracking thread for future replies: ${deliverParentId}`
-                        );
-                      }
-                    } else {
-                      const result = await sendDm({
-                        botProfile: getBotProfile(),
-                        fromShip: botShipName,
-                        toShip: senderShip,
-                        text: replyText,
-                        replyToId: deliverParentId
-                          ? String(deliverParentId)
-                          : undefined,
-                        blob: replyBlob,
-                      });
-                      outputMessageId = result.messageId;
-                    }
+                          sendAttemptCount += 1;
+                          let outputMessageId: string | null = null;
+                          const replyBlob = combineBlobFields(
+                            blob,
+                            buildContextLensReferenceBlobField(lens.lensId)
+                          );
+                          if (isGroup && groupChannel) {
+                            // Send to any channel type (chat, heap, diary) using the nest directly
+                            const result = await observeActiveTlonTurnDelivery(
+                              () =>
+                                sendChannelPost({
+                                  botProfile: getBotProfile(),
+                                  fromShip: botShipName,
+                                  nest: groupChannel,
+                                  story: markdownToStory(replyText),
+                                  replyToId: deliverParentId ?? undefined,
+                                  blob: replyBlob,
+                                })
+                            );
+                            outputMessageId = result.messageId;
+                            // Track thread participation for future replies without mention
+                            if (deliverParentId) {
+                              participatedThreads.add(String(deliverParentId));
+                              runtime.log?.(
+                                `[tlon] Now tracking thread for future replies: ${deliverParentId}`
+                              );
+                            }
+                          } else {
+                            const result = await observeActiveTlonTurnDelivery(
+                              () =>
+                                sendDm({
+                                  botProfile: getBotProfile(),
+                                  fromShip: botShipName,
+                                  toShip: senderShip,
+                                  text: replyText,
+                                  replyToId: deliverParentId
+                                    ? String(deliverParentId)
+                                    : undefined,
+                                  blob: replyBlob,
+                                })
+                            );
+                            outputMessageId = result.messageId;
+                          }
 
-                    deliveredMessageCount += 1;
-                    contextLenses.recordPersistence(lens.lensId, {
-                      postsReply: true,
+                          deliveredMessageCount += 1;
+                          contextLenses.recordPersistence(lens.lensId, {
+                            postsReply: true,
+                          });
+                          recordSentTlonReply({
+                            botShipName,
+                            contextLenses,
+                            deliveredMessageCount,
+                            groupChannel,
+                            isGroup,
+                            lensId: lens.lensId,
+                            outputMessageId,
+                            replyBlob,
+                            replyPreview: previewText(replyText),
+                            replyText,
+                            senderShip,
+                          });
+                          contextLenses.recordPersistenceEvent(lens.lensId, {
+                            kind: 'conversation_state',
+                            action: 'created',
+                            location: 'urbit',
+                            status: 'ok',
+                            key: 'reply',
+                            reason: 'posted bot response',
+                          });
+                          replyCharCount += replyText.length;
+                          replyWordCount += replyText.trim()
+                            ? replyText.trim().split(/\s+/).length
+                            : 0;
+                          replyMediaCount += Array.isArray(payload.mediaUrls)
+                            ? payload.mediaUrls.length
+                            : payload.mediaUrl
+                              ? 1
+                              : 0;
+
+                          if (presenceConversationId) {
+                            computingPresence.stopRun({
+                              conversationId: presenceConversationId,
+                              runId: presenceRunId,
+                            });
+                          }
+                        },
+                        onError: (err, info) => {
+                          const dispatchDuration =
+                            Date.now() - dispatchStartTime;
+                          sendErrorCount += 1;
+                          sendErrorKind = info.kind;
+                          runtime.error?.(
+                            `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
+                          );
+                        },
+                      },
+                    })
+                    .then((result) => {
+                      activeSourceReplyDeliveryMode =
+                        result.sourceReplyDeliveryMode ?? null;
+                      return result;
                     });
-                    recordSentTlonReply({
-                      botShipName,
-                      contextLenses,
-                      deliveredMessageCount,
-                      groupChannel,
-                      isGroup,
-                      lensId: lens.lensId,
-                      outputMessageId,
-                      replyBlob,
-                      replyPreview: previewText(replyText),
-                      replyText,
-                      senderShip,
-                    });
-                    contextLenses.recordPersistenceEvent(lens.lensId, {
-                      kind: 'conversation_state',
-                      action: 'created',
-                      location: 'urbit',
-                      status: 'ok',
-                      key: 'reply',
-                      reason: 'posted bot response',
-                    });
-                    replyCharCount += replyText.length;
-                    replyWordCount += replyText.trim()
-                      ? replyText.trim().split(/\s+/).length
-                      : 0;
-                    replyMediaCount += Array.isArray(payload.mediaUrls)
-                      ? payload.mediaUrls.length
-                      : payload.mediaUrl
-                        ? 1
-                        : 0;
-
-                    if (presenceConversationId) {
-                      computingPresence.stopRun({
-                        conversationId: presenceConversationId,
-                        runId: presenceRunId,
-                      });
-                    }
-                  },
-                  onError: (err, info) => {
-                    const dispatchDuration = Date.now() - dispatchStartTime;
-                    sendErrorCount += 1;
-                    sendErrorKind = info.kind;
-                    runtime.error?.(
-                      `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
-                    );
-                  },
-                },
+                } catch (error) {
+                  activeDispatchError = error;
+                  throw error;
+                } finally {
+                  turnSummary = turnRecorder.finalize({
+                    cancelled:
+                      !dispatchTimedOut && Boolean(opts.abortSignal?.aborted),
+                    deliverySkipReason,
+                    dispatchError: activeDispatchError,
+                    durationMs: Date.now() - dispatchStartTime,
+                    // Core suppresses message-tool-only source replies before
+                    // dispatcher callbacks, so the returned policy mode is the
+                    // only plugin-visible stopgap signal.
+                    sourceReplyDeliveryMode: activeSourceReplyDeliveryMode,
+                    timedOut: dispatchTimedOut,
+                  });
+                }
               }),
           });
         } finally {
@@ -3441,6 +3503,15 @@ export async function monitorTlonProvider(
           deliveredMessageCount,
           recordedOutputCount
         );
+        turnSummary ??= turnRecorder.finalize({
+          cancelled: !dispatchTimedOut && Boolean(opts.abortSignal?.aborted),
+          deliverySkipReason,
+          dispatchError,
+          durationMs: dispatchDurationMs,
+          sourceReplyDeliveryMode:
+            dispatchResult?.sourceReplyDeliveryMode ?? null,
+          timedOut: dispatchTimedOut,
+        });
         contextLenses.recordLifecycle(lens.lensId, {
           completedAt: Date.now(),
           durationMs: dispatchDurationMs,
@@ -3470,6 +3541,7 @@ export async function monitorTlonProvider(
           provider: selectedProvider,
           model: selectedModel,
           thinkLevel: selectedThinkLevel,
+          turnSummary,
           dispatchError,
         });
         if (!dispatchError) {

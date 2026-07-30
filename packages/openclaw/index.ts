@@ -21,6 +21,10 @@ import {
   scheduleBackgroundContextLensFinalization,
 } from './src/context-lens.js';
 import {
+  recordTlonCronAgentContext,
+  resetTlonCronObservability,
+} from './src/cron-observability.js';
+import {
   clearCronServiceAccessor,
   handleCronChangedEvent,
   setCronServiceAccessor,
@@ -66,6 +70,7 @@ import {
   liveToolTraceContentsEnabled,
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
+import { recordActiveTlonTurnToolCall } from './src/turn-recorder.js';
 import { resolveTlonAccount } from './src/types.js';
 import {
   formatTlonVersionIdentity,
@@ -1221,6 +1226,7 @@ export default defineBundledChannelEntry({
 
     api.on('after_tool_call', (event, ctx) => {
       const toolCallId = readToolCallId(event);
+      recordActiveTlonTurnToolCall();
       if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
         api.logger.info(
           formatToolTraceEvent({
@@ -1342,7 +1348,10 @@ export default defineBundledChannelEntry({
         setCronServiceAccessor(ctx.getCron);
       }
     });
-    api.on('gateway_stop', clearCronServiceAccessor);
+    api.on('gateway_stop', () => {
+      clearCronServiceAccessor();
+      resetTlonCronObservability();
+    });
 
     api.on('cron_changed', async (event, ctx) => {
       try {
@@ -1472,12 +1481,19 @@ export default defineBundledChannelEntry({
     // and retain their detailed diagnostic fields. The lifecycle hook remains
     // the authoritative source for the final cron outcome.
     const onCronAgentHook = (ctx: {
+      sessionId?: string;
       sessionKey?: string;
       trigger?: string;
       jobId?: string;
       runId?: string;
     }) => {
       if (ctx.trigger === 'cron') {
+        recordTlonCronAgentContext({
+          jobId: ctx.jobId,
+          runId: ctx.runId,
+          sessionId: ctx.sessionId,
+          sessionKey: ctx.sessionKey,
+        });
         safeTelemetryObserver({
           logger: api.logger,
           telemetrySource: 'cron_run_attribution',
