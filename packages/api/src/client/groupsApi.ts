@@ -1373,12 +1373,18 @@ export const subscribeGroups = async (
   });
 
   // v3/groups adds group blob (custom payload) updates, which are stripped
-  // from v1/v2. It can bad-watch-path on older backends; in that case blob
-  // data still arrives via init/group sync.
+  // from v1/v2. %create rides v3 with the blob intact while v1's copy is
+  // blob-stripped, so process the v3 copy too — it arrives first, and the
+  // later v1 upsert carries no blob key so it leaves the column untouched.
+  // The subscription can bad-watch-path on older backends; in that case
+  // blob data still arrives via init/group sync.
   void subscribe<ub.V1GroupResponse>(
     { app: 'groups', path: '/v3/groups' },
     (rawEvent) => {
-      if ('r-group' in rawEvent && 'blob' in rawEvent['r-group']) {
+      if (
+        'r-group' in rawEvent &&
+        ('blob' in rawEvent['r-group'] || 'create' in rawEvent['r-group'])
+      ) {
         handleRawGroupsEvent(rawEvent);
       }
     }
@@ -1896,7 +1902,10 @@ export function toClientGroupV7(
     roles,
     privacy: group.admissions.privacy,
     ...toClientGroupMeta(group.meta),
-    blob: group.blob ?? null,
+    // undefined means the source surface predates the blob (v1 create,
+    // v2 fallback scries) — upserts then leave any locally-known blob
+    // alone. An explicit null is an authoritative clear.
+    blob: group.blob,
     haveInvite: isJoined ? false : undefined,
     haveRequestedInvite: isJoined ? false : undefined,
     currentUserIsMember: isJoined,

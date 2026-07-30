@@ -1408,7 +1408,10 @@ export const insertGroups = createWriteQuery(
                 $groups.coverImage,
                 $groups.title,
                 $groups.description,
-                $groups.blob,
+                // blob-less surfaces (v1 create, v2 fallback scries) omit
+                // the key entirely; only overwrite when the source carried
+                // it, so an explicit null still clears.
+                ...(group.blob !== undefined ? [$groups.blob] : []),
                 $groups.privacy,
                 $groups.joinStatus,
                 $groups.currentUserIsMember,
