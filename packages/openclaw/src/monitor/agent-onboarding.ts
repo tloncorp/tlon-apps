@@ -55,12 +55,18 @@ export const PURPOSE_PICKER_PROMPT =
 export const PURPOSE_PICKER_FOOTER =
   'Or just tell me — the cards are only starts.';
 
-/** Plain-text fallback for old clients and notifications. */
+/**
+ * The post's story text, which doubles as the fallback.
+ *
+ * Deliberately one short line: clients that render the card show this too, so
+ * repeating the full option list there reads as duplicated content. Kept
+ * actionable on its own — the quoted titles are exactly what the buttons post,
+ * so a client that can't render A2UI (or a notification preview) still tells
+ * the user what to reply.
+ */
 export function purposePickerFallbackText(): string {
-  const options = PURPOSE_OPTIONS.map(
-    (t) => `• ${t.title} — ${t.description}`
-  ).join('\n');
-  return `${PURPOSE_PICKER_PROMPT}\n\n${options}\n\n${PURPOSE_PICKER_FOOTER}`;
+  const titles = PURPOSE_OPTIONS.map((t) => `“${t.title}”`).join(', ');
+  return `${PURPOSE_PICKER_PROMPT} Reply ${titles} — or just tell me.`;
 }
 
 /**

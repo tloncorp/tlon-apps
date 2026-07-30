@@ -1,6 +1,8 @@
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
+import { canRenderAgentUiInGroup } from '@tloncorp/shared/domain';
 import { A2UI } from '@tloncorp/shared/logic';
+import { useGroup } from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -8,6 +10,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import AuthorRow from '../AuthorRow';
 import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
 import { A2UIBlock } from '../PostContent/A2UIBlock';
@@ -145,7 +148,20 @@ export function StaticChatMessage({
     [draftInputContext]
   );
 
-  const canRenderA2UI = isDmChannelId(post.channelId);
+  // A2UI is interactive, so it stays off in shared spaces: DMs always, plus
+  // groups the current user hosts where the author is their own agent. That
+  // covers agent setup and job cards without letting another member's bot
+  // render buttons for everyone.
+  const currentUserId = useCurrentUserId();
+  const { data: group } = useGroup({ id: post.groupId ?? '' });
+  const canRenderA2UI =
+    isDmChannelId(post.channelId) ||
+    canRenderAgentUiInGroup({
+      authorId: post.authorId,
+      currentUserId,
+      groupId: post.groupId,
+      groupDescription: group?.description,
+    });
 
   const postContent = usePostContent(post);
   const lastEditPostContent = usePostLastEditContent(post);

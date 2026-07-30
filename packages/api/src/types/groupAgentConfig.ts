@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { isMoonOf, preSig } from '../lib/urbit.js';
+
 /**
  * Group agent configuration.
  *
@@ -133,4 +135,71 @@ export function descriptionIsGroupAgentConfig(
   description: string | null | undefined
 ): boolean {
   return parseGroupAgentConfig(description) !== undefined;
+}
+
+/**
+ * Whether a post's author is the current user's own agent.
+ *
+ * Two accepted signals, because the authoritative one isn't always available
+ * yet: a hosted agent is a moon of the account's node (true even before the
+ * group is configured, which is what the setup card needs), and a configured
+ * group names its agents outright. Deliberately not using `post.isBot` — that
+ * comes from the author's contact profile and is false for agents the user
+ * hasn't got a bot-flagged contact for.
+ */
+export function isOwnAgentShip({
+  authorId,
+  currentUserId,
+  groupDescription,
+}: {
+  authorId: string | null | undefined;
+  currentUserId: string | null | undefined;
+  groupDescription?: string | null;
+}): boolean {
+  if (!authorId || !currentUserId) {
+    return false;
+  }
+  const author = preSig(authorId).toLowerCase();
+  if (author === preSig(currentUserId).toLowerCase()) {
+    return false;
+  }
+  if (isMoonOf(authorId, currentUserId)) {
+    return true;
+  }
+  const config = parseGroupAgentConfig(groupDescription);
+  return !!config?.agents.some(
+    (agent) => preSig(agent).toLowerCase() === author
+  );
+}
+
+/**
+ * Whether interactive agent UI (A2UI cards) may render for this post.
+ *
+ * A group is a shared space, so an arbitrary member's bot must not be able to
+ * render buttons for everyone. Restricted to groups the current user hosts,
+ * and to posts authored by their own agent. DMs are gated separately by the
+ * caller.
+ */
+export function canRenderAgentUiInGroup({
+  authorId,
+  currentUserId,
+  groupId,
+  groupDescription,
+}: {
+  authorId: string | null | undefined;
+  currentUserId: string | null | undefined;
+  groupId: string | null | undefined;
+  groupDescription?: string | null;
+}): boolean {
+  if (!groupId || !currentUserId) {
+    return false;
+  }
+  const host = groupId.split('/')[0];
+  if (
+    !host ||
+    preSig(host).toLowerCase() !== preSig(currentUserId).toLowerCase()
+  ) {
+    return false;
+  }
+  return isOwnAgentShip({ authorId, currentUserId, groupDescription });
 }
