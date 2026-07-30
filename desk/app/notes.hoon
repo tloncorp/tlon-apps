@@ -1197,7 +1197,7 @@
     :^    %del
         %note
       id
-    [[ship.flag name.flag] (bind group |=(f=flag:n [ship.f name.f]))]
+    [flag (bind group |=(f=flag:n [ship.f name.f]))]
   ::
       ?(%published %unpublished %history-archived)
     cor
@@ -1220,7 +1220,7 @@
   ?.  =(updated-at.u.note t)  cor
   ?:  =(our.bowl updated-by.u.note)  cor
   =/  ev=note-event:v10:av
-    :*  nid  folder-id.u.note  [ship.flag name.flag]
+    :*  nid  folder-id.u.note  flag
         (bind group.nbs |=(f=flag:n [ship.f name.f]))
         title.u.note  updated-by.u.note
     ==
@@ -1236,7 +1236,7 @@
   ^+  cor
   %-  submit-activity
   :+  %del  %notebook
-  :-  [ship.flag name.flag]
+  :-  flag
   (bind group |=(f=flag:n [ship.f name.f]))
 ::  +subtree-folder-ids: a folder id plus all its descendants
 ::

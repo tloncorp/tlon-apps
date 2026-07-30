@@ -40,7 +40,7 @@
 ::
 ::
 /-  a=activity, av=activity-ver, c=channels, cv=channels-ver,
-    ch=chat, gv=groups-ver
+    ch=chat, gv=groups-ver, nv=notes
 /+  *activity, ac=activity-conv, ch-utils=channel-utils, v=volume,
     aj=activity-json, imp=import-aid
 /+  default-agent, verb, dbug, logs
@@ -698,7 +698,7 @@
   ::  /notes: per-note summaries for a notebook
   ::
       [%x %v6 %activity %notes host=@ name=@ ~]
-    =/  =flag:gv  [(slav %p host.pole) name.pole]
+    =/  =flag:nv  [(slav %p host.pole) name.pole]
     =/  notes=activity:a
       %-  ~(rep by activity)
       |=  [[=source:a sum=activity-summary:a] out=activity:a]
