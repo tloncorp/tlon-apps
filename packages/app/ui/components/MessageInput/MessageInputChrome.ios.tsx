@@ -1,14 +1,8 @@
-import { BlurView } from 'expo-blur';
-import { GlassContainer, GlassView } from 'expo-glass-effect';
 import { PropsWithChildren } from 'react';
-import {
-  LayoutChangeEvent,
-  View as NativeView,
-  StyleSheet,
-} from 'react-native';
+import { LayoutChangeEvent, StyleSheet } from 'react-native';
 
+import { GlassSurface, GlassSurfaceGroup } from '../GlassSurface.ios';
 import { floatingChromeMetrics as metrics } from '../floatingChromeMetrics';
-import { canUseLiquidGlass, glassFallbackBlurProps } from '../glassChrome.ios';
 
 export const usesFloatingMessageInputChrome = true;
 // Height of the single-line floating row. The channel scroller adds the iOS
@@ -21,22 +15,14 @@ export function MessageInputChromeRow({
 }: PropsWithChildren<{
   onLayout: (event: LayoutChangeEvent) => void;
 }>) {
-  if (canUseLiquidGlass()) {
-    return (
-      <GlassContainer
-        spacing={metrics.rowGap}
-        style={styles.row}
-        onLayout={onLayout}
-      >
-        {children}
-      </GlassContainer>
-    );
-  }
-
   return (
-    <NativeView style={styles.row} onLayout={onLayout}>
+    <GlassSurfaceGroup
+      spacing={metrics.rowGap}
+      style={styles.row}
+      onLayout={onLayout}
+    >
       {children}
-    </NativeView>
+    </GlassSurfaceGroup>
   );
 }
 
@@ -45,18 +31,10 @@ export function MessageInputChromeAction({
 }: PropsWithChildren<{
   bottomSpacing?: 'xs' | '2xs';
 }>) {
-  if (canUseLiquidGlass()) {
-    return (
-      <GlassView isInteractive style={styles.action}>
-        {children}
-      </GlassView>
-    );
-  }
-
   return (
-    <BlurView {...glassFallbackBlurProps} style={styles.action}>
+    <GlassSurface isInteractive style={styles.action}>
       {children}
-    </BlurView>
+    </GlassSurface>
   );
 }
 
@@ -68,22 +46,15 @@ export function MessageInputChromeBody({
   isEditing: boolean;
   editingTintColor: string;
 }>) {
-  if (canUseLiquidGlass()) {
-    return (
-      <GlassView
-        glassEffectStyle="regular"
-        tintColor={isEditing ? editingTintColor : undefined}
-        style={styles.body}
-      >
-        {children}
-      </GlassView>
-    );
-  }
-
   return (
-    <BlurView {...glassFallbackBlurProps} style={[styles.body, styles.clipped]}>
+    <GlassSurface
+      glassEffectStyle="regular"
+      tintColor={isEditing ? editingTintColor : undefined}
+      style={styles.body}
+      fallbackStyle={styles.clipped}
+    >
       {children}
-    </BlurView>
+    </GlassSurface>
   );
 }
 
