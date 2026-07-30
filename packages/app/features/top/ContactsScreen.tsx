@@ -95,22 +95,24 @@ export default function ContactsScreen() {
           <ScreenHeader
             title="Contacts"
             borderBottom
-            leftControls={
-              <ScreenHeader.IconButton
-                type="Add"
-                testID="ContactsAddButton"
-                onPress={() => navigate('AddContacts')}
-              />
-            }
-            rightControls={
-              <ScreenHeader.IconButton
-                type="Settings"
-                testID="ContactsSettingsButton"
-                onPress={() => {
-                  navigate('Settings', undefined, { pop: true });
-                }}
-              />
-            }
+            leftItems={[
+              {
+                id: 'add-contacts',
+                icon: 'Add',
+                label: 'Add contacts',
+                testID: 'ContactsAddButton',
+                onPress: () => navigate('AddContacts'),
+              },
+            ]}
+            rightItems={[
+              {
+                id: 'contacts-settings',
+                icon: 'Settings',
+                label: 'Settings',
+                testID: 'ContactsSettingsButton',
+                onPress: () => navigate('Settings', undefined, { pop: true }),
+              },
+            ]}
           />
           <SystemNotices.ContactBookPrompt
             status="undetermined"

@@ -2,8 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useState } from 'react';
-import { YStack } from 'tamagui';
-import { useTheme } from 'tamagui';
+import { YStack, useTheme } from 'tamagui';
 
 import { useIsDarkMode } from '../../hooks/useIsDarkMode';
 import { RootStackParamList } from '../../navigation/types';
@@ -77,6 +76,7 @@ export function ThemeScreen(props: Props) {
         backAction={
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
+        scrollsUnderHeader
       />
       <SettingsContentScrollView>
         <YStack flex={1} padding="$l">

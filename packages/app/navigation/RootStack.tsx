@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { ThemeProvider, useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Platform, StatusBar } from 'react-native';
 
@@ -38,18 +38,27 @@ import { NotesDetailScreen } from '../features/top/NotesDetailScreen';
 import { NotesFolderScreen } from '../features/top/NotesFolderScreen';
 import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { TopLevelTabNavigator } from './TopLevelTabNavigator';
 import type { RootStackParamList } from './types';
+import { useAppNavigationTheme } from './useAppNavigationTheme';
 import { mediaViewerScreenOptions } from './utils';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
 
 export function RootStack() {
-  const isDarkMode = useIsDarkMode();
+  const navigationTheme = useAppNavigationTheme();
+
+  return (
+    <ThemeProvider value={navigationTheme}>
+      <RootStackNavigator isDarkMode={navigationTheme.dark} />
+    </ThemeProvider>
+  );
+}
+
+function RootStackNavigator({ isDarkMode }: { isDarkMode: boolean }) {
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
 
   // Android status bar has a solid color by default, so we clear it

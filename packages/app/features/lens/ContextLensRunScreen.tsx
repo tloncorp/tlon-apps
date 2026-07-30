@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useA2UINavigation } from '../../hooks/useA2UINavigation';
 import type { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, ScrollView, SizableText, YStack } from '../../ui';
+import { ScreenHeader, ScreenScrollView, SizableText, YStack } from '../../ui';
 import {
   type LensMessageTarget,
   RunInspector,
@@ -88,9 +88,10 @@ export function ContextLensRunScreen(props: Props) {
         title="Bot run"
         backAction={props.navigation.goBack}
         borderBottom
+        scrollsUnderHeader
       />
-      {lens ? (
-        <ScrollView showsVerticalScrollIndicator={false}>
+      <ScreenScrollView showsVerticalScrollIndicator={false}>
+        {lens ? (
           <YStack gap="$m" padding="$l" paddingBottom="$2xl">
             <RunSummary
               lens={lens}
@@ -98,33 +99,33 @@ export function ContextLensRunScreen(props: Props) {
             />
             <RunInspector lens={lens} onPressMessage={handlePressMessage} />
           </YStack>
-        </ScrollView>
-      ) : (
-        <YStack
-          alignItems="center"
-          justifyContent="center"
-          minHeight={180}
-          gap="$m"
-          margin="$l"
-          borderWidth={1}
-          borderColor="$border"
-          borderRadius="$m"
-          backgroundColor="$secondaryBackground"
-          padding="$m"
-        >
-          <SizableText size="$m" color="$secondaryText" textAlign="center">
-            {loading
-              ? 'Looking for Lens metadata'
-              : 'No Lens metadata for this run'}
-          </SizableText>
-          {!loading ? (
-            <SizableText size="$s" color="$tertiaryText" textAlign="center">
-              Run records sync from your ship and are retained for about 30
-              days. This run is no longer available.
+        ) : (
+          <YStack
+            alignItems="center"
+            justifyContent="center"
+            minHeight={180}
+            gap="$m"
+            margin="$l"
+            borderWidth={1}
+            borderColor="$border"
+            borderRadius="$m"
+            backgroundColor="$secondaryBackground"
+            padding="$m"
+          >
+            <SizableText size="$m" color="$secondaryText" textAlign="center">
+              {loading
+                ? 'Looking for Lens metadata'
+                : 'No Lens metadata for this run'}
             </SizableText>
-          ) : null}
-        </YStack>
-      )}
+            {!loading ? (
+              <SizableText size="$s" color="$tertiaryText" textAlign="center">
+                Run records sync from your ship and are retained for about 30
+                days. This run is no longer available.
+              </SizableText>
+            ) : null}
+          </YStack>
+        )}
+      </ScreenScrollView>
     </YStack>
   );
 }

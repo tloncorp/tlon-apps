@@ -18,6 +18,7 @@ import {
   PaddedBlock,
   ProfileButton,
   ScreenHeader,
+  ScreenScrollView,
   ScrollView,
   TlonText,
   View,
@@ -226,9 +227,10 @@ function ChatDetailsScreenView() {
             </ScreenHeader.TextButton>
           ) : null
         }
+        scrollsUnderHeader
       />
       {hasContent && (
-        <ScrollView
+        <ScreenScrollView
           flex={1}
           contentContainerStyle={{
             width: '100%',
@@ -308,7 +310,7 @@ function ChatDetailsScreenView() {
           {chatType === 'channel' && channel && channel.groupId && (
             <LeaveActionsSection entityType="channel" channel={channel} />
           )}
-        </ScrollView>
+        </ScreenScrollView>
       )}
     </View>
   );

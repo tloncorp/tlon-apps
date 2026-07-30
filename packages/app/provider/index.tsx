@@ -1,12 +1,17 @@
 import * as store from '@tloncorp/shared';
 import React, { useEffect, useMemo, useState } from 'react';
+import { Appearance, Platform } from 'react-native';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { SplashScreenTask, splashScreenProgress } from '../lib/splashscreen';
 import { AppTheme } from '../types/theme';
 import { config } from '../ui/tamagui.config';
-import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
+import {
+  getDisplayTheme,
+  getNativeColorScheme,
+  normalizeTheme,
+} from '../ui/utils/themeUtils';
 
 const ThemeContext = React.createContext<{
   activeTheme: AppTheme;
@@ -28,7 +33,15 @@ function ThemeProviderContent({
   children: React.ReactNode;
   tamaguiProps: Omit<TamaguiProviderProps, 'config'>;
 }) {
-  const [activeTheme] = useSyncedAppTheme();
+  const [activeTheme, , appTheme] = useSyncedAppTheme();
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || appTheme == null) {
+      return;
+    }
+
+    Appearance.setColorScheme(getNativeColorScheme(appTheme));
+  }, [appTheme]);
 
   return (
     <ThemeContext.Provider
@@ -89,5 +102,9 @@ function useSyncedAppTheme() {
     splashScreenProgress.complete(SplashScreenTask.loadTheme);
   }, [storedTheme]);
 
-  return [activeTheme, setActiveTheme] as const;
+  return [
+    activeTheme,
+    setActiveTheme,
+    storedTheme.loaded ? storedTheme.appTheme : null,
+  ] as const;
 }

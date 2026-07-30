@@ -6,6 +6,7 @@ import { View, getTokenValue } from 'tamagui';
 import ContactName from './ContactName';
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
+import { screenContentInsetAdjustmentBehavior } from './ScreenScrollView';
 
 export function ChannelMembersScreenView({
   channel,
@@ -37,9 +38,11 @@ export function ChannelMembersScreenView({
         title="Members"
         loadingSubtitle={channel ? null : 'Loading…'}
         backAction={goBack}
+        scrollsUnderHeader
       />
       <FlatList
         data={channel?.members}
+        contentInsetAdjustmentBehavior={screenContentInsetAdjustmentBehavior}
         contentContainerStyle={{
           paddingHorizontal: getTokenValue('$l', 'size'),
         }}
