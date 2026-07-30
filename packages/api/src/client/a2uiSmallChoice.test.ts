@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { A2UI, buildSmallChoiceMessage } from './a2ui';
+import { A2UI, buildSmallChoiceMessage, smallChoiceProbeMessage } from './a2ui';
 
 const sendAction = (text: string) => ({
   event: { name: A2UI.action.sendMessage, context: { text } },
@@ -200,5 +200,29 @@ describe('buildSmallChoiceMessage', () => {
 
   test('deduplicates repeated ids', () => {
     expect(buildSmallChoiceMessage(component, ['news', 'news'])).toBe('News');
+  });
+});
+
+describe('smallChoiceProbeMessage', () => {
+  // Regression: the picker rendered permanently disabled because availability
+  // was checked against the action's own text — an empty prefix — which a check
+  // written for Button reads as "nothing to send". The probe must be non-empty
+  // regardless of the prefix.
+  test('is non-empty even when the prefix is empty', () => {
+    const probe = smallChoiceProbeMessage(
+      smallChoice() as unknown as A2UI.SmallChoice
+    );
+    expect(probe).toBe('Weather, News, Stocks');
+    expect(probe.trim()).not.toBe('');
+  });
+
+  test('includes the prefix when there is one', () => {
+    expect(
+      smallChoiceProbeMessage(
+        smallChoice({
+          action: sendAction('Topics:'),
+        }) as unknown as A2UI.SmallChoice
+      )
+    ).toBe('Topics: Weather, News, Stocks');
   });
 });

@@ -749,6 +749,22 @@ export function buildSmallChoiceMessage(
   return [prefix, labels.join(', ')].filter(Boolean).join(' ');
 }
 
+/**
+ * A stand-in message for asking "could this picker send anything at all?".
+ *
+ * A SmallChoice's own `action.event.context.text` is only a prefix and is
+ * normally empty, so an availability check written for Button — where that text
+ * *is* the whole message — reads it as "nothing to send" and disables the
+ * picker before the user can choose. Probe with every option selected instead:
+ * always non-empty, and representative of what submitting would post.
+ */
+export function smallChoiceProbeMessage(component: A2UI.SmallChoice): string {
+  return buildSmallChoiceMessage(
+    component,
+    component.options.map((option) => option.id)
+  );
+}
+
 export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
@@ -759,4 +775,5 @@ export const A2UI = {
   validateBlobEntry,
   blobEntrySchema,
   buildSmallChoiceMessage,
+  smallChoiceProbeMessage,
 } as const;

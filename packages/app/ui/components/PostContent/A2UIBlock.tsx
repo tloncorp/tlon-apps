@@ -35,11 +35,14 @@ const CHOICE_ACCENT_COLORS: Record<
  */
 function SmallChoicePills({
   component,
-  disabled,
+  canSend,
+  isActionAvailable,
   onSubmit,
 }: {
   component: A2UI.SmallChoice;
-  disabled: boolean;
+  /** false when there is no action handler at all */
+  canSend: boolean;
+  isActionAvailable?: (action: A2UI.ButtonAction) => boolean;
   onSubmit: (text: string) => void;
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -52,15 +55,37 @@ function SmallChoicePills({
     );
   }, []);
 
+  const messageForSelection = A2UI.buildSmallChoiceMessage(
+    component,
+    selectedIds
+  );
+
   const handleSubmit = useCallback(() => {
-    const text = A2UI.buildSmallChoiceMessage(component, selectedIds);
-    if (!text) {
+    if (!messageForSelection) {
       return;
     }
-    onSubmit(text);
-  }, [component, selectedIds, onSubmit]);
+    onSubmit(messageForSelection);
+  }, [messageForSelection, onSubmit]);
 
-  const submitDisabled = disabled || selectedIds.length === 0;
+  /**
+   * Availability has to be judged against the message that would actually be
+   * sent, not against `component.action`: for a SmallChoice that action's text
+   * is only a prefix and is usually empty, which an availability check written
+   * for Button (where the text *is* the whole message) reads as "nothing to
+   * send" and disables the whole picker.
+   *
+   * So probe with every option selected — always non-empty — to decide whether
+   * the surface can send at all, and check the real selection for the submit.
+   */
+  const probe = (text: string): boolean =>
+    canSend &&
+    isActionAvailable?.({
+      event: { name: A2UI.action.sendMessage, context: { text } },
+    }) !== false;
+
+  const disabled = !probe(A2UI.smallChoiceProbeMessage(component));
+  const submitDisabled =
+    disabled || !messageForSelection || !probe(messageForSelection);
 
   return (
     <YStack gap="$m" width="100%">
@@ -490,14 +515,12 @@ export function A2UIBlock({
           );
         }
         case 'SmallChoice': {
-          const disabled =
-            !onA2UIAction ||
-            isA2UIActionAvailable?.(component.action) === false;
           return (
             <SmallChoicePills
               key={component.id}
               component={component}
-              disabled={disabled}
+              canSend={Boolean(onA2UIAction)}
+              isActionAvailable={isA2UIActionAvailable}
               onSubmit={handleSmallChoiceSubmit}
             />
           );
