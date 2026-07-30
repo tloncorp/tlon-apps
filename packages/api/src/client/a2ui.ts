@@ -102,6 +102,11 @@ export namespace A2UI {
 
   export type ButtonAction = EventAction;
 
+  /** An action narrowed to posting a message, for controls that only ever do that. */
+  export type SendMessageAction = {
+    event: SendMessageEvent;
+  };
+
   export type Button = ComponentBase & {
     component: 'Button';
     child: string;
@@ -145,7 +150,37 @@ export namespace A2UI {
     options: ChoiceOption[];
   };
 
-  export type Component = Text | Container | Card | Divider | Button | Choice;
+  export type SmallChoiceOption = {
+    id: string;
+    label: string;
+  };
+
+  /**
+   * A wrapping list of pill buttons the user can multi-select, with a submit
+   * that posts the chosen labels as one message.
+   *
+   * Distinct from Choice: Choice is "pick one of these, each a card with a
+   * description"; SmallChoice is "pick as many of these short labels as
+   * apply". Selection lives in the client until submit — nothing is posted
+   * per tap — so the action is always a sendMessage whose `context.text` is a
+   * prefix and whose selected labels are appended, comma-joined.
+   */
+  export type SmallChoice = ComponentBase & {
+    component: 'SmallChoice';
+    options: SmallChoiceOption[];
+    /** label for the confirm control, e.g. "Done" */
+    submitLabel: string;
+    action: SendMessageAction;
+  };
+
+  export type Component =
+    | Text
+    | Container
+    | Card
+    | Divider
+    | Button
+    | Choice
+    | SmallChoice;
 
   export type CreateSurfaceMessage = {
     version: 'v0.9';
@@ -191,6 +226,9 @@ const LIMITS = {
   maxDepth: 8,
   maxChildren: 12,
   maxChoiceOptions: 6,
+  maxSmallChoiceOptions: 12,
+  /** pills hold a word or two; a paragraph in one would break the layout */
+  maxPillLabelLength: 64,
   maxTextNodeLength: 1000,
   maxButtonMessageLength: 1000,
   maxNavigationTargetIdLength: 500,
@@ -407,9 +445,58 @@ function validateComponent(component: unknown): component is A2UI.Component {
         options.every(validateChoiceOption)
       );
     }
+    case 'SmallChoice': {
+      const options = component.options;
+      return (
+        Array.isArray(options) &&
+        options.length > 0 &&
+        options.length <= LIMITS.maxSmallChoiceOptions &&
+        new Set(options.map((option) => (option as { id?: unknown })?.id))
+          .size === options.length &&
+        options.every(validateSmallChoiceOption) &&
+        isNonEmptyString(component.submitLabel) &&
+        (component.submitLabel as string).length <= LIMITS.maxPillLabelLength &&
+        validateSmallChoiceAction(component.action)
+      );
+    }
     default:
       return false;
   }
+}
+
+/**
+ * A SmallChoice's action, which differs from a Button's in two ways: navigate is
+ * rejected (a selection only means anything as posted text, and navigating away
+ * would discard what the user picked), and the text may be empty, because it is
+ * a prefix the selected labels are appended to rather than the whole message.
+ */
+function validateSmallChoiceAction(
+  action: unknown
+): action is A2UI.SendMessageAction {
+  if (!isPlainObject(action) || !isPlainObject(action.event)) {
+    return false;
+  }
+  const { event } = action;
+  if (event.name !== ACTION_SEND_MESSAGE || !isPlainObject(event.context)) {
+    return false;
+  }
+  const { text } = event.context;
+  return (
+    typeof text === 'string' && text.length <= LIMITS.maxButtonMessageLength
+  );
+}
+
+function validateSmallChoiceOption(
+  option: unknown
+): option is A2UI.SmallChoiceOption {
+  if (!isPlainObject(option)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(option.id) &&
+    isNonEmptyString(option.label) &&
+    (option.label as string).length <= LIMITS.maxPillLabelLength
+  );
 }
 
 function validateChoiceOption(option: unknown): option is A2UI.ChoiceOption {
@@ -535,6 +622,12 @@ function indexComponents(
           totalTextLength += option.action.event.context.text.length;
         }
       }
+    } else if (component.component === 'SmallChoice') {
+      for (const option of component.options) {
+        totalTextLength += option.label.length;
+      }
+      totalTextLength += component.submitLabel.length;
+      totalTextLength += component.action.event.context.text.length;
     }
   }
 
@@ -632,6 +725,30 @@ export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
 
 export const blobEntrySchema = z.custom<A2UI.BlobEntry>(validateBlobEntry);
 
+/**
+ * The message a SmallChoice posts for a given selection: the action's text as a
+ * prefix, then the selected labels comma-joined in the order the options were
+ * declared (not tap order, so the same picks always read the same).
+ *
+ * Shared so the renderer and the agent that reads the reply agree on the exact
+ * wording — a mismatch here means the agent can't recognize its own picker's
+ * answer.
+ */
+export function buildSmallChoiceMessage(
+  component: A2UI.SmallChoice,
+  selectedIds: Iterable<string>
+): string {
+  const selected = new Set(selectedIds);
+  const labels = component.options
+    .filter((option) => selected.has(option.id))
+    .map((option) => option.label);
+  if (!labels.length) {
+    return '';
+  }
+  const prefix = component.action.event.context.text.trim();
+  return [prefix, labels.join(', ')].filter(Boolean).join(' ');
+}
+
 export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
@@ -641,4 +758,5 @@ export const A2UI = {
   getRootComponentId,
   validateBlobEntry,
   blobEntrySchema,
+  buildSmallChoiceMessage,
 } as const;

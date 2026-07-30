@@ -96,9 +96,12 @@ import {
 } from '../version.js';
 import {
   buildPurposePickerBlob,
+  buildTopicsPickerBlob,
   findGroupForChannel,
   purposePickerFallbackText,
   shouldOfferPurposePicker,
+  shouldOfferTopicsPicker,
+  topicsPickerFallbackText,
 } from './agent-onboarding.js';
 import {
   type DisplayContext,
@@ -755,6 +758,7 @@ export async function monitorTlonProvider(
     const channelToGroup = new Map<string, string>();
     /** Channels already offered the agent-onboarding purpose picker. */
     const onboardingPickerOffered = new Set<string>();
+    const onboardingTopicsOffered = new Set<string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -3770,6 +3774,48 @@ export async function monitorTlonProvider(
           } else {
             // Configured, or the message is a card tap — don't re-offer.
             onboardingPickerOffered.add(nest);
+          }
+        }
+
+        // Follow a purpose pick with the topic pills, so the subject question
+        // is tappable too. Submitting them posts one message with the chosen
+        // labels, which falls through to a normal model turn that does the
+        // building.
+        if (!onboardingTopicsOffered.has(nest) && isOwner(senderShip)) {
+          const topicsGroup = await findGroupForChannel(api, nest, runtime);
+          const topicsPurposeId =
+            topicsGroup === null
+              ? undefined
+              : shouldOfferTopicsPicker({
+                  senderIsOwner: true,
+                  groupHostIsOwner: topicsGroup.host === effectiveOwnerShip,
+                  groupDescription: topicsGroup.description,
+                  messageText: rawText ?? '',
+                  alreadyOffered: false,
+                });
+          if (topicsPurposeId) {
+            onboardingTopicsOffered.add(nest);
+            runtime.log?.(
+              `[tlon] Offering agent onboarding topics picker in ${nest}`
+            );
+            try {
+              const topicsBlob = buildTopicsPickerBlob(nest, topicsPurposeId);
+              await sendChannelPost({
+                botProfile: getBotProfile(),
+                fromShip: botShipName,
+                nest,
+                story: markdownToStory(
+                  topicsPickerFallbackText(topicsPurposeId)
+                ),
+                ...(topicsBlob ? { blob: serializeBlobField(topicsBlob) } : {}),
+              });
+              return;
+            } catch (error) {
+              onboardingTopicsOffered.delete(nest);
+              runtime.error?.(
+                `[tlon] Failed to post topics picker in ${nest}: ${String(error)}`
+              );
+            }
           }
         }
 

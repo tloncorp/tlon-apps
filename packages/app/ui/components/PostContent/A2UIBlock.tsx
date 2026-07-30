@@ -1,6 +1,6 @@
 import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
-import React, { ComponentProps, useCallback, useMemo } from 'react';
+import React, { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import { useContentContext } from './contentUtils';
@@ -26,6 +26,94 @@ const CHOICE_ACCENT_COLORS: Record<
   indigo: { soft: '$indigoSoft', strong: '$indigo' },
   neutral: { soft: '$secondaryBackground', strong: '$secondaryText' },
 };
+
+/**
+ * A wrapping list of pills the user can multi-select, plus the submit that
+ * posts the selection as one message. Selection is local until submit — no
+ * per-tap posting — so it lives in a child component with its own state
+ * rather than in the render callback.
+ */
+function SmallChoicePills({
+  component,
+  disabled,
+  onSubmit,
+}: {
+  component: A2UI.SmallChoice;
+  disabled: boolean;
+  onSubmit: (text: string) => void;
+}) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const toggle = useCallback((id: string) => {
+    setSelectedIds((previous) =>
+      previous.includes(id)
+        ? previous.filter((selected) => selected !== id)
+        : [...previous, id]
+    );
+  }, []);
+
+  const handleSubmit = useCallback(() => {
+    const text = A2UI.buildSmallChoiceMessage(component, selectedIds);
+    if (!text) {
+      return;
+    }
+    onSubmit(text);
+  }, [component, selectedIds, onSubmit]);
+
+  const submitDisabled = disabled || selectedIds.length === 0;
+
+  return (
+    <YStack gap="$m" width="100%">
+      <XStack flexWrap="wrap" gap="$s" width="100%">
+        {component.options.map((option) => {
+          const isSelected = selectedIds.includes(option.id);
+          return (
+            <Pressable
+              key={option.id}
+              testID={`A2UISmallChoice-${option.id}`}
+              accessibilityLabel={option.label}
+              accessibilityState={{ selected: isSelected }}
+              disabled={disabled}
+              onPress={disabled ? undefined : () => toggle(option.id)}
+            >
+              <XStack
+                borderWidth={1}
+                borderColor={isSelected ? '$blue' : '$border'}
+                backgroundColor={isSelected ? '$blueSoft' : '$background'}
+                borderRadius="$2xl"
+                paddingVertical="$s"
+                paddingHorizontal="$l"
+                opacity={disabled ? 0.5 : 1}
+              >
+                <Text
+                  size="$label/m"
+                  color={isSelected ? '$blue' : '$primaryText'}
+                  trimmed={false}
+                >
+                  {option.label}
+                </Text>
+              </XStack>
+            </Pressable>
+          );
+        })}
+      </XStack>
+      <Button.Frame
+        size="medium"
+        fill="solid"
+        intent="positive"
+        alignSelf="flex-start"
+        height={44}
+        paddingHorizontal="$xl"
+        testID="A2UISmallChoiceSubmit"
+        disabled={submitDisabled}
+        dimmed={submitDisabled}
+        onPress={submitDisabled ? undefined : handleSubmit}
+      >
+        <Button.Text size="medium">{component.submitLabel}</Button.Text>
+      </Button.Frame>
+    </YStack>
+  );
+}
 
 function getTextSize(component: A2UI.Text) {
   switch (component.variant) {
@@ -142,6 +230,7 @@ function getComponentText(
         .filter(Boolean)
         .join(' ');
     case 'Choice':
+    case 'SmallChoice':
       // Text extraction feeds previews and labels: the option titles are the
       // meaningful summary of a choice group.
       return component.options.map((option) => option.label).join(', ');
@@ -190,6 +279,15 @@ export function A2UIBlock({
       }
 
       onA2UIAction?.(action);
+    },
+    [onA2UIAction]
+  );
+
+  const handleSmallChoiceSubmit = useCallback(
+    (text: string) => {
+      onA2UIAction?.({
+        event: { name: A2UI.action.sendMessage, context: { text } },
+      });
     },
     [onA2UIAction]
   );
@@ -391,12 +489,26 @@ export function A2UIBlock({
             </YStack>
           );
         }
+        case 'SmallChoice': {
+          const disabled =
+            !onA2UIAction ||
+            isA2UIActionAvailable?.(component.action) === false;
+          return (
+            <SmallChoicePills
+              key={component.id}
+              component={component}
+              disabled={disabled}
+              onSubmit={handleSmallChoiceSubmit}
+            />
+          );
+        }
       }
     },
     [
       components,
       handleButtonPress,
       handleChoicePress,
+      handleSmallChoiceSubmit,
       isA2UIActionAvailable,
       onA2UIAction,
     ]

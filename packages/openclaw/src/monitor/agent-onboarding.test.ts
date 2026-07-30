@@ -3,12 +3,17 @@ import { describe, expect, test } from 'vitest';
 
 import {
   PURPOSE_OPTIONS,
+  PURPOSE_TOPICS,
   buildPurposePickerBlob,
+  buildTopicsPickerBlob,
   descriptionHasAgentConfig,
   findGroupForChannel,
   isPurposePickerChoice,
+  purposeIdForChoice,
   purposePickerFallbackText,
   shouldOfferPurposePicker,
+  shouldOfferTopicsPicker,
+  topicsPickerFallbackText,
 } from './agent-onboarding.js';
 
 const configuredDescription = JSON.stringify([
@@ -164,6 +169,127 @@ describe('purpose picker card', () => {
       (blob.messages.find((m) => 'createSurface' in m) as any).createSurface
         .surfaceId;
     expect(surfaceOf(a)).not.toEqual(surfaceOf(b));
+  });
+});
+
+describe('topics picker', () => {
+  test('every purpose has topic suggestions', () => {
+    for (const option of PURPOSE_OPTIONS) {
+      expect(PURPOSE_TOPICS[option.id]?.length).toBeGreaterThan(0);
+    }
+  });
+
+  test('builds a valid blob with one pill per topic', () => {
+    for (const option of PURPOSE_OPTIONS) {
+      const blob = buildTopicsPickerBlob('nest', option.id);
+      // Null only when the resolved api predates SmallChoice; in the workspace
+      // it is always present.
+      expect(blob).not.toBeNull();
+      expect(A2UI.validateBlobEntry(blob)).toBe(true);
+      const update = blob!.messages.find((m) => 'updateComponents' in m);
+      const components = (update as any).updateComponents
+        .components as A2UI.Component[];
+      const pills = components.find(
+        (c) => (c as { component: string }).component === 'SmallChoice'
+      ) as A2UI.SmallChoice | undefined;
+      expect(pills?.options.map((o) => o.label)).toEqual([
+        ...PURPOSE_TOPICS[option.id]!,
+      ]);
+      expect(pills?.submitLabel).toBeTruthy();
+    }
+  });
+
+  test('returns null for an unknown purpose rather than an empty picker', () => {
+    expect(buildTopicsPickerBlob('nest', 'agent-nonexistent')).toBeNull();
+  });
+
+  test('pill ids are unique and stable', () => {
+    const blob = buildTopicsPickerBlob('nest', 'agent-daily-digest')!;
+    const update = blob.messages.find((m) => 'updateComponents' in m);
+    const pills = (
+      (update as any).updateComponents.components as A2UI.Component[]
+    ).find(
+      (c) => (c as { component: string }).component === 'SmallChoice'
+    ) as A2UI.SmallChoice;
+    const ids = pills.options.map((o) => o.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(
+      buildTopicsPickerBlob('other-nest', 'agent-daily-digest')
+    ).not.toBeNull();
+  });
+
+  test('surface ids are namespaced per channel', () => {
+    const surfaceOf = (nest: string) =>
+      (
+        buildTopicsPickerBlob(nest, 'agent-daily-digest')!.messages.find(
+          (m) => 'createSurface' in m
+        ) as any
+      ).createSurface.surfaceId;
+    expect(surfaceOf('chat/~a/one')).not.toEqual(surfaceOf('chat/~b/two'));
+  });
+
+  test('fallback text names every topic for old clients', () => {
+    const text = topicsPickerFallbackText('agent-daily-digest');
+    for (const topic of PURPOSE_TOPICS['agent-daily-digest']!) {
+      expect(text).toContain(topic);
+    }
+  });
+
+  test('fallback text still asks the question for an unknown purpose', () => {
+    expect(topicsPickerFallbackText('agent-nonexistent')).toContain(
+      'keep up with'
+    );
+  });
+});
+
+describe('purposeIdForChoice', () => {
+  test('maps a card title to its purpose id, case and space insensitive', () => {
+    for (const option of PURPOSE_OPTIONS) {
+      expect(purposeIdForChoice(`  ${option.title.toUpperCase()} `)).toBe(
+        option.id
+      );
+    }
+  });
+
+  test('returns undefined for anything else', () => {
+    expect(purposeIdForChoice('sourdough baking')).toBeUndefined();
+    expect(purposeIdForChoice('')).toBeUndefined();
+  });
+});
+
+describe('shouldOfferTopicsPicker', () => {
+  const tapped = { ...baseOpts, messageText: 'A daily digest' };
+
+  test('offers after the owner taps a purpose card', () => {
+    expect(shouldOfferTopicsPicker(tapped)).toBe('agent-daily-digest');
+  });
+
+  test('does not offer for a message that is not a card tap', () => {
+    expect(shouldOfferTopicsPicker(baseOpts)).toBeUndefined();
+  });
+
+  test('does not offer twice', () => {
+    expect(
+      shouldOfferTopicsPicker({ ...tapped, alreadyOffered: true })
+    ).toBeUndefined();
+  });
+
+  test('does not offer to non-owners or in groups the owner does not host', () => {
+    expect(
+      shouldOfferTopicsPicker({ ...tapped, senderIsOwner: false })
+    ).toBeUndefined();
+    expect(
+      shouldOfferTopicsPicker({ ...tapped, groupHostIsOwner: false })
+    ).toBeUndefined();
+  });
+
+  test('does not offer when the group is already configured', () => {
+    expect(
+      shouldOfferTopicsPicker({
+        ...tapped,
+        groupDescription: configuredDescription,
+      })
+    ).toBeUndefined();
   });
 });
 

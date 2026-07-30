@@ -211,6 +211,140 @@ export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
   }
 }
 
+/**
+ * Starting points for the topic step, per purpose.
+ *
+ * Suggestions, never a menu: the picker always carries "or just tell me", and
+ * the agent reads a typed answer the same way it reads a submitted selection.
+ * Kept to single words so they fit a pill.
+ */
+export const PURPOSE_TOPICS: Record<string, readonly string[]> = {
+  'agent-daily-digest': [
+    'Weather',
+    'News',
+    'Stocks',
+    'Sports',
+    'Tech',
+    'Local',
+  ],
+  'agent-tracking': [
+    'Workouts',
+    'Meals',
+    'Sleep',
+    'Mood',
+    'Spending',
+    'Reading',
+  ],
+  'agent-research': [
+    'AI',
+    'Markets',
+    'Health',
+    'Policy',
+    'Science',
+    'Competitors',
+  ],
+};
+
+export const TOPICS_PICKER_PROMPT =
+  'Good. What should I keep up with for you? Pick any that fit.';
+
+export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
+
+/** The purpose whose card title this message matches, if any. */
+export function purposeIdForChoice(text: string): string | undefined {
+  const trimmed = text.trim().toLowerCase();
+  return PURPOSE_OPTIONS.find(
+    (option) => option.title.toLowerCase() === trimmed
+  )?.id;
+}
+
+/**
+ * The post's story text, which doubles as the fallback. Names the suggestions
+ * so a client that can't render the pills still gets an answerable question.
+ */
+export function topicsPickerFallbackText(purposeId: string): string {
+  const topics = PURPOSE_TOPICS[purposeId] ?? [];
+  if (!topics.length) {
+    return TOPICS_PICKER_PROMPT;
+  }
+  return `${TOPICS_PICKER_PROMPT} ${topics.join(', ')} — or just tell me.`;
+}
+
+/**
+ * The topic pills. Returns null when the resolved @tloncorp/api predates
+ * `SmallChoice`, in which case the caller posts the question as plain text —
+ * which is the free-text step the design started from, so nothing is lost.
+ */
+export function buildTopicsPickerBlob(
+  surfaceSuffix: string,
+  purposeId: string
+): TlonA2UIBlob | null {
+  const topics = PURPOSE_TOPICS[purposeId] ?? [];
+  if (!topics.length) {
+    return null;
+  }
+  const components: A2UI.Component[] = [
+    {
+      id: 'root',
+      component: 'Column',
+      children: ['prompt', 'topics'],
+    },
+    { id: 'prompt', component: 'Text', text: TOPICS_PICKER_PROMPT },
+    {
+      // Cast for the same registry-version reason as the Choice layout: this
+      // may typecheck against an api that predates SmallChoice. makeA2UIBlob
+      // validates with that same version, so an older one throws and we
+      // return null.
+      id: 'topics',
+      component: 'SmallChoice',
+      options: topics.map((topic) => ({
+        id: topic.toLowerCase(),
+        label: topic,
+      })),
+      submitLabel: TOPICS_PICKER_SUBMIT_LABEL,
+      action: {
+        event: { name: A2UI.action.sendMessage, context: { text: '' } },
+      },
+    } as unknown as A2UI.Component,
+  ];
+  try {
+    return makeA2UIBlob(
+      `agent-onboarding-topics-${surfaceSuffix}`,
+      'root',
+      components,
+      TLON_A2UI_CATALOG_V2
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether to follow a purpose pick with the topic pills.
+ *
+ * Offered once per channel, only when the owner's message is exactly one of the
+ * purpose titles — i.e. they tapped a card — in a group they host that has no
+ * agent config yet.
+ */
+export function shouldOfferTopicsPicker(opts: {
+  senderIsOwner: boolean;
+  groupHostIsOwner: boolean;
+  groupDescription: string | null | undefined;
+  messageText: string;
+  alreadyOffered: boolean;
+}): string | undefined {
+  if (opts.alreadyOffered) {
+    return undefined;
+  }
+  if (!opts.senderIsOwner || !opts.groupHostIsOwner) {
+    return undefined;
+  }
+  if (descriptionHasAgentConfig(opts.groupDescription)) {
+    return undefined;
+  }
+  return purposeIdForChoice(opts.messageText);
+}
+
 export interface ChannelGroupInfo {
   flag: string;
   /** the group's host ship, in `~ship` form */
