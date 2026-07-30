@@ -137,6 +137,16 @@ const MainApp = () => {
     registerBackgroundSyncTask();
   }, []);
 
+  const splash = (
+    <SplashSequence
+      onCompleted={handleClearSplash}
+      inviteSystemContacts={inviteSystemContacts}
+      hostingBotEnabled={hostingBotEnabled}
+      splashSequenceMode={activeSplashSequenceMode}
+      onLogout={handleSplashLogout}
+    />
+  );
+
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
       {connected ? (
@@ -148,15 +158,12 @@ const MainApp = () => {
           <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
             {conversationalOnboardingEnabled &&
             activeSplashSequenceMode !== 'tlonbotRevival' ? (
-              <AgentOnboardingSequence onCompleted={handleClearSplash} />
-            ) : (
-              <SplashSequence
+              <AgentOnboardingSequence
                 onCompleted={handleClearSplash}
-                inviteSystemContacts={inviteSystemContacts}
-                hostingBotEnabled={hostingBotEnabled}
-                splashSequenceMode={activeSplashSequenceMode}
-                onLogout={handleSplashLogout}
+                fallback={splash}
               />
+            ) : (
+              splash
             )}
           </AppDataProvider>
         ) : showAuthenticatedApp ? (

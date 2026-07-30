@@ -10,9 +10,10 @@ import { isMoonOf, preSig } from '../lib/urbit';
  * home for this entry is a first-class custom-payload (`blob`) field on the
  * group record (mirroring the post blob); until that field ships, the entry
  * is stored as a single-element JSON entry array in the group's
- * `meta.description` — see `encodeGroupAgentConfig` / `parseGroupAgentConfig`.
- * The array-of-typed-entries wire shape matches the post blob convention so
- * the move to the real field is a relocation, not a migration.
+ * `meta.description` — see `parseGroupAgentConfig`. The array-of-typed-entries
+ * wire shape matches the post blob convention so the move to the real field
+ * is a relocation, not a migration. The writer today is the agent itself
+ * (via the tlon CLI); the client only reads.
  */
 
 export const GroupJobScheduleSchema = z.union([
@@ -66,27 +67,6 @@ export const GroupAgentConfigEntrySchema = z.object({
 
 export type GroupAgentConfigEntry = z.infer<typeof GroupAgentConfigEntrySchema>;
 
-/** Encoded entry budget, matching the A2UI blob cap. */
-export const GROUP_AGENT_CONFIG_MAX_BYTES = 32 * 1024;
-
-/**
- * Encode a config entry into the group description stopgap format: a JSON
- * array of typed entries. Throws on invalid or oversized entries.
- */
-export function encodeGroupAgentConfig(entry: GroupAgentConfigEntry): string {
-  const parsed = GroupAgentConfigEntrySchema.safeParse(entry);
-  if (!parsed.success) {
-    throw new Error(
-      `Invalid GroupAgentConfigEntry: ${parsed.error.issues[0]?.message ?? 'unknown'}`
-    );
-  }
-  const encoded = JSON.stringify([parsed.data]);
-  if (encoded.length > GROUP_AGENT_CONFIG_MAX_BYTES) {
-    throw new Error('GroupAgentConfigEntry exceeds size budget');
-  }
-  return encoded;
-}
-
 /**
  * Tolerantly extract a config entry from a group description. Returns
  * undefined for plain-text descriptions, malformed JSON, or entries that fail
@@ -125,16 +105,6 @@ export function parseGroupAgentConfig(
     }
   }
   return undefined;
-}
-
-/**
- * True when a group description holds an encoded config entry array rather
- * than human-readable text. Used to keep raw JSON out of description UI.
- */
-export function descriptionIsGroupAgentConfig(
-  description: string | null | undefined
-): boolean {
-  return parseGroupAgentConfig(description) !== undefined;
 }
 
 /**

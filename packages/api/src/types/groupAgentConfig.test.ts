@@ -1,27 +1,27 @@
 import { describe, expect, test } from 'vitest';
 
 import { isMoonOf } from '../lib/urbit';
-import {
-  canRenderAgentUiInGroup,
-  encodeGroupAgentConfig,
-  isOwnAgentShip,
-} from './groupAgentConfig';
+import { canRenderAgentUiInGroup, isOwnAgentShip } from './groupAgentConfig';
 
 const ME = '~forhep-tanmel';
 const MY_AGENT = '~pinser-botter-forhep-tanmel';
 const SOMEONE_ELSE = '~sampel-palnet';
 const THEIR_AGENT = '~pinser-botter-sampel-palnet';
 
+// Built as the raw wire string the agent actually writes (via the tlon CLI),
+// since the client has no encoder — it only reads this format.
 const configNaming = (agents: string[]) =>
-  encodeGroupAgentConfig({
-    type: 'tlon-group-agent-config',
-    version: 1,
-    purpose: 'Keeps up with things.',
-    instructions: 'Be useful.',
-    agents,
-    jobs: [],
-    updatedAt: 1,
-  });
+  JSON.stringify([
+    {
+      type: 'tlon-group-agent-config',
+      version: 1,
+      purpose: 'Keeps up with things.',
+      instructions: 'Be useful.',
+      agents,
+      jobs: [],
+      updatedAt: 1,
+    },
+  ]);
 
 describe('isMoonOf', () => {
   test('recognizes a hosted agent as a moon of its node', () => {

@@ -19,16 +19,9 @@ import {
  */
 
 /**
- * The picker's options, and the marker that says a group is already
- * configured.
- *
- * Deliberately local rather than imported from `@tloncorp/api`: this plugin is
- * built outside the monorepo workspace (CI and the dev sandbox resolve
- * `@tloncorp/api` to a published registry version), so it cannot depend on api
- * exports until they ship. The authoritative templates live in
- * `packages/api/src/types/groupTemplates.ts` — keep `id`/`title` in step with
- * the `PURPOSE_OPTIONS` entries there, and switch to importing them once a
- * release carries them.
+ * The picker's options. This plugin owns them: the bot composes and posts
+ * the picker, so nothing on the app side needs its own copy — the client
+ * renders whatever arrives as generic A2UI components.
  */
 export const PURPOSE_OPTIONS = [
   {

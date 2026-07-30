@@ -366,9 +366,9 @@ describe('descriptionHasAgentConfig', () => {
     expect(descriptionHasAgentConfig('[1,2,3]')).toBe(false);
   });
 
-  test('option ids and titles match the api templates', () => {
-    // Guards the deliberate duplication: these must track
-    // agentGroupTemplates in packages/api/src/types/groupTemplates.ts.
+  test('option ids and titles are stable', () => {
+    // The ids double as templateId provenance in written group configs and
+    // the titles are what taps post back — changing either is a wire change.
     expect(PURPOSE_OPTIONS.map((o) => o.id)).toEqual([
       'agent-daily-digest',
       'agent-tracking',
@@ -379,27 +379,6 @@ describe('descriptionHasAgentConfig', () => {
       'Tracking',
       'Research',
     ]);
-  });
-});
-
-// Cross-check the deliberate duplication against the real source of truth.
-// Safe as a test-only import: `**/*.test.ts` is excluded from the tsc build,
-// so the standalone plugin checkout (which resolves @tloncorp/api to a
-// published version) never compiles this, while monorepo tests catch drift.
-describe('PURPOSE_OPTIONS vs api agentGroupTemplates', () => {
-  test('ids, titles and descriptions stay in step', async () => {
-    const { agentGroupTemplates } = await import(
-      '@tloncorp/api/types/groupTemplates'
-    );
-    expect(PURPOSE_OPTIONS.map((o) => o.id)).toEqual(
-      agentGroupTemplates.map((t) => t.id)
-    );
-    expect(PURPOSE_OPTIONS.map((o) => o.title)).toEqual(
-      agentGroupTemplates.map((t) => t.agent.cardTitle)
-    );
-    expect(PURPOSE_OPTIONS.map((o) => o.description)).toEqual(
-      agentGroupTemplates.map((t) => t.agent.cardDescription)
-    );
   });
 });
 
