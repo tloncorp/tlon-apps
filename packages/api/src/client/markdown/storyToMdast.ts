@@ -686,6 +686,53 @@ function ensureTaskMarkerParagraph(
   return [markerParagraph, ...(children as MdastListItem['children'])];
 }
 
+function countTasks(inlines: Inline[]): number {
+  return inlines.reduce((count, inline) => {
+    if (typeof inline === 'string') {
+      return count;
+    }
+    if (isTask(inline)) {
+      return count + 1 + countTasks((inline as Task).task.content);
+    }
+    if (isBold(inline)) {
+      return count + countTasks((inline as Bold).bold);
+    }
+    if (isItalics(inline)) {
+      return count + countTasks((inline as Italics).italics);
+    }
+    if (isStrikethrough(inline)) {
+      return count + countTasks((inline as Strikethrough).strike);
+    }
+    if (isBlockquote(inline)) {
+      return count + countTasks((inline as Blockquote).blockquote);
+    }
+    return count;
+  }, 0);
+}
+
+function rejectUnrepresentableTaskPlacement(
+  inlines: Inline[],
+  opts: StoryToMdastOptions | undefined,
+  placement: string
+): void {
+  if (!opts?.strict) {
+    return;
+  }
+
+  const taskCount = countTasks(inlines);
+
+  if (taskCount > 1) {
+    throw new Error(
+      `Cannot render more than one task in ${placement} faithfully in strict mode`
+    );
+  }
+  if (taskCount === 1 && !isTask(inlines[0])) {
+    throw new Error(
+      `Cannot render a task that is not the first inline in ${placement} faithfully in strict mode`
+    );
+  }
+}
+
 /**
  * Convert Story Listing to mdast ListItem array.
  */
@@ -699,6 +746,14 @@ function listingsToListItems(
   for (const listing of listings) {
     if (isListItem(listing)) {
       const listItem = listing as ListItem;
+
+      if (listType === 'tasklist') {
+        rejectUnrepresentableTaskPlacement(
+          listItem.item,
+          opts,
+          'task-list item'
+        );
+      }
 
       // Check if this is a task list item
       if (
@@ -730,6 +785,13 @@ function listingsToListItems(
       }
     } else if (isList(listing)) {
       const list = listing as List;
+      if (list.list.type === 'tasklist') {
+        rejectUnrepresentableTaskPlacement(
+          list.list.contents,
+          opts,
+          'nested task-list item'
+        );
+      }
       // Nested list - create parent item with contents and nested list
       const contentChildren = inlinesToMdast(
         list.list.contents,

@@ -125,6 +125,17 @@ function isTaskListItem(
   return typeof node.checked === 'boolean';
 }
 
+/**
+ * Classify a list from all of its items. GFM permits task and plain items in
+ * the same list, so the list is a task list when any item has checkbox state.
+ */
+function getListType(list: MdastList): 'ordered' | 'unordered' | 'tasklist' {
+  if (list.children.some(isTaskListItem)) {
+    return 'tasklist';
+  }
+  return list.ordered ? 'ordered' : 'unordered';
+}
+
 function blockContentToMarkdown(node: BlockContent): string {
   return toMarkdown(node as Parameters<typeof toMarkdown>[0], {
     extensions: [
@@ -346,14 +357,7 @@ function listItemsToListings(
       }
 
       // Convert nested list
-      const nestedIsTaskList =
-        nestedList.children.length > 0 &&
-        typeof nestedList.children[0].checked === 'boolean';
-      const nestedListType = nestedIsTaskList
-        ? 'tasklist'
-        : nestedList.ordered
-          ? 'ordered'
-          : 'unordered';
+      const nestedListType = getListType(nestedList);
 
       const list: List = {
         list: {
@@ -420,15 +424,7 @@ function nodeToBlock(node: RootContent): Block | null {
 
     case 'list': {
       const list = node as MdastList;
-      // Check if this is a task list by checking first item
-      const isTaskList =
-        list.children.length > 0 &&
-        typeof list.children[0].checked === 'boolean';
-      const listType = isTaskList
-        ? 'tasklist'
-        : list.ordered
-          ? 'ordered'
-          : 'unordered';
+      const listType = getListType(list);
 
       const items = listItemsToListings(list.children, listType);
 

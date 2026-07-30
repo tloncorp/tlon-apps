@@ -584,6 +584,158 @@ describe('strict mode', () => {
     );
   });
 
+  test('strict rejects a task after a leading text sibling', () => {
+    const story: Story = [
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'tasklist',
+              contents: [],
+              items: [
+                {
+                  item: [
+                    'prefix ',
+                    { task: { checked: true, content: ['done'] } },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      },
+    ];
+
+    expect(() => storyToMarkdown(story, { strict: true })).toThrow(
+      /task.*not the first inline.*task-list item/i
+    );
+
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toBe('- prefix [x] done');
+    expect(markdownToStory(markdown)).toEqual([
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [{ item: ['prefix [x] done'] }],
+            },
+          },
+        },
+      },
+    ]);
+  });
+
+  test('strict rejects two tasks in one task-list item', () => {
+    const story: Story = [
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'tasklist',
+              contents: [],
+              items: [
+                {
+                  item: [
+                    { task: { checked: true, content: ['first'] } },
+                    { task: { checked: false, content: ['second'] } },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      },
+    ];
+
+    expect(() => storyToMarkdown(story, { strict: true })).toThrow(
+      /more than one task.*task-list item/i
+    );
+
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toBe('- [x] first[ ] second');
+    expect(markdownToStory(markdown)).toEqual([
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'tasklist',
+              contents: [],
+              items: [
+                {
+                  item: [
+                    {
+                      task: {
+                        checked: true,
+                        content: ['first[ ] second'],
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+  });
+
+  test('strict rejects a non-first task in nested task-list contents', () => {
+    const story: Story = [
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [
+                {
+                  list: {
+                    type: 'tasklist',
+                    contents: [
+                      'prefix ',
+                      { task: { checked: true, content: ['done'] } },
+                    ],
+                    items: [{ item: ['child'] }],
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    ];
+
+    expect(() => storyToMarkdown(story, { strict: true })).toThrow(
+      /task.*not the first inline.*nested task-list item/i
+    );
+
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toBe('- prefix [x] done\n  - child');
+    expect(markdownToStory(markdown)).toEqual([
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [
+                {
+                  list: {
+                    type: 'unordered',
+                    contents: ['prefix [x] done'],
+                    items: [{ item: ['child'] }],
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+  });
+
   test('strict catches unknown inline in blockquote', () => {
     const story = [
       {

@@ -340,6 +340,115 @@ describe('markdownToStory', () => {
         },
       ]);
     });
+
+    it('preserves a checked item after a plain item', () => {
+      expect(markdownToStory('- plain\n- [x] done')).toEqual([
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  { item: ['plain'] },
+                  { item: [{ task: { checked: true, content: ['done'] } }] },
+                ],
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    // A checked parent task containing a sub-list takes a different code path
+    // from a flat task item, and that path previously had no coverage of its
+    // checked state.
+    it('preserves the checked state of a parent task with a nested list', () => {
+      const result = markdownToStory('- [x] parent task\n  - child') as never;
+      const parent = (result as any)[0].block.listing.list.items[0];
+      expect(parent.list.contents[0]).toEqual({
+        task: { checked: true, content: ['parent task'] },
+      });
+      expect(parent.list.items).toEqual([{ item: ['child'] }]);
+    });
+
+    it('keeps a plain item after a checked item plain', () => {
+      expect(markdownToStory('- [x] done\n- plain')).toEqual([
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  { item: [{ task: { checked: true, content: ['done'] } }] },
+                  { item: ['plain'] },
+                ],
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    it('preserves checked and unchecked items mixed with plain items', () => {
+      expect(
+        markdownToStory('- plain before\n- [ ] todo\n- [x] done\n- plain after')
+      ).toEqual([
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  { item: ['plain before'] },
+                  { item: [{ task: { checked: false, content: ['todo'] } }] },
+                  { item: [{ task: { checked: true, content: ['done'] } }] },
+                  { item: ['plain after'] },
+                ],
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    it('classifies a nested list as a task list when only its last item is checked', () => {
+      expect(
+        markdownToStory(
+          '- parent\n  - first plain\n  - second plain\n  - [x] last'
+        )
+      ).toEqual([
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'unordered',
+                contents: [],
+                items: [
+                  {
+                    list: {
+                      type: 'tasklist',
+                      contents: ['parent'],
+                      items: [
+                        { item: ['first plain'] },
+                        { item: ['second plain'] },
+                        {
+                          item: [
+                            { task: { checked: true, content: ['last'] } },
+                          ],
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ]);
+    });
   });
 
   describe('blockquote conversion', () => {
