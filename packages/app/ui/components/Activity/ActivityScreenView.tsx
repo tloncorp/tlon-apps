@@ -9,7 +9,6 @@ import { setBadgeCountAsync } from 'expo-notifications';
 import React, {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
@@ -23,9 +22,9 @@ import {
 } from 'react-native';
 import { View, XStack, isWeb, useStyle } from 'tamagui';
 
-import { nativeHeaderIcons } from '../../../navigation/nativeHeaderIcons';
 import type { NativeTabParamList } from '../../../navigation/types';
 import { NavigationProvider } from '../../contexts/navigation';
+import { useNativeHeaderItems } from '../nativeHeaderItems';
 import { useIsDarkTheme } from '../../utils/colorUtils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
@@ -336,36 +335,20 @@ export function ActivityScreenContent({
     setMarkAllReadConfirmationOpen(true);
   }, []);
 
-  useLayoutEffect(() => {
-    if (Platform.OS !== 'ios') {
-      return;
-    }
-
-    navigation.setOptions({
-      unstable_headerRightItems: () => [
-        {
-          type: 'menu',
+  useNativeHeaderItems({
+    navigation,
+    enabled: Platform.OS === 'ios',
+    right: [
+      {
+        id: 'activity-options',
+        menu: {
+          icon: 'Overflow',
           label: 'Activity options',
-          accessibilityLabel: 'Activity options',
-          icon: {
-            type: 'image',
-            source: nativeHeaderIcons.overflow,
-          },
-          identifier: 'activity-options',
-          sharesBackground: true,
-          menu: {
-            items: [
-              {
-                type: 'action',
-                label: 'Mark all as read',
-                onPress: requestMarkAllRead,
-              },
-            ],
-          },
+          items: [{ label: 'Mark all as read', onPress: requestMarkAllRead }],
         },
-      ],
-    });
-  }, [navigation, requestMarkAllRead]);
+      },
+    ],
+  });
 
   const handleInviteFriends = useCallback(() => {
     setPersonalInviteOpen(false);

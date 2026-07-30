@@ -1,8 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import type {
-  NativeStackHeaderItem,
-  NativeStackNavigationProp,
-} from '@react-navigation/native-stack';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useContact, useNotesDeskAvailable } from '@tloncorp/shared/store';
@@ -14,15 +11,14 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
 import { ActivityIndicator, Platform, Pressable } from 'react-native';
-import { XStack, useTheme } from 'tamagui';
+import { XStack } from 'tamagui';
 
-import { nativeHeaderIcons } from '../../../navigation/nativeHeaderIcons';
 import type { RootStackParamList } from '../../../navigation/types';
+import { useNativeHeaderItems } from '../nativeHeaderItems';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
@@ -543,82 +539,9 @@ function NativeChannelHeader({
 }) {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const theme = useTheme();
 
-  useLayoutEffect(() => {
-    const leftItems: NativeStackHeaderItem[] = goBack
-      ? [
-          {
-            type: 'button',
-            label: 'Back',
-            accessibilityLabel: 'Back',
-            icon: {
-              type: 'image',
-              source: nativeHeaderIcons.back,
-            },
-            identifier: 'channel-back',
-            onPress: goBack,
-            sharesBackground: true,
-          },
-        ]
-      : [];
-
-    const rightItems: NativeStackHeaderItem[] = [];
-
-    if (showSearchButton && goToSearch) {
-      rightItems.push({
-        type: 'button',
-        label: 'Search',
-        accessibilityLabel: 'Search',
-        icon: {
-          type: 'image',
-          source: nativeHeaderIcons.search,
-        },
-        identifier: 'channel-search',
-        onPress: goToSearch,
-        sharesBackground: true,
-      });
-    }
-
-    for (const item of contextItems) {
-      rightItems.push({
-        type: 'custom',
-        element: item,
-      });
-    }
-
-    if (showEditButton && goToEdit) {
-      rightItems.push({
-        type: 'button',
-        label: 'Edit',
-        accessibilityLabel: 'Edit',
-        identifier: 'channel-edit',
-        onPress: goToEdit,
-        sharesBackground: true,
-      });
-    }
-
-    if (onToggleContextLens) {
-      rightItems.push({
-        type: 'button',
-        label: 'Toggle context lens',
-        accessibilityLabel: 'Toggle context lens',
-        icon: {
-          type: 'image',
-          source: nativeHeaderIcons.rightSidebar,
-        },
-        identifier: 'channel-context-lens',
-        onPress: onToggleContextLens,
-        selected: contextLensOpen,
-        sharesBackground: true,
-        tintColor: contextLensActive
-          ? theme.positiveActionText?.val
-          : undefined,
-      });
-    }
-
-    navigation.setOptions({
-      title,
+  const nativeHeaderOptions = useMemo(
+    () => ({
       headerTitle: () => (
         <NativeChannelHeaderTitle
           title={title}
@@ -627,26 +550,53 @@ function NativeChannelHeader({
           onPress={onTitlePress}
         />
       ),
-      unstable_headerLeftItems: () => leftItems,
-      unstable_headerRightItems: () => rightItems,
-    });
-  }, [
-    contextItems,
-    contextLensActive,
-    contextLensOpen,
-    goBack,
-    goToEdit,
-    goToSearch,
-    loadingTitle,
+    }),
+    [loadingTitle, onTitlePress, title, titleIcon]
+  );
+
+  useNativeHeaderItems({
     navigation,
-    onTitlePress,
-    onToggleContextLens,
-    showEditButton,
-    showSearchButton,
-    theme.positiveActionText?.val,
     title,
-    titleIcon,
-  ]);
+    left: [
+      {
+        id: 'channel-back',
+        icon: 'ChevronLeft',
+        label: 'Back',
+        onPress: goBack,
+        visible: !!goBack,
+      },
+    ],
+    right: [
+      {
+        id: 'channel-search',
+        icon: 'Search',
+        label: 'Search',
+        onPress: goToSearch,
+        visible: !!(showSearchButton && goToSearch),
+      },
+      ...contextItems.map((element, index) => ({
+        id: `channel-context-${index}`,
+        element,
+      })),
+      {
+        id: 'channel-edit',
+        text: 'Edit',
+        onPress: goToEdit,
+        visible: !!(showEditButton && goToEdit),
+      },
+      {
+        id: 'channel-context-lens',
+        icon: 'RightSidebar',
+        label: 'Toggle context lens',
+        onPress: onToggleContextLens,
+        selected: contextLensOpen,
+        tint: contextLensActive ? '$positiveActionText' : undefined,
+        visible: !!onToggleContextLens,
+      },
+    ],
+    options: nativeHeaderOptions,
+    revision: contextItems,
+  });
 
   return null;
 }

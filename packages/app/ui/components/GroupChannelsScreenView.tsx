@@ -13,7 +13,6 @@ import { capitalize } from 'lodash';
 import React, {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
@@ -30,7 +29,6 @@ import {
 
 import { useShipConnectionStatus } from '../../features/top/useShipConnectionStatus';
 import { useRenderCount } from '../../hooks/useRenderCount';
-import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
 import { usesNativeStackHeader } from '../../navigation/nativeHeaderOptions';
 import { useRootNavigation } from '../../navigation/utils';
 import { useCurrentUserId } from '../contexts/appDataContext';
@@ -41,6 +39,7 @@ import { Badge } from './Badge';
 import { GroupAvatar } from './GroupAvatar';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
+import { useNativeHeaderItems } from './nativeHeaderItems';
 import SystemNotices from './SystemNotices';
 import WayfindingNotice from './Wayfinding/Notices';
 import { ChannelListItem } from './listItems/ChannelListItem';
@@ -138,16 +137,10 @@ export const GroupChannelsScreenView = React.memo(
       notebookSidebarContent.channelId === focusedChannelId &&
       dismissedNotebookSidebarChannelId !== notebookSidebarContent.channelId;
 
-    useLayoutEffect(() => {
-      if (!usesNativeStackHeader || shouldShowNotebookSidebar) {
-        return;
-      }
-
-      navigation.setOptions({
+    const nativeHeaderOptions = useMemo(
+      () => ({
         headerShown: true,
         headerBackVisible: true,
-        headerLeft: undefined,
-        unstable_headerLeftItems: undefined,
         headerTitle: () => (
           <Pressable
             accessibilityRole="button"
@@ -170,49 +163,26 @@ export const GroupChannelsScreenView = React.memo(
             </XStack>
           </Pressable>
         ),
-        headerRight:
-          group && isGroupAdmin
-            ? () => (
-                <ScreenHeader.IconButton
-                  type="EditList"
-                  onPress={() => onPressManageChannels(group.id, false)}
-                  disabled={!canEdit}
-                  aria-label="Edit channels"
-                />
-              )
-            : undefined,
-        unstable_headerRightItems:
-          Platform.OS === 'ios'
-            ? () =>
-                group && isGroupAdmin
-                  ? [
-                      {
-                        type: 'button',
-                        label: 'Edit channels',
-                        accessibilityLabel: 'Edit channels',
-                        icon: {
-                          type: 'image',
-                          source: nativeHeaderIcons.editList,
-                        },
-                        identifier: 'edit-channels',
-                        disabled: !canEdit,
-                        onPress: () => onPressManageChannels(group.id, false),
-                        sharesBackground: true,
-                      },
-                    ]
-                  : []
-            : undefined,
-      });
-    }, [
-      canEdit,
-      group,
-      handleTitlePress,
-      isGroupAdmin,
+      }),
+      [group, handleTitlePress, title]
+    );
+
+    useNativeHeaderItems({
       navigation,
-      onPressManageChannels,
-      shouldShowNotebookSidebar,
-      title,
-    ]);
+      enabled: usesNativeStackHeader && !shouldShowNotebookSidebar,
+      left: 'clear',
+      right: [
+        {
+          id: 'edit-channels',
+          icon: 'EditList',
+          label: 'Edit channels',
+          onPress: () => group && onPressManageChannels(group.id, false),
+          disabled: !canEdit,
+          visible: !!(group && isGroupAdmin),
+        },
+      ],
+      options: nativeHeaderOptions,
+    });
 
     useEffect(() => {
       setDismissedNotebookSidebarChannelId(null);

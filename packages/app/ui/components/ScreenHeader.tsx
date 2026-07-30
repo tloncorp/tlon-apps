@@ -4,7 +4,7 @@ import type {
   NativeStackNavigationOptions,
 } from '@react-navigation/native-stack';
 import { useDebouncedValue } from '@tloncorp/shared';
-import { Icon, Text, Pressable as TlonPressable, View } from '@tloncorp/ui';
+import { Icon, Text, View } from '@tloncorp/ui';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Children,
@@ -19,37 +19,45 @@ import {
   useRef,
   useState,
 } from 'react';
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  StyleSheet,
-  ViewStyle,
-} from 'react-native';
+import { Platform, Pressable, StyleSheet, ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ColorTokens,
   XStack,
   getVariableValue,
-  styled,
   useTheme,
   withStaticProperties,
 } from 'tamagui';
 
-import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
 import { getNativeHeaderOptions } from '../../navigation/nativeHeaderOptions';
 import { useActiveTheme } from '../../provider';
 import { getNativeColorScheme } from '../utils/themeUtils';
 import { LongPressDisclosure } from './LongPressDisclosure';
+import {
+  NativeHeaderItemConfig,
+  buildNativeHeaderItems,
+  nativeIconSources,
+  resolveNativeHeaderColor,
+} from './nativeHeaderItems';
+import {
+  HeaderAnimatedCluster,
+  HeaderAnimatedTitle,
+} from './ScreenHeaderAnimation';
+import {
+  HeaderBackButton,
+  HeaderControlProps,
+  HeaderControls,
+  HeaderIconButton,
+  HeaderTextButton,
+  HeaderTitleText,
+} from './ScreenHeaderPrimitives';
 
 export const ScreenHeaderComponent = ({
   children,
@@ -455,335 +463,7 @@ export const ScreenHeaderComponent = ({
   );
 };
 
-function HeaderAnimatedCluster({
-  children,
-  isLoading,
-  leftAlignWhileLoading = false,
-}: {
-  children: ReactNode;
-  isLoading: boolean;
-  leftAlignWhileLoading?: boolean;
-}) {
-  const clusterTranslateY = useSharedValue(0);
-  const clusterScale = useSharedValue(1);
-  const clusterWidth = useSharedValue(0);
-
-  useEffect(() => {
-    if (isLoading) {
-      clusterTranslateY.value = withTiming(-9, {
-        duration: 195,
-        easing: Easing.out(Easing.cubic),
-      });
-      clusterScale.value = withTiming(0.86, {
-        duration: 195,
-        easing: Easing.out(Easing.cubic),
-      });
-      return;
-    }
-
-    clusterTranslateY.value = withDelay(
-      68,
-      withTiming(0, {
-        duration: 195,
-        easing: Easing.out(Easing.cubic),
-      })
-    );
-    clusterScale.value = withDelay(
-      68,
-      withTiming(1, {
-        duration: 195,
-        easing: Easing.out(Easing.cubic),
-      })
-    );
-  }, [clusterScale, clusterTranslateY, isLoading]);
-
-  const animatedClusterStyle = useAnimatedStyle(() => {
-    const scale = clusterScale.value;
-    const leftScaleCompensation = leftAlignWhileLoading
-      ? -((1 - scale) * clusterWidth.value) / 2
-      : 0;
-
-    return {
-      transform: [
-        { translateX: leftScaleCompensation },
-        { translateY: clusterTranslateY.value },
-        { scale },
-      ],
-    };
-  });
-
-  return (
-    <Animated.View
-      onLayout={(event) => {
-        clusterWidth.value = event.nativeEvent.layout.width;
-      }}
-      style={animatedClusterStyle}
-    >
-      {children}
-    </Animated.View>
-  );
-}
-
-function HeaderAnimatedTitle({
-  title,
-  isLoading,
-  loadingText,
-  leftAlignLoadingText = false,
-  titleMaxWidth,
-  loadingTextMaxWidth = 240,
-}: {
-  title: string;
-  isLoading: boolean;
-  loadingText: string;
-  leftAlignLoadingText?: boolean;
-  titleMaxWidth?: number | 'unset';
-  loadingTextMaxWidth?: number;
-}) {
-  const theme = useTheme();
-  const loadingOpacity = useSharedValue(0);
-  const loadingTranslateY = useSharedValue(6);
-  const spinnerRotation = useSharedValue(0);
-  const isAndroid = Platform.OS === 'android';
-  const spinnerSize = isAndroid ? 10 : 8;
-  const spinnerBorderWidth = 1;
-  const spinnerGap = 6;
-  const loadingRowWidth = loadingTextMaxWidth + spinnerSize + spinnerGap;
-
-  useEffect(() => {
-    if (isLoading) {
-      loadingOpacity.value = withTiming(1, {
-        duration: 135,
-        easing: Easing.out(Easing.cubic),
-      });
-      loadingTranslateY.value = withTiming(0, {
-        duration: 165,
-        easing: Easing.out(Easing.cubic),
-      });
-      spinnerRotation.value = 0;
-      spinnerRotation.value = withRepeat(
-        withTiming(360, { duration: 900, easing: Easing.linear }),
-        -1,
-        false
-      );
-      return;
-    }
-
-    loadingOpacity.value = withTiming(0, {
-      duration: 120,
-      easing: Easing.in(Easing.cubic),
-    });
-    loadingTranslateY.value = withTiming(-6, {
-      duration: 135,
-      easing: Easing.in(Easing.cubic),
-    });
-    cancelAnimation(spinnerRotation);
-    spinnerRotation.value = 0;
-
-    return () => {
-      cancelAnimation(spinnerRotation);
-      spinnerRotation.value = 0;
-    };
-  }, [isLoading, loadingOpacity, loadingTranslateY, spinnerRotation]);
-
-  const animatedLoadingStyle = useAnimatedStyle(() => {
-    return {
-      opacity: loadingOpacity.value,
-      transform: [
-        {
-          translateX:
-            !leftAlignLoadingText && loadingRowWidth ? -loadingRowWidth / 2 : 0,
-        },
-        { translateY: loadingTranslateY.value },
-      ],
-    };
-  });
-
-  const animatedSpinnerStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ rotate: `${spinnerRotation.value}deg` }],
-    };
-  });
-
-  const spinnerColor = getVariableValue(theme.secondaryText);
-  const spinnerStrokeStyle = {
-    borderColor: spinnerColor,
-    borderTopColor: 'transparent',
-  };
-
-  return (
-    <View
-      height="$4xl"
-      alignItems="center"
-      justifyContent="center"
-      overflow="visible"
-    >
-      <Text
-        size="$label/2xl"
-        color="$primaryText"
-        numberOfLines={1}
-        maxWidth={titleMaxWidth}
-        testID="ScreenHeaderTitle"
-      >
-        {title}
-      </Text>
-      <Animated.View
-        style={[
-          {
-            position: 'absolute',
-            top: 36,
-            left: leftAlignLoadingText ? 0 : '50%',
-            width: loadingRowWidth,
-            height: 16,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: leftAlignLoadingText ? 'flex-start' : 'center',
-          },
-          animatedLoadingStyle,
-        ]}
-      >
-        {isAndroid ? (
-          <ActivityIndicator
-            animating={isLoading}
-            size={spinnerSize}
-            color={spinnerColor}
-            style={{
-              width: spinnerSize,
-              height: spinnerSize,
-              marginRight: spinnerGap,
-            }}
-          />
-        ) : (
-          <Animated.View
-            style={[
-              {
-                width: spinnerSize,
-                height: spinnerSize,
-                borderRadius: spinnerSize / 2,
-                borderWidth: spinnerBorderWidth,
-                marginRight: spinnerGap,
-              },
-              spinnerStrokeStyle,
-              animatedSpinnerStyle,
-            ]}
-          />
-        )}
-        <Text
-          size="$label/s"
-          color="$secondaryText"
-          trimmed={false}
-          numberOfLines={1}
-          maxWidth={loadingTextMaxWidth}
-          testID="ScreenHeaderLoadingText"
-        >
-          {loadingText}
-        </Text>
-      </Animated.View>
-    </View>
-  );
-}
-
-const HeaderIconButton = styled(Icon, {
-  customSize: ['$3xl', '$2xl'],
-  borderRadius: '$m',
-  cursor: 'pointer',
-  pressStyle: {
-    opacity: 0.5,
-  },
-});
-
-function HeaderTextButton({
-  children,
-  color = '$primaryText',
-  disabled,
-  onPress,
-  testID,
-}: PropsWithChildren<{
-  color?: ColorTokens;
-  disabled?: boolean;
-  onPress?: () => void;
-  testID?: string;
-}>) {
-  return (
-    <TlonPressable
-      accessibilityRole="button"
-      alignItems="center"
-      cursor={disabled ? 'default' : 'pointer'}
-      disabled={disabled}
-      height="$4xl"
-      justifyContent="center"
-      onPress={disabled ? undefined : onPress}
-      paddingHorizontal="$s"
-      paddingTop="$xs"
-      testID={testID}
-    >
-      <Text size="$label/2xl" color={disabled ? '$tertiaryText' : color}>
-        {children}
-      </Text>
-    </TlonPressable>
-  );
-}
-
-const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
-  return (
-    <HeaderIconButton
-      testID="HeaderBackButton"
-      type="ChevronLeft"
-      onPress={onPress}
-    />
-  );
-};
-
-const HeaderTitleText = styled(Text, {
-  size: '$label/2xl',
-  numberOfLines: 1,
-});
-
-const HeaderControls = styled(XStack, {
-  position: 'absolute',
-  bottom: 0,
-  height: '$4xl',
-  alignItems: 'center',
-  gap: '$l',
-  zIndex: 1,
-  variants: {
-    side: {
-      left: {
-        left: '$xl',
-      },
-      right: {
-        right: '$xl',
-      },
-    },
-  } as const,
-});
-
-type HeaderControlProps = {
-  children?: ReactNode;
-  color?: ColorTokens;
-  disabled?: boolean;
-  onPress?: () => void;
-  side?: 'left' | 'right';
-  testID?: string;
-  type?: string;
-  accessibilityLabel?: string;
-  'aria-label'?: string;
-};
-
 type ThemeValues = ReturnType<typeof useTheme>;
-
-const nativeIconSources: Record<
-  string,
-  (typeof nativeHeaderIcons)[keyof typeof nativeHeaderIcons]
-> = {
-  Add: nativeHeaderIcons.add,
-  AddPerson: nativeHeaderIcons.invite,
-  ChevronLeft: nativeHeaderIcons.back,
-  EditList: nativeHeaderIcons.editList,
-  Overflow: nativeHeaderIcons.overflow,
-  RightSidebar: nativeHeaderIcons.rightSidebar,
-  Search: nativeHeaderIcons.search,
-  Settings: nativeHeaderIcons.settings,
-};
 
 function NativeHeaderControls({ children }: PropsWithChildren) {
   return (
@@ -837,8 +517,7 @@ function getNativeHeaderItems(
   items: NativeStackHeaderItem[];
   signature: string;
 } {
-  const items: NativeStackHeaderItem[] = [];
-  const signatures: string[] = [];
+  const configs: NativeHeaderItemConfig[] = [];
 
   function append(node: ReactNode) {
     Children.forEach(node, (child) => {
@@ -851,98 +530,54 @@ function getNativeHeaderItems(
         return;
       }
 
-      const index = items.length;
-      const identifier = child.props.testID ?? `screen-header-${side}-${index}`;
+      const id = child.props.testID ?? `screen-header-${side}-${configs.length}`;
       const accessibilityLabel =
         child.props.accessibilityLabel ?? child.props['aria-label'];
-      const tintColor = resolveNativeHeaderColor(child.props.color, theme);
+      const shared = {
+        id,
+        onPress: child.props.onPress,
+        disabled: child.props.disabled || child.props.onPress == null,
+        tint: child.props.color,
+        testID: child.props.testID,
+      };
 
       if (child.type === HeaderBackButton) {
-        items.push({
-          type: 'button',
+        configs.push({
+          ...shared,
+          icon: 'ChevronLeft',
           label: accessibilityLabel ?? 'Back',
-          accessibilityLabel: accessibilityLabel ?? 'Back',
-          icon: {
-            type: 'image',
-            source: nativeHeaderIcons.back,
-          },
-          identifier,
-          onPress: child.props.onPress ?? noop,
-          disabled: child.props.disabled || child.props.onPress == null,
-          sharesBackground: true,
-          tintColor,
         });
-        signatures.push(
-          `back:${identifier}:${child.props.disabled ? 'disabled' : 'enabled'}`
-        );
         return;
       }
 
       if (child.type === HeaderTextButton) {
-        const label = getTextContent(child.props.children) || 'Action';
-        items.push({
-          type: 'button',
-          label,
-          accessibilityLabel: accessibilityLabel ?? label,
-          identifier,
-          onPress: child.props.onPress ?? noop,
-          disabled: child.props.disabled || child.props.onPress == null,
-          sharesBackground: true,
-          tintColor,
+        configs.push({
+          ...shared,
+          text: getTextContent(child.props.children) || 'Action',
         });
-        signatures.push(
-          `text:${identifier}:${label}:${
-            child.props.disabled ? 'disabled' : 'enabled'
-          }`
-        );
         return;
       }
 
-      if (child.type === HeaderIconButton && child.props.type) {
-        const iconSource = nativeIconSources[child.props.type];
-        if (iconSource) {
-          const label = accessibilityLabel ?? child.props.type;
-          items.push({
-            type: 'button',
-            label,
-            accessibilityLabel: label,
-            icon: {
-              type: 'image',
-              source: iconSource,
-            },
-            identifier,
-            onPress: child.props.onPress ?? noop,
-            disabled: child.props.disabled || child.props.onPress == null,
-            sharesBackground: true,
-            tintColor,
-          });
-          signatures.push(
-            `icon:${identifier}:${child.props.type}:${
-              child.props.disabled ? 'disabled' : 'enabled'
-            }`
-          );
-          return;
-        }
+      if (
+        child.type === HeaderIconButton &&
+        child.props.type &&
+        child.props.type in nativeIconSources
+      ) {
+        configs.push({
+          ...shared,
+          icon: child.props.type as keyof typeof nativeIconSources,
+          label: accessibilityLabel ?? child.props.type,
+        });
+        return;
       }
 
-      items.push({
-        type: 'custom',
-        element: child as ReactElement,
-      });
-      signatures.push(
-        `custom:${identifier}:${getElementDisplayName(child)}:${
-          child.props.disabled ? 'disabled' : 'enabled'
-        }`
-      );
+      configs.push({ id, element: child as ReactElement });
     });
   }
 
   append(controls);
 
-  return {
-    items,
-    signature: signatures.join(','),
-  };
+  return buildNativeHeaderItems(configs, theme);
 }
 
 function getTextContent(node: ReactNode): string {
@@ -954,39 +589,6 @@ function getTextContent(node: ReactNode): string {
     )
     .join('');
 }
-
-function getElementDisplayName(element: ReactElement) {
-  if (typeof element.type === 'string') {
-    return element.type;
-  }
-
-  const type = element.type as {
-    displayName?: string;
-    name?: string;
-  };
-  return type.displayName ?? type.name ?? 'control';
-}
-
-function resolveNativeHeaderColor(
-  color: ColorTokens | string | undefined,
-  theme: ThemeValues
-) {
-  if (!color) {
-    return undefined;
-  }
-
-  if (!color.startsWith('$')) {
-    return color;
-  }
-
-  const themeKey = color.slice(1);
-  const themeValue = (
-    theme as unknown as Record<string, { val?: string } | undefined>
-  )[themeKey];
-  return themeValue?.val;
-}
-
-const noop = () => {};
 
 export const ScreenHeader = withStaticProperties(ScreenHeaderComponent, {
   Controls: HeaderControls,

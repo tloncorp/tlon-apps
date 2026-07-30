@@ -4,7 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useLayoutEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Alert, Platform, SectionList } from 'react-native';
 import { useTheme } from 'tamagui';
 
@@ -12,7 +12,6 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useInviteSystemContactHandler } from '../../hooks/useInviteSystemContactHandler';
 import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
 import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
-import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
 import type {
   NativeTabParamList,
   RootStackParamList,
@@ -20,12 +19,13 @@ import type {
 import {
   AppDataContextProvider,
   ContactsScreenView,
-  NavBarView,
-  ScreenHeader,
-  View,
   getDisplayName,
   isWeb,
+  NavBarView,
+  ScreenHeader,
   useInviteSystemContacts,
+  useNativeHeaderItems,
+  View,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
 
@@ -65,42 +65,26 @@ export default function ContactsScreen(props: Props) {
 
   useMarkMatchesSeen();
 
-  useLayoutEffect(() => {
-    if (Platform.OS !== 'ios') {
-      return;
-    }
-
-    nativeTabNavigation.setOptions({
-      unstable_headerLeftItems: () => [
-        {
-          type: 'button',
-          label: 'Add contacts',
-          accessibilityLabel: 'Add contacts',
-          icon: {
-            type: 'image',
-            source: nativeHeaderIcons.add,
-          },
-          identifier: 'add-contacts',
-          onPress: () => navigate('AddContacts'),
-          sharesBackground: true,
-        },
-      ],
-      unstable_headerRightItems: () => [
-        {
-          type: 'button',
-          label: 'Settings',
-          accessibilityLabel: 'Settings',
-          icon: {
-            type: 'image',
-            source: nativeHeaderIcons.settings,
-          },
-          identifier: 'contacts-settings',
-          onPress: () => navigate('Settings', undefined, { pop: true }),
-          sharesBackground: true,
-        },
-      ],
-    });
-  }, [nativeTabNavigation, navigate]);
+  useNativeHeaderItems({
+    navigation: nativeTabNavigation,
+    enabled: Platform.OS === 'ios',
+    left: [
+      {
+        id: 'add-contacts',
+        icon: 'Add',
+        label: 'Add contacts',
+        onPress: () => navigate('AddContacts'),
+      },
+    ],
+    right: [
+      {
+        id: 'contacts-settings',
+        icon: 'Settings',
+        label: 'Settings',
+        onPress: () => navigate('Settings', undefined, { pop: true }),
+      },
+    ],
+  });
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {

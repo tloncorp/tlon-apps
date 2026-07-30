@@ -3,7 +3,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as Clipboard from 'expo-clipboard';
 import { capitalize } from 'lodash';
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTokenValue } from 'tamagui';
@@ -14,19 +14,16 @@ import { RootStackParamList, RootStackRouteProp } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
+  createActionGroup,
   ForwardGroupSheetProvider,
   InviteUsersSheet,
   ListItem,
   PaddedBlock,
+  pluralize,
   ProfileButton,
   ScreenHeader,
   ScrollView,
   TlonText,
-  View,
-  XStack,
-  YStack,
-  createActionGroup,
-  pluralize,
   useChatOptions,
   useChatTitle,
   useCurrentUserId,
@@ -34,7 +31,11 @@ import {
   useGroupTitle,
   useIsAdmin,
   useIsWindowNarrow,
+  useNativeHeaderItems,
   useToast,
+  View,
+  XStack,
+  YStack,
 } from '../../ui';
 import {
   ChannelHost,
@@ -178,50 +179,21 @@ function ChatDetailsScreenView() {
     }
   }, [chatType]);
 
-  useLayoutEffect(() => {
-    if (!usesNativeStackHeader) {
-      return;
-    }
-
-    navigation.setOptions({
-      title: screenTitle,
-      headerRight: currentUserIsAdmin
-        ? () => (
-            <ScreenHeader.TextButton
-              onPress={!actionsEnabled ? undefined : handlePressEdit}
-              disabled={!actionsEnabled}
-              color="$primaryText"
-              testID="DetailsEditButton"
-            >
-              Rename
-            </ScreenHeader.TextButton>
-          )
-        : undefined,
-      unstable_headerRightItems:
-        Platform.OS === 'ios'
-          ? () =>
-              currentUserIsAdmin
-                ? [
-                    {
-                      type: 'button',
-                      label: 'Rename',
-                      accessibilityLabel: 'Rename',
-                      identifier: 'rename-chat',
-                      disabled: !actionsEnabled,
-                      onPress: handlePressEdit,
-                      sharesBackground: true,
-                    },
-                  ]
-                : []
-          : undefined,
-    });
-  }, [
-    actionsEnabled,
-    currentUserIsAdmin,
-    handlePressEdit,
+  useNativeHeaderItems({
     navigation,
-    screenTitle,
-  ]);
+    enabled: usesNativeStackHeader,
+    title: screenTitle,
+    right: [
+      {
+        id: 'rename-chat',
+        text: 'Rename',
+        onPress: handlePressEdit,
+        disabled: !actionsEnabled,
+        visible: currentUserIsAdmin,
+        testID: 'DetailsEditButton',
+      },
+    ],
+  });
 
   const handleEditChannelPrivacy = useCallback(
     (channelId: string, groupId: string) => {

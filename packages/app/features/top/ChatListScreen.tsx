@@ -15,13 +15,12 @@ import * as store from '@tloncorp/shared/store';
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
 import { Keyboard } from 'react-native';
-import { Text, YStack, isWeb, useTheme } from 'tamagui';
+import { Text, YStack, isWeb } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
@@ -33,7 +32,6 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
-import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
 import type {
   NativeTabParamList,
   RootStackParamList,
@@ -48,10 +46,11 @@ import {
   PersonalInviteSheet,
   Pressable,
   ScreenHeader,
-  View,
   triggerHaptic,
   useGlobalSearch,
   useIsWindowNarrow,
+  useNativeHeaderItems,
+  View,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
 import WayfindingNotice from '../../ui/components/Wayfinding/Notices';
@@ -90,7 +89,6 @@ export function ChatListScreenView({
   previewGroupFromInviteNotification?: boolean;
   focusedChannelId?: string;
 }) {
-  const theme = useTheme();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const nativeTabNavigation =
     useNavigation<
@@ -411,92 +409,36 @@ export function ChatListScreenView({
     }
   }, [chats]);
 
-  useLayoutEffect(() => {
-    if (isWeb) {
-      return;
-    }
-
-    nativeTabNavigation.setOptions({
-      headerLeft: () =>
-        personalInvite ? (
-          <ScreenHeader.IconButton
-            type="AddPerson"
-            onPress={handlePersonalInvitePress}
-          />
-        ) : null,
-      headerRight: () => (
-        <View flexDirection="row" alignItems="center">
-          <ScreenHeader.IconButton
-            type="Search"
-            onPress={handleSearchInputToggled}
-          />
-          <ScreenHeader.IconButton
-            type="Add"
-            onPress={handlePressAddChat}
-            testID="CreateChatSheetTrigger"
-            color={showHomeAddTooltip ? '$positiveActionText' : '$primaryText'}
-            backgroundColor={
-              showHomeAddTooltip ? '$positiveBackground' : 'transparent'
-            }
-          />
-        </View>
-      ),
-      unstable_headerLeftItems: () =>
-        personalInvite
-          ? [
-              {
-                type: 'button',
-                label: 'Invite people',
-                accessibilityLabel: 'Invite people',
-                icon: {
-                  type: 'image',
-                  source: nativeHeaderIcons.invite,
-                },
-                identifier: 'invite-people',
-                onPress: handlePersonalInvitePress,
-                sharesBackground: true,
-              },
-            ]
-          : [],
-      unstable_headerRightItems: () => [
-        {
-          type: 'button',
-          label: 'Search',
-          accessibilityLabel: 'Search',
-          icon: {
-            type: 'image',
-            source: nativeHeaderIcons.search,
-          },
-          identifier: 'search',
-          onPress: handleSearchInputToggled,
-          sharesBackground: true,
-        },
-        {
-          type: 'button',
-          label: 'Add a chat',
-          accessibilityLabel: 'Add a chat',
-          icon: {
-            type: 'image',
-            source: nativeHeaderIcons.add,
-          },
-          identifier: 'add-chat',
-          onPress: handlePressAddChat,
-          sharesBackground: true,
-          tintColor: showHomeAddTooltip
-            ? theme.positiveActionText?.val
-            : undefined,
-        },
-      ],
-    });
-  }, [
-    handlePersonalInvitePress,
-    handlePressAddChat,
-    handleSearchInputToggled,
-    nativeTabNavigation,
-    personalInvite,
-    showHomeAddTooltip,
-    theme.positiveActionText?.val,
-  ]);
+  useNativeHeaderItems({
+    navigation: nativeTabNavigation,
+    enabled: !isWeb,
+    left: [
+      {
+        id: 'invite-people',
+        icon: 'AddPerson',
+        label: 'Invite people',
+        onPress: handlePersonalInvitePress,
+        visible: !!personalInvite,
+      },
+    ],
+    right: [
+      {
+        id: 'search',
+        icon: 'Search',
+        label: 'Search',
+        onPress: handleSearchInputToggled,
+      },
+      {
+        id: 'add-chat',
+        icon: 'Add',
+        label: 'Add a chat',
+        onPress: handlePressAddChat,
+        testID: 'CreateChatSheetTrigger',
+        tint: showHomeAddTooltip ? '$positiveActionText' : undefined,
+        backgroundTint: showHomeAddTooltip ? '$positiveBackground' : undefined,
+      },
+    ],
+  });
 
   return (
     <>
