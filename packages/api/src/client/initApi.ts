@@ -10,7 +10,7 @@ import {
   toClientPinnedItems,
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
-import { getCurrentUserId, scry } from './urbit';
+import { BadResponseError, getCurrentUserId, scry } from './urbit';
 
 const logger = createDevLogger('initApi', false);
 
@@ -32,10 +32,18 @@ type InitDataOptions = {
 };
 
 export const getInitData = async () => {
+  // v9 init is v7 with the group blob included (activity stays v8).
+  // Backends that haven't shipped the blob yet 404 on it; fall back to
+  // v7, whose response is identical minus the group blob.
   const response = await scry<ub.GroupsInit7>({
     app: 'groups-ui',
-    // v9 init is v7 with the group blob included (activity stays v8)
     path: '/v9/init',
+  }).catch((err) => {
+    if (err instanceof BadResponseError && err.status === 404) {
+      logger.log('v9 init unavailable, falling back to v7');
+      return scry<ub.GroupsInit7>({ app: 'groups-ui', path: '/v7/init' });
+    }
+    throw err;
   });
 
   logger.crumb('got init data from api');

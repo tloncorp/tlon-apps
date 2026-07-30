@@ -2,8 +2,8 @@ import { type Mock, beforeEach, expect, test, vi } from 'vitest';
 
 import { ThreadResponseBodyError } from '../http-api';
 import type { Group } from '../types/models';
-import { createGroup, toV1GroupsUpdate } from './groupsApi';
-import { scry, thread } from './urbit';
+import { createGroup, getGroups, toV1GroupsUpdate } from './groupsApi';
+import { BadResponseError, scry, thread } from './urbit';
 
 vi.mock('./urbit', async () => {
   const actual = await vi.importActual<typeof import('./urbit')>('./urbit');
@@ -70,5 +70,21 @@ test('toV1GroupsUpdate maps blob responses to editGroupBlob', () => {
     type: 'editGroupBlob',
     groupId: '~zod/test-group',
     blob: null,
+  });
+});
+
+test('getGroups falls back to the v2 scry when v3 is unavailable', async () => {
+  scryMock.mockRejectedValueOnce(new BadResponseError(404, 'missing'));
+  scryMock.mockResolvedValueOnce({});
+
+  await expect(getGroups()).resolves.toEqual([]);
+
+  expect(scryMock).toHaveBeenNthCalledWith(1, {
+    app: 'groups',
+    path: '/v3/groups',
+  });
+  expect(scryMock).toHaveBeenNthCalledWith(2, {
+    app: 'groups',
+    path: '/v2/groups',
   });
 });

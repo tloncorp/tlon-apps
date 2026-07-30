@@ -6,7 +6,7 @@ import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';
 import { toClientGroupsV7 } from './groupsApi';
 import { toPostsData } from './postsApi';
-import { checkIsNodeBusyWithHints, scry } from './urbit';
+import { BadResponseError, checkIsNodeBusyWithHints, scry } from './urbit';
 
 export async function fetchChangesSince(timestamp: number): Promise<
   db.ChangesResult & {
@@ -16,10 +16,20 @@ export async function fetchChangesSince(timestamp: number): Promise<
 > {
   const busyResult = await checkIsNodeBusyWithHints();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
+  // v10 changes is v8 with the group blob included. Backends that
+  // haven't shipped the blob yet 404 on it; fall back to v8, whose
+  // response is identical minus the group blob.
   const response = await scry<ub.ChangesV8>({
     app: 'groups-ui',
-    // v10 changes is v8 with the group blob included
     path: `/v10/changes/${encodedTimestamp}`,
+  }).catch((err) => {
+    if (err instanceof BadResponseError && err.status === 404) {
+      return scry<ub.ChangesV8>({
+        app: 'groups-ui',
+        path: `/v8/changes/${encodedTimestamp}`,
+      });
+    }
+    throw err;
   });
 
   const nodeBusyStatus = await Promise.race([busyResult, timedOutDefault(500)]);

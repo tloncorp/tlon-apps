@@ -492,19 +492,34 @@ export const createGroup = async ({
   }
 };
 
-export const getGroup = async (groupId: string) => {
-  const path = `/v3/ui/groups/${groupId}`;
+// v3 group scries return v11 format (v9 plus the group blob). Backends
+// that haven't shipped the blob yet 404 on them; fall back to the v2
+// path, whose response is identical minus `blob`.
+async function scryGroupsWithV2Fallback<T>(v3Path: string, v2Path: string) {
+  try {
+    return await scry<T>({ app: 'groups', path: v3Path });
+  } catch (err) {
+    if (err instanceof BadResponseError && err.status === 404) {
+      logger.log('v3 groups scry unavailable, falling back to v2', v3Path);
+      return await scry<T>({ app: 'groups', path: v2Path });
+    }
+    throw err;
+  }
+}
 
-  const groupData = await scry<ub.GroupV7>({ app: 'groups', path });
+export const getGroup = async (groupId: string) => {
+  const groupData = await scryGroupsWithV2Fallback<ub.GroupV7>(
+    `/v3/ui/groups/${groupId}`,
+    `/v2/ui/groups/${groupId}`
+  );
   return toClientGroupV7(groupId, groupData, true);
 };
 
 export const getGroups = async () => {
-  // v3 scry path returns v11 format (v9 plus the group blob)
-  const groupData = await scry<ub.GroupsV7>({
-    app: 'groups',
-    path: '/v3/groups',
-  });
+  const groupData = await scryGroupsWithV2Fallback<ub.GroupsV7>(
+    '/v3/groups',
+    '/v2/groups'
+  );
   return toClientGroupsV7(groupData, true);
 };
 
