@@ -81,13 +81,10 @@
   =/  ac  activity.st
   ;<  *  bind:m  (ex-equal !>(count:(~(got by ac) [%notebook book ~])) !>(1))
   (ex-equal !>(count:(~(got by ac) [%base ~])) !>(1))
-::  %del-event replaces a previously-added edit, keeping one unread edit
-::  per author. %notes doesn't emit %del-event today — its trailing
-::  debounce already submits at most one event per settled edit session —
-::  this pins %activity's pre-existing coalescing support (used by chat
-::  and channels) for note events. read %all clears the whole chain.
+::  note events accumulate unreads on the note source, and read %all
+::  clears the whole chain
 ::
-++  test-note-activity-coalesce-and-read
+++  test-note-activity-accumulate-and-read
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -104,14 +101,11 @@
   ;<  *  bind:m
     (do-poke activity-action-2+!>(`action:v10:av`[%add edit1]))
   ;<  *  bind:m
-    (do-poke activity-action-2+!>(`action:v10:av`[%del-event note-src edit1]))
-  ;<  *  bind:m
     (do-poke activity-action-2+!>(`action:v10:av`[%add edit2]))
   ;<  sv=vase  bind:m  get-save
   =/  st  !<(state-11 sv)
-  ::  create + one live edit: the replaced edit1 does not count
-  ;<  *  bind:m  (ex-equal !>(count:(~(got by activity.st) note-src)) !>(2))
-  ;<  *  bind:m  (ex-equal !>(count:(~(got by activity.st) [%base ~])) !>(2))
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by activity.st) note-src)) !>(3))
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by activity.st) [%base ~])) !>(3))
   ;<  *  bind:m
     %-  do-poke
     activity-action-2+!>(`action:v10:av`[%read note-src [%all ~ |]])
