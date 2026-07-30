@@ -22,6 +22,7 @@ import {
   getActiveTopLevelDrawerRouteName,
   getDesktopGroupInviteRoute,
   getDesktopPostRoute,
+  isActivityBackTarget,
   screenNameFromChannelId,
 } from './routeHelpers';
 import { CombinedParamList, RootStackParamList } from './types';
@@ -298,7 +299,7 @@ export function useNavigateBackFromPost() {
       const previousRouteParams = previousRoute?.params as
         | { channelId?: string }
         | undefined;
-      const lastScreenWasActivity = previousRoute?.name === 'Activity';
+      const lastScreenWasActivity = isActivityBackTarget(previousRoute);
       // @ts-expect-error - ChannelRoot is fine here.
       const lastScreenWasChannel = previousRoute?.name === 'ChannelRoot';
       const lastChannelWasChat =

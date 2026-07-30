@@ -6,6 +6,7 @@ import {
   getDesktopGroupInvitePreviewProps,
   getDesktopGroupInviteRoute,
   getDesktopPostRoute,
+  isActivityBackTarget,
 } from './routeHelpers';
 
 // Build a `{ getState, getParent }` chain from innermost -> outermost so we can
@@ -204,6 +205,56 @@ describe('getDesktopPostRoute', () => {
     });
     expect(route.params.params.selectedPostId).toBeUndefined();
     expect(route.params.params.params.selectedPostId).toBeUndefined();
+  });
+});
+
+describe('isActivityBackTarget', () => {
+  test('recognizes the legacy direct Activity route', () => {
+    expect(isActivityBackTarget({ name: 'Activity' })).toBe(true);
+  });
+
+  test('recognizes Activity inside live native tab state', () => {
+    expect(
+      isActivityBackTarget({
+        name: 'MainTabs',
+        params: { screen: 'ChatList' },
+        state: {
+          index: 1,
+          routes: [
+            { name: 'ChatList' },
+            { name: 'Activity' },
+            { name: 'Contacts' },
+          ],
+        },
+      })
+    ).toBe(true);
+  });
+
+  test('prefers live tab state over stale initialization params', () => {
+    expect(
+      isActivityBackTarget({
+        name: 'MainTabs',
+        params: { screen: 'Activity' },
+        state: {
+          index: 0,
+          routes: [{ name: 'ChatList' }, { name: 'Activity' }],
+        },
+      })
+    ).toBe(false);
+  });
+
+  test('uses MainTabs initialization params before nested state exists', () => {
+    expect(
+      isActivityBackTarget({
+        name: 'MainTabs',
+        params: { screen: 'Activity' },
+      })
+    ).toBe(true);
+  });
+
+  test('rejects unrelated routes and malformed state', () => {
+    expect(isActivityBackTarget({ name: 'Channel' })).toBe(false);
+    expect(isActivityBackTarget(null)).toBe(false);
   });
 });
 

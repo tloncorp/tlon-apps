@@ -1,4 +1,4 @@
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useScrollToTop } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -10,7 +10,6 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import { ActivityScreenView, NavBarView, View } from '../../ui';
@@ -22,7 +21,7 @@ export function ActivityScreen(props: Props) {
   const isFocused = useIsFocused();
   const currentUserId = useCurrentUserId();
   const { scrollRef, onPressActiveTab } = useScrollTabToTop<FlatList>();
-  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
+  useScrollToTop(scrollRef);
   const { performGroupAction } = useGroupActions();
   const { navigateToChannel, navigateToPost } = useRootNavigation();
   const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
@@ -131,7 +130,6 @@ export function ActivityScreen(props: Props) {
           onPressActiveTab={onPressActiveTab}
           currentRoute="Activity"
           currentUserId={currentUserId}
-          showContactsTab={contactsTabEnabled}
         />
       </View>
     </View>

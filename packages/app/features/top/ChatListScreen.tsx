@@ -2,6 +2,7 @@ import {
   NavigationProp,
   useIsFocused,
   useNavigation,
+  useScrollToTop,
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FlashListRef } from '@shopify/flash-list';
@@ -83,6 +84,7 @@ export function ChatListScreenView({
   const { isOpen, setIsOpen } = useGlobalSearch();
   const { scrollRef: chatListRef, onPressActiveTab } =
     useScrollTabToTop<FlashListRef<ChatListItemData>>();
+  useScrollToTop(chatListRef);
 
   const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
