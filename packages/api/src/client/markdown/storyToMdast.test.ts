@@ -316,6 +316,87 @@ describe('task-list serialization', () => {
     );
     expect(markdownToStory(markdown)).toEqual(story);
   });
+
+  // A parent task's structural content lives in the nested list's `contents`,
+  // which belong to the item in the *outer* list. Whether they may hold a task
+  // is decided by the outer list's type, not the nested list's.
+  describe.each([
+    ['unordered', [{ item: ['child'] }], '- child'],
+    ['ordered', [{ item: ['child'] }], '1. child'],
+    [
+      'tasklist',
+      [{ item: [{ task: { checked: false, content: ['child'] } }] }],
+      '- [ ] child',
+    ],
+  ])(
+    'parent task with block content over a %s child list',
+    (childType, childItems, renderedChild) => {
+      const story = [
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  {
+                    list: {
+                      type: childType,
+                      contents: [
+                        {
+                          task: {
+                            checked: true,
+                            content: [{ blockquote: ['quoted'] }],
+                          },
+                        },
+                      ],
+                      items: childItems,
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ] as unknown as Story;
+
+      test('renders the checkbox, the block content and the child list', () => {
+        expect(storyToMarkdown(story, { strict: true })).toBe(
+          `- [x] <!-- -->\n  > quoted\n  ${renderedChild}`
+        );
+      });
+
+      test('round-trips', () => {
+        const markdown = storyToMarkdown(story, { strict: true });
+        expect(
+          storyToMarkdown(markdownToStory(markdown), { strict: true })
+        ).toBe(markdown);
+      });
+    }
+  );
+
+  test.each([true, false])(
+    'preserves the marker of a task whose content renders to nothing (checked: %s)',
+    (checked) => {
+      const story = [
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [{ item: [{ task: { checked, content: [''] } }] }],
+              },
+            },
+          },
+        },
+      ] as unknown as Story;
+
+      expect(storyToMarkdown(story, { strict: true })).toBe(
+        `- [${checked ? 'x' : ' '}] <!-- -->`
+      );
+    }
+  );
 });
 
 describe('list hierarchy', () => {
@@ -681,7 +762,10 @@ describe('strict mode', () => {
     ]);
   });
 
-  test('strict rejects a non-first task in nested task-list contents', () => {
+  test('strict rejects a task in the contents of a non-task list item', () => {
+    // The nested list's `contents` are the content of the item in the *outer*
+    // list, which is unordered here, so a task inline has no representable
+    // Markdown form regardless of its position.
     const story: Story = [
       {
         block: {
@@ -708,7 +792,7 @@ describe('strict mode', () => {
     ];
 
     expect(() => storyToMarkdown(story, { strict: true })).toThrow(
-      /task.*not the first inline.*nested task-list item/i
+      /task.*contents of a non-task list item/i
     );
 
     const markdown = storyToMarkdown(story);

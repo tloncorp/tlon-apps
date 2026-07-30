@@ -666,16 +666,31 @@ function listItemInlinesToMdast(
   );
 }
 
+function rendersVisibleContent(node: unknown): boolean {
+  if (typeof node !== 'object' || node === null) {
+    return false;
+  }
+  const candidate = node as { value?: unknown; children?: unknown };
+  if (typeof candidate.value === 'string') {
+    return candidate.value.length > 0;
+  }
+  if (Array.isArray(candidate.children)) {
+    return candidate.children.some((child) => rendersVisibleContent(child));
+  }
+  return true;
+}
+
 /**
  * remark-gfm only emits a task marker when a list item's first child is a
- * paragraph with content. An empty paragraph serializes away, so block-first
- * and empty tasks need an invisible comment to anchor the marker. The Markdown
- * parser ignores that comment when converting the item back to Story.
+ * paragraph that serializes to something. A paragraph that renders to nothing
+ * disappears, so block-first and empty tasks need an invisible comment to
+ * anchor the marker. The Markdown parser ignores that comment when converting
+ * the item back to Story.
  */
 function ensureTaskMarkerParagraph(
   children: RootContent[]
 ): MdastListItem['children'] {
-  if (children[0]?.type === 'paragraph') {
+  if (children[0]?.type === 'paragraph' && rendersVisibleContent(children[0])) {
     return children as MdastListItem['children'];
   }
 
@@ -785,24 +800,29 @@ function listingsToListItems(
       }
     } else if (isList(listing)) {
       const list = listing as List;
-      if (list.list.type === 'tasklist') {
+      // `contents` is the inline content of this item in the *outer* list, so
+      // whether it may hold a task is decided by `listType`. `list.list.type`
+      // describes the nested child list built from `items`.
+      if (listType === 'tasklist') {
         rejectUnrepresentableTaskPlacement(
           list.list.contents,
           opts,
           'nested task-list item'
         );
+      } else if (opts?.strict && countTasks(list.list.contents) > 0) {
+        throw new Error(
+          'Cannot render a task in the contents of a non-task list item faithfully in strict mode'
+        );
       }
-      // Nested list - create parent item with contents and nested list
-      const contentChildren = inlinesToMdast(
-        list.list.contents,
-        opts,
-        'nested list contents'
-      );
 
-      // Check if contents is a task
-      const isOrdered = list.list.type === 'ordered';
+      const nestedList: MdastList = {
+        type: 'list',
+        ordered: list.list.type === 'ordered',
+        children: listingsToListItems(list.list.items, list.list.type, opts),
+      };
+
       if (
-        list.list.type === 'tasklist' &&
+        listType === 'tasklist' &&
         list.list.contents.length > 0 &&
         isTask(list.list.contents[0])
       ) {
@@ -812,11 +832,6 @@ function listingsToListItems(
           opts,
           'nested task-list contents'
         );
-        const nestedList: MdastList = {
-          type: 'list',
-          ordered: false, // task lists are unordered
-          children: listingsToListItems(list.list.items, list.list.type, opts),
-        };
         const mdastItem: MdastListItem = {
           type: 'listItem',
           checked: task.task.checked,
@@ -824,11 +839,13 @@ function listingsToListItems(
         };
         items.push(mdastItem);
       } else {
-        const nestedList: MdastList = {
-          type: 'list',
-          ordered: isOrdered,
-          children: listingsToListItems(list.list.items, list.list.type, opts),
-        };
+        // Only reached when the contents are not a task, so converting them
+        // here cannot trip the strict-mode guard on tasks carrying blocks.
+        const contentChildren = inlinesToMdast(
+          list.list.contents,
+          opts,
+          'nested list contents'
+        );
         const mdastItem: MdastListItem = {
           type: 'listItem',
           children:
