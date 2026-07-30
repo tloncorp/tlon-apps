@@ -2,7 +2,7 @@ import { type Mock, beforeEach, expect, test, vi } from 'vitest';
 
 import { ThreadResponseBodyError } from '../http-api';
 import type { Group } from '../types/models';
-import { createGroup } from './groupsApi';
+import { createGroup, toV1GroupsUpdate } from './groupsApi';
 import { scry, thread } from './urbit';
 
 vi.mock('./urbit', async () => {
@@ -49,9 +49,7 @@ test('createGroup recovers only when a response body stalls after headers', asyn
   });
 });
 
-test('toV1GroupsUpdate maps blob responses to editGroupBlob', async () => {
-  const { toV1GroupsUpdate } = await import('./groupsApi');
-
+test('toV1GroupsUpdate maps blob responses to editGroupBlob', () => {
   expect(
     toV1GroupsUpdate({
       flag: '~zod/test-group',
