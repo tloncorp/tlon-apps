@@ -2,6 +2,7 @@ export * from '@tloncorp/api/types/analytics';
 export * from '@tloncorp/api/types/attachment';
 export * from '@tloncorp/api/types/attestations';
 export * from '@tloncorp/api/types/constants';
+export * from '@tloncorp/api/types/groupAgentConfig';
 export * from '@tloncorp/api/types/groupTemplates';
 export * from '@tloncorp/api/types/hosting';
 export * from '@tloncorp/api/types/invite.types';

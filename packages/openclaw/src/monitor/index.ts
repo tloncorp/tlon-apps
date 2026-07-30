@@ -95,6 +95,12 @@ import {
   resolveTlonSkillVersion,
 } from '../version.js';
 import {
+  buildPurposePickerBlob,
+  fetchGroupDescription,
+  purposePickerFallbackText,
+  shouldOfferPurposePicker,
+} from './agent-onboarding.js';
+import {
   type DisplayContext,
   type PendingApproval,
   buildApprovalA2UIBlob,
@@ -747,6 +753,8 @@ export async function monitorTlonProvider(
     const processedTracker = createProcessedMessageTracker(2000);
     let groupChannels: string[] = [];
     const channelToGroup = new Map<string, string>();
+    /** Channels already offered the agent-onboarding purpose picker. */
+    const onboardingPickerOffered = new Set<string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -3719,6 +3727,60 @@ export async function monitorTlonProvider(
         });
         if (!engageDecision.engage) {
           return;
+        }
+
+        // Agent onboarding: in an unconfigured group the owner hosts, answer
+        // the first message with the tappable purpose picker instead of a
+        // model turn. Tapping a card posts the choice as the owner's own
+        // reply, which falls through to the agent normally.
+        const onboardingGroupFlag = channelToGroup.get(nest);
+        if (
+          parsedDispatchNest &&
+          onboardingGroupFlag &&
+          !onboardingPickerOffered.has(nest) &&
+          isOwner(senderShip) &&
+          parsedDispatchNest.hostShip === effectiveOwnerShip
+        ) {
+          const groupDescription = await fetchGroupDescription(
+            api,
+            onboardingGroupFlag,
+            runtime
+          );
+          if (groupDescription === null) {
+            // Scry failed — say nothing rather than risk offering setup for an
+            // already-configured group. Retried on the next message.
+          } else if (
+            shouldOfferPurposePicker({
+              senderIsOwner: true,
+              groupHostIsOwner: true,
+              groupDescription,
+              messageText: rawText ?? '',
+              alreadyOffered: false,
+            })
+          ) {
+            onboardingPickerOffered.add(nest);
+            runtime.log?.(
+              `[tlon] Offering agent onboarding purpose picker in ${nest}`
+            );
+            try {
+              await sendChannelPost({
+                botProfile: getBotProfile(),
+                fromShip: botShipName,
+                nest,
+                story: markdownToStory(purposePickerFallbackText()),
+                blob: serializeBlobField(buildPurposePickerBlob(nest)),
+              });
+              return;
+            } catch (error) {
+              onboardingPickerOffered.delete(nest);
+              runtime.error?.(
+                `[tlon] Failed to post purpose picker in ${nest}: ${String(error)}`
+              );
+            }
+          } else {
+            // Configured, or the message is a card tap — don't re-offer.
+            onboardingPickerOffered.add(nest);
+          }
         }
 
         const trigger: ContextLensTrigger = mentioned

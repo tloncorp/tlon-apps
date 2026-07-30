@@ -429,6 +429,29 @@ export const splashNickname = createStorageItem<string>({
   defaultValue: '',
 });
 
+/**
+ * Set when the agent onboarding flow finishes building a group, consumed
+ * (and cleared) on the next chat list mount to land the user inside the
+ * group's chat channel. The splash renders outside the root navigator, so
+ * landing needs this handoff.
+ */
+export const agentOnboardingLanding = createStorageItem<{
+  groupId: string;
+  channelId: string;
+} | null>({
+  key: 'agentOnboardingLanding',
+  defaultValue: null,
+});
+
+/**
+ * Groups whose onboarding opening message has been posted. Keeps first run
+ * from posting it twice if the app is relaunched mid-onboarding.
+ */
+export const agentOnboardingOpenedGroups = createStorageItem<string[]>({
+  key: 'agentOnboardingOpenedGroups',
+  defaultValue: [],
+});
+
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
   defaultValue: {

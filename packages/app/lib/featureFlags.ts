@@ -16,6 +16,11 @@ export const featureMeta = {
     label: 'Enable contacts tab',
     onlyTlon: false,
   },
+  conversationalOnboarding: {
+    default: true,
+    label: 'Conversational onboarding (agent builds your first group)',
+    onlyTlon: false,
+  },
   markdownNotebooks: {
     default: false,
     label: 'Enable Markdown mode for notebook posts',

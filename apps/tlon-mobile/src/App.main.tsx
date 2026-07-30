@@ -18,11 +18,13 @@ import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRequiredUpdate } from '@tloncorp/app/hooks/useRequiredUpdate';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
+import { useFeatureFlag } from '@tloncorp/app/lib/featureFlags';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
+  AgentOnboardingSequence,
   LoadingSpinner,
   SplashSequence,
   Text,
@@ -119,6 +121,9 @@ const MainApp = () => {
     hostingBotEnabled,
     handleClearSplash,
   } = useTopLevelRouting();
+  const [conversationalOnboardingEnabled] = useFeatureFlag(
+    'conversationalOnboarding'
+  );
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const handleSplashLogout = useCallback(async () => {
@@ -141,13 +146,18 @@ const MainApp = () => {
           </View>
         ) : showSplashSequence ? (
           <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-            <SplashSequence
-              onCompleted={handleClearSplash}
-              inviteSystemContacts={inviteSystemContacts}
-              hostingBotEnabled={hostingBotEnabled}
-              splashSequenceMode={activeSplashSequenceMode}
-              onLogout={handleSplashLogout}
-            />
+            {conversationalOnboardingEnabled &&
+            activeSplashSequenceMode !== 'tlonbotRevival' ? (
+              <AgentOnboardingSequence onCompleted={handleClearSplash} />
+            ) : (
+              <SplashSequence
+                onCompleted={handleClearSplash}
+                inviteSystemContacts={inviteSystemContacts}
+                hostingBotEnabled={hostingBotEnabled}
+                splashSequenceMode={activeSplashSequenceMode}
+                onLogout={handleSplashLogout}
+              />
+            )}
           </AppDataProvider>
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />

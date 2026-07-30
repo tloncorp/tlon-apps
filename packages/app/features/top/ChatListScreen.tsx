@@ -240,7 +240,61 @@ export function ChatListScreenView({
     };
   }, [chats]);
 
-  const { navigateToGroup, navigateToChannel } = useRootNavigation();
+  const { navigateToGroup, navigateToChannel, resetToChannel } =
+    useRootNavigation();
+
+  // Agent onboarding handoff: the splash arms a destination but renders
+  // outside the navigator, so the first chat list mount consumes it. The
+  // channel may still be syncing in on a fresh install — wait (bounded)
+  // for its row before navigating.
+  const consumedOnboardingLandingRef = useRef(false);
+  useEffect(() => {
+    if (consumedOnboardingLandingRef.current) {
+      return;
+    }
+    consumedOnboardingLandingRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const landing = await db.agentOnboardingLanding.getValue();
+        if (!landing) {
+          return;
+        }
+        db.agentOnboardingLanding.resetValue().catch((error) => {
+          logger.trackError('Failed to clear onboarding landing', { error });
+        });
+        const deadline = Date.now() + 30_000;
+        while (!cancelled && Date.now() < deadline) {
+          const channel = await db.getChannel({ id: landing.channelId });
+          if (channel) {
+            if (!cancelled) {
+              resetToChannel(landing.channelId, { groupId: landing.groupId });
+              // Kick off the conversation: the agent only reacts, so without
+              // an opening line the group sits on its canned welcome.
+              store
+                .sendAgentOnboardingOpeningMessage({
+                  groupId: landing.groupId,
+                  channelId: landing.channelId,
+                })
+                .catch((error) => {
+                  logger.trackError('Failed to open onboarding conversation', {
+                    error,
+                  });
+                });
+            }
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+        logger.trackError('Onboarding landing channel never synced', landing);
+      } catch (error) {
+        logger.trackError('Failed to consume onboarding landing', { error });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [resetToChannel]);
 
   const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
   const onPressChat = useCallback(

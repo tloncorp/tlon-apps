@@ -4,6 +4,7 @@ export * from './attestations';
 export * from './constants';
 export * from '../client/channelContentConfig';
 export * from './groups';
+export * from './groupAgentConfig';
 export * from './groupTemplates';
 export * from './hosting';
 export * from './invite.types';
