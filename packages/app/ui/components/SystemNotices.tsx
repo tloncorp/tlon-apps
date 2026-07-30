@@ -3,14 +3,17 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Alert } from 'react-native';
-import { XStack, YStack, isWeb, styled } from 'tamagui';
+import { Alert, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { XStack, YStack, getTokenValue, isWeb, styled } from 'tamagui';
 
 import { useContactPermissions } from '../../hooks/useContactPermissions';
 import { useNag } from '../../hooks/useNag';
 import { useNotificationPermissions } from '../../lib/notifications';
 
 const logger = createDevLogger('SystemNotices', false);
+
+const IOS_TAB_BAR_HEIGHT = 49;
 
 const NoticeFrame = styled(YStack, {
   backgroundColor: '$systemNoticeBackground',
@@ -47,6 +50,7 @@ const SystemNotices = {
 export default SystemNotices;
 
 export function NotificationsPrompt() {
+  const { bottom } = useSafeAreaInsets();
   const notifNag = useNag({
     key: 'notificationsPrompt',
     refreshInterval: 30 * 60 * 1000, // Nag every 30 minutes
@@ -97,7 +101,13 @@ export function NotificationsPrompt() {
   }
 
   return (
-    <NoticeFrame>
+    <NoticeFrame
+      marginBottom={
+        Platform.OS === 'ios'
+          ? bottom + IOS_TAB_BAR_HEIGHT + getTokenValue('$l', 'space')
+          : undefined
+      }
+    >
       <YStack gap="$5xl">
         <YStack gap="$xl">
           <NoticeTitle>Enable notifications</NoticeTitle>

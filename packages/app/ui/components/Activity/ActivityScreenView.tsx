@@ -2,12 +2,13 @@ import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
+import { Button, ConfirmDialog, LoadingSpinner, Text } from '@tloncorp/ui';
 import { setBadgeCountAsync } from 'expo-notifications';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
+  Platform,
   RefreshControl,
   StyleProp,
   ViewStyle,
@@ -19,6 +20,7 @@ import { useIsDarkTheme } from '../../utils/colorUtils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
 import { ScreenHeader } from '../ScreenHeader';
+import type { NativeHeaderItemConfig } from '../nativeHeaderItems';
 import { ActivityHeader } from './ActivityHeader';
 import { ActivityListItem } from './ActivityListItem';
 
@@ -315,6 +317,8 @@ export function ActivityScreenContent({
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
+  const [markAllReadConfirmationOpen, setMarkAllReadConfirmationOpen] =
+    useState(false);
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -334,6 +338,24 @@ export function ActivityScreenContent({
     await store.markAllRead();
     trackEvent(AnalyticsEvent.ActivityMarkedAllRead);
   }, []);
+
+  const requestMarkAllRead = useCallback(() => {
+    setMarkAllReadConfirmationOpen(true);
+  }, []);
+
+  const activityHeaderItems = useMemo<NativeHeaderItemConfig[]>(
+    () => [
+      {
+        id: 'activity-options',
+        menu: {
+          icon: 'Overflow',
+          label: 'Activity options',
+          items: [{ label: 'Mark all as read', onPress: requestMarkAllRead }],
+        },
+      },
+    ],
+    [requestMarkAllRead]
+  );
 
   const handleInviteFriends = useCallback(() => {
     setPersonalInviteOpen(false);
@@ -365,6 +387,8 @@ export function ActivityScreenContent({
     padding: '$l',
     gap: '$l',
   }) as StyleProp<ViewStyle>;
+  const nativeTabInsetStyle =
+    Platform.OS === 'android' ? { paddingBottom: 100 } : undefined;
 
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
@@ -373,15 +397,16 @@ export function ActivityScreenContent({
           <ActivityEmptyState
             onInviteFriends={() => setPersonalInviteOpen(true)}
             onNavigateToContacts={onNavigateToContacts}
+            rightItems={activityHeaderItems}
           />
         ) : (
           <>
             <ActivityHeader
               activeTab={activeTab}
               onTabPress={onPressTab}
-              markAllRead={markAllRead}
               subtitle={subtitle}
               loadingSubtitle={loadingSubtitle}
+              rightItems={activityHeaderItems}
             />
             {currentTabIsEmpty ? (
               <XStack flex={1} justifyContent="center" paddingTop="$6xl">
@@ -395,7 +420,7 @@ export function ActivityScreenContent({
                 data={events}
                 renderItem={renderItem}
                 keyExtractor={keyExtractor}
-                contentContainerStyle={containerStyle}
+                contentContainerStyle={[containerStyle, nativeTabInsetStyle]}
                 onEndReached={onEndReached}
                 ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
                 refreshControl={
@@ -419,6 +444,14 @@ export function ActivityScreenContent({
           onOpenChange={setPersonalInviteOpen}
           onPressInviteFriends={handleInviteFriends}
         />
+        <ConfirmDialog
+          open={markAllReadConfirmationOpen}
+          onOpenChange={setMarkAllReadConfirmationOpen}
+          title="Mark all as read"
+          description="Are you sure you want to mark all conversations and notifications as read?"
+          confirmText="Mark all read"
+          onConfirm={markAllRead}
+        />
       </View>
     </NavigationProvider>
   );
@@ -427,9 +460,11 @@ export function ActivityScreenContent({
 export function ActivityEmptyState({
   onInviteFriends,
   onNavigateToContacts,
+  rightItems,
 }: {
   onInviteFriends: () => void;
   onNavigateToContacts?: () => void;
+  rightItems?: NativeHeaderItemConfig[];
 }) {
   const isDark = useIsDarkTheme();
 
@@ -443,7 +478,7 @@ export function ActivityEmptyState({
 
   return (
     <>
-      <ScreenHeader title="Activity" />
+      <ScreenHeader title="Activity" rightItems={rightItems} />
       <View
         flex={1}
         justifyContent="center"

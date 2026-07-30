@@ -34,3 +34,15 @@ export function getDisplayTheme(
 ): ThemeName {
   return theme === 'auto' ? (isDarkMode ? 'dark' : 'light') : theme;
 }
+
+/**
+ * Maps app themes to the native appearance used by UIKit. `auto` deliberately
+ * remains unset so the app continues following system appearance changes.
+ */
+export function getNativeColorScheme(theme: AppTheme) {
+  if (theme === 'auto') {
+    return 'unspecified';
+  }
+
+  return theme === 'light' || theme === 'peony' ? 'light' : 'dark';
+}

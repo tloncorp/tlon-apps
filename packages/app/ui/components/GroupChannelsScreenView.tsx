@@ -30,6 +30,7 @@ import { Badge } from './Badge';
 import { GroupAvatar } from './GroupAvatar';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
+import { screenContentInsetAdjustmentBehavior } from './ScreenScrollView';
 import SystemNotices from './SystemNotices';
 import WayfindingNotice from './Wayfinding/Notices';
 import { ChannelListItem } from './listItems/ChannelListItem';
@@ -296,6 +297,7 @@ export const GroupChannelsScreenView = React.memo(
             backAction={
               notebookSidebarContent.backAction ?? handleDismissNotebookSidebar
             }
+            scrollsUnderHeader
             rightControls={notebookSidebarContent.actions}
           />
           <YStack flex={1} minHeight={0}>
@@ -308,12 +310,6 @@ export const GroupChannelsScreenView = React.memo(
     return (
       <View flex={1}>
         <ScreenHeader
-          // When we're fetching the group from the local database, this component
-          // will initially mount with group undefined, then very quickly load the
-          // group in. Keeping the key consistent as long as the ID is prevents a
-          // full re-render / animation triggering almost immediately after the
-          // component mounts.
-          key={group?.id}
           title={title}
           titleIcon={group ? <GroupAvatar model={group} size="$2xl" /> : null}
           testID="GroupChannelsHeaderTrigger"
@@ -332,10 +328,13 @@ export const GroupChannelsScreenView = React.memo(
               />
             ) : null
           }
+          scrollsUnderHeader
         />
-        {isPersonalGroup && group && (
-          <WayfindingNotice.GroupChannels group={group} />
-        )}
+        {isPersonalGroup &&
+          group &&
+          (!group.channels || group.channels.length === 0) && (
+            <WayfindingNotice.GroupChannels group={group} />
+          )}
         {group && group.joinStatus === 'joining' ? (
           // Show loading spinner while group is syncing
           <YStack flex={1} justifyContent="center" alignItems="center">
@@ -343,15 +342,25 @@ export const GroupChannelsScreenView = React.memo(
           </YStack>
         ) : group && group.channels && group.channels.length > 0 ? (
           <YStack flex={1} minHeight={0}>
-            <SystemNotices.ConnectedJoinRequestNotice
-              group={group}
-              onViewRequests={onGoToGroupMembers}
-            />
             <FlashList
               data={listItems}
               renderItem={renderItem}
               keyExtractor={keyExtractor}
               getItemType={getItemType}
+              contentInsetAdjustmentBehavior={
+                screenContentInsetAdjustmentBehavior
+              }
+              ListHeaderComponent={
+                <>
+                  {isPersonalGroup ? (
+                    <WayfindingNotice.GroupChannels group={group} />
+                  ) : null}
+                  <SystemNotices.ConnectedJoinRequestNotice
+                    group={group}
+                    onViewRequests={onGoToGroupMembers}
+                  />
+                </>
+              }
               contentContainerStyle={{
                 paddingTop: getTokenValue('$l'),
                 paddingHorizontal: getTokenValue('$l'),

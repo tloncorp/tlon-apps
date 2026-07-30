@@ -166,6 +166,17 @@ export function TopLevelTabNavigator() {
   const roundedAvatarSource = useRoundedAvatarSource(
     calmSettings?.disableAvatars ? undefined : currentUser?.avatarImage
   );
+  const topLevelHeaderOptions = {
+    headerTitleAlign: 'center' as const,
+    headerShadowVisible: false,
+    headerTintColor: theme.primaryText?.val,
+    headerTitleStyle: {
+      color: theme.primaryText?.val,
+      fontSize: 17,
+      fontWeight: '500' as const,
+    },
+  };
+
   return (
     <NavigationThemeProvider value={navigationTheme}>
       <Tabs.Navigator
@@ -202,6 +213,9 @@ export function TopLevelTabNavigator() {
           component={ChatListScreen}
           options={{
             title: TOP_LEVEL_TABS.ChatList.title,
+            headerShown: true,
+            headerStyle: { backgroundColor: theme.background?.val },
+            ...topLevelHeaderOptions,
             tabBarIcon: ({ focused }) => tabIcon('home', focused),
           }}
         />
@@ -210,6 +224,8 @@ export function TopLevelTabNavigator() {
           component={ActivityScreen}
           options={{
             title: TOP_LEVEL_TABS.Activity.title,
+            headerShown: true,
+            ...topLevelHeaderOptions,
             tabBarBadge: haveUnreadActivity ? '' : undefined,
             tabBarIcon: ({ focused }) => tabIcon('activity', focused),
           }}
@@ -219,6 +235,8 @@ export function TopLevelTabNavigator() {
           component={ContactsScreen}
           options={{
             title: TOP_LEVEL_TABS.Contacts.title,
+            headerShown: true,
+            ...topLevelHeaderOptions,
             tabBarIcon: ({ focused }) =>
               Platform.OS === 'ios'
                 ? avatarTabIcon(roundedAvatarSource)
