@@ -1,4 +1,4 @@
-import { expect, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 
 import { posthogEnabled } from './posthogSingleton';
 
@@ -7,9 +7,12 @@ const { postHogConstructor } = vi.hoisted(() => ({
 }));
 
 vi.hoisted(() => {
-  process.env.NODE_ENV = 'production';
+  vi.stubEnv('NODE_ENV', 'production');
 });
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 vi.mock('posthog-react-native', () => ({
   default: class PostHog {
     constructor(...args: unknown[]) {
