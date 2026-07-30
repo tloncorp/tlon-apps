@@ -16,6 +16,7 @@ import {
 import { monitorTlonProvider } from './monitor/index.js';
 import { tlonSetupWizard } from './setup-surface.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
+import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
 import { resolveTlonAccount } from './types.js';
 import { withAuthenticatedTlonApi } from './urbit/api-client.js';
 import { authenticate } from './urbit/auth.js';
@@ -188,7 +189,7 @@ function recordOutboundLensDelivery(
   recordBackgroundContextLensOutput(target.lensId, output);
 }
 
-export const tlonRuntimeOutbound: Pick<
+const unobservedTlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
   'sendText' | 'sendMedia'
 > = {
@@ -324,6 +325,20 @@ export const tlonRuntimeOutbound: Pick<
       }
     );
   },
+};
+
+export const tlonRuntimeOutbound: Pick<
+  ChannelOutboundAdapter,
+  'sendText' | 'sendMedia'
+> = {
+  sendText: (params) =>
+    observeActiveTlonTurnDelivery(() =>
+      unobservedTlonRuntimeOutbound.sendText!(params)
+    ),
+  sendMedia: (params) =>
+    observeActiveTlonTurnDelivery(() =>
+      unobservedTlonRuntimeOutbound.sendMedia!(params)
+    ),
 };
 
 export async function probeTlonAccount(account: ConfiguredTlonAccount) {

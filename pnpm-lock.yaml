@@ -1114,6 +1114,9 @@ importers:
 
   packages/openclaw:
     dependencies:
+      '@opentelemetry/api':
+        specifier: ^1.9.0
+        version: 1.9.1
       '@tloncorp/api':
         specifier: workspace:^
         version: link:../api
@@ -3650,6 +3653,10 @@ packages:
     engines: {node: '>=22.19.0'}
     peerDependencies:
       undici: '>=8.3.0 <9'
+
+  '@opentelemetry/api@1.9.1':
+    resolution: {integrity: sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q==}
+    engines: {node: '>=8.0.0'}
 
   '@oxc-project/types@0.130.0':
     resolution: {integrity: sha512-ibD2usx9JRu7f5pu2tMKMI4cpA4NgXJQoYRP4pQ7Pxmn1l6k/53qWtQWZayhYy3X4QZkt90Ot+mJEaeXouio6Q==}
@@ -17077,6 +17084,8 @@ snapshots:
   '@openclaw/proxyline@0.3.3(undici@8.3.0)':
     dependencies:
       undici: 8.3.0
+
+  '@opentelemetry/api@1.9.1': {}
 
   '@oxc-project/types@0.130.0': {}
 

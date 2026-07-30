@@ -240,6 +240,66 @@ describe('telemetry tool tracking', () => {
     ).toBe('error');
   });
 
+  it('projects the canonical turn summary onto reply telemetry', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    const replyTelemetry = telemetry.startReply({
+      sessionKey: 'session-1',
+      runId: 'run-1',
+      accountId: 'default',
+      agentId: 'agent-main',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      chatType: 'dm',
+      isThreadReply: false,
+      senderRole: 'owner',
+      attachmentCount: 0,
+    });
+
+    await replyTelemetry.capture({
+      deliveredMessageCount: 1,
+      replyCharCount: 12,
+      replyWordCount: 2,
+      replyMediaCount: 0,
+      dispatchDurationMs: 250,
+      queuedFinal: true,
+      queuedFinalCount: 1,
+      queuedBlockCount: 0,
+      provider: 'anthropic',
+      model: 'claude-test',
+      thinkLevel: null,
+      turnSummary: {
+        accountId: 'default',
+        agentId: 'agent-main',
+        delivery: 'partial',
+        deliveryFailureCount: 1,
+        deliverySuccessCount: 1,
+        destinationKind: 'dm',
+        durationMs: 250,
+        execution: 'completed',
+        finalErrorReplyCount: 0,
+        reason: 'delivery_partial',
+        result: 'reply_and_action',
+        runId: 'run-1',
+        sessionKey: 'session-1',
+        ship: 'nec',
+        sourceReplyCount: 1,
+        toolCallCount: 2,
+        trigger: 'dm',
+      },
+    });
+
+    expect(
+      postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties
+    ).toMatchObject({
+      execution: 'completed',
+      result: 'reply_and_action',
+      delivery: 'partial',
+      finalErrorReplyCount: 0,
+      reason: 'delivery_partial',
+      trigger: 'dm',
+    });
+  });
+
   it('captures delivery skip reason only for no-reply outcomes', async () => {
     await captureReply({
       deliveredMessageCount: 0,
