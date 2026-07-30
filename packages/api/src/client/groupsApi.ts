@@ -35,6 +35,17 @@ function groupAction4(action: ub.GroupActionV4) {
   };
 }
 
+// group-action-5 carries the same shape as group-action-4 plus the
+// %blob variant; only blob pokes use it so older backends keep
+// accepting every other action.
+function groupAction5(action: ub.GroupActionV4) {
+  return {
+    app: 'groups',
+    mark: 'group-action-5',
+    json: action,
+  };
+}
+
 function groupNavigationBatchUpdate(
   flag: string,
   navigation: ub.GroupNavigationUpdate
@@ -482,17 +493,17 @@ export const createGroup = async ({
 };
 
 export const getGroup = async (groupId: string) => {
-  const path = `/v2/ui/groups/${groupId}`;
+  const path = `/v3/ui/groups/${groupId}`;
 
   const groupData = await scry<ub.GroupV7>({ app: 'groups', path });
   return toClientGroupV7(groupId, groupData, true);
 };
 
 export const getGroups = async () => {
-  // v2 scry path returns v9 format (with admissions/seats)
+  // v3 scry path returns v11 format (v9 plus the group blob)
   const groupData = await scry<ub.GroupsV7>({
     app: 'groups',
-    path: '/v2/groups',
+    path: '/v3/groups',
   });
   return toClientGroupsV7(groupData, true);
 };
@@ -523,6 +534,36 @@ export const updateGroupMeta = async ({
       return 'meta' in rGroup && event.flag === groupId;
     },
     { tag: 'updateGroupMeta' }
+  );
+};
+
+export const updateGroupBlob = async ({
+  groupId,
+  blob,
+}: {
+  groupId: string;
+  blob: string | null;
+}) => {
+  return await trackedPoke<ub.V1GroupResponse>(
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          blob,
+        },
+      },
+    }),
+    // blob responses ride /v3/groups only; they are stripped from v1/v2
+    { app: 'groups', path: '/v3/groups' },
+    (event) => {
+      if (!('r-group' in event)) {
+        return false;
+      }
+
+      const rGroup = event['r-group'];
+      return 'blob' in rGroup && event.flag === groupId;
+    },
+    { tag: 'updateGroupBlob' }
   );
 };
 
@@ -1028,6 +1069,12 @@ export type GroupEdit = {
   meta: db.ClientMeta;
 };
 
+export type GroupBlobEdit = {
+  type: 'editGroupBlob';
+  groupId: string;
+  blob: string | null;
+};
+
 export type GroupChannelAdd = {
   type: 'addChannel';
   channel: db.Channel;
@@ -1238,6 +1285,7 @@ export type GroupUpdate =
   | GroupAdd
   | GroupDelete
   | GroupEdit
+  | GroupBlobEdit
   | GroupChannelAdd
   | GroupChannelUpdate
   | GroupChannelDelete
@@ -1309,6 +1357,20 @@ export const subscribeGroups = async (
     logger.log('v2 groups subscription unavailable', err);
   });
 
+  // v3/groups adds group blob (custom payload) updates, which are stripped
+  // from v1/v2. It can bad-watch-path on older backends; in that case blob
+  // data still arrives via init/group sync.
+  void subscribe<ub.V1GroupResponse>(
+    { app: 'groups', path: '/v3/groups' },
+    (rawEvent) => {
+      if ('r-group' in rawEvent && 'blob' in rawEvent['r-group']) {
+        handleRawGroupsEvent(rawEvent);
+      }
+    }
+  ).catch((err) => {
+    logger.log('v3 groups subscription unavailable', err);
+  });
+
   // Subscribe to v1/foreigns for foreign group updates
   void subscribe(
     { app: 'groups', path: '/v1/foreigns' },
@@ -1346,6 +1408,15 @@ export const toV1GroupsUpdate = (
     return {
       type: 'editGroup',
       meta: toClientMeta(event.meta),
+      groupId,
+    };
+  }
+
+  // Handle custom payload updates
+  if ('blob' in event) {
+    return {
+      type: 'editGroupBlob',
+      blob: event.blob,
       groupId,
     };
   }
@@ -1810,6 +1881,7 @@ export function toClientGroupV7(
     roles,
     privacy: group.admissions.privacy,
     ...toClientGroupMeta(group.meta),
+    blob: group.blob ?? null,
     haveInvite: isJoined ? false : undefined,
     haveRequestedInvite: isJoined ? false : undefined,
     currentUserIsMember: isJoined,

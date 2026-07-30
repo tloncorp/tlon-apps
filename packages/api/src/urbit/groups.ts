@@ -348,6 +348,7 @@ export interface V1GroupResponse {
 export type GroupResponseData =
   | { create: GroupV7 }
   | { meta: GroupMeta }
+  | { blob: string | null }
   | { entry: GroupResponseEntry }
   | { seat: { ships: string[]; 'r-seat': GroupResponseSeat } }
   | { role: { roles: string[]; 'r-role': GroupResponseRole } }
@@ -519,6 +520,7 @@ export interface AdmissionRequest {
 
 export interface GroupV7 {
   meta: GroupMeta;
+  blob?: string | null;
   admissions: Admissions;
   seats: Record<string, Seat>; // fleet in v6 is now seats in v7, uses 'roles' not 'sects'
   roles: Record<string, GroupMeta>; // v7 roles ARE the metadata, not Cabals with nested meta
@@ -642,6 +644,7 @@ export type GroupActionV4 =
 
 export type GroupAction =
   | { meta: GroupMeta }
+  | { blob: string | null }
   | { entry: GroupEntryAction }
   | { seat: { ships: string[]; 'a-seat': GroupSeatAction } }
   | { role: { roles: string[]; 'a-role': GroupRoleAction } }

@@ -45,6 +45,32 @@ test('createGroup recovers only when a response body stalls after headers', asyn
 
   expect(scryMock).toHaveBeenCalledWith({
     app: 'groups',
-    path: '/v2/ui/groups/~zod/test-group',
+    path: '/v3/ui/groups/~zod/test-group',
+  });
+});
+
+test('toV1GroupsUpdate maps blob responses to editGroupBlob', async () => {
+  const { toV1GroupsUpdate } = await import('./groupsApi');
+
+  expect(
+    toV1GroupsUpdate({
+      flag: '~zod/test-group',
+      'r-group': { blob: '{"custom":"payload"}' },
+    })
+  ).toEqual({
+    type: 'editGroupBlob',
+    groupId: '~zod/test-group',
+    blob: '{"custom":"payload"}',
+  });
+
+  expect(
+    toV1GroupsUpdate({
+      flag: '~zod/test-group',
+      'r-group': { blob: null },
+    })
+  ).toEqual({
+    type: 'editGroupBlob',
+    groupId: '~zod/test-group',
+    blob: null,
   });
 });

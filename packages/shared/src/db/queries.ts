@@ -1408,6 +1408,7 @@ export const insertGroups = createWriteQuery(
                 $groups.coverImage,
                 $groups.title,
                 $groups.description,
+                $groups.blob,
                 $groups.privacy,
                 $groups.joinStatus,
                 $groups.currentUserIsMember,

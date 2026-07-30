@@ -287,3 +287,41 @@ test('addChannel propagates group sync failures for normal channels', async () =
     getGroup.mockRestore();
   }
 });
+
+// `editGroupBlob` carries the group's opaque custom payload; the handler
+// writes it to the group row verbatim and null clears it.
+test('editGroupBlob writes and clears the group blob column', async () => {
+  const groupId = '~bus/blob-group';
+
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  });
+
+  const blob = '{"custom":"payload"}';
+  await batchEffects('test:editGroupBlob', async (ctx) => {
+    await handleGroupUpdate({ type: 'editGroupBlob', groupId, blob }, ctx);
+  });
+
+  let group = await client.query.groups.findFirst({
+    where: $.eq(schema.groups.id, groupId),
+  });
+  expect(group?.blob).toBe(blob);
+
+  await batchEffects('test:editGroupBlob-clear', async (ctx) => {
+    await handleGroupUpdate(
+      { type: 'editGroupBlob', groupId, blob: null },
+      ctx
+    );
+  });
+
+  group = await client.query.groups.findFirst({
+    where: $.eq(schema.groups.id, groupId),
+  });
+  expect(group?.blob).toBeNull();
+});

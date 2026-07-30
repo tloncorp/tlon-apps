@@ -490,6 +490,32 @@ export async function updateGroupMeta(
   }
 }
 
+export async function updateGroupBlob(
+  group: db.Group,
+  blob: string | null,
+  config?: { shouldThrow?: boolean }
+) {
+  logger.log('updating group blob', group.id);
+
+  const existingGroup = await db.getGroup({ id: group.id });
+
+  // optimistic update
+  await db.updateGroup({ id: group.id, blob });
+
+  try {
+    await api.updateGroupBlob({ groupId: group.id, blob });
+  } catch (e) {
+    logger.error('Failed to update group blob', e);
+    // rollback optimistic update
+    if (existingGroup) {
+      await db.updateGroup({ id: group.id, blob: existingGroup.blob ?? null });
+    }
+    if (config?.shouldThrow) {
+      throw e;
+    }
+  }
+}
+
 export async function deleteGroup(group: db.Group) {
   logger.log('deleting group', group.id);
   logger.trackEvent(

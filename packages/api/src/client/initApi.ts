@@ -34,7 +34,8 @@ type InitDataOptions = {
 export const getInitData = async () => {
   const response = await scry<ub.GroupsInit7>({
     app: 'groups-ui',
-    path: '/v7/init',
+    // v9 init is v7 with the group blob included (activity stays v8)
+    path: '/v9/init',
   });
 
   logger.crumb('got init data from api');
