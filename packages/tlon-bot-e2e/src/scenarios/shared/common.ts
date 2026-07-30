@@ -1208,7 +1208,7 @@ export const commonScenarios: readonly SharedScenario[] = [
   ),
   testScenario(
     'sse-resume-replays-events-missed-while-disconnected',
-    { drivers: ['hermes'], orderDependent: true, timeoutMs: 300_000 },
+    { orderDependent: true, timeoutMs: 300_000 },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await openChannelAccess(actors, fixture.channelId);
@@ -1245,21 +1245,31 @@ export const commonScenarios: readonly SharedScenario[] = [
         ),
       });
 
-      // The stream fault surfaces as the sock_read timeout (~60 s, see
-      // TLON_SSE_READ_TIMEOUT_SECONDS in drivers/hermes.ts) or immediately as
-      // a reset/EOF. Either way the adapter logs "SSE stream error".
+      // The stream fault surfaces differently per driver. Hermes logs
+      // "SSE stream error" on its sock_read timeout (~60s, see
+      // TLON_SSE_READ_TIMEOUT_SECONDS in drivers/hermes.ts) or an immediate
+      // reset/EOF. OpenClaw logs "[SSE] Stream ended..." then
+      // "[SSE] Reconnection attempt..." on a clean EOF, but a silent network
+      // hang surfaces nothing until its stale-stream watchdog fires
+      // "[SSE] Stream stale..." (TLON_SSE_STALE_THRESHOLD_MS=60s in
+      // drivers/openclaw.ts). The driver supplies the markers; the wait
+      // resolves when any one of them appears.
       await waitFor(
         async () => {
           const logs = await readComposeServiceLogs(ctx, ctx.services.bot, {
             since,
           });
-          return logs.includes('SSE stream error') ? true : undefined;
+          return driver.streamFaultLogMarkers.some((marker) =>
+            logs.includes(marker)
+          )
+            ? true
+            : undefined;
         },
         {
           timeoutMs: 120_000,
           intervalMs: 2_000,
           description:
-            'SSE stream error in bot logs (confirms the fault occurred)',
+            'SSE stream fault marker in bot logs (confirms the fault occurred)',
         }
       );
 

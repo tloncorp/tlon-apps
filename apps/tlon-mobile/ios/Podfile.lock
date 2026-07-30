@@ -2842,7 +2842,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNWorklets (0.10.0):
+  - RNWorklets (0.10.3):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2864,10 +2864,10 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
-    - RNWorklets/apple (= 0.10.0)
-    - RNWorklets/common (= 0.10.0)
+    - RNWorklets/apple (= 0.10.3)
+    - RNWorklets/common (= 0.10.3)
     - Yoga
-  - RNWorklets/apple (0.10.0):
+  - RNWorklets/apple (0.10.3):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -2890,7 +2890,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNWorklets/common (0.10.0):
+  - RNWorklets/common (0.10.3):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -3558,7 +3558,7 @@ SPEC CHECKSUMS:
   FirebaseSharedSwift: 3d1e448b7202e36821a492941c84592d1308ea14
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 4f2618a4a1e762a1ee134a1e2323bba9843e06da
-  hermes-engine: 47881d040f3426e280a0ce73eb44f8a76ea9ee01
+  hermes-engine: 98e779806b70b24c5cdcce293ee27bb06e4ca908
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
@@ -3665,7 +3665,7 @@ SPEC CHECKSUMS:
   RNSentry: 4f0cf7953e18b7ff30a6524107bfff730a1b0d8d
   RNSVG: 68c366b996064ea99cee1e55da62b8feafb33a78
   RNTransformerTextInput: 02bdc63352cb1dce69e980e2f81950c0ec22c1b2
-  RNWorklets: e539c59f0fe8cee9a77989b7fb20d0cd7fb0e7d8
+  RNWorklets: 7eed3fc188d9d0b52ed537add10ca348b56ead27
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   SDWebImageAVIFCoder: afe194a084e851f70228e4be35ef651df0fc5c57
   SDWebImageSVGCoder: 15a300a97ec1c8ac958f009c02220ac0402e936c

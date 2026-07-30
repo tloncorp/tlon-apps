@@ -178,7 +178,9 @@ export function ContactBookPrompt(props: {
         <YStack gap="$xl">
           <NoticeTitle>Find Friends</NoticeTitle>
           <NoticeBody>
-            Sync your contact book to easily find people you know on Tlon.
+            Sync your contact book to easily find people you know on Tlon. Your
+            contacts are never uploaded — we only send anonymous, hashed
+            identifiers to our server to match you with people you know.
           </NoticeBody>
         </YStack>
         {props.status === 'undetermined' && (

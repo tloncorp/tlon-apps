@@ -30,6 +30,10 @@ const FORBIDDEN_CONTAINER_ENV = [
 export const hermesDriver: BotDriver = {
   name: 'hermes',
 
+  // The adapter logs "[tlon] SSE stream error: ..." on a sock_read timeout or
+  // an immediate reset/EOF.
+  streamFaultLogMarkers: ['SSE stream error'],
+
   packageDir(seed) {
     return path.join(seed.repoRoot, 'packages/hermes-tlon-adapter');
   },

@@ -2414,8 +2414,8 @@ function ConnectContactBookContent(props: {
           </SplashParagraph>
           {shouldShowConnectOption && (
             <SplashParagraph fontWeight="600" color="$primaryText">
-              We don&#39;t store your contacts — they&#39;re only referenced by
-              secure hash.
+              Your contacts are never uploaded — we only send anonymous, hashed
+              identifiers to our server to match you with people you know.
             </SplashParagraph>
           )}
         </ScrollView>
