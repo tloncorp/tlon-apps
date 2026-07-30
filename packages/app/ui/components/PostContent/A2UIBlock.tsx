@@ -1,5 +1,5 @@
 import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
-import { Button, Text } from '@tloncorp/ui';
+import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import React, { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
@@ -8,6 +8,23 @@ import { useContentContext } from './contentUtils';
 type RenderOptions = {
   cardDepth?: number;
   parentAlign?: A2UI.Container['align'];
+};
+
+/**
+ * Accent pairs for Choice option icons: a soft tile behind the icon in its
+ * saturated colour, matching the design's choice cards.
+ */
+const CHOICE_ACCENT_COLORS: Record<
+  NonNullable<A2UI.ChoiceOption['accent']>,
+  {
+    soft: ComponentProps<typeof View>['backgroundColor'];
+    strong: ComponentProps<typeof Icon>['color'];
+  }
+> = {
+  blue: { soft: '$blueSoft', strong: '$blue' },
+  green: { soft: '$greenSoft', strong: '$green' },
+  indigo: { soft: '$indigoSoft', strong: '$indigo' },
+  neutral: { soft: '$secondaryBackground', strong: '$secondaryText' },
 };
 
 function getTextSize(component: A2UI.Text) {
@@ -124,6 +141,10 @@ function getComponentText(
         .map((child) => getComponentText(components.get(child), components))
         .filter(Boolean)
         .join(' ');
+    case 'Choice':
+      // Text extraction feeds previews and labels: the option titles are the
+      // meaningful summary of a choice group.
+      return component.options.map((option) => option.label).join(', ');
     case 'Divider':
       return '';
   }
@@ -155,6 +176,20 @@ export function A2UIBlock({
       }
 
       onA2UIAction?.(component.action);
+    },
+    [onA2UIAction]
+  );
+
+  const handleChoicePress = useCallback(
+    (action: A2UI.ChoiceOption['action']) => {
+      if (
+        action.event.name === A2UI.action.sendMessage &&
+        !action.event.context.text.trim()
+      ) {
+        return;
+      }
+
+      onA2UIAction?.(action);
     },
     [onA2UIAction]
   );
@@ -287,9 +322,84 @@ export function A2UIBlock({
             </Button.Frame>
           );
         }
+        case 'Choice': {
+          return (
+            <YStack key={component.id} gap="$m" width="100%">
+              {component.options.map((option) => {
+                const accent = CHOICE_ACCENT_COLORS[option.accent ?? 'neutral'];
+                const disabled =
+                  !onA2UIAction ||
+                  isA2UIActionAvailable?.(option.action) === false;
+                return (
+                  <Pressable
+                    key={option.id}
+                    testID={`A2UIChoice-${option.id}`}
+                    accessibilityLabel={option.label}
+                    disabled={disabled}
+                    onPress={
+                      disabled
+                        ? undefined
+                        : () => handleChoicePress(option.action)
+                    }
+                  >
+                    <XStack
+                      borderWidth={1}
+                      borderColor="$border"
+                      borderRadius="$xl"
+                      backgroundColor="$background"
+                      paddingVertical="$l"
+                      paddingHorizontal="$l"
+                      gap="$l"
+                      alignItems="flex-start"
+                      opacity={disabled ? 0.5 : 1}
+                    >
+                      {option.icon ? (
+                        <View
+                          width={32}
+                          height={32}
+                          borderRadius="$m"
+                          backgroundColor={accent.soft}
+                          alignItems="center"
+                          justifyContent="center"
+                          flexShrink={0}
+                        >
+                          <Icon
+                            type={option.icon}
+                            color={accent.strong}
+                            customSize={[18, 18]}
+                          />
+                        </View>
+                      ) : null}
+                      <YStack flex={1} minWidth={0} gap="$2xs">
+                        <Text size="$label/l" fontWeight="500" trimmed={false}>
+                          {option.label}
+                        </Text>
+                        {option.description ? (
+                          <Text
+                            size="$label/m"
+                            color="$secondaryText"
+                            trimmed={false}
+                          >
+                            {option.description}
+                          </Text>
+                        ) : null}
+                      </YStack>
+                    </XStack>
+                  </Pressable>
+                );
+              })}
+            </YStack>
+          );
+        }
       }
     },
-    [components, handleButtonPress, isA2UIActionAvailable, onA2UIAction]
+    [
+      components,
+      handleButtonPress,
+      handleChoicePress,
+      isA2UIActionAvailable,
+      onA2UIAction,
+    ]
   );
 
   if (!root) {

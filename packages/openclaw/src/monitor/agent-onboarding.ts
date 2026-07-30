@@ -1,6 +1,10 @@
 import { A2UI } from '@tloncorp/api';
 
-import { type TlonA2UIBlob, makeA2UIBlob } from '../urbit/blob.js';
+import {
+  TLON_A2UI_CATALOG_V2,
+  type TlonA2UIBlob,
+  makeA2UIBlob,
+} from '../urbit/blob.js';
 
 /**
  * Agent onboarding, bot side: the purpose picker the agent posts into a group
@@ -32,19 +36,33 @@ export const PURPOSE_OPTIONS = [
     title: 'A daily digest',
     description:
       'A short summary of anything you care about, posted every morning.',
+    icon: 'ChannelNotebooks',
+    accent: 'blue',
   },
   {
     id: 'agent-tracking',
     title: 'Tracking',
     description:
       'You log a thing as it happens. I keep the running picture over time.',
+    icon: 'Clock',
+    accent: 'green',
   },
   {
     id: 'agent-research',
     title: 'Research',
     description: 'A standing deep-dive I keep updated as new work comes out.',
+    icon: 'Search',
+    accent: 'indigo',
   },
-] as const;
+] as const satisfies readonly {
+  id: string;
+  title: string;
+  description: string;
+  // Mirrors A2UI.ChoiceIcon / ChoiceAccent, spelled literally for the same
+  // registry-version reason as the options themselves.
+  icon: 'ChannelNotebooks' | 'Clock' | 'Search';
+  accent: 'blue' | 'green' | 'indigo';
+}[];
 
 /** Mirrors GROUP_AGENT_CONFIG_ENTRY_TYPE in @tloncorp/api. */
 const AGENT_CONFIG_ENTRY_TYPE = 'tlon-group-agent-config';
@@ -70,26 +88,71 @@ export function purposePickerFallbackText(): string {
 }
 
 /**
- * Build the purpose-picker card. Component ids and ordering are fixed here so
- * the rendered result is deterministic.
+ * Tapping posts the choice as the user's own reply, exactly as if they had
+ * typed it — the agent then reads it as a normal message.
  */
-export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
+function choiceAction(text: string) {
+  return { event: { name: A2UI.action.sendMessage, context: { text } } };
+}
+
+/**
+ * The design's layout: one tappable card per option, each with an accented
+ * icon tile, title and description. Needs the `Choice` primitive.
+ */
+function buildChoiceComponents(): A2UI.Component[] {
+  return [
+    {
+      id: 'root',
+      component: 'Column',
+      children: ['prompt', 'choices', 'footer'],
+    },
+    { id: 'prompt', component: 'Text', text: PURPOSE_PICKER_PROMPT },
+    {
+      // Cast: this plugin type-checks against whichever @tloncorp/api version
+      // the build resolved, which may predate `Choice`. Emitting it is still
+      // safe — `makeA2UIBlob` validates with that same version, so an older
+      // one rejects this layout and the caller falls back.
+      id: 'choices',
+      component: 'Choice',
+      options: PURPOSE_OPTIONS.map((option) => ({
+        id: option.id,
+        label: option.title,
+        description: option.description,
+        icon: option.icon,
+        accent: option.accent,
+        action: choiceAction(option.title),
+      })),
+    } as unknown as A2UI.Component,
+    {
+      id: 'footer',
+      component: 'Text',
+      variant: 'caption',
+      text: PURPOSE_PICKER_FOOTER,
+    },
+  ];
+}
+
+/**
+ * The v1 layout: a Card per option with a labelled Button, because a v1 Button
+ * can only carry text. Visually plainer than the design, but tappable and
+ * built from primitives every client understands.
+ */
+function buildButtonComponents(): A2UI.Component[] {
   const components: A2UI.Component[] = [
     {
       id: 'root',
       component: 'Column',
       children: [
         'prompt',
-        ...PURPOSE_OPTIONS.map((t) => `card-${t.id}`),
+        ...PURPOSE_OPTIONS.map((option) => `card-${option.id}`),
         'footer',
       ],
     },
     { id: 'prompt', component: 'Text', text: PURPOSE_PICKER_PROMPT },
   ];
 
-  for (const template of PURPOSE_OPTIONS) {
-    const { id } = template;
-    const { title: cardTitle, description: cardDescription } = template;
+  for (const option of PURPOSE_OPTIONS) {
+    const { id, title, description } = option;
     components.push(
       { id: `card-${id}`, component: 'Card', child: `body-${id}` },
       {
@@ -97,33 +160,21 @@ export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
         component: 'Column',
         children: [`title-${id}`, `desc-${id}`, `pick-${id}`],
       },
-      {
-        id: `title-${id}`,
-        component: 'Text',
-        variant: 'h4',
-        text: cardTitle,
-      },
+      { id: `title-${id}`, component: 'Text', variant: 'h4', text: title },
       {
         id: `desc-${id}`,
         component: 'Text',
         variant: 'caption',
-        text: cardDescription,
+        text: description,
       },
       {
         id: `pick-${id}`,
         component: 'Button',
         variant: 'primary',
         child: `pickLabel-${id}`,
-        action: {
-          event: {
-            name: A2UI.action.sendMessage,
-            // Tapping posts the choice as the user's reply, exactly as if
-            // they had typed it — the agent reads it as a normal message.
-            context: { text: cardTitle },
-          },
-        },
+        action: choiceAction(title),
       },
-      { id: `pickLabel-${id}`, component: 'Text', text: cardTitle }
+      { id: `pickLabel-${id}`, component: 'Text', text: title }
     );
   }
 
@@ -134,7 +185,30 @@ export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
     text: PURPOSE_PICKER_FOOTER,
   });
 
-  return makeA2UIBlob(`agent-onboarding-${surfaceSuffix}`, 'root', components);
+  return components;
+}
+
+/**
+ * Build the purpose-picker card. Component ids and ordering are fixed here so
+ * the rendered result is deterministic.
+ *
+ * Prefers the design's `Choice` layout and falls back to the v1 Card+Button
+ * layout when the resolved @tloncorp/api doesn't know `Choice` yet (this
+ * plugin is built outside the workspace against a published version). The
+ * fallback disappears on its own once a release carries the primitive.
+ */
+export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
+  const surfaceId = `agent-onboarding-${surfaceSuffix}`;
+  try {
+    return makeA2UIBlob(
+      surfaceId,
+      'root',
+      buildChoiceComponents(),
+      TLON_A2UI_CATALOG_V2
+    );
+  } catch {
+    return makeA2UIBlob(surfaceId, 'root', buildButtonComponents());
+  }
 }
 
 export interface ChannelGroupInfo {

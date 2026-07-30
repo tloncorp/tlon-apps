@@ -15,12 +15,19 @@ export function serializeContextLensReferenceBlob(
 }
 
 export const TLON_A2UI_CATALOG_ID = 'tlon.a2ui.basic.v1';
+/**
+ * Adds the `Choice` component. Clients that predate it fail validation on the
+ * unknown component and fall back to the post's story text, so only send v2
+ * for surfaces whose text fallback stands on its own.
+ */
+export const TLON_A2UI_CATALOG_V2 = 'tlon.a2ui.basic.v2';
 export type TlonA2UIBlob = A2UI.BlobEntry;
 
 export function makeA2UIBlob(
   surfaceId: string,
   root: string,
-  components: A2UI.Component[]
+  components: A2UI.Component[],
+  catalogId: string = TLON_A2UI_CATALOG_ID
 ): TlonA2UIBlob {
   const blob: TlonA2UIBlob = {
     type: 'a2ui',
@@ -28,7 +35,7 @@ export function makeA2UIBlob(
     messages: [
       {
         version: 'v0.9',
-        createSurface: { surfaceId, catalogId: TLON_A2UI_CATALOG_ID },
+        createSurface: { surfaceId, catalogId },
       },
       {
         version: 'v0.9',

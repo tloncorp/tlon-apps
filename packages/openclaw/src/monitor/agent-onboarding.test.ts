@@ -31,37 +31,122 @@ const baseOpts = {
   alreadyOffered: false,
 };
 
+function componentsOf(blob: ReturnType<typeof buildPurposePickerBlob>) {
+  const update = blob.messages.find((m) => 'updateComponents' in m);
+  return (update as any).updateComponents.components as A2UI.Component[];
+}
+
+function catalogOf(blob: ReturnType<typeof buildPurposePickerBlob>) {
+  const create = blob.messages.find((m) => 'createSurface' in m);
+  return (create as any).createSurface.catalogId as string;
+}
+
+/**
+ * Every tappable thing in the blob, as (id, posted text) pairs — a Choice
+ * option and a v1 Button are the same affordance to the user, so the picker's
+ * behavioral guarantees are asserted against this rather than against either
+ * layout. Keeps these tests true in both builds (see the note on
+ * PURPOSE_OPTIONS: outside the workspace, @tloncorp/api may predate `Choice`).
+ */
+function tappableOptions(blob: ReturnType<typeof buildPurposePickerBlob>) {
+  const components = componentsOf(blob);
+  const found: { id: string; text: string }[] = [];
+  for (const component of components) {
+    if (component.component === 'Button') {
+      const label = components.find((c) => c.id === component.child);
+      found.push({
+        id: component.id.replace(/^pick-/, ''),
+        text:
+          component.action.event.name === A2UI.action.sendMessage
+            ? component.action.event.context.text
+            : (label as A2UI.Text | undefined)?.text ?? '',
+      });
+    } else if ((component as { component: string }).component === 'Choice') {
+      for (const option of (component as A2UI.Choice).options) {
+        found.push({
+          id: option.id,
+          text:
+            option.action.event.name === A2UI.action.sendMessage
+              ? option.action.event.context.text
+              : '',
+        });
+      }
+    }
+  }
+  return found;
+}
+
+/** Whether the resolved @tloncorp/api knows the `Choice` primitive. */
+const apiSupportsChoice = A2UI.validateBlobEntry({
+  type: 'a2ui',
+  version: 1,
+  messages: [
+    {
+      version: 'v0.9',
+      createSurface: { surfaceId: 's', catalogId: 'tlon.a2ui.basic.v2' },
+    },
+    {
+      version: 'v0.9',
+      updateComponents: {
+        surfaceId: 's',
+        root: 'c',
+        components: [
+          {
+            id: 'c',
+            component: 'Choice',
+            options: [
+              {
+                id: 'o',
+                label: 'o',
+                action: {
+                  event: {
+                    name: A2UI.action.sendMessage,
+                    context: { text: 'o' },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
+} as never);
+
 describe('purpose picker card', () => {
-  test('builds a valid a2ui blob with a button per template', () => {
+  test('builds a valid a2ui blob with one tappable option per template', () => {
     const blob = buildPurposePickerBlob('chat/~sampel-palnet/home-group-chat');
     expect(A2UI.validateBlobEntry(blob)).toBe(true);
-
-    const update = blob.messages.find((m) => 'updateComponents' in m);
-    const components = (update as any).updateComponents
-      .components as A2UI.Component[];
-    const buttons = components.filter((c) => c.component === 'Button');
-    expect(buttons).toHaveLength(PURPOSE_OPTIONS.length);
+    expect(tappableOptions(blob)).toHaveLength(PURPOSE_OPTIONS.length);
   });
 
-  test('each button posts its own card title as the user reply', () => {
-    const blob = buildPurposePickerBlob('nest');
-    const update = blob.messages.find((m) => 'updateComponents' in m);
-    const components = (update as any).updateComponents
-      .components as A2UI.Component[];
+  test('each option posts its own card title as the user reply', () => {
+    const options = tappableOptions(buildPurposePickerBlob('nest'));
 
     for (const template of PURPOSE_OPTIONS) {
-      const button = components.find(
-        (c): c is A2UI.Button =>
-          c.component === 'Button' && c.id === `pick-${template.id}`
-      );
-      expect(button).toBeDefined();
-      expect(button!.action?.event.name).toBe(A2UI.action.sendMessage);
-      expect(
-        (button!.action?.event as A2UI.SendMessageEvent).context.text
-      ).toBe(template.title);
+      const option = options.find((o) => o.id === template.id);
+      expect(option).toBeDefined();
+      expect(option!.text).toBe(template.title);
       // The posted text must round-trip as a recognized choice, otherwise the
       // picker would be re-offered in response to its own tap.
       expect(isPurposePickerChoice(template.title)).toBe(true);
+    }
+  });
+
+  test('prefers the design Choice layout, falling back when unsupported', () => {
+    const blob = buildPurposePickerBlob('nest');
+    const kinds = componentsOf(blob).map(
+      (c) => (c as { component: string }).component
+    );
+
+    if (apiSupportsChoice) {
+      expect(kinds).toContain('Choice');
+      expect(kinds).not.toContain('Button');
+      expect(catalogOf(blob)).toBe('tlon.a2ui.basic.v2');
+    } else {
+      expect(kinds).not.toContain('Choice');
+      expect(kinds).toContain('Button');
+      expect(catalogOf(blob)).toBe('tlon.a2ui.basic.v1');
     }
   });
 
@@ -259,5 +344,47 @@ describe('findGroupForChannel', () => {
 
   test('returns null without an api client', async () => {
     expect(await findGroupForChannel(null, nest, {})).toBeNull();
+  });
+});
+
+describe('purpose picker layout selection', () => {
+  test('uses the design Choice layout when the resolved api supports it', () => {
+    const blob = buildPurposePickerBlob('nest');
+    const update: any = blob.messages.find((m: any) => m.updateComponents);
+    const components = update.updateComponents.components;
+    const choice = components.find((c: any) => c.component === 'Choice');
+    const catalogId = (blob.messages.find((m: any) => m.createSurface) as any)
+      .createSurface.catalogId;
+
+    if (choice) {
+      // Design layout: one Choice group carrying every option, with the icon
+      // and accent the design specifies.
+      expect(catalogId).toBe('tlon.a2ui.basic.v2');
+      expect(choice.options).toHaveLength(PURPOSE_OPTIONS.length);
+      for (const [i, option] of choice.options.entries()) {
+        expect(option.label).toBe(PURPOSE_OPTIONS[i].title);
+        expect(option.description).toBe(PURPOSE_OPTIONS[i].description);
+        expect(option.icon).toBe(PURPOSE_OPTIONS[i].icon);
+        expect(option.accent).toBe(PURPOSE_OPTIONS[i].accent);
+        expect(option.action.event.context.text).toBe(PURPOSE_OPTIONS[i].title);
+      }
+    } else {
+      // Fallback: v1 Card+Button layout, still one tappable target per option
+      // posting the same text, so behaviour is identical either way.
+      expect(catalogId).toBe('tlon.a2ui.basic.v1');
+      const buttons = components.filter((c: any) => c.component === 'Button');
+      expect(buttons).toHaveLength(PURPOSE_OPTIONS.length);
+      for (const [i, button] of buttons.entries()) {
+        expect(button.action.event.context.text).toBe(PURPOSE_OPTIONS[i].title);
+      }
+    }
+  });
+
+  test('whichever layout is used, the blob validates and taps round-trip', () => {
+    const blob = buildPurposePickerBlob('nest');
+    expect(A2UI.validateBlobEntry(blob)).toBe(true);
+    for (const option of PURPOSE_OPTIONS) {
+      expect(isPurposePickerChoice(option.title)).toBe(true);
+    }
   });
 });

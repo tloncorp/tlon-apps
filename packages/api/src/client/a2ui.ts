@@ -110,7 +110,42 @@ export namespace A2UI {
     action: ButtonAction;
   };
 
-  export type Component = Text | Container | Card | Divider | Button;
+  /**
+   * Icons a Choice option may carry. An allowlist rather than a free string:
+   * these blobs are built by Tlon code, but the renderer must not be able to
+   * be pointed at an arbitrary asset name by anything that reaches the wire.
+   */
+  export type ChoiceIcon =
+    | 'ChannelNotebooks'
+    | 'ChannelTalk'
+    | 'ChannelGalleries'
+    | 'Clock'
+    | 'Search'
+    | 'Face';
+
+  export type ChoiceAccent = 'blue' | 'green' | 'indigo' | 'neutral';
+
+  export type ChoiceOption = {
+    id: string;
+    label: string;
+    /** secondary line under the label */
+    description?: string;
+    icon?: ChoiceIcon;
+    accent?: ChoiceAccent;
+    action: ButtonAction;
+  };
+
+  /**
+   * A group of tappable option cards — icon, title, description — where the
+   * whole card is the target. Buttons can only carry a text label, so this is
+   * the primitive for "pick one of these" choices.
+   */
+  export type Choice = ComponentBase & {
+    component: 'Choice';
+    options: ChoiceOption[];
+  };
+
+  export type Component = Text | Container | Card | Divider | Button | Choice;
 
   export type CreateSurfaceMessage = {
     version: 'v0.9';
@@ -139,11 +174,23 @@ export namespace A2UI {
   };
 }
 
+export const CHOICE_ICONS = [
+  'ChannelNotebooks',
+  'ChannelTalk',
+  'ChannelGalleries',
+  'Clock',
+  'Search',
+  'Face',
+] as const;
+
+export const CHOICE_ACCENTS = ['blue', 'green', 'indigo', 'neutral'] as const;
+
 const LIMITS = {
   maxBytes: 32 * 1024,
   maxComponents: 50,
   maxDepth: 8,
   maxChildren: 12,
+  maxChoiceOptions: 6,
   maxTextNodeLength: 1000,
   maxButtonMessageLength: 1000,
   maxNavigationTargetIdLength: 500,
@@ -349,9 +396,55 @@ function validateComponent(component: unknown): component is A2UI.Component {
         validateButtonAction(action)
       );
     }
+    case 'Choice': {
+      const options = component.options;
+      return (
+        Array.isArray(options) &&
+        options.length > 0 &&
+        options.length <= LIMITS.maxChoiceOptions &&
+        new Set(options.map((option) => (option as { id?: unknown })?.id))
+          .size === options.length &&
+        options.every(validateChoiceOption)
+      );
+    }
     default:
       return false;
   }
+}
+
+function validateChoiceOption(option: unknown): option is A2UI.ChoiceOption {
+  if (!isPlainObject(option)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(option.id) &&
+    isNonEmptyString(option.label) &&
+    (option.label as string).length <= LIMITS.maxTextNodeLength &&
+    (option.description === undefined ||
+      (typeof option.description === 'string' &&
+        option.description.length <= LIMITS.maxTextNodeLength)) &&
+    isValidChoiceIcon(option.icon) &&
+    isValidChoiceAccent(option.accent) &&
+    validateButtonAction(option.action)
+  );
+}
+
+function isValidChoiceIcon(icon: unknown): icon is A2UI.ChoiceIcon | undefined {
+  return (
+    icon === undefined ||
+    (typeof icon === 'string' &&
+      (CHOICE_ICONS as readonly string[]).includes(icon))
+  );
+}
+
+function isValidChoiceAccent(
+  accent: unknown
+): accent is A2UI.ChoiceAccent | undefined {
+  return (
+    accent === undefined ||
+    (typeof accent === 'string' &&
+      (CHOICE_ACCENTS as readonly string[]).includes(accent))
+  );
 }
 
 type ValidatedEnvelope = {
@@ -433,6 +526,15 @@ function indexComponents(
       }
     } else if (component.component === 'Text') {
       totalTextLength += component.text.length;
+    } else if (component.component === 'Choice') {
+      // Choice carries its own copy — count it, or it bypasses the budget.
+      for (const option of component.options) {
+        totalTextLength += option.label.length;
+        totalTextLength += option.description?.length ?? 0;
+        if (option.action.event.name === ACTION_SEND_MESSAGE) {
+          totalTextLength += option.action.event.context.text.length;
+        }
+      }
     }
   }
 
