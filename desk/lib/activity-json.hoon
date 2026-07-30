@@ -1136,6 +1136,8 @@
           %group-kick
           %group-role
           %group-invite
+          %chan-init
+          %contact
           %note-create
           %note-edit
       ==

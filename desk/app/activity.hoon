@@ -183,13 +183,10 @@
     =.  allowed.old  %all
     old(- %10, volume-settings volume-settings)
   =?  old  ?=(%10 -.old)
-    ::  insert missing volume defaults to %base
-    ::
-    =/  base-volume=volume-map:v10:av
-      (~(gut by volume-settings.old) [%base ~] default-volumes:v9:av)
-    =/  =volume-settings:v10:av
-      %+  ~(put by `volume-settings:v10:av`volume-settings.old)  [%base ~]
-      (~(uni by default-volumes:v10:av) base-volume)
+    ::  the note volume keys are deliberately NOT seeded into stored
+    ::  maps: +get-volume mirrors a map's %post entry when they're
+    ::  absent, which respects existing muted or boosted settings
+    ::  (seeding the loud defaults would override a muted %base).
     ::  v10 drops the unused reads field from activity-summary, so the
     ::  stored summaries need reshaping, not just a head swap
     ::
@@ -198,7 +195,7 @@
       |=  sum=activity-summary:v9:av
       ^-  activity-summary:v10:av
       [newest.sum count.sum notify-count.sum notify.sum unread.sum children.sum]
-    old(- %11, volume-settings volume-settings, activity activity)
+    old(- %11, activity activity)
   ?>  ?=(%11 -.old)
   =.  state  old
   refresh-all-summaries
@@ -648,8 +645,8 @@
     ==
   ::
       [%x ver=?(%v4 %v5 %v6) %activity ~]
-    =/  =activity:a  (strip-threads activity)
-    =/  legacy=activity:a  (deduct-notes-activity activity)
+    =/  stripped=activity:a  (strip-threads activity)
+    =/  legacy=activity:a  (deduct-notes-activity stripped)
     ?-    ver.pole
         %v4
       ``activity-summary-4+!>((v8:activity:v9:ac (v9:activity:v10:ac legacy)))
@@ -658,7 +655,7 @@
       ``activity-summary-5+!>((v9:activity:v10:ac legacy))
     ::
         %v6
-      ``activity-summary-6+!>(`activity:v10:av`activity)
+      ``activity-summary-6+!>(`activity:v10:av`stripped)
     ==
   ::
       [%x ver=?(%v4 %v5 %v6) %activity %full ~]
@@ -976,16 +973,21 @@
       ==
   ^+  sum
   ?.  ?=(?(%base %group) -.source)  sum
-  %+  roll  deds
-  |=  [[group=(unit flag:gv) count=@ud notify-count=@ud] out=_sum]
-  ?.  ?|  ?=(%base -.source)
-          =(`flag.source group)
-      ==
-    out
-  %=  out
-    count         (sub count.out (min count.out count))
-    notify-count  (sub notify-count.out (min notify-count.out notify-count))
-  ==
+  =/  adj=_sum
+    %+  roll  deds
+    |=  [[group=(unit flag:gv) count=@ud notify-count=@ud] out=_sum]
+    ?.  ?|  ?=(%base -.source)
+            =(`flag.source group)
+        ==
+      out
+    %=  out
+      count         (sub count.out (min count.out count))
+      notify-count  (sub notify-count.out (min notify-count.out notify-count))
+    ==
+  ::  if the deduction removed the last notifying unread, clear the
+  ::  notify flag too — legacy clients light dots off the boolean
+  ?:  =(notify-count.adj notify-count.sum)  adj
+  adj(notify &(notify.adj (gth notify-count.adj 0)))
 ::
 ++  deduct-notes-activity
   |=  ac=activity:a
