@@ -1,6 +1,6 @@
 // Explicit extension: consumers with node16/nodenext module resolution (the
 // openclaw plugin) type-check this file directly and require it.
-import type { GroupJobSchedule } from './groupAgentConfig.js';
+import type { GroupJobSchedule } from './groupAgentConfig';
 
 export type TemplateChannelType = 'chat' | 'notebook' | 'gallery';
 

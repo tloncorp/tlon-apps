@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { isMoonOf, preSig } from '../lib/urbit.js';
+import { isMoonOf, preSig } from '../lib/urbit';
 
 /**
  * Group agent configuration.
