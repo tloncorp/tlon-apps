@@ -1,9 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import {
-  NativeStackScreenProps,
-  createNativeStackNavigator,
-} from '@react-navigation/native-stack';
-import { useLayoutEffect } from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
@@ -32,13 +28,10 @@ import { PushNotificationSettingsScreen } from '../features/settings/PushNotific
 import SettingsScreen from '../features/settings/SettingsScreen';
 import { ThemeScreen } from '../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../features/settings/UserBugReportScreen';
-import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
 import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
-import ChatListScreen from '../features/top/ChatListScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
-import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../features/top/MediaViewerScreen';
 import { NotesDetailScreen } from '../features/top/NotesDetailScreen';
@@ -49,9 +42,8 @@ import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
-import { NativeTabNavigator } from './NativeTabNavigator';
-import { resolveNativeTabRedirectState } from './nativeTabs';
-import type { NativeTabParamList, RootStackParamList } from './types';
+import { TopLevelTabNavigator } from './TopLevelTabNavigator';
+import type { RootStackParamList } from './types';
 import { mediaViewerScreenOptions } from './utils';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
@@ -72,60 +64,18 @@ export function RootStack() {
 
   return (
     <Root.Navigator
-      initialRouteName={Platform.OS === 'web' ? 'ChatList' : 'MainTabs'}
+      initialRouteName="MainTabs"
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: theme.background?.val },
       }}
     >
       {/* top level tabs */}
-      {Platform.OS !== 'web' ? (
-        <>
-          <Root.Screen
-            name="MainTabs"
-            component={NativeTabNavigator}
-            options={{ animation: 'none', gestureEnabled: false }}
-          />
-          {/*
-           * Existing notifications, links, and reset helpers target these
-           * route names directly. Keep them as adapters while the native tab
-           * shell rolls out, then reset into the corresponding nested tab.
-           */}
-          <Root.Screen
-            name="Contacts"
-            component={NativeTabRedirect}
-            options={{ animation: 'none', gestureEnabled: false }}
-          />
-          <Root.Screen
-            name="ChatList"
-            component={NativeTabRedirect}
-            options={{ animation: 'none', gestureEnabled: false }}
-          />
-          <Root.Screen
-            name="Activity"
-            component={NativeTabRedirect}
-            options={{ animation: 'none', gestureEnabled: false }}
-          />
-        </>
-      ) : (
-        <>
-          <Root.Screen
-            name="Contacts"
-            component={ContactsScreen}
-            options={{ animation: 'none', gestureEnabled: false }}
-          />
-          <Root.Screen
-            name="ChatList"
-            component={ChatListScreen}
-            options={{ animation: 'none', gestureEnabled: false }}
-          />
-          <Root.Screen
-            name="Activity"
-            component={ActivityScreen}
-            options={{ animation: 'none', gestureEnabled: false }}
-          />
-        </>
-      )}
+      <Root.Screen
+        name="MainTabs"
+        component={TopLevelTabNavigator}
+        options={{ animation: 'none', gestureEnabled: false }}
+      />
       <Root.Screen
         name="Settings"
         component={SettingsScreen}
@@ -218,39 +168,4 @@ export function RootStack() {
       <Root.Screen name="InviteUsers" component={InviteUsersScreen} />
     </Root.Navigator>
   );
-}
-
-type NativeTabName = keyof NativeTabParamList;
-
-function NativeTabRedirect({
-  navigation,
-  route,
-}: NativeStackScreenProps<RootStackParamList, NativeTabName>) {
-  const { key: routeKey, name: routeName, params: routeParams } = route;
-
-  useLayoutEffect(() => {
-    // Callers (notifications, deep links, useResetTo*) reset to stacks like
-    // [ChatList, Channel] and rely on the destination surviving. Swap this
-    // legacy tab route for MainTabs in place and keep every other route, so
-    // the reset still lands on the screen it targeted.
-    const state = navigation.getState();
-    const nextState = resolveNativeTabRedirectState({
-      state,
-      route: {
-        key: routeKey,
-        name: routeName,
-        params: routeParams,
-      },
-    });
-    if (!nextState) {
-      return;
-    }
-
-    navigation.reset({
-      index: nextState.index,
-      routes: nextState.routes as never,
-    });
-  }, [navigation, routeKey, routeName, routeParams]);
-
-  return null;
 }

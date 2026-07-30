@@ -1,5 +1,4 @@
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
-import type { NativeBottomTabScreenProps } from '@react-navigation/bottom-tabs/unstable';
 import {
   ClipOp,
   ImageFormat,
@@ -8,21 +7,20 @@ import {
   rrect,
   useImage,
 } from '@shopify/react-native-skia';
-import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
-import { ComponentType, useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { type ImageSourcePropType, Platform } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
-import { useCurrentUserId } from '../hooks/useCurrentUser';
-import { triggerHaptic } from '../ui';
+import { useTopLevelTabController } from '../hooks/useTopLevelTabController';
 import ProfileStatusSheet from '../ui/components/ProfileStatusSheet';
-import type { NativeTabParamList } from './types';
+import { TOP_LEVEL_TABS, trackTopLevelTabSelection } from './topLevelTabs';
+import type { TopLevelTabParamList } from './types';
 
-const Tabs = createNativeBottomTabNavigator<NativeTabParamList>();
+const Tabs = createNativeBottomTabNavigator<TopLevelTabParamList>();
 
 type TabIconName = 'home' | 'activity' | 'profile';
 
@@ -132,42 +130,14 @@ function useRoundedAvatarSource(avatarImage: string | null | undefined) {
   return source;
 }
 
-// The existing screen components navigate to detail routes in the parent
-// native stack. React Navigation bubbles those actions at runtime; the cast
-// lets us preserve their existing stack prop types during this first migration.
-const ChatListTab = ChatListScreen as unknown as ComponentType<
-  NativeBottomTabScreenProps<NativeTabParamList, 'ChatList'>
->;
-const ActivityTab = ActivityScreen as unknown as ComponentType<
-  NativeBottomTabScreenProps<NativeTabParamList, 'Activity'>
->;
-const ContactsTab = ContactsScreen as unknown as ComponentType<
-  NativeBottomTabScreenProps<NativeTabParamList, 'Contacts'>
->;
-
-export function NativeTabNavigator() {
+export function TopLevelTabNavigator() {
   const theme = useTheme();
-  const currentUserId = useCurrentUserId();
+  const { currentUserId, haveUnreadActivity, statusSheet } =
+    useTopLevelTabController();
   const { data: currentUser } = store.useContact({ id: currentUserId });
   const { data: calmSettings } = store.useCalmSettings();
   const roundedAvatarSource = useRoundedAvatarSource(
     calmSettings?.disableAvatars ? undefined : currentUser?.avatarImage
-  );
-  const haveUnreadActivity = store.useHaveUnreadUnseenActivity();
-  const [showStatusSheet, setShowStatusSheet] = useState(false);
-  const openStatusSheet = useCallback(() => {
-    triggerHaptic('sheetOpen');
-    setShowStatusSheet(true);
-  }, []);
-  const closeStatusSheet = useCallback(() => {
-    setShowStatusSheet(false);
-  }, []);
-  const handleUpdateStatus = useCallback(
-    (status: string) => {
-      store.updateCurrentUserProfile({ status });
-      closeStatusSheet();
-    },
-    [closeStatusSheet]
   );
   return (
     <>
@@ -179,14 +149,12 @@ export function NativeTabNavigator() {
             // Match the web nav bar: track selections, not re-presses of the
             // active tab.
             if (!navigation.isFocused()) {
-              trackEvent(AnalyticsEvent.NavigationTabSelected, {
-                tab: route.name === 'ChatList' ? 'Home' : route.name,
-              });
+              trackTopLevelTabSelection(route.name);
             }
           },
           tabLongPress: () => {
             if (route.name === 'Contacts') {
-              openStatusSheet();
+              statusSheet.openSheet();
             }
           },
         })}
@@ -195,7 +163,6 @@ export function NativeTabNavigator() {
           tabBarActiveTintColor: theme.primaryText?.val,
           tabBarInactiveTintColor: theme.secondaryText?.val,
           tabBarActiveIndicatorColor: theme.secondaryBackground?.val,
-          tabBarLabel: Platform.OS === 'ios' ? '' : undefined,
           tabBarLabelVisibilityMode:
             Platform.OS === 'android' ? 'unlabeled' : undefined,
           tabBarControllerMode: Platform.OS === 'ios' ? 'tabBar' : undefined,
@@ -205,26 +172,26 @@ export function NativeTabNavigator() {
       >
         <Tabs.Screen
           name="ChatList"
-          component={ChatListTab}
+          component={ChatListScreen}
           options={{
-            title: 'Home',
+            title: TOP_LEVEL_TABS.ChatList.title,
             tabBarIcon: ({ focused }) => tabIcon('home', focused),
           }}
         />
         <Tabs.Screen
           name="Activity"
-          component={ActivityTab}
+          component={ActivityScreen}
           options={{
-            title: 'Activity',
+            title: TOP_LEVEL_TABS.Activity.title,
             tabBarBadge: haveUnreadActivity ? '' : undefined,
             tabBarIcon: ({ focused }) => tabIcon('activity', focused),
           }}
         />
         <Tabs.Screen
           name="Contacts"
-          component={ContactsTab}
+          component={ContactsScreen}
           options={{
-            title: 'Contacts',
+            title: TOP_LEVEL_TABS.Contacts.title,
             tabBarIcon: ({ focused }) =>
               Platform.OS === 'ios'
                 ? avatarTabIcon(roundedAvatarSource)
@@ -232,11 +199,11 @@ export function NativeTabNavigator() {
           }}
         />
       </Tabs.Navigator>
-      {showStatusSheet && (
+      {statusSheet.open && (
         <ProfileStatusSheet
           open
-          onOpenChange={closeStatusSheet}
-          onUpdateStatus={handleUpdateStatus}
+          onOpenChange={statusSheet.closeSheet}
+          onUpdateStatus={statusSheet.updateStatus}
         />
       )}
     </>

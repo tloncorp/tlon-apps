@@ -93,9 +93,9 @@ type NestedRouteLike = {
 /**
  * Return whether a Post's preceding root route represents Activity.
  *
- * Native tabs keep Activity inside the `MainTabs` route, while legacy and
- * desktop stacks expose Activity directly. Prefer live nested tab state when
- * available; route params are only an initialization fallback.
+ * Narrow layouts keep Activity inside the `MainTabs` route, while desktop
+ * exposes Activity directly. Prefer live nested tab state when available;
+ * route params are only an initialization fallback.
  */
 export function isActivityBackTarget(route: unknown): boolean {
   if (typeof route !== 'object' || route === null) {

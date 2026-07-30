@@ -4,6 +4,7 @@ import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 
+import { getTopLevelTabRoute } from '../navigation/topLevelTabs';
 import type { RootStackParamList } from '../navigation/types';
 import { GroupSettingsStackParamList } from '../navigation/types';
 import { useRootNavigation, useTypedReset } from '../navigation/utils';
@@ -213,7 +214,8 @@ export const useChatSettingsNavigation = () => {
 
   const onLeaveGroup = useCallback(() => {
     if (isWindowNarrow) {
-      navigationRef.current.navigate('ChatList', undefined, { pop: true });
+      const route = getTopLevelTabRoute('ChatList');
+      navigationRef.current.navigate(route.name, route.params, { pop: true });
     } else {
       // Desktop: Reset navigation stack to clean Home state
       reset([{ name: 'Home' }]);

@@ -9,6 +9,7 @@ import {
 } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
+import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import {
   AttachmentProvider,
@@ -34,7 +35,8 @@ export function GroupMetaScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
 
   const navigateToHome = useCallback(() => {
-    navigation.getParent()?.navigate('ChatList', undefined, { pop: true });
+    const route = getTopLevelTabRoute('ChatList');
+    navigation.getParent()?.navigate(route.name, route.params, { pop: true });
   }, [navigation]);
 
   const handleGoBack = useHandleGoBack(navigation, {

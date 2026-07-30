@@ -4,6 +4,7 @@ import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';
 
+import { getTopLevelTabRoute } from '../navigation/topLevelTabs';
 import { RootStackParamList } from '../navigation/types';
 import { useRootNavigation } from '../navigation/utils';
 
@@ -44,7 +45,8 @@ export const useGroupNavigation = () => {
   );
 
   const goToHome = useCallback(() => {
-    navigationRef.current.navigate('ChatList', undefined, { pop: true });
+    const route = getTopLevelTabRoute('ChatList');
+    navigationRef.current.navigate(route.name, route.params, { pop: true });
   }, [navigationRef]);
 
   return {
