@@ -191,6 +191,7 @@
   ;<  *  bind:m
     (ex-equal !>(notify-count:(~(got by ac5) [%group ~zod %gardening])) !>(0))
   ;<  *  bind:m  (ex-equal !>(count:(~(got by ac5) [%base ~])) !>(0))
+  ;<  *  bind:m  (ex-equal !>(notify:(~(got by ac5) [%base ~])) !>(|))
   ;<  c6=cage  bind:m  (got-peek /x/v6/activity)
   =+  !<(ac6=activity:v10:av q.c6)
   ;<  *  bind:m
