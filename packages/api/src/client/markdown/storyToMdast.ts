@@ -20,6 +20,7 @@ import type {
 import { Story, Verse, isBlockVerse } from '../../urbit/channel';
 import {
   Block,
+  BlockReference,
   Blockquote,
   Bold,
   Break,
@@ -35,10 +36,13 @@ import {
   Listing,
   ListingBlock,
   Rule,
+  Sect,
   Ship,
   Strikethrough,
+  Tag,
   Task,
   isBlockCode,
+  isBlockReference,
   isBlockquote,
   isBold,
   isBreak,
@@ -51,11 +55,32 @@ import {
   isList,
   isListItem,
   isListing,
+  isSect,
   isShip,
   isStrikethrough,
+  isTag,
   isTask,
 } from '../../urbit/content';
 import type { ShipMention } from './shipMentionPlugin';
+
+export interface StoryToMdastOptions {
+  strict?: boolean;
+}
+
+/**
+ * Backend block variants that Markdown conversion intentionally does not
+ * support. Callers count these variants and disclose their removal before
+ * conversion, so strict mode accepts and deliberately drops them.
+ */
+export const KNOWN_DELIBERATELY_UNSUPPORTED_BLOCK_VARIANTS: ReadonlySet<
+  'cite' | 'link'
+> = new Set(['cite', 'link']);
+
+function isKnownDeliberatelyUnsupportedBlock(block: Block): boolean {
+  return [...KNOWN_DELIBERATELY_UNSUPPORTED_BLOCK_VARIANTS].some(
+    (variant) => variant in block
+  );
+}
 
 /**
  * Check if a block is a Rule (horizontal rule).
@@ -118,7 +143,11 @@ function mergeAdjacentMarks(inlines: Inline[]): Inline[] {
 /**
  * Convert Story Inline array to mdast phrasing content.
  */
-export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
+export function inlinesToPhrasing(
+  inlines: Inline[],
+  opts?: StoryToMdastOptions,
+  placement = 'phrasing context'
+): PhrasingContent[] {
   const merged = mergeAdjacentMarks(inlines);
 
   // Filter out trailing breaks - they mark paragraph boundaries, not hard line breaks
@@ -140,7 +169,7 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
       const bold = inline as Bold;
       const strong: Strong = {
         type: 'strong',
-        children: inlinesToPhrasing(bold.bold),
+        children: inlinesToPhrasing(bold.bold, opts, `${placement} under bold`),
       };
       result.push(strong);
       continue;
@@ -150,7 +179,11 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
       const italics = inline as Italics;
       const emphasis: Emphasis = {
         type: 'emphasis',
-        children: inlinesToPhrasing(italics.italics),
+        children: inlinesToPhrasing(
+          italics.italics,
+          opts,
+          `${placement} under italics`
+        ),
       };
       result.push(emphasis);
       continue;
@@ -160,7 +193,11 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
       const strike = inline as Strikethrough;
       const del: Delete = {
         type: 'delete',
-        children: inlinesToPhrasing(strike.strike),
+        children: inlinesToPhrasing(
+          strike.strike,
+          opts,
+          `${placement} under strikethrough`
+        ),
       };
       result.push(del);
       continue;
@@ -192,9 +229,29 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
       // Use our custom ship mention node
       const shipMention: ShipMention = {
         type: 'shipMention',
-        value: ship.ship,
+        value: ship.ship.replace(/^~/, ''),
       };
       result.push(shipMention as unknown as PhrasingContent);
+      continue;
+    }
+
+    if (isSect(inline)) {
+      const sect = inline as Sect;
+      const value =
+        sect.sect === null || sect.sect === '' ? '@all' : `@${sect.sect}`;
+      result.push({ type: 'text', value });
+      continue;
+    }
+
+    if (isTag(inline)) {
+      const tag = inline as Tag;
+      result.push({ type: 'text', value: tag.tag });
+      continue;
+    }
+
+    if (isBlockReference(inline)) {
+      const blockRef = inline as BlockReference;
+      result.push({ type: 'text', value: blockRef.block.text });
       continue;
     }
 
@@ -207,7 +264,11 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
       // Task inlines are rendered as checkbox text using html to prevent escaping
       const task = inline as Task;
       const checkbox = task.task.checked ? '[x]' : '[ ]';
-      const content = inlinesToPhrasing(task.task.content);
+      const content = inlinesToPhrasing(
+        task.task.content,
+        opts,
+        `${placement} under task`
+      );
       result.push({
         type: 'html',
         value: `${checkbox} `,
@@ -217,10 +278,19 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
     }
 
     if (isBlockquote(inline)) {
+      if (opts?.strict) {
+        throw new Error(
+          `Cannot render blockquote faithfully in ${placement} in strict mode`
+        );
+      }
       // Blockquote in inline context - render as HTML to prevent escaping
       // We need to preserve formatting, so we serialize the content to markdown first
       const bq = inline as Blockquote;
-      const content = inlinesToPhrasing(bq.blockquote);
+      const content = inlinesToPhrasing(
+        bq.blockquote,
+        opts,
+        `${placement} under blockquote`
+      );
       const text = phrasingToMarkdown(content);
       const lines = text.split('\n');
       result.push({
@@ -232,6 +302,11 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
 
     // Handle block code in inline context (from JSONToInlines with codeWithLang=false)
     if (isBlockCode(inline)) {
+      if (opts?.strict) {
+        throw new Error(
+          `Cannot render code block faithfully in ${placement} in strict mode`
+        );
+      }
       const codeContent = (inline as { code: string }).code;
       result.push({ type: 'text', value: `\`\`\`\n${codeContent}\n\`\`\`` });
       continue;
@@ -239,6 +314,11 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
 
     // Handle Code block in inline context
     if (isCode(inline as unknown as Block)) {
+      if (opts?.strict) {
+        throw new Error(
+          `Cannot render code block faithfully in ${placement} in strict mode`
+        );
+      }
       const code = inline as unknown as Code;
       const lang = code.code.lang || '';
       result.push({
@@ -260,7 +340,13 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
       continue;
     }
 
-    // Unknown inline type - skip
+    if (opts?.strict) {
+      const description =
+        typeof inline === 'object' && inline !== null
+          ? `{ ${Object.keys(inline).join(', ')} }`
+          : String(inline);
+      throw new Error(`Unknown inline variant in strict mode: ${description}`);
+    }
   }
 
   return result;
@@ -288,7 +374,7 @@ function phrasingToText(nodes: PhrasingContent[]): string {
 function phrasingToMarkdown(nodes: PhrasingContent[]): string {
   return nodes
     .map((node) => {
-      switch (node.type) {
+      switch ((node as { type: string }).type) {
         case 'text':
           return (node as Text).value;
         case 'strong': {
@@ -314,6 +400,8 @@ function phrasingToMarkdown(nodes: PhrasingContent[]): string {
           return '\n';
         case 'html':
           return (node as { value: string }).value;
+        case 'shipMention':
+          return `~${(node as unknown as ShipMention).value}`;
         default:
           if ('children' in node) {
             return phrasingToMarkdown(
@@ -326,12 +414,285 @@ function phrasingToMarkdown(nodes: PhrasingContent[]): string {
     .join('');
 }
 
+type PhrasingMark = 'strong' | 'emphasis' | 'delete';
+
+function wrapPhrasing(
+  children: PhrasingContent[],
+  marks: PhrasingMark[]
+): PhrasingContent[] {
+  let wrapped = children;
+  for (let index = marks.length - 1; index >= 0; index -= 1) {
+    wrapped = [
+      {
+        type: marks[index],
+        children: wrapped,
+      } as Strong | Emphasis | Delete,
+    ];
+  }
+  return wrapped;
+}
+
+function containsBlockInline(inlines: Inline[]): boolean {
+  return inlines.some((inline) => {
+    if (typeof inline === 'string') return false;
+    if (
+      isBlockquote(inline) ||
+      isBlockCode(inline) ||
+      isCode(inline as unknown as Block)
+    ) {
+      return true;
+    }
+    if (isBold(inline)) {
+      return containsBlockInline((inline as Bold).bold);
+    }
+    if (isItalics(inline)) {
+      return containsBlockInline((inline as Italics).italics);
+    }
+    if (isStrikethrough(inline)) {
+      return containsBlockInline((inline as Strikethrough).strike);
+    }
+    if (isTask(inline)) {
+      return containsBlockInline((inline as Task).task.content);
+    }
+    return false;
+  });
+}
+
+/**
+ * Convert an inline list in a block-capable position. Legal inline blockquotes
+ * and `%code` values are lifted to mdast blocks, while surrounding phrasing is
+ * flushed into paragraphs.
+ */
+export function inlinesToMdast(
+  inlines: Inline[],
+  opts?: StoryToMdastOptions,
+  placement = 'inline verse',
+  marks: PhrasingMark[] = []
+): RootContent[] {
+  const merged = mergeAdjacentMarks(inlines);
+  let filtered = merged;
+  while (filtered.length > 0 && isBreak(filtered[filtered.length - 1])) {
+    filtered = filtered.slice(0, -1);
+  }
+
+  const result: RootContent[] = [];
+  let phrasing: PhrasingContent[] = [];
+
+  const flushPhrasing = () => {
+    if (phrasing.length > 0) {
+      result.push({ type: 'paragraph', children: phrasing });
+      phrasing = [];
+    }
+  };
+
+  for (const inline of filtered) {
+    if (typeof inline === 'string') {
+      phrasing.push(...wrapPhrasing([{ type: 'text', value: inline }], marks));
+      continue;
+    }
+
+    if (isBold(inline)) {
+      const bold = inline as Bold;
+      const nestedMarks: PhrasingMark[] = [...marks, 'strong'];
+      if (containsBlockInline(bold.bold)) {
+        flushPhrasing();
+        result.push(
+          ...inlinesToMdast(
+            bold.bold,
+            opts,
+            `${placement} under bold`,
+            nestedMarks
+          )
+        );
+      } else {
+        phrasing.push(
+          ...wrapPhrasing(
+            inlinesToPhrasing(bold.bold, opts, `${placement} under bold`),
+            nestedMarks
+          )
+        );
+      }
+      continue;
+    }
+
+    if (isItalics(inline)) {
+      const italics = inline as Italics;
+      const nestedMarks: PhrasingMark[] = [...marks, 'emphasis'];
+      if (containsBlockInline(italics.italics)) {
+        flushPhrasing();
+        result.push(
+          ...inlinesToMdast(
+            italics.italics,
+            opts,
+            `${placement} under italics`,
+            nestedMarks
+          )
+        );
+      } else {
+        phrasing.push(
+          ...wrapPhrasing(
+            inlinesToPhrasing(
+              italics.italics,
+              opts,
+              `${placement} under italics`
+            ),
+            nestedMarks
+          )
+        );
+      }
+      continue;
+    }
+
+    if (isStrikethrough(inline)) {
+      const strike = inline as Strikethrough;
+      const nestedMarks: PhrasingMark[] = [...marks, 'delete'];
+      if (containsBlockInline(strike.strike)) {
+        flushPhrasing();
+        result.push(
+          ...inlinesToMdast(
+            strike.strike,
+            opts,
+            `${placement} under strikethrough`,
+            nestedMarks
+          )
+        );
+      } else {
+        phrasing.push(
+          ...wrapPhrasing(
+            inlinesToPhrasing(
+              strike.strike,
+              opts,
+              `${placement} under strikethrough`
+            ),
+            nestedMarks
+          )
+        );
+      }
+      continue;
+    }
+
+    if (isBlockquote(inline)) {
+      flushPhrasing();
+      const blockquote = inline as Blockquote;
+      const children = inlinesToMdast(
+        blockquote.blockquote,
+        opts,
+        `${placement} under blockquote`,
+        marks
+      );
+      result.push({
+        type: 'blockquote',
+        children: children as MdastBlockquote['children'],
+      });
+      continue;
+    }
+
+    if (isBlockCode(inline)) {
+      flushPhrasing();
+      if (marks.length > 0 && opts?.strict) {
+        throw new Error(
+          `Cannot render code block faithfully in ${placement} in strict mode`
+        );
+      }
+      result.push({
+        type: 'code',
+        value: (inline as { code: string }).code,
+      });
+      continue;
+    }
+
+    if (isCode(inline as unknown as Block)) {
+      flushPhrasing();
+      if (marks.length > 0 && opts?.strict) {
+        throw new Error(
+          `Cannot render code block faithfully in ${placement} in strict mode`
+        );
+      }
+      const code = inline as unknown as Code;
+      result.push({
+        type: 'code',
+        lang: code.code.lang || undefined,
+        value: code.code.code,
+      });
+      continue;
+    }
+
+    if (isTask(inline) && containsBlockInline((inline as Task).task.content)) {
+      if (opts?.strict) {
+        throw new Error(
+          `Cannot render block content faithfully in task outside a task-list item in ${placement} in strict mode`
+        );
+      }
+    }
+
+    if (isBreak(inline)) {
+      phrasing.push(...wrapPhrasing([{ type: 'break' }], marks));
+      continue;
+    }
+
+    phrasing.push(
+      ...wrapPhrasing(inlinesToPhrasing([inline], opts, placement), marks)
+    );
+  }
+
+  flushPhrasing();
+  return result;
+}
+
+function listItemInlinesToMdast(
+  inlines: Inline[],
+  opts?: StoryToMdastOptions,
+  placement = 'list item'
+): RootContent[] {
+  const paragraphs: Inline[][] = [];
+  let currentParagraph: Inline[] = [];
+
+  for (const inline of inlines) {
+    if (isBreak(inline)) {
+      if (currentParagraph.length > 0) {
+        paragraphs.push(currentParagraph);
+        currentParagraph = [];
+      }
+    } else {
+      currentParagraph.push(inline);
+    }
+  }
+  if (currentParagraph.length > 0) {
+    paragraphs.push(currentParagraph);
+  }
+
+  return paragraphs.flatMap((paragraph) =>
+    inlinesToMdast(paragraph, opts, placement)
+  );
+}
+
+/**
+ * remark-gfm only emits a task marker when a list item's first child is a
+ * paragraph with content. An empty paragraph serializes away, so block-first
+ * and empty tasks need an invisible comment to anchor the marker. The Markdown
+ * parser ignores that comment when converting the item back to Story.
+ */
+function ensureTaskMarkerParagraph(
+  children: RootContent[]
+): MdastListItem['children'] {
+  if (children[0]?.type === 'paragraph') {
+    return children as MdastListItem['children'];
+  }
+
+  const markerParagraph: Paragraph = {
+    type: 'paragraph',
+    children: [{ type: 'html', value: '<!-- -->' }],
+  };
+  return [markerParagraph, ...(children as MdastListItem['children'])];
+}
+
 /**
  * Convert Story Listing to mdast ListItem array.
  */
 function listingsToListItems(
   listings: Listing[],
-  listType: 'ordered' | 'unordered' | 'tasklist'
+  listType: 'ordered' | 'unordered' | 'tasklist',
+  opts?: StoryToMdastOptions
 ): MdastListItem[] {
   const items: MdastListItem[] = [];
 
@@ -346,49 +707,35 @@ function listingsToListItems(
         isTask(listItem.item[0])
       ) {
         const task = listItem.item[0] as Task;
-        const taskContent = inlinesToPhrasing(task.task.content);
+        const taskContent = inlinesToMdast(
+          [...task.task.content, ...listItem.item.slice(1)],
+          opts,
+          'task-list item'
+        );
         const mdastItem: MdastListItem = {
           type: 'listItem',
           checked: task.task.checked,
-          children: [{ type: 'paragraph', children: taskContent }],
+          children: ensureTaskMarkerParagraph(taskContent),
         };
         items.push(mdastItem);
       } else {
-        // Split on breaks to create multiple paragraphs
-        const paragraphs: Inline[][] = [];
-        let currentParagraph: Inline[] = [];
-
-        for (const inline of listItem.item) {
-          if (isBreak(inline)) {
-            if (currentParagraph.length > 0) {
-              paragraphs.push(currentParagraph);
-              currentParagraph = [];
-            }
-          } else {
-            currentParagraph.push(inline);
-          }
-        }
-
-        if (currentParagraph.length > 0) {
-          paragraphs.push(currentParagraph);
-        }
-
-        // Convert each paragraph to mdast
-        const mdastParagraphs = paragraphs
-          .map((para) => inlinesToPhrasing(para))
-          .filter((children) => children.length > 0)
-          .map((children) => ({ type: 'paragraph' as const, children }));
-
         const mdastItem: MdastListItem = {
           type: 'listItem',
-          children: mdastParagraphs,
+          children: listItemInlinesToMdast(
+            listItem.item,
+            opts
+          ) as MdastListItem['children'],
         };
         items.push(mdastItem);
       }
     } else if (isList(listing)) {
       const list = listing as List;
       // Nested list - create parent item with contents and nested list
-      const contentChildren = inlinesToPhrasing(list.list.contents);
+      const contentChildren = inlinesToMdast(
+        list.list.contents,
+        opts,
+        'nested list contents'
+      );
 
       // Check if contents is a task
       const isOrdered = list.list.type === 'ordered';
@@ -398,29 +745,33 @@ function listingsToListItems(
         isTask(list.list.contents[0])
       ) {
         const task = list.list.contents[0] as Task;
-        const taskContent = inlinesToPhrasing(task.task.content);
+        const taskContent = inlinesToMdast(
+          [...task.task.content, ...list.list.contents.slice(1)],
+          opts,
+          'nested task-list contents'
+        );
         const nestedList: MdastList = {
           type: 'list',
           ordered: false, // task lists are unordered
-          children: listingsToListItems(list.list.items, list.list.type),
+          children: listingsToListItems(list.list.items, list.list.type, opts),
         };
         const mdastItem: MdastListItem = {
           type: 'listItem',
           checked: task.task.checked,
-          children: [{ type: 'paragraph', children: taskContent }, nestedList],
+          children: [...ensureTaskMarkerParagraph(taskContent), nestedList],
         };
         items.push(mdastItem);
       } else {
         const nestedList: MdastList = {
           type: 'list',
           ordered: isOrdered,
-          children: listingsToListItems(list.list.items, list.list.type),
+          children: listingsToListItems(list.list.items, list.list.type, opts),
         };
         const mdastItem: MdastListItem = {
           type: 'listItem',
           children:
             contentChildren.length > 0
-              ? [{ type: 'paragraph', children: contentChildren }, nestedList]
+              ? [...(contentChildren as MdastListItem['children']), nestedList]
               : [nestedList],
         };
         items.push(mdastItem);
@@ -434,7 +785,7 @@ function listingsToListItems(
 /**
  * Convert a Story Block to mdast RootContent.
  */
-function blockToMdast(block: Block): RootContent | null {
+function blockToMdast(block: Block, opts?: StoryToMdastOptions): RootContent[] {
   if (isHeader(block)) {
     const header = block as Header;
     const depth = parseInt(header.header.tag.charAt(1), 10) as
@@ -444,9 +795,9 @@ function blockToMdast(block: Block): RootContent | null {
       | 4
       | 5
       | 6;
-    const children = inlinesToPhrasing(header.header.content);
+    const children = inlinesToPhrasing(header.header.content, opts, 'header');
     const heading: Heading = { type: 'heading', depth, children };
-    return heading;
+    return [heading];
   }
 
   if (isCode(block)) {
@@ -456,7 +807,7 @@ function blockToMdast(block: Block): RootContent | null {
       lang: code.code.lang || undefined,
       value: code.code.code,
     };
-    return mdastCode;
+    return [mdastCode];
   }
 
   if (isImage(block)) {
@@ -468,12 +819,12 @@ function blockToMdast(block: Block): RootContent | null {
       alt: image.image.alt || undefined,
     };
     const paragraph: Paragraph = { type: 'paragraph', children: [mdastImage] };
-    return paragraph;
+    return [paragraph];
   }
 
   if (isRule(block)) {
     const thematicBreak: ThematicBreak = { type: 'thematicBreak' };
-    return thematicBreak;
+    return [thematicBreak];
   }
 
   if (isListing(block)) {
@@ -485,97 +836,168 @@ function blockToMdast(block: Block): RootContent | null {
       const mdastList: MdastList = {
         type: 'list',
         ordered: list.list.type === 'ordered',
-        children: listingsToListItems(list.list.items, list.list.type),
+        children: listingsToListItems(list.list.items, list.list.type, opts),
       };
-      return mdastList;
+      const rootContents = inlinesToMdast(
+        list.list.contents,
+        opts,
+        'root list contents'
+      );
+      return [...rootContents, mdastList];
     } else if (isListItem(listing)) {
       // Single list item - wrap in list
       const mdastList: MdastList = {
         type: 'list',
         ordered: false,
-        children: listingsToListItems([listing], 'unordered'),
+        children: listingsToListItems([listing], 'unordered', opts),
       };
-      return mdastList;
+      return [mdastList];
     }
   }
 
-  // Unhandled block types (Cite, LinkBlock)
-  return null;
+  if (isKnownDeliberatelyUnsupportedBlock(block)) {
+    // These are counted and disclosed by callers before conversion. Keep the
+    // drop explicit: `%cite` and block `%link` are unsupported, not unknown.
+    return [];
+  }
+
+  // Unknown variants are rejected by strict validation and skipped otherwise.
+  return [];
 }
 
 /**
  * Convert a Story VerseInline to mdast content.
  * Returns an array because blockquotes in inline content need to be split into separate blocks.
  */
-function verseInlineToMdast(inline: Inline[]): RootContent[] {
-  const result: RootContent[] = [];
-  let currentSegment: Inline[] = [];
+function verseInlineToMdast(
+  inline: Inline[],
+  opts?: StoryToMdastOptions
+): RootContent[] {
+  return inlinesToMdast(inline, opts);
+}
 
-  for (let i = 0; i < inline.length; i++) {
-    const item = inline[i];
-
-    if (isBlockquote(item)) {
-      // Flush current segment as a paragraph if it has content
-      if (currentSegment.length > 0) {
-        const children = inlinesToPhrasing(currentSegment);
-        if (children.length > 0) {
-          result.push({ type: 'paragraph', children });
-        }
-        currentSegment = [];
-      }
-
-      // Add blockquote as a separate block
-      const bq = item as Blockquote;
-      const children = inlinesToPhrasing(bq.blockquote);
-      const paragraph: Paragraph = { type: 'paragraph', children };
-      const blockquote: MdastBlockquote = {
-        type: 'blockquote',
-        children: [paragraph],
-      };
-      result.push(blockquote);
-    } else {
-      // Skip breaks immediately before blockquotes (they're just separators)
-      if (
-        isBreak(item) &&
-        i + 1 < inline.length &&
-        isBlockquote(inline[i + 1])
-      ) {
-        continue;
-      }
-      currentSegment.push(item);
+function validateInlinesStrict(inlines: Inline[]): void {
+  for (const inline of inlines) {
+    if (typeof inline === 'string') continue;
+    if (isBold(inline)) {
+      validateInlinesStrict((inline as Bold).bold);
+      continue;
     }
-  }
-
-  // Flush remaining segment
-  if (currentSegment.length > 0) {
-    const children = inlinesToPhrasing(currentSegment);
-    if (children.length > 0) {
-      result.push({ type: 'paragraph', children });
+    if (isItalics(inline)) {
+      validateInlinesStrict((inline as Italics).italics);
+      continue;
     }
+    if (isStrikethrough(inline)) {
+      validateInlinesStrict((inline as Strikethrough).strike);
+      continue;
+    }
+    if (isBlockquote(inline)) {
+      validateInlinesStrict((inline as Blockquote).blockquote);
+      continue;
+    }
+    if (isTask(inline)) {
+      validateInlinesStrict((inline as Task).task.content);
+      continue;
+    }
+    if (isInlineCode(inline)) continue;
+    if (isLink(inline)) continue;
+    if (isShip(inline)) continue;
+    if (isSect(inline)) continue;
+    if (isTag(inline)) continue;
+    if (isBlockReference(inline)) continue;
+    if (isBreak(inline)) continue;
+    if (isBlockCode(inline)) continue;
+    if (isCode(inline as unknown as Block)) continue;
+    if (isImage(inline as unknown as Block)) continue;
+    const description =
+      typeof inline === 'object' && inline !== null
+        ? `{ ${Object.keys(inline).join(', ')} }`
+        : String(inline);
+    throw new Error(`Unknown inline variant in strict mode: ${description}`);
   }
+}
 
-  return result;
+function validateListingStrict(listing: Listing): void {
+  if (isListItem(listing)) {
+    validateInlinesStrict(listing.item);
+    return;
+  }
+  if (isList(listing)) {
+    if (
+      listing.list.type !== 'ordered' &&
+      listing.list.type !== 'unordered' &&
+      listing.list.type !== 'tasklist'
+    ) {
+      throw new Error(
+        `Unknown list discriminator in strict mode: ${String(listing.list.type)}`
+      );
+    }
+    validateInlinesStrict(listing.list.contents);
+    for (const item of listing.list.items) {
+      validateListingStrict(item);
+    }
+    return;
+  }
+  const description =
+    typeof listing === 'object' && listing !== null
+      ? `{ ${Object.keys(listing).join(', ')} }`
+      : String(listing);
+  throw new Error(`Unknown listing variant in strict mode: ${description}`);
+}
+
+function validateBlockStrict(block: Block): void {
+  if (isHeader(block)) {
+    validateInlinesStrict((block as Header).header.content);
+    return;
+  }
+  if (isListing(block)) {
+    validateListingStrict((block as ListingBlock).listing);
+    return;
+  }
+  if (
+    isCode(block) ||
+    isImage(block) ||
+    isRule(block) ||
+    isKnownDeliberatelyUnsupportedBlock(block)
+  ) {
+    return;
+  }
+  const description =
+    typeof block === 'object' && block !== null
+      ? `{ ${Object.keys(block).join(', ')} }`
+      : String(block);
+  throw new Error(`Unknown block variant in strict mode: ${description}`);
 }
 
 /**
  * Convert Story (Verse[]) to mdast Root content array.
  */
-export function storyToMdast(story: Story): RootContent[] {
+export function storyToMdast(
+  story: Story,
+  opts?: StoryToMdastOptions
+): RootContent[] {
   if (!story || story.length === 0) {
     return [];
+  }
+
+  if (opts?.strict) {
+    for (const verse of story) {
+      if (isBlockVerse(verse)) {
+        validateBlockStrict(verse.block);
+      } else {
+        validateInlinesStrict(verse.inline);
+      }
+    }
   }
 
   const nodes: RootContent[] = [];
 
   for (const verse of story) {
     if (isBlockVerse(verse)) {
-      const node = blockToMdast(verse.block);
-      if (node) {
-        nodes.push(node);
-      }
+      nodes.push(...blockToMdast(verse.block, opts));
     } else {
       // VerseInline - can return multiple nodes if it contains blockquotes
-      const inlineNodes = verseInlineToMdast(verse.inline);
+      const inlineNodes = verseInlineToMdast(verse.inline, opts);
       nodes.push(...inlineNodes);
     }
   }

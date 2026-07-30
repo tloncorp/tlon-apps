@@ -1,4 +1,4 @@
-import type { Node, PhrasingContent, Root, RootContent } from 'mdast';
+import type { Node, PhrasingContent, Root } from 'mdast';
 import remarkGfm from 'remark-gfm';
 import remarkStringify from 'remark-stringify';
 import { unified } from 'unified';
@@ -7,7 +7,11 @@ import { Story } from '../../urbit/channel';
 import { Block, Inline } from '../../urbit/content';
 import { visit, visitAll } from './astUtils';
 import type { ShipMention } from './shipMentionPlugin';
-import { inlinesToPhrasing, storyToMdast } from './storyToMdast';
+import {
+  type StoryToMdastOptions,
+  inlinesToMdast,
+  storyToMdast,
+} from './storyToMdast';
 
 /**
  * Transform ship mention nodes to html nodes before serialization.
@@ -61,12 +65,15 @@ const processor = unified()
  * Converts the Story to mdast AST and serializes using remark-stringify.
  * Supports all Story types including ship mentions.
  */
-export function storyToMarkdown(story: Story): string {
+export function storyToMarkdown(
+  story: Story,
+  opts?: StoryToMdastOptions
+): string {
   if (!story || story.length === 0) {
     return '';
   }
 
-  const children = storyToMdast(story);
+  const children = storyToMdast(story, opts);
   const tree: Root = { type: 'root', children };
 
   // Make lists tight and transform ship mentions before serialization
@@ -81,14 +88,16 @@ export function storyToMarkdown(story: Story): string {
  * Convert an array of Inline elements to a Markdown string.
  * Useful for converting inline content outside of full Story context.
  */
-export function inlinesToMarkdown(inlines: Inline[]): string {
+export function inlinesToMarkdown(
+  inlines: Inline[],
+  opts?: StoryToMdastOptions
+): string {
   if (!inlines || inlines.length === 0) {
     return '';
   }
 
-  const children = inlinesToPhrasing(inlines);
-  const paragraph: RootContent = { type: 'paragraph', children };
-  const tree: Root = { type: 'root', children: [paragraph] };
+  const children = inlinesToMdast(inlines, opts);
+  const tree: Root = { type: 'root', children };
 
   // Transform ship mentions before serialization
   transformShipMentionsToHtml(tree);

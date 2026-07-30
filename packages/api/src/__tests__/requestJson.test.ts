@@ -37,6 +37,45 @@ describe('Urbit.requestJson', () => {
 });
 
 describe('client requestJson wrapper', () => {
+  test('can opt into one 401 reauth and replay', async () => {
+    const client = {
+      requestJson: vi
+        .fn()
+        .mockRejectedValueOnce(new Response('', { status: 401 }))
+        .mockResolvedValueOnce({ ok: true }),
+      cookie: 'urbauth=old',
+      delete: vi.fn(),
+      on: vi.fn(),
+    };
+    const loginFetch = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 200,
+        headers: { 'set-cookie': 'urbauth=refreshed; Path=/' },
+      })
+    );
+    vi.stubGlobal('fetch', loginFetch);
+
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    try {
+      await expect(
+        requestJson('/notes/~/v1/notebooks', 'GET', undefined, {
+          reauthStatuses: [401, 403],
+        })
+      ).resolves.toEqual({ ok: true });
+      expect(client.requestJson).toHaveBeenCalledTimes(2);
+      expect(client.cookie).toBe('urbauth=refreshed');
+    } finally {
+      vi.unstubAllGlobals();
+      internalRemoveClient();
+    }
+  });
+
   test('turns blank HTTP failures into a nonblank BadResponseError message', async () => {
     const client = {
       requestJson: vi.fn(async () => {

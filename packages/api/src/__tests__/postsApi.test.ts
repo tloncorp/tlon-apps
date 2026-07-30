@@ -1,12 +1,13 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
 import {
+  getChannelPosts,
   getPostReference,
   toPostData,
   toPostReplyData,
   toPostsData,
 } from '../client/postsApi';
-import { subscribeOnce } from '../client/urbit';
+import { scry, subscribeOnce } from '../client/urbit';
 import type { Post } from '../types/models';
 import * as ub from '../urbit';
 import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
@@ -19,9 +20,12 @@ vi.mock('../client/urbit', async () => {
     await vi.importActual<typeof import('../client/urbit')>('../client/urbit');
   return {
     ...actual,
+    scry: vi.fn(),
     subscribeOnce: vi.fn(),
   };
 });
+
+const scryMock = scry as unknown as ReturnType<typeof vi.fn>;
 
 const botAuthor: ub.BotProfile = {
   ship: '~bot-test',
@@ -60,6 +64,41 @@ test('toPostData handles string author unchanged', () => {
   const post = makeBotPost('~zod');
   const result = toPostData('chat/~zod/test', post);
   expect(result.authorId).toBe('~zod');
+});
+
+test('toPostData counts a direct %any reaction before UI normalization', () => {
+  const post = makeBotPost('~zod');
+  post.seal.reacts = {
+    '~nec': { any: 'custom reaction' },
+  };
+
+  const result = toPostData('chat/~zod/test', post);
+
+  expect(result.rawReactionCount).toBe(1);
+  expect(result.reactions).toEqual([]);
+});
+
+test('toPostData counts bot-wrapped string and %any reactions before UI normalization', () => {
+  const post = makeBotPost('~zod');
+  post.seal.reacts = {
+    '~bot-string': {
+      ship: '~bot-string',
+      nickname: 'String Bot',
+      avatar: null,
+      react: ':+1:',
+    },
+    '~bot-any': {
+      ship: '~bot-any',
+      nickname: 'Any Bot',
+      avatar: 'https://example.com/any-bot.png',
+      react: { any: 'custom bot reaction' },
+    },
+  } as unknown as ub.PostSeal['reacts'];
+
+  const result = toPostData('chat/~zod/test', post);
+
+  expect(result.rawReactionCount).toBe(2);
+  expect(result.reactions).toEqual([]);
 });
 
 test('toPostData extracts authorId from BotProfile on tombstone', () => {
@@ -228,4 +267,61 @@ test('single post responses', async () => {
   });
   // TODO fix snapshot test
   // expect(result).toMatchSnapshot();
+});
+
+function makeSequencedPost(seq: number, channelId: string): ub.Post {
+  const id = `1701411845065351646842629006351830${seq}7616`;
+  return {
+    seal: {
+      id,
+      reacts: {},
+      replies: null,
+      meta: { replyCount: 0, lastRepliers: [], lastReply: null },
+      seq,
+    },
+    essay: {
+      author: '~zod',
+      content: [{ inline: [`post ${seq}`] }],
+      sent: 1701275662689 + seq,
+      kind: '/chat',
+      blob: null,
+      meta: null,
+    },
+    type: 'post',
+  } as unknown as ub.Post;
+}
+
+test('getChannelPosts skipGapFill: true produces no stubs; default still fills', async () => {
+  const channelId = 'chat/~zod/test';
+  const paged: ub.PagedPosts = {
+    posts: {
+      a: makeSequencedPost(1, channelId),
+      b: makeSequencedPost(3, channelId),
+    },
+    newer: null,
+    older: null,
+    total: 2,
+  } as unknown as ub.PagedPosts;
+
+  scryMock.mockResolvedValue(paged);
+  const withGaps = await getChannelPosts({
+    channelId,
+    mode: 'newest',
+  });
+  expect(withGaps.numStubs).toBe(1);
+  expect(withGaps.posts.some((p: Post) => p.isSequenceStub === true)).toBe(
+    true
+  );
+
+  scryMock.mockResolvedValue(paged);
+  const withoutGaps = await getChannelPosts({
+    channelId,
+    mode: 'newest',
+    skipGapFill: true,
+  });
+  expect(withoutGaps.numStubs).toBe(0);
+  expect(withoutGaps.posts.some((p: Post) => p.isSequenceStub === true)).toBe(
+    false
+  );
+  expect(withoutGaps.posts).toHaveLength(2);
 });

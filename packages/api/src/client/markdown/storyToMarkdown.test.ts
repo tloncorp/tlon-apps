@@ -59,6 +59,11 @@ describe('inlinesToMarkdown', () => {
     expect(inlinesToMarkdown(inlines)).toBe('~zod');
   });
 
+  test('converts a backend-shaped Ship with exactly one sigil', () => {
+    const inlines: Inline[] = [{ ship: '~zod' } as Ship];
+    expect(inlinesToMarkdown(inlines)).toBe('~zod');
+  });
+
   test('converts Break to newline', () => {
     const inlines: Inline[] = ['line 1', { break: null } as Break, 'line 2'];
     // remark-stringify uses backslash for hard breaks
@@ -251,6 +256,20 @@ describe('blockToMarkdown', () => {
     expect(blockToMarkdown(block)).toBe('- First item\n- Second item');
   });
 
+  test('emits backend root list contents before child listings', () => {
+    const block: ListingBlock = {
+      listing: {
+        list: {
+          type: 'unordered',
+          contents: ['Root contents'],
+          items: [{ item: ['Child item'] }],
+        },
+      },
+    };
+
+    expect(blockToMarkdown(block)).toBe('Root contents\n\n- Child item');
+  });
+
   test('converts ordered List with items', () => {
     const block: ListingBlock = {
       listing: {
@@ -286,6 +305,64 @@ describe('blockToMarkdown', () => {
       },
     };
     expect(blockToMarkdown(block)).toBe('- [x] Done task\n- [ ] Todo task');
+  });
+
+  test('preserves inlines following a backend task in a list item', () => {
+    const block: ListingBlock = {
+      listing: {
+        list: {
+          type: 'tasklist',
+          contents: [],
+          items: [
+            {
+              item: [
+                { task: { checked: true, content: ['Task body'] } } as Task,
+                ' and sibling text',
+              ],
+            },
+          ],
+        },
+      },
+    };
+
+    expect(blockToMarkdown(block)).toBe('- [x] Task body and sibling text');
+  });
+
+  test('preserves inlines following a backend task in nested list contents', () => {
+    const block: ListingBlock = {
+      listing: {
+        list: {
+          type: 'tasklist',
+          contents: [],
+          items: [
+            {
+              list: {
+                type: 'tasklist',
+                contents: [
+                  {
+                    task: { checked: false, content: ['Parent task'] },
+                  } as Task,
+                  ' and sibling text',
+                ],
+                items: [
+                  {
+                    item: [
+                      {
+                        task: { checked: true, content: ['Child task'] },
+                      } as Task,
+                    ],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    expect(blockToMarkdown(block)).toBe(
+      '- [ ] Parent task and sibling text\n  - [x] Child task'
+    );
   });
 
   test('converts nested unordered lists', () => {
@@ -377,7 +454,7 @@ describe('inlinesToMarkdown - Blockquote', () => {
         blockquote: ['Line 1', { break: null } as Break, 'Line 2'],
       } as Blockquote,
     ];
-    expect(inlinesToMarkdown(inlines)).toBe('> Line 1\n> Line 2');
+    expect(inlinesToMarkdown(inlines)).toBe('> Line 1\\\n> Line 2');
   });
 
   test('converts Blockquote with inline formatting', () => {
@@ -405,6 +482,32 @@ describe('inlinesToMarkdown - Blockquote', () => {
     ];
     expect(inlinesToMarkdown(inlines)).toBe(
       '> *Text before [link text](https://example.com) text after*'
+    );
+  });
+
+  test('preserves a ship mention in a structural blockquote', () => {
+    const inlines: Inline[] = [
+      {
+        blockquote: ['quoted ', { ship: '~zod' } as Ship],
+      } as Blockquote,
+    ];
+
+    expect(inlinesToMarkdown(inlines)).toBe('> quoted ~zod');
+  });
+
+  test('renders nested blockquotes without flattening them', () => {
+    const story: Story = [
+      {
+        inline: [
+          {
+            blockquote: ['outer', { blockquote: ['inner'] } as Blockquote],
+          } as Blockquote,
+        ],
+      },
+    ];
+
+    expect(storyToMarkdown(story, { strict: true })).toBe(
+      '> outer\n>\n> > inner'
     );
   });
 });
@@ -516,6 +619,21 @@ describe('storyToMarkdown', () => {
           { ship: 'zod' } as Ship,
           ' and ',
           { ship: 'bus' } as Ship,
+          '!',
+        ],
+      },
+    ];
+    expect(storyToMarkdown(story)).toBe('Hello ~zod and ~bus!');
+  });
+
+  test('converts backend-shaped story ship mentions with one sigil each', () => {
+    const story: Story = [
+      {
+        inline: [
+          'Hello ',
+          { ship: '~zod' } as Ship,
+          ' and ',
+          { ship: '~bus' } as Ship,
           '!',
         ],
       },

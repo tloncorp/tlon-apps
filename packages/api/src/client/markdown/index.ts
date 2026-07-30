@@ -9,7 +9,12 @@ export {
 
 // Internal converters (exported for testing)
 export { mdastToStory, phrasingToInlines } from './mdastToStory';
-export { storyToMdast, inlinesToPhrasing } from './storyToMdast';
+export {
+  storyToMdast,
+  inlinesToMdast,
+  inlinesToPhrasing,
+} from './storyToMdast';
+export type { StoryToMdastOptions } from './storyToMdast';
 
 // Ship mention plugin
 export { remarkShipMentions, parseShipMentions } from './shipMentionPlugin';

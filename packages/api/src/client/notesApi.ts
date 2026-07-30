@@ -1,6 +1,15 @@
+import { tryParse, valid } from '@urbit/aura';
+
 import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
-import { poke, requestJson, scry, subscribe, unsubscribe } from './urbit';
+import {
+  client,
+  poke,
+  requestJson,
+  scry,
+  subscribe,
+  unsubscribe,
+} from './urbit';
 
 const logger = createDevLogger('notesApi', false);
 
@@ -284,11 +293,19 @@ export interface NotesV1GroupRef {
   flagName: string;
 }
 
+export type NotesV1ActionError =
+  | 'not-authorized'
+  | 'not-found'
+  | 'invalid-name'
+  | 'conflict'
+  | 'request-too-large'
+  | 'unknown';
+
 export type NotesV1RequestBody =
   | { type: 'ok' }
   | { type: 'no-change' }
   | { type: 'notebook'; notebook: NotesV1NotebookSummary }
-  | { type: 'error'; message?: string }
+  | { type: 'error'; errorType: NotesV1ActionError; message?: string }
   | { type: 'pending'; status?: string }
   | { type: 'api-key' };
 
@@ -330,8 +347,10 @@ export class NotesV1PendingWriteError extends Error {
   }
 }
 
+const NOTES_V1_PATH = '/notes/~/v1';
 const NOTEBOOKS_V1_PATH = '/notes/~/v1/notebooks';
 const REQUESTS_V1_PATH = '/notes/~/v1/request';
+const NOTES_AUTH_FAILURE_STATUSES = [401, 403] as const;
 
 function notebookV1Path(flag: NotesFlag): string {
   return `${NOTEBOOKS_V1_PATH}/${flag.host}/${flag.name}`;
@@ -604,11 +623,15 @@ function normalizeRequestBodyV1(raw: any): NotesV1RequestBody {
         notebook: normalizeNotebookSummaryV1(requireObject(body.notebook)),
       };
     case 'error': {
+      const errorType = reqString(body.errorType, 'errorType');
+      if (!isNotesV1ActionError(errorType)) {
+        throw new Error(`Unexpected %notes error type: ${errorType}`);
+      }
       const message =
         body.message === undefined || body.message === null
           ? undefined
           : String(body.message);
-      return { type: 'error', message };
+      return { type: 'error', errorType, message };
     }
     case 'pending':
       return {
@@ -632,14 +655,31 @@ function normalizeRequestStatusV1(raw: unknown): NotesV1RequestStatus {
 
 // --- envelope handling -----------------------------------------------------
 
+function isNotesV1ActionError(raw: string): raw is NotesV1ActionError {
+  switch (raw) {
+    case 'not-authorized':
+    case 'not-found':
+    case 'invalid-name':
+    case 'conflict':
+    case 'request-too-large':
+    case 'unknown':
+      return true;
+    default:
+      return false;
+  }
+}
+
 function notesEnvelopeErrorMessage(body: any): string {
-  const raw = body?.message;
-  const detail =
-    typeof raw === 'string'
-      ? raw.trim()
-      : raw === undefined || raw === null
+  const rawMessage = body?.message;
+  const message =
+    typeof rawMessage === 'string'
+      ? rawMessage.trim()
+      : rawMessage === undefined || rawMessage === null
         ? ''
-        : String(raw).trim();
+        : String(rawMessage).trim();
+  const errorType =
+    typeof body?.errorType === 'string' ? body.errorType.trim() : '';
+  const detail = message || errorType;
   return `%notes error: ${detail || 'backend returned an error without details'}`;
 }
 
@@ -1071,6 +1111,174 @@ async function getFolder({
 async function listMembers(target: NotesTarget): Promise<NotesMember[]> {
   const rawMembers = await listMembersV1(target);
   return rawMembers.flatMap((member) => toClientNotesMembers(target, member));
+}
+
+// ===========================================================================
+// Raw fetch transport for v1 batch import
+// ===========================================================================
+
+const isBrowser =
+  typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
+export class NotesInvalidRequestIdError extends Error {
+  readonly requestId: string;
+
+  constructor(requestId: string, reason: 'invalid' | 'zero' = 'invalid') {
+    super(
+      reason === 'zero'
+        ? `Invalid @uv request id: ${requestId}; request id must be non-zero`
+        : `Invalid @uv request id: ${requestId}`
+    );
+    this.name = 'NotesInvalidRequestIdError';
+    this.requestId = requestId;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+function notesFetchInit(
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  body?: unknown,
+  signal?: AbortSignal
+): RequestInit {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (!isBrowser && client.cookie) {
+    headers['Cookie'] = client.cookie;
+  }
+  return {
+    credentials: isBrowser ? 'include' : undefined,
+    headers,
+    method,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal,
+  };
+}
+
+async function notesRawFetch(
+  path: string,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  body?: unknown,
+  signal?: AbortSignal
+): Promise<Response> {
+  const doFetch = () =>
+    client.fetchFn(
+      `${client.url}${path}`,
+      notesFetchInit(method, body, signal)
+    );
+
+  let response = await doFetch();
+  if (response.status === 401 || response.status === 403) {
+    try {
+      await requestJson(NOTEBOOKS_V1_PATH, 'GET', undefined, {
+        reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
+      });
+    } catch {
+      // A failed probe may already have attempted requestJson's reauth.
+    }
+    response = await doFetch();
+  }
+  return response;
+}
+
+// ===========================================================================
+// Batch-import submit over the v1 envelope
+// ===========================================================================
+
+function describeNotesResponseValue(value: unknown): string {
+  if (value === undefined) {
+    return 'undefined';
+  }
+  return JSON.stringify(value) ?? String(value);
+}
+
+export async function batchImportNotesV1({
+  flag,
+  folder,
+  notes,
+  requestId,
+  signal,
+}: {
+  flag: string;
+  folder: number;
+  notes: { title: string; body: string }[];
+  requestId: string;
+  signal?: AbortSignal;
+}): Promise<string> {
+  const parsedRequestId = tryParse('uv', requestId);
+  if (!valid('uv', requestId) || parsedRequestId === null) {
+    throw new NotesInvalidRequestIdError(requestId);
+  }
+  if (parsedRequestId === 0n) {
+    throw new NotesInvalidRequestIdError(requestId, 'zero');
+  }
+
+  const normalized = normalizeNotesTarget(flag);
+  const canonicalFlag = formatNotesFlag(normalized);
+  const path = NOTES_V1_PATH;
+
+  const body = {
+    requestId,
+    action: {
+      type: 'notebook' as const,
+      flag: canonicalFlag,
+      action: {
+        type: 'batch-import' as const,
+        folder,
+        notes,
+      },
+    },
+  };
+
+  const response = await notesRawFetch(path, 'POST', body, signal);
+  if (!response.ok) {
+    return Promise.reject(response);
+  }
+  const text = await response.text();
+  const res = text.length === 0 ? undefined : JSON.parse(text);
+
+  const serverRequestId = envelopeRequestId(res);
+  if (!serverRequestId) {
+    throw new Error('%notes batch-import response missing requestId');
+  }
+
+  const rawEnvelopeBody: unknown = res?.body;
+  if (
+    typeof rawEnvelopeBody !== 'object' ||
+    rawEnvelopeBody === null ||
+    Array.isArray(rawEnvelopeBody)
+  ) {
+    throw new Error(
+      `Unexpected %notes batch-import response body: ${describeNotesResponseValue(rawEnvelopeBody)}`
+    );
+  }
+
+  const envelopeBody = rawEnvelopeBody as Record<string, unknown>;
+  const envelopeType = envelopeBody.type;
+  if (typeof envelopeType !== 'string') {
+    throw new Error(
+      `Unexpected %notes batch-import response body.type: ${describeNotesResponseValue(envelopeType)} (body: ${describeNotesResponseValue(envelopeBody)})`
+    );
+  }
+
+  switch (envelopeType) {
+    case 'ok':
+    case 'no-change':
+      break;
+    case 'error':
+      throw new Error(notesEnvelopeErrorMessage(envelopeBody));
+    case 'pending':
+      throw pendingWriteError(
+        res,
+        noteCreateChecks(notesChannelId(normalized))
+      );
+    default:
+      throw new Error(
+        `Unexpected %notes response type: ${describeNotesResponseValue(envelopeType)}`
+      );
+  }
+
+  return serverRequestId;
 }
 
 async function listPublished(): Promise<NotesPublishedRecord[]> {
