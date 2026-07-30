@@ -1,4 +1,5 @@
 /-  cv=channels-ver, t=contacts, ch=chat, g=groups, gv=groups-ver, s=story
+/-  nv=notes
 /+  mp=mop-extensions
 |%
 ::  $stream: the activity stream comprised of events from various agents
@@ -166,13 +167,12 @@
   ==
 ::  $note-event: a note created or edited in a notebook
 ::
-::    .notebook mirrors the shape of a group flag: host ship + name.
 ::    .group is set when the notebook is a group channel.
 ::
 +$  note-event
   $:  id=@ud
       folder=@ud
-      notebook=flag:gv
+      notebook=flag:nv
       group=(unit flag:gv)
       title=@t
       author=ship
@@ -187,8 +187,8 @@
       [%dm =whom]
       [%dm-thread key=message-key =whom]
       [%contact who=ship]
-      [%notebook =flag:gv group=(unit flag:gv)]
-      [%note id=@ud notebook=flag:gv group=(unit flag:gv)]
+      [%notebook =flag:nv group=(unit flag:gv)]
+      [%note id=@ud notebook=flag:nv group=(unit flag:gv)]
   ==
 ::
 ::  $index: the stream of activity and read state for a source
@@ -216,14 +216,13 @@
 ::    $children: the sources nested under this source
 ::
 +$  activity-summary
-  $~  [*@da 0 0 | ~ ~ ~]
+  $~  [*@da 0 0 | ~ ~]
   $:  newest=time
       count=@ud
       notify-count=@ud
       notify=_|
       unread=(unit unread-point)
       children=(set source)
-      reads=*  ::  DO NOT USE, 🚨 ⚠️ REMOVE
   ==
 +$  unread-point  [message-key count=@ud notify=_|]
 +$  volume  [unreads=? notify=?]

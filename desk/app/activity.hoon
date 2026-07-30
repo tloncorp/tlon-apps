@@ -190,7 +190,15 @@
     =/  =volume-settings:v10:av
       %+  ~(put by `volume-settings:v10:av`volume-settings.old)  [%base ~]
       (~(uni by default-volumes:v10:av) base-volume)
-    old(- %11, volume-settings volume-settings)
+    ::  v10 drops the unused reads field from activity-summary, so the
+    ::  stored summaries need reshaping, not just a head swap
+    ::
+    =/  =activity:v10:av
+      %-  ~(run by activity.old)
+      |=  sum=activity-summary:v9:av
+      ^-  activity-summary:v10:av
+      [newest.sum count.sum notify-count.sum notify.sum unread.sum children.sum]
+    old(- %11, volume-settings volume-settings, activity activity)
   ?>  ?=(%11 -.old)
   =.  state  old
   refresh-all-summaries
@@ -447,12 +455,14 @@
       [%x ver=?(%v4 %v5 %v6) ~]
     =/  =full-info:a
       [indices activity volume-settings]
+    =/  legacy=full-info:a
+      full-info(activity (deduct-notes-activity activity.full-info))
     ?-    ver.pole
         %v4
-      ``activity-full-4+!>((v8:full-info:v9:ac (v9:full-info:v10:ac full-info)))
+      ``activity-full-4+!>((v8:full-info:v9:ac (v9:full-info:v10:ac legacy)))
     ::
         %v5
-      ``activity-full-5+!>((v9:full-info:v10:ac full-info))
+      ``activity-full-5+!>((v9:full-info:v10:ac legacy))
     ::
         %v6
       ``activity-full-6+!>(`full-info:v10:av`full-info)
@@ -507,12 +517,14 @@
           %-  ~(uni by summaries.mentions)
           summaries.replies
       ==
+    =/  legacy=feed-init:a
+      feed-init(summaries (deduct-notes-activity summaries.feed-init))
     ?-    ver.pole
         %v5
-      ``activity-feed-init-5+!>((v8:feed-init:v9:ac (v9:feed-init:v10:ac feed-init)))
+      ``activity-feed-init-5+!>((v8:feed-init:v9:ac (v9:feed-init:v10:ac legacy)))
     ::
         %v6
-      ``activity-feed-init-6+!>((v9:feed-init:v10:ac feed-init))
+      ``activity-feed-init-6+!>((v9:feed-init:v10:ac legacy))
     ::
         %v7
       ``activity-feed-init-7+!>(`feed-init:v10:av`feed-init)
@@ -525,12 +537,14 @@
       (slav %da u.start.pole)
     =/  count  (slav %ud count.pole)
     =/  =feed:a  (feed type.pole start count)
+    =/  legacy=feed:a
+      feed(summaries (deduct-notes-activity summaries.feed))
     ?-    ver.pole
         %v5
-      ``activity-feed-5+!>((v8:feed:v9:ac (v9:feed:v10:ac feed)))
+      ``activity-feed-5+!>((v8:feed:v9:ac (v9:feed:v10:ac legacy)))
     ::
         %v6
-      ``activity-feed-6+!>((v9:feed:v10:ac feed))
+      ``activity-feed-6+!>((v9:feed:v10:ac legacy))
     ::
         %v7
       ``activity-feed-7+!>(`feed:v10:av`feed)
@@ -635,24 +649,26 @@
   ::
       [%x ver=?(%v4 %v5 %v6) %activity ~]
     =/  =activity:a  (strip-threads activity)
+    =/  legacy=activity:a  (deduct-notes-activity activity)
     ?-    ver.pole
         %v4
-      ``activity-summary-4+!>((v8:activity:v9:ac (v9:activity:v10:ac activity)))
+      ``activity-summary-4+!>((v8:activity:v9:ac (v9:activity:v10:ac legacy)))
     ::
         %v5
-      ``activity-summary-5+!>((v9:activity:v10:ac activity))
+      ``activity-summary-5+!>((v9:activity:v10:ac legacy))
     ::
         %v6
       ``activity-summary-6+!>(`activity:v10:av`activity)
     ==
   ::
       [%x ver=?(%v4 %v5 %v6) %activity %full ~]
+    =/  legacy=activity:a  (deduct-notes-activity activity)
     ?-    ver.pole
         %v4
-      ``activity-summary-4+!>((v8:activity:v9:ac (v9:activity:v10:ac activity)))
+      ``activity-summary-4+!>((v8:activity:v9:ac (v9:activity:v10:ac legacy)))
     ::
         %v5
-      ``activity-summary-5+!>((v9:activity:v10:ac activity))
+      ``activity-summary-5+!>((v9:activity:v10:ac legacy))
     ::
         %v6
       ``activity-summary-6+!>(`activity:v10:av`activity)
@@ -772,12 +788,13 @@
         ~(tap by activity)
       |=  [=source:a as=activity-summary:a]
       (gte newest.as since)
+    =/  legacy=activity:a  (deduct-notes-activity summaries)
     ?-    ver.pole
         %v4
-      ``activity-summary-4+!>((v8:activity:v9:ac (v9:activity:v10:ac summaries)))
+      ``activity-summary-4+!>((v8:activity:v9:ac (v9:activity:v10:ac legacy)))
     ::
         %v5
-      ``activity-summary-5+!>((v9:activity:v10:ac summaries))
+      ``activity-summary-5+!>((v9:activity:v10:ac legacy))
     ::
         %v6
       ``activity-summary-6+!>(`activity:v10:av`summaries)
@@ -936,6 +953,63 @@
   |=  =source:a
   ~>  %spin.['get-index']
   (~(gut by indices) source *index:a)
+::  legacy (v4/v5) consumers never see note or notebook sources, but
+::  note counts are rolled up into their group and base summaries.
+::  Deduct them before down-converting so old clients don't show
+::  badges they can't inspect or clear. Notebook sources have no
+::  events of their own, so a notebook summary's counts are exactly
+::  its notes' contribution to the rollup.
+::
+++  note-deductions
+  ^-  (list [group=(unit flag:gv) count=@ud notify-count=@ud])
+  %+  murn  ~(tap by activity)
+  |=  [=source:a sum=activity-summary:a]
+  ^-  (unit [(unit flag:gv) @ud @ud])
+  ?.  ?=(%notebook -.source)  ~
+  ?:  &(=(0 count.sum) =(0 notify-count.sum))  ~
+  `[group.source count.sum notify-count.sum]
+::
+++  deduct-notes-summary
+  |=  $:  deds=(list [group=(unit flag:gv) count=@ud notify-count=@ud])
+          =source:a
+          sum=activity-summary:a
+      ==
+  ^+  sum
+  ?.  ?=(?(%base %group) -.source)  sum
+  %+  roll  deds
+  |=  [[group=(unit flag:gv) count=@ud notify-count=@ud] out=_sum]
+  ?.  ?|  ?=(%base -.source)
+          =(`flag.source group)
+      ==
+    out
+  %=  out
+    count         (sub count.out (min count.out count))
+    notify-count  (sub notify-count.out (min notify-count.out notify-count))
+  ==
+::
+++  deduct-notes-activity
+  |=  ac=activity:a
+  ^-  activity:a
+  =/  deds  note-deductions
+  ?:  =(~ deds)  ac
+  %-  ~(urn by ac)
+  |=  [=source:a sum=activity-summary:a]
+  (deduct-notes-summary deds source sum)
+::
+++  deduct-notes-update
+  |=  =update:a
+  ^-  update:a
+  ?+    -.update  update
+      %activity
+    update(activity (deduct-notes-activity activity.update))
+  ::
+      %read
+    %=  update
+      activity-summary
+        (deduct-notes-summary note-deductions [source activity-summary]:update)
+    ==
+  ==
+::
 ++  give-update
   |=  $:  =update:a
         $=  dist
@@ -962,7 +1036,7 @@
         (weld v6-only v6-hose)
     ==
   =/  update-9=(unit update:v9:av)
-    (v9:update:v10:ac update)
+    (v9:update:v10:ac (deduct-notes-update update))
   =/  update-8=(unit update:v8:av)
     (biff update-9 v8:update:v9:ac)
   =?  cor  ?=(^ update-8)

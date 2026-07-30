@@ -352,7 +352,11 @@
       `@uv`eny.bowl
     =/  parsed=(each @uv tang)  (mule |.((slav %uv p.u.rj)))
     ?:(?=(%& -.parsed) p.parsed `@uv`eny.bowl)
-  ::  register with eyre-id so the in-flight HTTP request is tracked
+  ::  register with eyre-id so the in-flight HTTP request is tracked.
+  ::  this put replaces any record under a reused rid, so it can't go
+  ::  through +register-request's insert-if-missing — sweep here too,
+  ::  since HTTP is the main source of request records
+  =.  requests  (cleanup-requests now.bowl)
   =.  requests
     %+  ~(put by requests)  rid
     [rid `eyre-id %sending ~ ~ |]

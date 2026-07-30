@@ -78,7 +78,7 @@
           |=  =source:v10:av
           (v9:^source source)
         ::
-          reads.activity-summary
+          ~  ::  reads: unused v9 remnant, dropped from the v10 type
       ==
     --
   ++  volume-settings

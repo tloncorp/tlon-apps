@@ -1627,6 +1627,40 @@
   ?.  (~(has by books.s) f)
     |+['notebook not created from requestId-less POST']~
   &+[~ s2]
+::  +test-v1-requests-evicted-on-next-post
+::
+::  Terminated request records are evicted lazily when the next HTTP
+::  request registers — no cleanup timer involved.
+::
+++  test-v1-requests-evicted-on-next-post
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  sv0=vase  b  get-save
+  =/  s0=state-15:n  !<(state-15:n sv0)
+  =/  key=@t  ?~(api-key.s0 '' u.api-key.s0)
+  =/  body1=@t
+    '{"requestId":"0v1","action":{"type":"create-notebook","title":"One"}}'
+  ;<  *  b  (http-post-v1 ~[['x-api-key' key]] body1)
+  ;<  sv1=vase  b  get-save
+  =/  s1=state-15:n  !<(state-15:n sv1)
+  ;<  *  b  (jab-bowl |=(bw=bowl bw(now (add now.bw ~d2))))
+  =/  body2=@t
+    '{"requestId":"0v2","action":{"type":"create-notebook","title":"Two"}}'
+  ;<  *  b  (http-post-v1 ~[['x-api-key' key]] body2)
+  ;<  sv2=vase  b  get-save
+  =/  s2=state-15:n  !<(state-15:n sv2)
+  |=  s=state
+  ?~  api-key.s0  |+['no api-key after init']~
+  ?.  (~(has by requests.s1) `@uv`0v1)
+    |+['expected first request recorded']~
+  ?:  (~(has by requests.s2) `@uv`0v1)
+    |+['expected stale request evicted on next registration']~
+  ?.  (~(has by requests.s2) `@uv`0v2)
+    |+['expected second request recorded']~
+  &+[~ s]
 ::  +test-v1-post-garbage-requestid-no-500
 ::
 ::  A non-@uv requestId must be tolerated (server mints), not crash.
@@ -2319,8 +2353,6 @@
   ?~  vis
     |+['snapshot missing visibility field']~
   &+[~ s]
-::  ====  %activity submission tests  ========================================
-::
 ::  +activity-actions: extract the activity actions poked at %activity
 ::  from a card list, in emission order.
 ::
@@ -2556,19 +2588,22 @@
     :-  [~bus %notes]
     :+  %fact  %notes-response-update-1
     !>(`response-update:v1:n`[`@uv`0v0 [%ok *@da [%member-joined ~zod %viewer]]])
-  ::  host snapshot: root folder 1, subfolder 2, note 4 at the root and
-  ::  note 5 inside the subfolder
+  ::  host snapshot: root folder 1 with note 4, subfolder 2 with note 5,
+  ::  and nested subfolder 3 (inside 2) with note 6 — deleting folder 2
+  ::  must take the whole subtree with it
   =/  root=folder:n    [1 1 'root' ~ ~bus *@da *@da ~bus]
   =/  subf=folder:n    [2 1 'sub' `1 ~bus *@da *@da ~bus]
+  =/  nested=folder:n  [3 1 'nested' `2 ~bus *@da *@da ~bus]
   =/  kept=note:n      [4 1 1 'kept' ~ 'body' ~bus *@da ~bus *@da 0]
   =/  doomed=note:n    [5 1 2 'doomed' ~ 'body' ~bus *@da ~bus *@da 0]
+  =/  buried=note:n    [6 1 3 'buried' ~ 'body' ~bus *@da ~bus *@da 0]
   =/  nb=notebook:n    [1 'NB' ~bus *@da *@da ~bus]
   =/  nb-state=notebook-state:n
     :*  nb
         (~(gas by *members:n) ~[[~bus %owner] [~zod %viewer]])
         %public
-        (~(gas by *(map @ud folder:n)) ~[[1 root] [2 subf]])
-        (~(gas by *(map @ud note:n)) ~[[4 kept] [5 doomed]])
+        (~(gas by *(map @ud folder:n)) ~[[1 root] [2 subf] [3 nested]])
+        (~(gas by *(map @ud note:n)) ~[[4 kept] [5 doomed] [6 buried]])
         ~  ~
     ==
   =/  =wire  /notes/sub/(scot %p ~bus)/shared
@@ -2585,21 +2620,24 @@
   =/  s15=state-15:n  !<(state-15:n sv)
   =/  [net:n nbs=notebook-state:n]  (~(got by books.s15) f)
   |=  s=state
-  ?.  =(1 (lent acts))
-    |+['expected exactly one activity submission']~
-  =/  act  (snag 0 acts)
-  ?.  ?=(%del -.act)
-    |+['expected a %del submission']~
-  ?.  ?=(%note -.source.act)
-    |+['expected %del of a note source']~
-  ?.  =(5 id.source.act)
-    |+['expected the subfolder note id in the source']~
-  ?:  (~(has by folders.nbs) 2)
-    |+['subfolder not removed from local state']~
+  ?.  =(2 (lent acts))
+    |+['expected one activity submission per removed note']~
+  =/  del-ids=(set @ud)
+    %-  silt
+    %+  murn  acts
+    |=  act=action:v10:av
+    ^-  (unit @ud)
+    ?.  ?=(%del -.act)  ~
+    ?.  ?=(%note -.source.act)  ~
+    `id.source.act
+  ?.  =((silt ~[5 6]) del-ids)
+    |+['expected %del of both subtree note sources']~
+  ?:  |((~(has by folders.nbs) 2) (~(has by folders.nbs) 3))
+    |+['subtree folders not removed from local state']~
   ?.  (~(has by folders.nbs) 1)
     |+['root folder should survive']~
-  ?:  (~(has by notes.nbs) 5)
-    |+['subfolder note not removed from local state']~
+  ?:  |((~(has by notes.nbs) 5) (~(has by notes.nbs) 6))
+    |+['subtree notes not removed from local state']~
   ?.  (~(has by notes.nbs) 4)
     |+['root note should survive']~
   &+[~ s]

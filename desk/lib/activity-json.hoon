@@ -1,4 +1,4 @@
-/-  a=activity, av=activity-ver, gv=groups-ver, c=chat
+/-  a=activity, av=activity-ver, gv=groups-ver, nv=notes, c=chat
 /+  gj=groups-json, cj=channel-json, dj=contacts-json-1,
     sj=story-json
 =*  z  ..zuse
@@ -76,12 +76,12 @@
       ?.  ?=(?(%notebook %note) -.s)
         (string-source:v8 s)
       ?-  -.s
-        %notebook  (rap 3 'notebook/' (print-flag:enjs:gj flag.s) ~)
+        %notebook  (rap 3 'notebook/' (print-flag:enjs:gj [ship name]:flag.s) ~)
       ::
           %note
         %+  rap  3
         :~  'note/'
-            (print-flag:enjs:gj notebook.s)
+            (print-flag:enjs:gj [ship name]:notebook.s)
             '/'
             (scot %ud id.s)
         ==
@@ -96,7 +96,7 @@
           %notebook
         :~  :-  %notebook
             %-  pairs
-            :~  flag+(flag:enjs:gj flag.s)
+            :~  flag+(flag:enjs:gj [ship name]:flag.s)
                 group+?~(group.s ~ (flag:enjs:gj u.group.s))
             ==
         ==
@@ -105,7 +105,7 @@
         :~  :-  %note
             %-  pairs
             :~  id+s+(scot %ud id.s)
-                notebook+(flag:enjs:gj notebook.s)
+                notebook+(flag:enjs:gj [ship name]:notebook.s)
                 group+?~(group.s ~ (flag:enjs:gj u.group.s))
             ==
         ==
@@ -152,7 +152,7 @@
       %-  pairs
       :~  id+s+(scot %ud id.e)
           folder+s+(scot %ud folder.e)
-          notebook+(flag:enjs:gj notebook.e)
+          notebook+(flag:enjs:gj [ship name]:notebook.e)
           group+?~(group.e ~ (flag:enjs:gj u.group.e))
           title+s+title.e
           author+(ship author.e)
@@ -1175,15 +1175,21 @@
       ==
     ++  notebook-source
       %-  ot
-      :~  flag/flag:dejs:gj
+      :~  flag/nb-flag
           group/(mu flag:dejs:gj)
       ==
     ++  note-source
       %-  ot
       :~  id/id
-          notebook/flag:dejs:gj
+          notebook/nb-flag
           group/(mu flag:dejs:gj)
       ==
+    ::  a notebook flag has the same shape as a group flag, but its own
+    ::  faces — reparse into flag:nv
+    ++  nb-flag
+      |=  jon=json
+      ^-  flag:nv
+      (flag:dejs:gj jon)
     ++  incoming-event
       ^-  $-(json incoming-event:v10:av)
       %-  of
@@ -1209,7 +1215,7 @@
       %-  ot
       :~  id/id
           folder/id
-          notebook/flag:dejs:gj
+          notebook/nb-flag
           group/(mu flag:dejs:gj)
           title/so
           author/ship
