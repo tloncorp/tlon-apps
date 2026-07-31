@@ -1,4 +1,8 @@
 import * as api from '@tloncorp/api';
+import {
+  GROUP_AGENT_CONFIG_ENTRY_TYPE,
+  GroupAgentConfigEntry,
+} from '@tloncorp/api/types/groupAgentConfig';
 import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 
 import * as db from '../db';
@@ -96,14 +100,14 @@ export async function createAgentGroup(params?: {
  */
 function writeAgentMarker(group: db.Group, botShipId: string) {
   const entry = {
-    type: 'tlon-group-agent-config',
+    type: GROUP_AGENT_CONFIG_ENTRY_TYPE,
     version: 1,
     purpose: '',
     instructions: '',
     agents: [botShipId],
     jobs: [],
     updatedAt: Date.now(),
-  };
+  } satisfies GroupAgentConfigEntry;
   return api.updateGroupMeta({
     groupId: group.id,
     meta: {

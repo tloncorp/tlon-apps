@@ -16,7 +16,7 @@ import { isMoonOf, preSig } from '../lib/urbit';
  * (via the tlon CLI); the client only reads.
  */
 
-export const GroupJobScheduleSchema = z.union([
+const GroupJobScheduleSchema = z.union([
   z.object({
     kind: z.literal('cron'),
     expr: z.string().min(1),
@@ -28,9 +28,7 @@ export const GroupJobScheduleSchema = z.union([
   }),
 ]);
 
-export type GroupJobSchedule = z.infer<typeof GroupJobScheduleSchema>;
-
-export const GroupJobSpecSchema = z.object({
+const GroupJobSpecSchema = z.object({
   /** stable slug, unique within the group */
   id: z.string().min(1).max(64),
   /** e.g. "Morning digest" */
@@ -46,11 +44,9 @@ export const GroupJobSpecSchema = z.object({
   enabled: z.boolean(),
 });
 
-export type GroupJobSpec = z.infer<typeof GroupJobSpecSchema>;
-
 export const GROUP_AGENT_CONFIG_ENTRY_TYPE = 'tlon-group-agent-config';
 
-export const GroupAgentConfigEntrySchema = z.object({
+const GroupAgentConfigEntrySchema = z.object({
   type: z.literal(GROUP_AGENT_CONFIG_ENTRY_TYPE),
   version: z.literal(1),
   /** template provenance */
@@ -72,7 +68,7 @@ export type GroupAgentConfigEntry = z.infer<typeof GroupAgentConfigEntrySchema>;
  * undefined for plain-text descriptions, malformed JSON, or entries that fail
  * validation — callers must treat those as "no config".
  */
-export function parseGroupAgentConfig(
+function parseGroupAgentConfig(
   description: string | null | undefined
 ): GroupAgentConfigEntry | undefined {
   if (!description) {

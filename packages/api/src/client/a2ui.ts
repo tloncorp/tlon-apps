@@ -209,7 +209,7 @@ export namespace A2UI {
   };
 }
 
-export const CHOICE_ICONS = [
+const CHOICE_ICONS = [
   'ChannelNotebooks',
   'ChannelTalk',
   'ChannelGalleries',
@@ -218,7 +218,7 @@ export const CHOICE_ICONS = [
   'Face',
 ] as const;
 
-export const CHOICE_ACCENTS = ['blue', 'green', 'indigo', 'neutral'] as const;
+const CHOICE_ACCENTS = ['blue', 'green', 'indigo', 'neutral'] as const;
 
 const LIMITS = {
   maxBytes: 32 * 1024,

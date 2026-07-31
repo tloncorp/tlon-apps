@@ -60,11 +60,10 @@ export const PURPOSE_OPTIONS = [
 /** Mirrors GROUP_AGENT_CONFIG_ENTRY_TYPE in @tloncorp/api. */
 const AGENT_CONFIG_ENTRY_TYPE = 'tlon-group-agent-config';
 
-export const PURPOSE_PICKER_PROMPT =
+const PURPOSE_PICKER_PROMPT =
   "Let's make you a group that does something useful. What should it do?";
 
-export const PURPOSE_PICKER_FOOTER =
-  'Or just tell me — the cards are only starts.';
+const PURPOSE_PICKER_FOOTER = 'Or just tell me — the cards are only starts.';
 
 /**
  * The post's story text, which doubles as the fallback.
@@ -238,10 +237,10 @@ export const PURPOSE_TOPICS: Record<string, readonly string[]> = {
   ],
 };
 
-export const TOPICS_PICKER_PROMPT =
+const TOPICS_PICKER_PROMPT =
   'Good. What should I keep up with for you? Pick any that fit.';
 
-export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
+const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
 
 /** The purpose whose card title this message matches, if any. */
 export function purposeIdForChoice(text: string): string | undefined {
@@ -338,7 +337,7 @@ export function shouldOfferTopicsPicker(opts: {
   return purposeIdForChoice(opts.messageText);
 }
 
-export interface ChannelGroupInfo {
+interface ChannelGroupInfo {
   flag: string;
   /** the group's host ship, in `~ship` form */
   host: string;
@@ -403,7 +402,7 @@ export async function findGroupForChannel(
   }
 }
 
-export interface GroupChatChannelInfo {
+interface GroupChatChannelInfo {
   nest: string;
   /** the group's host ship, in `~ship` form */
   host: string;

@@ -95,9 +95,9 @@ const CHAT_TYPE_CONFIG = {
     actionTitle: 'New group',
     actionDescription: 'Start a group chat with invitees',
   },
+  // The agent flow has no form of its own — the group is created on the
+  // spot — so it only needs the action row.
   agent: {
-    title: 'New group',
-    subtitle: 'Your agent will set it up with you',
     actionTitle: 'New group',
     actionDescription:
       'Start a group with your agent — it sets itself up around what you want',
@@ -111,7 +111,7 @@ const CHAT_TYPE_CONFIG = {
 } as const;
 
 interface CreateChatFormContentProps {
-  chatType: ChatType;
+  chatType: 'dm' | 'group';
   isCreating: boolean;
   onSelectDmContact: (contactId: string) => void;
   onSelectedChange: (contactIds: string[]) => void;
@@ -216,15 +216,13 @@ const JoinGroupByIdPane = ({ open, close }: JoinGroupByIdPaneProps) => {
 };
 
 const JoinGroupFormContent = ({
-  chatType,
   open,
   close,
 }: {
-  chatType: ChatType;
   open: boolean;
   close: () => void;
 }) => {
-  const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
+  const { title, subtitle } = CHAT_TYPE_CONFIG.joinGroup;
   const { bottom } = useSafeAreaInsets();
 
   return (
@@ -385,8 +383,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     });
   }, [handleSubmit, selectedContactIds]);
 
-  const chatType =
-    step === 'createDm' ? 'dm' : step === 'createGroup' ? 'group' : 'joinGroup';
+  const chatType = step === 'createDm' ? ('dm' as const) : ('group' as const);
 
   const triggerWithOnPress = useMemo(() => {
     if (!trigger || !isValidElement(trigger)) return null;
@@ -423,7 +420,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       >
         <View flex={1}>
           <JoinGroupFormContent
-            chatType={chatType}
             open={step === 'createJoinGroup'}
             close={() => setStep('initial')}
           />
@@ -626,11 +622,7 @@ export function JoinGroupSheet({
   return (
     <ActionSheet moveOnKeyboardChange open={open} onOpenChange={onOpenChange}>
       <YStack flex={1} paddingBottom={bottom}>
-        <JoinGroupFormContent
-          chatType="joinGroup"
-          open={open}
-          close={() => onOpenChange(false)}
-        />
+        <JoinGroupFormContent open={open} close={() => onOpenChange(false)} />
       </YStack>
     </ActionSheet>
   );
