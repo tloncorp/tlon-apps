@@ -444,6 +444,12 @@ describe('notes app facade', () => {
 });
 
 describe('notesV1 writes send pinned v1 HTTP bodies', () => {
+  // Every v1 write response is an envelope; tests that only assert on the
+  // outgoing request still need one for assertWriteOk to accept.
+  beforeEach(() => {
+    requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
+  });
+
   test('createNotebook unwraps the notebook envelope', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: 'r',
@@ -829,33 +835,55 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     );
   });
 
-  test('void writes accept bare/empty success but reject error/pending/unexpected', async () => {
-    // bare folder object from a convenience route
-    requestJsonMock.mockResolvedValue({ id: 5, folderName: 'Drafts' });
-    await expect(
-      notesV1.createFolder({ flag: 'notes/~zod/blog', name: 'Drafts' })
-    ).resolves.toBeUndefined();
-    // empty/undefined
-    requestJsonMock.mockResolvedValue(undefined);
-    await expect(
-      notesV1.deleteNote({ flag: 'notes/~zod/blog', noteId: 1 })
-    ).resolves.toBeUndefined();
-    // explicit ok envelope without an update payload → null applied note
-    requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
-    await expect(
-      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 1, title: 'x' })
-    ).resolves.toBeNull();
-    // error / pending / unexpected envelopes reject
+  test('void writes require an envelope body and reject error/pending/unexpected', async () => {
+    const renameNote = () =>
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 1, title: 'x' });
+
+    // A missing, null, array, or primitive body is a protocol violation, not
+    // a shape to tolerate. `res?.body` is read before any shape test, so a
+    // top-level object with no `body` key reports an undefined body rather
+    // than an undefined body.type.
+    const malformed: { response: unknown; expected: RegExp }[] = [
+      { response: undefined, expected: /write response body: undefined/ },
+      {
+        response: { requestId: '0v1' },
+        expected: /write response body: undefined/,
+      },
+      { response: { body: null }, expected: /write response body: null/ },
+      { response: { body: [] }, expected: /write response body: \[\]/ },
+      { response: { body: 'ok' }, expected: /write response body: "ok"/ },
+      {
+        response: { body: { id: 5, folderName: 'Drafts' } },
+        expected:
+          /write response body\.type: undefined \(body: {"id":5,"folderName":"Drafts"}\)/,
+      },
+      {
+        response: { body: { type: 'mystery' } },
+        expected: /Unexpected %notes response type: "mystery"/,
+      },
+    ];
+    for (const { response, expected } of malformed) {
+      requestJsonMock.mockResolvedValue(response);
+      await expect(renameNote()).rejects.toThrow(expected);
+    }
+
+    // ok / no-change / notebook are the accepted write outcomes.
     for (const body of [
-      { type: 'error', message: ['nope'] },
-      { type: 'pending' },
-      { type: 'api-key' },
+      { type: 'ok' },
+      { type: 'no-change' },
+      { type: 'notebook', notebook: { host: '~zod', flagName: 'blog' } },
     ]) {
       requestJsonMock.mockResolvedValue({ body });
-      await expect(
-        notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 1, title: 'x' })
-      ).rejects.toThrow();
+      await expect(renameNote()).resolves.toBeNull();
     }
+
+    requestJsonMock.mockResolvedValue({
+      body: { type: 'error', message: ['nope'] },
+    });
+    await expect(renameNote()).rejects.toBeInstanceOf(NotesV1WriteError);
+
+    requestJsonMock.mockResolvedValue({ body: { type: 'pending' } });
+    await expect(renameNote()).rejects.toBeInstanceOf(NotesV1PendingWriteError);
   });
 
   test('pending note and folder writes point at affected objects structurally', async () => {
@@ -1091,30 +1119,11 @@ describe('batchImportNotesV1', () => {
     ).rejects.toThrow(/missing requestId/);
   });
 
-  test.each([
-    {
-      name: 'missing body',
-      response: { requestId: '0v1' },
-      expected: /batch-import response body: undefined/,
-    },
-    {
-      name: 'non-object body',
-      response: { requestId: '0v1', body: 'ok' },
-      expected: /batch-import response body: "ok"/,
-    },
-    {
-      name: 'body without a type',
-      response: { requestId: '0v1', body: { status: 'done' } },
-      expected:
-        /batch-import response body\.type: undefined \(body: {"status":"done"}\)/,
-    },
-    {
-      name: 'body with an unrecognised type',
-      response: { requestId: '0v1', body: { type: 'mystery' } },
-      expected: /response type: "mystery"/,
-    },
-  ])('throws on $name', async ({ response, expected }) => {
-    requestJsonMock.mockResolvedValue(response);
+  // Malformed envelope bodies are assertWriteOk's job now; its full table
+  // lives in 'void writes require an envelope body ...' above. This only pins
+  // that batch import delegates to it.
+  test('delegates envelope validation to assertWriteOk', async () => {
+    requestJsonMock.mockResolvedValue({ requestId: '0v1', body: 'ok' });
 
     await expect(
       batchImportNotesV1({
@@ -1123,7 +1132,7 @@ describe('batchImportNotesV1', () => {
         notes: [],
         requestId: '0v1',
       })
-    ).rejects.toThrow(expected);
+    ).rejects.toThrow(/Unexpected %notes write response body: "ok"/);
   });
 
   test('throws on error envelope', async () => {
@@ -1132,14 +1141,15 @@ describe('batchImportNotesV1', () => {
       body: { type: 'error', errorType: 'not-found', message: [] },
     });
 
-    await expect(
-      batchImportNotesV1({
-        flag: '~zod/blog',
-        folder: 3,
-        notes: [],
-        requestId: '0v1',
-      })
-    ).rejects.toThrow(/not-found/);
+    const err = await batchImportNotesV1({
+      flag: '~zod/blog',
+      folder: 3,
+      notes: [],
+      requestId: '0v1',
+    }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(NotesV1WriteError);
+    expect(err.message).toMatch(/not-found/);
   });
 
   test('rejects non-@uv requestId before fetching', async () => {

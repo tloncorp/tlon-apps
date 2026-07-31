@@ -812,16 +812,36 @@ function unwrapNotebookEnvelope(
   }
 }
 
-// Void writes: a *present* envelope body must be ok/no-change/notebook (else
-// error/pending/unexpected throw). A bare/empty non-envelope JSON body (e.g. a
-// folder object from a convenience route) is accepted and ignored —
-// `requestJson` already throws on HTTP failure.
-function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
-  const body = res?.body;
-  if (!body || typeof body.type !== 'string') {
-    return;
+function describeNotesResponseValue(value: unknown): string {
+  if (value === undefined) {
+    return 'undefined';
   }
-  switch (body.type) {
+  return JSON.stringify(value) ?? String(value);
+}
+
+// Void writes: in the current backend every v1 write response is an envelope
+// whose `body` carries a string `type`. `response:v1:enjs`
+// (desk/lib/notes/json.hoon) emits one for all six variants, and every write —
+// the envelope POST (`handle-v1-post`) and the REST convenience routes
+// (`handle-v1-write`) — funnels through `dispatch-v1-action` →
+// `finalize-request`/`finalize-pending` → `give-http-response`
+// (desk/app/notes.hoon). A missing or typeless body is therefore a protocol
+// violation, not a shape to tolerate. ok/no-change/notebook succeed;
+// everything else throws. `requestJson` has already rejected any non-200.
+function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
+  const body: unknown = res?.body;
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new Error(
+      `Unexpected %notes write response body: ${describeNotesResponseValue(body)}`
+    );
+  }
+  const type = (body as Record<string, unknown>).type;
+  if (typeof type !== 'string') {
+    throw new Error(
+      `Unexpected %notes write response body.type: ${describeNotesResponseValue(type)} (body: ${describeNotesResponseValue(body)})`
+    );
+  }
+  switch (type) {
     case 'ok':
     case 'no-change':
     case 'notebook':
@@ -831,7 +851,9 @@ function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
     case 'pending':
       throw pendingWriteError(res, checks);
     default:
-      throw new Error(`Unexpected %notes response type: ${body.type}`);
+      throw new Error(
+        `Unexpected %notes response type: ${describeNotesResponseValue(type)}`
+      );
   }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -1220,13 +1242,6 @@ export class NotesInvalidRequestIdError extends Error {
 // Batch-import submit over the v1 envelope
 // ===========================================================================
 
-function describeNotesResponseValue(value: unknown): string {
-  if (value === undefined) {
-    return 'undefined';
-  }
-  return JSON.stringify(value) ?? String(value);
-}
-
 export async function batchImportNotesV1({
   flag,
   folder,
@@ -1271,41 +1286,7 @@ export async function batchImportNotesV1({
     throw new Error('%notes batch-import response missing requestId');
   }
 
-  const rawEnvelopeBody: unknown = res?.body;
-  if (
-    typeof rawEnvelopeBody !== 'object' ||
-    rawEnvelopeBody === null ||
-    Array.isArray(rawEnvelopeBody)
-  ) {
-    throw new Error(
-      `Unexpected %notes batch-import response body: ${describeNotesResponseValue(rawEnvelopeBody)}`
-    );
-  }
-
-  const envelopeBody = rawEnvelopeBody as Record<string, unknown>;
-  const envelopeType = envelopeBody.type;
-  if (typeof envelopeType !== 'string') {
-    throw new Error(
-      `Unexpected %notes batch-import response body.type: ${describeNotesResponseValue(envelopeType)} (body: ${describeNotesResponseValue(envelopeBody)})`
-    );
-  }
-
-  switch (envelopeType) {
-    case 'ok':
-    case 'no-change':
-      break;
-    case 'error':
-      throw new Error(notesEnvelopeErrorMessage(envelopeBody));
-    case 'pending':
-      throw pendingWriteError(
-        res,
-        noteCreateChecks(notesChannelId(normalized))
-      );
-    default:
-      throw new Error(
-        `Unexpected %notes response type: ${describeNotesResponseValue(envelopeType)}`
-      );
-  }
+  assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
 
   return serverRequestId;
 }
