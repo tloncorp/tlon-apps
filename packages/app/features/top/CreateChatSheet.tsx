@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
 import useGroupSearch from '../../hooks/useGroupSearch';
+import { AGENT_SHIP_OVERRIDE } from '../../lib/envVars';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   Action,
@@ -478,9 +479,10 @@ function TypeSelectionContent({
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const hasAgent = (hostingBotEnabled ?? false) || !!AGENT_SHIP_OVERRIDE;
   const actions = useMemo(
-    () => createTypeActions(onSelectType, hostingBotEnabled ?? false),
-    [onSelectType, hostingBotEnabled]
+    () => createTypeActions(onSelectType, hasAgent),
+    [onSelectType, hasAgent]
   );
   return (
     <>
@@ -650,7 +652,9 @@ function useCreateChat() {
         } else if (params.type === 'agent') {
           // The agent opens the conversation once it joins, so land the user
           // straight in the channel where that's about to happen.
-          const { group, channelId } = await store.createAgentGroup();
+          const { group, channelId } = await store.createAgentGroup({
+            agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+          });
           const channel = channelId
             ? await db.getChannel({ id: channelId })
             : null;

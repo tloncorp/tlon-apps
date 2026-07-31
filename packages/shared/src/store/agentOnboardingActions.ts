@@ -22,11 +22,23 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * group starts without the bot, which the user can see and fix by inviting
  * it, so neither is fatal.
  */
-export async function createAgentGroup(): Promise<{
+export async function createAgentGroup(params?: {
+  /**
+   * Agent ship named directly instead of resolved through hosting — for
+   * environments without a hosted node (dev sandbox, self-hosted bot).
+   */
+  agentShipId?: string;
+}): Promise<{
   group: db.Group;
   channelId: string | null;
 }> {
-  const { botShipId, hostedShipId, moon } = await resolveTlawnBot();
+  const { botShipId, hostedShipId, moon } = params?.agentShipId
+    ? {
+        botShipId: api.preSig(params.agentShipId),
+        hostedShipId: null,
+        moon: null,
+      }
+    : await resolveTlawnBot();
   if (!botShipId) {
     throw new Error(
       'Your agent isn’t available right now — try again in a moment.'
@@ -39,6 +51,18 @@ export async function createAgentGroup(): Promise<{
   logger.trackEvent('Agent Group Created', {
     groupId: group.id,
     botShipId,
+  });
+
+  // Declare the agent on the group so its interactive cards render for the
+  // owner even when the agent isn't a moon of their ship (see
+  // `isOwnAgentShip`). A bare declaration — who acts, not what the group
+  // does — so the agent still treats the group as awaiting setup. Best
+  // effort: without it the cards degrade to their text fallback.
+  writeAgentMarker(group, botShipId).catch((error) => {
+    logger.trackError('Failed to write agent marker', {
+      error,
+      groupId: group.id,
+    });
   });
 
   if (hostedShipId && moon) {
@@ -63,6 +87,32 @@ export async function createAgentGroup(): Promise<{
   }
 
   return { group, channelId };
+}
+
+/**
+ * The group-agent-config stopgap entry naming the group's agent, written into
+ * `meta.description` (matching `parseGroupAgentConfig` in @tloncorp/api). The
+ * agent itself fills in purpose and jobs during onboarding.
+ */
+function writeAgentMarker(group: db.Group, botShipId: string) {
+  const entry = {
+    type: 'tlon-group-agent-config',
+    version: 1,
+    purpose: '',
+    instructions: '',
+    agents: [botShipId],
+    jobs: [],
+    updatedAt: Date.now(),
+  };
+  return api.updateGroupMeta({
+    groupId: group.id,
+    meta: {
+      title: group.title ?? '',
+      description: JSON.stringify([entry]),
+      image: group.iconImage ?? group.iconImageColor ?? '',
+      cover: group.coverImage ?? group.coverImageColor ?? '',
+    },
+  });
 }
 
 async function resolveTlawnBot(): Promise<{
