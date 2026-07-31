@@ -79,6 +79,18 @@ export const mockedNotesV1 = Object.fromEntries(
   NOTES_V1_OPS.map((op) => [op, async () => undefined])
 ) as MockedNotesV1;
 
+export const mockedGetChannelPosts = {
+  impl: async (..._args: unknown[]) => ({
+    posts: [],
+    older: null,
+    totalPosts: 0,
+  }),
+};
+
+export const mockedScry = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
 export class MockUrbit {
   cookie = '';
   nodeId = '';
@@ -89,11 +101,11 @@ export class MockUrbit {
 mock.module('@tloncorp/api', () => ({
   // api-client.ts value imports
   Urbit: MockUrbit,
-  client: { cookie: '' },
+  client: { cookie: '', url: 'http://localhost', fetchFn: fetch },
   configureClient: async () => undefined,
   internalRemoveClient: () => undefined,
   preSig: (ship: string) => (ship.startsWith('~') ? ship : `~${ship}`),
-  scry: async () => undefined,
+  scry: (...args: unknown[]) => mockedScry.impl(...args),
   subscribe: async () => 0,
   // dms.ts value imports (reaction helpers take injected deps in tests, so
   // these defaults are load-time placeholders, never assertion targets)
@@ -104,6 +116,10 @@ mock.module('@tloncorp/api', () => ({
   respondToDMInvite: async () => undefined,
   sendPost: async () => undefined,
   sendReply: async () => undefined,
+  batchImportNotesV1: async (input: { requestId: string }) => input.requestId,
+  getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
+  toUrbitStory: (content: unknown) => content ?? [],
+  updateChannel: async () => undefined,
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
   notesV1: mockedNotesV1,

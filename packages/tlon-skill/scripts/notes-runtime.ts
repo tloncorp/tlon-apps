@@ -1,6 +1,7 @@
 import {
   type NotesV1Api,
   NotesV1PendingWriteError,
+  deleteNotesNotebookStrict,
   joinNotesChannel,
   leaveNotesChannel,
   notesV1,
@@ -73,16 +74,17 @@ function wrapNotesV1(): NotesV1Api {
 }
 
 export function createNotesDeps(): NotesDeps {
+  let _migration: import('./notes-migrate').MigrationDeps | undefined;
   return {
     ...createProcessCommandDeps(),
     // No subscriptions: %notes CRUD is request/response over the v1 HTTP API.
+    // Membership uses the %notes action wrappers (not the v0 app-sync helpers).
     authenticate: async () => {
       await ensureClient();
     },
     notesV1: wrapNotesV1(),
     isPendingWriteError: (error): error is NotesPendingWriteErrorLike =>
       error instanceof NotesV1PendingWriteError,
-    // Membership uses the %notes action wrappers (not the v0 app-sync helpers).
     joinNotesNotebook: async (nest: string) => {
       try {
         await joinNotesChannel(nest);
@@ -97,7 +99,21 @@ export function createNotesDeps(): NotesDeps {
         throw commandError(notesRuntimeErrorMessage(error));
       }
     },
+    deleteNotesNotebookStrict: async (nest: string) => {
+      try {
+        await deleteNotesNotebookStrict(nest);
+      } catch (error) {
+        throw commandError(notesRuntimeErrorMessage(error));
+      }
+    },
     readFile: (path: string) => fs.readFileSync(path, 'utf-8'),
     readStdin,
+    get migration() {
+      if (!_migration) {
+        const { createMigrationDeps } = require('./notes-migrate-runtime');
+        _migration = createMigrationDeps();
+      }
+      return _migration;
+    },
   };
 }

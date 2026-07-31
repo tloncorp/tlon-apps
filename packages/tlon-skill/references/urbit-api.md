@@ -100,7 +100,9 @@ Format: `~host/group-name`
 
 ### Nest (Channel ID)
 Format: `{kind}/~host/channel-name`
-Kinds: `chat`, `heap` (the `%diary` notebook kind has been removed; use `%notes`)
+Kinds: `chat`, `heap`; `%diary` is deprecated and unmanaged by the CLI. Owners
+can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and move
+it to `%notes` with `tlon notes migrate-apply <diary-nest> --yes`.
 
 ## Tips
 
