@@ -1,8 +1,8 @@
-::  channel-action-2: send actions to %channels
+::  channel-action-2: poke %channels with a v10 channel action
 ::
-::    thread for posting to a channel as this ship, used by the
-::    alert bot and typically invoked through eyre's spider api.
-::    takes the v10 channel action (%channel-action-2 mark).
+::    see /ted/channel/action for the general shape. this one takes the
+::    %channel-action-2 mark:
+::    /spider/groups/channel-action-2/channel-action-2/json
 ::
 /-  spider, cv=channels-ver
 /+  io=strandio
@@ -14,9 +14,9 @@
 ^-  form:m
 =+  !<(arg=(unit a-channels:v10:cv) arg)
 ?~  arg  (pure:m !>(~))
-=/  action  u.arg
-?>  ?=([%channel ^ %post %add *] action)
 ;<  =bowl:strand  bind:m  get-bowl:io
-=.  sent.essay.c-post.a-channel.action  now.bowl
+=/  action  u.arg
+=?  action  ?=([%channel ^ %post %add *] action)
+  action(sent.essay.c-post.a-channel now.bowl)
 ;<  ~  bind:m  (poke:io [our.bowl %channels] channel-action-2+!>(action))
 (pure:m !>(~))
