@@ -79,6 +79,7 @@
           [/v2 %channel-response-3 ~]
           [/v3 %channel-response-4 ~]
           [/v4 %channel-response-5 ~]
+          [/v5 %channel-response-6 ~]
         ::
           [/said %channel-said %channel-denied ~]
           [/v0/said %channel-said %channel-denied ~]
@@ -148,6 +149,8 @@
         [/x/v5/$/$/$/posts/post/id/$/replies %channel-replies-5]
         [/x/v5/$/$/$/posts/post/id/$/replies/reply %channel-reply-3]
       ::
+        [/x/v6/channels %channels-6]
+      ::
         [/x/v5/changes %channel-changed-posts]
         [/x/v6/changes %channel-changed-posts-1]
       ::
@@ -160,7 +163,7 @@
     :+  notify=&
       [~.channels^%4 ~ ~]
     %-  my
-    :~  %groups^[~.groups^%2 ~ ~]
+    :~  %groups^[~.groups^%3 ~ ~]
         %channels-server^[~.channels^%4 ~ ~]
     ==
 %-  agent:dbug
@@ -172,8 +175,8 @@
   +$  card  card:guard
   +$  rail  rail:guard
   +$  current-state
-    $:  %19
-        =v-channels:v10:cv
+    $:  %20
+        =v-channels:v11:cv
         voc=(map [nest:cv plan:cv] (unit said:v10:cv))
         hidden-posts=(set id-post:cv)
         debounce=(jug nest:cv @da)  ::  temporary bandaid
@@ -342,7 +345,8 @@
     ?.  ?=(%18 -.old)  [~ old]
     [reconcile-notes-cards (state-18-to-19 old)]
   =.  cor  (emil caz-19)
-  ?>  ?=(%19 -.old)
+  =?  old  ?=(%19 -.old)  (state-19-to-20 old)
+  ?>  ?=(%20 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -350,7 +354,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-19
+    $%  state-20
+        state-19
         state-18
         state-17
         state-16
@@ -371,7 +376,22 @@
         state-1
         state-0
     ==
-  +$  state-19  current-state
+  +$  state-20  current-state
+  +$  state-19
+    $:  %19
+        =v-channels:v10:cv
+        voc=(map [nest:cv plan:cv] (unit said:v10:cv))
+        hidden-posts=(set id-post:cv)
+        debounce=(jug nest:cv @da)  ::  temporary bandaid
+        last-updated=(list [=nest:cv =time])  ::  newest first, one-per-nest
+      ::
+        ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+        ::
+        pending-ref-edits=(jug ship [=kind:v9:cv name=term])
+        :: delayed resubscribes
+        =^subs:s
+        =pimp:imp
+    ==
   +$  state-18  _%*(. *state-19 - %18)
   +$  state-17  _%*(. *state-18 - %17)
   +$  state-16
@@ -463,6 +483,15 @@
         :: delayed resubscribes
         =^subs:s
         =pimp:imp
+    ==
+  ::
+  ++  state-19-to-20
+    |=  =state-19
+    ~>  %spin.['state-19-to-20']
+    ^-  state-20
+    %=  state-19
+      -  %20
+      v-channels  (~(run by v-channels.state-19) v11:v-channel:v10:ccv)
     ==
   ::
   ++  state-18-to-19
@@ -873,7 +902,11 @@
   =.  cor
     %+  roll
       ~(tap by v-channels)
-    |=  [[=nest:c *] core=_cor]
+    |=  [[=nest:c channel=v-channel:c] core=_cor]
+    ::  don't resubscribe to deliberately suspended channels
+    ::
+    =/  =conn:c  (~(gut by cons.net.channel) /updates &+%done)
+    ?:  ?=([%& %suspend] conn)  core
     ca-abet:(ca-safe-sub:(ca-abed:ca-core:core nest) |)
   ::
   cor
@@ -890,6 +923,12 @@
       =/  =nest:c  [kind src.bowl name]
       ?.  (~(has by v-channels) nest)  cor
       ca-abet:(ca-safe-sub:(ca-abed:ca-core nest) |)
+    ::
+        [%channel-suspend * *]
+      ?>  from-self
+      =+  ;;([%channel-suspend =nest:c suspend=?] p.rail)
+      ?.  (~(has by v-channels) nest)  cor
+      ca-abet:(ca-a-suspend:(ca-abed:ca-core nest) suspend)
     ::
         %pimp-ready
       ?>  =(our src):bowl
@@ -1103,9 +1142,9 @@
   =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+`path`pole !!)
-    [?(%v0 %v1 %v2 %v3 %v4) ~]  ?>(from-self cor)
+    [?(%v0 %v1 %v2 %v3 %v4 %v5) ~]  ?>(from-self cor)
     [?(%v0 %v1) %unreads ~]  ?>(from-self cor)
-    [?(%v0 %v1 %v2 %v3 %v4) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
+    [?(%v0 %v1 %v2 %v3 %v4 %v5) =kind:c ship=@ name=@ ~]  ?>(from-self cor)
   ::
       [%v1 %hooks %preview =kind:c host=@ name=@ ~]
     =/  host=ship   (slav %p host.pole)
@@ -1379,7 +1418,7 @@
   %-  peek:un:guard
   ^-  (unit (unit rail))
   ?>  ?=(^ pole)
-  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5 %v6) *] +.pole)
+  =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5 %v6 %v7) *] +.pole)
     [%v0 +.pole]
   ?+    pole  [~ ~]
     ::
@@ -1392,14 +1431,17 @@
     ``channels-2+`channels:v1:cv`(uv-channels:utils v-channels ?=(^ full.pole))
     ::
       [%x %v3 %v-channels ~]
-    =+  v-channels-9=(v9:v-channels:v10:ccv v-channels)
-    ``unsafe+noun+!>(`v-channels:v8:cv`(v8:v-channels:v9:ccv v-channels-9))
+    ``unsafe+noun+!>(`v-channels:v8:cv`(v8:v-channels:v11:ccv v-channels))
     ::
       [%x %v4 %v-channels ~]
-    ``unsafe+noun+!>((v9:v-channels:v10:ccv v-channels))
+    =+  v-channels-10=(v10:v-channels:v11:ccv v-channels)
+    ``unsafe+noun+!>((v9:v-channels:v10:ccv v-channels-10))
     ::
       [%x %v5 %v-channels ~]
-    ``unsafe+noun+!>(`v-channels:v10:cv`v-channels)
+    ``unsafe+noun+!>(`v-channels:v10:cv`(v10:v-channels:v11:ccv v-channels))
+    ::
+      [%x %v6 %v-channels ~]
+    ``unsafe+noun+!>(`v-channels:v11:cv`v-channels)
     ::
       [%x %v3 %channels full=?(~ [%full ~])]
     ``channels-3+`channels:v8:cv`(uv-channels-2:utils v-channels ?=(^ full.pole))
@@ -1409,6 +1451,9 @@
     ::
       [%x %v5 %channels full=?(~ [%full ~])]
     ``channels-5+`channels:v10:cv`(uv-channels-4:utils v-channels ?=(^ full.pole))
+    ::
+      [%x %v6 %channels full=?(~ [%full ~])]
+    ``channels-6+`channels:v11:cv`(uv-channels-5:utils v-channels ?=(^ full.pole))
     ::
     ::  /x/v/init: get unreads and unversioned channels
     ::
@@ -1433,6 +1478,10 @@
       [%x %v6 %init ~]
     =/  init  [(uv-channels-4:utils v-channels |) hidden-posts]
     ``unsafe+noun+!>(`[channels:v10:cv (set id-post:c)]`init)
+    ::
+      [%x %v7 %init ~]
+    =/  init  [(uv-channels-5:utils v-channels |) hidden-posts]
+    ``unsafe+noun+!>(`[channels:v11:cv (set id-post:c)]`init)
     ::
       [%x ver=?(%v5 %v6) %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
@@ -1729,11 +1778,6 @@
   ++  emil  |=(caz=(list card) ca-core(cor (^emil caz)))
   ++  give  |=(=gift:guard ca-core(cor (^give gift)))
   ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.channel)
-  ++  safe-watch
-    |=  [=wire =dock =path]
-    ~>  %spin.['safe-watch']
-    |=  delay=?
-    ca-core(cor ((^safe-watch wire dock path) delay))
   ++  unsubscribe
     |=  [=wire =dock]
     ~>  %spin.['unsubscribe']
@@ -2149,6 +2193,15 @@
     ::  +can-poke:neg.
     ::
     (emit %pass ca-area %agent [ship.nest.command server] %poke rail)
+  ::  +ca-a-suspend: toggle channel connection
+  ::
+  ++  ca-a-suspend
+    |=  suspend=?
+    ^+  ca-core
+    ?:  suspend
+      =.  ca-core  ca-simple-leave
+      (ca-u-connection /updates &+%suspend)
+    (ca-start-updates |)
   ::
   ++  ca-know-said
     |=  =plan:c
@@ -2200,18 +2253,37 @@
     (give %kick ~ ~)
   ::
   ++  ca-has-sub
+    |=  =wire
     ~>  %spin.['ca-has-sub']
     ^-  ?
-    (~(has by wex.bowl) [ca-sub-wire ship.nest server])
+    (~(has by wex.bowl) [(weld ca-area wire) ship.nest server])
+  ::
+  ::  +ca-safe-watch: watch and track connection status on .wire
+  ::
+  ++  ca-safe-watch
+    |=  [=wire =dock =path]
+    ~>  %spin.['ca-safe-watch']
+    |=  delay=?
+    ^+  ca-core
+    =?  ca-core  !(ca-has-sub wire)
+      (ca-u-connection wire &+%watch)
+    =.  cor  ((safe-watch (weld ca-area wire) dock path) delay)
+    ca-core
   ::
   ++  ca-safe-sub
     |=  delay=?
     ~>  %spin.['ca-safe-sub']
-    ?:  ca-has-sub  ca-core
-    ?^  posts.channel  (ca-start-updates delay)
+    ?:  (ca-has-sub /updates)
+      =+  conn=(~(get by cons.net.channel) /updates)
+      =?  ca-core  &(?=(^ conn) ?=(%| -.u.conn))
+        %-  emit
+        (tell-plog %warn ~[leaf+"+ca-safe-sub already subscribed, but conn is {<u.conn>}"] ~)
+      ca-core
+    =+  posts=posts.channel  ::TMI
+    ?^  posts  (ca-start-updates delay)
     =.  load.net.channel  |
     %.  delay
-    %^  safe-watch  (weld ca-area /checkpoint)  [ship.nest server]
+    %^  ca-safe-watch  /checkpoint  [ship.nest server]
     ?.  =(our.bowl ship.nest)
       =/  count  ?:(=(%diary kind.nest) '20' '100')
       /[kind.nest]/[name.nest]/checkpoint/before/[count]
@@ -2220,11 +2292,15 @@
   ++  ca-start-updates
     |=  delay=?
     ~>  %spin.['ca-start-updates']
+    ::  nb: +ca-safe-watch only sets %watch if we don't have a subscription.
+    ::  otherwise we wouldn't receive a watch-ack that transitions the
+    ::  connection state to %done.
+    ::
     ::  not most optimal time, should maintain last heard time instead
     =/  tim=(unit time)
       (bind (ram:on-v-posts:c posts.channel) head)
     %.  delay
-    %^  safe-watch  ca-sub-wire  [ship.nest server]
+    %^  ca-safe-watch  /updates  [ship.nest server]
     /[kind.nest]/[name.nest]/updates/(scot:h136 %da (fall tim *@da))
   ::
   ++  ca-agent
@@ -2255,19 +2331,21 @@
           %-  (slog leaf+"{<dap.bowl>}: Failed creation (poke)" u.p.sign)
           ~
       =/  =path  /[kind.nest]/[name.nest]/create
-      =/  =wire  (weld ca-area /create)
-      ((safe-watch wire [our.bowl server] path) |)
+      ((ca-safe-watch /create [our.bowl server] path) |)
     ::
         %kick       (ca-safe-sub &)
         %watch-ack
-      ?~  p.sign  ca-core
+      ?~  p.sign
+        (ca-u-connection /create &+%done)
       %-  (slog leaf+"{<dap.bowl>}: Failed creation" u.p.sign)
-      ca-core
+      (ca-u-connection /create |+%fail)
     ::
         %fact
       =*  rail  rail.sign
+      ?:  ?=(%channel-error -.rail)
+        (ca-u-connection /create |+p.rail)
       ?.  ?=(%channel-update -.rail)
-        ~|(diary-strange-fact+-.rail !!)
+        ~|(channel-strange-fact+-.rail !!)
       =/  =update:c  p.rail
       =?  meta.channel  ?=(%create -.u-channel.update)
         [0 meta.u-channel.update]
@@ -2282,15 +2360,27 @@
     ~>  %spin.['ca-take-update']
     ^+  ca-core
     ?+    -.sign  ca-core
-        %kick       (ca-safe-sub &)
-        %watch-ack
-      ?~  p.sign  ca-core
-      %-  (slog leaf+"{<dap.bowl>}: Failed subscription" u.p.sign)
+        %kick
+      ::  nb: only attempt to resubscribe if the connection is active.
+      ::  otherwise this would trigger when the channel host sends an error
+      ::  fact that is followed by a kick closing the subscription.
+      ::
+      =/  =conn:c
+        (~(gut by cons.net.channel) /updates &+%done)
+      ?:  &(?=(%& -.conn) ?=(?(%watch %done) p.conn))
+        (ca-safe-sub &)
       ca-core
+    ::
+        %watch-ack
+      ?~  p.sign
+        (ca-u-connection /updates &+%done)
+      %-  (slog leaf+"{<dap.bowl>}: Failed subscription" u.p.sign)
+      (ca-u-connection /updates |+%fail)
     ::
         %fact
       =*  rail  rail.sign
       ?+  -.rail  ~|(channel-strange-fact+-.rail !!)
+        %channel-error   (ca-u-connection /updates |+p.rail)
         %channel-logs    (ca-apply-logs p.rail)
         %channel-update  (ca-u-channels p.rail)
       ==
@@ -2302,15 +2392,26 @@
     ^+  ca-core
     ?+    -.sign  ca-core
         :: only if kicked prematurely
-        %kick       ?:(load.net.channel ca-core (ca-safe-sub &))
-        %watch-ack
-      ?~  p.sign  ca-core
-      %-  (slog leaf+"{<dap.bowl>}: Failed partial checkpoint" u.p.sign)
+        %kick
+      ?:  load.net.channel  ca-core
+      =/  =conn:c
+        (~(gut by cons.net.channel) /checkpoint &+%done)
+      ?:  &(?=(%& -.conn) ?=(?(%watch %done) p.conn))
+        (ca-safe-sub &)
       ca-core
+    ::
+        %watch-ack
+      ?~  p.sign
+        (ca-u-connection /checkpoint &+%done)
+      %-  (slog leaf+"{<dap.bowl>}: Failed partial checkpoint" u.p.sign)
+      (ca-u-connection /checkpoint |+%fail)
     ::
         %fact
       =*  rail  rail.sign
-      ?+    -.rail  ~|(diary-strange-fact+-.rail !!)
+      ?+    -.rail  ~|(channel-strange-fact+-.rail !!)
+          %channel-error
+        (ca-u-connection /checkpoint |+p.rail)
+      ::
           %channel-checkpoint
         (ca-ingest-checkpoint p.rail)
       ==
@@ -2322,15 +2423,25 @@
     ^+  ca-core
     ?+    -.sign  ca-core
         ::  only hit if kicked prematurely (we %leave after the first %fact)
-        %kick  (ca-sync-backlog &)
-        %watch-ack
-      ?~  p.sign  ca-core
-      %-  (slog leaf+"{<dap.bowl>}: Failed backlog" u.p.sign)
+        %kick
+      =/  =conn:c
+        (~(gut by cons.net.channel) /backlog &+%done)
+      ?:  &(?=(%& -.conn) ?=(?(%watch %done) p.conn))
+        (ca-sync-backlog &)
       ca-core
+    ::
+        %watch-ack
+      ?~  p.sign
+        (ca-u-connection /backlog &+%done)
+      %-  (slog leaf+"{<dap.bowl>}: Failed backlog" u.p.sign)
+      (ca-u-connection /backlog |+%fail)
     ::
         %fact
       =*  rail  rail.sign
-      ?+    -.rail  ~|(diary-strange-fact+-.rail !!)
+      ?+    -.rail  ~|(channel-strange-fact+-.rail !!)
+          %channel-error
+        (ca-u-connection /backlog |+p.rail)
+      ::
           %channel-checkpoint
         (ca-ingest-backlog p.rail)
       ==
@@ -2396,7 +2507,7 @@
     =/  checkpoint-start  (pry:on-v-posts:c posts.channel)
     ?~  checkpoint-start  ca-core
     %.  delay
-    %^  safe-watch  (weld ca-area /backlog)  [ship.nest server]
+    %^  ca-safe-watch  /backlog  [ship.nest server]
     %+  welp
       /[kind.nest]/[name.nest]/checkpoint/time-range
     ~|  `*`key.u.checkpoint-start
@@ -2699,11 +2810,33 @@
       +>      +>.new
     ==
   ::
+  ::  +ca-u-connection: receive connection update
+  ::
+  ++  ca-u-connection
+    |=  [=wire =conn:c]
+    ~>  %spin.['ca-u-connection']
+    ^+  ca-core
+    =.  ca-core  (ca-response %connection wire conn)
+    =.  cons.net.channel  (~(put by cons.net.channel) wire conn)
+    ?:  =(%& -.conn)  ca-core
+    (unsubscribe (weld ca-area wire) [ship.nest server])
+  ::
   ::  give a "response" to our subscribers
   ::
   ++  ca-response
     |=  =r-channel:c
     ~>  %spin.['ca-response']
+    ^+  ca-core
+    =/  r-channels-11=r-channels:v11:cv
+      [nest r-channel]
+    =.  ca-core
+      %^  give  %fact
+        ~[/v5 v5+ca-area]
+      channel-response-6+r-channels-11
+    ::  %connection responses are local-only and new in v11:
+    ::  do not give them to older subscription versions
+    ::
+    ?:  ?=(%connection -.r-channel)  ca-core
     =/  r-channels-10=r-channels:v10:cv
       [nest r-channel]
     =.  ca-core

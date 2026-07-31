@@ -57,6 +57,7 @@
 /%  channel-checkpoint          %channel-checkpoint
 /%  channel-command             %channel-command
 /%  channel-denied              %channel-denied
+/%  channel-error               %channel-error
 /%  channel-heads               %channel-heads
 /%  channel-heads-2             %channel-heads-2
 /%  channel-heads-3             %channel-heads-3
@@ -90,6 +91,7 @@
 /%  channel-response-3          %channel-response-3
 /%  channel-response-4          %channel-response-4
 /%  channel-response-5          %channel-response-5
+/%  channel-response-6          %channel-response-6
 /%  channel-said                %channel-said
 /%  channel-said-1              %channel-said-1
 /%  channel-said-2              %channel-said-2
@@ -115,6 +117,7 @@
 /%  channels-3                  %channels-3
 /%  channels-4                  %channels-4
 /%  channels-5                  %channels-5
+/%  channels-6                  %channels-6
 /%  chat-block-ship             %chat-block-ship
 /%  chat-blocked                %chat-blocked
 /%  chat-blocked-by             %chat-blocked-by
@@ -226,6 +229,7 @@
 /%  group-channel-leave         %group-channel-leave
 /%  group-command               %group-command
 /%  group-create-thread         %group-create-thread
+/%  group-error                 %group-error
 /%  group-foreign-1             %group-foreign-1
 /%  group-foreign-2             %group-foreign-2
 /%  group-init                  %group-init
@@ -249,10 +253,12 @@
 /%  group-rescind               %group-rescind
 /%  group-response-1            %group-response-1
 /%  group-response-2            %group-response-2
+/%  group-response-3            %group-response-3
 /%  group-token                 %group-token
 /%  group-ui                    %group-ui
 /%  group-ui-1                  %group-ui-1
 /%  group-ui-2                  %group-ui-2
+/%  group-ui-3                  %group-ui-3
 /%  group-update                %group-update
 /%  grouper-answer-enabled      %grouper-answer-enabled
 /%  grouper-ask-enabled         %grouper-ask-enabled
@@ -264,6 +270,7 @@
 /%  groups-ui                   %groups-ui
 /%  groups-ui-1                 %groups-ui-1
 /%  groups-ui-2                 %groups-ui-2
+/%  groups-ui-3                 %groups-ui-3
 /%  growl-summarize             %growl-summarize
 /%  hi-ship                     %hi-ship
 /%  hidden-messages             %hidden-messages
@@ -338,6 +345,7 @@
 /%  ui-init-6                   %ui-init-6
 /%  ui-init-7                   %ui-init-7
 /%  ui-init-8                   %ui-init-8
+/%  ui-init-9                   %ui-init-9
 /%  ui-pins                     %ui-pins
 /%  ui-show-contact             %ui-show-contact
 /%  ui-vita                     %ui-vita
@@ -410,6 +418,7 @@
       $:  %channel-checkpoint          $+  channel-checkpoint          p=_*vale:channel-checkpoint          ==
       $:  %channel-command             $+  channel-command             p=_*vale:channel-command             ==
       $:  %channel-denied              $+  channel-denied              p=_*vale:channel-denied              ==
+      $:  %channel-error               $+  channel-error               p=_*vale:channel-error               ==
       $:  %channel-heads               $+  channel-heads               p=_*vale:channel-heads               ==
       $:  %channel-heads-2             $+  channel-heads-2             p=_*vale:channel-heads-2             ==
       $:  %channel-heads-3             $+  channel-heads-3             p=_*vale:channel-heads-3             ==
@@ -443,6 +452,7 @@
       $:  %channel-response-3          $+  channel-response-3          p=_*vale:channel-response-3          ==
       $:  %channel-response-4          $+  channel-response-4          p=_*vale:channel-response-4          ==
       $:  %channel-response-5          $+  channel-response-5          p=_*vale:channel-response-5          ==
+      $:  %channel-response-6          $+  channel-response-6          p=_*vale:channel-response-6          ==
       $:  %channel-said                $+  channel-said                p=_*vale:channel-said                ==
       $:  %channel-said-1              $+  channel-said-1              p=_*vale:channel-said-1              ==
       $:  %channel-said-2              $+  channel-said-2              p=_*vale:channel-said-2              ==
@@ -468,6 +478,7 @@
       $:  %channels-3                  $+  channels-3                  p=_*vale:channels-3                  ==
       $:  %channels-4                  $+  channels-4                  p=_*vale:channels-4                  ==
       $:  %channels-5                  $+  channels-5                  p=_*vale:channels-5                  ==
+      $:  %channels-6                  $+  channels-6                  p=_*vale:channels-6                  ==
       $:  %chat-block-ship             $+  chat-block-ship             p=_*vale:chat-block-ship             ==
       $:  %chat-blocked                $+  chat-blocked                p=_*vale:chat-blocked                ==
       $:  %chat-blocked-by             $+  chat-blocked-by             p=_*vale:chat-blocked-by             ==
@@ -579,6 +590,7 @@
       $:  %group-channel-leave         $+  group-channel-leave         p=_*vale:group-channel-leave         ==
       $:  %group-command               $+  group-command               p=_*vale:group-command               ==
       $:  %group-create-thread         $+  group-create-thread         p=_*vale:group-create-thread         ==
+      $:  %group-error                 $+  group-error                 p=_*vale:group-error                 ==
       $:  %group-foreign-1             $+  group-foreign-1             p=_*vale:group-foreign-1             ==
       $:  %group-foreign-2             $+  group-foreign-2             p=_*vale:group-foreign-2             ==
       $:  %group-init                  $+  group-init                  p=_*vale:group-init                  ==
@@ -602,10 +614,12 @@
       $:  %group-rescind               $+  group-rescind               p=_*vale:group-rescind               ==
       $:  %group-response-1            $+  group-response-1            p=_*vale:group-response-1            ==
       $:  %group-response-2            $+  group-response-2            p=_*vale:group-response-2            ==
+      $:  %group-response-3            $+  group-response-3            p=_*vale:group-response-3            ==
       $:  %group-token                 $+  group-token                 p=_*vale:group-token                 ==
       $:  %group-ui                    $+  group-ui                    p=_*vale:group-ui                    ==
       $:  %group-ui-1                  $+  group-ui-1                  p=_*vale:group-ui-1                  ==
       $:  %group-ui-2                  $+  group-ui-2                  p=_*vale:group-ui-2                  ==
+      $:  %group-ui-3                  $+  group-ui-3                  p=_*vale:group-ui-3                  ==
       $:  %group-update                $+  group-update                p=_*vale:group-update                ==
       $:  %grouper-answer-enabled      $+  grouper-answer-enabled      p=_*vale:grouper-answer-enabled      ==
       $:  %grouper-ask-enabled         $+  grouper-ask-enabled         p=_*vale:grouper-ask-enabled         ==
@@ -617,6 +631,7 @@
       $:  %groups-ui                   $+  groups-ui                   p=_*vale:groups-ui                   ==
       $:  %groups-ui-1                 $+  groups-ui-1                 p=_*vale:groups-ui-1                 ==
       $:  %groups-ui-2                 $+  groups-ui-2                 p=_*vale:groups-ui-2                 ==
+      $:  %groups-ui-3                 $+  groups-ui-3                 p=_*vale:groups-ui-3                 ==
       $:  %growl-summarize             $+  growl-summarize             p=_*vale:growl-summarize             ==
       $:  %hi-ship                     $+  hi-ship                     p=_*vale:hi-ship                     ==
       $:  %hidden-messages             $+  hidden-messages             p=_*vale:hidden-messages             ==
@@ -691,6 +706,7 @@
       $:  %ui-init-6                   $+  ui-init-6                   p=_*vale:ui-init-6                   ==
       $:  %ui-init-7                   $+  ui-init-7                   p=_*vale:ui-init-7                   ==
       $:  %ui-init-8                   $+  ui-init-8                   p=_*vale:ui-init-8                   ==
+      $:  %ui-init-9                   $+  ui-init-9                   p=_*vale:ui-init-9                   ==
       $:  %ui-pins                     $+  ui-pins                     p=_*vale:ui-pins                     ==
       $:  %ui-show-contact             $+  ui-show-contact             p=_*vale:ui-show-contact             ==
       $:  %ui-vita                     $+  ui-vita                     p=_*vale:ui-vita                     ==
@@ -765,6 +781,7 @@
     %channel-checkpoint          [-.rail !>(+.rail)]
     %channel-command             [-.rail !>(+.rail)]
     %channel-denied              [-.rail !>(+.rail)]
+    %channel-error               [-.rail !>(+.rail)]
     %channel-heads               [-.rail !>(+.rail)]
     %channel-heads-2             [-.rail !>(+.rail)]
     %channel-heads-3             [-.rail !>(+.rail)]
@@ -798,6 +815,7 @@
     %channel-response-3          [-.rail !>(+.rail)]
     %channel-response-4          [-.rail !>(+.rail)]
     %channel-response-5          [-.rail !>(+.rail)]
+    %channel-response-6          [-.rail !>(+.rail)]
     %channel-said                [-.rail !>(+.rail)]
     %channel-said-1              [-.rail !>(+.rail)]
     %channel-said-2              [-.rail !>(+.rail)]
@@ -823,6 +841,7 @@
     %channels-3                  [-.rail !>(+.rail)]
     %channels-4                  [-.rail !>(+.rail)]
     %channels-5                  [-.rail !>(+.rail)]
+    %channels-6                  [-.rail !>(+.rail)]
     %chat-block-ship             [-.rail !>(+.rail)]
     %chat-blocked                [-.rail !>(+.rail)]
     %chat-blocked-by             [-.rail !>(+.rail)]
@@ -934,6 +953,7 @@
     %group-channel-leave         [-.rail !>(+.rail)]
     %group-command               [-.rail !>(+.rail)]
     %group-create-thread         [-.rail !>(+.rail)]
+    %group-error                 [-.rail !>(+.rail)]
     %group-foreign-1             [-.rail !>(+.rail)]
     %group-foreign-2             [-.rail !>(+.rail)]
     %group-init                  [-.rail !>(+.rail)]
@@ -957,10 +977,12 @@
     %group-rescind               [-.rail !>(+.rail)]
     %group-response-1            [-.rail !>(+.rail)]
     %group-response-2            [-.rail !>(+.rail)]
+    %group-response-3            [-.rail !>(+.rail)]
     %group-token                 [-.rail !>(+.rail)]
     %group-ui                    [-.rail !>(+.rail)]
     %group-ui-1                  [-.rail !>(+.rail)]
     %group-ui-2                  [-.rail !>(+.rail)]
+    %group-ui-3                  [-.rail !>(+.rail)]
     %group-update                [-.rail !>(+.rail)]
     %grouper-answer-enabled      [-.rail !>(+.rail)]
     %grouper-ask-enabled         [-.rail !>(+.rail)]
@@ -972,6 +994,7 @@
     %groups-ui                   [-.rail !>(+.rail)]
     %groups-ui-1                 [-.rail !>(+.rail)]
     %groups-ui-2                 [-.rail !>(+.rail)]
+    %groups-ui-3                 [-.rail !>(+.rail)]
     %growl-summarize             [-.rail !>(+.rail)]
     %hi-ship                     [-.rail !>(+.rail)]
     %hidden-messages             [-.rail !>(+.rail)]
@@ -1046,6 +1069,7 @@
     %ui-init-6                   [-.rail !>(+.rail)]
     %ui-init-7                   [-.rail !>(+.rail)]
     %ui-init-8                   [-.rail !>(+.rail)]
+    %ui-init-9                   [-.rail !>(+.rail)]
     %ui-pins                     [-.rail !>(+.rail)]
     %ui-show-contact             [-.rail !>(+.rail)]
     %ui-vita                     [-.rail !>(+.rail)]
@@ -1118,6 +1142,7 @@
     %channel-checkpoint          [p !<(_*vale:channel-checkpoint q)]
     %channel-command             [p !<(_*vale:channel-command q)]
     %channel-denied              [p !<(_*vale:channel-denied q)]
+    %channel-error               [p !<(_*vale:channel-error q)]
     %channel-heads               [p !<(_*vale:channel-heads q)]
     %channel-heads-2             [p !<(_*vale:channel-heads-2 q)]
     %channel-heads-3             [p !<(_*vale:channel-heads-3 q)]
@@ -1151,6 +1176,7 @@
     %channel-response-3          [p !<(_*vale:channel-response-3 q)]
     %channel-response-4          [p !<(_*vale:channel-response-4 q)]
     %channel-response-5          [p !<(_*vale:channel-response-5 q)]
+    %channel-response-6          [p !<(_*vale:channel-response-6 q)]
     %channel-said                [p !<(_*vale:channel-said q)]
     %channel-said-1              [p !<(_*vale:channel-said-1 q)]
     %channel-said-2              [p !<(_*vale:channel-said-2 q)]
@@ -1176,6 +1202,7 @@
     %channels-3                  [p !<(_*vale:channels-3 q)]
     %channels-4                  [p !<(_*vale:channels-4 q)]
     %channels-5                  [p !<(_*vale:channels-5 q)]
+    %channels-6                  [p !<(_*vale:channels-6 q)]
     %chat-block-ship             [p !<(_*vale:chat-block-ship q)]
     %chat-blocked                [p !<(_*vale:chat-blocked q)]
     %chat-blocked-by             [p !<(_*vale:chat-blocked-by q)]
@@ -1287,6 +1314,7 @@
     %group-channel-leave         [p !<(_*vale:group-channel-leave q)]
     %group-command               [p !<(_*vale:group-command q)]
     %group-create-thread         [p !<(_*vale:group-create-thread q)]
+    %group-error                 [p !<(_*vale:group-error q)]
     %group-foreign-1             [p !<(_*vale:group-foreign-1 q)]
     %group-foreign-2             [p !<(_*vale:group-foreign-2 q)]
     %group-init                  [p !<(_*vale:group-init q)]
@@ -1310,10 +1338,12 @@
     %group-rescind               [p !<(_*vale:group-rescind q)]
     %group-response-1            [p !<(_*vale:group-response-1 q)]
     %group-response-2            [p !<(_*vale:group-response-2 q)]
+    %group-response-3            [p !<(_*vale:group-response-3 q)]
     %group-token                 [p !<(_*vale:group-token q)]
     %group-ui                    [p !<(_*vale:group-ui q)]
     %group-ui-1                  [p !<(_*vale:group-ui-1 q)]
     %group-ui-2                  [p !<(_*vale:group-ui-2 q)]
+    %group-ui-3                  [p !<(_*vale:group-ui-3 q)]
     %group-update                [p !<(_*vale:group-update q)]
     %grouper-answer-enabled      [p !<(_*vale:grouper-answer-enabled q)]
     %grouper-ask-enabled         [p !<(_*vale:grouper-ask-enabled q)]
@@ -1325,6 +1355,7 @@
     %groups-ui                   [p !<(_*vale:groups-ui q)]
     %groups-ui-1                 [p !<(_*vale:groups-ui-1 q)]
     %groups-ui-2                 [p !<(_*vale:groups-ui-2 q)]
+    %groups-ui-3                 [p !<(_*vale:groups-ui-3 q)]
     %growl-summarize             [p !<(_*vale:growl-summarize q)]
     %hi-ship                     [p !<(_*vale:hi-ship q)]
     %hidden-messages             [p !<(_*vale:hidden-messages q)]
@@ -1399,6 +1430,7 @@
     %ui-init-6                   [p !<(_*vale:ui-init-6 q)]
     %ui-init-7                   [p !<(_*vale:ui-init-7 q)]
     %ui-init-8                   [p !<(_*vale:ui-init-8 q)]
+    %ui-init-9                   [p !<(_*vale:ui-init-9 q)]
     %ui-pins                     [p !<(_*vale:ui-pins q)]
     %ui-show-contact             [p !<(_*vale:ui-show-contact q)]
     %ui-vita                     [p !<(_*vale:ui-vita q)]
@@ -1471,6 +1503,7 @@
       :-  %channel-checkpoint          -:!>(*vale:channel-checkpoint)
       :-  %channel-command             -:!>(*vale:channel-command)
       :-  %channel-denied              -:!>(*vale:channel-denied)
+      :-  %channel-error               -:!>(*vale:channel-error)
       :-  %channel-heads               -:!>(*vale:channel-heads)
       :-  %channel-heads-2             -:!>(*vale:channel-heads-2)
       :-  %channel-heads-3             -:!>(*vale:channel-heads-3)
@@ -1504,6 +1537,7 @@
       :-  %channel-response-3          -:!>(*vale:channel-response-3)
       :-  %channel-response-4          -:!>(*vale:channel-response-4)
       :-  %channel-response-5          -:!>(*vale:channel-response-5)
+      :-  %channel-response-6          -:!>(*vale:channel-response-6)
       :-  %channel-said                -:!>(*vale:channel-said)
       :-  %channel-said-1              -:!>(*vale:channel-said-1)
       :-  %channel-said-2              -:!>(*vale:channel-said-2)
@@ -1529,6 +1563,7 @@
       :-  %channels-3                  -:!>(*vale:channels-3)
       :-  %channels-4                  -:!>(*vale:channels-4)
       :-  %channels-5                  -:!>(*vale:channels-5)
+      :-  %channels-6                  -:!>(*vale:channels-6)
       :-  %chat-block-ship             -:!>(*vale:chat-block-ship)
       :-  %chat-blocked                -:!>(*vale:chat-blocked)
       :-  %chat-blocked-by             -:!>(*vale:chat-blocked-by)
@@ -1640,6 +1675,7 @@
       :-  %group-channel-leave         -:!>(*vale:group-channel-leave)
       :-  %group-command               -:!>(*vale:group-command)
       :-  %group-create-thread         -:!>(*vale:group-create-thread)
+      :-  %group-error                 -:!>(*vale:group-error)
       :-  %group-foreign-1             -:!>(*vale:group-foreign-1)
       :-  %group-foreign-2             -:!>(*vale:group-foreign-2)
       :-  %group-init                  -:!>(*vale:group-init)
@@ -1663,10 +1699,12 @@
       :-  %group-rescind               -:!>(*vale:group-rescind)
       :-  %group-response-1            -:!>(*vale:group-response-1)
       :-  %group-response-2            -:!>(*vale:group-response-2)
+      :-  %group-response-3            -:!>(*vale:group-response-3)
       :-  %group-token                 -:!>(*vale:group-token)
       :-  %group-ui                    -:!>(*vale:group-ui)
       :-  %group-ui-1                  -:!>(*vale:group-ui-1)
       :-  %group-ui-2                  -:!>(*vale:group-ui-2)
+      :-  %group-ui-3                  -:!>(*vale:group-ui-3)
       :-  %group-update                -:!>(*vale:group-update)
       :-  %grouper-answer-enabled      -:!>(*vale:grouper-answer-enabled)
       :-  %grouper-ask-enabled         -:!>(*vale:grouper-ask-enabled)
@@ -1678,6 +1716,7 @@
       :-  %groups-ui                   -:!>(*vale:groups-ui)
       :-  %groups-ui-1                 -:!>(*vale:groups-ui-1)
       :-  %groups-ui-2                 -:!>(*vale:groups-ui-2)
+      :-  %groups-ui-3                 -:!>(*vale:groups-ui-3)
       :-  %growl-summarize             -:!>(*vale:growl-summarize)
       :-  %hi-ship                     -:!>(*vale:hi-ship)
       :-  %hidden-messages             -:!>(*vale:hidden-messages)
@@ -1752,6 +1791,7 @@
       :-  %ui-init-6                   -:!>(*vale:ui-init-6)
       :-  %ui-init-7                   -:!>(*vale:ui-init-7)
       :-  %ui-init-8                   -:!>(*vale:ui-init-8)
+      :-  %ui-init-9                   -:!>(*vale:ui-init-9)
       :-  %ui-pins                     -:!>(*vale:ui-pins)
       :-  %ui-show-contact             -:!>(*vale:ui-show-contact)
       :-  %ui-vita                     -:!>(*vale:ui-vita)

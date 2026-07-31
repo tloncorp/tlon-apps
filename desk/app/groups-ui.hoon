@@ -237,6 +237,23 @@
       ==
     ``ui-init-8+!>(init)
   ::
+      [%x %v9 %init ~]
+    =+  .^([=groups-ui:v11:gv =foreigns:v10:gv] (scry %gx %groups /v4/init/noun))
+    =+  .^(channels=channels-11:u (scry %gx %channels /v7/init/noun))
+    =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
+    =+  .^(=activity:v9:av (scry %gx %activity /v5/activity/noun))
+    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    =/  init=init-9:u
+      :*  groups-ui
+          foreigns
+          channels
+          activity
+          pins
+          chat
+          profile
+      ==
+    ``ui-init-9+!>(init)
+  ::
       [%x %v5 %changes since=@ ~]
     =+  .^(activity=json (scry %gx %activity /v4/activity/changes/[since.pole]/json))
     =+  .^(channels=json (scry %gx %channels /v5/changes/[since.pole]/json))

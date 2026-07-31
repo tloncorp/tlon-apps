@@ -116,6 +116,83 @@
         cover+s/cover
     ==
   ::
+  ++  v11
+    =,  v10
+    |%
+    ++  r-channels
+      |=  [=nest:cv =r-channel:v11:cv]
+      %-  pairs
+      :~  nest+(^nest nest)
+          response+(^r-channel r-channel)
+      ==
+    ::
+    ++  r-channel
+      |=  =r-channel:v11:cv
+      %+  frond  -.r-channel
+      ?-  -.r-channel
+        %posts    (posts posts.r-channel)
+        %post     (pairs id+(id id.r-channel) r-post+(r-post r-post.r-channel) ~)
+        %pending  (pending r-channel)
+        %order    (order order.r-channel)
+        %view     s+view.r-channel
+        %sort     s+sort.r-channel
+        %perm     (perm perm.r-channel)
+        %meta     ?~(meta.r-channel ~ s+u.meta.r-channel)
+      ::
+        %create   (perm perm.r-channel)
+        %join     (flag group.r-channel)
+        %leave    ~
+        %read     ~
+        %read-at  s+(scot %ud time.r-channel)
+        %watch    ~
+        %unwatch  ~
+      ::
+        %connection  (connection [wire conn]:r-channel)
+      ==
+    ++  connection
+      |=  [=wire =conn:v11:cv]
+      %-  pairs
+      :~  'wire'^(path wire)
+          'status'^(^conn conn)
+      ==
+    ++  conn
+      |=  =conn:v11:cv
+      ?:  ?=(%& -.conn)
+        (frond ok+s+p.conn)
+      (frond error+s+p.conn)
+    ::TODO migrate writers to role-ids
+    ++  perm
+      |=  p=perm:v11:cv
+      %-  pairs
+      :~  writers/a/(turn ~(tap in writers.p) (lead %s))
+          group/(flag group.p)
+      ==
+    ++  channels
+      |=  channels=channels:v11:cv
+      %-  pairs
+      %+  turn  ~(tap by channels)
+      |=  [n=nest:cv ca=channel:v11:cv]
+      [(nest-cord n) (channel ca)]
+    ::
+    ++  channel
+      |=  channel=channel:v11:cv
+      %-  pairs
+      :~  posts+(posts posts.channel)
+          count+(numb count.channel)
+          order+(order order.channel)
+          view+s+view.channel
+          sort+s+sort.channel
+          perms+(perm perm.channel)
+          meta+?~(meta.channel ~ s+u.meta.channel)
+          conn+(cons cons.net.channel)
+      ==
+    ++  cons
+      |=  cons=(map wire conn:v11:cv)
+      %-  pairs
+      %+  turn  ~(tap by cons)
+      |=  [=wire =conn:v11:cv]
+      [(spat wire) (^conn conn)]
+    --
   ++  v10
     =,  v9
     |%

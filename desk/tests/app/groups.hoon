@@ -134,7 +134,7 @@
   (do-poke group-foreign-2+!>(`a-foreigns:v9:gv`a-foreigns))
 ::
 ++  ex-r-groups
-  |=  [caz=(list card) rs-groups=(list r-groups:v9:gv)]
+  |=  [caz=(list card) rs-groups=(list r-groups:v11:gv)]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  =bowl:gall  bind:m  get-bowl
@@ -143,9 +143,9 @@
   =/  actions-2=(list action:v2:gv)
     %-  zing
     %+  turn  rs-groups
-    |=  =r-groups:v9:gv
+    |=  =r-groups:v11:gv
     %+  turn
-      (diff:v2:r-group:v9:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v11:gc r-group.r-groups [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
   %+  ex-cards  caz
@@ -153,7 +153,9 @@
     %-  zing
     %+  turn  rs-groups
     |=  =r-groups:v9:gv
-    :~  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
+    :~  %+  ex-fact  ~[/v3/groups /v3/groups/~zod/my-test-group]
+        group-response-3+!>(`r-groups:v11:gv`r-groups)
+        %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
         group-response-1+!>(r-groups)
         %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
         group-response-2+!>(`r-groups:v10:gv`r-groups)
@@ -164,7 +166,7 @@
 ::
 ++  ex-cards-r-groups
   |=  $:  caz=(list card)
-          exes=(list (each $-(card tang) r-groups:v9:gv))
+          exes=(list (each $-(card tang) r-groups:v11:gv))
       ==
   =/  m  (mare ,~)
   ^-  form:m
@@ -178,7 +180,7 @@
   %+  ex-cards  caz
   %-  flop
   %+  roll  exes
-  |=  [exe=(each $-(card tang) r-groups:v9:gv) out=(list $-(card tang))]
+  |=  [exe=(each $-(card tang) r-groups:v11:gv) out=(list $-(card tang))]
   ?:  ?=(%& -.exe)
     ::  expected card
     ::
@@ -188,7 +190,7 @@
   =*  r-groups  p.exe
   =/  actions-2=(list action:v2:gv)
     %+  turn
-      (diff:v2:r-group:v9:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v11:gc r-group.r-groups [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
   %+  welp
@@ -240,7 +242,8 @@
       %+  weld  `path`[%server go-area]
       /updates/~dev/(scot:h136 %da *@da)
     %+  ex-cards  caz
-    :~  (ex-task wire [~zod my-agent] %watch sub)
+    :~  (ex-fact-paths ~[/v1/groups /v1/groups/~zod/my-test-group])
+        (ex-task wire [~zod my-agent] %watch sub)
         (ex-foreign-response %*(. *foreign:g progress `%watch))
         (ex-gang-response %*(. *foreign:g progress `%watch))
     ==
@@ -687,7 +690,9 @@
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+    :~  (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
+        (ex-task (weld go-area /updates) [~zod my-agent] %leave ~)
+        (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
         (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/v2/groups /v2/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/groups/ui])

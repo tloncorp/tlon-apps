@@ -2,6 +2,29 @@
 /-  cv=channels-ver, m=meta
 /+  em=emojimart
 |%
+++  v11
+  |%
+  ++  v-channels
+    |%
+    ++  v10
+      |=  =v-channels:v11:cv
+      ^-  v-channels:v10:cv
+      (~(run by v-channels) v10:v-channel)
+    ++  v8
+      |=  =v-channels:v11:cv
+      ^-  v-channels:v8:cv
+      %-  v8:v-channels:v9
+      %-  v9:v-channels:^v10
+      (~(run by v-channels) v10:v-channel)
+    --
+  ++  v-channel
+    |%
+    ++  v10
+      |=  vc=v-channel:v11:cv
+      ^-  v-channel:v10:cv
+      vc(net [p load]:net.vc)
+    --
+  --
 ++  v10
   |%
   ++  v-channels
@@ -13,6 +36,14 @@
     --
   ++  v-channel
     |%
+    ++  v11
+      |=  vc=v-channel:v10:cv
+      ^-  v-channel:v11:cv
+      =/  cons=(map wire conn:v11:cv)
+        (my `[wire conn:v11:cv]`[/updates &+%done] ~)
+      %=  vc  net
+        [p.net.vc load.net.vc cons]
+      ==
     ++  v9
       |=  =v-channel:v10:cv
       ^-  v-channel:v9:cv

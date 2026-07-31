@@ -258,9 +258,11 @@
   ;<  ~  bind:m  (set-src ~fed)
   ;<  ~  bind:m
     (ex-fail (do-poke group-command+!>([%ask my-flag `story])))
-  ;<  ~  bind:m
-    (ex-fail (do-watch ask-path))
-  (pure:m ~)
+  ;<  caz=(list card)  bind:m  (do-watch ask-path)
+  %+  ex-cards  caz
+  :~  (ex-fact ~ group-error+!>(%not-found))
+      (ex-card [%give %kick ~ ~])
+  ==
 ::  +test-c-groups-ask-private: test private group ask request
 ::
 ::  an ask to a private group can be either approved or denied by an admin.

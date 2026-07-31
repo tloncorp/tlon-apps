@@ -49,7 +49,7 @@
   ?.  full  base
   %_  base
     posts  (uv-posts posts.channel)
-    net  net.channel
+    net  [p load]:net.channel
     remark  remark.channel
   ==
 ::
@@ -73,7 +73,7 @@
   ?.  full  base
   %_  base
     posts   (uv-posts-2 posts.channel)
-    net     net.channel
+    net     [p load]:net.channel
     remark  remark.channel
   ==
 ::
@@ -97,13 +97,13 @@
   ?.  full  base
   %_  base
     posts   (uv-posts-3 posts.channel)
-    net     net.channel
+    net     [p load]:net.channel
     remark  remark.channel
   ==
 ::
 ++  uv-channels-4
   |=  [=v-channels:c full=?]
-  ~>  %spin.['libcu-uv-channels-3']
+  ~>  %spin.['libcu-uv-channels-4']
   ^-  channels:v10:cv
   %-  ~(run by v-channels)
   |=  channel=v-channel:c
@@ -121,7 +121,31 @@
   ?.  full  base
   %_  base
     posts   (uv-posts-4 posts.channel)
-    net     net.channel
+    net     [p load]:net.channel
+    remark  remark.channel
+  ==
+::
+++  uv-channels-5
+  |=  [=v-channels:c full=?]
+  ~>  %spin.['libcu-uv-channels-5']
+  ^-  channels:v11:cv
+  %-  ~(run by v-channels)
+  |=  channel=v-channel:c
+  ^-  channel:v11:cv
+  =/  base
+    %*  .  *channel:v11:cv
+      count    count.channel
+      meta     +.meta.channel
+      perm     +.perm.channel
+      view     +.view.channel
+      sort     +.sort.channel
+      order    +.order.channel
+      pending  pending.channel
+      net      net.channel
+    ==
+  ?.  full  base
+  %_  base
+    posts   (uv-posts-4 posts.channel)
     remark  remark.channel
   ==
 ::

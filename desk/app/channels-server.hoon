@@ -16,9 +16,9 @@
         ~
       ::  facts
       ::
-      :~  [/$/$/checkpoint %channel-checkpoint ~]
-          [/$/$/create %channel-update ~]
-          [/$/$/updates %channel-update %channel-logs ~]
+      :~  [/$/$/checkpoint %channel-checkpoint %channel-error ~]
+          [/$/$/create %channel-update %channel-error ~]
+          [/$/$/updates %channel-update %channel-logs %channel-error ~]
           [/said %channel-said-2 %channel-said-1 %channel-denied ~]
         ::
           [/v0/hooks %hook-response-0 ~]
@@ -34,7 +34,7 @@
 %-  %-  agent:neg
     :+  notify=|
       [~.channels^%4 ~ ~]
-    (my %groups^[~.groups^%2 ~ ~] ~)
+    (my %groups^[~.groups^%3 ~ ~] ~)
 %-  agent:dbug
 %^  verb  |  %warn
 ::
@@ -44,8 +44,8 @@
   +$  card  card:guard
   +$  rail  rail:guard
   +$  current-state
-    $:  %15
-        =v-channels:v10:cv
+    $:  %16
+        =v-channels:v11:cv
         =hooks:h
         =pimp:imp
     ==
@@ -125,6 +125,13 @@
 ++  emit-late  |=(=card cor(cards-late [card cards-late]))
 ++  emil-late  |=(caz=(list card) cor(cards-late (welp (flop caz) cards-late)))
 ++  give  |=(=gift:guard (emit %give gift))
+::  +give-conn-error: notify a would-be subscriber of a connection problem
+::
+++  give-conn-error
+  |=  err=conn-error:c
+  ^+  cor
+  =.  cor  (give %fact ~ %channel-error err)
+  (give %kick ~ ~)
 ++  log   ~(. logs [bowl /logs])
 ++  safe-watch
   |=  [=wire =dock =path]
@@ -153,13 +160,14 @@
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
   =?  old  ?=(%13 -.old)  (state-13-to-14 old)
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
-  ?>  ?=(%15 -.old)
+  =?  old  ?=(%15 -.old)  (state-15-to-16 old)
+  ?>  ?=(%16 -.old)
   =.  state  (recompile-hooks old)
   inflate-io
   ::  we drop hooks cores and state to avoid vase migration shenanigans
   ::
   ++  recompile-hooks
-    |=  s=state-15
+    |=  s=state-16
     ^-  current-state
     %=  s
         hooks.hooks
@@ -209,7 +217,8 @@
     ==
   ::
   +$  versioned-state
-    $%  state-15
+    $%  state-16
+        state-15
         state-14
         state-13
         state-12
@@ -225,6 +234,12 @@
         state-2
         state-1
         state-0
+    ==
+  +$  state-16
+    $:  %16
+        =v-channels:v11:cv
+        hooks=hooks-blind
+        =pimp:imp
     ==
   +$  state-15
     $:  %15
@@ -269,6 +284,14 @@
     $:  %6
       =v-channels:v7:cv
       =pimp:imp
+    ==
+  ::
+  ++  state-15-to-16
+    |=  =state-15
+    ~>  %spin.['state-15-to-16']
+    ^-  state-16
+    %=  state-15  -  %16
+      v-channels  (~(run by v-channels.state-15) v11:v-channel:v10:ccv)
     ==
   ::
   ++  state-14-to-15
@@ -718,22 +741,30 @@
     ca-abet:ca-watch-create:(ca-abed:ca-core nest)
   ::
       [=kind:c name=@ %updates ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      (give-conn-error %not-found)
     =/  ca  (ca-abed:ca-core kind.pole our.bowl name.pole)
     ?.  (can-read:ca-perms:ca src.bowl)
-      ~|(%permission-denied !!)
+      ca-abet:(ca-give-conn-error:ca %not-authorized)
     cor
   ::
       [=kind:c name=@ %updates after=@ ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      (give-conn-error %not-found)
     =<  ca-abet
     %-  ca-watch-updates:(ca-abed:ca-core kind.pole our.bowl name.pole)
     (slav %da after.pole)
   ::
       [=kind:c name=@ %checkpoint %time-range from=@ ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      (give-conn-error %not-found)
     =<  ca-abet
     %-  ca-watch-checkpoint:(ca-abed:ca-core kind.pole our.bowl name.pole)
     [(slav %da from.pole) ~]
   ::
       [=kind:c name=@ %checkpoint %time-range from=@ to=@ ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      (give-conn-error %not-found)
     =<  ca-abet
     %^    ca-watch-checkpoint:(ca-abed:ca-core kind.pole our.bowl name.pole)
         (slav %da from.pole)
@@ -741,6 +772,8 @@
     (slav %da to.pole)
   ::
       [=kind:c name=@ %checkpoint %before n=@ud ~]
+    ?.  (~(has by v-channels) kind.pole our.bowl name.pole)
+      (give-conn-error %not-found)
     =<  ca-abet
     %-  ca-watch-checkpoint-page:(ca-abed:ca-core kind.pole our.bowl name.pole)
     (slav %ud n.pole)
@@ -945,7 +978,7 @@
     ~>  %spin.['ca-watch-updates']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
-      ~|(%permission-denied !!)
+      (ca-give-conn-error %not-authorized)
     =/  =log:c  (lot:log-on:c log.channel `da ~)
     =.  ca-core  (give %fact ~ %channel-logs log)
     ca-core
@@ -955,7 +988,7 @@
     ~>  %spin.['ca-watch-checkpoint']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
-      ~|(%permission-denied !!)
+      (ca-give-conn-error %not-authorized)
     =/  posts=v-posts:c  (lot:on-v-posts:c posts.channel `from to)
     =/  chk=u-checkpoint:c  -.channel(posts posts)
     =.  ca-core  (give %fact ~ %channel-checkpoint chk)
@@ -966,7 +999,7 @@
     ~>  %spin.['ca-watch-checkpoint-page']
     ^+  ca-core
     ?.  (can-read:ca-perms src.bowl)
-      ~|(%permission-denied !!)
+      (ca-give-conn-error %not-authorized)
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c (bat:mo-v-posts:c posts.channel ~ n))
     =/  chk=u-checkpoint:c  -.channel(posts posts)
     =.  ca-core  (give %fact ~ %channel-checkpoint chk)
@@ -1347,6 +1380,14 @@
     ?:  =(~ paths)
       ca-core
     (give %fact paths %channel-update update)
+  ::  +ca-give-conn-error: notify the subscriber of a connection problem
+  ::
+  ++  ca-give-conn-error
+    |=  err=conn-error:c
+    ~>  %spin.['ca-give-conn-error']
+    ^+  ca-core
+    =.  ca-core  (give %fact ~ %channel-error err)
+    (give %kick ~ ~)
   ::
   ++  ca-subscriptions
     ~>  %spin.['ca-subscriptions']
