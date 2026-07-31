@@ -1,6 +1,191 @@
 import { describe, expect, it } from 'vitest';
 
-import { summarizeTlonCommand } from './tlon-tool-command.js';
+import {
+  checkBlockedTlonOperation,
+  summarizeTlonCommand,
+} from './tlon-tool-command.js';
+
+describe('checkBlockedTlonOperation', () => {
+  it('blocks migration writes after a separate --config prefix', () => {
+    expect(
+      checkBlockedTlonOperation([
+        '--config',
+        '/tmp/owner.json',
+        'notes',
+        'migrate-apply',
+        'diary/~zod/log',
+        '--yes',
+      ])
+    ).toMatchObject({
+      reason: 'migration_operation',
+      diaryNest: 'diary/~zod/log',
+      message: expect.stringContaining('/migrate diary/~zod/log'),
+    });
+  });
+
+  it('carries an option-before-nest migration source into discovery metadata', () => {
+    expect(
+      checkBlockedTlonOperation([
+        'notes',
+        'migrate-apply',
+        '--yes',
+        'Diary/ZOD/log',
+      ])
+    ).toMatchObject({
+      reason: 'migration_operation',
+      diaryNest: 'diary/~zod/log',
+      message: expect.stringContaining('/migrate diary/~zod/log'),
+    });
+  });
+
+  it('blocks a targeted notebook call with its canonical diary nest', () => {
+    expect(
+      checkBlockedTlonOperation(['notebook', 'Diary/ZOD/Field-Notes', 'Title'])
+    ).toMatchObject({
+      reason: 'diary_operation',
+      diaryNest: 'diary/~zod/Field-Notes',
+      message: expect.stringContaining('/migrate diary/~zod/Field-Notes'),
+    });
+  });
+
+  it('keeps the honest placeholder for a bare notebook call', () => {
+    const blocked = checkBlockedTlonOperation(['notebook']);
+
+    expect(blocked).toMatchObject({
+      reason: 'diary_operation',
+      message: expect.stringContaining('/migrate <diary-nest>'),
+    });
+    expect(blocked?.diaryNest).toBeUndefined();
+  });
+
+  it('interpolates diary targets refused by the packaged CLI surface', () => {
+    expect(
+      checkBlockedTlonOperation([
+        'messages',
+        'channel',
+        'diary/~sampel-palnet/field-notes',
+      ])
+    ).toMatchObject({
+      reason: 'diary_operation',
+      diaryNest: 'diary/~sampel-palnet/field-notes',
+      message: expect.stringContaining(
+        '/migrate diary/~sampel-palnet/field-notes'
+      ),
+    });
+  });
+
+  it.each([
+    ['messages', 'channel', 'diary/~zod/log', '--help'],
+    ['expose', 'check', 'diary/~zod/log/170.141', '--help'],
+    ['posts', 'react', 'diary/~zod/log', '170.141', '--help'],
+  ])('allows packaged CLI help precedence for %s', (...args) => {
+    expect(checkBlockedTlonOperation(args)).toBeNull();
+  });
+
+  it.each([
+    ['messages', 'search', '--help', '--channel', 'diary/~zod/log'],
+    ['posts', 'send', 'diary/~zod/log', '--help'],
+    ['posts', 'reply', 'diary/~zod/log', '170.141', '--help'],
+    ['posts', 'edit', 'diary/~zod/log', '170.141', '--help'],
+  ])('preserves packaged CLI help-literal precedence for %s %s', (...args) => {
+    expect(checkBlockedTlonOperation(args)).toMatchObject({
+      reason: 'diary_operation',
+      diaryNest: 'diary/~zod/log',
+    });
+  });
+
+  it('blocks migration writes after an equals-style credential prefix', () => {
+    const blocked = checkBlockedTlonOperation([
+      '--url=https://example.test',
+      '--ship',
+      '~zod',
+      '--code',
+      'secret',
+      'notes',
+      'notebook-delete',
+      'Notes/ZOD/log',
+      '--yes',
+    ]);
+
+    expect(blocked).toMatchObject({
+      reason: 'migration_operation',
+      message: expect.stringContaining('/migrate cleanup notes/~zod/log'),
+    });
+    expect(blocked?.message).not.toContain('<notes-nest>');
+    expect(blocked?.message).not.toContain('<diary-nest>');
+  });
+
+  it('blocks notes channel deletion with the owner cleanup command', () => {
+    expect(
+      checkBlockedTlonOperation([
+        'channels',
+        'delete',
+        'Notes/SAMPEL-PALNET/field-notes',
+      ])
+    ).toMatchObject({
+      reason: 'migration_operation',
+      message: expect.stringContaining(
+        '/migrate cleanup notes/~sampel-palnet/field-notes'
+      ),
+    });
+  });
+
+  it('preserves non-notes channel deletion behavior', () => {
+    for (const kind of ['chat', 'heap']) {
+      expect(
+        checkBlockedTlonOperation(['channels', 'delete', `${kind}/~zod/log`])
+      ).toBeNull();
+    }
+    expect(
+      checkBlockedTlonOperation(['channels', 'delete', 'diary/~zod/log'])
+    ).toMatchObject({
+      reason: 'diary_operation',
+      diaryNest: 'diary/~zod/log',
+      message: expect.stringContaining('/migrate diary/~zod/log'),
+    });
+  });
+
+  it('blocks notes channel deletion after a credential prefix', () => {
+    expect(
+      checkBlockedTlonOperation([
+        '--config',
+        '/tmp/owner.json',
+        'channels',
+        'delete',
+        'notes/~zod/log',
+      ])
+    ).toMatchObject({
+      reason: 'migration_operation',
+      message: expect.stringContaining('/migrate cleanup notes/~zod/log'),
+    });
+  });
+
+  it('finds an option-before-nest notes channel deletion target', () => {
+    expect(
+      checkBlockedTlonOperation([
+        'channels',
+        'delete',
+        '--yes',
+        'Notes/ZOD/log',
+      ])
+    ).toMatchObject({
+      reason: 'migration_operation',
+      message: expect.stringContaining('/migrate cleanup notes/~zod/log'),
+    });
+  });
+
+  it('allows the exact read-only migration plan', () => {
+    expect(
+      checkBlockedTlonOperation([
+        '--config',
+        '/tmp/owner.json',
+        'notes',
+        'migrate-plan',
+        'diary/~zod/log',
+      ])
+    ).toBeNull();
+  });
+});
 
 const documentedActionOperations = {
   activity: ['mentions', 'replies', 'all', 'unreads'],
@@ -100,6 +285,9 @@ const documentedActionOperations = {
     'members',
     'join',
     'leave',
+    'migrate-plan',
+    'migrate-apply',
+    'notebook-delete',
   ],
   posts: ['send', 'reply', 'react', 'unreact', 'edit', 'delete'],
   settings: [
@@ -431,7 +619,7 @@ describe('tlon tool telemetry summarizer', () => {
     });
   });
 
-  it('does not report removed diary channels as a live channel kind', () => {
+  it('does not report deprecated diary channels as a CLI-managed channel kind', () => {
     const summary = summarizeTlonCommand(
       'channels info diary/~zod/quiet-launch'
     );
@@ -475,7 +663,7 @@ describe('tlon tool telemetry summarizer', () => {
     expect(serialized).not.toContain('170.141');
   });
 
-  it('does not report removed diary full cite paths as a live channel kind', () => {
+  it('does not report deprecated diary cite paths as a CLI-managed channel kind', () => {
     const summary = summarizeTlonCommand(
       'expose check /1/chan/diary/~zod/quiet-launch/note/170.141'
     );

@@ -2052,6 +2052,21 @@ export async function monitorTlonProvider(
       get ownerShip() {
         return effectiveOwnerShip;
       },
+      get botShip() {
+        return botShipName;
+      },
+      get botCredentials() {
+        return {
+          url: accountUrl,
+          ship: botShipName,
+          code: accountCode,
+        };
+      },
+      getChannelTitle(nest) {
+        const canonical = canonicalizeNest(nest);
+        return canonical ? channelNameCache.get(canonical) : undefined;
+      },
+      sendOwnerNotification,
       async handleAction(action, id) {
         // Prune expired approvals
         pendingApprovals = pruneExpired(pendingApprovals);

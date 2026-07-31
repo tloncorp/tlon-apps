@@ -1,6 +1,10 @@
 import {
   ALLOWED_TLON_COMMANDS as ALLOWED_TLON_SUBCOMMANDS,
+  checkBlockedDiaryOperation,
+  checkBlockedMigrationOperation,
   checkBlockedSendOperation,
+  findFirstPositionalArgumentIndex,
+  refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
 export const ALLOWED_TLON_COMMANDS = new Set<string>(ALLOWED_TLON_SUBCOMMANDS);
@@ -188,6 +192,9 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'members',
       'join',
       'leave',
+      'migrate-plan',
+      'migrate-apply',
+      'notebook-delete',
     ]),
   ],
   ['posts', new Set(['send', 'reply', 'react', 'unreact', 'edit', 'delete'])],
@@ -263,23 +270,43 @@ export function shellSplitCommand(command: string): string[] {
  * and their values. Returns the index into `args`, or -1 if none found.
  */
 export function findTlonSubcommandIndex(args: string[]): number {
-  let i = 0;
-  while (i < args.length) {
-    const arg = args[i];
-    if (arg.startsWith('--') && arg.includes('=')) {
-      const flag = arg.slice(0, arg.indexOf('='));
-      if (CREDENTIAL_FLAGS_WITH_VALUE.has(flag)) {
-        i += 1;
-        continue;
-      }
-    }
-    if (CREDENTIAL_FLAGS_WITH_VALUE.has(arg)) {
-      i += 2;
-      continue;
-    }
-    return i;
+  return findFirstPositionalArgumentIndex(args, 0, CREDENTIAL_FLAGS_WITH_VALUE);
+}
+
+export type BlockedTlonOperation = {
+  message: string;
+  reason: 'diary_operation' | 'migration_operation' | 'send_operation';
+  diaryNest?: string;
+};
+
+/**
+ * Check blocked operations only after removing global credential flags.
+ * Keeping that normalization here prevents a leading --config/--url prefix
+ * from bypassing a guard that expects the subcommand at args[0].
+ */
+export function checkBlockedTlonOperation(
+  args: string[]
+): BlockedTlonOperation | null {
+  const subIdx = findTlonSubcommandIndex(args);
+  const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
+  const migration = checkBlockedMigrationOperation(commandArgs);
+  if (migration) {
+    return {
+      message: migration,
+      reason: 'migration_operation',
+      diaryNest: refusedDiaryNest(commandArgs) ?? undefined,
+    };
   }
-  return -1;
+  const diary = checkBlockedDiaryOperation(commandArgs);
+  if (diary) {
+    return {
+      message: diary.message,
+      reason: 'diary_operation',
+      diaryNest: diary.nest,
+    };
+  }
+  const send = checkBlockedSendOperation(commandArgs);
+  return send ? { message: send, reason: 'send_operation' } : null;
 }
 
 export function summarizeTlonCommand(command: string): TlonToolCallContext {

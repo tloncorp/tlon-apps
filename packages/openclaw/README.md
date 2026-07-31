@@ -146,10 +146,12 @@ This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tlonco
 -   Channel listing and history
 -   Group administration
 -   Message posting and reactions
--   Notes channel management and note CRUD
+-   Notes channel management, note CRUD, and diary-to-notes migration
 -   Settings management
 
 The skill is automatically available to your agent. For standalone usage, see the [tlon-skill repo](https://github.com/tloncorp/tlon-skill).
+
+`%diary` channels are deprecated, but OpenClaw can still read and send to their `diary/~host/name` nests directly. The model tool does not manage diary notebooks. The configured owner can type `/migrate <diary-nest> [--allow-write-widening]` to migrate directly to a fresh `%notes` notebook. Migration renames the source with `-ARCHIVE`; it does not make that source read-only.
 
 ## Documentation
 

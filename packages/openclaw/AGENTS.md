@@ -301,6 +301,7 @@ When merged to OpenClaw, these run automatically:
 ## Patterns
 
 -   **Normalize ships**: always `~ship` format internally
--   **Channel nest format**: `chat/~host/name` or `diary/~host/name`
+-   **Channel nest format**: `chat/~host/name`, `heap/~host/name`, or `diary/~host/name`
+-   **Deprecated diary channels**: direct OpenClaw delivery still accepts `diary/` targets. The CLI tool does not manage them; the owner migration path is `/migrate <diary-nest>`. A migrated source is renamed but remains writable.
 -   **Message deduplication**: via processed-message tracker
 -   **History caching**: for context in replies

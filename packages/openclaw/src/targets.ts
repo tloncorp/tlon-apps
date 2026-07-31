@@ -3,7 +3,10 @@ export type TlonTarget =
   | { kind: 'channel'; nest: string; hostShip: string; channelName: string };
 
 const SHIP_RE = /^~?[a-z-]+$/i;
-const NEST_RE = /^(chat|heap|diary)\/([^/]+)\/([^/]+)$/i;
+const NEST_RE = /^([^/]+)\/([^/]+)\/([^/]+)$/i;
+const CHANNEL_NEST_PREFIXES = new Set(['chat', 'heap', 'diary']);
+
+type NestPrefix = 'chat' | 'heap' | 'diary' | 'notes';
 
 /**
  * Normalize a ship name to canonical form: lowercase with a leading `~`.
@@ -21,14 +24,23 @@ export function normalizeShip(raw: string): string {
 }
 
 export function parseNest(
-  raw: string
+  raw: string,
+  expectedPrefix?: NestPrefix
 ): { nestPrefix: string; hostShip: string; channelName: string } | null {
   const match = NEST_RE.exec(raw.trim());
   if (!match) {
     return null;
   }
+  const nestPrefix = match[1].toLowerCase();
+  if (
+    expectedPrefix
+      ? nestPrefix !== expectedPrefix
+      : !CHANNEL_NEST_PREFIXES.has(nestPrefix)
+  ) {
+    return null;
+  }
   return {
-    nestPrefix: match[1].toLowerCase(),
+    nestPrefix,
     hostShip: normalizeShip(match[2]),
     channelName: match[3],
   };
@@ -51,8 +63,11 @@ export function parseChannelNest(
  * be stored or compared against runtime nest values, which always arrive
  * canonical (lowercase prefix and host).
  */
-export function canonicalizeNest(raw: string): string | null {
-  const parsed = parseNest(raw);
+export function canonicalizeNest(
+  raw: string,
+  expectedPrefix?: NestPrefix
+): string | null {
+  const parsed = parseNest(raw, expectedPrefix);
   if (!parsed) {
     return null;
   }

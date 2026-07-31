@@ -29,6 +29,13 @@ describe('canonicalizeNest', () => {
     );
   });
 
+  it('canonicalizes an explicitly requested notes nest without treating it as a channel', () => {
+    expect(canonicalizeNest('Notes/ZOD/Field-Notes', 'notes')).toBe(
+      'notes/~zod/Field-Notes'
+    );
+    expect(canonicalizeNest('Notes/ZOD/Field-Notes')).toBeNull();
+  });
+
   it('preserves channel-name case', () => {
     expect(canonicalizeNest('chat/~zod/General')).toBe('chat/~zod/General');
     expect(canonicalizeNest('chat/~zod/q6QH2RoI')).toBe('chat/~zod/q6QH2RoI');
