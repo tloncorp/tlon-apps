@@ -29,6 +29,7 @@ import { getTopLevelTabRoute } from './topLevelTabs';
 import { CombinedParamList, RootStackParamList } from './types';
 
 export { screenNameFromChannelId } from './routeHelpers';
+export { getTopLevelTabRoute } from './topLevelTabs';
 
 const logger = createDevLogger('nav-utils', false);
 
