@@ -30,7 +30,6 @@ import {
 } from './notesApi';
 import {
   BadResponseError,
-  client,
   poke,
   requestJson,
   scry,
@@ -43,11 +42,6 @@ vi.mock('./urbit', async () => {
 
   return {
     ...actual,
-    client: {
-      url: 'http://localhost:8080',
-      fetchFn: vi.fn(),
-      cookie: 'urbauth=~zod',
-    },
     poke: vi.fn(),
     requestJson: vi.fn(),
     scry: vi.fn(),
@@ -61,12 +55,6 @@ const requestJsonMock = requestJson as unknown as Mock;
 const scryMock = scry as unknown as Mock;
 const subscribeMock = subscribe as unknown as Mock;
 const unsubscribeMock = unsubscribe as unknown as Mock;
-const clientMock = client as unknown as {
-  url: string;
-  fetchFn: Mock;
-  cookie: string;
-};
-const fetchFnMock = clientMock.fetchFn;
 
 async function rejectionError(promise: Promise<unknown>): Promise<unknown> {
   try {
@@ -1016,98 +1004,21 @@ describe('join/leave channel membership go through %notes', () => {
   });
 });
 
-function streamResponse(
-  chunks: Uint8Array[],
-  headers?: Record<string, string>
-): Response {
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      for (const chunk of chunks) {
-        controller.enqueue(chunk);
-      }
-      controller.close();
-    },
-  });
-  return new Response(stream, {
-    status: 200,
-    headers: headers ?? {},
-  });
-}
-
-function jsonStreamResponse(
-  obj: unknown,
-  headers?: Record<string, string>
-): Response {
-  const bytes = new TextEncoder().encode(JSON.stringify(obj));
-  return streamResponse([bytes], headers);
-}
-
 // ---------------------------------------------------------------------------
 // Batch-import
 // ---------------------------------------------------------------------------
 
 describe('batchImportNotesV1', () => {
-  beforeEach(() => {
-    fetchFnMock.mockReset();
-    requestJsonMock.mockResolvedValue(undefined);
-  });
-
-  test.each([401, 403])(
-    'replays once after a %i auth response and succeeds',
-    async (status) => {
-      fetchFnMock
-        .mockResolvedValueOnce(new Response('unauthorized', { status }))
-        .mockResolvedValueOnce(
-          jsonStreamResponse({ requestId: '0vabc', body: { type: 'ok' } })
-        );
-
-      await expect(
-        batchImportNotesV1({
-          flag: '~zod/blog',
-          folder: 7,
-          notes: [{ title: 'Note A', body: 'body-a' }],
-          requestId: '0vabc',
-        })
-      ).resolves.toBe('0vabc');
-
-      expect(fetchFnMock).toHaveBeenCalledTimes(2);
-      expect(requestJsonMock).toHaveBeenCalledTimes(1);
-      expect(requestJsonMock).toHaveBeenCalledWith(
-        '/notes/~/v1/notebooks',
-        'GET',
-        undefined,
-        { reauthStatuses: [401, 403] }
-      );
-
-      const originalBody = JSON.parse(fetchFnMock.mock.calls[0][1].body);
-      const replayedBody = JSON.parse(fetchFnMock.mock.calls[1][1].body);
-      expect(originalBody.requestId).toBe('0vabc');
-      expect(replayedBody.requestId).toBe(originalBody.requestId);
-    }
-  );
-
-  test('throws a persistent 401 after exactly one replay', async () => {
-    fetchFnMock.mockResolvedValue(
-      new Response('unauthorized', { status: 401 })
-    );
-
-    await expect(
-      batchImportNotesV1({
-        flag: '~zod/blog',
-        folder: 7,
-        notes: [{ title: 'Note A', body: 'body-a' }],
-        requestId: '0vabc',
-      })
-    ).rejects.toMatchObject({ status: 401 });
-
-    expect(fetchFnMock).toHaveBeenCalledTimes(2);
-    expect(requestJsonMock).toHaveBeenCalledTimes(1);
+  test('is registered on the notesV1 and notes API objects', () => {
+    expect(notesV1.batchImport).toBe(batchImportNotesV1);
+    expect(notes.batchImport).toBe(notesV1.batchImport);
   });
 
   test('sends exact envelope shape with string flag, caller requestId, and non-zero folder', async () => {
-    fetchFnMock.mockResolvedValue(
-      jsonStreamResponse({ requestId: '0v1', body: { type: 'ok' } })
-    );
+    requestJsonMock.mockResolvedValue({
+      requestId: '0v1',
+      body: { type: 'ok' },
+    });
 
     const result = await batchImportNotesV1({
       flag: '~zod/blog',
@@ -1121,37 +1032,41 @@ describe('batchImportNotesV1', () => {
 
     expect(result).toBe('0v1');
 
-    const [url, init] = fetchFnMock.mock.calls[0];
-    expect(url).toBe('http://localhost:8080/notes/~/v1');
-    const postPath = new URL(url).pathname.split('/').filter(Boolean);
-    expect(postPath).toEqual(['notes', '~', 'v1']);
-    expect(init.method).toBe('POST');
-
-    const sent = JSON.parse(init.body);
-    expect(sent).toEqual({
-      requestId: '0v1',
-      action: {
-        type: 'notebook',
-        flag: '~zod/blog',
+    // The fourth argument is the whole of the reauth contract notesApi owns;
+    // replaying the POST on 401/403 is requestJson's behavior, covered in
+    // src/__tests__/requestJson.test.ts.
+    expect(requestJsonMock).toHaveBeenCalledWith(
+      '/notes/~/v1',
+      'POST',
+      {
+        requestId: '0v1',
         action: {
-          type: 'batch-import',
-          folder: 7,
-          notes: [
-            { title: 'Note A', body: 'body-a' },
-            { title: 'Note B', body: 'body-b' },
-          ],
+          type: 'notebook',
+          flag: '~zod/blog',
+          action: {
+            type: 'batch-import',
+            folder: 7,
+            notes: [
+              { title: 'Note A', body: 'body-a' },
+              { title: 'Note B', body: 'body-b' },
+            ],
+          },
         },
       },
-    });
+      { reauthStatuses: [401, 403] }
+    );
+
+    const sent = requestJsonMock.mock.calls[0][2];
     expect(sent.action.flag).toBe('~zod/blog');
     expect(typeof sent.action.flag).toBe('string');
     expect(sent.action.action.folder).toBe(7);
   });
 
   test('returns server-reported requestId so caller can assert match', async () => {
-    fetchFnMock.mockResolvedValue(
-      jsonStreamResponse({ requestId: '0v3', body: { type: 'ok' } })
-    );
+    requestJsonMock.mockResolvedValue({
+      requestId: '0v3',
+      body: { type: 'ok' },
+    });
 
     const result = await batchImportNotesV1({
       flag: '~zod/blog',
@@ -1164,7 +1079,7 @@ describe('batchImportNotesV1', () => {
   });
 
   test('throws when server omits requestId', async () => {
-    fetchFnMock.mockResolvedValue(jsonStreamResponse({ body: { type: 'ok' } }));
+    requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
 
     await expect(
       batchImportNotesV1({
@@ -1199,7 +1114,7 @@ describe('batchImportNotesV1', () => {
       expected: /response type: "mystery"/,
     },
   ])('throws on $name', async ({ response, expected }) => {
-    fetchFnMock.mockResolvedValue(jsonStreamResponse(response));
+    requestJsonMock.mockResolvedValue(response);
 
     await expect(
       batchImportNotesV1({
@@ -1209,16 +1124,13 @@ describe('batchImportNotesV1', () => {
         requestId: '0v1',
       })
     ).rejects.toThrow(expected);
-    expect(fetchFnMock).toHaveBeenCalledTimes(1);
   });
 
   test('throws on error envelope', async () => {
-    fetchFnMock.mockResolvedValue(
-      jsonStreamResponse({
-        requestId: '0v1',
-        body: { type: 'error', errorType: 'not-found', message: [] },
-      })
-    );
+    requestJsonMock.mockResolvedValue({
+      requestId: '0v1',
+      body: { type: 'error', errorType: 'not-found', message: [] },
+    });
 
     await expect(
       batchImportNotesV1({
@@ -1239,7 +1151,7 @@ describe('batchImportNotesV1', () => {
     }).catch((e) => e);
     expect(err).toBeInstanceOf(NotesInvalidRequestIdError);
     expect(err.message).toMatch(/req-42/);
-    expect(fetchFnMock).not.toHaveBeenCalled();
+    expect(requestJsonMock).not.toHaveBeenCalled();
   });
 
   test('rejects zero @uv requestId before fetching', async () => {
@@ -1252,6 +1164,6 @@ describe('batchImportNotesV1', () => {
 
     expect(err).toBeInstanceOf(NotesInvalidRequestIdError);
     expect(err.message).toMatch(/non-zero/);
-    expect(fetchFnMock).not.toHaveBeenCalled();
+    expect(requestJsonMock).not.toHaveBeenCalled();
   });
 });

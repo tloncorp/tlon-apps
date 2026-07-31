@@ -76,6 +76,41 @@ describe('client requestJson wrapper', () => {
     }
   });
 
+  test('a persistent auth failure surfaces the raw Response after exactly one replay', async () => {
+    const rejection = new Response('', { status: 401 });
+    const client = {
+      requestJson: vi.fn().mockRejectedValue(rejection),
+      cookie: 'urbauth=old',
+      delete: vi.fn(),
+      on: vi.fn(),
+    };
+    const loginFetch = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 200,
+        headers: { 'set-cookie': 'urbauth=refreshed; Path=/' },
+      })
+    );
+    vi.stubGlobal('fetch', loginFetch);
+
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    try {
+      // The post-reauth retry is deliberately not wrapped in BadResponseError.
+      await expect(
+        requestJson('/notes/~/v1', 'POST', {}, { reauthStatuses: [401, 403] })
+      ).rejects.toBe(rejection);
+      expect(client.requestJson).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+      internalRemoveClient();
+    }
+  });
+
   test('turns blank HTTP failures into a nonblank BadResponseError message', async () => {
     const client = {
       requestJson: vi.fn(async () => {

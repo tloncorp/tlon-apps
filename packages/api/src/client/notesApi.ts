@@ -4,7 +4,6 @@ import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
 import { formatUd } from './apiUtils';
 import {
-  client,
   poke,
   requestJson,
   scry,
@@ -1202,13 +1201,6 @@ async function listMembers(target: NotesTarget): Promise<NotesMember[]> {
   return rawMembers.flatMap((member) => toClientNotesMembers(target, member));
 }
 
-// ===========================================================================
-// Raw fetch transport for v1 batch import
-// ===========================================================================
-
-const isBrowser =
-  typeof window !== 'undefined' && typeof window.document !== 'undefined';
-
 export class NotesInvalidRequestIdError extends Error {
   readonly requestId: string;
 
@@ -1222,52 +1214,6 @@ export class NotesInvalidRequestIdError extends Error {
     this.requestId = requestId;
     Object.setPrototypeOf(this, new.target.prototype);
   }
-}
-
-function notesFetchInit(
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-  body?: unknown,
-  signal?: AbortSignal
-): RequestInit {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (!isBrowser && client.cookie) {
-    headers['Cookie'] = client.cookie;
-  }
-  return {
-    credentials: isBrowser ? 'include' : undefined,
-    headers,
-    method,
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal,
-  };
-}
-
-async function notesRawFetch(
-  path: string,
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-  body?: unknown,
-  signal?: AbortSignal
-): Promise<Response> {
-  const doFetch = () =>
-    client.fetchFn(
-      `${client.url}${path}`,
-      notesFetchInit(method, body, signal)
-    );
-
-  let response = await doFetch();
-  if (response.status === 401 || response.status === 403) {
-    try {
-      await requestJson(NOTEBOOKS_V1_PATH, 'GET', undefined, {
-        reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
-      });
-    } catch {
-      // A failed probe may already have attempted requestJson's reauth.
-    }
-    response = await doFetch();
-  }
-  return response;
 }
 
 // ===========================================================================
@@ -1286,13 +1232,11 @@ export async function batchImportNotesV1({
   folder,
   notes,
   requestId,
-  signal,
 }: {
   flag: string;
   folder: number;
   notes: { title: string; body: string }[];
   requestId: string;
-  signal?: AbortSignal;
 }): Promise<string> {
   const parsedRequestId = tryParse('uv', requestId);
   if (!valid('uv', requestId) || parsedRequestId === null) {
@@ -1304,7 +1248,6 @@ export async function batchImportNotesV1({
 
   const normalized = normalizeNotesTarget(flag);
   const canonicalFlag = formatNotesFlag(normalized);
-  const path = NOTES_V1_PATH;
 
   const body = {
     requestId,
@@ -1319,12 +1262,9 @@ export async function batchImportNotesV1({
     },
   };
 
-  const response = await notesRawFetch(path, 'POST', body, signal);
-  if (!response.ok) {
-    return Promise.reject(response);
-  }
-  const text = await response.text();
-  const res = text.length === 0 ? undefined : JSON.parse(text);
+  const res = await requestJson(NOTES_V1_PATH, 'POST', body, {
+    reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
+  });
 
   const serverRequestId = envelopeRequestId(res);
   if (!serverRequestId) {
@@ -1417,6 +1357,7 @@ export type NotesV1Api = {
   listNotes: typeof listNotesV1;
   getNote: typeof getNoteV1;
   createNote: typeof createNoteV1;
+  batchImport: typeof batchImportNotesV1;
   updateNoteBody: typeof updateNoteBodyV1;
   renameNote: typeof renameNoteV1;
   moveNote: typeof moveNoteV1;
@@ -1440,6 +1381,7 @@ export type NotesApi = {
   listNotes: typeof listNotes;
   getNote: typeof getNote;
   createNote: typeof createNoteV1;
+  batchImport: typeof batchImportNotesV1;
   updateNoteBody: typeof updateNoteBodyV1;
   renameNote: typeof renameNoteV1;
   moveNote: typeof moveNoteV1;
@@ -1466,6 +1408,7 @@ export const notesV1: NotesV1Api = {
   listNotes: listNotesV1,
   getNote: getNoteV1,
   createNote: createNoteV1,
+  batchImport: batchImportNotesV1,
   updateNoteBody: updateNoteBodyV1,
   renameNote: renameNoteV1,
   moveNote: moveNoteV1,
@@ -1489,6 +1432,7 @@ export const notes: NotesApi = {
   listNotes,
   getNote,
   createNote: createNoteV1,
+  batchImport: batchImportNotesV1,
   updateNoteBody: updateNoteBodyV1,
   renameNote: renameNoteV1,
   moveNote: moveNoteV1,
