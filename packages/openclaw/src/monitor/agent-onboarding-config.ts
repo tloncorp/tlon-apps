@@ -64,7 +64,7 @@ export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
  *
  * Suggestions, never a menu: the picker always carries "or just tell me", and
  * the agent reads a typed answer the same way it reads a submitted selection.
- * Kept to single words so they fit a pill.
+ * Kept to a word or two so they fit a pill.
  */
 export const PURPOSE_TOPICS: Record<string, readonly string[]> = {
   'agent-daily-digest': [
@@ -84,11 +84,13 @@ export const PURPOSE_TOPICS: Record<string, readonly string[]> = {
     'Reading',
   ],
   'agent-research': [
-    'AI',
-    'Markets',
-    'Health',
-    'Policy',
-    'Science',
-    'Competitors',
+    'Peptides',
+    'Installation art',
+    'Electronic music',
+    'Mycology',
+    'Longevity',
+    'Synthesizers',
+    'Fermentation',
+    'Homelabs',
   ],
 };
