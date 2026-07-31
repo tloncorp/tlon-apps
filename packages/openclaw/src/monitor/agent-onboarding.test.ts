@@ -1,7 +1,11 @@
 import { A2UI } from '@tloncorp/api';
 import { describe, expect, test } from 'vitest';
 
-import { PURPOSE_OPTIONS, PURPOSE_TOPICS } from './agent-onboarding-config.js';
+import {
+  PURPOSE_JOBS,
+  PURPOSE_OPTIONS,
+  PURPOSE_TOPICS,
+} from './agent-onboarding-config.js';
 import {
   buildPurposePickerBlob,
   buildTopicsPickerBlob,
@@ -12,6 +16,7 @@ import {
   isPurposePickerChoice,
   purposeIdForChoice,
   purposePickerFallbackText,
+  renderSetupDirective,
   shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
@@ -668,5 +673,46 @@ describe('shouldOfferPickerOnJoin', () => {
     expect(shouldOfferPickerOnJoin({ ...newGroup, alreadyOffered: true })).toBe(
       false
     );
+  });
+});
+
+describe('renderSetupDirective', () => {
+  test('every purpose card has a job template', () => {
+    // A card without a template silently degrades to a model-composed cron
+    // prompt, defeating the point of templating.
+    for (const option of PURPOSE_OPTIONS) {
+      expect(PURPOSE_JOBS[option.id]).toBeDefined();
+    }
+  });
+
+  test('carries the rendered template verbatim', () => {
+    const directive = renderSetupDirective(
+      'agent-daily-digest',
+      'Peptides, Mycology'
+    );
+    expect(directive).not.toBeNull();
+    const expectedPrompt = PURPOSE_JOBS[
+      'agent-daily-digest'
+    ]!.prompt.replaceAll('{{topics}}', 'Peptides, Mycology');
+    expect(directive).toContain(expectedPrompt);
+    expect(directive).toContain(PURPOSE_JOBS['agent-daily-digest']!.schedule);
+    // No unfilled placeholders may survive rendering.
+    expect(directive).not.toContain('{{');
+  });
+
+  test('substitutes into the title and trims the reply', () => {
+    const directive = renderSetupDirective('agent-research', '  Homelabs  ');
+    expect(directive).toContain('Research update: Homelabs');
+  });
+
+  test('directs verbatim use and the config mirror', () => {
+    const directive = renderSetupDirective('agent-tracking', 'Sleep')!;
+    expect(directive).toContain('Do not rewrite');
+    expect(directive).toContain('group config');
+    expect(directive).toContain("owner's timezone");
+  });
+
+  test('null for a purpose without a template', () => {
+    expect(renderSetupDirective('agent-nonexistent', 'x')).toBeNull();
   });
 });

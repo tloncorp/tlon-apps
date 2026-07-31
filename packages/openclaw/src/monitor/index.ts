@@ -101,6 +101,7 @@ import {
   findChatNestForGroup,
   findGroupForChannel,
   purposePickerFallbackText,
+  renderSetupDirective,
   shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
@@ -762,6 +763,12 @@ export async function monitorTlonProvider(
     /** Channels already offered the agent-onboarding purpose picker. */
     const onboardingPickerOffered = new Set<string>();
     const onboardingTopicsOffered = new Set<string>();
+    /**
+     * Channels whose topic pills are awaiting the owner reply, by purpose.
+     * The reply message carries the rendered setup directive to the model,
+     * so the cron payload comes from config instead of model prose.
+     */
+    const onboardingSetupPending = new Map<string, string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -2237,6 +2244,8 @@ export async function monitorTlonProvider(
       cachesHistory?: boolean;
       messageContent?: unknown; // Raw Tlon content for media extraction
       blobField?: string | null; // Raw blob JSON from post/reply
+      /** Appended to the agent input after the message; see the topics hook. */
+      setupDirective?: string;
       isGroup: boolean;
       channelNest?: string;
       hostShip?: string;
@@ -2293,6 +2302,9 @@ export async function monitorTlonProvider(
       let messageText = citedContent
         ? `${citedContent}\n\n${currentMessageText}`
         : currentMessageText;
+      if (params.setupDirective) {
+        messageText = `${messageText}\n\n${params.setupDirective}`;
+      }
 
       const route = core.channel.routing.resolveAgentRoute({
         cfg,
@@ -3798,6 +3810,7 @@ export async function monitorTlonProvider(
                 });
           if (topicsPurposeId) {
             onboardingTopicsOffered.add(nest);
+            onboardingSetupPending.set(nest, topicsPurposeId);
             runtime.log?.(
               `[tlon] Offering agent onboarding topics picker in ${nest}`
             );
@@ -3929,11 +3942,23 @@ export async function monitorTlonProvider(
 
         const parsed = parseChannelNest(nest);
         const citedContent = await resolveCitedContent(content.content);
+        // The owner reply after the topic pills carries the rendered setup
+        // directive, so the model receives the cron payload from config
+        // rather than composing one. One-shot per channel.
+        let setupDirective: string | undefined;
+        const pendingSetupPurpose = onboardingSetupPending.get(nest);
+        if (pendingSetupPurpose && isOwner(senderShip)) {
+          onboardingSetupPending.delete(nest);
+          setupDirective =
+            renderSetupDirective(pendingSetupPurpose, rawText ?? '') ??
+            undefined;
+        }
         await processMessage({
           messageId: messageId ?? '',
           senderShip,
           messageText: rawText,
           ...(citedContent ? { citedContent } : {}),
+          ...(setupDirective ? { setupDirective } : {}),
           gateText: engagementText,
           trigger,
           cachesHistory: true,

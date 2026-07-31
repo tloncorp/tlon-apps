@@ -6,6 +6,7 @@ import {
   makeA2UIBlob,
 } from '../urbit/blob.js';
 import {
+  PURPOSE_JOBS,
   PURPOSE_OPTIONS,
   PURPOSE_PICKER_FOOTER,
   PURPOSE_PICKER_PROMPT,
@@ -236,6 +237,38 @@ export function buildTopicsPickerBlob(
   } catch {
     return null;
   }
+}
+
+/**
+ * The build instructions attached to the model turn that follows the owner's
+ * topic reply. The cron payload is the config template rendered here —
+ * deterministically — and the directive tells the agent to use it verbatim,
+ * so what the job does every run is authored in `agent-onboarding-config.ts`,
+ * not composed by the model. Null for purposes without a job template (a
+ * freeform purpose gets a freeform build).
+ */
+export function renderSetupDirective(
+  purposeId: string,
+  topicsReply: string
+): string | null {
+  const job = PURPOSE_JOBS[purposeId];
+  if (!job) {
+    return null;
+  }
+  const topics = topicsReply.trim();
+  const fill = (template: string) => template.replaceAll('{{topics}}', topics);
+  return [
+    '[Tlon setup directive — not written by the owner]',
+    'When you create the scheduled job for this setup, use these values',
+    'exactly as given. Do not rewrite, extend, or paraphrase the payload',
+    'message; it is configuration, not a draft.',
+    `job title: ${fill(job.title)}`,
+    `schedule: ${job.schedule} in the owner's timezone — ask for it if you`,
+    "don't know it; never silently use UTC.",
+    `payload message, verbatim: ${fill(job.prompt)}`,
+    "Record the same payload message verbatim as the job's prompt in the",
+    'group config you write.',
+  ].join('\n');
 }
 
 /**

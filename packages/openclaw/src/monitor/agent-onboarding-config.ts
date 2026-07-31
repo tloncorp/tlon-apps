@@ -60,6 +60,52 @@ export const TOPICS_PICKER_PROMPT =
 export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
 
 /**
+ * The scheduled job each purpose sets up, templated so the operative cron
+ * prompt is authored here — deterministically — rather than composed by the
+ * model during the build turn. `prompt` is used **verbatim** as the cron
+ * payload (the agent is directed not to rewrite it), so editing these strings
+ * edits what the job actually does on every run.
+ *
+ * `{{topics}}` is replaced with the owner's topic reply, exactly as sent —
+ * a submitted pill selection ("Peptides, Mycology") or whatever they typed.
+ * `schedule` is a cron expression evaluated in the owner's timezone.
+ */
+export const PURPOSE_JOBS: Record<
+  string,
+  { title: string; schedule: string; prompt: string }
+> = {
+  'agent-daily-digest': {
+    title: 'Daily digest: {{topics}}',
+    schedule: '0 8 * * *',
+    prompt:
+      "Put together today's digest on: {{topics}}. Keep it tight — a line " +
+      'of facts or 3-4 dated headline bullets per topic, sources when they ' +
+      "matter. Post it to this group's digest channel if one exists, " +
+      'otherwise right here, and announce it in chat with a single line. ' +
+      'No preamble.',
+  },
+  'agent-tracking': {
+    title: 'Tracking check-in: {{topics}}',
+    schedule: '0 18 * * 0',
+    prompt:
+      'Review everything the owner has logged in this group about: ' +
+      '{{topics}} since the last check-in. Post a short running picture — ' +
+      'totals, streaks, changes worth noticing — and one observation. If ' +
+      'nothing was logged, say so in one line and stop.',
+  },
+  'agent-research': {
+    title: 'Research update: {{topics}}',
+    schedule: '0 9 * * 1',
+    prompt:
+      'Look for genuinely new developments on: {{topics}} since the last ' +
+      'update — releases, papers, notable writing, community chatter. Post ' +
+      "a short update to this group's research channel if one exists, " +
+      'otherwise right here, and announce it in chat with a single line. ' +
+      'If nothing new surfaced, say so in one line and stop.',
+  },
+};
+
+/**
  * Starting points for the topic step, per purpose.
  *
  * Suggestions, never a menu: the picker always carries "or just tell me", and
