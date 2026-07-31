@@ -1,9 +1,8 @@
 import { A2UI } from '@tloncorp/api';
 import { describe, expect, test } from 'vitest';
 
+import { PURPOSE_OPTIONS, PURPOSE_TOPICS } from './agent-onboarding-config.js';
 import {
-  PURPOSE_OPTIONS,
-  PURPOSE_TOPICS,
   buildPurposePickerBlob,
   buildTopicsPickerBlob,
   channelHasNoPosts,

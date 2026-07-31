@@ -5,10 +5,20 @@ import {
   type TlonA2UIBlob,
   makeA2UIBlob,
 } from '../urbit/blob.js';
+import {
+  PURPOSE_OPTIONS,
+  PURPOSE_PICKER_FOOTER,
+  PURPOSE_PICKER_PROMPT,
+  PURPOSE_TOPICS,
+  TOPICS_PICKER_PROMPT,
+  TOPICS_PICKER_SUBMIT_LABEL,
+} from './agent-onboarding-config.js';
 
 /**
- * Agent onboarding, bot side: the purpose picker the agent posts into a group
- * that has no agent config yet.
+ * Agent onboarding, bot side: the pickers the agent posts into a group that
+ * has no agent setup yet. The conversation content lives in
+ * `agent-onboarding-config.ts`; this module turns it into A2UI blobs and
+ * decides when to offer it.
  *
  * The design's choice cards are tappable and land inline in the transcript —
  * that is what A2UI is for. Each card's Button carries a `tlon.sendMessage`
@@ -18,52 +28,8 @@ import {
  * components.
  */
 
-/**
- * The picker's options. This plugin owns them: the bot composes and posts
- * the picker, so nothing on the app side needs its own copy — the client
- * renders whatever arrives as generic A2UI components.
- */
-export const PURPOSE_OPTIONS = [
-  {
-    id: 'agent-daily-digest',
-    title: 'A daily digest',
-    description:
-      'A short summary of anything you care about, posted every morning.',
-    icon: 'ChannelNotebooks',
-    accent: 'blue',
-  },
-  {
-    id: 'agent-tracking',
-    title: 'Tracking',
-    description:
-      'You log a thing as it happens. I keep the running picture over time.',
-    icon: 'Clock',
-    accent: 'green',
-  },
-  {
-    id: 'agent-research',
-    title: 'Research',
-    description: 'A standing deep-dive I keep updated as new work comes out.',
-    icon: 'Search',
-    accent: 'indigo',
-  },
-] as const satisfies readonly {
-  id: string;
-  title: string;
-  description: string;
-  // Mirrors A2UI.ChoiceIcon / ChoiceAccent, spelled literally for the same
-  // registry-version reason as the options themselves.
-  icon: 'ChannelNotebooks' | 'Clock' | 'Search';
-  accent: 'blue' | 'green' | 'indigo';
-}[];
-
 /** Mirrors GROUP_AGENT_CONFIG_ENTRY_TYPE in @tloncorp/api. */
 const AGENT_CONFIG_ENTRY_TYPE = 'tlon-group-agent-config';
-
-const PURPOSE_PICKER_PROMPT =
-  "Let's make you a group that does something useful. What should it do?";
-
-const PURPOSE_PICKER_FOOTER = 'Or just tell me — the cards are only starts.';
 
 /**
  * The post's story text, which doubles as the fallback.
@@ -202,45 +168,6 @@ export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
     return makeA2UIBlob(surfaceId, 'root', buildButtonComponents());
   }
 }
-
-/**
- * Starting points for the topic step, per purpose.
- *
- * Suggestions, never a menu: the picker always carries "or just tell me", and
- * the agent reads a typed answer the same way it reads a submitted selection.
- * Kept to single words so they fit a pill.
- */
-export const PURPOSE_TOPICS: Record<string, readonly string[]> = {
-  'agent-daily-digest': [
-    'Weather',
-    'News',
-    'Stocks',
-    'Sports',
-    'Tech',
-    'Local',
-  ],
-  'agent-tracking': [
-    'Workouts',
-    'Meals',
-    'Sleep',
-    'Mood',
-    'Spending',
-    'Reading',
-  ],
-  'agent-research': [
-    'AI',
-    'Markets',
-    'Health',
-    'Policy',
-    'Science',
-    'Competitors',
-  ],
-};
-
-const TOPICS_PICKER_PROMPT =
-  'Good. What should I keep up with for you? Pick any that fit.';
-
-const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
 
 /** The purpose whose card title this message matches, if any. */
 export function purposeIdForChoice(text: string): string | undefined {
