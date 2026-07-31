@@ -229,6 +229,20 @@ export async function prepareMigration(
     );
   }
 
+  const rawSourceTitle = sourceChannel.meta.title;
+  const trimmedSourceTitle = rawSourceTitle.trim();
+  // An empty title falls back to the nest name in archiveTitle, but that does
+  // not mean the source's actual title carries the migration marker.
+  if (
+    trimmedSourceTitle.length > 0 &&
+    archiveTitle(rawSourceTitle, source.name) === trimmedSourceTitle
+  ) {
+    throw commandError(
+      `Refusing to migrate ${sourceNest}: its title appears to have been migrated already. ` +
+        `If that is incorrect, rename the source channel to remove the archive marker, then re-run the migration.`
+    );
+  }
+
   const sortedPosts = await readSourceComplete(sourceNest, deps);
   const { eligible, tombstones, stubs } = filterEligiblePosts(sortedPosts);
   if (eligible.length === 0) {
@@ -250,7 +264,7 @@ export async function prepareMigration(
     admins: group.admins,
     privacy: group.privacy,
   });
-  const sourceTitle = sourceChannel.meta.title || source.name;
+  const sourceTitle = rawSourceTitle || source.name;
   const targetTitle = deriveTargetTitle(sourceTitle, source.name);
   const metrics = countArchiveOnlyMetrics(sortedPosts);
 

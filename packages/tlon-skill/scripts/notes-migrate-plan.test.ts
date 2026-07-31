@@ -49,6 +49,12 @@ function group(overrides: Partial<GroupInfo> = {}): GroupInfo {
   };
 }
 
+function groupWithTitle(title: string): GroupInfo {
+  const sourceGroup = group();
+  sourceGroup.channels[SOURCE].meta.title = title;
+  return sourceGroup;
+}
+
 type Page = Awaited<ReturnType<MigrationDeps['getChannelPosts']>>;
 
 function makeDeps(
@@ -306,6 +312,44 @@ describe('readSourceComplete', () => {
 });
 
 describe('executePlan', () => {
+  it('refuses an archived source while preserving exact suffix semantics', async () => {
+    const ordinary = makeDeps({ group: groupWithTitle('Field Notes') });
+    await expect(executePlan(options(), ordinary.deps)).resolves.toMatchObject({
+      plan: { sourceTitle: 'Field Notes' },
+    });
+
+    const differentCase = makeDeps({
+      group: groupWithTitle('Field Notes-archive'),
+    });
+    await expect(
+      executePlan(options(), differentCase.deps)
+    ).resolves.toMatchObject({
+      plan: {
+        sourceTitle: 'Field Notes-archive',
+        archiveTitle: 'Field Notes-archive-ARCHIVE',
+      },
+    });
+
+    const emptyTitle = makeDeps({ group: groupWithTitle('  ') });
+    await expect(
+      executePlan(options(), emptyTitle.deps)
+    ).resolves.toMatchObject({
+      plan: {
+        targetTitle: 'blog',
+        archiveTitle: 'blog-ARCHIVE',
+      },
+    });
+
+    const archived = makeDeps({
+      group: groupWithTitle('  Field Notes-ARCHIVE  '),
+    });
+    await expect(executePlan(options(), archived.deps)).rejects.toThrow(
+      `Refusing to migrate ${SOURCE}: its title appears to have been migrated already. ` +
+        `If that is incorrect, rename the source channel to remove the archive marker, then re-run the migration.`
+    );
+    expect(archived.calls.posts).toEqual([]);
+  });
+
   it('performs complete read and conversion without invoking any mutation', async () => {
     const tombstone = { ...post('gone', 2), isDeleted: true };
     const { calls, deps } = makeDeps({

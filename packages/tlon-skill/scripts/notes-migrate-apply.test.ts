@@ -267,6 +267,31 @@ describe('verifyTargetContents', () => {
 });
 
 describe('executeApply', () => {
+  it('refuses an archived source without writes and leaves ordinary sources unaffected', async () => {
+    const ordinary = makeHarness();
+    await expect(
+      executeApply(applyOptions(), ordinary.deps)
+    ).resolves.toMatchObject({ status: 'success' });
+    expect(ordinary.calls.create).toBe(1);
+
+    const archivedGroup = sourceGroup();
+    archivedGroup.channels[SOURCE].meta.title = 'Field Notes-ARCHIVE';
+    const archived = makeHarness({ group: archivedGroup });
+    await expect(executeApply(applyOptions(), archived.deps)).rejects.toThrow(
+      `Refusing to migrate ${SOURCE}: its title appears to have been migrated already. ` +
+        `If that is incorrect, rename the source channel to remove the archive marker, then re-run the migration.`
+    );
+    expect(archived.calls.identity).toBe(0);
+    expect(archived.calls.create).toBe(0);
+    expect(archived.calls.detail).toBe(0);
+    expect(archived.calls.batch).toEqual([]);
+    expect(archived.calls.listNotes).toBe(0);
+    expect(archived.calls.getRawGroup).toBe(0);
+    expect(archived.calls.updateChannel).toEqual([]);
+    expect(archived.imported).toEqual([]);
+    expect(archived.order).toEqual([]);
+  });
+
   it('requires explicit confirmation before any reads', async () => {
     const context = makeHarness();
     await expect(
