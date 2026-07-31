@@ -90,7 +90,7 @@
   =/  next=time  (add now ~s30)
   ;<  *  bind:m
     %+  ex-cards  caz
-    :~  (ex-fact-paths ~[/v3 /v3/chat/~zod/test])  ::  connection update
+    :~  (ex-fact-paths ~[/v5 /v5/chat/~zod/test])  ::  connection update
         (ex-arvo retry-wire %b %wait next)
     ==
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(now next)))
@@ -127,7 +127,7 @@
   ::  give facts, update state.
   ::
   ;<  caz=(list card)  bind:m  (do-poke %channel-action-1 !>(send))
-  ;<  ~  bind:m  (ex-cards caz [. . . . . . ~]:|=(* ~))
+  ;<  ~  bind:m  (ex-cards caz [. . . . . . . ~]:|=(* ~))
   ;<  save-2=vase  bind:m  get-save
   ;<  ~  bind:m
     ^-  form:m

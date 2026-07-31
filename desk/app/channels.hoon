@@ -689,13 +689,13 @@
       ==
     +$  window    window:v-channel:c
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 =remark:v7:cv =window =future]
+    +$  local     [=net:v7:cv log=log-1 =remark:v7:cv =window =future]
     --
   ::
   ++  v-channel-2
     |^  ,[global:v-channel:v7:cv local]
     +$  local
-      $:  =net:c
+      $:  =net:v7:cv
           =log:v7:cv
           =remark:v7:cv
           =window:v-channel:c
@@ -800,7 +800,7 @@
     |^  ,[global:v-channel-1 local]
     +$  window    window:v-channel:c
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 remark=remark-0 =window =future]
+    +$  local     [=net:v7:cv log=log-1 remark=remark-0 =window =future]
     --
   +$  remark-0  [last-read=time watching=_| unread-threads=(set id-post:c)]
   ::

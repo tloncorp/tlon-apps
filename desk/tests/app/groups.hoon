@@ -152,13 +152,19 @@
   %+  welp
     %-  zing
     %+  turn  rs-groups
-    |=  =r-groups:v9:gv
-    :~  %+  ex-fact  ~[/v3/groups /v3/groups/~zod/my-test-group]
-        group-response-3+!>(`r-groups:v11:gv`r-groups)
+    |=  =r-groups:v11:gv
+    =/  fact-3
+      %+  ex-fact  ~[/v3/groups /v3/groups/~zod/my-test-group]
+      group-response-3+!>(r-groups)
+    ::  %connection responses only go out on the v3 path
+    ::
+    ?:  ?=(?(%connection %active-channel) -.r-group.r-groups)
+      ~[fact-3]
+    :~  fact-3
         %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-        group-response-1+!>(r-groups)
+        group-response-1+!>(`r-groups:v9:gv`[flag.r-groups r-group.r-groups])
         %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
-        group-response-2+!>(`r-groups:v10:gv`r-groups)
+        group-response-2+!>(`r-groups:v10:gv`[flag.r-groups r-group.r-groups])
     ==
   %+  turn  actions-2
   |=  =action:v2:gv
@@ -188,6 +194,13 @@
   ::  expected r-groups
   ::
   =*  r-groups  p.exe
+  =/  fact-3
+    %+  ex-fact  ~[/v3/groups /v3/groups/~zod/my-test-group]
+    group-response-3+!>(r-groups)
+  ::  %connection responses only go out on the v3 path
+  ::
+  ?:  ?=(?(%connection %active-channel) -.r-group.r-groups)
+    [fact-3 out]
   =/  actions-2=(list action:v2:gv)
     %+  turn
       (diff:v2:r-group:v11:gc r-group.r-groups [seats admissions]:group)
@@ -198,9 +211,10 @@
     |=  =action:v2:gv
     (ex-fact ~[/groups/ui] group-action-3+!>(action))
   :-  %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
-      group-response-2+!>(`r-groups:v10:gv`r-groups)
+      group-response-2+!>(`r-groups:v10:gv`[flag.r-groups r-group.r-groups])
   :-  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-      group-response-1+!>(r-groups)
+      group-response-1+!>(`r-groups:v9:gv`[flag.r-groups r-group.r-groups])
+  :-  fact-3
   out
 ::
 ++  get-invite
@@ -242,7 +256,7 @@
       %+  weld  `path`[%server go-area]
       /updates/~dev/(scot:h136 %da *@da)
     %+  ex-cards  caz
-    :~  (ex-fact-paths ~[/v1/groups /v1/groups/~zod/my-test-group])
+    :~  (ex-fact-paths ~[/v3/groups /v3/groups/~zod/my-test-group])
         (ex-task wire [~zod my-agent] %watch sub)
         (ex-foreign-response %*(. *foreign:g progress `%watch))
         (ex-gang-response %*(. *foreign:g progress `%watch))
@@ -690,9 +704,10 @@
     (do-agent (weld go-area /updates) [~zod my-agent] %fact group-update+!>(update))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
+    :~  (ex-fact-paths ~[/v3/groups /v3/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-task (weld go-area /updates) [~zod my-agent] %leave ~)
         (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
+        (ex-fact-paths ~[/v3/groups /v3/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/v2/groups /v2/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/groups/ui])

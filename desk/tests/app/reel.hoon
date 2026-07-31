@@ -210,7 +210,7 @@
   ::  provider to update the invite link, and also updates its local
   ::  invite.
   ::
-  =/  =r-groups:v11:gv
+  =/  =r-groups:v9:gv
     =/  =data:meta
       :*  'Early Sunrise'
           'Sunrise, sunset.'
@@ -247,7 +247,7 @@
   ::
   ;<  *  bind:m
     (do-agent /contacts [~sampel-palnet %contacts] %fact contact-response-0+!>([%self my-profile]))
-  =/  =r-groups:v11:gv
+  =/  =r-groups:v9:gv
     =/  =data:meta
       :*  'Early Sunrise'
           'Sunrise, sunset.'
@@ -273,7 +273,7 @@
   ::  when a group is deleted, the group host updates the provider with
   ::  invitedGroupDeleted set to true.
   ::
-  =/  =r-groups:v11:gv
+  =/  =r-groups:v9:gv
     [~sampel-palnet^%sunrise %delete ~]
   ;<  caz=(list card)  bind:m
     (do-agent /groups [~sampel-palnet %groups] %fact group-response-1+!>(r-groups))

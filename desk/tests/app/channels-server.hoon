@@ -327,7 +327,7 @@
       (slot 2 save)  ::  lib discipline
       (slot 6 save)  ::  lib negotiate
       !>  ^-  current-state
-      [%15 (~(put by *v-channels:c) nest chan) *hooks:h *pimp:imp]
+      [%16 (~(put by *v-channels:c) nest chan) *hooks:h *pimp:imp]
     ==
   ;<  *  bind:m  (do-load agent `save)
   ;<  ~  bind:m  (jab-bowl |=(b=bowl:gall b(now now)))
@@ -364,5 +364,5 @@
   =.  save  (slot 3 save)  ::  lib negotiate
   %+  ex-equal  save
   !>  ^-  current-state
-  [%15 (~(put by *v-channels:c) nest expected) *hooks:h *pimp:imp]
+  [%16 (~(put by *v-channels:c) nest expected) *hooks:h *pimp:imp]
 --

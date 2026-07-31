@@ -405,7 +405,7 @@
   ++  v-channel-2
     |^  ,[global:v-channel:v7:cv local]
     +$  local
-      $:  =net:c
+      $:  =net:v7:cv
           =log:v7:cv
           =remark:c
           =window:v-channel:c
@@ -438,7 +438,7 @@
       ==
     +$  window    window:v-channel:c
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 =remark:c =window =future]
+    +$  local     [=net:v7:cv log=log-1 =remark:c =window =future]
     --
   +$  log-1           ((mop time u-channel-1) lte)
   ++  log-on-1        ((on time u-channel-1) lte)
@@ -521,7 +521,7 @@
     |^  ,[global:v-channel-1 local]
     +$  window    window:v-channel:c
     +$  future    [=window diffs=(jug id-post:c u-post-1)]
-    +$  local     [=net:c log=log-1 remark=remark-0 =window =future]
+    +$  local     [=net:v7:cv log=log-1 remark=remark-0 =window =future]
     --
   +$  remark-0  [last-read=time watching=_| unread-threads=(set id-post:c)]
   ::

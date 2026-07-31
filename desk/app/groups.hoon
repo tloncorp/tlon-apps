@@ -1423,7 +1423,7 @@
     %-  ~(gas by *(map flag:v11:gv [net:v11:gv group:v11:gv]))
     %+  murn  ~(tap in groups)
     |=  [=flag:g =net:g =group:g]
-    ^-  (unit [flag:v9:gv [net:v9:gv group:v9:gv]])
+    ^-  (unit [flag:v11:gv [net:v11:gv group:v11:gv]])
     =/  fresh=?
       %+  lth  since
       ?-  -.net
