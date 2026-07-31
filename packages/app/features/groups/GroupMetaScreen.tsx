@@ -35,9 +35,13 @@ export function GroupMetaScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
 
   const navigateToHome = useCallback(() => {
-    const route = getTopLevelTabRoute('ChatList');
-    navigation.getParent()?.navigate(route.name, route.params, { pop: true });
-  }, [navigation]);
+    if (isWindowNarrow) {
+      const route = getTopLevelTabRoute('ChatList');
+      navigation.getParent()?.navigate(route.name, route.params, { pop: true });
+    } else {
+      navigation.getParent()?.navigate('ChatList', undefined, { pop: true });
+    }
+  }, [isWindowNarrow, navigation]);
 
   const handleGoBack = useHandleGoBack(navigation, {
     groupId,
