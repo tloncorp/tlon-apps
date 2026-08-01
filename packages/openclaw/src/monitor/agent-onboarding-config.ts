@@ -60,6 +60,28 @@ export const TOPICS_PICKER_PROMPT =
 export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
 
 /**
+ * Where a scheduled run's output goes, shared by every job that produces
+ * something worth keeping.
+ *
+ * The output channel is created by the **first run**, not during setup: at
+ * setup time there is nothing to put in it, and a group that opens with an
+ * empty notebook reads as broken. So the first run makes it and records it,
+ * and every run after that appends to the same place — the job's output
+ * accumulates in one notebook instead of scrolling away in chat.
+ *
+ * Part of the verbatim payload, so it is one string rather than three
+ * paraphrases that can drift apart.
+ */
+const OUTPUT_CHANNEL_RULE =
+  "Post it to this group's notes channel — the notebook kind, whose nests " +
+  'look like `notes/<host>/<name>`. If the group has no notes channel yet, ' +
+  'create one in this group first (never a new group), name it for the ' +
+  'subject, and record its nest as this job\'s "outputNest" in the group ' +
+  'config so later runs go straight there. Every later run appends to that ' +
+  'same channel. Announce it in chat with a single line — the chat gets the ' +
+  'announcement, the notebook gets the writing.';
+
+/**
  * The scheduled job each purpose sets up, templated so the operative cron
  * prompt is authored here — deterministically — rather than composed by the
  * model during the build turn. `prompt` is used **verbatim** as the cron
@@ -95,26 +117,30 @@ export const PURPOSE_JOBS: Record<
       'of facts or 3-4 dated headline bullets per topic, sources when they ' +
       'matter. For anything location-bound (weather, local), use the ' +
       "owner's saved location if you know one; otherwise infer a rough one " +
-      'from their timezone and name it so they can correct you. Post it to ' +
-      "this group's digest channel if one exists, otherwise right here, " +
-      'and announce it in chat with a single line. No preamble.',
+      'from their timezone and name it so they can correct you. ' +
+      OUTPUT_CHANNEL_RULE +
+      ' No preamble.',
     confirmation:
       'Run the job once right now, exactly as the scheduled run would — ' +
-      'the owner should see a real digest, not a promise of one. Never ' +
-      "fabricate: if you can't actually research, post one honest line " +
-      'about what will arrive and when. Then ask if they want anything ' +
-      'changed, enumerating the sources you used (one line each) so they ' +
-      'can add, drop, or swap sources. If the run degraded, still ask — ' +
-      'name what was missing and what you would use once it works.',
+      'the owner should see a real digest, not a promise of one, and that ' +
+      'run is what creates the notes channel. Never fabricate: if you ' +
+      "can't actually research, say so in chat in one honest line, with " +
+      'what will arrive and when, and leave the notes channel uncreated ' +
+      'until there is something real to put in it. Then ask if they want ' +
+      'anything changed, enumerating the sources you used (one line each) ' +
+      'so they can add, drop, or swap sources. If the run degraded, still ' +
+      'ask — name what was missing and what you would use once it works.',
   },
   'agent-tracking': {
     title: 'Tracking check-in: {{topics}}',
     schedule: '0 18 * * 0',
     prompt:
       'Review everything the owner has logged in this group about: ' +
-      '{{topics}} since the last check-in. Post a short running picture — ' +
-      'totals, streaks, changes worth noticing — and one observation. If ' +
-      'nothing was logged, say so in one line and stop.',
+      '{{topics}} since the last check-in. Write a short running picture — ' +
+      'totals, streaks, changes worth noticing — and one observation. ' +
+      OUTPUT_CHANNEL_RULE +
+      ' If nothing was logged, say so in one line in chat and stop, ' +
+      'without posting an empty check-in.',
     confirmation:
       "There's nothing to summarize yet, so don't run the job — instead " +
       'ask the owner to log their first entry right now, in their own ' +
@@ -127,18 +153,19 @@ export const PURPOSE_JOBS: Record<
     prompt:
       'Search the web for genuinely new developments on: {{topics}} since ' +
       'the last update — releases, papers, notable writing, community ' +
-      'chatter. Never answer from memory. Post ' +
-      "a short update to this group's research channel if one exists, " +
-      'otherwise right here, and announce it in chat with a single line. ' +
-      'If nothing new surfaced, say so in one line and stop.',
+      'chatter. Never answer from memory. ' +
+      OUTPUT_CHANNEL_RULE +
+      ' If nothing new surfaced, say so in one line and stop.',
     confirmation:
       'Run the job once right now, exactly as the scheduled run would — ' +
-      'the owner should see a real first update. Never fabricate: if you ' +
-      "can't actually research, post one honest line about what will " +
-      'arrive and when. Then ask if they want anything changed, ' +
-      'enumerating the sources you used (one line each) so they can add, ' +
-      'drop, or swap sources. If the run degraded, still ask — name what ' +
-      'was missing and what you would use once it works.',
+      'the owner should see a real first update, and that run is what ' +
+      "creates the notes channel. Never fabricate: if you can't actually " +
+      'research, say so in chat in one honest line, with what will arrive ' +
+      'and when, and leave the notes channel uncreated until there is ' +
+      'something real to put in it. Then ask if they want anything ' +
+      'changed, enumerating the sources you used (one line each) so they ' +
+      'can add, drop, or swap sources. If the run degraded, still ask — ' +
+      'name what was missing and what you would use once it works.',
   },
 };
 

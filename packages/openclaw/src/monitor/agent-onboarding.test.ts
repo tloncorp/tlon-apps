@@ -713,6 +713,17 @@ describe('renderSetupDirective', () => {
     expect(directive).toContain("owner's timezone");
   });
 
+  test('every job sends its output to a notes channel it creates itself', () => {
+    for (const purposeId of Object.keys(PURPOSE_JOBS)) {
+      const directive = renderSetupDirective(purposeId, 'Sleep')!;
+      // The rule has to ride in the payload, since that is what the cron
+      // runs verbatim on every future run — not just at setup.
+      expect(directive).toContain("this group's notes channel");
+      expect(directive).toContain('create one in this group first');
+      expect(directive).toContain('Every later run appends to that same');
+    }
+  });
+
   test('carries the picked template id for provenance', () => {
     const directive = renderSetupDirective('agent-research', 'Mycology')!;
     expect(directive).toContain('templateId: agent-research');
@@ -721,7 +732,13 @@ describe('renderSetupDirective', () => {
   test('forbids creating a group, in any role', () => {
     const directive = renderSetupDirective('agent-daily-digest', 'News')!;
     expect(directive).toContain('Never create a group');
-    expect(directive).toContain('create it in this group');
+    expect(directive).toContain('create one in this group first');
+  });
+
+  test('leaves the output channel to the first run, not setup', () => {
+    const directive = renderSetupDirective('agent-daily-digest', 'News')!;
+    expect(directive).toContain("Don't create the output channel during setup");
+    expect(directive).toContain('"outputNest" empty');
   });
 
   test('null for a purpose without a template', () => {

@@ -259,11 +259,13 @@ export function renderSetupDirective(
   const fill = (template: string) => template.replaceAll('{{topics}}', topics);
   return [
     '[Tlon setup directive — not written by the owner]',
-    'Build everything inside the group this channel belongs to. If the job',
-    'needs an output channel, create it in this group; rename this group',
-    'from the topics if it still has a placeholder name.',
+    'Build everything inside the group this channel belongs to; rename this',
+    'group from the topics if it still has a placeholder name.',
     'Never create a group — not as the output home, not as a workspace,',
     'not as a fallback.',
+    "Don't create the output channel during setup — the payload below has",
+    'the first run make it, so it arrives with something already in it.',
+    'Leave "outputNest" empty in the config until then.',
     'When you create the scheduled job for this setup, use these values',
     'exactly as given. Do not rewrite, extend, or paraphrase the payload',
     'message; it is configuration, not a draft.',
