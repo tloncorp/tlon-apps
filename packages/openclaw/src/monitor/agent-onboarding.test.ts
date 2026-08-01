@@ -718,13 +718,16 @@ describe('renderSetupDirective', () => {
       const directive = renderSetupDirective(purposeId, 'Sleep')!;
       // The rule has to ride in the payload, since that is what the cron
       // runs verbatim on every future run — not just at setup.
-      expect(directive).toContain("this group's notebook channel");
+      expect(directive).toContain("this group's notes channel");
       expect(directive).toContain('create one in this group first');
-      // A ship without the %notes desk 404s, and the run must still end up
-      // with a notebook rather than dumping into chat.
-      expect(directive).toContain('--kind diary');
-      expect(directive).toContain('never settle for a chat channel');
+      expect(directive).toContain('--kind notes');
       expect(directive).toContain('append to that same channel');
+      // A ship without the %notes desk 404s. Chat is then the only
+      // destination the CLI can reach — `diary` is retired and refused —
+      // and the fallback has to be said once, not on every run.
+      expect(directive).toContain('HTTP 404');
+      expect(directive).toContain('%notes desk');
+      expect(directive).toContain('say once — not every run');
     }
   });
 

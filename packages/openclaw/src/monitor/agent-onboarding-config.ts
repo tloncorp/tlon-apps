@@ -87,17 +87,19 @@ const INLINE_FIRST_RUN =
  * paraphrases that can drift apart.
  */
 const OUTPUT_CHANNEL_RULE =
-  "Post it to this group's notebook channel. If the group has no notebook " +
-  'yet, create one in this group first (never a new group) and name it for ' +
-  'the subject: try `--kind notes`, and if that fails for any reason — ' +
-  'including HTTP 404, which just means this ship has no %notes desk — ' +
-  'create it with `--kind diary`, the notebook every ship supports. Either ' +
-  'is a notebook to the reader; never settle for a chat channel. Record ' +
-  'the nest you end up with (`notes/<host>/<name>` or `diary/<host>/<name>`) ' +
-  'as this job\'s "outputNest" in the group config, so later runs go ' +
-  'straight there and append to that same channel. Announce it in chat with ' +
-  'a single line — the chat gets the announcement, the notebook gets the ' +
-  'writing.';
+  "Post it to this group's notes channel — the notebook, whose nests look " +
+  'like `notes/<host>/<name>`. If the group has no notes channel yet, ' +
+  'create one in this group first (never a new group), named for the ' +
+  'subject: `tlon channels create <flag> "<Title>" --kind notes`. Record ' +
+  'its nest as this job\'s "outputNest" in the group config, so later runs ' +
+  'go straight there and append to that same channel. Announce it in chat ' +
+  'with a single line — the chat gets the announcement, the notebook gets ' +
+  'the writing. If that create fails with HTTP 404, this ship has no ' +
+  "%notes desk (`tlon notes status` confirms it) — don't reach for `--kind " +
+  "diary, which is retired, and don't create a group. Post the update in " +
+  'this group\'s chat channel instead, record that nest as "outputNest", ' +
+  'and say once — not every run — that the notebook is unavailable here ' +
+  "and you'll move the updates into one when it is.";
 
 /**
  * The scheduled job each purpose sets up, templated so the operative cron
