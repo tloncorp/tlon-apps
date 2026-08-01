@@ -271,8 +271,9 @@ export function renderSetupDirective(
     `schedule: ${job.schedule} in the owner's timezone — ask for it if you`,
     "don't know it; never silently use UTC.",
     `payload message, verbatim: ${fill(job.prompt)}`,
-    "Record the same payload message verbatim as the job's prompt in the",
-    'group config you write.',
+    'The group description is the config JSON array and nothing else — the',
+    'payload message goes inside it, as the job entry\'s "prompt" field.',
+    'Never put the payload, or any prose, in the description itself.',
     `Once the job and config are in place: ${fill(job.confirmation)}`,
   ].join('\n');
 }

@@ -708,7 +708,8 @@ describe('renderSetupDirective', () => {
   test('directs verbatim use and the config mirror', () => {
     const directive = renderSetupDirective('agent-tracking', 'Sleep')!;
     expect(directive).toContain('Do not rewrite');
-    expect(directive).toContain('group config');
+    expect(directive).toContain('The group description is the config JSON');
+    expect(directive).toContain('"prompt" field');
     expect(directive).toContain("owner's timezone");
   });
 
