@@ -72,7 +72,14 @@ export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
  *
  * `{{topics}}` is replaced with the owner's topic reply, exactly as sent —
  * a submitted pill selection ("Peptides, Mycology") or whatever they typed.
- * `schedule` is a cron expression evaluated in the owner's timezone.
+ *
+ * `schedule` is the job's default cadence as a standard 5-field cron
+ * expression (minute hour day-of-month month day-of-week), deliberately
+ * without a timezone: the expression says when in the owner's day, and the
+ * timezone is per-owner, learned in conversation — the agent passes it to
+ * the cron tool as `schedule.tz` (an IANA name) and is forbidden from
+ * silently defaulting to UTC. A default, not a mandate: only the payload
+ * message is pinned verbatim, so the owner can move the schedule by asking.
  */
 export const PURPOSE_JOBS: Record<
   string,
