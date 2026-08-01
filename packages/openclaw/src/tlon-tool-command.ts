@@ -742,10 +742,14 @@ function summarizeNotesOperation(
     case 'folders':
     case 'folder':
     case 'members':
+    case 'migrate-plan':
       return build('read');
     case 'note-delete':
     case 'folder-delete':
+    case 'notebook-delete':
       return build('admin');
+    case 'migrate-apply':
+      return build('write');
     case 'create':
     case 'note-create':
     case 'note-update':

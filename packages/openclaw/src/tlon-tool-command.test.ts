@@ -689,4 +689,27 @@ describe('tlon tool telemetry summarizer', () => {
 
     expect(JSON.stringify(summary)).not.toContain('Private Roadmap');
   });
+
+  // The three migration operations are recognized as known `notes` actions, so
+  // without explicit cases they fall through to `utility` and telemetry cannot
+  // distinguish the read-only plan from the two destructive operations.
+  it.each([
+    ['notes migrate-plan diary/~zod/log', 'notes.migrate-plan', 'read'],
+    [
+      'notes migrate-apply diary/~zod/log --yes',
+      'notes.migrate-apply',
+      'write',
+    ],
+    [
+      'notes notebook-delete notes/~zod/log --yes',
+      'notes.notebook-delete',
+      'admin',
+    ],
+  ])('classifies %s by intent', (command, summaryKey, intent) => {
+    expect(summarizeTlonCommand(command)).toMatchObject({
+      subcommand: 'notes',
+      summaryKey,
+      intent,
+    });
+  });
 });
