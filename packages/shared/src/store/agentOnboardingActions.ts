@@ -69,6 +69,13 @@ export async function createAgentGroup(params?: {
     });
   });
 
+  grantAgentAdmin(group.id, botShipId).catch((error) => {
+    logger.trackError('Failed to grant agent admin', {
+      error,
+      groupId: group.id,
+    });
+  });
+
   if (hostedShipId && moon) {
     // Fire-and-forget: the group already exists and the invite is out.
     (async () => {
@@ -117,6 +124,44 @@ function writeAgentMarker(group: db.Group, botShipId: string) {
       cover: group.coverImage ?? group.coverImageColor ?? '',
     },
   });
+}
+
+/**
+ * Give the agent the admin role, so it can build the group it was invited
+ * into: renaming it and adding the output channel are admin writes, and a
+ * plain member's pokes are dropped by the host — the agent sees them time
+ * out mid-setup, with nothing to say about why.
+ *
+ * The role lands on the agent's seat, which only exists once it accepts the
+ * invite, so retry across that window. The poke is idempotent, and a group
+ * whose agent never joined has no setup to authorize anyway.
+ */
+async function grantAgentAdmin(groupId: string, botShipId: string) {
+  const delays = [0, 3_000, 5_000, 10_000, 20_000, 30_000];
+  for (const delay of delays) {
+    if (delay) {
+      await sleep(delay);
+    }
+    try {
+      await api.addMembersToRole({
+        groupId,
+        roleId: 'admin',
+        ships: [botShipId],
+      });
+      const synced = await db.getGroup({ id: groupId });
+      const agent = synced?.members?.find(
+        (member) => member.contactId === botShipId
+      );
+      if (agent?.roles?.some((role) => role.roleId === 'admin')) {
+        return;
+      }
+    } catch (error) {
+      logger.trackError('Agent admin grant attempt failed', {
+        error,
+        groupId,
+      });
+    }
+  }
 }
 
 async function resolveTlawnBot(): Promise<{
