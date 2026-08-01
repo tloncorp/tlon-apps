@@ -721,4 +721,21 @@ describe('renderSetupDirective', () => {
   test('null for a purpose without a template', () => {
     expect(renderSetupDirective('agent-nonexistent', 'x')).toBeNull();
   });
+
+  test('digest and research confirm with a real first run and sources', () => {
+    for (const id of ['agent-daily-digest', 'agent-research']) {
+      const directive = renderSetupDirective(id, 'News')!;
+      expect(directive).toContain('Run the job once right now');
+      expect(directive).toContain('enumerating the sources');
+    }
+  });
+
+  test('tracking confirms by asking for the first entry, not a run', () => {
+    const directive = renderSetupDirective('agent-tracking', 'Sleep, Mood')!;
+    expect(directive).toContain("don't run the job");
+    expect(directive).toContain('first entry');
+    expect(directive).toContain('anything else they want to track');
+    // The follow-up names what they already track.
+    expect(directive).toContain('alongside: Sleep, Mood');
+  });
 });

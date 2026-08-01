@@ -273,6 +273,7 @@ export function renderSetupDirective(
     `payload message, verbatim: ${fill(job.prompt)}`,
     "Record the same payload message verbatim as the job's prompt in the",
     'group config you write.',
+    `Once the job and config are in place: ${fill(job.confirmation)}`,
   ].join('\n');
 }
 

@@ -66,13 +66,17 @@ export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
  * payload (the agent is directed not to rewrite it), so editing these strings
  * edits what the job actually does on every run.
  *
+ * `confirmation` is what the agent does immediately after the build, so the
+ * owner sees the value before the first scheduled run — and it always ends
+ * by inviting a correction while the setup is still warm.
+ *
  * `{{topics}}` is replaced with the owner's topic reply, exactly as sent —
  * a submitted pill selection ("Peptides, Mycology") or whatever they typed.
  * `schedule` is a cron expression evaluated in the owner's timezone.
  */
 export const PURPOSE_JOBS: Record<
   string,
-  { title: string; schedule: string; prompt: string }
+  { title: string; schedule: string; prompt: string; confirmation: string }
 > = {
   'agent-daily-digest': {
     title: 'Daily digest: {{topics}}',
@@ -83,6 +87,13 @@ export const PURPOSE_JOBS: Record<
       "matter. Post it to this group's digest channel if one exists, " +
       'otherwise right here, and announce it in chat with a single line. ' +
       'No preamble.',
+    confirmation:
+      'Run the job once right now, exactly as the scheduled run would — ' +
+      'the owner should see a real digest, not a promise of one. Never ' +
+      "fabricate: if you can't actually research, post one honest line " +
+      'about what will arrive and when. Then ask if they want anything ' +
+      'changed, enumerating the sources you used (one line each) so they ' +
+      'can add, drop, or swap sources.',
   },
   'agent-tracking': {
     title: 'Tracking check-in: {{topics}}',
@@ -92,6 +103,11 @@ export const PURPOSE_JOBS: Record<
       '{{topics}} since the last check-in. Post a short running picture — ' +
       'totals, streaks, changes worth noticing — and one observation. If ' +
       'nothing was logged, say so in one line and stop.',
+    confirmation:
+      "There's nothing to summarize yet, so don't run the job — instead " +
+      'ask the owner to log their first entry right now, in their own ' +
+      "words, and confirm you've recorded it. Then ask whether there's " +
+      'anything else they want to track alongside: {{topics}}.',
   },
   'agent-research': {
     title: 'Research update: {{topics}}',
@@ -102,6 +118,13 @@ export const PURPOSE_JOBS: Record<
       "a short update to this group's research channel if one exists, " +
       'otherwise right here, and announce it in chat with a single line. ' +
       'If nothing new surfaced, say so in one line and stop.',
+    confirmation:
+      'Run the job once right now, exactly as the scheduled run would — ' +
+      'the owner should see a real first update. Never fabricate: if you ' +
+      "can't actually research, post one honest line about what will " +
+      'arrive and when. Then ask if they want anything changed, ' +
+      'enumerating the sources you used (one line each) so they can add, ' +
+      'drop, or swap sources.',
   },
 };
 
