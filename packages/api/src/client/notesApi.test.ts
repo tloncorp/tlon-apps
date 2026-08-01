@@ -861,6 +861,10 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
         response: { body: { type: 'mystery' } },
         expected: /Unexpected %notes response type: "mystery"/,
       },
+      {
+        response: { body: { type: 'api-key' } },
+        expected: /Unexpected %notes response type: "api-key"/,
+      },
     ];
     for (const { response, expected } of malformed) {
       requestJsonMock.mockResolvedValue(response);
