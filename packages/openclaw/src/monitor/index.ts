@@ -5045,17 +5045,28 @@ export async function monitorTlonProvider(
               );
               return;
             }
+            // The newness probe races %channels: right after the join ack the
+            // posts scry can still fail, and a null answer is fail-closed —
+            // which would silently skip the offer for a group that *is* new.
+            // Poll until the probe answers, on the same deadline.
+            let isNew: boolean | null = null;
+            while (Date.now() < deadline && !opts.abortSignal?.aborted) {
+              isNew = await channelHasNoPosts(api, info.nest, runtime);
+              if (isNew !== null) {
+                break;
+              }
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
             const shouldOffer = shouldOfferPickerOnJoin({
               groupHostIsOwner: info.host === effectiveOwnerShip,
               groupDescription: info.description,
-              channelHasNoPosts: await channelHasNoPosts(
-                api,
-                info.nest,
-                runtime
-              ),
+              channelHasNoPosts: isNew,
               alreadyOffered: onboardingPickerOffered.has(info.nest),
             });
             if (!shouldOffer) {
+              runtime.log?.(
+                `[tlon] No onboarding offer for ${groupFlag}: hostIsOwner=${info.host === effectiveOwnerShip}, channelHasNoPosts=${isNew}, alreadyOffered=${onboardingPickerOffered.has(info.nest)}`
+              );
               return;
             }
             onboardingPickerOffered.add(info.nest);
