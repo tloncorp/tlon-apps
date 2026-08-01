@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'vitest';
 
 import { isMoonOf } from '../lib/urbit';
-import { canRenderAgentUiInGroup, isOwnAgentShip } from './groupAgentConfig';
+import {
+  canRenderAgentUiInGroup,
+  groupDisplayDescription,
+  isOwnAgentShip,
+} from './groupAgentConfig';
 
 const ME = '~forhep-tanmel';
 const MY_AGENT = '~pinser-botter-forhep-tanmel';
@@ -151,5 +155,39 @@ describe('canRenderAgentUiInGroup', () => {
     expect(
       canRenderAgentUiInGroup({ ...base, groupId: `forhep-tanmel/home-group` })
     ).toBe(true);
+  });
+});
+
+describe('groupDisplayDescription', () => {
+  test('shows the config purpose instead of the raw JSON', () => {
+    expect(groupDisplayDescription(configNaming([MY_AGENT]))).toBe(
+      'Keeps up with things.'
+    );
+  });
+
+  test('passes an ordinary description through untouched', () => {
+    expect(groupDisplayDescription('A group about bread')).toBe(
+      'A group about bread'
+    );
+  });
+
+  test('shows nothing for a config with no purpose yet', () => {
+    const bare = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        purpose: '',
+        instructions: '',
+        agents: [MY_AGENT],
+        jobs: [],
+        updatedAt: 0,
+      },
+    ]);
+    expect(groupDisplayDescription(bare)).toBe('');
+  });
+
+  test('is empty for a missing description', () => {
+    expect(groupDisplayDescription(null)).toBe('');
+    expect(groupDisplayDescription(undefined)).toBe('');
   });
 });

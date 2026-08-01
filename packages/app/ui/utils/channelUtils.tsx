@@ -1,6 +1,7 @@
 import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 import { configurationFromChannel } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
+import { groupDisplayDescription } from '@tloncorp/shared/domain';
 import { useMemberRoles } from '@tloncorp/shared/store';
 import type { IconType } from '@tloncorp/ui';
 import { useMemo } from 'react';
@@ -87,7 +88,7 @@ export function useChatDescription(
   group?: db.Group | null
 ) {
   if (group && (!channel || group?.channels?.length === 1)) {
-    return group.description;
+    return groupDisplayDescription(group.description);
   } else if (channel) {
     return channel.description;
   }

@@ -1,5 +1,6 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
+import { groupDisplayDescription } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import {
   SectionListHeader,
@@ -99,8 +100,9 @@ export const GroupChannelsScreenView = React.memo(
     const title = useGroupTitle(group);
 
     const subtitle = useMemo(() => {
-      if (group?.description) {
-        return group.description;
+      const description = groupDisplayDescription(group?.description);
+      if (description) {
+        return description;
       }
       const memberCount = group?.members?.length ?? 0;
       const privacy = group?.privacy

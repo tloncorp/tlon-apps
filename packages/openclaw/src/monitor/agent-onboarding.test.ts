@@ -713,6 +713,11 @@ describe('renderSetupDirective', () => {
     expect(directive).toContain("owner's timezone");
   });
 
+  test('carries the picked template id for provenance', () => {
+    const directive = renderSetupDirective('agent-research', 'Mycology')!;
+    expect(directive).toContain('templateId: agent-research');
+  });
+
   test('forbids creating a group, in any role', () => {
     const directive = renderSetupDirective('agent-daily-digest', 'News')!;
     expect(directive).toContain('Never create a group');

@@ -27,6 +27,31 @@ import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
+/** Blocks that come from the post's blob rather than its story. */
+const BLOB_BLOCK_TYPES = new Set(['a2ui', 'file', 'video', 'voicememo']);
+
+/**
+ * Pick between a post's A2UI surface and its story.
+ *
+ * A post carrying A2UI writes the same message twice: the interactive surface
+ * in the blob, and a plain-text rendering of it in the story, so clients that
+ * can't render the surface still show something. Exactly one of them belongs
+ * on screen — showing both prints the message twice, which is what the sender
+ * was trying to avoid.
+ */
+function resolveA2UIContent(
+  content: ReturnType<typeof usePostContent>,
+  canRenderA2UI: boolean
+) {
+  if (!canRenderA2UI) {
+    return content.filter((block) => block.type !== 'a2ui');
+  }
+  if (!content.some((block) => block.type === 'a2ui')) {
+    return content;
+  }
+  return content.filter((block) => BLOB_BLOCK_TYPES.has(block.type));
+}
+
 /**
  * Renders a chat message with minimal interactivity (no pressable, no overflow
  * menu). For a fully interactive chat message view, see
@@ -166,17 +191,11 @@ export function StaticChatMessage({
   const postContent = usePostContent(post);
   const lastEditPostContent = usePostLastEditContent(post);
   const content = useMemo(
-    () =>
-      canRenderA2UI
-        ? postContent
-        : postContent.filter((block) => block.type !== 'a2ui'),
+    () => resolveA2UIContent(postContent, canRenderA2UI),
     [canRenderA2UI, postContent]
   );
   const lastEditContent = useMemo(
-    () =>
-      canRenderA2UI
-        ? lastEditPostContent
-        : lastEditPostContent.filter((block) => block.type !== 'a2ui'),
+    () => resolveA2UIContent(lastEditPostContent, canRenderA2UI),
     [canRenderA2UI, lastEditPostContent]
   );
 

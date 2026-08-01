@@ -274,6 +274,8 @@ export function renderSetupDirective(
     'The group description is the config JSON array and nothing else — the',
     'payload message goes inside it, as the job entry\'s "prompt" field.',
     'Never put the payload, or any prose, in the description itself.',
+    `templateId: ${purposeId} — copy it exactly; it records which setup the`,
+    'owner picked, so a different id makes the group misreport itself.',
     `Once the job and config are in place: ${fill(job.confirmation)}`,
   ].join('\n');
 }

@@ -1,5 +1,6 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { groupDisplayDescription } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
@@ -201,15 +202,16 @@ export function GroupPreviewPane({
   const title = useGroupTitle(group);
 
   const truncatedDescription = useMemo(() => {
-    if (!group.description) {
+    const description = groupDisplayDescription(group.description);
+    if (!description) {
       return undefined;
     }
 
-    if (group.description.length <= 256) {
-      return group.description;
+    if (description.length <= 256) {
+      return description;
     }
 
-    return `${group.description.slice(0, 256).trimEnd()}...`;
+    return `${description.slice(0, 256).trimEnd()}...`;
   }, [group.description]);
 
   const privacyLabel = useMemo(() => {

@@ -1,5 +1,6 @@
 import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { groupDisplayDescription } from '@tloncorp/shared/domain';
 import { useContact, useNotesDeskAvailable } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -223,8 +224,9 @@ export function ChannelHeader({
       // If it's a single-channel group
       if (!hasMultipleChannels) {
         // If group has title and description, use description
-        if (group.title && group.title.trim() !== '' && group.description) {
-          return group.description;
+        const description = groupDisplayDescription(group.description);
+        if (group.title && group.title.trim() !== '' && description) {
+          return description;
         }
         // If it's a single-channel group without explicit title/description, show member count
         const memberCount = group.members?.length ?? 0;

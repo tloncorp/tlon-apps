@@ -169,3 +169,19 @@ export function canRenderAgentUiInGroup({
   }
   return isOwnAgentShip({ authorId, currentUserId, groupDescription });
 }
+
+/**
+ * What to show wherever a group's description is displayed.
+ *
+ * Agent groups keep their machine-readable config in `meta.description` (the
+ * stopgap until it has a home of its own), so the raw field is a JSON blob
+ * that must never reach a header or a preview card. The config carries the
+ * prose equivalent — its `purpose` — so show that instead of nothing.
+ */
+export function groupDisplayDescription(description?: string | null): string {
+  const config = parseGroupAgentConfig(description);
+  if (config) {
+    return config.purpose.trim();
+  }
+  return description ?? '';
+}

@@ -1,6 +1,7 @@
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
+import { groupDisplayDescription } from '@tloncorp/shared/domain';
 import * as Clipboard from 'expo-clipboard';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
@@ -412,7 +413,8 @@ function GroupQuickActions({
 }
 
 const GroupDescription = ({ group }: { group: db.Group }) => {
-  if (!group.description) {
+  const description = groupDisplayDescription(group.description);
+  if (!description) {
     return null;
   }
 
@@ -423,7 +425,7 @@ const GroupDescription = ({ group }: { group: db.Group }) => {
           Description
         </TlonText.Text>
         <TlonText.Text size="$body" color="$primaryText">
-          {group.description}
+          {description}
         </TlonText.Text>
       </PaddedBlock>
     </View>
