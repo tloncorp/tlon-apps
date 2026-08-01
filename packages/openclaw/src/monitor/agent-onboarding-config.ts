@@ -89,7 +89,9 @@ export const PURPOSE_JOBS: Record<
     title: 'Daily digest: {{topics}}',
     schedule: '0 8 * * *',
     prompt:
-      "Put together today's digest on: {{topics}}. Keep it tight — a line " +
+      "Put together today's digest on: {{topics}}. Search the web for each " +
+      "topic — never answer from memory, since a digest's whole value is " +
+      'that the facts are current. Keep it tight — a line ' +
       'of facts or 3-4 dated headline bullets per topic, sources when they ' +
       'matter. For anything location-bound (weather, local), use the ' +
       "owner's saved location if you know one; otherwise infer a rough one " +
@@ -123,8 +125,9 @@ export const PURPOSE_JOBS: Record<
     title: 'Research update: {{topics}}',
     schedule: '0 9 * * 1',
     prompt:
-      'Look for genuinely new developments on: {{topics}} since the last ' +
-      'update — releases, papers, notable writing, community chatter. Post ' +
+      'Search the web for genuinely new developments on: {{topics}} since ' +
+      'the last update — releases, papers, notable writing, community ' +
+      'chatter. Never answer from memory. Post ' +
       "a short update to this group's research channel if one exists, " +
       'otherwise right here, and announce it in chat with a single line. ' +
       'If nothing new surfaced, say so in one line and stop.',
