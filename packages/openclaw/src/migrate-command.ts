@@ -425,6 +425,13 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
       return `Migration started for ${parsed.nest}. I’ll DM the result.\n\n${MIGRATION_DROP_WARNING}`;
     }
 
+    if (applyInFlight.size > 0) {
+      const message =
+        'A migration is currently running. Wait for it to finish, then retry the cleanup.';
+      await sendOwnerNotification(bridge, message, parsed.nest);
+      return message;
+    }
+
     const inFlightKey = parsed.nest;
     const pending = cleanupInFlight.get(inFlightKey);
     if (pending) {
