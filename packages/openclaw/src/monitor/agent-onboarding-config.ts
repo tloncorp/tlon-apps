@@ -94,7 +94,10 @@ const OUTPUT_CHANNEL_RULE =
   'its nest as this job\'s "outputNest" in the group config, so later runs ' +
   'go straight there and append to that same channel. Announce it in chat ' +
   'with a single line — the chat gets the announcement, the notebook gets ' +
-  'the writing. If that create fails with HTTP 404, this ship has no ' +
+  'the writing. Write the entry with the tlon tool — `notes note-create ' +
+  '<nest> root "<Title>" --stdin` — not the message tool, which only posts ' +
+  'chat and cannot carry a title. If that create fails with HTTP 404, this ' +
+  'ship has no ' +
   "%notes desk (`tlon notes status` confirms it) — don't reach for `--kind " +
   "diary, which is retired, and don't create a group. Post the update in " +
   'this group\'s chat channel instead, record that nest as "outputNest", ' +

@@ -122,6 +122,15 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
   return null;
 }
 
-export function formatTargetHint(): string {
-  return 'dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel';
+export function formatTargetHint(target?: string): string {
+  const base =
+    'dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel';
+  // A notes nest is a real channel, just not one this tool can write: %notes
+  // entries carry a title and a Markdown body, which a chat message has no
+  // room for. Say where to write it instead, or the agent retries the same
+  // call until it gives up and reports itself blocked.
+  if (target && /^notes\//i.test(target.trim().replace(/^tlon:/i, ''))) {
+    return `notes channels are written with the tlon tool, not this one — 'notes note-create ${target.trim()} root "<Title>" --stdin'. This tool posts to: ${base}`;
+  }
+  return base;
 }

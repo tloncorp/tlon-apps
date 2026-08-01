@@ -92,7 +92,7 @@ function resolveOutboundContext(params: {
 
   const parsed = parseTlonTarget(params.to);
   if (!parsed) {
-    throw new Error(`Invalid Tlon target. Use ${formatTargetHint()}`);
+    throw new Error(`Invalid Tlon target. Use ${formatTargetHint(params.to)}`);
   }
 
   return { account: account as ConfiguredTlonAccount, parsed };

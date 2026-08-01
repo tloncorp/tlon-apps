@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 
-import { canonicalizeNest } from './targets.js';
+import { canonicalizeNest, formatTargetHint } from './targets.js';
 
 describe('canonicalizeNest', () => {
   it('returns canonical form unchanged', () => {
@@ -44,5 +44,24 @@ describe('canonicalizeNest', () => {
     expect(canonicalizeNest('chat/~zod')).toBeNull();
     expect(canonicalizeNest('chat/~zod/general/extra')).toBeNull();
     expect(canonicalizeNest('foo/~zod/general')).toBeNull(); // unsupported prefix
+  });
+});
+
+describe('formatTargetHint', () => {
+  test('sends notes nests to the tool that can actually write them', () => {
+    const hint = formatTargetHint('notes/~zod/research-1');
+    expect(hint).toContain('note-create');
+    expect(hint).toContain('notes/~zod/research-1');
+  });
+
+  test('tolerates the channel prefix on the target', () => {
+    expect(formatTargetHint('tlon:notes/~zod/research-1')).toContain(
+      'note-create'
+    );
+  });
+
+  test('falls back to the plain list for everything else', () => {
+    expect(formatTargetHint('chat/~zod/general')).not.toContain('note-create');
+    expect(formatTargetHint()).not.toContain('note-create');
   });
 });
