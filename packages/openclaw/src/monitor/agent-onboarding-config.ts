@@ -60,6 +60,20 @@ export const TOPICS_PICKER_PROMPT =
 export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
 
 /**
+ * How the confirmation run is performed, shared by the jobs that produce
+ * output on day one.
+ *
+ * Do the work in the conversation, with your own tools — don't trigger the
+ * scheduled job and wait. A triggered run executes in an isolated session
+ * that has neither web search nor the Tlon tools, so it can't research and
+ * can't create the notes channel; it just reports being blocked, which is
+ * the opposite of the reassurance this step exists to give.
+ */
+const INLINE_FIRST_RUN =
+  'Do this run yourself, here in this conversation, using your own tools — ' +
+  'do not trigger the scheduled job and wait for it.';
+
+/**
  * Where a scheduled run's output goes, shared by every job that produces
  * something worth keeping.
  *
@@ -123,7 +137,9 @@ export const PURPOSE_JOBS: Record<
     confirmation:
       'Run the job once right now, exactly as the scheduled run would — ' +
       'the owner should see a real digest, not a promise of one, and that ' +
-      'run is what creates the notes channel. Never fabricate: if you ' +
+      'run is what creates the notes channel. ' +
+      INLINE_FIRST_RUN +
+      ' Never fabricate: if you ' +
       "can't actually research, say so in chat in one honest line, with " +
       'what will arrive and when, and leave the notes channel uncreated ' +
       'until there is something real to put in it. Then ask if they want ' +
@@ -159,7 +175,9 @@ export const PURPOSE_JOBS: Record<
     confirmation:
       'Run the job once right now, exactly as the scheduled run would — ' +
       'the owner should see a real first update, and that run is what ' +
-      "creates the notes channel. Never fabricate: if you can't actually " +
+      'creates the notes channel. ' +
+      INLINE_FIRST_RUN +
+      " Never fabricate: if you can't actually " +
       'research, say so in chat in one honest line, with what will arrive ' +
       'and when, and leave the notes channel uncreated until there is ' +
       'something real to put in it. Then ask if they want anything ' +
