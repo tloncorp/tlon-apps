@@ -712,6 +712,12 @@ describe('renderSetupDirective', () => {
     expect(directive).toContain("owner's timezone");
   });
 
+  test('forbids creating a group, in any role', () => {
+    const directive = renderSetupDirective('agent-daily-digest', 'News')!;
+    expect(directive).toContain('Never create a group');
+    expect(directive).toContain('create it in this group');
+  });
+
   test('null for a purpose without a template', () => {
     expect(renderSetupDirective('agent-nonexistent', 'x')).toBeNull();
   });
