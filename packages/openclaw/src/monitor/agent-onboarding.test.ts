@@ -718,9 +718,13 @@ describe('renderSetupDirective', () => {
       const directive = renderSetupDirective(purposeId, 'Sleep')!;
       // The rule has to ride in the payload, since that is what the cron
       // runs verbatim on every future run — not just at setup.
-      expect(directive).toContain("this group's notes channel");
+      expect(directive).toContain("this group's notebook channel");
       expect(directive).toContain('create one in this group first');
-      expect(directive).toContain('Every later run appends to that same');
+      // A ship without the %notes desk 404s, and the run must still end up
+      // with a notebook rather than dumping into chat.
+      expect(directive).toContain('--kind diary');
+      expect(directive).toContain('never settle for a chat channel');
+      expect(directive).toContain('append to that same channel');
     }
   });
 
