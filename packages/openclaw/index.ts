@@ -20,7 +20,7 @@ import {
   recordContextLensToolStartForSession,
   scheduleBackgroundContextLensFinalization,
 } from './src/context-lens.js';
-import { stripEmptyCronToolsAllow } from './src/cron-params.js';
+import { sanitizeCronToolParams } from './src/cron-params.js';
 import {
   clearCronServiceAccessor,
   handleCronChangedEvent,
@@ -1172,13 +1172,14 @@ export default defineBundledChannelEntry({
         );
       }
 
-      // Repair a cron call that would schedule a job with no tools at all,
-      // before it reaches the scheduler. See stripEmptyCronToolsAllow.
+      // Strip the empty filler models put in cron calls, before the
+      // scheduler rejects the call or stores a job that can't work.
+      // See sanitizeCronToolParams.
       if (event.toolName === 'cron' && !isBlocked) {
-        const repaired = stripEmptyCronToolsAllow(event.params);
+        const repaired = sanitizeCronToolParams(event.params);
         if (repaired) {
           api.logger.info(
-            '[tlon] Dropped an empty toolsAllow from a cron job — it would have run with no tools.'
+            '[tlon] Repaired a cron call: dropped empty parameters the scheduler rejects.'
           );
           return { params: repaired };
         }
