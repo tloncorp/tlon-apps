@@ -91,16 +91,19 @@ export const PURPOSE_JOBS: Record<
     prompt:
       "Put together today's digest on: {{topics}}. Keep it tight — a line " +
       'of facts or 3-4 dated headline bullets per topic, sources when they ' +
-      "matter. Post it to this group's digest channel if one exists, " +
-      'otherwise right here, and announce it in chat with a single line. ' +
-      'No preamble.',
+      'matter. For anything location-bound (weather, local), use the ' +
+      "owner's saved location if you know one; otherwise infer a rough one " +
+      'from their timezone and name it so they can correct you. Post it to ' +
+      "this group's digest channel if one exists, otherwise right here, " +
+      'and announce it in chat with a single line. No preamble.',
     confirmation:
       'Run the job once right now, exactly as the scheduled run would — ' +
       'the owner should see a real digest, not a promise of one. Never ' +
       "fabricate: if you can't actually research, post one honest line " +
       'about what will arrive and when. Then ask if they want anything ' +
       'changed, enumerating the sources you used (one line each) so they ' +
-      'can add, drop, or swap sources.',
+      'can add, drop, or swap sources. If the run degraded, still ask — ' +
+      'name what was missing and what you would use once it works.',
   },
   'agent-tracking': {
     title: 'Tracking check-in: {{topics}}',
@@ -131,7 +134,8 @@ export const PURPOSE_JOBS: Record<
       "can't actually research, post one honest line about what will " +
       'arrive and when. Then ask if they want anything changed, ' +
       'enumerating the sources you used (one line each) so they can add, ' +
-      'drop, or swap sources.',
+      'drop, or swap sources. If the run degraded, still ask — name what ' +
+      'was missing and what you would use once it works.',
   },
 };
 
