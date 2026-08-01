@@ -731,6 +731,15 @@ describe('renderSetupDirective', () => {
     }
   });
 
+  test('keeps the job from disarming its own tools', () => {
+    // A cron job created with an empty toolsAllow compiles with zero tools:
+    // the run cannot search, write, or post, and only reports being blocked.
+    const directive = renderSetupDirective('agent-research', 'Mycology')!;
+    expect(directive).toContain('toolsAllow');
+    expect(directive).toContain('NO tools');
+    expect(directive).toContain('Omit');
+  });
+
   test('carries the picked template id for provenance', () => {
     const directive = renderSetupDirective('agent-research', 'Mycology')!;
     expect(directive).toContain('templateId: agent-research');
