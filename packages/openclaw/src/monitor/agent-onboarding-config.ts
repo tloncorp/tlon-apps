@@ -14,17 +14,21 @@
  * sent as its own message so the introduction and the question don't arrive
  * as one wall of text.
  *
- * Says what the agent is, and the two things about it that are true here and
- * nowhere else: the conversation is stored in Tlon rather than in a vendor's
- * account, so it survives both swapping the model underneath and moving the
- * whole thing to your own server.
+ * Claims the agent as the owner's own, then says the part that is true here
+ * and nowhere else: the conversation is stored in Tlon rather than in a
+ * vendor's account, so it survives both swapping the model underneath and
+ * moving the whole thing to their own server. Closes by offering the rename,
+ * since the agent can set its own nickname and nothing else says so.
  */
 export const GROUP_INTRO_MESSAGE = [
-  "I'm your agent. I can go off and do things — look things up, keep track " +
-    'of what changes, write it down for you — not just answer questions.',
+  "I'm your Tlonbot. I can go off and do things — look things up, keep " +
+    'track of what changes, write it down for you — not just answer ' +
+    'questions.',
   'Everything we say in here is stored in Tlon, and it stays. Swap the ' +
     'model behind me and this conversation is still here. Move your Tlon ' +
     'to your own server and it comes with you.',
+  'Call me something else whenever you like — tell me the name and I’ll ' +
+    'change my profile.',
 ].join('\n\n');
 
 export const PURPOSE_PICKER_PROMPT =

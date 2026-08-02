@@ -62,12 +62,14 @@ const surfaceOf = (blob: A2UI.BlobEntry) =>
     .surfaceId as string;
 
 describe('group intro', () => {
-  test('says what the agent is and why the history is durable', () => {
+  test('claims the agent, explains the durability, offers the rename', () => {
     // Posted as its own message before the picker; the picker asks the
     // question, so the intro must not also be asking one.
+    expect(GROUP_INTRO_MESSAGE).toMatch(/your Tlonbot/i);
     expect(GROUP_INTRO_MESSAGE).toMatch(/stored in Tlon/i);
     expect(GROUP_INTRO_MESSAGE).toMatch(/model/i);
     expect(GROUP_INTRO_MESSAGE).toMatch(/own server/i);
+    expect(GROUP_INTRO_MESSAGE).toMatch(/call me something else/i);
     expect(GROUP_INTRO_MESSAGE).not.toContain('?');
   });
 });
