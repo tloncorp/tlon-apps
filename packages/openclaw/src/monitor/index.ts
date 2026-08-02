@@ -244,12 +244,24 @@ type WritResponseDelta =
       'add-react'?: never;
     };
 type WritResponse = { whom: string; id: string; response: WritResponseDelta };
-const DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS = 120_000;
+/**
+ * How long a reply may take before the run is abandoned.
+ *
+ * This is a backstop against a wedged turn, not a pace the agent should have
+ * to keep. A turn that actually does something — searching the web, creating
+ * a channel, writing a note, scheduling a job — spends minutes in tool calls,
+ * and the old two-minute cap killed those turns mid-way: the owner saw "Give
+ * me a few seconds" and then silence, with the work half-applied and no
+ * closing message. Ten minutes leaves room for real work while still
+ * bounding a run that has stopped making progress. Override per account with
+ * `channels.tlon.runTimeoutMs`.
+ */
+const DEFAULT_RUN_TIMEOUT_MS = 600_000;
 
 function normalizeRunTimeoutMs(value: number | null | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 1_000
     ? Math.floor(value)
-    : DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS;
+    : DEFAULT_RUN_TIMEOUT_MS;
 }
 
 // Holds the data needed for any module-loader context to (re)configure its
