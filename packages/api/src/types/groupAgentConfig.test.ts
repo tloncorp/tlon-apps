@@ -14,13 +14,13 @@ const THEIR_AGENT = '~pinser-botter-sampel-palnet';
 
 // Built as the raw wire string the agent actually writes (via the tlon CLI),
 // since the client has no encoder — it only reads this format.
-const configNaming = (agents: string[]) =>
+const configNaming = (agents: string[], purpose = 'Keeps up with things.') =>
   JSON.stringify([
     {
       type: 'tlon-group-agent-config',
       version: 1,
-      purpose: 'Keeps up with things.',
-      instructions: 'Be useful.',
+      purpose,
+      instructions: '',
       agents,
       jobs: [],
       updatedAt: 1,
@@ -28,37 +28,25 @@ const configNaming = (agents: string[]) =>
   ]);
 
 describe('isMoonOf', () => {
-  test('recognizes a hosted agent as a moon of its node', () => {
+  test('a moon of its node only — boundary-checked, sig-optional', () => {
     expect(isMoonOf(MY_AGENT, ME)).toBe(true);
     expect(isMoonOf('pinser-botter-forhep-tanmel', 'forhep-tanmel')).toBe(true);
-  });
-
-  test('rejects unrelated ships and self', () => {
     expect(isMoonOf(MY_AGENT, SOMEONE_ELSE)).toBe(false);
     expect(isMoonOf(ME, ME)).toBe(false);
     expect(isMoonOf(ME, MY_AGENT)).toBe(false);
-  });
-
-  test('requires a syllable boundary, not a bare suffix', () => {
-    // ~notforhep-tanmel must not read as a moon of ~forhep-tanmel
+    // ~notforhep-tanmel must not read as a moon of ~forhep-tanmel.
     expect(isMoonOf('~notforhep-tanmel', ME)).toBe(false);
-  });
-
-  test('handles empty input', () => {
     expect(isMoonOf('', ME)).toBe(false);
     expect(isMoonOf(MY_AGENT, '')).toBe(false);
   });
 });
 
 describe('isOwnAgentShip', () => {
-  test('accepts my moon even with no group config yet', () => {
+  test('my moon (even unconfigured) or a configured agent; nothing else', () => {
     // The setup card is posted before the group is configured.
     expect(isOwnAgentShip({ authorId: MY_AGENT, currentUserId: ME })).toBe(
       true
     );
-  });
-
-  test('accepts an agent named in the group config', () => {
     expect(
       isOwnAgentShip({
         authorId: SOMEONE_ELSE,
@@ -66,9 +54,6 @@ describe('isOwnAgentShip', () => {
         groupDescription: configNaming([SOMEONE_ELSE]),
       })
     ).toBe(true);
-  });
-
-  test('rejects a ship that is neither my moon nor configured', () => {
     expect(
       isOwnAgentShip({
         authorId: SOMEONE_ELSE,
@@ -76,19 +61,10 @@ describe('isOwnAgentShip', () => {
         groupDescription: 'a group about bread',
       })
     ).toBe(false);
-  });
-
-  test('rejects another user’s agent', () => {
     expect(isOwnAgentShip({ authorId: THEIR_AGENT, currentUserId: ME })).toBe(
       false
     );
-  });
-
-  test('rejects my own posts', () => {
     expect(isOwnAgentShip({ authorId: ME, currentUserId: ME })).toBe(false);
-  });
-
-  test('rejects on missing ids', () => {
     expect(isOwnAgentShip({ authorId: null, currentUserId: ME })).toBe(false);
     expect(
       isOwnAgentShip({ authorId: MY_AGENT, currentUserId: undefined })
@@ -103,29 +79,12 @@ describe('canRenderAgentUiInGroup', () => {
     groupId: `${ME}/home-group`,
   };
 
-  test('allows my agent in a group I host', () => {
+  test('only my own agent, only in a group I host', () => {
     expect(canRenderAgentUiInGroup(base)).toBe(true);
-  });
-
-  test('blocks my agent in a group someone else hosts', () => {
+    // Sig- and case-insensitive on the host comparison.
     expect(
-      canRenderAgentUiInGroup({
-        ...base,
-        groupId: `${SOMEONE_ELSE}/their-group`,
-      })
-    ).toBe(false);
-  });
-
-  test('blocks another member’s bot in a group I host', () => {
-    expect(canRenderAgentUiInGroup({ ...base, authorId: THEIR_AGENT })).toBe(
-      false
-    );
-    expect(canRenderAgentUiInGroup({ ...base, authorId: SOMEONE_ELSE })).toBe(
-      false
-    );
-  });
-
-  test('allows a configured agent in a group I host', () => {
+      canRenderAgentUiInGroup({ ...base, groupId: `forhep-tanmel/home-group` })
+    ).toBe(true);
     expect(
       canRenderAgentUiInGroup({
         ...base,
@@ -133,60 +92,36 @@ describe('canRenderAgentUiInGroup', () => {
         groupDescription: configNaming([SOMEONE_ELSE]),
       })
     ).toBe(true);
-  });
 
-  test('a config naming an agent does not override host check', () => {
-    // Another user's group cannot opt my client into rendering their bot's UI.
+    expect(
+      canRenderAgentUiInGroup({ ...base, groupId: `${SOMEONE_ELSE}/theirs` })
+    ).toBe(false);
+    expect(canRenderAgentUiInGroup({ ...base, authorId: THEIR_AGENT })).toBe(
+      false
+    );
+    expect(canRenderAgentUiInGroup({ ...base, groupId: null })).toBe(false);
+    // Another user's group cannot opt my client into rendering their bot's
+    // UI, no matter what its config claims.
     expect(
       canRenderAgentUiInGroup({
         ...base,
-        groupId: `${SOMEONE_ELSE}/their-group`,
+        groupId: `${SOMEONE_ELSE}/theirs`,
         authorId: THEIR_AGENT,
         groupDescription: configNaming([THEIR_AGENT]),
       })
     ).toBe(false);
   });
-
-  test('blocks when group id is unknown', () => {
-    expect(canRenderAgentUiInGroup({ ...base, groupId: null })).toBe(false);
-  });
-
-  test('is case- and sig-insensitive on the host comparison', () => {
-    expect(
-      canRenderAgentUiInGroup({ ...base, groupId: `forhep-tanmel/home-group` })
-    ).toBe(true);
-  });
 });
 
 describe('groupDisplayDescription', () => {
-  test('shows the config purpose instead of the raw JSON', () => {
+  test('config purpose instead of raw JSON; prose untouched; empty otherwise', () => {
     expect(groupDisplayDescription(configNaming([MY_AGENT]))).toBe(
       'Keeps up with things.'
     );
-  });
-
-  test('passes an ordinary description through untouched', () => {
     expect(groupDisplayDescription('A group about bread')).toBe(
       'A group about bread'
     );
-  });
-
-  test('shows nothing for a config with no purpose yet', () => {
-    const bare = JSON.stringify([
-      {
-        type: 'tlon-group-agent-config',
-        version: 1,
-        purpose: '',
-        instructions: '',
-        agents: [MY_AGENT],
-        jobs: [],
-        updatedAt: 0,
-      },
-    ]);
-    expect(groupDisplayDescription(bare)).toBe('');
-  });
-
-  test('is empty for a missing description', () => {
+    expect(groupDisplayDescription(configNaming([MY_AGENT], ''))).toBe('');
     expect(groupDisplayDescription(null)).toBe('');
     expect(groupDisplayDescription(undefined)).toBe('');
   });

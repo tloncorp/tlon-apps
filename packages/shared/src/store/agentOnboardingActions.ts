@@ -14,17 +14,13 @@ const logger = createDevLogger('agentOnboardingActions', false);
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Create a group whose resident is the user's agent: a default group (one
- * chat channel) with the bot on the guest list. The agent opens the
- * conversation itself once it joins — it posts the purpose picker into the
- * empty channel — so there is nothing else to set up client-side; the caller
- * just navigates to the channel.
- *
- * The invite on the guest list is what the agent's own auto-accept reacts
- * to. The hosting join call below is belt-and-braces for hosted moons whose
- * agent isn't watching invites at that moment; both failing only means the
- * group starts without the bot, which the user can see and fix by inviting
- * it, so neither is fatal.
+ * Create a group whose resident is the user's agent: a default group with
+ * the bot on the guest list. The agent opens the conversation itself once
+ * it joins — it posts the purpose picker into the empty channel — so the
+ * caller just navigates there. The invite is what the agent's auto-accept
+ * reacts to; the hosting join below is belt-and-braces for hosted moons.
+ * Either failing only means the group starts without the bot, which the
+ * user can see and fix by inviting it.
  */
 export async function createAgentGroup(params?: {
   /**
@@ -57,11 +53,10 @@ export async function createAgentGroup(params?: {
     botShipId,
   });
 
-  // Declare the agent on the group so its interactive cards render for the
-  // owner even when the agent isn't a moon of their ship (see
-  // `isOwnAgentShip`). A bare declaration — who acts, not what the group
-  // does — so the agent still treats the group as awaiting setup. Best
-  // effort: without it the cards degrade to their text fallback.
+  // Declare the agent on the group so its cards render even when it isn't a
+  // moon of the owner's ship (see `isOwnAgentShip`). A bare declaration —
+  // who acts, not what the group does — so the agent still treats the group
+  // as awaiting setup. Best effort: without it the cards degrade to text.
   writeAgentMarker(group, botShipId).catch((error) => {
     logger.trackError('Failed to write agent marker', {
       error,
@@ -128,13 +123,10 @@ function writeAgentMarker(group: db.Group, botShipId: string) {
 
 /**
  * Give the agent the admin role, so it can build the group it was invited
- * into: renaming it and adding the output channel are admin writes, and a
- * plain member's pokes are dropped by the host — the agent sees them time
- * out mid-setup, with nothing to say about why.
- *
- * The role lands on the agent's seat, which only exists once it accepts the
- * invite, so retry across that window. The poke is idempotent, and a group
- * whose agent never joined has no setup to authorize anyway.
+ * into — renaming it and adding the output channel are admin writes, and a
+ * plain member's pokes are silently dropped by the host. The role lands on
+ * the agent's seat, which only exists once it accepts the invite, so retry
+ * across that window; the poke is idempotent.
  */
 async function grantAgentAdmin(groupId: string, botShipId: string) {
   const delays = [0, 3_000, 5_000, 10_000, 20_000, 30_000];

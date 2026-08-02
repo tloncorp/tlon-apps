@@ -21,11 +21,9 @@ import {
  * `agent-onboarding-config.ts`; this module turns it into A2UI blobs and
  * decides when to offer it.
  *
- * The design's choice cards are tappable and land inline in the transcript —
- * that is what A2UI is for. Each card's Button carries a `tlon.sendMessage`
- * action, so tapping one posts the choice as the user's own reply and the
- * conversation continues normally from there. Tlon code owns the layout and
- * the actions (same shape as the approval cards); the agent never composes
+ * Every tappable option carries a `tlon.sendMessage` action, so tapping posts
+ * the choice as the user's own reply and the conversation continues normally.
+ * Tlon code owns the layout and the actions; the agent never composes
  * components.
  */
 
@@ -33,23 +31,15 @@ import {
 const AGENT_CONFIG_ENTRY_TYPE = 'tlon-group-agent-config';
 
 /**
- * The post's story text, which doubles as the fallback.
- *
- * Deliberately one short line: clients that render the card show this too, so
- * repeating the full option list there reads as duplicated content. Kept
- * actionable on its own — the quoted titles are exactly what the buttons post,
- * so a client that can't render A2UI (or a notification preview) still tells
- * the user what to reply.
+ * The post's story text, which doubles as the fallback. One short line: the
+ * quoted titles are exactly what the buttons post, so a client that can't
+ * render A2UI (or a notification preview) still tells the user what to reply.
  */
 export function purposePickerFallbackText(): string {
   const titles = PURPOSE_OPTIONS.map((t) => `“${t.title}”`).join(', ');
   return `${PURPOSE_PICKER_PROMPT} Reply ${titles} — or just tell me.`;
 }
 
-/**
- * Tapping posts the choice as the user's own reply, exactly as if they had
- * typed it — the agent then reads it as a normal message.
- */
 function choiceAction(text: string) {
   return { event: { name: A2UI.action.sendMessage, context: { text } } };
 }
@@ -148,13 +138,11 @@ function buildButtonComponents(): A2UI.Component[] {
 }
 
 /**
- * Build the purpose-picker card. Component ids and ordering are fixed here so
- * the rendered result is deterministic.
- *
- * Prefers the design's `Choice` layout and falls back to the v1 Card+Button
- * layout when the resolved @tloncorp/api doesn't know `Choice` yet (this
- * plugin is built outside the workspace against a published version). The
- * fallback disappears on its own once a release carries the primitive.
+ * Build the purpose-picker card. Prefers the design's `Choice` layout and
+ * falls back to the v1 Card+Button layout when the resolved @tloncorp/api
+ * doesn't know `Choice` yet (this plugin is built outside the workspace
+ * against a published version). The fallback disappears on its own once a
+ * release carries the primitive.
  */
 export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
   const surfaceId = `agent-onboarding-${surfaceSuffix}`;
@@ -171,7 +159,7 @@ export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
 }
 
 /** The purpose whose card title this message matches, if any. */
-export function purposeIdForChoice(text: string): string | undefined {
+function purposeIdForChoice(text: string): string | undefined {
   const trimmed = text.trim().toLowerCase();
   return PURPOSE_OPTIONS.find(
     (option) => option.title.toLowerCase() === trimmed
@@ -204,17 +192,10 @@ export function buildTopicsPickerBlob(
     return null;
   }
   const components: A2UI.Component[] = [
-    {
-      id: 'root',
-      component: 'Column',
-      children: ['prompt', 'topics'],
-    },
+    { id: 'root', component: 'Column', children: ['prompt', 'topics'] },
     { id: 'prompt', component: 'Text', text: TOPICS_PICKER_PROMPT },
     {
-      // Cast for the same registry-version reason as the Choice layout: this
-      // may typecheck against an api that predates SmallChoice. makeA2UIBlob
-      // validates with that same version, so an older one throws and we
-      // return null.
+      // Cast for the same registry-version reason as the Choice layout.
       id: 'topics',
       component: 'SmallChoice',
       options: topics.map((topic) => ({
@@ -222,9 +203,7 @@ export function buildTopicsPickerBlob(
         label: topic,
       })),
       submitLabel: TOPICS_PICKER_SUBMIT_LABEL,
-      action: {
-        event: { name: A2UI.action.sendMessage, context: { text: '' } },
-      },
+      action: choiceAction(''),
     } as unknown as A2UI.Component,
   ];
   try {
@@ -288,170 +267,101 @@ export function renderSetupDirective(
   ].join('\n');
 }
 
-/**
- * Whether to follow a purpose pick with the topic pills.
- *
- * Offered once per channel, only when the owner's message is exactly one of the
- * purpose titles — i.e. they tapped a card — in a group they host that has no
- * agent config yet.
- */
-export function shouldOfferTopicsPicker(opts: {
-  senderIsOwner: boolean;
-  groupHostIsOwner: boolean;
-  groupDescription: string | null | undefined;
-  messageText: string;
-  alreadyOffered: boolean;
-}): string | undefined {
-  if (opts.alreadyOffered) {
-    return undefined;
-  }
-  if (!opts.senderIsOwner || !opts.groupHostIsOwner) {
-    return undefined;
-  }
-  if (descriptionHasAgentSetup(opts.groupDescription)) {
-    return undefined;
-  }
-  return purposeIdForChoice(opts.messageText);
-}
-
-interface ChannelGroupInfo {
-  flag: string;
-  /** the group's host ship, in `~ship` form */
-  host: string;
-  /** `meta.description`, '' when unset */
-  description: string;
-}
+type ScryApi = { scry: (path: string) => Promise<unknown> } | null;
+type Runtime = { error?: (message: string) => void };
+type RawGroup = {
+  meta?: { description?: unknown };
+  channels?: Record<string, unknown>;
+  'active-channels'?: unknown;
+};
 
 /**
- * Find the group that owns `nest`, with its host and description, in a single
- * scry.
- *
- * Deliberately not using the monitor's channel→group map: that is built from
- * init data at startup, so a group created after the bot connected — the fresh
- * account case this feature exists for — isn't in it yet. Returns null when
- * the group can't be resolved (including scry failure), so callers stay quiet
+ * One groups scry, shared by the resolvers below. Deliberately not the
+ * monitor's channel→group map: that is built from init data at startup, so a
+ * group created after the bot connected — the fresh-account case this feature
+ * exists for — isn't in it yet. Null on failure, so callers stay quiet
  * rather than guessing.
  */
-export async function findGroupForChannel(
-  api: { scry: (path: string) => Promise<unknown> } | null,
-  nest: string,
-  runtime: { error?: (message: string) => void }
-): Promise<ChannelGroupInfo | null> {
+async function scryGroups(
+  api: ScryApi,
+  runtime: Runtime,
+  what: string
+): Promise<Record<string, RawGroup> | null> {
   if (!api) {
     return null;
   }
   try {
-    const groups = (await api.scry('/groups/v2/groups.json')) as Record<
+    return (await api.scry('/groups/v2/groups.json')) as Record<
       string,
-      {
-        meta?: { description?: unknown };
-        channels?: Record<string, unknown>;
-        'active-channels'?: unknown;
-      }
+      RawGroup
     > | null;
-    if (!groups) {
-      return null;
-    }
-    for (const [flag, group] of Object.entries(groups)) {
-      const active = Array.isArray(group?.['active-channels'])
-        ? (group['active-channels'] as unknown[])
-        : [];
-      const inGroup =
-        active.includes(nest) ||
-        Object.prototype.hasOwnProperty.call(group?.channels ?? {}, nest);
-      if (!inGroup) {
-        continue;
-      }
-      const host = flag.split('/')[0] ?? '';
-      const description = group?.meta?.description;
-      return {
-        flag,
-        host,
-        description: typeof description === 'string' ? description : '',
-      };
-    }
-    return null;
   } catch (error) {
-    runtime.error?.(
-      `[tlon] Failed to resolve group for ${nest}: ${String(error)}`
-    );
+    runtime.error?.(`[tlon] Failed to resolve ${what}: ${String(error)}`);
     return null;
   }
 }
 
-interface GroupChatChannelInfo {
-  nest: string;
-  /** the group's host ship, in `~ship` form */
-  host: string;
-  /** `meta.description`, '' when unset */
-  description: string;
+const nestsOf = (group: RawGroup): string[] => [
+  ...(Array.isArray(group['active-channels'])
+    ? (group['active-channels'] as unknown[]).filter(
+        (key): key is string => typeof key === 'string'
+      )
+    : []),
+  ...Object.keys(group.channels ?? {}),
+];
+
+const descriptionOf = (group: RawGroup): string =>
+  typeof group.meta?.description === 'string' ? group.meta.description : '';
+
+const hostOf = (flag: string): string => flag.split('/')[0] ?? '';
+
+/** Find the group that owns `nest`, with its host and description. */
+export async function findGroupForChannel(
+  api: ScryApi,
+  nest: string,
+  runtime: Runtime
+): Promise<{ flag: string; host: string; description: string } | null> {
+  const groups = await scryGroups(api, runtime, `group for ${nest}`);
+  for (const [flag, group] of Object.entries(groups ?? {})) {
+    if (nestsOf(group).includes(nest)) {
+      return { flag, host: hostOf(flag), description: descriptionOf(group) };
+    }
+  }
+  return null;
 }
 
 /**
- * Find a group's chat channel (plus host and description) in a single scry.
- *
- * Returns null when the group or its chat channel can't be resolved — for a
- * group the bot was just invited to, the channels land moments after the join
- * ack, so callers poll rather than treating null as final.
+ * Find a group's chat channel (plus host and description). Null when the
+ * group or its chat channel can't be resolved — for a group the bot was just
+ * invited to, the channels land moments after the join ack, so callers poll
+ * rather than treating null as final.
  */
 export async function findChatNestForGroup(
-  api: { scry: (path: string) => Promise<unknown> } | null,
+  api: ScryApi,
   flag: string,
-  runtime: { error?: (message: string) => void }
-): Promise<GroupChatChannelInfo | null> {
-  if (!api) {
+  runtime: Runtime
+): Promise<{ nest: string; host: string; description: string } | null> {
+  const groups = await scryGroups(api, runtime, `chat channel for ${flag}`);
+  const group = groups?.[flag];
+  const nest = group && nestsOf(group).find((key) => key.startsWith('chat/'));
+  if (!group || !nest) {
     return null;
   }
-  try {
-    const groups = (await api.scry('/groups/v2/groups.json')) as Record<
-      string,
-      {
-        meta?: { description?: unknown };
-        channels?: Record<string, unknown>;
-        'active-channels'?: unknown;
-      }
-    > | null;
-    const group = groups?.[flag];
-    if (!group) {
-      return null;
-    }
-    const active = Array.isArray(group['active-channels'])
-      ? (group['active-channels'] as unknown[])
-      : [];
-    const nest = [...active, ...Object.keys(group.channels ?? {})].find(
-      (key): key is string => typeof key === 'string' && key.startsWith('chat/')
-    );
-    if (!nest) {
-      return null;
-    }
-    const host = flag.split('/')[0] ?? '';
-    const description = group.meta?.description;
-    return {
-      nest,
-      host,
-      description: typeof description === 'string' ? description : '',
-    };
-  } catch (error) {
-    runtime.error?.(
-      `[tlon] Failed to resolve chat channel for ${flag}: ${String(error)}`
-    );
-    return null;
-  }
+  return { nest, host: hostOf(flag), description: descriptionOf(group) };
 }
 
 /**
  * Whether a channel has no posts yet — the test for "this group was just
- * created" at invite-accept time, and exactly the condition under which the
- * agent opening the conversation makes sense.
+ * created" at invite-accept time.
  *
  * Fails closed: returns null when the scry fails or the shape is
  * unrecognizable, so an unreadable channel is never mistaken for a new one.
  * (`fetchChannelHistory` is not used here because it returns `[]` on error.)
  */
 export async function channelHasNoPosts(
-  api: { scry: (path: string) => Promise<unknown> } | null,
+  api: ScryApi,
   nest: string,
-  runtime: { error?: (message: string) => void }
+  runtime: Runtime
 ): Promise<boolean | null> {
   if (!api) {
     return null;
@@ -497,19 +407,12 @@ export function shouldOfferPickerOnJoin(opts: {
   channelHasNoPosts: boolean | null;
   alreadyOffered: boolean;
 }): boolean {
-  if (opts.alreadyOffered) {
-    return false;
-  }
-  if (!opts.groupHostIsOwner) {
-    return false;
-  }
-  if (opts.channelHasNoPosts !== true) {
-    return false;
-  }
-  if (descriptionHasAgentSetup(opts.groupDescription)) {
-    return false;
-  }
-  return true;
+  return (
+    !opts.alreadyOffered &&
+    opts.groupHostIsOwner &&
+    opts.channelHasNoPosts === true &&
+    !descriptionHasAgentSetup(opts.groupDescription)
+  );
 }
 
 /**
@@ -518,24 +421,17 @@ export function shouldOfferPickerOnJoin(opts: {
  *
  * A config entry that only names `agents` is a declaration of who may act,
  * not of what the group does — that's the state a group is in *before*
- * onboarding (e.g. the client marks the resident agent so its cards render),
- * and suppressing the pickers because of it would kill the very setup they
- * exist to run. Purpose and jobs are what onboarding produces, so they are
- * what "configured" means.
- *
- * Parses the typed-entry array rather than substring-matching, so a group
- * whose human description merely mentions the type name isn't mistaken for a
- * configured one. Tolerant by design: anything unparseable counts as "no
- * setup", matching `parseGroupAgentConfig` in @tloncorp/api.
+ * onboarding (the client marks the resident agent so its cards render), and
+ * suppressing the pickers because of it would kill the very setup they exist
+ * to run. Parses the typed-entry array rather than substring-matching;
+ * anything unparseable counts as "no setup", matching `parseGroupAgentConfig`
+ * in @tloncorp/api.
  */
 export function descriptionHasAgentSetup(
   description: string | null | undefined
 ): boolean {
-  if (!description) {
-    return false;
-  }
-  const trimmed = description.trim();
-  if (!trimmed.startsWith('[')) {
+  const trimmed = description?.trim();
+  if (!trimmed?.startsWith('[')) {
     return false;
   }
   try {
@@ -544,17 +440,10 @@ export function descriptionHasAgentSetup(
       return false;
     }
     return entries.some((entry) => {
-      if (
-        typeof entry !== 'object' ||
-        entry === null ||
-        (entry as { type?: unknown }).type !== AGENT_CONFIG_ENTRY_TYPE
-      ) {
+      if (entry?.type !== AGENT_CONFIG_ENTRY_TYPE) {
         return false;
       }
-      const { purpose, jobs } = entry as {
-        purpose?: unknown;
-        jobs?: unknown;
-      };
+      const { purpose, jobs } = entry as { purpose?: unknown; jobs?: unknown };
       return (
         (typeof purpose === 'string' && purpose.trim().length > 0) ||
         (Array.isArray(jobs) && jobs.length > 0)
@@ -567,16 +456,14 @@ export function descriptionHasAgentSetup(
 
 /** True when `text` is one of the picker's card titles. */
 export function isPurposePickerChoice(text: string): boolean {
-  const trimmed = text.trim().toLowerCase();
-  return PURPOSE_OPTIONS.some((t) => t.title.toLowerCase() === trimmed);
+  return purposeIdForChoice(text) !== undefined;
 }
 
 /**
- * Whether to offer the picker in response to this message.
- *
- * Offered once per channel, only for the owner's own message in a group the
- * owner hosts that has no agent config yet — and never in response to a tap
- * on the picker itself (that reply continues the conversation instead).
+ * Whether to offer the picker in response to this message: once per channel,
+ * only for the owner's own message in a group the owner hosts with no agent
+ * config yet — and never in response to a tap on the picker itself (that
+ * reply continues the conversation instead).
  */
 export function shouldOfferPurposePicker(opts: {
   senderIsOwner: boolean;
@@ -585,18 +472,34 @@ export function shouldOfferPurposePicker(opts: {
   messageText: string;
   alreadyOffered: boolean;
 }): boolean {
-  if (opts.alreadyOffered) {
-    return false;
+  return (
+    !opts.alreadyOffered &&
+    opts.senderIsOwner &&
+    opts.groupHostIsOwner &&
+    !descriptionHasAgentSetup(opts.groupDescription) &&
+    !isPurposePickerChoice(opts.messageText)
+  );
+}
+
+/**
+ * Whether to follow a purpose pick with the topic pills: once per channel,
+ * only when the owner's message is exactly one of the purpose titles — i.e.
+ * they tapped a card — in a group they host that has no agent config yet.
+ */
+export function shouldOfferTopicsPicker(opts: {
+  senderIsOwner: boolean;
+  groupHostIsOwner: boolean;
+  groupDescription: string | null | undefined;
+  messageText: string;
+  alreadyOffered: boolean;
+}): string | undefined {
+  if (
+    opts.alreadyOffered ||
+    !opts.senderIsOwner ||
+    !opts.groupHostIsOwner ||
+    descriptionHasAgentSetup(opts.groupDescription)
+  ) {
+    return undefined;
   }
-  if (!opts.senderIsOwner || !opts.groupHostIsOwner) {
-    return false;
-  }
-  if (descriptionHasAgentSetup(opts.groupDescription)) {
-    // Group is already configured — nothing to set up.
-    return false;
-  }
-  if (isPurposePickerChoice(opts.messageText)) {
-    return false;
-  }
-  return true;
+  return purposeIdForChoice(opts.messageText);
 }

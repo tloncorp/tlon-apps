@@ -2,20 +2,14 @@
  * Repairs for `cron` tool calls before they reach the scheduler.
  *
  * Models compose these calls by filling in the whole parameter shape, empty
- * values included, and the scheduler's schema rejects most of those empties:
- * `""` where a channel id belongs, `after: 0` where the minimum is 1. The
- * call fails validation, the model tries again with the same habit, and a
- * setup that was otherwise complete ends with no job scheduled at all.
- *
- * One empty is worse than a rejection: `toolsAllow` is an allow-list, so `[]`
- * allows *nothing*. That call succeeds. The job runs on schedule and wakes up
- * with zero tools, unable to search, write, or post — all it can do is
- * announce that it is blocked, which reads like a broken agent rather than a
- * misconfigured job.
- *
- * Prompting against this wasn't enough — the fields kept coming back — so the
- * empties are dropped here, where they can't be argued with. Anything the
- * model actually filled in is left exactly as written.
+ * values included. Most empties fail the scheduler's schema (`""` where a
+ * channel id belongs, `after: 0` below the minimum), so the setup ends with
+ * no job at all. One is worse: `toolsAllow: []` is an allow-list that allows
+ * nothing — the call succeeds and the job wakes on schedule with zero tools,
+ * able only to announce that it is blocked. Prompting against this wasn't
+ * enough — the fields kept coming back — so the empties are dropped here,
+ * where they can't be argued with. Anything the model actually filled in is
+ * left exactly as written.
  */
 
 /** True for values the schema would reject but the model means as "unset". */
@@ -41,11 +35,9 @@ function pruneBlanks(value: unknown): unknown {
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-/**
- * A delivery block the scheduler will accept: `failureDestination` needs a
- * real channel and target, so a husk of empty strings has to go rather than
- * be pruned down to `{mode}` — which fails the same validation.
- */
+// `failureDestination` needs a real channel and target, so a husk of empty
+// strings has to go rather than be pruned down to `{mode}`, which fails the
+// same validation.
 function repairDelivery(delivery: unknown): unknown {
   const pruned = pruneBlanks(delivery);
   if (!pruned || typeof pruned !== 'object') {
