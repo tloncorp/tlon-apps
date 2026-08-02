@@ -102,6 +102,7 @@ import {
   formatTlonVersionIdentity,
   resolveTlonSkillVersion,
 } from '../version.js';
+import { GROUP_INTRO_MESSAGE } from './agent-onboarding-config.js';
 import {
   buildPurposePickerBlob,
   buildTopicsPickerBlob,
@@ -820,6 +821,28 @@ export async function monitorTlonProvider(
       botNickname || botAvatar
         ? { nickname: botNickname || '', avatar: botAvatar || '' }
         : undefined;
+
+    /**
+     * Open a group with the agent's introduction and then the purpose
+     * picker, as two posts: the introduction is about the agent, the picker
+     * is a question, and one post carrying both reads as a wall of text.
+     * Sequential so they land in that order.
+     */
+    const postOnboardingOpening = async (nest: string): Promise<void> => {
+      await sendChannelPost({
+        botProfile: getBotProfile(),
+        fromShip: botShipName,
+        nest,
+        story: markdownToStory(GROUP_INTRO_MESSAGE),
+      });
+      await sendChannelPost({
+        botProfile: getBotProfile(),
+        fromShip: botShipName,
+        nest,
+        story: markdownToStory(purposePickerFallbackText()),
+        blob: serializeBlobField(buildPurposePickerBlob(nest)),
+      });
+    };
 
     // Settings store manager for hot-reloading config
     const settingsManager = createSettingsManager(api, {
@@ -3878,13 +3901,7 @@ export async function monitorTlonProvider(
               `[tlon] Offering agent onboarding purpose picker in ${nest}`
             );
             try {
-              await sendChannelPost({
-                botProfile: getBotProfile(),
-                fromShip: botShipName,
-                nest,
-                story: markdownToStory(purposePickerFallbackText()),
-                blob: serializeBlobField(buildPurposePickerBlob(nest)),
-              });
+              await postOnboardingOpening(nest);
               return;
             } catch (error) {
               onboardingPickerOffered.delete(nest);
@@ -5180,13 +5197,7 @@ export async function monitorTlonProvider(
               `[tlon] Opening new group ${groupFlag} with the purpose picker`
             );
             try {
-              await sendChannelPost({
-                botProfile: getBotProfile(),
-                fromShip: botShipName,
-                nest: info.nest,
-                story: markdownToStory(purposePickerFallbackText()),
-                blob: serializeBlobField(buildPurposePickerBlob(info.nest)),
-              });
+              await postOnboardingOpening(info.nest);
             } catch (error) {
               onboardingPickerOffered.delete(info.nest);
               runtime.error?.(

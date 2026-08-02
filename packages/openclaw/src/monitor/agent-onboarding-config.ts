@@ -9,6 +9,24 @@
  * arrives as generic A2UI components.
  */
 
+/**
+ * What the agent says first, before the purpose picker — a plain-text post,
+ * sent as its own message so the introduction and the question don't arrive
+ * as one wall of text.
+ *
+ * Says what the agent is, and the two things about it that are true here and
+ * nowhere else: the conversation is stored in Tlon rather than in a vendor's
+ * account, so it survives both swapping the model underneath and moving the
+ * whole thing to your own server.
+ */
+export const GROUP_INTRO_MESSAGE = [
+  "I'm your agent. I can go off and do things — look things up, keep track " +
+    'of what changes, write it down for you — not just answer questions.',
+  'Everything we say in here is stored in Tlon, and it stays. Swap the ' +
+    'model behind me and this conversation is still here. Move your Tlon ' +
+    'to your own server and it comes with you.',
+].join('\n\n');
+
 export const PURPOSE_PICKER_PROMPT =
   "Let's make you a group that does something useful. What should it do?";
 

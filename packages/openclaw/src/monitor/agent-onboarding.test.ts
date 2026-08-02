@@ -2,6 +2,7 @@ import { A2UI } from '@tloncorp/api';
 import { describe, expect, test } from 'vitest';
 
 import {
+  GROUP_INTRO_MESSAGE,
   PURPOSE_JOBS,
   PURPOSE_OPTIONS,
   PURPOSE_TOPICS,
@@ -59,6 +60,17 @@ const catalogOf = (blob: A2UI.BlobEntry) =>
 const surfaceOf = (blob: A2UI.BlobEntry) =>
   (blob.messages.find((m) => 'createSurface' in m) as any).createSurface
     .surfaceId as string;
+
+describe('group intro', () => {
+  test('says what the agent is and why the history is durable', () => {
+    // Posted as its own message before the picker; the picker asks the
+    // question, so the intro must not also be asking one.
+    expect(GROUP_INTRO_MESSAGE).toMatch(/stored in Tlon/i);
+    expect(GROUP_INTRO_MESSAGE).toMatch(/model/i);
+    expect(GROUP_INTRO_MESSAGE).toMatch(/own server/i);
+    expect(GROUP_INTRO_MESSAGE).not.toContain('?');
+  });
+});
 
 describe('purpose picker card', () => {
   test('one Choice option per template, each posting its own card title', () => {
