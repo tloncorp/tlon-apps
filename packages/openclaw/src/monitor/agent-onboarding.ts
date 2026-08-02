@@ -6,6 +6,7 @@ import {
   makeA2UIBlob,
 } from '../urbit/blob.js';
 import {
+  GROUP_ICON_RULE,
   PURPOSE_JOBS,
   PURPOSE_OPTIONS,
   PURPOSE_PICKER_FOOTER,
@@ -240,6 +241,7 @@ export function renderSetupDirective(
     '[Tlon setup directive — not written by the owner]',
     'Build everything inside the group this channel belongs to; rename this',
     'group from the topics if it still has a placeholder name.',
+    GROUP_ICON_RULE,
     'Never create a group — not as the output home, not as a workspace,',
     'not as a fallback.',
     "Don't create the output channel during setup — the payload below has",

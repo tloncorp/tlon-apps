@@ -82,6 +82,25 @@ export const TOPICS_PICKER_PROMPT =
 export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
 
 /**
+ * Giving the group an icon, in the same breath as naming it.
+ *
+ * Gated on the rename for a reason: that step already decides whether the
+ * group still looks untouched, so an owner who named their own group keeps
+ * their own icon too. Best effort — an image model may not be configured at
+ * all, and a group with the default icon is a perfectly good group, while a
+ * setup that stalls on a picture is not.
+ */
+export const GROUP_ICON_RULE =
+  'When you rename it, give it an icon to match: generate one square image ' +
+  'with the image tool — a simple emblem for the subject, flat, no text, ' +
+  'legible at thumbnail size — then upload the file it produces with ' +
+  '`tlon upload <path>` and pass the URL that prints to ' +
+  '`tlon groups update <flag> --image "<url>"`. Only alongside the rename: ' +
+  'if the owner already named the group, leave their icon alone. If the ' +
+  'image tool is unavailable or anything in that chain fails, skip the icon ' +
+  'without comment and carry on with the rest of the setup.';
+
+/**
  * How the confirmation run is performed, shared by the jobs that produce
  * output on day one.
  *

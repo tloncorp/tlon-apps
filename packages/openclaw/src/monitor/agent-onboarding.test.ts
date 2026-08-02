@@ -359,6 +359,16 @@ describe('renderSetupDirective', () => {
     expect(renderSetupDirective('agent-nonexistent', 'x')).toBeNull();
   });
 
+  test('gives the group an icon alongside the rename, best effort', () => {
+    const directive = renderSetupDirective('agent-research', 'Mycology')!;
+    expect(directive).toContain('--image');
+    expect(directive).toContain('tlon upload');
+    // Tied to the rename, so an owner-named group keeps its own icon, and
+    // never allowed to stall the rest of the setup.
+    expect(directive).toContain('Only alongside the rename');
+    expect(directive).toContain('skip the icon');
+  });
+
   test('pins the values the model must not improvise', () => {
     const directive = renderSetupDirective('agent-tracking', 'Sleep')!;
     expect(directive).toContain('Do not rewrite');
