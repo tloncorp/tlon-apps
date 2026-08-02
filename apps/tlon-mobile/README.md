@@ -52,12 +52,6 @@ Install [SwiftForamt](https://github.com/nicklockwood/SwiftFormat) for auto-form
 brew install swiftformat
 ```
 
-Start development mode, which includes an attached code generation process to update Tailwind CSS classes during development:
-
-```sh
-npm run dev
-```
-
 Plug in your Android device or start the Android emulator and run the application in development mode:
 
 ```sh

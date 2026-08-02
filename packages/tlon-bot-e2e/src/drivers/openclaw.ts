@@ -57,6 +57,17 @@ export function workspaceApiTarballPath(packageDir: string): string {
 export const openclawDriver: BotDriver = {
   name: 'openclaw',
 
+  // On a clean EOF OpenClaw logs only "[SSE] Stream ended..." then
+  // "[SSE] Reconnection attempt..." ("Stream error:" fires only after the
+  // reconnect loop returns — never while the network is down); on a silent
+  // hang nothing appears until the watchdog logs "[SSE] Stream stale...". All
+  // three cover both the detach (hang) and RST cases.
+  streamFaultLogMarkers: [
+    '[SSE] Stream stale',
+    '[SSE] Stream ended',
+    '[SSE] Reconnection attempt',
+  ],
+
   packageDir(seed) {
     return path.join(seed.repoRoot, 'packages/openclaw');
   },
@@ -184,6 +195,12 @@ export const openclawDriver: BotDriver = {
         OPENCLAW_WORKSPACE_API_TARBALL: '1',
         TLON_MAX_CONSECUTIVE_BOT_RESPONSES: maxConsecutiveBotResponses,
         TLON_NUDGE_TICK_INTERVAL_MS: '5000',
+        // The fake-ship SSE stream emits no idle heartbeats, so a detached
+        // network is a silent hang. Drop the stale-stream watchdog threshold
+        // (production default 180s) so the fault surfaces within the
+        // sse-resume scenario's 120s marker wait. Above the ~30s heartbeat
+        // pulse, so idle scenarios don't trip spurious reconnects.
+        TLON_SSE_STALE_THRESHOLD_MS: '60000',
         TEST_LIVE_TOOL_TRACE: liveToolTrace ?? '0',
         TEST_LIVE_TOOL_TRACE_CONTENTS: liveToolTraceContents ?? '0',
         VERBOSE: process.env.VERBOSE ?? '0',

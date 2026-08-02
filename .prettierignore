@@ -85,8 +85,6 @@ clurd
 /apps/tlon-mobile/ios/assets/*
 /apps/tlon-mobile/ios/Landscape.xcworkspace/xcshareddata/swiftpm
 /apps/tlon-mobile/**/.tamagui
-/apps/tlon-mobile/**/tailwind.css
-/apps/tlon-mobile/**/tailwind.json
 /apps/tlon-mobile/**/.DS_Store
 /apps/tlon-mobile/**/.AppleDouble
 /apps/tlon-mobile/**/.LSOverride
