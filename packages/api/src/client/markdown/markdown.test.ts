@@ -809,6 +809,20 @@ describe('Story to Markdown to Story structural round trips', () => {
     ]);
   });
 
+  // Story link content is a plain string, so raw inline HTML in a label has
+  // nowhere to go. remark yields the tags as sibling `html` nodes around the
+  // visible `text`; emitting their values would surface `<span>label</span>`
+  // to the reader as the link's text.
+  it('drops raw inline HTML from a link label, keeping the visible text', () => {
+    expect(
+      markdownToStory('[<span>label</span>](https://example.com)')
+    ).toEqual([
+      {
+        inline: [{ link: { href: 'https://example.com', content: 'label' } }],
+      },
+    ]);
+  });
+
   // KNOWN LIMITATION, pinned deliberately. `%sect` now survives Story → Markdown
   // as `@all` / `@role` text (previously it was deleted outright), but the
   // Markdown parser does not install the group-mention plugin, so it returns as

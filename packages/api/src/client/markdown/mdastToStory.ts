@@ -100,8 +100,15 @@ function linkLabelToText(nodes: PhrasingContent[]): string {
       switch (node.type) {
         case 'text':
         case 'inlineCode':
-        case 'html':
           return node.value;
+        // remark parses inline HTML inside a label as `html` nodes holding the
+        // raw tags, with the visible text as a sibling `text` node. Emitting
+        // `node.value` here would put `<span>label</span>` in the link rather
+        // than `label`. Story link content is a plain string with nowhere to
+        // put markup, and inline HTML is skipped everywhere else in this
+        // converter, so drop the tags and keep the sibling text.
+        case 'html':
+          return '';
         case 'break':
           return '\n';
         case 'image':
