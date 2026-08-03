@@ -16,10 +16,9 @@ export async function fetchChangesSince(timestamp: number): Promise<
 > {
   const busyResult = await checkIsNodeBusyWithHints();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
-  // v10 changes is v8 with the group blob included. Backends that
-  // haven't shipped the blob yet 404 on it; fall back to v8, whose
-  // response is identical minus the group blob.
-  const response = await scry<ub.ChangesV8>({
+  // Backends that haven't shipped the group blob yet 404 on v10; fall
+  // back to v8, whose response is identical minus the blob.
+  const response = await scry<ub.ChangesV10>({
     app: 'groups-ui',
     path: `/v10/changes/${encodedTimestamp}`,
   }).catch((err) => {
@@ -39,7 +38,7 @@ export async function fetchChangesSince(timestamp: number): Promise<
   return { ...changes, ...nodeBusyStatus };
 }
 
-export function parseChanges(input: ub.ChangesV8): db.ChangesResult {
+export function parseChanges(input: ub.ChangesV10): db.ChangesResult {
   const groups = toClientGroupsV7(input.groups, true);
 
   const channelPosts = Object.entries(input.channels).flatMap(

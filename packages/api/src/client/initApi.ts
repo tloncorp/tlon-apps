@@ -35,7 +35,7 @@ export const getInitData = async () => {
   // v9 init is v7 with the group blob included (activity stays v8).
   // Backends that haven't shipped the blob yet 404 on it; fall back to
   // v7, whose response is identical minus the group blob.
-  const response = await scry<ub.GroupsInit7>({
+  const response = await scry<ub.GroupsInit9>({
     app: 'groups-ui',
     path: '/v9/init',
   }).catch((err) => {
@@ -80,7 +80,7 @@ function extractJoinedGroupChannelsFromV7Groups(
 }
 
 export const toInitData = (
-  response: ub.GroupsInit7,
+  response: ub.GroupsInit9,
   options: InitDataOptions
 ): InitData => {
   logger.crumb('converting init data to client data');

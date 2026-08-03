@@ -4,7 +4,8 @@ import { ContactBookEntry } from './contact';
 import { ChatHeadsResponse, DMInit2, Writs } from './dms';
 import { Foreigns, GroupV7, Groups, GroupsV7 } from './groups';
 
-export interface GroupsInit7 {
+// v9 init is v7 plus the group blob, which rides along inside GroupV7.
+export interface GroupsInit9 {
   groups: Record<string, GroupV7>;
   foreigns: Foreigns;
   channel: {
@@ -16,7 +17,8 @@ export interface GroupsInit7 {
   chat: DMInit2;
 }
 
-export type GroupsInit6 = GroupsInit7;
+export type GroupsInit7 = GroupsInit9;
+export type GroupsInit6 = GroupsInit9;
 
 export interface CombinedHeads {
   dms: ChatHeadsResponse;
@@ -31,7 +33,8 @@ export interface Changes {
   activity: Activity;
 }
 
-export interface ChangesV8 {
+// v10 changes is v8 plus the group blob, which rides along inside GroupV7.
+export interface ChangesV10 {
   groups: GroupsV7;
   channels: Record<string, Posts | null>;
   chat: Record<string, Writs | null>;
@@ -39,7 +42,8 @@ export interface ChangesV8 {
   activity: Activity;
 }
 
-export type ChangesV7 = ChangesV8;
+export type ChangesV8 = ChangesV10;
+export type ChangesV7 = ChangesV10;
 
 export interface PostsInit {
   channels: Record<string, Posts | null>;
