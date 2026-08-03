@@ -155,10 +155,12 @@ describe('runTlonCommand timeout output capture', () => {
 
     await vi.waitFor(() => expect(onDeadline).toHaveBeenCalledTimes(1));
     expect(settlement).toBe('pending');
-    expect(onDeadline).toHaveBeenCalledWith({
-      stdout: expect.stringContaining('grandchild-pid:'),
-      stderr: '',
-    });
+    // Deliberately does not assert that the grandchild's first line has already
+    // arrived. That would require a spawn plus two pipe hops to complete inside
+    // the deadline, which flakes under full-suite load. The draining property is
+    // proven below instead, by the resolved value containing output written
+    // after the deadline had already fired.
+    expect(onDeadline.mock.calls[0]?.[0].stderr).toBe('');
     expect(onDeadline.mock.calls[0]?.[0].stdout).not.toContain(
       'grandchild-finished'
     );

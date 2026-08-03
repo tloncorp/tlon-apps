@@ -353,6 +353,18 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
     if ('error' in selection) return selection.error;
 
     if (parsed.kind === 'migrate') {
+      // This deliberately blocks unrelated applies behind any cleanup. The
+      // cleanup's two-minute deadline is advisory: its onDeadline callback
+      // reports without killing the process, so a stuck cleanup blocks every
+      // apply until the gateway restarts. That tradeoff is accepted for the
+      // one-owner, one-notebook deployment.
+      if (cleanupInFlight.size > 0) {
+        const message =
+          'A migration cleanup is currently running. Wait for it to finish, then retry the migration.';
+        await sendOwnerNotification(bridge, message, parsed.nest);
+        return message;
+      }
+
       const inFlightKey = parsed.nest;
       const pending = applyInFlight.get(inFlightKey);
       if (pending) {

@@ -64,15 +64,9 @@ import {
   runTlonCommand,
 } from './src/tlon-command-runner.js';
 import {
-  checkBlockedTlonOperation,
-  findTlonSubcommandIndex,
-  shellSplitCommand,
+  createTlonToolExecutor,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
-import {
-  formatAllowedTlonSubcommands,
-  isAllowedTlonSubcommand,
-} from './src/tlon-tool-guard.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
@@ -980,6 +974,16 @@ export default defineBundledChannelEntry({
       );
     }
 
+    const executeTlonTool = createTlonToolExecutor({
+      runCommand: (args) =>
+        runTlonCommand(tlonBinary, args, credentials, {
+          timeoutMs: toolTimeoutMs,
+        }),
+      notifyDiaryMigrationDiscovery: (nest) =>
+        notifyDiaryMigrationDiscovery(nest, api.config),
+      logError: (message) => api.logger.warn(`[tlon] ${message}`),
+    });
+
     api.registerTool({
       name: 'tlon',
       label: 'Tlon CLI',
@@ -1004,54 +1008,7 @@ export default defineBundledChannelEntry({
         },
         required: ['command'],
       },
-      async execute(_id: string, params: { command: string }) {
-        try {
-          const args = shellSplitCommand(params.command);
-
-          const subIdx = findTlonSubcommandIndex(args);
-          const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
-          if (!isAllowedTlonSubcommand(subcommand)) {
-            return {
-              content: [
-                {
-                  type: 'text' as const,
-                  text: `Error: Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${formatAllowedTlonSubcommands()}`,
-                },
-              ],
-              details: { error: true },
-            };
-          }
-
-          const blocked = checkBlockedTlonOperation(args);
-          if (blocked) {
-            if (blocked.diaryNest) {
-              await notifyDiaryMigrationDiscovery(
-                blocked.diaryNest,
-                api.config
-              );
-            }
-            return {
-              content: [{ type: 'text' as const, text: blocked.message }],
-              details: { blocked: true, reason: blocked.reason },
-            };
-          }
-
-          const output = await runTlonCommand(tlonBinary, args, credentials, {
-            timeoutMs: toolTimeoutMs,
-          });
-          return {
-            content: [{ type: 'text' as const, text: output }],
-            details: undefined,
-          };
-        } catch (error: unknown) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          return {
-            content: [{ type: 'text' as const, text: `Error: ${message}` }],
-            details: { error: true },
-          };
-        }
-      },
+      execute: executeTlonTool,
     });
 
     // Tool access control: block sensitive tools for non-owners

@@ -1,9 +1,127 @@
-import { describe, expect, it } from 'vitest';
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
+  DiaryMigrationDiscoveryNotifier,
+  notifyDiaryMigrationDiscovery,
+} from './diary-migration-discovery.js';
+import type { ApprovalCommandBridge } from './monitor/command-bridge.js';
+import { removeBridge, setBridge } from './monitor/command-bridge.js';
+import {
   checkBlockedTlonOperation,
+  createTlonToolExecutor,
   summarizeTlonCommand,
 } from './tlon-tool-command.js';
+
+const BLOCKED_MIGRATION_MESSAGE =
+  'Blocked: this notes operation requires owner confirmation. ' +
+  'Ask the owner to type `/migrate diary/~bot/detached-discovery`.';
+
+function makeDiscoveryBridge(
+  sendOwnerNotification: ApprovalCommandBridge['sendOwnerNotification']
+): ApprovalCommandBridge {
+  return {
+    botShip: '~bot',
+    ownerShip: '~owner',
+    sendOwnerNotification,
+    getChannelTitle: () => 'Field Notes',
+  } as ApprovalCommandBridge;
+}
+
+function beforeImmediate<T>(promise: Promise<T>) {
+  return Promise.race([
+    promise.then((value) => ({ state: 'resolved' as const, value })),
+    new Promise<{ state: 'pending' }>((resolve) => {
+      setImmediate(() => resolve({ state: 'pending' }));
+    }),
+  ]);
+}
+
+describe('tlon tool execution', () => {
+  it('returns a local diary refusal before discovery delivery settles and preserves notifier deduplication', async () => {
+    let settleSend!: (messageId: string | undefined) => void;
+    const send = vi.fn(
+      () =>
+        new Promise<string | undefined>((resolve) => {
+          settleSend = resolve;
+        })
+    );
+    const inFlight = new Map<string, Promise<boolean>>();
+    const notifier = new DiaryMigrationDiscoveryNotifier({
+      notified: new Map(),
+      inFlight,
+    });
+    const bridge = makeDiscoveryBridge(send);
+    setBridge('detached-discovery-account', bridge);
+    const execute = createTlonToolExecutor({
+      runCommand: vi.fn(async () => 'unexpected CLI invocation'),
+      notifyDiaryMigrationDiscovery: (nest) =>
+        notifyDiaryMigrationDiscovery(nest, {} as OpenClawConfig, notifier),
+    });
+    const params = {
+      command: 'notes migrate-apply diary/~bot/detached-discovery --yes',
+    };
+    const firstCall = execute('first', params);
+
+    try {
+      await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+      const secondCall = execute('second', params);
+      const outcomes = await Promise.all([
+        beforeImmediate(firstCall),
+        beforeImmediate(secondCall),
+      ]);
+
+      expect(outcomes).toEqual([
+        {
+          state: 'resolved',
+          value: {
+            content: [{ type: 'text', text: BLOCKED_MIGRATION_MESSAGE }],
+            details: { blocked: true, reason: 'migration_operation' },
+          },
+        },
+        {
+          state: 'resolved',
+          value: {
+            content: [{ type: 'text', text: BLOCKED_MIGRATION_MESSAGE }],
+            details: { blocked: true, reason: 'migration_operation' },
+          },
+        },
+      ]);
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(inFlight.has('diary/~bot/detached-discovery')).toBe(true);
+    } finally {
+      settleSend('message-id');
+      await vi.waitFor(() => expect(inFlight.size).toBe(0));
+      expect(send).toHaveBeenCalledTimes(1);
+      removeBridge('detached-discovery-account', bridge);
+    }
+  });
+
+  it('keeps a local diary refusal and logs context when detached discovery rejects', async () => {
+    const logError = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand: vi.fn(async () => 'unexpected CLI invocation'),
+      notifyDiaryMigrationDiscovery: vi.fn(async () => {
+        throw new Error('unexpected bridge failure');
+      }),
+      logError,
+    });
+
+    const result = await execute('rejecting-discovery', {
+      command: 'notes migrate-apply diary/~bot/detached-discovery --yes',
+    });
+
+    expect(result).toEqual({
+      content: [{ type: 'text', text: BLOCKED_MIGRATION_MESSAGE }],
+      details: { blocked: true, reason: 'migration_operation' },
+    });
+    await vi.waitFor(() =>
+      expect(logError).toHaveBeenCalledWith(
+        'Failed to notify owner about diary migration discovery for diary/~bot/detached-discovery: Error: unexpected bridge failure'
+      )
+    );
+  });
+});
 
 describe('checkBlockedTlonOperation', () => {
   it('blocks migration writes after a separate --config prefix', () => {

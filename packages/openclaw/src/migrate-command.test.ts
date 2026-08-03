@@ -414,6 +414,66 @@ describe('OpenClaw migration command', () => {
     ]);
   });
 
+  it('refuses migration without a card while any cleanup is running, then allows it after completion', async () => {
+    let finishCleanup!: (output: string) => void;
+    const runCommand = vi.fn((args: string[]) => {
+      if (args.includes('notebook-delete')) {
+        return new Promise<string>((resolve) => {
+          finishCleanup = resolve;
+        });
+      }
+      return Promise.resolve('Migration complete.\n');
+    });
+    const tasks: Array<() => Promise<void>> = [];
+    const buildMigrateCard = vi.fn(() => 'unexpected');
+    const handler = createMigrateCommandHandler({
+      runCommand,
+      spawnTask: (task) => tasks.push(task),
+      applyInFlight: new Map(),
+      cleanupInFlight: new Map(),
+      buildMigrateCard,
+    });
+    const bridge = makeBridge();
+
+    await handler(bridge, 'cleanup notes/~bot/unrelated');
+    const cleanupTask = tasks.shift()?.();
+    expect(runCommand).toHaveBeenCalledTimes(1);
+
+    const refusal =
+      'A migration cleanup is currently running. Wait for it to finish, then retry the migration.';
+    try {
+      await expect(handler(bridge, 'diary/~bot/log')).resolves.toBe(refusal);
+      expect(tasks).toHaveLength(0);
+      expect(runCommand).toHaveBeenCalledTimes(1);
+      expect(runCommand.mock.calls[0]?.[0]).toEqual([
+        'notes',
+        'notebook-delete',
+        'notes/~bot/unrelated',
+        '--yes',
+      ]);
+      expect(bridge.sendOwnerNotification).toHaveBeenCalledWith(refusal);
+      expect(vi.mocked(bridge.sendOwnerNotification).mock.calls[0]).toEqual([
+        refusal,
+      ]);
+      expect(buildMigrateCard).not.toHaveBeenCalled();
+    } finally {
+      finishCleanup('Cleanup complete.\n');
+      await cleanupTask;
+    }
+
+    const migrationReply = await handler(bridge, 'diary/~bot/log');
+    expect(migrationReply).toContain('Migration started');
+    expect(tasks).toHaveLength(1);
+    await tasks.shift()?.();
+    expect(runCommand).toHaveBeenCalledTimes(2);
+    expect(runCommand.mock.calls[1]?.[0]).toEqual([
+      'notes',
+      'migrate-apply',
+      'diary/~bot/log',
+      '--yes',
+    ]);
+  });
+
   it.each([
     {
       keyspace: 'apply',

@@ -4,6 +4,8 @@ import {
   checkBlockedMigrationOperation,
   checkBlockedSendOperation,
   findFirstPositionalArgumentIndex,
+  formatAllowedTlonSubcommands,
+  isAllowedTlonSubcommand,
   refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
@@ -307,6 +309,63 @@ export function checkBlockedTlonOperation(
   }
   const send = checkBlockedSendOperation(commandArgs);
   return send ? { message: send, reason: 'send_operation' } : null;
+}
+
+export type TlonToolExecutorDeps = {
+  runCommand: (args: string[]) => Promise<string>;
+  notifyDiaryMigrationDiscovery: (nest: string) => Promise<boolean>;
+  logError?: (message: string) => void;
+};
+
+export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
+  return async function execute(_id: string, params: { command: string }) {
+    try {
+      const args = shellSplitCommand(params.command);
+
+      const subIdx = findTlonSubcommandIndex(args);
+      const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
+      if (!isAllowedTlonSubcommand(subcommand)) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Error: Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${formatAllowedTlonSubcommands()}`,
+            },
+          ],
+          details: { error: true },
+        };
+      }
+
+      const blocked = checkBlockedTlonOperation(args);
+      if (blocked) {
+        if (blocked.diaryNest) {
+          void deps
+            .notifyDiaryMigrationDiscovery(blocked.diaryNest)
+            .catch((error) => {
+              deps.logError?.(
+                `Failed to notify owner about diary migration discovery for ${blocked.diaryNest}: ${String(error)}`
+              );
+            });
+        }
+        return {
+          content: [{ type: 'text' as const, text: blocked.message }],
+          details: { blocked: true, reason: blocked.reason },
+        };
+      }
+
+      const output = await deps.runCommand(args);
+      return {
+        content: [{ type: 'text' as const, text: output }],
+        details: undefined,
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: 'text' as const, text: `Error: ${message}` }],
+        details: { error: true },
+      };
+    }
+  };
 }
 
 export function summarizeTlonCommand(command: string): TlonToolCallContext {
