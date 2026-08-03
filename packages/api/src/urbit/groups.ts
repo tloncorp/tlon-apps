@@ -339,7 +339,7 @@ export interface GroupUpdate {
   diff: GroupDiff;
 }
 
-// r-groups as delivered on /v3/groups
+// r-groups
 export interface GroupResponse {
   flag: string;
   ['r-group']: GroupResponseData;
@@ -627,8 +627,7 @@ export interface GroupInviteAction {
   note: Story | null;
 }
 
-// Group actions (a-groups). The outer envelope is the same at every version;
-// only the inner a-group payload gains variants, so parameterize on it.
+// Group actions (a-groups)
 export type GroupActionEnvelope<TGroupAction> =
   | {
       group: {
@@ -643,11 +642,11 @@ export type GroupActionEnvelope<TGroupAction> =
       leave: string; // flag
     };
 
-// a-groups:v8, poked at mark group-action-4
+// a-groups:v8
 export type GroupActionV4 = GroupActionEnvelope<GroupAction>;
 
-// a-groups:v11, poked at mark group-action-5 — v4 plus the group blob. Kept
-// separate because group-action-4's dejs has no blob key and would nack it.
+// a-groups:v11. Kept separate from v4 because group-action-4's dejs has no
+// blob key and would nack one.
 export type GroupActionV5 = GroupActionEnvelope<GroupActionV5Data>;
 
 export type GroupActionV5Data = GroupAction | { blob: string | null };

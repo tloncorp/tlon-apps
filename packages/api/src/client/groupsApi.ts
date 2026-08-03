@@ -35,9 +35,6 @@ function groupAction4(action: ub.GroupActionV4) {
   };
 }
 
-// group-action-5 carries the same shape as group-action-4 plus the
-// %blob variant; only blob pokes use it so older backends keep
-// accepting every other action.
 function groupAction5(action: ub.GroupActionV5) {
   return {
     app: 'groups',
@@ -492,7 +489,6 @@ export const createGroup = async ({
   }
 };
 
-// v3 group scries return v11 format — v9 plus the group blob.
 export const getGroup = async (groupId: string) => {
   const path = `/v3/ui/groups/${groupId}`;
 
@@ -553,7 +549,6 @@ export const updateGroupBlob = async ({
         },
       },
     }),
-    // blob responses ride /v3/groups only; they are stripped from v1/v2
     { app: 'groups', path: '/v3/groups' },
     (event) => {
       if (!('r-group' in event)) {
@@ -1334,12 +1329,9 @@ export const subscribeGroups = async (
     }
   };
 
-  // r-group:v11 is a superset of v9 and v10 — every group update, plus the
-  // active-channel deltas that used to require v2, plus the blob — so a
-  // single lane carries everything and no event is handled twice. The v1 and
-  // v2 lanes stay on the backend for older clients, but this client only
-  // ever reads v3; the desk ships ahead of the app, so there is nothing to
-  // fall back to.
+  // r-group:v11 is a superset of v9 and v10, so one lane carries every update
+  // and nothing is handled twice. The desk ships ahead of the app, so there
+  // is no older backend to fall back to.
   void subscribe<ub.GroupResponse>(
     { app: 'groups', path: '/v3/groups' },
     (rawEvent) => {
@@ -1857,9 +1849,8 @@ export function toClientGroup(
     roles,
     privacy: group.admissions.privacy,
     ...toClientGroupMeta(group.meta),
-    // Pass undefined through rather than coercing to null: a surface that
-    // predates the blob (the v1/v2 fallbacks) says nothing about it, so
-    // upserts leave any known blob alone. An explicit null is a real clear.
+    // undefined and null differ downstream: omitting blob leaves a stored
+    // value alone, an explicit null clears it.
     blob: group.blob,
     haveInvite: isJoined ? false : undefined,
     haveRequestedInvite: isJoined ? false : undefined,

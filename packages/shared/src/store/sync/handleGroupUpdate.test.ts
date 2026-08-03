@@ -288,8 +288,6 @@ test('addChannel propagates group sync failures for normal channels', async () =
   }
 });
 
-// `editGroupBlob` carries the group's opaque custom payload; the handler
-// writes it to the group row verbatim and null clears it.
 test('editGroupBlob writes and clears the group blob column', async () => {
   const groupId = '~bus/blob-group';
 
@@ -326,10 +324,7 @@ test('editGroupBlob writes and clears the group blob column', async () => {
   expect(group?.blob).toBeNull();
 });
 
-// A payload that carries no blob key says nothing about the blob, so an
-// upsert from it must leave a known blob alone; an explicit null is a real
-// clear and must still land. Group updates all arrive on one lane now, so
-// this guards future blob-less surfaces rather than a live race.
+// Omitting the blob key must not clear a stored blob; an explicit null must.
 test('addGroup preserves the blob on blob-less upserts and clears on null', async () => {
   const groupId = '~bus/blob-upsert-group';
   const base = {
@@ -350,7 +345,7 @@ test('addGroup preserves the blob on blob-less upserts and clears on null', asyn
     );
   });
 
-  // blob-less upsert (v1 create shape) leaves the blob alone
+  // blob-less upsert leaves it alone
   await batchEffects('test:addGroup-no-blob', async (ctx) => {
     await handleGroupUpdate({ type: 'addGroup', group: { ...base } }, ctx);
   });

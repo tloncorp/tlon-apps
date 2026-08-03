@@ -32,7 +32,6 @@ type InitDataOptions = {
 };
 
 export const getInitData = async () => {
-  // v9 init is v7 with the group blob included (activity stays v8).
   const response = await scry<ub.GroupsInit9>({
     app: 'groups-ui',
     path: '/v9/init',

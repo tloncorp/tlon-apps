@@ -16,7 +16,6 @@ export async function fetchChangesSince(timestamp: number): Promise<
 > {
   const busyResult = await checkIsNodeBusyWithHints();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
-  // v10 changes is v8 plus the group blob, which rides inside GroupV11.
   const response = await scry<ub.ChangesV10>({
     app: 'groups-ui',
     path: `/v10/changes/${encodedTimestamp}`,

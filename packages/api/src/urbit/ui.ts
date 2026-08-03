@@ -4,7 +4,6 @@ import { ContactBookEntry } from './contact';
 import { ChatHeadsResponse, DMInit2, Writs } from './dms';
 import { Foreigns, GroupV11, Groups, GroupsV11 } from './groups';
 
-// /v9/init: the v7 payload plus the group blob, which rides inside GroupV11.
 export interface GroupsInit9 {
   groups: Record<string, GroupV11>;
   foreigns: Foreigns;
@@ -30,7 +29,6 @@ export interface Changes {
   activity: Activity;
 }
 
-// /v10/changes: the v8 payload plus the group blob, inside GroupV11.
 export interface ChangesV10 {
   groups: GroupsV11;
   channels: Record<string, Posts | null>;
