@@ -215,19 +215,21 @@ function ChatDetailsScreenView() {
         backAction={handleGoBack}
         useHorizontalTitleLayout={!isWindowNarrow}
         title={getTitle()}
-        rightControls={
-          currentUserIsAdmin ? (
-            <ScreenHeader.TextButton
-              onPress={!actionsEnabled ? undefined : handlePressEdit}
-              disabled={!actionsEnabled}
-              color="$primaryText"
-              testID="DetailsEditButton"
-            >
-              Rename
-            </ScreenHeader.TextButton>
-          ) : null
+        rightItems={
+          currentUserIsAdmin
+            ? [
+                {
+                  id: 'DetailsEditButton',
+                  text: 'Rename',
+                  onPress: handlePressEdit,
+                  disabled: !actionsEnabled,
+                  tint: '$primaryText',
+                  testID: 'DetailsEditButton',
+                },
+              ]
+            : []
         }
-        scrollsUnderHeader
+        useNativeHeader
       />
       {hasContent && (
         <ScreenScrollView

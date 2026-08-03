@@ -1,9 +1,11 @@
 import { ComponentProps, ElementRef, forwardRef } from 'react';
-import { Platform } from 'react-native';
 import { ScrollView } from 'tamagui';
 
-export const screenContentInsetAdjustmentBehavior =
-  Platform.OS === 'ios' ? ('automatic' as const) : undefined;
+import { useScreenScrollProps } from './useScreenScrollProps';
+
+type ScreenScrollViewProps = ComponentProps<typeof ScrollView> & {
+  useScreenChrome?: boolean;
+};
 
 /**
  * Root scroll container for screen content. React Native opts out of UIKit's
@@ -12,14 +14,20 @@ export const screenContentInsetAdjustmentBehavior =
  */
 export const ScreenScrollView = forwardRef<
   ElementRef<typeof ScrollView>,
-  ComponentProps<typeof ScrollView>
->(function ScreenScrollView({ contentInsetAdjustmentBehavior, ...props }, ref) {
+  ScreenScrollViewProps
+>(function ScreenScrollView(
+  { contentInsetAdjustmentBehavior, useScreenChrome = true, ...props },
+  ref
+) {
+  const screenScrollProps = useScreenScrollProps({ enabled: useScreenChrome });
+
   return (
     <ScrollView
       {...props}
       ref={ref}
       contentInsetAdjustmentBehavior={
-        contentInsetAdjustmentBehavior ?? screenContentInsetAdjustmentBehavior
+        contentInsetAdjustmentBehavior ??
+        screenScrollProps.contentInsetAdjustmentBehavior
       }
     />
   );

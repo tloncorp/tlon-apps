@@ -54,9 +54,13 @@ export function BlockedUsersScreen(props: Props) {
         backAction={isNarrow ? () => props.navigation.goBack() : undefined}
         title="Blocked users"
         borderBottom
-        scrollsUnderHeader
+        useNativeHeader
       />
-      <SettingsContentScrollView paddingBottom="$3xl" paddingHorizontal="$xl">
+      <SettingsContentScrollView
+        useScreenChrome
+        paddingBottom="$3xl"
+        paddingHorizontal="$xl"
+      >
         <BlockedContactsWidget
           blockedContacts={blockedContacts ?? []}
           onBlockedContactPress={onBlockedContactPress}

@@ -1,20 +1,16 @@
 import type { NativeStackHeaderItem } from '@react-navigation/native-stack';
-import { Button, Icon, useIsWindowNarrow } from '@tloncorp/ui';
-import {
-  ComponentProps,
-  ReactElement,
-  forwardRef,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
-import { ColorTokens, TamaguiElement, XStack, useTheme } from 'tamagui';
+import { ColorTokens, useTheme } from 'tamagui';
 
 import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
-import { ActionSheet } from './ActionSheet';
-import { HeaderIconButton, HeaderTextButton } from './ScreenHeaderPrimitives';
+import { ScreenHeaderItemElements } from './ScreenHeaderItemElements';
+import {
+  forwardLatestHeaderItemCallbacks,
+  getScreenHeaderItemSignature,
+  visibleHeaderItemConfigs,
+} from './screenHeaderItemModel';
+import type { ScreenHeaderItemConfig } from './screenHeaderItemModel';
 
 /**
  * One declaration per header button, from which every platform representation
@@ -37,54 +33,6 @@ export const nativeIconSources = {
   Settings: nativeHeaderIcons.settings,
 } as const;
 
-export type NativeHeaderIconName = keyof typeof nativeIconSources;
-
-interface BaseItemConfig {
-  /** Stable identity for the native item; also the default testID. */
-  id: string;
-  /** Excluded from both representations when false. Defaults to true. */
-  visible?: boolean;
-}
-
-export interface HeaderIconItemConfig extends BaseItemConfig {
-  icon: NativeHeaderIconName;
-  label: string;
-  onPress?: () => void;
-  disabled?: boolean;
-  selected?: boolean;
-  /** Theme token (`$positiveActionText`) or raw color. */
-  tint?: string;
-  /** RN-only background highlight behind the icon. */
-  backgroundTint?: string;
-  testID?: string;
-}
-
-export interface HeaderTextItemConfig extends BaseItemConfig {
-  text: string;
-  onPress?: () => void;
-  disabled?: boolean;
-  tint?: string;
-  testID?: string;
-}
-
-export interface HeaderMenuItemConfig extends BaseItemConfig {
-  menu: {
-    icon: NativeHeaderIconName;
-    label: string;
-    items: { label: string; onPress: () => void }[];
-  };
-}
-
-export interface HeaderElementItemConfig extends BaseItemConfig {
-  element: ReactElement;
-}
-
-export type NativeHeaderItemConfig =
-  | HeaderIconItemConfig
-  | HeaderTextItemConfig
-  | HeaderMenuItemConfig
-  | HeaderElementItemConfig;
-
 export function resolveNativeHeaderColor(
   color: ColorTokens | string | undefined,
   theme: ThemeValues
@@ -106,73 +54,10 @@ export function resolveNativeHeaderColor(
 
 const noop = () => {};
 
-function visibleConfigs(configs: NativeHeaderItemConfig[]) {
-  return configs.filter((config) => config.visible !== false);
-}
-
-export function forwardLatestHeaderItemCallbacks(configsRef: {
-  current: NativeHeaderItemConfig[];
-}): NativeHeaderItemConfig[] {
-  return configsRef.current.map((config) => {
-    if ('element' in config) {
-      return config;
-    }
-
-    if ('menu' in config) {
-      const id = config.id;
-      return {
-        ...config,
-        menu: {
-          ...config.menu,
-          items: config.menu.items.map((item, index) => ({
-            ...item,
-            onPress: () => {
-              const latest = configsRef.current.find(
-                (candidate) => candidate.id === id && 'menu' in candidate
-              );
-              if (latest && 'menu' in latest) {
-                latest.menu.items[index]?.onPress();
-              }
-            },
-          })),
-        },
-      };
-    }
-
-    const id = config.id;
-    return {
-      ...config,
-      onPress: () => {
-        const latest = configsRef.current.find(
-          (candidate) =>
-            candidate.id === id &&
-            !('element' in candidate) &&
-            !('menu' in candidate)
-        );
-        if (
-          latest &&
-          !('element' in latest) &&
-          !('menu' in latest) &&
-          !latest.disabled
-        ) {
-          latest.onPress?.();
-        }
-      },
-    };
-  });
-}
-
 export function buildNativeHeaderItem(
-  config: NativeHeaderItemConfig,
+  config: ScreenHeaderItemConfig,
   theme: ThemeValues
 ): NativeStackHeaderItem {
-  if ('element' in config) {
-    return {
-      type: 'custom',
-      element: config.element,
-    };
-  }
-
   if ('menu' in config) {
     return {
       type: 'menu',
@@ -225,144 +110,16 @@ export function buildNativeHeaderItem(
 }
 
 export function buildNativeHeaderItems(
-  configs: NativeHeaderItemConfig[],
+  configs: ScreenHeaderItemConfig[],
   theme: ThemeValues
 ): { items: NativeStackHeaderItem[]; signature: string } {
-  const visible = visibleConfigs(configs);
+  const visible = visibleHeaderItemConfigs(configs);
   const items = visible.map((config) => buildNativeHeaderItem(config, theme));
-  const signature = visible
-    .map((config) => {
-      if ('element' in config) {
-        return `custom:${config.id}`;
-      }
-      if ('menu' in config) {
-        return `menu:${config.id}:${config.menu.icon}:${config.menu.items
-          .map((item) => item.label)
-          .join(';')}`;
-      }
-      const kind = 'text' in config ? `text:${config.text}` : config.icon;
-      return [
-        config.id,
-        kind,
-        config.disabled ? 'disabled' : 'enabled',
-        'selected' in config && config.selected ? 'selected' : '',
-        resolveNativeHeaderColor(config.tint, theme) ?? '',
-        'backgroundTint' in config ? config.backgroundTint ?? '' : '',
-      ].join(':');
-    })
-    .join(',');
+  const signature = getScreenHeaderItemSignature(configs, (color) =>
+    resolveNativeHeaderColor(color, theme)
+  );
   return { items, signature };
 }
-
-/**
- * React rendering of the same configs, used by the web ScreenHeader and inside
- * the Android native header via `headerLeft`/`headerRight`.
- */
-export function HeaderItemElements({
-  configs,
-  nativeHeader = false,
-}: {
-  configs: NativeHeaderItemConfig[];
-  nativeHeader?: boolean;
-}) {
-  const visible = visibleConfigs(configs);
-  if (visible.length === 0) {
-    return null;
-  }
-
-  return (
-    <XStack
-      alignItems="center"
-      height={nativeHeader ? '$4xl' : undefined}
-      gap={nativeHeader ? '$l' : undefined}
-    >
-      {visible.map((config) => {
-        if ('element' in config) {
-          return <XStack key={config.id}>{config.element}</XStack>;
-        }
-        if ('menu' in config) {
-          return <HeaderItemMenu key={config.id} config={config} />;
-        }
-        if ('text' in config) {
-          return (
-            <HeaderTextButton
-              key={config.id}
-              onPress={config.disabled ? undefined : config.onPress}
-              disabled={config.disabled}
-              color={(config.tint as ColorTokens) ?? '$primaryText'}
-              testID={config.testID ?? config.id}
-            >
-              {config.text}
-            </HeaderTextButton>
-          );
-        }
-        return (
-          <HeaderIconButton
-            key={config.id}
-            type={config.icon}
-            disabled={config.disabled}
-            onPress={config.disabled ? undefined : config.onPress}
-            color={(config.tint as ColorTokens) ?? '$primaryText'}
-            backgroundColor={
-              (config.backgroundTint as ColorTokens) ?? 'transparent'
-            }
-            testID={config.testID ?? config.id}
-            aria-label={config.label}
-          />
-        );
-      })}
-    </XStack>
-  );
-}
-
-function HeaderItemMenu({ config }: { config: HeaderMenuItemConfig }) {
-  const [open, setOpen] = useState(false);
-  const isWindowNarrow = useIsWindowNarrow();
-
-  return (
-    <ActionSheet
-      mode={isWindowNarrow ? 'sheet' : 'popover'}
-      modal
-      open={open}
-      onOpenChange={setOpen}
-      trigger={
-        <HeaderItemMenuTrigger
-          icon={config.menu.icon}
-          aria-label={config.menu.label}
-          onPress={isWindowNarrow ? () => setOpen(true) : undefined}
-        />
-      }
-    >
-      <ActionSheet.Content>
-        <ActionSheet.ActionGroup accent="neutral">
-          {config.menu.items.map((item) => (
-            <ActionSheet.Action
-              key={item.label}
-              action={{
-                title: item.label,
-                action: () => {
-                  setOpen(false);
-                  item.onPress();
-                },
-              }}
-            />
-          ))}
-        </ActionSheet.ActionGroup>
-      </ActionSheet.Content>
-    </ActionSheet>
-  );
-}
-
-const HeaderItemMenuTrigger = forwardRef<
-  TamaguiElement,
-  ComponentProps<typeof Button.Frame> & { icon: NativeHeaderIconName }
->(function HeaderItemMenuTrigger({ icon, ...props }, ref) {
-  return (
-    <Button.Frame ref={ref} fill="text" intent="secondary" {...props}>
-      <Icon type={icon} color="$secondaryText" />
-    </Button.Frame>
-  );
-});
 
 /**
  * Applies ScreenHeader's item descriptors as `unstable_header*Items` on iOS
@@ -387,16 +144,16 @@ export function useNativeHeaderItems({
     | null
     | undefined;
   enabled?: boolean;
-  left: NativeHeaderItemConfig[];
-  right: NativeHeaderItemConfig[];
+  left: ScreenHeaderItemConfig[];
+  right: ScreenHeaderItemConfig[];
   options?: object;
   resetOptions?: object;
   revision?: unknown;
 }) {
   const theme = useTheme();
 
-  const leftConfigsRef = useRef<NativeHeaderItemConfig[]>([]);
-  const rightConfigsRef = useRef<NativeHeaderItemConfig[]>([]);
+  const leftConfigsRef = useRef<ScreenHeaderItemConfig[]>([]);
+  const rightConfigsRef = useRef<ScreenHeaderItemConfig[]>([]);
   const themeRef = useRef(theme);
   leftConfigsRef.current = left;
   rightConfigsRef.current = right;
@@ -416,7 +173,7 @@ export function useNativeHeaderItems({
     const next: Record<string, unknown> = { ...(options ?? {}) };
 
     function applySide(
-      configsRef: { current: NativeHeaderItemConfig[] },
+      configsRef: { current: ScreenHeaderItemConfig[] },
       nativeKey: string,
       elementKey: string
     ) {
@@ -428,7 +185,7 @@ export function useNativeHeaderItems({
           ).items;
       } else {
         next[elementKey] = () => (
-          <HeaderItemElements
+          <ScreenHeaderItemElements
             configs={forwardLatestHeaderItemCallbacks(configsRef)}
             nativeHeader
           />

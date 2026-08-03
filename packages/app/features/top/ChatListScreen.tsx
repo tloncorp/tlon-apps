@@ -424,6 +424,7 @@ export function ChatListScreenView({
                     : undefined,
                 },
               ]}
+              useNativeHeader
             />
             {chats &&
             (chats.unpinned.length ||

@@ -30,10 +30,10 @@ import { Badge } from './Badge';
 import { GroupAvatar } from './GroupAvatar';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
-import { screenContentInsetAdjustmentBehavior } from './ScreenScrollView';
 import SystemNotices from './SystemNotices';
 import WayfindingNotice from './Wayfinding/Notices';
 import { ChannelListItem } from './listItems/ChannelListItem';
+import { useScreenScrollProps } from './useScreenScrollProps';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string; id: string };
 type ChannelListData = db.Channel | SectionHeaderData;
@@ -127,6 +127,9 @@ export const GroupChannelsScreenView = React.memo(
       notebookSidebarContent.groupId === group?.id &&
       notebookSidebarContent.channelId === focusedChannelId &&
       dismissedNotebookSidebarChannelId !== notebookSidebarContent.channelId;
+    const screenScrollProps = useScreenScrollProps({
+      enabled: !shouldShowNotebookSidebar && (group?.channels?.length ?? 0) > 0,
+    });
 
     useEffect(() => {
       setDismissedNotebookSidebarChannelId(null);
@@ -286,9 +289,9 @@ export const GroupChannelsScreenView = React.memo(
             title={notebookSidebarContent.title}
             testID="NotebookSidebarBackHeader"
             borderBottom
-            scrollsUnderHeader
+            useNativeHeader
             backAction={handleDismissNotebookSidebar}
-            rightControls={notebookSidebarContent.actions}
+            rightItems={notebookSidebarContent.headerItems}
           />
           <YStack flex={1} minHeight={0}>
             {notebookSidebarContent.content}
@@ -308,17 +311,20 @@ export const GroupChannelsScreenView = React.memo(
           borderBottom={isWindowNarrow}
           backAction={onBackPressed}
           onTitlePress={handleTitlePress}
-          rightControls={
-            group && isGroupAdmin ? (
-              <ScreenHeader.IconButton
-                type="EditList"
-                onPress={() => onPressManageChannels(group.id, false)}
-                disabled={!canEdit}
-                aria-label="Edit channels"
-              />
-            ) : null
+          rightItems={
+            group && isGroupAdmin
+              ? [
+                  {
+                    id: 'edit-channels',
+                    icon: 'EditList',
+                    label: 'Edit channels',
+                    onPress: () => onPressManageChannels(group.id, false),
+                    disabled: !canEdit,
+                  },
+                ]
+              : []
           }
-          scrollsUnderHeader
+          useNativeHeader
         />
         {isPersonalGroup &&
           group &&
@@ -337,9 +343,7 @@ export const GroupChannelsScreenView = React.memo(
               renderItem={renderItem}
               keyExtractor={keyExtractor}
               getItemType={getItemType}
-              contentInsetAdjustmentBehavior={
-                screenContentInsetAdjustmentBehavior
-              }
+              {...screenScrollProps}
               ListHeaderComponent={
                 <>
                   {isPersonalGroup ? (
