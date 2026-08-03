@@ -627,12 +627,12 @@ export interface GroupInviteAction {
   note: Story | null;
 }
 
-// Group actions (a-groups)
-export type GroupActionEnvelope<TGroupAction> =
+// a-groups:v11
+export type GroupActionV5 =
   | {
       group: {
         flag: string;
-        'a-group': TGroupAction;
+        'a-group': GroupAction;
       };
     }
   | {
@@ -642,17 +642,9 @@ export type GroupActionEnvelope<TGroupAction> =
       leave: string; // flag
     };
 
-// a-groups:v8
-export type GroupActionV4 = GroupActionEnvelope<GroupAction>;
-
-// a-groups:v11. Kept separate from v4 because group-action-4's dejs has no
-// blob key and would nack one.
-export type GroupActionV5 = GroupActionEnvelope<GroupActionV5Data>;
-
-export type GroupActionV5Data = GroupAction | { blob: string | null };
-
 export type GroupAction =
   | { meta: GroupMeta }
+  | { blob: string | null }
   | { entry: GroupEntryAction }
   | { seat: { ships: string[]; 'a-seat': GroupSeatAction } }
   | { role: { roles: string[]; 'a-role': GroupRoleAction } }
@@ -757,7 +749,7 @@ export type ForeignGroupAction =
   | { cancel: null }
   | { decline: { token: string | null } };
 
-// Types for batch navigation updates (group-action-4)
+// Types for batch navigation updates (group-action-5)
 export interface GroupNavigationSectionData {
   meta: GroupMeta;
   order: string[];
