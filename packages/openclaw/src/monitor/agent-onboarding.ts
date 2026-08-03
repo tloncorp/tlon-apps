@@ -7,6 +7,8 @@ import {
 } from '../urbit/blob.js';
 import {
   GROUP_ICON_RULE,
+  HOME_GROUP_CLOSING,
+  HOME_GROUP_SLUG,
   PURPOSE_JOBS,
   PURPOSE_OPTIONS,
   PURPOSE_PICKER_FOOTER,
@@ -229,7 +231,8 @@ export function buildTopicsPickerBlob(
  */
 export function renderSetupDirective(
   purposeId: string,
-  topicsReply: string
+  topicsReply: string,
+  opts: { isHomeGroup?: boolean } = {}
 ): string | null {
   const job = PURPOSE_JOBS[purposeId];
   if (!job) {
@@ -266,6 +269,7 @@ export function renderSetupDirective(
     `templateId: ${purposeId} — copy it exactly; it records which setup the`,
     'owner picked, so a different id makes the group misreport itself.',
     `Once the job and config are in place: ${fill(job.confirmation)}`,
+    ...(opts.isHomeGroup ? [HOME_GROUP_CLOSING] : []),
   ].join('\n');
 }
 
@@ -504,4 +508,22 @@ export function shouldOfferTopicsPicker(opts: {
     return undefined;
   }
   return purposeIdForChoice(opts.messageText);
+}
+
+/**
+ * Whether this group is the owner's first — the one the client's onboarding
+ * makes, as opposed to any group they create later. The two get different
+ * endings: see `HOME_GROUP_CLOSING`.
+ */
+export function isHomeGroupFlag(
+  flag: string | null | undefined,
+  ownerShip: string | null | undefined
+): boolean {
+  if (!flag || !ownerShip) {
+    return false;
+  }
+  const [host, slug] = flag.split('/');
+  return (
+    slug === HOME_GROUP_SLUG && host?.toLowerCase() === ownerShip.toLowerCase()
+  );
 }

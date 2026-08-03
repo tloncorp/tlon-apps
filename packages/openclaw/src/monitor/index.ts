@@ -109,6 +109,7 @@ import {
   channelHasNoPosts,
   findChatNestForGroup,
   findGroupForChannel,
+  isHomeGroupFlag,
   purposePickerFallbackText,
   renderSetupDirective,
   shouldOfferPickerOnJoin,
@@ -4072,9 +4073,16 @@ export async function monitorTlonProvider(
         const pendingSetupPurpose = onboardingSetupPending.get(nest);
         if (pendingSetupPurpose && isOwner(senderShip)) {
           onboardingSetupPending.delete(nest);
+          // The owner's first group ends by asking them to bring someone in;
+          // groups they make later end by offering to tune the job.
+          const setupGroup = await findGroupForChannel(api, nest, runtime);
           setupDirective =
-            renderSetupDirective(pendingSetupPurpose, rawText ?? '') ??
-            undefined;
+            renderSetupDirective(pendingSetupPurpose, rawText ?? '', {
+              isHomeGroup: isHomeGroupFlag(
+                setupGroup?.flag,
+                effectiveOwnerShip
+              ),
+            }) ?? undefined;
         }
         await processMessage({
           messageId: messageId ?? '',

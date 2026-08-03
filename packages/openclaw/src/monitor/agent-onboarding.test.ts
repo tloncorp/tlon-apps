@@ -14,6 +14,7 @@ import {
   descriptionHasAgentSetup,
   findChatNestForGroup,
   findGroupForChannel,
+  isHomeGroupFlag,
   isPurposePickerChoice,
   purposePickerFallbackText,
   renderSetupDirective,
@@ -400,6 +401,22 @@ describe('renderSetupDirective', () => {
     }
   });
 
+  test('the first group ends by asking for an invite, later ones by offering tweaks', () => {
+    // The splash used to ask for contacts here; the conversational flow
+    // replaced it, so the home group has to make the ask itself.
+    const home = renderSetupDirective('agent-research', 'Mycology', {
+      isHomeGroup: true,
+    })!;
+    expect(home).toContain('invite link');
+    expect(home).toContain('bring a friend');
+
+    const later = renderSetupDirective('agent-research', 'Mycology')!;
+    expect(later).not.toContain('invite link');
+    // Both still confirm with a real first run.
+    expect(later).toContain('Run the job once right now');
+    expect(home).toContain('Run the job once right now');
+  });
+
   test('confirmation: output jobs run once now, tracking asks for an entry', () => {
     for (const id of ['agent-daily-digest', 'agent-research']) {
       const directive = renderSetupDirective(id, 'News')!;
@@ -410,5 +427,17 @@ describe('renderSetupDirective', () => {
     expect(tracking).toContain("don't run the job");
     expect(tracking).toContain('first entry');
     expect(tracking).toContain('alongside: Sleep, Mood');
+  });
+});
+
+describe('isHomeGroupFlag', () => {
+  test("only the owner's own home-group slug", () => {
+    expect(isHomeGroupFlag('~ten/home-group', '~ten')).toBe(true);
+    expect(isHomeGroupFlag('~TEN/home-group', '~ten')).toBe(true);
+    // Someone else's home group is just a group to us.
+    expect(isHomeGroupFlag('~zod/home-group', '~ten')).toBe(false);
+    expect(isHomeGroupFlag('~ten/v1qqiguv', '~ten')).toBe(false);
+    expect(isHomeGroupFlag(null, '~ten')).toBe(false);
+    expect(isHomeGroupFlag('~ten/home-group', null)).toBe(false);
   });
 });

@@ -82,6 +82,30 @@ export const TOPICS_PICKER_PROMPT =
 export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
 
 /**
+ * The slug the client's onboarding gives the owner's first group. Mirrors
+ * `BotHomeGroupSlugs.slug` in @tloncorp/api, spelled literally because this
+ * plugin builds against a published version that may predate it.
+ */
+export const HOME_GROUP_SLUG = 'home-group';
+
+/**
+ * How the home-group setup ends, in place of the what-would-you-change
+ * question the other groups get.
+ *
+ * The first group is the owner's introduction to Tlon, and Tlon is only worth
+ * anything with someone else in it — the old splash asked for contacts at
+ * this point and the conversational flow replaced it, so the ask has to live
+ * here or it doesn't happen at all. Tuning the job can wait; an empty group
+ * can't.
+ */
+export const HOME_GROUP_CLOSING =
+  'This is the first group they have, so end by getting someone else into ' +
+  'it rather than asking what to tune — they can change any of it later, ' +
+  "and they'll have more reason to once someone else is reading. Invite " +
+  'them to bring a friend or two in, warmly and once, and give them the ' +
+  "group's invite link to send.";
+
+/**
  * Giving the group an icon, in the same breath as naming it.
  *
  * Gated on the rename for a reason: that step already decides whether the
