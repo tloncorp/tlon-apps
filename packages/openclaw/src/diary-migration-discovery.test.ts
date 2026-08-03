@@ -243,6 +243,11 @@ describe('diary migration discovery notification', () => {
     const [text, blob] = send.mock.calls[0]!;
     expect(text).not.toContain('/migrate');
     expect(blob).toBeUndefined();
+    // The remedy is the point of this message: a diary can carry the suffix
+    // without having been migrated, and its owner has no terminal. Without
+    // this assertion the notice can silently decay back to naming only the
+    // problem.
+    expect(text).toContain('rename the channel');
   });
 
   it('stays silent while the title is uncached, then offers the card once it resolves', async () => {

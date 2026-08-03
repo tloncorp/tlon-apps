@@ -86,9 +86,15 @@ export class DiaryMigrationDiscoveryNotifier {
     }
     const isArchived = title.endsWith(ARCHIVE_TITLE_SUFFIX);
     const canOfferMigration = !isArchived;
+    // The archived notice names the remedy as well as the problem: a diary can
+    // carry this suffix without having been migrated, and that owner has no
+    // terminal to investigate with. Note that renaming will not re-offer the
+    // card until the gateway restarts, because this dedup is process memory.
     const message = canOfferMigration
       ? `Migrate this diary: \`${command}\`\n\n${MIGRATION_DROP_WARNING}`
-      : `Found legacy diary \`${nest}\`, but its title already ends in \`${ARCHIVE_TITLE_SUFFIX}\`. No migration action was offered.`;
+      : `Found legacy diary \`${nest}\`, but its title already ends in \`${ARCHIVE_TITLE_SUFFIX}\`, ` +
+        'so it looks like it has already been migrated and no action was offered. ' +
+        `If it has not been migrated, rename the channel to remove \`${ARCHIVE_TITLE_SUFFIX}\` and it can be migrated again.`;
     let blob: string | undefined;
     if (canOfferMigration) {
       try {
