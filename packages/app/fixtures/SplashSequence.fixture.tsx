@@ -282,7 +282,7 @@ function BotProviderPaneFixture() {
       <BotProviderPane
         model={model}
         providers={[
-          { label: 'MiniMax', provider: 'basic', requiresKey: false },
+          { label: 'GPT-5.6 Luna', provider: 'basic', requiresKey: false },
           { label: 'Anthropic', provider: 'anthropic', requiresKey: true },
           { label: 'OpenAI', provider: 'openai', requiresKey: true },
           { label: 'OpenRouter', provider: 'openrouter', requiresKey: true },
@@ -344,6 +344,7 @@ function BotModelPaneFixture() {
           { id: 'openai/gpt-4.1-nano' },
           { id: 'openai/o3' },
           { id: 'openai/o4-mini' },
+          { id: 'gpt-5.6-luna' },
           { id: 'google/gemini-1.5-pro' },
           { id: 'google/gemini-1.5-flash' },
           { id: 'google/gemini-2.0-flash' },
