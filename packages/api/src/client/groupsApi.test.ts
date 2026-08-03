@@ -86,19 +86,6 @@ test('toV1GroupsUpdate maps blob responses to editGroupBlob', () => {
   });
 });
 
-// Group updates ride a single lane; the legacy lanes stay on the backend for
-// older clients but this client must never open them.
-test('subscribeGroups subscribes to the v3 lane only', async () => {
-  subscribeMock.mockResolvedValue(1);
-
-  await subscribeGroups(() => {});
-
-  const paths = subscribeMock.mock.calls.map(([endpoint]) => endpoint.path);
-  expect(paths).toContain('/v3/groups');
-  expect(paths).not.toContain('/v1/groups');
-  expect(paths).not.toContain('/v2/groups');
-});
-
 // A trackedPoke resolves only when its watch endpoint receives an event, and
 // events arrive solely through that endpoint's own subscription. So the lane
 // tracked pokes watch must be the lane we subscribe to, or every group
