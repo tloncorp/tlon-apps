@@ -204,7 +204,10 @@ describe('plain-text plan rendering', () => {
       writerRoles: [],
       privacy: 'public',
     });
-    expect(text).toContain('anyone can read');
+    expect(text).toContain(
+      'Now:   all group members can post; anyone can read.'
+    );
+    expect(text).not.toContain('everyone who can read can post');
     expect(text).toContain('readable by: anyone');
     expect(text).not.toContain('all group members can read');
   });
@@ -216,8 +219,22 @@ describe('plain-text plan rendering', () => {
       writerRoles: [],
       privacy: 'private',
     });
-    expect(text).toContain('all group members can read');
+    expect(text).toContain(
+      'Now:   all group members can post; all group members can read.'
+    );
     expect(text).toContain('readable by: all group members');
+  });
+
+  it('states that open writers remain all group members with role-restricted readers', () => {
+    const text = formatPlanText({
+      ...PLAN,
+      readerRoles: ['readers'],
+      writerRoles: [],
+      privacy: 'secret',
+    });
+    expect(text).toContain(
+      'Now:   all group members can post; members with "readers" can read.'
+    );
   });
 });
 
@@ -292,24 +309,37 @@ describe('notebook-delete recovery CLI', () => {
     options: {
       bodies?: Array<string | null>;
       deletionConfirmed?: boolean;
+      groupListings?: Array<{ groupId: string; channelIds: string[] }>;
+      groupSnapshotError?: Error;
+      pollResponses?: Record<string, Array<string[] | Error>>;
     } = {}
   ) {
+    const stdout: string[] = [];
     const stderr: string[] = [];
     const calls = {
       auth: 0,
       deleted: [] as string[],
       listedNotes: [] as string[],
       listedNotebooks: 0,
+      groupSnapshots: 0,
+      groupPolls: [] as string[],
+      sleeps: [] as number[],
+      order: [] as string[],
     };
     const deps = {
-      stdout: () => undefined,
+      stdout: (text: string) => {
+        stdout.push(text);
+        calls.order.push(`stdout:${text.trim()}`);
+      },
       stderr: (text: string) => stderr.push(text),
       authenticate: async () => {
         calls.auth += 1;
+        calls.order.push('authenticate');
       },
       notesV1: {
         listNotes: async (nest: string) => {
           calls.listedNotes.push(nest);
+          calls.order.push('listNotes');
           return (options.bodies ?? [markedBody]).map((bodyMd, index) => ({
             id: index + 1,
             title: `Note ${index + 1}`,
@@ -318,6 +348,7 @@ describe('notebook-delete recovery CLI', () => {
         },
         listNotebooks: async () => {
           calls.listedNotebooks += 1;
+          calls.order.push('listNotebooks');
           return options.deletionConfirmed === false
             ? [
                 {
@@ -331,10 +362,38 @@ describe('notebook-delete recovery CLI', () => {
       },
       deleteNotesNotebookStrict: async (nest: string) => {
         calls.deleted.push(nest);
+        calls.order.push('deleteNotesNotebookStrict');
+      },
+      getGroupChannelListings: async () => {
+        calls.groupSnapshots += 1;
+        calls.order.push('getGroupChannelListings');
+        if (options.groupSnapshotError) throw options.groupSnapshotError;
+        return options.groupListings ?? [];
+      },
+      getGroupChannelIds: async (groupId: string) => {
+        const attempt = calls.groupPolls.filter(
+          (polledGroup) => polledGroup === groupId
+        ).length;
+        calls.groupPolls.push(groupId);
+        calls.order.push(`getGroupChannelIds:${groupId}`);
+        expect(stdout).toEqual([]);
+        const responses = options.pollResponses?.[groupId] ?? [[]];
+        const response = responses[Math.min(attempt, responses.length - 1)];
+        if (response instanceof Error) throw response;
+        return response;
+      },
+      sleep: async (ms: number) => {
+        calls.sleeps.push(ms);
+        calls.order.push(`sleep:${ms}`);
       },
       isPendingWriteError: () => false,
     } as unknown as NotesDeps;
-    return { calls, deps, stderr: () => stderr.join('') };
+    return {
+      calls,
+      deps,
+      stdout: () => stdout.join(''),
+      stderr: () => stderr.join(''),
+    };
   }
 
   it('requires --yes before authentication', async () => {
@@ -347,7 +406,7 @@ describe('notebook-delete recovery CLI', () => {
   });
 
   it('deletes the exact normalized notes nest after authentication', async () => {
-    const { calls, deps } = notesDeps();
+    const { calls, deps, stdout } = notesDeps();
     expect(
       await runNotes(['notebook-delete', 'notes/zod/book', '--yes'], deps)
     ).toBe(0);
@@ -355,6 +414,120 @@ describe('notebook-delete recovery CLI', () => {
     expect(calls.listedNotes).toEqual(['notes/~zod/book']);
     expect(calls.deleted).toEqual(['notes/~zod/book']);
     expect(calls.listedNotebooks).toBe(1);
+    expect(calls.groupSnapshots).toBe(1);
+    expect(calls.groupPolls).toEqual([]);
+    expect(calls.order).toEqual([
+      'authenticate',
+      'listNotes',
+      'getGroupChannelListings',
+      'deleteNotesNotebookStrict',
+      'listNotebooks',
+      'stdout:✓ Notebook deleted: notes/~zod/book',
+    ]);
+    expect(stdout()).toBe('✓ Notebook deleted: notes/~zod/book\n');
+  });
+
+  it('waits for every recorded group listing to clear before reporting success', async () => {
+    const target = 'notes/~zod/book';
+    const { calls, deps, stdout } = notesDeps({
+      groupListings: [
+        { groupId: '~zod/alpha', channelIds: [target, 'chat/~zod/general'] },
+        { groupId: '~zod/beta', channelIds: ['chat/~zod/random'] },
+        { groupId: '~zod/gamma', channelIds: [target] },
+      ],
+      pollResponses: {
+        '~zod/alpha': [[target], []],
+        '~zod/gamma': [[], []],
+      },
+    });
+
+    expect(await runNotes(['notebook-delete', target, '--yes'], deps)).toBe(0);
+    expect(calls.groupPolls).toEqual([
+      '~zod/alpha',
+      '~zod/gamma',
+      '~zod/alpha',
+      '~zod/gamma',
+    ]);
+    expect(calls.groupPolls).not.toContain('~zod/beta');
+    expect(calls.sleeps).toEqual([500]);
+    expect(calls.order.indexOf('getGroupChannelListings')).toBeLessThan(
+      calls.order.indexOf('deleteNotesNotebookStrict')
+    );
+    expect(calls.order.indexOf('listNotebooks')).toBeGreaterThan(
+      calls.order.indexOf('deleteNotesNotebookStrict')
+    );
+    expect(stdout()).toBe(`✓ Notebook deleted: ${target}\n`);
+  });
+
+  it('refuses deletion before mutation when the group snapshot cannot be read', async () => {
+    const target = 'notes/~zod/book';
+    const { calls, deps, stderr, stdout } = notesDeps({
+      groupSnapshotError: new Error('groups unavailable'),
+    });
+
+    expect(await runNotes(['notebook-delete', target, '--yes'], deps)).toBe(1);
+    expect(stderr()).toContain(
+      `Error: Could not inspect group listings before deleting ${target}: groups unavailable`
+    );
+    expect(calls.deleted).toEqual([]);
+    expect(calls.listedNotebooks).toBe(0);
+    expect(calls.groupPolls).toEqual([]);
+    expect(stdout()).toBe('');
+  });
+
+  it('reports deleted but unconfirmed when a recorded listing stays present', async () => {
+    const target = 'notes/~zod/book';
+    const { calls, deps, stderr, stdout } = notesDeps({
+      groupListings: [
+        { groupId: '~zod/alpha', channelIds: [target] },
+        { groupId: '~zod/beta', channelIds: [target] },
+      ],
+      pollResponses: {
+        '~zod/alpha': [[target]],
+        '~zod/beta': [[], [], [], [], new Error('final beta failure')],
+      },
+    });
+
+    expect(await runNotes(['notebook-delete', target, '--yes'], deps)).toBe(1);
+    expect(calls.deleted).toEqual([target]);
+    expect(calls.listedNotebooks).toBe(1);
+    expect(
+      calls.groupPolls.filter((group) => group === '~zod/alpha')
+    ).toHaveLength(5);
+    expect(
+      calls.groupPolls.filter((group) => group === '~zod/beta')
+    ).toHaveLength(5);
+    expect(calls.sleeps).toEqual([500, 500, 500, 500]);
+    expect(stderr()).toBe(
+      `Error: Notebook deleted; group cleanup unconfirmed for ${target}: its old group listing is still present. Wait a few seconds before retrying the migration.\n`
+    );
+    expect(stdout()).not.toContain('✓ Notebook deleted');
+  });
+
+  it('reports deleted but unverifiable when the final group read fails', async () => {
+    const target = 'notes/~zod/book';
+    const { calls, deps, stderr, stdout } = notesDeps({
+      groupListings: [{ groupId: '~zod/alpha', channelIds: [target] }],
+      pollResponses: {
+        '~zod/alpha': [
+          [target],
+          new Error('read 2 failed'),
+          new Error('read 3 failed'),
+          new Error('read 4 failed'),
+          new Error('read 5 failed'),
+        ],
+      },
+    });
+
+    expect(await runNotes(['notebook-delete', target, '--yes'], deps)).toBe(1);
+    expect(calls.deleted).toEqual([target]);
+    expect(calls.listedNotebooks).toBe(1);
+    expect(calls.groupPolls).toHaveLength(5);
+    expect(calls.sleeps).toEqual([500, 500, 500, 500]);
+    expect(stderr()).toBe(
+      `Error: Notebook deleted; group cleanup unconfirmed for ${target}: the group listing could not be checked. Wait a few seconds before retrying the migration.\n`
+    );
+    expect(stdout()).not.toContain('✓ Notebook deleted');
   });
 
   it('refuses to delete a notebook containing unmarked notes', async () => {
@@ -369,6 +542,20 @@ describe('notebook-delete recovery CLI', () => {
     expect(stderr()).toContain('--yes --force');
     expect(calls.deleted).toEqual([]);
     expect(calls.listedNotebooks).toBe(0);
+  });
+
+  it('requires --force when user content follows a valid provenance line', async () => {
+    const { calls, deps, stderr } = notesDeps({
+      bodies: [
+        '<!-- tlon-migrate: diary/~zod/blog 170.141 -->\nUser-added content',
+      ],
+    });
+
+    expect(
+      await runNotes(['notebook-delete', 'notes/~zod/book', '--yes'], deps)
+    ).toBe(1);
+    expect(stderr()).toContain('found 1 unmarked note(s)');
+    expect(calls.deleted).toEqual([]);
   });
 
   it('allows intentional deletion of unmarked notes only with --force and --yes', async () => {

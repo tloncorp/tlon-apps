@@ -2,6 +2,8 @@ import {
   type NotesV1Api,
   NotesV1PendingWriteError,
   deleteNotesNotebookStrict,
+  getGroup,
+  getGroups,
   joinNotesChannel,
   leaveNotesChannel,
   notesV1,
@@ -11,6 +13,7 @@ import * as fs from 'fs';
 import { ensureClient } from './api-client';
 import { commandError, errorMessage } from './commands/command';
 import type { NotesDeps } from './commands/notes';
+import { mapGroupChannelIds } from './notes-channel-runtime';
 import type { NotesPendingWriteErrorLike } from './notes-pending-write';
 
 const STDIN_TIMEOUT_MS = 30_000;
@@ -106,6 +109,30 @@ export function createNotesDeps(): NotesDeps {
         throw commandError(notesRuntimeErrorMessage(error));
       }
     },
+    getGroupChannelListings: async () => {
+      const groups: unknown = await getGroups();
+      if (!Array.isArray(groups)) {
+        throw new Error('Groups response is malformed: expected an array');
+      }
+      return groups.map((group, index) => {
+        if (!group || typeof group !== 'object') {
+          throw new Error(`Group listing ${index}: group is malformed`);
+        }
+        const groupId = (group as { id?: unknown }).id;
+        if (typeof groupId !== 'string') {
+          throw new Error(`Group listing ${index}: group id is malformed`);
+        }
+        return {
+          groupId,
+          channelIds: mapGroupChannelIds(group, groupId),
+        };
+      });
+    },
+    getGroupChannelIds: async (groupId: string) => {
+      const group = await getGroup(groupId);
+      return mapGroupChannelIds(group, groupId);
+    },
+    sleep: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
     readFile: (path: string) => fs.readFileSync(path, 'utf-8'),
     readStdin,
     get migration() {

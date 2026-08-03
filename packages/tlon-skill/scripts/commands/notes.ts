@@ -8,6 +8,7 @@ import type {
   NotesV1RequestStatus,
 } from '@tloncorp/api';
 
+import { pollGroupListings } from '../notes-channel';
 import type { MigrationDeps } from '../notes-migrate';
 import {
   type NotesPendingWriteErrorLike,
@@ -138,6 +139,11 @@ export interface NotesDeps extends CommandDeps {
   joinNotesNotebook: (nest: string) => Promise<void>;
   leaveNotesNotebook: (nest: string) => Promise<void>;
   deleteNotesNotebookStrict: (nest: string) => Promise<void>;
+  getGroupChannelListings: () => Promise<
+    Array<{ groupId: string; channelIds: string[] }>
+  >;
+  getGroupChannelIds: (groupId: string) => Promise<string[]>;
+  sleep: (ms: number) => Promise<void>;
   readFile: (path: string) => string;
   readStdin: () => Promise<string>;
   migration?: MigrationDeps;
@@ -1044,6 +1050,39 @@ async function runNotebookDelete(
     );
   }
 
+  const recordedGroupIds = new Set<string>();
+  try {
+    const listings: unknown = await deps.getGroupChannelListings();
+    if (!Array.isArray(listings)) {
+      throw new Error('expected an array of group listings');
+    }
+    for (const listing of listings) {
+      if (!listing || typeof listing !== 'object') {
+        throw new Error('encountered a malformed group listing');
+      }
+      const { groupId, channelIds } = listing as {
+        groupId?: unknown;
+        channelIds?: unknown;
+      };
+      if (
+        typeof groupId !== 'string' ||
+        !Array.isArray(channelIds) ||
+        channelIds.some((channelId) => typeof channelId !== 'string')
+      ) {
+        throw new Error('encountered a malformed group listing');
+      }
+      if (channelIds.includes(target.nest)) {
+        recordedGroupIds.add(groupId);
+      }
+    }
+  } catch (error) {
+    throw commandError(
+      `Could not inspect group listings before deleting ${target.nest}: ${errorMessage(
+        error
+      )}`
+    );
+  }
+
   await deps.deleteNotesNotebookStrict(target.nest);
   const notebooks = await deps.notesV1.listNotebooks();
   if (notebooks.some((notebook) => notebookNest(notebook) === target.nest)) {
@@ -1051,6 +1090,26 @@ async function runNotebookDelete(
       `Notebook deletion was not confirmed: ${target.nest} is still present`
     );
   }
+
+  if (recordedGroupIds.size > 0) {
+    const verdict = await pollGroupListings(
+      [...recordedGroupIds],
+      target.nest,
+      'absent-from-all',
+      deps
+    );
+    if (verdict === 'not-confirmed') {
+      throw commandError(
+        `Notebook deleted; group cleanup unconfirmed for ${target.nest}: its old group listing is still present. Wait a few seconds before retrying the migration.`
+      );
+    }
+    if (verdict === 'unverifiable') {
+      throw commandError(
+        `Notebook deleted; group cleanup unconfirmed for ${target.nest}: the group listing could not be checked. Wait a few seconds before retrying the migration.`
+      );
+    }
+  }
+
   writeLine(deps.stdout, `✓ Notebook deleted: ${target.nest}`);
   return 0;
 }

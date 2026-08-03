@@ -200,21 +200,19 @@ function parseGroupHost(groupId: string): string {
 // throwing here would block a legitimate migration on any deployment that does
 // not, which is worse than allowing a duplicate the owner can delete. A read
 // that throws still fails closed.
-function hasSourceProvenanceFooter(
+function hasSourceProvenanceLine(
   note: { bodyMd?: string | null },
   sourceNest: string
 ): boolean {
   if (typeof note.bodyMd !== 'string') return false;
 
-  const lastLine = note.bodyMd.trimEnd().split('\n').at(-1);
-  if (!lastLine) return false;
-
   const prefix = `<!-- tlon-migrate: ${sourceNest} `;
   const suffix = ' -->';
-  if (!lastLine.startsWith(prefix) || !lastLine.endsWith(suffix)) return false;
-
-  const postId = lastLine.slice(prefix.length, -suffix.length);
-  return postId.length > 0 && !/\s/.test(postId);
+  return note.bodyMd.split(/\r?\n/).some((line) => {
+    if (!line.startsWith(prefix) || !line.endsWith(suffix)) return false;
+    const postId = line.slice(prefix.length, -suffix.length);
+    return postId.length > 0 && !/\s/.test(postId);
+  });
 }
 
 export async function prepareMigration(
@@ -279,7 +277,7 @@ export async function prepareMigration(
 
     const targetNotes = await deps.listNotes(targetNest);
     if (
-      !targetNotes.some((note) => hasSourceProvenanceFooter(note, sourceNest))
+      !targetNotes.some((note) => hasSourceProvenanceLine(note, sourceNest))
     ) {
       continue;
     }

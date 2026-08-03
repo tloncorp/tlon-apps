@@ -4,6 +4,27 @@ import { commandError, errorMessage } from './commands/command';
 import type { NotesChannelDeps } from './notes-channel';
 import { pendingWriteCommandErrorMessage } from './notes-pending-write';
 
+export function mapGroupChannelIds(group: unknown, groupId: string): string[] {
+  if (!group || typeof group !== 'object') {
+    throw new Error(`Group ${groupId}: group response is malformed`);
+  }
+  const channels = (group as { channels?: unknown }).channels;
+  if (!Array.isArray(channels)) {
+    throw new Error(`Group ${groupId}: channels array is missing or malformed`);
+  }
+  if (
+    channels.some(
+      (channel) =>
+        !channel ||
+        typeof channel !== 'object' ||
+        typeof (channel as { id?: unknown }).id !== 'string'
+    )
+  ) {
+    throw new Error(`Group ${groupId}: channel id is missing or malformed`);
+  }
+  return channels.map((channel) => (channel as { id: string }).id);
+}
+
 export function mapChannelReaders(
   channel: { readerRoles?: Array<{ roleId: string }> | null } | undefined,
   nest: string,
@@ -44,7 +65,7 @@ export function createNotesChannelDeps(): NotesChannelDeps {
     },
     getGroupChannelIds: async (groupId: string) => {
       const group = await getGroup(groupId);
-      return (group.channels ?? []).map((channel) => channel.id);
+      return mapGroupChannelIds(group, groupId);
     },
     getChannelReaders: async (groupId: string, nest: string) => {
       const group = await getGroup(groupId);

@@ -104,6 +104,14 @@ export const mockedScry = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
+export const mockedGetGroups = {
+  impl: async (..._args: unknown[]): Promise<unknown> => [],
+};
+
+export const mockedGetGroup = {
+  impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
+};
+
 export class MockUrbit {
   cookie = '';
   nodeId = '';
@@ -136,7 +144,8 @@ mock.module('@tloncorp/api', () => ({
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
   notesV1: mockedNotesV1,
-  getGroup: async () => ({ channels: [] }),
+  getGroups: (...args: unknown[]) => mockedGetGroups.impl(...args),
+  getGroup: (...args: unknown[]) => mockedGetGroup.impl(...args),
   deleteNotesNotebookStrict: async () => undefined,
   joinNotesChannel: async () => undefined,
   leaveNotesChannel: async () => undefined,

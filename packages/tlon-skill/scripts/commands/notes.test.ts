@@ -122,6 +122,9 @@ function makeDeps(options: MakeDepsOptions = {}) {
       await options.leaveNotesNotebook?.(nest);
     },
     deleteNotesNotebookStrict: async () => undefined,
+    getGroupChannelListings: async () => [],
+    getGroupChannelIds: async () => [],
+    sleep: async () => undefined,
     readFile: (path) => {
       calls.readFile.push(path);
       calls.order.push('readFile');

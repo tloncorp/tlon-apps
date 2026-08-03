@@ -109,7 +109,7 @@ function readerClass(
 
 function writerClass(plan: MigrationPlan): string {
   if (plan.writerRoles.length === 0) {
-    return 'everyone who can read can post';
+    return 'all group members can post';
   }
   return `${quoteRoles(plan.writerRoles)} can post`;
 }

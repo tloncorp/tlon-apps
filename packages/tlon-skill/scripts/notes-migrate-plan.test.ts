@@ -408,6 +408,55 @@ describe('executePlan', () => {
     expect(calls.posts).toEqual([]);
   });
 
+  it('refuses provenance on an earlier line when content is appended', async () => {
+    const target = 'notes/~zod/field-notes';
+    const { calls, deps } = makeDeps({
+      group: groupWithNotebooks({
+        host: '~zod',
+        name: 'field-notes',
+        title: 'Field Notes',
+      }),
+      listNotes: async () => [
+        {
+          title: 'Migrated note with later edits',
+          bodyMd: `<!-- tlon-migrate: ${SOURCE} 170.141 -->\nUser-added content`,
+        },
+      ],
+    });
+
+    const result = executePlan(options(), deps);
+    await expect(result).rejects.toThrow(SOURCE);
+    await expect(result).rejects.toThrow(target);
+    expect(calls.listNotes).toEqual([target]);
+    expect(calls.posts).toEqual([]);
+  });
+
+  it('refuses provenance on an earlier complete CRLF line after content is appended', async () => {
+    const target = 'notes/~zod/field-notes';
+    const { calls, deps } = makeDeps({
+      group: groupWithNotebooks({
+        host: '~zod',
+        name: 'field-notes',
+        title: 'Field Notes',
+      }),
+      listNotes: async () => [
+        {
+          title: 'Migrated note with later edits',
+          bodyMd: `<!-- tlon-migrate: ${SOURCE} 170.141 -->\r\nUser-added content`,
+        },
+      ],
+    });
+
+    const result = executePlan(options(), deps);
+    await expect(result).rejects.toThrow(SOURCE);
+    await expect(result).rejects.toThrow(target);
+    await expect(result).rejects.toThrow(
+      `tlon notes notebook-delete ${target} --yes`
+    );
+    expect(calls.listNotes).toEqual([target]);
+    expect(calls.posts).toEqual([]);
+  });
+
   it('scries only same-title notes candidates and allows unrelated provenance', async () => {
     const candidate = 'notes/~zod/field-notes';
     const sourceGroup = groupWithNotebooks(
@@ -433,8 +482,17 @@ describe('executePlan', () => {
       group: sourceGroup,
       listNotes: async () => [
         {
-          title: 'Unrelated note',
-          bodyMd: 'Body\n\n<!-- tlon-migrate: diary/~zod/blog-copy 170.141 -->',
+          title: 'Unrelated source marker',
+          bodyMd:
+            'Body\n<!-- tlon-migrate: diary/~zod/blog-copy 170.141 -->\nAppended content',
+        },
+        {
+          title: 'Leading whitespace marker',
+          bodyMd: `Body\n <!-- tlon-migrate: ${SOURCE} 170.141 -->\nAppended content`,
+        },
+        {
+          title: 'Trailing whitespace marker',
+          bodyMd: `Body\n<!-- tlon-migrate: ${SOURCE} 170.141 --> \nAppended content`,
         },
       ],
     });
