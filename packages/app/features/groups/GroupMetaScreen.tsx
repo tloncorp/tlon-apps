@@ -2,6 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
+import { Platform } from 'react-native';
 
 import {
   useChatSettingsNavigation,
@@ -35,7 +36,7 @@ export function GroupMetaScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
 
   const navigateToHome = useCallback(() => {
-    if (isWindowNarrow) {
+    if (Platform.OS !== 'web' || isWindowNarrow) {
       const route = getTopLevelTabRoute('ChatList');
       navigation.getParent()?.navigate(route.name, route.params, { pop: true });
     } else {
