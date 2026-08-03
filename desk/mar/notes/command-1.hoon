@@ -1,6 +1,6 @@
 ::  notes-command-1: HTTP / request-id wrapped command (cross-ship wire)
 ::
-/-  n=notes
+/-  n=notes-1
 |_  =command:v1:n
 ++  grad  %noun
 ++  grab

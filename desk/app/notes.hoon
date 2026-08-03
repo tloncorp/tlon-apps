@@ -1,6 +1,6 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
-/-  n=notes, mcp-proxy
+/-  n=notes, n1=notes-1, mcp-proxy
 /+  default-agent, dbug, verb, server, logs, notes-json
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
@@ -15,7 +15,7 @@
 ::
 |%
 +$  card  card:agent:gall
-+$  current-state  state-15:n
++$  current-state  state-16:n
 --
 ::
 =|  current-state
@@ -109,6 +109,7 @@
       ::  when the fleet/roles change (see +recheck-group-access).
       [%pass /groups %agent [our.bowl %groups] %watch /v1/groups]
   ==
+::TODO  update for state-16
 ::  +load: state-15 is current. The only supported prior state is state-14
 ::  (ships that took the 14 transition) — it carried the now-removed
 ::  rid-counter, so we migrate it. Older standalone states aren't supported
@@ -143,15 +144,15 @@
   ==
   ::
   +$  any-state
-    $%  state-15:n
-        state-14:n
+    $%  state-15:n1
+        state-14:n1
     ==
   ::  state-14-to-15: drop the vestigial rid-counter; all other fields carry.
   ::
   ++  state-14-to-15
     ~>  %spin.['state-14-to-15']
-    |=  s=state-14:n
-    ^-  state-15:n
+    |=  s=state-14:n1
+    ^-  state-15:n1
     [%15 books.s next-id.s published.s invites.s requests.s api-key.s]
   --
 ::
@@ -169,8 +170,8 @@
     ::  bowl.eny. Callers that don't track responses (tests, ad-hoc
     ::  dojo pokes) just ignore the resulting fact on /v1/request/<uv>.
     ?>  =(our.bowl src.bowl)
-    =+  !<(act=action:n vase)
-    =/  rid=request-id:v1:n  `@uv`eny.bowl
+    =+  !<(act=action:n1 vase)
+    =/  rid=request-id:v1:n1  `@uv`eny.bowl
     (dispatch-v1-action [rid act])
   ::
       %notes-action-1
@@ -178,12 +179,12 @@
     ::  +handle-v1-post which checks auth (eyre cookie OR X-Api-Key) and
     ::  invokes +dispatch-v1-action without the src.bowl guard.
     ?>  =(our.bowl src.bowl)
-    =+  !<(act=action:v1:n vase)
+    =+  !<(act=action:v1:n1 vase)
     (dispatch-v1-action act)
   ::
       %notes-command-1
     ::  v1 cross-ship command — wraps c-notes with a request-id.
-    =+  !<(cmd1=command:v1:n vase)
+    =+  !<(cmd1=command:v1:n1 vase)
     =/  rid  request-id.cmd1
     =/  cmd  c-notes.cmd1
     ?-    -.cmd
@@ -195,7 +196,7 @@
         :+  %v1  %notes
         /(scot %p ship.flag.cmd)/[name.flag.cmd]/request/(scot %p src.bowl)/(scot %uv rid)
       %-  give
-      [%fact ~[path] notes-response-update-1+!>(`response-update:v1:n`[rid [%no-change ~]])]
+      [%fact ~[path] notes-response-update-1+!>(`response-update:v1:n1`[rid [%no-change ~]])]
     ::
         %notebook
       =*  flag  flag.cmd
@@ -209,11 +210,11 @@
     ::  group fleet grows. Same-ship poke. We host it or already joined →
     ::  nothing to do; otherwise subscribe to the host like a normal %join.
     ?>  =(our.bowl src.bowl)
-    =+  !<(j=channel-join:n vase)
+    =+  !<(j=channel-join:n1 vase)
     =/  =flag:n  [host.nest.j name.nest.j]
     ?:  =(our.bowl ship.flag)  cor
     ?:  (~(has by books) flag)  cor
-    =/  rid=request-id:v1:n  `@uv`eny.bowl
+    =/  rid=request-id:v1:n1  `@uv`eny.bowl
     (join-remote-v1 rid flag)
   ::
       %group-channel-leave
@@ -221,11 +222,11 @@
     ::  removed or we lose access. We host it → ignore (group delete drives
     ::  removal); a subscriber → drop the subscription.
     ?>  =(our.bowl src.bowl)
-    =+  !<(l=channel-leave:n vase)
+    =+  !<(l=channel-leave:n1 vase)
     =/  =flag:n  [host.nest.l name.nest.l]
     ?:  =(our.bowl ship.flag)  cor
     ?.  (~(has by books) flag)  cor
-    =/  rid=request-id:v1:n  `@uv`eny.bowl
+    =/  rid=request-id:v1:n1  `@uv`eny.bowl
     (leave-remote-v1 rid flag)
   ==
   --
@@ -345,13 +346,13 @@
   ?~  act-j=(~(get by p.u.jon) 'action')
     (http-error eyre-id 400 'missing `action` field')
   ::  parse the a-notes; a bad action shape is a client error, not a 500
-  =/  a-res=(each a-notes:n tang)
+  =/  a-res=(each a-notes:n1 tang)
     (mule |.((action:dejs:notes-json u.act-j)))
   ?:  ?=(%| -.a-res)
     (http-error eyre-id 400 'malformed action')
-  =/  a-act=a-notes:n  p.a-res
+  =/  a-act=a-notes:n1  p.a-res
   ::  resolve requestId: honor a valid client @uv, else mint one
-  =/  rid=request-id:v1:n
+  =/  rid=request-id:v1:n1
     =/  rj=(unit json)  (~(get by p.u.jon) 'requestId')
     ?.  ?&(?=(^ rj) ?=([%s *] u.rj))
       `@uv`eny.bowl
@@ -378,10 +379,10 @@
   ^+  cor
   ?.  (request-authorized inbound-request)
     (http-error eyre-id 401 'unauthorized')
-  =/  rid=request-id:v1:n  (slav %uv ;;(@ta rid-knot))
+  =/  rid=request-id:v1:n1  (slav %uv ;;(@ta rid-knot))
   ?~  req=(~(get by requests) rid)
     (http-error eyre-id 404 'request not found')
-  =/  body=response-body:v1:n
+  =/  body=response-body:v1:n1
     ?~  result.u.req  [%pending poke-status.u.req]
     u.result.u.req
   =.  requests
@@ -406,7 +407,7 @@
   ^-  json
   %-  notebook-summaries:enjs:notes-json
   %+  murn  ~(tap by books)
-  |=  [=flag:n [* =notebook-state:n]]
+  |=  [=flag:n [* =notebook-state:n1]]
   ?.  (can-view-flag flag our.bowl)  ~
   `[flag [notebook visibility]:notebook-state]
 ::  +read-invites-json: pending invites we've received.
@@ -415,7 +416,7 @@
   ^-  json
   %-  invite-records:enjs:notes-json
   %+  turn  ~(tap by invites)
-  |=  [=flag:n info=invite-info:n]
+  |=  [=flag:n info=invite-info:n1]
   [flag info]
 ::  +handle-v1-read: GET read surface under /notes/~/v1/. Auth-gated the
 ::  same as POST (cookie OR X-Api-Key) so a bot with only a key can read
@@ -603,7 +604,7 @@
   ::  serve-http, from the query args yque split out.
   ?~  act=(build-write-action method ;;(path pax) obj recursive)
     (http-error eyre-id 400 'unsupported write — check method, path, and required fields')
-  =/  rid=request-id:v1:n  `@uv`eny.bowl
+  =/  rid=request-id:v1:n1  `@uv`eny.bowl
   =.  requests  (~(put by requests) rid [rid `eyre-id %sending ~ ~ |])
   (dispatch-v1-action [rid u.act])
 ::
@@ -666,12 +667,12 @@
     ::  local SSE per-request stream. If we already hold a terminal
     ::  result, send it now so the subscriber doesn't need to poll GET.
     ?>  =(src.bowl our.bowl)
-    =/  rid=request-id:v1:n  (slav %uv id.pole)
+    =/  rid=request-id:v1:n1  (slav %uv id.pole)
     ?~  req=(~(get by requests) rid)  cor
     ?~  result.u.req  cor
     %-  give
     :+  %fact  ~
-    notes-response-1+!>(`response:v1:n`[rid u.result.u.req])
+    notes-response-1+!>(`response:v1:n1`[rid u.result.u.req])
   ==
 ::
 ++  peek
@@ -683,7 +684,7 @@
     ``html+!>(ui-index)
     ::  /x/v0/notebooks — list all notebooks (cross-cutting, no flag)
       [%x %v0 %notebooks ~]
-    =/  summaries=(list notebook-summary:n)
+    =/  summaries=(list notebook-summary:n1)
       %+  murn  ~(tap by books)
       |=  [=flag:n [* =notebook-state:n]]
       ?.  (can-view-flag flag src.bowl)  ~
@@ -691,14 +692,14 @@
     ``notes-notebooks+!>(summaries)
     ::  /x/v0/published — list of {host, flagName, noteId} for each published note
       [%x %v0 %published ~]
-    =/  pub-records=(list published-record:n)
+    =/  pub-records=(list published-record:n1)
       %+  turn  ~(tap by published)
       |=  [[=flag:n note-id=@ud] *]
       [flag note-id]
     ``notes-published+!>(pub-records)
     ::  /x/v0/invites — pending invites we've received
       [%x %v0 %invites ~]
-    =/  inv-records=(list invite-record:n)
+    =/  inv-records=(list invite-record:n1)
       %+  turn  ~(tap by invites)
       |=  [=flag:n info=invite-info:n]
       [flag info]
@@ -839,13 +840,13 @@
     ::  route back into the right no-core context.
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
     ?.  (~(has by books) flag)  cor
-    =/  rid=request-id:v1:n  (slav %uv id.pole)
+    =/  rid=request-id:v1:n1  (slav %uv id.pole)
     no-abet:(no-agent-req-watch:(no-abed:no-core flag) rid sign)
   ::
       [%notes %req ship=@ name=@ id=@ %poke ~]
     =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
     ?.  (~(has by books) flag)  cor
-    =/  rid=request-id:v1:n  (slav %uv id.pole)
+    =/  rid=request-id:v1:n1  (slav %uv id.pole)
     no-abet:(no-agent-req-poke:(no-abed:no-core flag) rid sign)
   ::  /mcp/{remove,register,refresh} — pokes to %mcp-proxy from
   ::  +register-with-mcp-proxy. Fire-and-forget: log nacks so the user
@@ -884,7 +885,7 @@
       ::  v1 per-request timeout — deliver %pending to the held HTTP
       ::  request (if any) and keep the request entry around for the
       ::  late-arriving response on the SSE path.
-      =/  rid=request-id:v1:n  (slav %uv id.pole)
+      =/  rid=request-id:v1:n1  (slav %uv id.pole)
       (finalize-pending rid)
     ==
   ~|(bad-arvo-sign+wire !!)
@@ -1076,7 +1077,7 @@
       notes-denied+!>(~)
     ?~  nt=(~(get by notes.bs) nid)  notes-error+!>(~)
     :-  %notes-said
-    !>  ^-  said:n
+    !>  ^-  said:n1
     :-  flag
     :*  nid
         title.u.nt
@@ -1138,9 +1139,9 @@
 ::
 ++  cleanup-requests
   |=  now=@da
-  ^-  requests:v1:n
+  ^-  requests:v1:n1
   %-  ~(rep by requests)
-  |=  [[id=request-id:v1:n req=incoming-request:v1:n] out=requests:v1:n]
+  |=  [[id=request-id:v1:n1 req=incoming-request:v1:n1] out=requests:v1:n1]
   ?:  ?=(~ result.req)
     (~(put by out) id req)
   ?~  final-at.req  (~(put by out) id req)
@@ -1177,7 +1178,7 @@
 ::  the encoded response.
 ::
 ++  give-http-response
-  |=  [eyre-id=@ta =response:v1:n]
+  |=  [eyre-id=@ta =response:v1:n1]
   ^+  cor
   (give-http eyre-id 200 'application/json' (en:json:html (response:v1:enjs:notes-json response)))
 ::  +finalize-request: store terminal body in the request record, fact it on
@@ -1185,10 +1186,10 @@
 ::  http-id so a later late-arriving update doesn't re-deliver.
 ::
 ++  finalize-request
-  |=  [rid=request-id:v1:n body=response-body:v1:n]
+  |=  [rid=request-id:v1:n1 body=response-body:v1:n1]
   ^+  cor
   ?~  req=(~(get by requests) rid)  cor
-  =/  =response:v1:n  [rid body]
+  =/  =response:v1:n1  [rid body]
   =.  requests
     %+  ~(put by requests)  rid
     u.req(result `body, final-at `now.bowl)
@@ -1205,15 +1206,15 @@
 ::  open for the SSE subscribers + a future late response.
 ::
 ++  finalize-pending
-  |=  rid=request-id:v1:n
+  |=  rid=request-id:v1:n1
   ^+  cor
   ?~  req=(~(get by requests) rid)  cor
   ?:  ?&  ?=(^ result.u.req)
           !?=([~ %pending *] result.u.req)
       ==
     cor
-  =/  body=response-body:v1:n  [%pending poke-status.u.req]
-  =/  =response:v1:n  [rid body]
+  =/  body=response-body:v1:n1  [%pending poke-status.u.req]
+  =/  =response:v1:n1  [rid body]
   ::  stamp final-at at the timeout so a never-answered pending request
   ::  (e.g. offline remote host) ages out in +cleanup-requests instead of
   ::  living in state forever.
@@ -1230,9 +1231,9 @@
 ::  +register-request: idempotent insert of a fresh incoming-request record.
 ::
 ++  register-request
-  |=  [rid=request-id:v1:n eyre-id=(unit @ta)]
+  |=  [rid=request-id:v1:n1 eyre-id=(unit @ta)]
   ^+  cor
-  =/  existing=(unit incoming-request:v1:n)  (~(get by requests) rid)
+  =/  existing=(unit incoming-request:v1:n1)  (~(get by requests) rid)
   ?^  existing  cor
   =.  requests
     (~(put by requests) rid [rid eyre-id %sending ~ ~ |])
@@ -1243,14 +1244,14 @@
   |=  [=flag:n from=ship sent-at=@da title=@t]
   ^+  cor
   %-  give
-  [%fact [/v0/inbox/stream]~ notes-inbox-update+!>(`u-inbox:n`[%invite-received flag from sent-at title])]
+  [%fact [/v0/inbox/stream]~ notes-inbox-update+!>(`u-inbox:n1`[%invite-received flag from sent-at title])]
 ::  +give-inbox-removed: emit an invite-removed event on /v0/inbox/stream
 ::
 ++  give-inbox-removed
   |=  =flag:n
   ^+  cor
   %-  give
-  [%fact [/v0/inbox/stream]~ notes-inbox-update+!>(`u-inbox:n`[%invite-removed flag])]
+  [%fact [/v0/inbox/stream]~ notes-inbox-update+!>(`u-inbox:n1`[%invite-removed flag])]
 ::  invite / join handlers — shared by +dispatch-v1-action and the v0
 ::  %notes-action poke arm, so they live at the top level.
 ::
@@ -1267,7 +1268,7 @@
 ::  hosting it.
 ::
 ++  send-v1-request
-  |=  [rid=request-id:v1:n target=ship =flag:n cmd1=command:v1:n]
+  |=  [rid=request-id:v1:n1 target=ship =flag:n cmd1=command:v1:n1]
   ^+  cor
   =/  watch-wire=wire
     /notes/req/(scot %p ship.flag)/[name.flag]/(scot %uv rid)/watch
@@ -1286,18 +1287,18 @@
 ::  arrives via no-agent-req-watch on the standard request wire.
 ::
 ++  join-remote-v1
-  |=  [rid=request-id:v1:n =flag:n]
+  |=  [rid=request-id:v1:n1 =flag:n]
   ^+  cor
   ?<  =(our.bowl ship.flag)
   ?<  (~(has by books) flag)
   =/  placeholder-net=net:n  [%sub *@da |]
-  =/  =notebook:n
+  =/  =notebook:n1
     [0 '' ship.flag *@da *@da ship.flag]
-  =/  placeholder-nb-state=notebook-state:n
+  =/  placeholder-nb-state=notebook-state:n1
     [notebook ~ %private ~ ~ ~ ~]
   =.  books
     (~(put by books) flag [placeholder-net placeholder-nb-state])
-  =/  cmd1=command:v1:n  [rid [%notebook flag [%member-join ~]]]
+  =/  cmd1=command:v1:n1  [rid [%notebook flag [%member-join ~]]]
   (send-v1-request rid ship.flag flag cmd1)
 ::  +leave-remote-v1: locally drop our subscription + placeholder, then
 ::  notify the host so their members map matches. The local cleanup is
@@ -1305,26 +1306,26 @@
 ::  the request-id loop just gives the FE a confirmation point.
 ::
 ++  leave-remote-v1
-  |=  [rid=request-id:v1:n =flag:n]
+  |=  [rid=request-id:v1:n1 =flag:n]
   ^+  cor
   ?>  (~(has by books) flag)
   ::  no-leave reports the leave to %groups and drops the local book (incl.
   ::  its group) via the gone flag.
   =.  cor  no-abet:no-leave:(no-abed:no-core flag)
-  =/  cmd1=command:v1:n  [rid [%notebook flag [%member-leave ~]]]
+  =/  cmd1=command:v1:n1  [rid [%notebook flag [%member-leave ~]]]
   (send-v1-request rid ship.flag flag cmd1)
 ::  +handle-send-invite-v1: owner-only, fired locally. Pre-add the
 ::  target ship to the notebook's member list and fire a v1 request to
 ::  the invitee with %notify-invite. The invitee acks with %no-change.
 ::
 ++  handle-send-invite-v1
-  |=  [rid=request-id:v1:n =flag:n who=ship]
+  |=  [rid=request-id:v1:n1 =flag:n who=ship]
   ^+  cor
   ?>  =(ship.flag our.bowl)
   =/  entry=[* =notebook-state:n]  (~(got by books) flag)
   =.  cor
     se-abet:(se-poke:(se-abed:se-core flag) [%invite who])
-  =/  cmd1=command:v1:n
+  =/  cmd1=command:v1:n1
     [rid [%notify-invite flag title.notebook.notebook-state.entry]]
   (send-v1-request rid who flag cmd1)
 ::  +handle-notify-invite: called when a remote host pokes us with
@@ -1348,7 +1349,7 @@
 ::  no cross-ship round trip to await.)
 ::
 ++  handle-accept-invite-v1
-  |=  [rid=request-id:v1:n =flag:n]
+  |=  [rid=request-id:v1:n1 =flag:n]
   ^+  cor
   ?>  =(src.bowl our.bowl)
   =.  invites  (~(del by invites) flag)
@@ -1460,7 +1461,7 @@
 ::  action, finalizes %no-change for local synchronous arms.
 ::
 ++  dispatch-v1-action
-  |=  act=action:v1:n
+  |=  act=action:v1:n1
   ^+  cor
   =/  rid  request-id.act
   =/  a-act  a-notes.act
@@ -1545,7 +1546,7 @@
           =log:n
           =notebook-state:n
           gone=_|
-          rid=request-id:v1:n
+          rid=request-id:v1:n1
           last-update=(unit update:n)
           finalized=?
       ==
@@ -1607,7 +1608,7 @@
   ::  emits the terminal response-update on the per-request host path.
   ::
   ++  se-poke-v1
-    |=  [req-id=request-id:v1:n =c-notebook:n]
+    |=  [req-id=request-id:v1:n1 =c-notebook:n]
     ^+  se-core
     =.  rid  req-id
     =.  last-update  ~
@@ -1621,20 +1622,20 @@
     ^+  se-core
     ?:  =(0 rid)  se-core
     ?:  finalized  se-core
-    =/  body=response-update-body:v1:n
+    =/  body=response-update-body:v1:n1
       ?~  last-update  [%no-change ~]
       [%ok u.last-update]
     =/  =path
       :+  %v1  %notes
       /(scot %p ship.flag)/[name.flag]/request/(scot %p src.bowl)/(scot %uv rid)
     %-  give
-    [%fact ~[path] notes-response-update-1+!>(`response-update:v1:n`[rid body])]
+    [%fact ~[path] notes-response-update-1+!>(`response-update:v1:n1`[rid body])]
   ::  +se-finalize-with: explicit early-finalize. Use for typed errors so the
   ::  arm can emit %error response-update without crashing (which would also
   ::  discard the response-update emission).
   ::
   ++  se-finalize-with
-    |=  body=response-update-body:v1:n
+    |=  body=response-update-body:v1:n1
     ^+  se-core
     ?:  =(0 rid)  se-core
     =.  finalized  &
@@ -1642,7 +1643,7 @@
       :+  %v1  %notes
       /(scot %p ship.flag)/[name.flag]/request/(scot %p src.bowl)/(scot %uv rid)
     %-  give
-    [%fact ~[path] notes-response-update-1+!>(`response-update:v1:n`[rid body])]
+    [%fact ~[path] notes-response-update-1+!>(`response-update:v1:n1`[rid body])]
   ::  +se-watch-sub: send initial snapshot to a new subscriber (with visibility)
   ::
   ++  se-watch-sub
@@ -2265,7 +2266,7 @@
   ::  +no-req-watch-path: path the subscriber subscribes to on the host
   ::
   ++  no-req-watch-path
-    |=  rid=request-id:v1:n
+    |=  rid=request-id:v1:n1
     ^-  path
     :+  %v1  %notes
     /(scot %p ship.flag)/[name.flag]/request/(scot %p our.bowl)/(scot %uv rid)
@@ -2274,19 +2275,19 @@
   ::  right no-core context without a separate lookup map.
   ::
   ++  no-req-watch-wire
-    |=  rid=request-id:v1:n
+    |=  rid=request-id:v1:n1
     ^-  wire
     /notes/req/(scot %p ship.flag)/[name.flag]/(scot %uv rid)/watch
   ::  +no-req-poke-wire: subscriber-side wire for the poke to host
   ::
   ++  no-req-poke-wire
-    |=  rid=request-id:v1:n
+    |=  rid=request-id:v1:n1
     ^-  wire
     /notes/req/(scot %p ship.flag)/[name.flag]/(scot %uv rid)/poke
   ::  +no-req-wake-wire: per-request timeout behn wire
   ::
   ++  no-req-wake-wire
-    |=  rid=request-id:v1:n
+    |=  rid=request-id:v1:n1
     ^-  wire
     /notes/req/(scot %p ship.flag)/[name.flag]/(scot %uv rid)/wake
   ::
@@ -2318,10 +2319,10 @@
   ::  Works for both %pub and %sub net — if host==our.bowl, Gall loops it back.
   ::
   ++  no-action
-    |=  act=action:n
+    |=  act=action:n1
     ^+  no-core
     ?>  ?=(%notebook -.act)
-    =/  cmd=command:n
+    =/  cmd=command:n1
       [%notebook flag.act (a-notebook-to-c-notebook a-notebook.act)]
     %-  emit
     :*  %pass
@@ -2340,10 +2341,10 @@
   ::  Gall — uniform code path at the cost of one extra event hop.
   ::
   ++  no-action-v1
-    |=  [rid=request-id:v1:n act=action:n]
+    |=  [rid=request-id:v1:n1 act=action:n1]
     ^+  no-core
     ?>  ?=(%notebook -.act)
-    =/  cmd1=command:v1:n
+    =/  cmd1=command:v1:n1
       [rid [%notebook flag.act (a-notebook-to-c-notebook a-notebook.act)]]
     =.  no-core
       %-  emit
@@ -2364,7 +2365,7 @@
   ::  from host, transform to response and finalize.
   ::
   ++  no-agent-req-watch
-    |=  [rid=request-id:v1:n =sign:agent:gall]
+    |=  [rid=request-id:v1:n1 =sign:agent:gall]
     ^+  no-core
     ?+  -.sign  no-core
         %watch-ack
@@ -2375,8 +2376,8 @@
         %fact
       ?.  =(p.cage.sign %notes-response-update-1)
         no-core
-      =+  !<(ru=response-update:v1:n q.cage.sign)
-      =/  body=response-body:v1:n
+      =+  !<(ru=response-update:v1:n1 q.cage.sign)
+      =/  body=response-body:v1:n1
         ?-  -.body.ru
           %no-change  [%no-change ~]
           %ok         [%ok %update flag update.body.ru]
@@ -2405,7 +2406,7 @@
   ::  placeholder. ack → mark poke-status.
   ::
   ++  no-agent-req-poke
-    |=  [rid=request-id:v1:n =sign:agent:gall]
+    |=  [rid=request-id:v1:n1 =sign:agent:gall]
     ^+  no-core
     ?+  -.sign  no-core
         %poke-ack
@@ -2493,7 +2494,8 @@
     ^+  no-core
     ?+  -.sign  no-core
         %fact
-      =/  =response:n  !<(response:n q.cage.sign)
+      ?>  ?=(%notes-response p.cage.sign)
+      =/  =response:n1  !<(response:n1 q.cage.sign)
       (no-response response)
     ::
         %kick
@@ -2536,7 +2538,7 @@
   ::  +no-response: apply an update from the host to local state
   ::
   ++  no-response
-    |=  =response:n
+    |=  =response:n1
     ^+  no-core
     ?-  -.response
         %snapshot
@@ -2561,7 +2563,7 @@
   ::  +no-apply-update: apply a single u-notebook update to local state
   ::
   ++  no-apply-update
-    |=  [=flag:n upd=update:n]
+    |=  [=flag:n upd=update:n1]
     ^+  no-core
     ?-  -.u-notebook.upd
         %created
@@ -2604,7 +2606,7 @@
     ==
   ::
   ++  no-apply-folder-update
-    |=  [fid=@ud upd=u-folder:n]
+    |=  [fid=@ud upd=u-folder:n1]
     ^+  no-core
     ?-  -.upd
         %created
@@ -2622,7 +2624,7 @@
     ==
   ::
   ++  no-apply-note-update
-    |=  [nid=@ud upd=u-note:n]
+    |=  [nid=@ud upd=u-note:n1]
     ^+  no-core
     ?-  -.upd
         %created
@@ -2662,16 +2664,16 @@
     ?>  (can-view-flag flag src.bowl)
     ?+  kind  ~
         %notebook
-      =/  nd=notebook-detail:n  [flag notebook.notebook-state visibility.notebook-state]
+      =/  nd=notebook-detail:n1  [flag notebook.notebook-state visibility.notebook-state]
       ``notes-notebook+!>(nd)
     ::
         %folders
-      =/  flds=(list folder:n)
+      =/  flds=(list folder:n1)
         ~(val by folders.notebook-state)
       ``notes-folders+!>(flds)
     ::
         %notes
-      =/  nts=(list note:n)
+      =/  nts=(list note:n1)
         ~(val by notes.notebook-state)
       ``notes-notes+!>(nts)
     ::
@@ -2683,7 +2685,7 @@
     ::
         %note-history
       =/  nid=@ud  (slav %ud ;;(@ -.rest))
-      =/  revs=(list note-revision:n)
+      =/  revs=(list note-revision:n1)
         (fall (~(get by history.notebook-state) nid) ~)
       ``notes-note-history+!>(revs)
     ::
@@ -2694,7 +2696,7 @@
       ``notes-folder+!>(u.fld)
     ::
         %members
-      =/  mrecords=(list member-record:n)
+      =/  mrecords=(list member-record:n1)
         %+  turn  ~(tap by members.notebook-state)
         |=  [who=ship r=role:n]
         [who r]
@@ -2708,7 +2710,7 @@
     %-  give
     :+  %fact
       [`path`/v0/notes/(scot %p ship.flag)/[name.flag]/stream]~
-    notes-response+!>(`response:n`[%snapshot flag visibility.notebook-state notebook-state])
+    notes-response+!>(`response:n1`[%snapshot flag visibility.notebook-state notebook-state])
   ::  +no-read-json: per-notebook read surface for the v1 GET API. Same
   ::  data as +no-peek but JSON-encoded for HTTP. `rest` is the path
   ::  remainder after /notes/~/v1/notebooks/{host}/{name}. Membership-
@@ -2750,7 +2752,7 @@
       (fall (~(get by history.notebook-state) nid) ~)
     ::
         [%members ~]
-      =/  mrecords=(list member-record:n)
+      =/  mrecords=(list member-record:n1)
         %+  turn  ~(tap by members.notebook-state)
         |=  [who=ship r=role:n]
         [who r]

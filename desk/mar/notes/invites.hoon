@@ -1,4 +1,4 @@
-/-  n=notes
+/-  n=notes-1
 /+  notes-json
 |_  items=(list invite-record:n)
 ++  grad  %noun

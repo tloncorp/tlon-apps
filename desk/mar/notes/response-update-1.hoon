@@ -2,7 +2,7 @@
 ::    Faceted on /v1/notes/~ship/name/request/~requester/<uv>. Subscriber
 ::    transforms to a response before forwarding to client.
 ::
-/-  n=notes
+/-  n=notes-1
 |_  =response-update:v1:n
 ++  grad  %noun
 ++  grab

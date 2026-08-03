@@ -1,4 +1,4 @@
-/-  n=notes
+/-  n=notes-1
 |_  =command:n
 ++  grad  %noun
 ++  grab

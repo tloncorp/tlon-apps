@@ -1,6 +1,6 @@
 ::  notes-response-1: subscriber → client response.
 ::
-/-  n=notes
+/-  n=notes-1
 /+  notes-json
 |_  =response:v1:n
 ++  grad  %noun
