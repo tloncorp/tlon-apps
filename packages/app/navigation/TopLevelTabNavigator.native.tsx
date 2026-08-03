@@ -191,11 +191,7 @@ export function TopLevelTabNavigator() {
           tabBarInactiveTintColor: theme.secondaryText?.val,
           tabBarActiveIndicatorColor: theme.secondaryBackground?.val,
           tabBarLabelVisibilityMode: 'unlabeled',
-          // iOS doesn't support labelVisibilityMode. Keep the nonempty title so
-          // VoiceOver can name the tab, while hiding only its visual rendering.
-          // React Native treats an exact zero as the default font size.
-          tabBarLabelStyle:
-            Platform.OS === 'ios' ? { fontSize: 0.1 } : undefined,
+          tabBarLabel: Platform.OS === 'ios' ? '' : undefined,
           tabBarControllerMode: Platform.OS === 'ios' ? 'tabBar' : undefined,
           tabBarMinimizeBehavior:
             Platform.OS === 'ios' ? 'onScrollDown' : undefined,
