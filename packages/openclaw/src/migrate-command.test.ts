@@ -930,6 +930,80 @@ describe('OpenClaw migration command', () => {
     );
   });
 
+  it('reports a deleted notebook while its old group listing is still present', async () => {
+    const partialCleanup =
+      'Notebook deleted; group cleanup unconfirmed for notes/~bot/log: its old group listing is still present. Wait a few seconds before retrying the migration.';
+    const failure = Object.assign(new Error('Command failed'), {
+      stderr: partialCleanup,
+    });
+    const buildMigrateCard = vi.fn(() => 'unexpected');
+    const h = makeHarness([failure], { buildMigrateCard });
+    const bridge = makeBridge();
+
+    await h.handler(bridge, 'cleanup notes/~bot/log');
+    await h.tasks.shift()?.();
+
+    const call = vi.mocked(bridge.sendOwnerNotification).mock.calls[0]!;
+    expect(call).toHaveLength(1);
+    expect(call[0]).toContain(
+      'The notebook `notes/~bot/log` was deleted successfully.'
+    );
+    expect(call[0]).toContain('may still show in your group for a moment');
+    expect(call[0]).toContain('retry the migration');
+    expect(call[0]).not.toContain('cleanup failed');
+    expect(call[0]).not.toContain('Inspect the notebook');
+    expect(call[0]).not.toContain('/migrate cleanup');
+    expect(buildMigrateCard).not.toHaveBeenCalled();
+  });
+
+  it('reports a deleted notebook when its group listing could not be checked', async () => {
+    const partialCleanup =
+      'Notebook deleted; group cleanup unconfirmed for notes/~bot/log: the group listing could not be checked. Wait a few seconds before retrying the migration.';
+    const failure = Object.assign(new Error('Command failed'), {
+      stdout: partialCleanup,
+    });
+    const buildMigrateCard = vi.fn(() => 'unexpected');
+    const h = makeHarness([failure], { buildMigrateCard });
+    const bridge = makeBridge();
+
+    await h.handler(bridge, 'cleanup notes/~bot/log');
+    await h.tasks.shift()?.();
+
+    const call = vi.mocked(bridge.sendOwnerNotification).mock.calls[0]!;
+    expect(call).toHaveLength(1);
+    expect(call[0]).toContain(
+      'The notebook `notes/~bot/log` was deleted successfully.'
+    );
+    expect(call[0]).toContain('may still show in your group for a moment');
+    expect(call[0]).toContain('retry the migration');
+    expect(call[0]).not.toContain('cleanup failed');
+    expect(call[0]).not.toContain('Inspect the notebook');
+    expect(call[0]).not.toContain('/migrate cleanup');
+    expect(buildMigrateCard).not.toHaveBeenCalled();
+  });
+
+  it('keeps the failure message and retry card for an ordinary cleanup failure', async () => {
+    const failure = Object.assign(new Error('Command failed'), {
+      stderr:
+        'Notebook deletion failed. Retry with tlon notes notebook-delete notes/~bot/log --yes.',
+    });
+    const buildMigrateCard = vi.fn((command: string) => `card for ${command}`);
+    const h = makeHarness([failure], { buildMigrateCard });
+    const bridge = makeBridge();
+
+    await h.handler(bridge, 'cleanup notes/~bot/log');
+    await h.tasks.shift()?.();
+
+    const call = vi.mocked(bridge.sendOwnerNotification).mock.calls[0]!;
+    expect(call).toHaveLength(2);
+    expect(call[0]).toContain('Migration cleanup failed');
+    expect(buildMigrateCard).toHaveBeenCalledOnce();
+    expect(buildMigrateCard).toHaveBeenCalledWith(
+      '/migrate cleanup notes/~bot/log'
+    );
+    expect(call[1]).toBe('card for /migrate cleanup notes/~bot/log');
+  });
+
   it('stops an unmarked-notes cleanup refusal without offering an action card', async () => {
     const refusal =
       'Refusing to delete notes/~bot/log: found 1 unmarked note(s) without a tlon-migrate provenance footer.\n' +

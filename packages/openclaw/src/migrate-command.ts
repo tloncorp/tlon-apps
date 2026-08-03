@@ -68,9 +68,21 @@ const processCleanupInFlight = sharedMap<string, Promise<void>>(
 const MIGRATE_USAGE =
   'Usage: /migrate <diary-nest> [--allow-write-widening] | ' +
   '/migrate cleanup <notes-nest>';
+// These three are string contracts with the `tlon` CLI, matched against its
+// output to classify a failure. Nothing on either side pins them, so rewording
+// the CLI message silently degrades this runtime to its generic handling — for
+// the partial-cleanup marker specifically, that means telling an owner to go
+// delete a notebook that no longer exists. Emission sites, all in
+// `packages/tlon-skill/scripts`:
+//   CREATE_FAILURE_MARKER          notes-migrate-runtime.ts (create failure text)
+//   UNMARKED_NOTES_REFUSAL_MARKER  commands/notes.ts, provenance safety gate
+//   PARTIAL_CLEANUP_MARKER         commands/notes.ts, `runNotebookDelete`
 const CREATE_FAILURE_MARKER = 'Notebook creation may or may not have landed.';
 const UNMARKED_NOTES_REFUSAL_MARKER =
   'without a tlon-migrate provenance footer';
+// Deliberately only the shared prefix: the CLI emits two variants that diverge
+// after the nest ("still present" vs "could not be checked").
+const PARTIAL_CLEANUP_MARKER = 'Notebook deleted; group cleanup unconfirmed';
 
 function parseCanonicalNest(
   raw: string,
@@ -222,6 +234,13 @@ function isUnmarkedNotesRefusal(error: unknown): boolean {
   const fields = errorFields(error);
   return `${fields.stdout}\n${fields.stderr}\n${fields.message}`.includes(
     UNMARKED_NOTES_REFUSAL_MARKER
+  );
+}
+
+function isPartialCleanup(error: unknown): boolean {
+  const fields = errorFields(error);
+  return `${fields.stdout}\n${fields.stderr}\n${fields.message}`.includes(
+    PARTIAL_CLEANUP_MARKER
   );
 }
 
@@ -487,6 +506,17 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
         await sendOwnerNotification(bridge, output, parsed.nest);
       } catch (error) {
         await deadlineNotification;
+        // No card and no recovery command: the notebook is gone, so there is
+        // nothing to clean up, and the diary nest needed to re-run the
+        // migration is not derivable from a cleanup invocation.
+        if (isPartialCleanup(error)) {
+          const message =
+            `The notebook \`${parsed.nest}\` was deleted successfully. ` +
+            'The channel may still show in your group for a moment. ' +
+            'Wait a few seconds, then retry the migration.';
+          await sendOwnerNotification(bridge, message, parsed.nest);
+          return;
+        }
         const targetNest = targetNestFromError(error);
         const unmarkedNotesRefusal = isUnmarkedNotesRefusal(error);
         let message = unmarkedNotesRefusal
