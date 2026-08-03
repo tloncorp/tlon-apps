@@ -55,6 +55,30 @@ function groupWithTitle(title: string): GroupInfo {
   return sourceGroup;
 }
 
+function groupWithNotebooks(
+  ...notebooks: Array<{ host: string; name: string; title: string }>
+): GroupInfo {
+  const sourceGroup = group();
+  return {
+    ...sourceGroup,
+    channels: {
+      ...sourceGroup.channels,
+      ...Object.fromEntries(
+        notebooks.map(({ host, name, title }) => [
+          `notes/${host}/${name}`,
+          {
+            ...sourceGroup.channels[SOURCE],
+            meta: {
+              ...sourceGroup.channels[SOURCE].meta,
+              title,
+            },
+          },
+        ])
+      ),
+    },
+  };
+}
+
 type Page = Awaited<ReturnType<MigrationDeps['getChannelPosts']>>;
 
 function makeDeps(
@@ -63,6 +87,7 @@ function makeDeps(
     actingShip?: string;
     group?: GroupInfo;
     perm?: { writers: string[]; group: string };
+    listNotes?: MigrationDeps['listNotes'];
   } = {}
 ) {
   const pages = options.pages ?? [
@@ -75,6 +100,7 @@ function makeDeps(
       mode: 'newest' | 'older';
       count: number;
     }>,
+    listNotes: [] as string[],
     mutate: 0,
     identity: 0,
   };
@@ -96,7 +122,11 @@ function makeDeps(
     },
     createGroupNotebook: mutation,
     getNotebookDetail: mutation,
-    listNotes: mutation,
+    listNotes: async (target) => {
+      calls.listNotes.push(target);
+      if (options.listNotes) return options.listNotes(target);
+      return [];
+    },
     batchImport: mutation,
     getRawGroup: mutation,
     updateChannel: mutation,
@@ -347,7 +377,167 @@ describe('executePlan', () => {
       `Refusing to migrate ${SOURCE}: its title appears to have been migrated already. ` +
         `If that is incorrect, rename the source channel to remove the archive marker, then re-run the migration.`
     );
+    expect(archived.calls.listNotes).toEqual([]);
     expect(archived.calls.posts).toEqual([]);
+  });
+
+  it('refuses a same-title notes target containing provenance for this source', async () => {
+    const target = 'notes/~zod/field-notes';
+    const { calls, deps } = makeDeps({
+      group: groupWithNotebooks({
+        host: '~zod',
+        name: 'field-notes',
+        title: 'Field Notes',
+      }),
+      listNotes: async () => [
+        {
+          title: 'Migrated note',
+          bodyMd: `Body\n\n<!-- tlon-migrate: ${SOURCE} 170.141 -->`,
+        },
+      ],
+    });
+
+    const result = executePlan(options(), deps);
+    await expect(result).rejects.toThrow(SOURCE);
+    await expect(result).rejects.toThrow(target);
+    await expect(result).rejects.toThrow('rename');
+    await expect(result).rejects.toThrow(
+      `tlon notes notebook-delete ${target} --yes`
+    );
+    expect(calls.listNotes).toEqual([target]);
+    expect(calls.posts).toEqual([]);
+  });
+
+  it('scries only same-title notes candidates and allows unrelated provenance', async () => {
+    const candidate = 'notes/~zod/field-notes';
+    const sourceGroup = groupWithNotebooks(
+      {
+        host: '~zod',
+        name: 'different-title',
+        title: 'Different title',
+      },
+      {
+        host: '~zod',
+        name: 'field-notes',
+        title: 'Field Notes',
+      }
+    );
+    sourceGroup.channels['chat/~zod/field-notes'] = {
+      ...sourceGroup.channels[SOURCE],
+      meta: {
+        ...sourceGroup.channels[SOURCE].meta,
+        title: 'Field Notes',
+      },
+    };
+    const { calls, deps } = makeDeps({
+      group: sourceGroup,
+      listNotes: async () => [
+        {
+          title: 'Unrelated note',
+          bodyMd: 'Body\n\n<!-- tlon-migrate: diary/~zod/blog-copy 170.141 -->',
+        },
+      ],
+    });
+
+    await expect(executePlan(options(), deps)).resolves.toMatchObject({
+      plan: { targetTitle: 'Field Notes' },
+    });
+    expect(calls.listNotes).toEqual([candidate]);
+  });
+
+  it('checks every same-title candidate before allowing a retry', async () => {
+    const firstTarget = 'notes/~zod/field-notes-old';
+    const secondTarget = 'notes/~zod/field-notes';
+    const { calls, deps } = makeDeps({
+      group: groupWithNotebooks(
+        {
+          host: '~zod',
+          name: 'field-notes-old',
+          title: 'Field Notes',
+        },
+        {
+          host: '~zod',
+          name: 'field-notes',
+          title: 'Field Notes',
+        }
+      ),
+      listNotes: async (target) => [
+        target === firstTarget
+          ? {
+              title: 'Unrelated note',
+              bodyMd:
+                'Body\n\n<!-- tlon-migrate: diary/~zod/blog-copy 170.141 -->',
+            }
+          : {
+              title: 'Migrated note',
+              bodyMd: `Body\n\n<!-- tlon-migrate: ${SOURCE} 170.141 -->`,
+            },
+      ],
+    });
+
+    await expect(executePlan(options(), deps)).rejects.toThrow(secondTarget);
+    expect(calls.listNotes).toEqual([firstTarget, secondTarget]);
+    expect(calls.posts).toEqual([]);
+  });
+
+  // Scoped to a thrown read. A successful response carrying a malformed
+  // `bodyMd` is treated as absent provenance and fails open by design; see the
+  // note on `hasSourceProvenanceFooter`.
+  it('fails closed when reading a colliding target throws', async () => {
+    const target = 'notes/~zod/field-notes';
+    const readError = new Error('target notes unavailable');
+    const { calls, deps } = makeDeps({
+      group: groupWithNotebooks({
+        host: '~zod',
+        name: 'field-notes',
+        title: 'Field Notes',
+      }),
+      listNotes: async () => {
+        throw readError;
+      },
+    });
+
+    await expect(executePlan(options(), deps)).rejects.toBe(readError);
+    expect(calls.listNotes).toEqual([target]);
+    expect(calls.posts).toEqual([]);
+    expect(calls.mutate).toBe(0);
+  });
+
+  it('never scries a same-title notebook hosted by another ship', async () => {
+    const foreignTarget = 'notes/~sampel-palnet/field-notes';
+    const localTarget = 'notes/~zod/field-notes-copy';
+    const { calls, deps } = makeDeps({
+      group: groupWithNotebooks(
+        {
+          host: '~sampel-palnet',
+          name: 'field-notes',
+          title: 'Field Notes',
+        },
+        {
+          host: '~zod',
+          name: 'field-notes-copy',
+          title: 'Field Notes',
+        }
+      ),
+      listNotes: async (target) => {
+        if (target === foreignTarget) {
+          throw new Error('foreign notebook must not be scried');
+        }
+        return [
+          {
+            title: 'Unrelated note',
+            bodyMd:
+              'Body\n\n<!-- tlon-migrate: diary/~zod/blog-copy 170.141 -->',
+          },
+        ];
+      },
+    });
+
+    await expect(executePlan(options(), deps)).resolves.toMatchObject({
+      plan: { targetTitle: 'Field Notes' },
+    });
+    expect(calls.listNotes).toEqual([localTarget]);
+    expect(calls.listNotes).not.toContain(foreignTarget);
   });
 
   it('performs complete read and conversion without invoking any mutation', async () => {

@@ -194,6 +194,29 @@ function parseGroupHost(groupId: string): string {
   return normalizeShip(parts[0]);
 }
 
+// Absent or non-string `bodyMd` counts as "no provenance" rather than as an
+// inspection failure, so such a note fails open and permits a re-migration.
+// That is deliberate: the current backend always encodes a string body, and
+// throwing here would block a legitimate migration on any deployment that does
+// not, which is worse than allowing a duplicate the owner can delete. A read
+// that throws still fails closed.
+function hasSourceProvenanceFooter(
+  note: { bodyMd?: string | null },
+  sourceNest: string
+): boolean {
+  if (typeof note.bodyMd !== 'string') return false;
+
+  const lastLine = note.bodyMd.trimEnd().split('\n').at(-1);
+  if (!lastLine) return false;
+
+  const prefix = `<!-- tlon-migrate: ${sourceNest} `;
+  const suffix = ' -->';
+  if (!lastLine.startsWith(prefix) || !lastLine.endsWith(suffix)) return false;
+
+  const postId = lastLine.slice(prefix.length, -suffix.length);
+  return postId.length > 0 && !/\s/.test(postId);
+}
+
 export async function prepareMigration(
   options: MigrationOptions,
   deps: MigrationDeps
@@ -243,6 +266,31 @@ export async function prepareMigration(
     );
   }
 
+  const sourceTitle = rawSourceTitle || source.name;
+  const targetTitle = deriveTargetTitle(sourceTitle, source.name);
+  const actingShipNotebookPrefix = `notes/${actingShip}/`;
+  for (const [targetNest, channel] of Object.entries(group.channels)) {
+    if (
+      !targetNest.startsWith(actingShipNotebookPrefix) ||
+      channel.meta.title !== targetTitle
+    ) {
+      continue;
+    }
+
+    const targetNotes = await deps.listNotes(targetNest);
+    if (
+      !targetNotes.some((note) => hasSourceProvenanceFooter(note, sourceNest))
+    ) {
+      continue;
+    }
+
+    throw commandError(
+      `Refusing to migrate ${sourceNest}: it appears to have already been migrated to ${targetNest}, which contains notes imported from this source. ` +
+        `If that notebook should be kept, rename it or rename the source, then re-run the migration. ` +
+        `To discard it instead, run \`tlon notes notebook-delete ${targetNest} --yes\`, then retry with \`tlon notes migrate-apply ${sourceNest} --yes\`.`
+    );
+  }
+
   const sortedPosts = await readSourceComplete(sourceNest, deps);
   const { eligible, tombstones, stubs } = filterEligiblePosts(sortedPosts);
   if (eligible.length === 0) {
@@ -264,8 +312,6 @@ export async function prepareMigration(
     admins: group.admins,
     privacy: group.privacy,
   });
-  const sourceTitle = rawSourceTitle || source.name;
-  const targetTitle = deriveTargetTitle(sourceTitle, source.name);
   const metrics = countArchiveOnlyMetrics(sortedPosts);
 
   return {
