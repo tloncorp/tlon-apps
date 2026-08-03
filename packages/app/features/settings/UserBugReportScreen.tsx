@@ -61,7 +61,7 @@ export function UserBugReportScreen({ navigation }: Props) {
         title="Report a bug"
         borderBottom
         backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
-        scrollsUnderHeader
+        useNativeHeader
       />
       <KeyboardAvoidingView
         style={{

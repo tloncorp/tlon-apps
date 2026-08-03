@@ -71,7 +71,7 @@ export function ContextLensRunsScreen(props: Props) {
         title={channelId ? 'Bot runs in this channel' : 'Bot runs'}
         backAction={props.navigation.goBack}
         borderBottom
-        scrollsUnderHeader
+        useNativeHeader
       />
       <ScreenScrollView showsVerticalScrollIndicator={false}>
         <YStack gap="$xs" padding="$l" paddingBottom="$2xl">

@@ -8,19 +8,19 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
-  Platform,
   RefreshControl,
   StyleProp,
   ViewStyle,
 } from 'react-native';
 import { View, XStack, isWeb, useStyle } from 'tamagui';
 
+import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
 import { NavigationProvider } from '../../contexts/navigation';
 import { useIsDarkTheme } from '../../utils/colorUtils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
 import { ScreenHeader } from '../ScreenHeader';
-import type { NativeHeaderItemConfig } from '../nativeHeaderItems';
+import type { ScreenHeaderItemConfig } from '../screenHeaderItemModel';
 import { ActivityHeader } from './ActivityHeader';
 import { ActivityListItem } from './ActivityListItem';
 
@@ -315,6 +315,7 @@ export function ActivityScreenContent({
   onInviteFriends?: () => void;
   scrollRef?: React.RefObject<FlatList | null>;
 }) {
+  const bottomContentInset = useTopLevelTabBarContentInset();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const [markAllReadConfirmationOpen, setMarkAllReadConfirmationOpen] =
@@ -343,7 +344,7 @@ export function ActivityScreenContent({
     setMarkAllReadConfirmationOpen(true);
   }, []);
 
-  const activityHeaderItems = useMemo<NativeHeaderItemConfig[]>(
+  const activityHeaderItems = useMemo<ScreenHeaderItemConfig[]>(
     () => [
       {
         id: 'activity-options',
@@ -387,8 +388,7 @@ export function ActivityScreenContent({
     padding: '$l',
     gap: '$l',
   }) as StyleProp<ViewStyle>;
-  const nativeTabInsetStyle =
-    Platform.OS === 'android' ? { paddingBottom: 100 } : undefined;
+  const nativeTabInsetStyle = { paddingBottom: bottomContentInset };
 
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
@@ -464,7 +464,7 @@ export function ActivityEmptyState({
 }: {
   onInviteFriends: () => void;
   onNavigateToContacts?: () => void;
-  rightItems?: NativeHeaderItemConfig[];
+  rightItems?: ScreenHeaderItemConfig[];
 }) {
   const isDark = useIsDarkTheme();
 
@@ -478,7 +478,7 @@ export function ActivityEmptyState({
 
   return (
     <>
-      <ScreenHeader title="Activity" rightItems={rightItems} />
+      <ScreenHeader title="Activity" rightItems={rightItems} useNativeHeader />
       <View
         flex={1}
         justifyContent="center"

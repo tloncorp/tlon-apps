@@ -113,6 +113,7 @@ export default function ContactsScreen() {
                 onPress: () => navigate('Settings', undefined, { pop: true }),
               },
             ]}
+            useNativeHeader
           />
           <SystemNotices.ContactBookPrompt
             status="undetermined"

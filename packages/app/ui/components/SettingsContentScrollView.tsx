@@ -16,6 +16,7 @@ interface SettingsContentScrollViewProps {
   paddingHorizontal?: SpacingValue;
   paddingTop?: SpacingValue;
   safeAreaBottomOffset?: number;
+  useScreenChrome?: boolean;
 }
 
 export function SettingsContentScrollView({
@@ -27,6 +28,7 @@ export function SettingsContentScrollView({
   paddingHorizontal,
   paddingTop,
   safeAreaBottomOffset,
+  useScreenChrome = false,
 }: SettingsContentScrollViewProps) {
   const insets = useSafeAreaInsets();
   const bottomPadding =
@@ -36,6 +38,7 @@ export function SettingsContentScrollView({
 
   return (
     <ScreenScrollView
+      useScreenChrome={useScreenChrome}
       contentInsetAdjustmentBehavior={contentInsetAdjustmentBehavior}
       style={{
         flex: 1,

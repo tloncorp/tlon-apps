@@ -40,7 +40,6 @@
     "expo-constants": "*",
     "expo-device": "*",
     "expo-localization": "*",
-    "expo-modules-core": "*",
     "expo-notifications": "*",
     "expo-splash-screen": "*",
     "lodash": "^4.17.21",

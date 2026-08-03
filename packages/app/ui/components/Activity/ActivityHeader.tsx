@@ -4,7 +4,7 @@ import { View } from 'tamagui';
 
 import { ScreenHeader } from '../ScreenHeader';
 import { Tabs } from '../Tabs';
-import type { NativeHeaderItemConfig } from '../nativeHeaderItems';
+import type { ScreenHeaderItemConfig } from '../screenHeaderItemModel';
 
 export type ActivityTab = 'all' | 'threads' | 'mentions';
 
@@ -19,7 +19,7 @@ function ActivityHeaderRaw({
   onTabPress: (tab: db.ActivityBucket) => void;
   subtitle?: string;
   loadingSubtitle?: string | null;
-  rightItems?: NativeHeaderItemConfig[];
+  rightItems?: ScreenHeaderItemConfig[];
 }) {
   return (
     <View>
@@ -29,6 +29,7 @@ function ActivityHeaderRaw({
           subtitle={subtitle}
           loadingSubtitle={loadingSubtitle}
           rightItems={rightItems}
+          useNativeHeader
         />
       </View>
       <Tabs>

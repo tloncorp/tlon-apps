@@ -37,7 +37,7 @@ export function FeatureFlagScreenView({
         borderBottom
         backAction={isWindowNarrow ? onBackPressed : undefined}
         title="Experimental features"
-        scrollsUnderHeader
+        useNativeHeader
       />
       <ScreenScrollView
         style={{

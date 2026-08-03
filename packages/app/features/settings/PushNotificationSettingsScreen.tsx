@@ -95,7 +95,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
           title="Notifications"
           backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
           borderBottom
-          scrollsUnderHeader
+          useNativeHeader
         />
         <ScreenScrollView
           flex={1}

@@ -76,9 +76,9 @@ export function ThemeScreen(props: Props) {
         backAction={
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
-        scrollsUnderHeader
+        useNativeHeader
       />
-      <SettingsContentScrollView>
+      <SettingsContentScrollView useScreenChrome>
         <YStack flex={1} padding="$l">
           {themes.map((theme) => (
             <Pressable

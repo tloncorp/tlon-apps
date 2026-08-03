@@ -185,9 +185,13 @@ export function PrivacySettingsScreen(props: Props) {
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
         title="Privacy Settings"
-        scrollsUnderHeader
+        useNativeHeader
       />
-      <SettingsContentScrollView paddingBottom="$3xl" paddingHorizontal="$xl">
+      <SettingsContentScrollView
+        useScreenChrome
+        paddingBottom="$3xl"
+        paddingHorizontal="$xl"
+      >
         <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
           <XStack justifyContent="space-between" alignItems="center">
             <SizableText flexShrink={1}>Share Usage Statistics</SizableText>

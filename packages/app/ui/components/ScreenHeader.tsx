@@ -1,17 +1,10 @@
-import { NavigationContext } from '@react-navigation/native';
-import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { useDebouncedValue } from '@tloncorp/shared';
 import { Icon, Text, View } from '@tloncorp/ui';
 import {
   Children,
-  Fragment,
   PropsWithChildren,
-  ReactElement,
   ReactNode,
-  isValidElement,
-  useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -38,27 +31,17 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
-import { getNativeHeaderOptions } from '../../navigation/nativeHeaderOptions';
-import { useActiveTheme } from '../../provider';
-import { getNativeColorScheme } from '../utils/themeUtils';
 import { LongPressDisclosure } from './LongPressDisclosure';
+import { ScreenHeaderItemElements } from './ScreenHeaderItemElements';
 import {
   HeaderBackButton,
-  HeaderControlProps,
   HeaderControls,
   HeaderIconButton,
   HeaderTextButton,
   HeaderTitleText,
 } from './ScreenHeaderPrimitives';
-import {
-  HeaderItemElements,
-  NativeHeaderItemConfig,
-  nativeIconSources,
-  resolveNativeHeaderColor,
-  useNativeHeaderItems,
-} from './nativeHeaderItems';
-
-const hiddenNativeHeaderOptions = { headerShown: false };
+import type { ScreenHeaderItemConfig } from './screenHeaderItemModel';
+import { useScreenHeader } from './useScreenHeader';
 
 function HeaderAnimatedCluster({
   children,
@@ -304,8 +287,7 @@ export const ScreenHeaderComponent = ({
   useHorizontalTitleLayout = false,
   loadingSubtitle,
   testID,
-  useNativeHeader = true,
-  scrollsUnderHeader = false,
+  useNativeHeader = false,
 }: PropsWithChildren<{
   title?: string | ReactNode;
   titleIcon?: ReactNode;
@@ -314,8 +296,8 @@ export const ScreenHeaderComponent = ({
   backgroundColor?: string;
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
-  leftItems?: NativeHeaderItemConfig[];
-  rightItems?: NativeHeaderItemConfig[];
+  leftItems?: ScreenHeaderItemConfig[];
+  rightItems?: ScreenHeaderItemConfig[];
   backAction?: () => void;
   borderBottom?: boolean;
   onTitlePress?: () => void;
@@ -323,13 +305,8 @@ export const ScreenHeaderComponent = ({
   loadingSubtitle?: string | null;
   testID?: string;
   useNativeHeader?: boolean;
-  /** Pair with ScreenScrollView or screenContentInsetAdjustmentBehavior. */
-  scrollsUnderHeader?: boolean;
 }>) => {
   const { top } = useSafeAreaInsets();
-  const theme = useTheme();
-  const activeTheme = useActiveTheme();
-  const navigation = useContext(NavigationContext);
   const [headerWidth, setHeaderWidth] = useState(0);
   const [leftControlsWidth, setLeftControlsWidth] = useState(0);
   const [rightControlsWidth, setRightControlsWidth] = useState(0);
@@ -489,74 +466,32 @@ export const ScreenHeaderComponent = ({
     titleContent
   );
 
-  const childControls = getNativeChildControls(children);
-  const nativeLeftControls = (
-    <>
-      {backAction ? <HeaderBackButton onPress={backAction} /> : null}
-      {leftControls}
-      {childControls.left}
-    </>
-  );
-  const nativeRightControls = (
-    <>
-      {rightControls}
-      {childControls.right}
-    </>
-  );
-  const nativeLeftItemConfigs = [
-    ...getNativeHeaderItemConfigs(nativeLeftControls, 'left'),
+  const nativeLeftItemConfigs: ScreenHeaderItemConfig[] = [
+    ...(backAction
+      ? [
+          {
+            id: 'screen-header-back',
+            icon: 'ChevronLeft' as const,
+            label: 'Back',
+            onPress: backAction,
+          },
+        ]
+      : []),
     ...(leftItems ?? []),
   ];
-  const nativeRightItemConfigs = [
-    ...getNativeHeaderItemConfigs(nativeRightControls, 'right'),
-    ...(rightItems ?? []),
-  ];
-  const nativeTitleRef = useRef(interactiveTitleContent);
-
-  nativeTitleRef.current = interactiveTitleContent;
-
-  const shouldUseNativeHeader =
-    Platform.OS !== 'web' && useNativeHeader && navigation != null;
   const usesCustomNativeTitle =
     typeof title !== 'string' ||
     titleIcon != null ||
     onTitlePress != null ||
     loadingSubtitle !== undefined;
-  const nativeBackgroundColor = resolveNativeHeaderColor(
+  const shouldUseNativeHeader = useScreenHeader({
+    enabled: useNativeHeader,
+    title: typeof title === 'string' ? title : '',
+    titleElement: interactiveTitleContent,
+    usesCustomTitle: usesCustomNativeTitle,
     backgroundColor,
-    theme
-  );
-  const nativeTitleText = typeof title === 'string' ? title : '';
-  const nativeIsDarkMode = getNativeColorScheme(activeTheme) === 'dark';
-  const nativeHeaderOptions = useMemo<NativeStackNavigationOptions>(
-    () => ({
-      ...getNativeHeaderOptions({
-        title: nativeTitleText,
-        isDarkMode: nativeIsDarkMode,
-        scrollsUnderHeader,
-        backgroundColor: nativeBackgroundColor,
-      }),
-      headerBackVisible: false,
-      headerTitle: usesCustomNativeTitle
-        ? () => nativeTitleRef.current
-        : undefined,
-    }),
-    [
-      nativeBackgroundColor,
-      nativeIsDarkMode,
-      nativeTitleText,
-      scrollsUnderHeader,
-      usesCustomNativeTitle,
-    ]
-  );
-
-  useNativeHeaderItems({
-    navigation,
-    enabled: shouldUseNativeHeader,
     left: nativeLeftItemConfigs,
-    right: nativeRightItemConfigs,
-    options: nativeHeaderOptions,
-    resetOptions: hiddenNativeHeaderOptions,
+    right: rightItems ?? [],
     revision: loadingSubtitle,
   });
 
@@ -610,7 +545,7 @@ export const ScreenHeaderComponent = ({
       >
         {backAction ? <HeaderBackButton onPress={backAction} /> : null}
         {leftControls}
-        {leftItems ? <HeaderItemElements configs={leftItems} /> : null}
+        {leftItems ? <ScreenHeaderItemElements configs={leftItems} /> : null}
       </HeaderControls>
       <HeaderControls
         side="right"
@@ -622,133 +557,12 @@ export const ScreenHeaderComponent = ({
         }}
       >
         {rightControls}
-        {rightItems ? <HeaderItemElements configs={rightItems} /> : null}
+        {rightItems ? <ScreenHeaderItemElements configs={rightItems} /> : null}
       </HeaderControls>
       {children}
     </View>
   );
 };
-
-function getNativeChildControls(children: ReactNode) {
-  const left: ReactNode[] = [];
-  const right: ReactNode[] = [];
-
-  function append(node: ReactNode) {
-    Children.forEach(node, (child) => {
-      if (!isValidElement<HeaderControlProps>(child)) {
-        return;
-      }
-
-      if (child.type === Fragment) {
-        append(child.props.children);
-        return;
-      }
-
-      if (child.type === HeaderControls) {
-        const destination = child.props.side === 'left' ? left : right;
-        destination.push(child.props.children);
-        return;
-      }
-
-      // Historically, free-form ScreenHeader children were positioned as
-      // actions. Preserve them on the right when moving the owning screen into
-      // a native navigation bar.
-      right.push(child);
-    });
-  }
-
-  append(children);
-
-  return {
-    left: left.length ? <>{left}</> : null,
-    right: right.length ? <>{right}</> : null,
-  };
-}
-
-function getNativeHeaderItemConfigs(
-  controls: ReactNode,
-  side: 'left' | 'right'
-): NativeHeaderItemConfig[] {
-  const configs: NativeHeaderItemConfig[] = [];
-
-  function append(node: ReactNode) {
-    Children.forEach(node, (child) => {
-      if (!isValidElement<HeaderControlProps>(child)) {
-        return;
-      }
-
-      if (
-        child.type === Fragment ||
-        child.type === HeaderControls ||
-        child.type === XStack
-      ) {
-        // Layout-only groups should not become opaque native header elements.
-        // Flattening them preserves each control's current label/state and lets
-        // useNativeHeaderItems forward presses to the latest callback.
-        append(child.props.children);
-        return;
-      }
-
-      const id =
-        child.props.testID ?? `screen-header-${side}-${configs.length}`;
-      const accessibilityLabel =
-        child.props.accessibilityLabel ?? child.props['aria-label'];
-      const shared = {
-        id,
-        onPress: child.props.onPress,
-        disabled: child.props.disabled || child.props.onPress == null,
-        tint: child.props.color,
-        testID: child.props.testID,
-      };
-
-      if (child.type === HeaderBackButton) {
-        configs.push({
-          ...shared,
-          icon: 'ChevronLeft',
-          label: accessibilityLabel ?? 'Back',
-        });
-        return;
-      }
-
-      if (child.type === HeaderTextButton) {
-        configs.push({
-          ...shared,
-          text: getTextContent(child.props.children) || 'Action',
-        });
-        return;
-      }
-
-      if (
-        child.type === HeaderIconButton &&
-        child.props.type &&
-        child.props.type in nativeIconSources
-      ) {
-        configs.push({
-          ...shared,
-          icon: child.props.type as keyof typeof nativeIconSources,
-          label: accessibilityLabel ?? child.props.type,
-        });
-        return;
-      }
-
-      configs.push({ id, element: child as ReactElement });
-    });
-  }
-
-  append(controls);
-
-  return configs;
-}
-
-function getTextContent(node: ReactNode): string {
-  return Children.toArray(node)
-    .map((child) =>
-      typeof child === 'string' || typeof child === 'number'
-        ? String(child)
-        : ''
-    )
-    .join('');
-}
 
 export const ScreenHeader = withStaticProperties(ScreenHeaderComponent, {
   Controls: HeaderControls,

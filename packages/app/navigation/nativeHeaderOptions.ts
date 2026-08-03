@@ -1,10 +1,6 @@
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { Platform } from 'react-native';
 
-const usesNativeStackHeader = Platform.OS !== 'web';
-const iosMajorVersion = Number.parseInt(String(Platform.Version), 10);
-const supportsNativeScrollEdgeEffects =
-  Platform.OS === 'ios' && iosMajorVersion >= 26;
 const topScrollEdgeEffects = {
   top: 'soft',
   bottom: 'hidden',
@@ -12,7 +8,7 @@ const topScrollEdgeEffects = {
   right: 'hidden',
 } as const;
 
-function getNativeHeaderUnderlayOptions({
+export function getNativeHeaderScrollOptions({
   isDarkMode,
 }: {
   isDarkMode: boolean;
@@ -20,6 +16,9 @@ function getNativeHeaderUnderlayOptions({
   if (Platform.OS !== 'ios') {
     return {};
   }
+
+  const iosMajorVersion = Number.parseInt(String(Platform.Version), 10);
+  const supportsNativeScrollEdgeEffects = iosMajorVersion >= 26;
 
   return {
     headerTransparent: true,
@@ -36,23 +35,14 @@ function getNativeHeaderUnderlayOptions({
 
 export function getNativeHeaderOptions({
   title,
-  isDarkMode,
-  scrollsUnderHeader = false,
   backgroundColor,
 }: {
   title: string;
-  isDarkMode: boolean;
-  scrollsUnderHeader?: boolean;
   backgroundColor?: string;
 }): NativeStackNavigationOptions {
-  if (!usesNativeStackHeader) {
+  if (Platform.OS === 'web') {
     return { headerShown: false };
   }
-
-  const usesTransparentIOSHeader = Platform.OS === 'ios' && scrollsUnderHeader;
-  const underlayOptions = usesTransparentIOSHeader
-    ? getNativeHeaderUnderlayOptions({ isDarkMode })
-    : {};
 
   return {
     headerShown: true,
@@ -63,14 +53,13 @@ export function getNativeHeaderOptions({
       fontSize: 17,
       fontWeight: '500',
     },
-    headerStyle:
-      backgroundColor && !usesTransparentIOSHeader
-        ? { backgroundColor }
-        : undefined,
-    headerTransparent: false,
-    headerBlurEffect: undefined,
-    scrollEdgeEffects: undefined,
-    ...underlayOptions,
+    headerStyle: backgroundColor ? { backgroundColor } : undefined,
     title,
   };
 }
+
+export const nativeHeaderScrollResetOptions: NativeStackNavigationOptions = {
+  headerTransparent: false,
+  headerBlurEffect: undefined,
+  scrollEdgeEffects: undefined,
+};
