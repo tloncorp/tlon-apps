@@ -454,34 +454,42 @@ function validateComponent(component: unknown): component is A2UI.Component {
         validateButtonAction(action)
       );
     }
-    case 'Choice': {
-      const options = component.options;
-      return (
-        Array.isArray(options) &&
-        options.length > 0 &&
-        options.length <= LIMITS.maxChoiceOptions &&
-        new Set(options.map((option) => (option as { id?: unknown })?.id))
-          .size === options.length &&
-        options.every(validateChoiceOption)
+    case 'Choice':
+      return validOptionList(
+        component.options,
+        LIMITS.maxChoiceOptions,
+        validateChoiceOption
       );
-    }
-    case 'SmallChoice': {
-      const options = component.options;
+    case 'SmallChoice':
       return (
-        Array.isArray(options) &&
-        options.length > 0 &&
-        options.length <= LIMITS.maxSmallChoiceOptions &&
-        new Set(options.map((option) => (option as { id?: unknown })?.id))
-          .size === options.length &&
-        options.every(validateSmallChoiceOption) &&
+        validOptionList(
+          component.options,
+          LIMITS.maxSmallChoiceOptions,
+          validateSmallChoiceOption
+        ) &&
         isNonEmptyString(component.submitLabel) &&
         (component.submitLabel as string).length <= LIMITS.maxPillLabelLength &&
         validateSmallChoiceAction(component.action)
       );
-    }
     default:
       return false;
   }
+}
+
+/** A bounded, non-empty option list with unique ids and valid entries. */
+function validOptionList(
+  options: unknown,
+  max: number,
+  validate: (option: unknown) => boolean
+): boolean {
+  return (
+    Array.isArray(options) &&
+    options.length > 0 &&
+    options.length <= max &&
+    new Set(options.map((option) => (option as { id?: unknown })?.id)).size ===
+      options.length &&
+    options.every(validate)
+  );
 }
 
 /**

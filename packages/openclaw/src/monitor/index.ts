@@ -832,6 +832,23 @@ export async function monitorTlonProvider(
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
+    /**
+     * Post markdown to a channel as the bot. Every outbound channel post
+     * shares this envelope; only the text and the extras differ.
+     */
+    const postToChannel = (
+      nest: string,
+      text: string,
+      extra?: { blob?: string; replyToId?: string }
+    ) =>
+      sendChannelPost({
+        botProfile: getBotProfile(),
+        fromShip: botShipName,
+        nest,
+        story: markdownToStory(text),
+        ...extra,
+      });
+
     // Helper to get bot profile for outbound messages
     const getBotProfile = (): BotProfile | undefined =>
       botNickname || botAvatar
@@ -845,17 +862,8 @@ export async function monitorTlonProvider(
      * Sequential so they land in that order.
      */
     const postOnboardingOpening = async (nest: string): Promise<void> => {
-      await sendChannelPost({
-        botProfile: getBotProfile(),
-        fromShip: botShipName,
-        nest,
-        story: markdownToStory(GROUP_INTRO_MESSAGE),
-      });
-      await sendChannelPost({
-        botProfile: getBotProfile(),
-        fromShip: botShipName,
-        nest,
-        story: markdownToStory(purposePickerFallbackText()),
+      await postToChannel(nest, GROUP_INTRO_MESSAGE);
+      await postToChannel(nest, purposePickerFallbackText(), {
         blob: serializeBlobField(buildPurposePickerBlob(nest)),
       });
     };
@@ -890,23 +898,14 @@ export async function monitorTlonProvider(
         onboardingInvitePending.delete(nest);
         const blob = buildInviteCardBlob(nest, group.flag);
         if (blob) {
-          await sendChannelPost({
-            botProfile: getBotProfile(),
-            fromShip: botShipName,
-            nest,
-            story: markdownToStory(inviteCardFallbackText()),
+          await postToChannel(nest, inviteCardFallbackText(), {
             blob: serializeBlobField(blob),
           });
         }
         // Hands the conversation back, after the card so it can't land before
         // it. Posted even when the card couldn't be built: on a client that
         // can't render the invite slot, this is the whole ending.
-        await sendChannelPost({
-          botProfile: getBotProfile(),
-          fromShip: botShipName,
-          nest,
-          story: markdownToStory(INVITE_FOLLOWUP_MESSAGE),
-        });
+        await postToChannel(nest, INVITE_FOLLOWUP_MESSAGE);
       } catch (error) {
         runtime.error?.(
           `[tlon] Failed to post the invite card in ${nest}: ${String(error)}`
@@ -2859,11 +2858,7 @@ export async function monitorTlonProvider(
             );
             let outputMessageId: string | null = null;
             if (isGroup && groupChannel) {
-              const result = await sendChannelPost({
-                botProfile: getBotProfile(),
-                fromShip: botShipName,
-                nest: groupChannel,
-                story: markdownToStory(noHistoryMsg),
+              const result = await postToChannel(groupChannel, noHistoryMsg, {
                 blob: contextLensBlob,
               });
               outputMessageId = result.messageId;
@@ -2927,11 +2922,7 @@ export async function monitorTlonProvider(
           );
           let outputMessageId: string | null = null;
           if (isGroup && groupChannel) {
-            const result = await sendChannelPost({
-              botProfile: getBotProfile(),
-              fromShip: botShipName,
-              nest: groupChannel,
-              story: markdownToStory(errorMsg),
+            const result = await postToChannel(groupChannel, errorMsg, {
               blob: contextLensBlob,
             });
             outputMessageId = result.messageId;
@@ -3492,11 +3483,7 @@ export async function monitorTlonProvider(
                             // Send to any channel type (chat, heap, diary) using the nest directly
                             const result = await observeActiveTlonTurnDelivery(
                               () =>
-                                sendChannelPost({
-                                  botProfile: getBotProfile(),
-                                  fromShip: botShipName,
-                                  nest: groupChannel,
-                                  story: markdownToStory(replyText),
+                                postToChannel(groupChannel, replyText, {
                                   replyToId: deliverParentId ?? undefined,
                                   blob: replyBlob,
                                 })
@@ -3911,11 +3898,7 @@ export async function monitorTlonProvider(
             args,
             `tlon:group:${nest}`
           );
-          await sendChannelPost({
-            botProfile: getBotProfile(),
-            fromShip: botShipName,
-            nest,
-            story: markdownToStory(replyText),
+          await postToChannel(nest, replyText, {
             replyToId: parentId ?? undefined,
           });
           return;
@@ -3959,31 +3942,42 @@ export async function monitorTlonProvider(
           }
         }
 
-        // Agent onboarding: in an unconfigured group the owner hosts, answer
-        // the first message with the tappable purpose picker instead of a
-        // model turn. Tapping a card posts the choice as the owner's own
-        // reply, which falls through to the agent normally.
-        if (!onboardingPickerOffered.has(nest) && isOwner(senderShip)) {
-          const onboardingGroup = await findGroupForChannel(api, nest, runtime);
+        // Agent onboarding: in an unconfigured group the owner hosts, the
+        // owner's messages drive two one-shot offers — the tappable purpose
+        // picker for the first message, then the topic pills after a card
+        // tap. Tapping posts the choice as the owner's own reply, which
+        // falls through to the agent normally. One group lookup serves both;
+        // when it fails (new group, or scry failed) say nothing rather than
+        // risk offering setup for a configured group — retried next message.
+        const runOnboardingOffers =
+          isOwner(senderShip) &&
+          !(
+            onboardingPickerOffered.has(nest) &&
+            onboardingTopicsOffered.has(nest)
+          );
+        const onboardingGroup = runOnboardingOffers
+          ? await findGroupForChannel(api, nest, runtime)
+          : null;
+        const onboardingOffer = onboardingGroup && {
+          senderIsOwner: true,
+          groupHostIsOwner: onboardingGroup.host === effectiveOwnerShip,
+          groupDescription: onboardingGroup.description,
+          messageText: rawText ?? '',
+          alreadyOffered: false,
+        };
+        if (onboardingOffer && !onboardingPickerOffered.has(nest)) {
           // Restart recovery: the pending-topics map is in-memory, so a
           // process restart between posting the pills and the owner's reply
           // loses the picked purpose — and, left alone, this block would
           // re-offer the purpose picker on top of the answered one. The
           // transcript survives restarts; rebuild the state from it.
           if (
-            onboardingGroup !== null &&
-            onboardingGroup.host === effectiveOwnerShip &&
+            onboardingOffer.groupHostIsOwner &&
             !onboardingSetupPending.has(nest) &&
-            !descriptionHasAgentSetup(onboardingGroup.description)
+            !descriptionHasAgentSetup(onboardingOffer.groupDescription)
           ) {
-            const recentPosts = await fetchChannelHistory(
-              api,
-              nest,
-              20,
-              runtime
-            );
             const recoveredPurpose = derivePendingPurposeFromHistory(
-              recentPosts,
+              await fetchChannelHistory(api, nest, 20, runtime),
               botShipName,
               normalizeShip(senderShip)
             );
@@ -3996,22 +3990,10 @@ export async function monitorTlonProvider(
               onboardingTopicsOffered.add(nest);
             }
           }
-          if (onboardingGroup === null) {
-            // Couldn't resolve the group (new group, or scry failed) — say
-            // nothing rather than risk offering setup for a configured group.
-            // Retried on the next message.
-          } else if (onboardingSetupPending.has(nest)) {
+          if (onboardingSetupPending.has(nest)) {
             // Recovered above: fall through so the reply in hand is consumed
             // as the topics answer.
-          } else if (
-            shouldOfferPurposePicker({
-              senderIsOwner: true,
-              groupHostIsOwner: onboardingGroup.host === effectiveOwnerShip,
-              groupDescription: onboardingGroup.description,
-              messageText: rawText ?? '',
-              alreadyOffered: false,
-            })
-          ) {
+          } else if (shouldOfferPurposePicker(onboardingOffer)) {
             onboardingPickerOffered.add(nest);
             runtime.log?.(
               `[tlon] Offering agent onboarding purpose picker in ${nest}`
@@ -4035,18 +4017,8 @@ export async function monitorTlonProvider(
         // is tappable too. Submitting them posts one message with the chosen
         // labels, which falls through to a normal model turn that does the
         // building.
-        if (!onboardingTopicsOffered.has(nest) && isOwner(senderShip)) {
-          const topicsGroup = await findGroupForChannel(api, nest, runtime);
-          const topicsPurposeId =
-            topicsGroup === null
-              ? undefined
-              : shouldOfferTopicsPicker({
-                  senderIsOwner: true,
-                  groupHostIsOwner: topicsGroup.host === effectiveOwnerShip,
-                  groupDescription: topicsGroup.description,
-                  messageText: rawText ?? '',
-                  alreadyOffered: false,
-                });
+        if (onboardingOffer && !onboardingTopicsOffered.has(nest)) {
+          const topicsPurposeId = shouldOfferTopicsPicker(onboardingOffer);
           if (topicsPurposeId) {
             onboardingTopicsOffered.add(nest);
             onboardingSetupPending.set(nest, topicsPurposeId);
@@ -4055,15 +4027,15 @@ export async function monitorTlonProvider(
             );
             try {
               const topicsBlob = buildTopicsPickerBlob(nest, topicsPurposeId);
-              await sendChannelPost({
-                botProfile: getBotProfile(),
-                fromShip: botShipName,
+              await postToChannel(
                 nest,
-                story: markdownToStory(
-                  topicsPickerFallbackText(topicsPurposeId)
-                ),
-                ...(topicsBlob ? { blob: serializeBlobField(topicsBlob) } : {}),
-              });
+                topicsPickerFallbackText(topicsPurposeId),
+                {
+                  ...(topicsBlob
+                    ? { blob: serializeBlobField(topicsBlob) }
+                    : {}),
+                }
+              );
               return;
             } catch (error) {
               onboardingTopicsOffered.delete(nest);

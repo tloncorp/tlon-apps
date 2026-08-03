@@ -45,6 +45,22 @@ export function purposePickerFallbackText(): string {
   return `${PURPOSE_PICKER_PROMPT} Reply ${titles} — or just tell me.`;
 }
 
+/**
+ * Build a v2-catalog blob, or null when the resolved @tloncorp/api rejects
+ * the layout — `makeA2UIBlob` validates with whichever version this plugin
+ * was built against, so an older one refuses the newer primitives.
+ */
+function blobOrNull(
+  surfaceId: string,
+  components: A2UI.Component[]
+): TlonA2UIBlob | null {
+  try {
+    return makeA2UIBlob(surfaceId, 'root', components, TLON_A2UI_CATALOG_V2);
+  } catch {
+    return null;
+  }
+}
+
 function choiceAction(text: string) {
   return { event: { name: A2UI.action.sendMessage, context: { text } } };
 }
@@ -151,16 +167,10 @@ function buildButtonComponents(): A2UI.Component[] {
  */
 export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
   const surfaceId = `agent-onboarding-${surfaceSuffix}`;
-  try {
-    return makeA2UIBlob(
-      surfaceId,
-      'root',
-      buildChoiceComponents(),
-      TLON_A2UI_CATALOG_V2
-    );
-  } catch {
-    return makeA2UIBlob(surfaceId, 'root', buildButtonComponents());
-  }
+  return (
+    blobOrNull(surfaceId, buildChoiceComponents()) ??
+    makeA2UIBlob(surfaceId, 'root', buildButtonComponents())
+  );
 }
 
 /** The purpose whose card title this message matches, if any. */
@@ -221,16 +231,7 @@ export function buildTopicsPickerBlob(
       action: choiceAction(''),
     } as unknown as A2UI.Component,
   ];
-  try {
-    return makeA2UIBlob(
-      `agent-onboarding-topics-${surfaceSuffix}`,
-      'root',
-      components,
-      TLON_A2UI_CATALOG_V2
-    );
-  } catch {
-    return null;
-  }
+  return blobOrNull(`agent-onboarding-topics-${surfaceSuffix}`, components);
 }
 
 /**
@@ -258,16 +259,7 @@ export function buildInviteCardBlob(
     } as unknown as A2UI.Component,
     { id: 'inviteLabel', component: 'Text', text: INVITE_CARD_BUTTON_LABEL },
   ];
-  try {
-    return makeA2UIBlob(
-      `agent-onboarding-invite-${surfaceSuffix}`,
-      'root',
-      components,
-      TLON_A2UI_CATALOG_V2
-    );
-  } catch {
-    return null;
-  }
+  return blobOrNull(`agent-onboarding-invite-${surfaceSuffix}`, components);
 }
 
 /** The story text for the invite card, for clients that can't render it. */
