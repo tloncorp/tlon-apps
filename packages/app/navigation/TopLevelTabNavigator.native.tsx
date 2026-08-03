@@ -190,8 +190,9 @@ export function TopLevelTabNavigator() {
           tabBarActiveTintColor: theme.primaryText?.val,
           tabBarInactiveTintColor: theme.secondaryText?.val,
           tabBarActiveIndicatorColor: theme.secondaryBackground?.val,
-          tabBarLabelVisibilityMode:
-            Platform.OS === 'android' ? 'unlabeled' : undefined,
+          tabBarLabelVisibilityMode: 'unlabeled',
+          // iOS doesn't support labelVisibilityMode, so hide its visual title.
+          tabBarLabel: Platform.OS === 'ios' ? '' : undefined,
           tabBarControllerMode: Platform.OS === 'ios' ? 'tabBar' : undefined,
           tabBarMinimizeBehavior:
             Platform.OS === 'ios' ? 'onScrollDown' : undefined,
