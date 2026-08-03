@@ -9,6 +9,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -326,15 +327,25 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     [step]
   );
 
+  // A ref, not the `isCreatingChat` state: state updates land on the next
+  // render, so two taps inside one frame both pass a state check. The agent
+  // row creates its group on the first tap with nothing to confirm, so a
+  // double tap made two groups and navigated between them.
+  const creatingRef = useRef(false);
   const handleSubmit = useCallback(
     async (params: CreateChatParams) => {
-      if (isCreatingChat) {
+      if (creatingRef.current || isCreatingChat) {
         return;
       }
-      const didCreate = await createChat(params);
-      if (didCreate) {
-        setStep('initial');
-        setSelectedContactIds([]);
+      creatingRef.current = true;
+      try {
+        const didCreate = await createChat(params);
+        if (didCreate) {
+          setStep('initial');
+          setSelectedContactIds([]);
+        }
+      } finally {
+        creatingRef.current = false;
       }
     },
     [createChat, isCreatingChat]

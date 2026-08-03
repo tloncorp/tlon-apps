@@ -3933,10 +3933,15 @@ export async function monitorTlonProvider(
           // owner-listen off would otherwise see cards whose buttons do
           // nothing. The picker itself was only ever offered in a group this
           // owner hosts, so hearing these is not a listening expansion.
+          // Both arms require that this channel is actually mid-onboarding:
+          // a bare "Research" in a channel where nothing was ever offered is
+          // ordinary chat, and letting it through would answer the owner in a
+          // channel where they switched listening off.
           const isOnboardingReply =
             isOwner(senderShip) &&
             (onboardingSetupPending.has(nest) ||
-              isPurposePickerChoice(rawText ?? ''));
+              (onboardingPickerOffered.has(nest) &&
+                isPurposePickerChoice(rawText ?? '')));
           if (!isOnboardingReply) {
             return;
           }
@@ -3979,7 +3984,8 @@ export async function monitorTlonProvider(
             const recoveredPurpose = derivePendingPurposeFromHistory(
               await fetchChannelHistory(api, nest, 20, runtime),
               botShipName,
-              normalizeShip(senderShip)
+              normalizeShip(senderShip),
+              rawText ?? ''
             );
             if (recoveredPurpose) {
               runtime.log?.(
@@ -4162,7 +4168,18 @@ export async function monitorTlonProvider(
         // rather than composing one. One-shot per channel.
         let setupDirective: string | undefined;
         const pendingSetupPurpose = onboardingSetupPending.get(nest);
-        if (pendingSetupPurpose && isOwner(senderShip)) {
+        // Only a top-level owner message that isn't itself a purpose title
+        // answers the pills. A double-tapped card would otherwise be consumed
+        // as the topics answer — building the job with "Research" as its
+        // subject — and a reply the owner happened to send in another thread
+        // would eat the directive the real submission needed.
+        const answersTopicsPicker =
+          Boolean(pendingSetupPurpose) &&
+          isOwner(senderShip) &&
+          !isThreadReply &&
+          !parentId &&
+          !isPurposePickerChoice(rawText ?? '');
+        if (pendingSetupPurpose && answersTopicsPicker) {
           onboardingSetupPending.delete(nest);
           setupDirective =
             renderSetupDirective(pendingSetupPurpose, rawText ?? '') ??

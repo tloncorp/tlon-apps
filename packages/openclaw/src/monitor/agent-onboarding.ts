@@ -316,10 +316,10 @@ export function renderSetupDirective(
     'parser reads it, so a freelanced field layout breaks the group in the',
     'app. Only the tz changes (the owner\'s IANA timezone), and "prompt" is',
     'the payload message above:',
-    `{"id":"${purposeId}","title":"${fill(job.title)}","schedule":` +
-      `{"kind":"cron","expr":"${job.schedule}","tz":"<owner timezone>"},` +
-      '"prompt":"<payload message, verbatim>","outputNest":"",' +
-      '"enabled":true}',
+    `{"id":${JSON.stringify(purposeId)},"title":${JSON.stringify(fill(job.title))},` +
+      `"schedule":{"kind":"cron","expr":${JSON.stringify(job.schedule)},` +
+      '"tz":"<owner timezone>"},"prompt":"<payload message, verbatim>",' +
+      '"outputNest":"","enabled":true}',
     `templateId: ${purposeId} — copy it exactly; it records which setup the`,
     'owner picked, so a different id makes the group misreport itself.',
     `Once the job and config are in place: ${fill(job.confirmation)}`,
@@ -428,24 +428,40 @@ export async function findChatNestForGroup(
 export function derivePendingPurposeFromHistory(
   history: Array<{ author: string; content: string; timestamp?: number }>,
   botShip: string,
-  ownerShip: string
+  ownerShip: string,
+  /**
+   * The message being handled right now. History fetched mid-turn can already
+   * include it, and without skipping it the reply we are about to treat as the
+   * topics answer reads as "some other owner message" — abandoning recovery
+   * and re-offering the picker over an answered one.
+   */
+  currentMessageText?: string
 ): string | undefined {
-  // Walk newest-first regardless of fetch order; the entry being handled
-  // right now is not yet in history.
+  // Walk newest-first regardless of fetch order.
   const newestFirst = [...history].sort(
     (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)
   );
+  const current = currentMessageText?.trim();
+  let skippedCurrent = false;
+  // Only pills that were actually posted can be awaiting an answer. Requiring
+  // them means a crash *before* the picker went out doesn't arm a setup the
+  // owner never saw — they get the picker offered again instead, which is the
+  // honest outcome.
+  let sawTopicsPicker = false;
   for (const entry of newestFirst) {
     if (entry.author === ownerShip) {
+      const content = entry.content.trim();
+      if (!skippedCurrent && current && content === current) {
+        skippedCurrent = true;
+        continue;
+      }
       const purposeId = purposeIdForChoice(entry.content);
       if (purposeId) {
-        // The tap is the newest relevant thing — the pills that follow it
-        // may not be indexed yet, but the reply we're holding answers them.
-        return purposeId;
+        return sawTopicsPicker ? purposeId : undefined;
       }
       // Some other owner message is newer than any picker: the picker was
       // answered (or abandoned) already.
-      if (entry.content.trim()) {
+      if (content) {
         return undefined;
       }
     }
@@ -455,6 +471,7 @@ export function derivePendingPurposeFromHistory(
     ) {
       // Pills with no owner reply after them: the purpose is the owner's
       // card tap just before. Keep scanning for it.
+      sawTopicsPicker = true;
       continue;
     }
   }
@@ -606,7 +623,10 @@ function agentConfigEntries(
   try {
     const entries = JSON.parse(trimmed);
     return Array.isArray(entries)
-      ? entries.filter((entry) => entry?.type === AGENT_CONFIG_ENTRY_TYPE)
+      ? entries.filter(
+          (entry) =>
+            entry?.type === AGENT_CONFIG_ENTRY_TYPE && entry?.version === 1
+        )
       : [];
   } catch {
     return [];

@@ -555,6 +555,33 @@ describe('derivePendingPurposeFromHistory', () => {
     ).toBeUndefined();
   });
 
+  test('a tap with no pills posted after it is not recoverable', () => {
+    // The pills post can fail, or the process can die before it lands. The
+    // owner never saw the topics step, so their next message must not be
+    // consumed as its answer — they get the picker offered again instead.
+    expect(
+      derivePendingPurposeFromHistory([{ ...tap, timestamp: 1 }], BOT, OWNER)
+    ).toBeUndefined();
+  });
+
+  test('the reply being handled is skipped, not read as a newer message', () => {
+    // History fetched mid-turn can already contain the post that triggered
+    // this turn. Counting it as "some other owner message" abandoned recovery
+    // and re-offered the picker over the answered one.
+    const history = [
+      { ...tap, timestamp: 1 },
+      { ...pills, timestamp: 2 },
+      { author: OWNER, content: 'Weather, News', timestamp: 3 },
+    ];
+    expect(
+      derivePendingPurposeFromHistory(history, BOT, OWNER, 'Weather, News')
+    ).toBe('agent-daily-digest');
+    // Without being told, the same history reads as already answered.
+    expect(
+      derivePendingPurposeFromHistory(history, BOT, OWNER)
+    ).toBeUndefined();
+  });
+
   test('nothing to recover from a channel with no picker exchange', () => {
     expect(
       derivePendingPurposeFromHistory(

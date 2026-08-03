@@ -18,17 +18,30 @@ import { isMoonOf, preSig } from '../lib/urbit';
 
 export const GROUP_AGENT_CONFIG_ENTRY_TYPE = 'tlon-group-agent-config';
 
+/**
+ * Only `type` and `version` are strict — they identify the entry. Every other
+ * field degrades to a default rather than failing the parse.
+ *
+ * The writer is a model following prose instructions, and rejecting the whole
+ * entry over one malformed field is catastrophic rather than safe: the agent
+ * stops being recognized, its interactive cards vanish, the raw JSON shows up
+ * as the group's description, and any client state gated on the config (the
+ * first-run chrome lock) stays stuck. It also made the client disagree with
+ * the bot, which treats the same description as configured and moves on. A
+ * missing `purpose` costs a line of display text; a rejected entry costs the
+ * group.
+ */
 const GroupAgentConfigEntrySchema = z.object({
   type: z.literal(GROUP_AGENT_CONFIG_ENTRY_TYPE),
   version: z.literal(1),
   /** template provenance */
-  templateId: z.string().optional(),
+  templateId: z.string().optional().catch(undefined),
   /** one sentence, user-visible */
-  purpose: z.string().max(500),
+  purpose: z.string().max(500).catch(''),
   /** agent context for all activity in this group */
-  instructions: z.string().max(8000),
+  instructions: z.string().max(8000).catch(''),
   /** ships expected to act on this config */
-  agents: z.array(z.string()),
+  agents: z.array(z.string()).catch([]),
   /**
    * Deliberately unvalidated: the writer is a model following instructions,
    * and the client reads nothing from inside a job except its presence —
@@ -38,8 +51,8 @@ const GroupAgentConfigEntrySchema = z.object({
    * templates) is `{id, title, schedule: {kind:'cron', expr, tz}, prompt,
    * outputNest, announceNest?, checkIn?, enabled}`.
    */
-  jobs: z.array(z.unknown()),
-  updatedAt: z.number(),
+  jobs: z.array(z.unknown()).catch([]),
+  updatedAt: z.number().catch(0),
 });
 
 export type GroupAgentConfigEntry = z.infer<typeof GroupAgentConfigEntrySchema>;

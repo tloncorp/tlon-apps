@@ -3,6 +3,7 @@ import { desig } from '@tloncorp/api/lib/urbit';
 import {
   GROUP_AGENT_CONFIG_ENTRY_TYPE,
   GroupAgentConfigEntry,
+  groupHasConfiguredJob,
 } from '@tloncorp/api/types/groupAgentConfig';
 import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 
@@ -101,7 +102,15 @@ export async function createAgentGroup(params?: {
  * `meta.description` (matching `parseGroupAgentConfig` in @tloncorp/api). The
  * agent itself fills in purpose and jobs during onboarding.
  */
-function writeAgentMarker(group: db.Group, botShipId: string) {
+async function writeAgentMarker(group: db.Group, botShipId: string) {
+  // Fire-and-forget, so it can land after the agent has already written the
+  // real config. Re-read first and skip if so: this bare marker would
+  // otherwise replace a finished setup's purpose and jobs, leaving the group
+  // looking unconfigured with its scheduled job orphaned.
+  const current = await db.getGroup({ id: group.id });
+  if (groupHasConfiguredJob(current?.description)) {
+    return;
+  }
   const entry = {
     type: GROUP_AGENT_CONFIG_ENTRY_TYPE,
     version: 1,

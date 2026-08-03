@@ -38,6 +38,11 @@ describe('isMoonOf', () => {
     expect(isMoonOf(ME, MY_AGENT)).toBe(false);
     // ~notforhep-tanmel must not read as a moon of ~forhep-tanmel.
     expect(isMoonOf('~notforhep-tanmel', ME)).toBe(false);
+    // A comet ends in a planet's name without being its moon, and would
+    // otherwise render trusted agent UI in that planet's own group.
+    expect(
+      isMoonOf('~racmus-mollen-fallyt-linpex-watres-sibbur-forhep-tanmel', ME)
+    ).toBe(false);
     expect(isMoonOf('', ME)).toBe(false);
     expect(isMoonOf(MY_AGENT, '')).toBe(false);
   });
@@ -194,6 +199,36 @@ describe('groupHasConfiguredJob', () => {
     expect(groupHasConfiguredJob('a group about bread')).toBe(false);
     expect(groupHasConfiguredJob(null)).toBe(false);
     expect(groupHasConfiguredJob(undefined)).toBe(false);
+  });
+});
+
+describe('config tolerance', () => {
+  test('a job survives fields the model got wrong or omitted', () => {
+    // The writer is a model following prose. Rejecting the entry would
+    // un-recognize the agent, hide its cards, leak this JSON as the group's
+    // description, and disagree with the bot — which treats the same
+    // description as configured and moves on.
+    const sloppy = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        purpose: 'x'.repeat(600), // over the limit
+        agents: 'not-an-array',
+        jobs: [{ title: 'Tracking check-in', schedule: '0 18 * * *' }],
+        // no instructions, no updatedAt
+      },
+    ]);
+    expect(groupHasConfiguredJob(sloppy)).toBe(true);
+    expect(groupDisplayDescription(sloppy)).toBe('');
+    // But the entry must still be identifiable as one.
+    expect(groupHasConfiguredJob(JSON.stringify([{ type: 'other' }]))).toBe(
+      false
+    );
+    expect(
+      groupHasConfiguredJob(
+        JSON.stringify([{ type: 'tlon-group-agent-config', version: 2 }])
+      )
+    ).toBe(false);
   });
 });
 

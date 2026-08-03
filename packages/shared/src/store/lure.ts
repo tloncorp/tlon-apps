@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getCurrentUserId, scry, subscribeOnce } from '@tloncorp/api';
 import { DeepLinkMetadata, createDeepLink } from '@tloncorp/api/client/branch';
 import { asyncWithDefault } from '@tloncorp/api/lib/utils';
+import { groupDisplayDescription } from '@tloncorp/api/types/groupAgentConfig';
 import produce from 'immer';
 import { useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
@@ -132,7 +133,10 @@ export const useLureState = create<LureState>((set, get) => ({
         inviterAvatarImage: user?.avatarImage ?? undefined,
         invitedGroupId: flag,
         invitedGroupTitle: group?.title ?? undefined,
-        invitedGroupDescription: group?.description ?? undefined,
+        // Never the raw field: an agent group stores its config JSON there,
+        // and this metadata is what invite previews display.
+        invitedGroupDescription:
+          groupDisplayDescription(group?.description) || undefined,
         invitedGroupIconImageUrl: group?.iconImage ?? undefined,
         invitedGroupiconImageColor: group?.iconImageColor ?? undefined,
       };

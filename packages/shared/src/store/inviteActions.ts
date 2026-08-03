@@ -6,6 +6,7 @@ import {
 } from '@tloncorp/api';
 import * as api from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
+import { groupDisplayDescription } from '@tloncorp/api/types/groupAgentConfig';
 
 import { trackEvent } from '../analytics';
 import * as db from '../db';
@@ -229,7 +230,9 @@ export async function createGroupInviteLink(groupId: string) {
         inviterAvatarImage: user?.avatarImage ?? '',
         invitedGroupId: groupId,
         invitedGroupTitle: group?.title ?? '',
-        invitedGroupDescription: group?.description ?? '',
+        // Never the raw field: an agent group stores its config JSON there,
+        // and this metadata is what invite previews display.
+        invitedGroupDescription: groupDisplayDescription(group?.description),
         invitedGroupIconImageUrl: group?.iconImage ?? '',
       })
     );

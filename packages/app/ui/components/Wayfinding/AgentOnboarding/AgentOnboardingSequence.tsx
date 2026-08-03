@@ -26,7 +26,19 @@ export function AgentOnboardingSequence(props: {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const target = await store.getHomeGroupOnboardingTarget();
+      // The Urbit client is configured by a parent effect, which may not have
+      // run yet on a cold mount — and an unconfigured client makes the lookup
+      // return null, indistinguishable from "no home group". Retry briefly
+      // before giving up, or a fresh signup falls back to the old splash
+      // permanently (this effect never runs again).
+      let target = await store.getHomeGroupOnboardingTarget();
+      for (let attempt = 0; !target && attempt < 10; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        if (cancelled || redirectedRef.current) {
+          return;
+        }
+        target = await store.getHomeGroupOnboardingTarget();
+      }
       if (cancelled || redirectedRef.current) {
         return;
       }

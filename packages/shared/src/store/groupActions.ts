@@ -413,10 +413,19 @@ export async function updateGroupMeta(
   // An agent group's description is its machine-readable config; the editor
   // shows (and edits) only the prose purpose, so fold the edit back into the
   // config instead of letting it overwrite the agents/jobs entry.
-  const description = mergeGroupDescriptionEdit(
-    existingGroup?.description,
-    group.description ?? ''
-  );
+  //
+  // Only when the description actually changed. Callers that update a title or
+  // icon pass a stored group straight through, so its description is still the
+  // raw config JSON — folding *that* in as prose would write the whole blob
+  // into `purpose`, exposing it wherever descriptions display and, once it
+  // exceeds the field's limit, degrading the config to an empty purpose.
+  const description =
+    group.description === existingGroup?.description
+      ? existingGroup?.description ?? ''
+      : mergeGroupDescriptionEdit(
+          existingGroup?.description,
+          group.description ?? ''
+        );
   const groupWithMergedDescription = { ...group, description };
 
   // optimistic update

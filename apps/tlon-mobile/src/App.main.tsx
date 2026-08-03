@@ -18,7 +18,10 @@ import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRequiredUpdate } from '@tloncorp/app/hooks/useRequiredUpdate';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
-import { useFeatureFlag } from '@tloncorp/app/lib/featureFlags';
+import {
+  useFeatureFlag,
+  useFeatureFlagsLoaded,
+} from '@tloncorp/app/lib/featureFlags';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
@@ -124,6 +127,7 @@ const MainApp = () => {
   const [conversationalOnboardingEnabled] = useFeatureFlag(
     'conversationalOnboarding'
   );
+  const featureFlagsLoaded = useFeatureFlagsLoaded();
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const handleSplashLogout = useCallback(async () => {
@@ -156,7 +160,11 @@ const MainApp = () => {
           </View>
         ) : showSplashSequence ? (
           <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-            {conversationalOnboardingEnabled &&
+            {/* Waits for stored flags: arming the handoff is one-shot, and
+                until they load the flag reads as its default-true, which
+                would skip the old splash once for a user who turned it off. */}
+            {featureFlagsLoaded &&
+            conversationalOnboardingEnabled &&
             activeSplashSequenceMode !== 'tlonbotRevival' ? (
               <AgentOnboardingSequence
                 onCompleted={handleClearSplash}
