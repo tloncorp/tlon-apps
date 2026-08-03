@@ -28,6 +28,7 @@
           %group-1
           %group-2
           %group-3
+          %group-ui-3
           %groups
           %groups-1
           %groups-2
@@ -35,7 +36,6 @@
           %groups-ui
           %groups-ui-1
           %groups-ui-2
-          %group-ui-3
           %group-changed-groups-1
           %group-changed-groups-2
           %group-changed-groups-3
