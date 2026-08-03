@@ -94,6 +94,13 @@ function SmallChoicePills({
       <XStack flexWrap="wrap" gap="$s" width="100%">
         {component.options.map((option) => {
           const isSelected = selectedIds.includes(option.id);
+          // Selected inverts the pill instead of tinting it, so a chosen
+          // topic reads at a glance across a wrapped row. Hoisted out of the
+          // JSX: an inline ternary on these props gets dropped by Tamagui's
+          // compiler, leaving the pill unstyled.
+          const pillEdge = isSelected ? '$primaryText' : '$border';
+          const pillFill = isSelected ? '$primaryText' : '$background';
+          const pillLabel = isSelected ? '$background' : '$primaryText';
           return (
             <Pressable
               key={option.id}
@@ -105,18 +112,14 @@ function SmallChoicePills({
             >
               <XStack
                 borderWidth={1}
-                borderColor={isSelected ? '$blue' : '$border'}
-                backgroundColor={isSelected ? '$blueSoft' : '$background'}
+                borderColor={pillEdge}
+                backgroundColor={pillFill}
                 borderRadius="$2xl"
                 paddingVertical="$s"
                 paddingHorizontal="$l"
                 opacity={disabled ? 0.5 : 1}
               >
-                <Text
-                  size="$label/m"
-                  color={isSelected ? '$blue' : '$primaryText'}
-                  trimmed={false}
-                >
+                <Text size="$label/m" color={pillLabel} trimmed={false}>
                   {option.label}
                 </Text>
               </XStack>
