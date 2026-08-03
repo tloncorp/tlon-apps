@@ -627,12 +627,13 @@ export interface GroupInviteAction {
   note: Story | null;
 }
 
-// v8/v9 Group Actions (a-groups)
-export type GroupActionV4 =
+// Group actions (a-groups). The outer envelope is the same at every version;
+// only the inner a-group payload gains variants, so parameterize on it.
+export type GroupActionEnvelope<TGroupAction> =
   | {
       group: {
         flag: string;
-        'a-group': GroupAction;
+        'a-group': TGroupAction;
       };
     }
   | {
@@ -642,9 +643,17 @@ export type GroupActionV4 =
       leave: string; // flag
     };
 
+// a-groups:v8, poked at mark group-action-4
+export type GroupActionV4 = GroupActionEnvelope<GroupAction>;
+
+// a-groups:v11, poked at mark group-action-5 — v4 plus the group blob. Kept
+// separate because group-action-4's dejs has no blob key and would nack it.
+export type GroupActionV5 = GroupActionEnvelope<GroupActionV5Data>;
+
+export type GroupActionV5Data = GroupAction | { blob: string | null };
+
 export type GroupAction =
   | { meta: GroupMeta }
-  | { blob: string | null }
   | { entry: GroupEntryAction }
   | { seat: { ships: string[]; 'a-seat': GroupSeatAction } }
   | { role: { roles: string[]; 'a-role': GroupRoleAction } }

@@ -38,7 +38,7 @@ function groupAction4(action: ub.GroupActionV4) {
 // group-action-5 carries the same shape as group-action-4 plus the
 // %blob variant; only blob pokes use it so older backends keep
 // accepting every other action.
-function groupAction5(action: ub.GroupActionV4) {
+function groupAction5(action: ub.GroupActionV5) {
   return {
     app: 'groups',
     mark: 'group-action-5',
