@@ -331,8 +331,8 @@
         se-abet:se-c-leave:se-core
       ==
     ::
-        %group-action-4
-      =+  !<(=a-groups:v8:gv vase)
+        %group-action-5
+      =+  !<(=a-groups:v11:gv vase)
       ?>  from-self
       ?-    -.a-groups
           %group
@@ -348,8 +348,8 @@
         go-abet:(go-leave:group-core &)
       ==
     ::
-        %group-action-5
-      =+  !<(=a-groups:v11:gv vase)
+        %group-action-4
+      =+  !<(=a-groups:v8:gv vase)
       ?>  from-self
       ?-    -.a-groups
           %group
