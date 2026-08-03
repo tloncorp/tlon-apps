@@ -104,13 +104,17 @@ import {
 } from '../version.js';
 import { GROUP_INTRO_MESSAGE } from './agent-onboarding-config.js';
 import {
+  agentHasAdminSeat,
   buildInviteCardBlob,
   buildPurposePickerBlob,
   buildTopicsPickerBlob,
   channelHasNoPosts,
+  derivePendingPurposeFromHistory,
+  descriptionHasAgentSetup,
   findChatNestForGroup,
   findGroupForChannel,
   inviteCardFallbackText,
+  isPurposePickerChoice,
   purposePickerFallbackText,
   renderSetupDirective,
   shouldOfferPickerOnJoin,
@@ -3905,7 +3909,19 @@ export async function monitorTlonProvider(
           ownerListenDisabledChannels: effectiveOwnerListenDisabled,
         });
         if (!engageDecision.engage) {
-          return;
+          // Onboarding replies still count. A tap on the purpose picker (or
+          // the topics reply that follows one) arrives as an unmentioned
+          // top-level owner message, so an owner who has switched
+          // owner-listen off would otherwise see cards whose buttons do
+          // nothing. The picker itself was only ever offered in a group this
+          // owner hosts, so hearing these is not a listening expansion.
+          const isOnboardingReply =
+            isOwner(senderShip) &&
+            (onboardingSetupPending.has(nest) ||
+              isPurposePickerChoice(rawText ?? ''));
+          if (!isOnboardingReply) {
+            return;
+          }
         }
 
         // Agent onboarding: in an unconfigured group the owner hosts, answer
@@ -3914,10 +3930,44 @@ export async function monitorTlonProvider(
         // reply, which falls through to the agent normally.
         if (!onboardingPickerOffered.has(nest) && isOwner(senderShip)) {
           const onboardingGroup = await findGroupForChannel(api, nest, runtime);
+          // Restart recovery: the pending-topics map is in-memory, so a
+          // process restart between posting the pills and the owner's reply
+          // loses the picked purpose — and, left alone, this block would
+          // re-offer the purpose picker on top of the answered one. The
+          // transcript survives restarts; rebuild the state from it.
+          if (
+            onboardingGroup !== null &&
+            onboardingGroup.host === effectiveOwnerShip &&
+            !onboardingSetupPending.has(nest) &&
+            !descriptionHasAgentSetup(onboardingGroup.description)
+          ) {
+            const recentPosts = await fetchChannelHistory(
+              api,
+              nest,
+              20,
+              runtime
+            );
+            const recoveredPurpose = derivePendingPurposeFromHistory(
+              recentPosts,
+              botShipName,
+              normalizeShip(senderShip)
+            );
+            if (recoveredPurpose) {
+              runtime.log?.(
+                `[tlon] Recovered pending onboarding purpose '${recoveredPurpose}' for ${nest} from history`
+              );
+              onboardingSetupPending.set(nest, recoveredPurpose);
+              onboardingPickerOffered.add(nest);
+              onboardingTopicsOffered.add(nest);
+            }
+          }
           if (onboardingGroup === null) {
             // Couldn't resolve the group (new group, or scry failed) — say
             // nothing rather than risk offering setup for a configured group.
             // Retried on the next message.
+          } else if (onboardingSetupPending.has(nest)) {
+            // Recovered above: fall through so the reply in hand is consumed
+            // as the topics answer.
           } else if (
             shouldOfferPurposePicker({
               senderIsOwner: true,
@@ -3982,6 +4032,10 @@ export async function monitorTlonProvider(
               return;
             } catch (error) {
               onboardingTopicsOffered.delete(nest);
+              // The pending purpose must not outlive the failed post: the
+              // owner never saw the pills, so their next message is not a
+              // topics reply and must not receive the setup directive.
+              onboardingSetupPending.delete(nest);
               runtime.error?.(
                 `[tlon] Failed to post topics picker in ${nest}: ${String(error)}`
               );
@@ -4112,6 +4166,31 @@ export async function monitorTlonProvider(
         // client can resolve a lure. Captured before the await so the
         // one-shot directive state can't race it.
         const shouldPostInviteCard = Boolean(setupDirective);
+        if (setupDirective) {
+          // The client grants the agent admin right after creating the
+          // group; a fast owner can tap through before it lands, and a
+          // setup turn without the role does its renames and
+          // channel-creates as a plain member — dropped pokes, visible
+          // timeouts. Wait for the seat, bounded: if it never lands
+          // (self-hosted owner, older client), build anyway and let the
+          // agent report honestly.
+          const directiveGroup = await findGroupForChannel(api, nest, runtime);
+          if (directiveGroup) {
+            const adminDeadline = Date.now() + 20_000;
+            while (Date.now() < adminDeadline && !opts.abortSignal?.aborted) {
+              const hasSeat = await agentHasAdminSeat(
+                api,
+                directiveGroup.flag,
+                botShipName,
+                runtime
+              );
+              if (hasSeat) {
+                break;
+              }
+              await new Promise((resolve) => setTimeout(resolve, 2_000));
+            }
+          }
+        }
         await processMessage({
           messageId: messageId ?? '',
           senderShip,

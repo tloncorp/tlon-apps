@@ -1,4 +1,5 @@
 import * as api from '@tloncorp/api';
+import { mergeGroupDescriptionEdit } from '@tloncorp/api/types/groupAgentConfig';
 import { createSectionId } from '@tloncorp/api/urbit';
 import isEqual from 'lodash/isEqual';
 
@@ -409,15 +410,24 @@ export async function updateGroupMeta(
 
   const existingGroup = await db.getGroup({ id: group.id });
 
+  // An agent group's description is its machine-readable config; the editor
+  // shows (and edits) only the prose purpose, so fold the edit back into the
+  // config instead of letting it overwrite the agents/jobs entry.
+  const description = mergeGroupDescriptionEdit(
+    existingGroup?.description,
+    group.description ?? ''
+  );
+  const groupWithMergedDescription = { ...group, description };
+
   // optimistic update
-  await db.updateGroup(group);
+  await db.updateGroup(groupWithMergedDescription);
 
   try {
     await api.updateGroupMeta({
       groupId: group.id,
       meta: {
         title: group.title ?? '',
-        description: group.description ?? '',
+        description,
         cover: group.coverImage ?? group.coverImageColor ?? '',
         image: group.iconImage ?? group.iconImageColor ?? '',
       },

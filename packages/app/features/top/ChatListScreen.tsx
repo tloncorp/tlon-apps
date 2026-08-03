@@ -260,23 +260,32 @@ export function ChatListScreenView({
         if (!landing) {
           return;
         }
-        db.agentOnboardingLanding.resetValue().catch((error) => {
-          logger.trackError('Failed to clear onboarding landing', { error });
-        });
         const deadline = Date.now() + 30_000;
         while (!cancelled && Date.now() < deadline) {
           const channel = await db.getChannel({ id: landing.channelId });
           if (channel) {
             if (!cancelled) {
               // The agent opens the conversation itself when it joins a newly
-              // created group, so landing here is all the client does.
+              // created group, so landing here is all the client does. Only
+              // consume the handoff once it has actually happened — clearing
+              // earlier would make a slow first sync eat it, and the user
+              // would never land in the onboarding conversation.
               resetToChannel(landing.channelId, { groupId: landing.groupId });
+              db.agentOnboardingLanding.resetValue().catch((error) => {
+                logger.trackError('Failed to clear onboarding landing', {
+                  error,
+                });
+              });
             }
             return;
           }
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
-        logger.trackError('Onboarding landing channel never synced', landing);
+        // Timed out or unmounted: leave the landing armed so the next mount
+        // can retry once the channel has synced in.
+        if (!cancelled) {
+          logger.trackError('Onboarding landing channel never synced', landing);
+        }
       } catch (error) {
         logger.trackError('Failed to consume onboarding landing', { error });
       }

@@ -36,8 +36,12 @@ const GroupJobSpecSchema = z.object({
   schedule: GroupJobScheduleSchema,
   /** full instruction the agent runs */
   prompt: z.string().min(1).max(4000),
-  /** where output lands, e.g. "diary/~ship/slug" or "chat/~ship/slug" */
-  outputNest: z.string().min(1),
+  /**
+   * Where output lands, e.g. "notes/~ship/slug" or "chat/~ship/slug".
+   * Empty until the job's first run creates the output channel — the setup
+   * directive requires writing it that way, so an empty string must parse.
+   */
+  outputNest: z.string(),
   /** optional chat ping when output lands elsewhere */
   announceNest: z.string().min(1).optional(),
   checkIn: z.object({ everyRuns: z.number().int().positive() }).optional(),
@@ -184,4 +188,24 @@ export function groupDisplayDescription(description?: string | null): string {
     return config.purpose.trim();
   }
   return description ?? '';
+}
+
+/**
+ * Fold a human-edited description back into a config-bearing one.
+ *
+ * The group editor shows `groupDisplayDescription` — the config's purpose —
+ * so what the user edits is prose. Saving that prose raw would overwrite the
+ * machine-readable entry and un-configure the group's agent; instead the
+ * edited text becomes the config's `purpose` and everything else survives.
+ * Descriptions without a config pass through unchanged.
+ */
+export function mergeGroupDescriptionEdit(
+  currentDescription: string | null | undefined,
+  editedDescription: string
+): string {
+  const config = parseGroupAgentConfig(currentDescription);
+  if (!config) {
+    return editedDescription;
+  }
+  return JSON.stringify([{ ...config, purpose: editedDescription.trim() }]);
 }

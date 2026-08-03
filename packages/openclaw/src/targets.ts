@@ -129,8 +129,9 @@ export function formatTargetHint(target?: string): string {
   // entries carry a title and a Markdown body, which a chat message has no
   // room for. Say where to write it instead, or the agent retries the same
   // call until it gives up and reports itself blocked.
-  if (target && /^notes\//i.test(target.trim().replace(/^tlon:/i, ''))) {
-    return `notes channels are written with the tlon tool, not this one — 'notes note-create ${target.trim()} root "<Title>" --stdin'. This tool posts to: ${base}`;
+  const nest = target?.trim().replace(/^tlon:/i, '');
+  if (nest && /^notes\//i.test(nest)) {
+    return `notes channels are written with the tlon tool, not this one — 'notes note-create ${nest} root "<Title>" --stdin'. This tool posts to: ${base}`;
   }
   return base;
 }

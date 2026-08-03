@@ -48,6 +48,11 @@ function repairDelivery(delivery: unknown): unknown {
   if (dest && (!dest.channel || !dest.to)) {
     delete next.failureDestination;
   }
+  // A delivery reduced to its mode is the same husk one level up: announce
+  // and explicit modes need a target, so without one the whole block goes.
+  if (!next.to && !next.channel) {
+    return undefined;
+  }
   return Object.keys(next).length > 0 ? next : undefined;
 }
 

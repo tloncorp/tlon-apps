@@ -6,12 +6,14 @@ import {
   PURPOSE_JOBS,
   PURPOSE_OPTIONS,
   PURPOSE_TOPICS,
+  TOPICS_PICKER_PROMPT,
 } from './agent-onboarding-config.js';
 import {
   buildInviteCardBlob,
   buildPurposePickerBlob,
   buildTopicsPickerBlob,
   channelHasNoPosts,
+  derivePendingPurposeFromHistory,
   descriptionHasAgentSetup,
   findChatNestForGroup,
   findGroupForChannel,
@@ -449,5 +451,55 @@ describe('invite card', () => {
     expect(surfaceOf(buildInviteCardBlob('chat/~a/one', '~a/g')!)).not.toEqual(
       surfaceOf(buildInviteCardBlob('chat/~b/two', '~b/g')!)
     );
+  });
+});
+
+describe('derivePendingPurposeFromHistory', () => {
+  const BOT = '~zod';
+  const OWNER = '~ten';
+  const pills = {
+    author: BOT,
+    content: TOPICS_PICKER_PROMPT + ' Weather, News — or just tell me.',
+  };
+  const tap = { author: OWNER, content: 'A daily digest' };
+
+  test('recovers the purpose when the pills went unanswered', () => {
+    // Restart between posting the pills and the owner replying: the
+    // in-memory pending map is gone, but the transcript is not.
+    expect(
+      derivePendingPurposeFromHistory(
+        [
+          { ...tap, timestamp: 1 },
+          { ...pills, timestamp: 2 },
+        ],
+        BOT,
+        OWNER
+      )
+    ).toBe('agent-daily-digest');
+  });
+
+  test('nothing to recover once the owner has said anything newer', () => {
+    expect(
+      derivePendingPurposeFromHistory(
+        [
+          { ...tap, timestamp: 1 },
+          { ...pills, timestamp: 2 },
+          { author: OWNER, content: 'Weather, News', timestamp: 3 },
+        ],
+        BOT,
+        OWNER
+      )
+    ).toBeUndefined();
+  });
+
+  test('nothing to recover from a channel with no picker exchange', () => {
+    expect(
+      derivePendingPurposeFromHistory(
+        [{ author: OWNER, content: 'hey', timestamp: 1 }],
+        BOT,
+        OWNER
+      )
+    ).toBeUndefined();
+    expect(derivePendingPurposeFromHistory([], BOT, OWNER)).toBeUndefined();
   });
 });

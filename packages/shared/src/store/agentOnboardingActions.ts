@@ -1,4 +1,5 @@
 import * as api from '@tloncorp/api';
+import { desig } from '@tloncorp/api/lib/urbit';
 import {
   GROUP_AGENT_CONFIG_ENTRY_TYPE,
   GroupAgentConfigEntry,
@@ -173,7 +174,14 @@ async function resolveTlawnBot(): Promise<{
     if (!moon) {
       return { botShipId: null, hostedShipId, moon: null };
     }
-    return { botShipId: `~${moon}-${hostedShipId}`, hostedShipId, moon };
+    // The hosting API returns either the bare moon prefix ("molten") or the
+    // full moon name, sigged or not — the bot-settings helper tolerates both
+    // shapes, so this must too, or the guest list invites a ship that
+    // doesn't exist.
+    const host = desig(hostedShipId.trim());
+    const prefix = desig(moon.trim());
+    const full = prefix.endsWith(`-${host}`) ? prefix : `${prefix}-${host}`;
+    return { botShipId: api.preSig(full), hostedShipId, moon };
   } catch (error) {
     logger.trackError('Failed to resolve Tlonbot for agent group', { error });
     return { botShipId: null, hostedShipId: null, moon: null };

@@ -321,6 +321,7 @@ type RawGroup = {
   meta?: { description?: unknown };
   channels?: Record<string, unknown>;
   'active-channels'?: unknown;
+  seats?: unknown;
 };
 
 /**
@@ -396,6 +397,83 @@ export async function findChatNestForGroup(
     return null;
   }
   return { nest, host: hostOf(flag), description: descriptionOf(group) };
+}
+
+/**
+ * Recover a pending topics-picker purpose from channel history.
+ *
+ * The in-memory pending map is the primary record that the topic pills are
+ * awaiting an owner reply, but it dies with the process — a restart between
+ * the pills and the reply would otherwise swallow the setup directive and
+ * the templated job silently. The transcript survives restarts: the picker
+ * conversation is bot-posts-pills preceded by owner-taps-card, so walk
+ * recent history newest-first and rebuild the purpose from it.
+ *
+ * Undefined when history doesn't show an unanswered picker — including when
+ * the owner already replied to it (any owner message after the pills means
+ * the directive turn already ran, or is running).
+ */
+export function derivePendingPurposeFromHistory(
+  history: Array<{ author: string; content: string; timestamp?: number }>,
+  botShip: string,
+  ownerShip: string
+): string | undefined {
+  // Walk newest-first regardless of fetch order; the entry being handled
+  // right now is not yet in history.
+  const newestFirst = [...history].sort(
+    (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)
+  );
+  for (const entry of newestFirst) {
+    if (entry.author === ownerShip) {
+      const purposeId = purposeIdForChoice(entry.content);
+      if (purposeId) {
+        // The tap is the newest relevant thing — the pills that follow it
+        // may not be indexed yet, but the reply we're holding answers them.
+        return purposeId;
+      }
+      // Some other owner message is newer than any picker: the picker was
+      // answered (or abandoned) already.
+      if (entry.content.trim()) {
+        return undefined;
+      }
+    }
+    if (
+      entry.author === botShip &&
+      entry.content.startsWith(TOPICS_PICKER_PROMPT)
+    ) {
+      // Pills with no owner reply after them: the purpose is the owner's
+      // card tap just before. Keep scanning for it.
+      continue;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Whether `ship` holds the admin role in `flag`.
+ *
+ * The client grants the agent admin right after creating the group, but the
+ * grant races the agent's own join — and a setup turn that starts before the
+ * role lands does its renames and channel-creates as a plain member, whose
+ * pokes the host silently drops. Callers poll this before building. Null
+ * when the seat can't be read, which callers should treat as "not yet".
+ */
+export async function agentHasAdminSeat(
+  api: ScryApi,
+  flag: string,
+  ship: string,
+  runtime: Runtime
+): Promise<boolean | null> {
+  const groups = await scryGroups(api, runtime, `admin seat in ${flag}`);
+  const seats = groups?.[flag]?.seats;
+  if (!seats || typeof seats !== 'object') {
+    return null;
+  }
+  const seat = (seats as Record<string, { roles?: unknown }>)[ship];
+  if (!seat) {
+    return null;
+  }
+  return Array.isArray(seat.roles) && seat.roles.includes('admin');
 }
 
 /**

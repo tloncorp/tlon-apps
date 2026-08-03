@@ -5,6 +5,7 @@ import {
   canRenderAgentUiInGroup,
   groupDisplayDescription,
   isOwnAgentShip,
+  mergeGroupDescriptionEdit,
 } from './groupAgentConfig';
 
 const ME = '~forhep-tanmel';
@@ -124,5 +125,61 @@ describe('groupDisplayDescription', () => {
     expect(groupDisplayDescription(configNaming([MY_AGENT], ''))).toBe('');
     expect(groupDisplayDescription(null)).toBe('');
     expect(groupDisplayDescription(undefined)).toBe('');
+  });
+});
+
+describe('job config parsing', () => {
+  test('a job with an empty outputNest still parses', () => {
+    // The setup directive tells the agent to leave outputNest empty until
+    // the first run creates the channel; rejecting that shape would strip
+    // the whole config and un-recognize the agent.
+    const description = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        purpose: 'Keeps up with things.',
+        instructions: '',
+        agents: [MY_AGENT],
+        jobs: [
+          {
+            id: 'weekly',
+            title: 'Research update',
+            schedule: { kind: 'cron', expr: '0 9 * * 1', tz: 'UTC' },
+            prompt: 'Search the web.',
+            outputNest: '',
+            enabled: true,
+          },
+        ],
+        updatedAt: 1,
+      },
+    ]);
+    expect(groupDisplayDescription(description)).toBe('Keeps up with things.');
+    expect(
+      isOwnAgentShip({
+        authorId: MY_AGENT,
+        currentUserId: SOMEONE_ELSE,
+        groupDescription: description,
+      })
+    ).toBe(true);
+  });
+});
+
+describe('mergeGroupDescriptionEdit', () => {
+  test('an edit becomes the config purpose; agents and jobs survive', () => {
+    const current = configNaming([MY_AGENT]);
+    const merged = mergeGroupDescriptionEdit(current, 'Now about bread.');
+    const entry = JSON.parse(merged)[0];
+    expect(entry.purpose).toBe('Now about bread.');
+    expect(entry.agents).toEqual([MY_AGENT]);
+    expect(entry.type).toBe('tlon-group-agent-config');
+    // And the display round-trips.
+    expect(groupDisplayDescription(merged)).toBe('Now about bread.');
+  });
+
+  test('plain descriptions pass through unchanged', () => {
+    expect(mergeGroupDescriptionEdit('old prose', 'new prose')).toBe(
+      'new prose'
+    );
+    expect(mergeGroupDescriptionEdit(null, 'new prose')).toBe('new prose');
   });
 });

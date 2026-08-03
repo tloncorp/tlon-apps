@@ -67,7 +67,7 @@ describe('sanitizeCronToolParams', () => {
     });
   });
 
-  test('keeps a failureDestination that names a real target', () => {
+  test('keeps a failureDestination when the delivery itself has a target', () => {
     const dest = { channel: 'tlon', to: 'chat/~ten/x', mode: 'announce' };
     const repaired = sanitizeCronToolParams(
       jobWith({
@@ -77,9 +77,26 @@ describe('sanitizeCronToolParams', () => {
     expect((repaired as any).job.delivery.to).toBe('chat/~ten/x');
     expect(
       sanitizeCronToolParams(
-        jobWith({ delivery: { mode: 'announce', failureDestination: dest } })
+        jobWith({
+          delivery: {
+            mode: 'announce',
+            to: 'chat/~ten/x',
+            failureDestination: dest,
+          },
+        })
       )
     ).toBeNull();
+  });
+
+  test('drops a delivery that pruning reduced to a bare mode', () => {
+    // {mode: 'announce'} with no target still fails scheduler validation,
+    // so the husk has to go entirely rather than shrink.
+    const repaired = sanitizeCronToolParams(
+      jobWith({
+        delivery: { mode: 'announce', channel: '', to: '', accountId: '' },
+      })
+    );
+    expect('delivery' in (repaired as any).job).toBe(false);
   });
 
   test('drops a run count below the schema minimum', () => {

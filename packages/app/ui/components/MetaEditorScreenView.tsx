@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { groupDisplayDescription } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import { KeyboardAvoidingView, useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -175,7 +176,11 @@ export function getMetaWithDefaults(
 ) {
   return {
     title: chat?.title || defaults.title,
-    description: chat?.description || defaults.description,
+    // An agent group's raw description is its config JSON; the editable text
+    // is the config's purpose. The save path folds the edit back into the
+    // config (see mergeGroupDescriptionEdit).
+    description:
+      groupDisplayDescription(chat?.description) || defaults.description,
     coverImage: chat?.coverImage || defaults.coverImage,
     iconImage: chat?.iconImage || defaults.iconImage,
   };

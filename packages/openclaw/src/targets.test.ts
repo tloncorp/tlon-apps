@@ -54,10 +54,11 @@ describe('formatTargetHint', () => {
     expect(hint).toContain('notes/~zod/research-1');
   });
 
-  test('tolerates the channel prefix on the target', () => {
-    expect(formatTargetHint('tlon:notes/~zod/research-1')).toContain(
-      'note-create'
-    );
+  test('strips the channel prefix from both the check and the suggestion', () => {
+    const hint = formatTargetHint('tlon:notes/~zod/research-1');
+    expect(hint).toContain('note-create notes/~zod/research-1');
+    // A hint that echoes the prefix would produce another invalid command.
+    expect(hint).not.toContain('tlon:notes');
   });
 
   test('falls back to the plain list for everything else', () => {
