@@ -1,4 +1,8 @@
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import {
+  StackActions,
+  useFocusEffect,
+  useIsFocused,
+} from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Story } from '@tloncorp/api/urbit';
 import {
@@ -149,6 +153,27 @@ export default function ChannelScreen(props: Props) {
   const { navigation } = useRootNavigation();
   const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
+
+  /**
+   * Where "back" goes, decided at press time rather than by what the stack
+   * happened to hold on the way in. A group can grow around the user while
+   * they sit in a channel — agent onboarding lands them in a single-channel
+   * group and the bot adds a notebook during setup — so a plain pop would
+   * skip a channel list that now exists. If the group has more than one
+   * channel, back means "up to the channel list": popTo pops to the list
+   * when it's already behind this screen and replaces this screen with it
+   * when it isn't (same idiom as useNavigateBackFromPost).
+   */
+  const handleGoBack = useCallback(() => {
+    if (isWindowNarrow && groupId && (group?.channels?.length ?? 0) > 1) {
+      navigationRef.current.dispatch(
+        StackActions.popTo('GroupChannels', { groupId })
+      );
+      return;
+    }
+    navigationRef.current.goBack();
+  }, [group?.channels?.length, groupId, isWindowNarrow]);
+
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
 
   const { performGroupAction } = useGroupActions();
@@ -416,7 +441,7 @@ export default function ChannelScreen(props: Props) {
           groupIsLoading={groupIsLoading}
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
-          goBack={navigationRef.current.goBack}
+          goBack={handleGoBack}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
