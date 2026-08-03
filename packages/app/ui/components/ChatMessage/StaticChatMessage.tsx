@@ -161,11 +161,18 @@ export function StaticChatMessage({
 
   const isA2UIActionAvailable = useCallback(
     (action: A2UI.Button['action']) => {
-      if (
-        action.event.name === A2UI.action.navigate ||
-        action.event.name === A2UI.action.inviteLink
-      ) {
+      if (action.event.name === A2UI.action.navigate) {
         return true;
+      }
+
+      // The invite slot enables and exposes a group's invite link, so it is
+      // only ever legitimate for the group the post itself lives in. A2UI
+      // renders for any sender inside a DM, so without this a received blob
+      // naming someone else's group id would turn a private group's links on.
+      if (action.event.name === A2UI.action.inviteLink) {
+        return Boolean(
+          post.groupId && action.event.context.groupId === post.groupId
+        );
       }
 
       if (action.event.name === A2UI.action.sendMessage) {
@@ -178,7 +185,7 @@ export function StaticChatMessage({
 
       return false;
     },
-    [draftInputContext]
+    [draftInputContext, post.groupId]
   );
 
   // A2UI is interactive, so it stays off in shared spaces: DMs always, plus

@@ -17,6 +17,7 @@ import { View, YStack } from 'tamagui';
 
 import useGroupSearch from '../../hooks/useGroupSearch';
 import { AGENT_SHIP_OVERRIDE } from '../../lib/envVars';
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   Action,
@@ -475,7 +476,15 @@ function TypeSelectionContent({
 }) {
   const isWindowNarrow = useIsWindowNarrow();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
-  const hasAgent = (hostingBotEnabled ?? false) || !!AGENT_SHIP_OVERRIDE;
+  // Turning the flag off is the rollback switch for the whole conversational
+  // flow, so it has to restore the ordinary invitee group here too — not just
+  // the old splash.
+  const [conversationalOnboardingEnabled] = useFeatureFlag(
+    'conversationalOnboarding'
+  );
+  const hasAgent =
+    conversationalOnboardingEnabled &&
+    ((hostingBotEnabled ?? false) || !!AGENT_SHIP_OVERRIDE);
   const actions = useMemo(
     () => createTypeActions(onSelectType, hasAgent),
     [onSelectType, hasAgent]

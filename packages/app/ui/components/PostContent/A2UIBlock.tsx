@@ -432,6 +432,12 @@ export function A2UIBlock({
           );
         case 'Button': {
           if (component.action.event.name === A2UI.action.inviteLink) {
+            // Mounting this control turns the group's invite links on, so an
+            // untrusted or mismatched card renders as nothing rather than as
+            // a dead button — the surrounding text still explains the ask.
+            if (isA2UIActionAvailable?.(component.action) === false) {
+              return null;
+            }
             return (
               <A2UIInviteLink
                 key={component.id}

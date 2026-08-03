@@ -15,6 +15,7 @@ import {
   channelHasNoPosts,
   derivePendingPurposeFromHistory,
   descriptionHasAgentSetup,
+  descriptionHasConfiguredJob,
   findChatNestForGroup,
   findGroupForChannel,
   isPurposePickerChoice,
@@ -238,6 +239,25 @@ describe('descriptionHasAgentSetup', () => {
     expect(
       descriptionHasAgentSetup(
         configEntry({ jobs: [{ id: 'daily', enabled: true }] })
+      )
+    ).toBe(true);
+  });
+
+  test('only a written job counts as a finished setup', () => {
+    // What gates the closing invite card. A purpose with no job is a build
+    // that announced itself and stopped, and posting the card there would
+    // hand over a share link for a group that does nothing yet.
+    expect(
+      descriptionHasConfiguredJob(configEntry({ purpose: 'Keeps up.' }))
+    ).toBe(false);
+    expect(descriptionHasConfiguredJob(configEntry({ agents: ['~zod'] }))).toBe(
+      false
+    );
+    expect(descriptionHasConfiguredJob('a group about bread')).toBe(false);
+    expect(descriptionHasConfiguredJob(null)).toBe(false);
+    expect(
+      descriptionHasConfiguredJob(
+        configEntry({ purpose: 'Keeps up.', jobs: [{ id: 'weekly' }] })
       )
     ).toBe(true);
   });

@@ -111,6 +111,7 @@ import {
   channelHasNoPosts,
   derivePendingPurposeFromHistory,
   descriptionHasAgentSetup,
+  descriptionHasConfiguredJob,
   findChatNestForGroup,
   findGroupForChannel,
   inviteCardFallbackText,
@@ -819,6 +820,12 @@ export async function monitorTlonProvider(
      * so the cron payload comes from config instead of model prose.
      */
     const onboardingSetupPending = new Map<string, string>();
+    /**
+     * Channels whose setup has been asked for but not yet closed with the
+     * invite card. The card goes last, so this outlives the turn that issued
+     * the directive.
+     */
+    const onboardingInvitePending = new Set<string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -851,16 +858,33 @@ export async function monitorTlonProvider(
     };
 
     /**
-     * Close a finished setup with the invite card. Best effort: the setup
-     * itself is done and the agent has already made the ask in words, so a
-     * failure here costs a convenience, not the flow.
+     * Close a finished setup with the invite card — last, after the group has
+     * been named, configured and shown to do its job.
+     *
+     * Gated on the written config rather than on the turn returning: a setup
+     * spans however many turns the conversation needs, and a turn that timed
+     * out or stalled returns normally. The job in the group's config is the
+     * build's final artifact, so its presence is what "finished" means. Until
+     * then the group stays on the owed list and the next turn checks again.
+     *
+     * Best effort past that point: the agent has already made the ask in
+     * words, so a failure here costs a convenience, not the flow.
      */
-    const postInviteCard = async (nest: string): Promise<void> => {
+    const postInviteCardIfSetupComplete = async (
+      nest: string
+    ): Promise<void> => {
+      if (!onboardingInvitePending.has(nest)) {
+        return;
+      }
       try {
         const group = await findGroupForChannel(api, nest, runtime);
         if (!group) {
           return;
         }
+        if (!descriptionHasConfiguredJob(group.description)) {
+          return;
+        }
+        onboardingInvitePending.delete(nest);
         const blob = buildInviteCardBlob(nest, group.flag);
         if (!blob) {
           return;
@@ -4161,11 +4185,13 @@ export async function monitorTlonProvider(
             renderSetupDirective(pendingSetupPurpose, rawText ?? '') ??
             undefined;
         }
-        // The setup turn ends with the agent asking them to bring someone in;
-        // the invite link itself is a card Tlon posts, because only the
-        // client can resolve a lure. Captured before the await so the
-        // one-shot directive state can't race it.
-        const shouldPostInviteCard = Boolean(setupDirective);
+        // A setup that has been asked for owes an invite card once it is
+        // actually finished. Recorded rather than posted here: the directive
+        // turn usually only gets as far as asking a follow-up question, and
+        // the build lands turns later.
+        if (setupDirective) {
+          onboardingInvitePending.add(nest);
+        }
         if (setupDirective) {
           // The client grants the agent admin right after creating the
           // group; a fast owner can tap through before it lands, and a
@@ -4191,29 +4217,38 @@ export async function monitorTlonProvider(
             }
           }
         }
-        await processMessage({
-          messageId: messageId ?? '',
-          senderShip,
-          messageText: rawText,
-          ...(citedContent ? { citedContent } : {}),
-          ...(setupDirective ? { setupDirective } : {}),
-          gateText: engagementText,
-          trigger,
-          cachesHistory: true,
-          messageContent: content.content, // Pass raw content for media extraction
-          blobField: content.blob,
-          isGroup: true,
-          channelNest: nest,
-          hostShip: parsed?.hostShip,
-          channelName: parsed?.channelName,
-          timestamp: content.sent || Date.now(),
-          parentId,
-          isThreadReply,
-        });
-
-        if (shouldPostInviteCard) {
-          await postInviteCard(nest);
+        try {
+          await processMessage({
+            messageId: messageId ?? '',
+            senderShip,
+            messageText: rawText,
+            ...(citedContent ? { citedContent } : {}),
+            ...(setupDirective ? { setupDirective } : {}),
+            gateText: engagementText,
+            trigger,
+            cachesHistory: true,
+            messageContent: content.content, // Pass raw content for media extraction
+            blobField: content.blob,
+            isGroup: true,
+            channelNest: nest,
+            hostShip: parsed?.hostShip,
+            channelName: parsed?.channelName,
+            timestamp: content.sent || Date.now(),
+            parentId,
+            isThreadReply,
+          });
+        } catch (dispatchError) {
+          // A transient provider or tool failure must not consume the setup
+          // intent: the post is already marked processed, so without this the
+          // group would stay unconfigured and the next owner message would be
+          // read as ordinary chat.
+          if (pendingSetupPurpose) {
+            onboardingSetupPending.set(nest, pendingSetupPurpose);
+          }
+          throw dispatchError;
         }
+
+        await postInviteCardIfSetupComplete(nest);
       } catch (error: any) {
         runtime.error?.(
           `[tlon] Error handling channel firehose event: ${error?.message ?? String(error)}`

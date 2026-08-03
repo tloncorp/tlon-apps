@@ -556,27 +556,48 @@ export function shouldOfferPickerOnJoin(opts: {
 export function descriptionHasAgentSetup(
   description: string | null | undefined
 ): boolean {
+  return agentConfigEntries(description).some((entry) => {
+    const { purpose, jobs } = entry;
+    return (
+      (typeof purpose === 'string' && purpose.trim().length > 0) ||
+      (Array.isArray(jobs) && jobs.length > 0)
+    );
+  });
+}
+
+/**
+ * True once a group's config records a job — the build's final artifact, and
+ * so the signal that a setup has finished rather than merely started. Stricter
+ * than {@link descriptionHasAgentSetup} on purpose: a config carrying only a
+ * purpose is a build that wrote its intent and then stopped.
+ */
+export function descriptionHasConfiguredJob(
+  description: string | null | undefined
+): boolean {
+  return agentConfigEntries(description).some(
+    (entry) => Array.isArray(entry.jobs) && entry.jobs.length > 0
+  );
+}
+
+/**
+ * The config entries in a group description, or none if it holds prose or
+ * malformed JSON — anything unparseable reads as "no config", matching
+ * `parseGroupAgentConfig` in @tloncorp/api.
+ */
+function agentConfigEntries(
+  description: string | null | undefined
+): { purpose?: unknown; jobs?: unknown }[] {
   const trimmed = description?.trim();
   if (!trimmed?.startsWith('[')) {
-    return false;
+    return [];
   }
   try {
     const entries = JSON.parse(trimmed);
-    if (!Array.isArray(entries)) {
-      return false;
-    }
-    return entries.some((entry) => {
-      if (entry?.type !== AGENT_CONFIG_ENTRY_TYPE) {
-        return false;
-      }
-      const { purpose, jobs } = entry as { purpose?: unknown; jobs?: unknown };
-      return (
-        (typeof purpose === 'string' && purpose.trim().length > 0) ||
-        (Array.isArray(jobs) && jobs.length > 0)
-      );
-    });
+    return Array.isArray(entries)
+      ? entries.filter((entry) => entry?.type === AGENT_CONFIG_ENTRY_TYPE)
+      : [];
   } catch {
-    return false;
+    return [];
   }
 }
 
