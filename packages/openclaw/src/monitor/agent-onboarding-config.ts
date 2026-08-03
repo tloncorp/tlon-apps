@@ -169,6 +169,12 @@ const INLINE_FIRST_RUN =
  * and every run after that appends to the same place — the job's output
  * accumulates in one notebook instead of scrolling away in chat.
  *
+ * Tracking is the one exception: its first scheduled run may be a day away,
+ * so its confirmation creates the notebook immediately and seeds it with a
+ * one-entry explanation of what will land there — the group shows where the
+ * record lives without waiting a day, and the client's back button can route
+ * through the channel list as soon as the notebook exists.
+ *
  * Part of the verbatim payload, so it is one string rather than three
  * paraphrases that can drift apart.
  */
@@ -258,11 +264,21 @@ export const PURPOSE_JOBS: Record<
       ' If nothing was logged, say so in one line in chat and stop, ' +
       'without posting an empty check-in.',
     confirmation:
-      "There's nothing to summarize yet, so don't run the job — instead " +
-      'ask the owner to log their first entry right now, in their own ' +
-      "words, and confirm you've recorded it — then leave the closing ask " +
-      'below as the only question, rather than also asking what else they ' +
-      'want to track alongside: {{topics}}.',
+      "There's nothing to summarize yet, so don't run the job. Do create " +
+      'the notebook now — the one exception to waiting for the first run, ' +
+      'so the group shows where the record will live: `tlon channels ' +
+      'create <flag> "<Title>" --kind notes`, named for the subject, and ' +
+      'record its nest as this job\'s "outputNest" in the group config. ' +
+      'Seed it with a single entry titled "About this notebook" whose body ' +
+      'is exactly: "Analysis and summaries of your {{topics}} entries will ' +
+      'land in this notebook." — you may only rephrase the topic list ' +
+      'itself so it reads naturally. If the create fails with HTTP 404 ' +
+      '(no %notes desk here), skip the notebook and the seed entirely and ' +
+      'leave "outputNest" empty — the scheduled run handles where output ' +
+      'goes. Then ask the owner to log their first entry right now, in ' +
+      "chat, in their own words, and confirm you've recorded it — leaving " +
+      'the closing ask below as the only question, rather than also ' +
+      'asking what else they want to track alongside: {{topics}}.',
   },
   'agent-research': {
     title: 'Research update: {{topics}}',

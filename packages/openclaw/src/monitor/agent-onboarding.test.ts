@@ -396,6 +396,23 @@ describe('renderSetupDirective', () => {
     expect(renderSetupDirective('agent-nonexistent', 'x')).toBeNull();
   });
 
+  test('tracking seeds the notebook at setup with the sample entry', () => {
+    // The one exception to first-run-creates-the-channel: tracking's first
+    // scheduled run may be a day away, and the back button routes through
+    // the channel list only once the notebook exists.
+    const directive = renderSetupDirective('agent-tracking', 'HRV, Dreams')!;
+    expect(directive).toContain('unless the confirmation');
+    expect(directive).toContain('--kind notes');
+    expect(directive).toContain(
+      'Analysis and summaries of your HRV, Dreams entries will land in ' +
+        'this notebook.'
+    );
+    // Digest and research still wait for the first run.
+    expect(renderSetupDirective('agent-daily-digest', 'News')).not.toContain(
+      'About this notebook'
+    );
+  });
+
   test('every job runs daily', () => {
     // A job that fires weekly is a job the owner forgets they have, and the
     // promise the setup makes is that something arrives tomorrow morning.
