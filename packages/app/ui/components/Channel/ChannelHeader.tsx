@@ -13,6 +13,8 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
@@ -116,6 +118,7 @@ export function ChannelHeader({
   showSpinner,
   loadingSubtitle = 'Loading messages…',
   hideIdentity = false,
+  hideContents = false,
   showSearchButton = false,
   showEditButton = false,
   preferProvidedTitle = false,
@@ -137,11 +140,20 @@ export function ChannelHeader({
   showSpinner?: boolean;
   loadingSubtitle?: string | null;
   hideIdentity?: boolean;
+  /**
+   * Collapse the header to nothing but its safe-area inset — no controls, no
+   * title, no border, no height. For a channel the user is being held in (a
+   * guided setup in progress): every control here is an exit, and an exit
+   * that reappears one at a time is worse than none. The inset stays so
+   * content clears the notch while the bar is gone.
+   */
+  hideContents?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
   preferProvidedTitle?: boolean;
   post?: db.Post;
 }) {
+  const { top: safeAreaTop } = useSafeAreaInsets();
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
   const chatDescription = useChatDescription(channel, group);
@@ -358,6 +370,10 @@ export function ChannelHeader({
 
     return undefined;
   }, [channel.type, goToProfile, goToChatDetails]);
+
+  if (hideContents) {
+    return <View paddingTop={safeAreaTop} />;
+  }
 
   return (
     <ScreenHeader

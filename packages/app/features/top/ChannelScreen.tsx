@@ -453,7 +453,7 @@ export default function ChannelScreen(props: Props) {
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
           goBack={handleGoBack}
-          hideBackButton={setupLocked}
+          hideHeaderContents={setupLocked}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}

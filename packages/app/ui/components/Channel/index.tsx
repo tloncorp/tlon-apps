@@ -259,10 +259,11 @@ interface ChannelProps {
   groupIsLoading?: boolean;
   goBack: () => void;
   /**
-   * Suppress the header back button (the internal goBack for draft dismissal
-   * keeps working). Used while a guided setup holds the user in the channel.
+   * Blank the channel header — every control in it is a way out, and a
+   * guided setup holds the user in the conversation until it finishes. The
+   * internal goBack for draft dismissal keeps working.
    */
-  hideBackButton?: boolean;
+  hideHeaderContents?: boolean;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
@@ -305,7 +306,7 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
-  hideBackButton,
+  hideHeaderContents,
   goToChatDetails,
   goToSearch,
   goToContextLensRuns,
@@ -735,10 +736,10 @@ export function Channel({
                         group={group}
                         title={title ?? ''}
                         description={''}
+                        hideContents={hideHeaderContents}
                         goBack={
-                          !hideBackButton &&
-                          (isNarrow ||
-                            draftInputPresentationMode === 'fullscreen')
+                          isNarrow ||
+                          draftInputPresentationMode === 'fullscreen'
                             ? handleGoBack
                             : undefined
                         }
