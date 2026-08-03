@@ -4,19 +4,26 @@ import { ThreadResponseBodyError } from '../http-api';
 import type { Group } from '../types/models';
 import {
   createGroup,
-  getGroups,
   subscribeGroups,
   toV1GroupsUpdate,
+  updateGroupMeta,
 } from './groupsApi';
-import { BadResponseError, scry, subscribe, thread } from './urbit';
+import { scry, subscribe, thread, trackedPoke } from './urbit';
 
 vi.mock('./urbit', async () => {
   const actual = await vi.importActual<typeof import('./urbit')>('./urbit');
-  return { ...actual, scry: vi.fn(), thread: vi.fn(), subscribe: vi.fn() };
+  return {
+    ...actual,
+    scry: vi.fn(),
+    thread: vi.fn(),
+    subscribe: vi.fn(),
+    trackedPoke: vi.fn(),
+  };
 });
 
 const scryMock = scry as unknown as Mock;
 const subscribeMock = subscribe as unknown as Mock;
+const trackedPokeMock = trackedPoke as unknown as Mock;
 const threadMock = thread as unknown as Mock;
 
 const group: Group = {
@@ -79,43 +86,37 @@ test('toV1GroupsUpdate maps blob responses to editGroupBlob', () => {
   });
 });
 
-test('getGroups falls back to the v2 scry when v3 is unavailable', async () => {
-  scryMock.mockRejectedValueOnce(new BadResponseError(404, 'missing'));
-  scryMock.mockResolvedValueOnce({});
-
-  await expect(getGroups()).resolves.toEqual([]);
-
-  expect(scryMock).toHaveBeenNthCalledWith(1, {
-    app: 'groups',
-    path: '/v3/groups',
-  });
-  expect(scryMock).toHaveBeenNthCalledWith(2, {
-    app: 'groups',
-    path: '/v2/groups',
-  });
-});
-
-// Group updates must ride a single lane so nothing is handled twice; the
-// older lanes are only opened when the v3 watch path is unavailable.
-test('subscribeGroups subscribes to v3 alone, falling back to v1+v2', async () => {
+// Group updates ride a single lane; the legacy lanes stay on the backend for
+// older clients but this client must never open them.
+test('subscribeGroups subscribes to the v3 lane only', async () => {
   subscribeMock.mockResolvedValue(1);
+
   await subscribeGroups(() => {});
+
   const paths = subscribeMock.mock.calls.map(([endpoint]) => endpoint.path);
   expect(paths).toContain('/v3/groups');
   expect(paths).not.toContain('/v1/groups');
   expect(paths).not.toContain('/v2/groups');
+});
 
-  subscribeMock.mockClear();
-  subscribeMock.mockImplementation(({ path }: { path: string }) =>
-    path === '/v3/groups'
-      ? Promise.reject(new Error('bad-watch-path'))
-      : Promise.resolve(1)
-  );
+// A trackedPoke resolves only when its watch endpoint receives an event, and
+// events arrive solely through that endpoint's own subscription. So the lane
+// tracked pokes watch must be the lane we subscribe to, or every group
+// mutation hangs until it times out and throws.
+test('tracked group pokes watch the lane subscribeGroups subscribes to', async () => {
+  subscribeMock.mockResolvedValue(1);
+  trackedPokeMock.mockResolvedValue(undefined);
+
   await subscribeGroups(() => {});
-  const fallbackPaths = subscribeMock.mock.calls.map(
-    ([endpoint]) => endpoint.path
-  );
-  expect(fallbackPaths).toContain('/v3/groups');
-  expect(fallbackPaths).toContain('/v1/groups');
-  expect(fallbackPaths).toContain('/v2/groups');
+  const subscribedPaths = subscribeMock.mock.calls
+    .map(([endpoint]) => endpoint.path)
+    .filter((path: string) => path.endsWith('/groups'));
+
+  await updateGroupMeta({
+    groupId: '~zod/test-group',
+    meta: { title: 't', description: '', image: '', cover: '' },
+  });
+  const [, watchEndpoint] = trackedPokeMock.mock.calls[0];
+
+  expect(subscribedPaths).toContain(watchEndpoint.path);
 });

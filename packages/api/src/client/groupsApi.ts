@@ -492,34 +492,19 @@ export const createGroup = async ({
   }
 };
 
-// v3 group scries return v11 format (v9 plus the group blob). Backends
-// that haven't shipped the blob yet 404 on them; fall back to the v2
-// path, whose response is identical minus `blob`.
-async function scryGroupsWithV2Fallback<T>(v3Path: string, v2Path: string) {
-  try {
-    return await scry<T>({ app: 'groups', path: v3Path });
-  } catch (err) {
-    if (err instanceof BadResponseError && err.status === 404) {
-      logger.log('v3 groups scry unavailable, falling back to v2', v3Path);
-      return await scry<T>({ app: 'groups', path: v2Path });
-    }
-    throw err;
-  }
-}
-
+// v3 group scries return v11 format — v9 plus the group blob.
 export const getGroup = async (groupId: string) => {
-  const groupData = await scryGroupsWithV2Fallback<ub.GroupV7>(
-    `/v3/ui/groups/${groupId}`,
-    `/v2/ui/groups/${groupId}`
-  );
+  const path = `/v3/ui/groups/${groupId}`;
+
+  const groupData = await scry<ub.GroupV7>({ app: 'groups', path });
   return toClientGroupV7(groupId, groupData, true);
 };
 
 export const getGroups = async () => {
-  const groupData = await scryGroupsWithV2Fallback<ub.GroupsV7>(
-    '/v3/groups',
-    '/v2/groups'
-  );
+  const groupData = await scry<ub.GroupsV7>({
+    app: 'groups',
+    path: '/v3/groups',
+  });
   return toClientGroupsV7(groupData, true);
 };
 
@@ -539,7 +524,7 @@ export const updateGroupMeta = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v2/groups' },
+    { app: 'groups', path: '/v3/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -592,7 +577,7 @@ export const deleteGroup = async (groupId: string) => {
         },
       },
     }),
-    { app: 'groups', path: '/v2/groups' },
+    { app: 'groups', path: '/v3/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -631,7 +616,7 @@ export const addNavSection = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v2/groups' },
+    { app: 'groups', path: '/v3/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -722,7 +707,7 @@ export const addChannelToNavSection = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v2/groups' },
+    { app: 'groups', path: '/v3/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -803,7 +788,7 @@ export const addChannelToGroup = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v2/groups' },
+    { app: 'groups', path: '/v3/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -1351,40 +1336,16 @@ export const subscribeGroups = async (
 
   // r-group:v11 is a superset of v9 and v10 — every group update, plus the
   // active-channel deltas that used to require v2, plus the blob — so a
-  // single lane carries everything and no event is handled twice. Backends
-  // without the blob bad-watch-path here and fall back to the v1 + v2 pair,
-  // which between them cover the same ground minus the blob.
-  try {
-    await subscribe<ub.V1GroupResponse>(
-      { app: 'groups', path: '/v3/groups' },
-      (rawEvent) => {
-        handleRawGroupsEvent(rawEvent);
-      }
-    );
-  } catch (err) {
-    logger.log('v3 groups subscription unavailable, falling back to v1', err);
-
-    void subscribe<ub.V1GroupResponse>(
-      { app: 'groups', path: '/v1/groups' },
-      (rawEvent) => {
-        handleRawGroupsEvent(rawEvent);
-      }
-    );
-
-    // active-channel deltas for third-party channel hosts like %notes exist
-    // only from v2 on; where even that is missing, init/group sync cover
-    // membership.
-    void subscribe<ub.V1GroupResponse>(
-      { app: 'groups', path: '/v2/groups' },
-      (rawEvent) => {
-        if ('r-group' in rawEvent && 'active-channel' in rawEvent['r-group']) {
-          handleRawGroupsEvent(rawEvent);
-        }
-      }
-    ).catch((fallbackErr) => {
-      logger.log('v2 groups subscription unavailable', fallbackErr);
-    });
-  }
+  // single lane carries everything and no event is handled twice. The v1 and
+  // v2 lanes stay on the backend for older clients, but this client only
+  // ever reads v3; the desk ships ahead of the app, so there is nothing to
+  // fall back to.
+  void subscribe<ub.V1GroupResponse>(
+    { app: 'groups', path: '/v3/groups' },
+    (rawEvent) => {
+      handleRawGroupsEvent(rawEvent);
+    }
+  );
 
   // Subscribe to v1/foreigns for foreign group updates
   void subscribe(
