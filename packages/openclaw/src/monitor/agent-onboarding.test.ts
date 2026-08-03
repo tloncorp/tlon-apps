@@ -8,13 +8,13 @@ import {
   PURPOSE_TOPICS,
 } from './agent-onboarding-config.js';
 import {
+  buildInviteCardBlob,
   buildPurposePickerBlob,
   buildTopicsPickerBlob,
   channelHasNoPosts,
   descriptionHasAgentSetup,
   findChatNestForGroup,
   findGroupForChannel,
-  isHomeGroupFlag,
   isPurposePickerChoice,
   purposePickerFallbackText,
   renderSetupDirective,
@@ -401,27 +401,25 @@ describe('renderSetupDirective', () => {
     }
   });
 
-  test('the first group ends by asking for an invite, later ones by offering tweaks', () => {
-    // The splash used to ask for contacts here; the conversational flow
-    // replaced it, so the home group has to make the ask itself.
-    const home = renderSetupDirective('agent-research', 'Mycology', {
-      isHomeGroup: true,
-    })!;
-    expect(home).toContain('invite link');
-    expect(home).toContain('bring a friend');
-
-    const later = renderSetupDirective('agent-research', 'Mycology')!;
-    expect(later).not.toContain('invite link');
-    // Both still confirm with a real first run.
-    expect(later).toContain('Run the job once right now');
-    expect(home).toContain('Run the job once right now');
+  test('every setup ends with the invite ask, and never a hand-made link', () => {
+    // The splash screen that asked for contacts is gone; this is the only
+    // ask left. Tlon posts the link card itself, so the agent must not
+    // paste or promise one.
+    for (const purposeId of Object.keys(PURPOSE_JOBS)) {
+      const directive = renderSetupDirective(purposeId, 'Mycology')!;
+      expect(directive).toContain('bring a friend');
+      expect(directive).toContain('never paste, invent, or promise a link');
+    }
   });
 
   test('confirmation: output jobs run once now, tracking asks for an entry', () => {
     for (const id of ['agent-daily-digest', 'agent-research']) {
       const directive = renderSetupDirective(id, 'News')!;
       expect(directive).toContain('Run the job once right now');
-      expect(directive).toContain('enumerating the sources');
+      // Sources are listed as a statement — the invite is the only closing
+      // question, so the confirmation must not end on one of its own.
+      expect(directive).toContain('list the sources you used');
+      expect(directive).toContain('the only question');
     }
     const tracking = renderSetupDirective('agent-tracking', 'Sleep, Mood')!;
     expect(tracking).toContain("don't run the job");
@@ -430,14 +428,26 @@ describe('renderSetupDirective', () => {
   });
 });
 
-describe('isHomeGroupFlag', () => {
-  test("only the owner's own home-group slug", () => {
-    expect(isHomeGroupFlag('~ten/home-group', '~ten')).toBe(true);
-    expect(isHomeGroupFlag('~TEN/home-group', '~ten')).toBe(true);
-    // Someone else's home group is just a group to us.
-    expect(isHomeGroupFlag('~zod/home-group', '~ten')).toBe(false);
-    expect(isHomeGroupFlag('~ten/v1qqiguv', '~ten')).toBe(false);
-    expect(isHomeGroupFlag(null, '~ten')).toBe(false);
-    expect(isHomeGroupFlag('~ten/home-group', null)).toBe(false);
+describe('invite card', () => {
+  test('a valid blob whose button carries the group, not a link', () => {
+    const blob = buildInviteCardBlob('chat/~ten/home-chat', '~ten/home-group')!;
+    expect(blob).not.toBeNull();
+    expect(A2UI.validateBlobEntry(blob)).toBe(true);
+    const button = componentsOf(blob).find(
+      (c) => (c as { component: string }).component === 'Button'
+    ) as any;
+    expect(button.action.event.name).toBe('tlon.inviteLink');
+    // No URL travels in the card — the client resolves the live lure, so
+    // nothing here can go stale.
+    expect(button.action.event.context).toEqual({
+      groupId: '~ten/home-group',
+    });
+    expect(JSON.stringify(blob)).not.toMatch(/https?:/);
+  });
+
+  test('surfaces are namespaced per channel', () => {
+    expect(surfaceOf(buildInviteCardBlob('chat/~a/one', '~a/g')!)).not.toEqual(
+      surfaceOf(buildInviteCardBlob('chat/~b/two', '~b/g')!)
+    );
   });
 });

@@ -82,28 +82,30 @@ export const TOPICS_PICKER_PROMPT =
 export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
 
 /**
- * The slug the client's onboarding gives the owner's first group. Mirrors
- * `BotHomeGroupSlugs.slug` in @tloncorp/api, spelled literally because this
- * plugin builds against a published version that may predate it.
- */
-export const HOME_GROUP_SLUG = 'home-group';
-
-/**
- * How the home-group setup ends, in place of the what-would-you-change
- * question the other groups get.
+ * How every setup ends: by getting someone else into the group.
  *
- * The first group is the owner's introduction to Tlon, and Tlon is only worth
- * anything with someone else in it — the old splash asked for contacts at
- * this point and the conversational flow replaced it, so the ask has to live
- * here or it doesn't happen at all. Tuning the job can wait; an empty group
- * can't.
+ * A group with one member is the worst possible demonstration of Tlon, and
+ * the splash screen that used to ask for contacts is gone — the
+ * conversational flow replaced it — so this is the only place left that
+ * asks. It closes with the invite rather than the old what-would-you-change
+ * question: tuning can wait, and they will care more about tuning once
+ * somebody else is reading.
+ *
+ * Tlon posts the invite card itself, immediately after this turn, so the
+ * agent must not try to produce a link of its own.
  */
-export const HOME_GROUP_CLOSING =
-  'This is the first group they have, so end by getting someone else into ' +
-  'it rather than asking what to tune — they can change any of it later, ' +
-  "and they'll have more reason to once someone else is reading. Invite " +
-  'them to bring a friend or two in, warmly and once, and give them the ' +
-  "group's invite link to send.";
+export const INVITE_CARD_PROMPT =
+  'Tlon is better with someone else in it. Send them this link:';
+
+export const INVITE_CARD_BUTTON_LABEL = 'Invite';
+
+export const INVITE_CLOSING =
+  'End by getting someone else in: invite them, warmly and once, to bring a ' +
+  'friend or two into the group. Ask that instead of asking what they would ' +
+  "change — they can change anything later. Tlon posts the group's invite " +
+  'link as a card immediately after your message, so make the ask in words ' +
+  'and stop there: never paste, invent, or promise a link yourself, and ' +
+  'never tell them to go looking for one.';
 
 /**
  * Giving the group an icon, in the same breath as naming it.
@@ -216,10 +218,11 @@ export const PURPOSE_JOBS: Record<
       ' Never fabricate: if you ' +
       "can't actually research, say so in chat in one honest line, with " +
       'what will arrive and when, and leave the notes channel uncreated ' +
-      'until there is something real to put in it. Then ask if they want ' +
-      'anything changed, enumerating the sources you used (one line each) ' +
-      'so they can add, drop, or swap sources. If the run degraded, still ' +
-      'ask — name what was missing and what you would use once it works.',
+      'until there is something real to put in it. Then list the sources you ' +
+      'used, one line each, so they can see where it came from and tell you ' +
+      'to add, drop, or swap one whenever they like — the closing ask below ' +
+      'is the only question this message should end on. If the run ' +
+      'degraded, name what was missing and what you would use once it works.',
   },
   'agent-tracking': {
     title: 'Tracking check-in: {{topics}}',
@@ -234,8 +237,9 @@ export const PURPOSE_JOBS: Record<
     confirmation:
       "There's nothing to summarize yet, so don't run the job — instead " +
       'ask the owner to log their first entry right now, in their own ' +
-      "words, and confirm you've recorded it. Then ask whether there's " +
-      'anything else they want to track alongside: {{topics}}.',
+      "words, and confirm you've recorded it — then leave the closing ask " +
+      'below as the only question, rather than also asking what else they ' +
+      'want to track alongside: {{topics}}.',
   },
   'agent-research': {
     title: 'Research update: {{topics}}',
@@ -254,10 +258,11 @@ export const PURPOSE_JOBS: Record<
       " Never fabricate: if you can't actually " +
       'research, say so in chat in one honest line, with what will arrive ' +
       'and when, and leave the notes channel uncreated until there is ' +
-      'something real to put in it. Then ask if they want anything ' +
-      'changed, enumerating the sources you used (one line each) so they ' +
-      'can add, drop, or swap sources. If the run degraded, still ask — ' +
-      'name what was missing and what you would use once it works.',
+      'something real to put in it. Then list the sources you used, one line ' +
+      'each, so they can see where it came from and tell you to add, drop, ' +
+      'or swap one whenever they like — the closing ask below is the only ' +
+      'question this message should end on. If the run degraded, name what ' +
+      'was missing and what you would use once it works.',
   },
 };
 

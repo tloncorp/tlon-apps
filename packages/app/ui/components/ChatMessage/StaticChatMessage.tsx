@@ -133,6 +133,11 @@ export function StaticChatMessage({
         return;
       }
 
+      // The invite slot renders its own control and never dispatches here.
+      if (action.event.name === A2UI.action.inviteLink) {
+        return;
+      }
+
       if (!draftInputContext || draftInputContext.canStartDraft === false) {
         return;
       }
@@ -156,7 +161,10 @@ export function StaticChatMessage({
 
   const isA2UIActionAvailable = useCallback(
     (action: A2UI.Button['action']) => {
-      if (action.event.name === A2UI.action.navigate) {
+      if (
+        action.event.name === A2UI.action.navigate ||
+        action.event.name === A2UI.action.inviteLink
+      ) {
         return true;
       }
 

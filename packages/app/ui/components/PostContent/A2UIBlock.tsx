@@ -1,8 +1,10 @@
 import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
+import { useGroup } from '@tloncorp/shared/store';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import React, { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
+import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 import { useContentContext } from './contentUtils';
 
 type RenderOptions = {
@@ -264,6 +266,21 @@ function getComponentText(
   }
 }
 
+/**
+ * An A2UI button carrying `tlon.inviteLink` is a slot, not a control: the
+ * card asks for the group's invite link, and the client fills it with the
+ * same invite affordance the rest of the app uses. Nothing about the link
+ * travels through the card, so it can't go stale and the sender never has to
+ * mint one.
+ */
+function A2UIInviteLink({ groupId }: { groupId: string }) {
+  const { data: group } = useGroup({ id: groupId });
+  if (!group) {
+    return null;
+  }
+  return <InviteFriendsToTlonButton group={group} />;
+}
+
 export function A2UIBlock({
   block,
   ...props
@@ -414,6 +431,14 @@ export function A2UIBlock({
             />
           );
         case 'Button': {
+          if (component.action.event.name === A2UI.action.inviteLink) {
+            return (
+              <A2UIInviteLink
+                key={component.id}
+                groupId={component.action.event.context.groupId}
+              />
+            );
+          }
           const disabled =
             component.disabled ||
             !onA2UIAction ||

@@ -230,3 +230,26 @@ describe('SmallChoice message building', () => {
     );
   });
 });
+
+describe('inviteLink action', () => {
+  const button = (action: unknown) => [
+    { id: 'root', component: 'Column', children: ['b', 'l'] },
+    { id: 'b', component: 'Button', child: 'l', action },
+    { id: 'l', component: 'Text', text: 'Invite' },
+  ];
+
+  test('valid with a group id, rejected without one', () => {
+    const action = (context: unknown) => ({
+      event: { name: A2UI.action.inviteLink, context },
+    });
+    expect(
+      A2UI.validateBlobEntry(
+        entryWith(button(action({ groupId: '~ten/home-group' })))
+      )
+    ).toBe(true);
+    expect(
+      A2UI.validateBlobEntry(entryWith(button(action({ groupId: '' }))))
+    ).toBe(false);
+    expect(A2UI.validateBlobEntry(entryWith(button(action({}))))).toBe(false);
+  });
+});

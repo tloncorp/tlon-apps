@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 const ACTION_NAVIGATE = 'tlon.navigate';
+const ACTION_INVITE_LINK = 'tlon.inviteLink';
 
 type ComponentBase = {
   id: string;
@@ -96,8 +97,23 @@ export namespace A2UI {
     };
   };
 
+  /**
+   * Hand the viewer the group's invite link.
+   *
+   * Carries no link of its own: the sender has no way to mint one (lures are
+   * created and read by the client), and a URL pasted into a transcript goes
+   * stale. The client resolves the current link for `groupId` when the
+   * control is used, so the card stays correct however long it sits there.
+   */
+  export type InviteLinkEvent = {
+    name: typeof ACTION_INVITE_LINK;
+    context: {
+      groupId: string;
+    };
+  };
+
   export type EventAction = {
-    event: SendMessageEvent | NavigateEvent;
+    event: SendMessageEvent | NavigateEvent | InviteLinkEvent;
   };
 
   export type ButtonAction = EventAction;
@@ -390,6 +406,10 @@ function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
 
   if (event.name === ACTION_NAVIGATE) {
     return isPlainObject(context) && validateNavigationTarget(context.target);
+  }
+
+  if (event.name === ACTION_INVITE_LINK) {
+    return isPlainObject(context) && isNonEmptyString(context.groupId);
   }
 
   return false;
@@ -769,6 +789,7 @@ export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
     navigate: ACTION_NAVIGATE,
+    inviteLink: ACTION_INVITE_LINK,
   },
   getUpdateMessage,
   getRootComponentId,

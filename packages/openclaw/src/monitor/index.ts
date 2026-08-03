@@ -104,12 +104,13 @@ import {
 } from '../version.js';
 import { GROUP_INTRO_MESSAGE } from './agent-onboarding-config.js';
 import {
+  buildInviteCardBlob,
   buildPurposePickerBlob,
   buildTopicsPickerBlob,
   channelHasNoPosts,
   findChatNestForGroup,
   findGroupForChannel,
-  isHomeGroupFlag,
+  inviteCardFallbackText,
   purposePickerFallbackText,
   renderSetupDirective,
   shouldOfferPickerOnJoin,
@@ -843,6 +844,35 @@ export async function monitorTlonProvider(
         story: markdownToStory(purposePickerFallbackText()),
         blob: serializeBlobField(buildPurposePickerBlob(nest)),
       });
+    };
+
+    /**
+     * Close a finished setup with the invite card. Best effort: the setup
+     * itself is done and the agent has already made the ask in words, so a
+     * failure here costs a convenience, not the flow.
+     */
+    const postInviteCard = async (nest: string): Promise<void> => {
+      try {
+        const group = await findGroupForChannel(api, nest, runtime);
+        if (!group) {
+          return;
+        }
+        const blob = buildInviteCardBlob(nest, group.flag);
+        if (!blob) {
+          return;
+        }
+        await sendChannelPost({
+          botProfile: getBotProfile(),
+          fromShip: botShipName,
+          nest,
+          story: markdownToStory(inviteCardFallbackText()),
+          blob: serializeBlobField(blob),
+        });
+      } catch (error) {
+        runtime.error?.(
+          `[tlon] Failed to post the invite card in ${nest}: ${String(error)}`
+        );
+      }
     };
 
     // Settings store manager for hot-reloading config
@@ -4073,17 +4103,15 @@ export async function monitorTlonProvider(
         const pendingSetupPurpose = onboardingSetupPending.get(nest);
         if (pendingSetupPurpose && isOwner(senderShip)) {
           onboardingSetupPending.delete(nest);
-          // The owner's first group ends by asking them to bring someone in;
-          // groups they make later end by offering to tune the job.
-          const setupGroup = await findGroupForChannel(api, nest, runtime);
           setupDirective =
-            renderSetupDirective(pendingSetupPurpose, rawText ?? '', {
-              isHomeGroup: isHomeGroupFlag(
-                setupGroup?.flag,
-                effectiveOwnerShip
-              ),
-            }) ?? undefined;
+            renderSetupDirective(pendingSetupPurpose, rawText ?? '') ??
+            undefined;
         }
+        // The setup turn ends with the agent asking them to bring someone in;
+        // the invite link itself is a card Tlon posts, because only the
+        // client can resolve a lure. Captured before the await so the
+        // one-shot directive state can't race it.
+        const shouldPostInviteCard = Boolean(setupDirective);
         await processMessage({
           messageId: messageId ?? '',
           senderShip,
@@ -4103,6 +4131,10 @@ export async function monitorTlonProvider(
           parentId,
           isThreadReply,
         });
+
+        if (shouldPostInviteCard) {
+          await postInviteCard(nest);
+        }
       } catch (error: any) {
         runtime.error?.(
           `[tlon] Error handling channel firehose event: ${error?.message ?? String(error)}`

@@ -7,8 +7,9 @@ import {
 } from '../urbit/blob.js';
 import {
   GROUP_ICON_RULE,
-  HOME_GROUP_CLOSING,
-  HOME_GROUP_SLUG,
+  INVITE_CARD_BUTTON_LABEL,
+  INVITE_CARD_PROMPT,
+  INVITE_CLOSING,
   PURPOSE_JOBS,
   PURPOSE_OPTIONS,
   PURPOSE_PICKER_FOOTER,
@@ -222,6 +223,48 @@ export function buildTopicsPickerBlob(
 }
 
 /**
+ * The invite card that closes a setup: a line of prose and the client's own
+ * invite control, which resolves the group's current lure when the owner
+ * uses it. Returns null when the resolved @tloncorp/api predates the
+ * `tlon.inviteLink` action, in which case the setup simply ends without a
+ * card — the agent has still made the ask in words.
+ */
+export function buildInviteCardBlob(
+  surfaceSuffix: string,
+  groupId: string
+): TlonA2UIBlob | null {
+  const components: A2UI.Component[] = [
+    { id: 'root', component: 'Column', children: ['prompt', 'invite'] },
+    { id: 'prompt', component: 'Text', text: INVITE_CARD_PROMPT },
+    {
+      id: 'invite',
+      component: 'Button',
+      variant: 'primary',
+      child: 'inviteLabel',
+      action: {
+        event: { name: 'tlon.inviteLink', context: { groupId } },
+      },
+    } as unknown as A2UI.Component,
+    { id: 'inviteLabel', component: 'Text', text: INVITE_CARD_BUTTON_LABEL },
+  ];
+  try {
+    return makeA2UIBlob(
+      `agent-onboarding-invite-${surfaceSuffix}`,
+      'root',
+      components,
+      TLON_A2UI_CATALOG_V2
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** The story text for the invite card, for clients that can't render it. */
+export function inviteCardFallbackText(): string {
+  return INVITE_CARD_PROMPT;
+}
+
+/**
  * The build instructions attached to the model turn that follows the owner's
  * topic reply. The cron payload is the config template rendered here —
  * deterministically — and the directive tells the agent to use it verbatim,
@@ -231,8 +274,7 @@ export function buildTopicsPickerBlob(
  */
 export function renderSetupDirective(
   purposeId: string,
-  topicsReply: string,
-  opts: { isHomeGroup?: boolean } = {}
+  topicsReply: string
 ): string | null {
   const job = PURPOSE_JOBS[purposeId];
   if (!job) {
@@ -269,7 +311,7 @@ export function renderSetupDirective(
     `templateId: ${purposeId} — copy it exactly; it records which setup the`,
     'owner picked, so a different id makes the group misreport itself.',
     `Once the job and config are in place: ${fill(job.confirmation)}`,
-    ...(opts.isHomeGroup ? [HOME_GROUP_CLOSING] : []),
+    INVITE_CLOSING,
   ].join('\n');
 }
 
@@ -508,22 +550,4 @@ export function shouldOfferTopicsPicker(opts: {
     return undefined;
   }
   return purposeIdForChoice(opts.messageText);
-}
-
-/**
- * Whether this group is the owner's first — the one the client's onboarding
- * makes, as opposed to any group they create later. The two get different
- * endings: see `HOME_GROUP_CLOSING`.
- */
-export function isHomeGroupFlag(
-  flag: string | null | undefined,
-  ownerShip: string | null | undefined
-): boolean {
-  if (!flag || !ownerShip) {
-    return false;
-  }
-  const [host, slug] = flag.split('/');
-  return (
-    slug === HOME_GROUP_SLUG && host?.toLowerCase() === ownerShip.toLowerCase()
-  );
 }
