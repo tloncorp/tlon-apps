@@ -1349,48 +1349,42 @@ export const subscribeGroups = async (
     }
   };
 
-  // v1/groups is the baseline stream for group updates. Older backends do not
-  // expose /v2/groups, so keep normal r-group updates on v1.
-  void subscribe<ub.V1GroupResponse>(
-    { app: 'groups', path: '/v1/groups' },
-    (rawEvent) => {
-      handleRawGroupsEvent(rawEvent);
-    }
-  );
-
-  // v2/groups adds active-channel membership deltas for third-party channel
-  // hosts like %notes. It can bad-watch-path on older backends; in that case
-  // v1 still carries normal group updates and init/group sync cover membership.
-  void subscribe<ub.V1GroupResponse>(
-    { app: 'groups', path: '/v2/groups' },
-    (rawEvent) => {
-      if ('r-group' in rawEvent && 'active-channel' in rawEvent['r-group']) {
+  // r-group:v11 is a superset of v9 and v10 — every group update, plus the
+  // active-channel deltas that used to require v2, plus the blob — so a
+  // single lane carries everything and no event is handled twice. Backends
+  // without the blob bad-watch-path here and fall back to the v1 + v2 pair,
+  // which between them cover the same ground minus the blob.
+  try {
+    await subscribe<ub.V1GroupResponse>(
+      { app: 'groups', path: '/v3/groups' },
+      (rawEvent) => {
         handleRawGroupsEvent(rawEvent);
       }
-    }
-  ).catch((err) => {
-    logger.log('v2 groups subscription unavailable', err);
-  });
+    );
+  } catch (err) {
+    logger.log('v3 groups subscription unavailable, falling back to v1', err);
 
-  // v3/groups adds group blob (custom payload) updates, which are stripped
-  // from v1/v2. %create rides v3 with the blob intact while v1's copy is
-  // blob-stripped, so process the v3 copy too — it arrives first, and the
-  // later v1 upsert carries no blob key so it leaves the column untouched.
-  // The subscription can bad-watch-path on older backends; in that case
-  // blob data still arrives via init/group sync.
-  void subscribe<ub.V1GroupResponse>(
-    { app: 'groups', path: '/v3/groups' },
-    (rawEvent) => {
-      if (
-        'r-group' in rawEvent &&
-        ('blob' in rawEvent['r-group'] || 'create' in rawEvent['r-group'])
-      ) {
+    void subscribe<ub.V1GroupResponse>(
+      { app: 'groups', path: '/v1/groups' },
+      (rawEvent) => {
         handleRawGroupsEvent(rawEvent);
       }
-    }
-  ).catch((err) => {
-    logger.log('v3 groups subscription unavailable', err);
-  });
+    );
+
+    // active-channel deltas for third-party channel hosts like %notes exist
+    // only from v2 on; where even that is missing, init/group sync cover
+    // membership.
+    void subscribe<ub.V1GroupResponse>(
+      { app: 'groups', path: '/v2/groups' },
+      (rawEvent) => {
+        if ('r-group' in rawEvent && 'active-channel' in rawEvent['r-group']) {
+          handleRawGroupsEvent(rawEvent);
+        }
+      }
+    ).catch((fallbackErr) => {
+      logger.log('v2 groups subscription unavailable', fallbackErr);
+    });
+  }
 
   // Subscribe to v1/foreigns for foreign group updates
   void subscribe(
@@ -1902,9 +1896,9 @@ export function toClientGroupV7(
     roles,
     privacy: group.admissions.privacy,
     ...toClientGroupMeta(group.meta),
-    // undefined means the source surface predates the blob (v1 create,
-    // v2 fallback scries) — upserts then leave any locally-known blob
-    // alone. An explicit null is an authoritative clear.
+    // Pass undefined through rather than coercing to null: a surface that
+    // predates the blob (the v1/v2 fallbacks) says nothing about it, so
+    // upserts leave any known blob alone. An explicit null is a real clear.
     blob: group.blob,
     haveInvite: isJoined ? false : undefined,
     haveRequestedInvite: isJoined ? false : undefined,

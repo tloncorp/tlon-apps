@@ -2,15 +2,21 @@ import { type Mock, beforeEach, expect, test, vi } from 'vitest';
 
 import { ThreadResponseBodyError } from '../http-api';
 import type { Group } from '../types/models';
-import { createGroup, getGroups, toV1GroupsUpdate } from './groupsApi';
-import { BadResponseError, scry, thread } from './urbit';
+import {
+  createGroup,
+  getGroups,
+  subscribeGroups,
+  toV1GroupsUpdate,
+} from './groupsApi';
+import { BadResponseError, scry, subscribe, thread } from './urbit';
 
 vi.mock('./urbit', async () => {
   const actual = await vi.importActual<typeof import('./urbit')>('./urbit');
-  return { ...actual, scry: vi.fn(), thread: vi.fn() };
+  return { ...actual, scry: vi.fn(), thread: vi.fn(), subscribe: vi.fn() };
 });
 
 const scryMock = scry as unknown as Mock;
+const subscribeMock = subscribe as unknown as Mock;
 const threadMock = thread as unknown as Mock;
 
 const group: Group = {
@@ -87,4 +93,29 @@ test('getGroups falls back to the v2 scry when v3 is unavailable', async () => {
     app: 'groups',
     path: '/v2/groups',
   });
+});
+
+// Group updates must ride a single lane so nothing is handled twice; the
+// older lanes are only opened when the v3 watch path is unavailable.
+test('subscribeGroups subscribes to v3 alone, falling back to v1+v2', async () => {
+  subscribeMock.mockResolvedValue(1);
+  await subscribeGroups(() => {});
+  const paths = subscribeMock.mock.calls.map(([endpoint]) => endpoint.path);
+  expect(paths).toContain('/v3/groups');
+  expect(paths).not.toContain('/v1/groups');
+  expect(paths).not.toContain('/v2/groups');
+
+  subscribeMock.mockClear();
+  subscribeMock.mockImplementation(({ path }: { path: string }) =>
+    path === '/v3/groups'
+      ? Promise.reject(new Error('bad-watch-path'))
+      : Promise.resolve(1)
+  );
+  await subscribeGroups(() => {});
+  const fallbackPaths = subscribeMock.mock.calls.map(
+    ([endpoint]) => endpoint.path
+  );
+  expect(fallbackPaths).toContain('/v3/groups');
+  expect(fallbackPaths).toContain('/v1/groups');
+  expect(fallbackPaths).toContain('/v2/groups');
 });

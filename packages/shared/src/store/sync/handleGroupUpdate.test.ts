@@ -326,9 +326,10 @@ test('editGroupBlob writes and clears the group blob column', async () => {
   expect(group?.blob).toBeNull();
 });
 
-// v1 %create responses are blob-stripped (blob undefined) while v3 carries
-// it; re-inserting from a blob-less surface must not clobber a blob learned
-// from the v3 lane, and an explicit null must still clear it.
+// A payload that carries no blob key says nothing about the blob, so an
+// upsert from it must leave a known blob alone; an explicit null is a real
+// clear and must still land. Group updates all arrive on one lane now, so
+// this guards future blob-less surfaces rather than a live race.
 test('addGroup preserves the blob on blob-less upserts and clears on null', async () => {
   const groupId = '~bus/blob-upsert-group';
   const base = {
