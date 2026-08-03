@@ -6,6 +6,7 @@ import {
   PURPOSE_JOBS,
   PURPOSE_OPTIONS,
   PURPOSE_TOPICS,
+  TOPICS_PICKER_FOOTER,
   TOPICS_PICKER_PROMPT,
 } from './agent-onboarding-config.js';
 import {
@@ -143,6 +144,19 @@ describe('topics picker', () => {
       const ids = pills.options.map((o) => o.id);
       expect(new Set(ids).size).toBe(ids.length);
     }
+  });
+
+  test('the picker says the pills are not the only answer', () => {
+    // Without this a wrapped row of chips reads as a closed menu, and the
+    // agent handles typed answers exactly the same way.
+    const blob = buildTopicsPickerBlob('nest', 'agent-research')!;
+    const footer = componentsOf(blob).find(
+      (c) => c.id === 'footer'
+    ) as A2UI.Text;
+    expect(footer.text).toBe(TOPICS_PICKER_FOOTER);
+    expect(topicsPickerFallbackText('agent-research')).toContain(
+      TOPICS_PICKER_FOOTER
+    );
   });
 
   test('null for an unknown purpose rather than an empty picker', () => {
@@ -380,6 +394,18 @@ describe('renderSetupDirective', () => {
       'Research update: Homelabs'
     );
     expect(renderSetupDirective('agent-nonexistent', 'x')).toBeNull();
+  });
+
+  test('every job runs daily', () => {
+    // A job that fires weekly is a job the owner forgets they have, and the
+    // promise the setup makes is that something arrives tomorrow morning.
+    for (const [purposeId, job] of Object.entries(PURPOSE_JOBS)) {
+      const [, , dayOfMonth, month, dayOfWeek] = job.schedule.split(' ');
+      expect(
+        [dayOfMonth, month, dayOfWeek],
+        `${purposeId} should run every day`
+      ).toEqual(['*', '*', '*']);
+    }
   });
 
   test('gives the group an icon alongside the rename, best effort', () => {

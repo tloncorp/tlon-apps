@@ -15,6 +15,7 @@ import {
   PURPOSE_PICKER_FOOTER,
   PURPOSE_PICKER_PROMPT,
   PURPOSE_TOPICS,
+  TOPICS_PICKER_FOOTER,
   TOPICS_PICKER_PROMPT,
   TOPICS_PICKER_SUBMIT_LABEL,
 } from './agent-onboarding-config.js';
@@ -179,7 +180,7 @@ export function topicsPickerFallbackText(purposeId: string): string {
   if (!topics.length) {
     return TOPICS_PICKER_PROMPT;
   }
-  return `${TOPICS_PICKER_PROMPT} ${topics.join(', ')} — or just tell me.`;
+  return `${TOPICS_PICKER_PROMPT} ${topics.join(', ')} — ${TOPICS_PICKER_FOOTER}`;
 }
 
 /**
@@ -196,8 +197,18 @@ export function buildTopicsPickerBlob(
     return null;
   }
   const components: A2UI.Component[] = [
-    { id: 'root', component: 'Column', children: ['prompt', 'topics'] },
+    {
+      id: 'root',
+      component: 'Column',
+      children: ['prompt', 'topics', 'footer'],
+    },
     { id: 'prompt', component: 'Text', text: TOPICS_PICKER_PROMPT },
+    {
+      id: 'footer',
+      component: 'Text',
+      variant: 'caption',
+      text: TOPICS_PICKER_FOOTER,
+    },
     {
       // Cast for the same registry-version reason as the Choice layout.
       id: 'topics',

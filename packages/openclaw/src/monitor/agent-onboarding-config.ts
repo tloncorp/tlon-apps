@@ -82,6 +82,13 @@ export const TOPICS_PICKER_PROMPT =
 export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
 
 /**
+ * The topic pills are suggestions, and the picker has to say so — otherwise a
+ * wrapped row of chips reads as the whole menu.
+ */
+export const TOPICS_PICKER_FOOTER =
+  'You can also just tell me here in the chat.';
+
+/**
  * How every setup ends: by getting someone else into the group.
  *
  * A group with one member is the worst possible demonstration of Tlon, and
@@ -98,6 +105,18 @@ export const INVITE_CARD_PROMPT =
   'Tlon is better with someone else in it. Send them this link:';
 
 export const INVITE_CARD_BUTTON_LABEL = 'Invite';
+
+/**
+ * The last word of the setup, posted by Tlon after the invite card so it can't
+ * land before it.
+ *
+ * The setup has been the agent doing things *to* the group; this hands the
+ * conversation back, and says the part a scheduled job never shows: that the
+ * thing it just built is also someone to talk to.
+ */
+export const INVITE_FOLLOWUP_MESSAGE =
+  'I’m here to talk to or ask questions about what I find. What else would ' +
+  'you like me to do?';
 
 export const INVITE_CLOSING =
   'End by getting someone else in: invite them, warmly and once, to bring a ' +
@@ -185,6 +204,10 @@ const OUTPUT_CHANNEL_RULE =
  * `{{topics}}` is replaced with the owner's topic reply, exactly as sent —
  * a submitted pill selection ("Peptides, Mycology") or whatever they typed.
  *
+ * Every job runs **daily**, deliberately: a job the owner sees fire once a
+ * week is a job they forget they have, and the whole point of the setup is
+ * that something arrives tomorrow morning. Only the hour differs.
+ *
  * `schedule` is the job's default cadence as a standard 5-field cron
  * expression (minute hour day-of-month month day-of-week), deliberately
  * without a timezone: the expression says when in the owner's day, and the
@@ -226,7 +249,7 @@ export const PURPOSE_JOBS: Record<
   },
   'agent-tracking': {
     title: 'Tracking check-in: {{topics}}',
-    schedule: '0 18 * * 0',
+    schedule: '0 18 * * *',
     prompt:
       'Review everything the owner has logged in this group about: ' +
       '{{topics}} since the last check-in. Write a short running picture — ' +
@@ -243,7 +266,7 @@ export const PURPOSE_JOBS: Record<
   },
   'agent-research': {
     title: 'Research update: {{topics}}',
-    schedule: '0 9 * * 1',
+    schedule: '0 9 * * *',
     prompt:
       'Search the web for genuinely new developments on: {{topics}} since ' +
       'the last update — releases, papers, notable writing, community ' +

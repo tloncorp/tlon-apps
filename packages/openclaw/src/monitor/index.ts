@@ -102,7 +102,10 @@ import {
   formatTlonVersionIdentity,
   resolveTlonSkillVersion,
 } from '../version.js';
-import { GROUP_INTRO_MESSAGE } from './agent-onboarding-config.js';
+import {
+  GROUP_INTRO_MESSAGE,
+  INVITE_FOLLOWUP_MESSAGE,
+} from './agent-onboarding-config.js';
 import {
   agentHasAdminSeat,
   buildInviteCardBlob,
@@ -886,15 +889,23 @@ export async function monitorTlonProvider(
         }
         onboardingInvitePending.delete(nest);
         const blob = buildInviteCardBlob(nest, group.flag);
-        if (!blob) {
-          return;
+        if (blob) {
+          await sendChannelPost({
+            botProfile: getBotProfile(),
+            fromShip: botShipName,
+            nest,
+            story: markdownToStory(inviteCardFallbackText()),
+            blob: serializeBlobField(blob),
+          });
         }
+        // Hands the conversation back, after the card so it can't land before
+        // it. Posted even when the card couldn't be built: on a client that
+        // can't render the invite slot, this is the whole ending.
         await sendChannelPost({
           botProfile: getBotProfile(),
           fromShip: botShipName,
           nest,
-          story: markdownToStory(inviteCardFallbackText()),
-          blob: serializeBlobField(blob),
+          story: markdownToStory(INVITE_FOLLOWUP_MESSAGE),
         });
       } catch (error) {
         runtime.error?.(
