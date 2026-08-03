@@ -21,6 +21,7 @@
  * internalRemoveClient, preSig, scry, subscribe), `dms.ts` (reactions,
  * posts, invites), and the notes runtimes (notesV1 et al.).
  */
+import type { NotesV1Api } from '@tloncorp/api';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -44,6 +45,7 @@ export const NOTES_V1_OPS = [
   'moveFolder',
   'deleteFolder',
   'listMembers',
+  'batchImport',
 ] as const;
 
 export type NotesV1Op = (typeof NOTES_V1_OPS)[number];
@@ -51,6 +53,17 @@ export type MockedNotesV1 = Record<
   NotesV1Op,
   (...args: unknown[]) => Promise<unknown>
 >;
+
+// `NOTES_V1_OPS` is hand-maintained and `mockedNotesV1` is built with a cast,
+// so an operation added to `NotesV1Api` upstream would silently go missing from
+// every test double. A *runtime* comparison against `notesV1` cannot catch that:
+// this module mocks `@tloncorp/api` process-wide, so the `notesV1` any test sees
+// is generated from this very list and the check would compare the list to
+// itself. Types are not mocked, so these resolve against the real package and
+// fail `tsc` in both directions if the list and the interface diverge.
+type AssertNever<T extends never> = T;
+type _NoOpsMissing = AssertNever<Exclude<keyof NotesV1Api, NotesV1Op>>;
+type _NoExtraOps = AssertNever<Exclude<NotesV1Op, keyof NotesV1Api>>;
 
 export class MockNotesV1PendingWriteError extends Error {
   readonly requestId?: string;

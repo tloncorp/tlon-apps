@@ -34,6 +34,7 @@ const NOTES_V1_OPS = [
   'moveFolder',
   'deleteFolder',
   'listMembers',
+  'batchImport',
 ] as const;
 
 type NotesV1Op = (typeof NOTES_V1_OPS)[number];
