@@ -90,7 +90,7 @@ function SmallChoicePills({
     disabled || !messageForSelection || !probe(messageForSelection);
 
   return (
-    <YStack gap="$m" width="100%">
+    <YStack gap="$m" width="100%" marginTop={CONTROL_GROUP_TOP_MARGIN}>
       <XStack flexWrap="wrap" gap="$s" width="100%">
         {component.options.map((option) => {
           const isSelected = selectedIds.includes(option.id);
@@ -270,6 +270,14 @@ function getComponentText(
 }
 
 /**
+ * Space above a group of controls — the purpose rows, the topic pills, the
+ * invite field. Each of these follows the line of prose that introduces it,
+ * and the surface's own gap is sized for text, which leaves a control looking
+ * like part of the sentence above it.
+ */
+const CONTROL_GROUP_TOP_MARGIN = '$m';
+
+/**
  * An A2UI button carrying `tlon.inviteLink` is a slot, not a control: the
  * card asks for the group's invite link, and the client fills it with the
  * same invite affordance the rest of the app uses. Nothing about the link
@@ -281,7 +289,11 @@ function A2UIInviteLink({ groupId }: { groupId: string }) {
   if (!group) {
     return null;
   }
-  return <InviteFriendsToTlonButton group={group} />;
+  return (
+    <YStack marginTop={CONTROL_GROUP_TOP_MARGIN}>
+      <InviteFriendsToTlonButton group={group} />
+    </YStack>
+  );
 }
 
 export function A2UIBlock({
@@ -481,7 +493,12 @@ export function A2UIBlock({
         }
         case 'Choice': {
           return (
-            <YStack key={component.id} gap="$m" width="100%">
+            <YStack
+              key={component.id}
+              gap="$m"
+              width="100%"
+              marginTop={CONTROL_GROUP_TOP_MARGIN}
+            >
               {component.options.map((option) => {
                 const accent = CHOICE_ACCENT_COLORS[option.accent ?? 'neutral'];
                 const disabled =
