@@ -21,6 +21,7 @@ import React, {
   useState,
 } from 'react';
 
+import { useAgentOnboardingLock } from '../../hooks/useAgentOnboardingLock';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -173,6 +174,16 @@ export default function ChannelScreen(props: Props) {
     }
     navigationRef.current.goBack();
   }, [group?.channels?.length, groupId, isWindowNarrow]);
+
+  // The first-run group holds its chrome until the agent finishes the
+  // setup; the lock reads live state, so it releases when the config syncs.
+  const setupLocked = useAgentOnboardingLock(group);
+
+  // The header button is only one exit; the swipe-back gesture is the
+  // other. Both honor the lock, and both come back when it releases.
+  useEffect(() => {
+    navigationRef.current.setOptions({ gestureEnabled: !setupLocked });
+  }, [setupLocked]);
 
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
 
@@ -442,6 +453,7 @@ export default function ChannelScreen(props: Props) {
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
           goBack={handleGoBack}
+          hideBackButton={setupLocked}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}

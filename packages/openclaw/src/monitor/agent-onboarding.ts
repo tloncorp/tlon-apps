@@ -312,6 +312,14 @@ export function renderSetupDirective(
     'The group description is the config JSON array and nothing else — the',
     'payload message goes inside it, as the job entry\'s "prompt" field.',
     'Never put the payload, or any prose, in the description itself.',
+    "The job entry in the config uses exactly this shape — the client's",
+    'parser reads it, so a freelanced field layout breaks the group in the',
+    'app. Only the tz changes (the owner\'s IANA timezone), and "prompt" is',
+    'the payload message above:',
+    `{"id":"${purposeId}","title":"${fill(job.title)}","schedule":` +
+      `{"kind":"cron","expr":"${job.schedule}","tz":"<owner timezone>"},` +
+      '"prompt":"<payload message, verbatim>","outputNest":"",' +
+      '"enabled":true}',
     `templateId: ${purposeId} — copy it exactly; it records which setup the`,
     'owner picked, so a different id makes the group misreport itself.',
     `Once the job and config are in place: ${fill(job.confirmation)}`,

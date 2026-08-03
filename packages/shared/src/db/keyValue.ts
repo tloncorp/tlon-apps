@@ -443,6 +443,20 @@ export const agentOnboardingLanding = createStorageItem<{
   defaultValue: null,
 });
 
+/**
+ * The group the first-run conversational onboarding landed the user in —
+ * durable, unlike the landing handoff above, because it marks *which* group
+ * is the guided one, not that a landing is pending. A group the user created
+ * themselves never sets this: only the first-run flow locks chrome (back
+ * button, etc.) until the agent finishes the setup, and
+ * `useAgentOnboardingLock` derives that from this id plus the group's
+ * config.
+ */
+export const agentOnboardingGroupId = createStorageItem<string | null>({
+  key: 'agentOnboardingGroupId',
+  defaultValue: null,
+});
+
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
   defaultValue: {

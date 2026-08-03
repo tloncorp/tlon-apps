@@ -16,38 +16,6 @@ import { isMoonOf, preSig } from '../lib/urbit';
  * (via the tlon CLI); the client only reads.
  */
 
-const GroupJobScheduleSchema = z.union([
-  z.object({
-    kind: z.literal('cron'),
-    expr: z.string().min(1),
-    tz: z.string().min(1),
-  }),
-  z.object({
-    kind: z.literal('interval'),
-    everyMs: z.number().int().positive(),
-  }),
-]);
-
-const GroupJobSpecSchema = z.object({
-  /** stable slug, unique within the group */
-  id: z.string().min(1).max(64),
-  /** e.g. "Morning digest" */
-  title: z.string().min(1).max(200),
-  schedule: GroupJobScheduleSchema,
-  /** full instruction the agent runs */
-  prompt: z.string().min(1).max(4000),
-  /**
-   * Where output lands, e.g. "notes/~ship/slug" or "chat/~ship/slug".
-   * Empty until the job's first run creates the output channel — the setup
-   * directive requires writing it that way, so an empty string must parse.
-   */
-  outputNest: z.string(),
-  /** optional chat ping when output lands elsewhere */
-  announceNest: z.string().min(1).optional(),
-  checkIn: z.object({ everyRuns: z.number().int().positive() }).optional(),
-  enabled: z.boolean(),
-});
-
 export const GROUP_AGENT_CONFIG_ENTRY_TYPE = 'tlon-group-agent-config';
 
 const GroupAgentConfigEntrySchema = z.object({
@@ -61,7 +29,16 @@ const GroupAgentConfigEntrySchema = z.object({
   instructions: z.string().max(8000),
   /** ships expected to act on this config */
   agents: z.array(z.string()),
-  jobs: z.array(GroupJobSpecSchema),
+  /**
+   * Deliberately unvalidated: the writer is a model following instructions,
+   * and the client reads nothing from inside a job except its presence —
+   * so a job with one misshapen field must not fail the whole entry, which
+   * would un-recognize the agent, hide its UI, and leak the raw JSON as the
+   * group's description. The intended shape (authored by the openclaw
+   * templates) is `{id, title, schedule: {kind:'cron', expr, tz}, prompt,
+   * outputNest, announceNest?, checkIn?, enabled}`.
+   */
+  jobs: z.array(z.unknown()),
   updatedAt: z.number(),
 });
 
@@ -105,6 +82,19 @@ function parseGroupAgentConfig(
     }
   }
   return undefined;
+}
+
+/**
+ * True once the group's agent config records a job — the setup's final
+ * artifact, and so the client's definition of "this group's onboarding is
+ * finished". Chrome hidden during a guided setup unhides when this flips
+ * true; the openclaw plugin gates its closing invite card on the same
+ * signal.
+ */
+export function groupHasConfiguredJob(
+  description: string | null | undefined
+): boolean {
+  return (parseGroupAgentConfig(description)?.jobs.length ?? 0) > 0;
 }
 
 /**

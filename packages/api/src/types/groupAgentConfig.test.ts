@@ -4,6 +4,7 @@ import { isMoonOf } from '../lib/urbit';
 import {
   canRenderAgentUiInGroup,
   groupDisplayDescription,
+  groupHasConfiguredJob,
   isOwnAgentShip,
   mergeGroupDescriptionEdit,
 } from './groupAgentConfig';
@@ -161,6 +162,38 @@ describe('job config parsing', () => {
         groupDescription: description,
       })
     ).toBe(true);
+  });
+});
+
+describe('groupHasConfiguredJob', () => {
+  test('true only for a config carrying a job', () => {
+    // What releases the first-run chrome lock (useAgentOnboardingLock) —
+    // a purpose alone is a setup that has started, not finished.
+    const withJob = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        purpose: 'Keeps up.',
+        instructions: '',
+        agents: [MY_AGENT],
+        jobs: [
+          {
+            id: 'daily',
+            title: 'Daily',
+            schedule: { kind: 'cron', expr: '0 8 * * *', tz: 'UTC' },
+            prompt: 'Search the web.',
+            outputNest: '',
+            enabled: true,
+          },
+        ],
+        updatedAt: 1,
+      },
+    ]);
+    expect(groupHasConfiguredJob(withJob)).toBe(true);
+    expect(groupHasConfiguredJob(configNaming([MY_AGENT]))).toBe(false);
+    expect(groupHasConfiguredJob('a group about bread')).toBe(false);
+    expect(groupHasConfiguredJob(null)).toBe(false);
+    expect(groupHasConfiguredJob(undefined)).toBe(false);
   });
 });
 

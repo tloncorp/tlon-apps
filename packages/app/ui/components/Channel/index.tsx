@@ -258,6 +258,11 @@ interface ChannelProps {
   group: db.Group | null;
   groupIsLoading?: boolean;
   goBack: () => void;
+  /**
+   * Suppress the header back button (the internal goBack for draft dismissal
+   * keeps working). Used while a guided setup holds the user in the channel.
+   */
+  hideBackButton?: boolean;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
@@ -300,6 +305,7 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
+  hideBackButton,
   goToChatDetails,
   goToSearch,
   goToContextLensRuns,
@@ -730,8 +736,9 @@ export function Channel({
                         title={title ?? ''}
                         description={''}
                         goBack={
-                          isNarrow ||
-                          draftInputPresentationMode === 'fullscreen'
+                          !hideBackButton &&
+                          (isNarrow ||
+                            draftInputPresentationMode === 'fullscreen')
                             ? handleGoBack
                             : undefined
                         }

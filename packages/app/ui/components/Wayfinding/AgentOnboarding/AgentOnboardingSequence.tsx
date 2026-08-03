@@ -38,6 +38,9 @@ export function AgentOnboardingSequence(props: {
       logger.trackEvent('Agent Onboarding In-Channel Handoff', target);
       try {
         await db.agentOnboardingLanding.setValue(target);
+        // Durable, so the channel knows it's the guided group and can hold
+        // its chrome (back button, etc.) until the agent finishes the setup.
+        await db.agentOnboardingGroupId.setValue(target.groupId);
       } catch (error) {
         logger.trackError('Failed to arm in-channel onboarding', { error });
       }
