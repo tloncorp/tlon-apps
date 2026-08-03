@@ -339,14 +339,14 @@ export interface GroupUpdate {
   diff: GroupDiff;
 }
 
-// v9 Group Response (r-groups)
-export interface V1GroupResponse {
+// r-groups as delivered on /v3/groups
+export interface GroupResponse {
   flag: string;
   ['r-group']: GroupResponseData;
 }
 
 export type GroupResponseData =
-  | { create: GroupV7 }
+  | { create: GroupV11 }
   | { meta: GroupMeta }
   | { blob: string | null }
   | { entry: GroupResponseEntry }
@@ -469,8 +469,8 @@ export interface Groups {
   [flag: string]: Group;
 }
 
-export interface GroupsV7 {
-  [flag: string]: GroupV7;
+export interface GroupsV11 {
+  [flag: string]: GroupV11;
 }
 
 export interface GroupPreview {
@@ -518,7 +518,7 @@ export interface AdmissionRequest {
   requestedAt?: number;
 }
 
-export interface GroupV7 {
+export interface GroupV11 {
   meta: GroupMeta;
   blob?: string | null;
   admissions: Admissions;

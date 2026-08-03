@@ -4,7 +4,7 @@ import type * as db from '../types/models';
 import * as ub from '../urbit';
 import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';
-import { toClientGroupsV7 } from './groupsApi';
+import { toClientGroups } from './groupsApi';
 import { toPostsData } from './postsApi';
 import { checkIsNodeBusyWithHints, scry } from './urbit';
 
@@ -16,7 +16,7 @@ export async function fetchChangesSince(timestamp: number): Promise<
 > {
   const busyResult = await checkIsNodeBusyWithHints();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
-  // v10 changes is v8 plus the group blob, which rides inside GroupV7.
+  // v10 changes is v8 plus the group blob, which rides inside GroupV11.
   const response = await scry<ub.ChangesV10>({
     app: 'groups-ui',
     path: `/v10/changes/${encodedTimestamp}`,
@@ -30,7 +30,7 @@ export async function fetchChangesSince(timestamp: number): Promise<
 }
 
 export function parseChanges(input: ub.ChangesV10): db.ChangesResult {
-  const groups = toClientGroupsV7(input.groups, true);
+  const groups = toClientGroups(input.groups, true);
 
   const channelPosts = Object.entries(input.channels).flatMap(
     ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])

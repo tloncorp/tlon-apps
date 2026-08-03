@@ -5,8 +5,8 @@ import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
 import {
+  toClientGroups,
   toClientGroupsFromForeigns,
-  toClientGroupsV7,
   toClientPinnedItems,
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
@@ -43,8 +43,8 @@ export const getInitData = async () => {
   return toInitData(response, { currentUserId: getCurrentUserId() });
 };
 
-function extractChannelReadersFromV7Groups(
-  groups: Record<string, ub.GroupV7>
+function extractChannelReadersFromGroups(
+  groups: Record<string, ub.GroupV11>
 ): Record<string, string[]> {
   const readers: Record<string, string[]> = {};
   Object.entries(groups).forEach(([_groupId, group]) => {
@@ -58,7 +58,7 @@ function extractChannelReadersFromV7Groups(
 }
 
 function extractJoinedGroupChannelsFromV7Groups(
-  groups: Record<string, ub.GroupV7>
+  groups: Record<string, ub.GroupV11>
 ): string[] {
   const joinedChannelIds = new Set<string>();
 
@@ -80,7 +80,7 @@ export const toInitData = (
 
   const pins = toClientPinnedItems(response.pins);
 
-  const channelReaders = extractChannelReadersFromV7Groups(response.groups);
+  const channelReaders = extractChannelReadersFromGroups(response.groups);
 
   const channelsInit = toClientChannelsInit(
     response.channel.channels,
@@ -102,7 +102,7 @@ export const toInitData = (
 
   logger.crumb('converting groups to client data');
 
-  const groups = toClientGroupsV7(response.groups, true, options.currentUserId);
+  const groups = toClientGroups(response.groups, true, options.currentUserId);
 
   logger.crumb('converting unjoined groups to client data');
 

@@ -5,7 +5,7 @@ import type { Group } from '../types/models';
 import {
   createGroup,
   subscribeGroups,
-  toV1GroupsUpdate,
+  toGroupsUpdate,
   updateGroupMeta,
 } from './groupsApi';
 import { scry, subscribe, thread, trackedPoke } from './urbit';
@@ -62,9 +62,9 @@ test('createGroup recovers only when a response body stalls after headers', asyn
   });
 });
 
-test('toV1GroupsUpdate maps blob responses to editGroupBlob', () => {
+test('toGroupsUpdate maps blob responses to editGroupBlob', () => {
   expect(
-    toV1GroupsUpdate({
+    toGroupsUpdate({
       flag: '~zod/test-group',
       'r-group': { blob: '{"custom":"payload"}' },
     })
@@ -75,7 +75,7 @@ test('toV1GroupsUpdate maps blob responses to editGroupBlob', () => {
   });
 
   expect(
-    toV1GroupsUpdate({
+    toGroupsUpdate({
       flag: '~zod/test-group',
       'r-group': { blob: null },
     })

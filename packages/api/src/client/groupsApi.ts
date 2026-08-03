@@ -443,7 +443,7 @@ export const createGroup = async ({
   };
 
   try {
-    const result = await thread<ub.GroupCreateThreadInput, ub.GroupV7>({
+    const result = await thread<ub.GroupCreateThreadInput, ub.GroupV11>({
       desk: 'groups',
       inputMark: 'group-create-thread',
       threadName: 'group-create-1',
@@ -454,7 +454,7 @@ export const createGroup = async ({
       context: 'group-create-thread request succeeded',
     });
 
-    return toClientGroupV7(group.id, result, true);
+    return toClientGroup(group.id, result, true);
   } catch (err) {
     // Only a stalled body after the response headers arrived is safe to
     // recover from: the create thread has finished, but its response was lost
@@ -496,16 +496,16 @@ export const createGroup = async ({
 export const getGroup = async (groupId: string) => {
   const path = `/v3/ui/groups/${groupId}`;
 
-  const groupData = await scry<ub.GroupV7>({ app: 'groups', path });
-  return toClientGroupV7(groupId, groupData, true);
+  const groupData = await scry<ub.GroupV11>({ app: 'groups', path });
+  return toClientGroup(groupId, groupData, true);
 };
 
 export const getGroups = async () => {
-  const groupData = await scry<ub.GroupsV7>({
+  const groupData = await scry<ub.GroupsV11>({
     app: 'groups',
     path: '/v3/groups',
   });
-  return toClientGroupsV7(groupData, true);
+  return toClientGroups(groupData, true);
 };
 
 export const updateGroupMeta = async ({
@@ -515,7 +515,7 @@ export const updateGroupMeta = async ({
   groupId: string;
   meta: ub.GroupMeta;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
+  return await trackedPoke<ub.GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
@@ -544,7 +544,7 @@ export const updateGroupBlob = async ({
   groupId: string;
   blob: string | null;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
+  return await trackedPoke<ub.GroupResponse>(
     groupAction5({
       group: {
         flag: groupId,
@@ -568,7 +568,7 @@ export const updateGroupBlob = async ({
 };
 
 export const deleteGroup = async (groupId: string) => {
-  return await trackedPoke<ub.V1GroupResponse>(
+  return await trackedPoke<ub.GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
@@ -596,7 +596,7 @@ export const addNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
+  return await trackedPoke<ub.GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
@@ -693,7 +693,7 @@ export const addChannelToNavSection = async ({
   channelId: string;
 }) => {
   logger.log('addChannelToNavSection', { groupId, navSectionId, channelId });
-  return await trackedPoke<ub.V1GroupResponse>(
+  return await trackedPoke<ub.GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
@@ -774,7 +774,7 @@ export const addChannelToGroup = async ({
   groupId: string;
   sectionId: string;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
+  return await trackedPoke<ub.GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
@@ -1325,10 +1325,10 @@ export const subscribeGroups = async (
   eventHandler: (update: GroupUpdate) => void
 ) => {
   const handleRawGroupsEvent = (
-    rawEvent: ub.V1GroupResponse,
+    rawEvent: ub.GroupResponse,
     shouldHandleUpdate = (_update: GroupUpdate) => true
   ) => {
-    const update = toV1GroupsUpdate(rawEvent);
+    const update = toGroupsUpdate(rawEvent);
     if (update && shouldHandleUpdate(update)) {
       eventHandler(update);
     }
@@ -1340,7 +1340,7 @@ export const subscribeGroups = async (
   // v2 lanes stay on the backend for older clients, but this client only
   // ever reads v3; the desk ships ahead of the app, so there is nothing to
   // fall back to.
-  void subscribe<ub.V1GroupResponse>(
+  void subscribe<ub.GroupResponse>(
     { app: 'groups', path: '/v3/groups' },
     (rawEvent) => {
       handleRawGroupsEvent(rawEvent);
@@ -1357,8 +1357,8 @@ export const subscribeGroups = async (
   );
 };
 
-export const toV1GroupsUpdate = (
-  rawEvent: ub.V1GroupResponse
+export const toGroupsUpdate = (
+  rawEvent: ub.GroupResponse
 ): GroupUpdate | null => {
   const groupId = rawEvent.flag;
   const event = rawEvent['r-group'];
@@ -1367,7 +1367,7 @@ export const toV1GroupsUpdate = (
   if ('create' in event) {
     return {
       type: 'addGroup',
-      group: toClientGroupV7(groupId, event.create, true),
+      group: toClientGroup(groupId, event.create, true),
     };
   }
 
@@ -1743,8 +1743,8 @@ const extractFlaggedPosts = (
   return flaggedPosts;
 };
 
-export function toClientGroupsV7(
-  groups: Record<string, ub.GroupV7>,
+export function toClientGroups(
+  groups: Record<string, ub.GroupV11>,
   isJoined: boolean,
   currentUserId = getCurrentUserId()
 ) {
@@ -1752,13 +1752,13 @@ export function toClientGroupsV7(
     return [];
   }
   return Object.entries(groups).map(([id, group]) => {
-    return toClientGroupV7(id, group, isJoined, currentUserId);
+    return toClientGroup(id, group, isJoined, currentUserId);
   });
 }
 
-export function toClientGroupV7(
+export function toClientGroup(
   id: string,
-  group: ub.GroupV7,
+  group: ub.GroupV11,
   isJoined: boolean,
   currentUserId = getCurrentUserId()
 ): db.Group {
