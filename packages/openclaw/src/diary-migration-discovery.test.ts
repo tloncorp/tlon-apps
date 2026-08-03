@@ -152,8 +152,12 @@ describe('diary migration discovery notification', () => {
       .mockResolvedValueOnce('message-id');
     const nest = 'diary/~zod/retry-after-send-failure';
 
-    await expect(notifier.notify(nest, send)).resolves.toBe(false);
-    await expect(notifier.notify(nest, send)).resolves.toBe(true);
+    await expect(notifier.notify(nest, send, 'Field Notes')).resolves.toBe(
+      false
+    );
+    await expect(notifier.notify(nest, send, 'Field Notes')).resolves.toBe(
+      true
+    );
 
     expect(send).toHaveBeenCalledTimes(2);
   });
@@ -241,27 +245,57 @@ describe('diary migration discovery notification', () => {
     expect(blob).toBeUndefined();
   });
 
-  it('does not offer an action when the existing title cache has no entry', async () => {
+  it('stays silent while the title is uncached, then offers the card once it resolves', async () => {
     const send = vi.fn(async () => 'message-id');
-    const bridge = makeBridge('~owner', send, () => undefined);
+    let sourceTitle: string | undefined;
+    const bridge = makeBridge('~owner', send, () => sourceTitle);
     const notifier = makeNotifier();
+    const nest = 'diary/~bot/uncached';
     setBridge('uncached-account', bridge);
     try {
+      const firstResult = await notifyDiaryMigrationDiscovery(
+        nest,
+        makeRunnableAccountConfig('uncached-account'),
+        notifier
+      );
+      expect.soft(firstResult).toBe(false);
+      expect.soft(send).not.toHaveBeenCalled();
+
+      const secondResult = await notifyDiaryMigrationDiscovery(
+        nest,
+        makeRunnableAccountConfig('uncached-account'),
+        notifier
+      );
+      expect.soft(secondResult).toBe(false);
+      expect.soft(send).not.toHaveBeenCalled();
+
+      sourceTitle = 'Field Notes';
+      const resolvedResult = await notifyDiaryMigrationDiscovery(
+        nest,
+        makeRunnableAccountConfig('uncached-account'),
+        notifier
+      );
+      expect.soft(resolvedResult).toBe(true);
+      expect.soft(send).toHaveBeenCalledTimes(1);
+      const [text, blob] = send.mock.calls[0] ?? [];
+      expect.soft(text).toContain(`/migrate ${nest}`);
+      expect.soft(text).toContain(MIGRATION_DROP_WARNING);
+      expect.soft(blob).toBeDefined();
+      expect
+        .soft(blob ? actionCommand(blob) : undefined)
+        .toBe(`/migrate ${nest}`);
+
       await expect(
         notifyDiaryMigrationDiscovery(
-          'diary/~bot/uncached',
+          nest,
           makeRunnableAccountConfig('uncached-account'),
           notifier
         )
-      ).resolves.toBe(true);
+      ).resolves.toBe(false);
+      expect.soft(send).toHaveBeenCalledTimes(1);
     } finally {
       removeBridge('uncached-account', bridge);
     }
-
-    expect(send).toHaveBeenCalledTimes(1);
-    const [text, blob] = send.mock.calls[0]!;
-    expect(text).not.toContain('/migrate');
-    expect(blob).toBeUndefined();
   });
 
   it('sends no discovery DM with two runnable configured accounts and one bridge', async () => {

@@ -81,13 +81,14 @@ export class DiaryMigrationDiscoveryNotifier {
   ): Promise<boolean> {
     const command = `/migrate ${nest}`;
     const title = sourceTitle?.trim();
-    const isArchived = title?.endsWith(ARCHIVE_TITLE_SUFFIX) ?? false;
-    const canOfferMigration = Boolean(title) && !isArchived;
+    if (!title) {
+      return false;
+    }
+    const isArchived = title.endsWith(ARCHIVE_TITLE_SUFFIX);
+    const canOfferMigration = !isArchived;
     const message = canOfferMigration
       ? `Migrate this diary: \`${command}\`\n\n${MIGRATION_DROP_WARNING}`
-      : isArchived
-        ? `Found legacy diary \`${nest}\`, but its title already ends in \`${ARCHIVE_TITLE_SUFFIX}\`. No migration action was offered.`
-        : `Found legacy diary \`${nest}\`, but its current title is not available in the existing channel cache. No migration action was offered.`;
+      : `Found legacy diary \`${nest}\`, but its title already ends in \`${ARCHIVE_TITLE_SUFFIX}\`. No migration action was offered.`;
     let blob: string | undefined;
     if (canOfferMigration) {
       try {
