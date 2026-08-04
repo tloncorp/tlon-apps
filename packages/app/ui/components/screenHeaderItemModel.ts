@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 export type ScreenHeaderIconName =
   | 'Add'
   | 'AddPerson'
@@ -56,6 +58,16 @@ export type ScreenHeaderAction =
   | ScreenHeaderIconAction
   | ScreenHeaderTextAction
   | ScreenHeaderMenuAction;
+
+export interface UseScreenHeaderOptions {
+  enabled: boolean;
+  title: string;
+  titleElement: ReactNode;
+  usesCustomTitle: boolean;
+  backgroundColor?: string;
+  left: ScreenHeaderAction[];
+  right: ScreenHeaderAction[];
+}
 
 export function visibleScreenHeaderActions(actions: ScreenHeaderAction[]) {
   return actions.filter((action) => action.visible !== false);

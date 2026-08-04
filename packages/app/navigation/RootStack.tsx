@@ -1,5 +1,11 @@
-import { ThemeProvider, useFocusEffect } from '@react-navigation/native';
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+  useFocusEffect,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useMemo } from 'react';
 import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
@@ -42,13 +48,37 @@ import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
+import { useIsDarkTheme } from '../ui/utils/colorUtils';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { TopLevelTabNavigator } from './TopLevelTabNavigator';
 import type { RootStackParamList } from './types';
-import { useAppNavigationTheme } from './useAppNavigationTheme';
 import { mediaViewerScreenOptions } from './utils';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
+
+function useAppNavigationTheme() {
+  const theme = useTheme();
+  const isDark = useIsDarkTheme();
+  const background = theme.background?.val;
+  const text = theme.primaryText?.val;
+  const border = theme.border?.val;
+
+  return useMemo(() => {
+    const baseTheme = isDark ? DarkTheme : DefaultTheme;
+
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        primary: text ?? baseTheme.colors.primary,
+        background: background ?? baseTheme.colors.background,
+        card: background ?? baseTheme.colors.card,
+        text: text ?? baseTheme.colors.text,
+        border: border ?? baseTheme.colors.border,
+      },
+    };
+  }, [background, border, isDark, text]);
+}
 
 export function RootStack() {
   const navigationTheme = useAppNavigationTheme();
