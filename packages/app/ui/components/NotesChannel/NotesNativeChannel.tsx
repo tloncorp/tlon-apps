@@ -114,12 +114,14 @@ export function NotesNativeChannel({
   folderId,
   groupId,
   notebookFlag,
+  initialNoteId,
 }: {
   channelId: string;
   channelTitle?: string;
   folderId?: number | null;
   groupId?: string | null;
   notebookFlag: string | null | undefined;
+  initialNoteId?: number;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isFocused = useIsFocused();
@@ -345,6 +347,19 @@ export function NotesNativeChannel({
       });
     }
   );
+
+  // a notification or activity press targets a specific note; open it once
+  // its record has synced (the notes dep keeps this retrying until the note
+  // appears, then the ref consumes the target)
+  const consumedInitialNoteRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (initialNoteId == null) return;
+    if (consumedInitialNoteRef.current === initialNoteId) return;
+    const note = notes.find((n) => n.noteId === initialNoteId);
+    if (!note) return;
+    consumedInitialNoteRef.current = initialNoteId;
+    openNote(note);
+  }, [initialNoteId, notes, openNote]);
 
   const handleTitleAutoFocused = useMutableCallback(() => {
     setFocusTitleNoteId(null);

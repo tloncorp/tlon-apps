@@ -6,7 +6,11 @@ import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';
 import { toClientGroupsV7 } from './groupsApi';
 import { toPostsData } from './postsApi';
-import { checkIsNodeBusyWithHints, scry } from './urbit';
+import {
+  checkIsNodeBusyWithHints,
+  getActivitySupportsNotes,
+  scry,
+} from './urbit';
 
 export async function fetchChangesSince(timestamp: number): Promise<
   db.ChangesResult & {
@@ -16,14 +20,27 @@ export async function fetchChangesSince(timestamp: number): Promise<
 > {
   const busyResult = await checkIsNodeBusyWithHints();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
-  const response = await scry<ub.ChangesV8>({
-    app: 'groups-ui',
-    path: `/v8/changes/${encodedTimestamp}`,
-  });
+  const [response, notesActivity] = await Promise.all([
+    scry<ub.ChangesV8>({
+      app: 'groups-ui',
+      path: `/v8/changes/${encodedTimestamp}`,
+    }),
+    // groups-ui embeds v4-converted activity, which drops notebook/note
+    // sources — fetch the v10-native changes directly when the backend
+    // supports them so incremental sync recovers note unreads too
+    getActivitySupportsNotes()
+      ? scry<ub.Activity>({
+          app: 'activity',
+          path: `/v6/activity/changes/${encodedTimestamp}`,
+        }).catch(() => null)
+      : Promise.resolve(null),
+  ]);
 
   const nodeBusyStatus = await Promise.race([busyResult, timedOutDefault(500)]);
 
-  const changes = parseChanges(response);
+  const changes = parseChanges(
+    notesActivity ? { ...response, activity: notesActivity } : response
+  );
 
   return { ...changes, ...nodeBusyStatus };
 }

@@ -327,6 +327,12 @@ export async function setChannelVolumeLevel(params: {
     });
   }
 
+  // a backend below the notes activity gate can't parse %notebook sources
+  // (and has no note events to volume anyway) — keep the setting local-only
+  if (isNotesChannel && !api.getActivitySupportsNotes()) {
+    return true;
+  }
+
   try {
     await api.adjustVolumeSetting(
       source,

@@ -76,9 +76,13 @@ export async function getThreadUnreadsByChannel(channel: db.Channel) {
   return deserialized.threadActivity;
 }
 export async function getVolumeSettings(): Promise<ub.VolumeSettings> {
+  // the bare path serves v4-converted settings, which drop %notebook
+  // sources — request the v10-native path when the backend has it
   const settings = await scry<ub.VolumeSettings>({
     app: 'activity',
-    path: '/volume-settings',
+    path: getActivitySupportsNotes()
+      ? '/v6/volume-settings'
+      : '/volume-settings',
   });
   return settings;
 }

@@ -184,7 +184,8 @@ export function ActivityScreenView({
           break;
         case 'note-create':
         case 'note-edit': {
-          // land in the notebook channel; the unread dot leads to the note
+          // open the notebook channel on the specific note (the note id
+          // rides postId; the notes collection consumes selectedPostId)
           const channel =
             event.channel ??
             (event.channelId
@@ -195,7 +196,7 @@ export function ActivityScreenView({
               ...logic.getModelAnalytics({ channel }),
               type: 'notebookNote',
             });
-            goToChannel(channel);
+            goToChannel(channel, event.postId ?? undefined);
           } else {
             console.warn('No channel found for note event', event);
           }

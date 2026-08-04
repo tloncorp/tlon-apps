@@ -691,6 +691,10 @@ export async function markChannelRead({
   groupId?: string;
   includeThreads?: boolean;
 }) {
+  // per-note unreads ride thread rows, so a notes channel read is only
+  // meaningful deep — otherwise the note dots (and their backend sources)
+  // survive the channel badge being cleared
+  includeThreads = includeThreads || id.startsWith('notes/');
   logger.log(`marking channel as read`, id, 'includeThreads', includeThreads);
   // optimistic update
   const existingUnread = await db.getChannelUnread({ channelId: id });
