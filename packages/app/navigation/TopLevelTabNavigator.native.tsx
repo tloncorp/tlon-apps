@@ -17,6 +17,7 @@ import ChatListScreen from '../features/top/ChatListScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { useTopLevelTabController } from '../hooks/useTopLevelTabController';
 import ProfileStatusSheet from '../ui/components/ProfileStatusSheet';
+import { nativeHeaderTitleStyle } from './nativeHeaderOptions';
 import { TOP_LEVEL_TABS, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
@@ -144,9 +145,8 @@ export function TopLevelTabNavigator() {
     headerShadowVisible: false,
     headerTintColor: theme.primaryText?.val,
     headerTitleStyle: {
+      ...nativeHeaderTitleStyle,
       color: theme.primaryText?.val,
-      fontSize: 17,
-      fontWeight: '500' as const,
     },
   };
 

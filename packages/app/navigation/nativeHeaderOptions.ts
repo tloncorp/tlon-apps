@@ -1,5 +1,13 @@
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import { mobileTypeStyles } from '@tloncorp/ui';
 import { Platform } from 'react-native';
+
+const screenHeaderTitleStyle = mobileTypeStyles['$label/2xl'];
+
+export const nativeHeaderTitleStyle = {
+  fontSize: screenHeaderTitleStyle.fontSize,
+  fontWeight: screenHeaderTitleStyle.fontWeight,
+};
 
 const topScrollEdgeEffects = {
   top: 'soft',
@@ -49,10 +57,7 @@ export function getNativeHeaderOptions({
     headerBackButtonDisplayMode: 'minimal',
     headerShadowVisible: false,
     headerTitleAlign: Platform.OS === 'android' ? 'center' : undefined,
-    headerTitleStyle: {
-      fontSize: 17,
-      fontWeight: '500',
-    },
+    headerTitleStyle: nativeHeaderTitleStyle,
     headerStyle: backgroundColor ? { backgroundColor } : undefined,
     title,
   };
