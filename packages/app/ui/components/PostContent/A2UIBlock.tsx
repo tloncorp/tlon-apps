@@ -2,7 +2,7 @@ import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
 import { useGroup } from '@tloncorp/shared/store';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import React, { ComponentProps, useCallback, useMemo, useState } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { Input, View, XStack, YStack } from 'tamagui';
 
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 import { useContentContext } from './contentUtils';
@@ -48,6 +48,7 @@ function SmallChoicePills({
   onSubmit: (text: string) => void;
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [freeText, setFreeText] = useState('');
 
   const toggle = useCallback((id: string) => {
     setSelectedIds((previous) =>
@@ -59,7 +60,8 @@ function SmallChoicePills({
 
   const messageForSelection = A2UI.buildSmallChoiceMessage(
     component,
-    selectedIds
+    selectedIds,
+    freeText
   );
 
   const handleSubmit = useCallback(() => {
@@ -127,6 +129,25 @@ function SmallChoicePills({
           );
         })}
       </XStack>
+      {component.freeTextPlaceholder ? (
+        // Typed additions ride along with the pills: "some of these plus one
+        // of my own" is one submit, not a pill message chased by a text one.
+        <Input
+          testID="A2UISmallChoiceFreeText"
+          value={freeText}
+          onChangeText={setFreeText}
+          placeholder={component.freeTextPlaceholder}
+          placeholderTextColor="$tertiaryText"
+          disabled={disabled}
+          borderColor="$border"
+          borderWidth={1}
+          borderRadius="$l"
+          paddingHorizontal="$l"
+          height={44}
+          width="100%"
+          onSubmitEditing={submitDisabled ? undefined : handleSubmit}
+        />
+      ) : null}
       <Button.Frame
         size="medium"
         fill="solid"

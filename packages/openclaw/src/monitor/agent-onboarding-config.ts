@@ -89,6 +89,13 @@ export const TOPICS_PICKER_FOOTER =
   'You can also just tell me here in the chat.';
 
 /**
+ * Placeholder for the picker's free-text field, which submits typed topics
+ * together with the selected pills as one message — without it, "some of
+ * these plus one of my own" took a pill submit chased by a chat message.
+ */
+export const TOPICS_FREE_TEXT_PLACEHOLDER = 'Add your own…';
+
+/**
  * How every setup ends: by getting someone else into the group.
  *
  * A group with one member is the worst possible demonstration of Tlon, and

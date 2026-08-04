@@ -186,6 +186,13 @@ export namespace A2UI {
     options: SmallChoiceOption[];
     /** label for the confirm control, e.g. "Done" */
     submitLabel: string;
+    /**
+     * When set, the picker renders a free-text field with this placeholder,
+     * and whatever is typed submits *with* the selected pills as one message
+     * — without it, "some of these plus one of my own" takes two messages.
+     * Older clients ignore the field and render the pills alone.
+     */
+    freeTextPlaceholder?: string;
     action: SendMessageAction;
   };
 
@@ -469,6 +476,10 @@ function validateComponent(component: unknown): component is A2UI.Component {
         ) &&
         isNonEmptyString(component.submitLabel) &&
         (component.submitLabel as string).length <= LIMITS.maxPillLabelLength &&
+        (component.freeTextPlaceholder === undefined ||
+          (isNonEmptyString(component.freeTextPlaceholder) &&
+            (component.freeTextPlaceholder as string).length <=
+              LIMITS.maxPillLabelLength)) &&
         validateSmallChoiceAction(component.action)
       );
     default:
@@ -655,6 +666,7 @@ function indexComponents(
         totalTextLength += option.label.length;
       }
       totalTextLength += component.submitLabel.length;
+      totalTextLength += component.freeTextPlaceholder?.length ?? 0;
       totalTextLength += component.action.event.context.text.length;
     }
   }
@@ -764,12 +776,18 @@ export const blobEntrySchema = z.custom<A2UI.BlobEntry>(validateBlobEntry);
  */
 export function buildSmallChoiceMessage(
   component: A2UI.SmallChoice,
-  selectedIds: Iterable<string>
+  selectedIds: Iterable<string>,
+  /** free-text field contents; joins the selected labels as one more entry */
+  freeText?: string
 ): string {
   const selected = new Set(selectedIds);
   const labels = component.options
     .filter((option) => selected.has(option.id))
     .map((option) => option.label);
+  const typed = freeText?.trim();
+  if (typed) {
+    labels.push(typed);
+  }
   if (!labels.length) {
     return '';
   }

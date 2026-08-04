@@ -15,6 +15,7 @@ import {
   PURPOSE_PICKER_FOOTER,
   PURPOSE_PICKER_PROMPT,
   PURPOSE_TOPICS,
+  TOPICS_FREE_TEXT_PLACEHOLDER,
   TOPICS_PICKER_FOOTER,
   TOPICS_PICKER_PROMPT,
   TOPICS_PICKER_SUBMIT_LABEL,
@@ -228,6 +229,7 @@ export function buildTopicsPickerBlob(
         label: topic,
       })),
       submitLabel: TOPICS_PICKER_SUBMIT_LABEL,
+      freeTextPlaceholder: TOPICS_FREE_TEXT_PLACEHOLDER,
       action: choiceAction(''),
     } as unknown as A2UI.Component,
   ];

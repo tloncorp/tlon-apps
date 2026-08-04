@@ -141,6 +141,11 @@ describe('topics picker', () => {
         ...PURPOSE_TOPICS[option.id]!,
       ]);
       expect(pills.submitLabel).toBeTruthy();
+      // The free-text field submits typed topics with the pills as one
+      // message; without it "these plus my own" takes two.
+      expect(
+        (pills as { freeTextPlaceholder?: string }).freeTextPlaceholder
+      ).toBeTruthy();
       const ids = pills.options.map((o) => o.id);
       expect(new Set(ids).size).toBe(ids.length);
     }

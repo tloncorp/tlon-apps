@@ -220,6 +220,31 @@ describe('SmallChoice message building', () => {
     expect(buildSmallChoiceMessage(withPrefix, ['news'])).toBe('Topics: News');
   });
 
+  test('free text rides along with the pills as one more entry', () => {
+    // "Some of these plus one of my own" is one submit, not a pill message
+    // chased by a chat message.
+    expect(buildSmallChoiceMessage(component, ['news'], ' Miles run ')).toBe(
+      'News, Miles run'
+    );
+    expect(buildSmallChoiceMessage(component, [], 'Miles run')).toBe(
+      'Miles run'
+    );
+    expect(buildSmallChoiceMessage(withPrefix, [], 'Miles run')).toBe(
+      'Topics: Miles run'
+    );
+    expect(buildSmallChoiceMessage(component, [], '   ')).toBe('');
+  });
+
+  test('freeTextPlaceholder validates as an optional bounded string', () => {
+    expect(valid(smallChoice({ freeTextPlaceholder: 'Add your own…' }))).toBe(
+      true
+    );
+    expect(valid(smallChoice({ freeTextPlaceholder: '' }))).toBe(false);
+    expect(valid(smallChoice({ freeTextPlaceholder: 'x'.repeat(65) }))).toBe(
+      false
+    );
+  });
+
   test('probe message is non-empty even when the prefix is empty', () => {
     // Regression: the picker rendered permanently disabled because
     // availability was checked against the action's own text — an empty
