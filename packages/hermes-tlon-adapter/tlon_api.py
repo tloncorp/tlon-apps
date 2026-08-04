@@ -136,6 +136,8 @@ def _env_first(
     extra_names: Sequence[str],
     default: str = "",
 ) -> str:
+    # Hermes declares process environment as its primary platform config;
+    # PlatformConfig.extra is the fallback used by embedded/test deployments.
     for name in names:
         value = env.get(name)
         if value is not None and str(value).strip():
@@ -715,8 +717,11 @@ class TlonConfig:
             "TLON_CONFIG_FILE",
             "URBIT_COOKIE",
             "TLON_COOKIE",
+            "URBIT_URL",
             "TLON_URL",
+            "URBIT_SHIP",
             "TLON_SHIP",
+            "URBIT_CODE",
             "TLON_CODE",
         ):
             env.pop(key, None)

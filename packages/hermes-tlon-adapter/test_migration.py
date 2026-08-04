@@ -85,15 +85,21 @@ def parse_migrate_card(blob):
     )
 
 
-class MigrationDropWarningParityTests(unittest.TestCase):
-    def test_drop_warning_byte_length_matches_openclaw(self):
-        # Twin of MIGRATION_DROP_WARNING in
-        # packages/openclaw/src/migrate-command.ts. The two are sent to owners
-        # by different runtimes for the same operation, so they must not drift.
-        # The other reference to this constant only asserts it appears in a
-        # reply, which would still pass if both sides drifted together; this
-        # pins the bytes so an edit on either side trips a test.
-        self.assertEqual(len(migration.MIGRATION_DROP_WARNING.encode()), 535)
+class MigrationDropWarningTests(unittest.TestCase):
+    def test_drop_warning_pins_exact_hermes_copy(self):
+        # OpenClaw's migration source is not present on every branch that runs
+        # this Python suite, so pin the complete Hermes copy here.
+        self.assertEqual(
+            migration.MIGRATION_DROP_WARNING,
+            "Before any write: comments, reactions, post references, and link blocks "
+            "stay on the archived channel and are not copied. Post descriptions, covers, "
+            "and attachments also stay in the archive and are not copied. Group mentions "
+            "become plain text. Every migrated note will show the acting ship as its "
+            "author, regardless of who wrote the original. Migrated notes are dated at "
+            "import time. Note order follows the import, not the original post dates. "
+            "The source channel stays intact, remains writable, and is renamed with an "
+            "`-ARCHIVE` suffix.",
+        )
 
 
 class MigrationParsingTests(unittest.TestCase):

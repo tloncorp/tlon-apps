@@ -376,6 +376,18 @@ class A2UICardTests(unittest.TestCase):
         )
         self.assertEqual(len(components["context1"]["text"]), 1000)
 
+    def test_migration_card_keeps_31_emoji_title_intact(self):
+        title = "\U0001f600" * 31
+        card = json.loads(
+            approval.build_migrate_card("/migrate diary/~pen/log", title=title)
+        )[0]
+        components, _ = self.card_components(card)
+
+        self.assertEqual(
+            components["title"]["text"],
+            f'Migrate "{title}" to %notes?',
+        )
+
     def test_migration_card_rejects_failed_validation(self):
         original = approval.validate_a2ui_card
         approval.validate_a2ui_card = lambda _card: False

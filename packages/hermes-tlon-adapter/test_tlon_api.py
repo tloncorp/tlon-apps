@@ -110,9 +110,30 @@ class TlonConfigTests(unittest.TestCase):
             cookie="config-cookie",
         )
 
-        env = cfg.cli_env(base={"TLON_CODE": "stale-code"})
+        env = cfg.cli_env(
+            base={
+                "TLON_CODE": "stale-tlon-code",
+                "URBIT_CODE": "stale-urbit-code",
+            }
+        )
 
-        self.assertNotIn("TLON_CODE", env)
+        self.assertTrue({"TLON_CODE", "URBIT_CODE"}.isdisjoint(env))
+
+    def test_cli_env_scrubs_stale_url_and_ship_when_config_omits_them(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="",
+            ship_name="",
+            cookie="config-cookie",
+        )
+
+        env = cfg.cli_env(
+            base={
+                "URBIT_URL": "https://stale.tlon.network",
+                "URBIT_SHIP": "~stale",
+            }
+        )
+
+        self.assertTrue({"URBIT_URL", "URBIT_SHIP"}.isdisjoint(env))
 
     def test_cli_env_scrubs_before_injecting_all_config_values(self):
         cfg = tlon_api.TlonConfig(
@@ -143,8 +164,11 @@ class TlonConfigTests(unittest.TestCase):
                 "URBIT_COOKIE": "stale-urbit-cookie",
                 "TLON_COOKIE": "stale-tlon-cookie",
                 "TLON_URL": "https://nec.tlon.network",
+                "URBIT_URL": "https://bus.tlon.network",
                 "TLON_SHIP": "~nec",
+                "URBIT_SHIP": "~bus",
                 "TLON_CODE": "stale-code",
+                "URBIT_CODE": "stale-urbit-code",
             }
         )
 
@@ -981,16 +1005,22 @@ class TlonCLITests(unittest.TestCase):
             "TLON_CONFIG_FILE",
             "URBIT_COOKIE",
             "TLON_COOKIE",
+            "URBIT_URL",
             "TLON_URL",
+            "URBIT_SHIP",
             "TLON_SHIP",
+            "URBIT_CODE",
             "TLON_CODE",
         }
         self.assertEqual(
             {key: calls[0][key] for key in resolver_keys if key in calls[0]},
             {
                 "TLON_URL": "https://zod.tlon.network",
+                "URBIT_URL": "https://zod.tlon.network",
                 "TLON_SHIP": "~zod",
+                "URBIT_SHIP": "~zod",
                 "TLON_CODE": "config-code",
+                "URBIT_CODE": "config-code",
             },
         )
 
