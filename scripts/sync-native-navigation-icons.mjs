@@ -15,7 +15,7 @@ const tabAssetDirectory = path.join(
   rootDirectory,
   'packages/app/navigation/assets'
 );
-const headerAssetDirectory = path.join(
+const iosHeaderAssetDirectory = path.join(
   rootDirectory,
   'apps/tlon-mobile/ios/Landscape/HeaderIcons.xcassets'
 );
@@ -29,7 +29,7 @@ const tabIcons = [
   ['Profile.svg', 'tab-profile'],
 ];
 
-const headerIcons = [
+const iosHeaderIcons = [
   ['Add.svg', 'TlonHeaderAdd'],
   ['ChevronLeft.svg', 'TlonHeaderBack'],
   ['EditList.svg', 'TlonHeaderEditList'],
@@ -45,7 +45,7 @@ const normalizeSvgColor = (svg) =>
 
 const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
-const imageSetContents = (fileName) => ({
+const iosImageSetContents = (fileName) => ({
   images: [{ filename: fileName, idiom: 'universal' }],
   info: { author: 'xcode', version: 1 },
   properties: {
@@ -77,12 +77,16 @@ async function buildTabAssets() {
   return files;
 }
 
-async function buildHeaderAssets() {
+// Native tabs consume density-specific PNGs from React Native, while iOS
+// native-stack headers resolve named template vectors from an asset catalog.
+// Keep those format-specific builders separate while sharing source SVG
+// normalization and the sync/check lifecycle below.
+async function buildIOSHeaderAssets() {
   const files = new Map([
     ['Contents.json', json({ info: { author: 'xcode', version: 1 } })],
   ]);
 
-  for (const [sourceName, assetName] of headerIcons) {
+  for (const [sourceName, assetName] of iosHeaderIcons) {
     const imageSet = `${assetName}.imageset`;
     const targetName = `${assetName}.svg`;
     const source = normalizeSvgColor(
@@ -91,7 +95,7 @@ async function buildHeaderAssets() {
 
     files.set(
       path.join(imageSet, 'Contents.json'),
-      json(imageSetContents(targetName))
+      json(iosImageSetContents(targetName))
     );
     files.set(path.join(imageSet, targetName), source);
   }
@@ -192,6 +196,6 @@ await syncTarget({
 
 await syncTarget({
   name: 'Native header icons',
-  directory: headerAssetDirectory,
-  build: buildHeaderAssets,
+  directory: iosHeaderAssetDirectory,
+  build: buildIOSHeaderAssets,
 });
