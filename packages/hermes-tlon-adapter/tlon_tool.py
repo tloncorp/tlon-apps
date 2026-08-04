@@ -9,10 +9,10 @@ import os
 import shlex
 import shutil
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence
+from typing import Any, Awaitable, Callable, Collection, Mapping, Optional, Sequence
 
 from .approval import build_migrate_card
-from .owner_listen import canonicalize_nest
+from .owner_listen import canonicalize_nest, canonicalize_notes_nest
 from .tlon_api import CommandRunner, TlonCLI, TlonConfig, TlonSendResult
 
 logger = logging.getLogger(__name__)
@@ -215,6 +215,44 @@ def _normalize_session_ship(ship: str) -> str:
 def _canonical_diary_nest(raw: str | None) -> Optional[str]:
     canonical = canonicalize_nest(str(raw or ""))
     return canonical if canonical and canonical.startswith("diary/") else None
+
+
+_canonical_notes_nest = canonicalize_notes_nest
+
+MIGRATION_BOOLEAN_FLAGS = frozenset(
+    {"--allow-write-widening", "--force", "--yes"}
+)
+
+
+def find_first_positional_argument_index(
+    args: Sequence[str],
+    from_index: int,
+    flags_with_values: Collection[str],
+    boolean_flags: Collection[str] = frozenset(),
+) -> int:
+    index = from_index
+    while index < len(args):
+        arg = str(args[index])
+        equals_index = arg.find("=")
+        flag = arg[:equals_index] if equals_index >= 0 else arg
+        if flag in flags_with_values:
+            index += 1 if equals_index >= 0 else 2
+            continue
+        if flag in boolean_flags:
+            index += 1
+            continue
+        return index
+    return -1
+
+
+def _migration_source_operand(args: Sequence[str]) -> Optional[str]:
+    index = find_first_positional_argument_index(
+        args,
+        2,
+        frozenset(),
+        MIGRATION_BOOLEAN_FLAGS,
+    )
+    return args[index] if index >= 0 else None
 
 
 def _diary_nest_from_cite_path(raw: str | None) -> Optional[str]:

@@ -58,6 +58,20 @@ def canonicalize_nest(raw: str) -> Optional[str]:
     return f"{prefix.lower()}/{_canonical_ship(host)}/{name}"
 
 
+def canonicalize_notes_nest(raw: str) -> Optional[str]:
+    """Canonical notes nest without widening owner-listen channel prefixes."""
+    parts = str(raw or "").strip().split("/")
+    if (
+        len(parts) != 3
+        or parts[0].lower() != "notes"
+        or not parts[1]
+        or not parts[2]
+        or any(char.isspace() for char in parts[2])
+    ):
+        return None
+    return f"notes/{_canonical_ship(parts[1])}/{parts[2]}"
+
+
 def is_owned_channel(nest: str, *, owner_ship: str, bot_ship: str) -> bool:
     canonical = canonicalize_nest(nest)
     if canonical is None:

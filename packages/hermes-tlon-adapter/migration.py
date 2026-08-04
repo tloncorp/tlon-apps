@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Awaitable, Callable, Mapping, Optional, Sequence
 
 from .approval import build_migrate_card
-from .owner_listen import canonicalize_nest
+from .owner_listen import canonicalize_nest, canonicalize_notes_nest
 from .tlon_api import TlonSendResult, normalize_ship
 
 logger = logging.getLogger(__name__)
@@ -66,16 +66,7 @@ def _canonical_migration_nest(raw: str, prefix: str) -> Optional[str]:
     if prefix == "diary":
         canonical = canonicalize_nest(raw)
         return canonical if canonical and canonical.startswith("diary/") else None
-    parts = str(raw or "").strip().split("/")
-    if (
-        len(parts) != 3
-        or parts[0].lower() != "notes"
-        or not parts[1]
-        or not parts[2]
-        or any(char.isspace() for char in parts[2])
-    ):
-        return None
-    return f"notes/{normalize_ship(parts[1]).lower()}/{parts[2]}"
+    return canonicalize_notes_nest(raw)
 
 
 def parse_migrate_command(text: str) -> ParsedMigrationCommand | str:

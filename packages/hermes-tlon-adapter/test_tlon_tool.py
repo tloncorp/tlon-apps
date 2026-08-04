@@ -66,6 +66,132 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertEqual(tlon_tool.find_subcommand_index(args), 4)
         self.assertIsNone(tlon_tool.check_tlon_tool_command(args))
 
+    def test_first_positional_skips_flag_with_separate_value(self):
+        args = (
+            "notes",
+            "migrate-apply",
+            "--output",
+            "plan",
+            "diary/~zod/log",
+        )
+
+        self.assertEqual(
+            tlon_tool.find_first_positional_argument_index(
+                args, 2, frozenset({"--output"})
+            ),
+            4,
+        )
+
+    def test_first_positional_skips_flag_with_equals_value(self):
+        args = (
+            "notes",
+            "migrate-apply",
+            "--output=plan",
+            "diary/~zod/log",
+        )
+
+        self.assertEqual(
+            tlon_tool.find_first_positional_argument_index(
+                args, 2, frozenset({"--output"})
+            ),
+            3,
+        )
+
+    def test_first_positional_skips_boolean_flag(self):
+        args = ("notes", "migrate-apply", "--yes", "diary/~zod/log")
+
+        self.assertEqual(
+            tlon_tool.find_first_positional_argument_index(
+                args,
+                2,
+                frozenset(),
+                tlon_tool.MIGRATION_BOOLEAN_FLAGS,
+            ),
+            3,
+        )
+
+    def test_first_positional_returns_unknown_flag(self):
+        args = ("notes", "migrate-apply", "--unknown", "diary/~zod/log")
+
+        self.assertEqual(
+            tlon_tool.find_first_positional_argument_index(
+                args,
+                2,
+                frozenset(),
+                tlon_tool.MIGRATION_BOOLEAN_FLAGS,
+            ),
+            2,
+        )
+
+    def test_first_positional_returns_minus_one_when_absent(self):
+        args = ("notes", "migrate-apply", "--yes", "--force")
+
+        self.assertEqual(
+            tlon_tool.find_first_positional_argument_index(
+                args,
+                2,
+                frozenset(),
+                tlon_tool.MIGRATION_BOOLEAN_FLAGS,
+            ),
+            -1,
+        )
+
+    def test_migration_source_operand_skips_boolean_flags(self):
+        cases = (
+            (
+                "before",
+                ("notes", "migrate-apply", "--yes", "diary/~zod/log"),
+            ),
+            (
+                "after",
+                ("notes", "migrate-apply", "diary/~zod/log", "--force"),
+            ),
+            (
+                "interleaved",
+                (
+                    "notes",
+                    "migrate-apply",
+                    "--allow-write-widening",
+                    "--force",
+                    "diary/~zod/log",
+                    "--yes",
+                ),
+            ),
+        )
+
+        for name, args in cases:
+            with self.subTest(name=name):
+                self.assertEqual(
+                    tlon_tool._migration_source_operand(args),
+                    "diary/~zod/log",
+                )
+
+    def test_canonical_notes_nest_accepts_valid_nest(self):
+        self.assertEqual(
+            tlon_tool._canonical_notes_nest("Notes/ZOD/Field-Notes"),
+            "notes/~zod/Field-Notes",
+        )
+
+    def test_canonical_notes_nest_rejects_wrong_prefix(self):
+        self.assertIsNone(
+            tlon_tool._canonical_notes_nest("diary/~zod/field-notes")
+        )
+
+    def test_canonical_notes_nest_rejects_wrong_arity(self):
+        for nest in ("notes/~zod", "notes/~zod/field-notes/extra"):
+            with self.subTest(nest=nest):
+                self.assertIsNone(tlon_tool._canonical_notes_nest(nest))
+
+    def test_canonical_notes_nest_rejects_empty_segments(self):
+        for nest in ("/~zod/field-notes", "notes//field-notes", "notes/~zod/"):
+            with self.subTest(nest=nest):
+                self.assertIsNone(tlon_tool._canonical_notes_nest(nest))
+
+    def test_canonical_notes_nest_rejects_whitespace_in_name(self):
+        self.assertIsNone(
+            tlon_tool._canonical_notes_nest("notes/~zod/field notes")
+        )
+
     def test_blocks_sending_to_current_conversation(self):
         # Targets that equal the session's current chat must go through the
         # streaming reply path, not the tool.
