@@ -2,8 +2,7 @@ import type { NativeStackHeaderItem } from '@react-navigation/native-stack';
 import { Platform } from 'react-native';
 import { ColorTokens, useTheme } from 'tamagui';
 
-import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
-import { ScreenHeaderItemElements } from './ScreenHeaderItemElements';
+import { ScreenHeaderItemElements } from './ScreenHeaderPrimitives';
 import {
   type ScreenHeaderAction,
   forwardLatestScreenHeaderActionCallbacks,
@@ -20,16 +19,16 @@ import {
 
 export type ThemeValues = ReturnType<typeof useTheme>;
 
-export const nativeIconSources = {
-  Add: nativeHeaderIcons.add,
-  AddPerson: nativeHeaderIcons.invite,
-  ChevronLeft: nativeHeaderIcons.back,
-  EditList: nativeHeaderIcons.editList,
-  Overflow: nativeHeaderIcons.overflow,
-  Refresh: nativeHeaderIcons.refresh,
-  RightSidebar: nativeHeaderIcons.rightSidebar,
-  Search: nativeHeaderIcons.search,
-  Settings: nativeHeaderIcons.settings,
+const nativeIconSources = {
+  Add: { uri: 'TlonHeaderAdd' },
+  AddPerson: { uri: 'TlonHeaderInvite' },
+  ChevronLeft: { uri: 'TlonHeaderBack' },
+  EditList: { uri: 'TlonHeaderEditList' },
+  Overflow: { uri: 'TlonHeaderOverflow' },
+  Refresh: { uri: 'TlonHeaderRefresh' },
+  RightSidebar: { uri: 'TlonHeaderRightSidebar' },
+  Search: { uri: 'TlonHeaderSearch' },
+  Settings: { uri: 'TlonHeaderSettings' },
 } as const;
 
 export function resolveNativeHeaderColor(

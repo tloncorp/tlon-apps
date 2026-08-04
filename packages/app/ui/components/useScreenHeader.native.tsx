@@ -14,9 +14,9 @@ import {
 } from './nativeHeaderTitle';
 import {
   type ScreenHeaderAction,
+  type UseScreenHeaderOptions,
   getScreenHeaderActionSignature,
 } from './screenHeaderItemModel';
-import type { UseScreenHeaderOptions } from './useScreenHeader.types';
 
 const hiddenNativeHeaderOptions = { headerShown: false };
 

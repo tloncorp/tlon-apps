@@ -32,13 +32,13 @@ import {
 } from 'tamagui';
 
 import { LongPressDisclosure } from './LongPressDisclosure';
-import { ScreenHeaderItemElements } from './ScreenHeaderItemElements';
 import {
   HeaderBackButton,
   HeaderControls,
   HeaderIconButton,
   HeaderTextButton,
   HeaderTitleText,
+  ScreenHeaderItemElements,
 } from './ScreenHeaderPrimitives';
 import type { ScreenHeaderAction } from './screenHeaderItemModel';
 import { useScreenHeader } from './useScreenHeader';
