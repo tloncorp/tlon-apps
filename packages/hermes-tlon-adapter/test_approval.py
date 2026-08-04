@@ -281,6 +281,44 @@ class A2UICardTests(unittest.TestCase):
         update = card["messages"][1]["updateComponents"]
         return {component["id"]: component for component in update["components"]}, update
 
+    def test_migration_cards_have_one_exact_action(self):
+        for command, expected_label in (
+            (
+                "/migrate diary/~bot/log --allow-write-widening",
+                "Accept widening and proceed — every reader becomes an editor",
+            ),
+            ("/migrate diary/~bot/log", "Migrate diary"),
+            ("/migrate cleanup notes/~bot/log", "Delete notebook"),
+        ):
+            card = json.loads(approval.build_migrate_card(command))[0]
+            self.assertTrue(approval.validate_a2ui_card(card))
+            components, _ = self.card_components(card)
+            buttons = [
+                component
+                for component in components.values()
+                if component["component"] == "Button"
+            ]
+            self.assertEqual(len(buttons), 1)
+            button = buttons[0]
+            self.assertEqual(
+                button["action"]["event"]["context"]["text"],
+                command,
+            )
+            self.assertEqual(
+                components[button["child"]]["text"],
+                expected_label,
+            )
+
+    def test_migration_card_rejects_failed_validation(self):
+        original = approval.validate_a2ui_card
+        approval.validate_a2ui_card = lambda _card: False
+        self.addCleanup(setattr, approval, "validate_a2ui_card", original)
+
+        with self.assertRaisesRegex(ValueError, "invalid migration"):
+            approval.build_migrate_card(
+                "/migrate cleanup notes/~bot/log"
+            )
+
     def test_blob_envelope(self):
         card = approval.build_approval_card(make_approval())
         self.assertEqual(card["type"], "a2ui")

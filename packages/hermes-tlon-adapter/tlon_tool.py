@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import shlex
 import shutil
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Awaitable, Callable, Mapping, Optional, Sequence
 
+from .approval import build_migrate_card
+from .owner_listen import canonicalize_nest
 from .tlon_api import CommandRunner, TlonCLI, TlonConfig, TlonSendResult
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_TLON_COMMANDS = frozenset(
     {
@@ -36,6 +41,13 @@ CREDENTIAL_FLAGS_WITH_VALUE = frozenset(
     {"--config", "--url", "--ship", "--code", "--cookie"}
 )
 
+SendOwnerNotification = Callable[[str, Optional[str]], Awaitable[object]]
+BuildMigrationCard = Callable[[str], str]
+
+_diary_notification_sender: Optional[SendOwnerNotification] = None
+_notified_diary_nests: set[str] = set()
+_diary_notifications_in_flight: set[str] = set()
+
 # Message-send operations. These are normally blocked when they target the
 # *current* conversation — those must go through Hermes' streaming reply path
 # (TlonAdapter.send()). The current-gallery ``posts send`` carveout creates a
@@ -47,6 +59,16 @@ SEND_OPERATIONS = {
     ("posts", "send"),
     ("posts", "reply"),
 }
+HELP_ARGS = frozenset({"--help", "-h"})
+POST_REPLY_OPTION_FLAGS = ("author", "blob", "sent-at")
+POST_SEND_OPTION_FLAGS = ("blob", "image", "title", "sent-at")
+MESSAGES_COMMANDS = frozenset(
+    {"dm", "channel", "history", "search", "context", "post"}
+)
+POSTS_COMMANDS = frozenset(
+    {"send", "reply", "react", "unreact", "edit", "delete"}
+)
+EXPOSE_TARGET_COMMANDS = frozenset({"show", "hide", "check", "url"})
 
 TLON_TOOL_DESCRIPTION = (
     "Tlon/Urbit CLI for reading data and administration: activity, channels, "
@@ -55,6 +77,9 @@ TLON_TOOL_DESCRIPTION = (
     "notes/~host/name nests). For notes bodies, use --body <file> "
     "(note-create also accepts --markdown <file>); --stdin is blocked because "
     "Hermes cannot pipe stdin into the CLI process. "
+    "%diary channels are deprecated and unsupported by this tool. Ask the "
+    "owner to type `/migrate <diary-nest>` to move one to %notes. Hermes "
+    "delivery uses `tlon posts send`, which refuses diary/ targets. "
     "The bot node has its own Tlon profile; when the configured owner asks "
     "to change the bot nickname, avatar, bio, status, or cover image, use "
     "contacts update-profile. For avatars/covers, upload a direct raster "
@@ -121,7 +146,10 @@ TLON_TOOL_SCHEMA = {
                     "instead) EXCEPT new gallery items and image sends: 'posts send <target> "
                     "[caption] --image <uploaded-url>' is allowed anywhere — "
                     "upload first with 'upload <direct-image-url>'. 'notebook' "
-                    "is removed; use 'notes' commands for %notes notebooks. "
+                    "uses deprecated %diary behavior unsupported by this tool; "
+                    "use 'notes' for %notes, or ask the owner to type "
+                    "`/migrate <diary-nest>`. Hermes cannot send to diary/ "
+                    "targets because its delivery path uses `tlon posts send`. "
                     "For notes bodies, use --body <file>; note-create also "
                     "accepts --markdown <file>. Do not use --stdin."
                 ),
@@ -182,6 +210,335 @@ def _normalize_session_ship(ship: str) -> str:
     if normalized and not normalized.startswith("~"):
         normalized = f"~{normalized}"
     return normalized
+
+
+def _canonical_diary_nest(raw: str | None) -> Optional[str]:
+    canonical = canonicalize_nest(str(raw or ""))
+    return canonical if canonical and canonical.startswith("diary/") else None
+
+
+def _diary_nest_from_cite_path(raw: str | None) -> Optional[str]:
+    parts = str(raw or "").strip().split("/")
+    if (
+        len(parts) >= 6
+        and parts[0] == ""
+        and parts[1] == "1"
+        and parts[2] == "chan"
+    ):
+        return _canonical_diary_nest("/".join(parts[3:6]))
+    return _canonical_diary_nest("/".join(parts[:3]))
+
+
+def _is_help_arg(arg: object) -> bool:
+    return str(arg) in HELP_ARGS
+
+
+def _wants_help(args: Sequence[str]) -> bool:
+    return any(_is_help_arg(arg) for arg in args)
+
+
+def _first_flag_index(
+    args: Sequence[str], flags: Sequence[str]
+) -> int:
+    indexes = [
+        list(args).index(f"--{flag}")
+        for flag in flags
+        if f"--{flag}" in args
+    ]
+    return min(indexes) if indexes else len(args)
+
+
+def _first_post_send_flag_index(args: Sequence[str]) -> int:
+    indexes: list[int] = []
+    for flag in POST_SEND_OPTION_FLAGS:
+        if flag == "image":
+            index = next(
+                (
+                    index
+                    for index, arg in enumerate(args)
+                    if str(arg) == "--image"
+                    or str(arg).startswith("--image=")
+                ),
+                -1,
+            )
+        else:
+            try:
+                index = list(args).index(f"--{flag}")
+            except ValueError:
+                index = -1
+        if index != -1:
+            indexes.append(index)
+    return min(indexes) if indexes else len(args)
+
+
+def _messages_help_takes_precedence(args: Sequence[str]) -> bool:
+    cli_args = [str(arg) for arg in args[1:]]
+    if cli_args and _is_help_arg(cli_args[0]):
+        return True
+    if not _wants_help(cli_args[1:]):
+        return False
+
+    try:
+        channel_index = cli_args.index("--channel", 2)
+    except ValueError:
+        channel_index = -1
+    search_channel = (
+        channel_index >= 0
+        and len(cli_args) > channel_index + 1
+        and not cli_args[channel_index + 1].startswith("--")
+    )
+    search_query_help_literal = (
+        bool(cli_args)
+        and cli_args[0] == "search"
+        and len(cli_args) > 1
+        and _is_help_arg(cli_args[1])
+        and search_channel
+    )
+    return not search_query_help_literal
+
+
+def _expose_help_takes_precedence(args: Sequence[str]) -> bool:
+    cli_args = [str(arg) for arg in args[1:]]
+    return bool(cli_args) and (
+        _is_help_arg(cli_args[0]) or _wants_help(cli_args[1:])
+    )
+
+
+def _posts_help_takes_precedence(args: Sequence[str]) -> bool:
+    cli_args = [str(arg) for arg in args[1:]]
+    if cli_args and _is_help_arg(cli_args[0]):
+        return True
+    if not _wants_help(cli_args[1:]):
+        return False
+
+    edit_message_help_literal = (
+        len(cli_args) > 2
+        and cli_args[0] == "edit"
+        and bool(cli_args[1])
+        and bool(cli_args[2])
+        and _wants_help(cli_args[3:])
+    )
+    send_message_help_literal = (
+        len(cli_args) > 1
+        and cli_args[0] == "send"
+        and bool(cli_args[1])
+        and _wants_help(
+            cli_args[2 : _first_post_send_flag_index(cli_args)]
+        )
+    )
+    reply_message_help_literal = (
+        len(cli_args) > 2
+        and cli_args[0] == "reply"
+        and bool(cli_args[1])
+        and bool(cli_args[2])
+        and _wants_help(
+            cli_args[
+                3 : _first_flag_index(
+                    cli_args, POST_REPLY_OPTION_FLAGS
+                )
+            ]
+        )
+    )
+    return not (
+        edit_message_help_literal
+        or send_message_help_literal
+        or reply_message_help_literal
+    )
+
+
+def _diary_nest_for_removed_cli_operation(
+    args: Sequence[str],
+) -> Optional[str]:
+    subcommand = str(args[0]).lower() if args else ""
+    # The packaged CLI validates case-sensitive command maps before it checks
+    # for a removed diary target.
+    action = str(args[1]) if len(args) > 1 else ""
+
+    if subcommand == "channels":
+        if action in {
+            "info",
+            "delete",
+            "update",
+            "rename",
+            "add-writers",
+            "del-writers",
+        }:
+            return _canonical_diary_nest(
+                str(args[2]) if len(args) > 2 else None
+            )
+        if action in {"add-readers", "del-readers"}:
+            return _canonical_diary_nest(
+                str(args[3]) if len(args) > 3 else None
+            )
+        return None
+
+    if subcommand == "messages":
+        if _messages_help_takes_precedence(args):
+            return None
+        if action not in MESSAGES_COMMANDS:
+            return None
+        if action in {"channel", "history"}:
+            return _canonical_diary_nest(
+                str(args[2]) if len(args) > 2 else None
+            )
+        if action in {"context", "post"}:
+            if len(args) <= 3 or not args[2] or not args[3]:
+                return None
+            return _canonical_diary_nest(str(args[2]))
+        if action == "search":
+            if len(args) <= 2 or not args[2]:
+                return None
+            # messages.ts deliberately begins scanning after the query.
+            channel_index = next(
+                (
+                    index
+                    for index in range(3, len(args))
+                    if str(args[index]) == "--channel"
+                ),
+                -1,
+            )
+            if channel_index < 0:
+                return None
+            channel = (
+                str(args[channel_index + 1])
+                if len(args) > channel_index + 1
+                else ""
+            )
+            if not channel or channel.startswith("--"):
+                return None
+            return _canonical_diary_nest(
+                channel
+            )
+        return None
+
+    if subcommand == "posts":
+        if _posts_help_takes_precedence(args):
+            return None
+        if action not in POSTS_COMMANDS:
+            return None
+        return _canonical_diary_nest(
+            str(args[2]) if len(args) > 2 else None
+        )
+
+    if subcommand == "expose":
+        if _expose_help_takes_precedence(args):
+            return None
+        if action not in EXPOSE_TARGET_COMMANDS:
+            return None
+        return _diary_nest_from_cite_path(
+            str(args[2]) if len(args) > 2 else None
+        )
+
+    return None
+
+
+def _migration_blocked_message(nest: Optional[str] = None) -> str:
+    command = f"/migrate {nest or '<diary-nest>'}"
+    return (
+        "Blocked: this notes operation requires owner confirmation. "
+        f"Ask the owner to type `{command}`."
+    )
+
+
+def _notebook_blocked_message(nest: Optional[str] = None) -> str:
+    command = f"/migrate {nest or '<diary-nest>'}"
+    return (
+        "Blocked: the notebook command uses deprecated %diary behavior "
+        "that this tool does not support. Use 'tlon notes' for %notes "
+        "notebooks. To migrate a diary, ask the owner to type "
+        f"`{command}`."
+    )
+
+
+def diary_target_blocked_message(nest: str) -> str:
+    return (
+        "Blocked: %diary channels are deprecated and unsupported by this CLI "
+        f"tool. Ask the owner to type `/migrate {nest}`."
+    )
+
+
+def check_blocked_diary_operation(
+    args: Sequence[str],
+) -> Optional[tuple[str, Optional[str]]]:
+    subcommand = str(args[0]).lower() if args else ""
+    if subcommand == "notebook":
+        nest = _canonical_diary_nest(
+            str(args[1]) if len(args) > 1 else None
+        )
+        return _notebook_blocked_message(nest), nest
+
+    nest = _diary_nest_for_removed_cli_operation(args)
+    return (diary_target_blocked_message(nest), nest) if nest else None
+
+
+def refused_diary_nest(args: Sequence[str]) -> Optional[str]:
+    migration_block = check_blocked_migration_operation(args)
+    if migration_block:
+        return _canonical_diary_nest(
+            str(args[2]) if len(args) > 2 else None
+        )
+    diary_block = check_blocked_diary_operation(args)
+    return diary_block[1] if diary_block else None
+
+
+def set_diary_migration_notification_sender(
+    sender: SendOwnerNotification,
+) -> None:
+    global _diary_notification_sender
+    _diary_notification_sender = sender
+
+
+def clear_diary_migration_notification_sender(
+    sender: SendOwnerNotification,
+) -> None:
+    global _diary_notification_sender
+    if _diary_notification_sender == sender:
+        _diary_notification_sender = None
+
+
+async def notify_diary_migration_discovery(
+    nest: str,
+    *,
+    sender: Optional[SendOwnerNotification] = None,
+    build_card: BuildMigrationCard = build_migrate_card,
+) -> bool:
+    canonical = _canonical_diary_nest(nest)
+    if canonical is None:
+        return False
+    notification_sender = sender or _diary_notification_sender
+    if (
+        notification_sender is None
+        or canonical in _notified_diary_nests
+        or canonical in _diary_notifications_in_flight
+    ):
+        return False
+
+    _diary_notifications_in_flight.add(canonical)
+    command = f"/migrate {canonical}"
+    text = f"Migrate this diary: `{command}`"
+    try:
+        try:
+            blob = build_card(command)
+        except Exception:
+            logger.exception(
+                "[tlon] failed to build diary migration discovery card"
+            )
+            blob = None
+
+        try:
+            result = await notification_sender(text, blob)
+        except Exception:
+            logger.exception(
+                "[tlon] failed to send diary migration discovery notification"
+            )
+            return False
+
+        if result is False:
+            return False
+        _notified_diary_nests.add(canonical)
+        return True
+    finally:
+        _diary_notifications_in_flight.discard(canonical)
 
 
 def _tool_command_for_display(command: Sequence[str]) -> str:
@@ -260,6 +617,30 @@ def _has_stdin_flag(args: Sequence[str]) -> bool:
     return any(str(arg) == "--stdin" for arg in args)
 
 
+def check_blocked_migration_operation(args: Sequence[str]) -> Optional[str]:
+    """Carry the guard locally because the skill package does not publish sources.
+
+    This is intentionally duplicated in each runtime at the model-tool boundary.
+    """
+    if not args or str(args[0]).lower() != "notes":
+        return None
+    subcommand = str(args[1]).lower() if len(args) > 1 else ""
+    if not subcommand:
+        return None
+    nest = _canonical_diary_nest(
+        str(args[2]) if len(args) > 2 else None
+    )
+    if subcommand == "notebook-delete":
+        return _migration_blocked_message(nest)
+    if not subcommand.startswith("migrate"):
+        return None
+    return (
+        None
+        if subcommand == "migrate-plan"
+        else _migration_blocked_message(nest)
+    )
+
+
 def _send_targets_current_conversation(
     args: Sequence[str],
     sub_idx: int,
@@ -298,8 +679,11 @@ def check_tlon_tool_command(
         allowed = ", ".join(sorted(ALLOWED_TLON_COMMANDS))
         return f"Unknown tlon subcommand '{subcommand or '(none)'}'. Allowed: {allowed}"
 
-    command_args = [str(arg).lower() for arg in args[sub_idx:]]
+    command_args = [str(arg) for arg in args[sub_idx:]]
     action = command_args[1] if len(command_args) > 1 else ""
+    diary_block = check_blocked_diary_operation(command_args)
+    if diary_block:
+        return diary_block[0]
     if (
         (subcommand, action) in {("posts", "react"), ("posts", "unreact"), ("dms", "react"), ("dms", "unreact")}
         and str(reaction_level).lower() in {"off", "ack"}
@@ -309,13 +693,9 @@ def check_tlon_tool_command(
             f'(TLON_REACTION_LEVEL="{str(reaction_level).lower()}"). '
             "Set TLON_REACTION_LEVEL to minimal or extensive to enable."
         )
-    if subcommand == "notebook":
-        return (
-            "Blocked: the notebook command is removed (the %diary backend no "
-            "longer exists). Use the 'tlon notes' commands to manage %notes "
-            "notebooks instead, e.g. 'notes list' or 'notes note-create "
-            'notes/~host/name root "Title" --markdown file.md\'.'
-        )
+    migration_block = check_blocked_migration_operation(command_args)
+    if migration_block:
+        return migration_block
     if subcommand == "notes" and _has_stdin_flag(args[sub_idx:]):
         return (
             "Blocked: notes --stdin is not available through this tool because "
@@ -409,6 +789,11 @@ async def execute_tlon_tool(
         reaction_level=cfg.reaction_level,
     )
     if blocked:
+        sub_idx = find_subcommand_index(args)
+        command_args = args[sub_idx:] if sub_idx >= 0 else ()
+        diary_nest = refused_diary_nest(command_args)
+        if diary_nest:
+            await notify_diary_migration_discovery(diary_nest)
         return _json({"error": blocked, "blocked": True})
 
     if not cfg.is_complete():

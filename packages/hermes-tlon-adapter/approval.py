@@ -543,6 +543,31 @@ def _send_message_button(
     return [button, {"id": f"{button_id}Label", "component": "Text", "text": label}]
 
 
+def build_migrate_card(command: str) -> str:
+    label = (
+        "Delete notebook"
+        if command.startswith("/migrate cleanup ")
+        else (
+            "Accept widening and proceed — every reader becomes an editor"
+            if " --allow-write-widening" in command
+            else "Migrate diary"
+        )
+    )
+    components = [
+        {"id": "root", "component": "Card", "child": "action"},
+        *_send_message_button(
+            "action",
+            label,
+            command,
+            variant="primary",
+        ),
+    ]
+    card = make_a2ui_blob_entry("migrate-action", "root", components)
+    if not validate_a2ui_card(card):
+        raise ValueError("invalid migration a2ui card")
+    return serialize_blob(card)
+
+
 def _approval_nav_target(approval: Mapping[str, Any]) -> Optional[dict[str, Any]]:
     original = approval.get("originalMessage")
     if not isinstance(original, Mapping):

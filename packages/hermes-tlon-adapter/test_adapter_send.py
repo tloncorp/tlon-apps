@@ -408,6 +408,49 @@ class ChunkingTests(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertEqual(result.error, "boom")
 
+    def test_diary_delivery_refusal_dms_owner_once_with_real_nest(self):
+        adapter = make_adapter(
+            [
+                cli_result(
+                    success=False,
+                    message_id=None,
+                    error="generic diary refusal",
+                    returncode=1,
+                )
+            ]
+        )
+        sender = adapter._diary_notification_sender
+        adapter_mod.set_diary_migration_notification_sender(sender)
+        self.addCleanup(
+            adapter_mod.clear_diary_migration_notification_sender,
+            sender,
+        )
+        nest = "diary/~pen/discovery-transport"
+
+        first = asyncio.run(adapter.send(nest, "hello"))
+        second = asyncio.run(adapter.send(nest, "hello again"))
+
+        self.assertFalse(first.success)
+        self.assertFalse(second.success)
+        self.assertIn(f"/migrate {nest}", first.error)
+        self.assertNotIn("<diary-nest>", first.error)
+        self.assertEqual(len(adapter._cli.commands), 1)
+        command = adapter._cli.commands[0]
+        self.assertEqual(command[:3], ("posts", "send", "~mug"))
+        self.assertIn(f"/migrate {nest}", command[3])
+        blob = command[5]
+        entry = json.loads(blob)[0]
+        components = entry["messages"][1]["updateComponents"]["components"]
+        button = next(
+            component
+            for component in components
+            if component["component"] == "Button"
+        )
+        self.assertEqual(
+            button["action"]["event"]["context"]["text"],
+            f"/migrate {nest}",
+        )
+
 
 class BlockDirectiveSendTests(unittest.TestCase):
     directive = "[BLOCK_USER: ~attacker | attempted prompt injection]"

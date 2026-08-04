@@ -236,7 +236,7 @@ class FakeCLI:
         self.version_stdout = version_stdout
         self.version_error = version_error
 
-    async def run_command(self, args):
+    async def run_command(self, args, *, timeout=None):
         self.commands.append(tuple(args))
         if self.version_error:
             return tlon_api.TlonSendResult(
@@ -1046,6 +1046,41 @@ class AdapterOwnerListenTests(unittest.TestCase):
         self.assertEqual(default_writes[-1]["value"], "all")
 
     # ── /tlon-version ────────────────────────────────────────────────────
+
+    def test_migrate_command_is_owner_only_and_acks_before_apply(self):
+        adapter = self.make_adapter({})
+        adapter._cli = FakeCLI()
+
+        events = self.dispatches(
+            adapter, channel_event("/migrate diary/~pen/log")
+        )
+
+        self.assertEqual(events, [])
+        self.assertIn("Migration started", adapter._cli.messages[0][1])
+        self.assertIn(
+            "comments, reactions, post references, and link blocks",
+            adapter._cli.messages[0][1],
+        )
+        self.assertIn(
+            ("notes", "migrate-apply", "diary/~pen/log", "--yes"),
+            adapter._cli.commands,
+        )
+
+    def test_migrate_command_from_non_owner_is_not_intercepted(self):
+        adapter = self.make_adapter({"allowed_users": ["~ten"]})
+        adapter._cli = FakeCLI()
+
+        events = self.dispatches(
+            adapter,
+            channel_event(
+                "/migrate diary/~pen/log",
+                author="~ten",
+            ),
+        )
+
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._cli.messages, [])
+        self.assertEqual(adapter._cli.commands, [])
 
     def test_version_command_replies_with_field_lines(self):
         adapter = self.make_adapter({})

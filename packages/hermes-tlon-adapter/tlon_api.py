@@ -788,6 +788,16 @@ class TlonSendResult:
     returncode: int = 0
     message_id: Optional[str] = None
     error: Optional[str] = None
+    timed_out: bool = False
+
+
+class TlonProcessTimeout(asyncio.TimeoutError):
+    """A killed CLI process with the output captured before termination."""
+
+    def __init__(self, stdout: str = "", stderr: str = "") -> None:
+        super().__init__()
+        self.stdout = stdout
+        self.stderr = stderr
 
 
 CommandRunner = Callable[
@@ -844,12 +854,16 @@ class TlonCLI:
             args.extend(["--sent-at", str(sent_at)])
         return await self._run(tuple(args))
 
-    async def run_command(self, args: Sequence[str]) -> TlonSendResult:
-        return await self._run(tuple(args))
+    async def run_command(
+        self, args: Sequence[str], *, timeout: float | None = None
+    ) -> TlonSendResult:
+        return await self._run(tuple(args), timeout=timeout)
 
-    async def _run(self, args: Sequence[str]) -> TlonSendResult:
+    async def _run(
+        self, args: Sequence[str], *, timeout: float | None = None
+    ) -> TlonSendResult:
         started = time.monotonic()
-        result = await self._run_unobserved(args)
+        result = await self._run_unobserved(args, timeout=timeout)
         if self._observer is not None:
             try:
                 self._observer(args, int((time.monotonic() - started) * 1000), result)
@@ -857,20 +871,28 @@ class TlonCLI:
                 logger.debug("[tlon] CLI observer failed: %s", exc)
         return result
 
-    async def _run_unobserved(self, args: Sequence[str]) -> TlonSendResult:
+    async def _run_unobserved(
+        self, args: Sequence[str], *, timeout: float | None = None
+    ) -> TlonSendResult:
         command = (self.config.cli, *args)
+        effective_timeout = (
+            self.config.cli_timeout if timeout is None else float(timeout)
+        )
         try:
             proc = await self._runner(
                 command,
                 self.config.cli_env(),
-                self.config.cli_timeout,
+                effective_timeout,
             )
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as exc:
             return TlonSendResult(
                 success=False,
                 command=command,
-                error=f"tlon CLI timed out after {self.config.cli_timeout:g}s",
+                stdout=str(getattr(exc, "stdout", "") or ""),
+                stderr=str(getattr(exc, "stderr", "") or ""),
+                error=f"tlon CLI timed out after {effective_timeout:g}s",
                 returncode=124,
+                timed_out=True,
             )
         except FileNotFoundError:
             return TlonSendResult(
@@ -918,15 +940,25 @@ class TlonCLI:
             stderr=asyncio.subprocess.PIPE,
             env=dict(env),
         )
+        assert proc.stdout is not None
+        assert proc.stderr is not None
+        stdout_task = asyncio.create_task(proc.stdout.read())
+        stderr_task = asyncio.create_task(proc.stderr.read())
         try:
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                proc.communicate(),
-                timeout=timeout,
-            )
+            await asyncio.wait_for(proc.wait(), timeout=timeout)
         except asyncio.TimeoutError:
             proc.kill()
             await proc.wait()
-            raise
+            stdout_bytes, stderr_bytes = await asyncio.gather(
+                stdout_task, stderr_task
+            )
+            raise TlonProcessTimeout(
+                stdout_bytes.decode("utf-8", errors="replace"),
+                stderr_bytes.decode("utf-8", errors="replace"),
+            )
+        stdout_bytes, stderr_bytes = await asyncio.gather(
+            stdout_task, stderr_task
+        )
         return TlonProcessResult(
             returncode=proc.returncode or 0,
             stdout=stdout_bytes.decode("utf-8", errors="replace"),

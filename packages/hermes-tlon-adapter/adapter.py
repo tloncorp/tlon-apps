@@ -95,6 +95,7 @@ from .mention import (
     extract_profile_avatar,
     extract_profile_nickname,
 )
+from .migration import MigrationCommandController, is_migrate_command
 from .owner_listen import (
     SETTINGS_DESK,
     SETTINGS_KEY_GROUP_CHANNELS,
@@ -102,6 +103,7 @@ from .owner_listen import (
     apply_owner_listen_command,
     apply_owner_listen_group_command,
     apply_owner_listen_settings_event,
+    canonicalize_nest,
     canonical_nest_set,
     is_owner_listen_command,
     owner_listen_active,
@@ -209,9 +211,13 @@ from .tlon_tool import (
     CREDENTIAL_FLAGS_WITH_VALUE,
     TLON_TOOL_DESCRIPTION,
     TLON_TOOL_SCHEMA,
+    clear_diary_migration_notification_sender,
     check_tlon_tool_requirements,
+    diary_target_blocked_message,
+    notify_diary_migration_discovery,
     handle_tlon_tool,
     resolve_tlon_skill_path,
+    set_diary_migration_notification_sender,
     split_tlon_command,
 )
 
@@ -859,6 +865,11 @@ class TlonAdapter(BasePlatformAdapter):
         self.tlon_config = TlonConfig.from_env(config.extra or {})
         self._telemetry = TlonTelemetry(self.tlon_config, extra=config.extra or {})
         self._cli = TlonCLI(self.tlon_config, observer=self._telemetry.observe_cli)
+        self._migration = MigrationCommandController(
+            run_command=self._run_migration_command,
+            send_dm=self._send_migration_dm,
+        )
+        self._diary_notification_sender = self._send_migration_dm
         self._connected_at = 0.0
         self._sse: Optional[TlonSSEClient] = None
         self._stream_task: Optional[asyncio.Task] = None
@@ -1037,6 +1048,9 @@ class TlonAdapter(BasePlatformAdapter):
             self._stream_task = asyncio.create_task(self._run_stream())
             self._computing_presence.bind_loop(asyncio.get_running_loop())
             set_active_computing_presence_tracker(self._computing_presence)
+            set_diary_migration_notification_sender(
+                self._diary_notification_sender
+            )
             self._mark_connected()
             self._connected_at = time.monotonic()
             hermes_permissions = _hermes_tool_permission_snapshot()
@@ -1117,6 +1131,9 @@ class TlonAdapter(BasePlatformAdapter):
         clear_active_telemetry(self._telemetry)
         clear_active_computing_presence_tracker(self._computing_presence)
         clear_active_recorder(self._lens)
+        clear_diary_migration_notification_sender(
+            self._diary_notification_sender
+        )
         if self._stream_task is not None:
             self._stream_task.cancel()
             try:
@@ -1802,6 +1819,31 @@ class TlonAdapter(BasePlatformAdapter):
                 operation="owner_notification",
             )
 
+    async def _run_migration_command(
+        self, args: Sequence[str], timeout: float
+    ):
+        with cli_context("migration"):
+            return await self._cli.run_command(args, timeout=timeout)
+
+    async def _send_migration_dm(
+        self, text: str, blob: Optional[str]
+    ) -> bool:
+        owner = self.tlon_config.owner_ship
+        if not owner:
+            return False
+        args: list[str] = ["posts", "send", owner, text]
+        if blob:
+            args.extend(["--blob", blob])
+        with cli_context("migration"):
+            result = await self._cli.run_command(args)
+        if not result.success:
+            logger.warning(
+                "[tlon] migration notification to %s failed: %s",
+                owner,
+                result.error,
+            )
+        return result.success
+
     async def _persist_pending_approvals(self) -> None:
         # JSON string, not a raw list of dicts: %settings values cannot hold
         # objects (the poke would be nacked). Matches OpenClaw's encoding.
@@ -2321,6 +2363,24 @@ class TlonAdapter(BasePlatformAdapter):
                     ctx_nest=ctx_nest,
                     reply_chat_id=message.chat_id,
                     reply_parent_id=reply_parent_id,
+                )
+            return True
+        if is_migrate_command(command_text):
+            if self._mark_seen(message):
+                self._telemetry.control_command("migrate")
+
+                async def send_reply(text: str) -> None:
+                    await self._send_control_reply(
+                        message.chat_id,
+                        reply_parent_id,
+                        text,
+                    )
+
+                await self._migration.handle(
+                    command_text,
+                    bot_ship=self.tlon_config.ship_name,
+                    owner_ship=self.tlon_config.owner_ship,
+                    send_reply=send_reply,
                 )
             return True
         if is_tlon_command(command_text):
@@ -3953,6 +4013,19 @@ class TlonAdapter(BasePlatformAdapter):
             result = await self._cli.send_message(
                 chat_id, content, blob=blob, sent_at=sent_at_ms
             )
+        canonical = canonicalize_nest(chat_id)
+        if (
+            not result.success
+            and canonical is not None
+            and canonical.startswith("diary/")
+        ):
+            refusal = diary_target_blocked_message(canonical)
+            result = replace(
+                result,
+                stderr=f"Error: {refusal}\n",
+                error=f"Error: {refusal}",
+            )
+            await notify_diary_migration_discovery(canonical)
         return result, sent_at_ms
 
     async def _process_block_directives(

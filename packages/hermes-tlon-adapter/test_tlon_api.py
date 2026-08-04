@@ -846,6 +846,56 @@ class TlonCLITests(unittest.TestCase):
         self.assertEqual(calls[0][0], ("tlon-test", "contacts", "self"))
         self.assertEqual(calls[0][1]["TLON_NODE_ID"], "~zod")
 
+    def test_run_command_override_timeout_preserves_timeout_output(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+
+        async def runner(command, env, timeout):
+            calls.append(timeout)
+            raise tlon_api.TlonProcessTimeout(
+                "Target notebook created: notes/~zod/log\n", "still working\n"
+            )
+
+        async def run():
+            cli = tlon_api.TlonCLI(cfg, runner=runner)
+            return await cli.run_command(
+                ("notes", "migrate-apply", "diary/~zod/log", "--yes"),
+                timeout=1800,
+            )
+
+        result = asyncio.run(run())
+        self.assertFalse(result.success)
+        self.assertTrue(result.timed_out)
+        self.assertEqual(calls, [1800])
+        self.assertIn("notes/~zod/log", result.stdout)
+        self.assertEqual(result.stderr, "still working\n")
+
+    def test_subprocess_timeout_kills_and_drains_buffered_stdout(self):
+        async def run():
+            return await tlon_api.TlonCLI._run_subprocess(
+                (
+                    sys.executable,
+                    "-c",
+                    (
+                        "import time; "
+                        "print('Target notebook created: notes/~zod/log', flush=True); "
+                        "time.sleep(10)"
+                    ),
+                ),
+                {},
+                0.05,
+            )
+
+        with self.assertRaises(tlon_api.TlonProcessTimeout) as raised:
+            asyncio.run(run())
+        self.assertIn("notes/~zod/log", raised.exception.stdout)
+
 
 class FakeGatewayStatusClient:
     def __init__(self):

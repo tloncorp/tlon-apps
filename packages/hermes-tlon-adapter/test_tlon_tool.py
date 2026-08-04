@@ -224,12 +224,183 @@ class TlonToolGuardTests(unittest.TestCase):
         blocked = tlon_tool.check_tlon_tool_command(args)
         self.assertIsNotNone(blocked)
         self.assertIn("notebook", blocked.lower())
-        # The redirect must point at the replacement, not the removed backend.
+        # The redirect must point at %notes and the owner migration path.
         self.assertIn("notes", blocked.lower())
+        self.assertIn("/migrate diary/~zod/notes", blocked)
+        self.assertNotIn("<diary-nest>", blocked)
+
+    def test_bare_notebook_refusal_keeps_placeholder(self):
+        blocked = tlon_tool.check_tlon_tool_command(["notebook"])
+
+        self.assertIn("/migrate <diary-nest>", blocked)
+
+    def test_blocks_migration_mutations_after_credential_flags(self):
+        for command in (
+            "notes migrate diary/~zod/log",
+            "notes migrate-apply diary/~zod/log --yes",
+            "notes migrate-other diary/~zod/log",
+            "notes migrate-plan-extra diary/~zod/log",
+            "notes notebook-delete notes/~zod/log --yes",
+            "--config /tmp/owner.json notes migrate-apply diary/~zod/log --yes",
+            "--url=https://example.test --ship ~zod --code secret "
+            "notes notebook-delete notes/~zod/log --yes",
+        ):
+            with self.subTest(command=command):
+                args, error = tlon_tool.split_tlon_command(command)
+                self.assertIsNone(error)
+                blocked = tlon_tool.check_tlon_tool_command(args)
+                if "diary/~zod/log" in command:
+                    self.assertIn("/migrate diary/~zod/log", blocked)
+                    self.assertNotIn("<diary-nest>", blocked)
+                else:
+                    self.assertIn("/migrate <diary-nest>", blocked)
+
+    def test_interpolates_diary_targets_refused_by_cli_surface(self):
+        for command in (
+            "channels info diary/~sampel-palnet/field-notes",
+            "messages channel diary/~sampel-palnet/field-notes",
+            'posts send diary/~sampel-palnet/field-notes "hello"',
+            "expose check /1/chan/diary/~sampel-palnet/field-notes/note/170.141",
+        ):
+            with self.subTest(command=command):
+                args, error = tlon_tool.split_tlon_command(command)
+                self.assertIsNone(error)
+                blocked = tlon_tool.check_tlon_tool_command(args)
+                self.assertIn(
+                    "/migrate diary/~sampel-palnet/field-notes",
+                    blocked,
+                )
+                self.assertNotIn("<diary-nest>", blocked)
+
+    def test_diary_guard_matches_cli_validation_order(self):
+        cases = (
+            (
+                "valid posts action",
+                ("posts", "send", "diary/~zod/log", "hello"),
+                True,
+            ),
+            (
+                "known posts action with incidental missing argument",
+                ("posts", "react", "diary/~zod/log", "170.141"),
+                True,
+            ),
+            (
+                "unknown posts action",
+                ("posts", "bogus", "diary/~zod/log"),
+                False,
+            ),
+            (
+                "mis-cased posts action",
+                ("posts", "Send", "diary/~zod/log", "hello"),
+                False,
+            ),
+            (
+                "valid expose action",
+                ("expose", "check", "diary/~zod/log/170.141"),
+                True,
+            ),
+            (
+                "unknown expose action",
+                ("expose", "bogus", "diary/~zod/log/170.141"),
+                False,
+            ),
+            (
+                "mis-cased expose action",
+                ("expose", "Check", "diary/~zod/log/170.141"),
+                False,
+            ),
+            (
+                "valid messages search",
+                (
+                    "messages",
+                    "search",
+                    "query",
+                    "--channel",
+                    "diary/~zod/log",
+                ),
+                True,
+            ),
+            (
+                "channel flag in the query position",
+                (
+                    "messages",
+                    "search",
+                    "--channel",
+                    "diary/~zod/log",
+                ),
+                False,
+            ),
+            (
+                "messages context missing its post id",
+                ("messages", "context", "diary/~zod/log"),
+                False,
+            ),
+            (
+                "mis-cased messages action",
+                (
+                    "messages",
+                    "Search",
+                    "query",
+                    "--channel",
+                    "diary/~zod/log",
+                ),
+                False,
+            ),
+        )
+
+        for name, args, cli_refuses_diary in cases:
+            with self.subTest(name=name):
+                self.assertEqual(
+                    tlon_tool.check_blocked_diary_operation(args) is not None,
+                    cli_refuses_diary,
+                )
+                self.assertEqual(
+                    tlon_tool.refused_diary_nest(args) is not None,
+                    cli_refuses_diary,
+                )
+
+    def test_allows_only_exact_migrate_plan(self):
+        for command in (
+            "notes migrate-plan diary/~zod/log",
+            "--config /tmp/owner.json notes migrate-plan diary/~zod/log",
+        ):
+            args, error = tlon_tool.split_tlon_command(command)
+            self.assertIsNone(error)
+            self.assertIsNone(tlon_tool.check_tlon_tool_command(args))
+        self.assertIn(
+            "/migrate <diary-nest>",
+            tlon_tool.check_blocked_migration_operation(
+                ("notes", "migrate-plan-extra")
+            ),
+        )
+
+    def test_allows_packaged_cli_help_before_diary_interception(self):
+        for command in (
+            "messages channel diary/~zod/log --help",
+            "expose check diary/~zod/log/170.141 --help",
+            "posts react diary/~zod/log 170.141 --help",
+        ):
+            with self.subTest(command=command):
+                args, error = tlon_tool.split_tlon_command(command)
+                self.assertIsNone(error)
+                self.assertIsNone(tlon_tool.check_tlon_tool_command(args))
+
+    def test_preserves_cli_help_literal_exceptions(self):
+        for command in (
+            "messages search --help --channel diary/~zod/log",
+            "posts send diary/~zod/log --help",
+            "posts reply diary/~zod/log 170.141 --help",
+            "posts edit diary/~zod/log 170.141 --help",
+        ):
+            with self.subTest(command=command):
+                args, error = tlon_tool.split_tlon_command(command)
+                self.assertIsNone(error)
+                blocked = tlon_tool.check_tlon_tool_command(args)
+                self.assertIn("/migrate diary/~zod/log", blocked)
 
     def test_allows_notes_read_and_write_commands(self):
-        # %notes replaced the removed %diary/notebook backend; reads and writes
-        # both pass the tool guard (owner gating happens at the session level).
+        # Ordinary %notes reads and writes pass the tool guard (owner gating
+        # happens at the session level); migration mutations are separate.
         for command in (
             "notes list",
             "notes note notes/~zod/docs 12",
@@ -359,6 +530,128 @@ class TlonToolGuardTests(unittest.TestCase):
 
 
 class TlonToolExecutionTests(unittest.TestCase):
+    @staticmethod
+    def _card_action(blob):
+        entry = json.loads(blob)[0]
+        components = entry["messages"][1]["updateComponents"]["components"]
+        button = next(
+            component
+            for component in components
+            if component["component"] == "Button"
+        )
+        return button["action"]["event"]["context"]["text"]
+
+    def test_diary_refusal_notifies_owner_once_with_card_and_literal_text(self):
+        calls = []
+
+        async def send_dm(text, blob):
+            calls.append((text, blob))
+            return True
+
+        tlon_tool.set_diary_migration_notification_sender(send_dm)
+        self.addCleanup(
+            tlon_tool.clear_diary_migration_notification_sender,
+            send_dm,
+        )
+        command = (
+            "notes migrate-apply "
+            "diary/~sampel-palnet/discovery-execution --yes"
+        )
+
+        first = json.loads(
+            asyncio.run(tlon_tool.execute_tlon_tool({"command": command}))
+        )
+        second = json.loads(
+            asyncio.run(tlon_tool.execute_tlon_tool({"command": command}))
+        )
+
+        self.assertTrue(first["blocked"])
+        self.assertTrue(second["blocked"])
+        self.assertIn(
+            "/migrate diary/~sampel-palnet/discovery-execution",
+            first["error"],
+        )
+        self.assertEqual(len(calls), 1)
+        text, blob = calls[0]
+        expected = "/migrate diary/~sampel-palnet/discovery-execution"
+        self.assertIn(expected, text)
+        self.assertEqual(self._card_action(blob), expected)
+
+    def test_throwing_card_builder_still_delivers_literal_text(self):
+        calls = []
+
+        async def send_dm(text, blob):
+            calls.append((text, blob))
+            return True
+
+        def throw_card(_command):
+            raise ValueError("bad card")
+
+        nest = "diary/~zod/discovery-card-fallback"
+        sent = asyncio.run(
+            tlon_tool.notify_diary_migration_discovery(
+                nest,
+                sender=send_dm,
+                build_card=throw_card,
+            )
+        )
+
+        self.assertTrue(sent)
+        self.assertEqual(len(calls), 1)
+        self.assertIn(f"/migrate {nest}", calls[0][0])
+        self.assertIsNone(calls[0][1])
+
+    def test_diary_notification_deduplicates_canonical_nest_variants(self):
+        calls = []
+
+        async def send_dm(text, blob):
+            calls.append((text, blob))
+            return True
+
+        asyncio.run(
+            tlon_tool.notify_diary_migration_discovery(
+                "Diary/ZOD/Discovery-Canonical",
+                sender=send_dm,
+            )
+        )
+        asyncio.run(
+            tlon_tool.notify_diary_migration_discovery(
+                "diary/~zod/Discovery-Canonical",
+                sender=send_dm,
+            )
+        )
+
+        self.assertEqual(len(calls), 1)
+        self.assertIn(
+            "/migrate diary/~zod/Discovery-Canonical",
+            calls[0][0],
+        )
+
+    def test_diary_refusal_without_active_adapter_still_returns_normally(self):
+        async def absent_sender(_text, _blob):
+            return False
+
+        tlon_tool.set_diary_migration_notification_sender(absent_sender)
+        tlon_tool.clear_diary_migration_notification_sender(absent_sender)
+
+        payload = json.loads(
+            asyncio.run(
+                tlon_tool.execute_tlon_tool(
+                    {
+                        "command": (
+                            "notebook diary/~zod/discovery-no-adapter Title"
+                        )
+                    }
+                )
+            )
+        )
+
+        self.assertTrue(payload["blocked"])
+        self.assertIn(
+            "/migrate diary/~zod/discovery-no-adapter",
+            payload["error"],
+        )
+
     def test_execute_tlon_tool_runs_allowed_command(self):
         calls = []
         cfg = tlon_api.TlonConfig.from_env(
