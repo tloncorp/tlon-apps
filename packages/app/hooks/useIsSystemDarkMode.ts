@@ -13,7 +13,7 @@ import {
 // system theme changes while the app is backgrounded.
 const TlonTheme = NativeModules.TlonTheme;
 
-export const useIsDarkMode = () => {
+export const useIsSystemDarkMode = () => {
   const colorScheme = useColorScheme();
   // Platform-specific workarounds for color scheme detection:
   //

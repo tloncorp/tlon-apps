@@ -68,7 +68,7 @@ export const isDarkBg = (hexValue: string): boolean => {
   return r * 0.299 + g * 0.587 + b * 0.114 < 186;
 };
 
-export const useIsDarkTheme = (): boolean => {
+export const useIsDarkMode = (): boolean => {
   const theme = useTheme();
   return isDarkBg(theme.background?.val);
 };

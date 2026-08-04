@@ -2,11 +2,11 @@ import { DarkTheme, DefaultTheme, type Theme } from '@react-navigation/native';
 import { useMemo } from 'react';
 
 import { useTheme } from '../ui';
-import { useIsDarkTheme } from '../ui/utils/colorUtils';
+import { useIsDarkMode } from '../ui/utils/colorUtils';
 
 export function useAppNavigationTheme(): Theme {
   const theme = useTheme();
-  const isDark = useIsDarkTheme();
+  const isDark = useIsDarkMode();
   const background = theme.background?.val;
   const text = theme.primaryText?.val;
   const border = theme.border?.val;

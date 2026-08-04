@@ -6,7 +6,7 @@ import {
   getNativeHeaderScrollOptions,
   nativeHeaderScrollResetOptions,
 } from '../../navigation/nativeHeaderOptions';
-import { useIsDarkTheme } from '../utils/colorUtils';
+import { useIsDarkMode } from '../utils/colorUtils';
 import type {
   ScreenScrollProps,
   UseScreenScrollPropsOptions,
@@ -16,7 +16,7 @@ export function useScreenScrollProps({
   enabled = true,
 }: UseScreenScrollPropsOptions = {}): ScreenScrollProps {
   const navigation = useContext(NavigationContext);
-  const isDarkMode = useIsDarkTheme();
+  const isDarkMode = useIsDarkMode();
   const options = useMemo(
     () => getNativeHeaderScrollOptions({ isDarkMode }),
     [isDarkMode]

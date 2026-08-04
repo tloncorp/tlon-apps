@@ -3,7 +3,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useIsDarkMode } from '@tloncorp/app/ui/utils/colorUtils';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import {
   NodeResumeState,
