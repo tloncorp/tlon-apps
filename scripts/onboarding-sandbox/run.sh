@@ -72,6 +72,10 @@ ensure_sandbox() {
   [ "$added" -gt 0 ]     && echo "sandbox prompts: added $added new file(s) from $src_dir"
   [ "$refreshed" -gt 0 ] && echo "sandbox prompts: refreshed $refreshed unedited file(s) from upstream"
   [ "$orphaned" -gt 0 ]  && echo "sandbox prompts: moved $orphaned removed-upstream file(s) to $orphan_dir (preserved, not deleted)"
+  # These three are reports, not results: with nothing to report the last one
+  # is a false test, which under `set -e` would fail the function and abort the
+  # caller before it ever reaches the reset.
+  return 0
 }
 
 case "${1:-}" in
