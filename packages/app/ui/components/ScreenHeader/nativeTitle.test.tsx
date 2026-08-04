@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createNativeHeaderTitleStore } from './nativeHeaderTitle';
+import { createNativeHeaderTitleStore } from './nativeTitle';
 
 describe('native header title store', () => {
   it('notifies subscribers only when the title changes', () => {

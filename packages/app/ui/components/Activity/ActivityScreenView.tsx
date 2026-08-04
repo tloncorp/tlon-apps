@@ -20,7 +20,7 @@ import { NavigationProvider } from '../../contexts/navigation';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
 import { ScreenHeader } from '../ScreenHeader';
-import type { ScreenHeaderAction } from '../screenHeaderItemModel';
+import type { ScreenHeaderAction } from '../ScreenHeader';
 import { ActivityTabs } from './ActivityHeader';
 import { ActivityListItem } from './ActivityListItem';
 

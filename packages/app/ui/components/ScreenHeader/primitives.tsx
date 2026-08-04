@@ -8,13 +8,13 @@ import {
 import { ComponentProps, PropsWithChildren, forwardRef, useState } from 'react';
 import { ColorTokens, TamaguiElement, XStack, styled } from 'tamagui';
 
-import { ActionSheet } from './ActionSheet';
+import { ActionSheet } from '../ActionSheet';
 import {
   type ScreenHeaderAction,
   type ScreenHeaderIconName,
   type ScreenHeaderMenuAction,
   visibleScreenHeaderActions,
-} from './screenHeaderItemModel';
+} from './actions';
 
 export const HeaderIconButton = styled(Icon, {
   customSize: ['$3xl', '$2xl'],

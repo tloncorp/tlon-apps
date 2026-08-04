@@ -4,22 +4,19 @@ import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'tamagui';
 
 import {
-  buildNativeHeaderActionOptions,
-  resolveNativeHeaderColor,
-} from './nativeHeaderItems';
-import {
-  NativeHeaderTitle,
-  createNativeHeaderTitleStore,
-} from './nativeHeaderTitle';
-import {
   type ScreenHeaderAction,
   type UseScreenHeaderOptions,
   getScreenHeaderActionSignature,
-} from './screenHeaderItemModel';
+} from './actions';
+import {
+  buildNativeHeaderActionOptions,
+  resolveNativeHeaderColor,
+} from './nativeActions';
+import { NativeHeaderTitle, createNativeHeaderTitleStore } from './nativeTitle';
 
 const hiddenNativeHeaderOptions = { headerShown: false };
 
-export function useScreenHeader({
+export function useNativeHeader({
   enabled,
   title,
   titleElement,

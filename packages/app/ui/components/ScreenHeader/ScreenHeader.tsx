@@ -31,7 +31,8 @@ import {
   withStaticProperties,
 } from 'tamagui';
 
-import { LongPressDisclosure } from './LongPressDisclosure';
+import { LongPressDisclosure } from '../LongPressDisclosure';
+import type { ScreenHeaderAction } from './actions';
 import {
   HeaderBackButton,
   HeaderControls,
@@ -39,9 +40,8 @@ import {
   HeaderTextButton,
   HeaderTitleText,
   ScreenHeaderItemElements,
-} from './ScreenHeaderPrimitives';
-import type { ScreenHeaderAction } from './screenHeaderItemModel';
-import { useScreenHeader } from './useScreenHeader';
+} from './primitives';
+import { useNativeHeader } from './useNativeHeader';
 
 interface SharedScreenHeaderProps {
   title?: string | ReactNode;
@@ -271,7 +271,7 @@ export const ScreenHeaderComponent = ({
     titleIcon != null ||
     onTitlePress != null ||
     loadingSubtitle !== undefined;
-  const shouldUseNativeHeader = useScreenHeader({
+  const shouldUseNativeHeader = useNativeHeader({
     enabled: placement === 'navigation',
     title: typeof title === 'string' ? title : '',
     titleElement: interactiveTitleContent,

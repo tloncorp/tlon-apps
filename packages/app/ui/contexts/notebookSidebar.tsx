@@ -7,7 +7,7 @@ import React, {
   useState,
 } from 'react';
 
-import type { ScreenHeaderAction } from '../components/screenHeaderItemModel';
+import type { ScreenHeaderAction } from '../components/ScreenHeader';
 
 export type NotebookSidebarContent = {
   actions?: ReactNode;

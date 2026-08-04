@@ -37,7 +37,7 @@ import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import { ActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
-import type { ScreenHeaderAction } from '../screenHeaderItemModel';
+import type { ScreenHeaderAction } from '../ScreenHeader';
 import { NotesActionGroupList } from './NotesActions';
 import { NotebookGateMessage, useNotebookData } from './NotesData';
 import { useEntityDialog } from './NotesDialogPrimitives';
