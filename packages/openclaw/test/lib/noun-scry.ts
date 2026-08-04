@@ -179,7 +179,7 @@ function malformedGatewayStatus(noun: Noun, reason: string): never {
   );
 }
 
-/** Decode the old standalone agent's `[status (unit @da)]` noun. */
+/** Decode steward's `/x/v1/gateway/status` `[status (unit @da)]` noun. */
 export function decodeGatewayStatus(noun: Noun): GatewayStatusScry {
   const raw = noun.toString();
   if (!(noun instanceof Cell)) {
@@ -222,7 +222,7 @@ export function decodeGatewayStatus(noun: Noun): GatewayStatusScry {
   return { status, leaseUntil, raw };
 }
 
-/** Decode a bare @da noun, used by the standalone owner-activity scry. */
+/** Decode a bare @da noun, as served by `/x/v1/gateway/owner-activity`. */
 export function decodeDa(noun: Noun): number {
   if (!(noun instanceof Atom)) {
     throw new Error(

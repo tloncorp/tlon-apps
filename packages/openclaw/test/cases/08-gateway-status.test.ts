@@ -3,9 +3,20 @@
  *
  * Test 1 is the sensitivity guard: on prewarming cores, a forced Tlon monitor
  * restart must establish a new lease and then renew it from the replacement
- * monitor. Test 2 is omitted because rube-27's archived activity feed does not
- * advance the old agent's owner-activity; a regenerated steward pier can cover
- * it later.
+ * monitor.
+ *
+ * The read path points at %steward, not %gateway-status. The steward refactor
+ * moved liveness state into steward's gateway module and reduced
+ * %gateway-status to a poke-only proxy that forwards gateway-status-action-1
+ * on to %steward — its own on-peek is a stub. So the plugin still POKES
+ * %gateway-status (see @tloncorp/api gatewayStatusApi) while this test SCRIES
+ * %steward at /x/v1/gateway/status. The payload is byte-identical to what the
+ * standalone agent used to serve, so decodeGatewayStatus is unchanged.
+ *
+ * An owner-activity assertion (/v1/gateway/owner-activity, decodeDa) is still
+ * unwritten. It was previously blocked on rube-27's archived activity feed not
+ * advancing the old agent's owner-activity; the piers now carry a steward that
+ * would serve it.
  */
 import { beforeAll, describe, expect, test } from 'vitest';
 
@@ -20,7 +31,7 @@ import {
   setGatewayStatusRestartConfig,
 } from '../lib/index.js';
 
-const ARCHIVE = 'pinned rube-zod27';
+const ARCHIVE = 'pinned rube-zod-group-blob';
 // Must match dev/Dockerfile.test's ARG OPENCLAW_CORE_VERSION default: the test
 // asserts the container's installed core equals this requested version. Bumping
 // both together to 2026.6.11/2026.7.1 (already in the known-prewarm map below)
@@ -31,8 +42,8 @@ const INTERNAL_TEST_TIMEOUT_MS = 165_000;
 const DIAGNOSTIC_RESERVE_MS = 12_000;
 const MIN_POLL_OPERATION_BUDGET_MS = 2_000;
 const STATUS_SCRY = {
-  app: 'gateway-status',
-  path: '/status',
+  app: 'steward',
+  path: '/v1/gateway/status',
   archive: ARCHIVE,
 } as const;
 const GATEWAY_START = '[gateway-status] gateway_start received (generation=1)';
