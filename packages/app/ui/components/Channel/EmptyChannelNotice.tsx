@@ -32,6 +32,8 @@ export function EmptyChannelNotice({
     onPressChatDetails,
   } = useChatOptions();
   const group = useGroup(channel.groupId ?? '');
+  const agentGroupAgents = db.agentGroupAgents.useValue();
+  const onboardingGroupId = db.agentOnboardingGroupId.useValue();
   const isGroupAdminFromHook = useIsAdmin(channel.groupId ?? '', userId);
   const isGroupAdmin = isAdminOverride ?? isGroupAdminFromHook;
   const isDefaultPersonalChannel = useMemo(() => {
@@ -83,8 +85,26 @@ export function EmptyChannelNotice({
     color: '$primaryText',
   });
 
+  // A newly created agent group opens on an empty chat for only the seconds
+  // before the agent's introduction lands, and the welcome notice actively
+  // fights that handoff — "Invite people" and "Edit group" are exactly what
+  // the guided setup does for you. While the group is still one channel and
+  // the client knows it seated an agent there, show nothing and let the
+  // agent speak first. Channels created after that (the group has grown) get
+  // the normal notice.
+  const awaitingAgentOpening =
+    channel.type === 'chat' &&
+    !!channel.groupId &&
+    (agentGroupAgents[channel.groupId] != null ||
+      onboardingGroupId === channel.groupId) &&
+    (group?.channels?.length ?? 0) <= 1;
+
   if (isDefaultPersonalChannel) {
     return <WayfindingNotice.EmptyChannel channel={channel} />;
+  }
+
+  if (awaitingAgentOpening) {
+    return null;
   }
 
   if (isLoading) {
