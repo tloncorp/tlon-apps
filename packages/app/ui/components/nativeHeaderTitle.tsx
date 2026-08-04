@@ -1,6 +1,14 @@
 import type { ReactNode } from 'react';
 import { useSyncExternalStore } from 'react';
 
+/**
+ * React Navigation only refreshes `headerTitle` when its screen options
+ * change. Capturing the latest React node in a ref would leave the mounted
+ * title stale, while putting that node in the options dependencies would call
+ * `setOptions` on most screen renders and churn the native header. This small
+ * store keeps the installed header renderer stable while letting custom title
+ * content update independently.
+ */
 export interface NativeHeaderTitleStore {
   getSnapshot: () => ReactNode;
   set: (title: ReactNode) => void;
