@@ -457,6 +457,19 @@ export const agentOnboardingGroupId = createStorageItem<string | null>({
   defaultValue: null,
 });
 
+/**
+ * Which ship acts as the agent in a group the client set up, by group id.
+ *
+ * First-hand knowledge: the client put this ship on the guest list, so it is a
+ * stronger claim than the group's config — which the agent writes about itself,
+ * and can write wrong. The render gate accepts either, so a malformed config
+ * costs the group's description, not its interactive UI.
+ */
+export const agentGroupAgents = createStorageItem<Record<string, string>>({
+  key: 'agentGroupAgents',
+  defaultValue: {},
+});
+
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
   defaultValue: {

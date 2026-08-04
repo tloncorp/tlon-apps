@@ -55,6 +55,18 @@ export async function createAgentGroup(params?: {
     botShipId,
   });
 
+  // Remember who the agent is from the client's own side. The config in the
+  // description says so too, but the agent writes that itself — when it writes
+  // it wrong, this is what keeps its cards rendering.
+  await db.agentGroupAgents
+    .setValue((current) => ({ ...current, [group.id]: botShipId }))
+    .catch((error) => {
+      logger.trackError('Failed to record group agent', {
+        error,
+        groupId: group.id,
+      });
+    });
+
   // Declare the agent on the group so its cards render even when it isn't a
   // moon of the owner's ship (see `isOwnAgentShip`). A bare declaration —
   // who acts, not what the group does — so the agent still treats the group

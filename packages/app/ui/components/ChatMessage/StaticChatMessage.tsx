@@ -194,6 +194,7 @@ export function StaticChatMessage({
   // render buttons for everyone.
   const currentUserId = useCurrentUserId();
   const { data: group } = useGroup({ id: post.groupId ?? '' });
+  const groupAgents = db.agentGroupAgents.useValue();
   const canRenderA2UI =
     isDmChannelId(post.channelId) ||
     canRenderAgentUiInGroup({
@@ -201,6 +202,7 @@ export function StaticChatMessage({
       currentUserId,
       groupId: post.groupId,
       groupDescription: group?.description,
+      knownAgentShip: post.groupId ? groupAgents[post.groupId] : undefined,
     });
 
   const postContent = usePostContent(post);

@@ -413,6 +413,18 @@ describe('renderSetupDirective', () => {
     );
   });
 
+  test('the config example is the whole description, not a bare job', () => {
+    // Regression: the example showed only the job object, and the agent wrote
+    // *that* as the description — no type, no agents, no jobs wrapper. The
+    // client then stopped recognizing the agent, so every card in the group
+    // stopped rendering and the raw JSON became the group's description.
+    const directive = renderSetupDirective('agent-research', 'Mycology')!;
+    expect(directive).toContain('"type":"tlon-group-agent-config"');
+    expect(directive).toContain('"jobs":[{');
+    expect(directive).toContain('"agents":');
+    expect(directive).toMatch(/whole description is exactly this array/i);
+  });
+
   test('every job runs daily', () => {
     // A job that fires weekly is a job the owner forgets they have, and the
     // promise the setup makes is that something arrives tomorrow morning.

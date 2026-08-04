@@ -124,10 +124,18 @@ export function isOwnAgentShip({
   authorId,
   currentUserId,
   groupDescription,
+  knownAgentShip,
 }: {
   authorId: string | null | undefined;
   currentUserId: string | null | undefined;
   groupDescription?: string | null;
+  /**
+   * The agent this client itself put in the group, if it created it. A
+   * first-hand record, and the only signal here the agent cannot write: the
+   * config's `agents` list is the agent's own claim about itself, so a config
+   * it writes badly would otherwise stop its cards rendering.
+   */
+  knownAgentShip?: string | null;
 }): boolean {
   if (!authorId || !currentUserId) {
     return false;
@@ -137,6 +145,9 @@ export function isOwnAgentShip({
     return false;
   }
   if (isMoonOf(authorId, currentUserId)) {
+    return true;
+  }
+  if (knownAgentShip && preSig(knownAgentShip).toLowerCase() === author) {
     return true;
   }
   const config = parseGroupAgentConfig(groupDescription);
@@ -158,11 +169,13 @@ export function canRenderAgentUiInGroup({
   currentUserId,
   groupId,
   groupDescription,
+  knownAgentShip,
 }: {
   authorId: string | null | undefined;
   currentUserId: string | null | undefined;
   groupId: string | null | undefined;
   groupDescription?: string | null;
+  knownAgentShip?: string | null;
 }): boolean {
   if (!groupId || !currentUserId) {
     return false;
@@ -174,7 +187,12 @@ export function canRenderAgentUiInGroup({
   ) {
     return false;
   }
-  return isOwnAgentShip({ authorId, currentUserId, groupDescription });
+  return isOwnAgentShip({
+    authorId,
+    currentUserId,
+    groupDescription,
+    knownAgentShip,
+  });
 }
 
 /**

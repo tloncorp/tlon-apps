@@ -312,14 +312,20 @@ export function renderSetupDirective(
     'The group description is the config JSON array and nothing else — the',
     'payload message goes inside it, as the job entry\'s "prompt" field.',
     'Never put the payload, or any prose, in the description itself.',
-    "The job entry in the config uses exactly this shape — the client's",
-    'parser reads it, so a freelanced field layout breaks the group in the',
-    'app. Only the tz changes (the owner\'s IANA timezone), and "prompt" is',
-    'the payload message above:',
-    `{"id":${JSON.stringify(purposeId)},"title":${JSON.stringify(fill(job.title))},` +
+    'The whole description is exactly this array — one config entry with the',
+    'job nested inside its "jobs". Do not write the job on its own, and do',
+    'not drop "type", "version" or "agents": the app identifies the entry by',
+    'type and learns which ship is its agent from "agents", so an entry',
+    "missing them makes the app stop treating you as this group's agent —",
+    'your cards stop rendering and the group shows this JSON as its',
+    'description. Fill the placeholders; keep every other field as shown:',
+    `[{"type":"tlon-group-agent-config","version":1,"templateId":` +
+      `${JSON.stringify(purposeId)},"purpose":"<one sentence, plain prose>",` +
+      '"instructions":"","agents":["<your own ship, e.g. ~zod>"],"jobs":[' +
+      `{"id":${JSON.stringify(purposeId)},"title":${JSON.stringify(fill(job.title))},` +
       `"schedule":{"kind":"cron","expr":${JSON.stringify(job.schedule)},` +
       '"tz":"<owner timezone>"},"prompt":"<payload message, verbatim>",' +
-      '"outputNest":"","enabled":true}',
+      '"outputNest":"","enabled":true}],"updatedAt":<epoch ms>}]',
     `templateId: ${purposeId} — copy it exactly; it records which setup the`,
     'owner picked, so a different id makes the group misreport itself.',
     `Once the job and config are in place: ${fill(job.confirmation)}`,

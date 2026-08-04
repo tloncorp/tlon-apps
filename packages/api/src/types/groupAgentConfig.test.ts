@@ -202,6 +202,38 @@ describe('groupHasConfiguredJob', () => {
   });
 });
 
+describe('client-recorded agent', () => {
+  test("the client's own record survives a config the agent wrote wrong", () => {
+    // Observed live: the agent wrote its job object as the whole description,
+    // with no type/agents/jobs wrapper. Every card in the group stopped
+    // rendering, because the only signal for a non-moon agent was that config.
+    const wrongConfig = JSON.stringify([
+      { id: 'agent-research', title: 'Research update', enabled: true },
+    ]);
+    const base = {
+      authorId: SOMEONE_ELSE,
+      currentUserId: ME,
+      groupId: `${ME}/home-group`,
+      groupDescription: wrongConfig,
+    };
+    expect(canRenderAgentUiInGroup(base)).toBe(false);
+    expect(
+      canRenderAgentUiInGroup({ ...base, knownAgentShip: SOMEONE_ELSE })
+    ).toBe(true);
+    // Still only that ship, and still only in a group I host.
+    expect(
+      canRenderAgentUiInGroup({ ...base, knownAgentShip: THEIR_AGENT })
+    ).toBe(false);
+    expect(
+      canRenderAgentUiInGroup({
+        ...base,
+        groupId: `${SOMEONE_ELSE}/theirs`,
+        knownAgentShip: SOMEONE_ELSE,
+      })
+    ).toBe(false);
+  });
+});
+
 describe('config tolerance', () => {
   test('a job survives fields the model got wrong or omitted', () => {
     // The writer is a model following prose. Rejecting the entry would
