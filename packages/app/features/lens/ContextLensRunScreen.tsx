@@ -90,8 +90,8 @@ export function ContextLensRunScreen(props: Props) {
         borderBottom
         placement="navigation"
       />
-      <ScreenScrollView showsVerticalScrollIndicator={false}>
-        {lens ? (
+      {lens ? (
+        <ScreenScrollView showsVerticalScrollIndicator={false}>
           <YStack gap="$m" padding="$l" paddingBottom="$2xl">
             <RunSummary
               lens={lens}
@@ -99,33 +99,33 @@ export function ContextLensRunScreen(props: Props) {
             />
             <RunInspector lens={lens} onPressMessage={handlePressMessage} />
           </YStack>
-        ) : (
-          <YStack
-            alignItems="center"
-            justifyContent="center"
-            minHeight={180}
-            gap="$m"
-            margin="$l"
-            borderWidth={1}
-            borderColor="$border"
-            borderRadius="$m"
-            backgroundColor="$secondaryBackground"
-            padding="$m"
-          >
-            <SizableText size="$m" color="$secondaryText" textAlign="center">
-              {loading
-                ? 'Looking for Lens metadata'
-                : 'No Lens metadata for this run'}
+        </ScreenScrollView>
+      ) : (
+        <YStack
+          alignItems="center"
+          justifyContent="center"
+          minHeight={180}
+          gap="$m"
+          margin="$l"
+          borderWidth={1}
+          borderColor="$border"
+          borderRadius="$m"
+          backgroundColor="$secondaryBackground"
+          padding="$m"
+        >
+          <SizableText size="$m" color="$secondaryText" textAlign="center">
+            {loading
+              ? 'Looking for Lens metadata'
+              : 'No Lens metadata for this run'}
+          </SizableText>
+          {!loading ? (
+            <SizableText size="$s" color="$tertiaryText" textAlign="center">
+              Run records sync from your ship and are retained for about 30
+              days. This run is no longer available.
             </SizableText>
-            {!loading ? (
-              <SizableText size="$s" color="$tertiaryText" textAlign="center">
-                Run records sync from your ship and are retained for about 30
-                days. This run is no longer available.
-              </SizableText>
-            ) : null}
-          </YStack>
-        )}
-      </ScreenScrollView>
+          ) : null}
+        </YStack>
+      )}
     </YStack>
   );
 }
