@@ -132,13 +132,17 @@ async function writeAgentMarker(group: db.Group, botShipId: string) {
     jobs: [],
     updatedAt: Date.now(),
   } satisfies GroupAgentConfigEntry;
+  // Meta comes from the re-read group, not the creation-time snapshot: this
+  // poke replaces the whole meta object, and by the time a slow marker lands
+  // the agent may already have renamed and iconed the group mid-setup.
+  const meta = current ?? group;
   return api.updateGroupMeta({
     groupId: group.id,
     meta: {
-      title: group.title ?? '',
+      title: meta.title ?? '',
       description: JSON.stringify([entry]),
-      image: group.iconImage ?? group.iconImageColor ?? '',
-      cover: group.coverImage ?? group.coverImageColor ?? '',
+      image: meta.iconImage ?? meta.iconImageColor ?? '',
+      cover: meta.coverImage ?? meta.coverImageColor ?? '',
     },
   });
 }

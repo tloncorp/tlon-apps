@@ -234,12 +234,16 @@ export function ChatListScreenView({
   // outside the navigator, so the first chat list mount consumes it. The
   // channel may still be syncing in on a fresh install — wait (bounded)
   // for its row before navigating.
+  //
+  // Mount-only, with the navigation function behind a ref: resetToChannel is
+  // recreated on every render, and an effect keyed on it gets cancelled by
+  // any ordinary chat-list update — which used to kill the only landing poll
+  // mid-wait. The consumed flag is set at navigation, not at mount, so a
+  // cancelled poll leaves the handoff armed for the next mount.
   const consumedOnboardingLandingRef = useRef(false);
+  const resetToChannelRef = useRef(resetToChannel);
+  resetToChannelRef.current = resetToChannel;
   useEffect(() => {
-    if (consumedOnboardingLandingRef.current) {
-      return;
-    }
-    consumedOnboardingLandingRef.current = true;
     let cancelled = false;
     (async () => {
       try {
@@ -251,13 +255,16 @@ export function ChatListScreenView({
         while (!cancelled && Date.now() < deadline) {
           const channel = await db.getChannel({ id: landing.channelId });
           if (channel) {
-            if (!cancelled) {
+            if (!cancelled && !consumedOnboardingLandingRef.current) {
               // The agent opens the conversation itself when it joins a newly
               // created group, so landing here is all the client does. Only
               // consume the handoff once it has actually happened — clearing
               // earlier would make a slow first sync eat it, and the user
               // would never land in the onboarding conversation.
-              resetToChannel(landing.channelId, { groupId: landing.groupId });
+              consumedOnboardingLandingRef.current = true;
+              resetToChannelRef.current(landing.channelId, {
+                groupId: landing.groupId,
+              });
               db.agentOnboardingLanding.resetValue().catch((error) => {
                 logger.trackError('Failed to clear onboarding landing', {
                   error,
@@ -280,7 +287,8 @@ export function ChatListScreenView({
     return () => {
       cancelled = true;
     };
-  }, [resetToChannel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
   const onPressChat = useCallback(

@@ -108,8 +108,23 @@ export const TOPICS_FREE_TEXT_PLACEHOLDER = 'Add your own…';
  * Tlon posts the invite card itself, immediately after this turn, so the
  * agent must not try to produce a link of its own.
  */
-export const INVITE_CARD_PROMPT =
-  'Tlon is better with someone else in it. Send them this link:';
+/**
+ * Shared first sentence of the card and its fallback — also what the
+ * transcript recovery matches to know a card was already posted, so keep all
+ * three in step.
+ */
+export const INVITE_CARD_LEAD = 'Tlon is better with someone else in it.';
+
+export const INVITE_CARD_PROMPT = `${INVITE_CARD_LEAD} Send them this link:`;
+
+/**
+ * The story text, which is all a client that predates `tlon.inviteLink`
+ * renders. It must stand alone: "Send them this link:" with the link living
+ * in a dropped blob is an instruction pointing at nothing.
+ */
+export const INVITE_CARD_FALLBACK =
+  `${INVITE_CARD_LEAD} Invite someone from this group's info screen — or ` +
+  'update your app to send an invite link right from here.';
 
 export const INVITE_CARD_BUTTON_LABEL = 'Invite';
 

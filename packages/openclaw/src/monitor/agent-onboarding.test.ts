@@ -227,6 +227,7 @@ describe('offer gates', () => {
       groupHostIsOwner: true,
       groupDescription: '',
       channelHasNoPosts: true as boolean | null,
+      groupHasSingleChannel: true,
       alreadyOffered: false,
     };
     expect(shouldOfferPickerOnJoin(newGroup)).toBe(true);
@@ -235,6 +236,9 @@ describe('offer gates', () => {
       // uninspectable channel (null) must fail closed.
       { channelHasNoPosts: false as boolean | null },
       { channelHasNoPosts: null },
+      // An established group can have an *empty chat* (its life lived in a
+      // notebook or another channel); an empty channel alone is not newness.
+      { groupHasSingleChannel: false },
       { groupHostIsOwner: false },
       { groupDescription: configuredDescription },
       { alreadyOffered: true },
@@ -338,7 +342,12 @@ describe('group/channel resolution', () => {
   test('findChatNestForGroup resolves the chat nest', async () => {
     expect(
       await findChatNestForGroup(apiWith(groups), '~ten/onboarding-test', {})
-    ).toEqual({ nest, host: '~ten', description: 'a group about bread' });
+    ).toEqual({
+      nest,
+      host: '~ten',
+      description: 'a group about bread',
+      channelCount: 1,
+    });
     // Null for a group not in the scry yet (callers poll) or with no chat.
     expect(await findChatNestForGroup(apiWith(groups), '~ten/nope', {})).toBe(
       null

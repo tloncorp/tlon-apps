@@ -104,8 +104,9 @@ import {
 } from '../version.js';
 import {
   GROUP_INTRO_MESSAGE,
-  INVITE_CARD_PROMPT,
+  INVITE_CARD_LEAD,
   INVITE_FOLLOWUP_MESSAGE,
+  PURPOSE_PICKER_PROMPT,
   TOPICS_PICKER_PROMPT,
 } from './agent-onboarding-config.js';
 import {
@@ -910,15 +911,21 @@ export async function monitorTlonProvider(
         }
         if (!onboardingInvitePending.has(nest)) {
           const history = await fetchChannelHistory(api, nest, 50, runtime);
+          // The opening picker marks every onboarding, including the
+          // freeform path that never sees the topic pills — a freeform
+          // setup owes its card too.
           const botOnboardedHere = history.some(
             (entry) =>
               entry.author === botShipName &&
-              entry.content.startsWith(TOPICS_PICKER_PROMPT)
+              (entry.content.startsWith(PURPOSE_PICKER_PROMPT) ||
+                entry.content.startsWith(TOPICS_PICKER_PROMPT))
           );
+          // Matched on the shared lead: the card's *story* is the standalone
+          // fallback text, not the blob's prompt.
           const cardAlreadyPosted = history.some(
             (entry) =>
               entry.author === botShipName &&
-              entry.content.startsWith(INVITE_CARD_PROMPT)
+              entry.content.startsWith(INVITE_CARD_LEAD)
           );
           if (!botOnboardedHere || cardAlreadyPosted) {
             inviteSettled.add(nest);
@@ -3960,6 +3967,7 @@ export async function monitorTlonProvider(
           ownerListenEnabled: effectiveOwnerListenEnabled,
           ownerListenDisabledChannels: effectiveOwnerListenDisabled,
         });
+        let heardOnlyForOnboarding = false;
         if (!engageDecision.engage) {
           // Onboarding replies still count. A tap on the purpose picker (or
           // the topics reply that follows one) arrives as an unmentioned
@@ -3979,6 +3987,11 @@ export async function monitorTlonProvider(
           if (!isOnboardingReply) {
             return;
           }
+          // Remembered so that if the onboarding machinery below doesn't
+          // consume this message after all (a duplicate card tap, a thread
+          // reply while the pills wait), it is dropped rather than passed to
+          // the model — the owner turned listening off.
+          heardOnlyForOnboarding = true;
         }
 
         // Agent onboarding: in an unconfigured group the owner hosts, the
@@ -3988,8 +4001,14 @@ export async function monitorTlonProvider(
         // falls through to the agent normally. One group lookup serves both;
         // when it fails (new group, or scry failed) say nothing rather than
         // risk offering setup for a configured group — retried next message.
+        // A thread reply or an attachment-only post is never an answer to a
+        // picker and must never be answered *by* one: offering the opening in
+        // response to a blob post would swallow that post entirely.
+        const isTopLevelTextMessage =
+          !isThreadReply && !parentId && Boolean(rawText?.trim());
         const runOnboardingOffers =
           isOwner(senderShip) &&
+          isTopLevelTextMessage &&
           !(
             onboardingPickerOffered.has(nest) &&
             onboardingTopicsOffered.has(nest)
@@ -4015,8 +4034,27 @@ export async function monitorTlonProvider(
             !onboardingSetupPending.has(nest) &&
             !descriptionHasAgentSetup(onboardingOffer.groupDescription)
           ) {
+            const recentPosts = await fetchChannelHistory(
+              api,
+              nest,
+              20,
+              runtime
+            );
+            // A picker that survives in the transcript was already offered:
+            // without remembering that, a restart followed by a freeform
+            // reply (not a card title) would re-post the opening over the
+            // answered picker and swallow the actual request.
+            if (
+              recentPosts.some(
+                (entry) =>
+                  entry.author === botShipName &&
+                  entry.content.startsWith(PURPOSE_PICKER_PROMPT)
+              )
+            ) {
+              onboardingPickerOffered.add(nest);
+            }
             const recoveredPurpose = derivePendingPurposeFromHistory(
-              await fetchChannelHistory(api, nest, 20, runtime),
+              recentPosts,
               botShipName,
               normalizeShip(senderShip),
               rawText ?? ''
@@ -4033,7 +4071,10 @@ export async function monitorTlonProvider(
           if (onboardingSetupPending.has(nest)) {
             // Recovered above: fall through so the reply in hand is consumed
             // as the topics answer.
-          } else if (shouldOfferPurposePicker(onboardingOffer)) {
+          } else if (
+            !onboardingPickerOffered.has(nest) &&
+            shouldOfferPurposePicker(onboardingOffer)
+          ) {
             onboardingPickerOffered.add(nest);
             runtime.log?.(
               `[tlon] Offering agent onboarding purpose picker in ${nest}`
@@ -4212,7 +4253,14 @@ export async function monitorTlonProvider(
           isOwner(senderShip) &&
           !isThreadReply &&
           !parentId &&
+          Boolean(rawText?.trim()) &&
           !isPurposePickerChoice(rawText ?? '');
+        if (heardOnlyForOnboarding && !answersTopicsPicker) {
+          // Heard past the owner-listen gate only as a possible onboarding
+          // reply, and it wasn't one — a duplicate card tap, a thread reply,
+          // an attachment. Listening is off; drop it.
+          return;
+        }
         if (pendingSetupPurpose && answersTopicsPicker) {
           onboardingSetupPending.delete(nest);
           setupDirective =
@@ -4280,6 +4328,33 @@ export async function monitorTlonProvider(
             onboardingSetupPending.set(nest, pendingSetupPurpose);
           }
           throw dispatchError;
+        }
+
+        // A dispatch timeout inside processMessage records itself and
+        // returns without throwing, so the catch above never restores the
+        // pending setup. Verify the effect instead: if the directive turn
+        // posted nothing at all and the config still has no job, the setup
+        // died silently — re-arm it so the owner's next message retries.
+        // (If the bot said anything — a follow-up question, the build
+        // announcement — the conversation is alive and re-arming would
+        // wrongly consume that next answer as a topics reply.)
+        if (setupDirective && pendingSetupPurpose) {
+          await new Promise((resolve) => setTimeout(resolve, 2_000));
+          const after = await fetchChannelHistory(api, nest, 5, runtime);
+          const sentAt = content.sent || 0;
+          const botSpoke = after.some(
+            (entry) =>
+              entry.author === botShipName && (entry.timestamp ?? 0) >= sentAt
+          );
+          if (!botSpoke) {
+            const groupNow = await findGroupForChannel(api, nest, runtime);
+            if (!descriptionHasConfiguredJob(groupNow?.description)) {
+              onboardingSetupPending.set(nest, pendingSetupPurpose);
+              runtime.log?.(
+                `[tlon] Setup turn in ${nest} produced no reply — re-arming the topics setup`
+              );
+            }
+          }
         }
 
         await postInviteCardIfSetupComplete(nest);
@@ -5372,6 +5447,7 @@ export async function monitorTlonProvider(
               groupHostIsOwner: info.host === effectiveOwnerShip,
               groupDescription: info.description,
               channelHasNoPosts: isNew,
+              groupHasSingleChannel: info.channelCount <= 1,
               alreadyOffered: onboardingPickerOffered.has(info.nest),
             });
             if (!shouldOffer) {

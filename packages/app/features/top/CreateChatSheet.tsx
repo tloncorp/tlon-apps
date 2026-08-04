@@ -21,7 +21,7 @@ import {
   AGENT_ONBOARDING_FORCE_LOCK,
   AGENT_SHIP_OVERRIDE,
 } from '../../lib/envVars';
-import { useFeatureFlag } from '../../lib/featureFlags';
+import { useFeatureFlag, useFeatureFlagsLoaded } from '../../lib/featureFlags';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   Action,
@@ -496,7 +496,12 @@ function TypeSelectionContent({
   const [conversationalOnboardingEnabled] = useFeatureFlag(
     'conversationalOnboarding'
   );
+  // Until stored overrides load, the flag reads as its compiled default —
+  // and this action creates a group on first tap, so a user who stored the
+  // flag off must never see it during the hydration window.
+  const featureFlagsLoaded = useFeatureFlagsLoaded();
   const hasAgent =
+    featureFlagsLoaded &&
     conversationalOnboardingEnabled &&
     ((hostingBotEnabled ?? false) || !!AGENT_SHIP_OVERRIDE);
   const actions = useMemo(

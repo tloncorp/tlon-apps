@@ -8,6 +8,7 @@ import {
 import {
   GROUP_ICON_RULE,
   INVITE_CARD_BUTTON_LABEL,
+  INVITE_CARD_FALLBACK,
   INVITE_CARD_PROMPT,
   INVITE_CLOSING,
   PURPOSE_JOBS,
@@ -266,7 +267,7 @@ export function buildInviteCardBlob(
 
 /** The story text for the invite card, for clients that can't render it. */
 export function inviteCardFallbackText(): string {
-  return INVITE_CARD_PROMPT;
+  return INVITE_CARD_FALLBACK;
 }
 
 /**
@@ -409,14 +410,25 @@ export async function findChatNestForGroup(
   api: ScryApi,
   flag: string,
   runtime: Runtime
-): Promise<{ nest: string; host: string; description: string } | null> {
+): Promise<{
+  nest: string;
+  host: string;
+  description: string;
+  channelCount: number;
+} | null> {
   const groups = await scryGroups(api, runtime, `chat channel for ${flag}`);
   const group = groups?.[flag];
-  const nest = group && nestsOf(group).find((key) => key.startsWith('chat/'));
+  const nests = group ? nestsOf(group) : [];
+  const nest = nests.find((key) => key.startsWith('chat/'));
   if (!group || !nest) {
     return null;
   }
-  return { nest, host: hostOf(flag), description: descriptionOf(group) };
+  return {
+    nest,
+    host: hostOf(flag),
+    description: descriptionOf(group),
+    channelCount: new Set(nests).size,
+  };
 }
 
 /**
@@ -568,12 +580,19 @@ export function shouldOfferPickerOnJoin(opts: {
   groupHostIsOwner: boolean;
   groupDescription: string | null | undefined;
   channelHasNoPosts: boolean | null;
+  /**
+   * A newly created group has exactly one channel. An established group can
+   * have an *empty chat* (all its life in a notebook or another chat), and
+   * an empty-channel probe alone would open that group with setup copy.
+   */
+  groupHasSingleChannel: boolean;
   alreadyOffered: boolean;
 }): boolean {
   return (
     !opts.alreadyOffered &&
     opts.groupHostIsOwner &&
     opts.channelHasNoPosts === true &&
+    opts.groupHasSingleChannel &&
     !descriptionHasAgentSetup(opts.groupDescription)
   );
 }

@@ -49,6 +49,10 @@ function SmallChoicePills({
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [freeText, setFreeText] = useState('');
+  // One-shot: a double tap on submit would post the reply twice, and the
+  // second copy lands as ordinary chat racing the setup turn the first one
+  // started.
+  const [submitted, setSubmitted] = useState(false);
 
   const toggle = useCallback((id: string) => {
     setSelectedIds((previous) =>
@@ -65,11 +69,12 @@ function SmallChoicePills({
   );
 
   const handleSubmit = useCallback(() => {
-    if (!messageForSelection) {
+    if (!messageForSelection || submitted) {
       return;
     }
+    setSubmitted(true);
     onSubmit(messageForSelection);
-  }, [messageForSelection, onSubmit]);
+  }, [messageForSelection, onSubmit, submitted]);
 
   /**
    * Availability has to be judged against the message that would actually be
@@ -87,7 +92,7 @@ function SmallChoicePills({
       event: { name: A2UI.action.sendMessage, context: { text } },
     }) !== false;
 
-  const disabled = !probe(A2UI.smallChoiceProbeMessage(component));
+  const disabled = submitted || !probe(A2UI.smallChoiceProbeMessage(component));
   const submitDisabled =
     disabled || !messageForSelection || !probe(messageForSelection);
 
