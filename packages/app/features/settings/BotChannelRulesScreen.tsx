@@ -249,6 +249,7 @@ export function BotChannelRulesScreen(props: Props) {
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
         title="Channel rules"
+        placement="navigation"
       />
       {!ready ? (
         <View flex={1} alignItems="center" justifyContent="center">

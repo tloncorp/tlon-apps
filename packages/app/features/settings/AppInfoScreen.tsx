@@ -124,7 +124,7 @@ export function AppInfoScreen(props: Props) {
         }
         placement="navigation"
       />
-      <SettingsContentScrollView useScreenChrome>
+      <SettingsContentScrollView>
         <YStack
           marginTop="$xl"
           marginHorizontal="$2xl"

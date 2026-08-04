@@ -35,6 +35,7 @@ const iosHeaderIcons = [
   ['EditList.svg', 'TlonHeaderEditList'],
   ['AddPerson.svg', 'TlonHeaderInvite'],
   ['Overflow.svg', 'TlonHeaderOverflow'],
+  ['Refresh.svg', 'TlonHeaderRefresh'],
   ['RightSidebar.svg', 'TlonHeaderRightSidebar'],
   ['Search.svg', 'TlonHeaderSearch'],
   ['Settings.svg', 'TlonHeaderSettings'],

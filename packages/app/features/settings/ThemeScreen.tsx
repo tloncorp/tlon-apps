@@ -76,7 +76,7 @@ export function ThemeScreen(props: Props) {
         }
         placement="navigation"
       />
-      <SettingsContentScrollView useScreenChrome>
+      <SettingsContentScrollView>
         <YStack flex={1} padding="$l">
           {themes.map((theme) => (
             <Pressable

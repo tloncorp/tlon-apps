@@ -117,6 +117,7 @@ export function BotApiKeySettingsScreen(props: Props) {
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title={`${provider.label} API key`}
+        placement="navigation"
       />
       <SettingsContentScrollView
         paddingHorizontal="$l"

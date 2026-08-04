@@ -136,14 +136,17 @@ export function BotShipListSettingsScreen(props: Props) {
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title={meta.title}
-        rightControls={
-          ready ? (
-            <ScreenHeader.IconButton
-              type="Add"
-              onPress={() => setPickerOpen(true)}
-            />
-          ) : undefined
-        }
+        rightActions={[
+          {
+            kind: 'icon',
+            id: 'add-ship',
+            icon: 'Add',
+            label: `Add ${meta.title.toLowerCase()}`,
+            onPress: () => setPickerOpen(true),
+            visible: ready,
+          },
+        ]}
+        placement="navigation"
       />
       {!ready ? (
         <View flex={1} alignItems="center" justifyContent="center">
