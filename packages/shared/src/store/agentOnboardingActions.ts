@@ -3,7 +3,7 @@ import { desig } from '@tloncorp/api/lib/urbit';
 import {
   GROUP_AGENT_CONFIG_ENTRY_TYPE,
   GroupAgentConfigEntry,
-  groupHasConfiguredJob,
+  parseGroupAgentConfig,
 } from '@tloncorp/api/types/groupAgentConfig';
 import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 
@@ -116,11 +116,17 @@ export async function createAgentGroup(params?: {
  */
 async function writeAgentMarker(group: db.Group, botShipId: string) {
   // Fire-and-forget, so it can land after the agent has already written the
-  // real config. Re-read first and skip if so: this bare marker would
-  // otherwise replace a finished setup's purpose and jobs, leaving the group
-  // looking unconfigured with its scheduled job orphaned.
-  const current = await db.getGroup({ id: group.id });
-  if (groupHasConfiguredJob(current?.description)) {
+  // real config. Re-read from the *ship*, not the local DB: the agent's
+  // write reaches the local row only via sync, so a stale local read could
+  // pass the guard while the ship already carries a finished setup — and
+  // this bare marker would replace its purpose and jobs, leaving the group
+  // looking unconfigured with its scheduled job orphaned. Skip on any
+  // existing config entry (whoever wrote it), and skip when the ship can't
+  // be read at all — writing blind risks the same clobber, and the marker
+  // is best-effort belt-and-braces (`agentGroupAgents` is the primary
+  // signal).
+  const current = await api.getGroup(group.id).catch(() => null);
+  if (!current || parseGroupAgentConfig(current.description) !== undefined) {
     return;
   }
   const entry = {
@@ -132,10 +138,11 @@ async function writeAgentMarker(group: db.Group, botShipId: string) {
     jobs: [],
     updatedAt: Date.now(),
   } satisfies GroupAgentConfigEntry;
-  // Meta comes from the re-read group, not the creation-time snapshot: this
-  // poke replaces the whole meta object, and by the time a slow marker lands
-  // the agent may already have renamed and iconed the group mid-setup.
-  const meta = current ?? group;
+  // Meta comes from the ship's current group, not the creation-time
+  // snapshot: this poke replaces the whole meta object, and by the time a
+  // slow marker lands the agent may already have renamed and iconed the
+  // group mid-setup.
+  const meta = current;
   return api.updateGroupMeta({
     groupId: group.id,
     meta: {

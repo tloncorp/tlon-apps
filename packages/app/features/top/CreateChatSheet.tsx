@@ -62,7 +62,8 @@ const logger = createDevLogger('CreateChatSheet', true);
  */
 function createTypeActions(
   onSelectType: (type: ChatType) => void,
-  hasAgent: boolean
+  hasAgent: boolean,
+  groupFlavorKnown: boolean
 ): Action[] {
   return [
     {
@@ -83,6 +84,10 @@ function createTypeActions(
           description: CHAT_TYPE_CONFIG.group.actionDescription,
           action: () => onSelectType('group'),
           startIcon: <ListItem.SystemIcon icon="Channel" />,
+          // Until the stored flags hydrate, which flavor this row should be
+          // is unknown — and the agent flavor creates a group on first tap.
+          // A tap in that window must not silently pick the wrong one.
+          disabled: !groupFlavorKnown,
         },
   ];
 }
@@ -489,24 +494,28 @@ function TypeSelectionContent({
   isCreating?: boolean;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
-  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const { value: hostingBotEnabled, isLoading: hostingBotLoading } =
+    db.hostingBotEnabled.useStorageItem();
   // Turning the flag off is the rollback switch for the whole conversational
   // flow, so it has to restore the ordinary invitee group here too — not just
   // the old splash.
   const [conversationalOnboardingEnabled] = useFeatureFlag(
     'conversationalOnboarding'
   );
-  // Until stored overrides load, the flag reads as its compiled default —
-  // and this action creates a group on first tap, so a user who stored the
-  // flag off must never see it during the hydration window.
+  // Until the stored overrides load, both flags read as their defaults — and
+  // this action creates a group on first tap, so neither a user who stored
+  // the feature flag off nor a hosted account whose bot flag hasn't hydrated
+  // yet may act on the wrong flavor. The row stays disabled until both have
+  // loaded (see `groupFlavorKnown` below).
   const featureFlagsLoaded = useFeatureFlagsLoaded();
+  const groupFlavorKnown = featureFlagsLoaded && !hostingBotLoading;
   const hasAgent =
-    featureFlagsLoaded &&
+    groupFlavorKnown &&
     conversationalOnboardingEnabled &&
     ((hostingBotEnabled ?? false) || !!AGENT_SHIP_OVERRIDE);
   const actions = useMemo(
-    () => createTypeActions(onSelectType, hasAgent),
-    [onSelectType, hasAgent]
+    () => createTypeActions(onSelectType, hasAgent, groupFlavorKnown),
+    [onSelectType, hasAgent, groupFlavorKnown]
   );
   return (
     <>

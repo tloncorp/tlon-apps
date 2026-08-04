@@ -865,9 +865,24 @@ export async function monitorTlonProvider(
      * picker, as two posts: the introduction is about the agent, the picker
      * is a question, and one post carrying both reads as a wall of text.
      * Sequential so they land in that order.
+     *
+     * Idempotent on the intro: a previous opening can half-land (intro
+     * posted, picker send failed), and the retry path re-enters here on the
+     * owner's next message. Without the check the owner would get a second
+     * introduction stacked on the first; with it, the retry sends only the
+     * missing picker. Openings happen once per group, so the extra history
+     * read costs nothing in steady state.
      */
     const postOnboardingOpening = async (nest: string): Promise<void> => {
-      await postToChannel(nest, GROUP_INTRO_MESSAGE);
+      const recentPosts = await fetchChannelHistory(api, nest, 10, runtime);
+      const introAlreadyPosted = recentPosts.some(
+        (entry) =>
+          entry.author === botShipName &&
+          entry.content.startsWith(GROUP_INTRO_MESSAGE)
+      );
+      if (!introAlreadyPosted) {
+        await postToChannel(nest, GROUP_INTRO_MESSAGE);
+      }
       await postToChannel(nest, purposePickerFallbackText(), {
         blob: serializeBlobField(buildPurposePickerBlob(nest)),
       });
@@ -910,7 +925,14 @@ export async function monitorTlonProvider(
           return;
         }
         if (!onboardingInvitePending.has(nest)) {
-          const history = await fetchChannelHistory(api, nest, 50, runtime);
+          // An unreadable transcript must not settle the debt: to this
+          // decision an empty history and a failed scry would otherwise look
+          // identical, and "no card owed" would stick for the rest of the
+          // process. Throwing lands in the catch below, unsettled — the next
+          // turn retries the read.
+          const history = await fetchChannelHistory(api, nest, 50, runtime, {
+            throwOnError: true,
+          });
           // The opening picker marks every onboarding, including the
           // freeform path that never sees the topic pills — a freeform
           // setup owes its card too.
@@ -935,14 +957,18 @@ export async function monitorTlonProvider(
             `[tlon] Recovered an owed invite card for ${nest} from the transcript`
           );
         }
-        onboardingInvitePending.delete(nest);
-        inviteSettled.add(nest);
         const blob = buildInviteCardBlob(nest, group.flag);
         if (blob) {
           await postToChannel(nest, inviteCardFallbackText(), {
             blob: serializeBlobField(blob),
           });
         }
+        // Settled only now: a failure above leaves the debt pending so the
+        // next turn retries the card. Settled *before* the follow-up, so a
+        // failure below can't re-post the card — the follow-up alone is the
+        // best-effort tail this function's contract already allows.
+        onboardingInvitePending.delete(nest);
+        inviteSettled.add(nest);
         // Hands the conversation back, after the card so it can't land before
         // it. Posted even when the card couldn't be built: on a client that
         // can't render the invite slot, this is the whole ending.
@@ -951,6 +977,98 @@ export async function monitorTlonProvider(
         runtime.error?.(
           `[tlon] Failed to post the invite card in ${nest}: ${String(error)}`
         );
+      }
+    };
+
+    /**
+     * Channels whose transcript has been scanned to rebuild the in-memory
+     * onboarding state. Once per process: the scan only exists to survive
+     * restarts — live state is kept by the handlers as it changes.
+     */
+    const onboardingRecoveryChecked = new Set<string>();
+
+    /**
+     * Restart recovery: the offered/pending records above are in-memory, so
+     * a process restart between posting a picker and the owner's reply loses
+     * them — and, left alone, the offer block would re-post the opening on
+     * top of the answered picker, while the owner-listen gate would drop the
+     * very reply the pills are waiting for. The transcript survives
+     * restarts; rebuild the state from it.
+     *
+     * `currentMessageText` is the owner message being handled right now,
+     * passed so the scan can exclude it — the reply in hand must not count
+     * as its own evidence. `knownGroup` skips the group lookup when the
+     * caller already has one.
+     */
+    const recoverOnboardingState = async (
+      nest: string,
+      senderShip: string,
+      currentMessageText: string,
+      knownGroup?: { host: string; description: string | null } | null
+    ): Promise<void> => {
+      if (
+        onboardingRecoveryChecked.has(nest) ||
+        onboardingSetupPending.has(nest)
+      ) {
+        return;
+      }
+      const group =
+        knownGroup ?? (await findGroupForChannel(api, nest, runtime));
+      if (!group) {
+        // Null is also what a transient groups-scry failure looks like —
+        // don't burn the once-per-process check on it; the next message
+        // retries.
+        return;
+      }
+      if (
+        group.host !== effectiveOwnerShip ||
+        descriptionHasAgentSetup(group.description)
+      ) {
+        onboardingRecoveryChecked.add(nest);
+        return;
+      }
+      let recentPosts;
+      try {
+        // An unreadable transcript is not an empty one: deciding "nothing
+        // was offered" from a failed scry would burn the once-per-process
+        // scan on bad data. Leave the channel unchecked so the next message
+        // retries.
+        recentPosts = await fetchChannelHistory(api, nest, 20, runtime, {
+          throwOnError: true,
+        });
+      } catch (error) {
+        runtime.log?.(
+          `[tlon] Onboarding recovery scan for ${nest} failed: ${String(error)}`
+        );
+        return;
+      }
+      onboardingRecoveryChecked.add(nest);
+      // A picker that survives in the transcript was already offered:
+      // without remembering that, a restart followed by a freeform reply
+      // (not a card title) would re-post the opening over the answered
+      // picker and swallow the actual request.
+      if (
+        recentPosts.some(
+          (entry) =>
+            entry.author === botShipName &&
+            entry.content.startsWith(PURPOSE_PICKER_PROMPT)
+        )
+      ) {
+        onboardingPickerOffered.add(nest);
+      }
+      const recoveredPurpose = derivePendingPurposeFromHistory(
+        recentPosts,
+        botShipName,
+        normalizeShip(senderShip),
+        currentMessageText
+      );
+      if (recoveredPurpose) {
+        runtime.log?.(
+          `[tlon] Recovered pending onboarding purpose '${recoveredPurpose}' for ${nest} from history`
+        );
+        onboardingSetupPending.set(nest, recoveredPurpose);
+        onboardingPickerOffered.add(nest);
+        onboardingTopicsOffered.add(nest);
       }
     };
 
@@ -3979,6 +4097,21 @@ export async function monitorTlonProvider(
           // a bare "Research" in a channel where nothing was ever offered is
           // ordinary chat, and letting it through would answer the owner in a
           // channel where they switched listening off.
+          //
+          // The mid-onboarding records are in-memory, so after a restart both
+          // are empty and this gate would drop the very reply the pills are
+          // waiting for. Rebuild them from the transcript first — once per
+          // channel, and only for a message shaped like a possible reply.
+          if (
+            isOwner(senderShip) &&
+            !isThreadReply &&
+            !parentId &&
+            Boolean(rawText?.trim()) &&
+            !onboardingSetupPending.has(nest) &&
+            !onboardingPickerOffered.has(nest)
+          ) {
+            await recoverOnboardingState(nest, senderShip, rawText ?? '');
+          }
           const isOnboardingReply =
             isOwner(senderShip) &&
             (onboardingSetupPending.has(nest) ||
@@ -4024,50 +4157,16 @@ export async function monitorTlonProvider(
           alreadyOffered: false,
         };
         if (onboardingOffer && !onboardingPickerOffered.has(nest)) {
-          // Restart recovery: the pending-topics map is in-memory, so a
-          // process restart between posting the pills and the owner's reply
-          // loses the picked purpose — and, left alone, this block would
-          // re-offer the purpose picker on top of the answered one. The
-          // transcript survives restarts; rebuild the state from it.
-          if (
-            onboardingOffer.groupHostIsOwner &&
-            !onboardingSetupPending.has(nest) &&
-            !descriptionHasAgentSetup(onboardingOffer.groupDescription)
-          ) {
-            const recentPosts = await fetchChannelHistory(
-              api,
-              nest,
-              20,
-              runtime
-            );
-            // A picker that survives in the transcript was already offered:
-            // without remembering that, a restart followed by a freeform
-            // reply (not a card title) would re-post the opening over the
-            // answered picker and swallow the actual request.
-            if (
-              recentPosts.some(
-                (entry) =>
-                  entry.author === botShipName &&
-                  entry.content.startsWith(PURPOSE_PICKER_PROMPT)
-              )
-            ) {
-              onboardingPickerOffered.add(nest);
-            }
-            const recoveredPurpose = derivePendingPurposeFromHistory(
-              recentPosts,
-              botShipName,
-              normalizeShip(senderShip),
-              rawText ?? ''
-            );
-            if (recoveredPurpose) {
-              runtime.log?.(
-                `[tlon] Recovered pending onboarding purpose '${recoveredPurpose}' for ${nest} from history`
-              );
-              onboardingSetupPending.set(nest, recoveredPurpose);
-              onboardingPickerOffered.add(nest);
-              onboardingTopicsOffered.add(nest);
-            }
-          }
+          // Restart recovery (shared with the owner-listen gate above): a
+          // process restart between posting a picker and the owner's reply
+          // loses the in-memory state — and, left alone, this block would
+          // re-offer the purpose picker on top of the answered one.
+          await recoverOnboardingState(
+            nest,
+            senderShip,
+            rawText ?? '',
+            onboardingGroup
+          );
           if (onboardingSetupPending.has(nest)) {
             // Recovered above: fall through so the reply in hand is consumed
             // as the topics answer.
@@ -4259,6 +4358,22 @@ export async function monitorTlonProvider(
           // Heard past the owner-listen gate only as a possible onboarding
           // reply, and it wasn't one — a duplicate card tap, a thread reply,
           // an attachment. Listening is off; drop it.
+          return;
+        }
+        if (
+          pendingSetupPurpose &&
+          isOwner(senderShip) &&
+          isTopLevelTextMessage &&
+          isPurposePickerChoice(rawText ?? '')
+        ) {
+          // A repeated purpose-card tap while the topic pills wait. The tap
+          // that counted already posted the pills; this duplicate is neither
+          // a topics answer (excluded above) nor ordinary chat, and passing
+          // it to the model would start a stray turn in the half-configured
+          // group. Drop it.
+          runtime.log?.(
+            `[tlon] Dropping duplicate purpose-card tap in ${nest} while topics are pending`
+          );
           return;
         }
         if (pendingSetupPurpose && answersTopicsPicker) {

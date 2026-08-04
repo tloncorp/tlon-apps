@@ -26,6 +26,8 @@ export type StorageItem<T> = {
   useValue: () => T;
   useStorageItem: () => {
     value: T;
+    /** True until the stored value has hydrated; `value` is the default. */
+    isLoading: boolean;
     setValue: (value: T | ((curr: T) => T)) => Promise<void>;
     resetValue: () => Promise<T>;
   };

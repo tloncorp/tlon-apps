@@ -62,7 +62,7 @@ export type GroupAgentConfigEntry = z.infer<typeof GroupAgentConfigEntrySchema>;
  * undefined for plain-text descriptions, malformed JSON, or entries that fail
  * validation — callers must treat those as "no config".
  */
-function parseGroupAgentConfig(
+export function parseGroupAgentConfig(
   description: string | null | undefined
 ): GroupAgentConfigEntry | undefined {
   if (!description) {

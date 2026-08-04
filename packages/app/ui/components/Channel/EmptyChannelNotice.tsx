@@ -107,10 +107,6 @@ export function EmptyChannelNotice({
     return <WayfindingNotice.EmptyChannel channel={channel} />;
   }
 
-  if (awaitingAgentOpening) {
-    return null;
-  }
-
   if (isLoading) {
     return (
       <YStack flex={1} alignItems="center" justifyContent="center">
@@ -142,6 +138,15 @@ export function EmptyChannelNotice({
         />
       </YStack>
     );
+  }
+
+  // Below the loading/error branches on purpose: this only suppresses the
+  // welcome notice once the post query has actually resolved empty. Winning
+  // earlier would swallow the spinner and the retry escape hatch — on the
+  // first-run locked route the header is hidden too, leaving a silent blank
+  // screen with no way out.
+  if (awaitingAgentOpening) {
+    return null;
   }
 
   const isBoxedLayout =

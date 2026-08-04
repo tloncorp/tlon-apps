@@ -263,7 +263,15 @@ export async function fetchChannelHistory(
   api: { scry: (path: string) => Promise<unknown> },
   channelNest: string,
   count = 50,
-  runtime?: RuntimeEnv
+  runtime?: RuntimeEnv,
+  opts?: {
+    /**
+     * Rethrow scry failures instead of returning `[]`. For callers that make
+     * a decision from an *empty* transcript (the onboarding recovery paths):
+     * to them an unreadable channel and an empty one must not look alike.
+     */
+    throwOnError?: boolean;
+  }
 ): Promise<TlonHistoryEntry[]> {
   try {
     const scryPath = `/channels/v4/${channelNest}/posts/newest/${count}/outline.json`;
@@ -312,6 +320,9 @@ export async function fetchChannelHistory(
     runtime?.log?.(
       `[tlon] Error fetching channel history: ${error?.message ?? String(error)}`
     );
+    if (opts?.throwOnError) {
+      throw error;
+    }
     return [];
   }
 }
