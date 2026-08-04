@@ -1,12 +1,8 @@
 import type { NativeStackHeaderItem } from '@react-navigation/native-stack';
-import { useLayoutEffect, useMemo, useRef } from 'react';
-import { Platform } from 'react-native';
 import { ColorTokens, useTheme } from 'tamagui';
 
 import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
-import { ScreenHeaderItemElements } from './ScreenHeaderItemElements';
 import {
-  forwardLatestHeaderItemCallbacks,
   getScreenHeaderItemSignature,
   visibleHeaderItemConfigs,
 } from './screenHeaderItemModel';
@@ -119,101 +115,4 @@ export function buildNativeHeaderItems(
     resolveNativeHeaderColor(color, theme)
   );
   return { items, signature };
-}
-
-/**
- * Applies ScreenHeader's item descriptors as `unstable_header*Items` on iOS
- * and RN elements via `headerLeft`/`headerRight` on Android. `options` is
- * merged into the same `setOptions` call and should be memoized by the caller.
- * `revision` forces a re-apply for custom content the signature cannot see.
- */
-export function useNativeHeaderItems({
-  navigation,
-  enabled = true,
-  left,
-  right,
-  options,
-  resetOptions,
-  revision,
-}: {
-  navigation:
-    | {
-        setOptions(options: object): void;
-        isFocused?(): boolean;
-      }
-    | null
-    | undefined;
-  enabled?: boolean;
-  left: ScreenHeaderItemConfig[];
-  right: ScreenHeaderItemConfig[];
-  options?: object;
-  resetOptions?: object;
-  revision?: unknown;
-}) {
-  const theme = useTheme();
-
-  const leftConfigsRef = useRef<ScreenHeaderItemConfig[]>([]);
-  const rightConfigsRef = useRef<ScreenHeaderItemConfig[]>([]);
-  const themeRef = useRef(theme);
-  leftConfigsRef.current = left;
-  rightConfigsRef.current = right;
-  themeRef.current = theme;
-
-  const signature = [
-    buildNativeHeaderItems(leftConfigsRef.current, theme).signature,
-    buildNativeHeaderItems(rightConfigsRef.current, theme).signature,
-  ].join('|');
-
-  const payload = useMemo(() => {
-    // Reference the stand-ins for the ref-read configs directly so the
-    // dependency list stays honest without disabling the lint rule: these two
-    // values are what force a re-apply when config content changes.
-    void signature;
-    void revision;
-    const next: Record<string, unknown> = { ...(options ?? {}) };
-
-    function applySide(
-      configsRef: { current: ScreenHeaderItemConfig[] },
-      nativeKey: string,
-      elementKey: string
-    ) {
-      if (Platform.OS === 'ios') {
-        next[nativeKey] = () =>
-          buildNativeHeaderItems(
-            forwardLatestHeaderItemCallbacks(configsRef),
-            themeRef.current
-          ).items;
-      } else {
-        next[elementKey] = () => (
-          <ScreenHeaderItemElements
-            configs={forwardLatestHeaderItemCallbacks(configsRef)}
-            nativeHeader
-          />
-        );
-      }
-    }
-
-    applySide(leftConfigsRef, 'unstable_headerLeftItems', 'headerLeft');
-    applySide(rightConfigsRef, 'unstable_headerRightItems', 'headerRight');
-
-    return next;
-  }, [options, revision, signature]);
-
-  useLayoutEffect(() => {
-    if (!enabled || !navigation) {
-      return;
-    }
-    navigation.setOptions(payload);
-  }, [enabled, navigation, payload]);
-
-  useLayoutEffect(() => {
-    if (!enabled || !navigation || !resetOptions) {
-      return;
-    }
-    return () => {
-      if (navigation.isFocused == null || navigation.isFocused()) {
-        navigation.setOptions(resetOptions);
-      }
-    };
-  }, [enabled, navigation, resetOptions]);
 }
