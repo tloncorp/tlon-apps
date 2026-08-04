@@ -1,23 +1,17 @@
 import type { ReactNode } from 'react';
 
+import screenHeaderIcons from './icons.json';
+
 /** Action declarations shared by content and native header renderers. */
 
-export type ScreenHeaderIconName =
-  | 'Add'
-  | 'AddPerson'
-  | 'ChevronLeft'
-  | 'EditList'
-  | 'Overflow'
-  | 'Refresh'
-  | 'RightSidebar'
-  | 'Search'
-  | 'Settings';
+export type ScreenHeaderIconName = keyof typeof screenHeaderIcons;
 
 interface BaseAction {
   /** Stable identity for the action; also the default testID. */
   id: string;
   /** Excluded from every platform representation when false. */
   visible?: boolean;
+  testID?: string;
 }
 
 export interface ScreenHeaderIconAction extends BaseAction {
@@ -31,7 +25,6 @@ export interface ScreenHeaderIconAction extends BaseAction {
   tint?: string;
   /** React-rendered header highlight behind the icon. */
   backgroundTint?: string;
-  testID?: string;
 }
 
 export interface ScreenHeaderTextAction extends BaseAction {
@@ -40,7 +33,6 @@ export interface ScreenHeaderTextAction extends BaseAction {
   onPress?: () => void;
   disabled?: boolean;
   tint?: string;
-  testID?: string;
 }
 
 export interface ScreenHeaderMenuActionItem {
@@ -61,7 +53,14 @@ export type ScreenHeaderAction =
   | ScreenHeaderTextAction
   | ScreenHeaderMenuAction;
 
-export interface UseScreenHeaderOptions {
+export type ScreenHeaderActionPresentation =
+  | Omit<ScreenHeaderIconAction, 'onPress' | 'visible'>
+  | Omit<ScreenHeaderTextAction, 'onPress' | 'visible'>
+  | (Omit<ScreenHeaderMenuAction, 'items' | 'visible'> & {
+      items: Omit<ScreenHeaderMenuActionItem, 'onPress'>[];
+    });
+
+export interface UseNativeHeaderOptions {
   enabled: boolean;
   title: string;
   titleElement: ReactNode;
@@ -79,10 +78,11 @@ export function visibleScreenHeaderActions(actions: ScreenHeaderAction[]) {
  * Native header options are installed less often than React callbacks change.
  * Keep the installed wrappers stable while always dispatching to current data.
  */
-export function forwardLatestScreenHeaderActionCallbacks(actionsRef: {
-  current: ScreenHeaderAction[];
-}): ScreenHeaderAction[] {
-  return actionsRef.current.map((action) => {
+export function attachLatestScreenHeaderActionCallbacks(
+  presentation: ScreenHeaderActionPresentation[],
+  actionsRef: { current: ScreenHeaderAction[] }
+): ScreenHeaderAction[] {
+  return presentation.map((action) => {
     if (action.kind === 'menu') {
       const actionId = action.id;
       return {
@@ -128,7 +128,7 @@ export function forwardLatestScreenHeaderActionCallbacks(actionsRef: {
 export function getScreenHeaderActionPresentation(
   actions: ScreenHeaderAction[],
   resolveColor: (color: string | undefined) => string | undefined
-) {
+): ScreenHeaderActionPresentation[] {
   return visibleScreenHeaderActions(actions).map((action) => {
     switch (action.kind) {
       case 'menu':
@@ -137,6 +137,7 @@ export function getScreenHeaderActionPresentation(
           id: action.id,
           icon: action.icon,
           label: action.label,
+          testID: action.testID,
           items: action.items.map(({ id, label }) => ({ id, label })),
         };
       case 'text':
@@ -162,13 +163,4 @@ export function getScreenHeaderActionPresentation(
         };
     }
   });
-}
-
-export function getScreenHeaderActionSignature(
-  actions: ScreenHeaderAction[],
-  resolveColor: (color: string | undefined) => string | undefined
-) {
-  return JSON.stringify(
-    getScreenHeaderActionPresentation(actions, resolveColor)
-  );
 }

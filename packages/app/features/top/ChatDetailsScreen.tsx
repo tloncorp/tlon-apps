@@ -215,21 +215,18 @@ function ChatDetailsScreenView() {
         backAction={handleGoBack}
         useHorizontalTitleLayout={!isWindowNarrow}
         title={getTitle()}
-        rightActions={
-          currentUserIsAdmin
-            ? [
-                {
-                  kind: 'text',
-                  id: 'DetailsEditButton',
-                  text: 'Rename',
-                  onPress: handlePressEdit,
-                  disabled: !actionsEnabled,
-                  tint: '$primaryText',
-                  testID: 'DetailsEditButton',
-                },
-              ]
-            : []
-        }
+        rightActions={[
+          {
+            kind: 'text',
+            id: 'DetailsEditButton',
+            text: 'Rename',
+            onPress: handlePressEdit,
+            disabled: !actionsEnabled,
+            tint: '$primaryText',
+            testID: 'DetailsEditButton',
+            visible: currentUserIsAdmin,
+          },
+        ]}
         placement="navigation"
       />
       {hasContent && (

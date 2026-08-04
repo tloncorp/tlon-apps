@@ -1,5 +1,4 @@
-import { Platform } from 'react-native';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   getNativeHeaderScrollOptions,
@@ -11,12 +10,6 @@ vi.mock('@tloncorp/ui', () => ({
     '$label/2xl': { fontSize: 17, fontWeight: '500' },
   },
 }));
-
-const originalPlatform = { ...Platform };
-
-afterEach(() => {
-  Object.assign(Platform, originalPlatform);
-});
 
 describe('native header options', () => {
   it('shares the standard screen header presentation', () => {
@@ -31,8 +24,13 @@ describe('native header options', () => {
   });
 
   it('configures iOS scroll chrome independently of the header model', () => {
-    Object.assign(Platform, { OS: 'ios', Version: '26' });
-    expect(getNativeHeaderScrollOptions({ isDarkMode: true })).toMatchObject({
+    expect(
+      getNativeHeaderScrollOptions({
+        isDarkMode: true,
+        platform: 'ios',
+        platformVersion: 26,
+      })
+    ).toMatchObject({
       headerTransparent: true,
       scrollEdgeEffects: {
         top: 'soft',

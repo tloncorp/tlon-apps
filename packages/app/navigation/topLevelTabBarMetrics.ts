@@ -12,6 +12,8 @@ export function getTopLevelTabBarContentInset(
     return contentSpacing;
   }
 
+  // Android's Material bar includes its own spacing; the floating iOS bar
+  // needs an additional content gap above it.
   return (
     NATIVE_TAB_BAR_HEIGHT[platform] +
     safeAreaBottom +

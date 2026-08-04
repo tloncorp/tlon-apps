@@ -4,8 +4,9 @@ import { ScrollView } from 'tamagui';
 import { useScreenScrollProps } from './useScreenScrollProps';
 
 /**
- * Root scroll container for screen content. React Native opts out of UIKit's
- * automatic safe-area adjustment, so restore it for iOS screens.
+ * Root scroll container for screen content. On iOS it restores UIKit's
+ * automatic safe-area adjustment and installs the native header's transparent
+ * scroll-edge appearance for the lifetime of the screen.
  */
 export const ScreenScrollView = forwardRef<
   ElementRef<typeof ScrollView>,

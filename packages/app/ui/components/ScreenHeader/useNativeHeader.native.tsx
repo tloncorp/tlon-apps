@@ -3,10 +3,12 @@ import type { NativeStackNavigationOptions } from '@react-navigation/native-stac
 import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'tamagui';
 
+import { useInstalledNavigationOptions } from '../../../navigation/useInstalledNavigationOptions';
 import {
   type ScreenHeaderAction,
-  type UseScreenHeaderOptions,
-  getScreenHeaderActionSignature,
+  type ScreenHeaderActionPresentation,
+  type UseNativeHeaderOptions,
+  getScreenHeaderActionPresentation,
 } from './actions';
 import {
   buildNativeHeaderActionOptions,
@@ -24,7 +26,7 @@ export function useNativeHeader({
   backgroundColor,
   left,
   right,
-}: UseScreenHeaderOptions) {
+}: UseNativeHeaderOptions) {
   const navigation = useContext(NavigationContext);
   const theme = useTheme();
   const [titleStore] = useState(() =>
@@ -32,30 +34,33 @@ export function useNativeHeader({
   );
   const leftActionsRef = useRef<ScreenHeaderAction[]>([]);
   const rightActionsRef = useRef<ScreenHeaderAction[]>([]);
-  const themeRef = useRef(theme);
-  leftActionsRef.current = left;
-  rightActionsRef.current = right;
-  themeRef.current = theme;
 
   useLayoutEffect(() => {
+    leftActionsRef.current = left;
+    rightActionsRef.current = right;
     titleStore.set(titleElement);
-  }, [titleElement, titleStore]);
+  }, [left, right, titleElement, titleStore]);
 
   const shouldUseNativeHeader = enabled && navigation != null;
   const resolvedBackgroundColor = resolveNativeHeaderColor(
     backgroundColor,
     theme
   );
-  const signature = [left, right]
-    .map((actions) =>
-      getScreenHeaderActionSignature(actions, (color) =>
-        resolveNativeHeaderColor(color, theme)
-      )
-    )
-    .join('|');
+  const actionPresentation = JSON.stringify({
+    left: getScreenHeaderActionPresentation(left, (color) =>
+      resolveNativeHeaderColor(color, theme)
+    ),
+    right: getScreenHeaderActionPresentation(right, (color) =>
+      resolveNativeHeaderColor(color, theme)
+    ),
+  });
 
   const options = useMemo<NativeStackNavigationOptions>(() => {
-    void signature;
+    const presentation = JSON.parse(actionPresentation) as {
+      left: ScreenHeaderActionPresentation[];
+      right: ScreenHeaderActionPresentation[];
+    };
+
     return {
       headerShown: true,
       headerStyle: resolvedBackgroundColor
@@ -67,33 +72,29 @@ export function useNativeHeader({
       title,
       ...buildNativeHeaderActionOptions({
         side: 'left',
+        presentation: presentation.left,
         actionsRef: leftActionsRef,
-        themeRef,
       }),
       ...buildNativeHeaderActionOptions({
         side: 'right',
+        presentation: presentation.right,
         actionsRef: rightActionsRef,
-        themeRef,
       }),
     } as NativeStackNavigationOptions;
-  }, [resolvedBackgroundColor, signature, title, titleStore, usesCustomTitle]);
+  }, [
+    actionPresentation,
+    resolvedBackgroundColor,
+    title,
+    titleStore,
+    usesCustomTitle,
+  ]);
 
-  useLayoutEffect(() => {
-    if (shouldUseNativeHeader) {
-      navigation.setOptions(options);
-    }
-  }, [navigation, options, shouldUseNativeHeader]);
-
-  useLayoutEffect(() => {
-    if (!shouldUseNativeHeader) {
-      return;
-    }
-    return () => {
-      if (navigation.isFocused == null || navigation.isFocused()) {
-        navigation.setOptions(hiddenNativeHeaderOptions);
-      }
-    };
-  }, [navigation, shouldUseNativeHeader]);
+  useInstalledNavigationOptions(
+    navigation,
+    options,
+    hiddenNativeHeaderOptions,
+    shouldUseNativeHeader
+  );
 
   return shouldUseNativeHeader;
 }

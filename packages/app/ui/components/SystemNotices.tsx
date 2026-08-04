@@ -100,6 +100,7 @@ export function NotificationsPrompt() {
 
   return (
     <NoticeFrame
+      // The iOS liquid-glass tab bar overlays content; Android's bar does not.
       marginBottom={Platform.OS === 'ios' ? tabBarContentInset : undefined}
     >
       <YStack gap="$5xl">
