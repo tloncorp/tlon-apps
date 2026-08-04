@@ -49,6 +49,108 @@ class TlonConfigTests(unittest.TestCase):
         self.assertEqual(env["TLON_CODE"], "code")
         self.assertEqual(env["URBIT_CODE"], "code")
 
+    def test_cli_env_scrubs_config_file_and_preserves_unrelated_base_value(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            ship_code="code",
+        )
+
+        env = cfg.cli_env(
+            base={
+                "TLON_CONFIG_FILE": "/tmp/hostile-config.json",
+                "UNRELATED_ENV": "preserved",
+            }
+        )
+
+        self.assertNotIn("TLON_CONFIG_FILE", env)
+        self.assertEqual(env["UNRELATED_ENV"], "preserved")
+
+    def test_cli_env_scrubs_stale_cookies_for_code_auth(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            ship_code="code",
+        )
+
+        env = cfg.cli_env(
+            base={
+                "URBIT_COOKIE": "stale-urbit-cookie",
+                "TLON_COOKIE": "stale-tlon-cookie",
+            }
+        )
+
+        self.assertTrue({"URBIT_COOKIE", "TLON_COOKIE"}.isdisjoint(env))
+
+    def test_cli_env_reinjects_config_cookie_after_scrubbing_base(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            cookie="config-cookie",
+        )
+
+        env = cfg.cli_env(
+            base={
+                "TLON_CONFIG_FILE": "/tmp/hostile-config.json",
+                "URBIT_COOKIE": "stale-urbit-cookie",
+                "TLON_COOKIE": "stale-tlon-cookie",
+            }
+        )
+
+        self.assertNotIn("TLON_CONFIG_FILE", env)
+        self.assertEqual(
+            (env.get("URBIT_COOKIE"), env.get("TLON_COOKIE")),
+            ("config-cookie", "config-cookie"),
+        )
+
+    def test_cli_env_scrubs_stale_code_for_cookie_only_auth(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            cookie="config-cookie",
+        )
+
+        env = cfg.cli_env(base={"TLON_CODE": "stale-code"})
+
+        self.assertNotIn("TLON_CODE", env)
+
+    def test_cli_env_scrubs_before_injecting_all_config_values(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            ship_code="code",
+            hosting=True,
+        )
+        expected = {
+            "TLON_NODE_URL": "https://zod.tlon.network",
+            "TLON_SHIP_URL": "https://zod.tlon.network",
+            "TLON_URL": "https://zod.tlon.network",
+            "URBIT_URL": "https://zod.tlon.network",
+            "TLON_NODE_ID": "~zod",
+            "TLON_SHIP_NAME": "~zod",
+            "TLON_SHIP": "~zod",
+            "URBIT_SHIP": "~zod",
+            "TLON_ACCESS_CODE": "code",
+            "TLON_SHIP_CODE": "code",
+            "TLON_CODE": "code",
+            "URBIT_CODE": "code",
+            "TLON_HOSTING": "true",
+        }
+
+        env = cfg.cli_env(
+            base={
+                "TLON_CONFIG_FILE": "/tmp/hostile-config.json",
+                "URBIT_COOKIE": "stale-urbit-cookie",
+                "TLON_COOKIE": "stale-tlon-cookie",
+                "TLON_URL": "https://nec.tlon.network",
+                "TLON_SHIP": "~nec",
+                "TLON_CODE": "stale-code",
+            }
+        )
+
+        self.assertEqual({key: env.get(key) for key in expected}, expected)
+        self.assertNotIn("TLON_CONFIG_FILE", env)
+
     def test_from_env_accepts_openclaw_style_aliases(self):
         cfg = tlon_api.TlonConfig.from_env(
             env={
@@ -845,6 +947,51 @@ class TlonCLITests(unittest.TestCase):
         self.assertEqual(result.stdout, "~zod\n")
         self.assertEqual(calls[0][0], ("tlon-test", "contacts", "self"))
         self.assertEqual(calls[0][1]["TLON_NODE_ID"], "~zod")
+
+    def test_run_command_scrubs_ambient_resolver_credentials_before_runner(self):
+        calls = []
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            ship_code="config-code",
+            cli="tlon-test",
+        )
+        ambient = {
+            "TLON_CONFIG_FILE": "/tmp/hostile-config.json",
+            "URBIT_COOKIE": "stale-urbit-cookie",
+            "TLON_COOKIE": "stale-tlon-cookie",
+            "TLON_URL": "https://nec.tlon.network",
+            "TLON_SHIP": "~nec",
+            "TLON_CODE": "stale-code",
+        }
+
+        async def runner(command, env, timeout):
+            calls.append(dict(env))
+            return tlon_api.TlonProcessResult(returncode=0)
+
+        async def run():
+            cli = tlon_api.TlonCLI(cfg, runner=runner)
+            return await cli.run_command(("contacts", "self"))
+
+        with patch.dict(tlon_api.os.environ, ambient, clear=True):
+            asyncio.run(run())
+
+        resolver_keys = {
+            "TLON_CONFIG_FILE",
+            "URBIT_COOKIE",
+            "TLON_COOKIE",
+            "TLON_URL",
+            "TLON_SHIP",
+            "TLON_CODE",
+        }
+        self.assertEqual(
+            {key: calls[0][key] for key in resolver_keys if key in calls[0]},
+            {
+                "TLON_URL": "https://zod.tlon.network",
+                "TLON_SHIP": "~zod",
+                "TLON_CODE": "config-code",
+            },
+        )
 
     def test_run_command_override_timeout_preserves_timeout_output(self):
         calls = []

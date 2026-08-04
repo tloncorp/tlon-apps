@@ -711,6 +711,15 @@ class TlonConfig:
 
     def cli_env(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
         env = dict(base or os.environ)
+        for key in (
+            "TLON_CONFIG_FILE",
+            "URBIT_COOKIE",
+            "TLON_COOKIE",
+            "TLON_URL",
+            "TLON_SHIP",
+            "TLON_CODE",
+        ):
+            env.pop(key, None)
         if self.ship_url:
             env["TLON_NODE_URL"] = self.ship_url
             env["TLON_SHIP_URL"] = self.ship_url
