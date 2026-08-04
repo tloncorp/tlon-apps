@@ -243,6 +243,19 @@ class MigrationCommandController:
         self._env = env
         self._build_card = build_card
         self._tasks: set[asyncio.Task[None]] = set()
+        # These guards are process-lifetime state, not durable state, and that
+        # is correct on hermes-agent v2026.6.19: the only reachable teardown of
+        # a connected adapter is process exit, which kills the CLI child with
+        # it, so the guards and the migration they protect die together. An SSE
+        # drop reconnects inside the same adapter instance, leaving this
+        # controller intact. Core's in-process adapter replacement path exists
+        # but fires only from _notify_fatal_error, which the Tlon adapter never
+        # calls.
+        #
+        # Revisit if either of those changes: a retryable _notify_fatal_error
+        # from this adapter, or core gaining in-process adapter replacement,
+        # would let a fresh controller with empty guards accept a /migrate for
+        # a nest an orphaned task is still migrating.
         self._apply_in_flight: dict[str, object] = {}
         self._cleanup_in_flight: dict[str, object] = {}
 
