@@ -28,6 +28,7 @@ SKIP_MELD=${SKIP_MELD:-false}
 VERIFY_AFTER_UPLOAD=${VERIFY_AFTER_UPLOAD:-false}
 FRESH_BOOT=${FRESH_BOOT:-false}
 SKIP_PREPARE=${SKIP_PREPARE:-false}
+ARCHIVE_TAG=${ARCHIVE_TAG:-}
 
 # Parse command line arguments
 for arg in "$@"; do
@@ -59,6 +60,7 @@ for arg in "$@"; do
             echo "  SKIP_CLEANUP=true     Keep local archives after upload"
             echo "  SKIP_MELD=true        Skip meld operation (for low-memory systems)"
             echo "  SKIP_PREPARE=true     Skip ship prep/re-extraction (same as --skip-prepare)"
+            echo "  ARCHIVE_TAG=-tag      Name archives rube-{ship}{tag}.tgz instead of bumping the number"
             echo "  URBIT_BINARY=PATH     Urbit binary to use for sync/roll/chop (must run on this host)"
             echo ""
             exit 0
@@ -123,10 +125,22 @@ get_current_version() {
     echo "$url" | sed -n 's/.*rube-'"$ship"'\([0-9]*\)\.tgz/\1/p'
 }
 
-# Function to increment version
+# Function to increment version, or use a literal tag when pinned.
+# ARCHIVE_TAG names archives after what they contain rather than a position in
+# the numbered lineage (e.g. ARCHIVE_TAG=-group-blob -> rube-zod-group-blob.tgz),
+# for piers tied to a branch.
 get_next_version() {
     local ship=$1
+    if [ -n "$ARCHIVE_TAG" ]; then
+        echo "$ARCHIVE_TAG"
+        return 0
+    fi
     local current_version=$(get_current_version "$ship")
+    if [ -z "$current_version" ]; then
+        print_error "Cannot derive a version for ~$ship from $MANIFEST_FILE"
+        print_info "The manifest holds a non-numeric archive name; set ARCHIVE_TAG explicitly."
+        return 1
+    fi
     echo $((current_version + 1))
 }
 
