@@ -243,14 +243,26 @@ class MigrationCommandController:
         self._env = env
         self._build_card = build_card
         self._tasks: set[asyncio.Task[None]] = set()
-        # These guards are process-lifetime state, not durable state, and that
-        # is correct on hermes-agent v2026.6.19: the only reachable teardown of
-        # a connected adapter is process exit, which kills the CLI child with
-        # it, so the guards and the migration they protect die together. An SSE
-        # drop reconnects inside the same adapter instance, leaving this
-        # controller intact. Core's in-process adapter replacement path exists
-        # but fires only from _notify_fatal_error, which the Tlon adapter never
-        # calls.
+        # These guards are instance state, and two things bound how far that
+        # is safe.
+        #
+        # Across a restart: the only reachable teardown of a connected adapter
+        # on hermes-agent v2026.6.19 is whole-process exit, and both entrypoints
+        # run the gateway as PID 1, so container teardown reaps the CLI child
+        # alongside it. That is a property of the deployment, not of process
+        # exit — nothing here cancels the task or kills the child, so a gateway
+        # killed without process-group teardown can leave the CLI applying
+        # while a fresh controller starts with empty guards. An SSE drop
+        # reconnects inside the same adapter instance, leaving this controller
+        # intact; core's in-process replacement path fires only from
+        # _notify_fatal_error, which the Tlon adapter never calls.
+        #
+        # Across adapters: these guards are per-instance, so two adapters in
+        # one process configured for the same ship would not see each other.
+        # The package already assumes one Tlon account per gateway process
+        # (see README) — the discovery sender is a last-writer-wins module
+        # global and breaks under the same misconfiguration. OpenClaw enforces
+        # this with a gate; here it is documented, not enforced.
         #
         # Revisit if either of those changes: a retryable _notify_fatal_error
         # from this adapter, or core gaining in-process adapter replacement,
