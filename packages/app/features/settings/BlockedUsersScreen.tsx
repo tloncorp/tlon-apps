@@ -56,11 +56,7 @@ export function BlockedUsersScreen(props: Props) {
         borderBottom
         placement="navigation"
       />
-      <SettingsContentScrollView
-        useScreenChrome
-        paddingBottom="$3xl"
-        paddingHorizontal="$xl"
-      >
+      <SettingsContentScrollView useScreenChrome paddingHorizontal="$xl">
         <BlockedContactsWidget
           blockedContacts={blockedContacts ?? []}
           onBlockedContactPress={onBlockedContactPress}
