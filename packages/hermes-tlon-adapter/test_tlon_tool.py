@@ -361,25 +361,121 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertIn("/migrate <diary-nest>", blocked)
 
     def test_blocks_migration_mutations_after_credential_flags(self):
-        for command in (
-            "notes migrate diary/~zod/log",
-            "notes migrate-apply diary/~zod/log --yes",
-            "notes migrate-other diary/~zod/log",
-            "notes migrate-plan-extra diary/~zod/log",
-            "notes notebook-delete notes/~zod/log --yes",
-            "--config /tmp/owner.json notes migrate-apply diary/~zod/log --yes",
-            "--url=https://example.test --ship ~zod --code secret "
-            "notes notebook-delete notes/~zod/log --yes",
-        ):
+        cases = (
+            ("notes migrate diary/~zod/log", "/migrate diary/~zod/log"),
+            (
+                "notes migrate-apply diary/~zod/log --yes",
+                "/migrate diary/~zod/log",
+            ),
+            ("notes migrate-other diary/~zod/log", "/migrate diary/~zod/log"),
+            (
+                "notes migrate-plan-extra diary/~zod/log",
+                "/migrate diary/~zod/log",
+            ),
+            (
+                "notes notebook-delete notes/~zod/log --yes",
+                "/migrate cleanup notes/~zod/log",
+            ),
+            (
+                "notes notebook-delete --yes notes/~zod/log",
+                "/migrate cleanup notes/~zod/log",
+            ),
+            (
+                "--config /tmp/owner.json notes migrate-apply "
+                "diary/~zod/log --yes",
+                "/migrate diary/~zod/log",
+            ),
+            (
+                "--url=https://example.test --ship ~zod --code secret "
+                "notes notebook-delete notes/~zod/log --yes",
+                "/migrate cleanup notes/~zod/log",
+            ),
+        )
+
+        for command, owner_command in cases:
             with self.subTest(command=command):
                 args, error = tlon_tool.split_tlon_command(command)
                 self.assertIsNone(error)
-                blocked = tlon_tool.check_tlon_tool_command(args)
-                if "diary/~zod/log" in command:
-                    self.assertIn("/migrate diary/~zod/log", blocked)
-                    self.assertNotIn("<diary-nest>", blocked)
-                else:
-                    self.assertIn("/migrate <diary-nest>", blocked)
+                self.assertEqual(
+                    tlon_tool.check_tlon_tool_command(args),
+                    "Blocked: this notes operation requires owner "
+                    "confirmation. Ask the owner to type "
+                    f"`{owner_command}`.",
+                )
+
+    def test_channels_delete_migration_guard_target_kinds(self):
+        cases = (
+            (
+                "channels delete notes/~zod/log",
+                "Blocked: this notes operation requires owner confirmation. "
+                "Ask the owner to type `/migrate cleanup notes/~zod/log`.",
+            ),
+            (
+                "--config /tmp/owner.json channels delete notes/~zod/log",
+                "Blocked: this notes operation requires owner confirmation. "
+                "Ask the owner to type `/migrate cleanup notes/~zod/log`.",
+            ),
+            ("channels delete chat/~zod/log", None),
+            ("channels delete heap/~zod/log", None),
+            (
+                "channels delete diary/~zod/log",
+                "Blocked: %diary channels are deprecated and unsupported by "
+                "this CLI tool. Ask the owner to type "
+                "`/migrate diary/~zod/log`.",
+            ),
+        )
+
+        for command, expected in cases:
+            with self.subTest(command=command):
+                args, error = tlon_tool.split_tlon_command(command)
+                self.assertIsNone(error)
+                self.assertEqual(
+                    tlon_tool.check_tlon_tool_command(args), expected
+                )
+
+    def test_migration_flag_before_nest_preserves_refused_diary_nest(self):
+        args = (
+            "notes",
+            "migrate-apply",
+            "--yes",
+            "diary/~zod/log",
+        )
+
+        self.assertEqual(
+            tlon_tool.check_blocked_migration_operation(args),
+            "Blocked: this notes operation requires owner confirmation. "
+            "Ask the owner to type `/migrate diary/~zod/log`.",
+        )
+        self.assertEqual(
+            tlon_tool.refused_diary_nest(args), "diary/~zod/log"
+        )
+
+    def test_bare_notebook_delete_uses_cleanup_placeholder(self):
+        self.assertEqual(
+            tlon_tool.check_blocked_migration_operation(
+                ("notes", "notebook-delete")
+            ),
+            "Blocked: this notes operation requires owner confirmation. "
+            "Ask the owner to type `/migrate cleanup <notes-nest>`.",
+        )
+
+    def test_whitespace_notes_nest_uses_strict_hermes_canonicalization(self):
+        cases = (
+            ('channels delete "notes/~zod/field notes"', None),
+            (
+                'notes notebook-delete "notes/~zod/field notes"',
+                "Blocked: this notes operation requires owner confirmation. "
+                "Ask the owner to type `/migrate cleanup <notes-nest>`.",
+            ),
+        )
+
+        for command, expected in cases:
+            with self.subTest(command=command):
+                args, error = tlon_tool.split_tlon_command(command)
+                self.assertIsNone(error)
+                self.assertEqual(
+                    tlon_tool.check_tlon_tool_command(args), expected
+                )
 
     def test_interpolates_diary_targets_refused_by_cli_surface(self):
         for command in (
@@ -471,6 +567,100 @@ class TlonToolGuardTests(unittest.TestCase):
                     "diary/~zod/log",
                 ),
                 False,
+            ),
+            (
+                "channels rename missing title",
+                ("channels", "rename", "diary/~zod/log"),
+                False,
+            ),
+            (
+                "channels rename with title",
+                ("channels", "rename", "diary/~zod/log", "New"),
+                True,
+            ),
+            (
+                "channels add-writers missing role",
+                ("channels", "add-writers", "diary/~zod/log"),
+                False,
+            ),
+            (
+                "channels add-writers with role",
+                ("channels", "add-writers", "diary/~zod/log", "admin"),
+                True,
+            ),
+            (
+                "channels del-writers missing role",
+                ("channels", "del-writers", "diary/~zod/log"),
+                False,
+            ),
+            (
+                "channels del-writers with role",
+                ("channels", "del-writers", "diary/~zod/log", "admin"),
+                True,
+            ),
+            (
+                "channels add-readers missing group flag",
+                (
+                    "channels",
+                    "add-readers",
+                    "",
+                    "diary/~zod/log",
+                    "member",
+                ),
+                False,
+            ),
+            (
+                "channels add-readers missing role",
+                (
+                    "channels",
+                    "add-readers",
+                    "~zod/group",
+                    "diary/~zod/log",
+                ),
+                False,
+            ),
+            (
+                "channels add-readers with role",
+                (
+                    "channels",
+                    "add-readers",
+                    "~zod/group",
+                    "diary/~zod/log",
+                    "member",
+                ),
+                True,
+            ),
+            (
+                "channels del-readers missing group flag",
+                (
+                    "channels",
+                    "del-readers",
+                    "",
+                    "diary/~zod/log",
+                    "member",
+                ),
+                False,
+            ),
+            (
+                "channels del-readers missing role",
+                (
+                    "channels",
+                    "del-readers",
+                    "~zod/group",
+                    "diary/~zod/log",
+                ),
+                False,
+            ),
+            (
+                "channels del-readers with role",
+                (
+                    "channels",
+                    "del-readers",
+                    "~zod/group",
+                    "diary/~zod/log",
+                    "member",
+                ),
+                True,
             ),
         )
 

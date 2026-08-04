@@ -393,20 +393,27 @@ def _diary_nest_for_removed_cli_operation(
     action = str(args[1]) if len(args) > 1 else ""
 
     if subcommand == "channels":
-        if action in {
-            "info",
-            "delete",
-            "update",
-            "rename",
-            "add-writers",
-            "del-writers",
-        }:
+        if action in {"info", "delete", "update"}:
             return _canonical_diary_nest(
                 str(args[2]) if len(args) > 2 else None
             )
+        if action == "rename":
+            return (
+                _canonical_diary_nest(str(args[2]))
+                if len(args) > 3 and args[3]
+                else None
+            )
+        if action in {"add-writers", "del-writers"}:
+            return (
+                _canonical_diary_nest(str(args[2]))
+                if len(args[3:]) > 0
+                else None
+            )
         if action in {"add-readers", "del-readers"}:
-            return _canonical_diary_nest(
-                str(args[3]) if len(args) > 3 else None
+            return (
+                _canonical_diary_nest(str(args[3]))
+                if len(args) > 2 and args[2] and len(args[4:]) > 0
+                else None
             )
         return None
 
@@ -478,6 +485,16 @@ def _migration_blocked_message(nest: Optional[str] = None) -> str:
     )
 
 
+def _migration_cleanup_blocked_message(
+    nest: Optional[str] = None,
+) -> str:
+    command = f"/migrate cleanup {nest or '<notes-nest>'}"
+    return (
+        "Blocked: this notes operation requires owner confirmation. "
+        f"Ask the owner to type `{command}`."
+    )
+
+
 def _notebook_blocked_message(nest: Optional[str] = None) -> str:
     command = f"/migrate {nest or '<diary-nest>'}"
     return (
@@ -512,9 +529,7 @@ def check_blocked_diary_operation(
 def refused_diary_nest(args: Sequence[str]) -> Optional[str]:
     migration_block = check_blocked_migration_operation(args)
     if migration_block:
-        return _canonical_diary_nest(
-            str(args[2]) if len(args) > 2 else None
-        )
+        return _canonical_diary_nest(_migration_source_operand(args))
     diary_block = check_blocked_diary_operation(args)
     return diary_block[1] if diary_block else None
 
@@ -660,18 +675,21 @@ def check_blocked_migration_operation(args: Sequence[str]) -> Optional[str]:
 
     This is intentionally duplicated in each runtime at the model-tool boundary.
     """
-    if not args or str(args[0]).lower() != "notes":
-        return None
+    command = str(args[0]).lower() if args else ""
     subcommand = str(args[1]).lower() if len(args) > 1 else ""
     if not subcommand:
         return None
-    nest = _canonical_diary_nest(
-        str(args[2]) if len(args) > 2 else None
-    )
+    if command == "channels" and subcommand == "delete":
+        nest = _canonical_notes_nest(_migration_source_operand(args))
+        return _migration_cleanup_blocked_message(nest) if nest else None
+    if command != "notes":
+        return None
     if subcommand == "notebook-delete":
-        return _migration_blocked_message(nest)
+        nest = _canonical_notes_nest(_migration_source_operand(args))
+        return _migration_cleanup_blocked_message(nest)
     if not subcommand.startswith("migrate"):
         return None
+    nest = _canonical_diary_nest(_migration_source_operand(args))
     return (
         None
         if subcommand == "migrate-plan"
