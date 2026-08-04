@@ -636,6 +636,28 @@ export function subscribeToActivity(
           }
         }
 
+        if ('notebook' in source) {
+          // notebook sources ride the corresponding notes channel's volume
+          // row, same as the read path in extractClientVolumes
+          const channelId = `notes/${source.notebook.flag}`;
+          if (volume) {
+            return handler({
+              type: 'updateItemVolume',
+              volumeUpdate: {
+                itemId: channelId,
+                itemType: 'channel',
+                level: ub.getLevelFromVolumeMap(volume),
+              },
+            });
+          } else {
+            return handler({
+              type: 'removeItemVolume',
+              itemId: channelId,
+              itemType: 'channel',
+            });
+          }
+        }
+
         if ('channel' in source || 'dm' in source) {
           const channelId =
             'channel' in source
@@ -745,6 +767,19 @@ function stripReactVolumeKeys(action: ub.ActivityAction): ub.ActivityAction {
   return { adjust: { ...action.adjust, volume } };
 }
 
+// Same deal for the note event keys: the pre-v10 marks' parsers reject them,
+// so volume pokes against a backend without notes activity must not carry
+// them (note volumes aren't configurable there anyway).
+function stripNoteVolumeKeys(action: ub.ActivityAction): ub.ActivityAction {
+  if (!('adjust' in action) || !action.adjust.volume) {
+    return action;
+  }
+  const volume = { ...action.adjust.volume };
+  delete volume['note-create'];
+  delete volume['note-edit'];
+  return { adjust: { ...action.adjust, volume } };
+}
+
 export function activityAction(action: ub.ActivityAction) {
   // activity-action-2 (v10) parses notebook/note sources and note event
   // keys; activity-action-1 (v9) parses react keys; the agent accepts all
@@ -758,10 +793,11 @@ export function activityAction(action: ub.ActivityAction) {
     };
   }
   const supportsReactions = getActivitySupportsReactions();
+  const stripped = stripNoteVolumeKeys(action);
   return {
     app: 'activity',
     mark: supportsReactions ? 'activity-action-1' : 'activity-action',
-    json: supportsReactions ? action : stripReactVolumeKeys(action),
+    json: supportsReactions ? stripped : stripReactVolumeKeys(stripped),
   };
 }
 

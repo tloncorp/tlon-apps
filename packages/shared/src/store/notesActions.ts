@@ -915,27 +915,37 @@ export async function markNoteRead({
 }) {
   const channelId = `notes/${notebookFlag}`;
   const threadId = String(noteId);
+  const channel = await db.getChannel({ id: channelId });
   const existingUnread = await db.getThreadActivity({
     channelId,
     postId: threadId,
   });
-  if (!existingUnread) {
-    return;
-  }
 
-  await db.clearThreadUnread({ channelId, threadId });
-  const existingCount = existingUnread.count ?? 0;
-  const channel = await db.getChannel({ id: channelId });
-  if (existingCount > 0) {
-    await db.updateChannelUnreadCount({
-      channelId,
-      decrement: existingCount,
-    });
-    if (channel?.groupId) {
-      await db.updateGroupUnreadCount({
-        groupId: channel.groupId,
+  // optimistic local clear only applies when we have a local row, but the
+  // backend read must happen regardless — the note may be viewed before
+  // the thread-unread sync has landed the row, and the effect won't rerun
+  // when it arrives. the backend no-ops on sources with no unread state.
+  const existingCount = existingUnread?.count ?? 0;
+  const priorChannelUnread =
+    existingCount > 0 ? await db.getChannelUnread({ channelId }) : null;
+  const priorGroupUnread =
+    existingCount > 0 && channel?.groupId
+      ? await db.getGroupUnread({ groupId: channel.groupId })
+      : null;
+
+  if (existingUnread) {
+    await db.clearThreadUnread({ channelId, threadId });
+    if (existingCount > 0) {
+      await db.updateChannelUnreadCount({
+        channelId,
         decrement: existingCount,
       });
+      if (channel?.groupId) {
+        await db.updateGroupUnreadCount({
+          groupId: channel.groupId,
+          decrement: existingCount,
+        });
+      }
     }
   }
 
@@ -947,7 +957,16 @@ export async function markNoteRead({
     });
   } catch (e) {
     logger.error('failed to mark note read', channelId, noteId, e);
-    await db.insertThreadUnreads([existingUnread]);
+    // roll back the whole optimistic update, rollup decrements included
+    if (existingUnread) {
+      await db.insertThreadUnreads([existingUnread]);
+      if (priorChannelUnread) {
+        await db.insertChannelUnreads([priorChannelUnread]);
+      }
+      if (priorGroupUnread) {
+        await db.insertGroupUnreads([priorGroupUnread]);
+      }
+    }
   }
 }
 
