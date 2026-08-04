@@ -66,10 +66,17 @@ export function BotSettingsScreenView({
         borderBottom
         backAction={isWindowNarrow ? onBackPressed : undefined}
         loadingSubtitle={refreshing && !initialLoading ? 'Refreshing' : null}
-        rightControls={
-          <ScreenHeader.IconButton type="Refresh" onPress={onRefresh} />
-        }
+        rightActions={[
+          {
+            kind: 'icon',
+            id: 'refresh-providers',
+            icon: 'Refresh',
+            label: 'Refresh providers',
+            onPress: onRefresh,
+          },
+        ]}
         title="Connect MCP"
+        placement="navigation"
       />
       {initialLoading ? (
         <YStack flex={1} alignItems="center" justifyContent="center">

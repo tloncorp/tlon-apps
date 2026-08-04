@@ -4,6 +4,7 @@ export type ScreenHeaderIconName =
   | 'ChevronLeft'
   | 'EditList'
   | 'Overflow'
+  | 'Refresh'
   | 'RightSidebar'
   | 'Search'
   | 'Settings';

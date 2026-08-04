@@ -26,6 +26,7 @@ export const nativeIconSources = {
   ChevronLeft: nativeHeaderIcons.back,
   EditList: nativeHeaderIcons.editList,
   Overflow: nativeHeaderIcons.overflow,
+  Refresh: nativeHeaderIcons.refresh,
   RightSidebar: nativeHeaderIcons.rightSidebar,
   Search: nativeHeaderIcons.search,
   Settings: nativeHeaderIcons.settings,

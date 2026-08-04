@@ -187,7 +187,7 @@ export function PrivacySettingsScreen(props: Props) {
         title="Privacy Settings"
         placement="navigation"
       />
-      <SettingsContentScrollView useScreenChrome paddingHorizontal="$xl">
+      <SettingsContentScrollView paddingHorizontal="$xl">
         <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
           <XStack justifyContent="space-between" alignItems="center">
             <SizableText flexShrink={1}>Share Usage Statistics</SizableText>

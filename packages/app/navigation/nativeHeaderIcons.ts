@@ -4,6 +4,7 @@ export const nativeHeaderIcons = {
   editList: { uri: 'TlonHeaderEditList' },
   invite: { uri: 'TlonHeaderInvite' },
   overflow: { uri: 'TlonHeaderOverflow' },
+  refresh: { uri: 'TlonHeaderRefresh' },
   rightSidebar: { uri: 'TlonHeaderRightSidebar' },
   search: { uri: 'TlonHeaderSearch' },
   settings: { uri: 'TlonHeaderSettings' },
