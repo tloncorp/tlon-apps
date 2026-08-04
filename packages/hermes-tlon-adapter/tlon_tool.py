@@ -8,12 +8,13 @@ import logging
 import os
 import shlex
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Collection, Mapping, Optional, Sequence
 
 from .approval import build_migrate_card
 from .owner_listen import canonicalize_nest, canonicalize_notes_nest
-from .tlon_api import CommandRunner, TlonCLI, TlonConfig, TlonSendResult
+from .tlon_api import CommandRunner, TlonCLI, TlonConfig, TlonSendResult, normalize_ship
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +43,25 @@ CREDENTIAL_FLAGS_WITH_VALUE = frozenset(
 )
 
 SendOwnerNotification = Callable[[str, Optional[str]], Awaitable[object]]
-BuildMigrationCard = Callable[[str], str]
+DiaryTitleLookup = Callable[[str], Awaitable[Optional[str]]]
+BuildMigrationCard = Callable[..., str]
 
-_diary_notification_sender: Optional[SendOwnerNotification] = None
+
+@dataclass(frozen=True)
+class _DiaryMigrationNotificationRegistration:
+    sender: SendOwnerNotification
+    bot_ship: str
+    owner_ship: str
+    title_lookup: DiaryTitleLookup
+
+
+_diary_notification_registration: Optional[
+    _DiaryMigrationNotificationRegistration
+] = None
 _notified_diary_nests: set[str] = set()
-_diary_notifications_in_flight: set[str] = set()
+_diary_notifications_in_flight: dict[str, asyncio.Task[bool]] = {}
+_pending_discovery_tasks: set[asyncio.Task[bool]] = set()
+ARCHIVE_TITLE_SUFFIX = "-ARCHIVE"
 
 # Message-send operations. These are normally blocked when they target the
 # *current* conversation — those must go through Hermes' streaming reply path
@@ -536,62 +551,171 @@ def refused_diary_nest(args: Sequence[str]) -> Optional[str]:
 
 def set_diary_migration_notification_sender(
     sender: SendOwnerNotification,
+    *,
+    bot_ship: str,
+    owner_ship: str,
+    title_lookup: DiaryTitleLookup,
 ) -> None:
-    global _diary_notification_sender
-    _diary_notification_sender = sender
+    global _diary_notification_registration
+    _diary_notification_registration = _DiaryMigrationNotificationRegistration(
+        sender=sender,
+        bot_ship=bot_ship,
+        owner_ship=owner_ship,
+        title_lookup=title_lookup,
+    )
 
 
 def clear_diary_migration_notification_sender(
     sender: SendOwnerNotification,
 ) -> None:
-    global _diary_notification_sender
-    if _diary_notification_sender == sender:
-        _diary_notification_sender = None
+    global _diary_notification_registration
+    registration = _diary_notification_registration
+    if registration is not None and registration.sender == sender:
+        _diary_notification_registration = None
+
+
+async def _send_diary_migration_discovery(
+    canonical: str,
+    *,
+    sender: SendOwnerNotification,
+    title_lookup: DiaryTitleLookup,
+    build_card: BuildMigrationCard,
+) -> bool:
+    command = f"/migrate {canonical}"
+    try:
+        source_title = await title_lookup(canonical)
+    except Exception:
+        logger.exception(
+            "[tlon] failed to look up diary migration discovery title for %s",
+            canonical,
+        )
+        return False
+    title = source_title.strip() if isinstance(source_title, str) else ""
+    if not title:
+        return False
+
+    archived = title.endswith(ARCHIVE_TITLE_SUFFIX)
+    blob: Optional[str] = None
+    if not archived:
+        try:
+            blob = build_card(command, title=title)
+        except Exception:
+            logger.exception(
+                "[tlon] failed to build diary migration discovery card"
+            )
+
+    if archived:
+        text = (
+            f"Found legacy diary `{canonical}`, but its title already ends in "
+            f"`{ARCHIVE_TITLE_SUFFIX}`, so it looks like it has already been "
+            "migrated and no action was offered. If it has not been migrated, "
+            f"rename the channel to remove `{ARCHIVE_TITLE_SUFFIX}` and it can "
+            "be migrated again."
+        )
+    elif blob is not None:
+        text = f'Diary migration available for "{title}"'
+    else:
+        text = (
+            f'Diary migration available for "{title}" — to migrate, type '
+            f"`{command}`"
+        )
+
+    try:
+        result = await sender(text, blob)
+    except Exception:
+        logger.exception(
+            "[tlon] failed to send diary migration discovery notification"
+        )
+        return False
+    if result is not True:
+        return False
+    _notified_diary_nests.add(canonical)
+    return True
 
 
 async def notify_diary_migration_discovery(
     nest: str,
     *,
     sender: Optional[SendOwnerNotification] = None,
+    bot_ship: Optional[str] = None,
+    owner_ship: Optional[str] = None,
+    title_lookup: Optional[DiaryTitleLookup] = None,
     build_card: BuildMigrationCard = build_migrate_card,
 ) -> bool:
     canonical = _canonical_diary_nest(nest)
     if canonical is None:
         return False
-    notification_sender = sender or _diary_notification_sender
+    if sender is None:
+        registration = _diary_notification_registration
+        if registration is None:
+            return False
+        notification_sender = registration.sender
+        notification_bot_ship = registration.bot_ship
+        notification_owner_ship = registration.owner_ship
+        notification_title_lookup = registration.title_lookup
+    else:
+        notification_sender = sender
+        notification_bot_ship = str(bot_ship or "")
+        notification_owner_ship = str(owner_ship or "")
+        notification_title_lookup = title_lookup
+
+    normalized_owner = normalize_ship(notification_owner_ship).lower()
+    normalized_bot = normalize_ship(notification_bot_ship).lower()
+    host = canonical.split("/", 2)[1]
     if (
-        notification_sender is None
+        not normalized_owner
+        or host not in {normalized_owner, normalized_bot}
+        or notification_title_lookup is None
         or canonical in _notified_diary_nests
-        or canonical in _diary_notifications_in_flight
     ):
         return False
 
-    _diary_notifications_in_flight.add(canonical)
-    command = f"/migrate {canonical}"
-    text = f"Migrate this diary: `{command}`"
+    pending = _diary_notifications_in_flight.get(canonical)
+    if pending is not None:
+        await pending
+        return False
+
+    task = asyncio.create_task(
+        _send_diary_migration_discovery(
+            canonical,
+            sender=notification_sender,
+            title_lookup=notification_title_lookup,
+            build_card=build_card,
+        )
+    )
+    _diary_notifications_in_flight[canonical] = task
     try:
-        try:
-            blob = build_card(command)
-        except Exception:
-            logger.exception(
-                "[tlon] failed to build diary migration discovery card"
-            )
-            blob = None
-
-        try:
-            result = await notification_sender(text, blob)
-        except Exception:
-            logger.exception(
-                "[tlon] failed to send diary migration discovery notification"
-            )
-            return False
-
-        if result is False:
-            return False
-        _notified_diary_nests.add(canonical)
-        return True
+        return await task
     finally:
-        _diary_notifications_in_flight.discard(canonical)
+        if _diary_notifications_in_flight.get(canonical) is task:
+            _diary_notifications_in_flight.pop(canonical, None)
+
+
+def start_diary_migration_discovery(nest: str) -> None:
+    task = asyncio.create_task(notify_diary_migration_discovery(nest))
+    _pending_discovery_tasks.add(task)
+
+    def done(completed: asyncio.Task[bool]) -> None:
+        _pending_discovery_tasks.discard(completed)
+        try:
+            completed.result()
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            logger.exception(
+                "[tlon] diary migration discovery task failed for %s",
+                nest,
+            )
+
+    task.add_done_callback(done)
+
+
+async def wait_for_pending_discovery() -> None:
+    while _pending_discovery_tasks:
+        await asyncio.gather(
+            *tuple(_pending_discovery_tasks),
+            return_exceptions=True,
+        )
 
 
 def _tool_command_for_display(command: Sequence[str]) -> str:
@@ -849,7 +973,7 @@ async def execute_tlon_tool(
         command_args = args[sub_idx:] if sub_idx >= 0 else ()
         diary_nest = refused_diary_nest(command_args)
         if diary_nest:
-            await notify_diary_migration_discovery(diary_nest)
+            start_diary_migration_discovery(diary_nest)
         return _json({"error": blocked, "blocked": True})
 
     if not cfg.is_complete():

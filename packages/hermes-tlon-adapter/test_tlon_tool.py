@@ -53,6 +53,7 @@ def load_module(name):
 
 tlon_api = load_module("tlon_api")
 tlon_tool = load_module("tlon_tool")
+approval = sys.modules[f"{PACKAGE_NAME}.approval"]
 adapter_mod = load_module("adapter")
 
 
@@ -847,12 +848,17 @@ class TlonToolGuardTests(unittest.TestCase):
 
 class TlonToolExecutionTests(unittest.TestCase):
     @staticmethod
-    def _card_action(blob):
+    def _card_components(blob):
         entry = json.loads(blob)[0]
         components = entry["messages"][1]["updateComponents"]["components"]
+        return {component["id"]: component for component in components}
+
+    @classmethod
+    def _card_action(cls, blob):
+        components = cls._card_components(blob)
         button = next(
             component
-            for component in components
+            for component in components.values()
             if component["component"] == "Button"
         )
         return button["action"]["event"]["context"]["text"]
@@ -864,7 +870,15 @@ class TlonToolExecutionTests(unittest.TestCase):
             calls.append((text, blob))
             return True
 
-        tlon_tool.set_diary_migration_notification_sender(send_dm)
+        async def title_lookup(_nest):
+            return "Discovery diary"
+
+        tlon_tool.set_diary_migration_notification_sender(
+            send_dm,
+            bot_ship="~sampel-palnet",
+            owner_ship="~mug",
+            title_lookup=title_lookup,
+        )
         self.addCleanup(
             tlon_tool.clear_diary_migration_notification_sender,
             send_dm,
@@ -874,12 +888,18 @@ class TlonToolExecutionTests(unittest.TestCase):
             "diary/~sampel-palnet/discovery-execution --yes"
         )
 
-        first = json.loads(
-            asyncio.run(tlon_tool.execute_tlon_tool({"command": command}))
-        )
-        second = json.loads(
-            asyncio.run(tlon_tool.execute_tlon_tool({"command": command}))
-        )
+        async def run():
+            first = json.loads(
+                await tlon_tool.execute_tlon_tool({"command": command})
+            )
+            await tlon_tool.wait_for_pending_discovery()
+            second = json.loads(
+                await tlon_tool.execute_tlon_tool({"command": command})
+            )
+            await tlon_tool.wait_for_pending_discovery()
+            return first, second
+
+        first, second = asyncio.run(run())
 
         self.assertTrue(first["blocked"])
         self.assertTrue(second["blocked"])
@@ -890,7 +910,7 @@ class TlonToolExecutionTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         text, blob = calls[0]
         expected = "/migrate diary/~sampel-palnet/discovery-execution"
-        self.assertIn(expected, text)
+        self.assertEqual(text, 'Diary migration available for "Discovery diary"')
         self.assertEqual(self._card_action(blob), expected)
 
     def test_throwing_card_builder_still_delivers_literal_text(self):
@@ -900,7 +920,11 @@ class TlonToolExecutionTests(unittest.TestCase):
             calls.append((text, blob))
             return True
 
-        def throw_card(_command):
+        async def title_lookup(_nest):
+            return "Fallback diary"
+
+        def throw_card(_command, title=None):
+            del title
             raise ValueError("bad card")
 
         nest = "diary/~zod/discovery-card-fallback"
@@ -908,13 +932,19 @@ class TlonToolExecutionTests(unittest.TestCase):
             tlon_tool.notify_diary_migration_discovery(
                 nest,
                 sender=send_dm,
+                bot_ship="~zod",
+                owner_ship="~mug",
+                title_lookup=title_lookup,
                 build_card=throw_card,
             )
         )
 
         self.assertTrue(sent)
         self.assertEqual(len(calls), 1)
-        self.assertIn(f"/migrate {nest}", calls[0][0])
+        self.assertEqual(
+            calls[0][0],
+            f'Diary migration available for "Fallback diary" — to migrate, type `/migrate {nest}`',
+        )
         self.assertIsNone(calls[0][1])
 
     def test_diary_notification_deduplicates_canonical_nest_variants(self):
@@ -924,35 +954,336 @@ class TlonToolExecutionTests(unittest.TestCase):
             calls.append((text, blob))
             return True
 
-        asyncio.run(
-            tlon_tool.notify_diary_migration_discovery(
+        async def title_lookup(_nest):
+            return "Canonical diary"
+
+        async def run():
+            await tlon_tool.notify_diary_migration_discovery(
                 "Diary/ZOD/Discovery-Canonical",
                 sender=send_dm,
+                bot_ship="zod",
+                owner_ship="mug",
+                title_lookup=title_lookup,
             )
-        )
-        asyncio.run(
-            tlon_tool.notify_diary_migration_discovery(
+            await tlon_tool.notify_diary_migration_discovery(
                 "diary/~zod/Discovery-Canonical",
                 sender=send_dm,
+                bot_ship="~zod",
+                owner_ship="~mug",
+                title_lookup=title_lookup,
+            )
+
+        asyncio.run(run())
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(
+            self._card_action(calls[0][1]),
+            "/migrate diary/~zod/Discovery-Canonical",
+        )
+
+    def test_diary_notification_rejects_host_mismatch_before_title_lookup(self):
+        sends = []
+        lookups = []
+
+        async def send_dm(text, blob):
+            sends.append((text, blob))
+            return True
+
+        async def title_lookup(nest):
+            lookups.append(nest)
+            return "Foreign diary"
+
+        sent = asyncio.run(
+            tlon_tool.notify_diary_migration_discovery(
+                "diary/~nec/foreign",
+                sender=send_dm,
+                bot_ship="~zod",
+                owner_ship="~mug",
+                title_lookup=title_lookup,
             )
         )
 
-        self.assertEqual(len(calls), 1)
-        self.assertIn(
-            "/migrate diary/~zod/Discovery-Canonical",
-            calls[0][0],
+        self.assertFalse(sent)
+        self.assertEqual(lookups, [])
+        self.assertEqual(sends, [])
+
+    def test_diary_notification_rejects_empty_owner_before_title_lookup(self):
+        sends = []
+        lookups = []
+
+        async def send_dm(text, blob):
+            sends.append((text, blob))
+            return True
+
+        async def title_lookup(nest):
+            lookups.append(nest)
+            return "Bot diary"
+
+        sent = asyncio.run(
+            tlon_tool.notify_diary_migration_discovery(
+                "diary/~zod/ownerless",
+                sender=send_dm,
+                bot_ship="~zod",
+                owner_ship="",
+                title_lookup=title_lookup,
+            )
         )
+
+        self.assertFalse(sent)
+        self.assertEqual(lookups, [])
+        self.assertEqual(sends, [])
+
+    def test_missing_diary_title_sends_nothing_and_retries(self):
+        sends = []
+        lookups = []
+
+        async def send_dm(text, blob):
+            sends.append((text, blob))
+            return True
+
+        async def title_lookup(nest):
+            lookups.append(nest)
+            return None
+
+        nest = "diary/~zod/missing-title"
+
+        async def run():
+            first = await tlon_tool.notify_diary_migration_discovery(
+                nest,
+                sender=send_dm,
+                bot_ship="~zod",
+                owner_ship="~mug",
+                title_lookup=title_lookup,
+            )
+            second = await tlon_tool.notify_diary_migration_discovery(
+                nest,
+                sender=send_dm,
+                bot_ship="~zod",
+                owner_ship="~mug",
+                title_lookup=title_lookup,
+            )
+            return first, second
+
+        first, second = asyncio.run(run())
+
+        self.assertFalse(first)
+        self.assertFalse(second)
+        self.assertEqual(lookups, [nest, nest])
+        self.assertEqual(sends, [])
+
+    def test_archived_diary_sends_remedy_without_card_and_records(self):
+        calls = []
+
+        async def send_dm(text, blob):
+            calls.append((text, blob))
+            return True
+
+        async def title_lookup(_nest):
+            return f"Old log{tlon_tool.ARCHIVE_TITLE_SUFFIX}"
+
+        nest = "diary/~zod/archived-title"
+
+        async def run():
+            first = await tlon_tool.notify_diary_migration_discovery(
+                nest,
+                sender=send_dm,
+                bot_ship="~zod",
+                owner_ship="~mug",
+                title_lookup=title_lookup,
+            )
+            second = await tlon_tool.notify_diary_migration_discovery(
+                nest,
+                sender=send_dm,
+                bot_ship="~zod",
+                owner_ship="~mug",
+                title_lookup=title_lookup,
+            )
+            return first, second
+
+        first, second = asyncio.run(run())
+
+        self.assertTrue(first)
+        self.assertFalse(second)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(
+            calls[0][0],
+            f"Found legacy diary `{nest}`, but its title already ends in `{tlon_tool.ARCHIVE_TITLE_SUFFIX}`, "
+            "so it looks like it has already been migrated and no action was offered. "
+            "If it has not been migrated, rename the channel to remove "
+            f"`{tlon_tool.ARCHIVE_TITLE_SUFFIX}` and it can be migrated again.",
+        )
+        self.assertIsNone(calls[0][1])
+
+    def test_normal_diary_title_sends_warning_card(self):
+        calls = []
+
+        async def send_dm(text, blob):
+            calls.append((text, blob))
+            return True
+
+        async def title_lookup(_nest):
+            return "  Garden journal  "
+
+        nest = "diary/~mug/normal-title"
+        sent = asyncio.run(
+            tlon_tool.notify_diary_migration_discovery(
+                nest,
+                sender=send_dm,
+                bot_ship="~zod",
+                owner_ship="mug",
+                title_lookup=title_lookup,
+            )
+        )
+
+        self.assertTrue(sent)
+        self.assertEqual(calls[0][0], 'Diary migration available for "Garden journal"')
+        components = self._card_components(calls[0][1])
+        self.assertEqual(
+            components["title"]["text"],
+            'Migrate "Garden journal" to %notes?',
+        )
+        self.assertIn(
+            approval.MIGRATION_CARD_WARNING,
+            components["allowNote"]["text"],
+        )
+
+    def test_sender_returning_none_does_not_record_delivery(self):
+        calls = []
+
+        async def send_dm(text, blob):
+            calls.append((text, blob))
+            return None
+
+        async def title_lookup(_nest):
+            return "Unconfirmed diary"
+
+        nest = "diary/~zod/unconfirmed-send"
+
+        async def run():
+            results = []
+            for _ in range(2):
+                results.append(
+                    await tlon_tool.notify_diary_migration_discovery(
+                        nest,
+                        sender=send_dm,
+                        bot_ship="~zod",
+                        owner_ship="~mug",
+                        title_lookup=title_lookup,
+                    )
+                )
+            return results
+
+        results = asyncio.run(run())
+
+        self.assertEqual(results, [False, False])
+        self.assertEqual(len(calls), 2)
+
+    def test_concurrent_diary_notification_awaits_in_flight_delivery(self):
+        calls = []
+
+        async def run():
+            started = asyncio.Event()
+            release = asyncio.Event()
+
+            async def send_dm(text, blob):
+                calls.append((text, blob))
+                started.set()
+                await release.wait()
+                return True
+
+            async def title_lookup(_nest):
+                return "Concurrent diary"
+
+            kwargs = {
+                "sender": send_dm,
+                "bot_ship": "~zod",
+                "owner_ship": "~mug",
+                "title_lookup": title_lookup,
+            }
+            first = asyncio.create_task(
+                tlon_tool.notify_diary_migration_discovery(
+                    "diary/~zod/concurrent", **kwargs
+                )
+            )
+            await started.wait()
+            second = asyncio.create_task(
+                tlon_tool.notify_diary_migration_discovery(
+                    "diary/~zod/concurrent", **kwargs
+                )
+            )
+            await asyncio.sleep(0)
+            second_waited = not second.done()
+            release.set()
+            return second_waited, await first, await second
+
+        second_waited, first, second = asyncio.run(run())
+
+        self.assertTrue(second_waited)
+        self.assertTrue(first)
+        self.assertFalse(second)
+        self.assertEqual(len(calls), 1)
+
+    def test_blocked_tool_result_returns_before_notification_sender_resolves(self):
+        calls = []
+
+        async def run():
+            started = asyncio.Event()
+            release = asyncio.Event()
+
+            async def send_dm(text, blob):
+                calls.append((text, blob))
+                started.set()
+                await release.wait()
+                return True
+
+            async def title_lookup(_nest):
+                return "Detached diary"
+
+            tlon_tool.set_diary_migration_notification_sender(
+                send_dm,
+                bot_ship="~zod",
+                owner_ship="~mug",
+                title_lookup=title_lookup,
+            )
+            try:
+                execute = asyncio.create_task(
+                    tlon_tool.execute_tlon_tool(
+                        {"command": "channels info diary/~zod/detached"}
+                    )
+                )
+                await started.wait()
+                returned_before_release = execute.done()
+                release.set()
+                payload = json.loads(await execute)
+                await tlon_tool.wait_for_pending_discovery()
+                return returned_before_release, payload
+            finally:
+                tlon_tool.clear_diary_migration_notification_sender(send_dm)
+
+        returned_before_release, payload = asyncio.run(run())
+
+        self.assertTrue(returned_before_release)
+        self.assertTrue(payload["blocked"])
+        self.assertEqual(len(calls), 1)
 
     def test_diary_refusal_without_active_adapter_still_returns_normally(self):
         async def absent_sender(_text, _blob):
             return False
 
-        tlon_tool.set_diary_migration_notification_sender(absent_sender)
+        async def title_lookup(_nest):
+            return "Absent adapter"
+
+        tlon_tool.set_diary_migration_notification_sender(
+            absent_sender,
+            bot_ship="~zod",
+            owner_ship="~mug",
+            title_lookup=title_lookup,
+        )
         tlon_tool.clear_diary_migration_notification_sender(absent_sender)
 
-        payload = json.loads(
-            asyncio.run(
-                tlon_tool.execute_tlon_tool(
+        async def run():
+            payload = json.loads(
+                await tlon_tool.execute_tlon_tool(
                     {
                         "command": (
                             "notebook diary/~zod/discovery-no-adapter Title"
@@ -960,7 +1291,10 @@ class TlonToolExecutionTests(unittest.TestCase):
                     }
                 )
             )
-        )
+            await tlon_tool.wait_for_pending_discovery()
+            return payload
+
+        payload = asyncio.run(run())
 
         self.assertTrue(payload["blocked"])
         self.assertIn(

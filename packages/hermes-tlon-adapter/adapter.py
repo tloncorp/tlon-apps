@@ -214,11 +214,12 @@ from .tlon_tool import (
     clear_diary_migration_notification_sender,
     check_tlon_tool_requirements,
     diary_target_blocked_message,
-    notify_diary_migration_discovery,
     handle_tlon_tool,
     resolve_tlon_skill_path,
     set_diary_migration_notification_sender,
     split_tlon_command,
+    start_diary_migration_discovery,
+    wait_for_pending_discovery,
 )
 
 logger = logging.getLogger(__name__)
@@ -870,6 +871,7 @@ class TlonAdapter(BasePlatformAdapter):
             send_dm=self._send_migration_dm,
         )
         self._diary_notification_sender = self._send_migration_dm
+        self._diary_title_cache: dict[str, str] = {}
         self._connected_at = 0.0
         self._sse: Optional[TlonSSEClient] = None
         self._stream_task: Optional[asyncio.Task] = None
@@ -1049,7 +1051,10 @@ class TlonAdapter(BasePlatformAdapter):
             self._computing_presence.bind_loop(asyncio.get_running_loop())
             set_active_computing_presence_tracker(self._computing_presence)
             set_diary_migration_notification_sender(
-                self._diary_notification_sender
+                self._diary_notification_sender,
+                bot_ship=self.tlon_config.ship_name,
+                owner_ship=self.tlon_config.owner_ship,
+                title_lookup=self._lookup_diary_channel_title,
             )
             self._mark_connected()
             self._connected_at = time.monotonic()
@@ -3413,6 +3418,98 @@ class TlonAdapter(BasePlatformAdapter):
             and nest.split("/", 1)[0] in ("chat", "heap", "diary")
         }
 
+    async def _lookup_diary_channel_title(self, nest: str) -> Optional[str]:
+        canonical = canonicalize_nest(nest)
+        if canonical is None:
+            return None
+        cached = self._diary_title_cache.get(canonical)
+        if cached is not None:
+            return cached
+        if self._sse is None:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "SSE client is not connected",
+            )
+            return None
+        try:
+            init = await self._sse.scry("/groups-ui/v7/init")
+        except Exception as exc:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                exc,
+            )
+            return None
+        if not isinstance(init, Mapping):
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "init payload is not a mapping",
+            )
+            return None
+        groups = init.get("groups")
+        if not isinstance(groups, Mapping):
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "groups payload is not a mapping",
+            )
+            return None
+
+        discovered: dict[str, str] = {}
+        usable_group = False
+        usable_channels = False
+        for group_data in groups.values():
+            if not isinstance(group_data, Mapping):
+                continue
+            usable_group = True
+            channels = group_data.get("channels")
+            if not isinstance(channels, Mapping):
+                continue
+            usable_channels = True
+            for channel_nest, channel_data in channels.items():
+                if not isinstance(channel_nest, str) or not isinstance(
+                    channel_data, Mapping
+                ):
+                    continue
+                channel_canonical = canonicalize_nest(channel_nest)
+                if channel_canonical is None:
+                    continue
+                meta = channel_data.get("meta")
+                meta_title = meta.get("title") if isinstance(meta, Mapping) else None
+                title = (
+                    meta_title
+                    if meta_title is not None
+                    else channel_data.get("title")
+                )
+                if isinstance(title, str) and title.strip():
+                    discovered[channel_canonical] = title.strip()
+
+        if groups and not usable_group:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "group entries are not mappings",
+            )
+            return None
+        if groups and not usable_channels:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "channel payloads are not mappings",
+            )
+            return None
+
+        self._diary_title_cache.update(discovered)
+        cached = self._diary_title_cache.get(canonical)
+        if cached is None:
+            logger.debug(
+                "[tlon] diary migration title lookup missed nest %s in usable init payload",
+                canonical,
+            )
+        return cached
+
     async def _adopt_group_channels(self, flag: str) -> None:
         """Pull a newly-joined group's channels into the monitored set so the
         bot is addressable there, and persist them to groupChannels."""
@@ -4025,7 +4122,7 @@ class TlonAdapter(BasePlatformAdapter):
                 stderr=f"Error: {refusal}\n",
                 error=f"Error: {refusal}",
             )
-            await notify_diary_migration_discovery(canonical)
+            start_diary_migration_discovery(canonical)
         return result, sent_at_ms
 
     async def _process_block_directives(
