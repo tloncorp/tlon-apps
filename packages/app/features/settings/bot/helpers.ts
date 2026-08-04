@@ -3,11 +3,20 @@ import type {
   TlawnChannelGroups,
   TlawnChannelModelOverride,
   TlawnConfig,
+  TlawnLLMAuthStatus,
   TlawnProviderConfigInfo,
 } from '@tloncorp/api';
 import { desig, preSig } from '@tloncorp/api/lib/urbit';
 
-import { BASIC_DEFAULT_MODEL, BASIC_PROVIDER_ID } from './constants';
+import {
+  BASIC_DEFAULT_MODEL,
+  BASIC_PROVIDER_ID,
+  PROVIDER_OPTIONS,
+} from './constants';
+import {
+  getOpenAIAuthStatus,
+  isLLMAuthProviderConnected,
+} from './openAiSubscription';
 
 const LEGACY_BASIC_DEFAULT_MODELS = new Set(['minimax/minimax-m3']);
 
@@ -169,11 +178,22 @@ export const normalizeProviderConfig = (
 
 export const hasProviderCredential = (
   config: TlawnProviderConfigInfo | undefined,
-  providerId: string
+  providerId: string,
+  llmAuthStatus?: TlawnLLMAuthStatus
 ): boolean =>
   providerId === BASIC_PROVIDER_ID
     ? Boolean(config?.defaultKeys?.[BASIC_PROVIDER_ID])
-    : Boolean(config?.keys?.[providerId]);
+    : Boolean(config?.keys?.[providerId]) ||
+      (providerId === 'openai' &&
+        isLLMAuthProviderConnected(getOpenAIAuthStatus(llmAuthStatus)?.status));
+
+export const getAvailableProviderIds = (
+  config: TlawnProviderConfigInfo | undefined,
+  llmAuthStatus?: TlawnLLMAuthStatus
+): string[] =>
+  PROVIDER_OPTIONS.map((option) => option.id).filter((providerId) =>
+    hasProviderCredential(config, providerId, llmAuthStatus)
+  );
 
 // Never render a stored key in full. Show a redacted summary (mask + last four
 // characters) so the settings screens can indicate a key is set without

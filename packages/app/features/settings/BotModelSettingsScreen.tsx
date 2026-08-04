@@ -25,11 +25,7 @@ import {
   MAX_VISIBLE_MODELS,
   PROVIDER_OPTIONS,
 } from './bot/constants';
-import {
-  getErrorMessage,
-  getModelDisplayName,
-  hasProviderCredential,
-} from './bot/helpers';
+import { getErrorMessage, getModelDisplayName } from './bot/helpers';
 import {
   useAllProviderModels,
   useBotSettingsQueries,
@@ -56,7 +52,10 @@ export function BotModelSettingsScreen(props: Props) {
   // Also require the draft to be scoped to the current ship so a previous
   // account's initialized draft isn't treated as ready after switching.
   const ready = draft.initialized && draft.scopeKey === queries.ship;
-  const allProviderModels = useAllProviderModels(queries.providerConfig);
+  const allProviderModels = useAllProviderModels(
+    queries.providerConfig,
+    queries.llmAuthStatusQuery.data
+  );
   const [search, setSearch] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -73,9 +72,9 @@ export function BotModelSettingsScreen(props: Props) {
   const availableProviders = useMemo(
     () =>
       PROVIDER_OPTIONS.filter((option) =>
-        hasProviderCredential(queries.providerConfig, option.id)
+        allProviderModels.providers.includes(option.id)
       ),
-    [queries.providerConfig]
+    [allProviderModels.providers]
   );
 
   const handleBack = useCallback(() => {

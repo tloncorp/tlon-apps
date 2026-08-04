@@ -24,6 +24,11 @@ import {
   validateProviderKey,
 } from './bot/helpers';
 import {
+  getOpenAIAuthStatus,
+  getOpenAICredentialSwitch,
+  isLLMAuthProviderConnected,
+} from './bot/openAiSubscription';
+import {
   useBotSettingsMutations,
   useBotSettingsQueries,
 } from './bot/useBotSettingsData';
@@ -34,11 +39,13 @@ export function BotApiKeySettingsScreen(props: Props) {
   const { provider: providerId } = props.route.params;
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
-  const { saveProviderKey, deleteProviderKey } = useBotSettingsMutations();
+  const { saveProviderKey, deleteProviderKey, disconnectOpenAISubscription } =
+    useBotSettingsMutations();
   const [key, setKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [confirmSwitch, setConfirmSwitch] = useState(false);
 
   // The desktop settings drawer keeps this screen mounted across provider
   // switches, so clear the pasted key and related state when the provider
@@ -51,6 +58,7 @@ export function BotApiKeySettingsScreen(props: Props) {
     setShowKey(false);
     setValidationError(null);
     setConfirmRemove(false);
+    setConfirmSwitch(false);
   }, [providerId, queries.hostingUserId]);
 
   const provider = useMemo(
@@ -58,11 +66,25 @@ export function BotApiKeySettingsScreen(props: Props) {
     [providerId]
   );
   const isConfigured = Boolean(queries.providerConfig.keys?.[providerId]);
-  const busy = saveProviderKey.isPending || deleteProviderKey.isPending;
+  const subscriptionConnected = isLLMAuthProviderConnected(
+    getOpenAIAuthStatus(queries.llmAuthStatusQuery.data)?.status
+  );
+  const busy =
+    saveProviderKey.isPending ||
+    deleteProviderKey.isPending ||
+    disconnectOpenAISubscription.isPending;
 
   const handleBack = useCallback(() => {
     props.navigation.goBack();
   }, [props.navigation]);
+
+  const saveKey = useCallback(async () => {
+    await saveProviderKey.mutateAsync({
+      provider: providerId,
+      key: key.trim(),
+    });
+    setKey('');
+  }, [key, providerId, saveProviderKey]);
 
   const handleSave = useCallback(async () => {
     const validation = validateProviderKey(providerId, key);
@@ -71,16 +93,33 @@ export function BotApiKeySettingsScreen(props: Props) {
       return;
     }
     setValidationError(null);
+    const credentialSwitch = getOpenAICredentialSwitch(
+      {
+        hasApiKey: isConfigured,
+        subscriptionConnected: providerId === 'openai' && subscriptionConnected,
+      },
+      'api-key'
+    );
+    if (credentialSwitch.remove === 'subscription') {
+      setConfirmSwitch(true);
+      return;
+    }
     try {
-      await saveProviderKey.mutateAsync({
-        provider: providerId,
-        key: key.trim(),
-      });
-      setKey('');
+      await saveKey();
     } catch {
       // surfaced via saveProviderKey.error below
     }
-  }, [providerId, key, saveProviderKey]);
+  }, [isConfigured, key, providerId, saveKey, subscriptionConnected]);
+
+  const handleSwitch = useCallback(async () => {
+    try {
+      await disconnectOpenAISubscription.mutateAsync();
+      await saveKey();
+      setConfirmSwitch(false);
+    } catch {
+      // surfaced via mutation errors below
+    }
+  }, [disconnectOpenAISubscription, saveKey]);
 
   const handleRemove = useCallback(async () => {
     try {
@@ -109,6 +148,10 @@ export function BotApiKeySettingsScreen(props: Props) {
     (deleteProviderKey.error
       ? getErrorMessage(deleteProviderKey.error) ??
         'Failed to delete provider key.'
+      : null) ??
+    (disconnectOpenAISubscription.error
+      ? getErrorMessage(disconnectOpenAISubscription.error) ??
+        'Failed to disconnect the OpenAI subscription.'
       : null);
 
   return (
@@ -190,6 +233,15 @@ export function BotApiKeySettingsScreen(props: Props) {
         description="Tlonbot will stop using custom models from this provider."
         confirmText="Remove"
         onConfirm={handleRemove}
+      />
+      <ConfirmDialog
+        open={confirmSwitch}
+        onOpenChange={setConfirmSwitch}
+        destructive
+        title="Replace the OpenAI subscription?"
+        description="OpenAI subscription access and API-key access are alternatives. Saving this key will disconnect the OpenAI subscription."
+        confirmText="Replace and save"
+        onConfirm={handleSwitch}
       />
     </View>
   );

@@ -81,7 +81,10 @@ export function BotChannelRuleSettingsScreen(props: Props) {
   useSyncBotSettingsDraft(queries);
   const draft = useBotSettingsDraft();
   const ready = draft.initialized && draft.scopeKey === queries.ship;
-  const allProviderModels = useAllProviderModels(queries.providerConfig);
+  const allProviderModels = useAllProviderModels(
+    queries.providerConfig,
+    queries.llmAuthStatusQuery.data
+  );
   const [pendingShip, setPendingShip] = useState('');
   const [modelSearch, setModelSearch] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -187,13 +190,10 @@ export function BotChannelRuleSettingsScreen(props: Props) {
 
   const availableProviders = useMemo(
     () =>
-      PROVIDER_OPTIONS.filter(
-        (provider) =>
-          queries.providerConfig.keys?.[provider.id] ||
-          (provider.id === BASIC_PROVIDER_ID &&
-            queries.providerConfig.defaultKeys?.[BASIC_PROVIDER_ID])
+      PROVIDER_OPTIONS.filter((provider) =>
+        allProviderModels.providers.includes(provider.id)
       ),
-    [queries.providerConfig]
+    [allProviderModels.providers]
   );
   const hasCustomProviderKey = availableProviders.some(
     (provider) => provider.id !== BASIC_PROVIDER_ID
