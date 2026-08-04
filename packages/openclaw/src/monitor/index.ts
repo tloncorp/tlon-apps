@@ -104,7 +104,9 @@ import {
 } from '../version.js';
 import {
   GROUP_INTRO_MESSAGE,
+  INVITE_CARD_PROMPT,
   INVITE_FOLLOWUP_MESSAGE,
+  TOPICS_PICKER_PROMPT,
 } from './agent-onboarding-config.js';
 import {
   agentHasAdminSeat,
@@ -829,6 +831,8 @@ export async function monitorTlonProvider(
      * the directive.
      */
     const onboardingInvitePending = new Set<string>();
+    /** Channels checked (or paid): don't re-fetch history for them. */
+    const inviteSettled = new Set<string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -884,7 +888,16 @@ export async function monitorTlonProvider(
     const postInviteCardIfSetupComplete = async (
       nest: string
     ): Promise<void> => {
-      if (!onboardingInvitePending.has(nest)) {
+      // The pending set is the cheap, first-choice record — but it's
+      // in-memory, and a plugin restart between the directive turn and the
+      // config write forgets the debt (the prompt tells the model Tlon posts
+      // the link, so nobody else ever will). When it's empty, fall back to
+      // the transcript: a channel whose history shows this bot's own topics
+      // picker went through onboarding, and if no card followed, one is
+      // still owed. Pre-existing configured groups never had the picker
+      // posted, so they can't match. `inviteSettled` keeps the history fetch
+      // to once per channel per process.
+      if (!onboardingInvitePending.has(nest) && inviteSettled.has(nest)) {
         return;
       }
       try {
@@ -895,7 +908,28 @@ export async function monitorTlonProvider(
         if (!descriptionHasConfiguredJob(group.description)) {
           return;
         }
+        if (!onboardingInvitePending.has(nest)) {
+          const history = await fetchChannelHistory(api, nest, 50, runtime);
+          const botOnboardedHere = history.some(
+            (entry) =>
+              entry.author === botShipName &&
+              entry.content.startsWith(TOPICS_PICKER_PROMPT)
+          );
+          const cardAlreadyPosted = history.some(
+            (entry) =>
+              entry.author === botShipName &&
+              entry.content.startsWith(INVITE_CARD_PROMPT)
+          );
+          if (!botOnboardedHere || cardAlreadyPosted) {
+            inviteSettled.add(nest);
+            return;
+          }
+          runtime.log?.(
+            `[tlon] Recovered an owed invite card for ${nest} from the transcript`
+          );
+        }
         onboardingInvitePending.delete(nest);
+        inviteSettled.add(nest);
         const blob = buildInviteCardBlob(nest, group.flag);
         if (blob) {
           await postToChannel(nest, inviteCardFallbackText(), {
