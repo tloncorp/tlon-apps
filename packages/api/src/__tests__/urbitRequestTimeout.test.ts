@@ -104,7 +104,7 @@ describe('Urbit request timeouts cover the response body read', () => {
   it('scry rejects when the response body stalls after headers', async () => {
     const client = new Urbit('', undefined, 'groups', stalledBodyFetch());
     await expect(
-      client.scry({ app: 'groups', path: '/v2/ui/groups', timeout: 50 })
+      client.scry({ app: 'groups', path: '/v3/groups', timeout: 50 })
     ).rejects.toThrow();
   });
 
