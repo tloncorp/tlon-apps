@@ -3,7 +3,6 @@ import type { NativeStackNavigationOptions } from '@react-navigation/native-stac
 import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'tamagui';
 
-import { getNativeHeaderOptions } from '../../navigation/nativeHeaderOptions';
 import {
   buildNativeHeaderActionOptions,
   resolveNativeHeaderColor,
@@ -61,14 +60,14 @@ export function useScreenHeader({
   const options = useMemo<NativeStackNavigationOptions>(() => {
     void signature;
     return {
-      ...getNativeHeaderOptions({
-        title,
-        backgroundColor: resolvedBackgroundColor,
-      }),
-      headerBackVisible: false,
+      headerShown: true,
+      headerStyle: resolvedBackgroundColor
+        ? { backgroundColor: resolvedBackgroundColor }
+        : undefined,
       headerTitle: usesCustomTitle
         ? () => <NativeHeaderTitle store={titleStore} />
         : undefined,
+      title,
       ...buildNativeHeaderActionOptions({
         side: 'left',
         actionsRef: leftActionsRef,

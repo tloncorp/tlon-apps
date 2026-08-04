@@ -1,16 +1,16 @@
 import { Platform } from 'react-native';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  getNativeHeaderScrollOptions,
+  nativeHeaderPresentationOptions,
+} from './nativeHeaderOptions';
+
 vi.mock('@tloncorp/ui', () => ({
   mobileTypeStyles: {
     '$label/2xl': { fontSize: 17, fontWeight: '500' },
   },
 }));
-
-import {
-  getNativeHeaderOptions,
-  getNativeHeaderScrollOptions,
-} from './nativeHeaderOptions';
 
 const originalPlatform = { ...Platform };
 
@@ -19,24 +19,14 @@ afterEach(() => {
 });
 
 describe('native header options', () => {
-  it('hides native headers on web', () => {
-    Object.assign(Platform, { OS: 'web', Version: '26' });
-    expect(getNativeHeaderOptions({ title: 'Home' })).toEqual({
-      headerShown: false,
-    });
-  });
-
-  it('uses centered opaque headers on Android', () => {
-    Object.assign(Platform, { OS: 'android', Version: '35' });
-    const options = getNativeHeaderOptions({
-      title: 'Home',
-      backgroundColor: '#ffffff',
-    });
-
-    expect(options).toMatchObject({
-      headerShown: true,
+  it('shares the standard screen header presentation', () => {
+    expect(nativeHeaderPresentationOptions).toEqual({
+      headerShadowVisible: false,
       headerTitleAlign: 'center',
-      headerStyle: { backgroundColor: '#ffffff' },
+      headerTitleStyle: {
+        fontSize: 17,
+        fontWeight: '500',
+      },
     });
   });
 

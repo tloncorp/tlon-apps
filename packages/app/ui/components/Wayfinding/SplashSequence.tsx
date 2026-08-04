@@ -60,6 +60,7 @@ import {
 
 import { useContactDiscovery } from '../../../hooks/useContactDiscovery';
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
+import { useIsDarkMode } from '../../../hooks/useDarkMode';
 import {
   InviteSystemContactsFn,
   useInviteSystemContactHandler,
@@ -69,7 +70,6 @@ import {
   stageTlonbotRevivalDeferredConfig,
 } from '../../../lib/tlonbotRevivalDeferredConfig';
 import { prepareTlonbotRevivalNotificationsForProvisioning } from '../../../lib/tlonbotRevivalNotifications';
-import { useActiveTheme } from '../../../provider';
 import {
   AttachmentProvider,
   useAttachmentContext,
@@ -992,9 +992,8 @@ export function WelcomePane(props: {
   onActionPress: () => void;
   hostingBotEnabled?: boolean;
 }) {
-  const activeTheme = useActiveTheme();
   const insets = useSafeAreaInsets();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -1050,9 +1049,8 @@ export function WelcomePane(props: {
 }
 
 export function TlonBotPane(props: { onActionPress: () => void }) {
-  const activeTheme = useActiveTheme();
   const insets = useSafeAreaInsets();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <Image
@@ -1873,8 +1871,7 @@ export function GroupsPane(props: {
   botShipId?: string | null;
 }) {
   const insets = useSafeAreaInsets();
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
   const { inviteUrl: homeGroupInviteUrl, state: homeGroupInviteState } =
     useHomeGroupInviteLink({
       enabled: !!props.hostingBotEnabled,
@@ -2679,8 +2676,7 @@ function PrivacyLevelsDisplay() {
 }
 
 const InviteFriendsDisplay = () => {
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
 
   return (
     <View marginBottom="$2xl" height={410}>

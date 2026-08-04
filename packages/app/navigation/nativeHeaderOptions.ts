@@ -4,10 +4,14 @@ import { Platform } from 'react-native';
 
 const screenHeaderTitleStyle = mobileTypeStyles['$label/2xl'];
 
-export const nativeHeaderTitleStyle = {
-  fontSize: screenHeaderTitleStyle.fontSize,
-  fontWeight: screenHeaderTitleStyle.fontWeight,
-};
+export const nativeHeaderPresentationOptions = {
+  headerShadowVisible: false,
+  headerTitleAlign: 'center',
+  headerTitleStyle: {
+    fontSize: screenHeaderTitleStyle.fontSize,
+    fontWeight: screenHeaderTitleStyle.fontWeight,
+  },
+} as const satisfies NativeStackNavigationOptions;
 
 const topScrollEdgeEffects = {
   top: 'soft',
@@ -38,28 +42,6 @@ export function getNativeHeaderScrollOptions({
     scrollEdgeEffects: supportsNativeScrollEdgeEffects
       ? topScrollEdgeEffects
       : undefined,
-  };
-}
-
-export function getNativeHeaderOptions({
-  title,
-  backgroundColor,
-}: {
-  title: string;
-  backgroundColor?: string;
-}): NativeStackNavigationOptions {
-  if (Platform.OS === 'web') {
-    return { headerShown: false };
-  }
-
-  return {
-    headerShown: true,
-    headerBackButtonDisplayMode: 'minimal',
-    headerShadowVisible: false,
-    headerTitleAlign: Platform.OS === 'android' ? 'center' : undefined,
-    headerTitleStyle: nativeHeaderTitleStyle,
-    headerStyle: backgroundColor ? { backgroundColor } : undefined,
-    title,
   };
 }
 

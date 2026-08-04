@@ -43,6 +43,7 @@ import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { TopLevelTabNavigator } from './TopLevelTabNavigator';
+import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
 import type { RootStackParamList } from './types';
 import { mediaViewerScreenOptions } from './utils';
 
@@ -66,6 +67,8 @@ export function RootStack() {
     <Root.Navigator
       initialRouteName="MainTabs"
       screenOptions={{
+        ...nativeHeaderPresentationOptions,
+        headerBackVisible: false,
         headerShown: false,
         contentStyle: { backgroundColor: theme.background?.val },
       }}
