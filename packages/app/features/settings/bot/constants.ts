@@ -3,9 +3,9 @@ import type {
   TlawnProviderModel,
 } from '@tloncorp/api';
 
-export const BASIC_PROVIDER_LABEL = 'Basic (MiniMax M3)';
+export const BASIC_PROVIDER_LABEL = 'Basic (GPT-5.6 Luna)';
 export const BASIC_PROVIDER_ID = 'basic';
-export const BASIC_DEFAULT_MODEL = 'minimax/minimax-m3';
+export const BASIC_DEFAULT_MODEL = 'openai/gpt-5.6-luna';
 export const BASIC_PROVIDER_MODEL: TlawnProviderModel = {
   id: BASIC_DEFAULT_MODEL,
   name: BASIC_PROVIDER_LABEL,

@@ -86,6 +86,7 @@ import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
 import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
 import { validateProviderKey } from './providerKeyValidation';
+import { resolveInitialProviderModel } from './providerModelDefaults';
 import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
@@ -632,9 +633,9 @@ function SplashSequenceComponent(props: {
         return;
       }
       setProviderModels(result.data);
-      // Require an explicit model pick on BotModelPane once real models are
-      // loaded. `handleSaveModelConfig` still keeps a defensive fallback.
-      setBotPrimaryModel('');
+      setBotPrimaryModel((currentModel) =>
+        resolveInitialProviderModel(provider, result.data, currentModel)
+      );
       setCurrentPane(SplashPane.BotModel);
     } catch (e) {
       console.error('Failed to validate provider during onboarding:', e);
@@ -965,7 +966,7 @@ function prejoinTlonbotRevivalWayfindingGroups() {
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
-  basic: 'MiniMax',
+  basic: 'GPT-5.6 Luna',
   anthropic: 'Anthropic',
   openai: 'OpenAI',
   openrouter: 'OpenRouter',
