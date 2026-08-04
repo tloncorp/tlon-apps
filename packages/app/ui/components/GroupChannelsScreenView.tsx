@@ -321,20 +321,19 @@ export const GroupChannelsScreenView = React.memo(
           borderBottom={isWindowNarrow}
           backAction={onBackPressed}
           onTitlePress={handleTitlePress}
-          rightActions={
-            group && isGroupAdmin
-              ? [
-                  {
-                    kind: 'icon',
-                    id: 'edit-channels',
-                    icon: 'EditList',
-                    label: 'Edit channels',
-                    onPress: () => onPressManageChannels(group.id, false),
-                    disabled: !canEdit,
-                  },
-                ]
-              : []
-          }
+          rightActions={[
+            {
+              kind: 'icon',
+              id: 'edit-channels',
+              icon: 'EditList',
+              label: 'Edit channels',
+              onPress: group
+                ? () => onPressManageChannels(group.id, false)
+                : undefined,
+              disabled: !canEdit,
+              visible: !!group && isGroupAdmin,
+            },
+          ]}
           placement="navigation"
         />
         {isPersonalGroup &&

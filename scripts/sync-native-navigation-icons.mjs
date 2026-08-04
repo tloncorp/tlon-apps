@@ -29,17 +29,18 @@ const tabIcons = [
   ['Profile.svg', 'tab-profile'],
 ];
 
-const iosHeaderIcons = [
-  ['Add.svg', 'TlonHeaderAdd'],
-  ['ChevronLeft.svg', 'TlonHeaderBack'],
-  ['EditList.svg', 'TlonHeaderEditList'],
-  ['AddPerson.svg', 'TlonHeaderInvite'],
-  ['Overflow.svg', 'TlonHeaderOverflow'],
-  ['Refresh.svg', 'TlonHeaderRefresh'],
-  ['RightSidebar.svg', 'TlonHeaderRightSidebar'],
-  ['Search.svg', 'TlonHeaderSearch'],
-  ['Settings.svg', 'TlonHeaderSettings'],
-];
+const screenHeaderIcons = JSON.parse(
+  await readFile(
+    path.join(
+      rootDirectory,
+      'packages/app/ui/components/ScreenHeader/icons.json'
+    ),
+    'utf8'
+  )
+);
+const iosHeaderIcons = Object.entries(screenHeaderIcons).map(
+  ([iconName, sourceName]) => [sourceName, `TlonHeader${iconName}`]
+);
 
 const normalizeSvgColor = (svg) =>
   svg.replaceAll('currentColor', '#000000').replaceAll(/#1A1818/gi, '#000000');

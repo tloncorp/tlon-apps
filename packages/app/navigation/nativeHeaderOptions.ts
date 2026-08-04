@@ -1,6 +1,5 @@
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { mobileTypeStyles } from '@tloncorp/ui';
-import { Platform } from 'react-native';
 
 const screenHeaderTitleStyle = mobileTypeStyles['$label/2xl'];
 
@@ -22,14 +21,18 @@ const topScrollEdgeEffects = {
 
 export function getNativeHeaderScrollOptions({
   isDarkMode,
+  platform,
+  platformVersion,
 }: {
   isDarkMode: boolean;
+  platform: string;
+  platformVersion: string | number;
 }): NativeStackNavigationOptions {
-  if (Platform.OS !== 'ios') {
+  if (platform !== 'ios') {
     return {};
   }
 
-  const iosMajorVersion = Number.parseInt(String(Platform.Version), 10);
+  const iosMajorVersion = Number.parseInt(String(platformVersion), 10);
   const supportsNativeScrollEdgeEffects = iosMajorVersion >= 26;
 
   return {

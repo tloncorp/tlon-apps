@@ -1,13 +1,6 @@
 import { useDebouncedValue } from '@tloncorp/shared';
 import { Icon, Text, View } from '@tloncorp/ui';
-import {
-  Children,
-  PropsWithChildren,
-  ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { Children, ReactNode, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -63,11 +56,13 @@ type ScreenHeaderProps = SharedScreenHeaderProps &
   (
     | {
         placement?: 'content';
+        children?: ReactNode;
         leftControls?: ReactNode | null;
         rightControls?: ReactNode | null;
       }
     | {
         placement: 'navigation';
+        children?: never;
         leftControls?: never;
         rightControls?: never;
       }
@@ -91,7 +86,7 @@ export const ScreenHeaderComponent = ({
   loadingSubtitle,
   testID,
   placement = 'content',
-}: PropsWithChildren<ScreenHeaderProps>) => {
+}: ScreenHeaderProps) => {
   const { top } = useSafeAreaInsets();
   const [headerWidth, setHeaderWidth] = useState(0);
   const [leftControlsWidth, setLeftControlsWidth] = useState(0);
@@ -266,6 +261,8 @@ export const ScreenHeaderComponent = ({
       : []),
     ...(leftActions ?? []),
   ];
+  // Ordinary subtitles belong to the content/desktop layout. Native custom
+  // titles are reserved for elements the native string title cannot express.
   const usesCustomNativeTitle =
     typeof title !== 'string' ||
     titleIcon != null ||

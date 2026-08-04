@@ -160,6 +160,7 @@ function HeaderItemMenu({ action }: { action: ScreenHeaderMenuAction }) {
         <HeaderItemMenuTrigger
           icon={action.icon}
           aria-label={action.label}
+          testID={action.testID ?? action.id}
           onPress={isWindowNarrow ? () => setOpen(true) : undefined}
         />
       }

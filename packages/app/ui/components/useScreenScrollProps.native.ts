@@ -1,5 +1,5 @@
 import { NavigationContext } from '@react-navigation/native';
-import { useContext, useLayoutEffect, useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 import { Platform } from 'react-native';
 
 import { useIsDarkMode } from '../../hooks/useDarkMode';
@@ -7,6 +7,7 @@ import {
   getNativeHeaderScrollOptions,
   nativeHeaderScrollResetOptions,
 } from '../../navigation/nativeHeaderOptions';
+import { useInstalledNavigationOptions } from '../../navigation/useInstalledNavigationOptions';
 import type {
   ScreenScrollProps,
   UseScreenScrollPropsOptions,
@@ -18,22 +19,21 @@ export function useScreenScrollProps({
   const navigation = useContext(NavigationContext);
   const isDarkMode = useIsDarkMode();
   const options = useMemo(
-    () => getNativeHeaderScrollOptions({ isDarkMode }),
+    () =>
+      getNativeHeaderScrollOptions({
+        isDarkMode,
+        platform: Platform.OS,
+        platformVersion: Platform.Version,
+      }),
     [isDarkMode]
   );
 
-  useLayoutEffect(() => {
-    if (!enabled || Platform.OS !== 'ios' || !navigation) {
-      return;
-    }
-
-    navigation.setOptions(options);
-    return () => {
-      if (navigation.isFocused == null || navigation.isFocused()) {
-        navigation.setOptions(nativeHeaderScrollResetOptions);
-      }
-    };
-  }, [enabled, navigation, options]);
+  useInstalledNavigationOptions(
+    navigation,
+    options,
+    nativeHeaderScrollResetOptions,
+    enabled && Platform.OS === 'ios'
+  );
 
   return {
     contentInsetAdjustmentBehavior:

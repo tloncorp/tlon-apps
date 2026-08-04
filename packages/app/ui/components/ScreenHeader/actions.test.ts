@@ -4,8 +4,8 @@ import {
   type ScreenHeaderAction,
   type ScreenHeaderIconAction,
   type ScreenHeaderMenuAction,
-  forwardLatestScreenHeaderActionCallbacks,
-  getScreenHeaderActionSignature,
+  attachLatestScreenHeaderActionCallbacks,
+  getScreenHeaderActionPresentation,
   visibleScreenHeaderActions,
 } from './actions';
 
@@ -37,7 +37,10 @@ describe('screen header actions', () => {
         },
       ],
     };
-    const forwarded = forwardLatestScreenHeaderActionCallbacks(actionsRef);
+    const forwarded = attachLatestScreenHeaderActionCallbacks(
+      getScreenHeaderActionPresentation(actionsRef.current, (color) => color),
+      actionsRef
+    );
 
     actionsRef.current = [
       {
@@ -83,7 +86,10 @@ describe('screen header actions', () => {
         },
       ],
     };
-    const forwarded = forwardLatestScreenHeaderActionCallbacks(actionsRef);
+    const forwarded = attachLatestScreenHeaderActionCallbacks(
+      getScreenHeaderActionPresentation(actionsRef.current, (color) => color),
+      actionsRef
+    );
 
     actionsRef.current = [
       {
@@ -122,21 +128,20 @@ describe('screen header actions', () => {
         items: [{ id: 'read', label: 'Mark all read', onPress: vi.fn() }],
       },
     ];
-    const signature = getScreenHeaderActionSignature(base, resolveColor);
+    const serialize = (actions: ScreenHeaderAction[]) =>
+      JSON.stringify(getScreenHeaderActionPresentation(actions, resolveColor));
+    const signature = serialize(base);
 
     expect(signature).toContain('#00ff00');
     expect(signature).toContain('add-button');
     expect(signature).not.toBe(
-      getScreenHeaderActionSignature(
-        [{ ...base[0], label: 'Create' } as ScreenHeaderAction, base[1]],
-        resolveColor
-      )
+      serialize([
+        { ...base[0], label: 'Create' } as ScreenHeaderAction,
+        base[1],
+      ])
     );
     expect(signature).not.toBe(
-      getScreenHeaderActionSignature(
-        [base[0], { ...base[1], label: 'More' } as ScreenHeaderAction],
-        resolveColor
-      )
+      serialize([base[0], { ...base[1], label: 'More' } as ScreenHeaderAction])
     );
   });
 });

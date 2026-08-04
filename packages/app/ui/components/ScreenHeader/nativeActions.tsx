@@ -4,8 +4,8 @@ import { ColorTokens, useTheme } from 'tamagui';
 
 import {
   type ScreenHeaderAction,
-  forwardLatestScreenHeaderActionCallbacks,
-  visibleScreenHeaderActions,
+  type ScreenHeaderActionPresentation,
+  attachLatestScreenHeaderActionCallbacks,
 } from './actions';
 import { ScreenHeaderItemElements } from './primitives';
 
@@ -18,18 +18,6 @@ import { ScreenHeaderItemElements } from './primitives';
  */
 
 export type ThemeValues = ReturnType<typeof useTheme>;
-
-const nativeIconSources = {
-  Add: { uri: 'TlonHeaderAdd' },
-  AddPerson: { uri: 'TlonHeaderInvite' },
-  ChevronLeft: { uri: 'TlonHeaderBack' },
-  EditList: { uri: 'TlonHeaderEditList' },
-  Overflow: { uri: 'TlonHeaderOverflow' },
-  Refresh: { uri: 'TlonHeaderRefresh' },
-  RightSidebar: { uri: 'TlonHeaderRightSidebar' },
-  Search: { uri: 'TlonHeaderSearch' },
-  Settings: { uri: 'TlonHeaderSettings' },
-} as const;
 
 export function resolveNativeHeaderColor(
   color: ColorTokens | string | undefined,
@@ -53,8 +41,7 @@ export function resolveNativeHeaderColor(
 const noop = () => {};
 
 export function buildNativeHeaderItem(
-  action: ScreenHeaderAction,
-  theme: ThemeValues
+  action: ScreenHeaderAction
 ): NativeStackHeaderItem {
   if (action.kind === 'menu') {
     return {
@@ -63,9 +50,9 @@ export function buildNativeHeaderItem(
       accessibilityLabel: action.label,
       icon: {
         type: 'image',
-        source: nativeIconSources[action.icon],
+        source: { uri: `TlonHeader${action.icon}` },
       },
-      identifier: action.id,
+      identifier: action.testID ?? action.id,
       sharesBackground: true,
       menu: {
         items: action.items.map((item) => ({
@@ -82,11 +69,11 @@ export function buildNativeHeaderItem(
       type: 'button',
       label: action.text,
       accessibilityLabel: action.text,
-      identifier: action.id,
+      identifier: action.testID ?? action.id,
       onPress: action.onPress ?? noop,
       disabled: action.disabled,
       sharesBackground: true,
-      tintColor: resolveNativeHeaderColor(action.tint, theme),
+      tintColor: action.tint,
     };
   }
 
@@ -96,51 +83,47 @@ export function buildNativeHeaderItem(
     accessibilityLabel: action.label,
     icon: {
       type: 'image',
-      source: nativeIconSources[action.icon],
+      source: { uri: `TlonHeader${action.icon}` },
     },
-    identifier: action.id,
+    identifier: action.testID ?? action.id,
     onPress: action.onPress ?? noop,
     disabled: action.disabled,
     selected: action.selected,
     sharesBackground: true,
-    tintColor: resolveNativeHeaderColor(action.tint, theme),
+    tintColor: action.tint,
   } as NativeStackHeaderItem;
 }
 
 export function buildNativeHeaderItems(
-  actions: ScreenHeaderAction[],
-  theme: ThemeValues
+  actions: ScreenHeaderAction[]
 ): NativeStackHeaderItem[] {
-  return visibleScreenHeaderActions(actions).map((action) =>
-    buildNativeHeaderItem(action, theme)
-  );
+  return actions.map((action) => buildNativeHeaderItem(action));
 }
 
 export function buildNativeHeaderActionOptions({
   side,
+  presentation,
   actionsRef,
-  themeRef,
 }: {
   side: 'left' | 'right';
+  presentation: ScreenHeaderActionPresentation[];
   actionsRef: { current: ScreenHeaderAction[] };
-  themeRef: { current: ThemeValues };
 }) {
+  const actions = attachLatestScreenHeaderActionCallbacks(
+    presentation,
+    actionsRef
+  );
+
   if (Platform.OS === 'ios') {
     return {
       [`unstable_header${side === 'left' ? 'Left' : 'Right'}Items`]: () =>
-        buildNativeHeaderItems(
-          forwardLatestScreenHeaderActionCallbacks(actionsRef),
-          themeRef.current
-        ),
+        buildNativeHeaderItems(actions),
     };
   }
 
   return {
     [`header${side === 'left' ? 'Left' : 'Right'}`]: () => (
-      <ScreenHeaderItemElements
-        actions={forwardLatestScreenHeaderActionCallbacks(actionsRef)}
-        nativeHeader
-      />
+      <ScreenHeaderItemElements actions={actions} nativeHeader />
     ),
   };
 }
