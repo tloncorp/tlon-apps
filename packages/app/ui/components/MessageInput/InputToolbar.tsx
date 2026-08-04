@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { View, useTheme } from 'tamagui';
 
-import { useIsDarkMode } from '../../utils';
+import { useIsDarkMode } from '../../../hooks/useDarkMode';
 import { EditLinkBar } from './EditLinkBar';
 import {
   DEFAULT_TOOLBAR_ITEMS,

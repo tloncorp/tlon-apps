@@ -3,11 +3,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Appearance, Platform } from 'react-native';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
-import { useIsSystemDarkMode } from '../hooks/useIsSystemDarkMode';
+import { useIsDarkMode, useIsSystemDarkMode } from '../hooks/useDarkMode';
 import { SplashScreenTask, splashScreenProgress } from '../lib/splashscreen';
 import { AppTheme } from '../types/theme';
 import { config } from '../ui/tamagui.config';
-import { useIsDarkMode } from '../ui/utils/colorUtils';
 import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
 
 const ThemeContext = React.createContext<{
