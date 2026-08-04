@@ -1,9 +1,4 @@
-import {
-  NavigationProp,
-  useIsFocused,
-  useNavigation,
-} from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RouteProp, useIsFocused, useRoute } from '@react-navigation/native';
 import { FlashListRef } from '@shopify/flash-list';
 import { markInvitesRead } from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
@@ -17,20 +12,18 @@ import { Text, YStack } from 'tamagui';
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
+import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
-import type { RootStackParamList } from '../../navigation/types';
+import type { TopLevelTabParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   ChatOptionsProvider,
   GroupPreviewAction,
   GroupPreviewSheet,
-  NavBarView,
   NavigationProvider,
   PersonalInviteSheet,
   Pressable,
@@ -54,12 +47,11 @@ import {
 
 const logger = createDevLogger('ChatListScreen', false);
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
-
-export default function ChatListScreen(props: Props) {
-  const previewGroupId = props.route.params?.previewGroupId;
+export default function ChatListScreen() {
+  const route = useRoute<RouteProp<TopLevelTabParamList, 'ChatList'>>();
+  const previewGroupId = route.params?.previewGroupId;
   const previewGroupFromInviteNotification =
-    props.route.params?.previewGroupFromInviteNotification;
+    route.params?.previewGroupFromInviteNotification;
   return (
     <ChatListScreenView
       previewGroupId={previewGroupId}
@@ -77,12 +69,12 @@ export function ChatListScreenView({
   previewGroupFromInviteNotification?: boolean;
   focusedChannelId?: string;
 }) {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { navigation, navigateToGroup, navigateToChannel } =
+    useRootNavigation();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const personalInvite = db.personalInviteLink.useValue();
   const { isOpen, setIsOpen } = useGlobalSearch();
-  const { scrollRef: chatListRef, onPressActiveTab } =
-    useScrollTabToTop<FlashListRef<ChatListItemData>>();
+  const chatListRef = useScrollToTabTop<FlashListRef<ChatListItemData>>();
 
   const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
@@ -103,8 +95,6 @@ export function ChatListScreenView({
     enabled: isFocused,
   });
   const { performGroupAction } = useGroupActions();
-
-  const currentUser = useCurrentUserId();
 
   const handleInviteFriends = useCallback(() => {
     setPersonalInviteOpen(false);
@@ -239,8 +229,6 @@ export function ChatListScreenView({
       pending: chats?.pending ?? [],
     };
   }, [chats]);
-
-  const { navigateToGroup, navigateToChannel } = useRootNavigation();
 
   const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
   const onPressChat = useCallback(
@@ -491,20 +479,6 @@ export function ChatListScreenView({
           </View>
         </NavigationProvider>
         {displayData && <SystemNotices.NotificationsPrompt />}
-        <NavBarView
-          navigateToContacts={() => {
-            navigation.navigate('Contacts', undefined, { pop: true });
-          }}
-          navigateToHome={() => {
-            navigation.navigate('ChatList', undefined, { pop: true });
-          }}
-          navigateToNotifications={() => {
-            navigation.navigate('Activity', undefined, { pop: true });
-          }}
-          onPressActiveTab={onPressActiveTab}
-          currentRoute="ChatList"
-          currentUserId={currentUser}
-        />
       </ChatOptionsProvider>
 
       {isWindowNarrow && <CreateChatSheet ref={createChatSheetRef} />}

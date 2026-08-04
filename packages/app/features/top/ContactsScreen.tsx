@@ -1,4 +1,3 @@
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -9,12 +8,11 @@ import { useTheme } from 'tamagui';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useInviteSystemContactHandler } from '../../hooks/useInviteSystemContactHandler';
 import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
-import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
-import type { RootStackParamList } from '../../navigation/types';
+import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
+import { useNavigation } from '../../navigation/utils';
 import {
   AppDataContextProvider,
   ContactsScreenView,
-  NavBarView,
   ScreenHeader,
   View,
   getDisplayName,
@@ -23,13 +21,9 @@ import {
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Contacts'>;
-
-export default function ContactsScreen(props: Props) {
+export default function ContactsScreen() {
   const theme = useTheme();
-  const {
-    navigation: { navigate },
-  } = props;
+  const { navigate } = useNavigation();
 
   const inviteSystemContacts = useInviteSystemContacts();
   const inviteLink = db.personalInviteLink.useValue();
@@ -38,8 +32,7 @@ export default function ContactsScreen(props: Props) {
     inviteLink
   );
   const currentUser = useCurrentUserId();
-  const { scrollRef, onPressActiveTab } =
-    useScrollTabToTop<SectionList<db.Contact>>();
+  const scrollRef = useScrollToTabTop<SectionList<db.Contact>>();
 
   const { data: userContacts } = store.useUserContacts();
   const { data: contacts } = store.useContacts();
@@ -134,20 +127,6 @@ export default function ContactsScreen(props: Props) {
             onContactLongPress={onContactLongPress}
             onInviteSystemContact={handleInviteSystemContact}
             scrollRef={scrollRef}
-          />
-          <NavBarView
-            navigateToContacts={() => {
-              navigate('Contacts', undefined, { pop: true });
-            }}
-            navigateToHome={() => {
-              navigate('ChatList', undefined, { pop: true });
-            }}
-            navigateToNotifications={() => {
-              navigate('Activity', undefined, { pop: true });
-            }}
-            onPressActiveTab={onPressActiveTab}
-            currentRoute="Contacts"
-            currentUserId={currentUser}
           />
         </View>
       </View>
