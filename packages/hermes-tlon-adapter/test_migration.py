@@ -85,6 +85,17 @@ def parse_migrate_card(blob):
     )
 
 
+class MigrationDropWarningParityTests(unittest.TestCase):
+    def test_drop_warning_byte_length_matches_openclaw(self):
+        # Twin of MIGRATION_DROP_WARNING in
+        # packages/openclaw/src/migrate-command.ts. The two are sent to owners
+        # by different runtimes for the same operation, so they must not drift.
+        # The other reference to this constant only asserts it appears in a
+        # reply, which would still pass if both sides drifted together; this
+        # pins the bytes so an edit on either side trips a test.
+        self.assertEqual(len(migration.MIGRATION_DROP_WARNING.encode()), 535)
+
+
 class MigrationParsingTests(unittest.TestCase):
     def test_canonicalizes_migrate_and_cleanup(self):
         self.assertEqual(

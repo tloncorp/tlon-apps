@@ -2,7 +2,7 @@
 
 Use the `tlon` tool for Tlon reads, profile management, group/channel administration, contacts, settings, uploads, exposes, hooks, %notes notebooks, and message history.
 
-`%diary` channels are deprecated and unsupported by the Hermes `tlon` tool. Do not try to send to a `diary/` nest: Hermes shells out to `tlon posts send`, which refuses it. To migrate one to `%notes`, ask the owner to type `/migrate <diary-nest>`; migration writes and cleanup are blocked from model-issued `tlon` commands.
+`%diary` channels are deprecated and unsupported by the Hermes `tlon` tool. Do not try to send to a `diary/` nest: Hermes shells out to `tlon posts send`, which refuses it. To migrate one to `%notes`, ask the owner to type `/migrate <diary-nest>`; to remove a notebook a migration created, ask them to type `/migrate cleanup <notes-nest>`. Migration writes and cleanup are both blocked from model-issued `tlon` commands, including `notes notebook-delete` and `channels delete` on a `notes/` nest.
 
 Do not guess `tlon` command syntax. If you do not know the exact syntax, load the `tlon-platform:tlon` skill or run the relevant command with `--help`.
 
