@@ -12,9 +12,9 @@ import {
 describe('screen header actions', () => {
   it('preserves declaration order while excluding hidden actions', () => {
     const actions: ScreenHeaderAction[] = [
-      { kind: 'text', id: 'first', text: 'First' },
-      { kind: 'text', id: 'hidden', text: 'Hidden', visible: false },
-      { kind: 'icon', id: 'last', icon: 'Search', label: 'Search' },
+      { id: 'first', text: 'First' },
+      { id: 'hidden', text: 'Hidden', visible: false },
+      { id: 'last', icon: 'Search', label: 'Search' },
     ];
 
     expect(visibleScreenHeaderActions(actions).map((item) => item.id)).toEqual([
@@ -29,7 +29,6 @@ describe('screen header actions', () => {
     const actionsRef: { current: ScreenHeaderAction[] } = {
       current: [
         {
-          kind: 'icon',
           id: 'search',
           icon: 'Search',
           label: 'Search',
@@ -44,7 +43,6 @@ describe('screen header actions', () => {
 
     actionsRef.current = [
       {
-        kind: 'icon',
         id: 'search',
         icon: 'Search',
         label: 'Search',
@@ -57,7 +55,6 @@ describe('screen header actions', () => {
 
     actionsRef.current = [
       {
-        kind: 'icon',
         id: 'search',
         icon: 'Search',
         label: 'Search',
@@ -75,7 +72,6 @@ describe('screen header actions', () => {
     const actionsRef: { current: ScreenHeaderAction[] } = {
       current: [
         {
-          kind: 'menu',
           id: 'options',
           icon: 'Overflow',
           label: 'Options',
@@ -93,7 +89,6 @@ describe('screen header actions', () => {
 
     actionsRef.current = [
       {
-        kind: 'menu',
         id: 'options',
         icon: 'Overflow',
         label: 'Options',
@@ -113,7 +108,6 @@ describe('screen header actions', () => {
       color === '$accent' ? '#00ff00' : color;
     const base: ScreenHeaderAction[] = [
       {
-        kind: 'icon',
         id: 'add',
         icon: 'Add',
         label: 'Add',
@@ -121,7 +115,6 @@ describe('screen header actions', () => {
         testID: 'add-button',
       },
       {
-        kind: 'menu',
         id: 'options',
         icon: 'Overflow',
         label: 'Options',

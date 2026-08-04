@@ -217,7 +217,6 @@ function ChatDetailsScreenView() {
         title={getTitle()}
         rightActions={[
           {
-            kind: 'text',
             id: 'DetailsEditButton',
             text: 'Rename',
             onPress: handlePressEdit,

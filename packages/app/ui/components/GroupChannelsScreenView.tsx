@@ -323,7 +323,6 @@ export const GroupChannelsScreenView = React.memo(
           onTitlePress={handleTitlePress}
           rightActions={[
             {
-              kind: 'icon',
               id: 'edit-channels',
               icon: 'EditList',
               label: 'Edit channels',

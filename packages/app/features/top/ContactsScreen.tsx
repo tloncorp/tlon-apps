@@ -97,7 +97,6 @@ export default function ContactsScreen() {
             borderBottom
             leftActions={[
               {
-                kind: 'icon',
                 id: 'add-contacts',
                 icon: 'Add',
                 label: 'Add contacts',
@@ -107,7 +106,6 @@ export default function ContactsScreen() {
             ]}
             rightActions={[
               {
-                kind: 'icon',
                 id: 'contacts-settings',
                 icon: 'Settings',
                 label: 'Settings',

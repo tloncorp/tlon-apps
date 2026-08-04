@@ -1034,7 +1034,6 @@ export function NotesNativeChannel({
     }
     return [
       {
-        kind: 'icon',
         id: 'NotesRootNewHeaderAction',
         icon: 'Add',
         label: 'New',

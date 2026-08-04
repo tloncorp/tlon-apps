@@ -398,7 +398,6 @@ export function ChatListScreenView({
               showSubtitle={true}
               leftActions={[
                 {
-                  kind: 'icon',
                   id: 'invite-people',
                   icon: 'AddPerson',
                   label: 'Invite people',
@@ -408,14 +407,12 @@ export function ChatListScreenView({
               ]}
               rightActions={[
                 {
-                  kind: 'icon',
                   id: 'search',
                   icon: 'Search',
                   label: 'Search',
                   onPress: handleSearchInputToggled,
                 },
                 {
-                  kind: 'icon',
                   id: 'add-chat',
                   icon: 'Add',
                   label: 'Add a chat',

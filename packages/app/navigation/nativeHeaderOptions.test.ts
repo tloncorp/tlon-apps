@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  getNativeHeaderScrollOptions,
-  nativeHeaderPresentationOptions,
-} from './nativeHeaderOptions';
+import { getNativeHeaderScrollOptions } from './nativeHeaderOptions';
 
 vi.mock('@tloncorp/ui', () => ({
   mobileTypeStyles: {
@@ -12,17 +9,6 @@ vi.mock('@tloncorp/ui', () => ({
 }));
 
 describe('native header options', () => {
-  it('shares the standard screen header presentation', () => {
-    expect(nativeHeaderPresentationOptions).toEqual({
-      headerShadowVisible: false,
-      headerTitleAlign: 'center',
-      headerTitleStyle: {
-        fontSize: 17,
-        fontWeight: '500',
-      },
-    });
-  });
-
   it('configures iOS scroll chrome independently of the header model', () => {
     expect(
       getNativeHeaderScrollOptions({

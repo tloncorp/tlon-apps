@@ -68,7 +68,6 @@ export function BotSettingsScreenView({
         loadingSubtitle={refreshing && !initialLoading ? 'Refreshing' : null}
         rightActions={[
           {
-            kind: 'icon',
             id: 'refresh-providers',
             icon: 'Refresh',
             label: 'Refresh providers',
