@@ -20,7 +20,7 @@ import { useIsDarkTheme } from '../../utils/colorUtils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
 import { ScreenHeader } from '../ScreenHeader';
-import type { ScreenHeaderItemConfig } from '../screenHeaderItemModel';
+import type { ScreenHeaderAction } from '../screenHeaderItemModel';
 import { ActivityTabs } from './ActivityHeader';
 import { ActivityListItem } from './ActivityListItem';
 
@@ -324,15 +324,20 @@ export function ActivityScreenContent({
     setMarkAllReadConfirmationOpen(true);
   }, []);
 
-  const activityHeaderItems = useMemo<ScreenHeaderItemConfig[]>(
+  const activityHeaderActions = useMemo<ScreenHeaderAction[]>(
     () => [
       {
+        kind: 'menu',
         id: 'activity-options',
-        menu: {
-          icon: 'Overflow',
-          label: 'Activity options',
-          items: [{ label: 'Mark all as read', onPress: requestMarkAllRead }],
-        },
+        icon: 'Overflow',
+        label: 'Activity options',
+        items: [
+          {
+            id: 'mark-all-read',
+            label: 'Mark all as read',
+            onPress: requestMarkAllRead,
+          },
+        ],
       },
     ],
     [requestMarkAllRead]
@@ -377,8 +382,8 @@ export function ActivityScreenContent({
           title="Activity"
           subtitle={subtitle}
           loadingSubtitle={loadingSubtitle}
-          rightItems={activityHeaderItems}
-          useNativeHeader
+          rightActions={activityHeaderActions}
+          placement="navigation"
         />
         {allTabsAreEmpty ? (
           <ActivityEmptyState

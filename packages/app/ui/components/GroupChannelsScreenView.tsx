@@ -289,9 +289,9 @@ export const GroupChannelsScreenView = React.memo(
             title={notebookSidebarContent.title}
             testID="NotebookSidebarBackHeader"
             borderBottom
-            useNativeHeader
+            placement="navigation"
             backAction={handleDismissNotebookSidebar}
-            rightItems={notebookSidebarContent.headerItems}
+            rightActions={notebookSidebarContent.headerActions}
           />
           <YStack flex={1} minHeight={0}>
             {notebookSidebarContent.content}
@@ -311,10 +311,11 @@ export const GroupChannelsScreenView = React.memo(
           borderBottom={isWindowNarrow}
           backAction={onBackPressed}
           onTitlePress={handleTitlePress}
-          rightItems={
+          rightActions={
             group && isGroupAdmin
               ? [
                   {
+                    kind: 'icon',
                     id: 'edit-channels',
                     icon: 'EditList',
                     label: 'Edit channels',
@@ -324,7 +325,7 @@ export const GroupChannelsScreenView = React.memo(
                 ]
               : []
           }
-          useNativeHeader
+          placement="navigation"
         />
         {isPersonalGroup &&
           group &&

@@ -95,8 +95,9 @@ export default function ContactsScreen() {
           <ScreenHeader
             title="Contacts"
             borderBottom
-            leftItems={[
+            leftActions={[
               {
+                kind: 'icon',
                 id: 'add-contacts',
                 icon: 'Add',
                 label: 'Add contacts',
@@ -104,8 +105,9 @@ export default function ContactsScreen() {
                 onPress: () => navigate('AddContacts'),
               },
             ]}
-            rightItems={[
+            rightActions={[
               {
+                kind: 'icon',
                 id: 'contacts-settings',
                 icon: 'Settings',
                 label: 'Settings',
@@ -113,7 +115,7 @@ export default function ContactsScreen() {
                 onPress: () => navigate('Settings', undefined, { pop: true }),
               },
             ]}
-            useNativeHeader
+            placement="navigation"
           />
           <SystemNotices.ContactBookPrompt
             status="undetermined"

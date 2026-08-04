@@ -88,7 +88,7 @@ export function ContextLensRunScreen(props: Props) {
         title="Bot run"
         backAction={props.navigation.goBack}
         borderBottom
-        useNativeHeader
+        placement="navigation"
       />
       <ScreenScrollView showsVerticalScrollIndicator={false}>
         {lens ? (

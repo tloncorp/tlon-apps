@@ -396,8 +396,9 @@ export function ChatListScreenView({
               subtitle={syncSubtitle}
               loadingSubtitle={loadingSubtitle}
               showSubtitle={true}
-              leftItems={[
+              leftActions={[
                 {
+                  kind: 'icon',
                   id: 'invite-people',
                   icon: 'AddPerson',
                   label: 'Invite people',
@@ -405,14 +406,16 @@ export function ChatListScreenView({
                   visible: !!personalInvite,
                 },
               ]}
-              rightItems={[
+              rightActions={[
                 {
+                  kind: 'icon',
                   id: 'search',
                   icon: 'Search',
                   label: 'Search',
                   onPress: handleSearchInputToggled,
                 },
                 {
+                  kind: 'icon',
                   id: 'add-chat',
                   icon: 'Add',
                   label: 'Add a chat',
@@ -424,7 +427,7 @@ export function ChatListScreenView({
                     : undefined,
                 },
               ]}
-              useNativeHeader
+              placement="navigation"
             />
             {chats &&
             (chats.unpinned.length ||

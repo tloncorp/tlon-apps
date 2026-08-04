@@ -1,23 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  type HeaderIconItemConfig,
-  type HeaderMenuItemConfig,
-  type ScreenHeaderItemConfig,
-  forwardLatestHeaderItemCallbacks,
-  getScreenHeaderItemSignature,
-  visibleHeaderItemConfigs,
+  type ScreenHeaderAction,
+  type ScreenHeaderIconAction,
+  type ScreenHeaderMenuAction,
+  forwardLatestScreenHeaderActionCallbacks,
+  getScreenHeaderActionSignature,
+  visibleScreenHeaderActions,
 } from './screenHeaderItemModel';
 
-describe('screen header item model', () => {
-  it('preserves declaration order while excluding hidden items', () => {
-    const configs: ScreenHeaderItemConfig[] = [
-      { id: 'first', text: 'First' },
-      { id: 'hidden', text: 'Hidden', visible: false },
-      { id: 'last', icon: 'Search', label: 'Search' },
+describe('screen header action model', () => {
+  it('preserves declaration order while excluding hidden actions', () => {
+    const actions: ScreenHeaderAction[] = [
+      { kind: 'text', id: 'first', text: 'First' },
+      { kind: 'text', id: 'hidden', text: 'Hidden', visible: false },
+      { kind: 'icon', id: 'last', icon: 'Search', label: 'Search' },
     ];
 
-    expect(visibleHeaderItemConfigs(configs).map((item) => item.id)).toEqual([
+    expect(visibleScreenHeaderActions(actions).map((item) => item.id)).toEqual([
       'first',
       'last',
     ]);
@@ -26,22 +26,35 @@ describe('screen header item model', () => {
   it('forwards button presses to the latest enabled callback', () => {
     const original = vi.fn();
     const latest = vi.fn();
-    const configsRef: { current: ScreenHeaderItemConfig[] } = {
+    const actionsRef: { current: ScreenHeaderAction[] } = {
       current: [
-        { id: 'search', icon: 'Search', label: 'Search', onPress: original },
+        {
+          kind: 'icon',
+          id: 'search',
+          icon: 'Search',
+          label: 'Search',
+          onPress: original,
+        },
       ],
     };
-    const forwarded = forwardLatestHeaderItemCallbacks(configsRef);
+    const forwarded = forwardLatestScreenHeaderActionCallbacks(actionsRef);
 
-    configsRef.current = [
-      { id: 'search', icon: 'Search', label: 'Search', onPress: latest },
+    actionsRef.current = [
+      {
+        kind: 'icon',
+        id: 'search',
+        icon: 'Search',
+        label: 'Search',
+        onPress: latest,
+      },
     ];
-    (forwarded[0] as HeaderIconItemConfig).onPress?.();
+    (forwarded[0] as ScreenHeaderIconAction).onPress?.();
     expect(original).not.toHaveBeenCalled();
     expect(latest).toHaveBeenCalledOnce();
 
-    configsRef.current = [
+    actionsRef.current = [
       {
+        kind: 'icon',
         id: 'search',
         icon: 'Search',
         label: 'Search',
@@ -49,70 +62,81 @@ describe('screen header item model', () => {
         disabled: true,
       },
     ];
-    (forwarded[0] as HeaderIconItemConfig).onPress?.();
+    (forwarded[0] as ScreenHeaderIconAction).onPress?.();
     expect(latest).toHaveBeenCalledOnce();
   });
 
-  it('forwards menu actions after the menu is updated', () => {
+  it('forwards menu actions by stable identity after reordering', () => {
     const original = vi.fn();
     const latest = vi.fn();
-    const configsRef: { current: ScreenHeaderItemConfig[] } = {
+    const actionsRef: { current: ScreenHeaderAction[] } = {
       current: [
         {
+          kind: 'menu',
           id: 'options',
-          menu: {
-            icon: 'Overflow',
-            label: 'Options',
-            items: [{ label: 'Mark all read', onPress: original }],
-          },
+          icon: 'Overflow',
+          label: 'Options',
+          items: [
+            { id: 'read', label: 'Mark all read', onPress: original },
+            { id: 'settings', label: 'Settings', onPress: vi.fn() },
+          ],
         },
       ],
     };
-    const forwarded = forwardLatestHeaderItemCallbacks(configsRef);
+    const forwarded = forwardLatestScreenHeaderActionCallbacks(actionsRef);
 
-    configsRef.current = [
+    actionsRef.current = [
       {
+        kind: 'menu',
         id: 'options',
-        menu: {
-          icon: 'Overflow',
-          label: 'Options',
-          items: [{ label: 'Mark all read', onPress: latest }],
-        },
+        icon: 'Overflow',
+        label: 'Options',
+        items: [
+          { id: 'settings', label: 'Settings', onPress: vi.fn() },
+          { id: 'read', label: 'Mark all read', onPress: latest },
+        ],
       },
     ];
-    (forwarded[0] as HeaderMenuItemConfig).menu.items[0]?.onPress();
+    (forwarded[0] as ScreenHeaderMenuAction).items[0]?.onPress();
     expect(original).not.toHaveBeenCalled();
     expect(latest).toHaveBeenCalledOnce();
   });
 
-  it('captures rendered state and resolved tint in its signature', () => {
+  it('captures all rendered state and resolved colors in its signature', () => {
     const resolveColor = (color: string | undefined) =>
       color === '$accent' ? '#00ff00' : color;
-    const enabled = getScreenHeaderItemSignature(
-      [
-        {
-          id: 'add',
-          icon: 'Add',
-          label: 'Add',
-          tint: '$accent',
-        },
-      ],
-      resolveColor
-    );
-    const disabled = getScreenHeaderItemSignature(
-      [
-        {
-          id: 'add',
-          icon: 'Add',
-          label: 'Add',
-          tint: '$accent',
-          disabled: true,
-        },
-      ],
-      resolveColor
-    );
+    const base: ScreenHeaderAction[] = [
+      {
+        kind: 'icon',
+        id: 'add',
+        icon: 'Add',
+        label: 'Add',
+        tint: '$accent',
+        testID: 'add-button',
+      },
+      {
+        kind: 'menu',
+        id: 'options',
+        icon: 'Overflow',
+        label: 'Options',
+        items: [{ id: 'read', label: 'Mark all read', onPress: vi.fn() }],
+      },
+    ];
+    const signature = getScreenHeaderActionSignature(base, resolveColor);
 
-    expect(enabled).toContain('#00ff00');
-    expect(disabled).not.toBe(enabled);
+    expect(signature).toContain('#00ff00');
+    expect(signature).toContain('add-button');
+    expect(signature).not.toBe(
+      getScreenHeaderActionSignature(
+        [{ ...base[0], label: 'Create' } as ScreenHeaderAction, base[1]],
+        resolveColor
+      )
+    );
+    expect(signature).not.toBe(
+      getScreenHeaderActionSignature(
+        [base[0], { ...base[1], label: 'More' } as ScreenHeaderAction],
+        resolveColor
+      )
+    );
   });
 });

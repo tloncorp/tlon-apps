@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type { ScreenHeaderItemConfig } from './screenHeaderItemModel';
+import type { ScreenHeaderAction } from './screenHeaderItemModel';
 
 export interface UseScreenHeaderOptions {
   enabled: boolean;
@@ -8,7 +8,6 @@ export interface UseScreenHeaderOptions {
   titleElement: ReactNode;
   usesCustomTitle: boolean;
   backgroundColor?: string;
-  left: ScreenHeaderItemConfig[];
-  right: ScreenHeaderItemConfig[];
-  revision?: unknown;
+  left: ScreenHeaderAction[];
+  right: ScreenHeaderAction[];
 }
