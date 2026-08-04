@@ -19,7 +19,6 @@ export interface ScreenHeaderIconAction extends BaseAction {
   label: string;
   onPress?: () => void;
   disabled?: boolean;
-  selected?: boolean;
   /** Theme token (`$positiveActionText`) or raw color. */
   tint?: string;
   /** React-rendered header highlight behind the icon. */
@@ -153,7 +152,6 @@ export function getScreenHeaderActionPresentation(
       icon: action.icon,
       label: action.label,
       disabled: action.disabled,
-      selected: action.selected,
       tint: resolveColor(action.tint),
       backgroundTint: resolveColor(action.backgroundTint),
       testID: action.testID,

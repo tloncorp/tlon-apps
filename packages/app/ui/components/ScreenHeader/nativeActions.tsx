@@ -88,7 +88,6 @@ export function buildNativeHeaderItem(
     identifier: action.testID ?? action.id,
     onPress: action.onPress ?? noop,
     disabled: action.disabled,
-    selected: action.selected,
     sharesBackground: true,
     tintColor: action.tint,
   } as NativeStackHeaderItem;
