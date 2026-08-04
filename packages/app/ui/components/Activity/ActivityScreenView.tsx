@@ -21,7 +21,7 @@ import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
 import { ScreenHeader } from '../ScreenHeader';
 import type { ScreenHeaderItemConfig } from '../screenHeaderItemModel';
-import { ActivityHeader } from './ActivityHeader';
+import { ActivityTabs } from './ActivityHeader';
 import { ActivityListItem } from './ActivityListItem';
 
 const logger = createDevLogger('ActivityScreenView', false);
@@ -393,21 +393,21 @@ export function ActivityScreenContent({
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
       <View flex={1}>
+        <ScreenHeader
+          title="Activity"
+          subtitle={subtitle}
+          loadingSubtitle={loadingSubtitle}
+          rightItems={activityHeaderItems}
+          useNativeHeader
+        />
         {allTabsAreEmpty ? (
           <ActivityEmptyState
             onInviteFriends={() => setPersonalInviteOpen(true)}
             onNavigateToContacts={onNavigateToContacts}
-            rightItems={activityHeaderItems}
           />
         ) : (
           <>
-            <ActivityHeader
-              activeTab={activeTab}
-              onTabPress={onPressTab}
-              subtitle={subtitle}
-              loadingSubtitle={loadingSubtitle}
-              rightItems={activityHeaderItems}
-            />
+            <ActivityTabs activeTab={activeTab} onTabPress={onPressTab} />
             {currentTabIsEmpty ? (
               <XStack flex={1} justifyContent="center" paddingTop="$6xl">
                 <Text fontSize="$l" color="$tertiaryText">
@@ -460,11 +460,9 @@ export function ActivityScreenContent({
 export function ActivityEmptyState({
   onInviteFriends,
   onNavigateToContacts,
-  rightItems,
 }: {
   onInviteFriends: () => void;
   onNavigateToContacts?: () => void;
-  rightItems?: ScreenHeaderItemConfig[];
 }) {
   const isDark = useIsDarkTheme();
 
@@ -477,38 +475,35 @@ export function ActivityEmptyState({
       : require(`../../assets/raster/blocks.png`);
 
   return (
-    <>
-      <ScreenHeader title="Activity" rightItems={rightItems} useNativeHeader />
-      <View
-        flex={1}
-        justifyContent="center"
-        alignItems="center"
-        padding="$xl"
-        gap="$2xl"
+    <View
+      flex={1}
+      justifyContent="center"
+      alignItems="center"
+      padding="$xl"
+      gap="$2xl"
+    >
+      <Image
+        style={{ width: 130, height: 130 }}
+        resizeMode="contain"
+        source={blocksImage}
+      />
+      <Text
+        size="$label/m"
+        color="$tertiaryText"
+        textAlign="center"
+        maxWidth={350}
+        paddingBottom={'$m'}
       >
-        <Image
-          style={{ width: 130, height: 130 }}
-          resizeMode="contain"
-          source={blocksImage}
-        />
-        <Text
-          size="$label/m"
-          color="$tertiaryText"
-          textAlign="center"
-          maxWidth={350}
-          paddingBottom={'$m'}
-        >
-          There is no activity... yet.{'\n'}Invite some of your contacts to
-          {'\n'}
-          Tlon Messenger to get started.
-        </Text>
-        <View gap="$s" width="100%" maxWidth={300}>
-          <Button label="Invite Friends" onPress={onInviteFriends} />
-          {onNavigateToContacts && (
-            <Button label="View Contacts" onPress={onNavigateToContacts} />
-          )}
-        </View>
+        There is no activity... yet.{'\n'}Invite some of your contacts to
+        {'\n'}
+        Tlon Messenger to get started.
+      </Text>
+      <View gap="$s" width="100%" maxWidth={300}>
+        <Button label="Invite Friends" onPress={onInviteFriends} />
+        {onNavigateToContacts && (
+          <Button label="View Contacts" onPress={onNavigateToContacts} />
+        )}
       </View>
-    </>
+    </View>
   );
 }
