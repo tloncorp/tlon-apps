@@ -286,7 +286,47 @@ describe('eligibility, metrics, and ordering', () => {
       citeCount: 1,
       linkBlockCount: 1,
       groupMentionCount: 3,
+      flattenedInlineCount: 0,
     });
+  });
+
+  it('counts tags and inline block references as flattened, not dropped', () => {
+    // Both survive migration as their visible text but lose what they were.
+    // Before this was counted, the plan reported nothing at all for either,
+    // so an owner was told the post migrated intact. Wire shapes are taken
+    // from hand-authored-wire-exact-story-variants.json.
+    const metrics = countArchiveOnlyMetrics([
+      source({
+        content: [
+          { inline: ['tag ', { tag: 'wire-exact-tag' }] },
+          {
+            inline: [
+              'reference ',
+              { block: { index: 0, text: 'wire-exact-block-reference' } },
+            ],
+          },
+        ],
+      }),
+    ]);
+    expect(metrics.flattenedInlineCount).toBe(2);
+    // They are not cites or link blocks; those counts stay untouched.
+    expect(metrics.citeCount).toBe(0);
+    expect(metrics.linkBlockCount).toBe(0);
+  });
+
+  it('counts a tag nested inside a header', () => {
+    const metrics = countArchiveOnlyMetrics([
+      source({
+        content: [
+          {
+            block: {
+              header: { tag: 'h2', content: [{ tag: 'nested-tag' }] },
+            },
+          },
+        ],
+      }),
+    ]);
+    expect(metrics.flattenedInlineCount).toBe(1);
   });
 
   it('counts a group mention in a header', () => {

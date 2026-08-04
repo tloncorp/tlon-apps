@@ -37,6 +37,7 @@ const PLAN: MigrationPlan = {
     citeCount: 5,
     linkBlockCount: 6,
     groupMentionCount: 7,
+    flattenedInlineCount: 0,
   },
 };
 
@@ -250,7 +251,9 @@ describe('completion summary rendering', () => {
     });
     const archiveLine = lines.find((line) => line.includes('Left in archive'));
     expect(archiveLine).not.toContain('group mention');
-    expect(lines).toContain('  Converted to plain text: 7 group mentions');
+    expect(lines).toContain(
+      '  Converted to plain text: 7 group mentions, 0 tags/inline references'
+    );
   });
 });
 

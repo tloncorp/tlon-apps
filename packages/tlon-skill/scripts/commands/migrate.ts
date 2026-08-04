@@ -134,6 +134,7 @@ export function formatPlanText(plan: MigrationPlan): string {
     "WHAT DOESN'T MOVE  (stays readable in the archive)",
     `  ${plan.metrics.citeCount} post references and ${plan.metrics.linkBlockCount} link blocks — dropped in conversion`,
     `  ${plan.metrics.groupMentionCount} group mentions → converted to plain text`,
+    `  ${plan.metrics.flattenedInlineCount} tags and inline references → converted to plain text`,
     `  ${plan.metrics.totalComments} comments and ${plan.metrics.totalReactions} post reactions — remain on the archived channel`,
     `  ${plan.tombstoneCount} tombstones and ${plan.stubCount} sequence stubs — not imported`,
     "  Reactions on comments aren't counted — replies aren't read",
@@ -176,7 +177,7 @@ export function formatApplySummaryLines(summary: ApplySummary): string[] {
       summary.archiveRenamed ? '' : ' (rename in the app)'
     }`,
     `  Left in archive: ${summary.archiveOnly.totalComments} comments, ${summary.archiveOnly.totalReactions} reactions, ${summary.archiveOnly.citeCount} references, ${summary.archiveOnly.linkBlockCount} link blocks`,
-    `  Converted to plain text: ${summary.archiveOnly.groupMentionCount} group mentions`,
+    `  Converted to plain text: ${summary.archiveOnly.groupMentionCount} group mentions, ${summary.archiveOnly.flattenedInlineCount} tags/inline references`,
     ...summary.warnings.map((warning) => `  Warning: ${warning}`),
   ];
 }

@@ -331,9 +331,14 @@ export async function ensureClient(
       const freshCookie = deps.getAuthenticatedCookie();
       if (freshCookie) {
         deps.cacheCookie(cfg.url, cfg.ship, freshCookie);
-        console.error(
-          `Note: Credentials cached for ${preSig(cfg.ship)}. Next time run: tlon --ship ${preSig(cfg.ship)} <command>`
-        );
+        // Only for a human at a terminal. Programmatic callers pipe stderr —
+        // OpenClaw relays it straight into an owner DM on failure — where
+        // advice about shortening the next shell invocation is noise.
+        if (process.stderr.isTTY) {
+          console.error(
+            `Note: Credentials cached for ${preSig(cfg.ship)}. Next time run: tlon --ship ${preSig(cfg.ship)} <command>`
+          );
+        }
       }
     }
 

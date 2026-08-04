@@ -66,6 +66,8 @@ export interface ArchiveOnlyMetrics {
   citeCount: number;
   linkBlockCount: number;
   groupMentionCount: number;
+  /** Inline tags and block references. Flattened to their text, not dropped. */
+  flattenedInlineCount: number;
 }
 
 export interface MigrationPlan {
@@ -521,6 +523,17 @@ function countGroupMentions(story: Story): number {
   return count;
 }
 
+// Tags and inline block references survive as their visible text but lose what
+// they were. That is the same class of change the plan already discloses for
+// group mentions, so it is reported the same way rather than left silent.
+function countFlattenedInlines(story: Story): number {
+  let count = 0;
+  visitStoryInlines(story, (inline) => {
+    if ('tag' in inline || 'block' in inline) count += 1;
+  });
+  return count;
+}
+
 export function countArchiveOnlyMetrics(
   posts: SourcePost[]
 ): ArchiveOnlyMetrics {
@@ -530,6 +543,7 @@ export function countArchiveOnlyMetrics(
     citeCount: 0,
     linkBlockCount: 0,
     groupMentionCount: 0,
+    flattenedInlineCount: 0,
   };
   for (const post of posts) {
     result.totalComments += post.replyCount;
@@ -560,6 +574,7 @@ export function countArchiveOnlyMetrics(
       }
     }
     result.groupMentionCount += countGroupMentions(story);
+    result.flattenedInlineCount += countFlattenedInlines(story);
   }
   return result;
 }

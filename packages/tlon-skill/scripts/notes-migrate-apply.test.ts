@@ -318,6 +318,7 @@ describe('executeApply', () => {
           citeCount: 0,
           linkBlockCount: 0,
           groupMentionCount: 0,
+          flattenedInlineCount: 0,
         },
         warnings: [],
       },
