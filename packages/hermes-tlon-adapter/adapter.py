@@ -872,7 +872,6 @@ class TlonAdapter(BasePlatformAdapter):
             send_dm=self._send_migration_dm,
         )
         self._diary_notification_sender = self._send_migration_dm
-        self._diary_title_cache: dict[str, str] = {}
         self._connected_at = 0.0
         self._sse: Optional[TlonSSEClient] = None
         self._stream_task: Optional[asyncio.Task] = None
@@ -3428,9 +3427,6 @@ class TlonAdapter(BasePlatformAdapter):
         canonical = canonicalize_nest(nest)
         if canonical is None:
             return None
-        cached = self._diary_title_cache.get(canonical)
-        if cached is not None:
-            return cached
         if self._sse is None:
             logger.debug(
                 "[tlon] diary migration title lookup unavailable for %s: %s",
@@ -3463,7 +3459,7 @@ class TlonAdapter(BasePlatformAdapter):
             )
             return None
 
-        discovered: dict[str, str] = {}
+        discovered_title: Optional[str] = None
         usable_group = False
         usable_channels = False
         for group_data in groups.values():
@@ -3480,7 +3476,7 @@ class TlonAdapter(BasePlatformAdapter):
                 ):
                     continue
                 channel_canonical = canonicalize_nest(channel_nest)
-                if channel_canonical is None:
+                if channel_canonical != canonical:
                     continue
                 meta = channel_data.get("meta")
                 meta_title = meta.get("title") if isinstance(meta, Mapping) else None
@@ -3490,7 +3486,7 @@ class TlonAdapter(BasePlatformAdapter):
                     else channel_data.get("title")
                 )
                 if isinstance(title, str) and title.strip():
-                    discovered[channel_canonical] = title.strip()
+                    discovered_title = title.strip()
 
         if groups and not usable_group:
             logger.debug(
@@ -3507,14 +3503,12 @@ class TlonAdapter(BasePlatformAdapter):
             )
             return None
 
-        self._diary_title_cache.update(discovered)
-        cached = self._diary_title_cache.get(canonical)
-        if cached is None:
+        if discovered_title is None:
             logger.debug(
                 "[tlon] diary migration title lookup missed nest %s in usable init payload",
                 canonical,
             )
-        return cached
+        return discovered_title
 
     async def _adopt_group_channels(self, flag: str) -> None:
         """Pull a newly-joined group's channels into the monitored set so the

@@ -2,6 +2,7 @@ import asyncio
 import importlib.util
 import json
 import sys
+import time
 import types
 import unittest
 from pathlib import Path
@@ -1070,8 +1071,10 @@ class TlonCLITests(unittest.TestCase):
                 0.05,
             )
 
+        started = time.monotonic()
         with self.assertRaises(tlon_api.TlonProcessTimeout) as raised:
             asyncio.run(run())
+        self.assertLess(time.monotonic() - started, 2)
         self.assertIn("notes/~zod/log", raised.exception.stdout)
 
     def test_deadline_reports_partial_chunks_without_signalling_and_returns_result(self):

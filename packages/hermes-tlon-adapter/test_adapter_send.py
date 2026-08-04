@@ -118,6 +118,7 @@ def load_module(name):
 tlon_api = load_module("tlon_api")
 lens = load_module("lens")
 adapter_mod = load_module("adapter")
+tlon_tool = sys.modules[f"{PACKAGE_NAME}.tlon_tool"]
 
 
 def cli_result(
@@ -533,8 +534,9 @@ class ChunkingTests(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertEqual(len(calls), 1)
 
-    def test_diary_title_lookup_scans_all_groups_and_memoizes_successes(self):
+    def test_fresh_diary_title_bypasses_stale_sibling_discovery_cache(self):
         adapter = make_adapter()
+        nest = "diary/~pen/second"
         adapter._sse = FakeTitleSSE(
             {
                 "groups": {
@@ -546,7 +548,7 @@ class ChunkingTests(unittest.TestCase):
                     "~pen/second": {
                         "channels": {
                             "diary/PEN/second": {
-                                "meta": {"title": "  Second diary  "},
+                                "meta": {"title": "  Journal  "},
                                 "title": "Ignored fallback",
                             },
                         }
@@ -554,27 +556,54 @@ class ChunkingTests(unittest.TestCase):
                 }
             }
         )
+        calls = []
+
+        async def send_dm(text, blob):
+            calls.append((text, blob))
+            return True
 
         async def run():
-            second = await adapter._lookup_diary_channel_title(
-                "diary/~pen/second"
-            )
             first = await adapter._lookup_diary_channel_title(
                 "diary/~pen/first"
             )
-            return first, second
+            adapter._sse.payload = {
+                "groups": {
+                    "~pen/second": {
+                        "channels": {
+                            nest: {"title": "Journal-ARCHIVE"},
+                        }
+                    }
+                }
+            }
+            notified = await tlon_tool.notify_diary_migration_discovery(
+                nest,
+                sender=send_dm,
+                bot_ship="~pen",
+                owner_ship="~mug",
+                title_lookup=adapter._lookup_diary_channel_title,
+            )
+            return first, notified
 
-        first, second = asyncio.run(run())
+        first, notified = asyncio.run(run())
 
         self.assertEqual(first, "First diary")
-        self.assertEqual(second, "Second diary")
-        self.assertEqual(adapter._sse.scries, ["/groups-ui/v7/init"])
+        self.assertTrue(notified)
         self.assertEqual(
-            adapter._diary_title_cache,
-            {
-                "diary/~pen/first": "First diary",
-                "diary/~pen/second": "Second diary",
-            },
+            adapter._sse.scries,
+            ["/groups-ui/v7/init", "/groups-ui/v7/init"],
+        )
+        self.assertEqual(
+            calls,
+            [
+                (
+                    f"Found legacy diary `{nest}`, but its title already ends in "
+                    "`-ARCHIVE`, so it looks like it has already been migrated "
+                    "and no action was offered. If it has not been migrated, "
+                    "rename the channel to remove `-ARCHIVE` and it can be "
+                    "migrated again.",
+                    None,
+                )
+            ],
         )
 
     def test_diary_title_lookup_does_not_memoize_misses(self):
@@ -599,7 +628,6 @@ class ChunkingTests(unittest.TestCase):
             adapter._sse.scries,
             ["/groups-ui/v7/init", "/groups-ui/v7/init"],
         )
-        self.assertEqual(adapter._diary_title_cache, {nest: "Retry diary"})
 
     def test_diary_title_lookup_uses_nullish_not_truthy_title_fallback(self):
         adapter = make_adapter()
@@ -623,7 +651,6 @@ class ChunkingTests(unittest.TestCase):
             title = asyncio.run(adapter._lookup_diary_channel_title(nest))
 
         self.assertIsNone(title)
-        self.assertNotIn(nest, adapter._diary_title_cache)
 
     def test_diary_title_lookup_logs_systemic_failures_distinctly(self):
         nest = "diary/~pen/systemic"

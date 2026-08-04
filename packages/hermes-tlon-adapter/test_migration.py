@@ -137,12 +137,14 @@ class MigrationParsingTests(unittest.TestCase):
 
 
 class MigrationControllerTests(unittest.TestCase):
-    def test_ack_warns_before_direct_apply_and_never_plans(self):
+    def test_ack_is_scheduled_before_direct_apply_and_never_plans(self):
         calls = []
         replies = []
         dms = []
+        scheduling = []
 
         async def run_command(args, timeout, _on_deadline):
+            scheduling.append("apply")
             calls.append((tuple(args), timeout))
             return result(stdout="Migration complete.\n")
 
@@ -151,7 +153,9 @@ class MigrationControllerTests(unittest.TestCase):
             return True
 
         async def send_reply(text):
+            scheduling.append("acknowledgement")
             replies.append(text)
+            await asyncio.sleep(0)
 
         async def scenario():
             controller = migration.MigrationCommandController(
@@ -164,13 +168,13 @@ class MigrationControllerTests(unittest.TestCase):
                 owner_ship="~owner",
                 send_reply=send_reply,
             )
-            self.assertEqual(calls, [])
             self.assertIn("Migration started", replies[0])
             assert_drop_warning(self, replies[0])
             self.assertIn(migration.MIGRATION_DROP_WARNING, replies[0])
             await controller.wait_for_background_tasks()
 
         asyncio.run(scenario())
+        self.assertEqual(scheduling[:2], ["acknowledgement", "apply"])
         self.assertEqual(
             calls,
             [
