@@ -24,6 +24,10 @@ jest.mock('@tloncorp/app/lib/pushNotifTapTelemetry', () => ({
 jest.mock('@tloncorp/app/navigation/utils', () => ({
   createTypedReset: jest.fn(),
   getMainGroupRoute: jest.fn(),
+  getTopLevelTabRoute: jest.fn((screen: string, params?: object) => ({
+    name: 'MainTabs',
+    params: { screen, ...(params === undefined ? {} : { params }) },
+  })),
   screenNameFromChannelId: jest.fn(),
 }));
 
@@ -382,10 +386,13 @@ describe('notification routing decisions', () => {
   it('builds the group-invite preview route stack with the invite marker', () => {
     expect(groupInvitePreviewRouteStack('~sampel-palnet/test')).toEqual([
       {
-        name: 'ChatList',
+        name: 'MainTabs',
         params: {
-          previewGroupId: '~sampel-palnet/test',
-          previewGroupFromInviteNotification: true,
+          screen: 'ChatList',
+          params: {
+            previewGroupId: '~sampel-palnet/test',
+            previewGroupFromInviteNotification: true,
+          },
         },
       },
     ]);

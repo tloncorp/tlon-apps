@@ -22,11 +22,14 @@ import {
   getActiveTopLevelDrawerRouteName,
   getDesktopGroupInviteRoute,
   getDesktopPostRoute,
+  isActivityBackTarget,
   screenNameFromChannelId,
 } from './routeHelpers';
+import { getTopLevelTabRoute } from './topLevelTabs';
 import { CombinedParamList, RootStackParamList } from './types';
 
 export { screenNameFromChannelId } from './routeHelpers';
+export { getTopLevelTabRoute } from './topLevelTabs';
 
 const logger = createDevLogger('nav-utils', false);
 
@@ -90,7 +93,7 @@ function useResetToChannel() {
 
       if (isWindowNarrow) {
         reset([
-          { name: 'ChatList' },
+          getTopLevelTabRoute('ChatList'),
           {
             name: screenName,
             params: {
@@ -127,7 +130,7 @@ function useResetToPost() {
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(postParams.channelId);
         reset([
-          { name: 'ChatList' },
+          getTopLevelTabRoute('ChatList'),
           {
             name: screenName,
             params: {
@@ -167,7 +170,10 @@ function useResetToGroup() {
 
   return async function resetToGroup(groupId: string) {
     if (isWindowNarrow) {
-      reset([{ name: 'ChatList' }, await getMainGroupRoute(groupId, true)]);
+      reset([
+        getTopLevelTabRoute('ChatList'),
+        await getMainGroupRoute(groupId, true),
+      ]);
     } else {
       reset([
         {
@@ -193,13 +199,10 @@ function useResetToGroupInvite() {
       // matches the mobile push-notification tap: chat list with the invited
       // group's preview sheet open (see groupInvitePreviewRouteStack)
       reset([
-        {
-          name: 'ChatList',
-          params: {
-            previewGroupId: groupId,
-            previewGroupFromInviteNotification: true,
-          },
-        },
+        getTopLevelTabRoute('ChatList', {
+          previewGroupId: groupId,
+          previewGroupFromInviteNotification: true,
+        }),
       ]);
     } else {
       reset([getDesktopGroupInviteRoute(groupId)]);
@@ -298,7 +301,7 @@ export function useNavigateBackFromPost() {
       const previousRouteParams = previousRoute?.params as
         | { channelId?: string }
         | undefined;
-      const lastScreenWasActivity = previousRoute?.name === 'Activity';
+      const lastScreenWasActivity = isActivityBackTarget(previousRoute);
       // @ts-expect-error - ChannelRoot is fine here.
       const lastScreenWasChannel = previousRoute?.name === 'ChannelRoot';
       const lastChannelWasChat =
@@ -315,7 +318,8 @@ export function useNavigateBackFromPost() {
         return;
       }
       if (lastScreenWasActivity) {
-        navigation.navigate('Activity', undefined, { pop: true });
+        const route = getTopLevelTabRoute('Activity');
+        navigation.navigate(route.name, route.params, { pop: true });
         return;
       }
       if (isWindowNarrow) {

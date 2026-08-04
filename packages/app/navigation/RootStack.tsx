@@ -28,13 +28,10 @@ import { PushNotificationSettingsScreen } from '../features/settings/PushNotific
 import SettingsScreen from '../features/settings/SettingsScreen';
 import { ThemeScreen } from '../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../features/settings/UserBugReportScreen';
-import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
 import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
-import ChatListScreen from '../features/top/ChatListScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
-import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../features/top/MediaViewerScreen';
 import { NotesDetailScreen } from '../features/top/NotesDetailScreen';
@@ -45,6 +42,7 @@ import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
+import { TopLevelTabNavigator } from './TopLevelTabNavigator';
 import type { RootStackParamList } from './types';
 import { mediaViewerScreenOptions } from './utils';
 
@@ -66,7 +64,7 @@ export function RootStack() {
 
   return (
     <Root.Navigator
-      initialRouteName={'ChatList'}
+      initialRouteName="MainTabs"
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: theme.background?.val },
@@ -74,18 +72,8 @@ export function RootStack() {
     >
       {/* top level tabs */}
       <Root.Screen
-        name="Contacts"
-        component={ContactsScreen}
-        options={{ animation: 'none', gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="ChatList"
-        component={ChatListScreen}
-        options={{ animation: 'none', gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="Activity"
-        component={ActivityScreen}
+        name="MainTabs"
+        component={TopLevelTabNavigator}
         options={{ animation: 'none', gestureEnabled: false }}
       />
       <Root.Screen
