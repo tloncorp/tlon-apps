@@ -1,12 +1,14 @@
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
-import { MIGRATION_DROP_WARNING } from './migrate-command.js';
 import { hasAmbiguousMigrationAccount } from './migration-account-safety.js';
 import {
   type ApprovalCommandBridge,
   getAllBridges,
 } from './monitor/command-bridge.js';
-import { buildMigrateCard } from './monitor/migrate-card.js';
+import {
+  type BuildMigrateCard,
+  buildMigrateCard,
+} from './monitor/migrate-card.js';
 import { sharedMap } from './shared-state.js';
 import { canonicalizeNest, normalizeShip, parseNest } from './targets.js';
 
@@ -16,7 +18,7 @@ export type SendOwnerNotification = (
 ) => Promise<string | undefined>;
 
 export type DiaryMigrationDiscoveryDeps = {
-  buildCard?: (command: string) => string;
+  buildCard?: BuildMigrateCard;
   logError?: (message: string) => void;
   notified?: Map<string, true>;
   inFlight?: Map<string, Promise<boolean>>;
@@ -31,7 +33,7 @@ const processInFlight = sharedMap<string, Promise<boolean>>(
 const ARCHIVE_TITLE_SUFFIX = '-ARCHIVE';
 
 export class DiaryMigrationDiscoveryNotifier {
-  private readonly buildCard: (command: string) => string;
+  private readonly buildCard: BuildMigrateCard;
   private readonly logError?: (message: string) => void;
   private readonly notified: Map<string, true>;
   private readonly inFlight: Map<string, Promise<boolean>>;
@@ -91,14 +93,14 @@ export class DiaryMigrationDiscoveryNotifier {
     // terminal to investigate with. Note that renaming will not re-offer the
     // card until the gateway restarts, because this dedup is process memory.
     const message = canOfferMigration
-      ? `Migrate this diary: \`${command}\`\n\n${MIGRATION_DROP_WARNING}`
+      ? `Diary migration available for "${title}"`
       : `Found legacy diary \`${nest}\`, but its title already ends in \`${ARCHIVE_TITLE_SUFFIX}\`, ` +
         'so it looks like it has already been migrated and no action was offered. ' +
         `If it has not been migrated, rename the channel to remove \`${ARCHIVE_TITLE_SUFFIX}\` and it can be migrated again.`;
     let blob: string | undefined;
     if (canOfferMigration) {
       try {
-        blob = this.buildCard(command);
+        blob = this.buildCard(command, { title });
       } catch (error) {
         this.logError?.(
           `Failed to build diary migration discovery card: ${String(error)}`

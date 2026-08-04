@@ -11,7 +11,10 @@ import type {
   ApprovalCommandBridge,
   TlonCommandCredentials,
 } from './monitor/command-bridge.js';
-import { buildMigrateCard } from './monitor/migrate-card.js';
+import {
+  type BuildMigrateCard,
+  buildMigrateCard,
+} from './monitor/migrate-card.js';
 import { sharedMap } from './shared-state.js';
 import { canonicalizeNest, normalizeShip } from './targets.js';
 import type { TlonCommandDeadlineOutput } from './tlon-command-runner.js';
@@ -53,7 +56,7 @@ export type MigrateCommandDeps = {
   fileExists?: (path: string) => boolean;
   spawnTask?: (task: () => Promise<void>) => void;
   logError?: (message: string) => void;
-  buildMigrateCard?: (command: string) => string;
+  buildMigrateCard?: BuildMigrateCard;
   applyInFlight?: Map<string, Promise<void>>;
   cleanupInFlight?: Map<string, Promise<void>>;
 };

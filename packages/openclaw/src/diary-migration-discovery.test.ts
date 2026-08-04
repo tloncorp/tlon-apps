@@ -5,7 +5,6 @@ import {
   DiaryMigrationDiscoveryNotifier,
   notifyDiaryMigrationDiscovery,
 } from './diary-migration-discovery.js';
-import { MIGRATION_DROP_WARNING } from './migrate-command.js';
 import type { ApprovalCommandBridge } from './monitor/command-bridge.js';
 import { removeBridge, setBridge } from './monitor/command-bridge.js';
 
@@ -13,7 +12,9 @@ type BlobEntry = {
   messages?: Array<{
     updateComponents?: {
       components?: Array<{
+        id?: string;
         component?: string;
+        text?: string;
         action?: {
           event?: {
             context?: {
@@ -35,7 +36,17 @@ function actionCommand(blob: string): string | undefined {
     ?.action?.event?.context?.text;
 }
 
-function makeNotifier(buildCard?: (command: string) => string) {
+function cardText(blob: string, id: string): string | undefined {
+  const [entry] = JSON.parse(blob) as BlobEntry[];
+  const components = entry?.messages?.find(
+    (message) => message.updateComponents
+  )?.updateComponents?.components;
+  return components?.find((component) => component.id === id)?.text;
+}
+
+function makeNotifier(
+  buildCard?: (command: string, opts?: { title?: string }) => string
+) {
   return new DiaryMigrationDiscoveryNotifier({
     buildCard,
     notified: new Map(),
@@ -81,7 +92,7 @@ function makeRunnableAccountConfig(...accountIds: string[]): OpenClawConfig {
 }
 
 describe('diary migration discovery notification', () => {
-  it('sends one owner DM with literal text and a one-button migrate card', async () => {
+  it('sends one terse owner DM with a titled migrate card', async () => {
     const notifier = makeNotifier();
     const send = vi.fn(async () => 'message-id');
     const nest = 'diary/~sampel-palnet/field-notes';
@@ -91,21 +102,24 @@ describe('diary migration discovery notification', () => {
 
     expect(send).toHaveBeenCalledTimes(1);
     const [text, blob] = send.mock.calls[0]!;
-    expect(text).toContain(`/migrate ${nest}`);
+    expect({ text, lines: text.split(/\r?\n/) }).toEqual({
+      text: 'Diary migration available for "Field Notes"',
+      lines: ['Diary migration available for "Field Notes"'],
+    });
     expect(actionCommand(blob!)).toBe(`/migrate ${nest}`);
+    expect(cardText(blob!, 'title')).toBe('Migrate "Field Notes" to %notes?');
   });
 
-  it('includes the migration command and drop warning in the owner DM', async () => {
-    const notifier = makeNotifier();
+  it('passes the channel title to the card builder', async () => {
+    const buildCard = vi.fn(() => 'card');
+    const notifier = makeNotifier(buildCard);
     const send = vi.fn(async () => 'message-id');
-    const nest = 'diary/~sampel-palnet/warning-before-action';
+    const nest = 'diary/~sampel-palnet/title-context';
+    const command = `/migrate ${nest}`;
 
     await notifier.notify(nest, send, 'Field Notes');
 
-    const [text] = send.mock.calls[0]!;
-    expect(text).toContain(`/migrate ${nest}`);
-    expect(text).toContain(MIGRATION_DROP_WARNING);
-    expect(text).toContain('comments, reactions, post references');
+    expect(buildCard).toHaveBeenCalledWith(command, { title: 'Field Notes' });
   });
 
   it('still sends the literal text when card construction throws', async () => {
@@ -118,7 +132,7 @@ describe('diary migration discovery notification', () => {
     await notifier.notify(nest, send, 'Field Notes');
 
     expect(send).toHaveBeenCalledWith(
-      expect.stringContaining(`/migrate ${nest}`),
+      'Diary migration available for "Field Notes"',
       undefined
     );
   });
@@ -131,8 +145,8 @@ describe('diary migration discovery notification', () => {
     await notifier.notify('diary/~zod/Field-Notes', send, 'Field Notes');
 
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0]?.[0]).toContain(
-      '/migrate diary/~zod/Field-Notes'
+    expect(send.mock.calls[0]?.[0]).toBe(
+      'Diary migration available for "Field Notes"'
     );
   });
 
@@ -194,8 +208,10 @@ describe('diary migration discovery notification', () => {
     }
 
     expect(send).toHaveBeenCalledTimes(2);
-    expect(send.mock.calls[0]?.[0]).toContain('/migrate diary/~bot/bot-hosted');
-    expect(send.mock.calls[1]?.[0]).toContain(
+    expect(actionCommand(send.mock.calls[0]?.[1] ?? '')).toBe(
+      '/migrate diary/~bot/bot-hosted'
+    );
+    expect(actionCommand(send.mock.calls[1]?.[1] ?? '')).toBe(
       '/migrate diary/~owner/owner-hosted'
     );
   });
@@ -283,8 +299,7 @@ describe('diary migration discovery notification', () => {
       expect.soft(resolvedResult).toBe(true);
       expect.soft(send).toHaveBeenCalledTimes(1);
       const [text, blob] = send.mock.calls[0] ?? [];
-      expect.soft(text).toContain(`/migrate ${nest}`);
-      expect.soft(text).toContain(MIGRATION_DROP_WARNING);
+      expect.soft(text).toBe('Diary migration available for "Field Notes"');
       expect.soft(blob).toBeDefined();
       expect
         .soft(blob ? actionCommand(blob) : undefined)
