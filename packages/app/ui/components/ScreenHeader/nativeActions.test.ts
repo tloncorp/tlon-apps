@@ -10,7 +10,6 @@ describe('native header actions', () => {
   it('derives the asset name and prefers the shared test identifier', () => {
     expect(
       buildNativeHeaderItem({
-        kind: 'icon',
         id: 'invite-people',
         icon: 'AddPerson',
         label: 'Invite people',
@@ -26,7 +25,6 @@ describe('native header actions', () => {
   it('uses the action id when no test identifier is declared', () => {
     expect(
       buildNativeHeaderItem({
-        kind: 'text',
         id: 'rename',
         text: 'Rename',
       })

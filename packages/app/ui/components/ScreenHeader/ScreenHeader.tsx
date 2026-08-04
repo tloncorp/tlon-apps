@@ -251,7 +251,6 @@ export const ScreenHeaderComponent = ({
     ...(backAction
       ? [
           {
-            kind: 'icon' as const,
             id: 'screen-header-back',
             icon: 'ChevronLeft' as const,
             label: 'Back',

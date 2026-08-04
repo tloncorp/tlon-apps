@@ -15,7 +15,6 @@ interface BaseAction {
 }
 
 export interface ScreenHeaderIconAction extends BaseAction {
-  kind: 'icon';
   icon: ScreenHeaderIconName;
   label: string;
   onPress?: () => void;
@@ -28,7 +27,6 @@ export interface ScreenHeaderIconAction extends BaseAction {
 }
 
 export interface ScreenHeaderTextAction extends BaseAction {
-  kind: 'text';
   text: string;
   onPress?: () => void;
   disabled?: boolean;
@@ -42,7 +40,6 @@ export interface ScreenHeaderMenuActionItem {
 }
 
 export interface ScreenHeaderMenuAction extends BaseAction {
-  kind: 'menu';
   icon: ScreenHeaderIconName;
   label: string;
   items: ScreenHeaderMenuActionItem[];
@@ -83,7 +80,7 @@ export function attachLatestScreenHeaderActionCallbacks(
   actionsRef: { current: ScreenHeaderAction[] }
 ): ScreenHeaderAction[] {
   return presentation.map((action) => {
-    if (action.kind === 'menu') {
+    if ('items' in action) {
       const actionId = action.id;
       return {
         ...action,
@@ -93,10 +90,9 @@ export function attachLatestScreenHeaderActionCallbacks(
             ...item,
             onPress: () => {
               const latestAction = actionsRef.current.find(
-                (candidate) =>
-                  candidate.id === actionId && candidate.kind === 'menu'
+                (candidate) => candidate.id === actionId && 'items' in candidate
               );
-              if (latestAction?.kind === 'menu') {
+              if (latestAction && 'items' in latestAction) {
                 latestAction.items
                   .find((candidate) => candidate.id === itemId)
                   ?.onPress();
@@ -108,16 +104,18 @@ export function attachLatestScreenHeaderActionCallbacks(
     }
 
     const actionId = action.id;
-    const actionKind = action.kind;
     return {
       ...action,
       onPress: () => {
         const latestAction = actionsRef.current.find(
-          (candidate) =>
-            candidate.id === actionId && candidate.kind === actionKind
+          (candidate) => candidate.id === actionId && !('items' in candidate)
         );
-        if (latestAction?.kind !== 'menu' && !latestAction?.disabled) {
-          latestAction?.onPress?.();
+        if (
+          latestAction &&
+          !('items' in latestAction) &&
+          !latestAction.disabled
+        ) {
+          latestAction.onPress?.();
         }
       },
     };
@@ -130,37 +128,35 @@ export function getScreenHeaderActionPresentation(
   resolveColor: (color: string | undefined) => string | undefined
 ): ScreenHeaderActionPresentation[] {
   return visibleScreenHeaderActions(actions).map((action) => {
-    switch (action.kind) {
-      case 'menu':
-        return {
-          kind: action.kind,
-          id: action.id,
-          icon: action.icon,
-          label: action.label,
-          testID: action.testID,
-          items: action.items.map(({ id, label }) => ({ id, label })),
-        };
-      case 'text':
-        return {
-          kind: action.kind,
-          id: action.id,
-          text: action.text,
-          disabled: action.disabled,
-          tint: resolveColor(action.tint),
-          testID: action.testID,
-        };
-      case 'icon':
-        return {
-          kind: action.kind,
-          id: action.id,
-          icon: action.icon,
-          label: action.label,
-          disabled: action.disabled,
-          selected: action.selected,
-          tint: resolveColor(action.tint),
-          backgroundTint: resolveColor(action.backgroundTint),
-          testID: action.testID,
-        };
+    if ('items' in action) {
+      return {
+        id: action.id,
+        icon: action.icon,
+        label: action.label,
+        testID: action.testID,
+        items: action.items.map(({ id, label }) => ({ id, label })),
+      };
     }
+
+    if ('text' in action) {
+      return {
+        id: action.id,
+        text: action.text,
+        disabled: action.disabled,
+        tint: resolveColor(action.tint),
+        testID: action.testID,
+      };
+    }
+
+    return {
+      id: action.id,
+      icon: action.icon,
+      label: action.label,
+      disabled: action.disabled,
+      selected: action.selected,
+      tint: resolveColor(action.tint),
+      backgroundTint: resolveColor(action.backgroundTint),
+      testID: action.testID,
+    };
   });
 }

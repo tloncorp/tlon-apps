@@ -138,7 +138,6 @@ export function BotShipListSettingsScreen(props: Props) {
         title={meta.title}
         rightActions={[
           {
-            kind: 'icon',
             id: 'add-ship',
             icon: 'Add',
             label: `Add ${meta.title.toLowerCase()}`,

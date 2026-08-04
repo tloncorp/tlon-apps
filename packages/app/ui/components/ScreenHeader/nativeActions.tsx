@@ -43,7 +43,7 @@ const noop = () => {};
 export function buildNativeHeaderItem(
   action: ScreenHeaderAction
 ): NativeStackHeaderItem {
-  if (action.kind === 'menu') {
+  if ('items' in action) {
     return {
       type: 'menu',
       label: action.label,
@@ -64,7 +64,7 @@ export function buildNativeHeaderItem(
     } as NativeStackHeaderItem;
   }
 
-  if (action.kind === 'text') {
+  if ('text' in action) {
     return {
       type: 'button',
       label: action.text,
@@ -94,12 +94,6 @@ export function buildNativeHeaderItem(
   } as NativeStackHeaderItem;
 }
 
-export function buildNativeHeaderItems(
-  actions: ScreenHeaderAction[]
-): NativeStackHeaderItem[] {
-  return actions.map((action) => buildNativeHeaderItem(action));
-}
-
 export function buildNativeHeaderActionOptions({
   side,
   presentation,
@@ -117,7 +111,7 @@ export function buildNativeHeaderActionOptions({
   if (Platform.OS === 'ios') {
     return {
       [`unstable_header${side === 'left' ? 'Left' : 'Right'}Items`]: () =>
-        buildNativeHeaderItems(actions),
+        actions.map((action) => buildNativeHeaderItem(action)),
     };
   }
 

@@ -327,7 +327,6 @@ export function ActivityScreenContent({
   const activityHeaderActions = useMemo<ScreenHeaderAction[]>(
     () => [
       {
-        kind: 'menu',
         id: 'activity-options',
         icon: 'Overflow',
         label: 'Activity options',

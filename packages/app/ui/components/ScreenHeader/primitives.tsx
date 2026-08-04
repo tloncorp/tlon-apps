@@ -111,10 +111,10 @@ export function ScreenHeaderItemElements({
       gap={nativeHeader ? '$l' : undefined}
     >
       {visible.map((action) => {
-        if (action.kind === 'menu') {
+        if ('items' in action) {
           return <HeaderItemMenu key={action.id} action={action} />;
         }
-        if (action.kind === 'text') {
+        if ('text' in action) {
           return (
             <HeaderTextButton
               key={action.id}
