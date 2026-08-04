@@ -2,12 +2,12 @@ import type { NativeStackHeaderItem } from '@react-navigation/native-stack';
 import { Platform } from 'react-native';
 import { ColorTokens, useTheme } from 'tamagui';
 
-import { ScreenHeaderItemElements } from './ScreenHeaderPrimitives';
 import {
   type ScreenHeaderAction,
   forwardLatestScreenHeaderActionCallbacks,
   visibleScreenHeaderActions,
-} from './screenHeaderItemModel';
+} from './actions';
+import { ScreenHeaderItemElements } from './primitives';
 
 /**
  * One declaration per header button, from which every platform representation

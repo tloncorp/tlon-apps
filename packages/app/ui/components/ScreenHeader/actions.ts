@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+/** Action declarations shared by content and native header renderers. */
+
 export type ScreenHeaderIconName =
   | 'Add'
   | 'AddPerson'

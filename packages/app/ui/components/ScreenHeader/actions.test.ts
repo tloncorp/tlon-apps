@@ -7,9 +7,9 @@ import {
   forwardLatestScreenHeaderActionCallbacks,
   getScreenHeaderActionSignature,
   visibleScreenHeaderActions,
-} from './screenHeaderItemModel';
+} from './actions';
 
-describe('screen header action model', () => {
+describe('screen header actions', () => {
   it('preserves declaration order while excluding hidden actions', () => {
     const actions: ScreenHeaderAction[] = [
       { kind: 'text', id: 'first', text: 'First' },
