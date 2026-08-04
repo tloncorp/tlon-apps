@@ -14,9 +14,9 @@ import {
 } from 'react-native';
 import { View, XStack, isWeb, useStyle } from 'tamagui';
 
+import { useIsDarkMode } from '../../../hooks/useDarkMode';
 import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
 import { NavigationProvider } from '../../contexts/navigation';
-import { useIsDarkMode } from '../../utils/colorUtils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
 import { ScreenHeader } from '../ScreenHeader';

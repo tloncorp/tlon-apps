@@ -12,7 +12,7 @@ import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
-import { useIsDarkMode } from '@tloncorp/app/ui/utils/colorUtils';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRequiredUpdate } from '@tloncorp/app/hooks/useRequiredUpdate';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';

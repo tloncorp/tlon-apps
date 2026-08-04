@@ -2,11 +2,11 @@ import { NavigationContext } from '@react-navigation/native';
 import { useContext, useLayoutEffect, useMemo } from 'react';
 import { Platform } from 'react-native';
 
+import { useIsDarkMode } from '../../hooks/useDarkMode';
 import {
   getNativeHeaderScrollOptions,
   nativeHeaderScrollResetOptions,
 } from '../../navigation/nativeHeaderOptions';
-import { useIsDarkMode } from '../utils/colorUtils';
 import type {
   ScreenScrollProps,
   UseScreenScrollPropsOptions,
