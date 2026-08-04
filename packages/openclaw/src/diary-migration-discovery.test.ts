@@ -131,10 +131,24 @@ describe('diary migration discovery notification', () => {
 
     await notifier.notify(nest, send, 'Field Notes');
 
+    // The card normally carries the command. With no card, the text must, or
+    // the owner gets a dead-end DM and `notified` blocks every retry.
     expect(send).toHaveBeenCalledWith(
-      'Diary migration available for "Field Notes"',
+      'Diary migration available for "Field Notes" — to migrate, type `/migrate diary/~zod/log`',
       undefined
     );
+  });
+
+  it('keeps the terse body when the card builds', async () => {
+    const notifier = makeNotifier();
+    const send = vi.fn(async () => 'message-id');
+
+    await notifier.notify('diary/~zod/log', send, 'Field Notes');
+
+    expect(send.mock.calls[0]?.[0]).toBe(
+      'Diary migration available for "Field Notes"'
+    );
+    expect(send.mock.calls[0]?.[1]).toBeDefined();
   });
 
   it('deduplicates case and sigil variants of the same canonical nest', async () => {

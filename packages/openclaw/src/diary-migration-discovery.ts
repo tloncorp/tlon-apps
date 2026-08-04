@@ -92,11 +92,6 @@ export class DiaryMigrationDiscoveryNotifier {
     // carry this suffix without having been migrated, and that owner has no
     // terminal to investigate with. Note that renaming will not re-offer the
     // card until the gateway restarts, because this dedup is process memory.
-    const message = canOfferMigration
-      ? `Diary migration available for "${title}"`
-      : `Found legacy diary \`${nest}\`, but its title already ends in \`${ARCHIVE_TITLE_SUFFIX}\`, ` +
-        'so it looks like it has already been migrated and no action was offered. ' +
-        `If it has not been migrated, rename the channel to remove \`${ARCHIVE_TITLE_SUFFIX}\` and it can be migrated again.`;
     let blob: string | undefined;
     if (canOfferMigration) {
       try {
@@ -107,6 +102,17 @@ export class DiaryMigrationDiscoveryNotifier {
         );
       }
     }
+    // Every recorded delivery has to be actionable, because a successful send
+    // sets `notified` and suppresses every later attempt until restart. The
+    // card normally carries the command, so when it fails to build the text
+    // must carry it instead — otherwise the owner gets a dead-end DM and no retry.
+    const message = !canOfferMigration
+      ? `Found legacy diary \`${nest}\`, but its title already ends in \`${ARCHIVE_TITLE_SUFFIX}\`, ` +
+        'so it looks like it has already been migrated and no action was offered. ' +
+        `If it has not been migrated, rename the channel to remove \`${ARCHIVE_TITLE_SUFFIX}\` and it can be migrated again.`
+      : blob
+        ? `Diary migration available for "${title}"`
+        : `Diary migration available for "${title}" — to migrate, type \`${command}\``;
 
     try {
       const messageId = await sendOwnerNotification(message, blob);
