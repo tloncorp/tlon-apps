@@ -137,8 +137,8 @@ get_next_version() {
     fi
     local current_version=$(get_current_version "$ship")
     if [ -z "$current_version" ]; then
-        print_error "Cannot derive a version for ~$ship from $MANIFEST_FILE"
-        print_info "The manifest holds a non-numeric archive name; set ARCHIVE_TAG explicitly."
+        print_error "Cannot derive a version for ~$ship from $MANIFEST_FILE" >&2
+        print_info "The manifest holds a non-numeric archive name; set ARCHIVE_TAG explicitly." >&2
         return 1
     fi
     echo $((current_version + 1))
@@ -924,9 +924,9 @@ update_dockerfile() {
     # Pattern: "https://bootstrap.urbit.org/rube-SHIP*.tgz SHIP.tgz"
     # macOS sed requires empty string after -i, GNU sed works with or without
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s|https://bootstrap.urbit.org/rube-${ship}[0-9]*.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
+        sed -i '' "s|https://bootstrap.urbit.org/rube-${ship}[^ ]*\.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
     else
-        sed -i "s|https://bootstrap.urbit.org/rube-${ship}[0-9]*.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
+        sed -i "s|https://bootstrap.urbit.org/rube-${ship}[^ ]*\.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
     fi
 
     print_status "Updated Dockerfile for ~$ship"
@@ -1032,8 +1032,13 @@ main() {
             exit 1
         fi
 
-        # Get next version number
-        local next_version=$(get_next_version "$ship")
+        # Get next version number. Split the declaration from the assignment
+        # so a failure in get_next_version is not masked by `local`.
+        local next_version
+        if ! next_version=$(get_next_version "$ship"); then
+            print_error "Aborting: no archive version available for ~$ship"
+            exit 1
+        fi
         print_info "Next version for $ship: $next_version"
 
         # Archive the pier
