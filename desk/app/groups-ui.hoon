@@ -2,7 +2,6 @@
     a=activity, av=activity-ver
 /+  default-agent, dbug, verb, vita-client
 ::  performance, keep warm
-/+  mark-warmer
 ^-  agent:gall
 =>
   |%

@@ -54,6 +54,7 @@
           %group-response-2
           %group-response-3
           %group-action-3
+          %group-action-4
           %group-action-5
           %group-channel-active
           %group-channel-join
@@ -353,20 +354,7 @@
     ::
         %group-action-4
       =+  !<(=a-groups:v8:gv vase)
-      ?>  from-self
-      ?-    -.a-groups
-          %group
-        =/  group-core  (go-abed:go-core flag.a-groups)
-        go-abet:(go-a-group:group-core a-group.a-groups)
-      ::
-          %invite
-        =/  group-core  (go-abed:go-core flag.a-groups)
-        go-abet:(go-a-invite:group-core [ships a-invite]:a-groups)
-      ::
-          %leave
-        =/  group-core  (go-abed:go-core flag.a-groups)
-        go-abet:(go-leave:group-core &)
-      ==
+      $(+< group-action-5+!>(`a-groups:v11:gv`a-groups))
     ::
         ::  deprecated
         %group-action-3
@@ -1314,7 +1302,7 @@
     ?-    ver.pole
         %v0  ``groups+(~(run by groups-9) v2:group:v9:gc)
         %v1  ``groups-1+(~(run by groups-9) v5:group:v9:gc)
-        %v2  ``groups-2+`groups:v9:gv`groups-9
+        %v2  ``groups-2+groups-9
         %v3  ``groups-3+groups-11
     ==
   ::
@@ -1384,7 +1372,8 @@
       ``group-2+(v9:group:v11:gc +.u.net-group)
     ::
         %v3
-      ``group-3+`group:v11:gv`+.u.net-group
+      =/  gr  +.u.net-group
+      ``group-3+gr
     ==
   ::
       [%x ver=?(%v0 %v1 %v2 %v3) %ui %groups ship=@ name=@ rest=*]
@@ -4695,10 +4684,10 @@
     ::  v2 response: %blob is v3-only
     ::
     =/  r-group-10=(unit r-group:v10:gv)  (v10:r-group:v11:gc r-group)
-    =?  cor  ?=(^ r-group-10)
-      =/  r-groups-10=r-groups:v10:gv  [flag u.r-group-10]
-      =/  v2-paths  ~[/v2/groups [%v2 go-area]]
-      (give %fact v2-paths group-response-2+r-groups-10)
+    ?~  r-group-10  go-core
+    =/  r-groups-10=r-groups:v10:gv  [flag u.r-group-10]
+    =/  v2-paths  ~[/v2/groups [%v2 go-area]]
+    =.  cor  (give %fact v2-paths group-response-2+r-groups-10)
     ::  v1 response: %blob and %active-channel are absent
     ::
     =/  r-group-9=(unit r-group:v9:gv)  (v9:r-group:v11:gc r-group)
