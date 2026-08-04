@@ -2,16 +2,14 @@ import { DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { useMemo } from 'react';
 import { useTheme } from 'tamagui';
 
-import { useActiveTheme } from '../provider';
-import { getNativeColorScheme } from '../ui/utils/themeUtils';
+import { useIsDarkTheme } from '../ui/utils/colorUtils';
 
 export function useAppNavigationTheme() {
   const theme = useTheme();
-  const activeTheme = useActiveTheme();
+  const isDark = useIsDarkTheme();
   const background = theme.background?.val;
   const text = theme.primaryText?.val;
   const border = theme.border?.val;
-  const isDark = getNativeColorScheme(activeTheme) === 'dark';
 
   return useMemo(() => {
     const baseTheme = isDark ? DarkTheme : DefaultTheme;
