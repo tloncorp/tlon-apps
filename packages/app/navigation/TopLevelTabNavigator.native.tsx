@@ -17,7 +17,7 @@ import ChatListScreen from '../features/top/ChatListScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { useTopLevelTabController } from '../hooks/useTopLevelTabController';
 import ProfileStatusSheet from '../ui/components/ProfileStatusSheet';
-import { nativeHeaderTitleStyle } from './nativeHeaderOptions';
+import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
 import { TOP_LEVEL_TABS, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
@@ -140,16 +140,6 @@ export function TopLevelTabNavigator() {
   const roundedAvatarSource = useRoundedAvatarSource(
     calmSettings?.disableAvatars ? undefined : currentUser?.avatarImage
   );
-  const topLevelHeaderOptions = {
-    headerTitleAlign: 'center' as const,
-    headerShadowVisible: false,
-    headerTintColor: theme.primaryText?.val,
-    headerTitleStyle: {
-      ...nativeHeaderTitleStyle,
-      color: theme.primaryText?.val,
-    },
-  };
-
   return (
     <>
       <Tabs.Navigator
@@ -170,7 +160,8 @@ export function TopLevelTabNavigator() {
           },
         })}
         screenOptions={{
-          headerShown: false,
+          ...nativeHeaderPresentationOptions,
+          headerShown: true,
           tabBarActiveTintColor: theme.primaryText?.val,
           tabBarInactiveTintColor: theme.secondaryText?.val,
           tabBarActiveIndicatorColor: theme.secondaryBackground?.val,
@@ -186,9 +177,6 @@ export function TopLevelTabNavigator() {
           component={ChatListScreen}
           options={{
             title: TOP_LEVEL_TABS.ChatList.title,
-            headerShown: true,
-            headerStyle: { backgroundColor: theme.background?.val },
-            ...topLevelHeaderOptions,
             tabBarIcon: ({ focused }) => tabIcon('home', focused),
           }}
         />
@@ -197,8 +185,6 @@ export function TopLevelTabNavigator() {
           component={ActivityScreen}
           options={{
             title: TOP_LEVEL_TABS.Activity.title,
-            headerShown: true,
-            ...topLevelHeaderOptions,
             tabBarBadge: haveUnreadActivity ? '' : undefined,
             tabBarIcon: ({ focused }) => tabIcon('activity', focused),
           }}
@@ -208,8 +194,6 @@ export function TopLevelTabNavigator() {
           component={ContactsScreen}
           options={{
             title: TOP_LEVEL_TABS.Contacts.title,
-            headerShown: true,
-            ...topLevelHeaderOptions,
             tabBarIcon: ({ focused }) =>
               Platform.OS === 'ios'
                 ? avatarTabIcon(roundedAvatarSource)
