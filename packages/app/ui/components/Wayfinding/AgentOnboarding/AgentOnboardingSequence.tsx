@@ -26,6 +26,18 @@ export function AgentOnboardingSequence(props: {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // No resident bot means no conversational onboarding, full stop: fall
+      // back to the standard splash immediately. Without this, the retry
+      // below makes every bot-less account sit on a spinner for its full
+      // duration, waiting out a lookup that can only ever return null.
+      const botEnabled = await db.hostingBotEnabled.getValue();
+      if (cancelled || redirectedRef.current) {
+        return;
+      }
+      if (!botEnabled) {
+        setHomeGroupMissing(true);
+        return;
+      }
       // The Urbit client is configured by a parent effect, which may not have
       // run yet on a cold mount — and an unconfigured client makes the lookup
       // return null, indistinguishable from "no home group". Retry briefly

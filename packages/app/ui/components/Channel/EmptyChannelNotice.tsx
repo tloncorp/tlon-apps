@@ -92,6 +92,10 @@ export function EmptyChannelNotice({
   // the client knows it seated an agent there, show nothing and let the
   // agent speak first. Channels created after that (the group has grown) get
   // the normal notice.
+  //
+  // Accounts without a Tlonbot can never hit this: both records below are
+  // written only by the agent flows, which are gated on the bot existing —
+  // for everyone else these are empty and every group behaves as before.
   const awaitingAgentOpening =
     channel.type === 'chat' &&
     !!channel.groupId &&
