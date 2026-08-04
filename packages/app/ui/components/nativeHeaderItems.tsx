@@ -1,12 +1,14 @@
 import type { NativeStackHeaderItem } from '@react-navigation/native-stack';
+import { Platform } from 'react-native';
 import { ColorTokens, useTheme } from 'tamagui';
 
 import { nativeHeaderIcons } from '../../navigation/nativeHeaderIcons';
+import { ScreenHeaderItemElements } from './ScreenHeaderItemElements';
 import {
-  getScreenHeaderItemSignature,
-  visibleHeaderItemConfigs,
+  type ScreenHeaderAction,
+  forwardLatestScreenHeaderActionCallbacks,
+  visibleScreenHeaderActions,
 } from './screenHeaderItemModel';
-import type { ScreenHeaderItemConfig } from './screenHeaderItemModel';
 
 /**
  * One declaration per header button, from which every platform representation
@@ -51,22 +53,22 @@ export function resolveNativeHeaderColor(
 const noop = () => {};
 
 export function buildNativeHeaderItem(
-  config: ScreenHeaderItemConfig,
+  action: ScreenHeaderAction,
   theme: ThemeValues
 ): NativeStackHeaderItem {
-  if ('menu' in config) {
+  if (action.kind === 'menu') {
     return {
       type: 'menu',
-      label: config.menu.label,
-      accessibilityLabel: config.menu.label,
+      label: action.label,
+      accessibilityLabel: action.label,
       icon: {
         type: 'image',
-        source: nativeIconSources[config.menu.icon],
+        source: nativeIconSources[action.icon],
       },
-      identifier: config.id,
+      identifier: action.id,
       sharesBackground: true,
       menu: {
-        items: config.menu.items.map((item) => ({
+        items: action.items.map((item) => ({
           type: 'action' as const,
           label: item.label,
           onPress: item.onPress,
@@ -75,44 +77,70 @@ export function buildNativeHeaderItem(
     } as NativeStackHeaderItem;
   }
 
-  if ('text' in config) {
+  if (action.kind === 'text') {
     return {
       type: 'button',
-      label: config.text,
-      accessibilityLabel: config.text,
-      identifier: config.id,
-      onPress: config.onPress ?? noop,
-      disabled: config.disabled,
+      label: action.text,
+      accessibilityLabel: action.text,
+      identifier: action.id,
+      onPress: action.onPress ?? noop,
+      disabled: action.disabled,
       sharesBackground: true,
-      tintColor: resolveNativeHeaderColor(config.tint, theme),
+      tintColor: resolveNativeHeaderColor(action.tint, theme),
     };
   }
 
   return {
     type: 'button',
-    label: config.label,
-    accessibilityLabel: config.label,
+    label: action.label,
+    accessibilityLabel: action.label,
     icon: {
       type: 'image',
-      source: nativeIconSources[config.icon],
+      source: nativeIconSources[action.icon],
     },
-    identifier: config.id,
-    onPress: config.onPress ?? noop,
-    disabled: config.disabled,
-    selected: config.selected,
+    identifier: action.id,
+    onPress: action.onPress ?? noop,
+    disabled: action.disabled,
+    selected: action.selected,
     sharesBackground: true,
-    tintColor: resolveNativeHeaderColor(config.tint, theme),
+    tintColor: resolveNativeHeaderColor(action.tint, theme),
   } as NativeStackHeaderItem;
 }
 
 export function buildNativeHeaderItems(
-  configs: ScreenHeaderItemConfig[],
+  actions: ScreenHeaderAction[],
   theme: ThemeValues
-): { items: NativeStackHeaderItem[]; signature: string } {
-  const visible = visibleHeaderItemConfigs(configs);
-  const items = visible.map((config) => buildNativeHeaderItem(config, theme));
-  const signature = getScreenHeaderItemSignature(configs, (color) =>
-    resolveNativeHeaderColor(color, theme)
+): NativeStackHeaderItem[] {
+  return visibleScreenHeaderActions(actions).map((action) =>
+    buildNativeHeaderItem(action, theme)
   );
-  return { items, signature };
+}
+
+export function buildNativeHeaderActionOptions({
+  side,
+  actionsRef,
+  themeRef,
+}: {
+  side: 'left' | 'right';
+  actionsRef: { current: ScreenHeaderAction[] };
+  themeRef: { current: ThemeValues };
+}) {
+  if (Platform.OS === 'ios') {
+    return {
+      [`unstable_header${side === 'left' ? 'Left' : 'Right'}Items`]: () =>
+        buildNativeHeaderItems(
+          forwardLatestScreenHeaderActionCallbacks(actionsRef),
+          themeRef.current
+        ),
+    };
+  }
+
+  return {
+    [`header${side === 'left' ? 'Left' : 'Right'}`]: () => (
+      <ScreenHeaderItemElements
+        actions={forwardLatestScreenHeaderActionCallbacks(actionsRef)}
+        nativeHeader
+      />
+    ),
+  };
 }

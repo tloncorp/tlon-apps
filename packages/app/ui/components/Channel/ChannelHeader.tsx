@@ -385,7 +385,6 @@ export function ChannelHeader({
       testID="ChannelHeaderTitle"
       showSubtitle={!hideIdentity}
       borderBottom
-      useNativeHeader={false}
       loadingSubtitle={
         hideIdentity && !registeredLoadingSubtitle
           ? null

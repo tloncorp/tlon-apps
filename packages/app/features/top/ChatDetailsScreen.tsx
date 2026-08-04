@@ -215,10 +215,11 @@ function ChatDetailsScreenView() {
         backAction={handleGoBack}
         useHorizontalTitleLayout={!isWindowNarrow}
         title={getTitle()}
-        rightItems={
+        rightActions={
           currentUserIsAdmin
             ? [
                 {
+                  kind: 'text',
                   id: 'DetailsEditButton',
                   text: 'Rename',
                   onPress: handlePressEdit,
@@ -229,7 +230,7 @@ function ChatDetailsScreenView() {
               ]
             : []
         }
-        useNativeHeader
+        placement="navigation"
       />
       {hasContent && (
         <ScreenScrollView

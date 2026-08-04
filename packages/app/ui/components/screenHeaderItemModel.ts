@@ -8,14 +8,15 @@ export type ScreenHeaderIconName =
   | 'Search'
   | 'Settings';
 
-interface BaseItemConfig {
-  /** Stable identity for the native item; also the default testID. */
+interface BaseAction {
+  /** Stable identity for the action; also the default testID. */
   id: string;
   /** Excluded from every platform representation when false. */
   visible?: boolean;
 }
 
-export interface HeaderIconItemConfig extends BaseItemConfig {
+export interface ScreenHeaderIconAction extends BaseAction {
+  kind: 'icon';
   icon: ScreenHeaderIconName;
   label: string;
   onPress?: () => void;
@@ -28,7 +29,8 @@ export interface HeaderIconItemConfig extends BaseItemConfig {
   testID?: string;
 }
 
-export interface HeaderTextItemConfig extends BaseItemConfig {
+export interface ScreenHeaderTextAction extends BaseAction {
+  kind: 'text';
   text: string;
   onPress?: () => void;
   disabled?: boolean;
@@ -36,83 +38,122 @@ export interface HeaderTextItemConfig extends BaseItemConfig {
   testID?: string;
 }
 
-export interface HeaderMenuItemConfig extends BaseItemConfig {
-  menu: {
-    icon: ScreenHeaderIconName;
-    label: string;
-    items: { label: string; onPress: () => void }[];
-  };
+export interface ScreenHeaderMenuActionItem {
+  id: string;
+  label: string;
+  onPress: () => void;
 }
 
-export type ScreenHeaderItemConfig =
-  | HeaderIconItemConfig
-  | HeaderTextItemConfig
-  | HeaderMenuItemConfig;
-
-export function visibleHeaderItemConfigs(configs: ScreenHeaderItemConfig[]) {
-  return configs.filter((config) => config.visible !== false);
+export interface ScreenHeaderMenuAction extends BaseAction {
+  kind: 'menu';
+  icon: ScreenHeaderIconName;
+  label: string;
+  items: ScreenHeaderMenuActionItem[];
 }
 
-export function forwardLatestHeaderItemCallbacks(configsRef: {
-  current: ScreenHeaderItemConfig[];
-}): ScreenHeaderItemConfig[] {
-  return configsRef.current.map((config) => {
-    if ('menu' in config) {
-      const id = config.id;
+export type ScreenHeaderAction =
+  | ScreenHeaderIconAction
+  | ScreenHeaderTextAction
+  | ScreenHeaderMenuAction;
+
+export function visibleScreenHeaderActions(actions: ScreenHeaderAction[]) {
+  return actions.filter((action) => action.visible !== false);
+}
+
+/**
+ * Native header options are installed less often than React callbacks change.
+ * Keep the installed wrappers stable while always dispatching to current data.
+ */
+export function forwardLatestScreenHeaderActionCallbacks(actionsRef: {
+  current: ScreenHeaderAction[];
+}): ScreenHeaderAction[] {
+  return actionsRef.current.map((action) => {
+    if (action.kind === 'menu') {
+      const actionId = action.id;
       return {
-        ...config,
-        menu: {
-          ...config.menu,
-          items: config.menu.items.map((item, index) => ({
+        ...action,
+        items: action.items.map((item) => {
+          const itemId = item.id;
+          return {
             ...item,
             onPress: () => {
-              const latest = configsRef.current.find(
-                (candidate) => candidate.id === id && 'menu' in candidate
+              const latestAction = actionsRef.current.find(
+                (candidate) =>
+                  candidate.id === actionId && candidate.kind === 'menu'
               );
-              if (latest && 'menu' in latest) {
-                latest.menu.items[index]?.onPress();
+              if (latestAction?.kind === 'menu') {
+                latestAction.items
+                  .find((candidate) => candidate.id === itemId)
+                  ?.onPress();
               }
             },
-          })),
-        },
+          };
+        }),
       };
     }
 
-    const id = config.id;
+    const actionId = action.id;
+    const actionKind = action.kind;
     return {
-      ...config,
+      ...action,
       onPress: () => {
-        const latest = configsRef.current.find(
-          (candidate) => candidate.id === id && !('menu' in candidate)
+        const latestAction = actionsRef.current.find(
+          (candidate) =>
+            candidate.id === actionId && candidate.kind === actionKind
         );
-        if (latest && !('menu' in latest) && !latest.disabled) {
-          latest.onPress?.();
+        if (latestAction?.kind !== 'menu' && !latestAction?.disabled) {
+          latestAction?.onPress?.();
         }
       },
     };
   });
 }
 
-export function getScreenHeaderItemSignature(
-  configs: ScreenHeaderItemConfig[],
+/** Serializable state shared by native and React header renderers. */
+export function getScreenHeaderActionPresentation(
+  actions: ScreenHeaderAction[],
   resolveColor: (color: string | undefined) => string | undefined
 ) {
-  return visibleHeaderItemConfigs(configs)
-    .map((config) => {
-      if ('menu' in config) {
-        return `menu:${config.id}:${config.menu.icon}:${config.menu.items
-          .map((item) => item.label)
-          .join(';')}`;
-      }
-      const kind = 'text' in config ? `text:${config.text}` : config.icon;
-      return [
-        config.id,
-        kind,
-        config.disabled ? 'disabled' : 'enabled',
-        'selected' in config && config.selected ? 'selected' : '',
-        resolveColor(config.tint) ?? '',
-        'backgroundTint' in config ? config.backgroundTint ?? '' : '',
-      ].join(':');
-    })
-    .join(',');
+  return visibleScreenHeaderActions(actions).map((action) => {
+    switch (action.kind) {
+      case 'menu':
+        return {
+          kind: action.kind,
+          id: action.id,
+          icon: action.icon,
+          label: action.label,
+          items: action.items.map(({ id, label }) => ({ id, label })),
+        };
+      case 'text':
+        return {
+          kind: action.kind,
+          id: action.id,
+          text: action.text,
+          disabled: action.disabled,
+          tint: resolveColor(action.tint),
+          testID: action.testID,
+        };
+      case 'icon':
+        return {
+          kind: action.kind,
+          id: action.id,
+          icon: action.icon,
+          label: action.label,
+          disabled: action.disabled,
+          selected: action.selected,
+          tint: resolveColor(action.tint),
+          backgroundTint: resolveColor(action.backgroundTint),
+          testID: action.testID,
+        };
+    }
+  });
+}
+
+export function getScreenHeaderActionSignature(
+  actions: ScreenHeaderAction[],
+  resolveColor: (color: string | undefined) => string | undefined
+) {
+  return JSON.stringify(
+    getScreenHeaderActionPresentation(actions, resolveColor)
+  );
 }

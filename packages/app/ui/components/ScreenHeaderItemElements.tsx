@@ -5,21 +5,21 @@ import { ColorTokens, TamaguiElement, XStack } from 'tamagui';
 import { ActionSheet } from './ActionSheet';
 import { HeaderIconButton, HeaderTextButton } from './ScreenHeaderPrimitives';
 import {
-  type HeaderMenuItemConfig,
+  type ScreenHeaderAction,
   type ScreenHeaderIconName,
-  type ScreenHeaderItemConfig,
-  visibleHeaderItemConfigs,
+  type ScreenHeaderMenuAction,
+  visibleScreenHeaderActions,
 } from './screenHeaderItemModel';
 
 /** React renderer for the shared item model, used by web and Android. */
 export function ScreenHeaderItemElements({
-  configs,
+  actions,
   nativeHeader = false,
 }: {
-  configs: ScreenHeaderItemConfig[];
+  actions: ScreenHeaderAction[];
   nativeHeader?: boolean;
 }) {
-  const visible = visibleHeaderItemConfigs(configs);
+  const visible = visibleScreenHeaderActions(actions);
   if (visible.length === 0) {
     return null;
   }
@@ -30,35 +30,35 @@ export function ScreenHeaderItemElements({
       height={nativeHeader ? '$4xl' : undefined}
       gap={nativeHeader ? '$l' : undefined}
     >
-      {visible.map((config) => {
-        if ('menu' in config) {
-          return <HeaderItemMenu key={config.id} config={config} />;
+      {visible.map((action) => {
+        if (action.kind === 'menu') {
+          return <HeaderItemMenu key={action.id} action={action} />;
         }
-        if ('text' in config) {
+        if (action.kind === 'text') {
           return (
             <HeaderTextButton
-              key={config.id}
-              onPress={config.disabled ? undefined : config.onPress}
-              disabled={config.disabled}
-              color={(config.tint as ColorTokens) ?? '$primaryText'}
-              testID={config.testID ?? config.id}
+              key={action.id}
+              onPress={action.disabled ? undefined : action.onPress}
+              disabled={action.disabled}
+              color={(action.tint as ColorTokens) ?? '$primaryText'}
+              testID={action.testID ?? action.id}
             >
-              {config.text}
+              {action.text}
             </HeaderTextButton>
           );
         }
         return (
           <HeaderIconButton
-            key={config.id}
-            type={config.icon}
-            disabled={config.disabled}
-            onPress={config.disabled ? undefined : config.onPress}
-            color={(config.tint as ColorTokens) ?? '$primaryText'}
+            key={action.id}
+            type={action.icon}
+            disabled={action.disabled}
+            onPress={action.disabled ? undefined : action.onPress}
+            color={(action.tint as ColorTokens) ?? '$primaryText'}
             backgroundColor={
-              (config.backgroundTint as ColorTokens) ?? 'transparent'
+              (action.backgroundTint as ColorTokens) ?? 'transparent'
             }
-            testID={config.testID ?? config.id}
-            aria-label={config.label}
+            testID={action.testID ?? action.id}
+            aria-label={action.label}
           />
         );
       })}
@@ -66,7 +66,7 @@ export function ScreenHeaderItemElements({
   );
 }
 
-function HeaderItemMenu({ config }: { config: HeaderMenuItemConfig }) {
+function HeaderItemMenu({ action }: { action: ScreenHeaderMenuAction }) {
   const [open, setOpen] = useState(false);
   const isWindowNarrow = useIsWindowNarrow();
 
@@ -78,17 +78,17 @@ function HeaderItemMenu({ config }: { config: HeaderMenuItemConfig }) {
       onOpenChange={setOpen}
       trigger={
         <HeaderItemMenuTrigger
-          icon={config.menu.icon}
-          aria-label={config.menu.label}
+          icon={action.icon}
+          aria-label={action.label}
           onPress={isWindowNarrow ? () => setOpen(true) : undefined}
         />
       }
     >
       <ActionSheet.Content>
         <ActionSheet.ActionGroup accent="neutral">
-          {config.menu.items.map((item) => (
+          {action.items.map((item) => (
             <ActionSheet.Action
-              key={item.label}
+              key={item.id}
               action={{
                 title: item.label,
                 action: () => {

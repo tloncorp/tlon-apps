@@ -54,7 +54,7 @@ export function BlockedUsersScreen(props: Props) {
         backAction={isNarrow ? () => props.navigation.goBack() : undefined}
         title="Blocked users"
         borderBottom
-        useNativeHeader
+        placement="navigation"
       />
       <SettingsContentScrollView
         useScreenChrome

@@ -40,8 +40,38 @@ import {
   HeaderTextButton,
   HeaderTitleText,
 } from './ScreenHeaderPrimitives';
-import type { ScreenHeaderItemConfig } from './screenHeaderItemModel';
+import type { ScreenHeaderAction } from './screenHeaderItemModel';
 import { useScreenHeader } from './useScreenHeader';
+
+interface SharedScreenHeaderProps {
+  title?: string | ReactNode;
+  titleIcon?: ReactNode;
+  subtitle?: string | ReactNode;
+  showSubtitle?: boolean;
+  backgroundColor?: string;
+  leftActions?: ScreenHeaderAction[];
+  rightActions?: ScreenHeaderAction[];
+  backAction?: () => void;
+  borderBottom?: boolean;
+  onTitlePress?: () => void;
+  useHorizontalTitleLayout?: boolean;
+  loadingSubtitle?: string | null;
+  testID?: string;
+}
+
+type ScreenHeaderProps = SharedScreenHeaderProps &
+  (
+    | {
+        placement?: 'content';
+        leftControls?: ReactNode | null;
+        rightControls?: ReactNode | null;
+      }
+    | {
+        placement: 'navigation';
+        leftControls?: never;
+        rightControls?: never;
+      }
+  );
 
 export const ScreenHeaderComponent = ({
   children,
@@ -52,33 +82,16 @@ export const ScreenHeaderComponent = ({
   backgroundColor,
   leftControls,
   rightControls,
-  leftItems,
-  rightItems,
+  leftActions,
+  rightActions,
   backAction,
   borderBottom,
   onTitlePress,
   useHorizontalTitleLayout = false,
   loadingSubtitle,
   testID,
-  useNativeHeader = false,
-}: PropsWithChildren<{
-  title?: string | ReactNode;
-  titleIcon?: ReactNode;
-  subtitle?: string | ReactNode;
-  showSubtitle?: boolean;
-  backgroundColor?: string;
-  leftControls?: ReactNode | null;
-  rightControls?: ReactNode | null;
-  leftItems?: ScreenHeaderItemConfig[];
-  rightItems?: ScreenHeaderItemConfig[];
-  backAction?: () => void;
-  borderBottom?: boolean;
-  onTitlePress?: () => void;
-  useHorizontalTitleLayout?: boolean;
-  loadingSubtitle?: string | null;
-  testID?: string;
-  useNativeHeader?: boolean;
-}>) => {
+  placement = 'content',
+}: PropsWithChildren<ScreenHeaderProps>) => {
   const { top } = useSafeAreaInsets();
   const [headerWidth, setHeaderWidth] = useState(0);
   const [leftControlsWidth, setLeftControlsWidth] = useState(0);
@@ -239,10 +252,11 @@ export const ScreenHeaderComponent = ({
     titleContent
   );
 
-  const nativeLeftItemConfigs: ScreenHeaderItemConfig[] = [
+  const navigationLeftActions: ScreenHeaderAction[] = [
     ...(backAction
       ? [
           {
+            kind: 'icon' as const,
             id: 'screen-header-back',
             icon: 'ChevronLeft' as const,
             label: 'Back',
@@ -250,7 +264,7 @@ export const ScreenHeaderComponent = ({
           },
         ]
       : []),
-    ...(leftItems ?? []),
+    ...(leftActions ?? []),
   ];
   const usesCustomNativeTitle =
     typeof title !== 'string' ||
@@ -258,14 +272,13 @@ export const ScreenHeaderComponent = ({
     onTitlePress != null ||
     loadingSubtitle !== undefined;
   const shouldUseNativeHeader = useScreenHeader({
-    enabled: useNativeHeader,
+    enabled: placement === 'navigation',
     title: typeof title === 'string' ? title : '',
     titleElement: interactiveTitleContent,
     usesCustomTitle: usesCustomNativeTitle,
     backgroundColor,
-    left: nativeLeftItemConfigs,
-    right: rightItems ?? [],
-    revision: loadingSubtitle,
+    left: navigationLeftActions,
+    right: rightActions ?? [],
   });
 
   if (shouldUseNativeHeader) {
@@ -318,7 +331,9 @@ export const ScreenHeaderComponent = ({
       >
         {backAction ? <HeaderBackButton onPress={backAction} /> : null}
         {leftControls}
-        {leftItems ? <ScreenHeaderItemElements configs={leftItems} /> : null}
+        {leftActions ? (
+          <ScreenHeaderItemElements actions={leftActions} />
+        ) : null}
       </HeaderControls>
       <HeaderControls
         side="right"
@@ -330,7 +345,9 @@ export const ScreenHeaderComponent = ({
         }}
       >
         {rightControls}
-        {rightItems ? <ScreenHeaderItemElements configs={rightItems} /> : null}
+        {rightActions ? (
+          <ScreenHeaderItemElements actions={rightActions} />
+        ) : null}
       </HeaderControls>
       {children}
     </View>

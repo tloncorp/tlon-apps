@@ -70,7 +70,7 @@ export function SettingsScreenView(props: Props) {
         title="Settings"
         backAction={props.onBackPressed}
         borderBottom={isWindowNarrow}
-        useNativeHeader
+        placement="navigation"
       />
       <ScreenScrollView>
         <YStack flex={1} padding="$l" gap="$s">

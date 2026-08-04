@@ -122,7 +122,7 @@ export function AppInfoScreen(props: Props) {
         backAction={
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
-        useNativeHeader
+        placement="navigation"
       />
       <SettingsContentScrollView useScreenChrome>
         <YStack

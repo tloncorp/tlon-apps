@@ -1,18 +1,20 @@
 import { NavigationContext } from '@react-navigation/native';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
-import { useContext, useLayoutEffect, useMemo, useRef } from 'react';
-import { Platform } from 'react-native';
+import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from 'tamagui';
 
 import { getNativeHeaderOptions } from '../../navigation/nativeHeaderOptions';
-import { ScreenHeaderItemElements } from './ScreenHeaderItemElements';
 import {
-  buildNativeHeaderItems,
+  buildNativeHeaderActionOptions,
   resolveNativeHeaderColor,
 } from './nativeHeaderItems';
 import {
-  type ScreenHeaderItemConfig,
-  forwardLatestHeaderItemCallbacks,
+  NativeHeaderTitle,
+  createNativeHeaderTitleStore,
+} from './nativeHeaderTitle';
+import {
+  type ScreenHeaderAction,
+  getScreenHeaderActionSignature,
 } from './screenHeaderItemModel';
 import type { UseScreenHeaderOptions } from './useScreenHeader.types';
 
@@ -26,67 +28,59 @@ export function useScreenHeader({
   backgroundColor,
   left,
   right,
-  revision,
 }: UseScreenHeaderOptions) {
   const navigation = useContext(NavigationContext);
   const theme = useTheme();
-  const titleRef = useRef(titleElement);
-  const leftConfigsRef = useRef<ScreenHeaderItemConfig[]>([]);
-  const rightConfigsRef = useRef<ScreenHeaderItemConfig[]>([]);
+  const [titleStore] = useState(() =>
+    createNativeHeaderTitleStore(titleElement)
+  );
+  const leftActionsRef = useRef<ScreenHeaderAction[]>([]);
+  const rightActionsRef = useRef<ScreenHeaderAction[]>([]);
   const themeRef = useRef(theme);
-  titleRef.current = titleElement;
-  leftConfigsRef.current = left;
-  rightConfigsRef.current = right;
+  leftActionsRef.current = left;
+  rightActionsRef.current = right;
   themeRef.current = theme;
+
+  useLayoutEffect(() => {
+    titleStore.set(titleElement);
+  }, [titleElement, titleStore]);
 
   const shouldUseNativeHeader = enabled && navigation != null;
   const resolvedBackgroundColor = resolveNativeHeaderColor(
     backgroundColor,
     theme
   );
-  const signature = [
-    buildNativeHeaderItems(left, theme).signature,
-    buildNativeHeaderItems(right, theme).signature,
-  ].join('|');
+  const signature = [left, right]
+    .map((actions) =>
+      getScreenHeaderActionSignature(actions, (color) =>
+        resolveNativeHeaderColor(color, theme)
+      )
+    )
+    .join('|');
 
   const options = useMemo<NativeStackNavigationOptions>(() => {
     void signature;
-    void revision;
-    const next: Record<string, unknown> = {
+    return {
       ...getNativeHeaderOptions({
         title,
         backgroundColor: resolvedBackgroundColor,
       }),
       headerBackVisible: false,
-      headerTitle: usesCustomTitle ? () => titleRef.current : undefined,
-    };
-
-    function applySide(
-      configsRef: { current: ScreenHeaderItemConfig[] },
-      nativeKey: string,
-      elementKey: string
-    ) {
-      if (Platform.OS === 'ios') {
-        next[nativeKey] = () =>
-          buildNativeHeaderItems(
-            forwardLatestHeaderItemCallbacks(configsRef),
-            themeRef.current
-          ).items;
-      } else {
-        next[elementKey] = () => (
-          <ScreenHeaderItemElements
-            configs={forwardLatestHeaderItemCallbacks(configsRef)}
-            nativeHeader
-          />
-        );
-      }
-    }
-
-    applySide(leftConfigsRef, 'unstable_headerLeftItems', 'headerLeft');
-    applySide(rightConfigsRef, 'unstable_headerRightItems', 'headerRight');
-
-    return next as NativeStackNavigationOptions;
-  }, [resolvedBackgroundColor, revision, signature, title, usesCustomTitle]);
+      headerTitle: usesCustomTitle
+        ? () => <NativeHeaderTitle store={titleStore} />
+        : undefined,
+      ...buildNativeHeaderActionOptions({
+        side: 'left',
+        actionsRef: leftActionsRef,
+        themeRef,
+      }),
+      ...buildNativeHeaderActionOptions({
+        side: 'right',
+        actionsRef: rightActionsRef,
+        themeRef,
+      }),
+    } as NativeStackNavigationOptions;
+  }, [resolvedBackgroundColor, signature, title, titleStore, usesCustomTitle]);
 
   useLayoutEffect(() => {
     if (shouldUseNativeHeader) {

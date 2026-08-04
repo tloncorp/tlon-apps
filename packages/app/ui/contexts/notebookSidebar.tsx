@@ -7,7 +7,7 @@ import React, {
   useState,
 } from 'react';
 
-import type { ScreenHeaderItemConfig } from '../components/screenHeaderItemModel';
+import type { ScreenHeaderAction } from '../components/screenHeaderItemModel';
 
 export type NotebookSidebarContent = {
   actions?: ReactNode;
@@ -15,7 +15,7 @@ export type NotebookSidebarContent = {
   channelId: string;
   content: ReactNode;
   groupId?: string | null;
-  headerItems?: ScreenHeaderItemConfig[];
+  headerActions?: ScreenHeaderAction[];
   sourceId: string;
   title?: ReactNode;
 };

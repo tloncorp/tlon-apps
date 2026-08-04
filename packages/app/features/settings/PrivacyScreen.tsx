@@ -185,7 +185,7 @@ export function PrivacySettingsScreen(props: Props) {
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
         title="Privacy Settings"
-        useNativeHeader
+        placement="navigation"
       />
       <SettingsContentScrollView
         useScreenChrome

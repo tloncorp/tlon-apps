@@ -39,7 +39,7 @@ export function ChannelMembersScreenView({
         title="Members"
         loadingSubtitle={channel ? null : 'Loading…'}
         backAction={goBack}
-        useNativeHeader
+        placement="navigation"
       />
       <FlatList
         data={channel?.members}
