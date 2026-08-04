@@ -1,6 +1,7 @@
 import { NavigationContext } from '@react-navigation/native';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import { useInstalledNavigationOptions } from '../../../navigation/useInstalledNavigationOptions';
@@ -41,7 +42,8 @@ export function useNativeHeader({
     titleStore.set(titleElement);
   }, [left, right, titleElement, titleStore]);
 
-  const shouldUseNativeHeader = enabled && navigation != null;
+  const shouldUseNativeHeader =
+    enabled && Platform.OS !== 'web' && navigation != null;
   const resolvedBackgroundColor = resolveNativeHeaderColor(
     backgroundColor,
     theme
