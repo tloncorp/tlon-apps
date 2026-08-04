@@ -467,7 +467,7 @@ class CliObservationTests(unittest.TestCase):
     def test_observer_through_real_cli(self):
         tel, fake = make_telemetry()
 
-        async def fake_runner(command, env, timeout):
+        async def fake_runner(command, env, timeout, _on_deadline):
             return tlon_api.TlonProcessResult(returncode=0, stdout="ok")
 
         cli = tlon_api.TlonCLI(make_config(), runner=fake_runner, observer=tel.observe_cli)

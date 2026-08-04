@@ -1313,7 +1313,7 @@ class TlonToolExecutionTests(unittest.TestCase):
             }
         )
 
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, _on_deadline):
             calls.append((tuple(command), dict(env), timeout))
             return tlon_api.TlonProcessResult(returncode=0, stdout="~zod\n")
 
@@ -1342,7 +1342,7 @@ class TlonToolExecutionTests(unittest.TestCase):
             }
         )
 
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, _on_deadline):
             calls.append(tuple(command))
             return tlon_api.TlonProcessResult(returncode=0, stdout="[]\n")
 
@@ -1359,7 +1359,7 @@ class TlonToolExecutionTests(unittest.TestCase):
         self.assertEqual(calls[0], ("tlon-test", "notes", "list"))
 
     def test_execute_tlon_tool_does_not_run_blocked_command(self):
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, _on_deadline):
             raise AssertionError("blocked command should not execute")
 
         cfg = tlon_api.TlonConfig.from_env(
@@ -1387,7 +1387,7 @@ class TlonToolExecutionTests(unittest.TestCase):
         self.assertIn("current conversation", payload["error"])
 
     def test_execute_tlon_tool_uses_session_env_for_group_create_guard(self):
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, _on_deadline):
             raise AssertionError("blocked command should not execute")
 
         async def run():
@@ -1420,7 +1420,7 @@ class TlonToolExecutionTests(unittest.TestCase):
             }
         )
 
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, _on_deadline):
             calls.append(tuple(command))
             return tlon_api.TlonProcessResult(returncode=0, stdout="ok\n")
 

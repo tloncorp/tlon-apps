@@ -179,6 +179,7 @@ from .tlon_api import (
     TlonChannelError,
     TlonCLI,
     TlonConfig,
+    TlonDeadlineCallback,
     TlonGatewayStatus,
     TlonIncomingMessage,
     TlonReaction,
@@ -1825,10 +1826,15 @@ class TlonAdapter(BasePlatformAdapter):
             )
 
     async def _run_migration_command(
-        self, args: Sequence[str], timeout: float
+        self,
+        args: Sequence[str],
+        timeout: float,
+        on_deadline: TlonDeadlineCallback,
     ):
         with cli_context("migration"):
-            return await self._cli.run_command(args, timeout=timeout)
+            return await self._cli.run_command(
+                args, timeout=timeout, on_deadline=on_deadline
+            )
 
     async def _send_migration_dm(
         self, text: str, blob: Optional[str]

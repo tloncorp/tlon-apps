@@ -854,7 +854,8 @@ class TlonCLITests(unittest.TestCase):
             }
         )
 
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, on_deadline):
+            self.assertIsNone(on_deadline)
             calls.append((tuple(command), dict(env), timeout))
             return tlon_api.TlonProcessResult(returncode=0, stdout="Message sent\n")
 
@@ -897,7 +898,7 @@ class TlonCLITests(unittest.TestCase):
             }
         )
 
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, _on_deadline):
             calls.append(tuple(command))
             return tlon_api.TlonProcessResult(returncode=0, stdout="✓ Message sent\n")
 
@@ -933,7 +934,7 @@ class TlonCLITests(unittest.TestCase):
             }
         )
 
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, _on_deadline):
             calls.append((tuple(command), dict(env), timeout))
             return tlon_api.TlonProcessResult(returncode=0, stdout="~zod\n")
 
@@ -965,7 +966,7 @@ class TlonCLITests(unittest.TestCase):
             "TLON_CODE": "stale-code",
         }
 
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, _on_deadline):
             calls.append(dict(env))
             return tlon_api.TlonProcessResult(returncode=0)
 
@@ -1003,7 +1004,7 @@ class TlonCLITests(unittest.TestCase):
             }
         )
 
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, _on_deadline):
             calls.append(timeout)
             raise tlon_api.TlonProcessTimeout(
                 "Target notebook created: notes/~zod/log\n", "still working\n"
@@ -1042,6 +1043,49 @@ class TlonCLITests(unittest.TestCase):
         with self.assertRaises(tlon_api.TlonProcessTimeout) as raised:
             asyncio.run(run())
         self.assertIn("notes/~zod/log", raised.exception.stdout)
+
+    def test_deadline_reports_partial_chunks_without_signalling_and_returns_result(self):
+        deadline_outputs = []
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.test",
+            ship_name="~zod",
+            ship_code="code",
+            cli=sys.executable,
+        )
+
+        async def on_deadline(output):
+            deadline_outputs.append(output)
+
+        async def run():
+            cli = tlon_api.TlonCLI(cfg)
+            return await cli.run_command(
+                (
+                    "-c",
+                    (
+                        "import sys,time; "
+                        "print('stdout-before', flush=True); "
+                        "print('stderr-before', file=sys.stderr, flush=True); "
+                        "time.sleep(0.4); "
+                        "print('stdout-after', flush=True); "
+                        "print('stderr-after', file=sys.stderr, flush=True)"
+                    ),
+                ),
+                timeout=0.15,
+                on_deadline=on_deadline,
+            )
+
+        command_result = asyncio.run(run())
+        self.assertTrue(command_result.success)
+        self.assertEqual(command_result.returncode, 0)
+        self.assertEqual(len(deadline_outputs), 1)
+        self.assertEqual(deadline_outputs[0].stdout, "stdout-before\n")
+        self.assertEqual(deadline_outputs[0].stderr, "stderr-before\n")
+        self.assertEqual(
+            command_result.stdout, "stdout-before\nstdout-after\n"
+        )
+        self.assertEqual(
+            command_result.stderr, "stderr-before\nstderr-after\n"
+        )
 
 
 class FakeGatewayStatusClient:

@@ -236,7 +236,7 @@ class FakeCLI:
         self.version_stdout = version_stdout
         self.version_error = version_error
 
-    async def run_command(self, args, *, timeout=None):
+    async def run_command(self, args, *, timeout=None, on_deadline=None):
         self.commands.append(tuple(args))
         if self.version_error:
             return tlon_api.TlonSendResult(

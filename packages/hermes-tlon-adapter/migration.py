@@ -11,7 +11,12 @@ from typing import Awaitable, Callable, Mapping, Optional, Sequence
 
 from .approval import build_migrate_card
 from .owner_listen import canonicalize_nest, canonicalize_notes_nest
-from .tlon_api import TlonSendResult, normalize_ship
+from .tlon_api import (
+    TlonDeadlineCallback,
+    TlonDeadlineOutput,
+    TlonSendResult,
+    normalize_ship,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +37,20 @@ MIGRATE_USAGE = (
     "/migrate cleanup <notes-nest>"
 )
 CREATE_FAILURE_MARKER = "Notebook creation may or may not have landed."
+UNMARKED_NOTES_REFUSAL_MARKER = "without a tlon-migrate provenance footer"
+# Deliberately only the shared prefix: the CLI emits two variants that diverge
+# after the nest ("still present" vs "could not be checked").
+PARTIAL_CLEANUP_MARKER = "Notebook deleted; group cleanup unconfirmed"
 _MIGRATE_COMMAND_RE = re.compile(r"^/migrate(?:\s|$)", re.IGNORECASE)
-_TARGET_NEST_RE = re.compile(r"\bnotes/~[a-z-]+/[a-zA-Z0-9-]+\b")
+_TARGET_CREATED_RE = re.compile(
+    r"^Target notebook created: "
+    r"(notes/~[a-z-]+/[a-zA-Z0-9-]+)[ \t]*\r?$",
+    re.MULTILINE,
+)
+_TARGET_RECOVERY_RE = re.compile(
+    r"\btlon notes notebook-delete "
+    r"(notes/~[a-z-]+/[a-zA-Z0-9-]+) --yes\b"
+)
 
 
 @dataclass(frozen=True)
@@ -51,10 +68,11 @@ class CredentialSelection:
 
 
 RunMigrationCommand = Callable[
-    [Sequence[str], float], Awaitable[TlonSendResult]
+    [Sequence[str], float, TlonDeadlineCallback],
+    Awaitable[TlonSendResult],
 ]
 SendReply = Callable[[str], Awaitable[None]]
-SendMigrationDm = Callable[[str, Optional[str]], Awaitable[None]]
+SendMigrationDm = Callable[[str, Optional[str]], Awaitable[bool]]
 BuildMigrationCard = Callable[[str], str]
 
 
@@ -143,50 +161,55 @@ def _strip_cli_recovery(text: str) -> str:
     return text.rstrip()
 
 
-def _target_nest_from_result(result: TlonSendResult) -> Optional[str]:
-    combined = (
+def _result_corpus(result: TlonSendResult) -> str:
+    return (
         f"{result.stdout}\n{result.stderr}\n"
         f"{str(result.error or '')}"
     )
-    match = _TARGET_NEST_RE.search(combined)
-    return match.group(0) if match else None
+
+
+def _target_nest_from_text(text: str) -> Optional[str]:
+    created = _TARGET_CREATED_RE.search(text)
+    if created:
+        return created.group(1)
+    recovery = _TARGET_RECOVERY_RE.search(text)
+    return recovery.group(1) if recovery else None
+
+
+def _target_nest_from_result(result: TlonSendResult) -> Optional[str]:
+    return _target_nest_from_text(_result_corpus(result))
 
 
 def _is_write_widening_refusal(result: TlonSendResult) -> bool:
-    combined = (
-        f"{result.stdout}\n{result.stderr}\n"
-        f"{str(result.error or '')}"
-    )
-    return "--allow-write-widening" in combined
+    return "--allow-write-widening" in _result_corpus(result)
+
+
+def _is_unmarked_notes_refusal(result: TlonSendResult) -> bool:
+    return UNMARKED_NOTES_REFUSAL_MARKER in _result_corpus(result)
+
+
+def _is_partial_cleanup(result: TlonSendResult) -> bool:
+    return PARTIAL_CLEANUP_MARKER in _result_corpus(result)
 
 
 def format_migration_failure(
     result: TlonSendResult, credential_kind: str
 ) -> str:
     error_text = result.stderr or str(result.error or "Migration failed")
-    combined = f"{result.stdout}\n{error_text}"
-    target_match = _TARGET_NEST_RE.search(combined)
+    combined = _result_corpus(result)
+    target = _target_nest_from_result(result)
     base = _strip_cli_recovery(error_text)
     captured = (
         f"Captured migration output:\n{result.stdout.rstrip()}\n\n"
         if result.stdout
         else ""
     )
-    timeout = "Migration timed out.\n\n" if result.timed_out else ""
-
-    if target_match:
-        target = target_match.group(0)
-        if credential_kind == "bot-hosted":
-            recovery = (
-                f"Reply `/migrate cleanup {target}`, then run `/migrate` again."
-            )
-        else:
-            recovery = (
-                f"Delete the notebook `{target}` in the Notes app and run "
-                "`/migrate` again."
-            )
+    if target:
+        recovery = (
+            f"Reply `/migrate cleanup {target}`, then run `/migrate` again."
+        )
         return (
-            f"{timeout}{captured}{base}\n\n"
+            f"{captured}{base}\n\n"
             f"The target notebook exists. {recovery}"
         )
     if CREATE_FAILURE_MARKER in combined:
@@ -200,10 +223,10 @@ def format_migration_failure(
                 f"{CREATE_FAILURE_MARKER} Look for a notebook with the requested "
                 "title in your Notes app and remove it before retrying."
             )
-        return f"{timeout}{captured}{base}\n\n{recovery}".strip()
-    if not result.timed_out and not result.stdout:
+        return f"{captured}{base}\n\n{recovery}".strip()
+    if not result.stdout:
         return error_text
-    return f"{timeout}{captured}{base}".strip()
+    return f"{captured}{base}".strip()
 
 
 class MigrationCommandController:
@@ -220,6 +243,8 @@ class MigrationCommandController:
         self._env = env
         self._build_card = build_card
         self._tasks: set[asyncio.Task[None]] = set()
+        self._apply_in_flight: dict[str, object] = {}
+        self._cleanup_in_flight: dict[str, object] = {}
 
     def _spawn(self, coro: Awaitable[None]) -> None:
         task = asyncio.create_task(coro)
@@ -241,18 +266,85 @@ class MigrationCommandController:
         if self._tasks:
             await asyncio.gather(*tuple(self._tasks))
 
+    async def _send_notification_dm(
+        self,
+        text: str,
+        nest: str,
+        recovery_command: Optional[str] = None,
+        blob: Optional[str] = None,
+    ) -> bool:
+        try:
+            sent = await self._send_dm(text, blob)
+        except Exception as error:
+            target = _target_nest_from_text(text) or nest
+            recovery = (
+                f"; recovery command: {recovery_command}"
+                if recovery_command
+                else ""
+            )
+            logger.error(
+                "[tlon] failed to send owner migration notification "
+                "(target nest: %s)%s: %s. Undelivered message: %s",
+                target,
+                recovery,
+                error,
+                text,
+            )
+            return False
+        if sent:
+            return True
+        target = _target_nest_from_text(text) or nest
+        recovery = (
+            f"; recovery command: {recovery_command}"
+            if recovery_command
+            else ""
+        )
+        logger.error(
+            "[tlon] failed to send owner migration notification "
+            "(target nest: %s)%s. Undelivered message: %s",
+            target,
+            recovery,
+            text,
+        )
+        return False
+
     async def _send_action_dm(
-        self, text: str, command: Optional[str] = None
+        self,
+        text: str,
+        nest: str,
+        command: Optional[str] = None,
+        recovery_command: Optional[str] = None,
     ) -> None:
+        recovery = recovery_command or command
         if command is None:
-            await self._send_dm(text, None)
+            await self._send_notification_dm(text, nest, recovery)
             return
         try:
             blob = self._build_card(command)
         except Exception:
             logger.exception("[tlon] failed to build migration A2UI card")
-            blob = None
-        await self._send_dm(text, blob)
+            await self._send_notification_dm(text, nest, recovery)
+            return
+        await self._send_notification_dm(text, nest, recovery, blob)
+
+    async def _report_deadline(
+        self, nest: str, output: TlonDeadlineOutput
+    ) -> None:
+        target = _target_nest_from_text(
+            f"{output.stdout}\n{output.stderr}"
+        )
+        target_detail = (
+            f" The target notebook reported so far is `{target}`; inspect that "
+            "notebook in the Notes app after the migration finishes."
+            if target
+            else ""
+        )
+        text = (
+            "No migration result has arrived yet. The migration may still be "
+            "running. Do not retry it while it is still running."
+            f"{target_detail}"
+        )
+        await self._send_notification_dm(text, nest)
 
     async def handle(
         self,
@@ -277,89 +369,170 @@ class MigrationCommandController:
             return
 
         if parsed.kind == "migrate":
+            # This deliberately blocks unrelated applies behind any cleanup. The
+            # cleanup's two-minute deadline is advisory: its on_deadline callback
+            # reports without killing the process, so a stuck cleanup blocks every
+            # apply until the gateway restarts. That tradeoff is accepted for the
+            # one-owner, one-notebook deployment.
+            if self._cleanup_in_flight:
+                await send_reply(
+                    "A migration cleanup is currently running. Wait for it to "
+                    "finish, then retry the migration."
+                )
+                return
+            key = parsed.nest
+            if key in self._apply_in_flight:
+                await send_reply(
+                    f"A migration for {parsed.nest} is already running."
+                )
+                return
+            token = object()
+            self._apply_in_flight[key] = token
+            self._spawn(self._run_apply(parsed, selection, key, token))
             await send_reply(
                 f"Migration started for {parsed.nest}. I’ll DM the result.\n\n"
                 f"{MIGRATION_DROP_WARNING}"
             )
-            self._spawn(self._run_apply(parsed, selection))
             return
 
+        if self._apply_in_flight:
+            await send_reply(
+                "A migration is currently running. Wait for it to finish, then "
+                "retry the cleanup."
+            )
+            return
+        key = parsed.nest
+        if key in self._cleanup_in_flight:
+            await send_reply(
+                f"A migration cleanup for {parsed.nest} is already running."
+            )
+            return
+        token = object()
+        self._cleanup_in_flight[key] = token
+        self._spawn(self._run_cleanup(parsed, selection, key, token))
         await send_reply(
             f"Cleanup started for {parsed.nest}. I’ll DM the result."
         )
-        self._spawn(self._run_cleanup(parsed, selection))
 
     async def _run_apply(
         self,
         parsed: ParsedMigrationCommand,
         selection: CredentialSelection,
+        key: str,
+        token: object,
     ) -> None:
-        args = [
-            *selection.prefix_args,
-            "notes",
-            "migrate-apply",
-            parsed.nest,
-            "--yes",
-            *(
-                ["--allow-write-widening"]
-                if parsed.allow_write_widening
-                else []
-            ),
-        ]
-        result = await self._run_command(args, MIGRATION_APPLY_TIMEOUT_SECONDS)
-        if result.success:
-            await self._send_dm(result.stdout, None)
-            return
+        try:
+            args = [
+                *selection.prefix_args,
+                "notes",
+                "migrate-apply",
+                parsed.nest,
+                "--yes",
+                *(
+                    ["--allow-write-widening"]
+                    if parsed.allow_write_widening
+                    else []
+                ),
+            ]
+            result = await self._run_command(
+                args,
+                MIGRATION_APPLY_TIMEOUT_SECONDS,
+                lambda output: self._report_deadline(parsed.nest, output),
+            )
+            if result.success:
+                await self._send_notification_dm(result.stdout, parsed.nest)
+                return
 
-        text = format_migration_failure(result, selection.kind)
-        target = _target_nest_from_result(result)
-        command = (
-            f"/migrate cleanup {target}"
-            if selection.kind == "bot-hosted" and target
-            else None
-        )
-        if (
-            command is None
-            and target is None
-            and not parsed.allow_write_widening
-            and _is_write_widening_refusal(result)
-        ):
-            command = (
-                f"/migrate {parsed.nest} --allow-write-widening"
+            text = format_migration_failure(result, selection.kind)
+            target = _target_nest_from_result(result)
+            command = f"/migrate cleanup {target}" if target else None
+            if (
+                command is None
+                and target is None
+                and not parsed.allow_write_widening
+                and _is_write_widening_refusal(result)
+            ):
+                command = (
+                    f"/migrate {parsed.nest} --allow-write-widening"
+                )
+                text += (
+                    f"\n\nReply `{command}` to accept that every reader "
+                    "will become an editor and proceed."
+                )
+            await self._send_action_dm(
+                text, parsed.nest, command, command
             )
-            text += (
-                f"\n\nReply `{command}` to accept that every reader "
-                "will become an editor and proceed."
-            )
-        await self._send_action_dm(text, command)
+        finally:
+            if self._apply_in_flight.get(key) is token:
+                del self._apply_in_flight[key]
 
     async def _run_cleanup(
         self,
         parsed: ParsedMigrationCommand,
         selection: CredentialSelection,
+        key: str,
+        token: object,
     ) -> None:
-        result = await self._run_command(
-            (
-                *selection.prefix_args,
-                "notes",
-                "notebook-delete",
-                parsed.nest,
-                "--yes",
-            ),
-            MIGRATION_CLEANUP_TIMEOUT_SECONDS,
-        )
-        if result.success:
-            await self._send_dm(result.stdout, None)
-            return
+        try:
+            result = await self._run_command(
+                (
+                    *selection.prefix_args,
+                    "notes",
+                    "notebook-delete",
+                    parsed.nest,
+                    "--yes",
+                ),
+                MIGRATION_CLEANUP_TIMEOUT_SECONDS,
+                lambda output: self._report_deadline(parsed.nest, output),
+            )
+            if result.success:
+                await self._send_notification_dm(result.stdout, parsed.nest)
+                return
 
-        text = (
-            "Migration cleanup failed.\n\n"
-            + format_migration_failure(result, selection.kind)
-        )
-        target = _target_nest_from_result(result)
-        await self._send_action_dm(
-            text,
-            f"/migrate cleanup {target}"
-            if selection.kind == "bot-hosted" and target
-            else None,
-        )
+            if _is_partial_cleanup(result):
+                text = (
+                    f"The notebook `{parsed.nest}` was deleted successfully. "
+                    "The channel may still show in your group for a moment. "
+                    "Wait a few seconds, then retry the migration."
+                )
+                await self._send_notification_dm(text, parsed.nest)
+                return
+
+            target = _target_nest_from_result(result)
+            unmarked_refusal = _is_unmarked_notes_refusal(result)
+            if unmarked_refusal:
+                text = (
+                    "Migration cleanup stopped. The notebook "
+                    f"`{target or parsed.nest}` contains notes that were added "
+                    "or edited since the migration. Inspect it in the Notes app "
+                    "and delete it there if that is what you want."
+                )
+            else:
+                text = (
+                    "Migration cleanup failed.\n\n"
+                    + format_migration_failure(result, selection.kind)
+                )
+                if target is None:
+                    text += (
+                        f"\n\nInspect the notebook `{parsed.nest}` in the Notes "
+                        "app and delete it there if that is what you want."
+                    )
+            command = (
+                f"/migrate cleanup {target}"
+                if target and not unmarked_refusal
+                else None
+            )
+            recovery_command = (
+                None
+                if unmarked_refusal
+                else f"/migrate cleanup {parsed.nest}"
+            )
+            await self._send_action_dm(
+                text,
+                parsed.nest,
+                command,
+                recovery_command,
+            )
+        finally:
+            if self._cleanup_in_flight.get(key) is token:
+                del self._cleanup_in_flight[key]
