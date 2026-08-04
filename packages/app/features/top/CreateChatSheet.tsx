@@ -17,7 +17,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
 import useGroupSearch from '../../hooks/useGroupSearch';
-import { AGENT_SHIP_OVERRIDE } from '../../lib/envVars';
+import {
+  AGENT_ONBOARDING_FORCE_LOCK,
+  AGENT_SHIP_OVERRIDE,
+} from '../../lib/envVars';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -667,6 +670,11 @@ function useCreateChat() {
           const { group, channelId } = await store.createAgentGroup({
             agentShipId: AGENT_SHIP_OVERRIDE || undefined,
           });
+          if (AGENT_ONBOARDING_FORCE_LOCK) {
+            // Dev only: stand in for the first-run flow, which is what
+            // normally marks the guided group and needs a hosted home group.
+            await db.agentOnboardingGroupId.setValue(group.id);
+          }
           const channel = channelId
             ? await db.getChannel({ id: channelId })
             : null;

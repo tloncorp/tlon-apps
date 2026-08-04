@@ -37,6 +37,7 @@ const envVars = {
   automatedTest: env.VITE_AUTOMATED_TEST,
   sentryDsn: env.VITE_SENTRY_DSN,
   agentShipOverride: env.VITE_AGENT_SHIP_OVERRIDE,
+  agentOnboardingForceLock: env.VITE_AGENT_ONBOARDING_FORCE_LOCK,
 } as Record<string, string | undefined>;
 
 export const DEV_SHIP_URL = envVars.devShipUrl ?? '';
@@ -90,6 +91,14 @@ export const SENTRY_DSN = envVars.sentryDsn ?? '';
  * a self-hosted ship running its own bot — name the agent directly.
  */
 export const AGENT_SHIP_OVERRIDE = envVars.agentShipOverride ?? '';
+/**
+ * Treat a hand-created agent group as the first-run onboarding group, so its
+ * chrome lock engages. Dev only: the real trigger needs a hosted home group,
+ * which a sandbox or self-hosted setup doesn't have — the same gap
+ * AGENT_SHIP_OVERRIDE exists to cover.
+ */
+export const AGENT_ONBOARDING_FORCE_LOCK =
+  (envVars.agentOnboardingForceLock ?? '') === 'true';
 
 export const ENV_VARS = {
   DEV_SHIP_URL,
@@ -127,4 +136,5 @@ export const ENV_VARS = {
   FORCE_SPLASH_SEQUENCE,
   SENTRY_DSN,
   AGENT_SHIP_OVERRIDE,
+  AGENT_ONBOARDING_FORCE_LOCK,
 };

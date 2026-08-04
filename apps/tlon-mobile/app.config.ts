@@ -72,6 +72,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     automatedTest: process.env.AUTOMATED_TEST,
     forceSplashSequence: process.env.FORCE_SPLASH_SEQUENCE,
     agentShipOverride: process.env.AGENT_SHIP_OVERRIDE,
+    agentOnboardingForceLock: process.env.AGENT_ONBOARDING_FORCE_LOCK,
   },
   ios: {
     // demo builds triggered by GitHub require this to be explicitly set rather than handled
