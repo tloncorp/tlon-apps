@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { getCurrentUserId, scry, subscribeOnce } from '@tloncorp/api';
 import { DeepLinkMetadata, createDeepLink } from '@tloncorp/api/client/branch';
 import { asyncWithDefault } from '@tloncorp/api/lib/utils';
-import { groupDisplayDescription } from '@tloncorp/api/types/groupAgentConfig';
 import produce from 'immer';
 import { useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
@@ -133,13 +132,11 @@ export const useLureState = create<LureState>((set, get) => ({
         inviterAvatarImage: user?.avatarImage ?? undefined,
         invitedGroupId: flag,
         invitedGroupTitle: group?.title ?? undefined,
-        // FIXME(group-description-hijack): this is the one place description
-        // text still flows out — invite/deep-link previews. It passes the
-        // sanitized display description (the config's purpose prose), never
-        // the raw field: an agent group stores its config JSON there. In-app
-        // description display is hidden everywhere else; grep the tag.
-        invitedGroupDescription:
-          groupDisplayDescription(group?.description) || undefined,
+        // FIXME(group-description-hijack): group.description currently stores
+        // the machine-readable agent config, so invite/deep-link previews
+        // omit the description entirely — same as every in-app display site
+        // (grep the tag). Title, inviter, and icon carry the preview.
+        invitedGroupDescription: undefined,
         invitedGroupIconImageUrl: group?.iconImage ?? undefined,
         invitedGroupiconImageColor: group?.iconImageColor ?? undefined,
       };

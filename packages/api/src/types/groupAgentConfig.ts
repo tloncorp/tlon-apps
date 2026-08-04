@@ -205,10 +205,11 @@ export function canRenderAgentUiInGroup({
  *
  * FIXME(group-description-hijack): while the hijack is in effect, the app
  * hides group description display entirely — every former display site is
- * tagged with this marker (grep it). The only remaining consumers of this
- * helper are invite/deep-link preview metadata and the meta-edit merge path.
- * If you're about to render a group description in the UI, don't — wait for
- * the config to move to a first-class field.
+ * tagged with this marker (grep it), and invite previews omit it too, so
+ * this helper currently has no callers outside tests. It stays because it is
+ * the only safe accessor: when the config moves to a first-class field and
+ * display comes back, every restored site must go through here, never the
+ * raw field.
  */
 export function groupDisplayDescription(description?: string | null): string {
   const config = parseGroupAgentConfig(description);
@@ -221,11 +222,13 @@ export function groupDisplayDescription(description?: string | null): string {
 /**
  * Fold a human-edited description back into a config-bearing one.
  *
- * The group editor shows `groupDisplayDescription` — the config's purpose —
- * so what the user edits is prose. Saving that prose raw would overwrite the
- * machine-readable entry and un-configure the group's agent; instead the
- * edited text becomes the config's `purpose` and everything else survives.
- * Descriptions without a config pass through unchanged.
+ * FIXME(group-description-hijack): the group editor no longer exposes the
+ * description at all, so no UI path produces such an edit today — this
+ * survives as a guard for any caller that still writes group meta with a
+ * prose description. Saving prose raw would overwrite the machine-readable
+ * entry and un-configure the group's agent; instead the edited text becomes
+ * the config's `purpose` and everything else survives. Descriptions without
+ * a config pass through unchanged.
  */
 export function mergeGroupDescriptionEdit(
   currentDescription: string | null | undefined,

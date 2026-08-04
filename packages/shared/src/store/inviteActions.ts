@@ -6,7 +6,6 @@ import {
 } from '@tloncorp/api';
 import * as api from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
-import { groupDisplayDescription } from '@tloncorp/api/types/groupAgentConfig';
 
 import { trackEvent } from '../analytics';
 import * as db from '../db';
@@ -230,12 +229,11 @@ export async function createGroupInviteLink(groupId: string) {
         inviterAvatarImage: user?.avatarImage ?? '',
         invitedGroupId: groupId,
         invitedGroupTitle: group?.title ?? '',
-        // FIXME(group-description-hijack): this is the one place description
-        // text still flows out — invite/deep-link previews. It passes the
-        // sanitized display description (the config's purpose prose), never
-        // the raw field: an agent group stores its config JSON there. In-app
-        // description display is hidden everywhere else; grep the tag.
-        invitedGroupDescription: groupDisplayDescription(group?.description),
+        // FIXME(group-description-hijack): group.description currently stores
+        // the machine-readable agent config, so invite/deep-link previews
+        // omit the description entirely — same as every in-app display site
+        // (grep the tag). Title, inviter, and icon carry the preview.
+        invitedGroupDescription: '',
         invitedGroupIconImageUrl: group?.iconImage ?? '',
       })
     );
