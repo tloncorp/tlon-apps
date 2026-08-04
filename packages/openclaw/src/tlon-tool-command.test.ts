@@ -97,6 +97,33 @@ describe('tlon tool execution', () => {
     }
   });
 
+  it('logs every blocked operation, without echoing the raw command', async () => {
+    // The owner gate logs its denials; this one used to be silent, so an
+    // operator could not see a model repeatedly attempting a destructive
+    // migration. The raw command is deliberately excluded — it can carry
+    // --config/--code credential flags.
+    const logError = vi.fn();
+    const execute = createTlonToolExecutor({
+      runCommand: vi.fn(async () => 'unexpected CLI invocation'),
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      logError,
+    });
+
+    await execute('blocked-logging', {
+      command:
+        'notes migrate-apply diary/~bot/logged-block --yes --code sampel-ticlyt-migfun-falmel',
+    });
+
+    const logged = logError.mock.calls.map((call) => String(call[0]));
+    const blockedLine = logged.find((line) =>
+      line.startsWith('Blocked tlon tool operation:')
+    );
+    expect(blockedLine).toBe(
+      'Blocked tlon tool operation: reason=migration_operation subcommand=notes nest=diary/~bot/logged-block'
+    );
+    expect(logged.join('\n')).not.toContain('sampel-ticlyt-migfun-falmel');
+  });
+
   it('keeps a local diary refusal and logs context when detached discovery rejects', async () => {
     const logError = vi.fn();
     const execute = createTlonToolExecutor({

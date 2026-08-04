@@ -338,6 +338,15 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
 
       const blocked = checkBlockedTlonOperation(args);
       if (blocked) {
+        // The owner gate logs its denials; this one did not, leaving the more
+        // interesting signal invisible — a model repeatedly attempting a
+        // destructive migration on its own initiative. Log the subcommand and
+        // nest, never params.command, which can carry credential flags.
+        deps.logError?.(
+          `Blocked tlon tool operation: reason=${blocked.reason} subcommand=${subcommand ?? '(none)'}${
+            blocked.diaryNest ? ` nest=${blocked.diaryNest}` : ''
+          }`
+        );
         if (blocked.diaryNest) {
           void deps
             .notifyDiaryMigrationDiscovery(blocked.diaryNest)
