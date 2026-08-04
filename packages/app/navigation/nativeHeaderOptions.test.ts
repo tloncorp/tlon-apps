@@ -1,5 +1,11 @@
 import { Platform } from 'react-native';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@tloncorp/ui', () => ({
+  mobileTypeStyles: {
+    '$label/2xl': { fontSize: 17, fontWeight: '500' },
+  },
+}));
 
 import {
   getNativeHeaderOptions,
