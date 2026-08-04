@@ -206,7 +206,11 @@ const OUTPUT_CHANNEL_RULE =
   'create one in this group first (never a new group), named for the ' +
   'subject: `tlon channels create <flag> "<Title>" --kind notes`. Record ' +
   'its nest as this job\'s "outputNest" in the group config, so later runs ' +
-  'go straight there and append to that same channel. Announce it in chat ' +
+  'go straight there and append to that same channel. Verify the notebook ' +
+  'actually exists after creating it (`tlon notes show <nest>` answers) — ' +
+  'some hosted ships report success without materializing anything, and ' +
+  'entries written to a nest that does not exist vanish silently; treat a ' +
+  'silent no-op exactly like the 404 below. Announce it in chat ' +
   'with a single line — the chat gets the announcement, the notebook gets ' +
   'the writing. Write the entry with the tlon tool — `notes note-create ' +
   '<nest> root "<Title>" --stdin` — not the message tool, which only posts ' +
@@ -289,8 +293,11 @@ export const PURPOSE_JOBS: Record<
       "There's nothing to summarize yet, so don't run the job. Do create " +
       'the notebook now — the one exception to waiting for the first run, ' +
       'so the group shows where the record will live: `tlon channels ' +
-      'create <flag> "<Title>" --kind notes`, named for the subject, and ' +
-      'record its nest as this job\'s "outputNest" in the group config. ' +
+      'create <flag> "<Title>" --kind notes`, named for the subject. ' +
+      'Verify it exists (`tlon notes show <nest>` answers — some hosted ' +
+      'ships report success without materializing anything; treat a silent ' +
+      "no-op like the 404 case), then record its nest as this job's " +
+      '"outputNest" in the group config. ' +
       'Seed it with a single entry titled "About this notebook" whose body ' +
       'is exactly: "Analysis and summaries of your {{topics}} entries will ' +
       'land in this notebook." — you may only rephrase the topic list ' +
