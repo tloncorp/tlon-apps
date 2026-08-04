@@ -522,8 +522,13 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
         }
         const targetNest = targetNestFromError(error);
         const unmarkedNotesRefusal = isUnmarkedNotesRefusal(error);
+        // The CLI refuses on notes lacking a `tlon-migrate` footer, which covers
+        // notes added since the migration AND migrated notes whose body was
+        // later edited — an edit replaces the body and takes the footer with it.
+        // Saying the migration "did not create" them is wrong in the second,
+        // likelier case, and sends the owner looking for the wrong thing.
         let message = unmarkedNotesRefusal
-          ? `Migration cleanup stopped. The notebook \`${targetNest ?? parsed.nest}\` contains notes the migration did not create. ` +
+          ? `Migration cleanup stopped. The notebook \`${targetNest ?? parsed.nest}\` contains notes that were added or edited since the migration. ` +
             'Inspect it in the Notes app and delete it there if that is what you want.'
           : `Migration cleanup failed.\n\n${formatMigrationCommandFailure(error, selection.kind)}`;
         if (!unmarkedNotesRefusal && !targetNest) {

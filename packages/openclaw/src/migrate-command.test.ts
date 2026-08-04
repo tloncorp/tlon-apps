@@ -1018,7 +1018,9 @@ describe('OpenClaw migration command', () => {
 
     const call = vi.mocked(bridge.sendOwnerNotification).mock.calls[0]!;
     expect(call).toHaveLength(1);
-    expect(call[0]).toContain('contains notes the migration did not create');
+    expect(call[0]).toContain(
+      'contains notes that were added or edited since the migration'
+    );
     expect(call[0]).toContain('Notes app');
     expect(call[0]).not.toContain('/migrate cleanup');
     expect(buildMigrateCard).not.toHaveBeenCalled();
@@ -1049,7 +1051,9 @@ describe('OpenClaw migration command', () => {
 
     const call = vi.mocked(bridge.sendOwnerNotification).mock.calls[0]!;
     expect(call).toHaveLength(1);
-    expect(call[0]).toContain('contains notes the migration did not create');
+    expect(call[0]).toContain(
+      'contains notes that were added or edited since the migration'
+    );
     expect(call[0]).toContain('Notes app');
     expect(call[0]).not.toContain('/migrate cleanup');
     expect(buildMigrateCard).not.toHaveBeenCalled();
