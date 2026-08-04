@@ -133,8 +133,11 @@ export const useLureState = create<LureState>((set, get) => ({
         inviterAvatarImage: user?.avatarImage ?? undefined,
         invitedGroupId: flag,
         invitedGroupTitle: group?.title ?? undefined,
-        // Never the raw field: an agent group stores its config JSON there,
-        // and this metadata is what invite previews display.
+        // FIXME(group-description-hijack): this is the one place description
+        // text still flows out — invite/deep-link previews. It passes the
+        // sanitized display description (the config's purpose prose), never
+        // the raw field: an agent group stores its config JSON there. In-app
+        // description display is hidden everywhere else; grep the tag.
         invitedGroupDescription:
           groupDisplayDescription(group?.description) || undefined,
         invitedGroupIconImageUrl: group?.iconImage ?? undefined,

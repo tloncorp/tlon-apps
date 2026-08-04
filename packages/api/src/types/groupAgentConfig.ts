@@ -202,6 +202,13 @@ export function canRenderAgentUiInGroup({
  * stopgap until it has a home of its own), so the raw field is a JSON blob
  * that must never reach a header or a preview card. The config carries the
  * prose equivalent — its `purpose` — so show that instead of nothing.
+ *
+ * FIXME(group-description-hijack): while the hijack is in effect, the app
+ * hides group description display entirely — every former display site is
+ * tagged with this marker (grep it). The only remaining consumers of this
+ * helper are invite/deep-link preview metadata and the meta-edit merge path.
+ * If you're about to render a group description in the UI, don't — wait for
+ * the config to move to a first-class field.
  */
 export function groupDisplayDescription(description?: string | null): string {
   const config = parseGroupAgentConfig(description);

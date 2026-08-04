@@ -1,7 +1,6 @@
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
-import { groupDisplayDescription } from '@tloncorp/shared/domain';
 import * as Clipboard from 'expo-clipboard';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
@@ -16,7 +15,6 @@ import {
   ForwardGroupSheetProvider,
   InviteUsersSheet,
   ListItem,
-  PaddedBlock,
   ProfileButton,
   ScreenHeader,
   ScrollView,
@@ -412,22 +410,12 @@ function GroupQuickActions({
   );
 }
 
-const GroupDescription = ({ group }: { group: db.Group }) => {
-  const description = groupDisplayDescription(group.description);
-  if (!description) {
-    return null;
-  }
-
-  return (
-    <View paddingHorizontal={'$l'}>
-      <PaddedBlock width="100%" gap="$xl">
-        <TlonText.Text size="$label/m" color="$tertiaryText">
-          Description
-        </TlonText.Text>
-        <TlonText.Text size="$body" color="$primaryText">
-          {description}
-        </TlonText.Text>
-      </PaddedBlock>
-    </View>
-  );
+const GroupDescription = ({ group: _group }: { group: db.Group }) => {
+  // FIXME(group-description-hijack): group.description currently stores the
+  // machine-readable agent config (see parseGroupAgentConfig in
+  // @tloncorp/api) — the field is NOT reliable user prose, so description
+  // display is hidden everywhere in the UI. This block used to render a
+  // "Description" section; restore it once the config moves to a first-class
+  // field on the group record.
+  return null;
 };

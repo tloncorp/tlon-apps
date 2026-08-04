@@ -1,6 +1,5 @@
 import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { groupDisplayDescription } from '@tloncorp/shared/domain';
 import { useContact, useNotesDeskAvailable } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
@@ -233,14 +232,14 @@ export function ChannelHeader({
     if (channel.type === 'chat' && group) {
       const hasMultipleChannels = (group.channels?.length ?? 0) > 1;
 
-      // If it's a single-channel group
+      // If it's a single-channel group, show member count.
+      // FIXME(group-description-hijack): group.description currently stores
+      // the machine-readable agent config (see parseGroupAgentConfig in
+      // @tloncorp/api) — the field is NOT reliable user prose, so description
+      // display is hidden everywhere in the UI. This branch used to prefer
+      // the group description as the subtitle; restore it once the config
+      // moves to a first-class field on the group record.
       if (!hasMultipleChannels) {
-        // If group has title and description, use description
-        const description = groupDisplayDescription(group.description);
-        if (group.title && group.title.trim() !== '' && description) {
-          return description;
-        }
-        // If it's a single-channel group without explicit title/description, show member count
         const memberCount = group.members?.length ?? 0;
         const result = `Chat with ${memberCount} members`;
         return result;

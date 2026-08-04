@@ -1166,18 +1166,6 @@ export async function changeGroupName(page: Page, newName: string) {
 }
 
 /**
- * Changes the group description
- */
-export async function changeGroupDescription(page: Page, description: string) {
-  // Ensure session is stable before changing group description
-  await waitForSessionStability(page);
-
-  await page.getByTestId('GroupDescriptionInput').click();
-  await fillFormField(page, 'GroupDescriptionInput', description, true);
-  await page.getByText('Save').click();
-}
-
-/**
  * Attempts to change group icon (handles web file picker behavior)
  */
 export async function changeGroupIcon(page: Page, imagePath?: string) {

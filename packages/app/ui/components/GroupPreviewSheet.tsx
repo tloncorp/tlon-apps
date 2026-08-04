@@ -1,6 +1,5 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { groupDisplayDescription } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
@@ -201,18 +200,13 @@ export function GroupPreviewPane({
 
   const title = useGroupTitle(group);
 
-  const truncatedDescription = useMemo(() => {
-    const description = groupDisplayDescription(group.description);
-    if (!description) {
-      return undefined;
-    }
-
-    if (description.length <= 256) {
-      return description;
-    }
-
-    return `${description.slice(0, 256).trimEnd()}...`;
-  }, [group.description]);
+  // FIXME(group-description-hijack): group.description currently stores the
+  // machine-readable agent config (see parseGroupAgentConfig in
+  // @tloncorp/api) — the field is NOT reliable user prose, so description
+  // display is hidden everywhere in the UI. This used to show a truncated
+  // description; restore it once the config moves to a first-class field on
+  // the group record.
+  const truncatedDescription = undefined;
 
   const privacyLabel = useMemo(() => {
     switch (group.privacy) {

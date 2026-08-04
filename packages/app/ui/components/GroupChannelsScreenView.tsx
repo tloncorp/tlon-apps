@@ -1,6 +1,5 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import { groupDisplayDescription } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import {
   SectionListHeader,
@@ -100,10 +99,12 @@ export const GroupChannelsScreenView = React.memo(
     const title = useGroupTitle(group);
 
     const subtitle = useMemo(() => {
-      const description = groupDisplayDescription(group?.description);
-      if (description) {
-        return description;
-      }
+      // FIXME(group-description-hijack): group.description currently stores
+      // the machine-readable agent config (see parseGroupAgentConfig in
+      // @tloncorp/api) — the field is NOT reliable user prose, so description
+      // display is hidden everywhere in the UI. This subtitle used to prefer
+      // the group description; restore it once the config moves to a
+      // first-class field on the group record.
       const memberCount = group?.members?.length ?? 0;
       const privacy = group?.privacy
         ? `${capitalize(group.privacy)} group`
@@ -113,7 +114,7 @@ export const GroupChannelsScreenView = React.memo(
         return `${privacy} with ${memberCount} ${pluralize(memberCount, 'member')}`;
       }
       return privacy;
-    }, [group?.description, group?.members?.length, group?.privacy]);
+    }, [group?.members?.length, group?.privacy]);
 
     const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
     const isWindowNarrow = useIsWindowNarrow();
