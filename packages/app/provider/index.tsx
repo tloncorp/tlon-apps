@@ -3,11 +3,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Appearance, Platform } from 'react-native';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
+import { useIsSystemDarkMode } from '../hooks/useIsSystemDarkMode';
 import { SplashScreenTask, splashScreenProgress } from '../lib/splashscreen';
 import { AppTheme } from '../types/theme';
 import { config } from '../ui/tamagui.config';
-import { useIsDarkTheme } from '../ui/utils/colorUtils';
+import { useIsDarkMode } from '../ui/utils/colorUtils';
 import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
 
 const ThemeContext = React.createContext<{
@@ -49,7 +49,7 @@ function ThemeProviderContent({
 }
 
 function NativeAppearanceSync({ appTheme }: { appTheme: AppTheme | null }) {
-  const isDarkTheme = useIsDarkTheme();
+  const isDarkTheme = useIsDarkMode();
 
   useEffect(() => {
     if (Platform.OS !== 'ios' || appTheme == null) {
@@ -70,7 +70,7 @@ export const useActiveTheme = () => {
 };
 
 function useSyncedAppTheme() {
-  const isDarkMode = useIsDarkMode();
+  const isDarkMode = useIsSystemDarkMode();
   const [activeTheme, setActiveTheme] = useState<AppTheme>(
     isDarkMode ? 'dark' : 'light'
   );

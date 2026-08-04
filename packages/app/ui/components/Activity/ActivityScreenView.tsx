@@ -16,7 +16,7 @@ import { View, XStack, isWeb, useStyle } from 'tamagui';
 
 import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
 import { NavigationProvider } from '../../contexts/navigation';
-import { useIsDarkTheme } from '../../utils/colorUtils';
+import { useIsDarkMode } from '../../utils/colorUtils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
 import { ScreenHeader } from '../ScreenHeader';
@@ -469,7 +469,7 @@ export function ActivityEmptyState({
   onInviteFriends: () => void;
   onNavigateToContacts?: () => void;
 }) {
-  const isDark = useIsDarkTheme();
+  const isDark = useIsDarkMode();
 
   const blocksImage = isDark
     ? isWeb

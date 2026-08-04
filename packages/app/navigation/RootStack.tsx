@@ -42,7 +42,7 @@ import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
-import { useIsDarkTheme } from '../ui/utils/colorUtils';
+import { useIsDarkMode } from '../ui/utils/colorUtils';
 import { GroupSettingsStack } from './GroupSettingsStack';
 import { TopLevelTabNavigator } from './TopLevelTabNavigator';
 import type { RootStackParamList } from './types';
@@ -51,7 +51,7 @@ import { mediaViewerScreenOptions } from './utils';
 const Root = createNativeStackNavigator<RootStackParamList>();
 
 export function RootStack() {
-  const isDarkMode = useIsDarkTheme();
+  const isDarkMode = useIsDarkMode();
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
 
   // Android status bar has a solid color by default, so we clear it
