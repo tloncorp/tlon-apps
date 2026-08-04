@@ -262,7 +262,11 @@ class MigrationCommandController:
         # The package already assumes one Tlon account per gateway process
         # (see README) — the discovery sender is a last-writer-wins module
         # global and breaks under the same misconfiguration. OpenClaw enforces
-        # this with a gate; here it is documented, not enforced.
+        # this with a gate; here it is not enforced, because the hosted
+        # deployment configures one owner per Hermes instance. Do not add a
+        # gate without first checking that assumption still holds — the guards
+        # would have to become process-global, which means teardown in every
+        # test that builds a controller.
         #
         # Revisit if either of those changes: a retryable _notify_fatal_error
         # from this adapter, or core gaining in-process adapter replacement,
