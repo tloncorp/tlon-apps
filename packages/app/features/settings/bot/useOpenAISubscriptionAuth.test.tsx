@@ -67,7 +67,15 @@ describe('useOpenAISubscriptionAuth', () => {
     let renderer: ReactTestRenderer;
 
     function Harness() {
-      auth = useOpenAISubscriptionAuth({ ship: 'zod', onComplete: vi.fn() });
+      const currentAuth = useOpenAISubscriptionAuth({
+        ship: 'zod',
+        onComplete: vi.fn(),
+      });
+
+      React.useEffect(() => {
+        auth = currentAuth;
+      }, [currentAuth]);
+
       return null;
     }
 
