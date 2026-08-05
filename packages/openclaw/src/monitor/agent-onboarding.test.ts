@@ -18,6 +18,7 @@ import {
   derivePendingPurposeFromHistory,
   descriptionHasAgentSetup,
   descriptionHasConfiguredJob,
+  findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
   findGroupForChannel,
   isFirstConfiguredSetup,
@@ -543,6 +544,74 @@ describe('invite card', () => {
     expect(surfaceOf(buildInviteCardBlob('chat/~a/one', '~a/g')!)).not.toEqual(
       surfaceOf(buildInviteCardBlob('chat/~b/two', '~b/g')!)
     );
+  });
+});
+
+describe('findAgentGroupsAwaitingOpening', () => {
+  const marker = JSON.stringify([
+    {
+      type: 'tlon-group-agent-config',
+      version: 1,
+      purpose: '',
+      instructions: '',
+      agents: ['~zod'],
+      jobs: [],
+      updatedAt: 1,
+    },
+  ]);
+  const configured = JSON.stringify([
+    {
+      type: 'tlon-group-agent-config',
+      version: 1,
+      purpose: 'Tracks things.',
+      agents: ['~zod'],
+      jobs: [{ id: 'job-1' }],
+      updatedAt: 1,
+    },
+  ]);
+  const apiWith = (groups: Record<string, { description: string }>) => ({
+    scry: async () =>
+      Object.fromEntries(
+        Object.entries(groups).map(([flag, { description }]) => [
+          flag,
+          { meta: { description }, channels: {} },
+        ])
+      ),
+  });
+
+  test('only marker-bearing, unconfigured, owner-hosted groups match', async () => {
+    const api = apiWith({
+      // The lost-opening case: created with the agent marker, never set up.
+      '~ten/fresh-agent-group': { description: marker },
+      // Ordinary groups must never match on shape — an empty owner-hosted
+      // channel can be a muted or dormant group, not a pending onboarding.
+      '~ten/plain-empty-group': { description: '' },
+      '~ten/prose-group': { description: 'a group about bread' },
+      // Setup already happened; nothing owed.
+      '~ten/configured-group': { description: configured },
+      // Someone else's group, whatever it carries.
+      '~bus/their-agent-group': { description: marker },
+    });
+    expect(await findAgentGroupsAwaitingOpening(api, {}, '~ten')).toEqual([
+      '~ten/fresh-agent-group',
+    ]);
+    expect(await findAgentGroupsAwaitingOpening(api, {}, null)).toEqual([]);
+  });
+
+  test('an unreadable scry yields no candidates', async () => {
+    const errors: string[] = [];
+    expect(
+      await findAgentGroupsAwaitingOpening(
+        {
+          scry: async () => {
+            throw new Error('boom');
+          },
+        },
+        { error: (m) => errors.push(m) },
+        '~ten'
+      )
+    ).toEqual([]);
+    expect(errors).toHaveLength(1);
   });
 });
 

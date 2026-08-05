@@ -120,6 +120,7 @@ import {
   derivePendingPurposeFromHistory,
   descriptionHasAgentSetup,
   descriptionHasConfiguredJob,
+  findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
   findGroupForChannel,
   inviteCardFallbackText,
@@ -5764,21 +5765,24 @@ export async function monitorTlonProvider(
         // group the bot has joined but never opened, and no later invite
         // event will retry it. The owner meanwhile sees a blank channel (the
         // client suppresses its welcome notice while waiting for the agent).
-        // Sweep the owner-hosted groups once per start; the offer helper's
-        // own guards (single channel, no posts, no config, not already
-        // offered) make this a no-op everywhere an opening already exists.
+        // Candidates are groups whose description carries the client's agent
+        // marker with no setup yet — a precise "created for me, not opened"
+        // signal, never group *shape*: an empty owner-hosted channel just as
+        // well describes a muted or dormant ordinary group, and opening
+        // those at every restart is the bot barging in (and flips them
+        // mid-onboarding for the owner-listen gate). The offer helper's own
+        // guards (single channel, no posts, not already offered) then make
+        // this a no-op wherever an opening already landed.
         void (async () => {
           try {
-            const groups = (await api.scry('/groups/v2/groups.json')) as Record<
-              string,
-              unknown
-            > | null;
-            for (const groupFlag of Object.keys(groups ?? {})) {
+            const flags = await findAgentGroupsAwaitingOpening(
+              api,
+              runtime,
+              effectiveOwnerShip
+            );
+            for (const groupFlag of flags) {
               if (opts.abortSignal?.aborted) {
                 return;
-              }
-              if (groupFlag.split('/')[0] !== effectiveOwnerShip) {
-                continue;
               }
               await offerOnboardingInNewOwnerGroup(groupFlag);
             }

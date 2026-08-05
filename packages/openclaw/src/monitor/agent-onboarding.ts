@@ -476,6 +476,47 @@ const descriptionOf = (group: RawGroup): string =>
 
 const hostOf = (flag: string): string => flag.split('/')[0] ?? '';
 
+/**
+ * Owner-hosted groups whose config *declares* an agent but shows no setup —
+ * the exact state a client-created agent group is in from the moment of
+ * creation (the client writes the bare `agents` marker) until the guided
+ * setup writes a purpose or job.
+ *
+ * This is the startup-sweep candidate list for openings lost in flight
+ * (crash between the join-accept and the opening post). Deliberately keyed
+ * on the marker, not on group *shape*: "empty single-channel owner group"
+ * also describes plenty of ordinary groups — muted channels, fixtures,
+ * dormant spaces — and opening those unprompted at every restart would be
+ * the bot barging in. A group without the marker that lost its opening
+ * still recovers through the message path the moment the owner types.
+ */
+export async function findAgentGroupsAwaitingOpening(
+  api: ScryApi,
+  runtime: Runtime,
+  ownerShip: string | null
+): Promise<string[]> {
+  if (!ownerShip) {
+    return [];
+  }
+  const groups = await scryGroups(
+    api,
+    runtime,
+    'agent groups awaiting opening'
+  );
+  return Object.entries(groups ?? {})
+    .filter(([flag, group]) => {
+      if (hostOf(flag) !== ownerShip) {
+        return false;
+      }
+      const description = descriptionOf(group);
+      return (
+        agentConfigEntries(description).length > 0 &&
+        !descriptionHasAgentSetup(description)
+      );
+    })
+    .map(([flag]) => flag);
+}
+
 /** Find the group that owns `nest`, with its host and description. */
 export async function findGroupForChannel(
   api: ScryApi,
