@@ -82,13 +82,28 @@ export namespace A2UI {
     groupId?: string;
   };
 
+  /**
+   * The app screens a blob may navigate to. An allowlist rather than a free
+   * route name: blobs cross the wire, and the renderer must not be able to
+   * be pointed at an arbitrary navigator route. Unknown names fail
+   * validation, so a card using a newer screen degrades to its text
+   * fallback on older clients.
+   */
+  export type ScreenName = 'botMcpSettings';
+
+  export type ScreenNavigationTarget = {
+    type: 'screen';
+    screen: ScreenName;
+  };
+
   export type NavigationTarget =
     | MessageNavigationTarget
     | ChannelNavigationTarget
     | GroupNavigationTarget
     | ProfileNavigationTarget
     | ChatDetailsNavigationTarget
-    | ChatVolumeNavigationTarget;
+    | ChatVolumeNavigationTarget
+    | ScreenNavigationTarget;
 
   export type NavigateEvent = {
     name: typeof ACTION_NAVIGATE;
@@ -390,10 +405,17 @@ function validateNavigationTarget(
         isValidTargetId(target.chatId) &&
         isValidOptionalTargetId(target.groupId)
       );
+    case 'screen':
+      return A2UI_SCREEN_NAMES.has(target.screen as A2UI.ScreenName);
     default:
       return false;
   }
 }
+
+/** Matches {@link A2UI.ScreenName} — the validator's runtime allowlist. */
+const A2UI_SCREEN_NAMES: ReadonlySet<A2UI.ScreenName> = new Set([
+  'botMcpSettings',
+]);
 
 function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
   if (!isPlainObject(action) || !isPlainObject(action.event)) {

@@ -16,6 +16,9 @@ import {
   PURPOSE_PICKER_FOOTER,
   PURPOSE_PICKER_PROMPT,
   PURPOSE_TOPICS,
+  SERVICES_CARD_BUTTON_LABEL,
+  SERVICES_CARD_FALLBACK,
+  SERVICES_CARD_PROMPT,
   TOPICS_FREE_TEXT_PLACEHOLDER,
   TOPICS_PICKER_FOOTER,
   TOPICS_PICKER_PROMPT,
@@ -268,6 +271,61 @@ export function buildInviteCardBlob(
 /** The story text for the invite card, for clients that can't render it. */
 export function inviteCardFallbackText(): string {
   return INVITE_CARD_FALLBACK;
+}
+
+/** Mirrors BotHomeGroupSlugs.slug in @tloncorp/api/types/wayfinding. */
+const HOME_GROUP_SLUG = 'home-group';
+
+/**
+ * Whether `flag` names the owner's hosted home group — the venue of the
+ * account's *initial* onboarding. Provisioning creates it with a fixed slug
+ * on the owner's own ship, so the flag is deterministic; user-created agent
+ * groups get random slugs and never match.
+ */
+export function isHomeGroupFlag(
+  flag: string,
+  ownerShip: string | null
+): boolean {
+  return Boolean(ownerShip) && flag === `${ownerShip}/${HOME_GROUP_SLUG}`;
+}
+
+/**
+ * The connected-services card that follows the invite card in the home
+ * group's initial onboarding: a line of prose and a button that opens the
+ * client's bot-settings services screen. Returns null when the resolved
+ * @tloncorp/api predates screen navigation, in which case only the fallback
+ * text (which names the path in words) is posted.
+ */
+export function buildServicesCardBlob(
+  surfaceSuffix: string
+): TlonA2UIBlob | null {
+  const components: A2UI.Component[] = [
+    { id: 'root', component: 'Column', children: ['prompt', 'connect'] },
+    { id: 'prompt', component: 'Text', text: SERVICES_CARD_PROMPT },
+    {
+      id: 'connect',
+      component: 'Button',
+      variant: 'primary',
+      child: 'connectLabel',
+      action: {
+        event: {
+          name: 'tlon.navigate',
+          context: { target: { type: 'screen', screen: 'botMcpSettings' } },
+        },
+      },
+    } as unknown as A2UI.Component,
+    {
+      id: 'connectLabel',
+      component: 'Text',
+      text: SERVICES_CARD_BUTTON_LABEL,
+    },
+  ];
+  return blobOrNull(`agent-onboarding-services-${surfaceSuffix}`, components);
+}
+
+/** The story text for the services card, for clients that can't render it. */
+export function servicesCardFallbackText(): string {
+  return SERVICES_CARD_FALLBACK;
 }
 
 /**

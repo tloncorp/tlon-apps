@@ -12,6 +12,7 @@ import {
 import {
   buildInviteCardBlob,
   buildPurposePickerBlob,
+  buildServicesCardBlob,
   buildTopicsPickerBlob,
   channelHasNoPosts,
   derivePendingPurposeFromHistory,
@@ -19,6 +20,7 @@ import {
   descriptionHasConfiguredJob,
   findChatNestForGroup,
   findGroupForChannel,
+  isHomeGroupFlag,
   isPurposePickerChoice,
   purposePickerFallbackText,
   renderSetupDirective,
@@ -540,6 +542,32 @@ describe('invite card', () => {
     expect(surfaceOf(buildInviteCardBlob('chat/~a/one', '~a/g')!)).not.toEqual(
       surfaceOf(buildInviteCardBlob('chat/~b/two', '~b/g')!)
     );
+  });
+});
+
+describe('services card', () => {
+  test('a valid blob whose button opens the allowlisted services screen', () => {
+    const blob = buildServicesCardBlob('chat/~ten/home-chat')!;
+    expect(blob).not.toBeNull();
+    expect(A2UI.validateBlobEntry(blob)).toBe(true);
+    const button = componentsOf(blob).find(
+      (c) => (c as { component: string }).component === 'Button'
+    ) as any;
+    expect(button.action.event.name).toBe('tlon.navigate');
+    // A named screen from the client's allowlist, not a free route — an
+    // older client fails validation and falls back to the story text.
+    expect(button.action.event.context.target).toEqual({
+      type: 'screen',
+      screen: 'botMcpSettings',
+    });
+  });
+
+  test('only the owner-hosted home group counts as initial onboarding', () => {
+    expect(isHomeGroupFlag('~ten/home-group', '~ten')).toBe(true);
+    // Someone else's home group, a user-created group, no owner configured.
+    expect(isHomeGroupFlag('~ten/home-group', '~zod')).toBe(false);
+    expect(isHomeGroupFlag('~ten/garden-club', '~ten')).toBe(false);
+    expect(isHomeGroupFlag('~ten/home-group', null)).toBe(false);
   });
 });
 

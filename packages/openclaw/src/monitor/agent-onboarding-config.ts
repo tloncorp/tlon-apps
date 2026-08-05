@@ -129,6 +129,33 @@ export const INVITE_CARD_FALLBACK =
 export const INVITE_CARD_BUTTON_LABEL = 'Invite';
 
 /**
+ * The connected-services card, posted between the invite card and the
+ * follow-up — but only in the home group's *initial* onboarding, where the
+ * account is new and nothing is connected yet. A user creating their third
+ * agent group doesn't need the tour again.
+ *
+ * Shared first sentence of the card and its fallback, mirroring the invite
+ * card's structure.
+ */
+export const SERVICES_CARD_LEAD = 'I can draw on more than the web.';
+
+export const SERVICES_CARD_PROMPT =
+  `${SERVICES_CARD_LEAD} Connect your other services — calendars, docs, ` +
+  'notes — and what they know flows into these digests too:';
+
+/**
+ * The story text, which is all a client that predates screen navigation
+ * renders. It must stand alone: it names the path to the same screen the
+ * card's button opens.
+ */
+export const SERVICES_CARD_FALLBACK =
+  `${SERVICES_CARD_LEAD} Connect your other services — calendars, docs, ` +
+  'notes — under Settings → Tlonbot → Connected services, and what they ' +
+  'know flows into these digests too.';
+
+export const SERVICES_CARD_BUTTON_LABEL = 'Connect services';
+
+/**
  * The last word of the setup, posted by Tlon after the invite card so it can't
  * land before it.
  *

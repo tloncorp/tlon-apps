@@ -278,3 +278,34 @@ describe('inviteLink action', () => {
     expect(A2UI.validateBlobEntry(entryWith(button(action({}))))).toBe(false);
   });
 });
+
+describe('screen navigation target', () => {
+  const button = (target: unknown) => [
+    { id: 'root', component: 'Column', children: ['b', 'l'] },
+    {
+      id: 'b',
+      component: 'Button',
+      child: 'l',
+      action: { event: { name: A2UI.action.navigate, context: { target } } },
+    },
+    { id: 'l', component: 'Text', text: 'Connect services' },
+  ];
+
+  test('allowlisted screen names only — never a free route', () => {
+    expect(
+      A2UI.validateBlobEntry(
+        entryWith(button({ type: 'screen', screen: 'botMcpSettings' }))
+      )
+    ).toBe(true);
+    // Anything not on the allowlist fails validation, so a blob can't point
+    // the renderer at an arbitrary navigator route.
+    expect(
+      A2UI.validateBlobEntry(
+        entryWith(button({ type: 'screen', screen: 'BotApiKeySettings' }))
+      )
+    ).toBe(false);
+    expect(A2UI.validateBlobEntry(entryWith(button({ type: 'screen' })))).toBe(
+      false
+    );
+  });
+});

@@ -113,6 +113,7 @@ import {
   agentHasAdminSeat,
   buildInviteCardBlob,
   buildPurposePickerBlob,
+  buildServicesCardBlob,
   buildTopicsPickerBlob,
   channelHasNoPosts,
   derivePendingPurposeFromHistory,
@@ -121,9 +122,11 @@ import {
   findChatNestForGroup,
   findGroupForChannel,
   inviteCardFallbackText,
+  isHomeGroupFlag,
   isPurposePickerChoice,
   purposePickerFallbackText,
   renderSetupDirective,
+  servicesCardFallbackText,
   shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
@@ -965,10 +968,23 @@ export async function monitorTlonProvider(
         }
         // Settled only now: a failure above leaves the debt pending so the
         // next turn retries the card. Settled *before* the follow-up, so a
-        // failure below can't re-post the card — the follow-up alone is the
-        // best-effort tail this function's contract already allows.
+        // failure below can't re-post the card — the tail from here down is
+        // the best-effort ending this function's contract already allows.
         onboardingInvitePending.delete(nest);
         inviteSettled.add(nest);
+        // Initial onboarding only: the home group's setup is the account's
+        // first, so it alone gets the connected-services tour. A user
+        // creating their third agent group already knows — and may already
+        // have services connected. Posted as plain text when the card can't
+        // be built; the fallback names the settings path in words.
+        if (isHomeGroupFlag(group.flag, effectiveOwnerShip)) {
+          const servicesBlob = buildServicesCardBlob(nest);
+          await postToChannel(
+            nest,
+            servicesCardFallbackText(),
+            servicesBlob ? { blob: serializeBlobField(servicesBlob) } : {}
+          );
+        }
         // Hands the conversation back, after the card so it can't land before
         // it. Posted even when the card couldn't be built: on a client that
         // can't render the invite slot, this is the whole ending.
