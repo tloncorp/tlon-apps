@@ -20,6 +20,7 @@ import {
   descriptionHasConfiguredJob,
   findChatNestForGroup,
   findGroupForChannel,
+  isFirstConfiguredSetup,
   isHomeGroupFlag,
   isPurposePickerChoice,
   purposePickerFallbackText,
@@ -562,12 +563,80 @@ describe('services card', () => {
     });
   });
 
-  test('only the owner-hosted home group counts as initial onboarding', () => {
+  test('the home group is the hosted account’s initial onboarding venue', () => {
     expect(isHomeGroupFlag('~ten/home-group', '~ten')).toBe(true);
     // Someone else's home group, a user-created group, no owner configured.
     expect(isHomeGroupFlag('~ten/home-group', '~zod')).toBe(false);
     expect(isHomeGroupFlag('~ten/garden-club', '~ten')).toBe(false);
     expect(isHomeGroupFlag('~ten/home-group', null)).toBe(false);
+  });
+
+  describe('isFirstConfiguredSetup', () => {
+    const configured = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        purpose: 'Tracks things.',
+        agents: ['~zod'],
+        jobs: [{ id: 'job-1' }],
+        updatedAt: 1,
+      },
+    ]);
+    const groupsWith = (entries: Record<string, string>) => ({
+      scry: async () =>
+        Object.fromEntries(
+          Object.entries(entries).map(([flag, description]) => [
+            flag,
+            { meta: { description }, channels: {} },
+          ])
+        ),
+    });
+
+    test('true when this is the only configured group — however it was made', async () => {
+      // A self-hosted account has no home group at all, so its first
+      // user-created agent group is the initial onboarding.
+      expect(
+        await isFirstConfiguredSetup(
+          groupsWith({ '~ten/v2n85usn': configured }),
+          {},
+          '~ten/v2n85usn'
+        )
+      ).toBe(true);
+      // Unconfigured neighbours don't count as prior setups.
+      expect(
+        await isFirstConfiguredSetup(
+          groupsWith({ '~ten/v2n85usn': configured, '~ten/plain': '' }),
+          {},
+          '~ten/v2n85usn'
+        )
+      ).toBe(true);
+    });
+
+    test('false once another group already carries a job', async () => {
+      expect(
+        await isFirstConfiguredSetup(
+          groupsWith({ '~ten/second': configured, '~ten/first': configured }),
+          {},
+          '~ten/second'
+        )
+      ).toBe(false);
+    });
+
+    test('null on an unreadable scry, so the caller stays quiet', async () => {
+      const errors: string[] = [];
+      expect(
+        await isFirstConfiguredSetup(
+          {
+            scry: async () => {
+              throw new Error('boom');
+            },
+          },
+          { error: (m) => errors.push(m) },
+          '~ten/whatever'
+        )
+      ).toBeNull();
+      expect(errors).toHaveLength(1);
+    });
   });
 });
 

@@ -277,16 +277,49 @@ export function inviteCardFallbackText(): string {
 const HOME_GROUP_SLUG = 'home-group';
 
 /**
- * Whether `flag` names the owner's hosted home group — the venue of the
- * account's *initial* onboarding. Provisioning creates it with a fixed slug
- * on the owner's own ship, so the flag is deterministic; user-created agent
- * groups get random slugs and never match.
+ * Whether `flag` names the owner's hosted home group — the venue hosting
+ * provisioning uses for the account's initial onboarding. Deterministic
+ * because provisioning creates it with a fixed slug on the owner's own ship;
+ * user-created agent groups get random slugs and never match.
+ *
+ * Not sufficient on its own for "is this the initial onboarding": accounts
+ * without hosting have no home group at all, so see
+ * {@link isFirstConfiguredSetup}.
  */
 export function isHomeGroupFlag(
   flag: string,
   ownerShip: string | null
 ): boolean {
   return Boolean(ownerShip) && flag === `${ownerShip}/${HOME_GROUP_SLUG}`;
+}
+
+/**
+ * Whether the setup that just finished in `flag` is the first this agent has
+ * ever completed — the account's initial onboarding, whichever group it
+ * happened in.
+ *
+ * Asks the question directly rather than by venue: does any *other* group
+ * already carry a configured job? A self-hosted account has no home group, so
+ * keying only on that flag would mean its genuine first run never counted as
+ * one. A configured job elsewhere means this owner has been through a setup
+ * before, whether or not hosting gave them a home group.
+ *
+ * Null when the groups scry fails, so the caller can stay quiet rather than
+ * guess — repeating the tour for an experienced owner reads as broken.
+ */
+export async function isFirstConfiguredSetup(
+  api: ScryApi,
+  runtime: Runtime,
+  flag: string
+): Promise<boolean | null> {
+  const groups = await scryGroups(api, runtime, 'configured agent groups');
+  if (!groups) {
+    return null;
+  }
+  return !Object.entries(groups).some(
+    ([otherFlag, group]) =>
+      otherFlag !== flag && descriptionHasConfiguredJob(descriptionOf(group))
+  );
 }
 
 /**

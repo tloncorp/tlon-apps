@@ -122,6 +122,7 @@ import {
   findChatNestForGroup,
   findGroupForChannel,
   inviteCardFallbackText,
+  isFirstConfiguredSetup,
   isHomeGroupFlag,
   isPurposePickerChoice,
   purposePickerFallbackText,
@@ -972,12 +973,17 @@ export async function monitorTlonProvider(
         // the best-effort ending this function's contract already allows.
         onboardingInvitePending.delete(nest);
         inviteSettled.add(nest);
-        // Initial onboarding only: the home group's setup is the account's
-        // first, so it alone gets the connected-services tour. A user
-        // creating their third agent group already knows — and may already
-        // have services connected. Posted as plain text when the card can't
-        // be built; the fallback names the settings path in words.
-        if (isHomeGroupFlag(group.flag, effectiveOwnerShip)) {
+        // Initial onboarding only: the account's first setup gets the
+        // connected-services tour. A user creating their third agent group
+        // already knows — and may already have services connected. The home
+        // group is that first setup on hosted accounts (free to check, so it
+        // goes first); everywhere else the question is whether any other
+        // group is already configured. Posted as plain text when the card
+        // can't be built; the fallback names the settings path in words.
+        const isInitialOnboarding =
+          isHomeGroupFlag(group.flag, effectiveOwnerShip) ||
+          (await isFirstConfiguredSetup(api, runtime, group.flag)) === true;
+        if (isInitialOnboarding) {
           const servicesBlob = buildServicesCardBlob(nest);
           await postToChannel(
             nest,
