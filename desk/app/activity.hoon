@@ -1056,6 +1056,13 @@
     ?.  (has:on-event:a stream:base t)  t
     $(t (add t ~s0..0001))
   =/  notify  notify:(get-volume:evt volume-settings inc)
+  ::  standalone (group-less) notebooks aren't navigable from the app's
+  ::  notification surfaces yet, so their note events track unreads but
+  ::  never notify
+  =?  notify  ?&  ?=(?(%note-create %note-edit) -.inc)
+                  ?=(~ group.inc)
+              ==
+    |
   =/  =event:a  [inc notify |]
   =/  =source:a  (source:evt inc)
   =/  =update:a  [%add source time-id event]
