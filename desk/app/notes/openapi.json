@@ -941,7 +941,7 @@
         }
       }
     },
-    "/notes/~/v1/notebooks/{host}/{name}/search/bounded/text/{from}/{tries}/{needle}": {
+    "/notes/~/v1/notebooks/{host}/{name}/search/bounded/text": {
       "get": {
         "summary": "Search notes by text (bounded, resumable)",
         "description": "Case-insensitive substring search over each note's title and\nmarkdown body, walking the notebook newest-first (descending note\nid). The walk is bounded by `tries` rather than by a result count,\nso one call examines at most `tries` notes and may return fewer\nhits than that — or none. Page through by feeding the returned\n`last` back in as `from` until `last` is 0.\n",
@@ -964,35 +964,35 @@
             }
           },
           {
-            "in": "path",
-            "name": "from",
-            "required": true,
-            "description": "Exclusive cursor: only notes with an id strictly below this are\nexamined. Pass the `last` from the previous page. Empty starts at\nthe newest note; any id above the notebook's highest does the same.\nWritten as a Hoon `@ud` literal, which is dot-grouped in threes\nabove 999 — a `last` of 1234 must be sent as `1.234`, not `1234`.\n",
-            "schema": {
-              "type": "string",
-              "pattern": "^$|^[0-9]{1,3}(\\.[0-9]{3})*$"
-            },
-            "example": "1.234"
-          },
-          {
-            "in": "path",
-            "name": "tries",
-            "required": true,
-            "description": "Budget of notes to examine in this call, not hits to collect.\n",
-            "schema": {
-              "type": "integer"
-            },
-            "example": 50
-          },
-          {
-            "in": "path",
+            "in": "query",
             "name": "needle",
             "required": true,
-            "description": "Search text as a Hoon `@t` literal — a `~~` prefix with\nnon-knot characters escaped (`~~hello` for `hello`). Unescaped\ntext is rejected. NOTE: a needle whose escaped form contains a\n`.` is currently truncated at the last dot group, since the URL\nparser reads it as a file extension; single-word lowercase\nneedles are unaffected.\n",
+            "description": "Search text, URL-encoded. Plain text — no Hoon `@t` escaping, and\ndots, spaces and punctuation are all fine.\n",
             "schema": {
               "type": "string"
             },
-            "example": "~~hello"
+            "example": "notes.hoon"
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "description": "Exclusive cursor: only notes with an id strictly below this are\nexamined. Pass the `last` from the previous page, verbatim. Omit\nto start at the newest note; any id above the notebook's highest\ndoes the same.\n",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 1234
+          },
+          {
+            "in": "query",
+            "name": "tries",
+            "required": false,
+            "description": "Budget of notes to examine in this call, not hits to collect.\nDefaults to 100.\n",
+            "schema": {
+              "type": "integer",
+              "default": 100
+            },
+            "example": 50
           }
         ],
         "responses": {

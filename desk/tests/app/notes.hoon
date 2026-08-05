@@ -176,6 +176,20 @@
     $(caz t.caz)
   =/  rh=response-header:http  !<(response-header:http +.+>+.i.caz)
   `status-code.rh
+::  +http-body: extract the response body from an %http-response-data fact
+::  card, if any. Axis lark as in +http-status.
+::
+++  http-body
+  |=  caz=(list card)
+  ^-  (unit @t)
+  |-  ^-  (unit @t)
+  ?~  caz  ~
+  ?.  ?=([%give %fact * *] i.caz)  $(caz t.caz)
+  ?.  =(`mark`-.+>+.i.caz %http-response-data)
+    $(caz t.caz)
+  =/  dat=(unit octs)  !<((unit octs) +.+>+.i.caz)
+  ?~  dat  ~
+  `q.u.dat
 ::  Card introspection helpers. Hoon's `?=` narrowing on a $% card type
 ::  doesn't propagate inner `=face` shorthand through the union, so we
 ::  reach into the card by axis lark and compare raw nouns. (`;;` casts
@@ -2763,10 +2777,61 @@
   ;<  *  b  (mk-note f 'gone' 'find-me')
   ;<  *  b  (poke-a [%notebook f [%note 4 [%delete ~]]])
   (ex-search f [~ 5 'find-me'] [0 ~[3]])
+::  +search-url: construct a v1 HTTP search url from args. Search params
+::  are query args, so the needle goes over the wire as (url-encoded)
+::  plain text and .from/.tries are optional.
+::
+++  search-url
+  |=  [=flag:n from=(unit @ud) tries=(unit @ud) nedl=tape]
+  ^-  @t
+  %-  crip
+  ;:  weld
+    "/notes/~/v1/notebooks/{<`@p`ship.flag>}/{(trip name.flag)}"
+    "/search/bounded/text?needle={nedl}"
+    ?~(from "" "&from={(trip (scot %ud u.from))}")
+    ?~(tries "" "&tries={(trip (scot %ud u.tries))}")
+  ==
+::  +api-key-header: x-api-key header for the freshly-initialized ship
+::
+++  api-key-header
+  =/  m  (mare ,(list [@t @t]))
+  ^-  form:m
+  ;<  sv=vase  bind:m  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  (pure:m ~[['x-api-key' ?~(api-key.s '' u.api-key.s)]])
+::  +ex-get-search: GET a v1 search url and assert 200 plus the `last`
+::  cursor and note ids in the JSON response body.
+::
+++  ex-get-search
+  |=  $:  hdrs=(list [@t @t])
+          url=@t
+          want=[last=@ud ids=(list @ud)]
+      ==
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  caz=(list card)  bind:m  (http-get-v1 hdrs url)
+  |=  s=state
+  ?.  =((http-status caz) `200)
+    |+~[(crip "GET {(trip url)} expected 200, got {<(http-status caz)>}")]
+  ?~  body=(http-body caz)
+    |+~[(crip "GET {(trip url)}: no response body")]
+  ?~  jon=(de:json:html u.body)
+    |+~[(crip "GET {(trip url)}: body not json: {(trip u.body)}")]
+  =/  got=[last=@ud ids=(list @ud)]
+    %.  u.jon
+    %-  ot:dejs:format
+    :~  ['last' ni:dejs:format]
+        ['notes' (ar:dejs:format (ot:dejs:format ~[['id' ni:dejs:format]]))]
+    ==
+  ?.  =(ids.got ids.want)
+    |+~[(crip "GET {(trip url)}: expected ids {<ids.want>}, got {<ids.got>}")]
+  ?.  =(last.got last.want)
+    |+~[(crip "GET {(trip url)}: expected last {<last.want>}, got {<last.got>}")]
+  &+[~ s]
 ::  +test-search-v1-http-initial
 ::
-::  should behave identically to scry search, and take empty path segment
-::  in the "from" position as "start with latest".
+::  should behave identically to scry search, and resume from the returned
+::  .last when it's fed back in as .from.
 ::
 ++  test-search-v1-http-initial
   %-  eval-mare
@@ -2775,17 +2840,51 @@
   ^-  form:m
   ;<  f=flag:n  b  (init-nb 'HttpSearch')
   ;<  *  b  (mk-note f 'needle' 'plain')
-  ;<  sv=vase  b  get-save
-  =/  s0=state-15:n  !<(state-15:n sv)
-  =/  key=@t  ?~(api-key.s0 '' u.api-key.s0)
-  =/  hdr=(list [@t @t])  ~[['x-api-key' key]]
+  ;<  *  b  (mk-note f 'plain' 'needle')
+  ;<  hdr=(list [@t @t])  b  api-key-header
+  ;<  ~  b  (ex-get-search hdr (search-url f ~ `1 "needle") [4 ~[4]])
+  ;<  ~  b  (ex-get-search hdr (search-url f `4 `5 "needle") [0 ~[3]])
+  ::  no .tries: the default budget covers this notebook whole
+  (ex-get-search hdr (search-url f ~ ~ "needle") [0 ~[4 3]])
+::  +test-search-v1-http-needle-is-plain-text
+::
+::  the needle is a query arg, so it survives dots (which the URL parser
+::  would otherwise take for a file extension) and url-encoded spaces.
+::
+++  test-search-v1-http-needle-is-plain-text
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'DottedNeedle')
+  ;<  *  b  (mk-note f 'shipped v1.0 today' 'plain')
+  ;<  *  b  (mk-note f 'plain' 'say hello world to it')
+  ;<  *  b  (mk-note f 'plain' 'nothing to see')
+  ;<  hdr=(list [@t @t])  b  api-key-header
+  ;<  ~  b  (ex-get-search hdr (search-url f ~ ~ "v1.0") [0 ~[3]])
+  ::  a dotted needle must not match on its truncated prefix
+  ;<  ~  b  (ex-get-search hdr (search-url f ~ ~ "v1.9") [0 ~])
+  (ex-get-search hdr (search-url f ~ ~ "hello%20world") [0 ~[4]])
+::  +test-search-v1-http-needle-required
+::
+::  a search without a needle is not a search
+::
+++  test-search-v1-http-needle-required
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'NoNeedle')
+  ;<  *  b  (mk-note f 'whatever' 'plain')
+  ;<  hdr=(list [@t @t])  b  api-key-header
   =/  base=tape
     "/notes/~/v1/notebooks/{<`@p`ship.f>}/{(trip name.f)}"
-  =/  tries=tape  (trip (scot %ud 5))
-  =/  nedl=tape   (trip (scot %t 'needle'))
-  =/  url=@t
-    (crip "{base}/search/bounded/text//{tries}/{nedl}")
-  (ex-get-200 hdr url)
+  ;<  caz=(list card)  b
+    (http-get-v1 hdr (crip "{base}/search/bounded/text"))
+  |=  s=state
+  ?.  =((http-status caz) `404)
+    |+~[(crip "expected 404 from needle-less search, got {<(http-status caz)>}")]
+  &+[~ s]
 ::  +test-search-scans-many-large-bodies
 ::
 ::  search should perform reasonably on large content bodies.
