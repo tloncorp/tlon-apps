@@ -80,7 +80,14 @@
   =/  st  !<(state-11 sv)
   =/  ac  activity.st
   ;<  *  bind:m  (ex-equal !>(count:(~(got by ac) [%notebook book ~])) !>(1))
-  (ex-equal !>(count:(~(got by ac) [%base ~])) !>(1))
+  ;<  *  bind:m  (ex-equal !>(count:(~(got by ac) [%base ~])) !>(1))
+  ::  standalone notebooks aren't navigable from notification surfaces,
+  ::  so their note events count unreads but never notify
+  ;<  *  bind:m
+    (ex-equal !>(notify-count:(~(got by ac) [%note 42 book ~])) !>(0))
+  ;<  *  bind:m
+    (ex-equal !>(notify:(~(got by ac) [%note 42 book ~])) !>(|))
+  (ex-equal !>(notify-count:(~(got by ac) [%base ~])) !>(0))
 ::  note events accumulate unreads on the note source, and read %all
 ::  clears the whole chain
 ::
