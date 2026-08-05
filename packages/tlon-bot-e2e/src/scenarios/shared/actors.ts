@@ -39,6 +39,7 @@ export interface ScenarioActor {
     channelId: string;
     content: StoryInput;
     blob?: string;
+    metadata?: { title?: string; image?: string };
     botProfile?: BotProfileInput;
   }): Promise<PostRef>;
   replyToPost(params: {

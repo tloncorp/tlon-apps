@@ -4,6 +4,7 @@ import {
   configureClient,
   createGroup,
   deleteGroup,
+  deleteNotesNotebookBestEffort,
   getChannelPosts,
   getCurrentUserId,
   getGroup,
@@ -12,12 +13,13 @@ import {
   getSettings,
   inviteGroupMembers,
   joinGroup,
+  notesV1,
   poke,
   scry,
   sendPost,
   sendReply,
 } from '@tloncorp/api';
-import type { Story } from '@tloncorp/api';
+import type { NotesV1Note, NotesV1NotebookSummary, Story } from '@tloncorp/api';
 import { markdownToStory } from '@tloncorp/api/client/markdown';
 
 import { randomId, requireEnv } from '../runtime/util.js';
@@ -104,6 +106,9 @@ export interface StateReader {
     desk: string,
     bucket: string
   ): Promise<Record<string, unknown>>;
+  listNotebooks(): Promise<NotesV1NotebookSummary[]>;
+  listNotes(target: string): Promise<NotesV1Note[]>;
+  deleteNotebook(target: string): Promise<void>;
   channelPosts(channelId: string, count?: number): Promise<ChannelPost[]>;
   postWithReplies(params: {
     channelId: string;
@@ -260,6 +265,7 @@ export class TlonActorClient {
     channelId: string;
     content: StoryInput;
     blob?: string;
+    metadata?: { title?: string; image?: string };
     botProfile?: BotProfileInput;
   }): Promise<PostRef> {
     const sentAt = Date.now();
@@ -271,6 +277,7 @@ export class TlonActorClient {
         sentAt,
         content,
         blob: params.blob,
+        metadata: params.metadata,
         botProfile: params.botProfile,
       });
     });
@@ -475,6 +482,20 @@ export class TlonActorClient {
           desk?: Record<string, Record<string, unknown>>;
         }>('settings', '/all');
         return raw?.all?.[desk]?.[bucket] ?? raw?.desk?.[bucket] ?? {};
+      },
+
+      listNotebooks: async () => {
+        return this.withClient(async () => notesV1.listNotebooks());
+      },
+
+      listNotes: async (target: string) => {
+        return this.withClient(async () => notesV1.listNotes(target));
+      },
+
+      deleteNotebook: async (target: string) => {
+        await this.withClient(async () => {
+          await deleteNotesNotebookBestEffort(target);
+        });
       },
 
       channelPosts: async (channelId: string, count = 20) => {
