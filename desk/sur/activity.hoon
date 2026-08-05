@@ -297,10 +297,17 @@
   ==
 ++  old-volumes
   ^~
+  ::  templates for the default maps old versions wrote. maps stored by
+  ::  pre-notes versions never contained the note keys (and migrations
+  ::  deliberately leave them absent), so the templates must exclude
+  ::  them or the equality checks against stored maps never match
+  =/  base=volume-map
+    %.  %note-edit
+    ~(del by (~(del by `volume-map`default-volumes) %note-create))
   %-  my
-  :~  [%soft (~(put by default-volumes) %post [& |])]
-      [%loud (~(run by default-volumes) |=([u=? *] [u &]))]
-      [%hush (~(run by default-volumes) |=([u=? *] [u |]))]
+  :~  [%soft (~(put by base) %post [& |])]
+      [%loud (~(run by base) |=([u=? *] [u &]))]
+      [%hush (~(run by base) |=([u=? *] [u |]))]
   ==
 ++  mute
   ^~
