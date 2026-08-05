@@ -267,10 +267,21 @@ export const ScreenHeaderComponent = ({
     titleIcon != null ||
     onTitlePress != null ||
     loadingSubtitle !== undefined;
+  const titlePresentationKey = JSON.stringify({
+    title: typeof title === 'string' ? title : null,
+    hasTitleIcon: titleIcon != null,
+    subtitle: resolvedSubtitle,
+    loadingText: displayLoadingText,
+    isLoadingActive,
+    showSubtitle,
+    useHorizontalTitleLayout,
+    isInteractive: onTitlePress != null,
+  });
   const shouldUseNativeHeader = useNativeHeader({
     enabled: placement === 'navigation',
     title: typeof title === 'string' ? title : '',
     titleElement: interactiveTitleContent,
+    titlePresentationKey,
     usesCustomTitle: usesCustomNativeTitle,
     backgroundColor,
     left: navigationLeftActions,

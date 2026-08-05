@@ -23,6 +23,7 @@ export function useNativeHeader({
   enabled,
   title,
   titleElement,
+  titlePresentationKey,
   usesCustomTitle,
   backgroundColor,
   left,
@@ -31,7 +32,7 @@ export function useNativeHeader({
   const navigation = useContext(NavigationContext);
   const theme = useTheme();
   const [titleStore] = useState(() =>
-    createNativeHeaderTitleStore(titleElement)
+    createNativeHeaderTitleStore(titleElement, titlePresentationKey)
   );
   const leftActionsRef = useRef<ScreenHeaderAction[]>([]);
   const rightActionsRef = useRef<ScreenHeaderAction[]>([]);
@@ -39,11 +40,16 @@ export function useNativeHeader({
   useLayoutEffect(() => {
     leftActionsRef.current = left;
     rightActionsRef.current = right;
-    titleStore.set(titleElement);
-  }, [left, right, titleElement, titleStore]);
+    titleStore.set(titleElement, titlePresentationKey);
+  }, [left, right, titleElement, titlePresentationKey, titleStore]);
 
   const shouldUseNativeHeader =
     enabled && Platform.OS !== 'web' && navigation != null;
+  // iOS keeps the installed renderer stable so title updates cannot dismiss an
+  // open native menu. Android's header is React-rendered and can safely remount
+  // this stateless title when its semantic presentation changes.
+  const installedTitlePresentationKey =
+    Platform.OS === 'ios' ? undefined : titlePresentationKey;
   const resolvedBackgroundColor = resolveNativeHeaderColor(
     backgroundColor,
     theme
@@ -69,7 +75,12 @@ export function useNativeHeader({
         ? { backgroundColor: resolvedBackgroundColor }
         : undefined,
       headerTitle: usesCustomTitle
-        ? () => <NativeHeaderTitle store={titleStore} />
+        ? () => (
+            <NativeHeaderTitle
+              key={installedTitlePresentationKey}
+              store={titleStore}
+            />
+          )
         : undefined,
       title,
       ...buildNativeHeaderActionOptions({
@@ -85,6 +96,7 @@ export function useNativeHeader({
     } as NativeStackNavigationOptions;
   }, [
     actionPresentation,
+    installedTitlePresentationKey,
     resolvedBackgroundColor,
     title,
     titleStore,
