@@ -57,6 +57,9 @@ export const syncInitData = async (
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
 ): Promise<() => Promise<void>> => {
+  // the init endpoint version is capability-picked and this can run before
+  // syncAppInfo on a fresh boot — apply the persisted capabilities first
+  await syncReactionSupport();
   const initData = await syncQueue.add('init', syncCtx, () =>
     api.getInitData()
   );

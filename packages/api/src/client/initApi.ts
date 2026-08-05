@@ -10,7 +10,7 @@ import {
   toClientPinnedItems,
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
-import { getCurrentUserId, scry } from './urbit';
+import { getActivitySupportsNotes, getCurrentUserId, scry } from './urbit';
 
 const logger = createDevLogger('initApi', false);
 
@@ -32,9 +32,12 @@ type InitDataOptions = {
 };
 
 export const getInitData = async () => {
+  // /v9/init embeds v10-native activity (notebook/note sources) so a fresh
+  // init hydrates pre-existing note unreads; the payload shape is otherwise
+  // identical to /v7. Old backends don't serve it.
   const response = await scry<ub.GroupsInit7>({
     app: 'groups-ui',
-    path: '/v7/init',
+    path: getActivitySupportsNotes() ? '/v9/init' : '/v7/init',
   });
 
   logger.crumb('got init data from api');
