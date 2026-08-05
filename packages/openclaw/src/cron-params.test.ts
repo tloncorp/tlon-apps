@@ -99,6 +99,20 @@ describe('sanitizeCronToolParams', () => {
     expect('delivery' in (repaired as any).job).toBe(false);
   });
 
+  test('keeps an explicit no-delivery mode, target or not', () => {
+    // `none` disables runner fallback delivery and needs no target — dropping
+    // it would default the job back to announce, un-silencing it.
+    const repaired = sanitizeCronToolParams(
+      jobWith({
+        delivery: { mode: 'none', channel: '', to: '', accountId: '' },
+      })
+    );
+    expect((repaired as any).job.delivery).toEqual({ mode: 'none' });
+    expect(
+      sanitizeCronToolParams(jobWith({ delivery: { mode: 'none' } }))
+    ).toBeNull();
+  });
+
   test('drops a run count below the schema minimum', () => {
     const repaired = sanitizeCronToolParams(
       jobWith({ failureAlert: { after: 0, channel: '' } })

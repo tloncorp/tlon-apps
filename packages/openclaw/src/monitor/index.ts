@@ -107,6 +107,7 @@ import {
   INVITE_CARD_LEAD,
   INVITE_FOLLOWUP_MESSAGE,
   PURPOSE_PICKER_PROMPT,
+  SERVICES_CARD_LEAD,
   TOPICS_PICKER_PROMPT,
 } from './agent-onboarding-config.js';
 import {
@@ -893,30 +894,30 @@ export async function monitorTlonProvider(
     };
 
     /**
-     * Close a finished setup with the invite card — last, after the group has
-     * been named, configured and shown to do its job.
+     * Close a finished setup: the invite card, the connected-services card
+     * (initial onboarding only), and the hand-back follow-up — last, after
+     * the group has been named, configured and shown to do its job.
      *
      * Gated on the written config rather than on the turn returning: a setup
      * spans however many turns the conversation needs, and a turn that timed
      * out or stalled returns normally. The job in the group's config is the
-     * build's final artifact, so its presence is what "finished" means. Until
-     * then the group stays on the owed list and the next turn checks again.
+     * build's final artifact, so its presence is what "finished" means.
      *
-     * Best effort past that point: the agent has already made the ask in
-     * words, so a failure here costs a convenience, not the flow.
+     * Idempotent against the transcript: each closing post is sent only if
+     * history doesn't already show it, and the channel settles only once
+     * every piece has landed. A transient send failure (or a restart at any
+     * point) leaves the channel unsettled, and the next turn re-reads the
+     * transcript and posts only what's missing — no piece is ever lost, and
+     * none is ever doubled. An unreadable transcript settles nothing, since
+     * to this decision it would look identical to an empty one.
      */
     const postInviteCardIfSetupComplete = async (
       nest: string
     ): Promise<void> => {
-      // The pending set is the cheap, first-choice record — but it's
-      // in-memory, and a plugin restart between the directive turn and the
-      // config write forgets the debt (the prompt tells the model Tlon posts
-      // the link, so nobody else ever will). When it's empty, fall back to
-      // the transcript: a channel whose history shows this bot's own topics
-      // picker went through onboarding, and if no card followed, one is
-      // still owed. Pre-existing configured groups never had the picker
-      // posted, so they can't match. `inviteSettled` keeps the history fetch
-      // to once per channel per process.
+      // `onboardingInvitePending` is the cheap in-memory record of the debt;
+      // the transcript scan below recovers it after a restart (the prompt
+      // tells the model Tlon posts the link, so nobody else ever will).
+      // `inviteSettled` keeps the work to once per channel per process.
       if (!onboardingInvitePending.has(nest) && inviteSettled.has(nest)) {
         return;
       }
@@ -928,51 +929,38 @@ export async function monitorTlonProvider(
         if (!descriptionHasConfiguredJob(group.description)) {
           return;
         }
+        const history = await fetchChannelHistory(api, nest, 50, runtime, {
+          throwOnError: true,
+        });
+        const botPosted = (needle: string) =>
+          history.some(
+            (entry) =>
+              entry.author === botShipName && entry.content.startsWith(needle)
+          );
         if (!onboardingInvitePending.has(nest)) {
-          // An unreadable transcript must not settle the debt: to this
-          // decision an empty history and a failed scry would otherwise look
-          // identical, and "no card owed" would stick for the rest of the
-          // process. Throwing lands in the catch below, unsettled — the next
-          // turn retries the read.
-          const history = await fetchChannelHistory(api, nest, 50, runtime, {
-            throwOnError: true,
-          });
           // The opening picker marks every onboarding, including the
           // freeform path that never sees the topic pills — a freeform
-          // setup owes its card too.
-          const botOnboardedHere = history.some(
-            (entry) =>
-              entry.author === botShipName &&
-              (entry.content.startsWith(PURPOSE_PICKER_PROMPT) ||
-                entry.content.startsWith(TOPICS_PICKER_PROMPT))
-          );
-          // Matched on the shared lead: the card's *story* is the standalone
-          // fallback text, not the blob's prompt.
-          const cardAlreadyPosted = history.some(
-            (entry) =>
-              entry.author === botShipName &&
-              entry.content.startsWith(INVITE_CARD_LEAD)
-          );
-          if (!botOnboardedHere || cardAlreadyPosted) {
+          // setup owes its closing too. Pre-existing configured groups
+          // never had a picker posted, so they can't match.
+          if (
+            !botPosted(PURPOSE_PICKER_PROMPT) &&
+            !botPosted(TOPICS_PICKER_PROMPT)
+          ) {
             inviteSettled.add(nest);
             return;
           }
-          runtime.log?.(
-            `[tlon] Recovered an owed invite card for ${nest} from the transcript`
-          );
         }
-        const blob = buildInviteCardBlob(nest, group.flag);
-        if (blob) {
-          await postToChannel(nest, inviteCardFallbackText(), {
-            blob: serializeBlobField(blob),
-          });
+        // Matched on the shared leads: each card's *story* is its standalone
+        // fallback text, which starts with the same sentence as the blob's
+        // prompt.
+        if (!botPosted(INVITE_CARD_LEAD)) {
+          const blob = buildInviteCardBlob(nest, group.flag);
+          if (blob) {
+            await postToChannel(nest, inviteCardFallbackText(), {
+              blob: serializeBlobField(blob),
+            });
+          }
         }
-        // Settled only now: a failure above leaves the debt pending so the
-        // next turn retries the card. Settled *before* the follow-up, so a
-        // failure below can't re-post the card — the tail from here down is
-        // the best-effort ending this function's contract already allows.
-        onboardingInvitePending.delete(nest);
-        inviteSettled.add(nest);
         // Initial onboarding only: the account's first setup gets the
         // connected-services tour. A user creating their third agent group
         // already knows — and may already have services connected. The home
@@ -980,24 +968,31 @@ export async function monitorTlonProvider(
         // goes first); everywhere else the question is whether any other
         // group is already configured. Posted as plain text when the card
         // can't be built; the fallback names the settings path in words.
-        const isInitialOnboarding =
-          isHomeGroupFlag(group.flag, effectiveOwnerShip) ||
-          (await isFirstConfiguredSetup(api, runtime, group.flag)) === true;
-        if (isInitialOnboarding) {
-          const servicesBlob = buildServicesCardBlob(nest);
-          await postToChannel(
-            nest,
-            servicesCardFallbackText(),
-            servicesBlob ? { blob: serializeBlobField(servicesBlob) } : {}
-          );
+        if (!botPosted(SERVICES_CARD_LEAD)) {
+          const isInitialOnboarding =
+            isHomeGroupFlag(group.flag, effectiveOwnerShip) ||
+            (await isFirstConfiguredSetup(api, runtime, group.flag)) === true;
+          if (isInitialOnboarding) {
+            const servicesBlob = buildServicesCardBlob(nest);
+            await postToChannel(
+              nest,
+              servicesCardFallbackText(),
+              servicesBlob ? { blob: serializeBlobField(servicesBlob) } : {}
+            );
+          }
         }
-        // Hands the conversation back, after the card so it can't land before
-        // it. Posted even when the card couldn't be built: on a client that
-        // can't render the invite slot, this is the whole ending.
-        await postToChannel(nest, INVITE_FOLLOWUP_MESSAGE);
+        // Hands the conversation back, after the cards so it can't land
+        // before them. Posted even when the invite card couldn't be built:
+        // on a client that can't render the invite slot, this is the whole
+        // ending.
+        if (!botPosted(INVITE_FOLLOWUP_MESSAGE)) {
+          await postToChannel(nest, INVITE_FOLLOWUP_MESSAGE);
+        }
+        onboardingInvitePending.delete(nest);
+        inviteSettled.add(nest);
       } catch (error) {
         runtime.error?.(
-          `[tlon] Failed to post the invite card in ${nest}: ${String(error)}`
+          `[tlon] Failed to close the setup in ${nest}: ${String(error)}`
         );
       }
     };
@@ -1021,40 +1016,43 @@ export async function monitorTlonProvider(
      * passed so the scan can exclude it — the reply in hand must not count
      * as its own evidence. `knownGroup` skips the group lookup when the
      * caller already has one.
+     *
+     * Returns `'inconclusive'` when a transient scry failure prevented the
+     * scan from deciding anything. Callers must not act as if nothing was
+     * offered — offering again over an unread transcript would stack a
+     * second picker on the answered one and swallow the reply in hand.
+     * Retried on the next message; the checked-set isn't burned.
      */
     const recoverOnboardingState = async (
       nest: string,
       senderShip: string,
       currentMessageText: string,
       knownGroup?: { host: string; description: string | null } | null
-    ): Promise<void> => {
+    ): Promise<'ok' | 'inconclusive'> => {
       if (
         onboardingRecoveryChecked.has(nest) ||
         onboardingSetupPending.has(nest)
       ) {
-        return;
+        return 'ok';
       }
       const group =
         knownGroup ?? (await findGroupForChannel(api, nest, runtime));
       if (!group) {
-        // Null is also what a transient groups-scry failure looks like —
-        // don't burn the once-per-process check on it; the next message
-        // retries.
-        return;
+        // Null is also what a transient groups-scry failure looks like.
+        return 'inconclusive';
       }
       if (
         group.host !== effectiveOwnerShip ||
         descriptionHasAgentSetup(group.description)
       ) {
         onboardingRecoveryChecked.add(nest);
-        return;
+        return 'ok';
       }
       let recentPosts;
       try {
         // An unreadable transcript is not an empty one: deciding "nothing
         // was offered" from a failed scry would burn the once-per-process
-        // scan on bad data. Leave the channel unchecked so the next message
-        // retries.
+        // scan on bad data.
         recentPosts = await fetchChannelHistory(api, nest, 20, runtime, {
           throwOnError: true,
         });
@@ -1062,7 +1060,7 @@ export async function monitorTlonProvider(
         runtime.log?.(
           `[tlon] Onboarding recovery scan for ${nest} failed: ${String(error)}`
         );
-        return;
+        return 'inconclusive';
       }
       onboardingRecoveryChecked.add(nest);
       // A picker that survives in the transcript was already offered:
@@ -1092,6 +1090,7 @@ export async function monitorTlonProvider(
         onboardingPickerOffered.add(nest);
         onboardingTopicsOffered.add(nest);
       }
+      return 'ok';
     };
 
     // Settings store manager for hot-reloading config
@@ -4107,46 +4106,58 @@ export async function monitorTlonProvider(
           ownerListenEnabled: effectiveOwnerListenEnabled,
           ownerListenDisabledChannels: effectiveOwnerListenDisabled,
         });
-        let heardOnlyForOnboarding = false;
         if (!engageDecision.engage) {
-          // Onboarding replies still count. A tap on the purpose picker (or
-          // the topics reply that follows one) arrives as an unmentioned
-          // top-level owner message, so an owner who has switched
-          // owner-listen off would otherwise see cards whose buttons do
-          // nothing. The picker itself was only ever offered in a group this
-          // owner hosts, so hearing these is not a listening expansion.
-          // Both arms require that this channel is actually mid-onboarding:
-          // a bare "Research" in a channel where nothing was ever offered is
-          // ordinary chat, and letting it through would answer the owner in a
-          // channel where they switched listening off.
+          // A guided onboarding conversation still counts. The picker was
+          // only ever offered in a group this owner hosts, its copy invites
+          // free text ("or just tell me"), and the setup keeps talking after
+          // the pills (a timezone question, the build announcement) — so an
+          // owner who switched owner-listen off must still be heard for the
+          // whole of a setup that the bot itself started. The gate requires
+          // that this channel is actually mid-onboarding: a message in a
+          // channel where nothing was ever offered is ordinary chat, and
+          // once the config carries the finished job, listening-off means
+          // what it says again.
           //
-          // The mid-onboarding records are in-memory, so after a restart both
-          // are empty and this gate would drop the very reply the pills are
-          // waiting for. Rebuild them from the transcript first — once per
-          // channel, and only for a message shaped like a possible reply.
+          // Only top-level owner text is ever a setup reply — thread replies
+          // and attachment-only posts stay dropped.
           if (
-            isOwner(senderShip) &&
-            !isThreadReply &&
-            !parentId &&
-            Boolean(rawText?.trim()) &&
+            !isOwner(senderShip) ||
+            isThreadReply ||
+            parentId ||
+            !rawText?.trim()
+          ) {
+            return;
+          }
+          // The mid-onboarding records are in-memory, so after a restart
+          // they are empty and this gate would drop the very reply the
+          // picker is waiting for. Rebuild them from the transcript first —
+          // once per channel.
+          if (
             !onboardingSetupPending.has(nest) &&
+            !onboardingInvitePending.has(nest) &&
             !onboardingPickerOffered.has(nest)
           ) {
             await recoverOnboardingState(nest, senderShip, rawText ?? '');
           }
-          const isOnboardingReply =
-            isOwner(senderShip) &&
-            (onboardingSetupPending.has(nest) ||
-              (onboardingPickerOffered.has(nest) &&
-                isPurposePickerChoice(rawText ?? '')));
+          let isOnboardingReply =
+            onboardingSetupPending.has(nest) ||
+            onboardingInvitePending.has(nest);
+          if (!isOnboardingReply && onboardingPickerOffered.has(nest)) {
+            // Picker offered but no pending record: the purpose stage (card
+            // tap or freeform answer), or a freeform setup already under
+            // way. Mid-onboarding as long as the group's config lacks the
+            // finished job — checked live so a completed setup restores the
+            // drop.
+            const group = await findGroupForChannel(api, nest, runtime);
+            isOnboardingReply = Boolean(
+              group &&
+                group.host === effectiveOwnerShip &&
+                !descriptionHasConfiguredJob(group.description)
+            );
+          }
           if (!isOnboardingReply) {
             return;
           }
-          // Remembered so that if the onboarding machinery below doesn't
-          // consume this message after all (a duplicate card tap, a thread
-          // reply while the pills wait), it is dropped rather than passed to
-          // the model — the owner turned listening off.
-          heardOnlyForOnboarding = true;
         }
 
         // Agent onboarding: in an unconfigured group the owner hosts, the
@@ -4183,7 +4194,7 @@ export async function monitorTlonProvider(
           // process restart between posting a picker and the owner's reply
           // loses the in-memory state — and, left alone, this block would
           // re-offer the purpose picker on top of the answered one.
-          await recoverOnboardingState(
+          const recovery = await recoverOnboardingState(
             nest,
             senderShip,
             rawText ?? '',
@@ -4192,6 +4203,11 @@ export async function monitorTlonProvider(
           if (onboardingSetupPending.has(nest)) {
             // Recovered above: fall through so the reply in hand is consumed
             // as the topics answer.
+          } else if (recovery === 'inconclusive') {
+            // The transcript couldn't be read, so a picker may already be
+            // waiting in it — offering now could stack a second opening over
+            // an answered one. Skip the offer; the message proceeds normally
+            // and the next one retries the scan.
           } else if (
             !onboardingPickerOffered.has(nest) &&
             shouldOfferPurposePicker(onboardingOffer)
@@ -4376,12 +4392,6 @@ export async function monitorTlonProvider(
           !parentId &&
           Boolean(rawText?.trim()) &&
           !isPurposePickerChoice(rawText ?? '');
-        if (heardOnlyForOnboarding && !answersTopicsPicker) {
-          // Heard past the owner-listen gate only as a possible onboarding
-          // reply, and it wasn't one — a duplicate card tap, a thread reply,
-          // an attachment. Listening is off; drop it.
-          return;
-        }
         if (
           pendingSetupPurpose &&
           isOwner(senderShip) &&
@@ -4477,20 +4487,33 @@ export async function monitorTlonProvider(
         // wrongly consume that next answer as a topics reply.)
         if (setupDirective && pendingSetupPurpose) {
           await new Promise((resolve) => setTimeout(resolve, 2_000));
-          const after = await fetchChannelHistory(api, nest, 5, runtime);
-          const sentAt = content.sent || 0;
-          const botSpoke = after.some(
-            (entry) =>
-              entry.author === botShipName && (entry.timestamp ?? 0) >= sentAt
-          );
-          if (!botSpoke) {
-            const groupNow = await findGroupForChannel(api, nest, runtime);
-            if (!descriptionHasConfiguredJob(groupNow?.description)) {
-              onboardingSetupPending.set(nest, pendingSetupPurpose);
-              runtime.log?.(
-                `[tlon] Setup turn in ${nest} produced no reply — re-arming the topics setup`
-              );
+          try {
+            // Inconclusive evidence must not re-arm: a failed history read
+            // looks like silence, and re-arming after a turn that actually
+            // asked a follow-up would consume the owner's answer as a fresh
+            // topics reply — rebuilding the directive with, say, a timezone
+            // as its topics.
+            const after = await fetchChannelHistory(api, nest, 5, runtime, {
+              throwOnError: true,
+            });
+            const sentAt = content.sent || 0;
+            const botSpoke = after.some(
+              (entry) =>
+                entry.author === botShipName && (entry.timestamp ?? 0) >= sentAt
+            );
+            if (!botSpoke) {
+              const groupNow = await findGroupForChannel(api, nest, runtime);
+              if (!descriptionHasConfiguredJob(groupNow?.description)) {
+                onboardingSetupPending.set(nest, pendingSetupPurpose);
+                runtime.log?.(
+                  `[tlon] Setup turn in ${nest} produced no reply — re-arming the topics setup`
+                );
+              }
             }
+          } catch (error) {
+            runtime.log?.(
+              `[tlon] Could not verify the setup turn in ${nest} — leaving its state as is: ${String(error)}`
+            );
           }
         }
 
@@ -5734,6 +5757,37 @@ export async function monitorTlonProvider(
         if (initForeigns) {
           await processPendingInvites(initForeigns);
         }
+
+        // Startup sweep for openings lost in flight: the join-accept above
+        // consumes the foreign invite, and the opening it triggers is
+        // fire-and-forget — a crash or failed post between the two leaves a
+        // group the bot has joined but never opened, and no later invite
+        // event will retry it. The owner meanwhile sees a blank channel (the
+        // client suppresses its welcome notice while waiting for the agent).
+        // Sweep the owner-hosted groups once per start; the offer helper's
+        // own guards (single channel, no posts, no config, not already
+        // offered) make this a no-op everywhere an opening already exists.
+        void (async () => {
+          try {
+            const groups = (await api.scry('/groups/v2/groups.json')) as Record<
+              string,
+              unknown
+            > | null;
+            for (const groupFlag of Object.keys(groups ?? {})) {
+              if (opts.abortSignal?.aborted) {
+                return;
+              }
+              if (groupFlag.split('/')[0] !== effectiveOwnerShip) {
+                continue;
+              }
+              await offerOnboardingInNewOwnerGroup(groupFlag);
+            }
+          } catch (error) {
+            runtime.log?.(
+              `[tlon] Startup onboarding sweep failed: ${String(error)}`
+            );
+          }
+        })();
 
         try {
           await api.subscribe({

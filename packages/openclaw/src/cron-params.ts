@@ -50,7 +50,10 @@ function repairDelivery(delivery: unknown): unknown {
   }
   // A delivery reduced to its mode is the same husk one level up: announce
   // and explicit modes need a target, so without one the whole block goes.
-  if (!next.to && !next.channel) {
+  // Except `none`: it means "don't deliver" and needs no target — dropping
+  // it would fall back to the runner default (announce) and turn a
+  // deliberately silent job into an announcing one.
+  if (next.mode !== 'none' && !next.to && !next.channel) {
     return undefined;
   }
   return Object.keys(next).length > 0 ? next : undefined;

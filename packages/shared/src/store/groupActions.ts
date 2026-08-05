@@ -414,11 +414,19 @@ export async function updateGroupMeta(
   // machine-readable config, and no UI edits descriptions anymore (the
   // editor hides the field for groups) — every caller here passes a stored
   // row's description through untouched. So when the stored description
-  // carries a config, preserve it verbatim: a caller holding a stale or
-  // blanked copy must never clobber the agents/jobs entry with it.
-  const description = parseGroupAgentConfig(existingGroup?.description)
-    ? existingGroup?.description ?? ''
-    : group.description ?? '';
+  // carries a config, preserve the config verbatim: a caller holding a stale
+  // or blanked copy must never clobber the agents/jobs entry with it.
+  //
+  // Preserved from the *ship*, not the local row: the meta poke replaces the
+  // whole meta object, and a rename can race a setup that reached the ship
+  // but hasn't synced back — the local row would still hold the bare marker,
+  // and writing that would orphan the freshly configured job. The local copy
+  // is the fallback when the ship can't be read.
+  let description = group.description ?? '';
+  if (parseGroupAgentConfig(existingGroup?.description)) {
+    const remote = await api.getGroup(group.id).catch(() => null);
+    description = remote?.description ?? existingGroup?.description ?? '';
+  }
   const groupWithMergedDescription = { ...group, description };
 
   // optimistic update

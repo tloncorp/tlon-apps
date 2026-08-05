@@ -24,7 +24,8 @@ export function useAgentOnboardingLock(
   groupId?: string | null,
   groupDescription?: string | null
 ): boolean {
-  const onboardingGroupId = db.agentOnboardingGroupId.useValue();
+  const { value: onboardingGroupId, isLoading: markerLoading } =
+    db.agentOnboardingGroupId.useStorageItem();
   const isOnboardingGroup = Boolean(
     groupId && onboardingGroupId && groupId === onboardingGroupId
   );
@@ -37,6 +38,17 @@ export function useAgentOnboardingLock(
       });
     }
   }, [isOnboardingGroup, setupComplete]);
+
+  // Until the durable marker hydrates, its default (null) would read as
+  // "not locked" — and a cold start can restore straight into the guided
+  // channel, opening a window where the back button works and the chrome
+  // shows before the lock engages. Treat an unhydrated marker as locked for
+  // any group channel that isn't demonstrably finished; for the guided group
+  // that's simply correct early, and for every other group it's a one-query
+  // flicker on the rare cold start that lands directly in a channel.
+  if (markerLoading) {
+    return Boolean(groupId) && !setupComplete;
+  }
 
   return isOnboardingGroup && !setupComplete;
 }
