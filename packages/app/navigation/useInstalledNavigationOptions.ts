@@ -25,8 +25,23 @@ export function useInstalledNavigationOptions(
       return;
     }
 
+    let routeIsBeingRemoved = false;
+    const unsubscribeBeforeRemove = navigation.addListener(
+      'beforeRemove',
+      () => {
+        routeIsBeingRemoved = true;
+      }
+    );
+
     return () => {
-      if (navigation.isFocused == null || navigation.isFocused()) {
+      unsubscribeBeforeRemove();
+
+      // Route options disappear with the route. Resetting them while native
+      // stack is animating that route away makes the outgoing header jump.
+      if (
+        !routeIsBeingRemoved &&
+        (navigation.isFocused == null || navigation.isFocused())
+      ) {
         navigation.setOptions(resetOptions);
       }
     };
