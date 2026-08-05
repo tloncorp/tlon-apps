@@ -17,8 +17,6 @@ import {
 } from './nativeActions';
 import { NativeHeaderTitle, createNativeHeaderTitleStore } from './nativeTitle';
 
-const hiddenNativeHeaderOptions = { headerShown: false };
-
 export function useNativeHeader({
   enabled,
   title,
@@ -70,7 +68,6 @@ export function useNativeHeader({
     };
 
     return {
-      headerShown: true,
       headerStyle: resolvedBackgroundColor
         ? { backgroundColor: resolvedBackgroundColor }
         : undefined,
@@ -103,12 +100,7 @@ export function useNativeHeader({
     usesCustomTitle,
   ]);
 
-  useInstalledNavigationOptions(
-    navigation,
-    options,
-    hiddenNativeHeaderOptions,
-    shouldUseNativeHeader
-  );
+  useInstalledNavigationOptions(navigation, options, shouldUseNativeHeader);
 
   return shouldUseNativeHeader;
 }

@@ -36,8 +36,8 @@ export function useScreenScrollProps({
   useInstalledNavigationOptions(
     navigation,
     options,
-    nativeHeaderScrollResetOptions,
-    enabled && Platform.OS === 'ios'
+    enabled && Platform.OS === 'ios',
+    nativeHeaderScrollResetOptions
   );
 
   return {
