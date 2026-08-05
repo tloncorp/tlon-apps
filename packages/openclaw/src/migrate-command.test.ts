@@ -1,5 +1,5 @@
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   MIGRATION_APPLY_TIMEOUT_MS,
@@ -17,6 +17,10 @@ import {
   removeBridge,
   setBridge,
 } from './monitor/command-bridge.js';
+import {
+  type TlonMigrationReportInput,
+  setMigrationTelemetryReporter,
+} from './telemetry.js';
 
 function makeBridge(
   options: {
@@ -1175,5 +1179,173 @@ describe('formatMigrationCommandFailure', () => {
     const text = formatMigrationCommandFailure(error, 'owner-hosted');
     expect(text).toContain('/migrate cleanup notes/~owner/log');
     expect(text).not.toContain('Delete the notebook');
+  });
+});
+
+describe('migration telemetry emissions', () => {
+  const migrationEvents: TlonMigrationReportInput[] = [];
+
+  beforeEach(() => {
+    migrationEvents.length = 0;
+    setMigrationTelemetryReporter((event) => {
+      migrationEvents.push(event);
+    });
+  });
+
+  afterEach(() => {
+    setMigrationTelemetryReporter(null);
+  });
+
+  it('reports started and completed under one migrationId with a duration', async () => {
+    const h = makeHarness(['Migration complete.\n']);
+    const bridge = makeBridge();
+
+    await h.handler(bridge, 'diary/~bot/log');
+    await h.tasks.shift()?.();
+
+    expect(migrationEvents.map((event) => event.migrationEvent)).toEqual([
+      'started',
+      'completed',
+    ]);
+    const [started, completed] = migrationEvents;
+    expect(started).toEqual({
+      migrationEvent: 'started',
+      action: 'apply',
+      migrationId: expect.any(String),
+      durationMs: null,
+      deadlineExceeded: null,
+      errorText: null,
+    });
+    expect(completed).toEqual({
+      migrationEvent: 'completed',
+      action: 'apply',
+      migrationId: started.migrationId,
+      durationMs: expect.any(Number),
+      deadlineExceeded: false,
+      errorText: null,
+    });
+  });
+
+  it('reports a failure with error text', async () => {
+    const failure = Object.assign(
+      new Error('CLI exploded: target unreachable'),
+      {
+        stdout: '',
+        stderr: 'some stderr\n',
+      }
+    );
+    const h = makeHarness([failure]);
+    const bridge = makeBridge();
+
+    await h.handler(bridge, 'diary/~bot/log');
+    await h.tasks.shift()?.();
+
+    expect(migrationEvents[1]).toMatchObject({
+      migrationEvent: 'failed',
+      action: 'apply',
+      durationMs: expect.any(Number),
+      errorText: expect.stringContaining('CLI exploded: target unreachable'),
+    });
+  });
+
+  it('reports a write-widening refusal as consent_required, not failed', async () => {
+    const refusal = Object.assign(
+      new Error(
+        'Refusing without explicit acceptance — pass --allow-write-widening to accept.'
+      ),
+      { stdout: '', stderr: '' }
+    );
+    const h = makeHarness([refusal]);
+    const bridge = makeBridge();
+
+    await h.handler(bridge, 'diary/~bot/log');
+    await h.tasks.shift()?.();
+
+    expect(migrationEvents[1]).toMatchObject({
+      migrationEvent: 'consent_required',
+      action: 'apply',
+      errorText: null,
+    });
+  });
+
+  it('reports cleanup lifecycle, counting a partial cleanup as completed', async () => {
+    const h = makeHarness(['Deleted notes/~bot/log\n']);
+    const bridge = makeBridge();
+    await h.handler(bridge, 'cleanup notes/~bot/log');
+    await h.tasks.shift()?.();
+
+    expect(migrationEvents.map((event) => event.migrationEvent)).toEqual([
+      'started',
+      'completed',
+    ]);
+    expect(migrationEvents[1]).toMatchObject({
+      action: 'cleanup',
+      durationMs: expect.any(Number),
+    });
+
+    migrationEvents.length = 0;
+    const partial = Object.assign(
+      new Error(
+        'Notebook deleted; group cleanup unconfirmed — still present in group listing.'
+      ),
+      { stdout: '', stderr: '' }
+    );
+    const h2 = makeHarness([partial]);
+    await h2.handler(bridge, 'cleanup notes/~bot/log');
+    await h2.tasks.shift()?.();
+
+    expect(migrationEvents[1]).toMatchObject({
+      migrationEvent: 'completed',
+      action: 'cleanup',
+      errorText: null,
+    });
+  });
+  it('emits the terminal before the deadline DM resolves, marked deadlineExceeded', async () => {
+    let finishCli!: (output: string) => void;
+    let onDeadline: Parameters<MigrateCommandDeps['runCommand']>[3];
+    const runCommand = vi.fn(
+      (...args: Parameters<MigrateCommandDeps['runCommand']>) => {
+        onDeadline = args[3];
+        return new Promise<string>((resolve) => {
+          finishCli = resolve;
+        });
+      }
+    );
+    // First send is the deadline DM: hold it pending so a hung DM cannot
+    // delay or lose a terminal the controller already knows.
+    let releaseDeadlineDm!: () => void;
+    const bridge = makeBridge();
+    vi.mocked(bridge.sendOwnerNotification).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseDeadlineDm = () => resolve('message-id');
+        })
+    );
+    const tasks: Array<() => Promise<void>> = [];
+    const handler = createMigrateCommandHandler({
+      runCommand,
+      spawnTask: (task) => tasks.push(task),
+      applyInFlight: new Map(),
+      cleanupInFlight: new Map(),
+    });
+
+    await handler(bridge, 'diary/~bot/log');
+    const task = tasks.shift()?.();
+    onDeadline?.({ stdout: '', stderr: '' });
+    finishCli('Migration complete.\n');
+
+    await vi.waitFor(() =>
+      expect(
+        migrationEvents.some((event) => event.migrationEvent === 'completed')
+      ).toBe(true)
+    );
+    expect(migrationEvents[1]).toMatchObject({
+      migrationEvent: 'completed',
+      action: 'apply',
+      deadlineExceeded: true,
+    });
+
+    releaseDeadlineDm();
+    await task;
   });
 });

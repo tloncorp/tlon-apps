@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
@@ -17,6 +18,7 @@ import {
 } from './monitor/migrate-card.js';
 import { sharedMap } from './shared-state.js';
 import { canonicalizeNest, normalizeShip } from './targets.js';
+import { formatTlonTelemetryErrorText, reportMigration } from './telemetry.js';
 import type { TlonCommandDeadlineOutput } from './tlon-command-runner.js';
 
 export const MIGRATION_APPLY_TIMEOUT_MS = 30 * 60_000;
@@ -395,6 +397,8 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
         return message;
       }
 
+      // Minted before the in-flight entry so a throw cannot strand the guard.
+      const migrationId = randomUUID();
       let settleTask!: () => void;
       const task = new Promise<void>((resolve) => {
         settleTask = resolve;
@@ -402,6 +406,7 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
       applyInFlight.set(inFlightKey, task);
       spawnTask(async () => {
         let deadlineNotification: Promise<void> | undefined;
+        let deadlineReported = false;
         const args = [
           ...selection.prefixArgs,
           'notes',
@@ -410,12 +415,22 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
           '--yes',
           ...(parsed.allowWriteWidening ? ['--allow-write-widening'] : []),
         ];
+        reportMigration({
+          migrationEvent: 'started',
+          action: 'apply',
+          migrationId,
+          durationMs: null,
+          deadlineExceeded: null,
+          errorText: null,
+        });
+        const startedAt = performance.now();
         try {
           const output = await deps.runCommand(
             args,
             selection.credentials,
             MIGRATION_APPLY_TIMEOUT_MS,
             (output) => {
+              deadlineReported = true;
               deadlineNotification = reportMigrationDeadline(
                 bridge,
                 parsed.nest,
@@ -423,26 +438,57 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
               ).catch(() => undefined);
             }
           );
+          reportMigration({
+            migrationEvent: 'completed',
+            action: 'apply',
+            migrationId,
+            durationMs: Math.round(performance.now() - startedAt),
+            deadlineExceeded: deadlineReported,
+            errorText: null,
+          });
           await deadlineNotification;
           await sendOwnerNotification(bridge, output, parsed.nest);
         } catch (error) {
-          await deadlineNotification;
+          const durationMs = Math.round(performance.now() - startedAt);
           let message = formatMigrationCommandFailure(error, selection.kind);
           const targetNest = targetNestFromError(error);
           let actionCommand = targetNest
             ? `/migrate cleanup ${targetNest}`
             : undefined;
-          if (
+          const wideningOffer =
             !actionCommand &&
             !targetNest &&
             !parsed.allowWriteWidening &&
-            isWriteWideningRefusal(error)
-          ) {
+            isWriteWideningRefusal(error);
+          if (wideningOffer) {
             actionCommand = `/migrate ${parsed.nest} --allow-write-widening`;
             message +=
               `\n\nReply \`${actionCommand}\` to accept that every reader ` +
               'will become an editor and proceed.';
           }
+          // A consent refusal is terminal but not a failure: the owner is
+          // expected to accept and re-run, so counting it as failed would
+          // halve the success rate of a correctly working flow.
+          reportMigration(
+            wideningOffer
+              ? {
+                  migrationEvent: 'consent_required',
+                  action: 'apply',
+                  migrationId,
+                  durationMs,
+                  deadlineExceeded: deadlineReported,
+                  errorText: null,
+                }
+              : {
+                  migrationEvent: 'failed',
+                  action: 'apply',
+                  migrationId,
+                  durationMs,
+                  deadlineExceeded: deadlineReported,
+                  errorText: formatTlonTelemetryErrorText(error),
+                }
+          );
+          await deadlineNotification;
           await sendOwnerActionNotification(
             bridge,
             message,
@@ -479,6 +525,8 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
       return message;
     }
 
+    // Minted before the in-flight entry so a throw cannot strand the guard.
+    const migrationId = randomUUID();
     let settleTask!: () => void;
     const task = new Promise<void>((resolve) => {
       settleTask = resolve;
@@ -486,6 +534,16 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
     cleanupInFlight.set(inFlightKey, task);
     spawnTask(async () => {
       let deadlineNotification: Promise<void> | undefined;
+      let deadlineReported = false;
+      reportMigration({
+        migrationEvent: 'started',
+        action: 'cleanup',
+        migrationId,
+        durationMs: null,
+        deadlineExceeded: null,
+        errorText: null,
+      });
+      const startedAt = performance.now();
       try {
         const output = await deps.runCommand(
           [
@@ -498,6 +556,7 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
           selection.credentials,
           MIGRATION_CLEANUP_TIMEOUT_MS,
           (output) => {
+            deadlineReported = true;
             deadlineNotification = reportMigrationDeadline(
               bridge,
               parsed.nest,
@@ -505,9 +564,39 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
             ).catch(() => undefined);
           }
         );
+        reportMigration({
+          migrationEvent: 'completed',
+          action: 'cleanup',
+          migrationId,
+          durationMs: Math.round(performance.now() - startedAt),
+          deadlineExceeded: deadlineReported,
+          errorText: null,
+        });
         await deadlineNotification;
         await sendOwnerNotification(bridge, output, parsed.nest);
       } catch (error) {
+        const durationMs = Math.round(performance.now() - startedAt);
+        // A partial cleanup deleted the notebook (only the group-listing
+        // check was unconfirmed), so it counts as completed.
+        reportMigration(
+          isPartialCleanup(error)
+            ? {
+                migrationEvent: 'completed',
+                action: 'cleanup',
+                migrationId,
+                durationMs,
+                deadlineExceeded: deadlineReported,
+                errorText: null,
+              }
+            : {
+                migrationEvent: 'failed',
+                action: 'cleanup',
+                migrationId,
+                durationMs,
+                deadlineExceeded: deadlineReported,
+                errorText: formatTlonTelemetryErrorText(error),
+              }
+        );
         await deadlineNotification;
         // No card and no recovery command: the notebook is gone, so there is
         // nothing to clean up, and the diary nest needed to re-run the

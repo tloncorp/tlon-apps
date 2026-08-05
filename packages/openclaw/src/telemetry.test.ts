@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   _testing,
   createTlonTelemetry,
+  formatTlonTelemetryErrorText,
   recordCronRunAttribution,
   recordToolCall,
   reportCronJobChanged,
@@ -10,6 +11,7 @@ import {
   reportCronSnapshot,
   reportHarnessDebug,
   reportHarnessError,
+  reportMigration,
   reportOutboundRoute,
   reportPluginError,
   reportSessionDiagnostic,
@@ -19,6 +21,7 @@ import {
   setCronTelemetryReporter,
   setDebugTelemetryReporter,
   setErrorTelemetryReporter,
+  setMigrationTelemetryReporter,
   setOutboundRouteReporter,
   setSessionTelemetryReporter,
 } from './telemetry.js';
@@ -2107,5 +2110,114 @@ describe('cron telemetry capture', () => {
       totalCronJobCount: null,
     });
     expect(reporter).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('migration telemetry', () => {
+  beforeEach(() => {
+    postHogMocks.identify.mockClear();
+    postHogMocks.capture.mockClear();
+    setMigrationTelemetryReporter(null);
+  });
+
+  function createEnabledTelemetry() {
+    return createTlonTelemetry({
+      config: { enabled: true, apiKey: 'phc_test', host: null },
+    });
+  }
+
+  it('captures migration events with truncated error text', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureMigration({
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      migrationEvent: 'failed',
+      action: 'apply',
+      migrationId: 'migration-1',
+      durationMs: 4200,
+      deadlineExceeded: false,
+      errorText: `boom ${'x'.repeat(600)}`,
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Migration');
+    expect(call.distinctId).toBe('~zod');
+    expect(call.properties).toMatchObject({
+      migrationEvent: 'failed',
+      action: 'apply',
+      migrationId: 'migration-1',
+      durationMs: 4200,
+      deadlineExceeded: false,
+    });
+    expect(call.properties.errorText).toHaveLength(500);
+    expect(call.properties.errorText.startsWith('boom ')).toBe(true);
+  });
+
+  it('omits nullish fields and skips capture without an owner ship', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureMigration({
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      migrationEvent: 'started',
+      action: 'cleanup',
+      migrationId: 'migration-2',
+      durationMs: null,
+      deadlineExceeded: null,
+      errorText: null,
+    });
+    const properties = postHogMocks.capture.mock.calls.at(-1)?.[0].properties;
+    expect(Object.hasOwn(properties, 'durationMs')).toBe(false);
+    expect(Object.hasOwn(properties, 'errorText')).toBe(false);
+
+    postHogMocks.capture.mockClear();
+    telemetry?.captureMigration({
+      accountId: 'default',
+      ownerShip: null,
+      botShip: '~nec',
+      migrationEvent: 'started',
+      action: 'apply',
+      migrationId: 'migration-3',
+      durationMs: null,
+      deadlineExceeded: null,
+      errorText: null,
+    });
+    expect(postHogMocks.capture).not.toHaveBeenCalled();
+  });
+
+  it('formatTlonTelemetryErrorText survives a throwing stack getter', () => {
+    const hostile = new Error('safe message');
+    Object.defineProperty(hostile, 'stack', {
+      get() {
+        throw new Error('stack getter exploded');
+      },
+    });
+    expect(() => formatTlonTelemetryErrorText(hostile)).not.toThrow();
+    expect(formatTlonTelemetryErrorText(hostile)).toBe('[unformattable error]');
+  });
+
+  it('reportMigration forwards to the reporter, no-ops when cleared, and swallows reporter throws', () => {
+    const reporter = vi.fn();
+    setMigrationTelemetryReporter(reporter);
+    const event = {
+      migrationEvent: 'started' as const,
+      action: 'apply' as const,
+      migrationId: 'migration-4',
+      durationMs: null,
+      deadlineExceeded: null,
+      errorText: null,
+    };
+    reportMigration(event);
+    expect(reporter).toHaveBeenCalledWith(event);
+
+    setMigrationTelemetryReporter(() => {
+      throw new Error('capture exploded');
+    });
+    expect(() => reportMigration(event)).not.toThrow();
+
+    setMigrationTelemetryReporter(null);
+    reportMigration(event);
+    expect(reporter).toHaveBeenCalledTimes(1);
   });
 });
