@@ -312,6 +312,23 @@
         'contacts'^contacts
     ==
   ::
+  ::  /v10: v10-native activity (carries notebook/note sources)
+  ::
+      [%x %v10 %changes since=@ ~]
+    =+  .^(activity=json (scry %gx %activity /v6/activity/changes/[since.pole]/json))
+    =+  .^(channels=json (scry %gx %channels /v6/changes/[since.pole]/json))
+    =+  .^(chat=json (scry %gx %chat /v4/changes/[since.pole]/json))
+    =+  .^(groups=json (scry %gx %groups /v2/changes/[since.pole]/json))
+    =+  .^(contacts=json (scry %gx %contacts /v2/changes/[since.pole]/json))
+    :^  ~  ~  %json
+    !>  %-  pairs:enjs:format
+    :~  'activity'^activity
+        'channels'^channels
+        'chat'^chat
+        'groups'^groups
+        'contacts'^contacts
+    ==
+  ::
       [%x %v5 %init-posts channels=@ context=@ ~]
     =+  .^(channels=json (scry %gx %channels /v5/init-posts/[channels.pole]/[context.pole]/json))
     ::TODO bump chat

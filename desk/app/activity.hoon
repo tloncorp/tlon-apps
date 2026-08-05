@@ -188,7 +188,7 @@
     ::  absent, which respects existing muted or boosted settings
     ::  (seeding the loud defaults would override a muted %base).
     ::  v10 drops the unused reads field from activity-summary, so the
-    ::  stored summaries need reshaping, not just a head swap
+    ::  stored summaries need reshaping.
     ::
     =/  =activity:v10:av
       %-  ~(run by activity.old)
