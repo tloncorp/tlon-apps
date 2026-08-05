@@ -764,6 +764,19 @@ describe('topicsPickerAnswered', () => {
         OWNER
       )
     ).toBe(false);
+    // A duplicate card tap after the pills (dropped live, kept by the
+    // transcript) is not a topics answer.
+    expect(
+      topicsPickerAnswered(
+        [
+          { ...tap, timestamp: 1 },
+          { ...pills, timestamp: 2 },
+          { ...tap, timestamp: 3 },
+        ],
+        BOT,
+        OWNER
+      )
+    ).toBe(false);
   });
 });
 
@@ -784,6 +797,19 @@ describe('derivePendingPurposeFromHistory', () => {
         [
           { ...tap, timestamp: 1 },
           { ...pills, timestamp: 2 },
+        ],
+        BOT,
+        OWNER
+      )
+    ).toBe('agent-daily-digest');
+    // A duplicate card tap after the pills doesn't hide the pending pick:
+    // the pills are still awaiting their real answer.
+    expect(
+      derivePendingPurposeFromHistory(
+        [
+          { ...tap, timestamp: 1 },
+          { ...pills, timestamp: 2 },
+          { ...tap, timestamp: 3 },
         ],
         BOT,
         OWNER

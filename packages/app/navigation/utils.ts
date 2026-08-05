@@ -12,6 +12,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useGlobalSearch, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
 
 import type {
   DesktopBasePathStackParamList,
@@ -483,8 +484,15 @@ export function useRootNavigation() {
     navigationRef.current.goBack();
   }, [navigationRef]);
 
+  // The nested Settings navigator exists only in the desktop drawer
+  // (web/desktop, wide). Native always renders RootStack, which registers
+  // these settings screens flat — so a wide *native* window (a tablet) must
+  // take the direct route, or the nested params are silently ignored and
+  // the user lands on the Settings root instead.
+  const useNestedSettings = Platform.OS === 'web' && !isWindowNarrow;
+
   const navigateToBotSettings = useCallback(() => {
-    if (isWindowNarrow) {
+    if (!useNestedSettings) {
       navigationRef.current.navigate('BotSettings');
       return;
     }
@@ -496,10 +504,10 @@ export function useRootNavigation() {
     navigateToNestedSettings('Settings', {
       screen: 'BotSettings',
     });
-  }, [isWindowNarrow, navigationRef]);
+  }, [useNestedSettings, navigationRef]);
 
   const navigateToBotMcpSettings = useCallback(() => {
-    if (isWindowNarrow) {
+    if (!useNestedSettings) {
       navigationRef.current.navigate('BotMcpSettings');
       return;
     }
@@ -511,7 +519,7 @@ export function useRootNavigation() {
     navigateToNestedSettings('Settings', {
       screen: 'BotMcpSettings',
     });
-  }, [isWindowNarrow, navigationRef]);
+  }, [useNestedSettings, navigationRef]);
 
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();

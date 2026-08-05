@@ -118,7 +118,6 @@ import {
   buildTopicsPickerBlob,
   channelHasNoPosts,
   derivePendingPurposeFromHistory,
-  descriptionHasAgentSetup,
   descriptionHasConfiguredJob,
   findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
@@ -1065,21 +1064,24 @@ export async function monitorTlonProvider(
         // Null is also what a transient groups-scry failure looks like.
         return 'inconclusive';
       }
-      if (
-        group.host !== effectiveOwnerShip ||
-        descriptionHasAgentSetup(group.description)
-      ) {
-        if (descriptionHasConfiguredJob(group.description)) {
-          // A restart after the job was written but before the closing
-          // posted would otherwise strand the owed invite/services cards
-          // behind the owner-listen drop below — the closing normally runs
-          // at the end of an engaged turn, and a muted channel never has
-          // one. The check is idempotent and settles itself.
-          void postInviteCardIfSetupComplete(nest);
-        }
+      if (group.host !== effectiveOwnerShip) {
         onboardingRecoveryChecked.add(nest);
         return 'ok';
       }
+      if (descriptionHasConfiguredJob(group.description)) {
+        // A restart after the job was written but before the closing
+        // posted would otherwise strand the owed invite/services cards
+        // behind the owner-listen drop below — the closing normally runs
+        // at the end of an engaged turn, and a muted channel never has
+        // one. The check is idempotent and settles itself.
+        void postInviteCardIfSetupComplete(nest);
+        onboardingRecoveryChecked.add(nest);
+        return 'ok';
+      }
+      // Deliberately NOT the has-any-setup predicate: a purpose-only config
+      // is a setup that wrote its intent and then stopped — likely mid-build
+      // with a follow-up question pending — and its transcript still needs
+      // the scan below so the owner's answer is heard.
       let recentPosts;
       try {
         // An unreadable transcript is not an empty one: deciding "nothing

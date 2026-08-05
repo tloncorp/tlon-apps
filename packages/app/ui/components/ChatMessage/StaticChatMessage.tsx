@@ -27,8 +27,21 @@ import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
-/** Blocks that come from the post's blob rather than its story. */
-const BLOB_BLOCK_TYPES = new Set(['a2ui', 'file', 'video', 'voicememo']);
+/**
+ * Blocks that survive when a post's A2UI surface renders. The surface
+ * duplicates the story's *text* (the plain fallback for clients that can't
+ * render it), so text blocks are dropped — but attachments are not
+ * duplicates: file/video/voicememo arrive via the blob, and images via
+ * story image blocks, and all of them belong on screen alongside the
+ * surface.
+ */
+const BLOB_BLOCK_TYPES = new Set([
+  'a2ui',
+  'file',
+  'image',
+  'video',
+  'voicememo',
+]);
 
 /**
  * Pick between a post's A2UI surface and its story.

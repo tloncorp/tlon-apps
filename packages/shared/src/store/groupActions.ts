@@ -413,17 +413,24 @@ export async function updateGroupMeta(
   // FIXME(group-description-hijack): an agent group's description is its
   // machine-readable config, and no UI edits descriptions anymore (the
   // editor hides the field for groups) — every caller here passes a stored
-  // row's description through untouched. So when the stored description
-  // carries a config, preserve the config verbatim: a caller holding a stale
-  // or blanked copy must never clobber the agents/jobs entry with it.
+  // row's description through untouched. So for an agent group, preserve
+  // the config verbatim: a caller holding a stale or blanked copy must
+  // never clobber the agents/jobs entry with it.
   //
   // Preserved from the *ship*, not the local row: the meta poke replaces the
   // whole meta object, and a rename can race a setup that reached the ship
-  // but hasn't synced back — the local row would still hold the bare marker,
-  // and writing that would orphan the freshly configured job. The local copy
-  // is the fallback when the ship can't be read.
+  // but hasn't synced back — the local row could still hold the bare marker
+  // (or, on a fresh group, nothing at all, which is why the client's own
+  // agent record counts as agent-group evidence alongside a parseable local
+  // config). The local copy is the fallback when the ship can't be read.
+  const agentGroups = await db.agentGroupAgents
+    .getValue()
+    .catch((): Record<string, string> => ({}));
+  const isAgentGroup =
+    Boolean(agentGroups[group.id]) ||
+    Boolean(parseGroupAgentConfig(existingGroup?.description));
   let description = group.description ?? '';
-  if (parseGroupAgentConfig(existingGroup?.description)) {
+  if (isAgentGroup) {
     const remote = await api.getGroup(group.id).catch(() => null);
     description = remote?.description ?? existingGroup?.description ?? '';
   }

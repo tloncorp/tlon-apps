@@ -615,6 +615,12 @@ export function topicsPickerAnswered(
       skippedCurrent = true;
       continue;
     }
+    // A purpose-card title newer than the pills is a duplicate tap (the
+    // live handler drops those, but they stay in the transcript), not a
+    // topics answer.
+    if (purposeIdForChoice(content)) {
+      continue;
+    }
     if (content) {
       return true;
     }
@@ -654,7 +660,13 @@ export function derivePendingPurposeFromHistory(
       }
       const purposeId = purposeIdForChoice(entry.content);
       if (purposeId) {
-        return sawTopicsPicker ? purposeId : undefined;
+        if (sawTopicsPicker) {
+          return purposeId;
+        }
+        // A card title newer than any pills seen so far is a duplicate tap
+        // (dropped live, but it survives in the transcript). Keep walking —
+        // the pills and the tap that earned them are further down.
+        continue;
       }
       // Some other owner message is newer than any picker: the picker was
       // answered (or abandoned) already.
