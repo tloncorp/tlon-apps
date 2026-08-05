@@ -35,6 +35,7 @@ import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import { ActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
+import type { ScreenHeaderAction } from '../ScreenHeader';
 import { NotesActionGroupList } from './NotesActions';
 import { NotebookGateMessage, useNotebookData } from './NotesData';
 import { useEntityDialog } from './NotesDialogPrimitives';
@@ -818,6 +819,21 @@ export function NotesNativeChannel({
     );
   }, [canEdit, gate, notebookFlag, useDesktopSplit]);
 
+  const sidebarHeaderActions = useMemo<ScreenHeaderAction[]>(() => {
+    if (!notebookFlag || gate === 'unjoinable' || !canEdit) {
+      return [];
+    }
+    return [
+      {
+        id: 'NotesRootNewHeaderAction',
+        icon: 'Add',
+        label: 'New',
+        onPress: () => setNewActionSheetOpen(true),
+        testID: 'NotesRootNewHeaderAction',
+      },
+    ];
+  }, [canEdit, gate, notebookFlag]);
+
   useRegisterChannelHeaderItem(useDesktopSplit ? null : headerActions);
 
   const notesTreePane = (
@@ -853,6 +869,7 @@ export function NotesNativeChannel({
           actions: headerActions,
           content: notesTreePane,
           groupId,
+          headerActions: sidebarHeaderActions,
           title: channelTitle ?? 'Notebook',
         }
       : null,

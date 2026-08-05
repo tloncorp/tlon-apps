@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
 import { ScrollView, YStack } from 'tamagui';
 
+import { ScreenScrollView } from '../ScreenScrollView';
 import { FolderTreeRow, NoteRow } from './NotesTreeRows';
 import { getFolderLabel } from './notesTree';
 import type { NotesTreeRow } from './notesTree';
@@ -116,11 +117,11 @@ export function NotesTreePane({
   if (layout === 'takeover') {
     return (
       <YStack flex={1} minHeight={0} backgroundColor="$background">
-        <ScrollView flex={1}>
+        <ScreenScrollView flex={1}>
           <YStack paddingTop="$l" paddingHorizontal="$l" paddingBottom="$m">
             {treeList}
           </YStack>
-        </ScrollView>
+        </ScreenScrollView>
       </YStack>
     );
   }

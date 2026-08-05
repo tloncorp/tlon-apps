@@ -7,7 +7,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
-import { Text, YStack } from 'tamagui';
+import { Text, YStack, isWeb } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
@@ -448,54 +448,43 @@ export function ChatListScreenView({
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
           <View userSelect="none" flex={1}>
+            {showHomeAddTooltip && (
+              <WayfindingNotice.HomeAddTooltip top={isWeb ? 36 : 8} />
+            )}
             <ScreenHeader
               title="Home"
               subtitle={syncSubtitle}
               loadingSubtitle={loadingSubtitle}
               showSubtitle={true}
-              leftControls={
-                personalInvite ? (
-                  <ScreenHeader.IconButton
-                    type="AddPerson"
-                    onPress={handlePersonalInvitePress}
-                  />
-                ) : undefined
-              }
-              rightControls={
-                <>
-                  <ScreenHeader.IconButton
-                    type="Search"
-                    onPress={handleSearchInputToggled}
-                  />
-                  {isWindowNarrow ? (
-                    <View position="relative" alignItems="flex-end">
-                      <ScreenHeader.IconButton
-                        type="Add"
-                        onPress={handlePressAddChat}
-                        testID="CreateChatSheetTrigger"
-                        color={
-                          isWindowNarrow && showHomeAddTooltip
-                            ? '$positiveActionText'
-                            : '$primaryText'
-                        }
-                        backgroundColor={
-                          isWindowNarrow && showHomeAddTooltip
-                            ? '$positiveBackground'
-                            : 'transparent'
-                        }
-                      />
-                      {isWindowNarrow && showHomeAddTooltip && (
-                        <WayfindingNotice.HomeAddTooltip />
-                      )}
-                    </View>
-                  ) : (
-                    <CreateChatSheet
-                      ref={createChatSheetRef}
-                      trigger={<ScreenHeader.IconButton type="Add" />}
-                    />
-                  )}
-                </>
-              }
+              leftActions={[
+                {
+                  id: 'invite-people',
+                  icon: 'AddPerson',
+                  label: 'Invite people',
+                  onPress: handlePersonalInvitePress,
+                  visible: !!personalInvite,
+                },
+              ]}
+              rightActions={[
+                {
+                  id: 'search',
+                  icon: 'Search',
+                  label: 'Search',
+                  onPress: handleSearchInputToggled,
+                },
+                {
+                  id: 'add-chat',
+                  icon: 'Add',
+                  label: 'Add a chat',
+                  onPress: handlePressAddChat,
+                  testID: 'CreateChatSheetTrigger',
+                  tint: showHomeAddTooltip ? '$positiveActionText' : undefined,
+                  backgroundTint: showHomeAddTooltip
+                    ? '$positiveBackground'
+                    : undefined,
+                },
+              ]}
+              placement="navigation"
             />
             {chats &&
             (chats.unpinned.length ||
@@ -541,7 +530,7 @@ export function ChatListScreenView({
         {displayData && <SystemNotices.NotificationsPrompt />}
       </ChatOptionsProvider>
 
-      {isWindowNarrow && <CreateChatSheet ref={createChatSheetRef} />}
+      <CreateChatSheet ref={createChatSheetRef} />
       <PersonalInviteSheet
         open={personalInviteOpen}
         onOpenChange={() => setPersonalInviteOpen(false)}

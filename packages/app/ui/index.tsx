@@ -62,6 +62,7 @@ export * from './components/PostScreenView';
 export * from './components/ProfileSheet';
 export * from './components/GroupMemberProfileSheet';
 export * from './components/ScreenHeader';
+export * from './components/ScreenScrollView';
 export * from './components/SearchBar';
 export * from './components/SettingsContentScrollView';
 export * from './components/SettingsScreenView';

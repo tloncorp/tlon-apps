@@ -1,0 +1,106 @@
+import { NavigationContext } from '@react-navigation/native';
+import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import { useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
+import { useTheme } from 'tamagui';
+
+import { useInstalledNavigationOptions } from '../../../navigation/useInstalledNavigationOptions';
+import {
+  type ScreenHeaderAction,
+  type ScreenHeaderActionPresentation,
+  type UseNativeHeaderOptions,
+  getScreenHeaderActionPresentation,
+} from './actions';
+import {
+  buildNativeHeaderActionOptions,
+  resolveNativeHeaderColor,
+} from './nativeActions';
+import { NativeHeaderTitle, createNativeHeaderTitleStore } from './nativeTitle';
+
+export function useNativeHeader({
+  enabled,
+  title,
+  titleElement,
+  titlePresentationKey,
+  usesCustomTitle,
+  backgroundColor,
+  left,
+  right,
+}: UseNativeHeaderOptions) {
+  const navigation = useContext(NavigationContext);
+  const theme = useTheme();
+  const [titleStore] = useState(() =>
+    createNativeHeaderTitleStore(titleElement)
+  );
+  const leftActionsRef = useRef<ScreenHeaderAction[]>([]);
+  const rightActionsRef = useRef<ScreenHeaderAction[]>([]);
+
+  useLayoutEffect(() => {
+    leftActionsRef.current = left;
+    rightActionsRef.current = right;
+    titleStore.set(titleElement);
+  }, [left, right, titleElement, titleStore]);
+
+  const shouldUseNativeHeader =
+    enabled && Platform.OS !== 'web' && navigation != null;
+  // iOS keeps the installed renderer stable so title updates cannot dismiss an
+  // open native menu. Android's header is React-rendered and can safely remount
+  // this stateless title when its semantic presentation changes.
+  const installedTitlePresentationKey =
+    Platform.OS === 'ios' ? undefined : titlePresentationKey;
+  const resolvedBackgroundColor = resolveNativeHeaderColor(
+    backgroundColor,
+    theme
+  );
+  const actionPresentation = JSON.stringify({
+    left: getScreenHeaderActionPresentation(left, (color) =>
+      resolveNativeHeaderColor(color, theme)
+    ),
+    right: getScreenHeaderActionPresentation(right, (color) =>
+      resolveNativeHeaderColor(color, theme)
+    ),
+  });
+
+  const options = useMemo<NativeStackNavigationOptions>(() => {
+    const presentation = JSON.parse(actionPresentation) as {
+      left: ScreenHeaderActionPresentation[];
+      right: ScreenHeaderActionPresentation[];
+    };
+
+    return {
+      headerStyle: resolvedBackgroundColor
+        ? { backgroundColor: resolvedBackgroundColor }
+        : undefined,
+      headerTitle: usesCustomTitle
+        ? () => (
+            <NativeHeaderTitle
+              key={installedTitlePresentationKey}
+              store={titleStore}
+            />
+          )
+        : undefined,
+      title,
+      ...buildNativeHeaderActionOptions({
+        side: 'left',
+        presentation: presentation.left,
+        actionsRef: leftActionsRef,
+      }),
+      ...buildNativeHeaderActionOptions({
+        side: 'right',
+        presentation: presentation.right,
+        actionsRef: rightActionsRef,
+      }),
+    } as NativeStackNavigationOptions;
+  }, [
+    actionPresentation,
+    installedTitlePresentationKey,
+    resolvedBackgroundColor,
+    title,
+    titleStore,
+    usesCustomTitle,
+  ]);
+
+  useInstalledNavigationOptions(navigation, options, shouldUseNativeHeader);
+
+  return shouldUseNativeHeader;
+}

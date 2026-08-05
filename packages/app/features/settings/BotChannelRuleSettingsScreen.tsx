@@ -304,6 +304,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title={channelLabel || 'Channel'}
+        placement="navigation"
       />
       {!ready ? (
         <View flex={1} alignItems="center" justifyContent="center">

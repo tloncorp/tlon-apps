@@ -216,6 +216,7 @@ export function BotModelSettingsScreen(props: Props) {
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title={mode === 'default' ? 'Default model' : 'Fallback models'}
+        placement="navigation"
       />
       {!ready ? (
         <View flex={1} alignItems="center" justifyContent="center">

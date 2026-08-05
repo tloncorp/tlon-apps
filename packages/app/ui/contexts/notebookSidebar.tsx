@@ -7,11 +7,14 @@ import React, {
   useState,
 } from 'react';
 
+import type { ScreenHeaderAction } from '../components/ScreenHeader';
+
 export type NotebookSidebarContent = {
   actions?: ReactNode;
   channelId: string;
   content: ReactNode;
   groupId?: string | null;
+  headerActions?: ScreenHeaderAction[];
   sourceId: string;
   title?: ReactNode;
 };
