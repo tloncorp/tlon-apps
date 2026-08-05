@@ -1,5 +1,5 @@
 import * as api from '@tloncorp/api';
-import { mergeGroupDescriptionEdit } from '@tloncorp/api/types/groupAgentConfig';
+import { parseGroupAgentConfig } from '@tloncorp/api/types/groupAgentConfig';
 import { createSectionId } from '@tloncorp/api/urbit';
 import isEqual from 'lodash/isEqual';
 
@@ -410,22 +410,15 @@ export async function updateGroupMeta(
 
   const existingGroup = await db.getGroup({ id: group.id });
 
-  // An agent group's description is its machine-readable config; the editor
-  // shows (and edits) only the prose purpose, so fold the edit back into the
-  // config instead of letting it overwrite the agents/jobs entry.
-  //
-  // Only when the description actually changed. Callers that update a title or
-  // icon pass a stored group straight through, so its description is still the
-  // raw config JSON — folding *that* in as prose would write the whole blob
-  // into `purpose`, exposing it wherever descriptions display and, once it
-  // exceeds the field's limit, degrading the config to an empty purpose.
-  const description =
-    group.description === existingGroup?.description
-      ? existingGroup?.description ?? ''
-      : mergeGroupDescriptionEdit(
-          existingGroup?.description,
-          group.description ?? ''
-        );
+  // FIXME(group-description-hijack): an agent group's description is its
+  // machine-readable config, and no UI edits descriptions anymore (the
+  // editor hides the field for groups) — every caller here passes a stored
+  // row's description through untouched. So when the stored description
+  // carries a config, preserve it verbatim: a caller holding a stale or
+  // blanked copy must never clobber the agents/jobs entry with it.
+  const description = parseGroupAgentConfig(existingGroup?.description)
+    ? existingGroup?.description ?? ''
+    : group.description ?? '';
   const groupWithMergedDescription = { ...group, description };
 
   // optimistic update

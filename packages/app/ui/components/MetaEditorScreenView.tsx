@@ -190,7 +190,7 @@ export function getMetaWithDefaults(
     // agent-config JSON. The description field isn't rendered for groups, so
     // the untouched default is what gets submitted — pass the raw value
     // through verbatim so a group meta save round-trips the config exactly
-    // (the store also folds prose edits via mergeGroupDescriptionEdit as a
+    // (the store also preserves a config-bearing description outright as a
     // second line of defense). Channels are ordinary prose.
     description: chat?.description || defaults.description,
     coverImage: chat?.coverImage || defaults.coverImage,

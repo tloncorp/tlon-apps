@@ -2,10 +2,9 @@ import { describe, expect, test } from 'vitest';
 
 import {
   canRenderAgentUiInGroup,
-  groupDisplayDescription,
   groupHasConfiguredJob,
   isOwnAgentShip,
-  mergeGroupDescriptionEdit,
+  parseGroupAgentConfig,
 } from './groupAgentConfig';
 
 const ME = '~forhep-tanmel';
@@ -128,17 +127,14 @@ describe('canRenderAgentUiInGroup', () => {
   });
 });
 
-describe('groupDisplayDescription', () => {
-  test('config purpose instead of raw JSON; prose untouched; empty otherwise', () => {
-    expect(groupDisplayDescription(configNaming([MY_AGENT]))).toBe(
+describe('parseGroupAgentConfig', () => {
+  test('config parses; prose and empties read as no config', () => {
+    expect(parseGroupAgentConfig(configNaming([MY_AGENT]))?.purpose).toBe(
       'Keeps up with things.'
     );
-    expect(groupDisplayDescription('A group about bread')).toBe(
-      'A group about bread'
-    );
-    expect(groupDisplayDescription(configNaming([MY_AGENT], ''))).toBe('');
-    expect(groupDisplayDescription(null)).toBe('');
-    expect(groupDisplayDescription(undefined)).toBe('');
+    expect(parseGroupAgentConfig('A group about bread')).toBeUndefined();
+    expect(parseGroupAgentConfig(null)).toBeUndefined();
+    expect(parseGroupAgentConfig(undefined)).toBeUndefined();
   });
 });
 
@@ -167,7 +163,9 @@ describe('job config parsing', () => {
         updatedAt: 1,
       },
     ]);
-    expect(groupDisplayDescription(description)).toBe('Keeps up with things.');
+    expect(parseGroupAgentConfig(description)?.purpose).toBe(
+      'Keeps up with things.'
+    );
     expect(
       isOwnAgentShip({
         authorId: MY_AGENT,
@@ -259,7 +257,9 @@ describe('config tolerance', () => {
       },
     ]);
     expect(groupHasConfiguredJob(sloppy)).toBe(true);
-    expect(groupDisplayDescription(sloppy)).toBe('');
+    // The over-limit purpose degrades to its default rather than sinking
+    // the whole entry.
+    expect(parseGroupAgentConfig(sloppy)?.purpose).toBe('');
     // But the entry must still be identifiable as one.
     expect(groupHasConfiguredJob(JSON.stringify([{ type: 'other' }]))).toBe(
       false
@@ -269,25 +269,5 @@ describe('config tolerance', () => {
         JSON.stringify([{ type: 'tlon-group-agent-config', version: 2 }])
       )
     ).toBe(false);
-  });
-});
-
-describe('mergeGroupDescriptionEdit', () => {
-  test('an edit becomes the config purpose; agents and jobs survive', () => {
-    const current = configNaming([MY_AGENT]);
-    const merged = mergeGroupDescriptionEdit(current, 'Now about bread.');
-    const entry = JSON.parse(merged)[0];
-    expect(entry.purpose).toBe('Now about bread.');
-    expect(entry.agents).toEqual([MY_AGENT]);
-    expect(entry.type).toBe('tlon-group-agent-config');
-    // And the display round-trips.
-    expect(groupDisplayDescription(merged)).toBe('Now about bread.');
-  });
-
-  test('plain descriptions pass through unchanged', () => {
-    expect(mergeGroupDescriptionEdit('old prose', 'new prose')).toBe(
-      'new prose'
-    );
-    expect(mergeGroupDescriptionEdit(null, 'new prose')).toBe('new prose');
   });
 });

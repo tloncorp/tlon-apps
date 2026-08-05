@@ -196,48 +196,9 @@ export function canRenderAgentUiInGroup({
   });
 }
 
-/**
- * What to show wherever a group's description is displayed.
- *
- * Agent groups keep their machine-readable config in `meta.description` (the
- * stopgap until it has a home of its own), so the raw field is a JSON blob
- * that must never reach a header or a preview card. The config carries the
- * prose equivalent — its `purpose` — so show that instead of nothing.
- *
- * FIXME(group-description-hijack): while the hijack is in effect, the app
- * hides group description display entirely — every former display site is
- * tagged with this marker (grep it), and invite previews omit it too, so
- * this helper currently has no callers outside tests. It stays because it is
- * the only safe accessor: when the config moves to a first-class field and
- * display comes back, every restored site must go through here, never the
- * raw field.
- */
-export function groupDisplayDescription(description?: string | null): string {
-  const config = parseGroupAgentConfig(description);
-  if (config) {
-    return config.purpose.trim();
-  }
-  return description ?? '';
-}
-
-/**
- * Fold a human-edited description back into a config-bearing one.
- *
- * FIXME(group-description-hijack): the group editor no longer exposes the
- * description at all, so no UI path produces such an edit today — this
- * survives as a guard for any caller that still writes group meta with a
- * prose description. Saving prose raw would overwrite the machine-readable
- * entry and un-configure the group's agent; instead the edited text becomes
- * the config's `purpose` and everything else survives. Descriptions without
- * a config pass through unchanged.
- */
-export function mergeGroupDescriptionEdit(
-  currentDescription: string | null | undefined,
-  editedDescription: string
-): string {
-  const config = parseGroupAgentConfig(currentDescription);
-  if (!config) {
-    return editedDescription;
-  }
-  return JSON.stringify([{ ...config, purpose: editedDescription.trim() }]);
-}
+// FIXME(group-description-hijack): while the hijack is in effect, the app
+// hides group description display entirely and the editor hides the field
+// for groups — every affected site is tagged with this marker (grep it).
+// When the config moves to a first-class field and display comes back,
+// restored sites must read the config's `purpose` via
+// `parseGroupAgentConfig`, never the raw field.
