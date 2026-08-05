@@ -9,6 +9,7 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '@tloncorp/api/client/activity';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { Rank } from '@tloncorp/api/urbit';
 import {
   AnyColumn,
@@ -39,6 +40,7 @@ import {
   sql,
 } from 'drizzle-orm';
 
+import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
@@ -65,6 +67,7 @@ import {
   contactAttestations as $contactAttestations,
   contactGroups as $contactGroups,
   contacts as $contacts,
+  contextLensRuns as $contextLensRuns,
   groupFlaggedPosts as $groupFlaggedPosts,
   groupJoinRequests as $groupJoinRequests,
   groupMemberBans as $groupMemberBans,
@@ -75,6 +78,10 @@ import {
   groupRoles as $groupRoles,
   groupUnreads as $groupUnreads,
   groups as $groups,
+  notesFolders as $notesFolders,
+  notesMembers as $notesMembers,
+  notesNotebooks as $notesNotebooks,
+  notesNotes as $notesNotes,
   pins as $pins,
   postReactions as $postReactions,
   posts as $posts,
@@ -99,11 +106,16 @@ import {
   ClientMeta,
   Contact,
   ContactAttestation,
+  ContextLensRun,
   Group,
   GroupJoinRequest,
   GroupNavSection,
   GroupRole,
   GroupUnread,
+  NotesFolder,
+  NotesMember,
+  NotesNote,
+  NotesNotebook,
   PendingMemberDismissals,
   Pin,
   PinType,
@@ -402,13 +414,324 @@ export const getAnalyticsDigest = createReadQuery(
   []
 );
 
+export const getNotesNotebook = createReadQuery(
+  'getNotesNotebook',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotebooks
+      .findFirst({
+        where: eq($notesNotebooks.id, notebookFlag),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotebooks']
+);
+
+export const getNotesNotebookWithRelations = createReadQuery(
+  'getNotesNotebookWithRelations',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotebooks
+      .findFirst({
+        where: eq($notesNotebooks.id, notebookFlag),
+        with: {
+          folders: true,
+          notes: true,
+          members: true,
+        },
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+export const getNotesFolders = createReadQuery(
+  'getNotesFolders',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesFolders.findMany({
+      where: eq($notesFolders.notebookFlag, notebookFlag),
+      orderBy: [asc($notesFolders.name)],
+    });
+  },
+  ['notesFolders']
+);
+
+export const getNotesNotes = createReadQuery(
+  'getNotesNotes',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotes.findMany({
+      where: eq($notesNotes.notebookFlag, notebookFlag),
+      orderBy: [desc($notesNotes.updatedAt), asc($notesNotes.title)],
+    });
+  },
+  ['notesNotes']
+);
+
+export const getNotesNote = createReadQuery(
+  'getNotesNote',
+  async (
+    { notebookFlag, noteId }: { notebookFlag: string; noteId: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.notesNotes
+      .findFirst({
+        where: and(
+          eq($notesNotes.notebookFlag, notebookFlag),
+          eq($notesNotes.noteId, noteId)
+        ),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotes']
+);
+
+export const getNotesMembers = createReadQuery(
+  'getNotesMembers',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesMembers.findMany({
+      where: eq($notesMembers.notebookFlag, notebookFlag),
+      orderBy: [asc($notesMembers.contactId), asc($notesMembers.role)],
+    });
+  },
+  ['notesMembers']
+);
+
+export const saveNotesNotebookSnapshot = createWriteQuery(
+  'saveNotesNotebookSnapshot',
+  async (
+    {
+      notebook,
+      folders,
+      notes,
+      members,
+    }: {
+      notebook: NotesNotebook;
+      folders: NotesFolder[];
+      notes: NotesNote[];
+      members: NotesMember[];
+    },
+    ctx: QueryCtx
+  ) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($notesNotebooks)
+        .values(notebook)
+        .onConflictDoUpdate({
+          target: $notesNotebooks.id,
+          set: conflictUpdateSetAll($notesNotebooks, ['lastOpenedAt']),
+        });
+
+      await txCtx.db
+        .delete($notesFolders)
+        .where(eq($notesFolders.notebookFlag, notebook.id));
+      await batchAction(
+        folders,
+        async (batch) => {
+          await txCtx.db.insert($notesFolders).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+
+      // Snapshots race the save path's immediate write-through (which
+      // persists a note the moment a PUT succeeds): a sync that fetched
+      // before the save but lands after it would silently regress the row.
+      // Revisions are monotonic per note, so an incoming revision below the
+      // stored one proves the snapshot is stale for that note — keep the
+      // stored row wholesale. Splicing only some newer fields onto the
+      // stale copy would fabricate a row that never existed on the host
+      // (e.g. new revision + old title). Read inside the transaction so
+      // the comparison can't itself race the write-through.
+      const currentNotes = await txCtx.db.query.notesNotes.findMany({
+        where: eq($notesNotes.notebookFlag, notebook.id),
+      });
+      const currentByNoteId = new Map(
+        currentNotes.map((note) => [note.noteId, note])
+      );
+      // Renames and moves don't bump the revision, so equal revisions are
+      // ordered by updatedAt (both stamped by the host clock).
+      const mergedNotes = notes.map((incoming) => {
+        const current = currentByNoteId.get(incoming.noteId);
+        const currentIsNewer =
+          current &&
+          (current.revision > incoming.revision ||
+            (current.revision === incoming.revision &&
+              (current.updatedAt ?? 0) > (incoming.updatedAt ?? 0)));
+        return currentIsNewer
+          ? { ...current, syncedAt: incoming.syncedAt }
+          : incoming;
+      });
+
+      await txCtx.db
+        .delete($notesNotes)
+        .where(eq($notesNotes.notebookFlag, notebook.id));
+      await batchAction(
+        mergedNotes,
+        async (batch) => {
+          await txCtx.db.insert($notesNotes).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+
+      await txCtx.db
+        .delete($notesMembers)
+        .where(eq($notesMembers.notebookFlag, notebook.id));
+      await batchAction(
+        members,
+        async (batch) => {
+          await txCtx.db.insert($notesMembers).values(batch);
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+    });
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+// Revision-monotonic note write. When the update carries a `revision`, the
+// row is only written if it hasn't already advanced past it (equal revisions
+// break ties on `updatedAt` when the update carries one, mirroring the
+// snapshot merge — renames/moves don't bump the revision). The guard lives
+// in the UPDATE's WHERE clause so the comparison and the write are one
+// atomic statement: a check-then-write across separate queries would race
+// concurrent sync writes. Updates without a `revision` (metadata-only
+// fallbacks) apply unconditionally.
+export const updateNotesNote = createWriteQuery(
+  'updateNotesNote',
+  async (
+    {
+      notebookFlag,
+      noteId,
+      ...update
+    }: {
+      notebookFlag: string;
+      noteId: number;
+    } & Partial<
+      Pick<
+        NotesNote,
+        'bodyMd' | 'folderId' | 'revision' | 'title' | 'updatedAt' | 'updatedBy'
+      >
+    >,
+    ctx: QueryCtx
+  ) => {
+    const conditions = [
+      eq($notesNotes.notebookFlag, notebookFlag),
+      eq($notesNotes.noteId, noteId),
+    ];
+    if (update.revision != null) {
+      const equalRevision =
+        update.updatedAt != null
+          ? and(
+              eq($notesNotes.revision, update.revision),
+              or(
+                isNull($notesNotes.updatedAt),
+                lte($notesNotes.updatedAt, update.updatedAt)
+              )
+            )
+          : eq($notesNotes.revision, update.revision);
+      conditions.push(
+        or(lt($notesNotes.revision, update.revision), equalRevision)!
+      );
+    }
+    return ctx.db
+      .update($notesNotes)
+      .set(update)
+      .where(and(...conditions));
+  },
+  ['notesNotes']
+);
+
+export const deleteNotesNote = createWriteQuery(
+  'deleteNotesNote',
+  async (
+    { notebookFlag, noteId }: { notebookFlag: string; noteId: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($notesNotes)
+      .where(
+        and(
+          eq($notesNotes.notebookFlag, notebookFlag),
+          eq($notesNotes.noteId, noteId)
+        )
+      );
+  },
+  ['notesNotes']
+);
+
+export const deleteNotesFolders = createWriteQuery(
+  'deleteNotesFolders',
+  async (
+    { notebookFlag, folderIds }: { notebookFlag: string; folderIds: number[] },
+    ctx: QueryCtx
+  ) => {
+    if (folderIds.length === 0) {
+      return;
+    }
+
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($notesNotes)
+        .where(
+          and(
+            eq($notesNotes.notebookFlag, notebookFlag),
+            inArray($notesNotes.folderId, folderIds)
+          )
+        );
+      await txCtx.db
+        .delete($notesFolders)
+        .where(
+          and(
+            eq($notesFolders.notebookFlag, notebookFlag),
+            inArray($notesFolders.folderId, folderIds)
+          )
+        );
+    });
+  },
+  ['notesFolders', 'notesNotes']
+);
+
+export const setNotesNotebookLastOpened = createWriteQuery(
+  'setNotesNotebookLastOpened',
+  async (
+    { notebookFlag, openedAt }: { notebookFlag: string; openedAt: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($notesNotebooks)
+      .set({ lastOpenedAt: openedAt })
+      .where(eq($notesNotebooks.id, notebookFlag));
+  },
+  ['notesNotebooks']
+);
+
+export const deleteNotesNotebook = createWriteQuery(
+  'deleteNotesNotebook',
+  async (notebookFlag: string, ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($notesNotes)
+        .where(eq($notesNotes.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesFolders)
+        .where(eq($notesFolders.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesMembers)
+        .where(eq($notesMembers.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesNotebooks)
+        .where(eq($notesNotebooks.id, notebookFlag));
+    });
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+const NOTES_SNAPSHOT_BATCH_SIZE = 50;
 const BATCH_SIZE = 200;
 async function batchAction<T>(
   items: T[],
-  handler: (subset: T[]) => Promise<void>
+  handler: (subset: T[]) => Promise<void>,
+  batchSize = BATCH_SIZE
 ) {
-  for (let i = 0; i < items.length; i += BATCH_SIZE) {
-    const batch = items.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
     await handler(batch);
   }
 }
@@ -1025,6 +1348,7 @@ export const getChats = createReadQuery(
     'groupUnreads',
     'threadUnreads',
     'volumeSettings',
+    'pins',
   ]
 );
 
@@ -1440,6 +1764,91 @@ export const getFlaggedPosts = createReadQuery(
     });
   },
   ['groupFlaggedPosts']
+);
+
+export const insertContextLensRuns = createWriteQuery(
+  'insertContextLensRuns',
+  async (runs: ContextLensRun[], ctx: QueryCtx) => {
+    if (runs.length === 0) return;
+    return ctx.db
+      .insert($contextLensRuns)
+      .values(runs)
+      .onConflictDoUpdate({
+        target: [$contextLensRuns.botShip, $contextLensRuns.lensId],
+        set: conflictUpdateSetAll($contextLensRuns, ['botShip', 'lensId']),
+      });
+  },
+  ['contextLensRuns']
+);
+
+export const getContextLensRun = createReadQuery(
+  'getContextLensRun',
+  async (
+    { botShip, lensId }: { botShip: string; lensId: string },
+    ctx: QueryCtx
+  ) => {
+    const run = await ctx.db.query.contextLensRuns.findFirst({
+      where: and(
+        eq($contextLensRuns.botShip, botShip),
+        eq($contextLensRuns.lensId, lensId)
+      ),
+    });
+    // findFirst resolves to undefined on a miss; normalize to null so React
+    // Query doesn't treat a not-yet-synced run as a query error.
+    return run ?? null;
+  },
+  ['contextLensRuns']
+);
+
+export const getRecentContextLensRuns = createReadQuery(
+  'getRecentContextLensRuns',
+  async ({ count: limit = 50 }: { count?: number }, ctx: QueryCtx) => {
+    return ctx.db.query.contextLensRuns.findMany({
+      orderBy: [desc($contextLensRuns.receivedAt)],
+      limit,
+    });
+  },
+  ['contextLensRuns']
+);
+
+export const getContextLensBotShips = createReadQuery(
+  'getContextLensBotShips',
+  async (ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .selectDistinct({ botShip: $contextLensRuns.botShip })
+      .from($contextLensRuns);
+    return rows.map((row) => preSig(row.botShip));
+  },
+  ['contextLensRuns']
+);
+
+export const getContextLensBotsInChat = createReadQuery(
+  'getContextLensBotsInChat',
+  async ({ chatId }: { chatId: string }, ctx: QueryCtx) => {
+    const [botRows, memberRows] = await Promise.all([
+      ctx.db
+        .selectDistinct({ botShip: $contextLensRuns.botShip })
+        .from($contextLensRuns),
+      ctx.db
+        .select({
+          contactId: $chatMembers.contactId,
+          status: $chatMembers.status,
+        })
+        .from($chatMembers)
+        .where(eq($chatMembers.chatId, chatId)),
+    ]);
+    // chatMembers.status is only set for invite flows; anything but 'invited'
+    // counts as present. Compare sig-normalized since botShip comes from the
+    // gateway and contactId from groups sync.
+    const members = new Set(
+      memberRows
+        .filter((row) => row.status !== 'invited')
+        .map((row) => preSig(row.contactId))
+    );
+    const botShips = new Set(botRows.map((row) => preSig(row.botShip)));
+    return [...botShips].filter((ship) => members.has(ship));
+  },
+  ['contextLensRuns', 'chatMembers']
 );
 
 export const insertChannelPerms = createWriteQuery(
@@ -2198,9 +2607,11 @@ export const getGroupUnread = createReadQuery(
   'getGroupUnread',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
     if (!groupId) return Promise.resolve(null);
-    return ctx.db.query.groupUnreads.findFirst({
-      where: and(eq($groupUnreads.groupId, groupId)),
-    });
+    return (
+      (await ctx.db.query.groupUnreads.findFirst({
+        where: and(eq($groupUnreads.groupId, groupId)),
+      })) ?? null
+    );
   },
   ['groupUnreads']
 );
@@ -2208,9 +2619,11 @@ export const getGroupUnread = createReadQuery(
 export const getBaseUnread = createReadQuery(
   'getBaseUnread',
   async (ctx: QueryCtx) => {
-    return ctx.db.query.baseUnreads.findFirst({
-      where: eq($baseUnreads.id, BASE_UNREADS_SINGLETON_KEY),
-    });
+    return (
+      (await ctx.db.query.baseUnreads.findFirst({
+        where: eq($baseUnreads.id, BASE_UNREADS_SINGLETON_KEY),
+      })) ?? null
+    );
   },
   ['baseUnreads']
 );
@@ -3437,6 +3850,40 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     posts.map((p) => [p.id, p.channelId])
   );
 
+  const failedEdits = await ctx.db
+    .select({
+      id: $posts.id,
+      editStatus: $posts.editStatus,
+      lastEditContent: $posts.lastEditContent,
+      lastEditTitle: $posts.lastEditTitle,
+      lastEditImage: $posts.lastEditImage,
+    })
+    .from($posts)
+    .where(
+      and(
+        inArray(
+          $posts.id,
+          posts.map((post) => post.id)
+        ),
+        eq($posts.editStatus, 'failed'),
+        isNotNull($posts.lastEditContent)
+      )
+    );
+  const incomingPosts = new Map(posts.map((post) => [post.id, post]));
+  const confirmedEdits = failedEdits.filter((edit) => {
+    const incoming = incomingPosts.get(edit.id);
+    return (
+      incoming?.isEdited === true &&
+      incoming.content === edit.lastEditContent &&
+      (incoming.title ?? '') === (edit.lastEditTitle ?? '') &&
+      (incoming.image ?? '') === (edit.lastEditImage ?? '')
+    );
+  });
+  const confirmedEditIds = new Set(confirmedEdits.map((edit) => edit.id));
+  const unconfirmedEdits = failedEdits.filter(
+    (edit) => !confirmedEditIds.has(edit.id)
+  );
+
   const uniqueChannels = new Set(posts.map((p) => p.channelId)).size;
   await perfTime(
     'insertPostsBatch.total',
@@ -3466,6 +3913,22 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
               set: conflictUpdateSetAll($posts, ['hidden']),
             }),
         { count: posts.length, channels: uniqueChannels }
+      );
+
+      // A sync can carry an older server copy before a timed-out edit lands.
+      // Keep the retry marker until the incoming post matches that edit.
+      await Promise.all(
+        unconfirmedEdits.map((edit) =>
+          ctx.db
+            .update($posts)
+            .set({
+              editStatus: edit.editStatus,
+              lastEditContent: edit.lastEditContent,
+              lastEditTitle: edit.lastEditTitle,
+              lastEditImage: edit.lastEditImage,
+            })
+            .where(eq($posts.id, edit.id))
+        )
       );
 
       const reactions = posts
@@ -3515,6 +3978,9 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
         )
       );
       logger.log('clear matched pending');
+      confirmedEdits.forEach(() =>
+        trackEvent(domain.AnalyticsEvent.PostEditCompleted)
+      );
     },
     { count: posts.length, channels: uniqueChannels }
   );
@@ -4363,6 +4829,32 @@ export const getPostWithRelations = createReadQuery(
   // invalidation path would re-stale every cached per-post entry on any
   // posts-table mutation; the targeted path only touches the specific post.
   []
+);
+
+// Resolves a post by the author's send time when the canonical id is
+// unknown — e.g. context lens output ids encode the bot's send time, while
+// channel posts are keyed by host receipt time.
+export const getPostBySentAt = createReadQuery(
+  'getPostBySentAt',
+  async (
+    {
+      channelId,
+      authorId,
+      sentAt,
+    }: { channelId: string; authorId: string; sentAt: number },
+    ctx: QueryCtx
+  ): Promise<Post | null> => {
+    return ctx.db.query.posts
+      .findFirst({
+        where: and(
+          eq($posts.channelId, channelId),
+          eq($posts.authorId, authorId),
+          eq($posts.sentAt, sentAt)
+        ),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['posts']
 );
 
 export const getPersonalGroup = createReadQuery(
@@ -5595,6 +6087,27 @@ export const insertPinnedItems = createWriteQuery(
   ['pins', 'groups']
 );
 
+// Rewrites each pin's index to its position in `orderedItemIds`. Expects the
+// full, unique local pin set (see reorderPinnedItems / normalizeOrder); only
+// rows whose ids appear in the list are updated.
+export const setPinnedItemsOrder = createWriteQuery(
+  'setPinnedItemsOrder',
+  async (orderedItemIds: string[], ctx: QueryCtx) => {
+    return withTransactionCtx(
+      { ...ctx, meta: { ...ctx.meta, label: 'pins' } },
+      async (txCtx) => {
+        for (let i = 0; i < orderedItemIds.length; i++) {
+          await txCtx.db
+            .update($pins)
+            .set({ index: i })
+            .where(eq($pins.itemId, orderedItemIds[i]));
+        }
+      }
+    );
+  },
+  ['pins']
+);
+
 export const insertPinnedItem = createWriteQuery(
   'insertPinnedItem',
   async (
@@ -5626,6 +6139,20 @@ export const deletePinnedItem = createWriteQuery(
   'deletePinnedItem',
   async ({ itemId }: { itemId: string }, ctx: QueryCtx) => {
     return ctx.db.delete($pins).where(eq($pins.itemId, itemId));
+  },
+  ['pins', 'groups', 'channels']
+);
+
+// Delete every pinned item. Unlike `insertPinnedItems([])` (a no-op), this is an
+// explicit clear — used by the reorder failure reconcile when the authoritative
+// backend snapshot is empty. Emits the same effects as the single-pin mutators
+// (`insertPinnedItem`/`deletePinnedItem`): some read paths surface pin state via
+// group/channel query deps (e.g. `getGroup` reads `pin`), so clearing pins must
+// invalidate those too, not just `pins`.
+export const clearPinnedItems = createWriteQuery(
+  'clearPinnedItems',
+  async (ctx: QueryCtx) => {
+    return ctx.db.delete($pins);
   },
   ['pins', 'groups', 'channels']
 );

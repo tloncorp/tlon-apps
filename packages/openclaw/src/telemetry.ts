@@ -1,7 +1,14 @@
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
 
+import type { TlonAuthPhase } from './auth-retry-state.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
+import type {
+  TlonChannelKind,
+  TlonProfileUpdateField,
+  TlonToolCallContext,
+} from './tlon-tool-command.js';
+import type { TlonAgentTurnSummary } from './turn-recorder.js';
 import type { TlonTelemetryConfig } from './types.js';
 import { getTlonVersionIdentity } from './version.js';
 
@@ -9,6 +16,7 @@ type ToolCallRecord = {
   toolName: string;
   durationMs: number | null;
   error: string | null;
+  context: ToolCallContext | null;
   recordedAt: number;
 };
 
@@ -16,6 +24,46 @@ type ToolSessionTrace = {
   updatedAt: number;
   calls: ToolCallRecord[];
 };
+
+type HarnessDebugSnapshotRecord = {
+  updatedAt: number;
+  debugSequence: number;
+  lastHarnessEventType: string | null;
+  lastHarnessEventAt: number | null;
+  lastHarnessEventRunId: string | null;
+  lastHarnessEventPhase: string | null;
+  lastHarnessEventOutcome: string | null;
+  lastHarnessProvider: string | null;
+  lastHarnessModel: string | null;
+  runStartedSeen: boolean;
+  contextAssembledSeen: boolean;
+  modelCallStartedSeen: boolean;
+  harnessRunStartedSeen: boolean;
+  toolExecutionStartedSeen: boolean;
+  lastContextEngineEvent: string | null;
+  lastContextEngineEventAt: number | null;
+  lastContextEngineTaskId: string | null;
+  lastContextEngineOperation: string | null;
+  lastContextEngineLane: string | null;
+  lastContextEngineMessage: string | null;
+};
+
+type CronRunAttributionRecord = {
+  // Run ids observed to belong to a cron run in this session, mapped to their
+  // cron job id (null when the gateway did not expose one). Matching by run id
+  // prevents a later interactive run in the same main session from inheriting
+  // cron attribution.
+  runIds: Map<string, string | null>;
+  // The cron hook can fire before a run id is assigned. Preserve that signal
+  // so a run-id-less failure in the same session can still be attributed.
+  sawCronWithoutRunId: boolean;
+  // Job id from this record's latest run-id-less cron signal. Reset even when
+  // the signal omits a job id so an earlier run's id cannot bleed forward.
+  runlessJobId: string | null;
+  updatedAt: number;
+};
+
+type CronRunAttribution = { cronJobId: string | null };
 
 export type TlonHarnessName = 'openclaw' | 'hermes';
 type ReplyDispatchKind = 'tool' | 'block' | 'final';
@@ -34,15 +82,22 @@ type TlonSessionTelemetryContext = {
   updatedAt: number;
 };
 
+export type ToolCallContext = TlonToolCallContext;
+
 export type ToolUsageSummary = {
   calls: Array<{
     toolName: string;
     durationMs: number | null;
     error: string | null;
+    summaryKey: string | null;
   }>;
   names: string[];
   totalDurationMs: number;
   errorCount: number;
+  tlonToolCallCount: number;
+  tlonSummaryKeys: string[];
+  tlonChannelKinds: TlonChannelKind[];
+  tlonUpdateFields: TlonProfileUpdateField[];
 };
 
 export type TlonHeartbeatNudgeEvent = {
@@ -131,6 +186,7 @@ export type TlonReplyOutcomeEvent = {
   model: string | null;
   thinkLevel: string | null;
   toolUsage: ToolUsageSummary;
+  turnSummary: TlonAgentTurnSummary | null;
 };
 
 export type TlonReplyTelemetryStart = {
@@ -160,6 +216,15 @@ export type TlonGatewayConnectedEvent = {
   pendingApprovalCount: number;
   autoDiscoverChannels: boolean;
   ownerListenEnabled: boolean;
+  // Boot-time web_search status (see monitor/web-search-status.ts). Rides on
+  // this event so fleet monitors catch capability loss at provision time —
+  // a failed provider-plugin install disables web_search silently otherwise.
+  webSearchEnabled: boolean;
+  webSearchConfiguredProvider: string | null;
+  webSearchProviders: string[];
+  webSearchProviderCount: number;
+  webSearchAvailable: boolean;
+  webSearchProbeError: string | null;
 };
 
 export type TlonReplyTelemetryResult = {
@@ -181,6 +246,7 @@ export type TlonReplyTelemetryResult = {
   provider: string | null;
   model: string | null;
   thinkLevel: string | null;
+  turnSummary?: TlonAgentTurnSummary;
   dispatchError?: unknown;
 };
 
@@ -219,7 +285,34 @@ export type TlonSessionLifecycleEvent = {
   hasNextSession: boolean;
 };
 
-export type TlonSessionWatchdogEvent = {
+export type TlonHarnessDebugSnapshotFields = {
+  harnessDebugSequence: number | null;
+  lastHarnessEventType: string | null;
+  lastHarnessEventAgeMs: number | null;
+  lastHarnessEventRunId: string | null;
+  lastHarnessEventPhase: string | null;
+  lastHarnessEventOutcome: string | null;
+  lastHarnessProvider: string | null;
+  lastHarnessModel: string | null;
+  runStartedSeen: boolean;
+  contextAssembledSeen: boolean;
+  modelCallStartedSeen: boolean;
+  harnessRunStartedSeen: boolean;
+  toolExecutionStartedSeen: boolean;
+  lastContextEngineEvent: string | null;
+  lastContextEngineEventAgeMs: number | null;
+  lastContextEngineTaskId: string | null;
+  lastContextEngineOperation: string | null;
+  lastContextEngineLane: string | null;
+  lastContextEngineMessage: string | null;
+};
+
+export type TlonDiagnosticLogAttributes = Record<
+  string,
+  string | number | boolean
+>;
+
+export type TlonSessionWatchdogEvent = TlonHarnessDebugSnapshotFields & {
   diagnosticType: 'session.stalled' | 'session.stuck';
   sessionKey: string;
   sessionId: string | null;
@@ -241,7 +334,7 @@ export type TlonSessionWatchdogEvent = {
   terminalProgressStale: boolean;
 };
 
-export type TlonSessionRecoveryEvent = {
+export type TlonSessionRecoveryEvent = TlonHarnessDebugSnapshotFields & {
   diagnosticType: 'session.recovery.requested' | 'session.recovery.completed';
   sessionKey: string;
   sessionId: string | null;
@@ -268,6 +361,72 @@ export type TlonSessionTelemetryReport =
   | { kind: 'lifecycle'; event: TlonSessionLifecycleEvent }
   | { kind: 'watchdog'; event: TlonSessionWatchdogEvent }
   | { kind: 'recovery'; event: TlonSessionRecoveryEvent };
+
+/**
+ * Cron observability. Fed by the gateway-global `cron_changed` hook (see
+ * src/cron-telemetry.ts), so events carry schedule metadata only — never the
+ * job's prompt text (`payload.text`), an on-exit schedule's watched command/cwd,
+ * or the run's output (`summary`).
+ */
+export type TlonCronScheduleFields = {
+  scheduleKind: string | null;
+  scheduleExpr: string | null;
+  scheduleTz: string | null;
+  scheduleEveryMs: number | null;
+  scheduleAt: string | null;
+};
+
+export type TlonCronCountFields = {
+  activeCronJobCount: number | null;
+  totalCronJobCount: number | null;
+};
+
+export type TlonCronJobChangedEvent = TlonCronScheduleFields &
+  TlonCronCountFields & {
+    accountId: string | null;
+    ownerShip: string | null;
+    botShip: string;
+    cronAction: 'added' | 'updated' | 'removed';
+    jobId: string;
+    jobName: string | null;
+    agentId: string | null;
+    enabled: boolean | null;
+    wakeMode: string | null;
+    payloadKind: string | null;
+    sessionTargetKind: string | null;
+  };
+
+export type TlonCronRunEvent = TlonCronScheduleFields & {
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  jobId: string;
+  jobName: string | null;
+  agentId: string | null;
+  runId: string | null;
+  status: string;
+  cronError: string | null;
+  durationMs: number | null;
+  runAtMs: number | null;
+  nextRunAtMs: number | null;
+  delivered: boolean | null;
+  deliveryStatus: string | null;
+  deliveryError: string | null;
+  model: string | null;
+  provider: string | null;
+  payloadKind: string | null;
+  sessionTargetKind: string | null;
+};
+
+export type TlonCronSnapshotEvent = TlonCronCountFields & {
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  scheduleKindCronCount: number | null;
+  scheduleKindEveryCount: number | null;
+  scheduleKindAtCount: number | null;
+  scheduleKindOnExitCount: number | null;
+};
 
 export type TlonHarnessErrorScope =
   | 'harness'
@@ -302,6 +461,65 @@ export type TlonHarnessErrorEvent = {
   failureKind: string | null;
   durationMs: number | null;
   errorText: string | null;
+  // Set only for model/harness/run failures positively correlated with a cron
+  // run. These fields complement the authoritative `TlonBot Cron Run` event
+  // with lower-level harness diagnostics.
+  isCron: boolean;
+  cronJobId: string | null;
+};
+
+export type TlonHarnessDebugEvent = TlonHarnessDebugSnapshotFields & {
+  harness: TlonHarnessName;
+  harnessEventType: string;
+  debugEventKind: string;
+  sessionKey: string;
+  sessionId: string | null;
+  runId: string | null;
+  accountId: string | null;
+  agentId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  destinationKind: TlonDestinationKind;
+  provider: string | null;
+  model: string | null;
+  phase: string | null;
+  outcome: string | null;
+  durationMs: number | null;
+  toolName: string | null;
+  toolCallId: string | null;
+  toolSource: string | null;
+  toolOwner: string | null;
+  pluginId: string | null;
+  harnessId: string | null;
+  modelCallId: string | null;
+  modelApi: string | null;
+  modelTransport: string | null;
+  requestPayloadBytes: number | null;
+  responseStreamBytes: number | null;
+  timeToFirstByteMs: number | null;
+  logLevel: string | null;
+  message: string | null;
+  loggerName: string | null;
+  codeFunctionName: string | null;
+  codeLine: number | null;
+  logAttributes: TlonDiagnosticLogAttributes | null;
+  contextEngineEvent: string | null;
+  contextEngineTaskId: string | null;
+  contextEngineOperation: string | null;
+  contextEngineLane: string | null;
+  errorName: string | null;
+  errorCode: string | null;
+  messageCount: number | null;
+  historyTextChars: number | null;
+  historyImageBlocks: number | null;
+  maxMessageTextChars: number | null;
+  systemPromptChars: number | null;
+  promptChars: number | null;
+  promptImages: number | null;
+  contextTokenBudget: number | null;
+  reserveTokens: number | null;
+  contextChannel: string | null;
+  contextTrigger: string | null;
 };
 
 export type TlonPluginErrorSource =
@@ -314,17 +532,39 @@ export type TlonPluginErrorSource =
   | 'contacts_subscription'
   | 'groups_ui_subscription'
   | 'foreigns_subscription'
-  | 'settings_refresh';
+  | 'steward_subscription'
+  | 'settings_refresh'
+  | 'sse_stream';
 
 export type TlonPluginErrorEvent = {
   harness: TlonHarnessName;
   pluginErrorSource: TlonPluginErrorSource;
+  authPhase: TlonAuthPhase | null;
   accountId: string | null;
   ownerShip: string | null;
   botShip: string;
   errorKind: string | null;
   errorText: string;
   attempt: number | null;
+  /**
+   * For recoverable auth/subscription/stream failures: how long the dependency
+   * has been (or was) down, in ms. Lets PostHog aggregate outage duration
+   * rather than just failure counts.
+   */
+  downMs: number | null;
+};
+
+export type TlonAuthAttemptFailedEvent = {
+  harness: TlonHarnessName;
+  pluginErrorSource: 'auth' | 're_auth';
+  authPhase: TlonAuthPhase;
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  errorKind: string | null;
+  errorText: string;
+  attempt: number;
+  downMs: number;
 };
 
 export type TlonTelemetryErrorEvent = {
@@ -351,8 +591,13 @@ export interface TlonTelemetryClient {
   captureSessionWatchdog(event: TlonSessionWatchdogEvent): void;
   captureSessionRecovery(event: TlonSessionRecoveryEvent): void;
   captureHarnessError(event: TlonHarnessErrorEvent): void;
+  captureHarnessDebug(event: TlonHarnessDebugEvent): void;
+  captureAuthAttemptFailed(event: TlonAuthAttemptFailedEvent): void;
   capturePluginError(event: TlonPluginErrorEvent): void;
   captureTelemetryError(event: TlonTelemetryErrorEvent): void;
+  captureCronJobChanged(event: TlonCronJobChangedEvent): void;
+  captureCronRun(event: TlonCronRunEvent): void;
+  captureCronSnapshot(event: TlonCronSnapshotEvent): void;
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
       ownerShip?: string | null;
@@ -369,10 +614,15 @@ const TLON_SESSION_LIFECYCLE_EVENT = 'TlonBot Session Lifecycle';
 const TLON_SESSION_WATCHDOG_EVENT = 'TlonBot Session Watchdog';
 const TLON_SESSION_RECOVERY_EVENT = 'TlonBot Session Recovery';
 const TLON_HARNESS_ERROR_EVENT = 'TlonBot Harness Error';
+const TLON_HARNESS_DEBUG_EVENT = 'TlonBot Harness Debug';
+const TLON_AUTH_ATTEMPT_FAILED_EVENT = 'TlonBot Auth Attempt Failed';
 const TLON_PLUGIN_ERROR_EVENT = 'TlonBot Plugin Error';
 const TLON_TELEMETRY_ERROR_EVENT = 'TlonBot Telemetry Error';
 const TLON_HEARTBEAT_NUDGE_EVENT = 'TlonBot Heartbeat Nudge Sent';
 const TLON_HEARTBEAT_REENGAGED_EVENT = 'TlonBot Heartbeat Nudge Reengaged';
+const TLON_CRON_JOB_CHANGED_EVENT = 'TlonBot Cron Job Changed';
+const TLON_CRON_RUN_EVENT = 'TlonBot Cron Run';
+const TLON_CRON_SNAPSHOT_EVENT = 'TlonBot Cron Snapshot';
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
 const TOOL_TRACE_TTL_MS = 60 * 60 * 1000;
 const MAX_TOOL_CALLS_PER_SESSION = 200;
@@ -380,6 +630,19 @@ const REPLY_TRACE_TTL_MS = 60 * 60 * 1000;
 const MAX_ACTIVE_REPLY_TRACES = 50;
 const SESSION_CONTEXT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_SESSION_CONTEXTS = 5_000;
+const HARNESS_DEBUG_SNAPSHOT_TTL_MS = 60 * 60 * 1000;
+const MAX_HARNESS_DEBUG_SNAPSHOTS = 5_000;
+const CRON_RUN_ATTRIBUTION_TTL_MS = 60 * 60 * 1000;
+const MAX_CRON_RUN_ATTRIBUTION_SESSIONS = 5_000;
+const MAX_CRON_RUN_IDS_PER_SESSION = 50;
+// Restrict cron attribution to errors representing a failed gateway/model run.
+// Tool/runtime/plugin diagnostics remain in their existing streams and should
+// not independently count as a failed cron run.
+const CRON_GATEWAY_ERROR_SCOPES = new Set<TlonHarnessErrorScope>([
+  'model',
+  'harness',
+  'run',
+]);
 const toolCallsBySession = sharedMap<string, ToolSessionTrace>(
   'telemetry.toolCallsBySession'
 );
@@ -387,6 +650,14 @@ const sessionContextsBySessionKey = sharedMap<
   string,
   TlonSessionTelemetryContext
 >('telemetry.sessionContextsBySessionKey');
+const harnessDebugSnapshotsBySessionKey = sharedMap<
+  string,
+  HarnessDebugSnapshotRecord
+>('telemetry.harnessDebugSnapshotsBySessionKey');
+const cronRunAttributionBySessionKey = sharedMap<
+  string,
+  CronRunAttributionRecord
+>('telemetry.cronRunAttributionBySessionKey');
 
 function cleanupToolCalls(now = Date.now()): void {
   for (const [sessionKey, trace] of toolCallsBySession) {
@@ -401,6 +672,7 @@ export function recordToolCall(params: {
   toolName: string;
   durationMs?: number;
   error?: string;
+  context?: ToolCallContext;
 }): void {
   const sessionKey = params.sessionKey?.trim();
   if (!sessionKey) {
@@ -422,6 +694,7 @@ export function recordToolCall(params: {
     durationMs:
       typeof params.durationMs === 'number' ? params.durationMs : null,
     error: params.error ?? null,
+    context: params.context ?? null,
     recordedAt: now,
   });
 
@@ -451,7 +724,20 @@ function collectToolUsageSince(
         toolName: call.toolName,
         durationMs: call.durationMs,
         error: call.error,
+        summaryKey:
+          call.context?.kind === 'tlonCommand' ? call.context.summaryKey : null,
       })) ?? [];
+  const tlonContexts =
+    toolCallsBySession
+      .get(sessionKey)
+      ?.calls.slice(Math.max(0, cursor))
+      .flatMap((call) => {
+        if (call.context?.kind !== 'tlonCommand') {
+          return [];
+        }
+
+        return [call.context];
+      }) ?? [];
 
   return {
     calls,
@@ -461,7 +747,32 @@ function collectToolUsageSince(
       0
     ),
     errorCount: calls.filter((call) => call.error).length,
+    tlonToolCallCount: tlonContexts.length,
+    tlonSummaryKeys: uniqueInOrder(tlonContexts.map((call) => call.summaryKey)),
+    tlonChannelKinds: uniqueInOrder(
+      tlonContexts.flatMap((call) =>
+        call.channelKind ? [call.channelKind] : []
+      )
+    ),
+    tlonUpdateFields: uniqueInOrder(
+      tlonContexts.flatMap((call) => call.updateFields ?? [])
+    ),
   };
+}
+
+function uniqueInOrder<T>(values: T[]): T[] {
+  const seen = new Set<T>();
+  const unique: T[] = [];
+
+  for (const value of values) {
+    if (seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    unique.push(value);
+  }
+
+  return unique;
 }
 
 function cleanupSessionContexts(now = Date.now()): void {
@@ -480,6 +791,264 @@ function cleanupSessionContexts(now = Date.now()): void {
     }
     sessionContextsBySessionKey.delete(oldestKey);
   }
+}
+
+function cleanupCronRunAttribution(now = Date.now()): void {
+  for (const [sessionKey, record] of cronRunAttributionBySessionKey) {
+    if (now - record.updatedAt > CRON_RUN_ATTRIBUTION_TTL_MS) {
+      cronRunAttributionBySessionKey.delete(sessionKey);
+    }
+  }
+
+  while (
+    cronRunAttributionBySessionKey.size > MAX_CRON_RUN_ATTRIBUTION_SESSIONS
+  ) {
+    const oldestKey = [...cronRunAttributionBySessionKey.entries()].sort(
+      (a, b) => a[1].updatedAt - b[1].updatedAt
+    )[0]?.[0];
+    if (!oldestKey) {
+      break;
+    }
+    cronRunAttributionBySessionKey.delete(oldestKey);
+  }
+}
+
+/**
+ * Remember that an agent run was triggered by cron so lower-level diagnostic
+ * events can be correlated with LB's authoritative cron lifecycle telemetry.
+ * Safe to call from both agent hooks for the same run.
+ */
+export function recordCronRunAttribution(params: {
+  sessionKey?: string | null;
+  runId?: string | null;
+  jobId?: string | null;
+}): void {
+  const sessionKey = optionalString(params.sessionKey);
+  if (!sessionKey) {
+    return;
+  }
+
+  const now = Date.now();
+  cleanupCronRunAttribution(now);
+
+  const record = cronRunAttributionBySessionKey.get(sessionKey) ?? {
+    runIds: new Map<string, string | null>(),
+    sawCronWithoutRunId: false,
+    runlessJobId: null,
+    updatedAt: now,
+  };
+  record.updatedAt = now;
+
+  const jobId = optionalString(params.jobId);
+  const runId = optionalString(params.runId);
+  if (runId) {
+    record.runIds.set(runId, jobId ?? record.runIds.get(runId) ?? null);
+    while (record.runIds.size > MAX_CRON_RUN_IDS_PER_SESSION) {
+      const oldestRunId = record.runIds.keys().next().value;
+      if (oldestRunId === undefined) {
+        break;
+      }
+      record.runIds.delete(oldestRunId);
+    }
+  } else {
+    record.sawCronWithoutRunId = true;
+    record.runlessJobId = jobId;
+  }
+
+  cronRunAttributionBySessionKey.set(sessionKey, record);
+}
+
+function lookupCronRunAttribution(
+  sessionKey: string | null,
+  runId: string | null
+): CronRunAttribution | null {
+  const normalizedSessionKey = optionalString(sessionKey);
+  if (!normalizedSessionKey) {
+    return null;
+  }
+
+  cleanupCronRunAttribution();
+  const record = cronRunAttributionBySessionKey.get(normalizedSessionKey);
+  if (!record) {
+    return null;
+  }
+  // Reads deliberately do not refresh the TTL. The attribution window is
+  // measured from the last cron hook, not from unrelated session activity.
+
+  if (runId) {
+    return record.runIds.has(runId)
+      ? { cronJobId: record.runIds.get(runId) ?? null }
+      : null;
+  }
+
+  // Only match a run-id-less failure to a run-id-less cron signal. If a later
+  // diagnostic has a run id, exact matching above is required.
+  return record.sawCronWithoutRunId ? { cronJobId: record.runlessJobId } : null;
+}
+
+function cleanupHarnessDebugSnapshots(now = Date.now()): void {
+  for (const [sessionKey, snapshot] of harnessDebugSnapshotsBySessionKey) {
+    if (now - snapshot.updatedAt > HARNESS_DEBUG_SNAPSHOT_TTL_MS) {
+      harnessDebugSnapshotsBySessionKey.delete(sessionKey);
+    }
+  }
+
+  while (harnessDebugSnapshotsBySessionKey.size > MAX_HARNESS_DEBUG_SNAPSHOTS) {
+    const oldestKey = [...harnessDebugSnapshotsBySessionKey.entries()].sort(
+      (a, b) => a[1].updatedAt - b[1].updatedAt
+    )[0]?.[0];
+    if (!oldestKey) {
+      break;
+    }
+    harnessDebugSnapshotsBySessionKey.delete(oldestKey);
+  }
+}
+
+function createEmptyHarnessDebugSnapshot(
+  now = Date.now()
+): HarnessDebugSnapshotRecord {
+  return {
+    updatedAt: now,
+    debugSequence: 0,
+    lastHarnessEventType: null,
+    lastHarnessEventAt: null,
+    lastHarnessEventRunId: null,
+    lastHarnessEventPhase: null,
+    lastHarnessEventOutcome: null,
+    lastHarnessProvider: null,
+    lastHarnessModel: null,
+    runStartedSeen: false,
+    contextAssembledSeen: false,
+    modelCallStartedSeen: false,
+    harnessRunStartedSeen: false,
+    toolExecutionStartedSeen: false,
+    lastContextEngineEvent: null,
+    lastContextEngineEventAt: null,
+    lastContextEngineTaskId: null,
+    lastContextEngineOperation: null,
+    lastContextEngineLane: null,
+    lastContextEngineMessage: null,
+  };
+}
+
+function harnessDebugSnapshotFields(
+  snapshot: HarnessDebugSnapshotRecord | null,
+  now = Date.now()
+): TlonHarnessDebugSnapshotFields {
+  return {
+    harnessDebugSequence: snapshot?.debugSequence ?? null,
+    lastHarnessEventType: snapshot?.lastHarnessEventType ?? null,
+    lastHarnessEventAgeMs:
+      snapshot?.lastHarnessEventAt !== null &&
+      snapshot?.lastHarnessEventAt !== undefined
+        ? Math.max(0, now - snapshot.lastHarnessEventAt)
+        : null,
+    lastHarnessEventRunId: snapshot?.lastHarnessEventRunId ?? null,
+    lastHarnessEventPhase: snapshot?.lastHarnessEventPhase ?? null,
+    lastHarnessEventOutcome: snapshot?.lastHarnessEventOutcome ?? null,
+    lastHarnessProvider: snapshot?.lastHarnessProvider ?? null,
+    lastHarnessModel: snapshot?.lastHarnessModel ?? null,
+    runStartedSeen: snapshot?.runStartedSeen === true,
+    contextAssembledSeen: snapshot?.contextAssembledSeen === true,
+    modelCallStartedSeen: snapshot?.modelCallStartedSeen === true,
+    harnessRunStartedSeen: snapshot?.harnessRunStartedSeen === true,
+    toolExecutionStartedSeen: snapshot?.toolExecutionStartedSeen === true,
+    lastContextEngineEvent: snapshot?.lastContextEngineEvent ?? null,
+    lastContextEngineEventAgeMs:
+      snapshot?.lastContextEngineEventAt !== null &&
+      snapshot?.lastContextEngineEventAt !== undefined
+        ? Math.max(0, now - snapshot.lastContextEngineEventAt)
+        : null,
+    lastContextEngineTaskId: snapshot?.lastContextEngineTaskId ?? null,
+    lastContextEngineOperation: snapshot?.lastContextEngineOperation ?? null,
+    lastContextEngineLane: snapshot?.lastContextEngineLane ?? null,
+    lastContextEngineMessage: snapshot?.lastContextEngineMessage ?? null,
+  };
+}
+
+function lookupHarnessDebugSnapshotFields(
+  sessionKey?: string | null
+): TlonHarnessDebugSnapshotFields {
+  const normalized = sessionKey?.trim();
+  if (!normalized) {
+    return harnessDebugSnapshotFields(null);
+  }
+
+  cleanupHarnessDebugSnapshots();
+  return harnessDebugSnapshotFields(
+    harnessDebugSnapshotsBySessionKey.get(normalized) ?? null
+  );
+}
+
+function updateHarnessDebugSnapshot(
+  sessionKey: string,
+  event: TlonHarnessDebugReportInput,
+  now = Date.now()
+): TlonHarnessDebugSnapshotFields {
+  cleanupHarnessDebugSnapshots(now);
+  const previous = harnessDebugSnapshotsBySessionKey.get(sessionKey);
+  const eventRunId = optionalString(event.runId);
+  const resetForNewRun =
+    previous &&
+    eventRunId &&
+    previous.lastHarnessEventRunId &&
+    previous.lastHarnessEventRunId !== eventRunId;
+  const existing = resetForNewRun
+    ? createEmptyHarnessDebugSnapshot(now)
+    : previous ?? createEmptyHarnessDebugSnapshot(now);
+  const contextEngineEvent = optionalString(event.contextEngineEvent);
+  const contextEngineTaskId = optionalString(event.contextEngineTaskId);
+  const contextEngineOperation = optionalString(event.contextEngineOperation);
+  const contextEngineLane = optionalString(event.contextEngineLane);
+  const message = optionalString(event.message);
+
+  const updated: HarnessDebugSnapshotRecord = {
+    ...existing,
+    updatedAt: now,
+    debugSequence: existing.debugSequence + 1,
+    lastHarnessEventType:
+      optionalString(event.harnessEventType) ?? existing.lastHarnessEventType,
+    lastHarnessEventAt: now,
+    lastHarnessEventRunId: eventRunId ?? existing.lastHarnessEventRunId,
+    lastHarnessEventPhase:
+      optionalString(event.phase) ?? existing.lastHarnessEventPhase,
+    lastHarnessEventOutcome:
+      optionalString(event.outcome) ?? existing.lastHarnessEventOutcome,
+    lastHarnessProvider:
+      optionalString(event.provider) ?? existing.lastHarnessProvider,
+    lastHarnessModel: optionalString(event.model) ?? existing.lastHarnessModel,
+    runStartedSeen:
+      existing.runStartedSeen || event.harnessEventType === 'run.started',
+    contextAssembledSeen:
+      existing.contextAssembledSeen ||
+      event.harnessEventType === 'context.assembled',
+    modelCallStartedSeen:
+      existing.modelCallStartedSeen ||
+      event.harnessEventType === 'model.call.started',
+    harnessRunStartedSeen:
+      existing.harnessRunStartedSeen ||
+      event.harnessEventType === 'harness.run.started',
+    toolExecutionStartedSeen:
+      existing.toolExecutionStartedSeen ||
+      event.harnessEventType === 'tool.execution.started',
+    lastContextEngineEvent:
+      contextEngineEvent ?? existing.lastContextEngineEvent,
+    lastContextEngineEventAt: contextEngineEvent
+      ? now
+      : existing.lastContextEngineEventAt,
+    lastContextEngineTaskId:
+      contextEngineTaskId ?? existing.lastContextEngineTaskId,
+    lastContextEngineOperation:
+      contextEngineOperation ?? existing.lastContextEngineOperation,
+    lastContextEngineLane: contextEngineLane ?? existing.lastContextEngineLane,
+    lastContextEngineMessage:
+      contextEngineEvent && message
+        ? message
+        : existing.lastContextEngineMessage,
+  };
+
+  harnessDebugSnapshotsBySessionKey.set(sessionKey, updated);
+  return harnessDebugSnapshotFields(updated, now);
 }
 
 function rememberTlonSessionContext(params: {
@@ -685,12 +1254,21 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
-  private properties<T extends Record<string, unknown>>(props: T): T {
-    return {
+  private properties<T extends Record<string, unknown>>(
+    props: T,
+    options?: { omitNullish?: boolean }
+  ): Record<string, unknown> {
+    const properties = {
       logSource: TLON_TELEMETRY_LOG_SOURCE,
       ...this.versionIdentity,
       ...props,
     };
+    if (options?.omitNullish !== true) {
+      return properties;
+    }
+    return Object.fromEntries(
+      Object.entries(properties).filter(([, value]) => value != null)
+    );
   }
 
   captureGatewayConnected(event: TlonGatewayConnectedEvent): void {
@@ -714,6 +1292,12 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         pendingApprovalCount: event.pendingApprovalCount,
         autoDiscoverChannels: event.autoDiscoverChannels,
         ownerListenEnabled: event.ownerListenEnabled,
+        webSearchEnabled: event.webSearchEnabled,
+        webSearchConfiguredProvider: event.webSearchConfiguredProvider,
+        webSearchProviders: event.webSearchProviders,
+        webSearchProviderCount: event.webSearchProviderCount,
+        webSearchAvailable: event.webSearchAvailable,
+        webSearchProbeError: event.webSearchProbeError,
       }),
     });
   }
@@ -838,6 +1422,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
             activeTrace.params.sessionKey,
             activeTrace.toolTraceCursor
           ),
+          turnSummary: result.turnSummary ?? null,
         });
       },
     };
@@ -895,6 +1480,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         trace.params.sessionKey,
         trace.toolTraceCursor
       ),
+      turnSummary: null,
     });
   }
 
@@ -965,6 +1551,12 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         provider: event.provider,
         model: event.model,
         thinkLevel: event.thinkLevel,
+        execution: event.turnSummary?.execution ?? null,
+        result: event.turnSummary?.result ?? null,
+        delivery: event.turnSummary?.delivery ?? null,
+        finalErrorReplyCount: event.turnSummary?.finalErrorReplyCount ?? null,
+        reason: event.turnSummary?.reason ?? null,
+        trigger: event.turnSummary?.trigger ?? null,
         toolCount: event.toolUsage.calls.length,
         toolNames: event.toolUsage.names,
         toolTotalDurationMs: event.toolUsage.totalDurationMs,
@@ -973,7 +1565,12 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           toolName: call.toolName,
           durationMs: call.durationMs,
           error: call.error,
+          summaryKey: call.summaryKey,
         })),
+        tlonToolCallCount: event.toolUsage.tlonToolCallCount,
+        tlonToolSummaryKeys: event.toolUsage.tlonSummaryKeys,
+        tlonToolChannelKinds: event.toolUsage.tlonChannelKinds,
+        tlonToolUpdateFields: event.toolUsage.tlonUpdateFields,
       }),
     });
   }
@@ -1014,27 +1611,49 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     this.client.capture({
       distinctId: ownerShip,
       event: TLON_SESSION_WATCHDOG_EVENT,
-      properties: this.properties({
-        botShip: event.botShip,
-        ownerShip: event.ownerShip,
-        accountId: event.accountId,
-        agentId: event.agentId,
-        sessionKey: event.sessionKey,
-        sessionId: event.sessionId,
-        diagnosticType: event.diagnosticType,
-        destinationKind: event.destinationKind,
-        state: event.state,
-        ageMs: event.ageMs,
-        queueDepth: event.queueDepth,
-        reason: event.reason,
-        classification: event.classification,
-        activeWorkKind: event.activeWorkKind,
-        lastProgressAgeMs: event.lastProgressAgeMs,
-        lastProgressReason: event.lastProgressReason,
-        activeToolName: event.activeToolName,
-        activeToolAgeMs: event.activeToolAgeMs,
-        terminalProgressStale: event.terminalProgressStale,
-      }),
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          agentId: event.agentId,
+          sessionKey: event.sessionKey,
+          sessionId: event.sessionId,
+          diagnosticType: event.diagnosticType,
+          destinationKind: event.destinationKind,
+          state: event.state,
+          ageMs: event.ageMs,
+          queueDepth: event.queueDepth,
+          reason: event.reason,
+          classification: event.classification,
+          activeWorkKind: event.activeWorkKind,
+          lastProgressAgeMs: event.lastProgressAgeMs,
+          lastProgressReason: event.lastProgressReason,
+          activeToolName: event.activeToolName,
+          activeToolAgeMs: event.activeToolAgeMs,
+          terminalProgressStale: event.terminalProgressStale,
+          harnessDebugSequence: event.harnessDebugSequence,
+          lastHarnessEventType: event.lastHarnessEventType,
+          lastHarnessEventAgeMs: event.lastHarnessEventAgeMs,
+          lastHarnessEventRunId: event.lastHarnessEventRunId,
+          lastHarnessEventPhase: event.lastHarnessEventPhase,
+          lastHarnessEventOutcome: event.lastHarnessEventOutcome,
+          lastHarnessProvider: event.lastHarnessProvider,
+          lastHarnessModel: event.lastHarnessModel,
+          runStartedSeen: event.runStartedSeen,
+          contextAssembledSeen: event.contextAssembledSeen,
+          modelCallStartedSeen: event.modelCallStartedSeen,
+          harnessRunStartedSeen: event.harnessRunStartedSeen,
+          toolExecutionStartedSeen: event.toolExecutionStartedSeen,
+          lastContextEngineEvent: event.lastContextEngineEvent,
+          lastContextEngineEventAgeMs: event.lastContextEngineEventAgeMs,
+          lastContextEngineTaskId: event.lastContextEngineTaskId,
+          lastContextEngineOperation: event.lastContextEngineOperation,
+          lastContextEngineLane: event.lastContextEngineLane,
+          lastContextEngineMessage: event.lastContextEngineMessage,
+        },
+        { omitNullish: true }
+      ),
     });
   }
 
@@ -1047,28 +1666,169 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     this.client.capture({
       distinctId: ownerShip,
       event: TLON_SESSION_RECOVERY_EVENT,
-      properties: this.properties({
-        botShip: event.botShip,
-        ownerShip: event.ownerShip,
-        accountId: event.accountId,
-        agentId: event.agentId,
-        sessionKey: event.sessionKey,
-        sessionId: event.sessionId,
-        diagnosticType: event.diagnosticType,
-        destinationKind: event.destinationKind,
-        state: event.state,
-        stateGeneration: event.stateGeneration,
-        ageMs: event.ageMs,
-        queueDepth: event.queueDepth,
-        reason: event.reason,
-        activeWorkKind: event.activeWorkKind,
-        allowActiveAbort: event.allowActiveAbort,
-        status: event.status,
-        action: event.action,
-        outcomeReason: event.outcomeReason,
-        released: event.released,
-        stale: event.stale,
-      }),
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          agentId: event.agentId,
+          sessionKey: event.sessionKey,
+          sessionId: event.sessionId,
+          diagnosticType: event.diagnosticType,
+          destinationKind: event.destinationKind,
+          state: event.state,
+          stateGeneration: event.stateGeneration,
+          ageMs: event.ageMs,
+          queueDepth: event.queueDepth,
+          reason: event.reason,
+          activeWorkKind: event.activeWorkKind,
+          allowActiveAbort: event.allowActiveAbort,
+          status: event.status,
+          action: event.action,
+          outcomeReason: event.outcomeReason,
+          released: event.released,
+          stale: event.stale,
+          harnessDebugSequence: event.harnessDebugSequence,
+          lastHarnessEventType: event.lastHarnessEventType,
+          lastHarnessEventAgeMs: event.lastHarnessEventAgeMs,
+          lastHarnessEventRunId: event.lastHarnessEventRunId,
+          lastHarnessEventPhase: event.lastHarnessEventPhase,
+          lastHarnessEventOutcome: event.lastHarnessEventOutcome,
+          lastHarnessProvider: event.lastHarnessProvider,
+          lastHarnessModel: event.lastHarnessModel,
+          runStartedSeen: event.runStartedSeen,
+          contextAssembledSeen: event.contextAssembledSeen,
+          modelCallStartedSeen: event.modelCallStartedSeen,
+          harnessRunStartedSeen: event.harnessRunStartedSeen,
+          toolExecutionStartedSeen: event.toolExecutionStartedSeen,
+          lastContextEngineEvent: event.lastContextEngineEvent,
+          lastContextEngineEventAgeMs: event.lastContextEngineEventAgeMs,
+          lastContextEngineTaskId: event.lastContextEngineTaskId,
+          lastContextEngineOperation: event.lastContextEngineOperation,
+          lastContextEngineLane: event.lastContextEngineLane,
+          lastContextEngineMessage: event.lastContextEngineMessage,
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  private cronCountPersonProps(
+    event: TlonCronCountFields
+  ): Record<string, unknown> {
+    if (event.activeCronJobCount == null && event.totalCronJobCount == null) {
+      return {};
+    }
+    return {
+      $set: {
+        tlonCronActiveJobCount: event.activeCronJobCount,
+        tlonCronTotalJobCount: event.totalCronJobCount,
+        tlonCronCountsUpdatedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  captureCronJobChanged(event: TlonCronJobChangedEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_CRON_JOB_CHANGED_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          agentId: event.agentId,
+          cronAction: event.cronAction,
+          jobId: event.jobId,
+          jobName: event.jobName,
+          enabled: event.enabled,
+          wakeMode: event.wakeMode,
+          payloadKind: event.payloadKind,
+          sessionTargetKind: event.sessionTargetKind,
+          scheduleKind: event.scheduleKind,
+          scheduleExpr: event.scheduleExpr,
+          scheduleTz: event.scheduleTz,
+          scheduleEveryMs: event.scheduleEveryMs,
+          scheduleAt: event.scheduleAt,
+          activeCronJobCount: event.activeCronJobCount,
+          totalCronJobCount: event.totalCronJobCount,
+          ...this.cronCountPersonProps(event),
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureCronRun(event: TlonCronRunEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_CRON_RUN_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          agentId: event.agentId,
+          jobId: event.jobId,
+          jobName: event.jobName,
+          runId: event.runId,
+          cronStatus: event.status,
+          cronError: event.cronError,
+          durationMs: event.durationMs,
+          runAtMs: event.runAtMs,
+          nextRunAtMs: event.nextRunAtMs,
+          delivered: event.delivered,
+          deliveryStatus: event.deliveryStatus,
+          deliveryError: event.deliveryError,
+          model: event.model,
+          provider: event.provider,
+          payloadKind: event.payloadKind,
+          sessionTargetKind: event.sessionTargetKind,
+          scheduleKind: event.scheduleKind,
+          scheduleExpr: event.scheduleExpr,
+          scheduleTz: event.scheduleTz,
+          scheduleEveryMs: event.scheduleEveryMs,
+          scheduleAt: event.scheduleAt,
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureCronSnapshot(event: TlonCronSnapshotEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_CRON_SNAPSHOT_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          activeCronJobCount: event.activeCronJobCount,
+          totalCronJobCount: event.totalCronJobCount,
+          scheduleKindCronCount: event.scheduleKindCronCount,
+          scheduleKindEveryCount: event.scheduleKindEveryCount,
+          scheduleKindAtCount: event.scheduleKindAtCount,
+          scheduleKindOnExitCount: event.scheduleKindOnExitCount,
+          ...this.cronCountPersonProps(event),
+        },
+        { omitNullish: true }
+      ),
     });
   }
 
@@ -1105,28 +1865,120 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     this.client.capture({
       distinctId: ownerShip,
       event: TLON_HARNESS_ERROR_EVENT,
-      properties: this.properties({
-        harness: event.harness,
-        harnessEventType: event.harnessEventType,
-        errorScope: event.errorScope,
-        sessionKey: event.sessionKey,
-        sessionId: event.sessionId,
-        runId: event.runId,
-        accountId: event.accountId,
-        agentId: event.agentId,
-        ownerShip: event.ownerShip,
-        botShip: event.botShip,
-        destinationKind: event.destinationKind,
-        provider: event.provider,
-        model: event.model,
-        toolName: event.toolName,
-        phase: event.phase,
-        outcome: event.outcome,
-        errorCategory: event.errorCategory,
-        failureKind: event.failureKind,
-        durationMs: event.durationMs,
-        errorText: event.errorText,
-      }),
+      properties: this.properties(
+        {
+          harness: event.harness,
+          harnessEventType: event.harnessEventType,
+          errorScope: event.errorScope,
+          sessionKey: event.sessionKey,
+          sessionId: event.sessionId,
+          runId: event.runId,
+          accountId: event.accountId,
+          agentId: event.agentId,
+          ownerShip: event.ownerShip,
+          botShip: event.botShip,
+          destinationKind: event.destinationKind,
+          provider: event.provider,
+          model: event.model,
+          toolName: event.toolName,
+          phase: event.phase,
+          outcome: event.outcome,
+          errorCategory: event.errorCategory,
+          failureKind: event.failureKind,
+          durationMs: event.durationMs,
+          errorText: event.errorText,
+          isCron: event.isCron,
+          cronJobId: event.cronJobId,
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureHarnessDebug(event: TlonHarnessDebugEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_HARNESS_DEBUG_EVENT,
+      properties: this.properties(
+        {
+          harness: event.harness,
+          harnessEventType: event.harnessEventType,
+          debugEventKind: event.debugEventKind,
+          sessionKey: event.sessionKey,
+          sessionId: event.sessionId,
+          runId: event.runId,
+          accountId: event.accountId,
+          agentId: event.agentId,
+          ownerShip: event.ownerShip,
+          botShip: event.botShip,
+          destinationKind: event.destinationKind,
+          provider: event.provider,
+          model: event.model,
+          phase: event.phase,
+          outcome: event.outcome,
+          durationMs: event.durationMs,
+          toolName: event.toolName,
+          toolCallId: event.toolCallId,
+          toolSource: event.toolSource,
+          toolOwner: event.toolOwner,
+          pluginId: event.pluginId,
+          harnessId: event.harnessId,
+          modelCallId: event.modelCallId,
+          modelApi: event.modelApi,
+          modelTransport: event.modelTransport,
+          requestPayloadBytes: event.requestPayloadBytes,
+          responseStreamBytes: event.responseStreamBytes,
+          timeToFirstByteMs: event.timeToFirstByteMs,
+          logLevel: event.logLevel,
+          message: event.message,
+          loggerName: event.loggerName,
+          codeFunctionName: event.codeFunctionName,
+          codeLine: event.codeLine,
+          logAttributes: event.logAttributes,
+          contextEngineEvent: event.contextEngineEvent,
+          contextEngineTaskId: event.contextEngineTaskId,
+          contextEngineOperation: event.contextEngineOperation,
+          contextEngineLane: event.contextEngineLane,
+          errorName: event.errorName,
+          errorCode: event.errorCode,
+          messageCount: event.messageCount,
+          historyTextChars: event.historyTextChars,
+          historyImageBlocks: event.historyImageBlocks,
+          maxMessageTextChars: event.maxMessageTextChars,
+          systemPromptChars: event.systemPromptChars,
+          promptChars: event.promptChars,
+          promptImages: event.promptImages,
+          contextTokenBudget: event.contextTokenBudget,
+          reserveTokens: event.reserveTokens,
+          contextChannel: event.contextChannel,
+          contextTrigger: event.contextTrigger,
+          harnessDebugSequence: event.harnessDebugSequence,
+          lastHarnessEventType: event.lastHarnessEventType,
+          lastHarnessEventAgeMs: event.lastHarnessEventAgeMs,
+          lastHarnessEventRunId: event.lastHarnessEventRunId,
+          lastHarnessEventPhase: event.lastHarnessEventPhase,
+          lastHarnessEventOutcome: event.lastHarnessEventOutcome,
+          lastHarnessProvider: event.lastHarnessProvider,
+          lastHarnessModel: event.lastHarnessModel,
+          runStartedSeen: event.runStartedSeen,
+          contextAssembledSeen: event.contextAssembledSeen,
+          modelCallStartedSeen: event.modelCallStartedSeen,
+          harnessRunStartedSeen: event.harnessRunStartedSeen,
+          toolExecutionStartedSeen: event.toolExecutionStartedSeen,
+          lastContextEngineEvent: event.lastContextEngineEvent,
+          lastContextEngineEventAgeMs: event.lastContextEngineEventAgeMs,
+          lastContextEngineTaskId: event.lastContextEngineTaskId,
+          lastContextEngineOperation: event.lastContextEngineOperation,
+          lastContextEngineLane: event.lastContextEngineLane,
+          lastContextEngineMessage: event.lastContextEngineMessage,
+        },
+        { omitNullish: true }
+      ),
     });
   }
 
@@ -1139,15 +1991,44 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     this.client.capture({
       distinctId: ownerShip,
       event: TLON_PLUGIN_ERROR_EVENT,
+      properties: this.properties(
+        {
+          harness: event.harness,
+          pluginErrorSource: event.pluginErrorSource,
+          authPhase: event.authPhase,
+          accountId: event.accountId,
+          ownerShip: event.ownerShip,
+          botShip: event.botShip,
+          errorKind: event.errorKind,
+          errorText: event.errorText,
+          attempt: event.attempt,
+          downMs: event.downMs,
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureAuthAttemptFailed(event: TlonAuthAttemptFailedEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_AUTH_ATTEMPT_FAILED_EVENT,
       properties: this.properties({
         harness: event.harness,
         pluginErrorSource: event.pluginErrorSource,
+        authPhase: event.authPhase,
         accountId: event.accountId,
         ownerShip: event.ownerShip,
         botShip: event.botShip,
         errorKind: event.errorKind,
         errorText: event.errorText,
         attempt: event.attempt,
+        downMs: event.downMs,
       }),
     });
   }
@@ -1161,20 +2042,23 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     this.client.capture({
       distinctId: ownerShip,
       event: TLON_TELEMETRY_ERROR_EVENT,
-      properties: this.properties({
-        harness: event.harness,
-        telemetrySource: event.telemetrySource,
-        sourceEventName: event.sourceEventName,
-        sessionKey: event.sessionKey,
-        sessionId: event.sessionId,
-        runId: event.runId,
-        accountId: event.accountId,
-        agentId: event.agentId,
-        ownerShip: event.ownerShip,
-        botShip: event.botShip,
-        errorKind: event.errorKind,
-        errorText: event.errorText,
-      }),
+      properties: this.properties(
+        {
+          harness: event.harness,
+          telemetrySource: event.telemetrySource,
+          sourceEventName: event.sourceEventName,
+          sessionKey: event.sessionKey,
+          sessionId: event.sessionId,
+          runId: event.runId,
+          accountId: event.accountId,
+          agentId: event.agentId,
+          ownerShip: event.ownerShip,
+          botShip: event.botShip,
+          errorKind: event.errorKind,
+          errorText: event.errorText,
+        },
+        { omitNullish: true }
+      ),
     });
   }
 
@@ -1313,6 +2197,27 @@ export type ErrorTelemetryReporter = (
     | { kind: 'plugin'; event: TlonPluginErrorReportInput }
     | { kind: 'telemetry'; event: TlonTelemetryErrorReportInput }
 ) => void;
+export type DebugTelemetryReporter = (event: TlonHarnessDebugEvent) => void;
+
+export type TlonCronJobChangedReportInput = Omit<
+  TlonCronJobChangedEvent,
+  'accountId' | 'ownerShip' | 'botShip'
+>;
+export type TlonCronRunReportInput = Omit<
+  TlonCronRunEvent,
+  'accountId' | 'ownerShip' | 'botShip'
+>;
+export type TlonCronSnapshotReportInput = Omit<
+  TlonCronSnapshotEvent,
+  'accountId' | 'ownerShip' | 'botShip'
+>;
+
+export type TlonCronTelemetryReport =
+  | { kind: 'jobChanged'; event: TlonCronJobChangedReportInput }
+  | { kind: 'run'; event: TlonCronRunReportInput }
+  | { kind: 'snapshot'; event: TlonCronSnapshotReportInput };
+
+export type CronTelemetryReporter = (report: TlonCronTelemetryReport) => void;
 
 export type TlonSessionLifecycleReportInput = {
   lifecycleEvent: 'session_start' | 'session_end';
@@ -1391,14 +2296,69 @@ export type TlonHarnessErrorReportInput = {
   errorText?: string | null;
 };
 
+export type TlonHarnessDebugReportInput = {
+  harnessEventType: string;
+  debugEventKind: string;
+  sessionKey?: string | null;
+  sessionId?: string | null;
+  runId?: string | null;
+  accountId?: string | null;
+  agentId?: string | null;
+  ownerShip?: string | null;
+  botShip?: string | null;
+  destinationKind?: TlonDestinationKind | null;
+  provider?: string | null;
+  model?: string | null;
+  phase?: string | null;
+  outcome?: string | null;
+  durationMs?: number | null;
+  toolName?: string | null;
+  toolCallId?: string | null;
+  toolSource?: string | null;
+  toolOwner?: string | null;
+  pluginId?: string | null;
+  harnessId?: string | null;
+  modelCallId?: string | null;
+  modelApi?: string | null;
+  modelTransport?: string | null;
+  requestPayloadBytes?: number | null;
+  responseStreamBytes?: number | null;
+  timeToFirstByteMs?: number | null;
+  logLevel?: string | null;
+  message?: string | null;
+  loggerName?: string | null;
+  codeFunctionName?: string | null;
+  codeLine?: number | null;
+  logAttributes?: TlonDiagnosticLogAttributes | null;
+  contextEngineEvent?: string | null;
+  contextEngineTaskId?: string | null;
+  contextEngineOperation?: string | null;
+  contextEngineLane?: string | null;
+  errorName?: string | null;
+  errorCode?: string | null;
+  messageCount?: number | null;
+  historyTextChars?: number | null;
+  historyImageBlocks?: number | null;
+  maxMessageTextChars?: number | null;
+  systemPromptChars?: number | null;
+  promptChars?: number | null;
+  promptImages?: number | null;
+  contextTokenBudget?: number | null;
+  reserveTokens?: number | null;
+  contextChannel?: string | null;
+  contextTrigger?: string | null;
+};
+
 export type TlonPluginErrorReportInput = {
   pluginErrorSource: TlonPluginErrorSource;
+  authPhase?: TlonAuthPhase | null;
   accountId?: string | null;
   ownerShip?: string | null;
   botShip?: string | null;
   errorKind?: string | null;
   errorText: string;
   attempt?: number | null;
+  downMs?: number | null;
 };
 
 export type TlonTelemetryErrorReportInput = {
@@ -1424,6 +2384,12 @@ const sessionTelemetryReporterSlot = sharedSlot<SessionTelemetryReporter>(
 const errorTelemetryReporterSlot = sharedSlot<ErrorTelemetryReporter>(
   'telemetry.errorTelemetryReporter'
 );
+const debugTelemetryReporterSlot = sharedSlot<DebugTelemetryReporter>(
+  'telemetry.debugTelemetryReporter'
+);
+const cronTelemetryReporterSlot = sharedSlot<CronTelemetryReporter>(
+  'telemetry.cronTelemetryReporter'
+);
 
 export function setOutboundRouteReporter(
   reporter: OutboundRouteReporter | null
@@ -1447,6 +2413,32 @@ export function setErrorTelemetryReporter(
   errorTelemetryReporterSlot.set(reporter);
 }
 
+export function setDebugTelemetryReporter(
+  reporter: DebugTelemetryReporter | null
+): void {
+  debugTelemetryReporterSlot.set(reporter);
+}
+
+export function setCronTelemetryReporter(
+  reporter: CronTelemetryReporter | null
+): void {
+  cronTelemetryReporterSlot.set(reporter);
+}
+
+export function reportCronJobChanged(
+  event: TlonCronJobChangedReportInput
+): void {
+  cronTelemetryReporterSlot.get()?.({ kind: 'jobChanged', event });
+}
+
+export function reportCronRun(event: TlonCronRunReportInput): void {
+  cronTelemetryReporterSlot.get()?.({ kind: 'run', event });
+}
+
+export function reportCronSnapshot(event: TlonCronSnapshotReportInput): void {
+  cronTelemetryReporterSlot.get()?.({ kind: 'snapshot', event });
+}
+
 function optionalString(value: string | null | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
@@ -1458,6 +2450,44 @@ function optionalErrorText(value: string | null | undefined): string | null {
 
 function optionalNumber(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+const DIAGNOSTIC_LOG_ATTRIBUTE_KEY_RE = /^[A-Za-z0-9_.:-]{1,64}$/u;
+const BLOCKED_DIAGNOSTIC_LOG_ATTRIBUTE_KEYS = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+]);
+
+function normalizeLogAttributes(
+  value: TlonDiagnosticLogAttributes | null | undefined
+): TlonDiagnosticLogAttributes | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const normalized = Object.create(null) as TlonDiagnosticLogAttributes;
+  for (const [key, attributeValue] of Object.entries(value)) {
+    if (
+      BLOCKED_DIAGNOSTIC_LOG_ATTRIBUTE_KEYS.has(key) ||
+      !DIAGNOSTIC_LOG_ATTRIBUTE_KEY_RE.test(key)
+    ) {
+      continue;
+    }
+    if (typeof attributeValue === 'string') {
+      normalized[key] = attributeValue;
+      continue;
+    }
+    if (typeof attributeValue === 'boolean') {
+      normalized[key] = attributeValue;
+      continue;
+    }
+    if (typeof attributeValue === 'number' && Number.isFinite(attributeValue)) {
+      normalized[key] = attributeValue;
+    }
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
 }
 
 export function formatTlonTelemetryErrorText(error: unknown): string {
@@ -1513,7 +2543,21 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
         agentId: event.agentId,
       })
     : null;
-  if (!context && event.sessionKey) {
+
+  const sessionKey = context?.sessionKey ?? optionalString(event.sessionKey);
+  // Correlate using the diagnostic's own run id. The emitted run id may fall
+  // back to a remembered interactive run, which must not influence whether a
+  // run-id-less cron diagnostic matches a run-id-less cron signal.
+  const diagnosticRunId = optionalString(event.runId);
+  const runId = diagnosticRunId ?? context?.runId ?? null;
+  const cronAttribution = CRON_GATEWAY_ERROR_SCOPES.has(event.errorScope)
+    ? lookupCronRunAttribution(sessionKey, diagnosticRunId)
+    : null;
+
+  // Cron runs have no inbound Tlon reply, so they normally lack the remembered
+  // session context required for harness telemetry. A positively correlated
+  // cron error bypasses that gate so its full low-level diagnostic is emitted.
+  if (!context && event.sessionKey && !cronAttribution) {
     return;
   }
 
@@ -1523,9 +2567,9 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
       harness: 'openclaw',
       harnessEventType: event.harnessEventType,
       errorScope: event.errorScope,
-      sessionKey: context?.sessionKey ?? null,
+      sessionKey,
       sessionId: context?.sessionId ?? optionalString(event.sessionId),
-      runId: optionalString(event.runId) ?? context?.runId ?? null,
+      runId,
       accountId: context?.accountId ?? optionalString(event.accountId),
       agentId: optionalString(event.agentId) ?? context?.agentId ?? null,
       ownerShip: context?.ownerShip ?? optionalString(event.ownerShip),
@@ -1541,7 +2585,80 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
       failureKind: optionalString(event.failureKind),
       durationMs: optionalNumber(event.durationMs),
       errorText: optionalErrorText(event.errorText),
+      isCron: cronAttribution != null,
+      cronJobId: cronAttribution?.cronJobId ?? null,
     },
+  });
+}
+
+export function reportHarnessDebug(event: TlonHarnessDebugReportInput): void {
+  const rememberedContext = lookupTlonSessionContext(event.sessionKey);
+  const context = rememberedContext
+    ? updateTlonSessionContextRuntime(rememberedContext, {
+        sessionId: event.sessionId,
+        runId: event.runId,
+        agentId: event.agentId,
+      })
+    : null;
+  if (!context) {
+    return;
+  }
+
+  const logAttributes = normalizeLogAttributes(event.logAttributes);
+  const snapshot = updateHarnessDebugSnapshot(context.sessionKey, event);
+  debugTelemetryReporterSlot.get()?.({
+    harness: 'openclaw',
+    harnessEventType: event.harnessEventType,
+    debugEventKind: event.debugEventKind,
+    sessionKey: context.sessionKey,
+    sessionId: context.sessionId,
+    runId: optionalString(event.runId) ?? context.runId,
+    accountId: context.accountId ?? optionalString(event.accountId),
+    agentId: optionalString(event.agentId) ?? context.agentId,
+    ownerShip: context.ownerShip ?? optionalString(event.ownerShip),
+    botShip: context.botShip ?? optionalString(event.botShip) ?? '',
+    destinationKind: context.destinationKind ?? event.destinationKind ?? 'dm',
+    provider: optionalString(event.provider),
+    model: optionalString(event.model),
+    phase: optionalString(event.phase),
+    outcome: optionalString(event.outcome),
+    durationMs: optionalNumber(event.durationMs),
+    toolName: optionalString(event.toolName),
+    toolCallId: optionalString(event.toolCallId),
+    toolSource: optionalString(event.toolSource),
+    toolOwner: optionalString(event.toolOwner),
+    pluginId: optionalString(event.pluginId),
+    harnessId: optionalString(event.harnessId),
+    modelCallId: optionalString(event.modelCallId),
+    modelApi: optionalString(event.modelApi),
+    modelTransport: optionalString(event.modelTransport),
+    requestPayloadBytes: optionalNumber(event.requestPayloadBytes),
+    responseStreamBytes: optionalNumber(event.responseStreamBytes),
+    timeToFirstByteMs: optionalNumber(event.timeToFirstByteMs),
+    logLevel: optionalString(event.logLevel),
+    message: optionalString(event.message),
+    loggerName: optionalString(event.loggerName),
+    codeFunctionName: optionalString(event.codeFunctionName),
+    codeLine: optionalNumber(event.codeLine),
+    logAttributes,
+    contextEngineEvent: optionalString(event.contextEngineEvent),
+    contextEngineTaskId: optionalString(event.contextEngineTaskId),
+    contextEngineOperation: optionalString(event.contextEngineOperation),
+    contextEngineLane: optionalString(event.contextEngineLane),
+    errorName: optionalString(event.errorName),
+    errorCode: optionalString(event.errorCode),
+    messageCount: optionalNumber(event.messageCount),
+    historyTextChars: optionalNumber(event.historyTextChars),
+    historyImageBlocks: optionalNumber(event.historyImageBlocks),
+    maxMessageTextChars: optionalNumber(event.maxMessageTextChars),
+    systemPromptChars: optionalNumber(event.systemPromptChars),
+    promptChars: optionalNumber(event.promptChars),
+    promptImages: optionalNumber(event.promptImages),
+    contextTokenBudget: optionalNumber(event.contextTokenBudget),
+    reserveTokens: optionalNumber(event.reserveTokens),
+    contextChannel: optionalString(event.contextChannel),
+    contextTrigger: optionalString(event.contextTrigger),
+    ...snapshot,
   });
 }
 
@@ -1625,6 +2742,9 @@ export function reportSessionDiagnostic(
   if (!context) {
     return;
   }
+  const harnessDebugSnapshot = lookupHarnessDebugSnapshotFields(
+    context.sessionKey
+  );
 
   if (event.type === 'session.stalled' || event.type === 'session.stuck') {
     sessionTelemetryReporterSlot.get()?.({
@@ -1649,6 +2769,7 @@ export function reportSessionDiagnostic(
         activeToolName: optionalString(event.activeToolName),
         activeToolAgeMs: optionalNumber(event.activeToolAgeMs),
         terminalProgressStale: event.terminalProgressStale === true,
+        ...harnessDebugSnapshot,
       },
     });
     return;
@@ -1684,6 +2805,7 @@ export function reportSessionDiagnostic(
       outcomeReason: optionalString(recoveryEvent.outcomeReason),
       released: optionalNumber(recoveryEvent.released),
       stale: recoveryEvent.stale === true,
+      ...harnessDebugSnapshot,
     },
   });
 }
@@ -1691,6 +2813,8 @@ export function reportSessionDiagnostic(
 export const _testing = {
   clearToolCalls: () => toolCallsBySession.clear(),
   clearSessionContexts: () => sessionContextsBySessionKey.clear(),
+  clearHarnessDebugSnapshots: () => harnessDebugSnapshotsBySessionKey.clear(),
+  clearCronRunAttribution: () => cronRunAttributionBySessionKey.clear(),
   getReplyTraceTtlMs: () => REPLY_TRACE_TTL_MS,
   getToolTraceTtlMs: () => TOOL_TRACE_TTL_MS,
 };

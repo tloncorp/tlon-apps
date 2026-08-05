@@ -15,7 +15,7 @@ function makeBridge(ownerShip: string | null): ApprovalCommandBridge {
   return {
     ownerShip,
     handleAction: async () => 'ok',
-    getPendingList: async () => 'none',
+    getPendingApprovalsReply: async () => ({ text: 'none' }),
     getBlockedList: async () => 'none',
     handleUnblock: async () => 'ok',
     isOwnedChannel: () => false,

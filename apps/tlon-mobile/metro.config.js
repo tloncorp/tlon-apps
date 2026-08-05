@@ -7,6 +7,8 @@ const { spawn } = require('child_process');
 const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 const { FileStore } = require('metro-cache');
 
+const nonInlinedRequires = require('./metro-non-inlined-requires');
+
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
 const baseConfig = getSentryExpoConfig(projectRoot);
@@ -25,7 +27,7 @@ const expoVersion = require('expo/package.json').version;
 const sharedCacheRoot = path.join(
   process.env.TLON_METRO_SHARED_CACHE_DIR ||
     path.join(os.homedir(), '.cache', 'tlon-metro-shared'),
-  `rn-${rnVersion}-expo-${expoVersion}`,
+  `rn-${rnVersion}-expo-${expoVersion}`
 );
 const sharedCacheStores =
   process.env.TLON_METRO_SHARED_CACHE_ENABLED === '1'
@@ -42,6 +44,15 @@ const config = {
   ...(sharedCacheStores ? { cacheStores: sharedCacheStores } : {}),
   transformer: {
     babelTransformerPath: require.resolve('react-native-svg-transformer'),
+    // Enable inlineRequires (off by default in Expo) to defer module eval until
+    // first use, speeding up cold start.
+    getTransformOptions: async () => ({
+      transform: {
+        experimentalImportSupport: true,
+        inlineRequires: true,
+        nonInlinedRequires,
+      },
+    }),
   },
   server: {
     enhanceMiddleware: (metroMiddleware) => {

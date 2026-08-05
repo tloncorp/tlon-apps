@@ -7,20 +7,16 @@
  * - Ship normalization consistency
  * - Bot mention detection boundaries
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   extractMessageText,
   isBotMentioned,
+  isChannelRestricted,
   isDmAllowed,
   isGroupInviteAllowed,
   sanitizeMessageText,
 } from './monitor/utils.js';
-import {
-  getSessionRole,
-  _testing as sessionRolesTesting,
-  setSessionRole,
-} from './session-roles.js';
 import { normalizeShip } from './targets.js';
 
 describe('Security: DM Allowlist', () => {
@@ -349,12 +345,23 @@ describe('Security: Channel Authorization Logic', () => {
   });
 
   it('open mode should not check allowedShips', () => {
-    // In open mode, any ship can send regardless of allowedShips
-    const mode = 'open';
-    // The check in monitor/index.ts is:
-    // if (mode === "restricted") { /* check ships */ }
-    // So open mode skips the ship check entirely
-    expect(mode === 'restricted').toBe(false);
+    // In open mode, any ship can send regardless of allowedShips.
+    expect(isChannelRestricted('open')).toBe(false);
+  });
+
+  it('allowlist mode IS enforced (regression: not just "restricted")', () => {
+    // CRITICAL: the app saves allowlisted channels as mode "allowlist" (Solaris
+    // normalizes any non-"allowlist" value to "open"). Enforcing only on
+    // "restricted" let those channels fall through to open. Both "allowlist" and
+    // legacy "restricted" must gate senders.
+    expect(isChannelRestricted('allowlist')).toBe(true);
+    expect(isChannelRestricted('restricted')).toBe(true);
+  });
+
+  it('fails closed for missing or unrecognized modes', () => {
+    // Anything that isn't explicitly "open" is treated as restricted.
+    expect(isChannelRestricted(undefined)).toBe(true);
+    expect(isChannelRestricted('bogus')).toBe(true);
   });
 
   it('settings should override file config for channel rules', () => {
@@ -410,7 +417,9 @@ describe('Security: Sender Role Identification', () => {
     senderShip: string,
     ownerShip: string | null
   ): 'owner' | 'user' {
-    if (!ownerShip) return 'user';
+    if (!ownerShip) {
+      return 'user';
+    }
     return normalizeShip(senderShip) === normalizeShip(ownerShip)
       ? 'owner'
       : 'user';

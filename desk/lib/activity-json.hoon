@@ -949,6 +949,11 @@
       :~  source/source
           action/read-action
       ==
+    ++  adjust
+      %-  ot
+      :~  source/source
+          volume/(mu volume-map)
+      ==
     ++  source
       ^-  $-(json source:v9:av)
       %-  of
@@ -997,6 +1002,7 @@
           author/author:v10:dejs:cj
           react/react:v9:dejs:cj
       ==
+    ++  volume-map  (op event-type volume)
     --
   ++  v8
     |%

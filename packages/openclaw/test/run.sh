@@ -23,10 +23,46 @@ cd "$(dirname "$0")/.."
 # Load .env file if present (for OPENROUTER_API_KEY, TLONBOT_TOKEN, etc.)
 # Test-specific variables (TLON_SHIP, TLON_CODE, etc.) are overridden below
 if [ -f .env ]; then
-  set -a
-  eval "$(grep -v '^#' .env | grep -v '^$' | sed 's/~/\\~/g')"
-  set +a
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ""|\#*) continue ;;
+    esac
+    key="${line%%=*}"
+    value="${line#*=}"
+    if [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && [ -z "${!key+x}" ]; then
+      export "$key=$value"
+    fi
+  done < .env
 fi
+
+# Every package-local run owns a distinct Compose project. Respect an explicit
+# caller-provided name for reproducibility, otherwise generate a safe default
+# before the first docker compose command can run.
+requested_project_name="${TEST_COMPOSE_PROJECT_NAME:-${COMPOSE_PROJECT_NAME:-tlon-openclaw-e2e-${UID:-0}-$$}}"
+COMPOSE_PROJECT_NAME="$(printf '%s' "$requested_project_name" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_-' '-')"
+TEST_COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME"
+export COMPOSE_PROJECT_NAME TEST_COMPOSE_PROJECT_NAME
+
+# The image defaults to 5.28. Affected/future versions must carry an explicit
+# prewarm expectation so a missing core marker never silently becomes smoke.
+OPENCLAW_CORE_VERSION="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+case "$OPENCLAW_CORE_VERSION" in
+  2026.5.28) derived_expect_prewarm=0 ;;
+  2026.6.11|2026.7.1) derived_expect_prewarm=1 ;;
+  *)
+    if [ -z "${TEST_EXPECT_OPENCLAW_PREWARM:-}" ]; then
+      echo "Error: TEST_EXPECT_OPENCLAW_PREWARM must be explicit for OpenClaw $OPENCLAW_CORE_VERSION"
+      exit 1
+    fi
+    derived_expect_prewarm="$TEST_EXPECT_OPENCLAW_PREWARM"
+    ;;
+esac
+TEST_EXPECT_OPENCLAW_PREWARM="${TEST_EXPECT_OPENCLAW_PREWARM:-$derived_expect_prewarm}"
+TEST_OPENCLAW_CORE_VERSION="$OPENCLAW_CORE_VERSION"
+export OPENCLAW_CORE_VERSION TEST_OPENCLAW_CORE_VERSION TEST_EXPECT_OPENCLAW_PREWARM
+
+echo "==> Compose project: $COMPOSE_PROJECT_NAME"
+echo "==> OpenClaw core: $OPENCLAW_CORE_VERSION (expect prewarm=$TEST_EXPECT_OPENCLAW_PREWARM)"
 
 # Force the integration suite onto the scripted fake-model. The .env load
 # above intentionally exposes dev creds (OPENROUTER_API_KEY, MODEL=...) so
@@ -48,6 +84,17 @@ TEN_URL="http://localhost:$TEN_PORT"
 TEN_CODE="lapseg-nolmel-riswen-hopryc"
 MUG_URL="http://localhost:$MUG_PORT"
 MUG_CODE="ravsut-bolryd-hapsum-pastul"
+
+# Force the OpenClaw gateway container onto fakezod. The host-side Vitest
+# process uses localhost URLs later; the container must use the compose service
+# name instead. This must happen after loading .env and before docker compose
+# starts `openclaw`, otherwise local dev TLON_* credentials can leak into the
+# integration gateway.
+export TLON_URL="http://ships:8080"
+export TLON_SHIP="~zod"
+export TLON_CODE="$ZOD_CODE"
+export TLON_OWNER_SHIP="~ten"
+export TLON_DM_ALLOWLIST="~ten"
 
 # Gateway port can be overridden via env var (matches docker-compose.test.yml)
 GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18789}"
@@ -79,11 +126,16 @@ export ZOD_PORT TEN_PORT MUG_PORT FAKE_MODEL_PORT
 TLONBOT_DIR="${TLONBOT_DIR:-$(pwd)/../../../tlonbot}"
 export TLONBOT_DIR
 COMPOSE_FILES="-f dev/docker-compose.test.yml"
+COMPOSE_FILE_PATHS=("$PWD/dev/docker-compose.test.yml")
 if [ -f "dev/docker-compose.local.yml" ] && [ -d "$TLONBOT_DIR" ]; then
   COMPOSE_FILES="$COMPOSE_FILES -f dev/docker-compose.local.yml"
+  COMPOSE_FILE_PATHS+=("$PWD/dev/docker-compose.local.yml")
   export TEST_TLONBOT_MOUNTED=1
   echo "==> Using local tlonbot volume mount ($TLONBOT_DIR)"
 fi
+export TEST_COMPOSE_FILE="${COMPOSE_FILE_PATHS[0]}"
+TEST_COMPOSE_FILES="$(node -e 'console.log(JSON.stringify(process.argv.slice(1)))' "${COMPOSE_FILE_PATHS[@]}")"
+export TEST_COMPOSE_FILES
 
 # Cleanup function - called on exit (normal, error, or signal-initiated)
 cleanup() {
@@ -134,7 +186,7 @@ check_urbit_ready() {
   curl -sf -c - -X POST "$url/~/login" -d "password=$code" 2>/dev/null | grep -q "urbauth"
 }
 
-echo "==> Waiting for ~zod (port 8080)..."
+echo "==> Waiting for ~zod (port $ZOD_PORT)..."
 for i in $(seq 1 60); do
   if check_urbit_ready "$ZOD_URL" "$ZOD_CODE"; then
     echo "~zod ready"
@@ -148,7 +200,7 @@ for i in $(seq 1 60); do
   sleep 3
 done
 
-echo "==> Waiting for ~ten (port 8081)..."
+echo "==> Waiting for ~ten (port $TEN_PORT)..."
 for i in $(seq 1 60); do
   if check_urbit_ready "$TEN_URL" "$TEN_CODE"; then
     echo "~ten ready"
@@ -162,7 +214,7 @@ for i in $(seq 1 60); do
   sleep 3
 done
 
-echo "==> Waiting for ~mug (port 8082)..."
+echo "==> Waiting for ~mug (port $MUG_PORT)..."
 for i in $(seq 1 60); do
   if check_urbit_ready "$MUG_URL" "$MUG_CODE"; then
     echo "~mug ready"
@@ -231,7 +283,6 @@ export TEST_THIRD_PARTY_SHIP="~mug"
 export TEST_THIRD_PARTY_CODE="$MUG_CODE"
 export TEST_MODE="tlon"
 export TEST_GATEWAY_URL="http://localhost:$GATEWAY_PORT"
-export TEST_COMPOSE_FILE="dev/docker-compose.test.yml"
 export FAKE_MODEL_BASE_URL="http://localhost:$FAKE_MODEL_PORT"
 
 # Debug: show env vars
@@ -239,6 +290,8 @@ echo "Env vars:"
 echo "  TLON_URL=$TLON_URL"
 echo "  TLON_SHIP=$TLON_SHIP"
 echo "  TEST_USER_SHIP=$TEST_USER_SHIP"
+echo "  TEST_OPENCLAW_CORE_VERSION=$TEST_OPENCLAW_CORE_VERSION"
+echo "  TEST_COMPOSE_PROJECT_NAME=$TEST_COMPOSE_PROJECT_NAME"
 echo ""
 
 # Run test cases sequentially to avoid overlapping DM prompts

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { UrbitHttpError } from './errors.js';
 import { UrbitSSEClient } from './sse-client.js';
 
 // Mock urbitFetch to avoid real network calls
@@ -7,9 +8,12 @@ vi.mock('./fetch.js', () => ({
   urbitFetch: vi.fn(),
 }));
 
-// Mock channel-ops to avoid real channel operations
+// Mock channel-ops to avoid real channel operations. connect() calls
+// createUrbitChannel + wakeUrbitChannel directly (the old ensureUrbitChannelOpen
+// wrapper is no longer used by the client).
 vi.mock('./channel-ops.js', () => ({
-  ensureUrbitChannelOpen: vi.fn().mockResolvedValue(undefined),
+  createUrbitChannel: vi.fn().mockResolvedValue(undefined),
+  wakeUrbitChannel: vi.fn().mockResolvedValue(undefined),
   pokeUrbitChannel: vi.fn().mockResolvedValue(undefined),
   scryUrbitPath: vi.fn().mockResolvedValue({}),
 }));
@@ -50,6 +54,7 @@ describe('UrbitSSEClient', () => {
       const callArgs = mockUrbitFetch.mock.calls[0][0];
       expect(callArgs.path).toContain('/~/channel/');
       expect(callArgs.init.method).toBe('PUT');
+      expect(callArgs.signal).toBeUndefined();
 
       const body = JSON.parse(callArgs.init.body as string);
       expect(body).toHaveLength(1);
@@ -109,6 +114,78 @@ describe('UrbitSSEClient', () => {
       client.updateCookie('urbauth-~zod=newvalue');
 
       expect(client.cookie).toBe('urbauth-~zod=newvalue');
+    });
+  });
+
+  describe('poke responses', () => {
+    it('does not log successful acknowledgements', () => {
+      const log = vi.fn();
+      const error = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { logger: { log, error } }
+      );
+
+      client.processEvent('data: {"response":"poke","id":123}');
+
+      expect(log).not.toHaveBeenCalled();
+      expect(error).not.toHaveBeenCalled();
+    });
+
+    it('keeps poke failures observable', () => {
+      const log = vi.fn();
+      const error = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { logger: { log, error } }
+      );
+
+      client.processEvent(
+        'data: {"response":"poke","id":123,"err":{"message":"nack"}}'
+      );
+
+      expect(log).not.toHaveBeenCalled();
+      expect(error).toHaveBeenCalledWith(
+        '[SSE] Poke NACK id=123: {"message":"nack"}'
+      );
+    });
+  });
+
+  describe('scry', () => {
+    it('forwards optional timeout and abort signal to scryUrbitPath', async () => {
+      const { scryUrbitPath } = await import('./channel-ops.js');
+      const mockScryUrbitPath = vi.mocked(scryUrbitPath);
+      const controller = new AbortController();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+
+      await client.scry('/foo.json', {
+        timeoutMs: 123,
+        signal: controller.signal,
+      });
+
+      expect(mockScryUrbitPath).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseUrl: 'https://example.com',
+          cookie: 'urbauth-~zod=123',
+        }),
+        {
+          path: '/foo.json',
+          auditContext: 'tlon-urbit-scry',
+          timeoutMs: 123,
+          signal: controller.signal,
+        }
+      );
+
+      await client.scry('/without-options.json');
+      expect(mockScryUrbitPath).toHaveBeenLastCalledWith(expect.any(Object), {
+        path: '/without-options.json',
+        auditContext: 'tlon-urbit-scry',
+      });
     });
   });
 
@@ -347,6 +424,3687 @@ describe('UrbitSSEClient', () => {
       expect(client.maxReconnectAttempts).toBe(5);
       expect(client.reconnectDelay).toBe(500);
       expect(client.maxReconnectDelay).toBe(10000);
+    });
+  });
+
+  describe('resubscribe resilience', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const okFetchResult = () => ({
+      response: { ok: true, status: 200 },
+      finalUrl: 'https://example.com',
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+
+    it('keeps retrying resubscription beyond five failed attempts', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(okFetchResult());
+
+      const recoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: recoverySpy }
+      );
+      (client as { isConnected: boolean }).isConnected = true;
+
+      await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        quit: vi.fn(),
+      });
+      mockUrbitFetch.mockClear();
+      mockUrbitFetch.mockRejectedValue(new Error('node unresponsive'));
+
+      client.processEvent('id: 1\ndata: {"id":1,"response":"quit"}');
+
+      // Backoff waits: 2s, 4s, 8s, 16s, 30s, 30s... The old implementation
+      // gave up permanently after 5 attempts (~62s).
+      await vi.advanceTimersByTimeAsync(125_000);
+      expect(mockUrbitFetch.mock.calls.length).toBeGreaterThanOrEqual(6);
+      expect(recoverySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          app: 'chat',
+          path: '/v4',
+          phase: 'retrying',
+          attempt: 1,
+        })
+      );
+      expect(recoverySpy).toHaveBeenCalledWith(
+        expect.objectContaining({ phase: 'retrying', attempt: 5 })
+      );
+
+      // Node comes back: the next attempt succeeds and reports recovery
+      // with the total downtime so PostHog can aggregate outage duration.
+      mockUrbitFetch.mockResolvedValue(okFetchResult());
+      await vi.advanceTimersByTimeAsync(31_000);
+      const recovered = recoverySpy.mock.calls
+        .map((call) => call[0])
+        .find((event) => event.phase === 'recovered');
+      expect(recovered).toBeDefined();
+      expect(recovered.downMs).toBeGreaterThan(0);
+    });
+
+    it('completes a pending resubscribe via stream reconnect instead of double-subscribing', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(okFetchResult());
+
+      const recoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: recoverySpy }
+      );
+      (client as { isConnected: boolean }).isConnected = true;
+
+      await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        quit: vi.fn(),
+      });
+      mockUrbitFetch.mockClear();
+
+      client.processEvent('id: 1\ndata: {"id":1,"response":"quit"}');
+      // Stream drops before the first resubscribe attempt fires.
+      (client as { isConnected: boolean }).isConnected = false;
+
+      await vi.advanceTimersByTimeAsync(4_500);
+      // Disconnected: no subscribe PUTs, but the loop must stay alive
+      // (the old implementation returned here and never recovered).
+      expect(mockUrbitFetch).not.toHaveBeenCalled();
+
+      // Stream reconnects: connect() recreates the channel with the pending
+      // subscription included and bumps the epoch.
+      (client as unknown as { channelEpoch: number }).channelEpoch += 1;
+      (client as { isConnected: boolean }).isConnected = true;
+
+      await vi.advanceTimersByTimeAsync(2_500);
+      expect(mockUrbitFetch).not.toHaveBeenCalled();
+      expect(recoverySpy).toHaveBeenCalledWith(
+        expect.objectContaining({ phase: 'recovered_via_reconnect' })
+      );
+    });
+  });
+
+  describe('stream staleness watchdog', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('notifies handlers and aborts a stale stream', async () => {
+      const streamRecoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        {
+          streamStaleThresholdMs: 1_000,
+          streamWatchdogIntervalMs: 500,
+          onStreamRecovery: streamRecoverySpy,
+        }
+      );
+      const errSpy = vi.fn();
+      await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        err: errSpy,
+      });
+
+      const abortSpy = vi.fn();
+      (client as { isConnected: boolean }).isConnected = true;
+      (
+        client as unknown as { streamController: { abort: () => void } }
+      ).streamController = { abort: abortSpy };
+      (
+        client as unknown as { startStreamWatchdog: () => void }
+      ).startStreamWatchdog();
+
+      await vi.advanceTimersByTimeAsync(1_600);
+
+      expect(abortSpy).toHaveBeenCalledTimes(1);
+      expect(errSpy).toHaveBeenCalledTimes(1);
+      const staleError = errSpy.mock.calls[0][0] as Error;
+      expect(String(staleError.message)).toContain('stale');
+      // Watchdog fire must reach the stream-recovery hook (→ PostHog),
+      // not just handler err fan-out.
+      expect(streamRecoverySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phase: 'watchdog_stale',
+          idleMs: expect.any(Number),
+        })
+      );
+
+      // The abort tears the stream down (isConnected flips false) and the
+      // reconnect loop owns recovery; the watchdog must not keep firing.
+      (client as { isConnected: boolean }).isConnected = false;
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(abortSpy).toHaveBeenCalledTimes(1);
+
+      (
+        client as unknown as { stopStreamWatchdog: () => void }
+      ).stopStreamWatchdog();
+    });
+
+    it('does not fire while events are flowing', async () => {
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 1_000, streamWatchdogIntervalMs: 500 }
+      );
+      const errSpy = vi.fn();
+      await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        err: errSpy,
+      });
+
+      const abortSpy = vi.fn();
+      (client as { isConnected: boolean }).isConnected = true;
+      (
+        client as unknown as { streamController: { abort: () => void } }
+      ).streamController = { abort: abortSpy };
+      (
+        client as unknown as { startStreamWatchdog: () => void }
+      ).startStreamWatchdog();
+
+      // Keep traffic flowing (like the 30s heartbeat poke acks in prod).
+      // Register the ack ids as bootstrap-eligible so the event-zero detector
+      // (now ungated from actionFloors.size) does not fire for id 0.
+      (
+        client as unknown as {
+          generationZeroEligibleActionIds: Set<number>;
+        }
+      ).generationZeroEligibleActionIds = new Set([0, 1, 2, 3, 4]);
+      for (let i = 0; i < 5; i += 1) {
+        await vi.advanceTimersByTimeAsync(400);
+        client.processEvent(`id: ${i}\ndata: {"response":"poke","id":${i}}`);
+      }
+
+      expect(abortSpy).not.toHaveBeenCalled();
+      expect(errSpy).not.toHaveBeenCalled();
+
+      (
+        client as unknown as { stopStreamWatchdog: () => void }
+      ).stopStreamWatchdog();
+    });
+  });
+
+  describe('stream reconnect observability', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('reports downtime once the stream reconnects', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      // A stream that stays open (like a real SSE connection) so
+      // processStream's for-await blocks instead of hitting the finally and
+      // re-triggering reconnect.
+      const mockStream = new ReadableStream({ start() {} });
+      mockUrbitFetch.mockResolvedValue({
+        response: {
+          ok: true,
+          status: 200,
+          body: mockStream,
+        } as unknown as Response,
+        finalUrl: 'https://example.com',
+        release: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const streamRecoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        {
+          streamStaleThresholdMs: 0, // disable watchdog for this test
+          onStreamRecovery: streamRecoverySpy,
+        }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+
+      // Simulate a stream that has been down for a while, then reconnect.
+      (client as unknown as { streamDownSince: number }).streamDownSince =
+        Date.now() - 42_000;
+      client.reconnectAttempts = 2;
+
+      // attemptReconnect awaits an internal backoff timer, so pump timers
+      // while it's in flight rather than awaiting it directly.
+      const reconnectPromise = (
+        client as unknown as { attemptReconnect: () => Promise<void> }
+      ).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await reconnectPromise;
+
+      const reconnected = streamRecoverySpy.mock.calls
+        .map((call) => call[0])
+        .find((event) => event.phase === 'reconnected');
+      expect(reconnected).toBeDefined();
+      expect(reconnected.downtimeMs).toBeGreaterThanOrEqual(42_000);
+      // Attempt count is captured before connect() resets it.
+      expect(reconnected.attempt).toBe(3);
+
+      // Stop further reconnects without a full close() — the shared mock
+      // stream is locked by the live reader, so cancel() would throw.
+      client.aborted = true;
+      (
+        client as unknown as { stopStreamWatchdog: () => void }
+      ).stopStreamWatchdog();
+    });
+  });
+
+  describe('reconnect subscription hygiene', () => {
+    it('recreates only handler-backed subscriptions on connect', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const { createUrbitChannel } = await import('./channel-ops.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const mockCreate = vi.mocked(createUrbitChannel);
+      mockUrbitFetch.mockResolvedValue({
+        response: {
+          ok: true,
+          status: 200,
+          body: new ReadableStream({ start() {} }),
+        } as unknown as Response,
+        finalUrl: 'https://example.com',
+        release: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      await client.subscribe({ app: 'channels', path: '/v4', event: vi.fn() });
+      // Simulate a quit-kicked subscription whose handlers were removed.
+      client.eventHandlers.delete(1);
+
+      await client.connect();
+
+      const createBody = mockCreate.mock.calls.at(-1)?.[1]?.body as
+        | Array<{ id: number }>
+        | undefined;
+      expect(createBody).toBeDefined();
+      expect(createBody?.map((sub) => sub.id)).toEqual([2]);
+      client.aborted = true;
+    });
+  });
+
+  describe('resume/rebuild reconnect state machine', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    type ClientPrivates = {
+      isConnected: boolean;
+      lastHeardEventId: number;
+      lastAcknowledgedEventId: number;
+      lastConfirmedAckEventId: number;
+      confirmedFloorAtStreamBind: number;
+      suppressNextStreamErrorFanout: boolean;
+      channelEpoch: number;
+      channelReaped: boolean;
+      streamDownSince: number | null;
+      streamController: { abort: () => void } | null;
+      streamRelease: (() => Promise<void>) | null;
+      actionFloors: Map<number, number>;
+      pendingSubscriptionIds: Set<number>;
+      streamEndCount: number;
+      lastPokeId: number;
+      subscriptionRetryTimers: Map<number, ReturnType<typeof setTimeout>>;
+      subscriptionRetryDelays: Map<number, number>;
+      generationZeroEligibleActionIds: Set<number>;
+      generationBootstrapOpen: boolean;
+      ack: (eventId: number) => Promise<void>;
+      attemptReconnect: () => Promise<void>;
+      markStreamDown: () => void;
+      startStreamWatchdog: () => void;
+      stopStreamWatchdog: () => void;
+      openStream: () => Promise<void>;
+      sendSubscription: (sub: unknown) => Promise<void>;
+      claimAndSendPendingSubscription: (subId: number) => Promise<boolean>;
+      scheduleSubscriptionRetry: (subId: number) => void;
+      cancelSubscriptionRetry: (subId: number) => void;
+    };
+    const priv = (client: UrbitSSEClient) =>
+      client as unknown as ClientPrivates;
+
+    // A stream that stays open so processStream blocks instead of hitting its
+    // finally and re-triggering the reconnect loop mid-assertion.
+    const openStreamResult = () => ({
+      response: {
+        ok: true,
+        status: 200,
+        body: new ReadableStream({ start() {} }),
+      } as unknown as Response,
+      finalUrl: 'https://example.com',
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+    const errorResult = (status: number) => ({
+      response: { ok: false, status } as unknown as Response,
+      finalUrl: 'https://example.com',
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+    const okPutResult = () => ({
+      response: { ok: true, status: 200 },
+      finalUrl: 'https://example.com',
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+    const closingStream = () =>
+      new ReadableStream({
+        start(controller) {
+          controller.close();
+        },
+      });
+
+    it('sends no Last-Event-ID on the first stream GET', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false }
+      );
+      await client.openStream();
+
+      const call = mockUrbitFetch.mock.calls.at(-1)?.[0];
+      expect(call?.init?.headers).not.toHaveProperty('Last-Event-ID');
+      client.aborted = true;
+    });
+
+    it('sends Last-Event-ID from the heard cursor on reconnect (incl. id 0)', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false }
+      );
+
+      // Hearing id 0 is valid and must be resumed.
+      // Register the ack id as bootstrap-eligible so the event-zero detector
+      // (now ungated from actionFloors.size) does not fire.
+      (
+        client as unknown as {
+          generationZeroEligibleActionIds: Set<number>;
+        }
+      ).generationZeroEligibleActionIds = new Set([1]);
+      client.processEvent('id: 0\ndata: {"response":"poke","id":1}');
+      await client.openStream();
+      expect(mockUrbitFetch.mock.calls.at(-1)?.[0].init?.headers).toMatchObject(
+        { 'Last-Event-ID': '0' }
+      );
+
+      client.processEvent('id: 5\ndata: {"response":"poke","id":2}');
+      await client.openStream();
+      expect(mockUrbitFetch.mock.calls.at(-1)?.[0].init?.headers).toMatchObject(
+        { 'Last-Event-ID': '5' }
+      );
+      client.aborted = true;
+    });
+
+    it('transport-fault reconnect resumes the same channel without recreating', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const { createUrbitChannel } = await import('./channel-ops.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const mockCreate = vi.mocked(createUrbitChannel);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      const channelId = client.channelId;
+      const epoch = priv(client).channelEpoch;
+      priv(client).streamDownSince = Date.now();
+
+      const p = priv(client).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await p;
+
+      expect(client.channelId).toBe(channelId);
+      expect(mockCreate).not.toHaveBeenCalled();
+      expect(priv(client).channelEpoch).toBe(epoch);
+      expect(client.isConnected).toBe(true);
+
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('drops replayed frames without dispatch or ack, then dispatches new ids', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(okPutResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      const eventHandler = vi.fn();
+      await client.subscribe({ app: 'chat', path: '/v4', event: eventHandler });
+      mockUrbitFetch.mockClear();
+
+      // Cursor already advanced; a replayed id (<= lastHeard) would cross the
+      // ack threshold (20) if it were not dropped.
+      priv(client).lastHeardEventId = 100;
+      priv(client).lastAcknowledgedEventId = 70;
+
+      client.processEvent('id: 95\ndata: {"id":1,"json":{"n":1}}');
+      await Promise.resolve();
+
+      expect(eventHandler).not.toHaveBeenCalled();
+      expect(mockUrbitFetch).not.toHaveBeenCalled(); // no ack PUT for a replay
+      expect(priv(client).lastHeardEventId).toBe(100);
+      expect(priv(client).lastAcknowledgedEventId).toBe(70);
+
+      // A new id dispatches normally.
+      client.processEvent('id: 101\ndata: {"id":1,"json":{"n":2}}');
+      await Promise.resolve();
+      expect(eventHandler).toHaveBeenCalledTimes(1);
+      expect(eventHandler).toHaveBeenCalledWith({ n: 2 });
+      expect(priv(client).lastHeardEventId).toBe(101);
+    });
+
+    it('still acks once the threshold is crossed for new ids', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(okPutResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      mockUrbitFetch.mockClear();
+      priv(client).lastHeardEventId = 0;
+      priv(client).lastAcknowledgedEventId = 0;
+
+      client.processEvent('id: 25\ndata: {"response":"poke","id":1}');
+      await Promise.resolve();
+
+      expect(priv(client).lastAcknowledgedEventId).toBe(25);
+      const ackCall = mockUrbitFetch.mock.calls.find(
+        (call) => call[0].auditContext === 'tlon-urbit-ack'
+      );
+      expect(ackCall).toBeDefined();
+      const body = JSON.parse(ackCall?.[0].init?.body as string);
+      expect(body[0]).toMatchObject({ action: 'ack', 'event-id': 25 });
+    });
+
+    it.each([404, 410])(
+      'stream GET %i reaps the channel and the next attempt rebuilds',
+      async (status) => {
+        const { urbitFetch } = await import('./fetch.js');
+        const { createUrbitChannel } = await import('./channel-ops.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        const mockCreate = vi.mocked(createUrbitChannel);
+        // First (resume) GET returns the reap status; the rebuild's GET succeeds.
+        mockUrbitFetch
+          .mockResolvedValueOnce(errorResult(status))
+          .mockResolvedValue(openStreamResult());
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0 }
+        );
+        await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+        // Heard events on the old channel; rebuild must reset the cursor.
+        client.processEvent('id: 7\ndata: {"response":"poke","id":1}');
+        // Seed lastAcknowledgedEventId to a non-default value to prove it resets.
+        priv(client).lastAcknowledgedEventId = 5;
+        const originalChannelId = client.channelId;
+        priv(client).streamDownSince = Date.now();
+
+        const p = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(20_000);
+        await p;
+
+        // A new channel was minted and created with the handler-backed subs.
+        expect(client.channelId).not.toBe(originalChannelId);
+        expect(mockCreate).toHaveBeenCalledTimes(1);
+        const createBody = mockCreate.mock.calls[0][1].body as Array<{
+          id: number;
+        }>;
+        expect(createBody.map((s) => s.id)).toEqual([1]);
+        // Epoch bumped, cursors reset.
+        expect(priv(client).channelEpoch).toBe(1);
+        expect(priv(client).lastHeardEventId).toBe(-1);
+        expect(priv(client).lastAcknowledgedEventId).toBe(-1);
+        // The rebuild GET carried no Last-Event-ID (cursor was reset).
+        const rebuildGet = mockUrbitFetch.mock.calls.at(-1)?.[0];
+        expect(rebuildGet?.init?.headers).not.toHaveProperty('Last-Event-ID');
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      }
+    );
+
+    it('channelReaped set during the onReconnect await forces the rebuild branch', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const { createUrbitChannel } = await import('./channel-ops.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const mockCreate = vi.mocked(createUrbitChannel);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        {
+          streamStaleThresholdMs: 0,
+          onReconnect: (c) => {
+            // Simulate a mid-reconnect cap escalation: the stream is already
+            // down, so the abort it issues hits a null streamController and the
+            // only path into the rebuild branch is this channelReaped set.
+            priv(c).channelReaped = true;
+          },
+        }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      // Seed a non-default cursor and a poke-floor entry to prove the rebuild
+      // resets them.
+      priv(client).lastHeardEventId = 7;
+      priv(client).actionFloors = new Map([[12345, 7]]);
+      priv(client).channelReaped = false;
+      priv(client).streamDownSince = Date.now();
+      const originalChannelId = client.channelId;
+
+      const p = priv(client).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await p;
+
+      // The onReconnect hook set channelReaped = true during the await, so the
+      // rebuild branch ran (not resume): a fresh channel was created, cursors
+      // reset, and the poke-floor ledger cleared.
+      expect(mockCreate).toHaveBeenCalledTimes(1);
+      expect(client.channelId).not.toBe(originalChannelId);
+      expect(priv(client).lastHeardEventId).toBe(-1);
+      expect(priv(client).actionFloors.size).toBe(0);
+
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('a stream GET 500 is treated as a dead channel and rebuilds', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const { createUrbitChannel } = await import('./channel-ops.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const mockCreate = vi.mocked(createUrbitChannel);
+      // First rebuild's openStream GET 500s (dead channel); the second
+      // rebuild's GET succeeds.
+      mockUrbitFetch
+        .mockResolvedValueOnce(errorResult(500))
+        .mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      const originalChannelId = client.channelId;
+      priv(client).channelReaped = true; // force the first attempt to rebuild
+      priv(client).streamDownSince = Date.now();
+
+      const p = priv(client).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(20_000);
+      await p;
+
+      // A 500 on the stream GET is a dead channel (matching @tloncorp/api's
+      // seamlessReset() on 500), so it reaps: attempt 1 rebuilds → its GET 500s
+      // → attempt 2 rebuilds again → its GET succeeds. Two creates total.
+      expect(mockCreate).toHaveBeenCalledTimes(2);
+      expect(client.channelId).not.toBe(originalChannelId);
+      // The successful second create cleared the reap flag.
+      expect(priv(client).channelReaped).toBe(false);
+      const rebuildGet = mockUrbitFetch.mock.calls.at(-1)?.[0];
+      expect(rebuildGet?.path).toContain(client.channelId);
+
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('a wake 404 (Channel activation) does not re-set the reap flag', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const { createUrbitChannel, wakeUrbitChannel } = await import(
+        './channel-ops.js'
+      );
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const mockCreate = vi.mocked(createUrbitChannel);
+      const mockWake = vi.mocked(wakeUrbitChannel);
+      // Wake fails with a typed Channel-activation 404 on the rebuild; the
+      // following resume succeeds.
+      mockWake.mockRejectedValueOnce(
+        new UrbitHttpError({ operation: 'Channel activation', status: 404 })
+      );
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      const originalChannelId = client.channelId;
+      priv(client).channelReaped = true;
+      priv(client).streamDownSince = Date.now();
+
+      const p = priv(client).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(20_000);
+      await p;
+
+      // The create cleared the flag; the wake 404 (operation 'Channel
+      // activation', not 'Stream connection') must NOT re-set it, so the next
+      // attempt resumes the created channel instead of re-minting.
+      expect(mockCreate).toHaveBeenCalledTimes(1);
+      expect(client.channelId).not.toBe(originalChannelId);
+      expect(priv(client).channelReaped).toBe(false);
+      const resumeGet = mockUrbitFetch.mock.calls.at(-1)?.[0];
+      expect(resumeGet?.path).toContain(client.channelId);
+
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('a pending resubscribe sends its own replacement on resume (recovered)', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(okPutResult());
+
+      const recoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: recoverySpy }
+      );
+      // Queue sub 1 without sending, then mark connected with a known epoch —
+      // a resume leaves the epoch unchanged.
+      await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        quit: vi.fn(),
+      });
+      priv(client).isConnected = true;
+      priv(client).channelEpoch = 1;
+      mockUrbitFetch.mockClear();
+
+      // Gall quit kicks sub 1; resubscribeAfterQuit registers sub 2 (epoch 1).
+      client.processEvent('id: 1\ndata: {"id":1,"response":"quit"}');
+
+      // Resume keeps the epoch unchanged, so the loop sends the replacement
+      // PUT itself rather than concluding recovered_via_reconnect.
+      await vi.advanceTimersByTimeAsync(2_500);
+
+      expect(recoverySpy).toHaveBeenCalledWith(
+        expect.objectContaining({ phase: 'recovered' })
+      );
+      expect(recoverySpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({ phase: 'recovered_via_reconnect' })
+      );
+      const subCall = mockUrbitFetch.mock.calls.find(
+        (call) => call[0].init?.method === 'PUT'
+      );
+      expect(subCall?.[0].path).toContain(client.channelId);
+      const body = JSON.parse(subCall?.[0].init?.body as string);
+      expect(body[0]).toMatchObject({ action: 'subscribe', id: 2 });
+    });
+
+    it('a 404 rebuild resolves a pending resubscribe via epoch bump (no double PUT)', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const recoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0, onSubscriptionRecovery: recoverySpy }
+      );
+      await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        quit: vi.fn(),
+      });
+      priv(client).isConnected = true;
+      priv(client).channelEpoch = 1;
+
+      client.processEvent('id: 1\ndata: {"id":1,"response":"quit"}');
+      // Stream drops; the dropped stream GET 404'd → rebuild.
+      priv(client).isConnected = false;
+      priv(client).channelReaped = true;
+      mockUrbitFetch.mockClear();
+
+      priv(client).streamDownSince = Date.now();
+      const p = priv(client).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await p;
+      // Let the resubscribe loop observe the epoch bump.
+      await vi.advanceTimersByTimeAsync(2_500);
+
+      expect(recoverySpy).toHaveBeenCalledWith(
+        expect.objectContaining({ phase: 'recovered_via_reconnect' })
+      );
+      // No duplicate subscribe PUT from the resubscribe loop (the rebuild's
+      // createUrbitChannel is mocked, not urbitFetch).
+      const subPut = mockUrbitFetch.mock.calls.find(
+        (call) =>
+          call[0].init?.method === 'PUT' &&
+          String(call[0].init?.body ?? '').includes('"subscribe"')
+      );
+      expect(subPut).toBeUndefined();
+
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('a watchdog-stale teardown resumes the same channel (not a rebuild)', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const { createUrbitChannel } = await import('./channel-ops.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const mockCreate = vi.mocked(createUrbitChannel);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 1_000, streamWatchdogIntervalMs: 500 }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      const channelId = client.channelId;
+
+      priv(client).isConnected = true;
+      priv(client).streamController = { abort: vi.fn() };
+      priv(client).startStreamWatchdog();
+
+      // Watchdog fires → markStreamDown; channelReaped stays false → resume.
+      await vi.advanceTimersByTimeAsync(1_600);
+      expect(client.isConnected).toBe(false);
+      expect(priv(client).channelReaped).toBe(false);
+
+      // Stop the watchdog (and disable its restart) so the event-less mock
+      // stream doesn't trip a second stale teardown during the resume below.
+      priv(client).stopStreamWatchdog();
+      (
+        client as unknown as { streamStaleThresholdMs: number }
+      ).streamStaleThresholdMs = 0;
+
+      priv(client).streamDownSince = Date.now();
+      const p = priv(client).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await p;
+
+      expect(client.channelId).toBe(channelId);
+      expect(mockCreate).not.toHaveBeenCalled();
+      expect(client.isConnected).toBe(true);
+
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('poke() rejects after close() and is allowed before the first connect', async () => {
+      const { pokeUrbitChannel } = await import('./channel-ops.js');
+      const mockPoke = vi.mocked(pokeUrbitChannel);
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+
+      // Before the first connect: allowed (isConnected is still false).
+      await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+      expect(mockPoke).toHaveBeenCalledTimes(1);
+
+      // After close(): rejected — the channel is unsubscribed/DELETEd.
+      client.aborted = true;
+      await expect(
+        client.poke({ app: 'hood', mark: 'helm-hi', json: {} })
+      ).rejects.toThrow(/closed/);
+      expect(mockPoke).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops isConnected before a slow release settles, then resumes', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      let resolveRelease!: () => void;
+      const releasePromise = new Promise<void>((resolve) => {
+        resolveRelease = resolve;
+      });
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      client.isConnected = true;
+      // The stream resource release hangs (slow gateway teardown).
+      priv(client).streamRelease = () => releasePromise;
+
+      const p = client.processStream(closingStream());
+      await vi.advanceTimersByTimeAsync(1);
+
+      // isConnected flips false BEFORE the slow release await settles
+      // (markStreamDown ordering fix).
+      expect(client.isConnected).toBe(false);
+
+      resolveRelease();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await p;
+
+      // Resume succeeded → connected again.
+      expect(client.isConnected).toBe(true);
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('still reconnects when the stream release rejects', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      client.isConnected = true;
+      priv(client).streamRelease = () =>
+        Promise.reject(new Error('release failed'));
+
+      const p = client.processStream(closingStream());
+      await vi.advanceTimersByTimeAsync(5_000);
+      await p;
+
+      // The rejecting release was swallowed and the reconnect loop still ran
+      // (resume → connected) rather than stranding isConnected=true.
+      expect(client.isConnected).toBe(true);
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('ignores non-numeric event ids (strict parse)', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+
+      // `12x` must NOT become 12; `abc` is not numeric.
+      client.processEvent('id: 12x\ndata: {"response":"poke","id":1}');
+      client.processEvent('id: abc\ndata: {"response":"poke","id":2}');
+      expect(priv(client).lastHeardEventId).toBe(-1);
+
+      await client.openStream();
+      expect(
+        mockUrbitFetch.mock.calls.at(-1)?.[0].init?.headers
+      ).not.toHaveProperty('Last-Event-ID');
+      client.aborted = true;
+    });
+
+    it('rejects unsafe/overflowing event ids (handled as id-less)', () => {
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      const eventHandler = vi.fn();
+      void client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: eventHandler,
+      });
+      expect(priv(client).lastHeardEventId).toBe(-1);
+
+      // Overflowing digit string → parseInt → Infinity → rejected; the frame is
+      // processed as id-less but its data is still dispatched.
+      client.processEvent(
+        `id: ${'9'.repeat(400)}\ndata: {"id":1,"json":{"n":1}}`
+      );
+      expect(priv(client).lastHeardEventId).toBe(-1);
+      expect(eventHandler).toHaveBeenCalledWith({ n: 1 });
+
+      // Above MAX_SAFE_INTEGER → aliases → rejected.
+      eventHandler.mockClear();
+      client.processEvent(
+        'id: 9007199254740993\ndata: {"id":1,"json":{"n":2}}'
+      );
+      expect(priv(client).lastHeardEventId).toBe(-1);
+      expect(eventHandler).toHaveBeenCalledWith({ n: 2 });
+
+      // A normal safe id still parses.
+      eventHandler.mockClear();
+      client.processEvent('id: 5\ndata: {"id":1,"json":{"n":3}}');
+      expect(priv(client).lastHeardEventId).toBe(5);
+    });
+
+    it('logs the original stream failure before attemptReconnect runs', async () => {
+      const error = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { logger: { error }, streamStaleThresholdMs: 0 }
+      );
+
+      const callOrder: string[] = [];
+      error.mockImplementation(() => {
+        callOrder.push('log');
+      });
+      const reconnectSpy = vi
+        .spyOn(
+          client as unknown as { attemptReconnect: () => Promise<void> },
+          'attemptReconnect'
+        )
+        .mockImplementation(async () => {
+          callOrder.push('reconnect');
+        });
+
+      const throwingStream = new ReadableStream({
+        start(controller) {
+          controller.error(new Error('socket reset'));
+        },
+      });
+
+      await expect(client.processStream(throwingStream)).rejects.toThrow(
+        'socket reset'
+      );
+
+      expect(error).toHaveBeenCalledWith(
+        expect.stringContaining('[SSE] Stream failed:')
+      );
+      expect(callOrder.indexOf('log')).toBeLessThan(
+        callOrder.indexOf('reconnect')
+      );
+      reconnectSpy.mockRestore();
+    });
+
+    it('suppresses the stream-failed log when aborted', async () => {
+      const error = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { logger: { error }, autoReconnect: false, streamStaleThresholdMs: 0 }
+      );
+      client.aborted = true;
+
+      const throwingStream = new ReadableStream({
+        start(controller) {
+          controller.error(new Error('socket reset'));
+        },
+      });
+
+      await expect(client.processStream(throwingStream)).rejects.toThrow(
+        'socket reset'
+      );
+
+      expect(error).not.toHaveBeenCalledWith(
+        expect.stringContaining('[SSE] Stream failed:')
+      );
+    });
+
+    it('clears the 60s connect timer when the fetch rejects', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockRejectedValue(new Error('connection refused'));
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false, streamStaleThresholdMs: 0 }
+      );
+
+      await expect(client.openStream()).rejects.toThrow('connection refused');
+      // The 60s abort timer is cleared on rejection — no pending timers, so no
+      // abort fires at +60s.
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('close() during a reconnect backoff emits no telemetry and stays disconnected', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(okPutResult());
+
+      const streamRecoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0, onStreamRecovery: streamRecoverySpy }
+      );
+
+      const p = priv(client).attemptReconnect(); // begins the backoff delay
+      await vi.advanceTimersByTimeAsync(0);
+      await client.close(); // sets aborted before its awaits
+      await vi.advanceTimersByTimeAsync(5_000);
+      await p;
+
+      expect(client.isConnected).toBe(false);
+      const phases = streamRecoverySpy.mock.calls.map((c) => c[0].phase);
+      expect(phases).not.toContain('reconnected');
+      expect(phases).not.toContain('reconnect_failed');
+    });
+
+    it('close() mid reconnect-attempt aborts the in-flight fetch and emits no telemetry', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+
+      const streamRecoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0, onStreamRecovery: streamRecoverySpy }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+
+      // The resume's stream GET hangs on a promise we control, so the attempt
+      // is driven past the backoff delay and into openStream()'s fetch.
+      let rejectStream!: (err: unknown) => void;
+      const pendingStream = new Promise<never>((_, reject) => {
+        rejectStream = reject;
+      });
+      mockUrbitFetch
+        .mockImplementationOnce(() => pendingStream)
+        .mockResolvedValue(okPutResult());
+
+      const p = priv(client).attemptReconnect();
+      // Past the 1s backoff and into the try: openStream() awaits pendingStream.
+      await vi.advanceTimersByTimeAsync(5_000);
+
+      // close() races the in-flight attempt: flips aborted and aborts the
+      // stream controller; its unsubscribe PUT / DELETE resolve via okPutResult.
+      const closePromise = client.close();
+      // The aborted fetch then rejects (abort-style) once close() set aborted.
+      rejectStream(
+        new DOMException('The operation was aborted.', 'AbortError')
+      );
+      await closePromise;
+      await p;
+
+      expect(client.isConnected).toBe(false);
+      const phases = streamRecoverySpy.mock.calls.map((c) => c[0].phase);
+      expect(phases).not.toContain('reconnected');
+      expect(phases).not.toContain('reconnect_failed');
+    });
+
+    it('close() racing a rebuild never marks the client connected', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const { createUrbitChannel, wakeUrbitChannel } = await import(
+        './channel-ops.js'
+      );
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const mockCreate = vi.mocked(createUrbitChannel);
+      const mockWake = vi.mocked(wakeUrbitChannel);
+
+      const streamRecoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0, onStreamRecovery: streamRecoverySpy }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+
+      let resolveCreate!: () => void;
+      const createPromise = new Promise<void>((resolve) => {
+        resolveCreate = resolve;
+      });
+      mockCreate.mockImplementation(() => createPromise);
+
+      let resolveWake!: () => void;
+      const wakePromise = new Promise<void>((resolve) => {
+        resolveWake = resolve;
+      });
+      mockWake.mockImplementation(() => wakePromise);
+
+      mockUrbitFetch.mockResolvedValue(okPutResult());
+
+      priv(client).channelReaped = true;
+      priv(client).streamDownSince = Date.now();
+
+      const p = priv(client).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(5_000);
+
+      const closePromise = client.close();
+      resolveCreate();
+      resolveWake();
+      await closePromise;
+      await p;
+
+      expect(client.isConnected).toBe(false);
+      expect(mockWake).not.toHaveBeenCalled();
+      const phases = streamRecoverySpy.mock.calls.map((c) => c[0].phase);
+      expect(phases).not.toContain('reconnected');
+      expect(phases).not.toContain('reconnect_failed');
+    });
+
+    it('clears isConnected when the stream ends even with autoReconnect disabled', async () => {
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false }
+      );
+      client.isConnected = true;
+
+      const p = client.processStream(closingStream());
+      await vi.advanceTimersByTimeAsync(1);
+      await p;
+
+      // No reconnect (autoReconnect off), but the client must not stay marked
+      // connected once the stream has ended.
+      expect(client.isConnected).toBe(false);
+    });
+
+    it('a rejecting release on a 404 stream GET still surfaces the UrbitHttpError and reaps', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      // The resume GET 404s AND its release rejects; the rebuild's GET succeeds.
+      mockUrbitFetch
+        .mockResolvedValueOnce({
+          response: { ok: false, status: 404 } as unknown as Response,
+          finalUrl: 'https://example.com',
+          release: vi.fn().mockRejectedValue(new Error('release failed')),
+        })
+        .mockResolvedValue(openStreamResult());
+
+      let failureError: unknown;
+      let reapedAtFailure = false;
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        {
+          streamStaleThresholdMs: 0,
+          onStreamRecovery: (event) => {
+            if (event.phase === 'reconnect_failed') {
+              failureError = event.error;
+              reapedAtFailure = priv(client).channelReaped;
+            }
+          },
+        }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      const originalChannelId = client.channelId;
+      priv(client).streamDownSince = Date.now();
+
+      const p = priv(client).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(20_000);
+      await p;
+
+      // The rejecting release was swallowed, so the intended 404 surfaced as a
+      // Stream-connection UrbitHttpError (not the release rejection)...
+      expect(failureError).toBeInstanceOf(UrbitHttpError);
+      expect((failureError as UrbitHttpError).status).toBe(404);
+      // ...which set channelReaped, so the following attempt rebuilt the channel.
+      expect(reapedAtFailure).toBe(true);
+      expect(client.channelId).not.toBe(originalChannelId);
+
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('a null/empty response body causes openStream to reject (triggering reconnect)', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const release = vi.fn().mockResolvedValue(undefined);
+      mockUrbitFetch.mockResolvedValue({
+        response: {
+          ok: true,
+          status: 200,
+          body: null,
+        } as unknown as Response,
+        finalUrl: 'https://example.com',
+        release,
+      });
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false, streamStaleThresholdMs: 0 }
+      );
+
+      // A null body must be rejected at open time (not silently passed to
+      // processStream), so the error routes into attemptReconnect's catch.
+      await expect(client.openStream()).rejects.toThrow(
+        'Stream connection returned no body'
+      );
+      expect(release).toHaveBeenCalled();
+      expect(
+        (client as unknown as { streamRelease: unknown }).streamRelease
+      ).toBeNull();
+    });
+
+    it('a detector firing during resume openStream does not mark the dead stream connected', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+
+      const enc = new TextEncoder();
+      let streamCtrl!: ReadableStreamDefaultController<Uint8Array>;
+      const body = new ReadableStream<Uint8Array>({
+        start(ctrl) {
+          streamCtrl = ctrl;
+          ctrl.enqueue(
+            enc.encode('id: 0\ndata: {"response":"poke","id":12345}\n\n')
+          );
+        },
+      });
+      mockUrbitFetch.mockResolvedValue({
+        response: {
+          ok: true,
+          status: 200,
+          body,
+        } as unknown as Response,
+        finalUrl: 'https://example.com',
+        release: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const streamRecoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0, onStreamRecovery: streamRecoverySpy }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+
+      priv(client).lastHeardEventId = 5;
+      priv(client).actionFloors = new Map([[12345, 5]]);
+      priv(client).channelReaped = false;
+      priv(client).streamDownSince = Date.now();
+      client.reconnectAttempts = 3;
+
+      const p = priv(client).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(10_000);
+      await vi.advanceTimersByTimeAsync(0);
+      await p;
+
+      expect(client.isConnected).toBe(false);
+      expect(priv(client).channelReaped).toBe(true);
+      expect(client.reconnectAttempts).not.toBe(0);
+      const phases = streamRecoverySpy.mock.calls.map(
+        (c: unknown[]) => (c[0] as { phase: string }).phase
+      );
+      expect(phases).not.toContain('reconnected');
+
+      client.aborted = true;
+      streamCtrl.close();
+      await vi.advanceTimersByTimeAsync(1);
+      priv(client).stopStreamWatchdog();
+    });
+
+    describe('event-id regression detection', () => {
+      const encoder = new TextEncoder();
+
+      // A stream we can enqueue frames into, so processStream's for-await runs
+      // the real buffering path (one chunk → multiple processEvent calls).
+      const controllableStream = () => {
+        let ctrl!: ReadableStreamDefaultController<Uint8Array>;
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            ctrl = controller;
+          },
+        });
+        return { body, ctrl };
+      };
+
+      it('a low-id frame (<= acked cursor) tears down and the next attempt rebuilds', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const { createUrbitChannel } = await import('./channel-ops.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        const mockCreate = vi.mocked(createUrbitChannel);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0 }
+        );
+        const eventHandler1 = vi.fn();
+        const errHandler1 = vi.fn();
+        const eventHandler2 = vi.fn();
+        const errHandler2 = vi.fn();
+        await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler1,
+          err: errHandler1,
+        });
+        await client.subscribe({
+          app: 'channels',
+          path: '/v4',
+          event: eventHandler2,
+          err: errHandler2,
+        });
+
+        priv(client).lastHeardEventId = 500;
+        priv(client).lastAcknowledgedEventId = 480;
+        priv(client).lastConfirmedAckEventId = 480;
+        priv(client).confirmedFloorAtStreamBind = 480;
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        const { body, ctrl } = controllableStream();
+        const p = client.processStream(body);
+        await vi.advanceTimersByTimeAsync(1);
+        // A revived channel restarts ids near 0; id 3 <= confirmed acked 480 is
+        // impossible from our own channel.
+        ctrl.enqueue(
+          encoder.encode('id: 3\ndata: {"id":1,"json":{"n":1}}\n\n')
+        );
+        await vi.advanceTimersByTimeAsync(1);
+
+        // The frame is NOT dispatched; every handler is told via err exactly
+        // once; the channel is marked reaped and the stream aborted.
+        expect(eventHandler1).not.toHaveBeenCalled();
+        expect(eventHandler2).not.toHaveBeenCalled();
+        expect(errHandler1).toHaveBeenCalledTimes(1);
+        expect(errHandler2).toHaveBeenCalledTimes(1);
+        expect(String(errHandler1.mock.calls[0][0].message)).toMatch(
+          /id regression/
+        );
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+
+        // End the (mock) stream so processStream's finally drives the reconnect.
+        const originalChannelId = client.channelId;
+        mockUrbitFetch.mockResolvedValue(openStreamResult());
+        ctrl.close();
+        await vi.advanceTimersByTimeAsync(5_000);
+        await p;
+
+        // channelReaped forced the REBUILD branch: a fresh channel was created
+        // and both cursors were reset.
+        expect(mockCreate).toHaveBeenCalledTimes(1);
+        expect(client.channelId).not.toBe(originalChannelId);
+        expect(priv(client).lastHeardEventId).toBe(-1);
+        expect(priv(client).lastAcknowledgedEventId).toBe(-1);
+        expect(priv(client).lastConfirmedAckEventId).toBe(-1);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+
+      it('a legit redelivery inside (acked, heard] is replay-dropped, not a rebuild', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+        priv(client).lastHeardEventId = 500;
+        priv(client).lastAcknowledgedEventId = 480;
+        priv(client).lastConfirmedAckEventId = 480;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        // id 490 is in the unacked redelivery window (480, 500]: above the
+        // confirmed ack floor, a normal resume replay, silently dropped by the
+        // existing replay-drop.
+        client.processEvent('id: 490\ndata: {"id":1,"json":{"n":1}}');
+
+        expect(eventHandler).not.toHaveBeenCalled();
+        expect(errHandler).not.toHaveBeenCalled();
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+      });
+
+      it('is inert on a fresh channel (acked cursor -1)', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        // Default cursors (-1/-1/-1): id 0 on a young channel must dispatch.
+        expect(priv(client).lastHeardEventId).toBe(-1);
+        expect(priv(client).lastAcknowledgedEventId).toBe(-1);
+        expect(priv(client).lastConfirmedAckEventId).toBe(-1);
+        client.processEvent('id: 0\ndata: {"id":1,"json":{"n":1}}');
+
+        expect(eventHandler).toHaveBeenCalledWith({ n: 1 });
+        expect(errHandler).not.toHaveBeenCalled();
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+      });
+
+      it('fires once when multiple low-id frames arrive in one chunk', async () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { autoReconnect: false, streamStaleThresholdMs: 0 }
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+        priv(client).lastHeardEventId = 500;
+        priv(client).lastAcknowledgedEventId = 480;
+        priv(client).lastConfirmedAckEventId = 480;
+        priv(client).confirmedFloorAtStreamBind = 480;
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        const { body, ctrl } = controllableStream();
+        const p = client.processStream(body);
+        await vi.advanceTimersByTimeAsync(1);
+        // Two low-id frames buffered in a single chunk.
+        ctrl.enqueue(
+          encoder.encode(
+            'id: 1\ndata: {"id":1,"json":{"n":1}}\n\nid: 2\ndata: {"id":1,"json":{"n":2}}\n\n'
+          )
+        );
+        await vi.advanceTimersByTimeAsync(1);
+
+        // The channelReaped early-return stops the second frame from re-firing.
+        expect(eventHandler).not.toHaveBeenCalled();
+        expect(errHandler).toHaveBeenCalledTimes(1);
+        expect(String(errHandler.mock.calls[0][0].message)).toMatch(
+          /id regression/
+        );
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+        expect(priv(client).channelReaped).toBe(true);
+
+        ctrl.close();
+        await p;
+      });
+
+      it('an optimistic-but-unconfirmed cursor does not misfire on a healthy resume replay', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 500;
+        priv(client).lastAcknowledgedEventId = 480; // optimistic (set pre-PUT)
+        priv(client).lastConfirmedAckEventId = 100; // only 100 is pruned
+        priv(client).confirmedFloorAtStreamBind = 100;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        // id 200 <= optimistic 480 but > confirmed 100 (and <= heard 500): a
+        // legit replay from Eyre's pre-prune queue. Must be replay-dropped, NOT
+        // a rebuild — keying off the optimistic cursor would misfire here.
+        client.processEvent('id: 200\ndata: {"id":1,"json":{"n":1}}');
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+        expect(errHandler).not.toHaveBeenCalled();
+        expect(eventHandler).not.toHaveBeenCalled();
+
+        // id 50 <= confirmed 100: permanently pruned, impossible from our own
+        // channel → rebuild.
+        client.processEvent('id: 50\ndata: {"id":1,"json":{"n":2}}');
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+        expect(errHandler).toHaveBeenCalledTimes(1);
+      });
+
+      it('ack() advances the confirmed cursor only on a successful PUT', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        expect(priv(client).lastConfirmedAckEventId).toBe(-1);
+
+        // A confirmed (ok) ack PUT advances the floor to the acked id.
+        mockUrbitFetch.mockResolvedValue(okPutResult());
+        await priv(client).ack(120);
+        expect(priv(client).lastConfirmedAckEventId).toBe(120);
+
+        // Out-of-order: a later-confirmed LOWER id must not regress the floor.
+        await priv(client).ack(100);
+        expect(priv(client).lastConfirmedAckEventId).toBe(120);
+
+        // A failed ack PUT (!ok → throws) leaves the confirmed cursor unchanged.
+        mockUrbitFetch.mockResolvedValue({
+          response: { ok: false, status: 500 } as unknown as Response,
+          finalUrl: 'https://example.com',
+          release: vi.fn().mockResolvedValue(undefined),
+        });
+        await expect(priv(client).ack(200)).rejects.toThrow();
+        expect(priv(client).lastConfirmedAckEventId).toBe(120);
+      });
+
+      it('a stale ack for the old channel does not repopulate the confirmed cursor after rebuild', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+
+        let resolveAck!: () => void;
+        const ackResponse = new Promise<void>((resolve) => {
+          resolveAck = resolve;
+        });
+        mockUrbitFetch.mockImplementation(
+          () =>
+            ackResponse.then(() => ({
+              response: { ok: true, status: 200 },
+              finalUrl: 'https://example.com',
+              release: vi.fn().mockResolvedValue(undefined),
+            })) as ReturnType<typeof mockUrbitFetch>
+        );
+
+        client.channelId = 'chan-A';
+        priv(client).lastConfirmedAckEventId = 400;
+
+        const ackPromise = priv(client).ack(500);
+
+        client.channelId = 'chan-B';
+        priv(client).lastConfirmedAckEventId = -1;
+
+        resolveAck();
+        await ackPromise;
+
+        expect(priv(client).lastConfirmedAckEventId).toBe(-1);
+      });
+
+      it('an ack on the same channel still advances the confirmed cursor', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+
+        let resolveAck!: () => void;
+        const ackResponse = new Promise<void>((resolve) => {
+          resolveAck = resolve;
+        });
+        mockUrbitFetch.mockImplementation(
+          () =>
+            ackResponse.then(() => ({
+              response: { ok: true, status: 200 },
+              finalUrl: 'https://example.com',
+              release: vi.fn().mockResolvedValue(undefined),
+            })) as ReturnType<typeof mockUrbitFetch>
+        );
+
+        client.channelId = 'chan-A';
+        priv(client).lastConfirmedAckEventId = 100;
+
+        const ackPromise = priv(client).ack(200);
+
+        resolveAck();
+        await ackPromise;
+
+        expect(priv(client).lastConfirmedAckEventId).toBe(200);
+      });
+
+      it('a throwing err handler still completes teardown and notifies the rest', () => {
+        const error = vi.fn();
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { logger: { error } }
+        );
+        const errHandler1 = vi.fn(() => {
+          throw new Error('handler boom');
+        });
+        const errHandler2 = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler1,
+        });
+        void client.subscribe({
+          app: 'channels',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler2,
+        });
+
+        priv(client).lastHeardEventId = 500;
+        priv(client).lastAcknowledgedEventId = 480;
+        priv(client).lastConfirmedAckEventId = 480;
+        priv(client).confirmedFloorAtStreamBind = 480;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 3\ndata: {"id":1,"json":{"n":1}}');
+
+        // Teardown ran despite the first handler throwing...
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+        // ...and the second handler was still notified.
+        expect(errHandler1).toHaveBeenCalledTimes(1);
+        expect(errHandler2).toHaveBeenCalledTimes(1);
+        expect(String(errHandler2.mock.calls[0][0].message)).toMatch(
+          /id regression/
+        );
+        // The throw was logged, not propagated.
+        expect(error).toHaveBeenCalledWith(
+          expect.stringContaining('regression err handler threw')
+        );
+      });
+
+      it('a clean EOF clears suppressNextStreamErrorFanout', async () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { autoReconnect: false }
+        );
+        priv(client).suppressNextStreamErrorFanout = true;
+
+        const p = client.processStream(closingStream());
+        await vi.advanceTimersByTimeAsync(1);
+        await p;
+
+        expect(priv(client).suppressNextStreamErrorFanout).toBe(false);
+      });
+    });
+
+    describe('always-on per-action floor ledger', () => {
+      it('sendSubscription records an actionFloors entry keyed by the sub id', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        mockUrbitFetch.mockResolvedValue(okPutResult());
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).isConnected = true;
+        priv(client).lastHeardEventId = 42;
+
+        const subId = await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+        });
+
+        expect(priv(client).actionFloors.get(subId)).toBe(42);
+      });
+
+      it('a low-id subscribe-ack tears down the channel (revival scenario)', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 0;
+        priv(client).lastConfirmedAckEventId = -1;
+        priv(client).actionFloors = new Map([[1, 0]]);
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 0\ndata: {"response":"subscribe","id":1}');
+
+        expect(errHandler).toHaveBeenCalledTimes(1);
+        expect(String(errHandler.mock.calls[0][0].message)).toMatch(
+          /recreated/
+        );
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('a high-id subscribe-ack resolves its entry and falls through', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 0;
+        priv(client).lastConfirmedAckEventId = -1;
+        priv(client).actionFloors = new Map([[1, 0]]);
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 100\ndata: {"response":"subscribe","id":1}');
+
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+        expect(errHandler).not.toHaveBeenCalled();
+        expect(priv(client).actionFloors.has(1)).toBe(false);
+        expect(priv(client).lastHeardEventId).toBe(100);
+      });
+
+      it('a failed subscribe PUT keeps the actionFloors entry', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        mockUrbitFetch.mockRejectedValue(new Error('PUT rejected'));
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).isConnected = true;
+        priv(client).lastHeardEventId = 7;
+
+        const errSpy = vi.fn();
+        const subId = await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errSpy,
+        });
+
+        expect(errSpy).toHaveBeenCalledTimes(1);
+        expect(priv(client).actionFloors.has(subId)).toBe(true);
+        expect(priv(client).actionFloors.get(subId)).toBe(7);
+      });
+
+      it('detects a recreated channel at floor 0 (catch-up killer)', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 0;
+        priv(client).lastConfirmedAckEventId = -1;
+        priv(client).actionFloors = new Map([[12345, 0]]);
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 0\ndata: {"response":"poke","id":12345}');
+
+        expect(eventHandler).not.toHaveBeenCalled();
+        expect(errHandler).toHaveBeenCalledTimes(1);
+        expect(String(errHandler.mock.calls[0][0].message)).toMatch(
+          /recreated/
+        );
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('detects a recreated channel when ack id <= floor (3 <= 5)', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 5;
+        priv(client).lastConfirmedAckEventId = -1;
+        priv(client).actionFloors = new Map([[12345, 5]]);
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 3\ndata: {"response":"poke","id":12345}');
+
+        expect(errHandler).toHaveBeenCalledTimes(1);
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('a healthy ack resolves ONLY its own entry and falls through', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 50;
+        priv(client).lastConfirmedAckEventId = -1;
+        priv(client).actionFloors = new Map([
+          [111, 50],
+          [222, 120],
+        ]);
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 100\ndata: {"response":"poke","id":111}');
+
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+        expect(errHandler).not.toHaveBeenCalled();
+        expect(priv(client).actionFloors.has(111)).toBe(false);
+        expect(priv(client).actionFloors.has(222)).toBe(true);
+        expect(priv(client).actionFloors.get(222)).toBe(120);
+        expect(priv(client).lastHeardEventId).toBe(100);
+      });
+
+      it('an unknown poke id is ignored (map unchanged)', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 0;
+        priv(client).lastConfirmedAckEventId = -1;
+        priv(client).actionFloors = new Map([[12345, 0]]);
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 0\ndata: {"response":"poke","id":999}');
+
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+        expect(errHandler).not.toHaveBeenCalled();
+        expect(priv(client).actionFloors.size).toBe(1);
+        expect(priv(client).actionFloors.get(12345)).toBe(0);
+      });
+
+      it('poke() always tags with monotonic ids (no stream-down required)', async () => {
+        const { pokeUrbitChannel } = await import('./channel-ops.js');
+        const mockPoke = vi.mocked(pokeUrbitChannel);
+        const nowSpy = vi.spyOn(Date, 'now');
+        nowSpy.mockReturnValue(1000);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).isConnected = true;
+        priv(client).lastHeardEventId = 42;
+
+        await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+
+        expect(mockPoke).toHaveBeenCalledTimes(1);
+        const firstParams = mockPoke.mock.calls[0][1];
+        expect(firstParams.pokeId).toBe(1000);
+        expect(priv(client).actionFloors.get(1000)).toBe(42);
+
+        nowSpy.mockReturnValue(1000);
+        await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+        const secondParams = mockPoke.mock.calls[1][1];
+        expect(secondParams.pokeId).toBe(1001);
+        expect(secondParams.pokeId).toBeGreaterThan(firstParams.pokeId);
+        expect(priv(client).actionFloors.size).toBe(2);
+
+        nowSpy.mockRestore();
+      });
+
+      it('rejection does NOT delete the ledger entry', async () => {
+        const { pokeUrbitChannel } = await import('./channel-ops.js');
+        const mockPoke = vi.mocked(pokeUrbitChannel);
+        const nowSpy = vi.spyOn(Date, 'now');
+        nowSpy.mockReturnValue(5000);
+        mockPoke.mockRejectedValueOnce(new Error('PUT rejected'));
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).lastHeardEventId = 10;
+
+        await expect(
+          client.poke({ app: 'hood', mark: 'helm-hi', json: {} })
+        ).rejects.toThrow('PUT rejected');
+
+        expect(priv(client).actionFloors.has(5000)).toBe(true);
+        expect(priv(client).actionFloors.get(5000)).toBe(10);
+
+        nowSpy.mockRestore();
+      });
+
+      it('a full action-floor ledger forces a rebuild instead of skipping tracking', async () => {
+        const { pokeUrbitChannel } = await import('./channel-ops.js');
+        const mockPoke = vi.mocked(pokeUrbitChannel);
+        mockPoke.mockResolvedValue(undefined);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).lastHeardEventId = 7;
+        const seeded = new Map<number, number>();
+        for (let i = 0; i < 4096; i += 1) {
+          seeded.set(i + 1, 0);
+        }
+        priv(client).actionFloors = seeded;
+        priv(client).lastPokeId = 4096;
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+
+        // A full ledger is itself proof the channel is broken: escalate to a
+        // rebuild instead of degrading to untracked pokes.
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+        expect(priv(client).isConnected).toBe(false);
+        // No insert happened (the ledger stays at the cap)...
+        expect(priv(client).actionFloors.size).toBe(4096);
+        expect(priv(client).actionFloors.has(1)).toBe(true);
+        // ...but the poke itself still proceeded and resolved.
+        expect(mockPoke).toHaveBeenCalledTimes(1);
+        expect(mockPoke.mock.calls[0][1].pokeId).toBeDefined();
+      });
+
+      it('below the cap, poke() inserts normally and does not reap', async () => {
+        const { pokeUrbitChannel } = await import('./channel-ops.js');
+        const mockPoke = vi.mocked(pokeUrbitChannel);
+        mockPoke.mockResolvedValue(undefined);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).lastHeardEventId = 7;
+        const seeded = new Map<number, number>();
+        for (let i = 0; i < 4095; i += 1) {
+          seeded.set(i + 1, 0);
+        }
+        priv(client).actionFloors = seeded;
+        priv(client).lastPokeId = 4095;
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+
+        const pokeId = mockPoke.mock.calls[0][1].pokeId as number;
+        expect(priv(client).actionFloors.size).toBe(4096);
+        expect(priv(client).actionFloors.get(pokeId)).toBe(7);
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+        expect(priv(client).isConnected).toBe(true);
+      });
+
+      it('the rebuild path clears the ledger', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const { createUrbitChannel } = await import('./channel-ops.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        const mockCreate = vi.mocked(createUrbitChannel);
+        mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0 }
+        );
+        await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+
+        priv(client).actionFloors = new Map([
+          [12345, 50],
+          [67890, 100],
+        ]);
+        priv(client).channelReaped = true;
+        priv(client).streamDownSince = Date.now();
+
+        const p = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(20_000);
+        await p;
+
+        expect(mockCreate).toHaveBeenCalledTimes(1);
+        expect(priv(client).actionFloors.size).toBe(0);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+
+      it('hung-socket: poke tagged without markStreamDown, low ack triggers teardown', async () => {
+        const { pokeUrbitChannel } = await import('./channel-ops.js');
+        const mockPoke = vi.mocked(pokeUrbitChannel);
+        const nowSpy = vi.spyOn(Date, 'now');
+        nowSpy.mockReturnValue(99999);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler,
+        });
+
+        priv(client).isConnected = true;
+        priv(client).lastHeardEventId = 200;
+        priv(client).lastConfirmedAckEventId = -1;
+
+        await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+        expect(mockPoke.mock.calls[0][1].pokeId).toBe(99999);
+        expect(priv(client).actionFloors.get(99999)).toBe(200);
+
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        client.processEvent('id: 0\ndata: {"response":"poke","id":99999}');
+
+        expect(errHandler).toHaveBeenCalledTimes(1);
+        expect(String(errHandler.mock.calls[0][0].message)).toMatch(
+          /recreated/
+        );
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+
+        nowSpy.mockRestore();
+      });
+
+      it('discards buffered frames after a floor-detector fires in the same chunk', async () => {
+        const encoder = new TextEncoder();
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { autoReconnect: false, streamStaleThresholdMs: 0 }
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 5;
+        priv(client).lastConfirmedAckEventId = -1;
+        priv(client).actionFloors = new Map([[12345, 5]]);
+        priv(client).isConnected = true;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        let ctrl!: ReadableStreamDefaultController<Uint8Array>;
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            ctrl = controller;
+          },
+        });
+        const p = client.processStream(body);
+        await vi.advanceTimersByTimeAsync(1);
+
+        ctrl.enqueue(
+          encoder.encode(
+            'id: 0\ndata: {"response":"poke","id":12345}\n\n' +
+              'id: 6\ndata: {"id":1,"json":{"leaked":true}}\n\n'
+          )
+        );
+        await vi.advanceTimersByTimeAsync(1);
+        ctrl.close();
+        await p;
+
+        expect(priv(client).channelReaped).toBe(true);
+        expect(errHandler).toHaveBeenCalledTimes(1);
+        expect(String(errHandler.mock.calls[0][0].message)).toMatch(
+          /recreated/
+        );
+        expect(eventHandler).not.toHaveBeenCalledWith({ leaked: true });
+        expect(eventHandler).not.toHaveBeenCalled();
+        expect(priv(client).lastHeardEventId).toBe(5);
+      });
+    });
+
+    describe('FIX 1: instant-EOF resume must not declare success', () => {
+      it('a 200 resume whose body immediately EOFs does not emit reconnected or reset attempts', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        const streamRecoverySpy = vi.fn();
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          {
+            streamStaleThresholdMs: 0,
+            onStreamRecovery: streamRecoverySpy,
+            reconnectDelay: 1,
+            maxReconnectAttempts: 1,
+          }
+        );
+        await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+        client.reconnectAttempts = 0;
+        priv(client).streamDownSince = Date.now();
+
+        // The resume GET returns 200 with a body that EOFs immediately.
+        mockUrbitFetch.mockResolvedValue({
+          response: {
+            ok: true,
+            status: 200,
+            body: closingStream(),
+          } as unknown as Response,
+          finalUrl: 'https://example.com',
+          release: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const p = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(50);
+        await p;
+
+        // The outer attempt must NOT declare success: no 'reconnected' telemetry,
+        // attempts not reset to 0 (the inner reconnect from the EOF finally owns
+        // recovery), isConnected false.
+        const phases = streamRecoverySpy.mock.calls.map(
+          (c: unknown[]) => (c[0] as { phase: string }).phase
+        );
+        expect(phases).not.toContain('reconnected');
+        expect(client.reconnectAttempts).not.toBe(0);
+        expect(client.isConnected).toBe(false);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+
+      it('a live (non-EOF) stream still declares resume success', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+        const streamRecoverySpy = vi.fn();
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0, onStreamRecovery: streamRecoverySpy }
+        );
+        await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+        client.reconnectAttempts = 2;
+        priv(client).streamDownSince = Date.now();
+
+        const p = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(5_000);
+        await p;
+
+        const reconnected = streamRecoverySpy.mock.calls
+          .map((c: unknown[]) => c[0] as { phase: string })
+          .find((e) => e.phase === 'reconnected');
+        expect(reconnected).toBeDefined();
+        expect(client.reconnectAttempts).toBe(0);
+        expect(client.isConnected).toBe(true);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+    });
+
+    describe('FIX 2: confirmed-floor snapshot at stream-bind time', () => {
+      it('an in-flight ack confirming after bind does not raise the detection floor (id 80 > snapshot 50)', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const eventHandler = vi.fn();
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: eventHandler,
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 100;
+        priv(client).confirmedFloorAtStreamBind = 50;
+        // Simulate the in-flight ack resolving AFTER the snapshot was taken.
+        priv(client).lastConfirmedAckEventId = 100;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        // id 80 <= live confirmed 100 but > snapshot 50: a legit replay frame.
+        client.processEvent('id: 80\ndata: {"id":1,"json":{"n":1}}');
+
+        expect(priv(client).channelReaped).toBe(false);
+        expect(abortSpy).not.toHaveBeenCalled();
+        expect(errHandler).not.toHaveBeenCalled();
+        // Replay-dropped (80 <= lastHeardEventId 100).
+        expect(eventHandler).not.toHaveBeenCalled();
+      });
+
+      it('a frame at or below the bind-time snapshot triggers teardown (id 40 <= snapshot 50)', () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        const errHandler = vi.fn();
+        void client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          err: errHandler,
+        });
+
+        priv(client).lastHeardEventId = 100;
+        priv(client).confirmedFloorAtStreamBind = 50;
+        priv(client).lastConfirmedAckEventId = 100;
+        const abortSpy = vi.fn();
+        priv(client).streamController = { abort: abortSpy };
+
+        // id 40 <= snapshot 50: permanently pruned before this stream bound.
+        client.processEvent('id: 40\ndata: {"id":1,"json":{"n":1}}');
+
+        expect(priv(client).channelReaped).toBe(true);
+        expect(abortSpy).toHaveBeenCalledTimes(1);
+        expect(errHandler).toHaveBeenCalledTimes(1);
+        expect(String(errHandler.mock.calls[0][0].message)).toMatch(
+          /id regression/
+        );
+      });
+
+      it('ack() advancing the live cursor does NOT move confirmedFloorAtStreamBind', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        mockUrbitFetch.mockResolvedValue(okPutResult());
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).confirmedFloorAtStreamBind = 50;
+
+        await priv(client).ack(200);
+
+        expect(priv(client).lastConfirmedAckEventId).toBe(200);
+        expect(priv(client).confirmedFloorAtStreamBind).toBe(50);
+      });
+
+      it('openStream() refreshes the snapshot to the live cursor at call time', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { autoReconnect: false }
+        );
+        priv(client).lastConfirmedAckEventId = 77;
+        priv(client).confirmedFloorAtStreamBind = -1;
+
+        await priv(client).openStream();
+
+        expect(priv(client).confirmedFloorAtStreamBind).toBe(77);
+        client.aborted = true;
+      });
+
+      it('rebuild resets confirmedFloorAtStreamBind to -1', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const { createUrbitChannel } = await import('./channel-ops.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        const mockCreate = vi.mocked(createUrbitChannel);
+        mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0 }
+        );
+        await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+        priv(client).confirmedFloorAtStreamBind = 99;
+        priv(client).channelReaped = true;
+        priv(client).streamDownSince = Date.now();
+
+        const p = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(5_000);
+        await p;
+
+        expect(mockCreate).toHaveBeenCalledTimes(1);
+        expect(priv(client).confirmedFloorAtStreamBind).toBe(-1);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+    });
+
+    describe('FIX 3: flush pending subscriptions on resume', () => {
+      it('subscribe() while disconnected adds to pendingSubscriptionIds and sends nothing', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        // isConnected defaults to false.
+        const subId = await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+        });
+
+        expect(mockUrbitFetch).not.toHaveBeenCalled();
+        expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+      });
+
+      it('a successful resume flushes exactly the pending subscription via PUT', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0 }
+        );
+        // Register while disconnected.
+        const subId = await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+        });
+        expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+        // Now simulate a successful resume: openStream returns a live stream,
+        // and the subscribe PUT succeeds.
+        mockUrbitFetch
+          .mockResolvedValueOnce(openStreamResult())
+          .mockResolvedValue(okPutResult());
+
+        priv(client).streamDownSince = Date.now();
+        const p = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(5_000);
+        await p;
+
+        // The pending subscription was flushed via a PUT.
+        const subCall = mockUrbitFetch.mock.calls.find(
+          (call) =>
+            call[0].init?.method === 'PUT' &&
+            String(call[0].init?.body ?? '').includes('"subscribe"')
+        );
+        expect(subCall).toBeDefined();
+        const body = JSON.parse(subCall?.[0].init?.body as string);
+        expect(body[0]).toMatchObject({
+          action: 'subscribe',
+          app: 'chat',
+          path: '/v4',
+        });
+        // Set is now empty.
+        expect(priv(client).pendingSubscriptionIds.size).toBe(0);
+        // An actionFloors entry exists for it.
+        expect(priv(client).actionFloors.has(subId)).toBe(true);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+
+      it('sendSubscription failure on resume leaves the id pending', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0 }
+        );
+        const subId = await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+        });
+
+        // Resume: openStream succeeds, but the subscribe PUT rejects.
+        mockUrbitFetch
+          .mockResolvedValueOnce(openStreamResult())
+          .mockRejectedValueOnce(new Error('PUT failed'));
+
+        priv(client).streamDownSince = Date.now();
+        const p = priv(client).attemptReconnect();
+        // Advance past the 1s reconnect delay but NOT the 2s subscription retry
+        // timer, so this test isolates the flush behavior.
+        await vi.advanceTimersByTimeAsync(1_500);
+        await p;
+
+        // The id stays pending for the next resume or rebuild.
+        expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+
+      it('a failed flush PUT does not resurrect the id after a rebuild', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        // The subscribe PUT hangs on a promise we control so the flush parks
+        // mid-PUT while a rebuild completes underneath it.
+        let rejectPut!: (err: unknown) => void;
+        const deferredPut = new Promise<never>((_, reject) => {
+          rejectPut = reject;
+        });
+        mockUrbitFetch.mockImplementation((args) => {
+          if (args.init?.method === 'GET') {
+            return Promise.resolve(openStreamResult());
+          }
+          return deferredPut as ReturnType<typeof mockUrbitFetch>;
+        });
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0, reconnectDelay: 1, maxReconnectDelay: 1 }
+        );
+        // One pending sub with a live handler.
+        const subId = await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+        });
+        expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+        const epochAtClaim = priv(client).channelEpoch;
+
+        // Start the flush: it claims the id and parks on the deferred PUT.
+        priv(client).streamDownSince = Date.now();
+        const p = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(10);
+        expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(false);
+
+        // A rebuild completes while the PUT is in flight: connect() recreated
+        // the subscription on the new channel and bumped the epoch.
+        priv(client).channelEpoch = epochAtClaim + 1;
+
+        // The stale old-channel PUT now fails.
+        rejectPut(new Error('PUT failed'));
+        await vi.advanceTimersByTimeAsync(1);
+        await p;
+
+        // The epoch guard prevents the failed PUT from resurrecting the id —
+        // the rebuild already recreated it, so re-adding would double-subscribe
+        // on a later resume flush.
+        expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(false);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+
+      it('an overlapping flush cannot double-send a pending subscription', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        // The subscribe PUT hangs on a promise we control so the first flush
+        // is parked mid-PUT while a second flush pass runs.
+        let rejectPut!: (err: unknown) => void;
+        const deferredPut = new Promise<never>((_, reject) => {
+          rejectPut = reject;
+        });
+        mockUrbitFetch.mockImplementation((args) => {
+          if (args.init?.method === 'GET') {
+            return Promise.resolve(openStreamResult());
+          }
+          return deferredPut as ReturnType<typeof mockUrbitFetch>;
+        });
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0, reconnectDelay: 1, maxReconnectDelay: 1 }
+        );
+        // One pending sub with a live handler.
+        const subId = await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+        });
+        expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+        const subscribePuts = () =>
+          mockUrbitFetch.mock.calls.filter(
+            (call) =>
+              call[0].init?.method === 'PUT' &&
+              String(call[0].init?.body ?? '').includes('"subscribe"')
+          );
+
+        // First flush: claims the id and parks on the deferred PUT.
+        priv(client).streamDownSince = Date.now();
+        const p1 = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(10);
+        expect(subscribePuts()).toHaveLength(1);
+
+        // While the first PUT is still in flight, a second reconnect's flush
+        // runs. The id was already claimed, so it must NOT send again. Assert
+        // before awaiting p2: under the bug the second flush parks on the same
+        // deferred PUT and p2 never settles.
+        const p2 = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(10);
+        expect(subscribePuts()).toHaveLength(1);
+        await p2;
+
+        // The in-flight PUT fails: the id is restored for the next flush.
+        rejectPut(new Error('PUT failed'));
+        await vi.advanceTimersByTimeAsync(1);
+        await p1;
+        expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+
+      it('connect() clears pendingSubscriptionIds', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0 }
+        );
+        await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+        expect(priv(client).pendingSubscriptionIds.size).toBe(1);
+
+        await client.connect();
+
+        expect(priv(client).pendingSubscriptionIds.size).toBe(0);
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+    });
+
+    describe('FIX 1 (review): connect() clears only the pending ids it sent', () => {
+      it('a subscribe() landing during the create await stays pending', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const { createUrbitChannel } = await import('./channel-ops.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+        const mockCreate = vi.mocked(createUrbitChannel);
+        mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0 }
+        );
+        await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+        expect(priv(client).pendingSubscriptionIds.has(1)).toBe(true);
+
+        mockCreate.mockImplementation(async () => {
+          await client.subscribe({
+            app: 'channels',
+            path: '/v4',
+            event: vi.fn(),
+          });
+        });
+
+        await client.connect();
+
+        expect(priv(client).pendingSubscriptionIds.has(1)).toBe(false);
+        expect(priv(client).pendingSubscriptionIds.has(2)).toBe(true);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+    });
+
+    describe('FIX 2 (review): resume flush sends only live subscriptions', () => {
+      it('skips a handlerless pending sub and sends the live replacement', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0 }
+        );
+        await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+        await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+        client.eventHandlers.delete(1);
+        priv(client).pendingSubscriptionIds.add(1);
+        priv(client).pendingSubscriptionIds.add(2);
+
+        mockUrbitFetch
+          .mockResolvedValueOnce(openStreamResult())
+          .mockResolvedValue(okPutResult());
+
+        priv(client).streamDownSince = Date.now();
+        const p = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(5_000);
+        await p;
+
+        const subCalls = mockUrbitFetch.mock.calls.filter(
+          (call) =>
+            call[0].init?.method === 'PUT' &&
+            String(call[0].init?.body ?? '').includes('"subscribe"')
+        );
+        expect(subCalls).toHaveLength(1);
+        const body = JSON.parse(subCalls[0][0].init?.body as string);
+        expect(body[0].id).toBe(2);
+        expect(priv(client).pendingSubscriptionIds.has(1)).toBe(false);
+        expect(priv(client).pendingSubscriptionIds.has(2)).toBe(false);
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+
+      it('resubscribeAfterQuit removes the old id from pendingSubscriptionIds', async () => {
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123'
+        );
+        priv(client).isConnected = true;
+        await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+          quit: vi.fn(),
+        });
+        priv(client).pendingSubscriptionIds.add(1);
+
+        client.processEvent('id: 1\ndata: {"id":1,"response":"quit"}');
+
+        expect(priv(client).pendingSubscriptionIds.has(1)).toBe(false);
+        expect(client.subscriptions).toHaveLength(2);
+        expect(client.eventHandlers.has(2)).toBe(true);
+        expect(client.eventHandlers.has(1)).toBe(false);
+      });
+    });
+
+    describe('FIX 3 (review): post-flush stream-ownership re-check', () => {
+      it('stream ending during the flush suppresses the reconnected event', async () => {
+        const { urbitFetch } = await import('./fetch.js');
+        const mockUrbitFetch = vi.mocked(urbitFetch);
+
+        let streamCtrl!: ReadableStreamDefaultController<Uint8Array>;
+        const body = new ReadableStream<Uint8Array>({
+          start(ctrl) {
+            streamCtrl = ctrl;
+          },
+        });
+
+        let resolvePut!: () => void;
+        const putPromise = new Promise<void>((resolve) => {
+          resolvePut = resolve;
+        });
+
+        mockUrbitFetch
+          .mockResolvedValueOnce({
+            response: { ok: true, status: 200, body } as unknown as Response,
+            finalUrl: 'https://example.com',
+            release: vi.fn().mockResolvedValue(undefined),
+          })
+          .mockImplementationOnce(
+            () =>
+              putPromise.then(() => ({
+                response: { ok: true, status: 200 },
+                finalUrl: 'https://example.com',
+                release: vi.fn().mockResolvedValue(undefined),
+              })) as ReturnType<typeof mockUrbitFetch>
+          );
+
+        const streamRecoverySpy = vi.fn();
+        const client = new UrbitSSEClient(
+          'https://example.com',
+          'urbauth-~zod=123',
+          { streamStaleThresholdMs: 0, onStreamRecovery: streamRecoverySpy }
+        );
+        const subId = await client.subscribe({
+          app: 'chat',
+          path: '/v4',
+          event: vi.fn(),
+        });
+        expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+        priv(client).streamDownSince = Date.now() - 5_000;
+        const p = priv(client).attemptReconnect();
+        await vi.advanceTimersByTimeAsync(5_000);
+
+        streamCtrl.close();
+        await vi.advanceTimersByTimeAsync(1);
+
+        resolvePut();
+        await vi.advanceTimersByTimeAsync(1);
+        await p;
+
+        const phases = streamRecoverySpy.mock.calls.map(
+          (c: unknown[]) => (c[0] as { phase: string }).phase
+        );
+        expect(phases).not.toContain('reconnected');
+        expect(priv(client).streamDownSince).not.toBeNull();
+
+        client.aborted = true;
+        priv(client).stopStreamWatchdog();
+      });
+    });
+  });
+
+  describe('Part A: drain-based retry for pending subscriptions', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    type ClaimResult =
+      | { outcome: 'sent' }
+      | {
+          outcome: 'failed';
+          error: unknown;
+          subId: number;
+          app: string;
+          path: string;
+        }
+      | { outcome: 'skipped' };
+
+    type ClientPrivates = {
+      isConnected: boolean;
+      lastHeardEventId: number;
+      channelEpoch: number;
+      channelReaped: boolean;
+      pendingSubscriptionIds: Set<number>;
+      actionFloors: Map<number, number>;
+      subscriptionRetryTimer: ReturnType<typeof setTimeout> | null;
+      subscriptionRetryDelayMs: number;
+      subscriptionRetryFailedTicks: number;
+      subscriptionRetryDrainRunning: boolean;
+      subscriptionRetryClaimsInFlight: number;
+      claimAndSendPendingSubscription: (subId: number) => Promise<ClaimResult>;
+      enqueuePendingSubscription: (subId: number) => void;
+      ensureSubscriptionRetryDrain: () => void;
+      sendSubscription: (sub: unknown) => Promise<void>;
+      stopStreamWatchdog: () => void;
+      attemptReconnect: () => Promise<void>;
+      streamDownSince: number | null;
+      streamController: { abort: () => void } | null;
+    };
+    const priv = (client: UrbitSSEClient) =>
+      client as unknown as ClientPrivates;
+
+    const okPutResult = () => ({
+      response: { ok: true, status: 200 },
+      finalUrl: 'https://example.com',
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+    const openStreamResult = () => ({
+      response: {
+        ok: true,
+        status: 200,
+        body: new ReadableStream({ start() {} }),
+      } as unknown as Response,
+      finalUrl: 'https://example.com',
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+
+    it('A1: drain retries on a healthy stream with watchdog and auto-reconnect disabled', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch
+        .mockRejectedValueOnce(new Error('PUT failed'))
+        .mockResolvedValue(okPutResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false, streamStaleThresholdMs: 0 }
+      );
+      priv(client).isConnected = true;
+
+      const subId = await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+      });
+
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+      const putsBefore = mockUrbitFetch.mock.calls.filter(
+        (c) => c[0].init?.method === 'PUT'
+      ).length;
+      expect(putsBefore).toBe(1);
+
+      await vi.advanceTimersByTimeAsync(2_100);
+      await vi.advanceTimersByTimeAsync(0);
+
+      const putsAfter = mockUrbitFetch.mock.calls.filter(
+        (c) => c[0].init?.method === 'PUT'
+      ).length;
+      expect(putsAfter).toBe(2);
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(false);
+
+      client.aborted = true;
+    });
+
+    it('A2: disconnected ticks retain cadence without sending or escalating', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(okPutResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false, streamStaleThresholdMs: 0 }
+      );
+      priv(client).isConnected = false;
+
+      const subId = await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+      });
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+      mockUrbitFetch.mockClear();
+
+      await vi.advanceTimersByTimeAsync(2_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mockUrbitFetch).not.toHaveBeenCalled();
+      expect(priv(client).subscriptionRetryDelayMs).toBe(2_000);
+
+      await vi.advanceTimersByTimeAsync(2_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mockUrbitFetch).not.toHaveBeenCalled();
+      expect(priv(client).subscriptionRetryDelayMs).toBe(2_000);
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+      client.aborted = true;
+    });
+
+    it('A3: failed resume claim re-arms after the drain observes an empty set', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+
+      let rejectPut!: (err: unknown) => void;
+      const deferredPut = new Promise<never>((_, reject) => {
+        rejectPut = reject;
+      });
+      mockUrbitFetch
+        .mockRejectedValueOnce(new Error('subscribe fails'))
+        .mockImplementation(
+          () => deferredPut as ReturnType<typeof mockUrbitFetch>
+        );
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false, streamStaleThresholdMs: 0 }
+      );
+      priv(client).isConnected = true;
+
+      const subId = await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+      });
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+      const claimPromise = priv(client).claimAndSendPendingSubscription(subId);
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(2_100);
+      await vi.advanceTimersByTimeAsync(0);
+
+      mockUrbitFetch.mockResolvedValue(okPutResult());
+      rejectPut(new Error('PUT failed'));
+      await claimPromise;
+
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+      const putsBefore = mockUrbitFetch.mock.calls.filter(
+        (c) =>
+          c[0].init?.method === 'PUT' &&
+          String(c[0].init?.body ?? '').includes('"subscribe"')
+      ).length;
+
+      await vi.advanceTimersByTimeAsync(2_100);
+      await vi.advanceTimersByTimeAsync(0);
+
+      const putsAfter = mockUrbitFetch.mock.calls.filter(
+        (c) =>
+          c[0].init?.method === 'PUT' &&
+          String(c[0].init?.body ?? '').includes('"subscribe"')
+      ).length;
+      expect(putsAfter).toBe(putsBefore + 1);
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(false);
+
+      client.aborted = true;
+    });
+
+    it('A4: overlapping resume flush and drain issue one PUT for an ID', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch
+        .mockRejectedValueOnce(new Error('first PUT fails'))
+        .mockResolvedValue(okPutResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+      priv(client).isConnected = true;
+
+      const subId = await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+      });
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+      const subscribePuts = () =>
+        mockUrbitFetch.mock.calls.filter(
+          (call) =>
+            call[0].init?.method === 'PUT' &&
+            String(call[0].init?.body ?? '').includes('"subscribe"')
+        );
+
+      mockUrbitFetch.mockClear();
+
+      await vi.advanceTimersByTimeAsync(2_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(subscribePuts()).toHaveLength(1);
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(false);
+
+      const flushResult =
+        await priv(client).claimAndSendPendingSubscription(subId);
+      expect(flushResult.outcome).toBe('skipped');
+      expect(subscribePuts()).toHaveLength(1);
+
+      client.aborted = true;
+    });
+
+    it('A5: quit-superseded in-flight failure cannot restore the old ID', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+
+      let rejectPut!: (err: unknown) => void;
+      const deferredPut = new Promise<never>((_, reject) => {
+        rejectPut = reject;
+      });
+      mockUrbitFetch
+        .mockRejectedValueOnce(new Error('subscribe fails'))
+        .mockImplementation(
+          () => deferredPut as ReturnType<typeof mockUrbitFetch>
+        );
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false, streamStaleThresholdMs: 0 }
+      );
+      priv(client).isConnected = true;
+
+      const subId = await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+      });
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+      const claimPromise = priv(client).claimAndSendPendingSubscription(subId);
+
+      client.eventHandlers.delete(subId);
+
+      rejectPut(new Error('PUT failed'));
+      await claimPromise;
+
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(false);
+
+      client.aborted = true;
+    });
+
+    it('A6: rebuild during a handler-backed in-flight claim cannot restore the ID', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+
+      let rejectPut!: (err: unknown) => void;
+      const deferredPut = new Promise<never>((_, reject) => {
+        rejectPut = reject;
+      });
+      mockUrbitFetch
+        .mockRejectedValueOnce(new Error('subscribe fails'))
+        .mockImplementation(
+          () => deferredPut as ReturnType<typeof mockUrbitFetch>
+        );
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false, streamStaleThresholdMs: 0 }
+      );
+      priv(client).isConnected = true;
+
+      const subId = await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+      });
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+      const claimPromise = priv(client).claimAndSendPendingSubscription(subId);
+
+      priv(client).channelEpoch += 1;
+
+      rejectPut(new Error('PUT failed'));
+      await claimPromise;
+
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(false);
+
+      client.aborted = true;
+    });
+
+    it('A7: close during an in-flight claim cannot restore or restart the drain', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+
+      let rejectPut!: (err: unknown) => void;
+      const deferredPut = new Promise<never>((_, reject) => {
+        rejectPut = reject;
+      });
+      mockUrbitFetch
+        .mockRejectedValueOnce(new Error('subscribe fails'))
+        .mockImplementation(
+          () => deferredPut as ReturnType<typeof mockUrbitFetch>
+        );
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false, streamStaleThresholdMs: 0 }
+      );
+      priv(client).isConnected = true;
+
+      const subId = await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+      });
+      expect(priv(client).pendingSubscriptionIds.has(subId)).toBe(true);
+
+      const claimPromise = priv(client).claimAndSendPendingSubscription(subId);
+
+      mockUrbitFetch.mockResolvedValue(okPutResult());
+      const closePromise = client.close();
+
+      rejectPut(new Error('PUT failed'));
+      await claimPromise;
+      await closePromise;
+
+      expect(priv(client).pendingSubscriptionIds.size).toBe(0);
+      expect(priv(client).subscriptionRetryTimer).toBeNull();
+
+      const putsBefore = mockUrbitFetch.mock.calls.filter(
+        (c) =>
+          c[0].init?.method === 'PUT' &&
+          String(c[0].init?.body ?? '').includes('"subscribe"')
+      ).length;
+
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      const putsAfter = mockUrbitFetch.mock.calls.filter(
+        (c) =>
+          c[0].init?.method === 'PUT' &&
+          String(c[0].init?.body ?? '').includes('"subscribe"')
+      ).length;
+      expect(putsAfter).toBe(putsBefore);
+    });
+
+    it('A8: global backoff caps at 30 seconds and any successful send resets it to 2 seconds', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockRejectedValue(new Error('PUT failed'));
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { autoReconnect: false, streamStaleThresholdMs: 0 }
+      );
+      priv(client).isConnected = true;
+
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+
+      // 2s → 4s → 8s → 16s → 30s (capped) → 30s...
+      await vi.advanceTimersByTimeAsync(2_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(priv(client).subscriptionRetryDelayMs).toBe(4_000);
+
+      await vi.advanceTimersByTimeAsync(4_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(priv(client).subscriptionRetryDelayMs).toBe(8_000);
+
+      await vi.advanceTimersByTimeAsync(8_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(priv(client).subscriptionRetryDelayMs).toBe(16_000);
+
+      await vi.advanceTimersByTimeAsync(16_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(priv(client).subscriptionRetryDelayMs).toBe(30_000);
+
+      await vi.advanceTimersByTimeAsync(30_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(priv(client).subscriptionRetryDelayMs).toBe(30_000);
+
+      // Mixed tick: sub1 succeeds, sub2 fails → success wins, delay resets.
+      const sub2Id = await client.subscribe({
+        app: 'chat',
+        path: '/v4-2',
+        event: vi.fn(),
+      });
+      mockUrbitFetch.mockImplementation(async (args) => {
+        const body = JSON.parse(String(args.init?.body ?? '[]'));
+        if (body[0]?.id === sub2Id) throw new Error('PUT failed');
+        return okPutResult();
+      });
+
+      await vi.advanceTimersByTimeAsync(30_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(priv(client).subscriptionRetryDelayMs).toBe(2_000);
+      expect(priv(client).pendingSubscriptionIds.has(sub2Id)).toBe(true);
+
+      client.aborted = true;
+    });
+
+    it('A9: retry failures produce one sampled aggregate log per failed tick', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockRejectedValue(new Error('PUT failed'));
+
+      const errorLogs: string[] = [];
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        {
+          autoReconnect: false,
+          streamStaleThresholdMs: 0,
+          logger: { error: (msg: string) => errorLogs.push(msg) },
+        }
+      );
+      priv(client).isConnected = true;
+
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      await client.subscribe({ app: 'chat', path: '/v4-2', event: vi.fn() });
+
+      // Tick 1 at 2s: fails → log (failedTicks=1), delay→4s
+      await vi.advanceTimersByTimeAsync(2_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(errorLogs).toHaveLength(1);
+
+      // Ticks 2–4: no log
+      await vi.advanceTimersByTimeAsync(4_100);
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(8_100);
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(16_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(errorLogs).toHaveLength(1);
+
+      // Tick 5 at 30s: fails → log (failedTicks=5)
+      await vi.advanceTimersByTimeAsync(30_100);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(errorLogs).toHaveLength(2);
+
+      client.aborted = true;
+    });
+
+    it('A10: successful rebuild clears only its create snapshot and leaves a during-create subscription draining', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const { createUrbitChannel } = await import('./channel-ops.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const mockCreate = vi.mocked(createUrbitChannel);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+
+      const sub1Id = await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+      });
+      expect(priv(client).pendingSubscriptionIds.has(sub1Id)).toBe(true);
+
+      let sub2Id = 0;
+      mockCreate.mockImplementation(async () => {
+        sub2Id = await client.subscribe({
+          app: 'chat',
+          path: '/v4-2',
+          event: vi.fn(),
+        });
+      });
+
+      await client.connect();
+
+      expect(priv(client).pendingSubscriptionIds.has(sub1Id)).toBe(false);
+      expect(priv(client).pendingSubscriptionIds.has(sub2Id)).toBe(true);
+      expect(priv(client).subscriptionRetryTimer).not.toBeNull();
+
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('A11: action floor is set-only-if-absent across retries', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(okPutResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      priv(client).isConnected = true;
+      priv(client).lastHeardEventId = 10;
+
+      const sub = {
+        id: 1,
+        action: 'subscribe' as const,
+        ship: '~zod',
+        app: 'chat',
+        path: '/v4',
+      };
+      await priv(client).sendSubscription(sub);
+      expect(priv(client).actionFloors.get(1)).toBe(10);
+
+      priv(client).lastHeardEventId = 50;
+      await priv(client).sendSubscription(sub);
+      expect(priv(client).actionFloors.get(1)).toBe(10);
+    });
+  });
+
+  describe('Part B: bootstrap-eligible action-id set', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    type ClientPrivates = {
+      isConnected: boolean;
+      lastHeardEventId: number;
+      lastAcknowledgedEventId: number;
+      lastConfirmedAckEventId: number;
+      confirmedFloorAtStreamBind: number;
+      channelEpoch: number;
+      channelReaped: boolean;
+      streamDownSince: number | null;
+      streamController: { abort: () => void } | null;
+      actionFloors: Map<number, number>;
+      pendingSubscriptionIds: Set<number>;
+      generationZeroEligibleActionIds: Set<number>;
+      generationZeroEligibilitySaturated: boolean;
+      generationBootstrapOpen: boolean;
+      attemptReconnect: () => Promise<void>;
+      stopStreamWatchdog: () => void;
+      recordGenerationZeroEligibleId: (id: number) => void;
+    };
+    const priv = (client: UrbitSSEClient) =>
+      client as unknown as ClientPrivates;
+
+    const openStreamResult = () => ({
+      response: {
+        ok: true,
+        status: 200,
+        body: new ReadableStream({ start() {} }),
+      } as unknown as Response,
+      finalUrl: 'https://example.com',
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+    const okPutResult = () => ({
+      response: { ok: true, status: 200 },
+      finalUrl: 'https://example.com',
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+
+    it('B1: revival detected with all cursors -1 (ineligible poke at event 0)', () => {
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      const errHandler = vi.fn();
+      void client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        err: errHandler,
+      });
+
+      priv(client).lastHeardEventId = -1;
+      priv(client).generationBootstrapOpen = false;
+      priv(client).generationZeroEligibleActionIds = new Set([1, 99999]);
+      priv(client).actionFloors = new Map();
+      priv(client).isConnected = true;
+      const abortSpy = vi.fn();
+      priv(client).streamController = { abort: abortSpy };
+
+      client.processEvent('id: 0\ndata: {"response":"poke","id":77777}');
+
+      expect(priv(client).channelReaped).toBe(true);
+      expect(abortSpy).toHaveBeenCalledTimes(1);
+      expect(errHandler).toHaveBeenCalledTimes(1);
+      expect(String(errHandler.mock.calls[0][0].message)).toMatch(/recreated/);
+    });
+
+    it('B2: boot false-positive guard (eligible poke at event 0 with cursor -1)', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const { pokeUrbitChannel } = await import('./channel-ops.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const mockPoke = vi.mocked(pokeUrbitChannel);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+      mockPoke.mockResolvedValue(12345);
+      const nowSpy = vi.spyOn(Date, 'now');
+      nowSpy.mockReturnValue(12345);
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+
+      // Pre-connect poke: bootstrap is open, so the id is recorded as eligible.
+      await client.poke({ app: 'hood', mark: 'helm-hi', json: {} });
+      expect(priv(client).generationZeroEligibleActionIds.has(12345)).toBe(
+        true
+      );
+
+      // connect() freezes bootstrap (afterStreamOpen) but must NOT clear the
+      // eligible set (a reset here would erase pre-connect gateway pokes).
+      await client.connect();
+      expect(priv(client).generationBootstrapOpen).toBe(false);
+      expect(priv(client).generationZeroEligibleActionIds.has(12345)).toBe(
+        true
+      );
+
+      // The poke's ack arrives as event 0 (it was the first PUT to touch the
+      // channel). Since the id is eligible, this is NOT a revival.
+      const errHandler = vi.fn();
+      client.eventHandlers.set(99, { err: errHandler });
+      priv(client).lastHeardEventId = -1;
+      const abortSpy = vi.fn();
+      priv(client).streamController = { abort: abortSpy };
+
+      client.processEvent('id: 0\ndata: {"response":"poke","id":12345}');
+
+      expect(priv(client).channelReaped).toBe(false);
+      expect(abortSpy).not.toHaveBeenCalled();
+      expect(errHandler).not.toHaveBeenCalled();
+
+      nowSpy.mockRestore();
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('B3: eligible subscribe ack at event 0 does not tear down', () => {
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      const errHandler = vi.fn();
+      void client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        err: errHandler,
+      });
+
+      priv(client).lastHeardEventId = -1;
+      priv(client).generationBootstrapOpen = false;
+      priv(client).generationZeroEligibleActionIds = new Set([1]);
+      priv(client).actionFloors = new Map([[1, -1]]);
+      priv(client).isConnected = true;
+      const abortSpy = vi.fn();
+      priv(client).streamController = { abort: abortSpy };
+
+      client.processEvent('id: 0\ndata: {"response":"subscribe","id":1}');
+
+      expect(priv(client).channelReaped).toBe(false);
+      expect(abortSpy).not.toHaveBeenCalled();
+      expect(errHandler).not.toHaveBeenCalled();
+    });
+
+    it('B4: ineligible subscribe ack at event 0 tears down', () => {
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      const errHandler = vi.fn();
+      void client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        err: errHandler,
+      });
+
+      priv(client).lastHeardEventId = -1;
+      priv(client).generationBootstrapOpen = false;
+      priv(client).generationZeroEligibleActionIds = new Set([1]);
+      priv(client).actionFloors = new Map();
+      priv(client).isConnected = true;
+      const abortSpy = vi.fn();
+      priv(client).streamController = { abort: abortSpy };
+
+      client.processEvent('id: 0\ndata: {"response":"subscribe","id":2}');
+
+      expect(priv(client).channelReaped).toBe(true);
+      expect(abortSpy).toHaveBeenCalledTimes(1);
+      expect(errHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('B5: advanced cursor is immune to the event-0 clause', () => {
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      const errHandler = vi.fn();
+      void client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        err: errHandler,
+      });
+
+      priv(client).lastHeardEventId = 5;
+      priv(client).generationBootstrapOpen = false;
+      priv(client).generationZeroEligibleActionIds = new Set<number>();
+      priv(client).actionFloors = new Map<number, number>();
+      priv(client).isConnected = true;
+      const abortSpy = vi.fn();
+      priv(client).streamController = { abort: abortSpy };
+
+      client.processEvent('id: 0\ndata: {"response":"poke","id":99999}');
+
+      expect(priv(client).channelReaped).toBe(false);
+      expect(abortSpy).not.toHaveBeenCalled();
+      expect(errHandler).not.toHaveBeenCalled();
+    });
+
+    it('B6: rebuild resets eligibility and saturation; resume preserves bootstrap candidates until the first accepted event', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+
+      priv(client).generationZeroEligibleActionIds = new Set([1, 2, 3]);
+      priv(client).generationZeroEligibilitySaturated = true;
+      priv(client).generationBootstrapOpen = false;
+      priv(client).channelReaped = true;
+      priv(client).streamDownSince = Date.now();
+
+      const p = priv(client).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await p;
+
+      expect(priv(client).generationBootstrapOpen).toBe(false);
+      expect(priv(client).generationZeroEligibilitySaturated).toBe(false);
+      expect(priv(client).generationZeroEligibleActionIds.size).toBeGreaterThan(
+        0
+      );
+
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+
+      const client2 = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+      await client2.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+      priv(client2).generationZeroEligibleActionIds = new Set([10, 20]);
+      priv(client2).generationBootstrapOpen = false;
+      priv(client2).streamDownSince = Date.now();
+
+      const p2 = priv(client2).attemptReconnect();
+      await vi.advanceTimersByTimeAsync(5_000);
+      await p2;
+
+      expect(priv(client2).generationBootstrapOpen).toBe(false);
+      expect(priv(client2).generationZeroEligibleActionIds.has(10)).toBe(true);
+      expect(priv(client2).generationZeroEligibleActionIds.has(20)).toBe(true);
+
+      // The first accepted event clears the bootstrap eligibility set.
+      priv(client2).lastHeardEventId = -1;
+      client2.processEvent('id: 5\ndata: {"json":"hello"}');
+      expect(priv(client2).generationZeroEligibleActionIds.size).toBe(0);
+
+      client2.aborted = true;
+      priv(client2).stopStreamWatchdog();
+    });
+
+    it('B7: wake poke id is recorded as eligible', async () => {
+      const { wakeUrbitChannel } = await import('./channel-ops.js');
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      const mockWake = vi.mocked(wakeUrbitChannel);
+      mockUrbitFetch.mockResolvedValue(openStreamResult());
+
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { streamStaleThresholdMs: 0 }
+      );
+      await client.subscribe({ app: 'chat', path: '/v4', event: vi.fn() });
+
+      await client.connect();
+
+      expect(mockWake).toHaveBeenCalledTimes(1);
+      const wakeParams = mockWake.mock.calls[0][1];
+      expect(wakeParams?.pokeId).toBeDefined();
+      expect(
+        priv(client).generationZeroEligibleActionIds.has(wakeParams!.pokeId!)
+      ).toBe(true);
+
+      client.aborted = true;
+      priv(client).stopStreamWatchdog();
+    });
+
+    it('B8: bootstrap eligibility saturates at 4096 without false revival', () => {
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      const errHandler = vi.fn();
+      void client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        err: errHandler,
+      });
+
+      priv(client).generationBootstrapOpen = true;
+      for (let i = 1; i <= 4096; i++) {
+        priv(client).generationZeroEligibleActionIds.add(i);
+      }
+
+      priv(client).recordGenerationZeroEligibleId(4097);
+
+      expect(priv(client).generationZeroEligibilitySaturated).toBe(true);
+      expect(priv(client).generationZeroEligibleActionIds.size).toBe(0);
+
+      priv(client).lastHeardEventId = -1;
+      priv(client).generationBootstrapOpen = false;
+      priv(client).actionFloors = new Map();
+      priv(client).isConnected = true;
+      const abortSpy = vi.fn();
+      priv(client).streamController = { abort: abortSpy };
+
+      client.processEvent('id: 0\ndata: {"response":"poke","id":4097}');
+
+      expect(priv(client).channelReaped).toBe(false);
+      expect(abortSpy).not.toHaveBeenCalled();
+      expect(errHandler).not.toHaveBeenCalled();
     });
   });
 });

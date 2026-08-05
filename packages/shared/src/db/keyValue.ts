@@ -263,9 +263,36 @@ export const channelSortPreference = createStorageItem<ChannelSortPreference>({
   defaultValue: 'recency',
 });
 
+export type NotesNoteDraft = {
+  title: string;
+  body: string;
+  baseRevision: number;
+  stashedAt: number;
+};
+
+/** Crash insurance for the notes editor: drafts stashed between autosave
+ * cycles, keyed by `${notebookFlag}/${noteId}`. Cleared once saved. */
+export const notesNoteDrafts = createStorageItem<
+  Record<string, NotesNoteDraft>
+>({
+  key: 'notesNoteDrafts',
+  defaultValue: {},
+});
+
 export const invitation = createStorageItem<Lure | null>({
   key: 'lure',
   defaultValue: null,
+});
+
+// deferred install attribution (referrer/clipboard/ip match) runs exactly
+// once per install; this flag survives relaunches but not reinstalls
+export const deferredInviteChecked = createStorageItem<boolean>({
+  key: 'deferredInviteChecked',
+  defaultValue: false,
+  // one shot per INSTALL, not per session: without this, logout re-arms
+  // the cascade and the old referrer/clipboard/ip match would attach the
+  // original install's invite to the next account
+  persistAfterLogout: true,
 });
 
 export type ShipInfo = {
@@ -285,6 +312,17 @@ export const shipInfo = createStorageItem<ShipInfo | null>({
 export const featureFlags = createStorageItem<any>({
   key: 'featureFlags',
   defaultValue: null,
+});
+
+export const contextLensGatewayUrl = createStorageItem<string | null>({
+  key: 'contextLensGatewayUrl',
+  defaultValue: null,
+});
+
+export const contextLensGatewayToken = createStorageItem<string | null>({
+  key: 'contextLensGatewayToken',
+  defaultValue: null,
+  isSecure: true,
 });
 
 export const eulaAgreed = createStorageItem<boolean>({

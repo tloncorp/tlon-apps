@@ -3,12 +3,14 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { DrawerNavigationState } from '@react-navigation/native';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useRef, useState } from 'react';
 import { getVariableValue, useTheme } from 'tamagui';
 
 import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
+import useBrowserNotifications from '../../hooks/useBrowserNotifications';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import {
   AvatarNavIcon,
@@ -57,6 +59,12 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
     }
   }, [props.state, isRouteActive]);
 
+  const trackTabSelection = (tab: keyof RootDrawerParamList) => {
+    if (!isRouteActive(tab)) {
+      trackEvent(AnalyticsEvent.NavigationTabSelected, { tab });
+    }
+  };
+
   const restoreHomeState = useCallback(() => {
     try {
       const currentScreenIsHome = isRouteActive('Home');
@@ -94,7 +102,10 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           // hasUnreads={(unreadCount?.channels ?? 0) > 0}
           // intentionally leave undotted for now
           shouldShowUnreads={false}
-          onPress={restoreHomeState}
+          onPress={() => {
+            trackTabSelection('Home');
+            restoreHomeState();
+          }}
           testID="HomeNavIcon"
         />
         <NavIcon
@@ -103,6 +114,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Messages')}
           shouldShowUnreads={false}
           onPress={() => {
+            trackTabSelection('Messages');
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -118,6 +130,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Activity')}
           testID="ActivityNavIcon"
           onPress={() => {
+            trackTabSelection('Activity');
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -129,6 +142,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           id={userId}
           focused={isRouteActive('Contacts')}
           onPress={() => {
+            trackTabSelection('Contacts');
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -160,6 +174,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           isActive={isRouteActive('Settings')}
           shouldShowUnreads={false}
           onPress={() => {
+            trackTabSelection('Settings');
             saveHomeState();
             props.navigation.reset({
               index: 0,
@@ -184,6 +199,9 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
 };
 
 const TopLevelDrawerInner = () => {
+  // This must stay below GlobalSearchProvider so notification navigation uses
+  // the user's actual last-open desktop tab instead of the context default.
+  useBrowserNotifications();
   const { navigateToGroup, navigateToChannel } = useRootNavigation();
 
   return (

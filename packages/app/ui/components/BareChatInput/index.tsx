@@ -11,6 +11,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import {
   HEADER_HEIGHT,
   LoadingSpinner,
@@ -43,7 +44,7 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
-import { useStore } from '../../contexts/storeContext';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
@@ -55,7 +56,9 @@ import {
 import { hydrateEditPost } from '../MessageInput/helpers';
 import { type SlashCommandController } from '../SlashCommandPopup';
 import type { DraftInputHandle } from '../draftInputs/shared';
+import { PasteableTextInput } from './PasteableTextInput';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
+import { PastedFile, attachPastedImageFiles } from './pastedImage';
 import {
   MentionOption,
   createMentionRoleOptions,
@@ -69,8 +72,6 @@ import {
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
 
-const DEFAULT_KEYBOARD_HEIGHT = 300;
-
 function normalizePreviewUrl(url: string) {
   try {
     const parsedUrl = new URL(url);
@@ -81,36 +82,11 @@ function normalizePreviewUrl(url: string) {
   }
 }
 
-function useKeyboardHeight(maxInputHeightBasic: number) {
-  const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
-
-  useEffect(() => {
-    const handleKeyboardShow = () => {
-      const keyboardHeight =
-        Keyboard.metrics()?.height || DEFAULT_KEYBOARD_HEIGHT;
-      setMaxInputHeight(maxInputHeightBasic - keyboardHeight);
-    };
-
-    const handleKeyboardHide = () => {
-      setMaxInputHeight(maxInputHeightBasic);
-    };
-
-    const showSubscription = Keyboard.addListener(
-      'keyboardDidShow',
-      handleKeyboardShow
-    );
-    const hideSubscription = Keyboard.addListener(
-      'keyboardDidHide',
-      handleKeyboardHide
-    );
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, [maxInputHeightBasic]);
-
-  return maxInputHeight;
+function useMaxInputHeight(maxInputHeightBasic: number) {
+  const keyboardHeight = useKeyboardHeight();
+  return keyboardHeight > 0
+    ? maxInputHeightBasic - keyboardHeight
+    : maxInputHeightBasic;
 }
 
 function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
@@ -324,7 +300,6 @@ function BareChatInput(
 ) {
   const { bottom, top } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const store = useStore();
   const maxInputHeightBasic = useMemo(
     () => height - HEADER_HEIGHT - bottom - top,
     [height, bottom, top]
@@ -359,6 +334,7 @@ function BareChatInput(
     handleMention,
     handleSelectMention,
     handleMentionEscape,
+    handleMentionSoftDismiss,
     resetMentionMode,
   } = useMentions({ chatId: groupId ?? channelId, roleOptions });
   const {
@@ -370,7 +346,7 @@ function BareChatInput(
     handleSlashCommandEscape,
     resetSlashCommandMode,
   } = useSlashCommands({ manifest: slashCommandManifest });
-  const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
+  const maxInputHeight = useMaxInputHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
   usePasteHandler(addAttachment);
@@ -431,6 +407,13 @@ function BareChatInput(
     )?.selectionStart;
     return typeof selectionStart === 'number' ? selectionStart : undefined;
   }, []);
+
+  const handlePasteFiles = useCallback(
+    (files: PastedFile[]) => {
+      void attachPastedImageFiles(files, addAttachment);
+    },
+    [addAttachment]
+  );
 
   const handleTextChange = useCallback(
     (newText: string) => {
@@ -493,16 +476,31 @@ function BareChatInput(
 
   const onMentionSelect = useCallback(
     (option: MentionOption) => {
-      const newText = handleSelectMention(option, controlledText);
+      const selectionResult = handleSelectMention(option, controlledText);
 
-      if (!newText) {
+      if (!selectionResult) {
         return;
       }
 
-      setControlledText(newText);
+      setControlledText(selectionResult.text);
 
-      // Force focus back to input after mention selection
+      // Force focus back to input after mention selection.
       inputRef.current?.focus();
+
+      if (!isWeb) {
+        // Only set the selection here — the input's text on native is driven
+        // by the TextWithMentions children. Setting `text` via setNativeProps
+        // would be *prepended* to the child text by RCTBaseTextInputShadowView,
+        // duplicating the message.
+        requestAnimationFrame(() => {
+          inputRef.current?.setNativeProps({
+            selection: {
+              start: selectionResult.cursorPosition,
+              end: selectionResult.cursorPosition,
+            },
+          });
+        });
+      }
     },
     [handleSelectMention, controlledText]
   );
@@ -559,6 +557,8 @@ function BareChatInput(
         const draftBase = {
           channelId,
           content: inlines,
+          // Unlike Gallery, Chat keeps every item from a multi-selection in
+          // the same post.
           attachments,
           image: image?.uri,
           channelType,
@@ -782,7 +782,7 @@ function BareChatInput(
     }
 
     prevUrlsRef.current = currentUrls;
-  }, [debouncedText, store, addAttachment, removeAttachment]);
+  }, [debouncedText, addAttachment, removeAttachment]);
 
   const adjustInputHeightProgrammatically = useCallback(() => {
     if (!isWeb || !inputRef.current) {
@@ -1085,6 +1085,7 @@ function BareChatInput(
       slashCommandRef={slashCommandRef}
       onSelectMention={onMentionSelect}
       onSelectSlashCommand={onSlashCommandSelect}
+      onDismissMentions={handleMentionSoftDismiss}
       showAttachmentButton={showAttachmentButton}
       isEditing={!!editingPost}
       cancelEditing={handleCancelEditing}
@@ -1104,7 +1105,7 @@ function BareChatInput(
         {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
         <View position="relative">
-          <TextInput
+          <PasteableTextInput
             testID="MessageInput"
             ref={inputRef}
             value={isWeb ? controlledText : undefined}
@@ -1114,13 +1115,22 @@ function BareChatInput(
             onBlur={handleBlur}
             onFocus={handleFocus}
             onKeyPress={handleKeyPress}
+            onPasteFiles={isWeb ? undefined : handlePasteFiles}
             multiline
             placeholder={placeholder}
             {...(!isWeb ? placeholderTextColor : {})}
             style={{
               backgroundColor: 'transparent',
               minHeight: initialHeight,
-              height: isWeb ? inputHeight : undefined,
+              // Let the native input auto-size while it has content; force the
+              // initial height when empty. The uncontrolled native input keeps a
+              // stale (expanded) measurement after the text is cleared on send,
+              // so an explicit height on empty snaps it back to a single line.
+              height: isWeb
+                ? inputHeight
+                : controlledText === ''
+                  ? initialHeight
+                  : undefined,
               maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
               paddingHorizontal: getTokenValue('$l', 'space'),
               paddingTop: getTokenValue('$l', 'space'),
@@ -1143,7 +1153,7 @@ function BareChatInput(
                 textColor="$primaryText"
               />
             )}
-          </TextInput>
+          </PasteableTextInput>
           {isWeb &&
             !!controlledText &&
             (mentions.length > 0 || commandLength != null) && (

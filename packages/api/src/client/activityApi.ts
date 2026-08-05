@@ -171,11 +171,16 @@ function toActivityEvent({
   sourceId,
   bucketId,
   event,
+  includeInvites = false,
 }: {
   id: string | number;
   sourceId: string;
   event: ub.ActivityEvent;
   bucketId: db.ActivityBucket;
+  // Invite events have no activity-feed rendering, so they're only converted
+  // for subscribers that opt in (e.g. notification hooks). The sync path that
+  // inserts feed events must leave this off.
+  includeInvites?: boolean;
 }): db.ActivityEvent | null {
   const timestamp = typeof id === 'number' ? id : udToDate(id);
   const shouldNotify = event.notified;
@@ -335,6 +340,27 @@ function toActivityEvent({
     };
   }
 
+  if (includeInvites && 'dm-invite' in event) {
+    const whom = event['dm-invite'];
+    return {
+      ...baseFields,
+      type: 'dm-invite',
+      channelId: 'ship' in whom ? whom.ship : whom.club,
+      // for a ship DM the counterparty is the inviter; club invites don't
+      // carry the inviting ship
+      authorId: 'ship' in whom ? whom.ship : null,
+    };
+  }
+
+  if (includeInvites && 'group-invite' in event) {
+    return {
+      ...baseFields,
+      type: 'group-invite',
+      groupId: event['group-invite'].group,
+      groupEventUserId: event['group-invite'].ship,
+    };
+  }
+
   if ('contact' in event) {
     const contactEvent = event.contact;
     const update = parseContactUpdateEvent(baseFields.id, event);
@@ -452,7 +478,8 @@ export type ActivityEvent =
   | { type: 'addActivityEvent'; events: db.ActivityEvent[] };
 
 export function subscribeToActivity(
-  handler: (event: ActivityEvent) => void
+  handler: (event: ActivityEvent) => void,
+  options?: { includeInvites?: boolean }
 ): Promise<number> {
   return subscribe<ub.ActivityUpdate>(
     // v5 is the v9-native update stream (carries reacts); v4 down-converts to
@@ -615,6 +642,7 @@ export function subscribeToActivity(
           sourceId,
           bucketId: 'all',
           event: rawEvent,
+          includeInvites: options?.includeInvites,
         });
 
         const events = [];

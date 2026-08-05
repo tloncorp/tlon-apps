@@ -3,7 +3,10 @@ import { describe, expect, test } from 'vitest';
 import {
   NavigationChainNode,
   getActiveTopLevelDrawerRouteName,
+  getDesktopGroupInvitePreviewProps,
+  getDesktopGroupInviteRoute,
   getDesktopPostRoute,
+  isActivityBackTarget,
 } from './routeHelpers';
 
 // Build a `{ getState, getParent }` chain from innermost -> outermost so we can
@@ -173,6 +176,16 @@ describe('getDesktopPostRoute', () => {
     expect(route.params.screen).toBe('GroupDM');
   });
 
+  test('notes channel -> Home even when the last open tab is Messages', () => {
+    const route = getDesktopPostRoute('Messages', {
+      ...base,
+      channelId: 'notes/~zod/blog',
+      groupId: '~zod/tlon',
+    });
+    expect(route.name).toBe('Home');
+    expect(route.params.screen).toBe('Channel');
+  });
+
   test('selectedPostId is threaded onto both wrapper and nested Post params', () => {
     const route = getDesktopPostRoute('Home', {
       ...base,
@@ -192,5 +205,96 @@ describe('getDesktopPostRoute', () => {
     });
     expect(route.params.params.selectedPostId).toBeUndefined();
     expect(route.params.params.params.selectedPostId).toBeUndefined();
+  });
+});
+
+describe('isActivityBackTarget', () => {
+  test('recognizes the legacy direct Activity route', () => {
+    expect(isActivityBackTarget({ name: 'Activity' })).toBe(true);
+  });
+
+  test('recognizes Activity inside live native tab state', () => {
+    expect(
+      isActivityBackTarget({
+        name: 'MainTabs',
+        params: { screen: 'ChatList' },
+        state: {
+          index: 1,
+          routes: [
+            { name: 'ChatList' },
+            { name: 'Activity' },
+            { name: 'Contacts' },
+          ],
+        },
+      })
+    ).toBe(true);
+  });
+
+  test('prefers live tab state over stale initialization params', () => {
+    expect(
+      isActivityBackTarget({
+        name: 'MainTabs',
+        params: { screen: 'Activity' },
+        state: {
+          index: 0,
+          routes: [{ name: 'ChatList' }, { name: 'Activity' }],
+        },
+      })
+    ).toBe(false);
+  });
+
+  test('uses MainTabs initialization params before nested state exists', () => {
+    expect(
+      isActivityBackTarget({
+        name: 'MainTabs',
+        params: { screen: 'Activity' },
+      })
+    ).toBe(true);
+  });
+
+  test('rejects unrelated routes and malformed state', () => {
+    expect(isActivityBackTarget({ name: 'Channel' })).toBe(false);
+    expect(isActivityBackTarget(null)).toBe(false);
+  });
+});
+
+describe('getDesktopGroupInviteRoute', () => {
+  test('opens the clicked invite in the nested desktop ChatList', () => {
+    expect(getDesktopGroupInviteRoute('~zod/test-group')).toEqual({
+      name: 'Home',
+      params: {
+        screen: 'ChatList',
+        params: {
+          previewGroupId: '~zod/test-group',
+          previewGroupFromInviteNotification: true,
+        },
+      },
+    });
+  });
+});
+
+describe('getDesktopGroupInvitePreviewProps', () => {
+  test('preserves the notification marker for the desktop Home sidebar', () => {
+    expect(
+      getDesktopGroupInvitePreviewProps({
+        previewGroupId: '~zod/test-group',
+        previewGroupFromInviteNotification: true,
+      })
+    ).toEqual({
+      previewGroupId: '~zod/test-group',
+      previewGroupFromInviteNotification: true,
+    });
+  });
+
+  test('treats an ordinary group preview as a non-notification selection', () => {
+    expect(
+      getDesktopGroupInvitePreviewProps({
+        previewGroupId: '~zod/test-group',
+      })
+    ).toEqual({
+      previewGroupId: '~zod/test-group',
+      previewGroupFromInviteNotification: false,
+    });
+    expect(getDesktopGroupInvitePreviewProps(undefined)).toBeNull();
   });
 });

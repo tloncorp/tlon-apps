@@ -1,10 +1,10 @@
 import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 import { Circle, View, XStack, YStack, isWeb, styled } from 'tamagui';
 
-import { useStore } from '../../contexts/storeContext';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 
 const NoticeContainer = styled(YStack, {
@@ -119,7 +119,6 @@ function EmptyPersonalNotebook() {
 }
 
 function GroupChannels(props: { group: db.Group }) {
-  const store = useStore();
   const { data: wayfindingStatus } = store.useWayfindingCompletion();
 
   if (wayfindingStatus?.completedPersonalGroupTutorial ?? true) {
@@ -222,11 +221,21 @@ export function ChatInputTooltip() {
 }
 
 export function BotMentionTooltip() {
+  const handleDismiss = useCallback(() => {
+    db.wayfindingProgress.setValue((prev) => ({
+      ...prev,
+      tappedHomeGroupHint: true,
+    }));
+  }, []);
+
   return (
     <View position="absolute" bottom={35} right={50}>
       <YStack gap="$l">
-        <View
-          padding={20}
+        <Pressable
+          onPress={handleDismiss}
+          paddingVertical={20}
+          paddingLeft={20}
+          paddingRight={44}
           width={240}
           backgroundColor="$positiveActionText"
           borderRadius="$l"
@@ -236,7 +245,15 @@ export function BotMentionTooltip() {
             Since you own this group, your Tlonbot will automatically respond to
             your messages. Others can @-mention your bot to interact with it.
           </Text>
-        </View>
+          <View position="absolute" top={8} right={8} padding={4}>
+            <Icon
+              type="Close"
+              size="$s"
+              color="$white"
+              testID="BotMentionWayfindingTooltipDismiss"
+            />
+          </View>
+        </Pressable>
         <XStack width="100%" justifyContent="flex-end">
           <Circle backgroundColor="$positiveActionText" size="$2xl" />
         </XStack>
@@ -246,7 +263,6 @@ export function BotMentionTooltip() {
 }
 
 export function CollectionInputTooltip(props: { channelId: string }) {
-  const store = useStore();
   const shouldShow = store.useShowCollectionAddTooltip(props.channelId);
 
   if (!shouldShow) {
@@ -275,7 +291,6 @@ export function CollectionInputTooltip(props: { channelId: string }) {
 }
 
 export function NotebookInputTooltip(props: { channelId: string }) {
-  const store = useStore();
   const shouldShow = store.useShowNotebookAddTooltip(props.channelId);
 
   if (!shouldShow) {

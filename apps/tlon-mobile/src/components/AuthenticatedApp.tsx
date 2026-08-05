@@ -24,7 +24,6 @@ import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
   ForwardPostSheetProvider,
-  PortalProvider,
   ZStack,
   useWebAppSplash,
 } from '@tloncorp/app/ui';
@@ -193,19 +192,17 @@ export default function ConnectedAuthenticatedApp() {
   return (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
       {/*
-        These providers override the root providers to ensure that
-        modal sheets have access to `AppDataContext`. PortalProvider
-        covers Tamagui sheets; BottomSheetModalProvider covers
-        @gorhom/bottom-sheet modal sheets.
+        Re-root BottomSheetModalProvider here so @gorhom/bottom-sheet modal
+        sheets have access to `AppDataContext`. Tamagui sheets don't need a
+        re-rooted PortalProvider: native portals (react-native-teleport) keep
+        the React tree in place, so portaled content already sees this context.
       */}
       <BottomSheetModalProvider>
-        <PortalProvider>
-          <ForwardPostSheetProvider>
-            <ShareIntentForwardSheetProvider enabled={clientReady}>
-              {clientReady && <AuthenticatedApp />}
-            </ShareIntentForwardSheetProvider>
-          </ForwardPostSheetProvider>
-        </PortalProvider>
+        <ForwardPostSheetProvider>
+          <ShareIntentForwardSheetProvider enabled={clientReady}>
+            {clientReady && <AuthenticatedApp />}
+          </ShareIntentForwardSheetProvider>
+        </ForwardPostSheetProvider>
       </BottomSheetModalProvider>
     </AppDataProvider>
   );

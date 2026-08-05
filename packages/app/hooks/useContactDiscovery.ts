@@ -1,9 +1,8 @@
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { invokeContactsMatchedHandler } from '@tloncorp/shared/store';
 import { useCallback, useRef, useState } from 'react';
-
-import { useStore } from '../ui/contexts/storeContext';
 
 const logger = createDevLogger('useContactDiscovery', false);
 
@@ -21,13 +20,15 @@ const logger = createDevLogger('useContactDiscovery', false);
  * suppress the handler; when it hasn't, `notifyPendingMatches` invokes
  * it directly.
  */
-export function useContactDiscovery() {
-  const storeContext = useStore();
+export function useContactDiscovery(
+  syncContactDiscovery: typeof store.syncContactDiscovery = store.syncContactDiscovery
+) {
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [discoveredMatches, setDiscoveredMatches] = useState<
     db.SystemContact[]
   >([]);
   const pendingDiscoveryRef = useRef<Promise<{
+    didDiscover: boolean;
     newMatches: [string, string][];
   }> | null>(null);
   const hasShownMatchesRef = useRef(false);
@@ -38,15 +39,18 @@ export function useContactDiscovery() {
       // Reset per-run state so a re-fired discovery doesn't inherit the
       // "matches already shown" flag from a previous run.
       hasShownMatchesRef.current = false;
-      const promise = storeContext.syncContactDiscovery(undefined, {
+      const promise = syncContactDiscovery(undefined, {
         invokeHandler: false,
       });
       pendingDiscoveryRef.current = promise;
       try {
-        const { newMatches } = await promise;
+        const { didDiscover, newMatches } = await promise;
         // Bail if a newer run has superseded us — its results are
         // authoritative, and ours would clobber state.
         if (pendingDiscoveryRef.current !== promise) return;
+        if (didDiscover) {
+          trackEvent(AnalyticsEvent.ContactDiscoveryCompleted);
+        }
         if (newMatches.length > 0) {
           const matchedPhones = new Set(newMatches.map(([phone]) => phone));
           const matched = contacts.filter(
@@ -66,7 +70,7 @@ export function useContactDiscovery() {
         }
       }
     },
-    [storeContext]
+    [syncContactDiscovery]
   );
 
   const notifyPendingMatches = useCallback(() => {

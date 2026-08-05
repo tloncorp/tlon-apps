@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 import sys
+import time
 import types
 import unittest
 from pathlib import Path
@@ -90,6 +91,35 @@ class ComputingStatusTests(unittest.TestCase):
         )
         self.assertEqual(presence.get_computing_status_text(status), "Using tools...")
 
+    def test_tool_labels_match_openclaw_style_and_hermes_tools(self):
+        self.assertEqual(presence.format_computing_tool_call_label("exec"), "Running a command")
+        self.assertEqual(presence.format_computing_tool_call_label("read"), "Reading files")
+        self.assertEqual(presence.format_computing_tool_call_label("web_fetch"), "Checking the web")
+        self.assertEqual(presence.format_computing_tool_call_label("web_extract"), "Checking the web")
+        self.assertEqual(presence.format_computing_tool_call_label("web_search"), "Searching the web")
+        self.assertEqual(presence.format_computing_tool_call_label("image_search"), "Searching images")
+        self.assertEqual(presence.format_computing_tool_call_label("tlon"), "Using Tlon")
+        self.assertEqual(presence.format_computing_tool_call_label("custom_tool"), "Using custom tool")
+        self.assertEqual(presence.format_computing_tool_call_label(), "Using a tool")
+
+    def test_computing_status_preserves_explicit_tool_labels(self):
+        status = presence.create_computing_status(
+            thinking=True,
+            tool_names=[
+                {"toolName": "exec", "label": "Shelling out"},
+                {"tool_name": "image_search", "label": ""},
+                {"toolName": "exec", "label": "ignored duplicate"},
+            ],
+        )
+
+        self.assertEqual(
+            status["toolCalls"],
+            [
+                {"toolName": "exec", "label": "Shelling out"},
+                {"toolName": "image_search", "label": "Searching images"},
+            ],
+        )
+
     def test_context_conversion_supports_dm_and_channel(self):
         self.assertEqual(
             presence.conversation_id_to_presence_context("~mug"),
@@ -138,7 +168,7 @@ class PresenceReporterTests(unittest.TestCase):
             payload["set"]["key"],
             {"context": "/dm/~mug", "ship": "~zod", "topic": "computing"},
         )
-        self.assertIsNone(payload["set"]["timeout"])
+        self.assertEqual(payload["set"]["timeout"], presence.ACTIVE_PRESENCE_TIMEOUT)
         self.assertEqual(payload["set"]["display"]["icon"], None)
         self.assertEqual(payload["set"]["display"]["text"], "Running a command")
         self.assertEqual(
@@ -152,6 +182,45 @@ class PresenceReporterTests(unittest.TestCase):
             },
         )
 
+    def test_reporter_clears_presence_when_idle(self):
+        fake = FakePresenceClient()
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+
+        async def run():
+            reporter = presence.TlonComputingPresenceReporter(
+                cfg,
+                client_factory=lambda _cfg: fake,
+            )
+            await reporter.publish(
+                conversation_id="~mug",
+                thinking=False,
+                tool_names=[],
+            )
+            await reporter.close()
+
+        asyncio.run(run())
+
+        self.assertEqual(
+            fake.pokes[0],
+            (
+                "presence",
+                "presence-action-1",
+                {
+                    "clear": {
+                        "context": "/dm/~mug",
+                        "ship": "~zod",
+                        "topic": "computing",
+                    }
+                },
+            ),
+        )
+
 
 class PresenceTrackerTests(unittest.TestCase):
     def test_tracker_publishes_start_tool_updates_and_stop(self):
@@ -161,6 +230,7 @@ class PresenceTrackerTests(unittest.TestCase):
             tracker = presence.TlonComputingPresenceTracker(
                 reporter=reporter,
                 min_update_interval_ms=0,
+                keepalive_interval_ms=0,
             )
             await tracker.refresh_run(conversation_id="~mug", run_id="run-1")
             await tracker.add_tool_call(
@@ -195,6 +265,7 @@ class PresenceTrackerTests(unittest.TestCase):
             tracker = presence.TlonComputingPresenceTracker(
                 reporter=reporter,
                 min_update_interval_ms=0,
+                keepalive_interval_ms=0,
             )
             await tracker.refresh_run(conversation_id="chat/~pen/general", run_id="run-1")
             await tracker.add_tool_call(
@@ -221,6 +292,107 @@ class PresenceTrackerTests(unittest.TestCase):
             },
         )
 
+    def test_tracker_republishes_unchanged_active_state_after_max_age(self):
+        reporter = RecordingReporter()
+
+        async def run():
+            tracker = presence.TlonComputingPresenceTracker(
+                reporter=reporter,
+                min_update_interval_ms=0,
+                max_publish_age_ms=0,
+                keepalive_interval_ms=0,
+            )
+            await tracker.refresh_run(conversation_id="~mug", run_id="run-1")
+            await tracker.refresh_run(conversation_id="~mug", run_id="run-1")
+
+        asyncio.run(run())
+
+        self.assertEqual(
+            reporter.published,
+            [
+                {"conversation_id": "~mug", "thinking": True, "tool_names": []},
+                {"conversation_id": "~mug", "thinking": True, "tool_names": []},
+            ],
+        )
+
+    def test_tracker_keepalive_republishes_active_state(self):
+        reporter = RecordingReporter()
+
+        async def run():
+            tracker = presence.TlonComputingPresenceTracker(
+                reporter=reporter,
+                min_update_interval_ms=0,
+                max_publish_age_ms=0,
+                keepalive_interval_ms=5,
+            )
+            await tracker.refresh_run(conversation_id="~mug", run_id="run-1")
+            deadline = time.monotonic() + 0.5
+            while len(reporter.published) < 2 and time.monotonic() < deadline:
+                await asyncio.sleep(0.001)
+            await tracker.stop_run(conversation_id="~mug", run_id="run-1")
+            await tracker.close()
+
+        asyncio.run(run())
+
+        active_publishes = [
+            item for item in reporter.published if item["thinking"] is True
+        ]
+        self.assertGreaterEqual(len(active_publishes), 2)
+
+    def test_keepalive_refresh_does_not_resurrect_stopped_run(self):
+        reporter = RecordingReporter()
+
+        async def run():
+            tracker = presence.TlonComputingPresenceTracker(
+                reporter=reporter,
+                min_update_interval_ms=0,
+                keepalive_interval_ms=0,
+            )
+            await tracker.refresh_run(conversation_id="~mug", run_id="run-1")
+            await tracker.stop_run(conversation_id="~mug", run_id="run-1")
+            await tracker.refresh_run(conversation_id="~mug", run_id="run-1")
+
+        asyncio.run(run())
+
+        self.assertEqual(
+            reporter.published,
+            [
+                {"conversation_id": "~mug", "thinking": True, "tool_names": []},
+                {"conversation_id": "~mug", "thinking": False, "tool_names": []},
+            ],
+        )
+
+    def test_tool_call_resumes_stopped_run(self):
+        reporter = RecordingReporter()
+
+        async def run():
+            tracker = presence.TlonComputingPresenceTracker(
+                reporter=reporter,
+                min_update_interval_ms=0,
+                keepalive_interval_ms=0,
+            )
+            await tracker.refresh_run(conversation_id="~mug", run_id="run-1")
+            await tracker.stop_run(conversation_id="~mug", run_id="run-1")
+            await tracker.add_tool_call(
+                conversation_id="~mug",
+                run_id="run-1",
+                tool_name="exec",
+            )
+            await tracker.refresh_run(conversation_id="~mug", run_id="run-1")
+            await tracker.stop_run(conversation_id="~mug", run_id="run-1")
+            return dict(tracker._last_published_state)
+
+        last_published_state = asyncio.run(run())
+
+        self.assertEqual(
+            reporter.published[-2:],
+            [
+                {"conversation_id": "~mug", "thinking": True, "tool_names": ["exec"]},
+                {"conversation_id": "~mug", "thinking": False, "tool_names": []},
+            ],
+        )
+        self.assertEqual(last_published_state, {})
+
     def test_hook_bridge_updates_active_tracker_from_session_env(self):
         reporter = RecordingReporter()
 
@@ -228,6 +400,7 @@ class PresenceTrackerTests(unittest.TestCase):
             tracker = presence.TlonComputingPresenceTracker(
                 reporter=reporter,
                 min_update_interval_ms=0,
+                keepalive_interval_ms=0,
             )
             tracker.bind_loop(asyncio.get_running_loop())
             presence.set_active_computing_presence_tracker(tracker)

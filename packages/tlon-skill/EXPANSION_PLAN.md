@@ -1,5 +1,10 @@
 # Tlon Skill Expansion Plan
 
+> **Historical.** This document captures an earlier expansion plan and is kept
+> for reference. Some entries are stale: the `%diary` notebook backend and the
+> `notebook` command have since been removed (replaced by `%notes` / `tlon
+> notes`), so `diary` is no longer a valid channel kind.
+
 Based on analysis of `packages/shared/src/api/` and `packages/shared/src/urbit/` in homestead.
 
 ## Current State
@@ -8,7 +13,7 @@ Based on analysis of `packages/shared/src/api/` and `packages/shared/src/urbit/`
 - ✅ `channels.ts` - dms, group-dms, groups (listing only)
 - ✅ `messages.ts` - dm, channel, history, search
 - ✅ `activity.ts` - mentions, replies, all, unreads
-- ✅ `notebook-post.ts` - post to diary channels
+- ⛔️ `notebook-post.ts` - posted to diary channels (removed; see %notes)
 
 ## Proposed Additions
 
@@ -105,7 +110,7 @@ Based on analysis of `packages/shared/src/api/` and `packages/shared/src/urbit/`
 ```json
 {
   "create": {
-    "kind": "chat" | "diary" | "heap",
+    "kind": "chat" | "heap",
     "group": "~ship/group-name",
     "name": "channel-slug",
     "title": "Display Title",

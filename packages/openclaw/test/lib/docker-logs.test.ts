@@ -41,6 +41,8 @@ describe('docker log helpers', () => {
   beforeEach(() => {
     childProcessMocks.execFileSync.mockReset();
     childProcessMocks.spawn.mockReset();
+    delete process.env.TEST_COMPOSE_FILES;
+    delete process.env.TEST_COMPOSE_PROJECT_NAME;
     vi.restoreAllMocks();
   });
 
@@ -66,6 +68,41 @@ describe('docker log helpers', () => {
         'openclaw',
       ],
       expect.objectContaining({ encoding: 'utf-8', timeout: 10_000 })
+    );
+  });
+
+  it('uses shared compose file list and project env when present', () => {
+    childProcessMocks.execFileSync.mockReturnValue('captured logs');
+    process.env.TEST_COMPOSE_FILES = JSON.stringify([
+      '/repo/packages/tlon-bot-e2e/docker/docker-compose.base.yml',
+      '/repo/packages/tlon-bot-e2e/docker/docker-compose.openclaw.yml',
+    ]);
+    process.env.TEST_COMPOSE_PROJECT_NAME = 'tlon-bot-e2e-openclaw-unit';
+
+    getContainerLogsSince(
+      'dev/docker-compose.test.yml',
+      '2026-01-01T00:00:00Z'
+    );
+
+    expect(childProcessMocks.execFileSync).toHaveBeenCalledWith(
+      'docker',
+      [
+        'compose',
+        '-f',
+        '/repo/packages/tlon-bot-e2e/docker/docker-compose.base.yml',
+        '-f',
+        '/repo/packages/tlon-bot-e2e/docker/docker-compose.openclaw.yml',
+        'logs',
+        '--no-color',
+        '--since',
+        '2026-01-01T00:00:00Z',
+        'openclaw',
+      ],
+      expect.objectContaining({
+        env: expect.objectContaining({
+          COMPOSE_PROJECT_NAME: 'tlon-bot-e2e-openclaw-unit',
+        }),
+      })
     );
   });
 

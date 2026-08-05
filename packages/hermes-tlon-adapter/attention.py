@@ -12,6 +12,7 @@ class AttentionFacts:
     has_text: bool
     is_mentioned: bool = False
     is_owner_listen: bool = False
+    is_owner_blob: bool = False
     is_free_response: bool = False
     is_participated_thread: bool = False
 
@@ -41,4 +42,6 @@ def resolve_attention(facts: AttentionFacts) -> AttentionDecision:
         return AttentionDecision("dispatch", "free-response")
     if facts.is_participated_thread:
         return AttentionDecision("dispatch", "participated-thread")
+    if facts.is_owner_blob:
+        return AttentionDecision("dispatch", "owner-blob")
     return AttentionDecision("drop", "unaddressed")

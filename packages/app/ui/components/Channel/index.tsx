@@ -13,11 +13,7 @@ import {
   isChatChannel as getIsChatChannel,
   hasMainChannelUnreadActivity,
   uploadAsset,
-  useChannelPreview,
-  useGroupPreview,
   useLiveThreadUnreadsByChannel,
-  usePostReference as usePostReferenceHook,
-  usePostWithRelations,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
@@ -28,6 +24,7 @@ import { Alert, Platform } from 'react-native';
 import {
   AnimatePresence,
   View,
+  XStack,
   YStack,
   getVariableValue,
   useTheme,
@@ -42,7 +39,6 @@ import { ChannelProvider } from '../../contexts/channel';
 import { GroupsProvider } from '../../contexts/groups';
 import { NavigationProvider } from '../../contexts/navigation';
 import { PostCollectionContext } from '../../contexts/postCollection';
-import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
 import { useChannelShareIntent } from '../../contexts/shareIntent';
 import * as utils from '../../utils';
@@ -61,14 +57,13 @@ import {
   PostCollectionHandle,
 } from '../postCollectionViews/shared';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
+import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
 
-//TODO implement usePost and useChannel
-const useApp = () => {};
 const HEADER_LOADING_SHOW_DELAY_MS = 180;
 const HEADER_LOADING_MIN_VISIBLE_MS = 420;
 const IMAGE_FILE_EXTENSION_REGEX =
@@ -262,7 +257,6 @@ interface ChannelProps {
   posts: db.Post[] | null;
   group: db.Group | null;
   groupIsLoading?: boolean;
-  groupError?: Error | null;
   goBack: () => void;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
@@ -270,19 +264,16 @@ interface ChannelProps {
   goToGroupSettings: () => void;
   goToMediaViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
+  goToContextLensRuns?: () => void;
+  goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   goToUserProfile: (userId: string) => void;
-  goToChannelDetails?: (groupId: string, channelId: string) => void;
   onScrollEndReached?: () => void;
   onScrollStartReached?: () => void;
   isLoadingPosts?: boolean;
   loadPostsError?: Error | null;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
   markRead: () => void;
-  usePost: typeof usePostWithRelations;
-  useGroup: typeof useGroupPreview;
-  usePostReference: typeof usePostReferenceHook;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
-  useChannel: typeof useChannelPreview;
   storeDraft: (
     draft: JSONContent,
     draftType?: GalleryDraftType
@@ -308,15 +299,15 @@ export function Channel({
   selectedPostId,
   group,
   groupIsLoading,
-  // groupError, // Not currently used but available if needed for error handling
   goBack,
   goToChatDetails,
   goToSearch,
+  goToContextLensRuns,
+  goToContextLensRun,
   goToMediaViewer,
   goToPost,
   goToDm,
   goToUserProfile,
-  goToChannelDetails,
   goToGroupSettings,
   onScrollEndReached,
   onScrollStartReached,
@@ -324,11 +315,7 @@ export function Channel({
   loadPostsError,
   markRead,
   onPressRef,
-  usePost,
-  useGroup,
-  usePostReference,
   onGroupAction,
-  useChannel,
   storeDraft,
   clearDraft,
   getDraft,
@@ -358,7 +345,6 @@ export function Channel({
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
-  const isGroupAdmin = utils.useIsAdmin(channel.groupId ?? '', currentUserId);
   const collectionRef = useRef<PostCollectionHandle>(null);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
@@ -420,6 +406,8 @@ export function Channel({
     childThreadUnreadActivityKnown,
     hasChildThreadUnreadActivity,
   });
+  const shouldShowPostLoading =
+    channel.type !== 'notes' && Boolean(isLoadingPosts);
 
   useEffect(() => {
     const clearShowTimeout = () => {
@@ -435,7 +423,7 @@ export function Channel({
       }
     };
 
-    if (isLoadingPosts) {
+    if (shouldShowPostLoading) {
       clearHideTimeout();
       if (showHeaderLoading || headerLoadingShowTimeoutRef.current) {
         return;
@@ -467,7 +455,7 @@ export function Channel({
       setShowHeaderLoading(false);
       headerLoadingHideTimeoutRef.current = null;
     }, hideDelay);
-  }, [isLoadingPosts, showHeaderLoading]);
+  }, [shouldShowPostLoading, showHeaderLoading]);
 
   useEffect(() => {
     return () => {
@@ -591,9 +579,9 @@ export function Channel({
       getDraft,
       group,
       onPresentationModeChange: setDraftInputPresentationMode,
-      sendPostFromDraft: async (draft) => {
+      sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
-        await finalizeAndSendPost(draft);
+        await finalizeAndSendPost(draft, options);
         if (!draft.isEdit) {
           scrollToNewMessage();
         }
@@ -675,6 +663,17 @@ export function Channel({
   });
 
   const isNarrow = useIsWindowNarrow();
+  const {
+    contextLensAvailable,
+    contextLensOpen,
+    contextLensActive,
+    contextLensStream,
+    selectedContextLensMessage,
+    toggleContextLens,
+    clearSelectedContextLensMessage,
+    inspectContextLensPost,
+    openContextLensForPost,
+  } = useContextLensController({ channel });
 
   const backgroundColor = getVariableValue(useTheme().background);
 
@@ -708,61 +707,63 @@ export function Channel({
       <GroupsProvider groups={groups}>
         <ChannelProvider value={channelProviderValue}>
           <DraftInputContextProvider value={draftInputContext}>
-            <RequestsProvider
-              usePost={usePost}
-              usePostReference={usePostReference}
-              useChannel={useChannel}
-              useGroup={useGroup}
-              useApp={useApp}
-              // useBlockUser={() => {}}
+            <NavigationProvider
+              onPressRef={handleRefPress}
+              onPressGroupRef={onPressGroupRef}
+              onPressGoToDm={goToDm}
+              onGoToUserProfile={goToUserProfile}
+              onGoToGroupSettings={goToGroupSettings}
             >
-              <NavigationProvider
-                onPressRef={handleRefPress}
-                onPressGroupRef={onPressGroupRef}
-                onPressGoToDm={goToDm}
-                onGoToUserProfile={goToUserProfile}
-                onGoToGroupSettings={goToGroupSettings}
-              >
-                <View backgroundColor={backgroundColor} flex={1}>
-                  <FileDrop
-                    flexDirection="column"
-                    justifyContent="space-between"
-                    width="100%"
-                    height="100%"
-                    onAssetsDropped={handleImageDrop}
-                  >
-                    <ChannelHeaderItemsProvider>
-                      <>
-                        {channel.type !== 'notes' && (
-                          <ChannelHeader
-                            channel={channel}
-                            group={group}
-                            title={title ?? ''}
-                            description={''}
-                            goBack={
-                              isNarrow ||
-                              draftInputPresentationMode === 'fullscreen'
-                                ? handleGoBack
-                                : undefined
-                            }
-                            goToChatDetails={goToChatDetails}
-                            goToProfile={handleGoToProfile}
-                            goToSearch={goToSearch}
-                            showSpinner={showHeaderLoading}
-                            showSearchButton={
-                              channel.type === 'chat' ||
-                              channel.type === 'dm' ||
-                              channel.type === 'groupDm'
-                            }
-                          />
-                        )}
-                        {shouldShowPinnedPostBanner && (
-                          <PinnedPostBanner
-                            channel={channel}
-                            onPressPost={goToPost}
-                          />
-                        )}
-                        <YStack alignItems="stretch" flex={1}>
+              <View backgroundColor={backgroundColor} flex={1}>
+                <FileDrop
+                  flexDirection="column"
+                  justifyContent="space-between"
+                  width="100%"
+                  height="100%"
+                  onAssetsDropped={handleImageDrop}
+                >
+                  <ChannelHeaderItemsProvider>
+                    <>
+                      <ChannelHeader
+                        channel={channel}
+                        group={group}
+                        title={title ?? ''}
+                        description={''}
+                        goBack={
+                          isNarrow ||
+                          draftInputPresentationMode === 'fullscreen'
+                            ? handleGoBack
+                            : undefined
+                        }
+                        goToChatDetails={goToChatDetails}
+                        goToProfile={handleGoToProfile}
+                        goToSearch={goToSearch}
+                        onToggleContextLens={
+                          contextLensAvailable
+                            ? isNarrow && goToContextLensRuns
+                              ? goToContextLensRuns
+                              : toggleContextLens
+                            : undefined
+                        }
+                        contextLensOpen={
+                          contextLensAvailable && contextLensOpen
+                        }
+                        contextLensActive={contextLensActive}
+                        showSpinner={showHeaderLoading}
+                        showSearchButton={
+                          channel.type === 'chat' ||
+                          channel.type === 'dm' ||
+                          channel.type === 'groupDm'
+                        }
+                      />
+                      {shouldShowPinnedPostBanner && (
+                        <PinnedPostBanner
+                          channel={channel}
+                          onPressPost={goToPost}
+                        />
+                      )}
+                      <XStack alignItems="stretch" flex={1} position="relative">
+                        <YStack alignItems="stretch" flex={1} minWidth={0}>
                           {includeJoinRequestNotice && (
                             <SystemNotices.ConnectedJoinRequestNotice
                               group={group}
@@ -784,10 +785,28 @@ export function Channel({
                                     editingPost,
                                     goToMediaViewer,
                                     goToPost,
+                                    inspectContextLensPost:
+                                      contextLensAvailable && contextLensOpen
+                                        ? inspectContextLensPost
+                                        : undefined,
+                                    openContextLensForPost:
+                                      contextLensAvailable && !isNarrow
+                                        ? openContextLensForPost
+                                        : undefined,
+                                    contextLensSelectedPostId:
+                                      contextLensAvailable &&
+                                      contextLensOpen &&
+                                      !isNarrow
+                                        ? selectedContextLensMessage?.id ?? null
+                                        : null,
+                                    goToBotRun:
+                                      contextLensAvailable && isNarrow
+                                        ? goToContextLensRun
+                                        : undefined,
                                     hasNewerPosts,
                                     hasOlderPosts,
                                     initialChannelUnread,
-                                    isLoadingPosts: isLoadingPosts ?? false,
+                                    isLoadingPosts: shouldShowPostLoading,
                                     loadPostsError,
                                     onPressDelete,
                                     onPressRetrySend,
@@ -871,18 +890,31 @@ export function Channel({
                             />
                           )}
                         </YStack>
-                        <GroupPreviewSheet
-                          group={groupPreview ?? undefined}
-                          open={!!groupPreview}
-                          onOpenChange={() => setGroupPreview(null)}
-                          onActionComplete={handleGroupAction}
-                        />
-                      </>
-                    </ChannelHeaderItemsProvider>
-                  </FileDrop>
-                </View>
-              </NavigationProvider>
-            </RequestsProvider>
+                        {contextLensAvailable &&
+                          contextLensOpen &&
+                          !isNarrow && (
+                            <ContextLensPanel
+                              events={contextLensStream.events}
+                              streamStatus={contextLensStream.status}
+                              selectedMessage={selectedContextLensMessage}
+                              onClearSelectedMessage={
+                                clearSelectedContextLensMessage
+                              }
+                              channelId={channel.id}
+                            />
+                          )}
+                      </XStack>
+                      <GroupPreviewSheet
+                        group={groupPreview ?? undefined}
+                        open={!!groupPreview}
+                        onOpenChange={() => setGroupPreview(null)}
+                        onActionComplete={handleGroupAction}
+                      />
+                    </>
+                  </ChannelHeaderItemsProvider>
+                </FileDrop>
+              </View>
+            </NavigationProvider>
           </DraftInputContextProvider>
         </ChannelProvider>
       </GroupsProvider>

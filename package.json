@@ -10,7 +10,7 @@
     "onboarding:web": "node apps/onboarding-sandbox/server.mjs",
     "build:api": "pnpm --filter '@tloncorp/api' build",
     "dev:api": "pnpm --filter '@tloncorp/api' watch",
-    "build:shared": "pnpm --filter '@tloncorp/shared' build",
+    "build:shared": "pnpm --filter '@tloncorp/shared' run --if-present build",
     "build:ui": "pnpm --filter '@tloncorp/ui' build",
     "build:editor": "pnpm --filter '@tloncorp/editor' build",
     "build:tlon-skill": "pnpm --filter '@tloncorp/tlon-skill' build",
@@ -29,22 +29,24 @@
     "deps": "pnpm install && pnpm run deps:ios",
     "deps:ios": "cd apps/tlon-mobile/ios && bundle install && bundle exec pod install",
     "dev:shared": "pnpm --filter '@tloncorp/shared' dev",
-    "dev:android": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' android\"",
-    "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
-    "dev:ios:preview": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios:preview\" \"pnpm --filter '@tloncorp/ui' watch\"",
+    "dev:android": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' android\"",
+    "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
+    "dev:ios:preview": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' ios:preview\" \"pnpm --filter '@tloncorp/ui' watch\"",
     "dev:desktop": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-desktop' dev\"",
     "dev:web": "pnpm --filter 'tlon-web' dev",
     "e2e": "pnpm --filter 'tlon-web' e2e",
     "test": "npm rebuild better-sqlite3 && pnpm run -r test run -u",
     "test:ci": "npm rebuild better-sqlite3 && pnpm build:api && pnpm run -r test run",
     "lint:all": "pnpm -r lint",
-    "patch:expo-share-intent": "node scripts/regenerate-expo-share-intent-patch.mjs",
+    "sync:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs",
+    "check:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs --check",
     "prettier:rebuild-monorepo-ignore": "prettierignore-monorepo"
   },
   "dependencies": {
     "@tloncorp/ui": "workspace:*"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1",
@@ -53,6 +55,7 @@
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import-x": "^4.16.2",
     "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-compiler": "19.1.0-rc.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "lint-staged": "^15.0.0",
     "prettierignore-monorepo": "^1.0.5",
@@ -61,56 +64,7 @@
     "vitest": "^1.2.2"
   },
   "engines": {
-    "node": ">=20.11.0"
+    "node": ">=22.0.0"
   },
-  "packageManager": "pnpm@9.0.5+sha256.61bd66913b52012107ec25a6ee4d6a161021ab99e04f6acee3aa50d0e34b4af9",
-  "pnpm": {
-    "patchedDependencies": {
-      "@tiptap/react@2.0.3": "patches/@tiptap__react@2.0.3.patch",
-      "@types/testing-library__jest-dom@5.14.5": "patches/@types__testing-library__jest-dom@5.14.5.patch",
-      "@urbit/http-api@3.1.0-dev-3": "patches/@urbit__http-api@3.1.0-dev-3.patch",
-      "tailwind-rn@4.2.0": "patches/tailwind-rn@4.2.0.patch",
-      "usehooks-ts@2.6.0": "patches/usehooks-ts@2.6.0.patch",
-      "@10play/tentap-editor@0.4.55": "patches/@10play__tentap-editor@0.4.55.patch",
-      "any-ascii@0.3.2": "patches/any-ascii@0.3.2.patch",
-      "react-cosmos@7.2.0": "patches/react-cosmos@7.2.0.patch",
-      "@10play/tentap-editor@0.5.21": "patches/@10play__tentap-editor@0.5.21.patch",
-      "drizzle-orm@0.39.3": "patches/drizzle-orm@0.39.3.patch",
-      "react-native-country-codes-picker@2.3.5": "patches/react-native-country-codes-picker@2.3.5.patch",
-      "expo-background-task@1.0.10": "patches/expo-background-task@1.0.10.patch",
-      "@simform_solutions/react-native-audio-waveform@2.1.6": "patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch",
-      "expo-task-manager@14.0.9": "patches/expo-task-manager@14.0.9.patch",
-      "react-native@0.81.5": "patches/react-native@0.81.5.patch",
-      "expo-share-intent@5.1.1": "patches/expo-share-intent@5.1.1.patch",
-      "expo-image-picker@17.0.10": "patches/expo-image-picker@17.0.10.patch",
-      "@gorhom/bottom-sheet@5.2.6": "patches/@gorhom__bottom-sheet@5.2.6.patch",
-      "@tamagui/web@2.0.0-rc.41": "patches/@tamagui__web@2.0.0-rc.41.patch",
-      "@tamagui/sheet@2.0.0-rc.41": "patches/@tamagui__sheet@2.0.0-rc.41.patch",
-      "@tamagui/static@2.0.0-rc.41": "patches/@tamagui__static@2.0.0-rc.41.patch",
-      "react-native-reanimated@4.1.6": "patches/react-native-reanimated@4.1.6.patch",
-      "react-native-gesture-handler@2.28.0": "patches/react-native-gesture-handler@2.28.0.patch",
-      "expo-image-manipulator@14.0.8": "patches/expo-image-manipulator@14.0.8.patch"
-    },
-    "allowNonAppliedPatches": true,
-    "overrides": {
-      "typescript": "~5.9.2",
-      "@10play/tentap-editor": "0.5.21",
-      "@tiptap/suggestion": "2.6.0",
-      "@tiptap/extension-mention": "2.6.0",
-      "@tiptap/extension-hard-break": "2.6.0",
-      "@urbit/http-api": "3.2.0-dev",
-      "@urbit/api": "2.2.0",
-      "prosemirror-model": "1.19.3",
-      "prosemirror-view": "1.33.4",
-      "prosemirror-state": "1.4.3",
-      "@tiptap/pm": "2.6.6",
-      "react": "19.1.0",
-      "react-dom": "19.1.0",
-      "react-native-reanimated": "~4.1.6",
-      "react-native-gesture-handler": "~2.28.0",
-      "expo-audio": "~1.1.1",
-      "get-intrinsic": "1.2.4",
-      "esbuild": "0.27.3"
-    }
-  }
+  "packageManager": "pnpm@11.9.0+sha512.bd682d5d03fe525ef7c9fd6780c6884d1e756ac4c9c9fe00c538782824310dcf90e3ddc4f53835f06dfaebd5085e41855e0bcbb3b60de2ac5bbab89e5036f03b"
 }

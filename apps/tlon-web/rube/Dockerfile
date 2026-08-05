@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install --no-cache-dir --break-system-packages peru
 
 # Install pnpm
-RUN npm install -g pnpm@9.0.5
+RUN npm install -g pnpm@11.9.0
 
 # Set working directory
 WORKDIR /workspace
@@ -52,9 +52,6 @@ COPY ../../../apps/tlon-desktop/package.json /workspace/apps/tlon-desktop/
 
 # Copy patches directory (needed for pnpm patches)
 COPY ../../../patches/ /workspace/patches/
-
-# Copy .npmrc if it exists (for npm configurations)
-COPY ../../../.npmrc* /workspace/
 
 # Install dependencies.
 # Ignore lifecycle scripts in this dependency-only layer to avoid running

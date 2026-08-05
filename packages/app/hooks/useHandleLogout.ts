@@ -2,7 +2,7 @@
 // Branch context and methods removed here because a) it's not used and
 // b) it breaks the web build because it relies on react-native-branch,
 // which isn't made for web.
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import { clearAuthInfo, isElectronEnv } from '@tloncorp/shared';
 import { queryClient } from '@tloncorp/shared';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
@@ -10,6 +10,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useShip } from '../contexts/ship';
+import { resetBotSettingsDraft } from '../features/settings/bot/useBotSettingsDraft';
 import { cancelNodeResumeNudge } from '../lib/notifications';
 
 const logger = createDevLogger('logout', true);
@@ -26,6 +27,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
     store.updateSession(null);
     store.clearSyncStartLock();
     cancelNodeResumeNudge();
+    resetBotSettingsDraft();
 
     // Clear Electron stored credentials if in Electron environment
     if (isElectronEnv()) {
@@ -42,6 +44,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
       logger.trackError('could not reset db on logout');
       return;
     }
+    trackEvent(AnalyticsEvent.LogoutCompleted);
     // delay DB reset to next tick to avoid race conditions
     setTimeout(() => resetDb());
 

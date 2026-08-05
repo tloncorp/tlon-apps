@@ -57,8 +57,18 @@ function wasMoreThanDayAgo(timestamp: number): boolean {
 export async function clearHostingNativeCookie() {
   console.log(`clearing hosting native cookie`);
   try {
-    await CookieManager.clearByName('http://tlon.network', 'SolarisSession');
-    await CookieManager.clearByName('https://tlon.network', 'SolarisSession');
+    if (Platform.OS === 'android') {
+      // `clearByName` isn't implemented on Android, so remove SolarisSession by
+      // handing WebView's CookieManager a raw expired Set-Cookie via
+      // `setFromResponse` — a past Expires / Max-Age=0 deletes the entry.
+      const expired =
+        'SolarisSession=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0';
+      await CookieManager.setFromResponse('http://tlon.network', expired);
+      await CookieManager.setFromResponse('https://tlon.network', expired);
+    } else {
+      await CookieManager.clearByName('http://tlon.network', 'SolarisSession');
+      await CookieManager.clearByName('https://tlon.network', 'SolarisSession');
+    }
     console.log('cleared hosting native cookie');
   } catch (e) {
     console.error('error clearing hosting native cookie:', e);

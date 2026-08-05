@@ -1,5 +1,6 @@
 import { resolvePinnedMainDmOwnerFromAllowlist } from 'openclaw/plugin-sdk/conversation-runtime';
 import type { OpenClawConfig, PluginRuntime } from 'openclaw/plugin-sdk/core';
+import { runPreparedInboundReplyTurn } from 'openclaw/plugin-sdk/inbound-reply-dispatch';
 import {
   type ResolvedAgentRoute,
   resolveInboundLastRouteSessionKey,
@@ -9,8 +10,9 @@ import { canonicalizeNest, normalizeShip } from '../targets.js';
 
 /**
  * Durable last-route update for a Tlon inbound turn. Mirrors the SDK's
- * `InboundLastRouteUpdate` shape; the monitor's record call site passes this
- * straight to `core.channel.session.recordInboundSession`, which type-checks it against the
+ * `InboundLastRouteUpdate` shape; the monitor passes this through the prepared
+ * channel turn's `record.updateLastRoute` into
+ * `core.channel.session.recordInboundSession`, which type-checks it against the
  * real SDK type. We keep a local alias here so the pure helper has no dependency
  * on internal SDK type paths.
  *
@@ -70,8 +72,9 @@ export type TlonInboundRouteRecord = {
 
 /**
  * Build the parameters for persisting a Tlon inbound turn's durable session
- * route. Pure: no I/O, no SDK store access. The caller passes the result to
- * `recordInboundSession` (see `recordTlonInboundRoute`).
+ * route. Pure: no I/O, no SDK store access. `recordTlonRouteAndDispatch`
+ * decorates the result (see `prepareTlonRouteUpdate`) and hands it to the
+ * kernel as `record.updateLastRoute`.
  *
  * Routing rules:
  * - DM: persist `tlon:<senderShip>`. When the last-route session is the agent
@@ -216,35 +219,53 @@ function resolveMainDmOwnerPin(params: {
 }
 
 /**
- * The slice of `core.channel.session` used by `recordTlonInboundRoute`. Typed
- * from the SDK runtime so the call site validates our `updateLastRoute` shape
- * against the real `InboundLastRouteUpdate` (e.g. that `channel: 'tlon'` and the
- * pin shape are accepted).
+ * The slice of `core.channel.session` used by `recordTlonRouteAndDispatch`.
+ * Typed from the SDK runtime so the call site validates our `updateLastRoute`
+ * shape against the real `InboundLastRouteUpdate` (e.g. that `channel: 'tlon'`
+ * and the pin shape are accepted).
  */
 type SessionRecorder = Pick<
   PluginRuntime['channel']['session'],
   'recordInboundSession'
 >;
-type RecordInboundCtx = Parameters<
+type RecordInboundParams = Parameters<
   SessionRecorder['recordInboundSession']
->[0]['ctx'];
+>[0];
+type PreparedTurnCtxPayload = Parameters<
+  typeof runPreparedInboundReplyTurn
+>[0]['ctxPayload'];
 
 /**
- * Persist a Tlon inbound turn's session route. Always records origin metadata
- * (even when `record.updateLastRoute` is omitted) and fails open: a persistence
- * failure is logged but never blocks the live reply.
+ * Invoke a diagnostic logger without ever letting it throw into the dispatch
+ * path. Route-recording diagnostics fire before and during the kernel's record
+ * step, so a throw here would abort the live reply — defeating the fail-open
+ * contract. A dropped log line is never worth a dropped user reply.
  */
-export async function recordTlonInboundRoute(deps: {
-  session: SessionRecorder;
-  storePath: string;
-  ctxPayload: RecordInboundCtx;
+function safeLog(log: ((msg: string) => void) | undefined, msg: string): void {
+  if (!log) {
+    return;
+  }
+  try {
+    log(msg);
+  } catch {
+    // Intentionally swallowed: a diagnostic must not break delivery.
+  }
+}
+
+/**
+ * Log the built record's skip decisions and wire the owner-pin `onSkip` so a
+ * pin-suppressed durable write is observable instead of silently looking like
+ * a successful one. Returns the final `updateLastRoute` (or `undefined` when
+ * route persistence is intentionally skipped; origin metadata is still
+ * recorded).
+ */
+export function prepareTlonRouteUpdate(deps: {
   record: TlonInboundRouteRecord;
   messageId?: string;
-  accountId?: string;
   logError?: (msg: string) => void;
   logDebug?: (msg: string) => void;
-}): Promise<void> {
-  const { session, storePath, ctxPayload, record, messageId, accountId } = deps;
+}): TlonUpdateLastRoute | undefined {
+  const { record, messageId } = deps;
 
   if (
     record.skippedReason === 'group-missing-channel' ||
@@ -252,64 +273,45 @@ export async function recordTlonInboundRoute(deps: {
   ) {
     // Anomalous (a group turn with no/malformed channel nest); surface outside
     // debug too.
-    deps.logError?.(
+    safeLog(
+      deps.logError,
       `[tlon] route persistence skipped (${record.skippedReason}): ` +
         `messageId=${messageId ?? '?'} lastRouteSessionKey=${record.lastRouteSessionKey}`
     );
   } else if (record.skippedReason) {
     // Normal policy outcome (e.g. a group route that targets the shared main
     // session); debug-only to avoid high-volume logs for an expected case.
-    deps.logDebug?.(
+    safeLog(
+      deps.logDebug,
       `[tlon] route persistence skipped (${record.skippedReason}): ` +
         `messageId=${messageId ?? '?'} lastRouteSessionKey=${record.lastRouteSessionKey} ` +
         `target=${record.target ?? '(none)'}`
     );
   }
 
-  // When a main-session DM is pinned to an owner, the SDK skips the durable
-  // route update for a non-owner sender. Wire an onSkip so that decision is
-  // observable instead of silently looking like a successful write.
   const pin = record.updateLastRoute?.mainDmOwnerPin;
-  const updateLastRoute: TlonUpdateLastRoute | undefined =
-    record.updateLastRoute
-      ? {
-          ...record.updateLastRoute,
-          ...(pin
-            ? {
-                mainDmOwnerPin: {
-                  ...pin,
-                  onSkip: ({ ownerRecipient, senderRecipient }) =>
-                    deps.logDebug?.(
-                      `[tlon] durable route update skipped by owner pin: ` +
-                        `messageId=${messageId ?? '?'} owner=${ownerRecipient} ` +
-                        `sender=${senderRecipient} lastRouteSessionKey=${record.lastRouteSessionKey}`
-                    ),
-                },
-              }
-            : {}),
-        }
-      : undefined;
-
-  try {
-    await session.recordInboundSession({
-      storePath,
-      sessionKey: record.recordSessionKey,
-      ctx: ctxPayload,
-      updateLastRoute,
-      onRecordError: (err) => {
-        deps.logError?.(`[tlon] failed updating session meta: ${String(err)}`);
-      },
-    });
-  } catch (err) {
-    deps.logError?.(
-      `[tlon] failed recording inbound session route: ${String(err)} ` +
-        `(messageId=${messageId ?? '?'} storePath=${storePath} ` +
-        `recordSessionKey=${record.recordSessionKey} ` +
-        `lastRouteSessionKey=${record.lastRouteSessionKey} ` +
-        `target=${record.target ?? '(none)'} accountId=${accountId ?? '(none)'} ` +
-        `hadUpdateLastRoute=${Boolean(record.updateLastRoute)})`
-    );
+  if (!record.updateLastRoute) {
+    return undefined;
   }
+  return {
+    ...record.updateLastRoute,
+    ...(pin
+      ? {
+          mainDmOwnerPin: {
+            ...pin,
+            // Invoked by the SDK during recordInboundSession; must not throw
+            // into the kernel's record step.
+            onSkip: ({ ownerRecipient, senderRecipient }) =>
+              safeLog(
+                deps.logDebug,
+                `[tlon] durable route update skipped by owner pin: ` +
+                  `messageId=${messageId ?? '?'} owner=${ownerRecipient} ` +
+                  `sender=${senderRecipient} lastRouteSessionKey=${record.lastRouteSessionKey}`
+              ),
+          },
+        }
+      : {}),
+  };
 }
 
 /**
@@ -329,25 +331,17 @@ export function routeUpdateWillSkipByPin(
 }
 
 /**
- * Run the durable route-record step before reply dispatch. The bug this fixes
- * lives at exactly this boundary: route-dependent sends that happen during
- * dispatch must observe the persisted route, so recording must complete first.
- * Keeping this ordering in one place gives the monitor a testable guard.
- */
-export async function recordRouteThenDispatch<T>(steps: {
-  record: () => Promise<void>;
-  dispatch: () => Promise<T>;
-}): Promise<T> {
-  await steps.record();
-  return steps.dispatch();
-}
-
-/**
- * The monitor's "build ctx → record route → dispatch" boundary, as a single
- * testable unit (this is where the original webchat-leak bug lived). Builds the
- * Tlon route record, persists it, and only then runs `dispatch`. The monitor
- * delegates its entire record+dispatch to this so the ordering is covered by a
- * unit test rather than only by the monitor's structure.
+ * The monitor's "build ctx → record route → dispatch" boundary (this is where
+ * the original webchat-leak bug lived). Builds the Tlon route record, then runs
+ * the turn through the SDK's prepared channel-turn kernel
+ * (`runPreparedInboundReplyTurn`), which owns the record-before-dispatch
+ * ordering shared by every in-tree channel.
+ *
+ * The kernel's own route write is fail-closed (a record failure aborts
+ * dispatch), but `recordInboundSession` is caller-supplied, so the wrapper
+ * below keeps this plugin's deliberate fail-open semantics: a persistence
+ * failure — including `resolveStorePath` throwing on bad session-store
+ * config — is logged but never suppresses the live Tlon reply.
  */
 export async function recordTlonRouteAndDispatch<T>(params: {
   session: Pick<
@@ -356,7 +350,7 @@ export async function recordTlonRouteAndDispatch<T>(params: {
   >;
   cfg: OpenClawConfig;
   route: ResolvedAgentRoute;
-  ctxPayload: RecordInboundCtx;
+  ctxPayload: PreparedTurnCtxPayload;
   ctxSessionKey?: string | null;
   isGroup: boolean;
   groupChannel?: string | null;
@@ -385,38 +379,107 @@ export async function recordTlonRouteAndDispatch<T>(params: {
     effectiveOwnerShip: params.effectiveOwnerShip,
     effectiveDmAllowlist: params.effectiveDmAllowlist,
   });
-  params.onRecord?.(record);
+  // Debug hook (ultimately calls runtime.log); never let it abort the reply.
+  try {
+    params.onRecord?.(record);
+  } catch (err) {
+    safeLog(params.logError, `[tlon] onRecord hook threw: ${String(err)}`);
+  }
 
-  return recordRouteThenDispatch({
-    // Fail open across the *entire* persistence step — including
-    // resolveStorePath, which can throw on bad session-store config — so a
-    // persistence failure never suppresses the live Tlon reply.
-    record: async () => {
-      let storePath: string;
-      try {
-        storePath = params.session.resolveStorePath(params.sessionStore, {
-          agentId: params.route.agentId,
-        });
-      } catch (err) {
-        params.logError?.(
-          `[tlon] failed resolving session store path: ${String(err)} ` +
-            `(messageId=${params.messageId ?? '?'})`
-        );
-        return;
-      }
-      await recordTlonInboundRoute({
-        session: params.session,
-        storePath,
-        ctxPayload: params.ctxPayload,
-        record,
-        messageId: params.messageId,
-        accountId: params.route.accountId,
-        logError: params.logError,
-        logDebug: params.logDebug,
-      });
-    },
-    dispatch: params.dispatch,
+  const updateLastRoute = prepareTlonRouteUpdate({
+    record,
+    messageId: params.messageId,
+    logError: params.logError,
+    logDebug: params.logDebug,
   });
+
+  let storePath: string | null = null;
+  try {
+    storePath = params.session.resolveStorePath(params.sessionStore, {
+      agentId: params.route.agentId,
+    });
+  } catch (err) {
+    safeLog(
+      params.logError,
+      `[tlon] failed resolving session store path: ${String(err)} ` +
+        `(messageId=${params.messageId ?? '?'})`
+    );
+  }
+
+  const recordInboundSessionFailOpen = async (
+    recordParams: RecordInboundParams
+  ): Promise<void> => {
+    if (storePath === null) {
+      // resolveStorePath failed (already logged); skip persistence, keep reply.
+      return;
+    }
+    try {
+      await params.session.recordInboundSession({
+        ...recordParams,
+        // Origin metadata records under the ctx session key resolved by
+        // #5974's record builder, independent of the kernel's derivation.
+        sessionKey: record.recordSessionKey,
+      });
+    } catch (err) {
+      safeLog(
+        params.logError,
+        `[tlon] failed recording inbound session route: ${String(err)} ` +
+          `(messageId=${params.messageId ?? '?'} storePath=${storePath} ` +
+          `recordSessionKey=${record.recordSessionKey} ` +
+          `lastRouteSessionKey=${record.lastRouteSessionKey} ` +
+          `target=${record.target ?? '(none)'} accountId=${params.route.accountId ?? '(none)'} ` +
+          `hadUpdateLastRoute=${Boolean(record.updateLastRoute)})`
+      );
+    }
+  };
+
+  const turn = await runPreparedInboundReplyTurn<T>({
+    channel: 'tlon',
+    accountId: params.route.accountId,
+    routeSessionKey: params.route.sessionKey,
+    storePath: storePath ?? '',
+    ctxPayload: params.ctxPayload,
+    recordInboundSession: recordInboundSessionFailOpen,
+    record: {
+      updateLastRoute,
+      // Primary observation path for a failed origin-metadata write.
+      onRecordError: (err) =>
+        safeLog(
+          params.logError,
+          `[tlon] failed updating session meta: ${String(err)}`
+        ),
+      // Backstop only: the meta task already has onRecordError attached, so
+      // this catches an unhandled rejection if that handler ever misbehaves.
+      trackSessionMetaTask: (task) =>
+        void task.catch((err) =>
+          safeLog(
+            params.logError,
+            `[tlon] session meta task rejected: ${String(err)}`
+          )
+        ),
+    },
+    // Kernel record/dispatch stage traces — visible only under route-debug.
+    // The whole callback (including JSON.stringify of a possibly-circular
+    // error event) is guarded, since the kernel does not catch log throws.
+    log: params.logDebug
+      ? (event) => {
+          try {
+            params.logDebug?.(
+              `[tlon][route-debug] turn ${JSON.stringify(event)}`
+            );
+          } catch {
+            // A stage-trace log must never abort the kernel's dispatch.
+          }
+        }
+      : undefined,
+    // Unreachable by design (the record wrapper never throws); a loud tripwire
+    // if the kernel's record step ever aborts dispatch.
+    onPreDispatchFailure: (err) =>
+      safeLog(params.logError, `[tlon] pre-dispatch failure: ${String(err)}`),
+    messageId: params.messageId,
+    runDispatch: params.dispatch,
+  });
+  return turn.dispatchResult;
 }
 
 /**

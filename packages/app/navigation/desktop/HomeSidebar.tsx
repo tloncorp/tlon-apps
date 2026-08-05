@@ -1,6 +1,6 @@
 import { useIsFocused } from '@react-navigation/native';
 import { markInvitesRead } from '@tloncorp/api';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
@@ -12,6 +12,10 @@ import {
   CreateChatSheet,
   CreateChatSheetMethods,
 } from '../../features/top/CreateChatSheet';
+import {
+  getGroupInviteSheetState,
+  isGroupInviteReady,
+} from '../../features/top/groupInvitePreview';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -27,7 +31,6 @@ import {
   InviteUsersSheet,
   MobileAppPromoBanner,
   NavigationProvider,
-  RequestsProvider,
   ScreenHeader,
   View,
   useGlobalSearch,
@@ -40,16 +43,27 @@ const logger = createDevLogger('HomeSidebar', false);
 
 interface Props {
   previewGroupId?: string;
+  previewGroupFromInviteNotification?: boolean;
   focusedChannelId?: string;
 }
 
 export const HomeSidebar = memo(
-  ({ previewGroupId, focusedChannelId }: Props) => {
+  ({
+    previewGroupId,
+    previewGroupFromInviteNotification,
+    focusedChannelId,
+  }: Props) => {
     const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>();
 
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
       previewGroupId ?? null
     );
+    const [inviteNotificationGroupId, setInviteNotificationGroupId] = useState<
+      string | null
+    >(previewGroupFromInviteNotification ? previewGroupId ?? null : null);
+    const [waitElapsedForGroupId, setWaitElapsedForGroupId] = useState<
+      string | null
+    >(null);
     const { data: selectedGroup } = store.useGroup({
       id: selectedGroupId ?? '',
     });
@@ -60,6 +74,52 @@ export const HomeSidebar = memo(
     const { performGroupAction } = useGroupActions();
 
     const connStatus = store.useConnectionStatus();
+    const session = store.useCurrentSession();
+
+    const initSyncSettled =
+      session?.phase === 'low' || session?.phase === 'ready';
+    const syncReadyForInvite = connStatus === 'Connected' && initSyncSettled;
+    const awaitingInviteGroupId =
+      syncReadyForInvite &&
+      selectedGroupId != null &&
+      selectedGroupId === inviteNotificationGroupId &&
+      !isGroupInviteReady(selectedGroup)
+        ? selectedGroupId
+        : null;
+
+    useEffect(() => {
+      if (awaitingInviteGroupId == null) {
+        return;
+      }
+      const groupId = awaitingInviteGroupId;
+      const timeout = setTimeout(
+        () => setWaitElapsedForGroupId(groupId),
+        15_000
+      );
+      return () => clearTimeout(timeout);
+    }, [awaitingInviteGroupId]);
+
+    const {
+      sheetOpen: groupPreviewSheetOpen,
+      sheetGroup: groupPreviewSheetGroup,
+      shouldCloseUnresolved: groupInviteUnresolved,
+    } = getGroupInviteSheetState({
+      selectedGroupId,
+      selectedGroup,
+      inviteNotificationGroupId,
+      waitElapsedForGroupId,
+    });
+
+    useEffect(() => {
+      if (groupInviteUnresolved) {
+        logger.trackEvent(AnalyticsEvent.ErrorPushNotifNavigate, {
+          context: 'group invite preview never resolved',
+        });
+        setSelectedGroupId(null);
+        setInviteNotificationGroupId(null);
+        setWaitElapsedForGroupId(null);
+      }
+    }, [groupInviteUnresolved]);
 
     const noChats = useMemo(
       () =>
@@ -113,6 +173,8 @@ export const HomeSidebar = memo(
         if (item.type === 'group') {
           if (item.isPending) {
             setSelectedGroupId(item.id);
+            setInviteNotificationGroupId(null);
+            setWaitElapsedForGroupId(null);
           } else {
             navigateToGroup(item.group.id);
           }
@@ -141,12 +203,17 @@ export const HomeSidebar = memo(
     useEffect(() => {
       if (previewGroupId) {
         setSelectedGroupId(previewGroupId);
+        setInviteNotificationGroupId(
+          previewGroupFromInviteNotification ? previewGroupId : null
+        );
       }
-    }, [previewGroupId]);
+    }, [previewGroupId, previewGroupFromInviteNotification]);
 
     const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
       if (!open) {
         setSelectedGroupId(null);
+        setInviteNotificationGroupId(null);
+        setWaitElapsedForGroupId(null);
       }
     }, []);
 
@@ -182,6 +249,8 @@ export const HomeSidebar = memo(
       (action: GroupPreviewAction, group: db.Group) => {
         performGroupAction(action, group);
         setSelectedGroupId(null);
+        setInviteNotificationGroupId(null);
+        setWaitElapsedForGroupId(null);
       },
       [performGroupAction]
     );
@@ -205,87 +274,80 @@ export const HomeSidebar = memo(
     useRenderCount('HomeSidebar');
 
     return (
-      <RequestsProvider
-        usePostReference={store.usePostReference}
-        useChannel={store.useChannelPreview}
-        usePost={store.usePostWithRelations}
-        useApp={db.appInfo.useValue}
-        useGroup={store.useGroupPreview}
+      <ChatOptionsProvider
+        {...useChatSettingsNavigation()}
+        onPressInvite={handlePressInvite}
       >
-        <ChatOptionsProvider
-          {...useChatSettingsNavigation()}
-          onPressInvite={handlePressInvite}
-        >
-          <NavigationProvider focusedChannelId={focusedChannelId}>
-            <View userSelect="none" flex={1} position="relative">
-              <ScreenHeader
-                title={'Home'}
-                subtitle={syncSubtitle}
-                loadingSubtitle={loadingSubtitle}
-                showSubtitle={true}
-                testID="HomeSidebarHeader"
-                rightControls={
-                  <>
-                    <ScreenHeader.IconButton
-                      type="Search"
-                      onPress={handleSearch}
-                    />
-                    <CreateChatSheet
-                      ref={createChatSheetRef}
-                      trigger={<ScreenHeader.IconButton type="Add" />}
-                    />
-                  </>
-                }
-              />
-              <View flex={1}>
-                {chats && noChats ? (
-                  <View
-                    padding="$xl"
-                    margin="$xl"
-                    borderRadius="$m"
-                    backgroundColor="$positiveBackground"
-                    justifyContent="center"
-                  >
-                    <Text fontSize="$l">Welcome to Tlon</Text>
-                    <Text fontSize="$s" marginTop="$m">
-                      This is Tlon, an app for messaging friends and
-                      constructing communities.
-                    </Text>
-                    <Text fontSize="$s" marginTop="$m">
-                      To get started, click the &quot;
-                      <Text fontWeight="$xl" fontSize="$l">
-                        +
-                      </Text>
-                      &quot; button above to create a new chat.
-                    </Text>
-                  </View>
-                ) : (
-                  <ChatList
-                    data={displayData}
-                    onPressItem={onPressChat}
-                    disableScrollAnchoring
-                    scrollerTestID="HomeSidebarChatScroller"
+        <NavigationProvider focusedChannelId={focusedChannelId}>
+          <View userSelect="none" flex={1} position="relative">
+            <ScreenHeader
+              title={'Home'}
+              subtitle={syncSubtitle}
+              loadingSubtitle={loadingSubtitle}
+              showSubtitle={true}
+              testID="HomeSidebarHeader"
+              rightControls={
+                <>
+                  <ScreenHeader.IconButton
+                    type="Search"
+                    onPress={handleSearch}
                   />
-                )}
-              </View>
-              <MobileAppPromoBanner />
-              <GroupPreviewSheet
-                open={!!selectedGroup}
-                onOpenChange={handleGroupPreviewSheetOpenChange}
-                group={selectedGroup ?? undefined}
-                onActionComplete={handleGroupAction}
-              />
-              <InviteUsersSheet
-                open={inviteSheetGroup !== null}
-                onOpenChange={handleInviteSheetOpenChange}
-                onInviteComplete={() => setInviteSheetGroup(null)}
-                groupId={inviteSheetGroup ?? undefined}
-              />
-              <SplashModal open={showSplash} setOpen={() => {}} />
+                  <CreateChatSheet
+                    ref={createChatSheetRef}
+                    trigger={<ScreenHeader.IconButton type="Add" />}
+                  />
+                </>
+              }
+            />
+            <View flex={1}>
+              {chats && noChats ? (
+                <View
+                  padding="$xl"
+                  margin="$xl"
+                  borderRadius="$m"
+                  backgroundColor="$positiveBackground"
+                  justifyContent="center"
+                >
+                  <Text fontSize="$l">Welcome to Tlon</Text>
+                  <Text fontSize="$s" marginTop="$m">
+                    This is Tlon, an app for messaging friends and constructing
+                    communities.
+                  </Text>
+                  <Text fontSize="$s" marginTop="$m">
+                    To get started, click the &quot;
+                    <Text fontWeight="$xl" fontSize="$l">
+                      +
+                    </Text>
+                    &quot; button above to create a new chat.
+                  </Text>
+                </View>
+              ) : (
+                <ChatList
+                  data={displayData}
+                  allPinnedChats={resolvedChats.pinned}
+                  onPressItem={onPressChat}
+                  disableScrollAnchoring
+                  scrollerTestID="HomeSidebarChatScroller"
+                />
+              )}
             </View>
-          </NavigationProvider>
-        </ChatOptionsProvider>
-      </RequestsProvider>
+            <MobileAppPromoBanner />
+            <GroupPreviewSheet
+              open={groupPreviewSheetOpen}
+              onOpenChange={handleGroupPreviewSheetOpenChange}
+              group={groupPreviewSheetGroup}
+              onActionComplete={handleGroupAction}
+            />
+            <InviteUsersSheet
+              open={inviteSheetGroup !== null}
+              onOpenChange={handleInviteSheetOpenChange}
+              onInviteComplete={() => setInviteSheetGroup(null)}
+              groupId={inviteSheetGroup ?? undefined}
+            />
+            <SplashModal open={showSplash} setOpen={() => {}} />
+          </View>
+        </NavigationProvider>
+      </ChatOptionsProvider>
     );
   }
 );

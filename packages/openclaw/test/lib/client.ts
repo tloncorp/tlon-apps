@@ -145,16 +145,21 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
     throw new Error(`Failed to send DM after 3 attempts: ${lastSendError}`);
   };
 
-  /** Best-effort `/stop` to drain the bot after a timeout. */
+  /**
+   * Timeout cleanup hook. Deliberately does NOT send an in-band `/stop`.
+   *
+   * `/stop` rides the same `processMessage()` DM path as any other message
+   * (the monitor has no out-of-band `/stop` escape hatch), so on a timeout —
+   * exactly when the session is stuck or draining — it just queues behind the
+   * run we're failing on and becomes another stale message that bleeds into a
+   * later test. The fake-model's provenance-aware routing already neutralizes a
+   * stale tag carried over on session history, so the old in-band `/stop` + 3s
+   * sleep only added contamination.
+   */
   const bestEffortStopAfterTimeout = async (): Promise<void> => {
-    try {
-      console.log(`[timeout cleanup] sending /stop to ${bot.shipName}`);
-      await sendDmWithRetry('/stop');
-      await sleep(3000);
-      console.log(`[timeout cleanup] /stop sent; gave it 3s to drain`);
-    } catch (err) {
-      console.log(`[timeout cleanup] failed to send /stop: ${String(err)}`);
-    }
+    console.log(
+      `[timeout cleanup] not sending /stop (in-band; would poison the session)`
+    );
   };
 
   return {
@@ -301,7 +306,7 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
           `Timeout waiting for bot response after ${timeoutMs}ms ` +
           `(attempts=${attempts}, baselineSequence=${baselineSequence}` +
           (lastPollError ? `, lastPollError=${lastPollError}` : '') +
-          `; sent /stop for cleanup)`;
+          `)`;
         console.log(`[TEST] Response success: false`);
         console.log(
           `[TEST] Response text: ${JSON.stringify(timeoutError.slice(0, 500))}`

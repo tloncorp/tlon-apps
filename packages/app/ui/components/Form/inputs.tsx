@@ -27,7 +27,6 @@ import {
   ScrollView,
   Spinner,
   View,
-  ViewStyle,
   XStack,
   YStack,
   getTokenValue,
@@ -147,7 +146,7 @@ const TextInputComponent = RawTextInput.styleable<{
   accent?: Accent;
   backgroundType?: 'primary' | 'secondary';
   rightControls?: ReactNode;
-  frameStyle?: ViewStyle;
+  frameStyle?: ComponentProps<typeof InputFrame>;
 }>(
   (
     { icon, accent, backgroundType, frameStyle, rightControls, ...props },
@@ -319,6 +318,7 @@ export const ImageInput = XStack.styleable<{
           </ImageInputButtonText>
         </ImageInputButtonFrame>
         <ImageInputPreviewFrame
+          testID="ImageInputPreview"
           height={isWindowNarrow ? undefined : '100%'}
           onPress={handleSheetToggled}
           disabled={!canUpload}

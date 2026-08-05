@@ -1,27 +1,23 @@
 import { useIsFocused } from '@react-navigation/native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
+import { FlatList } from 'react-native';
 import { useTheme } from 'tamagui';
 
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
-import { useFeatureFlag } from '../../lib/featureFlags';
-import { RootStackParamList } from '../../navigation/types';
+import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import { useRootNavigation } from '../../navigation/utils';
-import { ActivityScreenView, NavBarView, View } from '../../ui';
+import { ActivityScreenView, View } from '../../ui';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Activity'>;
-
-export function ActivityScreen(props: Props) {
+export function ActivityScreen() {
   const theme = useTheme();
   const isFocused = useIsFocused();
-  const currentUserId = useCurrentUserId();
-  const [contactsTabEnabled] = useFeatureFlag('contactsTab');
+  const scrollRef = useScrollToTabTop<FlatList>();
   const { performGroupAction } = useGroupActions();
-  const { navigateToChannel, navigateToPost } = useRootNavigation();
+  const { navigation, navigateToChannel, navigateToPost } = useRootNavigation();
   const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
     useSyncStatus();
 
@@ -72,30 +68,31 @@ export function ActivityScreen(props: Props) {
   const handleGoToGroup = useCallback(
     (group: db.Group) => {
       store.markGroupRead(group.id);
-      props.navigation.navigate('GroupSettings', {
+      navigation.navigate('GroupSettings', {
         state: {
           routes: [{ name: 'GroupMembers', params: { groupId: group.id } }],
           index: 0,
         },
       });
     },
-    [props.navigation]
+    [navigation]
   );
 
   const handleGoToUserProfile = useCallback(
     (userId: string) => {
-      props.navigation.navigate('UserProfile', { userId });
+      navigation.navigate('UserProfile', { userId });
     },
-    [props.navigation]
+    [navigation]
   );
 
   const handleNavigateToContacts = useCallback(() => {
-    props.navigation.navigate('Contacts', undefined, { pop: true });
-  }, [props.navigation]);
+    const route = getTopLevelTabRoute('Contacts');
+    navigation.navigate(route.name, route.params, { pop: true });
+  }, [navigation]);
 
   const handleInviteFriends = useCallback(() => {
-    props.navigation.navigate('InviteSystemContacts');
-  }, [props.navigation]);
+    navigation.navigate('InviteSystemContacts');
+  }, [navigation]);
 
   return (
     <View backgroundColor={theme.background?.val} flex={1}>
@@ -113,20 +110,7 @@ export function ActivityScreen(props: Props) {
           loadingSubtitle={loadingSubtitle}
           onNavigateToContacts={handleNavigateToContacts}
           onInviteFriends={handleInviteFriends}
-        />
-        <NavBarView
-          navigateToContacts={() =>
-            props.navigation.navigate('Contacts', undefined, { pop: true })
-          }
-          navigateToHome={() =>
-            props.navigation.navigate('ChatList', undefined, { pop: true })
-          }
-          navigateToNotifications={() =>
-            props.navigation.navigate('Activity', undefined, { pop: true })
-          }
-          currentRoute="Activity"
-          currentUserId={currentUserId}
-          showContactsTab={contactsTabEnabled}
+          scrollRef={scrollRef}
         />
       </View>
     </View>

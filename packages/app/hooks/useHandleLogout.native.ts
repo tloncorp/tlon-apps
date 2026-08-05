@@ -1,4 +1,4 @@
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import { queryClient } from '@tloncorp/shared';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 
 import { useBranch } from '../contexts/branch';
 import { useShip } from '../contexts/ship';
+import { resetBotSettingsDraft } from '../features/settings/bot/useBotSettingsDraft';
 import { cancelNodeResumeNudge } from '../lib/notifications';
 import { useClearTelemetryConfig } from './useTelemetry';
 
@@ -22,11 +23,13 @@ export function useHandleLogout({ resetDb }: { resetDb: () => void }) {
     clearShip();
     clearLure();
     clearDeepLink();
+    trackEvent(AnalyticsEvent.LogoutCompleted);
     clearTelemetry();
     clearSessionStorageItems();
     store.updateSession(null);
     store.clearSyncStartLock();
     cancelNodeResumeNudge();
+    resetBotSettingsDraft();
     if (!resetDb) {
       logger.trackError('could not reset db on logout');
       return;

@@ -10,7 +10,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { StyleProp, ViewStyle } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Swipeable, {
   SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -18,12 +18,30 @@ import Animated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { ColorTokens, View, getTokenValue, isWeb } from 'tamagui';
+import { ColorTokens, View, getTokenValue, isWeb, useTheme } from 'tamagui';
 
 import * as utils from '../../utils';
 import { ListItemProps } from '../ListItem';
 import { ChatListItem } from './ChatListItem';
 import { useBoundHandler } from './listItemUtils';
+
+const leftActionsStaticStyle = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderBottomLeftRadius: getTokenValue('$m', 'radius'),
+    borderTopLeftRadius: getTokenValue('$m', 'radius'),
+  },
+}).container;
+
+const rightActionsStaticStyle = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderBottomRightRadius: getTokenValue('$m', 'radius'),
+    borderTopRightRadius: getTokenValue('$m', 'radius'),
+  },
+}).container;
 
 function BaseInteractableChatRow({
   model,
@@ -33,6 +51,25 @@ function BaseInteractableChatRow({
   ...props
 }: ListItemProps<db.Chat> & { onLayout?: (e: any) => void }) {
   const swipeableRef = useRef<SwipeableMethods>(null);
+  const theme = useTheme();
+  const [isSwipeActive, setIsSwipeActive] = useState(false);
+
+  const swipeableRowStyle = useMemo(
+    () => ({
+      backgroundColor: isSwipeActive
+        ? theme.secondaryBackground.val
+        : theme.background.val,
+      borderRadius: getTokenValue('$m', 'radius'),
+    }),
+    [isSwipeActive, theme.background.val, theme.secondaryBackground.val]
+  );
+
+  const showSwipeFeedback = useCallback(() => setIsSwipeActive(true), []);
+  const hideSwipeFeedback = useCallback(() => setIsSwipeActive(false), []);
+
+  useEffect(() => {
+    setIsSwipeActive(false);
+  }, [model.id, model.pin?.itemId]);
 
   const isMuted = useMemo(() => {
     return logic.isMuted(model.volumeSettings?.level, model.type);
@@ -114,6 +151,12 @@ function BaseInteractableChatRow({
         ref={swipeableRef}
         renderLeftActions={renderLeftActions}
         renderRightActions={renderRightActions}
+        childrenContainerStyle={swipeableRowStyle}
+        onSwipeableOpenStartDrag={showSwipeFeedback}
+        onSwipeableCloseStartDrag={showSwipeFeedback}
+        onSwipeableWillOpen={showSwipeFeedback}
+        onSwipeableOpen={hideSwipeFeedback}
+        onSwipeableClose={hideSwipeFeedback}
         leftThreshold={1}
         rightThreshold={1}
         friction={1.5}
@@ -161,17 +204,10 @@ function BaseLeftActions({
     [drag]
   );
 
-  const containerStyle: StyleProp<ViewStyle> = useMemo(() => {
-    return [
-      containerWidthStyle,
-      {
-        flexDirection: 'row',
-        overflow: 'hidden',
-        borderBottomLeftRadius: getTokenValue('$m', 'radius'),
-        borderTopLeftRadius: getTokenValue('$m', 'radius'),
-      },
-    ] as const;
-  }, [containerWidthStyle]);
+  const containerStyle = useMemo(
+    () => [containerWidthStyle, leftActionsStaticStyle],
+    [containerWidthStyle]
+  );
 
   return (
     <View width={80} justifyContent="flex-start" flexDirection="row">
@@ -209,17 +245,10 @@ function BaseRightActions({
     [drag]
   );
 
-  const containerStyle: StyleProp<ViewStyle> = useMemo(() => {
-    return [
-      containerWidthStyle,
-      {
-        flexDirection: 'row',
-        overflow: 'hidden',
-        borderBottomRightRadius: getTokenValue('$m', 'radius'),
-        borderTopRightRadius: getTokenValue('$m', 'radius'),
-      },
-    ] as const;
-  }, [containerWidthStyle]);
+  const containerStyle = useMemo(
+    () => [containerWidthStyle, rightActionsStaticStyle],
+    [containerWidthStyle]
+  );
 
   return (
     <View width={160} justifyContent="flex-end" flexDirection="row">

@@ -6,8 +6,14 @@
   },
   "build": {
     "base": {
-      "pnpm": "9.0.5",
-      "node": "22.22.0"
+      "pnpm": "11.9.0",
+      "node": "22.22.0",
+      "env": {
+        "EXPO_USE_PRECOMPILED_MODULES": "0"
+      },
+      "ios": {
+        "image": "macos-tahoe-26.4-xcode-26.4"
+      }
     },
     "preview": {
       "extends": "base",
@@ -15,6 +21,7 @@
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "preview",
+        "BRANCH_DOMAIN_TEST": "serverless-infra.vercel.app",
         "NOTIFY_PROVIDER": "wannec-dozzod-marnus",
         "NOTIFY_SERVICE": "tlon-preview-release"
       },
@@ -23,8 +30,7 @@
         "gradleCommand": ":app:bundlePreviewRelease"
       },
       "ios": {
-        "scheme": "Landscape-preview",
-        "image": "macos-sequoia-15.6-xcode-26.0"
+        "scheme": "Landscape-preview"
       }
     },
     "production": {
@@ -40,8 +46,7 @@
         "gradleCommand": ":app:bundleProductionRelease"
       },
       "ios": {
-        "scheme": "Landscape",
-        "image": "macos-sequoia-15.6-xcode-26.0"
+        "scheme": "Landscape"
       }
     },
     "demo": {
@@ -51,6 +56,7 @@
       "autoIncrement": true,
       "env": {
         "APP_VARIANT": "preview",
+        "BRANCH_DOMAIN_TEST": "serverless-infra.vercel.app",
         "NOTIFY_PROVIDER": "wannec-dozzod-marnus",
         "NOTIFY_SERVICE": "tlon-preview-release"
       },
@@ -60,8 +66,7 @@
         "image": "latest"
       },
       "ios": {
-        "scheme": "Landscape-preview",
-        "image": "macos-sequoia-15.6-xcode-26.0"
+        "scheme": "Landscape-preview"
       }
     },
     "local-testing": {
@@ -87,7 +92,8 @@
         "buildType": "apk"
       },
       "ios": {
-        "scheme": "Landscape-local"
+        "scheme": "Landscape-local",
+        "image": "macos-tahoe-26.4-xcode-26.4"
       }
     },
     "e2e": {
@@ -98,8 +104,7 @@
       },
       "ios": {
         "simulator": true,
-        "scheme": "Landscape",
-        "image": "macos-sequoia-15.6-xcode-26.0"
+        "scheme": "Landscape"
       },
       "android": {
         "gradleCommand": ":app:bundleProductionRelease",

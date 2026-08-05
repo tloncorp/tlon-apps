@@ -1,3 +1,9 @@
+import {
+  DIARY_REMOVED,
+  NOTES_CHANNEL_CONTENT_UNSUPPORTED,
+  isDiaryNest,
+  isNotesNest,
+} from '../cli-utils';
 import { defaultReplyParentAuthor } from '../post-targets';
 import { type Story, type StoryVerse, markdownToStory } from '../story';
 import {
@@ -14,40 +20,39 @@ import {
 export const POSTS_HELP = `Usage: tlon posts <command>
 
 Commands:
-  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>]
-  reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship]
-  react <channel> <post-id> <emoji>     React to a post with an emoji
-  unreact <channel> <post-id>           Remove your reaction from a post
-  edit <channel> <post-id> <message>    Edit a post [--title <t>] [--image <url>] [--content <json>]
+  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>] [--title <text>]
+  reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship] [--blob <json>]
+  react <channel> <post-id> <emoji>     React to a post with an emoji [--parent <post-id>]
+  unreact <channel> <post-id>           Remove your reaction from a post [--parent <post-id>]
+  edit <channel> <post-id> <message>    Edit a post's message text
   delete <channel> <post-id>            Delete a post
 
 Send options:
   --blob <json>        Attach a post-blob JSON array (e.g. an a2ui entry)
   --image <url>        Attach an image (direct png/jpeg/gif/webp URL, e.g. from
                        'tlon upload'); message becomes an optional caption
-
-Edit options:
-  --title <title>      Set/update notebook post title
-  --image <url>        Set/update cover image (notebooks)
-  --content <file>     Use Story JSON file for rich content (notebooks)
+  --title <text>       Set a title on a gallery (heap/) post
+  --sent-at <ms>       Override the send timestamp (unix ms); the post id
+                       derives from it. Applies to send and reply.
 
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
   tlon posts send chat/~host/channel "Look at this" --image https://storage.../tree.png
+  tlon posts send heap/~host/gallery "A link or caption" --title "Gallery item"
   tlon posts reply chat/~host/channel 170.141... "Thread reply"
   tlon posts edit chat/~host/channel 170.141... "Updated message"
-  tlon posts edit diary/~host/notes 170.141... --title "New Title" --image https://example.com/cover.jpg --content article.json
 
-Channel format: chat/~host/channel-name, diary/~host/name, heap/~host/name
+Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] (message optional with --image)',
+  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--sent-at <ms>] (message optional with --image)',
   reply:
-    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship]',
-  react: 'Usage: tlon posts react <channel> <post-id> <emoji>',
-  unreact: 'Usage: tlon posts unreact <channel> <post-id>',
-  edit: 'Usage: tlon posts edit <channel> <post-id> <message> [--title <title>] [--image <url>] [--content <json-file>]',
+    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>] [--sent-at <ms>]',
+  react:
+    'Usage: tlon posts react <channel> <post-id> <emoji> [--parent <post-id>]',
+  unreact: 'Usage: tlon posts unreact <channel> <post-id> [--parent <post-id>]',
+  edit: 'Usage: tlon posts edit <channel> <post-id> <message>',
   delete: 'Usage: tlon posts delete <channel> <post-id>',
 };
 
@@ -55,9 +60,16 @@ export const POSTS_COMMAND_HELP: Record<string, string> = {
 // command help map above. The react usage line must stay byte-identical.
 export const POSTS_REACT_HELP = POSTS_COMMAND_HELP.react;
 
-const POST_EDIT_OPTION_FLAGS = ['title', 'content', 'image'] as const;
-const POST_REPLY_OPTION_FLAGS = ['author'] as const;
-const POST_SEND_OPTION_FLAGS = ['blob', 'image'] as const;
+// `--title`/`--image`/`--content` were notebook-only edit affordances (diary
+// cover/title/Story-file). Diary/notebook is removed, so edit becomes plain
+// message-content editing and these flags are refused (not silently swallowed —
+// they used to act as message-slice boundaries, so a stale invocation must fail
+// loudly rather than absorb the flag into the message).
+const POSTS_EDIT_REMOVED_FLAGS_MESSAGE =
+  'tlon posts edit no longer supports --title/--image/--content (notebook-only affordances). Edit the message text directly; use `tlon notes` for %notes content.';
+
+const POST_REPLY_OPTION_FLAGS = ['author', 'blob', 'sent-at'] as const;
+const POST_SEND_OPTION_FLAGS = ['blob', 'image', 'title', 'sent-at'] as const;
 
 export interface PostReactionInput {
   channelId: string;
@@ -65,6 +77,7 @@ export interface PostReactionInput {
   emoji: string;
   our: string;
   postAuthor: string;
+  parentId?: string;
 }
 
 export interface PostReactionRemoveInput {
@@ -72,6 +85,7 @@ export interface PostReactionRemoveInput {
   postId: string;
   our: string;
   postAuthor: string;
+  parentId?: string;
 }
 
 export interface PostDeleteInput {
@@ -102,6 +116,7 @@ export interface PostSendInput {
   sentAt: number;
   content: Story;
   blob?: string;
+  metadata?: { title?: string };
 }
 
 export interface PostReplyInput {
@@ -111,6 +126,7 @@ export interface PostReplyInput {
   content: Story;
   sentAt: number;
   authorId: string;
+  blob?: string;
 }
 
 export interface PostLookupQuery {
@@ -150,7 +166,6 @@ export interface PostsDeps extends CommandDeps {
   authenticate: (apps: PostAuthApp[]) => Promise<void>;
   getCurrentUserId: () => string;
   now: () => number;
-  readFile: (path: string) => string;
   // Fetch an image URL and build its story image verse (network IO).
   buildImageVerse: (url: string) => Promise<StoryVerse>;
   postsApi: PostsApi;
@@ -163,7 +178,9 @@ type ParsedPostsArgs =
       channelId: string;
       message: string;
       imageUrl?: string;
+      title?: string;
       blob?: string;
+      sentAt?: number;
     }
   | {
       kind: 'reply';
@@ -171,11 +188,19 @@ type ParsedPostsArgs =
       postId: string;
       message: string;
       parentAuthor?: string;
+      blob?: string;
+      sentAt?: number;
     }
-  | { kind: 'react'; channelId: string; postId: string; emoji: string }
-  | { kind: 'unreact'; channelId: string; postId: string }
+  | {
+      kind: 'react';
+      channelId: string;
+      postId: string;
+      emoji: string;
+      parentId?: string;
+    }
+  | { kind: 'unreact'; channelId: string; postId: string; parentId?: string }
   | { kind: 'delete'; channelId: string; postId: string }
-  | { kind: 'edit'; channelId: string; postId: string; args: string[] };
+  | { kind: 'edit'; channelId: string; postId: string; message: string };
 
 function extractNumericId(id: string): string {
   const slash = id.indexOf('/');
@@ -193,6 +218,36 @@ function formatUd(id: string): string {
 
 function formatPostId(postId: string): string {
   return formatUd(extractNumericId(postId));
+}
+
+function optionalReactionParent(
+  args: string[],
+  help: string
+): string | undefined {
+  const idx = args.indexOf('--parent');
+  if (idx === -1) return undefined;
+  // Reject a duplicate `--parent` and a value that is itself an option
+  // token (e.g. `--parent --bogus` reading the next flag as the id).
+  if (args.indexOf('--parent', idx + 1) !== -1) throw usageError(help);
+  const parentId = args[idx + 1];
+  if (!parentId || parentId.startsWith('--')) throw usageError(help);
+  return parentId;
+}
+
+// Optional `--sent-at <unix-ms>`: overrides the send timestamp so a caller
+// (e.g. the Hermes adapter) controls the post's `sent` — and can therefore
+// derive the post id (~author/<@da of sent>) itself without scraping output.
+function validatedSentAt(args: string[], help: string): number | undefined {
+  const idx = args.indexOf('--sent-at');
+  if (idx === -1) {
+    return undefined;
+  }
+  const raw = args[idx + 1];
+  const ms = Number(raw);
+  if (!raw || !Number.isInteger(ms) || ms <= 0) {
+    throw usageError(help);
+  }
+  return ms;
 }
 
 function wantsHelp(args: string[]): boolean {
@@ -244,14 +299,17 @@ function validatedImageFlag(args: string[], usage: string): string | undefined {
   return url;
 }
 
-function validatedSendBlob(args: string[]): string | undefined {
+function validatedBlobFlag(
+  args: string[],
+  help: string = POSTS_COMMAND_HELP.send
+): string | undefined {
   const blobIdx = args.indexOf('--blob');
   if (blobIdx === -1) {
     return undefined;
   }
   const blob = args[blobIdx + 1];
   if (!blob) {
-    throw usageError(POSTS_COMMAND_HELP.send);
+    throw usageError(help);
   }
   try {
     if (!Array.isArray(JSON.parse(blob))) {
@@ -261,6 +319,18 @@ function validatedSendBlob(args: string[]): string | undefined {
     throw commandError('--blob must be a JSON array of post-blob entries');
   }
   return blob;
+}
+
+function validatedTitleFlag(args: string[], usage: string): string | undefined {
+  const titleIdx = args.indexOf('--title');
+  if (titleIdx === -1) {
+    return undefined;
+  }
+  const title = args[titleIdx + 1];
+  if (!title || title.startsWith('--')) {
+    throw usageError(usage);
+  }
+  return title;
 }
 
 // Plain `--flag` boundary scan. Edit/reply use this for all their flags — a
@@ -281,8 +351,22 @@ function firstPostSendFlagIndex(args: string[]): number {
   return indexes.length > 0 ? Math.min(...indexes) : args.length;
 }
 
+// Edit has no option flags any more (the notebook-only ones are removed), so the
+// message is everything after the post id.
 function getPostEditMessage(args: string[]): string {
-  return args.slice(3, firstFlagIndex(args, POST_EDIT_OPTION_FLAGS)).join(' ');
+  return args.slice(3).join(' ');
+}
+
+// True when `posts edit` carries a removed notebook-only flag. Detected as a
+// plain token (`--title`/`--content`) or in either `--image` form.
+function editHasRemovedFlag(args: string[]): boolean {
+  return args.some(
+    (arg) =>
+      arg === '--title' ||
+      arg === '--content' ||
+      arg === '--image' ||
+      arg.startsWith('--image=')
+  );
 }
 
 function getPostSendMessage(args: string[]): string {
@@ -293,25 +377,11 @@ function getPostReplyMessage(args: string[]): string {
   return args.slice(3, firstFlagIndex(args, POST_REPLY_OPTION_FLAGS)).join(' ');
 }
 
-// `hasOptionValue(args, 'content', POST_EDIT_OPTION_FLAGS)`: true only when
-// `--content` is followed by a value that is not itself an edit flag.
-function hasContentOptionValue(args: string[]): boolean {
-  const idx = args.indexOf('--content');
-  const value = idx !== -1 ? args[idx + 1] : undefined;
-  if (value === undefined) {
-    return false;
-  }
-  return !POST_EDIT_OPTION_FLAGS.some((flag) => value === `--${flag}`);
-}
-
 // When the message slice for a write subcommand contains a `--help`/`-h` token,
 // help is suppressed and the token is treated as literal message content.
 function isPostEditMessageHelpLiteral(args: string[]): boolean {
   return (
-    args[0] === 'edit' &&
-    !!args[1] &&
-    !!args[2] &&
-    wantsHelp(args.slice(3, firstFlagIndex(args, POST_EDIT_OPTION_FLAGS)))
+    args[0] === 'edit' && !!args[1] && !!args[2] && wantsHelp(args.slice(3))
   );
 }
 
@@ -370,6 +440,17 @@ function parseArgs(args: string[]): ParsedPostsArgs {
     throw usageError(POSTS_HELP);
   }
 
+  // Diary/notebook channels are removed; refuse a `diary/...` nest with the
+  // explanatory message before per-subcommand validation, so the refusal wins
+  // over an incidental missing-arg or removed-flag error on the same command.
+  if (isDiaryNest(args[1])) {
+    throw commandError(DIARY_REMOVED);
+  }
+
+  if (isNotesNest(args[1])) {
+    throw commandError(NOTES_CHANNEL_CONTENT_UNSUPPORTED);
+  }
+
   switch (command) {
     case 'send': {
       const imageUrl = validatedImageFlag(args, POSTS_COMMAND_HELP.send);
@@ -377,8 +458,24 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       if (!args[1] || (!message && !imageUrl)) {
         throw usageError(POSTS_COMMAND_HELP.send);
       }
-      const blob = validatedSendBlob(args);
-      return { kind: 'send', channelId: args[1], message, imageUrl, blob };
+      const blob = validatedBlobFlag(args);
+      const title = validatedTitleFlag(args, POSTS_COMMAND_HELP.send);
+      if (title !== undefined && !args[1].startsWith('heap/')) {
+        throw usageError(
+          '--title is only supported for gallery (heap/) posts',
+          POSTS_COMMAND_HELP.send
+        );
+      }
+      const sentAt = validatedSentAt(args, POSTS_COMMAND_HELP.send);
+      return {
+        kind: 'send',
+        channelId: args[1],
+        message,
+        imageUrl,
+        title,
+        blob,
+        sentAt,
+      };
     }
     case 'reply': {
       const channelId = args[1];
@@ -392,21 +489,54 @@ function parseArgs(args: string[]): ParsedPostsArgs {
         throw usageError(POSTS_COMMAND_HELP.reply);
       }
       const parentAuthor = authorIdx !== -1 ? args[authorIdx + 1] : undefined;
-      return { kind: 'reply', channelId, postId, message, parentAuthor };
+      const blob = validatedBlobFlag(args, POSTS_COMMAND_HELP.reply);
+      const sentAt = validatedSentAt(args, POSTS_COMMAND_HELP.reply);
+      return {
+        kind: 'reply',
+        channelId,
+        postId,
+        message,
+        parentAuthor,
+        blob,
+        sentAt,
+      };
     }
     case 'react': {
       const [, channelId, postId, emoji] = args;
       if (!channelId || !postId || !emoji) {
         throw usageError(POSTS_COMMAND_HELP.react);
       }
-      return { kind: 'react', channelId, postId, emoji };
+      // A positional slot filled by an option token (e.g. `--parent` swallowed
+      // into the emoji slot when the emoji is omitted) is a usage error.
+      if (
+        channelId.startsWith('--') ||
+        postId.startsWith('--') ||
+        emoji.startsWith('--')
+      ) {
+        throw usageError(POSTS_COMMAND_HELP.react);
+      }
+      return {
+        kind: 'react',
+        channelId,
+        postId,
+        emoji,
+        parentId: optionalReactionParent(args, POSTS_COMMAND_HELP.react),
+      };
     }
     case 'unreact': {
       const [, channelId, postId] = args;
       if (!channelId || !postId) {
         throw usageError(POSTS_COMMAND_HELP.unreact);
       }
-      return { kind: 'unreact', channelId, postId };
+      if (channelId.startsWith('--') || postId.startsWith('--')) {
+        throw usageError(POSTS_COMMAND_HELP.unreact);
+      }
+      return {
+        kind: 'unreact',
+        channelId,
+        postId,
+        parentId: optionalReactionParent(args, POSTS_COMMAND_HELP.unreact),
+      };
     }
     case 'delete': {
       const [, channelId, postId] = args;
@@ -421,11 +551,14 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       if (!channelId || !postId) {
         throw usageError(POSTS_COMMAND_HELP.edit);
       }
+      if (editHasRemovedFlag(args)) {
+        throw commandError(POSTS_EDIT_REMOVED_FLAGS_MESSAGE);
+      }
       const message = getPostEditMessage(args);
-      if (!message && !hasContentOptionValue(args)) {
+      if (!message) {
         throw usageError(POSTS_COMMAND_HELP.edit);
       }
-      return { kind: 'edit', channelId, postId, args };
+      return { kind: 'edit', channelId, postId, message };
     }
   }
 
@@ -434,7 +567,12 @@ function parseArgs(args: string[]): ParsedPostsArgs {
 }
 
 async function reactToPost(
-  parsed: { channelId: string; postId: string; emoji: string },
+  parsed: {
+    channelId: string;
+    postId: string;
+    emoji: string;
+    parentId?: string;
+  },
   deps: PostsDeps
 ): Promise<void> {
   const our = deps.getCurrentUserId();
@@ -444,11 +582,12 @@ async function reactToPost(
     emoji: parsed.emoji,
     our,
     postAuthor: our,
+    ...(parsed.parentId ? { parentId: formatPostId(parsed.parentId) } : {}),
   });
 }
 
 async function unreactToPost(
-  parsed: { channelId: string; postId: string },
+  parsed: { channelId: string; postId: string; parentId?: string },
   deps: PostsDeps
 ): Promise<void> {
   const our = deps.getCurrentUserId();
@@ -457,6 +596,7 @@ async function unreactToPost(
     postId: formatPostId(parsed.postId),
     our,
     postAuthor: our,
+    ...(parsed.parentId ? { parentId: formatPostId(parsed.parentId) } : {}),
   });
 }
 
@@ -487,7 +627,9 @@ async function sendPost(
     channelId: string;
     message: string;
     imageUrl?: string;
+    title?: string;
     blob?: string;
+    sentAt?: number;
   },
   deps: PostsDeps
 ): Promise<void> {
@@ -504,9 +646,10 @@ async function sendPost(
   await deps.postsApi.sendPost({
     channelId: parsed.channelId,
     authorId: deps.getCurrentUserId(),
-    sentAt: deps.now(),
+    sentAt: parsed.sentAt ?? deps.now(),
     content,
     blob: parsed.blob,
+    ...(parsed.title ? { metadata: { title: parsed.title } } : {}),
   });
 }
 
@@ -516,6 +659,8 @@ async function sendReply(
     postId: string;
     message: string;
     parentAuthor?: string;
+    blob?: string;
+    sentAt?: number;
   },
   deps: PostsDeps
 ): Promise<void> {
@@ -529,8 +674,9 @@ async function sendReply(
       parsed.parentAuthor
     ),
     content: markdownToStory(parsed.message),
-    sentAt: deps.now(),
+    sentAt: parsed.sentAt ?? deps.now(),
     authorId,
+    blob: parsed.blob,
   });
 }
 
@@ -559,28 +705,13 @@ async function fetchExistingPost(
   }
 }
 
-function readContentFile(path: string, deps: PostsDeps): Story {
-  try {
-    return JSON.parse(deps.readFile(path)) as Story;
-  } catch (error) {
-    throw commandError(errorMessage(error));
-  }
-}
-
 async function editPost(
-  parsed: { channelId: string; postId: string; args: string[] },
+  parsed: { channelId: string; postId: string; message: string },
   deps: PostsDeps
 ): Promise<void> {
-  const { args } = parsed;
-  const titleIdx = args.indexOf('--title');
-  const contentIdx = args.indexOf('--content');
-  const newTitle = titleIdx !== -1 ? args[titleIdx + 1] : undefined;
-  const contentFile = contentIdx !== -1 ? args[contentIdx + 1] : undefined;
-  const newImage =
-    imageFlagIndex(args) !== -1
-      ? imageFlagValue(args, POSTS_COMMAND_HELP.edit)
-      : undefined;
-
+  // Edit only the message text. Existing metadata (e.g. a heap curio's title) is
+  // preserved by reading it back from the existing post — the CLI no longer
+  // overrides it, but must not wipe it either.
   const existing = await fetchExistingPost(
     parsed.channelId,
     parsed.postId,
@@ -588,22 +719,18 @@ async function editPost(
   );
 
   const metadata: PostEditMetadata = {
-    title: newTitle ?? existing?.title ?? undefined,
-    image: newImage ?? existing?.image ?? undefined,
+    title: existing?.title ?? undefined,
+    image: existing?.image ?? undefined,
     description: existing?.description ?? undefined,
     cover: existing?.cover ?? undefined,
   };
-
-  const content = contentFile
-    ? readContentFile(contentFile, deps)
-    : markdownToStory(getPostEditMessage(args));
 
   await deps.postsApi.editPost({
     channelId: parsed.channelId,
     postId: formatPostId(parsed.postId),
     authorId: deps.getCurrentUserId(),
     sentAt: deps.now(),
-    content,
+    content: markdownToStory(parsed.message),
     metadata,
   });
 }

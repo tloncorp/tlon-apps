@@ -174,6 +174,14 @@ class EnablementTests(unittest.TestCase):
         self.assertEqual(fake.captures, [])
         self.assertEqual(fake.identifies, [])
 
+    def test_empty_distinct_id_override_drops_event(self):
+        tel, fake = make_telemetry()
+
+        tel.capture("TlonBot Heartbeat Nudge Reengaged", {}, distinct_id="")
+
+        self.assertEqual(fake.captures, [])
+        self.assertEqual(fake.identifies, [])
+
     def test_flush_keeps_client_close_shuts_down(self):
         tel, fake = make_telemetry()
         tel.flush()
@@ -545,6 +553,15 @@ class DiscreteEventTests(unittest.TestCase):
         self.assertEqual(first["key"], "dmAllowlist")
         self.assertNotIn("~zod", first["detail"])
         self.assertEqual(second["errorType"], "error")
+
+    def test_sse_reconnect_mode_field(self):
+        tel, fake = make_telemetry()
+        tel.sse_reconnect(attempt=1, delay_seconds=2, error=ConnectionError("x"))
+        tel.sse_reconnect(attempt=2, delay_seconds=5, error=ConnectionError("y"), mode="resume")
+
+        events = fake.events("TlonBot SSE Reconnect")
+        self.assertEqual(events[0]["mode"], "rebuild")
+        self.assertEqual(events[1]["mode"], "resume")
 
 
 class DiagnosticsHelperTests(unittest.TestCase):

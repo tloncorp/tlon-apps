@@ -1,7 +1,7 @@
 import { GroupTemplateId, groupTemplates } from '@tloncorp/shared';
 import { IconType, Text } from '@tloncorp/ui';
-import { useCallback, useRef, useState } from 'react';
-import { Pressable, ScrollView as RNScrollView } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Pressable } from 'react-native';
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -216,7 +216,6 @@ interface TemplateCarouselProps {
 }
 
 const TemplateCarousel = ({ onPress }: TemplateCarouselProps) => {
-  const scrollViewRef = useRef<RNScrollView>(null);
   const isWindowNarrow = useIsWindowNarrow();
   const [containerWidth, setContainerWidth] = useState(0);
   const [templateIndex, setTemplateIndex] = useState(0);
@@ -227,26 +226,12 @@ const TemplateCarousel = ({ onPress }: TemplateCarouselProps) => {
   const handleNext = useCallback(() => {
     if (!canScrollNext) return;
     setTemplateIndex((prev) => prev + 1);
-    setTimeout(() => {
-      const nextIndex = templateIndex + 1;
-      scrollViewRef.current?.scrollTo({
-        x: nextIndex * containerWidth,
-        animated: true,
-      });
-    }, 0);
-  }, [templateIndex, containerWidth, canScrollNext]);
+  }, [canScrollNext]);
 
   const handlePrev = useCallback(() => {
     if (!canScrollPrev) return;
     setTemplateIndex((prev) => prev - 1);
-    setTimeout(() => {
-      const prevIndex = templateIndex - 1;
-      scrollViewRef.current?.scrollTo({
-        x: prevIndex * containerWidth,
-        animated: true,
-      });
-    }, 0);
-  }, [templateIndex, containerWidth, canScrollPrev]);
+  }, [canScrollPrev]);
 
   const handleScroll = useCallback(
     (event: { nativeEvent: { contentOffset: { x: number } } }) => {
@@ -266,52 +251,61 @@ const TemplateCarousel = ({ onPress }: TemplateCarouselProps) => {
     [containerWidth, templateIndex]
   );
 
+  const activeTemplate = groupTemplates[templateIndex];
+
   return (
     <YStack
       onLayout={(event) => {
         setContainerWidth(event.nativeEvent.layout.width);
       }}
     >
-      <XStack
-        position="relative"
-        marginRight={isWindowNarrow ? '$-xl' : undefined}
-      >
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          scrollEnabled={isWindowNarrow}
-          snapToInterval={
-            isWindowNarrow
-              ? containerWidth + getTokens().space.l.val
-              : undefined
-          }
-          decelerationRate={'fast'}
-          onScroll={isWindowNarrow ? handleScroll : undefined}
-          scrollEventThrottle={16}
-          contentContainerStyle={
-            isWindowNarrow ? { paddingRight: '$xl', gap: '$l' } : {}
-          }
-          flex={1}
-        >
-          {groupTemplates.map((template) => (
-            <View key={template.id} width={containerWidth || '100%'}>
-              <GroupTypeCard
-                icons={[template.icon]}
-                title={template.title}
-                subtitle={template.subtitle}
-                onPress={() => onPress(template.id)}
-              />
-            </View>
-          ))}
-        </ScrollView>
-        {!isWindowNarrow && canScrollPrev && (
-          <CarouselArrow direction="left" onPress={handlePrev} />
-        )}
-        {!isWindowNarrow && canScrollNext && (
-          <CarouselArrow direction="right" onPress={handleNext} />
-        )}
-      </XStack>
+      {isWindowNarrow ? (
+        <XStack position="relative" marginRight="$-xl">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={containerWidth + getTokens().space.l.val}
+            decelerationRate={'fast'}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={{ paddingRight: '$xl', gap: '$l' }}
+            flex={1}
+          >
+            {groupTemplates.map((template) => (
+              <View key={template.id} width={containerWidth || '100%'}>
+                <GroupTypeCard
+                  icons={[template.icon]}
+                  title={template.title}
+                  subtitle={template.subtitle}
+                  onPress={() => onPress(template.id)}
+                />
+              </View>
+            ))}
+          </ScrollView>
+        </XStack>
+      ) : (
+        // On wide windows the carousel is driven entirely by the arrows, so
+        // render just the active card. Imperative ScrollView paging is
+        // unreliable on web: the ref resolves to a DOM element whose
+        // scrollTo() ignores RN-style {x, animated} options, and onLayout
+        // measures the dialog before its width constraint settles.
+        <XStack position="relative">
+          <View flex={1}>
+            <GroupTypeCard
+              icons={[activeTemplate.icon]}
+              title={activeTemplate.title}
+              subtitle={activeTemplate.subtitle}
+              onPress={() => onPress(activeTemplate.id)}
+            />
+          </View>
+          {canScrollPrev && (
+            <CarouselArrow direction="left" onPress={handlePrev} />
+          )}
+          {canScrollNext && (
+            <CarouselArrow direction="right" onPress={handleNext} />
+          )}
+        </XStack>
+      )}
       <PaginationDots
         total={groupTemplates.length}
         activeIndex={templateIndex}

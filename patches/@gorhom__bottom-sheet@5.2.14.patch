@@ -1,0 +1,82 @@
+diff --git a/src/components/bottomSheet/BottomSheetContent.tsx b/src/components/bottomSheet/BottomSheetContent.tsx
+index 4a69a6892ff553836b72216b598451c56f6284cc..7cdacc259c532844f5ec378e111f2f1656327f18 100644
+--- a/src/components/bottomSheet/BottomSheetContent.tsx
++++ b/src/components/bottomSheet/BottomSheetContent.tsx
+@@ -4,6 +4,7 @@ import Animated, {
+   type AnimatedStyle,
+   useAnimatedStyle,
+   useDerivedValue,
++  useSharedValue,
+ } from 'react-native-reanimated';
+ import {
+   INITIAL_LAYOUT_VALUE,
+@@ -178,6 +179,7 @@ function BottomSheetContentComponent({
+   ]);
+   //#endregion
+ 
++  const isInitialLayout = useSharedValue(true);
+   //#region styles
+   const contentMaskContainerAnimatedStyle = useAnimatedStyle(() => {
+     const { containerHeight, contentHeight } = animatedLayoutState.get();
+@@ -185,7 +187,8 @@ function BottomSheetContentComponent({
+      * if container height is not yet calculated, then we exit the method
+      */
+     if (containerHeight === INITIAL_LAYOUT_VALUE) {
+-      return {};
++      isInitialLayout.value = true;
++      return { height: 0 };
+     }
+ 
+     /**
+@@ -193,12 +196,23 @@ function BottomSheetContentComponent({
+      * is still not set, then we exit method.
+      */
+     if (enableDynamicSizing && contentHeight === INITIAL_LAYOUT_VALUE) {
+-      return {};
++      isInitialLayout.value = true;
++      return { height: 0 };
+     }
+ 
++    const wasInitialLayout = isInitialLayout.value;
++    isInitialLayout.value = false;
++
+     const paddingBottom = detached ? 0 : animatedPaddingBottom.get();
+     const height = animatedContentHeightMax.get() + paddingBottom;
+ 
++    if (wasInitialLayout) {
++      return {
++        paddingBottom,
++        height,
++      };
++    }
++
+     return {
+       paddingBottom: animate({
+         point: paddingBottom,
+diff --git a/src/components/bottomSheetModal/BottomSheetModal.tsx b/src/components/bottomSheetModal/BottomSheetModal.tsx
+index 2954b3f4282e28c1973ab88f479eb2d7889913c5..ec2ea40cdb40688fffb297bad212097529bea7e5 100644
+--- a/src/components/bottomSheetModal/BottomSheetModal.tsx
++++ b/src/components/bottomSheetModal/BottomSheetModal.tsx
+@@ -275,11 +275,19 @@ function BottomSheetModalComponent<T = never>(
+       /**
+        * if the modal position is already in a closed position,
+        * then we unmount the node and early exit.
++       *
++       * INITIAL is included so that dismissing a modal that was never
++       * presented (or that already fully dismissed itself, e.g. via a
++       * backdrop press) stays idempotent. Without it, the status gets
++       * stuck at DISMISSING and every later present() silently no-ops.
++       * https://github.com/gorhom/react-native-bottom-sheet/issues/2669
+        */
+       if (
+-        [MODAL_STATUS.CLOSED, MODAL_STATUS.MINIMIZED].includes(
+-          statusRef.current
+-        ) ||
++        [
++          MODAL_STATUS.INITIAL,
++          MODAL_STATUS.CLOSED,
++          MODAL_STATUS.MINIMIZED,
++        ].includes(statusRef.current) ||
+         (statusRef.current === MODAL_STATUS.DISMISSING &&
+           currentIndexRef.current === -1)
+       ) {

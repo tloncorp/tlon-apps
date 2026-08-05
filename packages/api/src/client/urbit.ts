@@ -61,7 +61,10 @@ export class BadResponseError extends Error {
     public status: number,
     public body: string
   ) {
-    super();
+    const prefix = status > 0 ? `HTTP ${status}` : 'HTTP request failed';
+    const detail = body.trim();
+    super(detail ? `${prefix}: ${detail}` : prefix);
+    this.name = 'BadResponseError';
   }
 }
 
@@ -672,8 +675,7 @@ export async function scry<T>({
   }
 }
 
-// Authenticated JSON request to an arbitrary ship path (first-class agent
-// HTTP APIs, e.g. the %notes /notes/~/v1 REST surface). Reauths once on 403.
+// Authenticated JSON request to an arbitrary ship path. Reauths once on 403.
 export async function requestJson<T = any>(
   path: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
@@ -685,6 +687,7 @@ export async function requestJson<T = any>(
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
+
   try {
     return await config.client.requestJson<T>(path, method, body);
   } catch (res) {
@@ -692,8 +695,23 @@ export async function requestJson<T = any>(
       await reauth();
       return await config.client.requestJson<T>(path, method, body);
     }
-    throw new BadResponseError(res?.status ?? 0, String(res));
+    const errorBody = await responseErrorBody(res);
+    throw new BadResponseError(res?.status ?? 0, errorBody);
   }
+}
+
+async function responseErrorBody(res: any): Promise<string> {
+  if (typeof res?.text === 'function') {
+    try {
+      return await res.text();
+    } catch {
+      // Fall through to the generic cases below.
+    }
+  }
+  if (typeof res?.body === 'string') return res.body;
+  if (typeof res?.message === 'string') return res.message;
+  const text = String(res);
+  return text === '[object Response]' ? '' : text;
 }
 
 export async function scryNoun({

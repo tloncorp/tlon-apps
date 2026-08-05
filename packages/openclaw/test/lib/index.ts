@@ -8,7 +8,18 @@ export {
   createStateClient,
   type StateClient,
   type StateClientConfig,
+  withStateClientLock,
 } from './state.js';
+
+export {
+  createBoundedNounClient,
+  decodeDa,
+  decodeGatewayStatus,
+  type BoundedNounClient,
+  type BoundedNounScryOptions,
+  type GatewayStatusScry,
+  type GatewayStatusValue,
+} from './noun-scry.js';
 
 export {
   createTlonClient,
@@ -22,6 +33,8 @@ export {
 
 export { getTestConfig, type TestEnvConfig } from './config.js';
 
+export { registerEngagingTurn } from './scripted.js';
+
 export {
   waitFor,
   getFixtures,
@@ -32,8 +45,11 @@ export {
 } from './fixtures.js';
 
 export {
+  assertOpenClawContainerRunning,
   getContainerLogsSince,
+  setGatewayStatusRestartConfig,
   startLiveToolTrace,
   toolWasInvoked,
+  type ConfigSetResult,
   type LiveToolTraceHandle,
 } from './docker-logs.js';

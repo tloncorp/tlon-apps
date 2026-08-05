@@ -105,7 +105,7 @@
   ++  helper
     |_  [=bowl:gall state-2]
     +*  state  +<+
-    ++  log  ~(. logs our.bowl /~/negotiate/logs)
+    ++  log  ~(. logs bowl /~/negotiate/logs)
     ++  match
       |=  =gill:gall
       ^-  ?
@@ -528,7 +528,7 @@
     +*  this    .
         up    ~(. helper bowl state)
         og    ~(. inner inner-bowl:up)
-        log   ~(. logs our.bowl /~/negotiate/logs)
+        log   ~(. logs bowl /~/negotiate/logs)
     ++  on-init
       ^-  (quip card _this)
       =.  ours   our-versions

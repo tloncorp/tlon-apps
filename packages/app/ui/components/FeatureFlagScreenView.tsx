@@ -1,16 +1,28 @@
 import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, SizableText, View, XStack } from 'tamagui';
+import { ScrollView, SizableText, View, XStack, YStack } from 'tamagui';
 
 import { useIsWindowNarrow } from '../utils';
+import { Field, TextInput } from './Form';
 import { ScreenHeader } from './ScreenHeader';
+
+export type FeatureFlagTextSetting = {
+  key: string;
+  label: string;
+  value: string;
+  placeholder?: string;
+  secure?: boolean;
+  onChange: (value: string) => void;
+};
 
 export function FeatureFlagScreenView({
   features,
+  textSettings,
   onBackPressed,
   onFlagToggled,
 }: {
   features: { name: string; label: string; enabled: boolean }[];
+  textSettings?: FeatureFlagTextSetting[];
   onBackPressed: () => void;
   onFlagToggled: (flagName: string, enabled: boolean) => void;
 }) {
@@ -58,6 +70,20 @@ export function FeatureFlagScreenView({
             </XStack>
           );
         })}
+        {textSettings?.map((setting) => (
+          <YStack key={setting.key} padding="$l">
+            <Field label={setting.label}>
+              <TextInput
+                value={setting.value}
+                placeholder={setting.placeholder}
+                secureTextEntry={setting.secure}
+                autoCapitalize="none"
+                autoCorrect={false}
+                onChangeText={setting.onChange}
+              />
+            </Field>
+          </YStack>
+        ))}
       </ScrollView>
     </View>
   );

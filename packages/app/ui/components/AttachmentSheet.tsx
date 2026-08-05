@@ -1,19 +1,14 @@
 import {
+  AnalyticsEvent,
   Attachment,
   PLACEHOLDER_ASSET_URI,
   VoiceMemoAttachment,
   createDevLogger,
+  trackEvent,
 } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import * as ImagePicker from 'expo-image-picker';
-import {
-  ComponentRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { ComponentRef, useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
@@ -30,10 +25,6 @@ import {
 } from '../../utils/files';
 import { normalizeImagePickerAssetForUpload } from '../../utils/imagePickerAsset';
 import { useAttachmentContext } from '../contexts/attachment';
-import {
-  createImageAssetFromClipboardData,
-  getClipboardImageWithFallbacks,
-} from '../utils';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { AudioRecorder, AudioRecorderSheet } from './AudioRecorder';
 import { ListItem } from './ListItem';
@@ -53,7 +44,9 @@ export default function AttachmentSheet({
   onAttach,
   mediaType,
   allowVideoInMediaPicker,
+  allowMultipleSelection = false,
   attachToContext = true,
+  trackAttachmentAdded = false,
 }: {
   isOpen: boolean;
   showClearOption?: boolean;
@@ -62,7 +55,9 @@ export default function AttachmentSheet({
   onAttach?: (assets: Attachment.UploadIntent[]) => void;
   mediaType: 'image' | 'all';
   allowVideoInMediaPicker?: boolean;
+  allowMultipleSelection?: boolean;
   attachToContext?: boolean;
+  trackAttachmentAdded?: boolean;
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
@@ -76,66 +71,6 @@ export default function AttachmentSheet({
     removeAttachment,
     uploadAssets,
   } = useAttachmentContext();
-
-  const [hasClipboardImage, setHasClipboardImage] = useState(false);
-
-  const getClipboardImageData = useCallback(async (): Promise<{
-    data: string;
-    mimeType: string;
-  } | null> => {
-    try {
-      return await getClipboardImageWithFallbacks();
-    } catch (error) {
-      logger.trackError('Clipboard access failed', error);
-      return null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!showAttachmentSheet || isWeb) {
-      setHasClipboardImage(false);
-      return;
-    }
-
-    const checkClipboard = async () => {
-      const clipboardData = await getClipboardImageData();
-      setHasClipboardImage(!!clipboardData);
-    };
-
-    checkClipboard();
-  }, [showAttachmentSheet, getClipboardImageData]);
-
-  const createAssetFromClipboard = useCallback(async () => {
-    onOpenChange(false);
-    // Wait for sheet close animation to complete before pasting
-    setTimeout(async () => {
-      try {
-        const clipboardData = await getClipboardImageData();
-
-        if (!clipboardData) {
-          throw new Error('No image data available in clipboard');
-        }
-
-        const clipboardAsset =
-          await createImageAssetFromClipboardData(clipboardData);
-        const atts = [
-          Attachment.UploadIntent.fromImagePickerAsset(clipboardAsset),
-        ];
-        if (attachToContext) {
-          attachAssets(atts);
-        }
-        onAttach?.(atts);
-      } catch (error) {
-        logger.trackError('Error pasting from clipboard', error);
-      }
-    }, 50);
-  }, [
-    attachAssets,
-    attachToContext,
-    onAttach,
-    onOpenChange,
-    getClipboardImageData,
-  ]);
 
   const placeholderUploadIntent: Attachment.UploadIntent = useMemo(
     () =>
@@ -169,6 +104,18 @@ export default function AttachmentSheet({
     [useVideoInMediaPicker]
   );
 
+  const attachUploadIntents = useCallback(
+    (uploadIntents: Attachment.UploadIntent[]) => {
+      const didAttach =
+        (attachToContext && attachAssets(uploadIntents) > 0) || !!onAttach;
+      onAttach?.(uploadIntents);
+      if (didAttach && trackAttachmentAdded) {
+        trackEvent(AnalyticsEvent.AttachmentAdded);
+      }
+    },
+    [attachAssets, attachToContext, onAttach, trackAttachmentAdded]
+  );
+
   const attachNormalizedUploadIntents = useCallback(
     async (uploadIntents: Attachment.UploadIntent[]) => {
       const { uploadIntents: normalizedUploadIntents, errorMessage } =
@@ -179,13 +126,10 @@ export default function AttachmentSheet({
       }
 
       if (normalizedUploadIntents.length > 0) {
-        if (attachToContext) {
-          attachAssets(normalizedUploadIntents);
-        }
-        onAttach?.(normalizedUploadIntents);
+        attachUploadIntents(normalizedUploadIntents);
       }
     },
-    [attachAssets, attachToContext, onAttach]
+    [attachUploadIntents]
   );
 
   const takePicture = useCallback(
@@ -282,6 +226,7 @@ export default function AttachmentSheet({
 
       // If possible, try sending post immediately.
       if (draftInputContext != null) {
+        trackEvent(AnalyticsEvent.AttachmentAdded);
         const ui = Attachment.toUploadIntent(attachment);
         if (ui.needsUpload) {
           uploadAssets([ui], {
@@ -306,9 +251,9 @@ export default function AttachmentSheet({
               }),
           replyToPostId: null,
         });
-      } else {
+      } else if (addAttachment(attachment)) {
         // otherwise, add attachment to draft
-        addAttachment(attachment);
+        trackEvent(AnalyticsEvent.AttachmentAdded);
       }
     },
   });
@@ -337,19 +282,23 @@ export default function AttachmentSheet({
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: pickerMediaTypes,
           allowsEditing: false,
+          allowsMultipleSelection: allowMultipleSelection,
+          selectionLimit: allowMultipleSelection ? 0 : 1,
+          orderedSelection: allowMultipleSelection,
           quality: 0.5,
           exif: false,
           shouldDownloadFromNetwork: true,
         });
 
         if (!result.canceled) {
-          const realAsset = result.assets[0];
-          const normalizedAsset = normalizeImagePickerAssetForUpload(realAsset);
-
           const { uploadIntents: normalizedUploadIntents, errorMessage } =
-            await normalizeUploadIntents([
-              imagePickerAssetToUploadIntent(normalizedAsset),
-            ]);
+            await normalizeUploadIntents(
+              result.assets.map((asset) =>
+                imagePickerAssetToUploadIntent(
+                  normalizeImagePickerAssetForUpload(asset)
+                )
+              )
+            );
 
           // Remove placeholder before attaching the selected media so validation
           // does not reject the real attachment as "extra".
@@ -360,10 +309,7 @@ export default function AttachmentSheet({
           }
 
           if (normalizedUploadIntents.length > 0) {
-            if (attachToContext) {
-              attachAssets(normalizedUploadIntents);
-            }
-            onAttach?.(normalizedUploadIntents);
+            attachUploadIntents(normalizedUploadIntents);
           }
         } else {
           // If user canceled, remove the placeholder
@@ -397,27 +343,30 @@ export default function AttachmentSheet({
     }, 50);
   }, [
     attachAssets,
+    attachUploadIntents,
     attachToContext,
     clearAttachments,
     onOpenChange,
     mediaLibraryPermissionStatus,
+    allowMultipleSelection,
     pickerMediaTypes,
     requestMediaLibraryPermission,
     placeholderUploadIntent,
-    onAttach,
     removePlaceholderAttachment,
   ]);
 
   const startFilePicker = useCallback(async () => {
     onOpenChange(false);
 
-    const { uploadIntents, errorMessage } = await pickFile();
+    const { uploadIntents, errorMessage } = await pickFile(
+      ['*/*'],
+      allowMultipleSelection
+    );
     if (errorMessage) {
       Alert.alert('Unable to attach', errorMessage);
-      return;
     }
     await attachNormalizedUploadIntents(uploadIntents);
-  }, [attachNormalizedUploadIntents, onOpenChange]);
+  }, [allowMultipleSelection, attachNormalizedUploadIntents, onOpenChange]);
 
   const actionGroups: ActionGroup[] = useMemo(
     () =>
@@ -454,12 +403,6 @@ export default function AttachmentSheet({
               description: 'Use your camera to capture a video',
               action: takeVideo,
             },
-          !isWeb &&
-            hasClipboardImage && {
-              title: 'Paste from Clipboard',
-              description: 'Use the image currently in your clipboard',
-              action: createAssetFromClipboard,
-            },
           mediaType === 'all' && {
             title: 'Upload a File',
             description: 'Upload files from your device',
@@ -490,8 +433,6 @@ export default function AttachmentSheet({
       takePhoto,
       takeVideo,
       takePicture,
-      hasClipboardImage,
-      createAssetFromClipboard,
       mediaType,
       useVideoInMediaPicker,
     ]

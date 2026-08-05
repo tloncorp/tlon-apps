@@ -100,7 +100,7 @@ Format: `~host/group-name`
 
 ### Nest (Channel ID)
 Format: `{kind}/~host/channel-name`
-Kinds: `chat`, `diary`, `heap`
+Kinds: `chat`, `heap` (the `%diary` notebook kind has been removed; use `%notes`)
 
 ## Tips
 

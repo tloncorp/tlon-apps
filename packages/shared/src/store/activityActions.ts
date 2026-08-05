@@ -3,10 +3,12 @@ import { isGroupChannelId } from '@tloncorp/api/client';
 import * as ub from '@tloncorp/api/urbit';
 import { whomIsMultiDm } from '@tloncorp/api/urbit';
 
+import { trackEvent } from '../analytics';
 import * as db from '../db';
 import { QueryCtx } from '../db/query';
 import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 
 const logger = createDevLogger('activityActions', false);
@@ -105,6 +107,9 @@ export async function muteThread({
     });
     const volume = ub.getVolumeMap('soft', true);
     await api.adjustVolumeSetting(source, volume);
+    trackEvent(AnalyticsEvent.ThreadMuted, {
+      channelType: channel.type,
+    });
   } catch (e) {
     logger.trackError('ActivityAction: Failed to mute thread', {
       error: e,
@@ -134,6 +139,9 @@ export async function unmuteThread({
   try {
     const { source } = api.getThreadSource({ channel, post: thread });
     await api.adjustVolumeSetting(source, null);
+    trackEvent(AnalyticsEvent.ThreadUnmuted, {
+      channelType: channel.type,
+    });
   } catch (e) {
     logger.trackError('ActivityAction: Failed to unmute thread', {
       error: e,
@@ -254,6 +262,7 @@ export async function setGroupVolumeLevel(params: {
       source,
       params.level ? ub.getVolumeMap(params.level, true) : null
     );
+    return true;
   } catch (e) {
     // rollback
     logger.trackError('ActivityAction: Failed to set group volume level', {
@@ -264,6 +273,7 @@ export async function setGroupVolumeLevel(params: {
     if (existingGroup?.volumeSettings) {
       await db.setVolumes({ volumes: [existingGroup.volumeSettings] });
     }
+    return false;
   }
 }
 
@@ -312,6 +322,7 @@ export async function setChannelVolumeLevel(params: {
       source,
       params.level ? ub.getVolumeMap(params.level, true) : null
     );
+    return true;
   } catch (e) {
     // rollback
     logger.trackError('ActivityAction: Failed to set channel volume level', {
@@ -330,6 +341,7 @@ export async function setChannelVolumeLevel(params: {
         ],
       });
     }
+    return false;
   }
 }
 

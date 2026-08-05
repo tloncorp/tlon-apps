@@ -320,6 +320,7 @@ const ButtonText = styled(Text, {
   context: ButtonContext,
   userSelect: 'none',
   color: '$secondaryText',
+  numberOfLines: 1,
   trimmed: false,
   style: {
     WebkitFontSmoothing: 'antialiased',

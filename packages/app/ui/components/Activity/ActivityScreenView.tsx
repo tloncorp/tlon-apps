@@ -1,4 +1,4 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -15,7 +15,6 @@ import {
 import { View, XStack, isWeb, useStyle } from 'tamagui';
 
 import { NavigationProvider } from '../../contexts/navigation';
-import { useStore } from '../../contexts/storeContext';
 import { useIsDarkTheme } from '../../utils/colorUtils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
@@ -38,6 +37,7 @@ export function ActivityScreenView({
   loadingSubtitle,
   onNavigateToContacts,
   onInviteFriends,
+  scrollRef,
 }: {
   isFocused: boolean;
   goToChannel: (channel: db.Channel, selectedPostId?: string) => void;
@@ -51,8 +51,8 @@ export function ActivityScreenView({
   loadingSubtitle?: string | null;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
+  scrollRef?: React.RefObject<FlatList | null>;
 }) {
-  const store = useStore();
   const { data: activitySeenMarker } = store.useActivitySeenMarker();
   const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
   const currentFetcher = bucketFetchers[activeTab];
@@ -70,7 +70,7 @@ export function ActivityScreenView({
     setTimeout(() => {
       store.advanceActivitySeenMarker(newestTimestamp);
     }, 1000);
-  }, [newestTimestamp, store]);
+  }, [newestTimestamp]);
 
   useEffect(() => {
     if (
@@ -197,6 +197,9 @@ export function ActivityScreenView({
   const handleTabPress = useCallback(
     (tab: db.ActivityBucket) => {
       if (tab !== activeTab) {
+        trackEvent(AnalyticsEvent.ActivityFilterSelected, {
+          tab,
+        });
         setActiveTab(tab);
       }
     },
@@ -248,6 +251,7 @@ export function ActivityScreenView({
       loadingSubtitle={loadingSubtitle}
       onNavigateToContacts={onNavigateToContacts}
       onInviteFriends={onInviteFriends}
+      scrollRef={scrollRef}
     />
   );
 }
@@ -269,6 +273,7 @@ export function ActivityScreenContent({
   loadingSubtitle,
   onNavigateToContacts,
   onInviteFriends,
+  scrollRef,
 }: {
   activeTab: db.ActivityBucket;
   onPressTab: (tab: db.ActivityBucket) => void;
@@ -286,6 +291,7 @@ export function ActivityScreenContent({
   loadingSubtitle?: string | null;
   onNavigateToContacts?: () => void;
   onInviteFriends?: () => void;
+  scrollRef?: React.RefObject<FlatList | null>;
 }) {
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
@@ -306,6 +312,7 @@ export function ActivityScreenContent({
       await setBadgeCountAsync(0);
     }
     await store.markAllRead();
+    trackEvent(AnalyticsEvent.ActivityMarkedAllRead);
   }, []);
 
   const handleInviteFriends = useCallback(() => {
@@ -364,6 +371,7 @@ export function ActivityScreenContent({
               </XStack>
             ) : (
               <FlatList
+                ref={scrollRef}
                 data={events}
                 renderItem={renderItem}
                 keyExtractor={keyExtractor}

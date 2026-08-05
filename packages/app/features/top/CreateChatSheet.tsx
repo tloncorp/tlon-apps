@@ -1,5 +1,5 @@
 import * as store from '@tloncorp/shared';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   cloneElement,
@@ -109,12 +109,24 @@ interface CreateChatFormContentProps {
 }
 
 interface JoinGroupByIdPaneProps {
+  open: boolean;
   close: () => void;
 }
 
-const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
+const JoinGroupByIdPane = ({ open, close }: JoinGroupByIdPaneProps) => {
   const [groupCode, setGroupCode] = useState('');
   const { isCodeValid, state, actions } = useGroupSearch(groupCode);
+
+  const { resetSearch } = actions;
+
+  // the sheet stays mounted after first open, so clear stale search results
+  // when it closes
+  useEffect(() => {
+    if (!open) {
+      setGroupCode('');
+      resetSearch();
+    }
+  }, [open, resetSearch]);
 
   const handleActionComplete = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -194,9 +206,11 @@ const JoinGroupByIdPane = ({ close }: JoinGroupByIdPaneProps) => {
 
 const JoinGroupFormContent = ({
   chatType,
+  open,
   close,
 }: {
   chatType: ChatType;
+  open: boolean;
   close: () => void;
 }) => {
   const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
@@ -206,7 +220,7 @@ const JoinGroupFormContent = ({
     <YStack flex={1} gap="$l" paddingBottom={bottom}>
       <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
       <ActionSheet.ContentBlock>
-        <JoinGroupByIdPane close={close} />
+        <JoinGroupByIdPane open={open} close={close} />
       </ActionSheet.ContentBlock>
     </YStack>
   );
@@ -285,6 +299,14 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     store.GroupTemplateId | undefined
   >(undefined);
   const [groupTitle, setGroupTitle] = useState<string | undefined>(undefined);
+  const isWindowNarrow = useIsWindowNarrow();
+
+  const open = useCallback(() => {
+    if (step === 'initial') {
+      trackEvent(AnalyticsEvent.CreateMenuOpened);
+      setStep('selectType');
+    }
+  }, [step]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -301,6 +323,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   );
 
   const handleTypeSelected = useCallback((type: ChatType) => {
+    trackEvent(AnalyticsEvent.CreateOptionSelected, {
+      option: type,
+    });
     if (type === 'group') {
       // Navigate to group type selection instead of directly to member selection
       setStep('selectGroupType');
@@ -311,6 +336,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
 
   const handleGroupTypeSelected = useCallback(
     (groupType: GroupType, templateId?: store.GroupTemplateId) => {
+      trackEvent(AnalyticsEvent.CreateOptionSelected, {
+        option: groupType,
+      });
       if (groupType === 'quick') {
         // Quick group goes to member selection without template
         setSelectedTemplateId(undefined);
@@ -341,6 +369,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       const didCreate = await createChat(params);
       if (didCreate) {
         setStep('initial');
+        setSelectedTemplateId(undefined);
+        setGroupTitle(undefined);
+        setSelectedContactIds([]);
       }
     },
     [createChat, isCreatingChat]
@@ -349,7 +380,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   useImperativeHandle(
     ref,
     () => ({
-      open: () => setStep((step) => (step === 'initial' ? 'selectType' : step)),
+      open,
       close: () => {
         setStep('initial');
         setSelectedTemplateId(undefined);
@@ -357,10 +388,9 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         setSelectedContactIds([]);
       },
     }),
-    []
+    [open]
   );
 
-  const isWindowNarrow = useIsWindowNarrow();
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
 
   const handleSelectDmContact = useCallback(
@@ -385,17 +415,17 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   const triggerWithOnPress = useMemo(() => {
     if (!trigger || !isValidElement(trigger)) return null;
     return cloneElement(trigger, {
-      onPress: () => setStep(step === 'initial' ? 'selectType' : step),
+      onPress: open,
       'data-testid': 'CreateChatSheetTrigger',
     } as Partial<{ onPress: () => void; 'data-testid': string }>);
-  }, [trigger, step]);
+  }, [open, trigger]);
 
   return !isWindowNarrow ? (
     <>
       {triggerWithOnPress}
       <ActionSheet
         open={step === 'selectType'}
-        onOpenChange={() => setStep('initial')}
+        onOpenChange={handleOpenChange}
         mode="dialog"
         closeButton
         dialogContentProps={{ width: 380 }}
@@ -407,17 +437,17 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       </ActionSheet>
       <GroupTypeSelectionSheet
         open={step === 'selectGroupType'}
-        onOpenChange={() => setStep('initial')}
+        onOpenChange={handleOpenChange}
         onSelectGroupType={handleGroupTypeSelected}
       />
       <GroupTitleInputSheet
         open={step === 'setGroupTitle'}
-        onOpenChange={() => setStep('initial')}
+        onOpenChange={handleOpenChange}
         onSubmitTitle={handleTitleSubmitted}
       />
       <ActionSheet
         open={step === 'createJoinGroup'}
-        onOpenChange={() => setStep('initial')}
+        onOpenChange={handleOpenChange}
         mode="dialog"
         closeButton
         dialogContentProps={{ width: 600 }}
@@ -425,13 +455,14 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         <View flex={1}>
           <JoinGroupFormContent
             chatType={chatType}
+            open={step === 'createJoinGroup'}
             close={() => setStep('initial')}
           />
         </View>
       </ActionSheet>
       <ActionSheet
         open={step === 'createDm' || step === 'createGroup'}
-        onOpenChange={() => setStep('initial')}
+        onOpenChange={handleOpenChange}
         mode="dialog"
         closeButton
         dialogContentProps={{ height: 'auto', maxHeight: 1200, width: 600 }}
@@ -559,6 +590,17 @@ export function CreateChatInviteSheet({
 }) {
   const [screenScrolling, setScreenScrolling] = useState(false);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  const [contentKey, setContentKey] = useState(0);
+
+  // The sheet stays mounted across opens, so ContactBook's internal selection
+  // and search state would otherwise leak into the next creation flow. Clear
+  // our selection and remount the form whenever the sheet closes.
+  useEffect(() => {
+    if (!open) {
+      setSelectedContactIds([]);
+      setContentKey((key) => key + 1);
+    }
+  }, [open]);
 
   const handleSelectDmContact = useCallback(
     (contactId: string) => {
@@ -574,7 +616,6 @@ export function CreateChatInviteSheet({
       templateId,
       title,
     });
-    setSelectedContactIds([]);
   }, [onSubmit, selectedContactIds, templateId, title]);
 
   // hack: ensure the nested ContactBook will scroll properly within the sheet
@@ -595,6 +636,7 @@ export function CreateChatInviteSheet({
       hasScrollableContent
     >
       <CreateChatFormContent
+        key={contentKey}
         chatType={chatType}
         isCreating={isCreating}
         onSelectDmContact={handleSelectDmContact}
@@ -620,6 +662,7 @@ export function JoinGroupSheet({
       <YStack flex={1} paddingBottom={bottom}>
         <JoinGroupFormContent
           chatType="joinGroup"
+          open={open}
           close={() => onOpenChange(false)}
         />
       </YStack>

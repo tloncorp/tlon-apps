@@ -18,6 +18,8 @@ import { ChatDetailsScreen } from '../../features/top/ChatDetailsScreen';
 import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { MessagesEmptyState } from '../../features/top/DesktopEmptyStates';
 import MediaViewerScreen from '../../features/top/MediaViewerScreen';
+import { NotesDetailScreen } from '../../features/top/NotesDetailScreen';
+import { NotesFolderScreen } from '../../features/top/NotesFolderScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
@@ -36,7 +38,7 @@ export const MessagesNavigator = () => {
 
   useEffect(() => {
     setLastOpenTab('Messages');
-  }, []);
+  }, [setLastOpenTab]);
 
   return (
     <MessagesDrawer.Navigator
@@ -139,6 +141,16 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="Post"
           component={PostScreen}
+          initialParams={props.route.params}
+        />
+        <ChannelStackNavigator.Screen
+          name="NotesDetail"
+          component={NotesDetailScreen}
+          initialParams={props.route.params}
+        />
+        <ChannelStackNavigator.Screen
+          name="NotesFolder"
+          component={NotesFolderScreen}
           initialParams={props.route.params}
         />
         <ChannelStackNavigator.Screen

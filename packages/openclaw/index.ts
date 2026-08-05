@@ -2,25 +2,38 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  type OpenClawPluginApi,
-  defineChannelPluginEntry,
-} from 'openclaw/plugin-sdk/core';
+import { defineBundledChannelEntry } from 'openclaw/plugin-sdk/channel-entry-contract';
+import { type OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 import {
   onDiagnosticEvent,
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { tlonPlugin } from './src/channel.js';
+import { publishContextLensEvent } from './src/context-lens-events.js';
+import { registerContextLensRoutes } from './src/context-lens-routes.js';
+import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
+import { initContextLensStore } from './src/context-lens-store.js';
+import {
+  ensureBackgroundContextLensForSession,
+  recordContextLensToolResultForSession,
+  recordContextLensToolStartForSession,
+  scheduleBackgroundContextLensFinalization,
+} from './src/context-lens.js';
+import {
+  recordTlonCronAgentContext,
+  resetTlonCronObservability,
+} from './src/cron-observability.js';
+import {
+  clearCronServiceAccessor,
+  handleCronChangedEvent,
+  setCronServiceAccessor,
+} from './src/cron-telemetry.js';
 import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
-import { sendGatewayStop } from './src/gateway-status.js';
-import {
-  createGatewayStatusManager,
-  setGatewayStatusManager,
-} from './src/gateway-status.js';
+import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
@@ -28,25 +41,37 @@ import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
 import { parseTlonTarget } from './src/targets.js';
 import {
+  type TlonDiagnosticLogAttributes,
   type TlonSessionDiagnosticReportInput,
   formatTlonTelemetryErrorText,
+  recordCronRunAttribution,
   recordToolCall,
+  reportHarnessDebug,
   reportHarnessError,
   reportOutboundRoute,
-  reportPluginError,
   reportSessionDiagnostic,
   reportSessionLifecycle,
   reportSessionTurnCreated,
   reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
-import { checkBlockedSendOperation } from './src/tlon-tool-guard.js';
+import {
+  findTlonSubcommandIndex,
+  shellSplitCommand,
+  summarizeTlonCommand,
+} from './src/tlon-tool-command.js';
+import {
+  checkBlockedSendOperation,
+  formatAllowedTlonSubcommands,
+  isAllowedTlonSubcommand,
+} from './src/tlon-tool-guard.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
-import { listTlonAccountIds, resolveTlonAccount } from './src/types.js';
+import { recordActiveTlonTurnToolCall } from './src/turn-recorder.js';
+import { resolveTlonAccount } from './src/types.js';
 import {
   formatTlonVersionIdentity,
   resolveTlonSkillVersion,
@@ -57,103 +82,65 @@ export { tlonPlugin } from './src/channel.js';
 export { setTlonRuntime } from './src/runtime.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function readToolCallId(event: unknown): string | undefined {
+  if (!event || typeof event !== 'object') {
+    return undefined;
+  }
+  const value =
+    (
+      event as {
+        toolCallId?: unknown;
+        callId?: unknown;
+        id?: unknown;
+      }
+    ).toolCallId ??
+    (event as { callId?: unknown }).callId ??
+    (event as { id?: unknown }).id;
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
 const require = createRequire(import.meta.url);
 
-// Whitelist of allowed tlon subcommands
-const ALLOWED_TLON_COMMANDS = new Set([
-  'activity',
-  'channels',
-  'contacts',
-  'dms',
-  'expose',
-  'groups',
-  'hooks',
-  'messages',
-  'notebook',
-  'posts',
-  'settings',
-  'upload',
-  'help',
-  'version',
-]);
+const DEFAULT_TLON_CLI_TIMEOUT_MS = 45_000;
 
-/** Credential flags that the tlon skill binary accepts before the subcommand. */
-const CREDENTIAL_FLAGS_WITH_VALUE = new Set([
-  '--config',
-  '--url',
-  '--ship',
-  '--code',
-  '--cookie',
-]);
-
-/**
- * Find the first positional argument (subcommand) by skipping credential flags
- * and their values. Returns the index into `args`, or -1 if none found.
- */
-function findSubcommandIndex(args: string[]): number {
-  let i = 0;
-  while (i < args.length) {
-    const arg = args[i];
-    // --flag=value form: skip one token
-    if (arg.startsWith('--') && arg.includes('=')) {
-      const flag = arg.slice(0, arg.indexOf('='));
-      if (CREDENTIAL_FLAGS_WITH_VALUE.has(flag)) {
-        i += 1;
-        continue;
-      }
-    }
-    // --flag value form: skip two tokens
-    if (CREDENTIAL_FLAGS_WITH_VALUE.has(arg)) {
-      i += 2;
-      continue;
-    }
-    // Not a credential flag — this is the subcommand
-    return i;
+function summarizeToolParams(params: unknown): string | undefined {
+  if (params === null || params === undefined) {
+    return undefined;
   }
-  return -1;
+  if (Array.isArray(params)) {
+    return `${params.length} array item${params.length === 1 ? '' : 's'}`;
+  }
+  if (typeof params === 'object') {
+    const keys = Object.keys(params);
+    if (!keys.length) {
+      return 'empty object';
+    }
+    const shown = keys.slice(0, 4).join(', ');
+    const suffix = keys.length > 4 ? ` +${keys.length - 4}` : '';
+    return `${keys.length} key${keys.length === 1 ? '' : 's'}: ${shown}${suffix}`;
+  }
+  return typeof params;
 }
 
-/**
- * Shell-like argument splitter that respects quotes
- */
-function shellSplit(str: string): string[] {
-  const args: string[] = [];
-  let cur = '';
-  let inDouble = false;
-  let inSingle = false;
-  let escape = false;
+const MAX_TOOL_PARAM_DETAIL_CHARS = 2000;
 
-  for (const ch of str) {
-    if (escape) {
-      cur += ch;
-      escape = false;
-      continue;
-    }
-    if (ch === '\\' && !inSingle) {
-      escape = true;
-      continue;
-    }
-    if (ch === '"' && !inSingle) {
-      inDouble = !inDouble;
-      continue;
-    }
-    if (ch === "'" && !inDouble) {
-      inSingle = !inSingle;
-      continue;
-    }
-    if (/\s/.test(ch) && !inDouble && !inSingle) {
-      if (cur) {
-        args.push(cur);
-        cur = '';
-      }
-      continue;
-    }
-    cur += ch;
+function detailToolParams(params: unknown): string | undefined {
+  if (params === null || params === undefined) {
+    return undefined;
   }
-  if (cur) {
-    args.push(cur);
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify(params, null, 1);
+  } catch {
+    return undefined;
   }
-  return args;
+  if (!serialized) {
+    return undefined;
+  }
+  if (serialized.length > MAX_TOOL_PARAM_DETAIL_CHARS) {
+    return `${serialized.slice(0, MAX_TOOL_PARAM_DETAIL_CHARS)}… [truncated]`;
+  }
+  return serialized;
 }
 
 /**
@@ -174,17 +161,21 @@ function runTlonCommand(
     }
 
     const child = spawn(binary, args, { env });
-
     let stdout = '';
     let stderr = '';
-    let timedOut = false;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const timeoutMs = options?.timeoutMs;
+    let settled = false;
+    let killTimer: ReturnType<typeof setTimeout> | null = null;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const timeoutMs = options?.timeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
 
     const cleanup = () => {
       if (timeout) {
         clearTimeout(timeout);
-        timeout = undefined;
+        timeout = null;
+      }
+      if (killTimer) {
+        clearTimeout(killTimer);
+        killTimer = null;
       }
     };
 
@@ -197,22 +188,33 @@ function runTlonCommand(
     });
 
     child.on('error', (err) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       cleanup();
       reject(new Error(`Failed to run tlon: ${err.message}`));
     });
 
-    if (timeoutMs) {
+    if (timeoutMs > 0) {
       timeout = setTimeout(() => {
-        timedOut = true;
+        if (settled) {
+          return;
+        }
+        settled = true;
         child.kill('SIGTERM');
+        killTimer = setTimeout(() => child.kill('SIGKILL'), 2_000);
+        reject(new Error(`tlon command timed out after ${timeoutMs}ms`));
       }, timeoutMs);
     }
 
     child.on('close', (code) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       cleanup();
-      if (timedOut) {
-        reject(new Error(`tlon timed out after ${timeoutMs}ms`));
-      } else if (code !== 0) {
+      if (code !== 0) {
         reject(new Error(stderr || `tlon exited with code ${code}`));
       } else {
         resolve(stdout);
@@ -265,6 +267,59 @@ function numberField(event: DiagnosticCandidate, key: string): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function objectField(
+  event: DiagnosticCandidate,
+  key: string
+): Record<string, unknown> | null {
+  const value = event[key];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function diagnosticLogAttributes(
+  event: DiagnosticCandidate
+): TlonDiagnosticLogAttributes | null {
+  const attributes = objectField(event, 'attributes');
+  if (!attributes) {
+    return null;
+  }
+
+  const normalized = Object.create(null) as TlonDiagnosticLogAttributes;
+  for (const [key, value] of Object.entries(attributes)) {
+    if (typeof value === 'string') {
+      normalized[key] = value;
+      continue;
+    }
+    if (typeof value === 'boolean') {
+      normalized[key] = value;
+      continue;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      normalized[key] = value;
+    }
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
+function stringAttribute(
+  attributes: TlonDiagnosticLogAttributes | null,
+  key: string
+): string | null {
+  const value = attributes?.[key];
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function numberAttribute(
+  attributes: TlonDiagnosticLogAttributes | null,
+  key: string
+): number | null {
+  const value = attributes?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function diagnosticErrorText(event: DiagnosticCandidate): string | null {
   return stringField(event, 'error') ?? stringField(event, 'message');
 }
@@ -290,6 +345,256 @@ function diagnosticSummary(
     .join(' ');
 }
 
+const HARNESS_DEBUG_EVENT_TYPES = new Set([
+  'session.turn.created',
+  'run.started',
+  'run.completed',
+  'context.assembled',
+  'model.call.started',
+  'model.call.completed',
+  'model.call.error',
+  'harness.run.started',
+  'harness.run.completed',
+  'harness.run.error',
+  'tool.execution.started',
+  'tool.execution.completed',
+  'tool.execution.error',
+  'tool.execution.blocked',
+]);
+
+const HARNESS_DEBUG_LOG_PATTERNS = [
+  '[context-engine]',
+  '[lcm]',
+  '[trace:embedded-run]',
+  'context engine',
+  'lossless-claw',
+];
+
+function debugEventKind(type: string): string {
+  if (type === 'session.turn.created') {
+    return 'turn';
+  }
+  if (type === 'context.assembled') {
+    return 'context';
+  }
+  if (type.startsWith('model.call.')) {
+    return 'model';
+  }
+  if (type.startsWith('harness.run.')) {
+    return 'harness';
+  }
+  if (type.startsWith('tool.execution.')) {
+    return 'tool';
+  }
+  if (type.startsWith('run.')) {
+    return 'run';
+  }
+  if (type === 'log.record') {
+    return 'log';
+  }
+  return 'diagnostic';
+}
+
+function isContextEngineDebugMessage(message: string | null): boolean {
+  const normalized = message?.toLowerCase() ?? '';
+  return HARNESS_DEBUG_LOG_PATTERNS.some((pattern) =>
+    normalized.includes(pattern)
+  );
+}
+
+function extractContextEngineTaskId(message: string | null): string | null {
+  return extractDiagnosticKeyValue(message, 'taskId');
+}
+
+function extractDiagnosticKeyValue(
+  message: string | null,
+  key: string
+): string | null {
+  if (!message) {
+    return null;
+  }
+  return new RegExp(`\\b${key}=([^\\s]+)`).exec(message)?.[1] ?? null;
+}
+
+function extractDiagnosticSessionKey(message: string | null): string | null {
+  if (!message) {
+    return null;
+  }
+  return /\bsessionKey=([^\s]+)/.exec(message)?.[1] ?? null;
+}
+
+function shouldReportHarnessDebug(event: DiagnosticCandidate, type: string) {
+  if (HARNESS_DEBUG_EVENT_TYPES.has(type)) {
+    return true;
+  }
+  if (type !== 'log.record') {
+    return false;
+  }
+
+  const message = stringField(event, 'message');
+  if (isContextEngineDebugMessage(message)) {
+    return true;
+  }
+
+  const level = stringField(event, 'level')?.toLowerCase();
+  const attributes = diagnosticLogAttributes(event);
+  return (
+    Boolean(
+      stringField(event, 'sessionKey') ??
+        stringAttribute(attributes, 'sessionKey')
+    ) &&
+    (level === 'warn' || level === 'warning' || level === 'error')
+  );
+}
+
+function reportHarnessDebugDiagnostic(
+  event: DiagnosticCandidate,
+  type: string
+) {
+  if (!shouldReportHarnessDebug(event, type)) {
+    return;
+  }
+
+  const message = stringField(event, 'message');
+  const attributes = diagnosticLogAttributes(event);
+  const code = objectField(event, 'code');
+  const codeFunctionName =
+    typeof code?.functionName === 'string' && code.functionName.trim()
+      ? code.functionName
+      : null;
+  const codeLine =
+    typeof code?.line === 'number' && Number.isFinite(code.line)
+      ? code.line
+      : null;
+  const isContextEngineEvent = isContextEngineDebugMessage(message);
+  const contextEngineTaskId =
+    stringField(event, 'contextEngineTaskId') ??
+    stringAttribute(attributes, 'contextEngineTaskId') ??
+    stringAttribute(attributes, 'taskId') ??
+    extractContextEngineTaskId(message);
+  const contextEngineOperation =
+    stringField(event, 'contextEngineOperation') ??
+    stringAttribute(attributes, 'contextEngineOperation') ??
+    stringAttribute(attributes, 'operation') ??
+    extractDiagnosticKeyValue(message, 'operation');
+  const contextEngineLane =
+    stringField(event, 'contextEngineLane') ??
+    stringAttribute(attributes, 'contextEngineLane') ??
+    stringAttribute(attributes, 'lane') ??
+    extractDiagnosticKeyValue(message, 'lane');
+  reportHarnessDebug({
+    harnessEventType: type,
+    debugEventKind: debugEventKind(type),
+    sessionKey:
+      stringField(event, 'sessionKey') ??
+      stringAttribute(attributes, 'sessionKey') ??
+      extractDiagnosticSessionKey(message),
+    sessionId:
+      stringField(event, 'sessionId') ??
+      stringAttribute(attributes, 'sessionId'),
+    runId: stringField(event, 'runId') ?? stringAttribute(attributes, 'runId'),
+    agentId:
+      stringField(event, 'agentId') ?? stringAttribute(attributes, 'agentId'),
+    provider:
+      stringField(event, 'provider') ?? stringAttribute(attributes, 'provider'),
+    model: stringField(event, 'model') ?? stringAttribute(attributes, 'model'),
+    phase: stringField(event, 'phase') ?? stringAttribute(attributes, 'phase'),
+    outcome:
+      stringField(event, 'outcome') ?? stringAttribute(attributes, 'outcome'),
+    durationMs:
+      numberField(event, 'durationMs') ??
+      numberAttribute(attributes, 'durationMs'),
+    toolName:
+      stringField(event, 'toolName') ?? stringAttribute(attributes, 'toolName'),
+    toolCallId:
+      stringField(event, 'toolCallId') ??
+      stringAttribute(attributes, 'toolCallId'),
+    toolSource:
+      stringField(event, 'toolSource') ??
+      stringAttribute(attributes, 'toolSource'),
+    toolOwner:
+      stringField(event, 'toolOwner') ??
+      stringAttribute(attributes, 'toolOwner'),
+    pluginId:
+      stringField(event, 'pluginId') ?? stringAttribute(attributes, 'pluginId'),
+    harnessId:
+      stringField(event, 'harnessId') ??
+      stringAttribute(attributes, 'harnessId'),
+    modelCallId:
+      stringField(event, 'modelCallId') ??
+      stringField(event, 'callId') ??
+      stringAttribute(attributes, 'modelCallId') ??
+      stringAttribute(attributes, 'callId'),
+    modelApi:
+      stringField(event, 'modelApi') ?? stringAttribute(attributes, 'modelApi'),
+    modelTransport:
+      stringField(event, 'modelTransport') ??
+      stringAttribute(attributes, 'modelTransport'),
+    requestPayloadBytes:
+      numberField(event, 'requestPayloadBytes') ??
+      numberAttribute(attributes, 'requestPayloadBytes'),
+    responseStreamBytes:
+      numberField(event, 'responseStreamBytes') ??
+      numberAttribute(attributes, 'responseStreamBytes'),
+    timeToFirstByteMs:
+      numberField(event, 'timeToFirstByteMs') ??
+      numberAttribute(attributes, 'timeToFirstByteMs'),
+    logLevel: stringField(event, 'level'),
+    loggerName: stringField(event, 'loggerName'),
+    codeFunctionName,
+    codeLine,
+    logAttributes: attributes,
+    message,
+    contextEngineEvent: isContextEngineEvent ? type : null,
+    contextEngineTaskId,
+    contextEngineOperation,
+    contextEngineLane,
+    errorName:
+      stringField(event, 'errorName') ??
+      stringAttribute(attributes, 'errorName'),
+    errorCode:
+      stringField(event, 'errorCode') ??
+      stringAttribute(attributes, 'errorCode'),
+    messageCount:
+      numberField(event, 'messageCount') ??
+      numberAttribute(attributes, 'messageCount'),
+    historyTextChars:
+      numberField(event, 'historyTextChars') ??
+      numberAttribute(attributes, 'historyTextChars'),
+    historyImageBlocks:
+      numberField(event, 'historyImageBlocks') ??
+      numberAttribute(attributes, 'historyImageBlocks'),
+    maxMessageTextChars:
+      numberField(event, 'maxMessageTextChars') ??
+      numberAttribute(attributes, 'maxMessageTextChars'),
+    systemPromptChars:
+      numberField(event, 'systemPromptChars') ??
+      numberAttribute(attributes, 'systemPromptChars'),
+    promptChars:
+      numberField(event, 'promptChars') ??
+      numberAttribute(attributes, 'promptChars'),
+    promptImages:
+      numberField(event, 'promptImages') ??
+      numberAttribute(attributes, 'promptImages'),
+    contextTokenBudget:
+      numberField(event, 'contextTokenBudget') ??
+      numberAttribute(attributes, 'contextTokenBudget'),
+    reserveTokens:
+      numberField(event, 'reserveTokens') ??
+      numberAttribute(attributes, 'reserveTokens'),
+    contextChannel:
+      stringField(event, 'contextChannel') ??
+      stringField(event, 'channel') ??
+      stringAttribute(attributes, 'contextChannel') ??
+      stringAttribute(attributes, 'channel'),
+    contextTrigger:
+      stringField(event, 'contextTrigger') ??
+      stringField(event, 'trigger') ??
+      stringAttribute(attributes, 'contextTrigger') ??
+      stringAttribute(attributes, 'trigger'),
+  });
+}
+
 function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
   const type = stringField(event, 'type');
   if (!type) {
@@ -304,8 +609,11 @@ function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
       runId: stringField(event, 'runId'),
       agentId: stringField(event, 'agentId'),
     });
+    reportHarnessDebugDiagnostic(event, type);
     return;
   }
+
+  reportHarnessDebugDiagnostic(event, type);
 
   const common = {
     harnessEventType: type,
@@ -623,96 +931,44 @@ function installTelemetryDiagnosticObservers(
   });
 }
 
-export default defineChannelPluginEntry({
+export default defineBundledChannelEntry({
   id: 'tlon',
   name: 'Tlon',
   description: 'Tlon/Urbit channel plugin',
-  plugin: tlonPlugin,
-  setRuntime: setTlonRuntime,
+  importMetaUrl: import.meta.url,
+  plugin: {
+    specifier: './src/channel.js',
+    exportName: 'tlonPlugin',
+  },
+  runtime: {
+    specifier: './src/runtime.js',
+    exportName: 'setTlonRuntime',
+  },
   registerFull(api) {
     // ── Gateway-status liveness integration ───────────────────
     //
-    // v1 requires exactly one Tlon account. With multiple accounts, multiple
-    // monitors call configureTlonApiWithPoke() and the last one wins the
-    // global @tloncorp/api singleton — making it unsafe to route heartbeats or
-    // stop pokes to a specific ship. Disable entirely rather than route to the
-    // wrong ship.
+    // registerFull is NOT a once-per-process call: OpenClaw invokes it once
+    // per load pass — tool discovery, full channel activation, and (on
+    // 6.11+) a ~10s post-startup runtime-plugin prewarm that re-runs it
+    // into a SEPARATE plugin registry. `gateway_start`/`gateway_stop` are
+    // fire-once, non-latched hooks bound against whichever registry is
+    // active when they fire, so nulling-and-recreating the coordinator here
+    // on every pass (the old behavior) could orphan an already-resolved
+    // coordinator behind a never-resolved replacement.
     //
-    // We count ALL configured account entries (not just currently-runnable
-    // ones) on purpose. The manager is a process-lifetime singleton created
-    // here in registerFull, which does NOT re-run on config reload. If we
-    // counted only runnable accounts, a config of one complete account plus a
-    // disabled/unconfigured stub would enable the singleton, and later
-    // completing the stub would start a second monitor that races the shared
-    // API slot — without registerFull re-evaluating the gate. Counting every
-    // entry keeps the feature off whenever a second account exists at all.
-    const gsAccountIds = listTlonAccountIds(api.config);
-    setGatewayStatusManager(null);
-
-    if (gsAccountIds.length > 1) {
-      api.logger.warn(
-        `[gateway-status] disabled: ${gsAccountIds.length} Tlon accounts configured, ` +
-          `but v1 only supports one (global @tloncorp/api client cannot target multiple ships)`
-      );
-    } else if (gsAccountIds.length === 1) {
-      const gsManager = createGatewayStatusManager({
-        logger: {
-          log: (m) => api.logger.info(m),
-          error: (m) => {
-            reportPluginError({
-              pluginErrorSource: 'gateway_status_heartbeat',
-              errorKind: 'heartbeat',
-              errorText: m,
-            });
-            api.logger.warn(m);
-          },
-        },
-      });
-      setGatewayStatusManager(gsManager);
-
-      api.on('gateway_start', () => {
-        gsManager.signalGatewayStarted();
-        api.logger.info('[gateway-status] gateway_start received');
-      });
-
-      api.on('gateway_stop', async (event) => {
-        if (gsManager.stopped) {
-          return;
-        }
-        // Latch stopped FIRST, unconditionally. An activation task may be
-        // in flight (between the %gateway-start poke and markActivated());
-        // latching here makes its post-poke recheck bail so it can't start a
-        // heartbeat after we've already passed the shutdown hook.
-        const startPokeInFlightOrDone =
-          gsManager.activated || gsManager.starting;
-        gsManager.stopHeartbeat();
-        gsManager.markStopped();
-        // Only send %gateway-stop if a %gateway-start has been or is being
-        // sent. If activation never reached the start poke, there is nothing
-        // for the ship to stop.
-        if (!startPokeInFlightOrDone) {
-          return;
-        }
-        try {
-          const sent = await sendGatewayStop({
-            bootId: gsManager.bootId,
-            reason: event.reason ?? 'shutdown',
-          });
-          if (sent) {
-            api.logger.info(
-              `[gateway-status] stopped (reason=${event.reason ?? 'shutdown'})`
-            );
-          } else {
-            api.logger.warn(
-              '[gateway-status] stop skipped: api-client params not published'
-            );
-          }
-        } catch (err) {
-          api.logger.warn(`[gateway-status] stop poke failed: ${String(err)}`);
-        }
-      });
-    }
-    // else: zero accounts configured — nothing to do
+    // registerGatewayStatusHooks() is idempotent across passes: it
+    // get-or-creates a single process-lifetime coordinator (independent of
+    // Tlon account count — see gateway-status.ts) and (re)binds the hooks
+    // onto the CURRENT pass's `api` every time. Per-monitor eligibility
+    // (exactly one Tlon account) is evaluated in the monitor itself, from
+    // its own config snapshot, so an account added/removed via a
+    // channels.tlon hot-reload takes effect without a second registerFull.
+    registerGatewayStatusHooks(api, {
+      logger: {
+        log: (m) => api.logger.info(m),
+        error: (m) => api.logger.warn(m),
+      },
+    });
 
     // Resolve the tlon tool binary once. The tool itself and version
     // diagnostics share this path so telemetry reports what OpenClaw will
@@ -727,6 +983,7 @@ export default defineChannelPluginEntry({
     setTlonSkillVersionResolver(() => readTlonSkillVersion(tlonBinary));
     const renderTlonVersion = async () => ({
       text: formatTlonVersionIdentity({
+        harnessVersion: api.runtime.version,
         tlonSkillVersion: await resolveTlonSkillVersion(),
       }),
     });
@@ -761,6 +1018,16 @@ export default defineChannelPluginEntry({
       },
     });
 
+    const contextLensRoutesEnabled = registerContextLensRoutes(api);
+    const contextLensShipSyncEnabled = initContextLensShipSync(api);
+    // Recording and the disk store run when at least one reader path is
+    // live: authed gateway routes or %context-lens ship sync.
+    const contextLensEnabled =
+      contextLensRoutesEnabled || contextLensShipSyncEnabled;
+    if (contextLensEnabled) {
+      initContextLensStore(api);
+    }
+
     // Register the tlon tool
     // Capture credentials from config at registration time
     const account = resolveTlonAccount(api.config);
@@ -768,6 +1035,8 @@ export default defineChannelPluginEntry({
       account.configured && account.url && account.ship && account.code
         ? { url: account.url, ship: account.ship, code: account.code }
         : undefined;
+    const toolTimeoutMs =
+      account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
 
     if (credentials) {
       api.logger.info(`[tlon] Credentials available for ${account.ship}`);
@@ -781,9 +1050,9 @@ export default defineChannelPluginEntry({
       name: 'tlon',
       label: 'Tlon CLI',
       description:
-        'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, posts, settings, upload, expose, hooks. ' +
+        'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
         'DO NOT use this tool to send messages — use the `message` tool instead. ' +
-        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list'",
+        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
       parameters: {
         type: 'object',
         properties: {
@@ -792,23 +1061,23 @@ export default defineChannelPluginEntry({
             description:
               'The tlon command and arguments (read/admin operations). ' +
               'To send messages, use the `message` tool, not this tool. ' +
-              "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20'",
+              "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
           },
         },
         required: ['command'],
       },
       async execute(_id: string, params: { command: string }) {
         try {
-          const args = shellSplit(params.command);
+          const args = shellSplitCommand(params.command);
 
-          const subIdx = findSubcommandIndex(args);
+          const subIdx = findTlonSubcommandIndex(args);
           const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
-          if (!subcommand || !ALLOWED_TLON_COMMANDS.has(subcommand)) {
+          if (!isAllowedTlonSubcommand(subcommand)) {
             return {
               content: [
                 {
                   type: 'text' as const,
-                  text: `Error: Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${[...ALLOWED_TLON_COMMANDS].join(', ')}`,
+                  text: `Error: Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${formatAllowedTlonSubcommands()}`,
                 },
               ],
               details: { error: true },
@@ -824,7 +1093,9 @@ export default defineChannelPluginEntry({
             };
           }
 
-          const output = await runTlonCommand(tlonBinary, args, credentials);
+          const output = await runTlonCommand(tlonBinary, args, credentials, {
+            timeoutMs: toolTimeoutMs,
+          });
           return {
             content: [{ type: 'text' as const, text: output }],
             details: undefined,
@@ -845,12 +1116,49 @@ export default defineChannelPluginEntry({
     const logToolTraceContents = liveToolTraceContentsEnabled();
 
     api.on('before_tool_call', (event, ctx) => {
+      const toolCallId = readToolCallId(event);
       const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
       const isBlocked = isOwnerOnlyTool && role === 'user';
       const blockReason = isBlocked
         ? `The ${event.toolName} tool is not available.`
         : undefined;
+      if (contextLensEnabled) {
+        // Capture tool activity even when no conversation run owns this
+        // session (cron wakes — including jobs that reuse the main session
+        // and so inherit a sender-role entry — heartbeats, subagents).
+        // No-ops when a conversation lens is already bound.
+        const isCronSession = (ctx.sessionKey ?? '').includes(':cron:');
+        const background = ensureBackgroundContextLensForSession(
+          ctx.sessionKey,
+          {
+            runKind: isCronSession ? 'cron' : 'internal',
+            trigger: isCronSession ? 'cron' : 'tool',
+            preview: `${event.toolName} tool activity`,
+          }
+        );
+        if (background?.created) {
+          publishContextLensEvent('created', background.lens);
+        }
+        const lens = recordContextLensToolStartForSession(
+          ctx.sessionKey,
+          event.toolName,
+          {
+            phase: 'before',
+            argumentSummary: summarizeToolParams(event.params),
+            argumentDetail: detailToolParams(event.params),
+            toolCallId,
+          }
+        );
+        if (lens) {
+          publishContextLensEvent('tool_start', lens, {
+            toolName: event.toolName,
+            ...(toolCallId ? { toolCallId } : {}),
+            toolPhase: 'before',
+            toolCallCount: lens.tools.callCount,
+          });
+        }
+      }
 
       if (logToolTraceContents) {
         api.logger.info(
@@ -869,7 +1177,7 @@ export default defineChannelPluginEntry({
       }
 
       if (!isOwnerOnlyTool) {
-        return;
+        return undefined;
       }
 
       // Allow owner sessions and internal sessions (heartbeat, cron, etc.).
@@ -879,6 +1187,31 @@ export default defineChannelPluginEntry({
         api.logger.warn(
           `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
         );
+        if (contextLensEnabled) {
+          const blockedLens = recordContextLensToolResultForSession(
+            ctx.sessionKey,
+            event.toolName,
+            {
+              error: blockReason,
+              status: 'blocked',
+              toolCallId,
+            }
+          );
+          if (blockedLens) {
+            publishContextLensEvent('tool_result', blockedLens, {
+              toolName: event.toolName,
+              ...(toolCallId ? { toolCallId } : {}),
+              toolPhase: 'blocked',
+              toolCallCount: blockedLens.tools.callCount,
+            });
+            scheduleBackgroundContextLensFinalization(
+              ctx.sessionKey,
+              (finalLens) => {
+                publishContextLensEvent('final', finalLens);
+              }
+            );
+          }
+        }
         return {
           block: true,
           blockReason,
@@ -888,9 +1221,12 @@ export default defineChannelPluginEntry({
       api.logger.info(
         `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
       );
+      return undefined;
     });
 
     api.on('after_tool_call', (event, ctx) => {
+      const toolCallId = readToolCallId(event);
+      recordActiveTlonTurnToolCall();
       if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
         api.logger.info(
           formatToolTraceEvent({
@@ -918,9 +1254,39 @@ export default defineChannelPluginEntry({
             toolName: event.toolName,
             durationMs: event.durationMs,
             error: event.error,
+            context:
+              event.toolName === 'tlon' &&
+              typeof event.params.command === 'string'
+                ? summarizeTlonCommand(event.params.command)
+                : undefined,
           });
         },
       });
+      if (contextLensEnabled) {
+        const lens = recordContextLensToolResultForSession(
+          ctx.sessionKey,
+          event.toolName,
+          {
+            durationMs: event.durationMs,
+            error: event.error,
+            toolCallId,
+          }
+        );
+        if (lens) {
+          publishContextLensEvent('tool_result', lens, {
+            toolName: event.toolName,
+            ...(toolCallId ? { toolCallId } : {}),
+            toolPhase: 'after',
+            toolCallCount: lens.tools.callCount,
+          });
+          scheduleBackgroundContextLensFinalization(
+            ctx.sessionKey,
+            (finalLens) => {
+              publishContextLensEvent('final', finalLens);
+            }
+          );
+        }
+      }
     });
 
     // ── Session lifecycle / watchdog telemetry ─────────────────────────
@@ -970,6 +1336,43 @@ export default defineChannelPluginEntry({
           });
         },
       });
+    });
+
+    // ── Cron observability ──────────────────────────────────────────────
+    // `cron_changed` is a gateway-global hook; owner/bot identity is injected
+    // by the monitor's cron reporter (setCronTelemetryReporter). The
+    // gateway_start handler publishes the cron service accessor so the monitor
+    // can emit its boot-time job-count snapshot without a hook context.
+    api.on('gateway_start', (_event, ctx) => {
+      if (ctx.getCron) {
+        setCronServiceAccessor(ctx.getCron);
+      }
+    });
+    api.on('gateway_stop', () => {
+      clearCronServiceAccessor();
+      resetTlonCronObservability();
+    });
+
+    api.on('cron_changed', async (event, ctx) => {
+      try {
+        await handleCronChangedEvent(event, ctx);
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] Telemetry observer failed (cron_changed:${event.action}): ${String(error)}`
+        );
+        try {
+          reportTelemetryError({
+            telemetrySource: 'cron_changed',
+            sourceEventName: event.action,
+            errorKind: error instanceof Error ? error.name : typeof error,
+            errorText: formatTlonTelemetryErrorText(error),
+          });
+        } catch (reportError) {
+          api.logger.warn(
+            `[tlon] Telemetry error reporting failed: ${String(reportError)}`
+          );
+        }
+      }
     });
 
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
@@ -1052,6 +1455,76 @@ export default defineChannelPluginEntry({
       });
     });
 
+    // Cron jobs can run inside the main session, where the session key has
+    // no `:cron:` marker — the agent-level hook context is the only place
+    // the gateway exposes the cron trigger, so tag the run's lens here
+    // before any tool fires. Idempotent across both hooks.
+    const ensureCronContextLens = (ctx: {
+      sessionKey?: string;
+      trigger?: string;
+      jobId?: string;
+    }) => {
+      if (!contextLensEnabled || ctx.trigger !== 'cron') {
+        return;
+      }
+      const background = ensureBackgroundContextLensForSession(ctx.sessionKey, {
+        runKind: 'cron',
+        trigger: 'cron',
+        preview: ctx.jobId ? `cron job ${ctx.jobId}` : 'cron run',
+      });
+      if (background?.created) {
+        publishContextLensEvent('created', background.lens);
+      }
+    };
+    // Record cron attribution independently of the context lens so low-level
+    // model/harness/run failures can bypass the inbound-session telemetry gate
+    // and retain their detailed diagnostic fields. The lifecycle hook remains
+    // the authoritative source for the final cron outcome.
+    const onCronAgentHook = (ctx: {
+      sessionId?: string;
+      sessionKey?: string;
+      trigger?: string;
+      jobId?: string;
+      runId?: string;
+    }) => {
+      if (ctx.trigger === 'cron') {
+        recordTlonCronAgentContext({
+          jobId: ctx.jobId,
+          runId: ctx.runId,
+          sessionId: ctx.sessionId,
+          sessionKey: ctx.sessionKey,
+        });
+        safeTelemetryObserver({
+          logger: api.logger,
+          telemetrySource: 'cron_run_attribution',
+          sessionKey: ctx.sessionKey,
+          runId: ctx.runId,
+          run: () =>
+            recordCronRunAttribution({
+              sessionKey: ctx.sessionKey,
+              runId: ctx.runId,
+              jobId: ctx.jobId,
+            }),
+        });
+      }
+      ensureCronContextLens(ctx);
+    };
+    api.on('agent_turn_prepare', (_event, ctx) => onCronAgentHook(ctx));
+    api.on('model_call_started', (_event, ctx) => onCronAgentHook(ctx));
+
+    // Background lenses normally finalize on tool-result idle; agent_end
+    // re-arms the window so runs that end with model output (no trailing
+    // tool call) still finalize, while leaving time for the gateway to
+    // deliver the reply (stamped + recorded via the outbound send path).
+    api.on('agent_end', (_event, ctx) => {
+      if (!contextLensEnabled) {
+        return;
+      }
+      scheduleBackgroundContextLensFinalization(ctx.sessionKey, (finalLens) => {
+        publishContextLensEvent('final', finalLens);
+      });
+    });
+
     // ── Slash commands for approval & admin ────────────────────────────
     api.registerCommand({
       name: 'allow',
@@ -1115,7 +1588,7 @@ export default defineChannelPluginEntry({
         if ('error' in result) {
           return { text: result.error };
         }
-        return { text: await result.bridge.getPendingList() };
+        return await result.bridge.getPendingApprovalsReply();
       },
     });
 

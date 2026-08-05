@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Notes Subscription Streams</title>
+  <link rel="stylesheet" href="https://unpkg.com/@asyncapi/react-component@2/styles/default.min.css" />
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="asyncapi"></div>
+  <script src="https://unpkg.com/@asyncapi/react-component@2/browser/standalone/index.js"></script>
+  <script>
+    fetch('asyncapi.yaml')
+      .then(r => r.text())
+      .then(yaml => {
+        AsyncApiStandalone.render({
+          schema: yaml,
+          config: { show: { sidebar: true, errors: false } }
+        }, document.getElementById('asyncapi'));
+      });
+  </script>
+</body>
+</html>

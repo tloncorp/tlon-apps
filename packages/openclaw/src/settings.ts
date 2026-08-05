@@ -25,9 +25,10 @@ export type PendingApproval = {
   originalMessage?: {
     messageId: string;
     messageText: string;
-    messageContent: unknown;
+    messageContent?: unknown;
     timestamp: number;
     parentId?: string;
+    parentAuthorId?: string;
     isThreadReply?: boolean;
     blob?: string;
   };
@@ -49,7 +50,7 @@ export type TlonSettingsStore = {
   channelRules?: Record<
     string,
     {
-      mode?: 'restricted' | 'open';
+      mode?: 'restricted' | 'allowlist' | 'open';
       allowedShips?: string[];
     }
   >;
@@ -230,7 +231,10 @@ function formatSettingsUpdateValueForLog(key: string, value: unknown): string {
 function parseChannelRules(
   value: unknown
 ):
-  | Record<string, { mode?: 'restricted' | 'open'; allowedShips?: string[] }>
+  | Record<
+      string,
+      { mode?: 'restricted' | 'allowlist' | 'open'; allowedShips?: string[] }
+    >
   | undefined {
   if (!value) {
     return undefined;
@@ -341,6 +345,10 @@ export function parseSettingsResponse(raw: unknown): TlonSettingsStore {
       typeof settings.autoDiscover === 'boolean'
         ? settings.autoDiscover
         : undefined,
+    autoDiscoverChannels:
+      typeof settings.autoDiscoverChannels === 'boolean'
+        ? settings.autoDiscoverChannels
+        : undefined,
     showModelSig:
       typeof settings.showModelSig === 'boolean'
         ? settings.showModelSig
@@ -407,7 +415,7 @@ function isChannelRulesObject(
   val: unknown
 ): val is Record<
   string,
-  { mode?: 'restricted' | 'open'; allowedShips?: string[] }
+  { mode?: 'restricted' | 'allowlist' | 'open'; allowedShips?: string[] }
 > {
   if (!val || typeof val !== 'object' || Array.isArray(val)) {
     return false;
@@ -533,6 +541,10 @@ export function applySettingsUpdate(
     case 'autoDiscover':
       next.autoDiscover = typeof value === 'boolean' ? value : undefined;
       break;
+    case 'autoDiscoverChannels':
+      next.autoDiscoverChannels =
+        typeof value === 'boolean' ? value : undefined;
+      break;
     case 'showModelSig':
       next.showModelSig = typeof value === 'boolean' ? value : undefined;
       break;
@@ -603,6 +615,11 @@ export type SettingsLogger = {
   error?: (msg: string) => void;
 };
 
+export type SettingsLoadOptions = {
+  /** Emit the compact snapshot summary. Intended for the initial startup load. */
+  logSnapshot?: boolean;
+};
+
 /**
  * Create a settings store subscription manager.
  *
@@ -650,7 +667,9 @@ export function createSettingsManager(
     /**
      * Load initial settings via scry.
      */
-    async load(): Promise<{ settings: TlonSettingsStore; fresh: boolean }> {
+    async load(
+      options: SettingsLoadOptions = {}
+    ): Promise<{ settings: TlonSettingsStore; fresh: boolean }> {
       try {
         const raw = await api.scry('/settings/all.json');
         // Response shape: { all: { [desk]: { [bucket]: { [key]: value } } } }
@@ -660,14 +679,16 @@ export function createSettingsManager(
         const deskData = allData?.all?.[SETTINGS_DESK];
         state.current = parseSettingsResponse(deskData ?? {});
         state.loaded = true;
-        logger?.log?.(
-          `[settings] Loaded: ${formatSettingsForLog(state.current)}`
-        );
+        if (options.logSnapshot !== false) {
+          logger?.log?.(
+            `[settings] Loaded: ${formatSettingsForLog(state.current)}`
+          );
+        }
         return { settings: state.current, fresh: true };
       } catch (err) {
         // Preserve the last good snapshot on scry failure so refresh fallback
         // does not transiently clobber live runtime state with an empty object.
-        logger?.log?.(
+        logger?.error?.(
           `[settings] Load failed (keeping previous settings): ${String(err)}`
         );
         state.loaded = true;

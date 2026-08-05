@@ -8,12 +8,18 @@ import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
 import { AddContactsScreen } from '../features/contacts/AddContactsScreen';
 import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemContactsScreen';
+import { ContextLensRunScreen } from '../features/lens/ContextLensRunScreen';
+import { ContextLensRunsScreen } from '../features/lens/ContextLensRunsScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
+import { BotApiKeySettingsScreen } from '../features/settings/BotApiKeySettingsScreen';
+import { BotChannelRuleSettingsScreen } from '../features/settings/BotChannelRuleSettingsScreen';
+import { BotChannelRulesScreen } from '../features/settings/BotChannelRulesScreen';
 import { BotMcpSettingsScreen } from '../features/settings/BotMcpSettingsScreen';
-import { BotOtherSettingsScreen } from '../features/settings/BotOtherSettingsScreen';
+import { BotModelSettingsScreen } from '../features/settings/BotModelSettingsScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
+import { BotShipListSettingsScreen } from '../features/settings/BotShipListSettingsScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
@@ -22,21 +28,21 @@ import { PushNotificationSettingsScreen } from '../features/settings/PushNotific
 import SettingsScreen from '../features/settings/SettingsScreen';
 import { ThemeScreen } from '../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../features/settings/UserBugReportScreen';
-import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
 import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
-import ChatListScreen from '../features/top/ChatListScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
-import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../features/top/MediaViewerScreen';
+import { NotesDetailScreen } from '../features/top/NotesDetailScreen';
+import { NotesFolderScreen } from '../features/top/NotesFolderScreen';
 import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
+import { TopLevelTabNavigator } from './TopLevelTabNavigator';
 import type { RootStackParamList } from './types';
 import { mediaViewerScreenOptions } from './utils';
 
@@ -58,7 +64,7 @@ export function RootStack() {
 
   return (
     <Root.Navigator
-      initialRouteName={'ChatList'}
+      initialRouteName="MainTabs"
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: theme.background?.val },
@@ -66,18 +72,8 @@ export function RootStack() {
     >
       {/* top level tabs */}
       <Root.Screen
-        name="Contacts"
-        component={ContactsScreen}
-        options={{ animation: 'none', gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="ChatList"
-        component={ChatListScreen}
-        options={{ animation: 'none', gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="Activity"
-        component={ActivityScreen}
+        name="MainTabs"
+        component={TopLevelTabNavigator}
         options={{ animation: 'none', gestureEnabled: false }}
       />
       <Root.Screen
@@ -96,7 +92,11 @@ export function RootStack() {
       <Root.Screen name="DM" component={ChannelScreen} />
       <Root.Screen name="GroupDM" component={ChannelScreen} />
       <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
+      <Root.Screen name="ContextLensRuns" component={ContextLensRunsScreen} />
+      <Root.Screen name="ContextLensRun" component={ContextLensRunScreen} />
       <Root.Screen name="Post" component={PostScreen} />
+      <Root.Screen name="NotesDetail" component={NotesDetailScreen} />
+      <Root.Screen name="NotesFolder" component={NotesFolderScreen} />
       <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
       <Root.Screen
         name="MediaViewer"
@@ -121,8 +121,28 @@ export function RootStack() {
         options={{ gestureEnabled: false }}
       />
       <Root.Screen
-        name="BotOtherSettings"
-        component={BotOtherSettingsScreen}
+        name="BotModelSettings"
+        component={BotModelSettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotApiKeySettings"
+        component={BotApiKeySettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotShipListSettings"
+        component={BotShipListSettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotChannelRulesSettings"
+        component={BotChannelRulesScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotChannelRuleSettings"
+        component={BotChannelRuleSettingsScreen}
         options={{ gestureEnabled: false }}
       />
       <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />

@@ -237,18 +237,7 @@ purge_shared_caches() {
 
 step_pnpm_install() {
   cd "$WT_DIR"
-  local rc=0
-  pnpm install --prefer-offline --frozen-lockfile || rc=$?
-  # pnpm exits non-zero when a patch fails to apply, even if all packages
-  # installed. Verify by checking key paths.
-  if [[ $rc -ne 0 ]]; then
-    if [[ -d "node_modules/.pnpm" && -d "node_modules/expo" ]]; then
-      echo "[pnpm_install] rc=$rc but install appears complete — treating as success (likely a patch-apply warning)"
-      return 0
-    fi
-    echo "[pnpm_install] rc=$rc and key packages missing — real failure"
-    return $rc
-  fi
+  pnpm install --prefer-offline --frozen-lockfile
 }
 
 step_patch_eas_provider() {
@@ -470,7 +459,6 @@ run_steps() {
   # buildEditor.js to produce dist/index.html). Building editor alone
   # is ~1.7s; full build:packages (api+shared+ui+editor) is ~6-9s.
   record build_editor      pnpm run build:editor
-  record generate_tailwind pnpm --filter tlon-mobile run generate:tailwind
 
   if [[ "$PLATFORM" == "ios" ]]; then
     # No explicit pod_install step — `expo run:ios` handles it internally

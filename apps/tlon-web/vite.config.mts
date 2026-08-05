@@ -73,6 +73,9 @@ export default ({ mode }: { mode: string }) => {
       return [
         basicSsl() as Plugin,
         react({
+          babel: {
+            plugins: ['babel-plugin-react-compiler'],
+          },
           jsxImportSource: wdyrJsxImportSource,
         }) as PluginOption[],
       ];
@@ -85,6 +88,7 @@ export default ({ mode }: { mode: string }) => {
         react({
           babel: {
             plugins: [
+              'babel-plugin-react-compiler',
               '@babel/plugin-proposal-export-namespace-from',
               'react-native-worklets/plugin',
             ],
@@ -117,6 +121,7 @@ export default ({ mode }: { mode: string }) => {
           // adding these per instructions here:
           // https://docs.swmansion.com/react-native-reanimated/docs/guides/web-support/
           plugins: [
+            'babel-plugin-react-compiler',
             '@babel/plugin-proposal-export-namespace-from',
             'react-native-worklets/plugin',
           ],
@@ -246,6 +251,13 @@ export default ({ mode }: { mode: string }) => {
     // @tamagui/vite-plugin overrides envPrefix to ["TAMAGUI_"], blocking VITE_* env vars.
     // Explicitly set both prefixes so VITE_* vars remain available in import.meta.env.
     envPrefix: ['VITE_', 'TAMAGUI_'],
+    // expo 56's runtime (expo/src/async-require/setupHMR) reads process.env.EXPO_OS
+    // to resolve the platform. Metro inlines it via babel-preset-expo; the vite web
+    // build must define it explicitly or expo throws "Missing required parameter
+    // `platform`" at boot.
+    define: {
+      'process.env.EXPO_OS': JSON.stringify('web'),
+    },
     base: base(mode),
     server: {
       host: 'localhost',

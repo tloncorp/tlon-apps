@@ -14,6 +14,13 @@ export const getMobileLinkingConfig = (
       Root: {
         path: basePathForMode(mode),
         screens: {
+          MainTabs: {
+            screens: {
+              ChatList: 'ChatList',
+              Activity: 'activity',
+              Contacts: 'contacts',
+            },
+          },
           DM: {
             path: 'dm/:channelId/:selectedPostId?',
             parse: parsePathParams('channelId', 'selectedPostId'),
@@ -26,8 +33,26 @@ export const getMobileLinkingConfig = (
             path: 'group/:groupId/channel/:channelId/:selectedPostId?',
             parse: parsePathParams('channelId', 'groupId', 'selectedPostId'),
           },
-          ChatList: 'ChatList',
+          NotesDetail: {
+            path: 'group/:groupId/channel/:channelId/note/:noteId',
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              noteId: Number,
+            },
+          },
+          NotesFolder: {
+            path: 'group/:groupId/channel/:channelId/folder/:folderId',
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              folderId: Number,
+            },
+          },
           ChannelSearch: { path: 'channel/:channelId/search' },
+          ContextLensRuns: { path: 'lens/runs' },
+          ContextLensRun: {
+            path: 'lens/run/:botShip/:lensId',
+            parse: parsePathParams('botShip', 'lensId'),
+          },
           Post: postScreenConfig(mode),
           MediaViewer: 'media-viewer/:mediaType',
           ChatDetails: {
@@ -73,7 +98,6 @@ export const getMobileLinkingConfig = (
           WompWomp: 'report-bug',
           AppInfo: 'app-info',
           PushNotificationSettings: 'push-notification-settings',
-          Contacts: 'contacts',
           Settings: 'settings',
         },
       },
@@ -146,6 +170,14 @@ export const getDesktopLinkingConfig = (
                   },
                   GroupSettings: {},
                   ChannelSearch: {},
+                  NotesDetail: {
+                    path: 'note/:noteId',
+                    parse: { noteId: Number },
+                  },
+                  NotesFolder: {
+                    path: 'folder/:folderId',
+                    parse: { folderId: Number },
+                  },
                   Post: postScreenConfig(mode),
                   MediaViewer: {},
                 },

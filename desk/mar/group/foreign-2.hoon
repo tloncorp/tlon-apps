@@ -9,5 +9,6 @@
 ++  grab
   |%
   ++  noun  a-foreigns:v9:gv
+  ++  json  a-foreigns:v9:dejs:j
   --
 --

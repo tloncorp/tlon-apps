@@ -1,11 +1,13 @@
 import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
-import { JSONContent } from '@tloncorp/api/urbit';
+import { JSONContent, Story } from '@tloncorp/api/urbit';
+import type { PostSendOptions } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { PropsWithChildren } from 'react';
+import { LayoutChangeEvent } from 'react-native';
 import { SpaceTokens, styled } from 'tamagui';
 import {
   ThemeTokens,
@@ -25,7 +27,7 @@ import {
 import { MentionPopupRef } from '../MentionPopup';
 import { type SlashCommandPopupRef } from '../SlashCommandPopup';
 import Notices from '../Wayfinding/Notices';
-import { GalleryDraftType } from '../draftInputs/shared';
+import { GalleryDraftType, useDraftInputContext } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
 import InputSlashCommandPopup from './InputSlashCommandPopup';
@@ -33,7 +35,10 @@ import InputSlashCommandPopup from './InputSlashCommandPopup';
 export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
-  sendPostFromDraft: (draft: domain.PostDataDraft) => Promise<void>;
+  sendPostFromDraft: (
+    draft: domain.PostDataDraft,
+    options?: PostSendOptions
+  ) => Promise<void>;
   channelId: string;
   groupId?: string | null;
   groupMembers: db.ChatMember[];
@@ -105,6 +110,7 @@ export const MessageInputContainer = memo(
     slashCommandOptions = [],
     onSelectMention,
     onSelectSlashCommand,
+    onDismissMentions,
     isEditing = false,
     cancelEditing,
     onPressEdit,
@@ -130,6 +136,7 @@ export const MessageInputContainer = memo(
     slashCommandOptions?: SlashCommandOption[];
     onSelectMention: (option: MentionOption) => void;
     onSelectSlashCommand?: (option: SlashCommandOption) => void;
+    onDismissMentions?: () => void;
     isEditing?: boolean;
     cancelEditing?: () => void;
     onPressEdit?: () => void;
@@ -144,6 +151,15 @@ export const MessageInputContainer = memo(
     const secondaryBackgroundColor = getVariableValue(
       theme.secondaryBackground
     );
+    // Track the real input-bar height so the mention backdrop (mobile
+    // tap-outside dismiss area) stops above the actual composer. The popup
+    // itself stays anchored to the static containerHeight so it remains
+    // accessible even if the user writes a huge multi-line draft.
+    const [measuredInputHeight, setMeasuredInputHeight] =
+      useState(containerHeight);
+    const handleInputLayout = (e: LayoutChangeEvent) => {
+      setMeasuredInputHeight(e.nativeEvent.layout.height);
+    };
 
     return (
       <YStack
@@ -154,10 +170,12 @@ export const MessageInputContainer = memo(
       >
         <InputMentionPopup
           containerHeight={containerHeight}
+          inputBarHeight={measuredInputHeight}
           isMentionModeActive={isMentionModeActive}
           mentionText={mentionText}
           options={mentionOptions}
           onSelectMention={onSelectMention}
+          onDismiss={onDismissMentions}
           ref={mentionRef}
         />
         {onSelectSlashCommand ? (
@@ -178,6 +196,7 @@ export const MessageInputContainer = memo(
             justifyContent="space-between"
             backgroundColor="$background"
             disableOptimization
+            onLayout={handleInputLayout}
           >
             {goBack ? (
               <View paddingBottom="$xs">
@@ -247,7 +266,11 @@ export const MessageInputContainer = memo(
         ) : (
           // Note: This **must** be an XStack (not a YStack, View, or Stack), otherwise the WebView in MessageInput will not
           // be interactive on Android.
-          <XStack width="100%" backgroundColor="$background">
+          <XStack
+            width="100%"
+            backgroundColor="$background"
+            onLayout={handleInputLayout}
+          >
             {children}
           </XStack>
         )}

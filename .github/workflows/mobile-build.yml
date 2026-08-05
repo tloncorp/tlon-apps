@@ -50,6 +50,7 @@ jobs:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
           INVITE_PROVIDER: ${{ secrets.VITE_INVITE_PROVIDER}}
+          INVITE_SERVICE_ENDPOINT: ${{ secrets.INVITE_SERVICE_ENDPOINT }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}

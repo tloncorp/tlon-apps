@@ -4,7 +4,7 @@ import { createChannel, useNotesDeskAvailable } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
@@ -39,7 +39,7 @@ function buildChannelTypes(
     title: notesAvailable ? 'Bulletin' : 'Notebook',
     subtitle: 'Longform publishing and discussion',
     value: 'notebook',
-    icon: 'ChannelNotebooks',
+    icon: 'Bulletin',
   };
   const gallery: Form.ListItemInputOption<ChannelTypeName> = {
     title: 'Gallery',
@@ -93,7 +93,7 @@ export function CreateChannelSheet({
     [notesAvailable]
   );
 
-  const isPrivate = watch('isPrivate');
+  const isPrivate = useWatch({ control, name: 'isPrivate' });
 
   // Only toggles isPrivate without setting readers/writers because:
   // - If private: the user proceeds to CreateChannelPermissionsScreen to configure permissions

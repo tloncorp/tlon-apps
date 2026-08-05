@@ -75,7 +75,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
-      log   ~(. logs [our.bowl /logs])
+      log   ~(. logs [bowl /logs])
       cor   ~(. +> [bowl ~])
   ::
   ++  on-init
@@ -113,12 +113,11 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
-    %-  (slog term tang)
     :_  this
-    [(fail:log term tang ~)]~
+    [(~(on-fail logs bowl /logs) term tang)]~
   --
 |_  [=bowl:gall cards=(list card)]
-+*  log   ~(. logs [our.bowl /logs])
++*  log   ~(. logs [bowl /logs])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))

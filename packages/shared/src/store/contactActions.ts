@@ -314,6 +314,9 @@ export async function updateCurrentUserProfile(
     bio: update.bio,
     peerAvatarImage: update.avatarImage,
   };
+  const hasNicknameUpdate = update.nickname !== undefined;
+  const changedNickname =
+    hasNicknameUpdate && currentUserContact?.peerNickname !== update.nickname;
 
   logger.trackEvent(AnalyticsEvent.ActionUpdatedProfile, {
     editedNickname: !!update.nickname,
@@ -333,8 +336,6 @@ export async function updateCurrentUserProfile(
     const personalGroup = await db.getPersonalGroup();
     if (personalGroup) {
       const hasDefaultTitle = logic.personalGroupHasDefaultTitle(personalGroup);
-      const changedNickname =
-        currentUserContact?.peerNickname !== update.nickname;
 
       if (hasDefaultTitle && changedNickname) {
         const newTitle = logic.generatePersonalGroupTitle({
@@ -355,21 +356,21 @@ export async function updateCurrentUserProfile(
     const homeGroup = await db.getBotHomeGroup();
     if (homeGroup) {
       const hasDefaultTitle = logic.botHomeGroupHasDefaultTitle(homeGroup);
-      const changedNickname =
-        currentUserContact?.peerNickname !== update.nickname;
 
-      if (hasDefaultTitle && changedNickname) {
+      if (hasDefaultTitle && hasNicknameUpdate) {
         const newTitle = logic.generateBotHomeGroupTitle({
           id: currentUserId,
           nickname: update.nickname,
         });
-        await GroupActions.updateGroupMeta(
-          {
-            ...homeGroup,
-            title: newTitle,
-          },
-          config
-        );
+        if (homeGroup.title !== newTitle) {
+          await GroupActions.updateGroupMeta(
+            {
+              ...homeGroup,
+              title: newTitle,
+            },
+            config
+          );
+        }
       }
     }
   } catch (e) {

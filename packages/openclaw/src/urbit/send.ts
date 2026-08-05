@@ -7,12 +7,7 @@ import {
 } from '@tloncorp/api';
 import { da, scot } from '@urbit/aura';
 
-import {
-  type Story,
-  createImageBlock,
-  isImageUrl,
-  markdownToStory,
-} from './story.js';
+import { type Story, createImageBlock, markdownToStory } from './story.js';
 
 // --- Helpers ---
 
@@ -68,6 +63,7 @@ type SendTextParams = {
   fromShip: string;
   toShip: string;
   text: string;
+  blob?: string;
   replyToId?: string | null;
   parentAuthor?: string;
   botProfile?: BotProfile;
@@ -77,6 +73,7 @@ type SendStoryParams = {
   fromShip: string;
   toShip: string;
   story: Story;
+  blob?: string;
   replyToId?: string | null;
   parentAuthor?: string;
   botProfile?: BotProfile;
@@ -91,6 +88,7 @@ export async function sendDmWithStory({
   fromShip,
   toShip,
   story,
+  blob,
   replyToId,
   parentAuthor,
   botProfile,
@@ -110,6 +108,7 @@ export async function sendDmWithStory({
       content: story,
       sentAt,
       authorId: fromShip,
+      blob,
       botProfile,
     });
     return { channel: 'tlon' as const, messageId, sentAt };
@@ -120,6 +119,7 @@ export async function sendDmWithStory({
     authorId: fromShip,
     sentAt,
     content: story,
+    blob,
     botProfile,
   });
   return { channel: 'tlon' as const, messageId, sentAt };
@@ -132,6 +132,7 @@ type SendChannelPostParams = {
   /** Full nest like "chat/~host/channel", "heap/~host/channel", or "diary/~host/channel" */
   nest: string;
   story: Story;
+  blob?: string;
   replyToId?: string | null;
   /** Optional title for heap/diary posts */
   title?: string;
@@ -147,6 +148,7 @@ export async function sendChannelPost({
   fromShip,
   nest,
   story,
+  blob,
   replyToId,
   title,
   botProfile,
@@ -162,9 +164,13 @@ export async function sendChannelPost({
       content: story,
       sentAt,
       authorId: fromShip,
+      blob,
       botProfile,
     });
-    return { channel: 'tlon', messageId: `${fromShip}/${sentAt}` };
+    return {
+      channel: 'tlon',
+      messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+    };
   }
 
   await apiSendPost({
@@ -173,9 +179,13 @@ export async function sendChannelPost({
     sentAt,
     content: story,
     metadata: title ? { title } : undefined,
+    blob,
     botProfile,
   });
-  return { channel: 'tlon', messageId: `${fromShip}/${sentAt}` };
+  return {
+    channel: 'tlon',
+    messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+  };
 }
 
 // --- Utilities ---
@@ -196,27 +206,27 @@ export function buildMediaText(
 }
 
 /**
- * Build a story with text and optional media (image)
+ * Build a story with text and optional media (image or link)
  */
 export function buildMediaStory(
   text: string | undefined,
-  mediaUrl: string | undefined
+  media: { url: string; isImage: boolean } | undefined
 ): Story {
   const story: Story = [];
   const cleanText = text?.trim() ?? '';
-  const cleanUrl = mediaUrl?.trim() ?? '';
 
-  // Add text content if present
   if (cleanText) {
     story.push(...markdownToStory(cleanText));
   }
 
-  // Add image block if URL looks like an image
-  if (cleanUrl && isImageUrl(cleanUrl)) {
-    story.push(createImageBlock(cleanUrl, ''));
-  } else if (cleanUrl) {
-    // For non-image URLs, add as a link
-    story.push({ inline: [{ link: { href: cleanUrl, content: cleanUrl } }] });
+  if (media) {
+    if (media.isImage) {
+      story.push(createImageBlock(media.url, ''));
+    } else {
+      story.push({
+        inline: [{ link: { href: media.url, content: media.url } }],
+      });
+    }
   }
 
   return story.length > 0 ? story : [{ inline: [''] }];

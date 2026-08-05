@@ -25,6 +25,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     envPrefix: ['VITE_', 'TAMAGUI_'],
+    define: {
+      'process.env.EXPO_OS': JSON.stringify('web'),
+    },
     plugins: [
       exportingRawText(/\.sql$/),
       expo52PatchPlugin(),

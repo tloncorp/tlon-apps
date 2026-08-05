@@ -45,6 +45,11 @@ export interface BlobAttachmentDownloadResult {
   notices: string[];
 }
 
+type DownloadableBlobEntry = Extract<
+  ClientPostBlobData[number],
+  { type: 'file' | 'voicememo' | 'video' }
+>;
+
 class MediaTooLargeError extends Error {
   constructor(
     public readonly observedSizeBytes: number,
@@ -273,7 +278,9 @@ export async function downloadMessageImages(
 export function parseBlobData(
   blob: string | null | undefined
 ): ClientPostBlobData | null {
-  if (!blob) return null;
+  if (!blob) {
+    return null;
+  }
   try {
     const parsed = parsePostBlob(blob);
     return parsed.length > 0 ? parsed : null;
@@ -303,7 +310,9 @@ function formatBlobEntry(
     const mime = entry.mimeType || 'unknown';
     const size = entry.size ? formatFileSize(entry.size) : '?';
     let line = `📎 [${name}] (${mime}, ${size})`;
-    if (entry.fileUri) line += ` ${entry.fileUri}`;
+    if (entry.fileUri) {
+      line += ` ${entry.fileUri}`;
+    }
     return [line];
   }
 
@@ -318,7 +327,9 @@ function formatBlobEntry(
 
     const dur = entry.duration ? `${Math.round(entry.duration)}s` : '?';
     let line = `🎙️ [voice memo] (${dur})`;
-    if (entry.fileUri) line += ` ${entry.fileUri}`;
+    if (entry.fileUri) {
+      line += ` ${entry.fileUri}`;
+    }
     const lines = [line];
     if (entry.transcription) {
       lines.push(`  "${entry.transcription}"`);
@@ -334,7 +345,9 @@ function formatBlobEntry(
     const mime = entry.mimeType || 'video';
     const size = entry.size ? formatFileSize(entry.size) : '?';
     let line = `🎬 [${name}] (${mime}, ${size})`;
-    if (entry.fileUri) line += ` ${entry.fileUri}`;
+    if (entry.fileUri) {
+      line += ` ${entry.fileUri}`;
+    }
     return [line];
   }
 
@@ -377,22 +390,30 @@ export async function downloadBlobAttachments(
   const notices: string[] = [];
 
   for (const entry of blobData) {
-    // a2ui entries carry UI messages, not downloadable media
-    if (entry.type === 'unknown' || entry.type === 'a2ui') continue;
+    if (!isDownloadableBlobEntry(entry)) {
+      continue;
+    }
 
-    const uri = 'fileUri' in entry ? entry.fileUri : undefined;
-    if (!uri) continue;
+    // non-media entries (e.g. a tlon-context-lens bot-run reference) aren't in
+    // the downloadable allowlist above, so they're already skipped here.
+    const uri = entry.fileUri;
+    if (!uri) {
+      continue;
+    }
 
     // Only download http/https URIs
     try {
       const parsed = new URL(uri);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') continue;
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        continue;
+      }
     } catch {
       continue;
     }
 
-    if (entry.size !== undefined && entry.size > MAX_BLOB_DOWNLOAD_BYTES) {
-      notices.push(formatBlobTooLargeNotice(entry, entry.size));
+    const declaredSize = 'size' in entry ? entry.size : undefined;
+    if (declaredSize !== undefined && declaredSize > MAX_BLOB_DOWNLOAD_BYTES) {
+      notices.push(formatBlobTooLargeNotice(entry, declaredSize));
       continue;
     }
 
@@ -419,21 +440,33 @@ export async function downloadBlobAttachments(
 }
 
 function formatBlobTooLargeNotice(
-  entry: Exclude<
-    ClientPostBlobData[number],
-    { type: 'unknown' } | { type: 'a2ui' }
-  >,
+  entry: DownloadableBlobEntry,
   sizeBytes?: number
 ): string {
+  const name = 'name' in entry ? entry.name : undefined;
   const label =
-    entry.type === 'voicememo' ? 'voice memo' : entry.name || 'blob attachment';
+    entry.type === 'voicememo' ? 'voice memo' : name || 'blob attachment';
   const sizeText =
     sizeBytes !== undefined ? formatFileSize(sizeBytes) : 'unknown size';
   return `[blob not downloaded: ${label} is ${sizeText}, over the ${formatFileSize(MAX_BLOB_DOWNLOAD_BYTES)} limit]`;
 }
 
+function isDownloadableBlobEntry(
+  entry: ClientPostBlobData[number]
+): entry is DownloadableBlobEntry {
+  return (
+    entry.type === 'file' ||
+    entry.type === 'voicememo' ||
+    entry.type === 'video'
+  );
+}
+
 function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+  if (bytes < 1024) {
+    return `${bytes}B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${Math.round(bytes / 1024)}KB`;
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }

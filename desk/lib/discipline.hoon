@@ -123,7 +123,7 @@
 ::
 ++  helper
   |_  [=bowl:gall marks=(map mark type)]
-  ++  log  ~(. logs our.bowl /~/discipline/logs)
+  ++  log  ~(. logs bowl /~/discipline/logs)
   ::  +inner-bowl: bowl without /~/discipline subs
   ::
   ++  inner-bowl
@@ -161,7 +161,7 @@
         ==
       =+  n=[path=path mark=p.cage.p.card allowed=u.ex-marks]
       ~&  >>>  [%discipline dap=dap.bowl %bad-fact-mark n]
-      `(tell:log %crit ~['discipline: bad fact mark' >n<] ~)
+      `(tell:log %error ~['discipline: bad fact mark' >n<] ~)
     ?~  type=(~(get by marks) p.cage.p.card)
       ::NOTE  if we don't have a type for this mark,
       ::      ignore it, since we can't test it
@@ -170,7 +170,7 @@
       ~
     =+  n=[on-path=path with-mark=p.cage.p.card %nest-fail]
     ~&  >>>  [%discipline dap=dap.bowl %bad-fact-data n]
-    `(tell:log %crit ~['discipline: bad fact data' >n<] ~)
+    `(tell:log %error ~['discipline: bad fact data' >n<] ~)
   ::  +check-scry: validate result against known marks
   ::
   ++  check-scry

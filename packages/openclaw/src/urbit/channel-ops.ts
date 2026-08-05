@@ -18,9 +18,15 @@ export type UrbitChannelDeps = {
 
 export async function pokeUrbitChannel(
   deps: UrbitChannelDeps,
-  params: { app: string; mark: string; json: unknown; auditContext: string }
+  params: {
+    app: string;
+    mark: string;
+    json: unknown;
+    auditContext: string;
+    pokeId?: number;
+  }
 ): Promise<number> {
-  const pokeId = Date.now();
+  const pokeId = params.pokeId ?? Date.now();
   const pokeData = {
     id: pokeId,
     action: 'poke',
@@ -66,7 +72,12 @@ export async function scryUrbitPath(
     UrbitChannelDeps,
     'baseUrl' | 'cookie' | 'ssrfPolicy' | 'lookupFn' | 'fetchImpl'
   >,
-  params: { path: string; auditContext: string }
+  params: {
+    path: string;
+    auditContext: string;
+    timeoutMs?: number;
+    signal?: AbortSignal;
+  }
 ): Promise<unknown> {
   const scryPath = `/~/scry${params.path}`;
   const { response, release } = await urbitFetch({
@@ -79,7 +90,8 @@ export async function scryUrbitPath(
     ssrfPolicy: deps.ssrfPolicy,
     lookupFn: deps.lookupFn,
     fetchImpl: deps.fetchImpl,
-    timeoutMs: 30_000,
+    timeoutMs: params.timeoutMs ?? 30_000,
+    signal: params.signal,
     auditContext: params.auditContext,
   });
 
@@ -129,7 +141,11 @@ export async function createUrbitChannel(
   }
 }
 
-export async function wakeUrbitChannel(deps: UrbitChannelDeps): Promise<void> {
+export async function wakeUrbitChannel(
+  deps: UrbitChannelDeps,
+  params?: { pokeId?: number }
+): Promise<void> {
+  const pokeId = params?.pokeId ?? Date.now();
   const { response, release } = await urbitFetch({
     baseUrl: deps.baseUrl,
     path: `/~/channel/${deps.channelId}`,
@@ -141,7 +157,7 @@ export async function wakeUrbitChannel(deps: UrbitChannelDeps): Promise<void> {
       },
       body: JSON.stringify([
         {
-          id: Date.now(),
+          id: pokeId,
           action: 'poke',
           ship: deps.ship,
           app: 'hood',

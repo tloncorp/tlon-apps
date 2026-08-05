@@ -1,10 +1,13 @@
+import { QueryObserver } from '@tanstack/react-query';
 import { v0PeersToClientProfiles } from '@tloncorp/api';
 import { toClientGroupsV7 } from '@tloncorp/api';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import * as schema from '../db/schema';
+import { useDebugStore } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncInitData } from '../store/sync';
 import contactBookResponse from '../test/contactBook.json';
 import contactsResponse from '../test/contacts.json';
@@ -17,6 +20,7 @@ import {
 import initResponse from '../test/init.json';
 import suggestedContactsResponse from '../test/suggestedContacts.json';
 import * as queries from './queries';
+import { queryClient } from './reactQuery';
 import { ChannelUnread, GroupUnread, Post, ThreadUnreadState } from './types';
 
 const groupsData = toClientGroupsV7(
@@ -25,6 +29,7 @@ const groupsData = toClientGroupsV7(
 );
 
 setupDatabaseTestSuite();
+afterEach(() => useDebugStore.setState({ errorLogger: null }));
 
 test('inserts a group', async () => {
   const groupData = groupsData[3];
@@ -761,6 +766,78 @@ test('insertPosts: keeps cached posts when no matching real post arrives', async
   expect(cachedPosts.length).toBe(2);
   expect(realPosts.length).toBe(1);
   expect(realPosts[0].id).toBe('real-post-different');
+});
+
+async function seedFailedEdit(id: string) {
+  const channelId = `${id}-channel`;
+  const editedContent = JSON.stringify([{ inline: ['Edited message'] }]);
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  const post: Post = {
+    id,
+    type: 'chat',
+    channelId,
+    authorId: '~zod',
+    sentAt: 1000,
+    receivedAt: 1000,
+    sequenceNum: 1,
+    content: JSON.stringify([{ inline: ['Original message'] }]),
+    title: '',
+    image: '',
+    syncedAt: Date.now(),
+  };
+  await queries.insertChannelPosts({ posts: [post] });
+  await queries.updatePost({
+    id: post.id,
+    editStatus: 'failed',
+    lastEditContent: editedContent,
+    lastEditTitle: 'Edited title',
+    lastEditImage: 'edited-image',
+  });
+  return { editedContent, post };
+}
+
+test('insertPosts: tracks a failed edit once matching server content arrives', async () => {
+  const capture = vi.fn();
+  useDebugStore.getState().initializeErrorLogger({ capture });
+  const { editedContent, post } = await seedFailedEdit('edited-post');
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        ...post,
+        content: editedContent,
+        title: 'Edited title',
+        image: 'edited-image',
+        isEdited: true,
+      },
+    ],
+  });
+
+  expect(capture).toHaveBeenCalledWith(AnalyticsEvent.PostEditCompleted, {});
+  expect(await queries.getPost({ postId: post.id })).toMatchObject({
+    content: editedContent,
+    editStatus: null,
+    lastEditContent: null,
+  });
+});
+
+test('insertPosts: retains a failed edit marker across older server content', async () => {
+  const capture = vi.fn();
+  useDebugStore.getState().initializeErrorLogger({ capture });
+  const { editedContent, post } = await seedFailedEdit('pending-edited-post');
+  await queries.insertChannelPosts({
+    posts: [{ ...post, isEdited: true }],
+  });
+
+  expect(capture).not.toHaveBeenCalledWith(
+    AnalyticsEvent.PostEditCompleted,
+    expect.anything()
+  );
+  expect(await queries.getPost({ postId: post.id })).toMatchObject({
+    editStatus: 'failed',
+    lastEditContent: editedContent,
+    lastEditTitle: 'Edited title',
+    lastEditImage: 'edited-image',
+  });
 });
 
 test('insertPosts: removes only matching cached posts', async () => {
@@ -1992,5 +2069,111 @@ describe('getDeliveryPendingPosts', () => {
       (p) => p.id
     );
     expect(ids).not.toContain(reconciled.id);
+  });
+});
+
+describe('pins reordering (TLON-5948)', () => {
+  async function seedPins(ids: string[]) {
+    await queries.insertPinnedItems(
+      ids.map((itemId, index) => ({ type: 'group' as const, index, itemId }))
+    );
+  }
+
+  test('setPinnedItemsOrder rewrites each pin index to its list position', async () => {
+    await seedPins(['A', 'B', 'C']);
+
+    await queries.setPinnedItemsOrder(['C', 'A', 'B']);
+
+    const pins = await queries.getPinnedItems();
+    const indexById = Object.fromEntries(pins.map((p) => [p.itemId, p.index]));
+    // The new index is the position in the supplied list, not the old order.
+    expect(indexById).toEqual({ C: 0, A: 1, B: 2 });
+  });
+
+  test('clearPinnedItems removes all pinned rows', async () => {
+    await seedPins(['A', 'B', 'C']);
+
+    await queries.clearPinnedItems();
+
+    expect(await queries.getPinnedItems()).toHaveLength(0);
+  });
+
+  test('clearPinnedItems invalidates pins, groups, and channels', async () => {
+    // Some read paths expose pin state via group/channel deps (e.g. getGroup
+    // reads `pin`), so clearing pins must invalidate those too — matching the
+    // single-pin mutators insertPinnedItem/deletePinnedItem.
+    expect(queries.clearPinnedItems.meta.tableEffects).toEqual(
+      expect.arrayContaining(['pins', 'groups', 'channels'])
+    );
+  });
+
+  test('setPinnedItemsOrder only touches ids present in the list', async () => {
+    await seedPins(['A', 'B', 'C']);
+
+    // 'Z' isn't pinned (no row to update); A/B/C keep their positions.
+    await queries.setPinnedItemsOrder(['A', 'Z', 'B', 'C']);
+
+    const pins = await queries.getPinnedItems();
+    const indexById = Object.fromEntries(pins.map((p) => [p.itemId, p.index]));
+    expect(indexById).toEqual({ A: 0, B: 2, C: 3 });
+    // The phantom id didn't create a row.
+    expect(pins.map((p) => p.itemId).sort()).toEqual(['A', 'B', 'C']);
+  });
+
+  describe('getChats invalidation', () => {
+    afterEach(() => {
+      queryClient.clear();
+    });
+
+    test('getChats declares a dependency on pins', () => {
+      // The reorder UI re-reads via getChats, so a pins write must invalidate it.
+      expect(queries.getChats.meta.tableDependencies).toContain('pins');
+    });
+
+    test('a pins write invalidates an in-flight getChats query', async () => {
+      await seedPins(['A', 'B', 'C']);
+
+      // Model getChats' react-query key: queryKey[1] is the Set of table deps the
+      // invalidation predicate scans (see query.ts withCtxOrDefault).
+      const queryKey = [
+        'getChats',
+        new Set(queries.getChats.meta.tableDependencies as string[]),
+      ];
+      let calls = 0;
+      let resolveFetch!: () => void;
+      const fetchGate = new Promise<void>((resolve) => {
+        resolveFetch = resolve;
+      });
+      queryClient.setQueryData(queryKey, 'cached');
+
+      const observer = new QueryObserver(queryClient, {
+        queryKey,
+        queryFn: async () => {
+          calls++;
+          await fetchGate;
+          return `fresh-${calls}`;
+        },
+      });
+      const unsubscribe = observer.subscribe(() => {});
+      const refetch = observer.refetch({ cancelRefetch: false });
+      await Promise.resolve();
+
+      const query = queryClient.getQueryCache().find({ queryKey });
+      expect(query?.state.fetchStatus).toBe('fetching');
+
+      // A real pins write (effects ['pins']) should flag the in-flight query.
+      await queries.setPinnedItemsOrder(['C', 'B', 'A']);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(query?.state.isInvalidated).toBe(true);
+      expect(query?.isStale()).toBe(true);
+      // Refetched at least once more after the invalidation (exact count is
+      // incidental — the pins write flushes through a transaction).
+      expect(calls).toBeGreaterThanOrEqual(2);
+
+      resolveFetch();
+      await refetch;
+      unsubscribe();
+    });
   });
 });

@@ -111,6 +111,8 @@ export const testWithOptions = (options?: { installClock?: boolean }) =>
           throw error;
         });
       }
+
+      await context.close();
     },
 
     tenSetup: async ({ browser }, use) => {
@@ -148,6 +150,8 @@ export const testWithOptions = (options?: { installClock?: boolean }) =>
           throw error;
         });
       }
+
+      await context.close();
     },
 
     busSetup: async ({ browser }, use) => {
@@ -186,6 +190,8 @@ export const testWithOptions = (options?: { installClock?: boolean }) =>
           throw error;
         });
       }
+
+      await context.close();
     },
 
     zodPage: async ({ zodSetup }, use) => {

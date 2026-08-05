@@ -7,7 +7,10 @@ import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import type { ResolvedAgentRoute } from 'openclaw/plugin-sdk/routing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { buildTlonInboundRouteRecord } from './session-routing.js';
+import {
+  buildTlonInboundRouteRecord,
+  recordTlonRouteAndDispatch,
+} from './session-routing.js';
 
 // Proves the durable route written by buildTlonInboundRouteRecord + the real
 // SDK `recordInboundSession` lands under `lastRouteSessionKey` where the
@@ -129,6 +132,45 @@ describe('Tlon route persistence (real SDK store)', () => {
     expect(
       loadSessionStore(storePath)[unthreaded.lastRouteSessionKey]?.lastThreadId
     ).toBeUndefined();
+  });
+
+  it('full kernel path: the durable route is readable from the store before dispatch runs', async () => {
+    // This is the webchat-leak regression: a route-dependent send that happens
+    // during dispatch must observe the persisted route.
+    const tasks: Array<Promise<unknown>> = [];
+    let lastToAtDispatch: string | undefined;
+
+    const result = await recordTlonRouteAndDispatch({
+      session: {
+        recordInboundSession: (p) =>
+          recordInboundSession({
+            ...p,
+            trackSessionMetaTask: (task) => tasks.push(task),
+          }),
+        resolveStorePath: () => storePath,
+      },
+      cfg,
+      route: makeRoute(),
+      ctxPayload: {
+        SessionKey: 'tlon:main',
+        Provider: 'tlon',
+        OriginatingChannel: 'tlon',
+        OriginatingTo: 'tlon:~zod',
+        ChatType: 'direct',
+        SenderId: '~zod',
+      } as never,
+      ctxSessionKey: 'tlon:main',
+      isGroup: false,
+      senderShip: '~zod',
+      dispatch: async () => {
+        lastToAtDispatch = loadSessionStore(storePath)['tlon:main']?.lastTo;
+        return 'dispatched';
+      },
+    });
+    await Promise.all(tasks);
+
+    expect(result).toBe('dispatched');
+    expect(lastToAtDispatch).toBe('tlon:~zod');
   });
 
   it('owner pin blocks a non-owner DM from overwriting the main route and fires onSkip', async () => {

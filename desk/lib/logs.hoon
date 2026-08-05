@@ -1,16 +1,24 @@
 /-  *logs
 =<
-  |_  [our=ship =wire]
+  |_  [=bowl:gall =wire]
   ::
   ++  fail
-    |=  [desc=term trace=tang =log-data]
+    |=  [vol=volume =echo =tang =log-data]
+    ~>  %spin.['logs-fail']
     ^-  card:agent:gall
     =/  event=$>(%fail log-event)
-      [%fail desc trace]
+      [%fail vol echo tang]
     (pass event log-data)
+  ::
+  ++  on-fail
+    |=  [=term =tang]
+    ~>  %spin.['logs-on-fail']
+    ^-  card:agent:gall
+    (fail %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang] ~)
   ::
   ++  tell
     |=  [vol=volume =echo =log-data]
+    ~>  %spin.['logs-tell']
     ^-  card:agent:gall
     =/  event=$>(%tell log-event)
       [%tell vol echo]
@@ -19,28 +27,33 @@
   ++  pass
     |=  [event=log-event data=log-data]
     ^-  card:agent:gall
-    [%pass wire %agent [our %logs] %poke log-action+!>(`a-log`[%log event data])]
+    [%pass wire %agent [our.bowl %logs] %poke log-action-1+!>(`a-log`[%log event data])]
   --
 |%
 ::
 ++  volume-val
   |=  =volume
+  ^-  @ud
   ?-  volume
-    %dbug  0
-    %info  1
-    %warn  2
-    %crit  3
+    %trace  0
+    %dbug   1
+    %info   2
+    %warn   3
+    %error  4
+    %fatal  5
   ==
 ::
-++  fail-event
-  |=  [=term =tang]
-  ^-  $>(%fail log-event)
-  [%fail term tang]
-::
-++  tell-event
-  |=  [vol=volume =echo]
-  ^-  $>(%tell log-event)
-  [%tell vol echo]
+++  volume-pri
+  |=  =volume
+  ^-  @ud
+  ?-  volume
+    %trace  0
+    %dbug   0
+    %info   1
+    %warn   2
+    %error  3
+    %fatal  3
+  ==
 ::
 ++  enjs
   =,  format
@@ -64,17 +77,33 @@
       =-  ?>(?=(%o -.-) -)
       %-  pairs:enjs
       :~  type/s+event-type
-          description/s+desc.e
-          stacktrace/(tang trace.e)
+          volume/s+vol.e
+          message/(tang echo.e)
+          stacktrace/(tang tang.e)
       ==
     ::
         %tell
       =-  ?>(?=(%o -.-) -)
       %-  pairs:enjs
       :~  type/s+event-type
-          message/(tang echo.e)
           volume/s+vol.e
+          message/(tang echo.e)
       ==
     ==
+  --
+++  dejs
+  =,  dejs:format
+  |%
+  ++  a-log
+    ^-  $-(json a-log:v1)
+    ::  %log variant unsupported
+    %-  of
+    :~  set-volume+(mu volume)
+        set-otel+(mu so)
+    ==
+  ++  volume
+    ^-  $-(json volume:v1)
+    %-  su
+    (perk %trace %dbug %info %warn %error %fatal ~)
   --
 --

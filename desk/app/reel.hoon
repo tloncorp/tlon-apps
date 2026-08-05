@@ -110,14 +110,14 @@
 ++  l
   |_  [=bowl:gall =log-data:logs]
   ++  fail
-    |=  [desc=term =tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our.bowl /logs) desc tang log-data)
+    (~(fail logs bowl /logs) vol echo tang log-data)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
     %-  link
-    (~(tell logs our.bowl /logs) vol echo (weld ^log-data log-data))
+    (~(tell logs bowl /logs) vol echo (weld ^log-data log-data))
   ::  +deez: log message details
   ::
   :: ++  deez
@@ -357,7 +357,7 @@
       `this
     =*  id  -<.ids
     ?~  md=(~(get by our-metadata) nonce)
-      %-  %^  tell:log  %crit
+      %-  %^  tell:log  %error
             ~[leaf+"no metadata for nonce {<nonce>}"]
           ~['event'^s+'Invite Creation Failed']
       `this
@@ -418,13 +418,13 @@
       [%update ?(%contact %profile) ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  `this
-    %-  (fail:log %poke-ack 'profile update failed' u.p.sign)
+    %-  (fail:log %error ~['profile update failed'] u.p.sign)
     `this
   ::
       [%bait ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  `this
-    %-  (fail:log %poke-ack 'bait operation failed' u.p.sign)
+    %-  (fail:log %error ~['bait operation failed'] u.p.sign)
     `this
   ::
       [%contacts ~]
@@ -436,7 +436,7 @@
     ::
         %watch-ack
       ?~  p.sign  `this
-      %-  (fail:log %watch-ack 'failed to subscribe to contacts' u.p.sign)
+      %-  (fail:log %error ~['failed to subscribe to contacts'] u.p.sign)
       `this
     ::
         %fact
@@ -537,7 +537,7 @@
     ::
         %watch-ack
       ?~  p.sign  `this
-      %-  (fail:log %watch-ack 'failed to subscribe to groups' u.p.sign)
+      %-  (fail:log %error ~['failed to subscribe to groups'] u.p.sign)
       `this
     ::
         %fact
@@ -703,6 +703,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:log term tang)
-  `this
+  :_  this
+  [(~(on-fail logs bowl /logs) term tang)]~
 --

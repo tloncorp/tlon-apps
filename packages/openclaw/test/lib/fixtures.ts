@@ -10,6 +10,7 @@ import {
   createTlonClient,
 } from './client.js';
 import { getTestConfig } from './config.js';
+import { registerEngagingTurn } from './scripted.js';
 import { type StateClient, createStateClient } from './state.js';
 
 export interface TestFixtures {
@@ -317,9 +318,13 @@ export async function ensureThirdPartyDmAccess(
     return;
   }
 
+  // Tag the probe with its own key. This is a model-engaging owner-style DM,
+  // so an untagged version would inherit the last [tlon-test:KEY] in the
+  // third-party DM session history and misroute (the bleed Bucket 2 removes).
   const probeToken = `fixture-dm-check-${Date.now().toString(36)}`;
+  const probeTag = await registerEngagingTurn('fixture-thirdparty-probe');
   const probeResponse = await thirdPartyClient.prompt(
-    `Hello, this is a DM access check for integration tests. Reply with "${probeToken}".`,
+    `${probeTag} Hello, this is a DM access check for integration tests. Reply with "${probeToken}".`,
     { timeoutMs: 45_000 }
   );
 
@@ -355,8 +360,9 @@ export async function ensureThirdPartyDmAccess(
   );
 
   const confirmToken = `fixture-dm-confirm-${Date.now().toString(36)}`;
+  const confirmTag = await registerEngagingTurn('fixture-thirdparty-confirm');
   const confirmResponse = await thirdPartyClient.prompt(
-    `Hello again, this is a DM access confirmation. Reply with "${confirmToken}".`,
+    `${confirmTag} Hello again, this is a DM access confirmation. Reply with "${confirmToken}".`,
     { timeoutMs: 60_000 }
   );
 

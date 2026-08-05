@@ -45,15 +45,15 @@ export const useCurrentChats = (
   });
 };
 
-// Scry %notes once to detect whether the notes desk is installed on the
+// Probe %notes once to detect whether the notes desk is installed on the
 // user's ship. Used to gate notes-specific UI (channel-creation option,
-// 'Bulletin' rename, etc.). Defaults to false until the scry resolves.
+// 'Bulletin' rename, etc.). Defaults to false until the request resolves.
 export const useNotesDeskAvailable = () => {
   return useQuery({
     queryKey: ['notesDeskAvailable'],
     queryFn: async () => {
       try {
-        await api.scry({ app: 'notes', path: '/v0/notebooks' });
+        await api.notes.listNotebooks();
         return true;
       } catch (e) {
         return false;
@@ -94,6 +94,49 @@ export const useSettings = () => {
   return useQuery({
     queryKey: ['settings', deps],
     queryFn: () => db.getSettings(),
+  });
+};
+
+export const useContextLensRun = ({
+  botShip,
+  lensId,
+}: {
+  botShip: string;
+  lensId: string;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getContextLensRun);
+  return useQuery({
+    queryKey: ['contextLensRun', deps, botShip, lensId],
+    queryFn: () => db.getContextLensRun({ botShip, lensId }),
+  });
+};
+
+export const useRecentContextLensRuns = (count?: number) => {
+  const deps = useKeyFromQueryDeps(db.getRecentContextLensRuns);
+  return useQuery({
+    queryKey: ['recentContextLensRuns', deps, count],
+    queryFn: () => db.getRecentContextLensRuns({ count }),
+  });
+};
+
+export const useContextLensBotShips = () => {
+  const deps = useKeyFromQueryDeps(db.getContextLensBotShips);
+  return useQuery({
+    queryKey: ['contextLensBotShips', deps],
+    queryFn: () => db.getContextLensBotShips(),
+  });
+};
+
+export const useContextLensBotsInChat = ({
+  chatId,
+}: {
+  chatId: string | null;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getContextLensBotsInChat);
+  return useQuery({
+    queryKey: ['contextLensBotsInChat', deps, chatId],
+    queryFn: () =>
+      chatId ? db.getContextLensBotsInChat({ chatId }) : Promise.resolve([]),
   });
 };
 
@@ -563,6 +606,25 @@ export const usePostReference = ({
   return postQuery;
 };
 
+export const useNoteReference = ({
+  channelId,
+  noteId,
+  enabled = true,
+}: {
+  channelId: string;
+  noteId: string;
+  enabled?: boolean;
+}) => {
+  return useQuery({
+    queryKey: ['noteReference', channelId, noteId],
+    enabled: enabled && !!noteId,
+    // null = denied or missing, which can flip once the user joins the
+    // notebook or gains group access — let remounts refetch after 30s
+    staleTime: 30_000,
+    queryFn: () => api.getNoteReference({ channelId, noteId }),
+  });
+};
+
 export const useGroupsHostedBy = (userId: string, disabled?: boolean) => {
   return useQuery({
     queryKey: ['groupsHostedBy', userId],
@@ -644,6 +706,24 @@ export const usePostWithRelations = (
     gcTime: PER_POST_GC_TIME_MS,
     ...(initialData ? { initialData } : {}),
     queryFn: () => (options == null ? null : db.getPostWithRelations(options)),
+  });
+};
+
+export const usePostBySentAt = (
+  options: { channelId: string; authorId: string; sentAt: number } | null
+) => {
+  const deps = useKeyFromQueryDeps(db.getPostBySentAt);
+  return useQuery({
+    enabled: options != null,
+    queryKey: [
+      'postBySentAt',
+      options?.channelId,
+      options?.authorId,
+      options?.sentAt,
+      deps,
+    ],
+    gcTime: PER_POST_GC_TIME_MS,
+    queryFn: () => (options == null ? null : db.getPostBySentAt(options)),
   });
 };
 
@@ -759,6 +839,17 @@ export const useTelemetryEnabled = () => {
     queryFn: async () => {
       const settings = await db.getSettings();
       return settings?.enableTelemetry ?? false;
+    },
+  });
+};
+
+export const useContextLensEnabled = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['contextLensEnabled', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.contextLensEnabled ?? false;
     },
   });
 };

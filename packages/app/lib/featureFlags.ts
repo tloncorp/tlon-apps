@@ -76,7 +76,9 @@ async function loadInitialState() {
     Object.entries(state).forEach(([name, enabled]) => {
       if (name in featureMeta) {
         useFeatureFlagStore.getState().setEnabled(name as FeatureName, enabled);
-      } else {
+      } else if (name !== 'contextLens') {
+        // `contextLens` is a legacy flag migrated to the synced %settings store
+        // (see migrateLegacyContextLensFlag); it's expected here until stripped.
         console.warn('Unknown feature flag encountered in local storage', name);
       }
     });

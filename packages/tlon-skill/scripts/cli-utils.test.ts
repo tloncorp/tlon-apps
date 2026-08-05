@@ -5,8 +5,10 @@ import {
   getRequiredOptionValue,
   hasOptionValue,
   isCommandHelpRequest,
+  isDiaryNest,
   isSubcommandHelpRequest,
   looksLikePositionalChannelKind,
+  looksLikeRemovedPositionalChannelKind,
   wantsHelp,
 } from './cli-utils';
 
@@ -52,6 +54,43 @@ describe('cli-utils', () => {
     it('does not flag ordinary titles', () => {
       const args = ['add-channel', '~zod/test', 'Projects'];
       expect(looksLikePositionalChannelKind(args, 2)).toBe(false);
+    });
+
+    it('no longer treats diary as a live positional channel kind', () => {
+      const args = ['add-channel', '~zod/test', 'diary', 'Projects'];
+      expect(looksLikePositionalChannelKind(args, 2)).toBe(false);
+    });
+  });
+
+  describe('removed diary channel kind', () => {
+    it('detects diary passed positionally where a kind would go', () => {
+      const args = ['create', '~zod/test', 'diary', 'Projects'];
+      expect(looksLikeRemovedPositionalChannelKind(args, 2)).toBe(true);
+    });
+
+    it('does not flag diary when it is the only positional (a title)', () => {
+      const args = ['create', '~zod/test', 'diary'];
+      expect(looksLikeRemovedPositionalChannelKind(args, 2)).toBe(false);
+    });
+
+    it('does not flag diary passed as an explicit --kind value here', () => {
+      const args = ['create', '~zod/test', 'Notes', '--kind', 'diary'];
+      expect(looksLikeRemovedPositionalChannelKind(args, 2)).toBe(false);
+    });
+  });
+
+  describe('isDiaryNest', () => {
+    it('matches a diary nest', () => {
+      expect(isDiaryNest('diary/~host/blog')).toBe(true);
+    });
+
+    it('does not match chat or heap nests', () => {
+      expect(isDiaryNest('chat/~host/general')).toBe(false);
+      expect(isDiaryNest('heap/~host/gallery')).toBe(false);
+    });
+
+    it('is safe for an undefined nest', () => {
+      expect(isDiaryNest(undefined)).toBe(false);
     });
   });
 
@@ -107,7 +146,7 @@ describe('cli-utils', () => {
     it('detects command-only help only in the first slot', () => {
       expect(isCommandHelpRequest(['--help'])).toBe(true);
       expect(isCommandHelpRequest(['-h'])).toBe(true);
-      expect(isCommandHelpRequest(['diary/~zod/test', '--help'])).toBe(false);
+      expect(isCommandHelpRequest(['chat/~zod/test', '--help'])).toBe(false);
     });
   });
 });

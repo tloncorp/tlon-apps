@@ -4,10 +4,12 @@
  * Captures OpenClaw container logs for asserting tool invocations
  * in integration tests run under docker compose (pnpm test:integration).
  */
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 
 type LiveToolTraceOptions = {
   composeFile: string;
+  composeFiles?: string[];
+  projectName?: string;
   sinceIso: string;
   label?: string;
 };
@@ -30,23 +32,104 @@ const TOOL_TRACE_LINE_RE =
  */
 export function getContainerLogsSince(
   composeFile: string,
-  sinceIso: string
+  sinceIso: string,
+  timeoutMs = 10_000
 ): string {
+  const composeFiles = resolveComposeFiles(composeFile);
   const output = execFileSync(
     'docker',
     [
       'compose',
-      '-f',
-      composeFile,
+      ...composeFileArgs(composeFiles),
       'logs',
       '--no-color',
       '--since',
       sinceIso,
       'openclaw',
     ],
-    { encoding: 'utf-8', timeout: 10_000, cwd: process.cwd() }
+    {
+      encoding: 'utf-8',
+      timeout: timeoutMs,
+      maxBuffer: 10 * 1024 * 1024,
+      cwd: process.cwd(),
+      env: composeEnv(),
+    }
   );
   return output;
+}
+
+/** Fail immediately when the integration gateway container is not running. */
+export function assertOpenClawContainerRunning(
+  composeFile: string,
+  timeoutMs = 10_000
+): void {
+  const composeFiles = resolveComposeFiles(composeFile);
+  const output = execFileSync(
+    'docker',
+    [
+      'compose',
+      ...composeFileArgs(composeFiles),
+      'ps',
+      '--status',
+      'running',
+      '--quiet',
+      'openclaw',
+    ],
+    {
+      encoding: 'utf-8',
+      timeout: timeoutMs,
+      cwd: process.cwd(),
+      env: composeEnv(),
+    }
+  );
+  if (!output.trim()) {
+    throw new Error('OpenClaw container exited or is not running');
+  }
+}
+
+export interface ConfigSetResult {
+  exitCode: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+/** Run the exact liveness-neutral config mutation used by the regression test. */
+export function setGatewayStatusRestartConfig(
+  composeFile: string,
+  timeoutMs = 20_000
+): ConfigSetResult {
+  const composeFiles = resolveComposeFiles(composeFile);
+  const result = spawnSync(
+    'docker',
+    [
+      'compose',
+      ...composeFileArgs(composeFiles),
+      'exec',
+      '-T',
+      'openclaw',
+      'openclaw',
+      'config',
+      'set',
+      'channels.tlon.showModelSignature',
+      'true',
+      '--strict-json',
+    ],
+    {
+      encoding: 'utf-8',
+      timeout: timeoutMs,
+      maxBuffer: 2 * 1024 * 1024,
+      cwd: process.cwd(),
+      env: composeEnv(),
+    }
+  );
+  if (result.error) {
+    throw result.error;
+  }
+  return {
+    exitCode: result.status,
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+  };
 }
 
 function escapeRegex(s: string): string {
@@ -130,12 +213,15 @@ function recordTraceLine(
 export function startLiveToolTrace(
   options: LiveToolTraceOptions
 ): LiveToolTraceHandle {
+  const composeFiles = resolveComposeFiles(
+    options.composeFile,
+    options.composeFiles
+  );
   const child = spawn(
     'docker',
     [
       'compose',
-      '-f',
-      options.composeFile,
+      ...composeFileArgs(composeFiles),
       'logs',
       '--no-color',
       '--since',
@@ -145,6 +231,7 @@ export function startLiveToolTrace(
     ],
     {
       cwd: process.cwd(),
+      env: composeEnv(options.projectName),
       stdio: ['ignore', 'pipe', 'pipe'],
     }
   );
@@ -262,4 +349,50 @@ export function toolWasInvoked(logs: string, toolName: string): boolean {
   return new RegExp(
     `embedded run tool (?:start|end):.*\\btool=${escaped}\\b`
   ).test(logs);
+}
+
+function composeFileArgs(files: string[]): string[] {
+  return files.flatMap((file) => ['-f', file]);
+}
+
+function resolveComposeFiles(
+  composeFile: string,
+  explicitFiles?: string[]
+): string[] {
+  if (explicitFiles?.length) {
+    return explicitFiles;
+  }
+
+  const rawFiles = process.env.TEST_COMPOSE_FILES;
+  if (rawFiles) {
+    try {
+      const parsed = JSON.parse(rawFiles) as unknown;
+      if (
+        Array.isArray(parsed) &&
+        parsed.every((value) => typeof value === 'string' && value.length > 0)
+      ) {
+        return parsed;
+      }
+    } catch {
+      // Fall back to the legacy single-file path below.
+    }
+  }
+
+  return [composeFile];
+}
+
+function composeEnv(projectName?: string): NodeJS.ProcessEnv {
+  const name =
+    projectName ??
+    process.env.TEST_COMPOSE_PROJECT_NAME ??
+    process.env.COMPOSE_PROJECT_NAME;
+  const env = {
+    ...process.env,
+    // Optional compose values. Empty defaults keep every test-side logs/ps
+    // poll from emitting interpolation warnings when secrets are absent.
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY ?? '',
+    BRAVE_API_KEY: process.env.BRAVE_API_KEY ?? '',
+    TLONBOT_TOKEN: process.env.TLONBOT_TOKEN ?? '',
+  };
+  return name ? { ...env, COMPOSE_PROJECT_NAME: name } : env;
 }

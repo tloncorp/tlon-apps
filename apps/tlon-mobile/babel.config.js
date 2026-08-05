@@ -1,8 +1,41 @@
 module.exports = function (api) {
-  api.cache(true);
+  const reactCompilerEnvironment = api.caller((caller) => {
+    if (
+      !caller?.supportsReactCompiler ||
+      caller.isNodeModule ||
+      caller.isServer ||
+      caller.isReactServer
+    ) {
+      return 'disabled';
+    }
+    return caller.isDev === false ? 'production' : 'development';
+  });
+
   return {
-    presets: [['babel-preset-expo', { unstable_transformImportMeta: true }]],
+    presets: [
+      [
+        'babel-preset-expo',
+        {
+          unstable_transformImportMeta: true,
+          // The compiler is configured first below so it sees original source.
+          'react-compiler': false,
+        },
+      ],
+    ],
     plugins: [
+      reactCompilerEnvironment !== 'disabled' && [
+        'babel-plugin-react-compiler',
+        {
+          target: '19',
+          environment: {
+            enableResetCacheOnSourceFileChanges:
+              reactCompilerEnvironment !== 'production',
+          },
+          panicThreshold:
+            reactCompilerEnvironment === 'production' ? 'none' : undefined,
+          customOptOutDirectives: ['widget', 'use no memo', 'use no forget'],
+        },
+      ],
       // Allow sql imports so that we can bundle drizzle migrations.
       [
         'inline-import',
@@ -19,6 +52,6 @@ module.exports = function (api) {
         },
       ],
       'react-native-worklets/plugin',
-    ],
+    ].filter(Boolean),
   };
 };

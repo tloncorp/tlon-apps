@@ -441,7 +441,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         }
 
         // check for refs from pasted deeplinks
-        const DEEPLINK_REGEX = new RegExp(`^(https?://)?${branchDomain}/\\S+$`);
+        const DEEPLINK_REGEX = new RegExp(
+          `^(https?://)?(?:${branchDomain}|join\\.tlon\\.io|invite\\.tlon\\.io)/\\S+$`
+        );
         const deepLinkAttachment = await processReferenceAndUpdateEditor({
           editor,
           editorJson,
@@ -507,6 +509,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         const draft: domain.PostDataDraft = {
           channelId,
           content: inlines,
+          // Chat keeps a multi-selection together in one post. Gallery splits
+          // its attachment selection before reaching sendPostFromDraft.
           attachments,
           channelType,
           title,

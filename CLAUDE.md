@@ -216,7 +216,7 @@ To identify which component to modify:
 ## Key Technologies
 
 -   **Frontend**: React, TypeScript, React Native, Expo, Electron
--   **UI**: Tamagui, Tailwind CSS
+-   **UI**: Tamagui
 -   **State Management**: Zustand, React Query
 -   **Database**: SQLite (web: SQLocal, mobile: op-sqlite, desktop: better-sqlite3)
 -   **Backend**: Urbit (Hoon)
@@ -247,7 +247,7 @@ To identify which component to modify:
 
 ### Windows Development
 
-Several `package.json` scripts use Unix shell tools (`rm -rf`, `cp -R`, `mkdir -p`). `.npmrc` routes pnpm's `script-shell` through `${TLON_SHELL-/bin/bash}` so those scripts work everywhere:
+Several `package.json` scripts use Unix shell tools (`rm -rf`, `cp -R`, `mkdir -p`). `pnpm-workspace.yaml` routes pnpm's `scriptShell` through `${TLON_SHELL-/bin/bash}` so those scripts work everywhere:
 
 -   **macOS/Linux**: nothing to do — `TLON_SHELL` is unset and pnpm falls back to `/bin/bash`.
 -   **Windows**: install [Git for Windows](https://git-scm.com/download/win), then point pnpm at its bash:
@@ -268,6 +268,13 @@ When writing or modifying bash scripts, ensure compatibility with both macOS and
 -   Test scripts on both macOS and Linux when possible
 -   Use portable command options (e.g., `grep -E` instead of `egrep`)
 
+## Pull Requests
+
+When creating a PR, structure the body with the repo's PR template
+(`.github/pull_request_template.md`): Summary / Changes / How did I test? /
+Risks and impact / Rollback plan / Screenshots. `gh pr create` does not apply
+the template automatically — fill it in explicitly.
+
 ## Pre-PR Cleanup
 
 Before finalizing a PR, do a focused pass on your own diff:
@@ -276,6 +283,7 @@ Before finalizing a PR, do a focused pass on your own diff:
 -   **Trim debug fat.** Remove leftover `console.log`s, ad-hoc perf marks, commented-out code, and stale `// TODO` notes that no longer apply. Comments that just describe _what_ the code does belong in the identifiers; keep comments only when they explain _why_ (non-obvious constraints, workarounds, decisions).
 -   **Reuse before adding.** Before introducing a new helper/util/constant, grep for an existing one. Don't ship parallel implementations — if the new one is genuinely better, remove the old in the same PR.
 -   **Audit comments for staleness.** A comment written mid-implementation may describe an earlier approach. If it references deleted code or a previous shape of the function, fix or delete it.
+-   **Always run Prettier before committing.** Run `npx prettier --check` (or `--write`) on your changed files — or `pnpm lint:format` in the affected package — so a formatting-only diff never lands in the commit or trips CI. Editor/tsc/eslint passing does not guarantee Prettier is satisfied.
 
 ## Testing
 

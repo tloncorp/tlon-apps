@@ -132,6 +132,24 @@ describe('parseBlobData', () => {
     expect(result![0]).toMatchObject({ type: 'unknown' });
     expect(result![1]).toMatchObject({ type: 'file' });
   });
+
+  it('parses context lens blobs without treating them as media', () => {
+    const blob = JSON.stringify([
+      { type: 'tlon-context-lens', version: 1, lensId: 'lens-123' },
+      {
+        type: 'file',
+        version: 1,
+        fileUri: 'https://example.com/a.pdf',
+        size: 100,
+      },
+    ]);
+    const result = parseBlobData(blob);
+    expect(result).toHaveLength(2);
+    // recognized as its own entry type (not a media type), so the downloader's
+    // allowlist skips it — see isDownloadableBlobEntry
+    expect(result![0]).toMatchObject({ type: 'tlon-context-lens' });
+    expect(result![1]).toMatchObject({ type: 'file' });
+  });
 });
 
 describe('formatBlobAnnotations', () => {
@@ -342,6 +360,16 @@ describe('blob download limits', () => {
     ]);
   });
 
+  it('ignores metadata-only context lens blobs when downloading attachments', async () => {
+    const result = await downloadBlobAttachments(
+      [{ type: 'tlon-context-lens', version: 1, lensId: 'lens-123' }],
+      mediaDir
+    );
+
+    expect(mockedFetchWithSsrFGuard).not.toHaveBeenCalled();
+    expect(result).toEqual({ attachments: [], notices: [] });
+  });
+
   it('skips oversized blob attachments when content-length exceeds the cap', async () => {
     mockedFetchWithSsrFGuard.mockResolvedValue({
       response: new Response('ignored', {
@@ -438,9 +466,9 @@ describe('blob download limits', () => {
     expect(result.notices).toEqual([]);
     expect(result.attachments).toHaveLength(1);
     expect(result.attachments[0]?.contentType).toBe('text/plain');
-    const saved = await stat(result.attachments[0]!.path);
+    const saved = await stat(result.attachments[0].path);
     expect(saved.size).toBe(10);
-    expect(result.attachments[0]!.path.startsWith(mediaDir)).toBe(true);
+    expect(result.attachments[0].path.startsWith(mediaDir)).toBe(true);
     expect(MAX_BLOB_DOWNLOAD_BYTES).toBe(100 * 1024 * 1024);
   });
 });

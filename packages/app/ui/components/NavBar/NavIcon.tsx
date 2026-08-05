@@ -3,10 +3,15 @@ import { Icon, IconType } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { View } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
+import { Platform } from 'react-native';
 import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { getAndroidRoundedBackgroundKey } from '../../utils';
 import { ContactAvatar } from '../Avatar';
+
+// Match platform touch-target guidelines (iOS HIG 44pt, Android Material
+// 48dp); the tab's tappable area spans its full flex share of the bar.
+const NAV_TARGET_MIN_HEIGHT = Platform.OS === 'android' ? 48 : 44;
 
 export function AvatarNavIcon({
   id,
@@ -29,7 +34,9 @@ export function AvatarNavIcon({
       }
     : {
         pressStyle: { backgroundColor: 'unset' },
-        paddingTop: '$s',
+        flex: 1,
+        minHeight: NAV_TARGET_MIN_HEIGHT,
+        justifyContent: 'center',
       };
 
   return (
@@ -80,6 +87,9 @@ export default function NavIcon({
       }
     : {
         pressStyle: { backgroundColor: 'unset' },
+        flex: 1,
+        minHeight: NAV_TARGET_MIN_HEIGHT,
+        justifyContent: 'center',
       };
   return (
     <Pressable
@@ -90,24 +100,28 @@ export default function NavIcon({
       backgroundColor={backgroundColor}
       {...props}
     >
-      <Icon
-        type={resolvedType}
-        color={isActive ? '$primaryText' : '$tertiaryText'}
-      />
-      {shouldShowUnreads ? (
-        <View
-          position="absolute"
-          top="100%"
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Circle
-            key={getAndroidRoundedBackgroundKey(unreadDotBackgroundColor)}
-            size="$s"
-            backgroundColor={unreadDotBackgroundColor}
-          />
-        </View>
-      ) : null}
+      <View>
+        <Icon
+          type={resolvedType}
+          color={isActive ? '$primaryText' : '$tertiaryText'}
+        />
+        {shouldShowUnreads ? (
+          <View
+            position="absolute"
+            top="100%"
+            left={0}
+            right={0}
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Circle
+              key={getAndroidRoundedBackgroundKey(unreadDotBackgroundColor)}
+              size="$s"
+              backgroundColor={unreadDotBackgroundColor}
+            />
+          </View>
+        ) : null}
+      </View>
     </Pressable>
   );
 }

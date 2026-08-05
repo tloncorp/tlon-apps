@@ -33,6 +33,12 @@ describe('tool trace helpers', () => {
       toolName: 'read',
       payload: {
         token: 'secret-token',
+        bearerToken: 'bearer-secret',
+        accessKeyId: 'AKIA_TEST',
+        secretAccessKey: 'aws-secret',
+        clientSecret: 'client-secret',
+        bucketName: 'visible-bucket',
+        messageTokenCount: 42,
         nested: {
           password: 'hunter2',
           text: 'x'.repeat(350),
@@ -42,9 +48,19 @@ describe('tool trace helpers', () => {
 
     expect(event).toContain('"toolName":"read"');
     expect(event).toContain('"token":"[REDACTED]"');
+    expect(event).toContain('"bearerToken":"[REDACTED]"');
+    expect(event).toContain('"accessKeyId":"[REDACTED]"');
+    expect(event).toContain('"secretAccessKey":"[REDACTED]"');
+    expect(event).toContain('"clientSecret":"[REDACTED]"');
+    expect(event).toContain('"bucketName":"visible-bucket"');
+    expect(event).toContain('"messageTokenCount":42');
     expect(event).toContain('"password":"[REDACTED]"');
     expect(event).toContain('[350 chars]');
     expect(event).not.toContain('secret-token');
+    expect(event).not.toContain('bearer-secret');
+    expect(event).not.toContain('AKIA_TEST');
+    expect(event).not.toContain('aws-secret');
+    expect(event).not.toContain('client-secret');
     expect(event).not.toContain('hunter2');
   });
 

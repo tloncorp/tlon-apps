@@ -10,6 +10,7 @@ import {
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
+import useBrowserNotifications from '@tloncorp/app/hooks/useBrowserNotifications';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
@@ -149,6 +150,14 @@ const extractNestedRouteDesktop = (state: any) => {
   }
   return null;
 };
+
+// Mobile notifications can mount directly under the NavigationContainer.
+// Desktop mounts the hook from TopLevelDrawer, below GlobalSearchProvider, so
+// notification clicks retain the user's last Home/Messages tab.
+function MobileBrowserNotifications() {
+  useBrowserNotifications();
+  return null;
+}
 
 function AppRoutes() {
   useFindSuggestedContacts();
@@ -356,6 +365,7 @@ function AppRoutes() {
           navigationInChildEnabled
         >
           <ForwardPostSheetProvider>
+            <MobileBrowserNotifications />
             <BasePathNavigator isMobile={true} />
           </ForwardPostSheetProvider>
         </NavigationContainer>

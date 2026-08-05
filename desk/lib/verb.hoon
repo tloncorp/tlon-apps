@@ -135,29 +135,24 @@
 ++  print-logs
   |=  [=bowl:gall =cage]
   |*  etc=*
-  ?.  ?=(%log-action p.cage)  etc
+  ?.  ?=(%log-action-1 p.cage)  etc
   =+  !<(=a-log:logs q.cage)
   ?.  ?=(%log -.a-log)  etc
   =*  event  event.a-log
   =*  data   data.a-log
-  =/  vol=volume:logs
-    ?-  -.event
-      %fail  %crit
-      %tell  vol.event
-    ==
-  ::
-  =+  val=(volume-val:logs vol)
+  =+  val=(volume-val:logs vol.event)
   ?:  (lth val (volume-val:logs volume))
     etc
   =/  =echo:logs
     ?-  -.event
         %fail
-      [leaf+"[{<our.bowl>}/{<dap.bowl>}] fail {<desc.event>}" trace.event]
+      :-  leaf+"[{<our.bowl>}/{<dap.bowl>}] crashed"
+      (weld echo.event tang.event)
     ::
         %tell  
       [leaf+"[{<our.bowl>}/{<dap.bowl>}]" echo.event]
     ==
-  %-  %-  %*(. slog pri val)
+  %-  %-  %*(. slog pri (volume-pri:logs vol.event))
     echo
   etc
 ::

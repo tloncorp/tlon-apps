@@ -24,6 +24,9 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
       pinnedLength: chats.pinned.length,
       unpinnedLength: chats.unpinned.length,
       pendingLength: chats.pending.length,
+      // Reorder-only changes (same lengths/unreads/titles) must bust the memo;
+      // key on pin.itemId, the canonical pinned-order identity.
+      pinnedOrder: chats.pinned.map((c) => c.pin?.itemId ?? c.id).join('|'),
       pinnedUnreadCount: chats.pinned.reduce(
         (acc, chat) => acc + (chat.unreadCount ?? 0),
         0

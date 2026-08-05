@@ -8,7 +8,6 @@ import {
   sendPost as apiSendPost,
   sendReply as apiSendReply,
 } from '@tloncorp/api';
-import * as fs from 'fs';
 
 import { ensureClient } from './api-client';
 import { commandError, errorMessage } from './commands/command';
@@ -39,7 +38,6 @@ export function createPostsDeps(): PostsDeps {
     },
     getCurrentUserId: () => apiGetCurrentUserId(),
     now: () => Date.now(),
-    readFile: (path: string) => fs.readFileSync(path, 'utf-8'),
     buildImageVerse: (url: string) => fetchImageVerse(url),
     postsApi: {
       addReaction: async (input: PostReactionInput) => {

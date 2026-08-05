@@ -168,10 +168,12 @@ export async function resolveTlonSkillVersion(): Promise<string> {
 
 export function formatTlonVersionIdentity(options?: {
   markdown?: boolean;
+  harnessVersion?: string | null;
   tlonSkillVersion?: string | null;
 }): string {
   const markdown = options?.markdown ?? true;
   const identity = getTlonVersionIdentity();
+  const harnessVersion = options?.harnessVersion?.trim() || 'unknown';
   const tlonSkillVersion =
     options?.tlonSkillVersion?.trim() || getKnownTlonSkillVersion();
   const source =
@@ -183,6 +185,7 @@ export function formatTlonVersionIdentity(options?: {
 
   return [
     row('Harness', 'OpenClaw'),
+    row('Harness Version', harnessVersion),
     row('Adapter Version', identity.pluginVersion),
     row('Tlon Skill', tlonSkillVersion),
     row('Fingerprint', identity.pluginFingerprint),

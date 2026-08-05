@@ -26,7 +26,7 @@ import {
 } from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, View, YStack } from 'tamagui';
+import { Text, View, XStack, YStack } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
@@ -34,7 +34,6 @@ import { useCurrentUserId } from '../contexts/appDataContext';
 import { useAttachmentContext } from '../contexts/attachment';
 import { ChannelProvider } from '../contexts/channel';
 import { NavigationProvider } from '../contexts/navigation';
-import { useStore } from '../contexts/storeContext';
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
@@ -42,6 +41,10 @@ import {
   ChannelHeader,
   ChannelHeaderItemsProvider,
 } from './Channel/ChannelHeader';
+import {
+  ContextLensPanel,
+  useContextLensController,
+} from './Channel/ContextLens';
 import { DraftInputView } from './Channel/DraftInputView';
 import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
@@ -134,9 +137,9 @@ const GalleryDraftInput = memo(function GalleryDraftInput({
       channel,
       clearDraft,
       onPresentationModeChange: noop,
-      sendPostFromDraft: async (draft) => {
+      sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
-        await store.finalizeAndSendPost(draft);
+        await store.finalizeAndSendPost(draft, options);
       },
       setEditingPost,
       setShouldBlur,
@@ -178,6 +181,8 @@ export function PostScreenView({
   onPressDelete,
   onGroupAction,
   goToDm,
+  goToContextLensRuns,
+  goToContextLensRun,
   negotiationMatch,
   selectedPostId,
 }: {
@@ -188,6 +193,8 @@ export function PostScreenView({
   handleGoToUserProfile: (userId: string) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
+  goToContextLensRuns?: () => void;
+  goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   selectedPostId?: string | null;
 } & ChannelContext) {
   const isWindowNarrow = utils.useIsWindowNarrow();
@@ -199,6 +206,17 @@ export function PostScreenView({
   // If this screen is a carousel, this is the currently-focused post
   // (`parentPost` does not change when swiping).
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
+  const {
+    contextLensAvailable,
+    contextLensOpen,
+    contextLensActive,
+    contextLensStream,
+    selectedContextLensMessage,
+    toggleContextLens,
+    clearSelectedContextLensMessage,
+    inspectContextLensPost,
+    openContextLensForPost,
+  } = useContextLensController({ channel });
 
   const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
 
@@ -366,66 +384,104 @@ export function PostScreenView({
                     goBack={handleGoBack}
                     showEditButton={showEdit}
                     goToEdit={handleEditPress}
+                    onToggleContextLens={
+                      contextLensAvailable
+                        ? isWindowNarrow && goToContextLensRuns
+                          ? goToContextLensRuns
+                          : toggleContextLens
+                        : undefined
+                    }
+                    contextLensOpen={contextLensAvailable && contextLensOpen}
+                    contextLensActive={contextLensActive}
                   />
-                  {parentPost &&
-                    (isEditingParent && channel.type === 'gallery' ? (
-                      <YStack flex={1} backgroundColor="$background">
-                        <GalleryDraftInput
-                          channel={channel}
-                          editingPost={editingPost}
-                          getDraft={
-                            parentEditDraftCallbacks?.getDraft ??
-                            (async () => null)
+                  <XStack alignItems="stretch" flex={1} position="relative">
+                    <YStack flex={1} minWidth={0}>
+                      {parentPost &&
+                        (isEditingParent && channel.type === 'gallery' ? (
+                          <YStack flex={1} backgroundColor="$background">
+                            <GalleryDraftInput
+                              channel={channel}
+                              editingPost={editingPost}
+                              getDraft={
+                                parentEditDraftCallbacks?.getDraft ??
+                                (async () => null)
+                              }
+                              group={group}
+                              clearDraft={
+                                parentEditDraftCallbacks?.clearDraft ??
+                                (async () => {})
+                              }
+                              setEditingPost={setEditingPost}
+                              setShouldBlur={setGalleryEditShouldBlur}
+                              shouldBlur={galleryEditShouldBlur}
+                              storeDraft={
+                                parentEditDraftCallbacks?.storeDraft ??
+                                (async () => {})
+                              }
+                            />
+                          </YStack>
+                        ) : mode === 'single' ? (
+                          <SinglePostView
+                            {...{
+                              channel,
+                              chatThreadHandleRef,
+                              editingPost,
+                              goBack,
+                              group,
+                              handleGoToImage,
+                              inspectContextLensPost:
+                                contextLensAvailable && contextLensOpen
+                                  ? inspectContextLensPost
+                                  : undefined,
+                              openContextLensForPost:
+                                contextLensAvailable && !isWindowNarrow
+                                  ? openContextLensForPost
+                                  : undefined,
+                              onGoToBotRun:
+                                contextLensAvailable && isWindowNarrow
+                                  ? goToContextLensRun
+                                  : undefined,
+                              negotiationMatch,
+                              onPressDelete,
+                              onPressRetry,
+                              parentEditDraftCallbacks,
+                              parentPost,
+                              selectedPostId,
+                              setEditingPost,
+                            }}
+                          />
+                        ) : (
+                          <CarouselPostScreenContent
+                            flex={1}
+                            width="100%"
+                            channelId={channel.id}
+                            initialPostId={parentPost.id}
+                            channelContext={{
+                              editingPost,
+                              group,
+                              negotiationMatch,
+                              onPressDelete,
+                              onPressRetry,
+                              parentEditDraftCallbacks,
+                              setEditingPost,
+                            }}
+                          />
+                        ))}
+                    </YStack>
+                    {contextLensAvailable &&
+                      contextLensOpen &&
+                      !isWindowNarrow && (
+                        <ContextLensPanel
+                          events={contextLensStream.events}
+                          streamStatus={contextLensStream.status}
+                          selectedMessage={selectedContextLensMessage}
+                          onClearSelectedMessage={
+                            clearSelectedContextLensMessage
                           }
-                          group={group}
-                          clearDraft={
-                            parentEditDraftCallbacks?.clearDraft ??
-                            (async () => {})
-                          }
-                          setEditingPost={setEditingPost}
-                          setShouldBlur={setGalleryEditShouldBlur}
-                          shouldBlur={galleryEditShouldBlur}
-                          storeDraft={
-                            parentEditDraftCallbacks?.storeDraft ??
-                            (async () => {})
-                          }
+                          channelId={channel.id}
                         />
-                      </YStack>
-                    ) : mode === 'single' ? (
-                      <SinglePostView
-                        {...{
-                          channel,
-                          chatThreadHandleRef,
-                          editingPost,
-                          goBack,
-                          group,
-                          handleGoToImage,
-                          negotiationMatch,
-                          onPressDelete,
-                          onPressRetry,
-                          parentEditDraftCallbacks,
-                          parentPost,
-                          selectedPostId,
-                          setEditingPost,
-                        }}
-                      />
-                    ) : (
-                      <CarouselPostScreenContent
-                        flex={1}
-                        width="100%"
-                        channelId={channel.id}
-                        initialPostId={parentPost.id}
-                        channelContext={{
-                          editingPost,
-                          group,
-                          negotiationMatch,
-                          onPressDelete,
-                          onPressRetry,
-                          parentEditDraftCallbacks,
-                          setEditingPost,
-                        }}
-                      />
-                    ))}
+                      )}
+                  </XStack>
                   <GroupPreviewSheet
                     group={groupPreview ?? undefined}
                     open={!!groupPreview}
@@ -487,7 +543,6 @@ function useMarkThreadAsReadEffect(
     hasThreadUnreadActivity: boolean;
   } | null
 ) {
-  const store = useStore();
   const shouldMarkRead = opts?.shouldMarkRead ?? false;
   const latestReplyId = opts?.mostRecentlyReceivedReply?.id ?? null;
   const hasThreadUnreadActivity = opts?.hasThreadUnreadActivity ?? false;
@@ -521,7 +576,7 @@ function useMarkThreadAsReadEffect(
       });
     }, 150);
     return () => clearTimeout(timeoutId);
-  }, [shouldMarkRead, hasThreadUnreadActivity, latestReplyId, store]);
+  }, [shouldMarkRead, hasThreadUnreadActivity, latestReplyId]);
 }
 
 function SinglePostView({
@@ -531,6 +586,9 @@ function SinglePostView({
   editingPost,
   goBack,
   handleGoToImage,
+  inspectContextLensPost,
+  openContextLensForPost,
+  onGoToBotRun,
   negotiationMatch,
   onPressDelete,
   onPressRetry,
@@ -545,6 +603,9 @@ function SinglePostView({
   goBack?: () => void;
   group: db.Group | null;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
+  inspectContextLensPost?: (post: db.Post) => void;
+  openContextLensForPost?: (post: db.Post) => void;
+  onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
@@ -559,7 +620,6 @@ function SinglePostView({
 }) {
   const groupMembers = group?.members ?? [];
   const groupRoles = group?.roles ?? [];
-  const store = useStore();
   const { focusedPost } = useContext(FocusedPostContext);
   const isFocusedPost = focusedPost?.id === parentPost.id;
   const isUserActive = useIsUserActive();
@@ -724,18 +784,18 @@ function SinglePostView({
   );
 
   const sendFromThreadComposer = useCallback(
-    async (draft: domain.PostDataDraft) => {
+    async (draft: domain.PostDataDraft, options?: store.PostSendOptions) => {
       setEditingPost?.(undefined);
       if (draft.isEdit) {
-        await store.finalizeAndSendPost(draft);
+        await store.finalizeAndSendPost(draft, options);
         return;
       }
 
       draft.replyToPostId = parentPost.id;
-      await store.finalizeAndSendPost(draft);
+      await store.finalizeAndSendPost(draft, options);
       scrollToNewReply();
     },
-    [parentPost, store, scrollToNewReply, setEditingPost]
+    [parentPost, scrollToNewReply, setEditingPost]
   );
 
   const isChatLike = useMemo(
@@ -812,6 +872,9 @@ function SinglePostView({
             setActiveMessage={setActiveMessage}
             highlightPostId={highlightPostId}
             scrollerRef={scrollerRef}
+            inspectContextLensPost={inspectContextLensPost}
+            onOpenContextLens={openContextLensForPost}
+            onGoToBotRun={onGoToBotRun}
           />
         ) : null}
 
@@ -870,9 +933,9 @@ function SinglePostView({
             setEditingPost={setEditingPost}
             shouldBlur={inputShouldBlur}
             setShouldBlur={setInputShouldBlur}
-            sendPostFromDraft={async (draft) => {
+            sendPostFromDraft={async (draft, options) => {
               setEditingPost?.(undefined);
-              await store.finalizeAndSendPost(draft);
+              await store.finalizeAndSendPost(draft, options);
             }}
             getDraft={parentEditDraftCallbacks?.getDraft ?? (async () => null)}
             storeDraft={

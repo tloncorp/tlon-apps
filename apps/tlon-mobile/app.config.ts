@@ -9,6 +9,9 @@ const projectId = '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0';
 const isPreview = process.env.APP_VARIANT === 'preview';
 const buildGitHash = process.env.EAS_BUILD_GIT_COMMIT_HASH || 'development';
 const appScheme = isPreview ? 'io.tlon.groups.preview' : 'io.tlon.groups';
+const branchDomain = isPreview
+  ? process.env.BRANCH_DOMAIN_TEST
+  : process.env.BRANCH_DOMAIN_PROD;
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -18,8 +21,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   userInterfaceStyle: 'automatic',
   scheme: appScheme,
+  runtimeVersion: {
+    policy: 'fingerprint',
+  },
   buildCacheProvider:
     process.env.TLON_EAS_CACHE_DISABLED === '1' ? undefined : 'eas',
+  experiments: {
+    reactCompiler: true,
+  },
   extra: {
     eas: {
       projectId,
@@ -32,6 +41,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     appVariant: process.env.APP_VARIANT || 'production',
     notifyProvider: process.env.NOTIFY_PROVIDER,
     notifyService: process.env.NOTIFY_SERVICE,
+    inviteProvider: process.env.INVITE_PROVIDER,
     apiUrl: process.env.API_URL,
     apiAuthUsername: process.env.API_AUTH_USERNAME,
     apiAuthPassword: process.env.API_AUTH_PASSWORD,
@@ -55,7 +65,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ignoreCosmos: process.env.IGNORE_COSMOS,
     TlonEmployeeGroup: process.env.TLON_EMPLOYEE_GROUP,
     branchKey: process.env.BRANCH_KEY_PROD,
-    branchDomain: process.env.BRANCH_DOMAIN_PROD,
+    branchDomain,
     inviteServiceEndpoint: process.env.INVITE_SERVICE_ENDPOINT,
     inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
     gitHash: buildGitHash ? buildGitHash.substring(0, 7) : 'dev',
@@ -63,7 +73,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     forceSplashSequence: process.env.FORCE_SPLASH_SEQUENCE,
   },
   ios: {
-    runtimeVersion: '4.0.2',
     // demo builds triggered by GitHub require this to be explicitly set rather than handled
     // elsewhere
     bundleIdentifier: ['demo', 'e2e'].includes(process.env.EAS_BUILD_PROFILE!)
@@ -74,7 +83,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   android: {
-    runtimeVersion: '4.0.2',
     blockedPermissions: [
       'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
     ],
@@ -117,7 +125,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-contacts',
       {
-        contactsPermission: 'Allow Tlon Messenger to access your contacts.',
+        contactsPermission:
+          'Tlon Messenger uses your contacts to help you find people you know who are already on the network and to invite others via SMS or email. Your contacts are never uploaded — only anonymous, hashed identifiers are sent to our server for matching.',
       },
     ],
     'expo-audio',

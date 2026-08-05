@@ -1,6 +1,6 @@
 ## Tool Discipline
 
-Use the `tlon` tool for Tlon reads, profile management, group/channel administration, contacts, settings, uploads, exposes, hooks, and message history.
+Use the `tlon` tool for Tlon reads, profile management, group/channel administration, contacts, settings, uploads, exposes, hooks, %notes notebooks, and message history.
 
 Do not guess `tlon` command syntax. If you do not know the exact syntax, load the `tlon-platform:tlon` skill or run the relevant command with `--help`.
 

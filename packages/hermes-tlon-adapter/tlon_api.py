@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -16,6 +17,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, Optional, Sequence
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +30,25 @@ DEFAULT_GATEWAY_LEASE_SECONDS = 90.0
 DEFAULT_GATEWAY_ACTIVE_WINDOW_SECONDS = 300
 DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS = 300
 DEFAULT_SSE_READ_TIMEOUT_SECONDS = 60.0
-DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES = 2
+DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES = 3
 DEFAULT_CONTEXT_MESSAGES = 20
+REACTION_LEVELS = frozenset({"off", "ack", "minimal", "extensive"})
+DEFAULT_REACTION_LEVEL = "minimal"
+
+DEFAULT_NUDGE_TICK_INTERVAL_MS = 15 * 60 * 1000
+
+
+class TlonTerminalActionError(ConnectionError):
+    """A channel action rejected by Eyre, so retrying it cannot help.
+
+    `status` is the rejecting HTTP status when known, so callers can tell an
+    auth rejection (401/403) from a malformed action (400/422) without
+    parsing the message.
+    """
+
+    def __init__(self, message: str, *, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 def normalize_ship(ship: str) -> str:
@@ -42,6 +61,36 @@ def normalize_ship(ship: str) -> str:
 
 def bare_ship(ship: str) -> str:
     return normalize_ship(ship).lstrip("~")
+
+
+# @da (Urbit date) conversion, matching @urbit/aura's da.fromUnix so a post id
+# we compute here round-trips through the client's da.toUnix.
+_DA_UNIX_EPOCH = 170_141_184_475_152_167_957_503_069_145_530_368_000  # @ud ~1970.1.1
+_DA_SECOND = 1 << 64  # @ud ~s1
+
+
+def unix_ms_to_da(ms: int) -> int:
+    return _DA_UNIX_EPOCH + (int(ms) * _DA_SECOND) // 1000
+
+
+def _dotted_ud(value: int) -> str:
+    """Render a bare @ud as Hoon's dotted decimal (groups of 3 from the right)."""
+    digits = str(value)
+    groups: list[str] = []
+    while len(digits) > 3:
+        groups.insert(0, digits[-3:])
+        digits = digits[:-3]
+    groups.insert(0, digits)
+    return ".".join(groups)
+
+
+def format_post_id(ship: str, sent_at_ms: int) -> str:
+    """A post's id: ``~author/<@ud of da.fromUnix(sent)>``.
+
+    Mirrors how the api stamps a post id and how the client resolves a message
+    (by author + send time), computed from the exact ``sent`` the CLI used.
+    """
+    return f"{normalize_ship(ship)}/{_dotted_ud(unix_ms_to_da(sent_at_ms))}"
 
 
 def parse_bool(value: Any) -> bool:
@@ -131,8 +180,11 @@ def _parse_float(value: Any, default: float) -> float:
 
 def _parse_int(value: Any, default: int) -> int:
     try:
-        parsed = int(float(str(value).strip()))
-    except (TypeError, ValueError):
+        raw = float(str(value).strip())
+        if not math.isfinite(raw):
+            return default
+        parsed = int(raw)
+    except (TypeError, ValueError, OverflowError):
         return default
     return parsed if parsed > 0 else default
 
@@ -143,6 +195,30 @@ def _parse_non_negative_int(value: Any, default: int) -> int:
     except (TypeError, ValueError):
         return default
     return parsed if parsed >= 0 else default
+
+
+def _parse_strict_non_negative_int(value: Any, default: int) -> int:
+    """Reject non-integral values instead of truncating them. Needed where 0
+    is a meaningful sentinel: "0.5" must fall back to the default, not
+    truncate to 0 (OpenClaw's schema likewise requires an integer)."""
+    try:
+        parsed = float(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+    if not parsed.is_integer():
+        return default
+    return int(parsed) if parsed >= 0 else default
+
+
+def _valid_timezone(value: str) -> str:
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError):
+        return ""
+    return value
 
 
 def _format_da_from_unix_millis(value: float) -> str:
@@ -191,7 +267,17 @@ class TlonConfig:
     gateway_status_lease_seconds: float = DEFAULT_GATEWAY_LEASE_SECONDS
     gateway_status_active_window_seconds: int = DEFAULT_GATEWAY_ACTIVE_WINDOW_SECONDS
     gateway_status_reply_cooldown_seconds: int = DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS
+    reengagement_enabled: bool = False
+    nudge_tick_interval_ms: int = DEFAULT_NUDGE_TICK_INTERVAL_MS
+    nudge_active_hours_start: Optional[str] = None
+    nudge_active_hours_end: Optional[str] = None
+    nudge_active_hours_timezone: Optional[str] = None
+    user_timezone: Optional[str] = None
+    context_lens_enabled: bool = False
+    context_lens_owner: str = ""
+    context_lens_store_path: str = ""
     sse_read_timeout_seconds: float = DEFAULT_SSE_READ_TIMEOUT_SECONDS
+    reaction_level: str = DEFAULT_REACTION_LEVEL
     # Force the hosted (memex) image-upload path. Opt-in: only true when the
     # operator sets TLON_HOSTING. Read once where the env is reliably present
     # (the adapter at startup) and carried via this field into CLI invocations,
@@ -306,7 +392,7 @@ class TlonConfig:
                 ("known_bot_users",),
             )
         )
-        max_consecutive_bot_responses = _parse_int(
+        max_consecutive_bot_responses = _parse_strict_non_negative_int(
             _env_or_extra(
                 env,
                 ("TLON_MAX_CONSECUTIVE_BOT_RESPONSES",),
@@ -470,6 +556,69 @@ class TlonConfig:
             ),
             DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS,
         )
+        reengagement_enabled = parse_bool_default(
+            _env_or_extra(
+                env,
+                ("TLON_REENGAGEMENT_ENABLED",),
+                extra,
+                ("reengagement_enabled",),
+                "false",
+            ),
+            False,
+        )
+        nudge_tick_interval_ms = _parse_int(
+            _env_or_extra(
+                env,
+                ("TLON_NUDGE_TICK_INTERVAL_MS",),
+                extra,
+                ("nudge_tick_interval_ms",),
+                DEFAULT_NUDGE_TICK_INTERVAL_MS,
+            ),
+            DEFAULT_NUDGE_TICK_INTERVAL_MS,
+        )
+        nudge_active_hours_start = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_START",),
+            extra,
+            ("nudge_active_hours_start",),
+        ) or None
+        nudge_active_hours_end = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_END",),
+            extra,
+            ("nudge_active_hours_end",),
+        ) or None
+        nudge_active_hours_timezone = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_TIMEZONE",),
+            extra,
+            ("nudge_active_hours_timezone",),
+        ) or None
+        user_timezone = _valid_timezone(
+            _env_first(env, ("TLON_TIMEZONE",), extra, ("user_timezone",))
+        ) or None
+        context_lens_enabled = parse_bool(
+            _env_or_extra(
+                env,
+                ("TLON_CONTEXT_LENS", "TLON_CONTEXT_LENS_ENABLED"),
+                extra,
+                ("context_lens", "context_lens_enabled"),
+            )
+        )
+        context_lens_owner = normalize_ship(
+            _env_first(
+                env,
+                ("TLON_CONTEXT_LENS_OWNER",),
+                extra,
+                ("context_lens_owner",),
+            )
+        )
+        context_lens_store_path = _env_first(
+            env,
+            ("TLON_CONTEXT_LENS_STORE_PATH",),
+            extra,
+            ("context_lens_store_path",),
+        )
         sse_read_timeout_seconds = _parse_float(
             _env_or_extra(
                 env,
@@ -480,6 +629,20 @@ class TlonConfig:
             ),
             DEFAULT_SSE_READ_TIMEOUT_SECONDS,
         )
+        reaction_level = _env_first(
+            env,
+            ("TLON_REACTION_LEVEL",),
+            extra,
+            ("reaction_level",),
+            DEFAULT_REACTION_LEVEL,
+        ).lower()
+        if reaction_level not in REACTION_LEVELS:
+            logger.warning(
+                "[tlon] invalid TLON_REACTION_LEVEL=%r; using %s",
+                reaction_level,
+                DEFAULT_REACTION_LEVEL,
+            )
+            reaction_level = DEFAULT_REACTION_LEVEL
 
         auto_discover = parse_bool(
             _env_or_extra(env, ("TLON_AUTO_DISCOVER",), extra, ("auto_discover",))
@@ -530,7 +693,17 @@ class TlonConfig:
             gateway_status_lease_seconds=gateway_status_lease_seconds,
             gateway_status_active_window_seconds=gateway_status_active_window_seconds,
             gateway_status_reply_cooldown_seconds=gateway_status_reply_cooldown_seconds,
+            reengagement_enabled=reengagement_enabled,
+            nudge_tick_interval_ms=nudge_tick_interval_ms,
+            nudge_active_hours_start=nudge_active_hours_start,
+            nudge_active_hours_end=nudge_active_hours_end,
+            nudge_active_hours_timezone=nudge_active_hours_timezone,
+            user_timezone=user_timezone,
+            context_lens_enabled=context_lens_enabled,
+            context_lens_owner=context_lens_owner,
+            context_lens_store_path=context_lens_store_path,
             sse_read_timeout_seconds=sse_read_timeout_seconds,
+            reaction_level=reaction_level,
         )
 
     def is_complete(self) -> bool:
@@ -595,6 +768,9 @@ class TlonConfig:
     def gateway_status_owner_ship(self) -> str:
         return self.gateway_status_owner or self.owner_ship
 
+    def context_lens_owner_ship(self) -> str:
+        return self.context_lens_owner or self.owner_ship
+
 
 @dataclass(frozen=True)
 class TlonProcessResult:
@@ -634,8 +810,20 @@ class TlonCLI:
         self._runner = runner or self._run_subprocess
         self._observer = observer
 
-    async def send_message(self, chat_id: str, text: str) -> TlonSendResult:
-        return await self._run(("posts", "send", chat_id, text))
+    async def send_message(
+        self,
+        chat_id: str,
+        text: str,
+        *,
+        blob: str | None = None,
+        sent_at: int | None = None,
+    ) -> TlonSendResult:
+        args: list[str] = ["posts", "send", chat_id, text]
+        if blob:
+            args.extend(["--blob", blob])
+        if sent_at is not None:
+            args.extend(["--sent-at", str(sent_at)])
+        return await self._run(tuple(args))
 
     async def send_reply(
         self,
@@ -644,10 +832,16 @@ class TlonCLI:
         text: str,
         *,
         parent_author: str | None = None,
+        blob: str | None = None,
+        sent_at: int | None = None,
     ) -> TlonSendResult:
         args: list[str] = ["posts", "reply", chat_id, post_id, text]
         if parent_author:
             args.extend(["--author", normalize_ship(parent_author)])
+        if blob:
+            args.extend(["--blob", blob])
+        if sent_at is not None:
+            args.extend(["--sent-at", str(sent_at)])
         return await self._run(tuple(args))
 
     async def run_command(self, args: Sequence[str]) -> TlonSendResult:
@@ -755,6 +949,23 @@ class TlonSSEEvent:
     raw: dict[str, Any]
 
 
+class TlonAuthError(ConnectionError):
+    """The ship rejected our credentials (bad access code) — unrecoverable."""
+
+
+class TlonChannelError(ConnectionError):
+    """The Eyre channel or one of its subscriptions is gone; the caller must
+    rebuild the channel rather than resume it.
+
+    `status` is the HTTP status when the fault came from the channel GET, and
+    None when it came from a subscription nack/quit.
+    """
+
+    def __init__(self, message: str, *, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status = status
+
+
 class TlonSSEClient:
     """Eyre SSE channel client for subscriptions."""
 
@@ -767,8 +978,17 @@ class TlonSSEClient:
         self._session: Any = None
         self._action_counter = 0
         self._subscriptions: dict[int, tuple[str, str]] = {}
+        # Optional subscriptions may be unavailable (e.g. an agent that isn't
+        # installed). Their nacks/quits are logged and skipped rather than
+        # raised, so one dead optional sub can't tear down the whole stream.
+        self._optional_subscriptions: set[int] = set()
+        self._last_heard_event_id = -1
         self._last_acked_event_id = -1
         self._ack_threshold = 20
+
+    @property
+    def last_heard_event_id(self) -> int:
+        return self._last_heard_event_id
 
     async def authenticate(self) -> str:
         import aiohttp
@@ -788,6 +1008,11 @@ class TlonSSEClient:
             allow_redirects=False,
             timeout=aiohttp.ClientTimeout(total=15),
         ) as resp:
+            if resp.status in (400, 401, 403):
+                # The ship rejected the access code itself — retrying with the
+                # same credentials can never succeed (5xx / timeouts stay
+                # transient: the ship may just be down).
+                raise TlonAuthError(f"Tlon auth rejected: HTTP {resp.status}")
             if resp.status not in (200, 204, 302, 303, 307):
                 raise ConnectionError(f"Tlon auth failed: HTTP {resp.status}")
             cookie = resp.headers.get("set-cookie", "")
@@ -805,6 +1030,10 @@ class TlonSSEClient:
             await self.authenticate()
         self.channel_id = f"{int(time.time())}-{uuid.uuid4().hex[:8]}"
         self.channel_url = f"{self.url}/~/channel/{self.channel_id}"
+        self._last_heard_event_id = -1
+        self._last_acked_event_id = -1
+        self._subscriptions.clear()
+        self._optional_subscriptions.clear()
         await self._send_actions(
             [
                 {
@@ -818,11 +1047,13 @@ class TlonSSEClient:
             ]
         )
 
-    async def subscribe(self, app: str, path: str) -> int:
+    async def subscribe(self, app: str, path: str, *, optional: bool = False) -> int:
         if self.channel_url is None:
             await self.open()
         sub_id = self._next_action_id()
         self._subscriptions[sub_id] = (app, path)
+        if optional:
+            self._optional_subscriptions.add(sub_id)
         await self._send_actions(
             [
                 {
@@ -880,7 +1111,9 @@ class TlonSSEClient:
                 raise ConnectionError(f"Tlon scry failed: HTTP {resp.status} {text[:200]}")
             return await resp.json()
 
-    async def events(self) -> AsyncIterator[TlonSSEEvent]:
+    async def events(
+        self, *, on_open: Optional[Callable[[], None]] = None
+    ) -> AsyncIterator[TlonSSEEvent]:
         import aiohttp
 
         if self.channel_url is None:
@@ -888,18 +1121,42 @@ class TlonSSEClient:
         assert self._session is not None
         assert self.channel_url is not None
 
+        headers = {"Accept": "text/event-stream"}
+        if self._last_heard_event_id >= 0:
+            headers["Last-Event-ID"] = str(self._last_heard_event_id)
         async with self._session.get(
             self.channel_url,
-            headers={"Accept": "text/event-stream"},
+            headers=headers,
             timeout=aiohttp.ClientTimeout(
                 total=None,
                 sock_read=self.config.sse_read_timeout_seconds,
                 connect=60,
             ),
         ) as resp:
+            if resp.status in (404, 410):
+                # _send_actions already treats 404/410 as a stale, reaped
+                # channel; the SSE GET must agree, or a 410 would be
+                # classified as a resumable transport fault and the adapter
+                # would re-GET a dead channel forever.
+                raise TlonChannelError("Tlon channel reaped", status=resp.status)
+            if resp.status in (401, 403):
+                raise TlonChannelError(
+                    f"Tlon channel unauthorized: HTTP {resp.status}", status=resp.status
+                )
+            if resp.status == 500:
+                # Eyre answers 500 for a channel it can no longer serve.
+                # Resuming would re-GET the same dead channel forever, leaving
+                # the bot deaf; @tloncorp/api's client resets the channel on
+                # this status too (packages/api/src/http-api/Urbit.ts:491-494).
+                # Raise before touching the body: a stalled or truncated 500
+                # body would make resp.text() raise a non-channel error, which
+                # falls through to the resume path and defeats the recovery.
+                raise TlonChannelError("Tlon SSE failed: HTTP 500", status=500)
             if resp.status != 200:
                 text = await resp.text()
                 raise ConnectionError(f"Tlon SSE failed: HTTP {resp.status} {text[:200]}")
+            if on_open is not None:
+                on_open()
 
             buffer = ""
             async for chunk in resp.content.iter_any():
@@ -954,10 +1211,26 @@ class TlonSSEClient:
             timeout=aiohttp.ClientTimeout(total=30),
         ) as resp:
             if resp.status not in (200, 204):
-                text = await resp.text()
-                raise ConnectionError(
-                    f"Tlon channel action failed: HTTP {resp.status} {text[:200]}"
-                )
+                status = resp.status
+                # A malformed or unauthorized client action will not recover
+                # by replaying it.  A 404/410 can be a stale, reaped channel
+                # URL and recover after reconnect; rate limits,
+                # request-timeout/too-early responses, server errors, and
+                # other non-4xx responses may also recover.
+                #
+                # Classify from the status alone, BEFORE touching the body: a
+                # stalled/truncated rejection body would otherwise make
+                # resp.text() raise, downgrading a terminal 401/403 to a generic
+                # error and defeating the fixed-cookie fatal handling upstream.
+                terminal = 400 <= status < 500 and status not in (404, 408, 410, 425, 429)
+                try:
+                    text = await resp.text()
+                except Exception:
+                    text = ""
+                message = f"Tlon channel action failed: HTTP {status} {text[:200]}"
+                if terminal:
+                    raise TlonTerminalActionError(message, status=status)
+                raise ConnectionError(message)
 
     async def _parse_sse_payload(self, payload: str) -> Optional[TlonSSEEvent]:
         event_id: Optional[int] = None
@@ -971,9 +1244,13 @@ class TlonSSEClient:
             elif line.startswith("data:"):
                 data_parts.append(line.split(":", 1)[1].lstrip())
 
-        if event_id is not None and event_id - self._last_acked_event_id > self._ack_threshold:
-            self._last_acked_event_id = event_id
-            asyncio.create_task(self._ack(event_id))
+        if event_id is not None:
+            if event_id <= self._last_heard_event_id:
+                return None
+            self._last_heard_event_id = event_id
+            if event_id - self._last_acked_event_id > self._ack_threshold:
+                self._last_acked_event_id = event_id
+                asyncio.create_task(self._ack(event_id))
 
         if not data_parts:
             return None
@@ -991,7 +1268,17 @@ class TlonSSEClient:
         if response == "subscribe":
             if sub_id in self._subscriptions and "err" in raw:
                 app, path = self._subscriptions[sub_id]
-                raise ConnectionError(
+                if sub_id in self._optional_subscriptions:
+                    logger.warning(
+                        "[tlon] optional subscription unavailable for %s %s: %s",
+                        app,
+                        path,
+                        str(raw.get("err"))[:200],
+                    )
+                    self._subscriptions.pop(sub_id, None)
+                    self._optional_subscriptions.discard(sub_id)
+                    return None
+                raise TlonChannelError(
                     f"Tlon subscription failed for {app} {path}: {str(raw.get('err'))[:200]}"
                 )
             return None
@@ -999,7 +1286,12 @@ class TlonSSEClient:
         if response == "quit":
             if sub_id in self._subscriptions:
                 app, path = self._subscriptions[sub_id]
-                raise ConnectionError(f"Tlon subscription quit for {app} {path}")
+                # `optional` only suppresses the *initial* unavailability (the
+                # subscribe-nack branch above). A quit means the subscription
+                # WAS established and has now dropped (e.g. an agent/desk
+                # reload), so force the reconnect path to re-subscribe rather
+                # than silently going deaf to future facts.
+                raise TlonChannelError(f"Tlon subscription quit for {app} {path}")
             return None
 
         if response == "poke":
@@ -1222,6 +1514,43 @@ class TlonIncomingMessage:
     raw: Any
     content: Any = None
     blob: Optional[str] = None
+    author_is_bot: bool = False
+    # The essay author is distinct from user_id for self echoes in DMs: the
+    # conversation/user remains the partner while this identifies the sender.
+    author_id: str = ""
+    # Set for a synthetic reaction event so its visible id is the actual
+    # reacted post rather than the synthetic event identity.
+    reactable_target_id: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class TlonReaction:
+    """One decoded reaction transition or snapshot entry.
+
+    ``wire_key`` remains the serialized identity used for state comparisons;
+    ``reactor`` is the ship used for authorization and loop protection.
+    """
+
+    chat_type: str
+    chat_id: str
+    post_id: str
+    parent_id: Optional[str]
+    wire_key: str
+    reactor: str
+    reactor_is_bot: bool
+    emoji: str
+    added: bool
+    raw: Any
+
+
+@dataclass(frozen=True)
+class ChannelReactsSnapshot:
+    chat_id: str
+    post_id: str
+    parent_id: Optional[str]
+    # wire key -> (exact decoded emoji, normalized ship, is bot identity)
+    entries: dict[str, tuple[str, str, bool]]
+    raw: Any
 
 
 def extract_message_text(content: Any) -> str:
@@ -1241,6 +1570,17 @@ def extract_message_text(content: Any) -> str:
                     parts.append(_extract_block_text(block["block"]))
         return " ".join(part for part in parts if part).strip()
     return str(content)
+
+
+def extract_message_title(content: Any) -> str:
+    """Return a user-visible essay title when the wire payload has one."""
+    if not isinstance(content, Mapping):
+        return ""
+    meta = content.get("meta")
+    if not isinstance(meta, Mapping):
+        return ""
+    title = meta.get("title")
+    return title.strip() if isinstance(title, str) else ""
 
 
 def _extract_inline_text(inlines: Any) -> str:
@@ -1271,11 +1611,32 @@ def _extract_inline_text(inlines: Any) -> str:
                 parts.append(str(item["inline-code"]))
             elif "code" in item:
                 parts.append(str(item["code"]))
+            elif "task" in item and isinstance(item["task"], Mapping):
+                task = item["task"]
+                marker = "[x] " if task.get("checked") else "[ ] "
+                parts.append(marker + _extract_inline_text(task.get("content")))
             elif "break" in item:
                 parts.append("\n")
             elif "tag" in item:
                 parts.append(f"#{item['tag']}")
     return "".join(parts)
+
+
+def _extract_listing_text(listing: Any) -> str:
+    """Extract all text carried by recursive story listing nodes."""
+    if not isinstance(listing, Mapping):
+        return ""
+    item = listing.get("item")
+    if isinstance(item, list):
+        return _extract_inline_text(item)
+    list_node = listing.get("list")
+    if not isinstance(list_node, Mapping):
+        return ""
+    parts = [_extract_inline_text(list_node.get("contents"))]
+    items = list_node.get("items")
+    if isinstance(items, list):
+        parts.extend(_extract_listing_text(child) for child in items)
+    return "\n".join(part for part in parts if part)
 
 
 def _extract_block_text(block: dict[str, Any]) -> str:
@@ -1284,6 +1645,20 @@ def _extract_block_text(block: dict[str, Any]) -> str:
         return f"[image: {image.get('alt') or image.get('src') or ''}]"
     if "cite" in block:
         return "[quoted message]"
+    if "link" in block and isinstance(block["link"], Mapping):
+        link = block["link"]
+        url = str(link.get("url") or "").strip()
+        meta = link.get("meta")
+        title = ""
+        if isinstance(meta, Mapping):
+            title = str(meta.get("title") or meta.get("description") or "").strip()
+        if title and url:
+            return f"[link: {title} — {url}]"
+        return f"[link: {url}]" if url else "[link]"
+    if "header" in block and isinstance(block["header"], Mapping):
+        return _extract_inline_text(block["header"].get("content"))
+    if "listing" in block:
+        return _extract_listing_text(block["listing"])
     if "code" in block and isinstance(block["code"], dict):
         code = block["code"]
         lang = code.get("lang") or ""
@@ -1292,10 +1667,171 @@ def _extract_block_text(block: dict[str, Any]) -> str:
     return ""
 
 
+def extract_author_ship(author: Any) -> str:
+    """Extract a normalized ship from a string or BotProfile-shaped author."""
+    if isinstance(author, Mapping):
+        return normalize_ship(str(author.get("ship") or ""))
+    return normalize_ship(str(author or ""))
+
+
+def author_is_bot_meta(author: Any) -> bool:
+    """True when the author field is a BotProfile-shaped mapping."""
+    return isinstance(author, Mapping) and bool(author.get("ship"))
+
+
+def _decode_react_value(value: Any) -> str:
+    """Decode Tlon's ``$react`` JSON without silently accepting bad values."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, Mapping) and isinstance(value.get("any"), str):
+        return str(value["any"])
+    raise ValueError("reaction value is not a string or {any: string}")
+
+
+def _reaction_author(author: Any) -> tuple[str, str, bool]:
+    """Return (wire_key, normalized_ship, is_bot) for a reaction author."""
+    if isinstance(author, str) and author.strip():
+        return author, normalize_ship(author), False
+    if isinstance(author, Mapping):
+        ship = normalize_ship(str(author.get("ship") or ""))
+        if not ship:
+            raise ValueError("bot reaction author is missing ship")
+        # nickname is wire type `(unit @t)`: null/missing is legal for bot
+        # profiles without a nickname, so fall back to an empty suffix.
+        nickname = author.get("nickname")
+        suffix = nickname if isinstance(nickname, str) else ""
+        return f"{author.get('ship')}/{suffix}", ship, True
+    raise ValueError("reaction author is not a ship or bot identity")
+
+
+def parse_channel_reacts_snapshot(event: Any) -> Optional[ChannelReactsSnapshot]:
+    """Decode a complete channels /v2 reaction map without applying a diff."""
+    if not isinstance(event, dict):
+        return None
+    nest = event.get("nest")
+    response = event.get("response")
+    if not isinstance(nest, str) or not nest or not isinstance(response, dict):
+        return None
+    post = response.get("post")
+    r_post = post.get("r-post") if isinstance(post, dict) else None
+    if not isinstance(post, dict) or not isinstance(r_post, dict):
+        return None
+
+    post_id = post.get("id")
+    parent_id: Optional[str] = None
+    reacts = r_post.get("reacts")
+    reply = r_post.get("reply")
+    if isinstance(reply, dict):
+        r_reply = reply.get("r-reply")
+        if isinstance(r_reply, dict) and "reacts" in r_reply:
+            reacts = r_reply.get("reacts")
+            post_id = reply.get("id")
+            parent_id = str(post.get("id") or "") or None
+
+    if not isinstance(reacts, dict) or not post_id:
+        return None
+
+    try:
+        entries: dict[str, tuple[str, str, bool]] = {}
+        for wire_key, raw_value in reacts.items():
+            if not isinstance(wire_key, str) or not wire_key:
+                raise ValueError("reaction map key is not a non-empty string")
+            if "/" in wire_key:
+                if not isinstance(raw_value, Mapping):
+                    raise ValueError("bot reaction map entry is not an object")
+                reactor = normalize_ship(str(raw_value.get("ship") or ""))
+                if not reactor:
+                    raise ValueError("bot reaction map entry is missing ship")
+                emoji = _decode_react_value(raw_value.get("react"))
+                entries[wire_key] = (emoji, reactor, True)
+            else:
+                reactor = normalize_ship(wire_key)
+                if not reactor:
+                    raise ValueError("reaction map key is not a ship")
+                entries[wire_key] = (_decode_react_value(raw_value), reactor, False)
+    except (TypeError, ValueError) as exc:
+        logger.warning("[tlon] ignoring malformed channel reaction snapshot: %s", exc)
+        return None
+
+    return ChannelReactsSnapshot(
+        chat_id=nest,
+        post_id=str(post_id),
+        parent_id=parent_id,
+        entries=entries,
+        raw=event,
+    )
+
+
+def _is_plain_patp(ship: Any) -> bool:
+    return bool(re.fullmatch(r"~[a-z][a-z-]*", normalize_ship(str(ship or ""))))
+
+
+def parse_dm_reaction(event: Any, *, self_ship: str) -> Optional[TlonReaction]:
+    """Decode one chat /v3 add-react or del-react transition.
+
+    Legacy group-DM events share this subscription but cannot be delivered by
+    the one-to-one DM send path, so they are intentionally excluded here.
+    """
+    if not isinstance(event, dict):
+        return None
+    whom = event.get("whom")
+    response = event.get("response")
+    if not isinstance(whom, str) or not _is_plain_patp(whom) or not isinstance(response, dict):
+        return None
+    root_id = event.get("id")
+    if not root_id:
+        return None
+
+    delta: Any = response
+    post_id: Any = root_id
+    parent_id: Optional[str] = None
+    reply = response.get("reply")
+    if isinstance(reply, dict) and isinstance(reply.get("delta"), dict):
+        delta = reply["delta"]
+        post_id = reply.get("id")
+        parent_id = str(root_id)
+    if not isinstance(delta, dict) or not post_id:
+        return None
+
+    added = "add-react" in delta
+    removed = "del-react" in delta
+    if added == removed:
+        return None
+    try:
+        if added:
+            payload = delta.get("add-react")
+            if not isinstance(payload, Mapping):
+                raise ValueError("add-react is not an object")
+            wire_key, reactor, reactor_is_bot = _reaction_author(payload.get("author"))
+            emoji = _decode_react_value(payload.get("react"))
+        else:
+            wire_key, reactor, reactor_is_bot = _reaction_author(delta.get("del-react"))
+            emoji = ""
+    except (TypeError, ValueError) as exc:
+        logger.warning("[tlon] ignoring malformed DM reaction: %s", exc)
+        return None
+
+    if reactor == normalize_ship(self_ship):
+        return None
+    return TlonReaction(
+        chat_type="dm",
+        chat_id=normalize_ship(whom),
+        post_id=str(post_id),
+        parent_id=parent_id,
+        wire_key=wire_key,
+        reactor=reactor,
+        reactor_is_bot=reactor_is_bot,
+        emoji=emoji,
+        added=added,
+        raw=event,
+    )
+
+
 def parse_channel_message(
     event: Any,
     *,
     self_ship: str,
+    include_self: bool = False,
 ) -> Optional[TlonIncomingMessage]:
     if not isinstance(event, dict):
         return None
@@ -1326,18 +1862,26 @@ def parse_channel_message(
         r_reply = reply.get("r-reply")
         if isinstance(r_reply, dict) and isinstance(r_reply.get("set"), dict):
             reply_set = r_reply["set"]
-            reply_content = reply_set.get("memo") or reply_set.get("essay")
+            reply_content = (
+                reply_set.get("reply-essay")
+                or reply_set.get("memo")
+                or reply_set.get("essay")
+            )
 
     content = reply_content or essay
     if not isinstance(content, dict):
         return None
 
-    sender = normalize_ship(str(content.get("author") or ""))
-    if not sender or sender == normalize_ship(self_ship):
+    sender = extract_author_ship(content.get("author"))
+    if not sender or (not include_self and sender == normalize_ship(self_ship)):
         return None
 
     story_content = content.get("content")
     text = extract_message_text(story_content)
+    if nest.startswith("heap/"):
+        title = extract_message_title(content)
+        if title:
+            text = "\n".join(part for part in (title, text) if part)
     raw_blob = content.get("blob")
     blob = raw_blob if isinstance(raw_blob, str) and raw_blob.strip() else None
     if not text.strip() and not blob:
@@ -1364,6 +1908,8 @@ def parse_channel_message(
         raw=event,
         content=story_content,
         blob=blob,
+        author_is_bot=author_is_bot_meta(content.get("author")),
+        author_id=sender,
     )
 
 
@@ -1371,6 +1917,7 @@ def parse_dm_message(
     event: Any,
     *,
     self_ship: str,
+    include_self: bool = False,
 ) -> Optional[TlonIncomingMessage]:
     if not isinstance(event, dict):
         return None
@@ -1401,8 +1948,8 @@ def parse_dm_message(
     if not isinstance(content, dict):
         return None
 
-    sender = normalize_ship(str(content.get("author") or ""))
-    if not sender or sender == normalize_ship(self_ship):
+    sender = extract_author_ship(content.get("author"))
+    if not sender or (not include_self and sender == normalize_ship(self_ship)):
         return None
 
     partner = normalize_ship(str(whom)) if isinstance(whom, str) else ""
@@ -1428,6 +1975,8 @@ def parse_dm_message(
         raw=event,
         content=story_content,
         blob=blob,
+        author_is_bot=author_is_bot_meta(content.get("author")),
+        author_id=sender,
     )
 
 

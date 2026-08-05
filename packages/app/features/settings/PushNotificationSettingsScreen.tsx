@@ -1,11 +1,14 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ub from '@tloncorp/api/urbit';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
+import { Button } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useBrowserNotificationPermission } from '../../hooks/useBrowserNotificationPermission';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { RootStackParamList } from '../../navigation/types';
 import {
@@ -28,27 +31,52 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
   const baseVolumeSetting = store.useBaseVolumeLevel();
   const { data: exceptions } = store.useVolumeExceptions();
   const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
+  const browserNotifications = useBrowserNotificationPermission();
 
   const numExceptions = useMemo(
     () => (exceptions?.channels.length ?? 0) + (exceptions?.groups.length ?? 0),
     [exceptions]
   );
 
+  const browserPermissionLabel = useMemo(() => {
+    switch (browserNotifications.permission) {
+      case 'granted':
+        return 'Enabled';
+      case 'denied':
+        return 'Blocked in browser';
+      case 'default':
+        return 'Not enabled';
+      default:
+        return 'Unsupported';
+    }
+  }, [browserNotifications.permission]);
+
   const setLevel = useCallback(
     async (level: ub.NotificationLevel) => {
       if (level === baseVolumeSetting) return;
       await store.setBaseVolumeLevel({ level });
+      trackEvent(AnalyticsEvent.NotificationPreferenceChanged, {
+        setting: 'default_level',
+        value: level,
+      });
     },
     [baseVolumeSetting]
   );
 
   const removeException = useCallback(
     async (exception: db.Group | db.Channel) => {
-      if (db.isGroup(exception)) {
-        await store.setGroupVolumeLevel({ group: exception, level: null });
-      } else {
-        await store.setChannelVolumeLevel({ channel: exception, level: null });
-      }
+      const didRemove = db.isGroup(exception)
+        ? await store.setGroupVolumeLevel({ group: exception, level: null })
+        : await store.setChannelVolumeLevel({
+            channel: exception,
+            level: null,
+          });
+      if (!didRemove) return;
+
+      trackEvent(AnalyticsEvent.NotificationPreferenceChanged, {
+        setting: 'override_removed',
+        value: db.isGroup(exception) ? 'group' : 'channel',
+      });
     },
     []
   );
@@ -82,6 +110,24 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
             value={baseVolumeSetting}
             onChange={setLevel}
           />
+
+          {browserNotifications.isSupported ? (
+            <YStack marginTop="$xl" gap="$m">
+              <TlonText.Text size="$label/2xl">
+                Browser notifications
+              </TlonText.Text>
+              <TlonText.Text size="$label/m" color="$secondaryText">
+                {browserPermissionLabel}
+              </TlonText.Text>
+              {browserNotifications.canRequestPermission ? (
+                <Button
+                  preset="primary"
+                  label="Enable"
+                  onPress={browserNotifications.requestPermission}
+                />
+              ) : null}
+            </YStack>
+          ) : null}
           {numExceptions > 0 ? (
             <ExceptionsDisplay
               channels={exceptions?.channels ?? []}

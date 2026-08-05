@@ -16,10 +16,12 @@ export async function changeMessageFilter(filter: TalkSidebarFilter) {
   try {
     // optimistic update
     await db.insertSettings({ messagesFilter: filter });
-    return api.setSetting('messagesFilter', filter);
+    await api.setSetting('messagesFilter', filter);
+    return true;
   } catch (e) {
     console.error('Failed to change message filter', e);
     await db.insertSettings({ messagesFilter: oldFilter });
+    return false;
   }
 }
 
@@ -213,6 +215,7 @@ export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
       severity: AnalyticsSeverity.Medium,
     });
     await db.insertSettings({ disableTlonInfraEnhancement: oldValue });
+    throw e;
   }
 }
 
@@ -224,6 +227,7 @@ export async function updateEnableTelemetry(value: boolean) {
     // optimistic update
     await db.insertSettings({ enableTelemetry: value });
     await api.setSetting('enableTelemetry', value);
+    return true;
   } catch (e) {
     logger.trackError('Error updating telemetry setting', {
       error: e,
@@ -231,7 +235,74 @@ export async function updateEnableTelemetry(value: boolean) {
       severity: AnalyticsSeverity.Medium,
     });
     await db.insertSettings({ enableTelemetry: oldValue });
+    return false;
   }
+}
+
+export async function updateContextLensEnabled(value: boolean) {
+  const existing = await db.getSettings();
+  const oldValue = existing?.contextLensEnabled;
+
+  try {
+    // optimistic update
+    await db.insertSettings({ contextLensEnabled: value });
+    await api.setSetting('contextLensEnabled', value);
+    return true;
+  } catch (e) {
+    logger.trackError('Error updating context lens enabled setting', {
+      error: e,
+      value,
+      severity: AnalyticsSeverity.Medium,
+    });
+    // ?? null so the rollback restores "never set" even when no settings row
+    // existed yet (insertSettings skips undefined fields).
+    await db.insertSettings({ contextLensEnabled: oldValue ?? null });
+    return false;
+  }
+}
+
+// One-time migration for the context lens toggle, which moved from the
+// client-local feature-flag store (`storage.featureFlags.contextLens`) to the
+// synced %settings store (`contextLensEnabled`). Adopt a user's old local
+// value once, then drop the stale key so this never runs again. Must run after
+// syncSettings so getSettings() reflects the authoritative synced value.
+export async function migrateLegacyContextLensFlag() {
+  let flags: Record<string, unknown> | null = null;
+  try {
+    flags = await db.storage.featureFlags.getValue();
+  } catch (e) {
+    return;
+  }
+  if (!flags || typeof flags !== 'object' || !('contextLens' in flags)) {
+    return;
+  }
+
+  // Only adopt the legacy value when the synced setting has never been set, so
+  // we don't resurrect a toggle the user later disabled on another device.
+  // Check the backend directly: the local cache can't distinguish "never set"
+  // from an explicit disable, since older builds cached a missing backend
+  // value as false.
+  if (flags.contextLens === true) {
+    let raw: boolean | undefined;
+    try {
+      raw = await api.getContextLensEnabledRaw();
+    } catch (e) {
+      // Can't tell whether the setting was ever synced; keep the legacy key
+      // so the next startup retries.
+      return;
+    }
+    if (raw == null) {
+      const migrated = await updateContextLensEnabled(true);
+      if (!migrated) {
+        // Keep the legacy key so the next startup can retry the migration.
+        return;
+      }
+    }
+  }
+
+  const rest = { ...flags };
+  delete rest.contextLens;
+  await db.storage.featureFlags.setValue(rest);
 }
 
 export async function updatePendingMemberDismissal(

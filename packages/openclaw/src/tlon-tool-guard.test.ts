@@ -1,8 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
-import { checkBlockedSendOperation } from './tlon-tool-guard.js';
+import {
+  checkBlockedSendOperation,
+  formatAllowedTlonSubcommands,
+  isAllowedTlonSubcommand,
+} from './tlon-tool-guard.js';
 
 describe('tlon tool guard', () => {
+  describe('allowed subcommands', () => {
+    it('allows notes commands through the tlon tool gate', () => {
+      expect(isAllowedTlonSubcommand('notes')).toBe(true);
+      expect(formatAllowedTlonSubcommands()).toContain('notes');
+    });
+
+    it('keeps notebook allowed for skill-level removal guidance', () => {
+      expect(isAllowedTlonSubcommand('notebook')).toBe(true);
+    });
+  });
+
   describe('blocks non-club dms send/reply', () => {
     it('blocks dms send with a ship target', () => {
       const result = checkBlockedSendOperation([
@@ -109,6 +124,12 @@ describe('tlon tool guard', () => {
   });
 
   describe('allows other subcommands', () => {
+    it('allows notes', () => {
+      expect(
+        checkBlockedSendOperation(['notes', 'list', 'notes/~host/slug'])
+      ).toBeNull();
+    });
+
     it('allows notebook', () => {
       expect(
         checkBlockedSendOperation(['notebook', 'diary/~host/slug', 'Title'])

@@ -5,6 +5,7 @@ import {
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import { parseNotesChannelId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -19,12 +20,16 @@ import type {
 import {
   TOP_LEVEL_DRAWER_ROUTES,
   getActiveTopLevelDrawerRouteName,
+  getDesktopGroupInviteRoute,
   getDesktopPostRoute,
+  isActivityBackTarget,
   screenNameFromChannelId,
 } from './routeHelpers';
+import { getTopLevelTabRoute } from './topLevelTabs';
 import { CombinedParamList, RootStackParamList } from './types';
 
 export { screenNameFromChannelId } from './routeHelpers';
+export { getTopLevelTabRoute } from './topLevelTabs';
 
 const logger = createDevLogger('nav-utils', false);
 
@@ -88,7 +93,7 @@ function useResetToChannel() {
 
       if (isWindowNarrow) {
         reset([
-          { name: 'ChatList' },
+          getTopLevelTabRoute('ChatList'),
           {
             name: screenName,
             params: {
@@ -107,6 +112,37 @@ function useResetToChannel() {
           options?.selectedPostId ?? undefined
         );
         reset([channelRoute]);
+      }
+    },
+    [isWindowNarrow, lastOpenTab, navigationRef, reset]
+  );
+}
+
+function useResetToPost() {
+  const navigation = useNavigation();
+  const navigationRef = logic.useMutableRef(navigation);
+  const reset = useTypedReset();
+  const isWindowNarrow = useIsWindowNarrow();
+  const { lastOpenTab } = useGlobalSearch();
+
+  return useCallback(
+    function resetToPost(postParams: RootStackParamList['Post']) {
+      if (isWindowNarrow) {
+        const screenName = screenNameFromChannelId(postParams.channelId);
+        reset([
+          getTopLevelTabRoute('ChatList'),
+          {
+            name: screenName,
+            params: {
+              channelId: postParams.channelId,
+              groupId: postParams.groupId,
+            },
+          },
+          { name: 'Post', params: postParams },
+        ]);
+      } else {
+        const tab = getTab(navigationRef.current, lastOpenTab);
+        reset([getDesktopPostRoute(tab, postParams)]);
       }
     },
     [isWindowNarrow, lastOpenTab, navigationRef, reset]
@@ -134,7 +170,10 @@ function useResetToGroup() {
 
   return async function resetToGroup(groupId: string) {
     if (isWindowNarrow) {
-      reset([{ name: 'ChatList' }, await getMainGroupRoute(groupId, true)]);
+      reset([
+        getTopLevelTabRoute('ChatList'),
+        await getMainGroupRoute(groupId, true),
+      ]);
     } else {
       reset([
         {
@@ -147,6 +186,26 @@ function useResetToGroup() {
           },
         },
       ]);
+    }
+  };
+}
+
+function useResetToGroupInvite() {
+  const reset = useTypedReset();
+  const isWindowNarrow = useIsWindowNarrow();
+
+  return async function resetToGroupInvite(groupId: string) {
+    if (isWindowNarrow) {
+      // matches the mobile push-notification tap: chat list with the invited
+      // group's preview sheet open (see groupInvitePreviewRouteStack)
+      reset([
+        getTopLevelTabRoute('ChatList', {
+          previewGroupId: groupId,
+          previewGroupFromInviteNotification: true,
+        }),
+      ]);
+    } else {
+      reset([getDesktopGroupInviteRoute(groupId)]);
     }
   };
 }
@@ -242,7 +301,7 @@ export function useNavigateBackFromPost() {
       const previousRouteParams = previousRoute?.params as
         | { channelId?: string }
         | undefined;
-      const lastScreenWasActivity = previousRoute?.name === 'Activity';
+      const lastScreenWasActivity = isActivityBackTarget(previousRoute);
       // @ts-expect-error - ChannelRoot is fine here.
       const lastScreenWasChannel = previousRoute?.name === 'ChannelRoot';
       const lastChannelWasChat =
@@ -259,7 +318,8 @@ export function useNavigateBackFromPost() {
         return;
       }
       if (lastScreenWasActivity) {
-        navigation.navigate('Activity', undefined, { pop: true });
+        const route = getTopLevelTabRoute('Activity');
+        navigation.navigate(route.name, route.params, { pop: true });
         return;
       }
       if (isWindowNarrow) {
@@ -445,7 +505,9 @@ export function useRootNavigation() {
   const navigateBackFromPost = useNavigateBackFromPost();
   const navigateToPost = useNavigateToPost();
   const resetToGroup = useResetToGroup();
+  const resetToGroupInvite = useResetToGroupInvite();
   const resetToDm = useResetToDm();
+  const resetToPost = useResetToPost();
 
   return useMemo(
     () => ({
@@ -457,8 +519,10 @@ export function useRootNavigation() {
       navigateToChatDetails,
       navigateToChatVolume,
       resetToGroup,
+      resetToGroupInvite,
       resetToChannel,
       resetToDm,
+      resetToPost,
       navigateBack,
       navigateToBotSettings,
     }),
@@ -473,8 +537,10 @@ export function useRootNavigation() {
       navigateToGroup,
       navigateToPost,
       resetToGroup,
+      resetToGroupInvite,
       resetToChannel,
       resetToDm,
+      resetToPost,
     ]
   );
 }
@@ -487,8 +553,13 @@ export function getDesktopChannelRoute(
 ) {
   const screenName = screenNameFromChannelId(channelId);
   logger.log('getDesktopChannelRoute', screenName);
+  // Notes channels always open under Home: the notebook sidebar wiring
+  // (NotebookSidebarProvider + the GroupChannelsScreenView takeover) exists
+  // only in that drawer, so under Messages the desktop split view would
+  // render a note detail with no tree or create actions.
+  const resolvedTab = parseNotesChannelId(channelId) ? 'Home' : tab;
   return {
-    name: tab,
+    name: resolvedTab,
     params: {
       screen: screenName,
       pop: true,

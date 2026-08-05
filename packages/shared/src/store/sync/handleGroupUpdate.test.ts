@@ -1,5 +1,6 @@
+import * as api from '@tloncorp/api';
 import * as $ from 'drizzle-orm';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 import { batchEffects } from '../../db/query';
 import * as schema from '../../db/schema';
@@ -243,4 +244,46 @@ test('addChannelToNavSection rolls back the dedup delete if the insert fails', a
   });
   expect(rows).toHaveLength(1);
   expect(rows[0]?.groupNavSectionId).toBe(sectionADbId);
+});
+
+test('addChannel propagates group sync failures for normal channels', async () => {
+  const groupId = '~bus/test-group';
+  const channelId = 'chat/~bus/example';
+
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  const getGroup = vi
+    .spyOn(api, 'getGroup')
+    .mockRejectedValue(new Error('missing v2 group scry'));
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  });
+
+  try {
+    await expect(
+      batchEffects('test:add-channel-sync-failure', async (ctx) => {
+        await handleGroupUpdate(
+          {
+            type: 'addChannel',
+            channel: {
+              id: channelId,
+              type: 'chat',
+              groupId,
+              currentUserIsMember: false,
+            },
+          },
+          ctx
+        );
+      })
+    ).rejects.toThrow('missing v2 group scry');
+  } finally {
+    consoleError.mockRestore();
+    getGroup.mockRestore();
+  }
 });

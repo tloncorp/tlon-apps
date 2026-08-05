@@ -6,6 +6,36 @@
  * compatibility — clubs are deprecated and slated for removal audit.
  */
 
+export const ALLOWED_TLON_COMMANDS = [
+  'activity',
+  'channels',
+  'contacts',
+  'dms',
+  'expose',
+  'groups',
+  'hooks',
+  'messages',
+  'notes',
+  'notebook',
+  'posts',
+  'settings',
+  'upload',
+  'help',
+  'version',
+] as const;
+
+const ALLOWED_TLON_COMMAND_SET = new Set<string>(ALLOWED_TLON_COMMANDS);
+
+export function isAllowedTlonSubcommand(
+  subcommand: string | undefined
+): boolean {
+  return subcommand != null && ALLOWED_TLON_COMMAND_SET.has(subcommand);
+}
+
+export function formatAllowedTlonSubcommands(): string {
+  return ALLOWED_TLON_COMMANDS.join(', ');
+}
+
 /** DM sub-operations that are send actions (not management). */
 const DM_SEND_ACTIONS = new Set(['send', 'reply']);
 

@@ -94,15 +94,28 @@ export interface StateClient {
   }): Promise<void>;
 }
 
-let apiQueue: Promise<unknown> = Promise.resolve();
+let apiQueue: Promise<void> = Promise.resolve();
 
-function runExclusive<T>(fn: () => Promise<T>): Promise<T> {
-  const next = apiQueue.then(fn, fn);
-  apiQueue = next.then(
-    () => undefined,
-    () => undefined
-  );
-  return next;
+/**
+ * Serialize access to the process-global @tloncorp/api client.
+ *
+ * The explicit release in `finally` is important for bounded raw requests:
+ * an aborted login or scry must never leave every later StateClient call
+ * waiting behind a lock that cannot settle.
+ */
+export async function withStateClientLock<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = apiQueue;
+  let release!: () => void;
+  apiQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  await previous;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
 }
 
 /**
@@ -116,7 +129,7 @@ export function createStateClient(config: StateClientConfig): StateClient {
   let connected = false;
 
   const withClient = async <T>(fn: () => Promise<T>) => {
-    return runExclusive(async () => {
+    return withStateClientLock(async () => {
       if (!connected) {
         await urbit.connect();
         connected = true;

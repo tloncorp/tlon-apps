@@ -16,6 +16,14 @@ echo "==> OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR"
 echo "==> User: $(whoami)"
 echo "==> Working directory: $(pwd)"
 
+requested_core_version="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+installed_core_version="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$(npm root -g)/openclaw/package.json")"
+if [ "$installed_core_version" != "$requested_core_version" ]; then
+  echo "FATAL: requested OpenClaw core $requested_core_version but installed $installed_core_version"
+  exit 1
+fi
+echo "[tlon-e2e] openclaw-core-version=$installed_core_version requested=$requested_core_version"
+
 # The mounted package declares workspace:^ deps that only resolve inside the
 # tlon-apps pnpm workspace. Copy it to a container-local dir (also the
 # id-shaped path OpenClaw's path hint expects) and rewrite those deps to
@@ -30,6 +38,55 @@ mkdir -p /workspace/tlon
 echo "==> Installing plugin dependencies..."
 cd /workspace/tlon
 node scripts/resolve-workspace-deps.mjs package.json --registry
+# When the shared harness packs the workspace @tloncorp/api into a tarball
+# (see tlon-bot-e2e openclaw driver beforeComposeBuild), prefer it over the
+# published registry version so e2e tests exercise in-branch api code.
+# Requires BOTH the explicit opt-in env (set only by the shared harness) AND
+# the tarball file: file-existence alone would let a stale tarball from a
+# prior harness run silently contaminate legacy run.sh / standalone runs.
+if [ "${OPENCLAW_WORKSPACE_API_TARBALL:-0}" = "1" ] \
+  && [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
+  echo "==> Using workspace @tloncorp/api tarball"
+  jq '.dependencies["@tloncorp/api"] = "file:dev/tlon-api-workspace.tgz"' package.json > package.json.tmp \
+    && mv package.json.tmp package.json
+elif [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
+  echo "==> Ignoring workspace @tloncorp/api tarball (no harness opt-in); using registry"
+fi
+# This is a standalone install of the plugin (no root pnpm-workspace.yaml), so
+# the monorepo's pnpm settings aren't in scope. Generate a container-local
+# workspace file: pnpm reads these settings only from pnpm-workspace.yaml
+# (--config flags cover a single invocation, not later pnpm run/exec calls).
+# - nodeLinker: build-local-skill-override.sh hydrates the platform tlon
+#   binary by resolving @tloncorp/tlon-skill-<platform>-<arch> at the top
+#   level of node_modules, which only the hoisted layout provides.
+# - dangerouslyAllowAllBuilds: pnpm requires explicit approval for dependency
+#   build scripts; allow them all — this is an ephemeral container building
+#   openclaw's own pinned dependencies, not a trust boundary.
+# - minimumReleaseAge: matches the monorepo policy; at the pnpm default (~24h)
+#   any dep released in the last day fails the install.
+# - verifyDepsBeforeRun: matches the monorepo policy; skips the implicit
+#   install pnpm otherwise runs before every pnpm run/exec.
+cat > pnpm-workspace.yaml << 'PNPM_EOF'
+nodeLinker: hoisted
+dangerouslyAllowAllBuilds: true
+minimumReleaseAge: 0
+verifyDepsBeforeRun: false
+PNPM_EOF
+# The tarball's package.json declares ^3.190.0 for the AWS S3 SDK, so this
+# standalone install (no monorepo lockfile in scope) would float to latest.
+# Pin both packages to the exact monorepo lockfile resolution: newer SDK
+# checksum defaults break GCS-compatible endpoints (see storageApi.ts). The
+# pin must live HERE — pnpm 11 ignores a package.json `pnpm` section (it
+# warns "no longer read by pnpm"). If the workspace ever upgrades the SDK
+# intentionally, this pin moves with it.
+if [ "${OPENCLAW_WORKSPACE_API_TARBALL:-0}" = "1" ] \
+  && [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
+  cat >> pnpm-workspace.yaml << 'PNPM_EOF'
+overrides:
+  "@aws-sdk/client-s3": 3.190.0
+  "@aws-sdk/s3-request-presigner": 3.190.0
+PNPM_EOF
+fi
 pnpm install
 pnpm build
 
@@ -51,6 +108,25 @@ rm -rf "$(npm root -g)/openclaw/dist/extensions/tlon"
 # Create minimal config for CI
 CONFIG_DIR=/root/.openclaw
 mkdir -p "$CONFIG_DIR"
+
+TLON_CONFIG_URL="${TLON_URL:-http://ships:8080}"
+TLON_CONFIG_SHIP="${TLON_SHIP:-~zod}"
+TLON_CONFIG_CODE="${TLON_CODE:-lidlut-tabwed-pillex-ridrup}"
+TLON_CONFIG_OWNER="${TLON_OWNER_SHIP:-~ten}"
+TLON_CONFIG_DM_ALLOWLIST="${TLON_DM_ALLOWLIST:-~ten}"
+TLON_CONFIG_DM_ALLOWLIST_JSON="$(printf '%s' "$TLON_CONFIG_DM_ALLOWLIST" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
+DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON='["web_fetch","web_search","image_search","read","cron","tlon","message"]'
+OPENCLAW_CONFIG_TOOLS_ALLOW_JSON="${OPENCLAW_TEST_TOOLS_ALLOW_JSON:-$DEFAULT_OPENCLAW_TOOLS_ALLOW_JSON}"
+TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES="${TLON_MAX_CONSECUTIVE_BOT_RESPONSES:-3}"
+
+if ! printf '%s' "$OPENCLAW_CONFIG_TOOLS_ALLOW_JSON" | jq -e 'type == "array" and all(.[]; type == "string")' >/dev/null; then
+  echo "FATAL: OPENCLAW_TEST_TOOLS_ALLOW_JSON must be a JSON array of strings"
+  exit 1
+fi
+if ! printf '%s' "$TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES" | jq -e 'tonumber >= 0 and (tonumber | floor) == tonumber' >/dev/null; then
+  echo "FATAL: TLON_MAX_CONSECUTIVE_BOT_RESPONSES must be a non-negative integer"
+  exit 1
+fi
 
 cat > "$CONFIG_DIR/openclaw.json" << EOF
 {
@@ -117,15 +193,7 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
     }
   },
   "tools": {
-    "allow": [
-      "web_fetch",
-      "web_search",
-      "image_search",
-      "read",
-      "cron",
-      "tlon",
-      "message"
-    ],
+    "allow": $OPENCLAW_CONFIG_TOOLS_ALLOW_JSON,
     "deny": [
       "apply_patch",
       "bash",
@@ -143,9 +211,9 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "tlon": {
         "enabled": true,
         "env": {
-          "URBIT_URL": "http://ships:8080",
-          "URBIT_SHIP": "~zod",
-          "URBIT_CODE": "lidlut-tabwed-pillex-ridrup"
+          "URBIT_URL": "$TLON_CONFIG_URL",
+          "URBIT_SHIP": "$TLON_CONFIG_SHIP",
+          "URBIT_CODE": "$TLON_CONFIG_CODE"
         }
       }
     }
@@ -153,12 +221,13 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
   "channels": {
     "tlon": {
       "enabled": true,
-      "url": "http://ships:8080",
-      "ship": "~zod",
-      "code": "lidlut-tabwed-pillex-ridrup",
-      "ownerShip": "~ten",
-      "dmAllowlist": ["~ten"],
+      "url": "$TLON_CONFIG_URL",
+      "ship": "$TLON_CONFIG_SHIP",
+      "code": "$TLON_CONFIG_CODE",
+      "ownerShip": "$TLON_CONFIG_OWNER",
+      "dmAllowlist": $TLON_CONFIG_DM_ALLOWLIST_JSON,
       "allowPrivateNetwork": true,
+      "maxConsecutiveBotResponses": $TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES,
       "reengagement": {
         "enabled": true
       },
@@ -205,11 +274,16 @@ if [ ! -d "/workspace/tlonbot/image-search" ] && [ -n "$BRAVE_API_KEY" ] && [ -n
     && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
 fi
 
-# Patch in Brave API key for web search if available
+# Patch in Brave API key for web search if available. openclaw 2026.5.28
+# only accepts provider "brave" when the brave plugin (installed at image
+# build time, see Dockerfile.test) is allowed and enabled; the config was
+# rewritten from scratch above, so re-assert both here (mirrors production).
 if [ -n "$BRAVE_API_KEY" ]; then
   echo "==> Patching config: adding Brave search API key..."
   jq --arg key "$BRAVE_API_KEY" \
-    '.tools.web.search = {"provider": "brave", "apiKey": $key}' \
+    '.tools.web.search = {"enabled": true, "provider": "brave", "apiKey": $key}
+    | .plugins.allow += ["brave"]
+    | .plugins.entries.brave = {"enabled": true, "config": {"webSearch": {"apiKey": $key}}}' \
     "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
     && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
 fi
@@ -235,15 +309,50 @@ fi
 
 echo "==> Config written"
 
+redact_openclaw_config() {
+  jq \
+    --arg brave_api_key "${BRAVE_API_KEY:-}" \
+    --arg tlonbot_token "${TLONBOT_TOKEN:-}" \
+    --arg test_storage_access_key "${TEST_STORAGE_ACCESS_KEY:-}" \
+    --arg test_storage_secret_key "${TEST_STORAGE_SECRET_KEY:-}" \
+    --arg telemetry_api_key "${telemetry_api_key:-}" \
+    '
+      def secret_value:
+        (. == $brave_api_key and $brave_api_key != "") or
+        (. == $tlonbot_token and $tlonbot_token != "") or
+        (. == $test_storage_access_key and $test_storage_access_key != "") or
+        (. == $test_storage_secret_key and $test_storage_secret_key != "") or
+        (. == $telemetry_api_key and $telemetry_api_key != "");
+      def redact:
+        if type == "object" then
+          with_entries(
+            if (.key | test("(api[_-]?key|token|secret|password|credential|code)"; "i")) then
+              .value = "<redacted>"
+            else
+              .value |= redact
+            end
+          )
+        elif type == "array" then
+          map(redact)
+        elif type == "string" and secret_value then
+          "<redacted>"
+        else
+          .
+        end;
+      redact
+    ' "$CONFIG_DIR/openclaw.json"
+}
+
 if [ "${VERBOSE:-0}" = "1" ]; then
-  echo "==> DEBUG: Full config:"
-  cat "$CONFIG_DIR/openclaw.json"
+  redacted_config="$(redact_openclaw_config)"
+  echo "==> DEBUG: Full config (secrets redacted):"
+  printf '%s\n' "$redacted_config"
   echo "==> DEBUG: Agent config:"
-  cat "$CONFIG_DIR/openclaw.json" | jq '.agents'
+  printf '%s\n' "$redacted_config" | jq '.agents'
   echo "==> DEBUG: Re-engagement config (plugin scheduler):"
-  cat "$CONFIG_DIR/openclaw.json" | jq '.channels.tlon.reengagement'
-  echo "==> DEBUG: Tlon channel config:"
-  cat "$CONFIG_DIR/openclaw.json" | jq '.channels.tlon'
+  printf '%s\n' "$redacted_config" | jq '.channels.tlon.reengagement'
+  echo "==> DEBUG: Tlon channel config (secrets redacted):"
+  printf '%s\n' "$redacted_config" | jq '.channels.tlon'
 fi
 
 # Create workspace

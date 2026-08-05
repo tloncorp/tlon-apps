@@ -1,6 +1,6 @@
 import Foundation
 import PostHog
-import ExpoModulesCore
+internal import ExpoModulesCore
 
 @objc
 class NotificationLogProcessor: NSObject {

@@ -17,7 +17,7 @@ import {
 } from '@tloncorp/ui';
 import { KeyboardAvoidingView, LoadingSpinner } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, useTheme } from 'tamagui';
@@ -99,7 +99,6 @@ export function LinkInput({
 
   const {
     control,
-    watch,
     handleSubmit,
     setValue,
     formState: { isDirty, isValid },
@@ -112,7 +111,17 @@ export function LinkInput({
     },
   });
 
-  const form = watch();
+  const urlValue = useWatch({ control, name: 'url' });
+  const titleValue = useWatch({ control, name: 'title' });
+  const descriptionValue = useWatch({ control, name: 'description' });
+  const form = useMemo(
+    () => ({
+      url: urlValue,
+      title: titleValue,
+      description: descriptionValue,
+    }),
+    [urlValue, titleValue, descriptionValue]
+  );
   const url = useDebouncedValue(form.url, 500);
   // We need to track debounce dirty state to appropriately disable the send button. useLinkGrabber's
   // loading state will not be set until the debounce fires.

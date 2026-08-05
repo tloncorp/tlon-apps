@@ -8,11 +8,7 @@ import { useMemo } from 'react';
 import { ChatMessage } from '../../components/ChatMessage';
 import { GalleryPost } from '../../components/GalleryPost';
 import { NotebookPost } from '../../components/NotebookPost';
-import {
-  NotesDraftInput,
-  NotesPostCollection,
-  NotesPostContent,
-} from '../../components/NotesChannel';
+import { NotesPostCollection } from '../../components/NotesChannel/NotesPostCollection';
 import {
   ChatInput,
   GalleryInput,
@@ -27,17 +23,19 @@ import {
   RenderItemType,
 } from './componentsKits';
 
+const EmptyNotesRenderer = () => null;
+
 const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   [PostContentRendererId.chat]: ChatMessage,
   [PostContentRendererId.gallery]: GalleryPost,
   [PostContentRendererId.notebook]: NotebookPost,
-  [PostContentRendererId.notes]: NotesPostContent,
+  [PostContentRendererId.notes]: EmptyNotesRenderer,
 };
 const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
   [DraftInputId.gallery]: GalleryInput,
   [DraftInputId.notebook]: NotebookInput,
-  [DraftInputId.notes]: NotesDraftInput,
+  [DraftInputId.notes]: EmptyNotesRenderer,
 };
 const BUILTIN_COLLECTION_RENDERERS: {
   [id in CollectionRendererId]: IPostCollectionView;

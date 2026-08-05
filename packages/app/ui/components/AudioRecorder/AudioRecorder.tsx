@@ -124,6 +124,11 @@ export const AudioRecorder = forwardRef<
   const waveformRef = useRef<IWaveformRef>(null);
   const extractWaveformData = useExtractWaveformDataCallback();
 
+  // Tracks whether a native recording is in progress. `state.recorderState`
+  // lags the native recorder (it updates via an async event), so a synchronous
+  // ref is needed to decide whether `stopRecord()` should run.
+  const isRecordingRef = useRef(false);
+
   const refApi = useMemo(
     () => ({
       enterRecordingMode() {
@@ -158,8 +163,10 @@ export const AudioRecorder = forwardRef<
             return;
           }
 
+          isRecordingRef.current = true;
           await waveformRef.current?.startRecord();
         } catch (error) {
+          isRecordingRef.current = false;
           // cancel to avoid trapping user (user can't exit recording mode
           // without stopping record)
           Alert.alert('Failed to start recording');
@@ -167,6 +174,10 @@ export const AudioRecorder = forwardRef<
         }
       },
       async stopRecording() {
+        // Only stop a recording we actually started. `stopRecord` rejects
+        // when nothing is recording (e.g. closing the sheet on mount).
+        if (!isRecordingRef.current) return;
+        isRecordingRef.current = false;
         const uri = await waveformRef.current?.stopRecord();
         if (uri == null) {
           console.warn('No uri returned from stopRecord');
@@ -193,6 +204,9 @@ export const AudioRecorder = forwardRef<
         });
       },
       async stopPlayback() {
+        // `stopPlayer` is only valid in playback mode; the waveform library
+        // rejects with "mode is not static" if called while recording.
+        if (state.live) return;
         await waveformRef.current?.stopPlayer();
       },
       async pausePlayback() {
@@ -202,7 +216,7 @@ export const AudioRecorder = forwardRef<
         await waveformRef.current?.resumePlayer();
       },
     }),
-    [onCancel]
+    [onCancel, state.live]
   );
 
   useImperativeHandle(ref, () => refApi);

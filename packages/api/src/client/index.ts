@@ -70,6 +70,12 @@ export {
   setTlawnAvatar,
   getTlawnConfig,
   setTlawnConfig,
+  getTlawnSettings,
+  setTlawnChatConfig,
+  getTlawnChannels,
+  getTlawnMoon,
+  addTlawnToCordon,
+  joinTlawnGroup,
   reloadBot,
   isBotRunning,
   awaitBotRunning,
@@ -81,6 +87,12 @@ export type {
   TlawnModelEntry,
   TlawnPrimaryModelUpdate,
   TlawnBotInfo,
+  TlawnChannelGroupEntry,
+  TlawnChannelGroups,
+  TlawnChannelModelOverride,
+  TlawnChannelModelsUpdate,
+  TlawnChatConfigInfo,
+  TlawnChatConfigUpdate,
   TlawnConfig,
   TlawnProviderModel,
   TlawnOAuthGrant,
@@ -97,3 +109,4 @@ export * from './changesApi';
 export * from './computingStatus';
 export * from './presenceApi';
 export * from './gatewayStatusApi';
+export * from './lensApi';

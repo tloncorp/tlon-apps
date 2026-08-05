@@ -4,14 +4,18 @@ import type {
   RouteProp,
 } from '@react-navigation/native';
 
-export type RootStackParamList = {
-  VerifierStub: undefined;
+export type TopLevelTabParamList = {
   Contacts: undefined;
-  Empty: undefined;
   ChatList:
     | { previewGroupId: string; previewGroupFromInviteNotification?: boolean }
     | undefined;
   Activity: undefined;
+};
+
+export type RootStackParamList = {
+  MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
+  VerifierStub: undefined;
+  Empty: undefined;
   Settings: undefined;
   DM: {
     channelId: string;
@@ -36,12 +40,33 @@ export type RootStackParamList = {
     channelId: string;
     groupId: string;
   };
+  ContextLensRuns: {
+    channelId?: string;
+  };
+  ContextLensRun: {
+    botShip: string;
+    lensId: string;
+    channelId?: string;
+  };
   Post: {
     postId: string;
     channelId: string;
     authorId: string;
     groupId?: string;
     selectedPostId?: string | null;
+  };
+  NotesDetail: {
+    channelId: string;
+    focusTitle?: boolean;
+    groupId?: string;
+    noteId: number;
+    startInEdit?: boolean;
+  };
+  NotesFolder: {
+    channelId: string;
+    folderId: number;
+    folderTitle?: string;
+    groupId?: string;
   };
   MediaViewer: {
     mediaType: 'image' | 'video';
@@ -56,7 +81,17 @@ export type RootStackParamList = {
   ManageAccount: undefined;
   BotSettings: undefined;
   BotMcpSettings: undefined;
-  BotOtherSettings: undefined;
+  BotModelSettings: { mode: 'default' | 'fallbacks' };
+  BotApiKeySettings: { provider: string };
+  BotShipListSettings: {
+    list: 'dmAllowlist' | 'defaultAuthorizedShips' | 'groupInviteAllowlist';
+  };
+  BotChannelRulesSettings: undefined;
+  BotChannelRuleSettings: {
+    channelKey: string;
+    channelLabel: string;
+    groupJoined: boolean;
+  };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -113,7 +148,8 @@ export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
-} & Pick<RootStackParamList, 'Activity' | 'Contacts' | 'Settings'>;
+} & Pick<TopLevelTabParamList, 'Activity' | 'Contacts'> &
+  Pick<RootStackParamList, 'Settings'>;
 
 // hack: adding the true contacts types causes lots of tsc failures that need
 // resolving. Added to support navigating deeply within the contacts drawer
@@ -121,30 +157,27 @@ export type ActualRootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
   Contacts: NavigatorScreenParams<ProfileDrawerParamList>;
-} & Pick<RootStackParamList, 'Activity' | 'Settings'>;
+} & Pick<TopLevelTabParamList, 'Activity'> &
+  Pick<RootStackParamList, 'Settings'>;
 
 export type CombinedParamList = RootStackParamList & RootDrawerParamList;
 
-export type HomeDrawerParamList = Pick<
-  RootStackParamList,
-  'ChatList' | 'GroupChannels' | 'InviteUsers'
-> & {
-  MainContent: undefined;
-  Channel:
-    | NavigatorScreenParams<ChannelStackParamList>
-    | RootStackParamList['Channel'];
-  DM: NavigatorScreenParams<ChannelStackParamList> | RootStackParamList['DM'];
-  GroupDM:
-    | NavigatorScreenParams<ChannelStackParamList>
-    | RootStackParamList['GroupDM'];
-  ChatDetails: RootStackParamList['ChatDetails'];
-  ChatVolume: RootStackParamList['ChatVolume'];
-};
+export type HomeDrawerParamList = Pick<TopLevelTabParamList, 'ChatList'> &
+  Pick<RootStackParamList, 'GroupChannels' | 'InviteUsers'> & {
+    MainContent: undefined;
+    Channel:
+      | NavigatorScreenParams<ChannelStackParamList>
+      | RootStackParamList['Channel'];
+    DM: NavigatorScreenParams<ChannelStackParamList> | RootStackParamList['DM'];
+    GroupDM:
+      | NavigatorScreenParams<ChannelStackParamList>
+      | RootStackParamList['GroupDM'];
+    ChatDetails: RootStackParamList['ChatDetails'];
+    ChatVolume: RootStackParamList['ChatVolume'];
+  };
 
-export type ProfileDrawerParamList = Pick<
-  RootStackParamList,
-  'Contacts' | 'AddContacts' | 'UserProfile'
->;
+export type ProfileDrawerParamList = Pick<TopLevelTabParamList, 'Contacts'> &
+  Pick<RootStackParamList, 'AddContacts' | 'UserProfile'>;
 
 export type SettingsDrawerParamList = Pick<
   RootStackParamList,
@@ -154,7 +187,11 @@ export type SettingsDrawerParamList = Pick<
   | 'ManageAccount'
   | 'BotSettings'
   | 'BotMcpSettings'
-  | 'BotOtherSettings'
+  | 'BotModelSettings'
+  | 'BotApiKeySettings'
+  | 'BotShipListSettings'
+  | 'BotChannelRulesSettings'
+  | 'BotChannelRuleSettings'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
@@ -167,6 +204,8 @@ export type ChannelStackParamList = {
   GroupSettings: RootStackParamList['GroupSettings'];
   ChannelSearch: RootStackParamList['ChannelSearch'];
   Post: RootStackParamList['Post'];
+  NotesDetail: RootStackParamList['NotesDetail'];
+  NotesFolder: RootStackParamList['NotesFolder'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
@@ -179,6 +218,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'GroupSettings'
   | 'ChannelSearch'
   | 'Post'
+  | 'NotesDetail'
+  | 'NotesFolder'
   | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'

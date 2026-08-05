@@ -2,6 +2,7 @@ import * as api from '@tloncorp/api';
 import { toPostContent } from '@tloncorp/api';
 import * as urbit from '@tloncorp/api/urbit';
 
+import { trackEvent } from '../../analytics';
 import * as db from '../../db';
 import type * as domain from '../../domain';
 import { AnalyticsEvent, Attachment, PostDataDraft } from '../../domain';
@@ -138,8 +139,14 @@ export function finalizePostDraftUsingLocalAttachments(
   }
 }
 
+export type PostSendOptions = {
+  /** Called after the optimistic post has been added to the session queue. */
+  onEnqueued?: () => void;
+};
+
 export async function finalizeAndSendPost(
-  draft: domain.PostDataDraft
+  draft: domain.PostDataDraft,
+  options?: PostSendOptions
 ): Promise<void> {
   if (draft.isEdit) {
     await editPostUsingDraft(draft);
@@ -153,6 +160,7 @@ export async function finalizeAndSendPost(
         finalizePostDraftUsingLocalAttachments(draft),
       buildFinalizedPostData: () => finalizePostDraft(draft),
       draft: serializedDraft,
+      onEnqueued: options?.onEnqueued,
     });
   }
 }
@@ -172,6 +180,7 @@ async function _sendPost({
   channelId,
   draft,
   existingPost,
+  onEnqueued,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData?: () => domain.PostDataFinalizedParent;
@@ -180,6 +189,8 @@ async function _sendPost({
   draft?: domain.PostDataDraft;
   /** Existing post to retry (updates in place instead of creating new) */
   existingPost?: db.Post;
+  /** Called after the optimistic post has been added to the session queue. */
+  onEnqueued?: () => void;
 }) {
   const authorId = api.getCurrentUserId();
 
@@ -282,7 +293,7 @@ async function _sendPost({
     // SessionActionQueue.
     const finalizedPostDataPromise = buildFinalizedPostData();
 
-    await sessionActionQueue.add(
+    const sendPromise = sessionActionQueue.add(
       async () => {
         logger.crumb('finalizing post');
         trackSendDebug('queue_action_started');
@@ -342,6 +353,8 @@ async function _sendPost({
         ...debug,
       }
     );
+    onEnqueued?.();
+    await sendPromise;
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
 
@@ -356,6 +369,20 @@ async function _sendPost({
     }
 
     logger.crumb('done sending post');
+    trackEvent(AnalyticsEvent.ContentSendCompleted, {
+      type: channel.type,
+      isReply: draft?.replyToPostId != null,
+      attachmentTypes:
+        draft?.attachments.map((attachment) => attachment.type) ?? [],
+    });
+
+    if (draft) {
+      if (
+        draft.attachments.some((attachment) => attachment.type === 'voicememo')
+      ) {
+        trackEvent(AnalyticsEvent.VoiceMemoSent);
+      }
+    }
   } catch (e) {
     logger.trackEvent(
       cachePost.parentId == null
@@ -463,6 +490,7 @@ export async function retrySendPost({
   await _sendPost({
     channelId: draft.channelId,
     buildFinalizedPostData: () => finalizePostDraft(draft),
+    draft,
     existingPost: post,
   });
 }
@@ -660,6 +688,7 @@ async function _editPost({
       lastEditImage: null,
     });
     logger.log('editPost update done');
+    trackEvent(AnalyticsEvent.PostEditCompleted);
   } catch (e) {
     console.error('Failed to edit post', e);
     logger.log('editPost failed', e);
@@ -772,11 +801,27 @@ export async function deletePost({ post }: { post: db.Post }) {
     ? await db.getPost({ postId: existingPost.parentId })
     : null;
 
+  // A deleted post can't stay pinned/arranged. The channel host drops it
+  // from the order when it processes the delete (emitting an %order
+  // update); mirror that locally so the pinned banner disappears right
+  // away. No set-order poke here — authors can delete their own posts
+  // without holding the admin role that reordering requires.
+  const channel = await db.getChannel({ id: post.channelId });
+  const orderWithPost = channel?.order?.includes(post.id)
+    ? channel.order
+    : null;
+
   // optimistic update
   deleteFromChannelPosts(post);
   await db.markPostAsDeleted(post.id);
   await db.updatePost({ id: post.id, deleteStatus: 'enqueued' });
   await db.updateChannel({ id: post.channelId, lastPostId: null });
+  if (orderWithPost) {
+    await db.updateChannel({
+      id: post.channelId,
+      order: orderWithPost.filter((id) => id !== post.id),
+    });
+  }
 
   try {
     await db.updatePost({ id: post.id, deleteStatus: 'pending' });
@@ -794,6 +839,32 @@ export async function deletePost({ post }: { post: db.Post }) {
     );
     await db.updatePost({ id: post.id, deleteStatus: 'sent' });
   } catch (e) {
+    // A rejected poke may only mean its acknowledgement was lost. Before
+    // restoring a pinned post from a stale snapshot, ask the ship whether
+    // the delete landed. Group-channel post scries omit tombstones, so a 404
+    // is also confirmation that the post is gone.
+    if (orderWithPost) {
+      try {
+        const serverPost = await api.getPostWithReplies({
+          channelId: post.channelId,
+          postId: post.id,
+          authorId: post.authorId,
+        });
+        if (serverPost.isDeleted) {
+          await db.updatePost({ id: post.id, deleteStatus: 'sent' });
+          return;
+        }
+      } catch (verifyError) {
+        if (
+          verifyError instanceof api.BadResponseError &&
+          verifyError.status === 404
+        ) {
+          await db.updatePost({ id: post.id, deleteStatus: 'sent' });
+          return;
+        }
+      }
+    }
+
     console.error('Failed to delete post', e);
 
     // rollback optimistic update
@@ -804,6 +875,9 @@ export async function deletePost({ post }: { post: db.Post }) {
       deleteStatus: 'failed',
     });
     await db.updateChannel({ id: post.channelId, lastPostId: post.id });
+    if (orderWithPost) {
+      await db.updateChannel({ id: post.channelId, order: orderWithPost });
+    }
   }
 }
 
@@ -857,6 +931,7 @@ export async function reportPost({
       api.reportPost(userId, groupId, post.channelId, post)
     );
     await hidePost({ post });
+    trackEvent(AnalyticsEvent.PostReported);
   } catch (e) {
     logger.trackError('Failed to report post', e);
 

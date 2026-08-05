@@ -28,7 +28,7 @@ import {
 } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useFormState } from 'react-hook-form';
 import { Platform } from 'react-native';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
@@ -76,6 +76,12 @@ export const SignupScreen = ({ navigation }: Props) => {
     defaultValues: {
       email: DEFAULT_ONBOARDING_TLON_EMAIL ? genDefaultEmail() : '',
     },
+  });
+  const { isValid: isPhoneValid } = useFormState({
+    control: phoneForm.control,
+  });
+  const { errors: emailErrors, isValid: isEmailValid } = useFormState({
+    control: emailForm.control,
   });
 
   const handlePressEula = useCallback(() => {
@@ -224,10 +230,7 @@ export const SignupScreen = ({ navigation }: Props) => {
                   },
                 }}
                 render={({ field: { onChange, onBlur, value } }) => (
-                  <Field
-                    label="Email"
-                    error={emailForm.formState.errors.email?.message}
-                  >
+                  <Field label="Email" error={emailErrors.email?.message}>
                     <TextInput
                       placeholder="Email Address"
                       onBlur={() => {
@@ -239,15 +242,9 @@ export const SignupScreen = ({ navigation }: Props) => {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
-                      returnKeyType={
-                        emailForm.formState.isValid ? 'next' : 'default'
-                      }
-                      enablesReturnKeyAutomatically={
-                        emailForm.formState.isValid
-                      }
-                      onSubmitEditing={
-                        emailForm.formState.isValid ? onSubmit : undefined
-                      }
+                      returnKeyType={isEmailValid ? 'next' : 'default'}
+                      enablesReturnKeyAutomatically={isEmailValid}
+                      onSubmitEditing={isEmailValid ? onSubmit : undefined}
                       autoFocus
                     />
                   </Field>
@@ -261,9 +258,7 @@ export const SignupScreen = ({ navigation }: Props) => {
               loading={isSubmitting}
               disabled={
                 isSubmitting ||
-                (otpMethod === 'phone'
-                  ? !phoneForm.formState.isValid
-                  : !emailForm.formState.isValid)
+                (otpMethod === 'phone' ? !isPhoneValid : !isEmailValid)
               }
               label="Sign up"
               centered

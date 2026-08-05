@@ -23,6 +23,7 @@ ALLOWED_TLON_COMMANDS = frozenset(
         "hooks",
         "messages",
         "notebook",
+        "notes",
         "posts",
         "settings",
         "upload",
@@ -35,10 +36,11 @@ CREDENTIAL_FLAGS_WITH_VALUE = frozenset(
     {"--config", "--url", "--ship", "--code", "--cookie"}
 )
 
-# Message-send operations. These are blocked only when they target the
+# Message-send operations. These are normally blocked when they target the
 # *current* conversation — those must go through Hermes' streaming reply path
-# (TlonAdapter.send()). Sends to any other channel/DM are proactive and allowed
-# through the tool, since "reply normally" can only reach the current chat.
+# (TlonAdapter.send()). The current-gallery ``posts send`` carveout creates a
+# new top-level gallery item. Sends to any other channel/DM are proactive and
+# allowed through the tool, since "reply normally" can only reach the current chat.
 SEND_OPERATIONS = {
     ("dms", "send"),
     ("dms", "reply"),
@@ -48,7 +50,11 @@ SEND_OPERATIONS = {
 
 TLON_TOOL_DESCRIPTION = (
     "Tlon/Urbit CLI for reading data and administration: activity, channels, "
-    "contacts, groups, messages, posts, settings, upload, expose, hooks. "
+    "contacts, groups, messages, notes, posts, settings, upload, expose, hooks. "
+    "Use the notes commands to manage %notes notebooks (Markdown notes at "
+    "notes/~host/name nests). For notes bodies, use --body <file> "
+    "(note-create also accepts --markdown <file>); --stdin is blocked because "
+    "Hermes cannot pipe stdin into the CLI process. "
     "The bot node has its own Tlon profile; when the configured owner asks "
     "to change the bot nickname, avatar, bio, status, or cover image, use "
     "contacts update-profile. For avatars/covers, upload a direct raster "
@@ -60,11 +66,20 @@ TLON_TOOL_DESCRIPTION = (
     "For user-requested group creation, use groups create-owned with "
     "--owner set to the requesting ship. "
     "To reply to the CURRENT conversation, just write the reply — do not use "
-    "posts/dms send here (that path is blocked so Hermes delivers replies). "
+    "posts/dms send here (that path is blocked so Hermes delivers replies, except "
+    "posts send heap/~host/name creates a new gallery item). "
     "To post to a DIFFERENT channel or one-to-one DM (a proactive send), use "
     "posts send with that target, e.g. posts send chat/~host/channel \"...\" "
     "or posts send ~ship \"...\". Reserve dms send for group-DM club IDs "
     "starting with 0v. "
+    "Gallery channels are heap/~host/name image/link boards. In a gallery, "
+    "replying normally comments on the triggering post; posts send "
+    "heap/~host/name \"text or URL\" creates a new top-level item and is "
+    "allowed even in the current gallery (optional --title \"...\"). Upload "
+    "before image items, then posts send heap/~host/name [caption] --image "
+    "<uploaded-url>. React to a gallery comment with posts react "
+    "heap/~host/name <comment-id> <emoji> --parent <post-id>; delete gallery "
+    "posts with posts delete heap/~host/name <post-id>. "
     "To send an IMAGE anywhere (including the current conversation): first "
     "'upload <direct-image-url>', then 'posts send <target> [caption] --image "
     "<uploaded-url>' (group DMs: dms send <club-id> ... --image <url>)."
@@ -94,13 +109,21 @@ TLON_TOOL_SCHEMA = {
                     "'groups create-owned' so the requester is invited and made admin. "
                     "To post to a different channel or one-to-one DM, use "
                     "'posts send <channel> \"...\"' or 'posts send ~ship \"...\"'. "
+                    "Galleries use heap/~host/name: reply normally to comment on "
+                    "the triggering gallery post, or use 'posts send "
+                    "heap/~host/name \"...\" [--title \"...\"]' for a new item. "
+                    "React to a gallery comment with 'posts react heap/~host/name "
+                    "<comment-id> <emoji> --parent <post-id>'; delete with "
+                    "'posts delete heap/~host/name <post-id>'. "
                     "Use 'dms send <club-id> \"...\"' only for group-DM club IDs "
                     "starting with 0v. Sending to "
                     "the CURRENT conversation is blocked (reply normally "
-                    "instead) EXCEPT image sends: 'posts send <target> "
+                    "instead) EXCEPT new gallery items and image sends: 'posts send <target> "
                     "[caption] --image <uploaded-url>' is allowed anywhere — "
                     "upload first with 'upload <direct-image-url>'. 'notebook' "
-                    "is blocked."
+                    "is removed; use 'notes' commands for %notes notebooks. "
+                    "For notes bodies, use --body <file>; note-create also "
+                    "accepts --markdown <file>. Do not use --stdin."
                 ),
             }
         },
@@ -233,6 +256,10 @@ def _has_image_flag(args: Sequence[str]) -> bool:
     )
 
 
+def _has_stdin_flag(args: Sequence[str]) -> bool:
+    return any(str(arg) == "--stdin" for arg in args)
+
+
 def _send_targets_current_conversation(
     args: Sequence[str],
     sub_idx: int,
@@ -259,6 +286,7 @@ def check_tlon_tool_command(
     session_user_id: str = "",
     session_chat_id: str = "",
     owner_ship: str = "",
+    reaction_level: str = "minimal",
 ) -> Optional[str]:
     lowered = [str(arg).lower() for arg in args]
     if lowered in (["--help"], ["--version"]):
@@ -272,15 +300,42 @@ def check_tlon_tool_command(
 
     command_args = [str(arg).lower() for arg in args[sub_idx:]]
     action = command_args[1] if len(command_args) > 1 else ""
+    if (
+        (subcommand, action) in {("posts", "react"), ("posts", "unreact"), ("dms", "react"), ("dms", "unreact")}
+        and str(reaction_level).lower() in {"off", "ack"}
+    ):
+        return (
+            "Blocked: agent reactions are disabled "
+            f'(TLON_REACTION_LEVEL="{str(reaction_level).lower()}"). '
+            "Set TLON_REACTION_LEVEL to minimal or extensive to enable."
+        )
     if subcommand == "notebook":
         return (
-            "Blocked: notebook posting is not available through this tool. Use "
-            "channel posts instead."
+            "Blocked: the notebook command is removed (the %diary backend no "
+            "longer exists). Use the 'tlon notes' commands to manage %notes "
+            "notebooks instead, e.g. 'notes list' or 'notes note-create "
+            'notes/~host/name root "Title" --markdown file.md\'.'
         )
+    if subcommand == "notes" and _has_stdin_flag(args[sub_idx:]):
+        return (
+            "Blocked: notes --stdin is not available through this tool because "
+            "Hermes cannot pipe stdin into the tlon CLI process. Write the "
+            "Markdown body to a file and use --body <file>."
+        )
+    targets_current = _send_targets_current_conversation(
+        args, sub_idx, session_chat_id
+    )
+    target = str(args[sub_idx + 2]).strip() if len(args) > sub_idx + 2 else ""
+    is_current_heap_post_send = (
+        (subcommand, action) == ("posts", "send")
+        and targets_current
+        and target.casefold().startswith("heap/")
+    )
     if (
         (subcommand, action) in SEND_OPERATIONS
         and not _has_image_flag(args)
-        and _send_targets_current_conversation(args, sub_idx, session_chat_id)
+        and targets_current
+        and not is_current_heap_post_send
     ):
         return (
             "Blocked: don't deliver your reply to the current conversation with "
@@ -351,6 +406,7 @@ async def execute_tlon_tool(
         session_user_id=_get_session_env("HERMES_SESSION_USER_ID", ""),
         session_chat_id=_get_session_env("HERMES_SESSION_CHAT_ID", ""),
         owner_ship=cfg.owner_ship,
+        reaction_level=cfg.reaction_level,
     )
     if blocked:
         return _json({"error": blocked, "blocked": True})

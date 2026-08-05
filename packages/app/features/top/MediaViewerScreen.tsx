@@ -3,7 +3,7 @@ import {
   AnalyticsEvent,
   createDevLogger,
   downloadImageForWeb,
-  ensureFileExtension,
+  trackEvent,
 } from '@tloncorp/shared';
 import {
   GestureMediaViewer,
@@ -12,8 +12,7 @@ import {
   Pressable,
   ZStack,
 } from '@tloncorp/ui';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
+import { Directory, File, Paths } from 'expo-file-system';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import type {
   PlayingChangeEventPayload,
@@ -39,6 +38,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spinner, View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
+import * as MediaLibrary from './mediaLibrary';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MediaViewer'>;
 
@@ -94,6 +94,9 @@ async function downloadMedia({
   if (isWeb) {
     try {
       await downloadImageForWeb(uri);
+      trackEvent(AnalyticsEvent.MediaDownloaded, {
+        mediaType,
+      });
     } catch (error) {
       logger.trackError('Download error:', error);
       console.error('Download error:', error);
@@ -186,60 +189,45 @@ async function downloadMedia({
       }
     }
 
-    const baseFilename =
-      uri.split('/').pop()?.split('?')[0] || `downloaded-${noun}`;
     const fallbackExtension = mediaType === 'video' ? '.mp4' : '.jpg';
-    // The URL may be extensionless, so download to a temp path first and
-    // derive the real extension from the response's content-type before
-    // saving. Without this, an extensionless video lands in a .jpg-named file
-    // and fails (or imports incorrectly) in MediaLibrary.
-    const tempUri = `${FileSystem.documentDirectory}tmp-${baseFilename}`;
-    let localUri = tempUri;
 
     try {
-      const downloadResult = await FileSystem.downloadAsync(uri, tempUri);
-
-      if (downloadResult.status !== 200) {
-        logger.trackError(`Failed to download ${noun}`, {
-          status: downloadResult.status,
-          uri,
-        });
-        throw new Error(`Download failed with status ${downloadResult.status}`);
-      }
-
-      const contentType =
-        downloadResult.headers['Content-Type'] ??
-        downloadResult.headers['content-type'];
-      const filename = ensureFileExtension(
-        baseFilename,
-        contentType,
-        fallbackExtension
+      const downloadDirectory = new Directory(Paths.cache, 'media-downloads');
+      downloadDirectory.create({ intermediates: true, idempotent: true });
+      // The URL may be extensionless, so download into a directory: the
+      // filename is then derived from the response headers, giving
+      // MediaLibrary a correctly-typed extension to import.
+      const downloadedFile = await File.downloadFileAsync(
+        uri,
+        downloadDirectory,
+        { idempotent: true }
       );
-      localUri = `${FileSystem.documentDirectory}${filename}`;
-      if (localUri !== tempUri) {
-        await FileSystem.moveAsync({ from: tempUri, to: localUri });
-      }
 
-      const fileInfo = await FileSystem.getInfoAsync(localUri);
-      if (!fileInfo.exists) {
-        logger.trackError('Downloaded file does not exist', {
-          uri,
-          localUri,
-        });
-        throw new Error('Downloaded file does not exist');
+      // When the response has no usable content type, the derived name may
+      // lack an extension (or get Android's generic .bin) — fall back to an
+      // extension based on the media type.
+      if (!downloadedFile.extension || downloadedFile.extension === '.bin') {
+        const baseName = downloadedFile.name.slice(
+          0,
+          downloadedFile.name.length - downloadedFile.extension.length
+        );
+        downloadedFile.moveSync(
+          new File(downloadDirectory, `${baseName}${fallbackExtension}`),
+          { overwrite: true }
+        );
       }
 
       try {
-        const fileUri = localUri.startsWith('file://')
-          ? localUri
-          : `file://${localUri}`;
-        await MediaLibrary.saveToLibraryAsync(fileUri);
+        await MediaLibrary.Asset.create(downloadedFile.uri);
+        trackEvent(AnalyticsEvent.MediaDownloaded, {
+          mediaType,
+        });
         Alert.alert('Success', `${Noun} saved to your photos!`);
       } catch (saveError) {
         logger.trackError(`Failed to save ${noun} to library`, {
           error: saveError.message,
           uri,
-          localUri,
+          localUri: downloadedFile.uri,
         });
 
         Alert.alert(
@@ -250,15 +238,14 @@ async function downloadMedia({
       } finally {
         try {
           // Check if file still exists before attempting to delete
-          const fileStillExists = await FileSystem.getInfoAsync(localUri);
-          if (fileStillExists.exists) {
-            await FileSystem.deleteAsync(localUri);
+          if (downloadedFile.exists) {
+            downloadedFile.delete();
           }
         } catch (deleteError) {
           // Silently ignore deletion errors - file may have been moved by MediaLibrary
           logger.trackError(`Failed to delete temporary ${noun} file`, {
             error: deleteError.message,
-            uri: localUri,
+            uri: downloadedFile.uri,
           });
         }
       }
@@ -728,6 +715,14 @@ export default function MediaViewerScreen(props: Props) {
   // We should never hit this in practice, but the shared navigation types
   // still allow `MediaViewer` to be opened without a uri.
   const missingUri = !uri;
+
+  useEffect(() => {
+    if (!missingUri) {
+      trackEvent(AnalyticsEvent.MediaOpened, {
+        mediaType,
+      });
+    }
+  }, [mediaType, missingUri, viewerId]);
 
   useEffect(() => {
     if (!missingUri) {

@@ -73,6 +73,12 @@ export type GroupNavSection = BaseModel<'groupNavSections'>;
 export type GroupNavSectionChannel = BaseModel<'groupNavSectionChannels'>;
 export type Channel = BaseModel<'channels'>;
 export type ChannelType = schema.ChannelType;
+export type NotesNotebook = BaseModel<'notesNotebooks'>;
+export type NotesFolder = BaseModel<'notesFolders'>;
+export type NotesNote = BaseModel<'notesNotes'>;
+export type NotesMember = BaseModel<'notesMembers'>;
+export type NotesVisibility = schema.NotesVisibility;
+export type NotesRole = schema.NotesRole;
 export type ThreadUnreadState = BaseModel<'threadUnreads'>;
 export type Post = BaseModel<'posts'>;
 export type PostType = Post['type'];
@@ -105,6 +111,7 @@ export type AttestationStatus = schema.AttestationStatus;
 export type AttestationDiscoverability = schema.AttestationDiscoverability;
 export type AttestationType = schema.AttestationType;
 export type ContactAttestation = BaseModel<'contactAttestations'>;
+export type ContextLensRun = BaseModel<'contextLensRuns'>;
 
 export type Chat = {
   id: string;

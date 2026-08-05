@@ -8,13 +8,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import {
-  useCanUpload,
-  useChannelPreview,
-  useGroupPreview,
-  usePostReference,
-  usePostWithRelations,
-} from '@tloncorp/shared/store';
+import { useCanUpload } from '@tloncorp/shared/store';
 import React, {
   useCallback,
   useEffect,
@@ -69,7 +63,6 @@ export default function ChannelScreen(props: Props) {
     channel,
     group,
     groupIsLoading,
-    groupError,
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
@@ -145,8 +138,14 @@ export default function ChannelScreen(props: Props) {
     }
   }, [currentChannelId, isFocused]);
 
-  const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
-    useChannelNavigation({ channelId: currentChannelId });
+  const {
+    navigateToImage,
+    navigateToPost,
+    navigateToRef,
+    navigateToSearch,
+    navigateToContextLensRuns,
+    navigateToContextLensRun,
+  } = useChannelNavigation({ channelId: currentChannelId });
   const { navigation } = useRootNavigation();
   const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
@@ -382,17 +381,6 @@ export default function ChannelScreen(props: Props) {
     }
   }, [group, navigationRef]);
 
-  const handleGoToChannelDetails = useCallback(
-    (groupId: string, channelId: string) => {
-      navigationRef.current.navigate('ChatDetails', {
-        chatType: 'channel',
-        chatId: channelId,
-        groupId,
-      });
-    },
-    [navigationRef]
-  );
-
   const initialChat = useMemo(
     () =>
       ({
@@ -410,7 +398,6 @@ export default function ChannelScreen(props: Props) {
   return (
     <ChatOptionsProvider
       initialChat={initialChat}
-      useGroup={store.useGroup}
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
@@ -427,7 +414,6 @@ export default function ChannelScreen(props: Props) {
           hasOlderPosts={postsQuery.hasNextPage}
           group={group}
           groupIsLoading={groupIsLoading}
-          groupError={groupError}
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
           goBack={navigationRef.current.goBack}
@@ -435,19 +421,16 @@ export default function ChannelScreen(props: Props) {
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
+          goToContextLensRuns={navigateToContextLensRuns}
+          goToContextLensRun={navigateToContextLensRun}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
-          goToChannelDetails={handleGoToChannelDetails}
           goToGroupSettings={handleGoToGroupSettings}
           onScrollEndReached={loadOlder}
           onScrollStartReached={loadNewer}
           onPressRef={navigateToRef}
           markRead={handleMarkRead}
-          usePost={usePostWithRelations}
-          usePostReference={usePostReference}
-          useGroup={useGroupPreview}
           onGroupAction={performGroupAction}
-          useChannel={useChannelPreview}
           storeDraft={storeDraft}
           clearDraft={clearDraft}
           getDraft={getDraft}

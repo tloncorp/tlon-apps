@@ -4,6 +4,7 @@ import React, { useCallback } from 'react';
 import { View } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
+import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { Tabs } from '../Tabs';
 
@@ -24,7 +25,6 @@ function ActivityHeaderRaw({
 }) {
   const [overflowOpen, setOverflowOpen] = React.useState(false);
   const onOverflowOpenChange = useCallback((open: boolean) => {
-    console.log('Overflow menu open state changed:', open);
     setOverflowOpen(open);
   }, []);
 
@@ -106,8 +106,7 @@ function ActivityOverflowMenu({
       open={open}
       onOpenChange={onOpenChange}
       trigger={
-        <ScreenHeader.IconButton
-          type="Overflow"
+        <OverflowTriggerButton
           onPress={!isWindowNarrow ? undefined : () => onOpenChange(true)}
         />
       }

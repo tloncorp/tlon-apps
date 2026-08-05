@@ -3,11 +3,13 @@
   "hostname": "localhost",
   "port": 5555,
   "vite": {
-    "configPath": "./vite.cosmos.config.mts"
+    "configPath": "./vite.cosmos.config.mts",
+    "mainScriptUrl": "/src/main.tsx"
   },
   "dom": {
     "containerQuerySelector": "#app"
   },
+  "globalImports": ["./tamagui.config.ts"],
   "fixturesLocation": "../../packages/app/fixtures",
   "plugins": ["react-cosmos-plugin-vite"]
 }

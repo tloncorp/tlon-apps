@@ -5,8 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   type TlonInboundRouteInput,
   buildTlonInboundRouteRecord,
-  recordRouteThenDispatch,
-  recordTlonInboundRoute,
+  prepareTlonRouteUpdate,
   recordTlonRouteAndDispatch,
   routeUpdateWillSkipByPin,
   tlonDeliveryContext,
@@ -219,85 +218,42 @@ describe('buildTlonInboundRouteRecord — group/channel', () => {
   });
 });
 
-describe('recordTlonInboundRoute', () => {
-  it('records under recordSessionKey with the durable route under lastRouteSessionKey', async () => {
-    const recordInboundSession = vi.fn().mockResolvedValue(undefined);
+describe('prepareTlonRouteUpdate', () => {
+  it('returns the durable update and wires an observable pin onSkip', () => {
+    const logDebug = vi.fn();
     const record = buildTlonInboundRouteRecord(
-      dmInput({
-        route: makeRoute({
-          sessionKey: 'tlon:peer',
-          mainSessionKey: 'tlon:main',
-          lastRoutePolicy: 'main',
-        }),
-        ctxSessionKey: 'tlon:ctx',
-        senderShip: '~zod',
-      })
+      dmInput({ senderShip: '~nec', effectiveOwnerShip: '~zod' })
     );
 
-    await recordTlonInboundRoute({
-      session: { recordInboundSession },
-      storePath: '/tmp/store.json',
-      ctxPayload: { SessionKey: 'tlon:ctx' },
-      record,
+    const update = prepareTlonRouteUpdate({ record, logDebug });
+
+    expect(update?.to).toBe('tlon:~nec');
+    expect(update?.mainDmOwnerPin?.onSkip).toBeTypeOf('function');
+    update?.mainDmOwnerPin?.onSkip?.({
+      ownerRecipient: '~zod',
+      senderRecipient: '~nec',
     });
-
-    expect(recordInboundSession).toHaveBeenCalledTimes(1);
-    const arg = recordInboundSession.mock.calls[0][0];
-    expect(arg.sessionKey).toBe('tlon:ctx');
-    expect(arg.updateLastRoute.sessionKey).toBe('tlon:main');
-    expect(arg.updateLastRoute.to).toBe('tlon:~zod');
+    expect(logDebug).toHaveBeenCalledTimes(1);
+    expect(logDebug.mock.calls[0][0]).toContain('skipped by owner pin');
   });
 
-  it('fails open and logs when recordInboundSession throws', async () => {
-    const recordInboundSession = vi.fn().mockRejectedValue(new Error('boom'));
-    const logError = vi.fn();
-    const record = buildTlonInboundRouteRecord(dmInput());
-
-    await expect(
-      recordTlonInboundRoute({
-        session: { recordInboundSession },
-        storePath: '/tmp/store.json',
-        ctxPayload: {},
-        record,
-        logError,
-      })
-    ).resolves.toBeUndefined();
-
-    expect(logError).toHaveBeenCalledTimes(1);
-    expect(logError.mock.calls[0][0]).toContain(
-      'failed recording inbound session route'
-    );
-  });
-
-  it('records origin metadata and warns (logError) for a missing-channel group route', async () => {
-    const recordInboundSession = vi.fn().mockResolvedValue(undefined);
+  it('returns undefined and warns (logError) for a missing-channel group route', () => {
     const logError = vi.fn();
     const logDebug = vi.fn();
     const record = buildTlonInboundRouteRecord(
       groupInput({ groupChannel: undefined })
     );
 
-    await recordTlonInboundRoute({
-      session: { recordInboundSession },
-      storePath: '/tmp/store.json',
-      ctxPayload: {},
-      record,
-      logError,
-      logDebug,
-    });
+    const update = prepareTlonRouteUpdate({ record, logError, logDebug });
 
-    expect(recordInboundSession).toHaveBeenCalledTimes(1);
-    expect(
-      recordInboundSession.mock.calls[0][0].updateLastRoute
-    ).toBeUndefined();
+    expect(update).toBeUndefined();
     // Anomalous case is visible outside debug; routine debug log is not used.
     expect(logError).toHaveBeenCalledTimes(1);
     expect(logError.mock.calls[0][0]).toContain('group-missing-channel');
     expect(logDebug).not.toHaveBeenCalled();
   });
 
-  it('debug-logs (logDebug, not logError) a routine main-session group skip', async () => {
-    const recordInboundSession = vi.fn().mockResolvedValue(undefined);
+  it('debug-logs (logDebug, not logError) a routine main-session group skip', () => {
     const logError = vi.fn();
     const logDebug = vi.fn();
     const record = buildTlonInboundRouteRecord(
@@ -311,15 +267,9 @@ describe('recordTlonInboundRoute', () => {
     );
     expect(record.skippedReason).toBe('group-route-targets-main-session');
 
-    await recordTlonInboundRoute({
-      session: { recordInboundSession },
-      storePath: '/tmp/store.json',
-      ctxPayload: {},
-      record,
-      logError,
-      logDebug,
-    });
+    const update = prepareTlonRouteUpdate({ record, logError, logDebug });
 
+    expect(update).toBeUndefined();
     expect(logDebug).toHaveBeenCalledTimes(1);
     expect(logError).not.toHaveBeenCalled();
   });
@@ -361,36 +311,6 @@ describe('routeUpdateWillSkipByPin', () => {
     const record = buildTlonInboundRouteRecord(dmInput({ senderShip: '~zod' }));
     expect(routeUpdateWillSkipByPin(record.updateLastRoute)).toBe(false);
     expect(routeUpdateWillSkipByPin(undefined)).toBe(false);
-  });
-});
-
-describe('recordRouteThenDispatch', () => {
-  it('records before dispatching and returns the dispatch result', async () => {
-    const calls: string[] = [];
-    const result = await recordRouteThenDispatch({
-      record: async () => {
-        calls.push('record');
-      },
-      dispatch: async () => {
-        calls.push('dispatch');
-        return 'dispatched';
-      },
-    });
-    expect(calls).toEqual(['record', 'dispatch']);
-    expect(result).toBe('dispatched');
-  });
-
-  it('does not dispatch if the record step rejects', async () => {
-    const dispatch = vi.fn();
-    await expect(
-      recordRouteThenDispatch({
-        record: async () => {
-          throw new Error('record failed');
-        },
-        dispatch,
-      })
-    ).rejects.toThrow('record failed');
-    expect(dispatch).not.toHaveBeenCalled();
   });
 });
 
@@ -455,6 +375,31 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
     expect(recordInboundSession.mock.calls[0][0].updateLastRoute.to).toBe(
       'tlon:chat/~host/general'
     );
+  });
+
+  it('records under recordSessionKey with the durable route under lastRouteSessionKey', async () => {
+    const { recordInboundSession, resolveStorePath } = mockSession();
+
+    await recordTlonRouteAndDispatch({
+      session: { recordInboundSession, resolveStorePath },
+      cfg: cfgWithDmScope('main'),
+      route: makeRoute({
+        sessionKey: 'tlon:peer',
+        mainSessionKey: 'tlon:main',
+        lastRoutePolicy: 'main',
+      }),
+      ctxPayload: { SessionKey: 'tlon:ctx' } as never,
+      ctxSessionKey: 'tlon:ctx',
+      isGroup: false,
+      senderShip: '~zod',
+      dispatch: async () => undefined,
+    });
+
+    expect(recordInboundSession).toHaveBeenCalledTimes(1);
+    const arg = recordInboundSession.mock.calls[0][0];
+    expect(arg.sessionKey).toBe('tlon:ctx');
+    expect(arg.updateLastRoute.sessionKey).toBe('tlon:main');
+    expect(arg.updateLastRoute.to).toBe('tlon:~zod');
   });
 
   it('passes the built record to onRecord', async () => {
@@ -526,5 +471,163 @@ describe('recordTlonRouteAndDispatch (monitor boundary)', () => {
     expect(logError.mock.calls[0][0]).toContain(
       'failed resolving session store path'
     );
+  });
+
+  // Diagnostics are inside the fail-open contract: a throw from any
+  // adapter-invoked logger/hook must never suppress the live reply.
+  it('still dispatches when the onRecord hook throws', async () => {
+    const { recordInboundSession, resolveStorePath } = mockSession();
+    const dispatch = vi.fn().mockResolvedValue('ok');
+    const logError = vi.fn();
+
+    const result = await recordTlonRouteAndDispatch({
+      session: { recordInboundSession, resolveStorePath },
+      cfg: cfgWithDmScope('main'),
+      route: makeRoute(),
+      ctxPayload: { SessionKey: 'tlon:main' } as never,
+      ctxSessionKey: 'tlon:main',
+      isGroup: false,
+      senderShip: '~zod',
+      onRecord: () => {
+        throw new Error('onRecord boom');
+      },
+      logError,
+      dispatch,
+    });
+
+    expect(result).toBe('ok');
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(
+      logError.mock.calls.some((c) =>
+        String(c[0]).includes('onRecord hook threw')
+      )
+    ).toBe(true);
+  });
+
+  it('still dispatches when logDebug throws (skip log + kernel stage log)', async () => {
+    const { recordInboundSession, resolveStorePath } = mockSession();
+    const dispatch = vi.fn().mockResolvedValue('ok');
+    const logDebug = vi.fn().mockImplementation(() => {
+      throw new Error('logDebug boom');
+    });
+
+    // A group route targeting the main session emits a skip via logDebug in
+    // prepareTlonRouteUpdate; the kernel also emits stage traces via logDebug.
+    const result = await recordTlonRouteAndDispatch({
+      session: { recordInboundSession, resolveStorePath },
+      cfg: cfgWithDmScope('main'),
+      route: makeRoute({
+        sessionKey: 'tlon:main',
+        mainSessionKey: 'tlon:main',
+        lastRoutePolicy: 'main',
+      }),
+      ctxPayload: { SessionKey: 'tlon:main' } as never,
+      ctxSessionKey: 'tlon:main',
+      isGroup: true,
+      groupChannel: 'chat/~host/general',
+      senderShip: '~nec',
+      logDebug,
+      dispatch,
+    });
+
+    expect(result).toBe('ok');
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(logDebug).toHaveBeenCalled(); // invoked and threw — safely swallowed
+  });
+
+  it('still dispatches when logError itself throws', async () => {
+    const recordInboundSession = vi.fn().mockResolvedValue(undefined);
+    const resolveStorePath = vi.fn().mockImplementation(() => {
+      throw new Error('bad store config');
+    });
+    const dispatch = vi.fn().mockResolvedValue('ok');
+    const logError = vi.fn().mockImplementation(() => {
+      throw new Error('logError boom');
+    });
+
+    const result = await recordTlonRouteAndDispatch({
+      session: { recordInboundSession, resolveStorePath },
+      cfg: cfgWithDmScope('main'),
+      route: makeRoute(),
+      ctxPayload: {} as never,
+      ctxSessionKey: 'tlon:main',
+      isGroup: false,
+      senderShip: '~zod',
+      logError,
+      dispatch,
+    });
+
+    expect(result).toBe('ok');
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(logError).toHaveBeenCalled();
+  });
+
+  it('still dispatches when onRecordError fires and the meta task rejects', async () => {
+    const resolveStorePath = vi.fn().mockReturnValue('/tmp/store.json');
+    // Simulate the SDK recorder invoking the forwarded onRecordError and
+    // handing trackSessionMetaTask a rejected promise (the backstop must catch
+    // it so it never becomes an unhandled rejection or aborts dispatch).
+    const recordInboundSession = vi
+      .fn()
+      .mockImplementation(async (p: { [k: string]: unknown }) => {
+        (p.onRecordError as (e: unknown) => void)?.(new Error('meta boom'));
+        (p.trackSessionMetaTask as (t: Promise<unknown>) => void)?.(
+          Promise.reject(new Error('meta task boom'))
+        );
+      });
+    const dispatch = vi.fn().mockResolvedValue('ok');
+    const logError = vi.fn();
+
+    const result = await recordTlonRouteAndDispatch({
+      session: { recordInboundSession, resolveStorePath },
+      cfg: cfgWithDmScope('main'),
+      route: makeRoute(),
+      ctxPayload: { SessionKey: 'tlon:main' } as never,
+      ctxSessionKey: 'tlon:main',
+      isGroup: false,
+      senderShip: '~zod',
+      logError,
+      dispatch,
+    });
+    // Let the rejected meta-task's .catch backstop run.
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(result).toBe('ok');
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(
+      logError.mock.calls.some((c) =>
+        String(c[0]).includes('failed updating session meta')
+      )
+    ).toBe(true);
+    expect(
+      logError.mock.calls.some((c) =>
+        String(c[0]).includes('session meta task rejected')
+      )
+    ).toBe(true);
+  });
+
+  it('wires the kernel stage-trace log to logDebug', async () => {
+    const { recordInboundSession, resolveStorePath } = mockSession();
+    const logDebug = vi.fn();
+
+    await recordTlonRouteAndDispatch({
+      session: { recordInboundSession, resolveStorePath },
+      cfg: cfgWithDmScope('main'),
+      route: makeRoute(),
+      ctxPayload: { SessionKey: 'tlon:main' } as never,
+      ctxSessionKey: 'tlon:main',
+      isGroup: false,
+      senderShip: '~zod',
+      logDebug,
+      dispatch: async () => 'ok',
+    });
+
+    // The kernel emits record/dispatch stage events; our log wiring forwards
+    // them to logDebug. Removing that wiring would drop this assertion.
+    expect(
+      logDebug.mock.calls.some((c) =>
+        String(c[0]).includes('[route-debug] turn')
+      )
+    ).toBe(true);
   });
 });

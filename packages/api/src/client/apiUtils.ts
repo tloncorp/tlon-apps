@@ -55,9 +55,8 @@ export function fromClientMeta(meta: db.ClientMeta): ub.GroupMeta {
   };
 }
 
-export function formatUd(ud: string) {
-  //REVIEW
-  return render('ud', BigInt(ud));
+export function formatUd(ud: string | number) {
+  return render('ud', BigInt(String(ud).replace(/\./g, '')));
 }
 
 export function udToDate(das: string) {

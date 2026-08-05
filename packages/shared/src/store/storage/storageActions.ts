@@ -4,12 +4,15 @@ import { RNFile, getCurrentUserId } from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
 import { Attachment } from '@tloncorp/api/types/attachment';
 import { da, render } from '@urbit/aura';
-import * as FileSystem from 'expo-file-system/legacy';
+// Aliased so it doesn't shadow the global web File used elsewhere in this
+// module.
+import { File as ExpoFile } from 'expo-file-system';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { AnalyticsEvent } from '../../domain';
+import { getLocalFileSize } from './getLocalFileSize';
 import { setUploadState } from './storageUploadState';
 import {
   getExtensionFromMimeType,
@@ -77,6 +80,17 @@ function getSaveFormat(mimeType?: string): SaveFormat {
   return SaveFormat.JPEG;
 }
 
+function getSaveFormatMimeType(format: SaveFormat): string {
+  switch (format) {
+    case SaveFormat.PNG:
+      return 'image/png';
+    case SaveFormat.WEBP:
+      return 'image/webp';
+    default:
+      return 'image/jpeg';
+  }
+}
+
 export async function uploadAsset(
   intent: Attachment.UploadIntent,
   isWeb = false
@@ -104,7 +118,12 @@ export async function uploadAsset(
     case 'fileUri': {
       await uploadAssetWithLifecycle(intent, isWeb, {
         async prepareAsset() {
-          return { uri: intent.localUri };
+          return {
+            uri: intent.localUri,
+            size: intent.size,
+            mimeType: intent.mimeType,
+            name: intent.name,
+          };
         },
       });
       break;
@@ -197,7 +216,9 @@ async function uploadImageAsset(
       const asset = uploadIntent.asset;
       logger.log('resizing asset', asset.uri);
       let resizedAsset = asset;
-      const originalMimeType = asset.mimeType;
+      // manipulateAsync re-encodes to `format`, so the upload mime must track
+      // the output (e.g. HEIC is saved as JPEG), not the original asset mime.
+      let uploadMimeType = asset.mimeType;
       // Only resize when we know it's a non-gif image. If mimeType is missing
       // or non-image, upload the original bytes — re-encoding through the
       // canvas-backed manipulator would clobber the format (e.g. animated
@@ -221,10 +242,11 @@ async function uploadImageAsset(
             format,
           }
         );
+        uploadMimeType = getSaveFormatMimeType(format);
       }
       return {
         ...resizedAsset,
-        mimeType: originalMimeType,
+        mimeType: uploadMimeType,
       };
     },
   });
@@ -232,7 +254,11 @@ async function uploadImageAsset(
 
 export const performUpload = async (
   params:
-    | (Pick<RNFile, 'uri' | 'height' | 'width'> & { mimeType?: string })
+    | (Pick<RNFile, 'uri' | 'height' | 'width'> & {
+        mimeType?: string;
+        size?: number;
+        name?: string;
+      })
     | File,
   isWeb = false
 ) => {
@@ -248,30 +274,30 @@ export const performUpload = async (
     throw new Error('unable to upload: missing storage configuration');
   }
 
-  const { blob, fileName, contentType, sourceUri } = await (async () => {
+  const { size, fileName, contentType, sourceUri } = await (async () => {
     if (params instanceof File) {
       return {
-        blob: params,
+        size: params.size,
         fileName: params.name,
         contentType: params.type,
         sourceUri: URL.createObjectURL(params),
       };
     } else {
-      const response = await fetch(params.uri);
-      const blob = await response.blob();
-
-      const contentType = blob.type;
+      // fileUri intents use -1 when the source didn't report a size.
+      const size =
+        params.size != null && params.size >= 0
+          ? params.size
+          : await getLocalFileSize(params.uri);
+      const contentType = params.mimeType || 'application/octet-stream';
       const baseFileName =
-        params.uri.split('/').pop()?.split('?')[0] || 'image';
-      const extension = getExtensionFromMimeType(
-        params.mimeType || contentType
-      );
+        params.name || params.uri.split('/').pop()?.split('?')[0] || 'image';
+      const extension = getExtensionFromMimeType(contentType);
       const fileName = baseFileName.includes('.')
         ? baseFileName
         : `${baseFileName}${extension}`;
 
       return {
-        blob,
+        size,
         fileName,
         contentType,
         sourceUri: params.uri,
@@ -279,7 +305,7 @@ export const performUpload = async (
     }
   })();
 
-  logger.log('fetched file', fileName, contentType, blob.size);
+  logger.log('fetched file', fileName, contentType, size);
 
   const fileKey = `${desig(getCurrentUserId())}/${desig(
     render('da', da.fromUnix(new Date().getTime()))
@@ -288,7 +314,7 @@ export const performUpload = async (
 
   if (hasHostingUploadCreds(config, credentials)) {
     const { hostedUrl, uploadUrl } = await getMemexUpload({
-      contentLength: blob.size,
+      contentLength: size,
       contentType,
       fileName: fileKey,
     });
@@ -312,36 +338,64 @@ export const performUpload = async (
       forcePathStyle: true,
     });
 
-    const headers = {
-      'Content-Type': contentType ?? 'application/octet-stream',
-      'Cache-Control': 'public, max-age=3600',
-      'x-amz-acl': 'public-read', // necessary for digital ocean spaces
+    // ACL travels in the signed query string only (the presigner hoists it;
+    // SignedHeaders=host). Unsigned x-amz-* wire headers are forbidden by AWS
+    // SigV4, so we never send an ACL header — except DO Spaces, whose legacy
+    // wire shape includes it. Content-Type/Cache-Control are ordinary unsigned
+    // metadata headers. Non-DO browser uploads omit Cache-Control to avoid new
+    // CORS preflight requirements (narrow AllowedHeaders on existing buckets);
+    // this leaves a Cache-Control metadata gap on those objects. GCS
+    // uniform-bucket-level-access rejects any ACL with 400, hence the single
+    // retry without it.
+    const isDO = new URL(endpointUrl).hostname.endsWith(
+      '.digitaloceanspaces.com'
+    );
+
+    const presign = async (includeAcl: boolean) => {
+      const headers: Record<string, string> = {
+        'Content-Type': contentType ?? 'application/octet-stream',
+      };
+      if (isDO) {
+        headers['Cache-Control'] = 'public, max-age=3600';
+        if (includeAcl) {
+          headers['x-amz-acl'] = 'public-read';
+        }
+      }
+
+      const command = new PutObjectCommand({
+        Bucket: config.currentBucket,
+        Key: fileKey,
+        ContentType: headers['Content-Type'],
+        CacheControl: isDO ? headers['Cache-Control'] : undefined,
+        ...(includeAcl ? { ACL: 'public-read' as const } : {}),
+      });
+
+      const signedUrl = await getSignedUrl(client, command, {
+        expiresIn: 3600,
+        signableHeaders: new Set(Object.keys(headers)),
+      });
+
+      return { signedUrl, headers };
     };
 
-    const command = new PutObjectCommand({
-      Bucket: config.currentBucket,
-      Key: fileKey,
-      ContentType: headers['Content-Type'],
-      CacheControl: headers['Cache-Control'],
-      ACL: headers['x-amz-acl'],
-    });
-
-    const signedUrl = await getSignedUrl(client, command, {
-      expiresIn: 3600,
-      signableHeaders: new Set(Object.keys(headers)),
-    });
-
+    let { signedUrl, headers } = await presign(true);
     logger.log('Signed URL:', signedUrl);
     logger.log('Headers to be sent:', headers);
 
-    const isDigitalOcean = signedUrl.includes('digitaloceanspaces.com');
+    try {
+      await uploadFile(signedUrl, sourceUri, headers, isWeb);
+    } catch (e) {
+      if (e instanceof UploadResponseError && e.status === 400) {
+        logger.log(
+          'ACL rejected (400); retrying upload without ACL for uniform-access buckets'
+        );
+        ({ signedUrl, headers } = await presign(false));
+        await uploadFile(signedUrl, sourceUri, headers, isWeb);
+      } else {
+        throw e;
+      }
+    }
 
-    await uploadFile(
-      signedUrl,
-      sourceUri,
-      isDigitalOcean ? headers : undefined,
-      isWeb
-    );
     return config.publicUrlBase
       ? new URL(fileKey, config.publicUrlBase).toString()
       : signedUrl.split('?')[0];
@@ -350,6 +404,14 @@ export const performUpload = async (
     throw new Error('invalid storage configuration');
   }
 };
+
+class UploadResponseError extends Error {
+  status: number;
+  constructor(status: number) {
+    super(`Got bad upload response ${status}`);
+    this.status = status;
+  }
+}
 
 async function uploadFile(
   presignedUrl: string,
@@ -392,18 +454,18 @@ async function uploadFile(
       headers,
     });
     if (!response.ok) {
-      throw new Error(`Got bad upload response ${response.status}`);
+      throw new UploadResponseError(response.status);
     }
     return response;
   } else {
-    const response = await FileSystem.uploadAsync(presignedUrl, assetUri, {
+    const response = await new ExpoFile(assetUri).upload(presignedUrl, {
       httpMethod: 'PUT',
       headers,
     });
 
     if (response.status !== 200) {
       console.log(escapeLog(response.body));
-      throw new Error(`Got bad upload response ${response.status}`);
+      throw new UploadResponseError(response.status);
     }
     return response;
   }

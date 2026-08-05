@@ -1,9 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
-import {
-  useChannelPreview,
-  useGroupPreview,
-  usePostWithRelations,
-} from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
@@ -25,18 +19,6 @@ import {
 
 const posts = createFakePosts(100);
 const notebookPosts = createFakePosts(5, 'note');
-
-const usePostReference = ({
-  postId,
-}: {
-  postId: string;
-  channelId: string;
-}) => {
-  return useQuery({
-    queryFn: () => posts.find((p) => p.id === postId) ?? null,
-    queryKey: ['post', postId],
-  });
-};
 
 function noopProps<T extends object>() {
   return new Proxy<T>({} as unknown as T, {
@@ -71,10 +53,6 @@ const baseProps: ComponentProps<typeof Channel> = {
   goToGroupSettings: () => {},
   markRead: () => {},
   onPressRef: () => {},
-  usePost: usePostWithRelations,
-  usePostReference: usePostReference,
-  useChannel: useChannelPreview,
-  useGroup: useGroupPreview,
   onGroupAction: () => {},
   getDraft: async () => ({}),
   storeDraft: async () => {},
