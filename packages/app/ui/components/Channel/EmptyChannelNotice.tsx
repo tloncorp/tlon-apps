@@ -32,8 +32,10 @@ export function EmptyChannelNotice({
     onPressChatDetails,
   } = useChatOptions();
   const group = useGroup(channel.groupId ?? '');
-  const agentGroupAgents = db.agentGroupAgents.useValue();
-  const onboardingGroupId = db.agentOnboardingGroupId.useValue();
+  const { value: agentGroupAgents, isLoading: agentRecordsLoading } =
+    db.agentGroupAgents.useStorageItem();
+  const { value: onboardingGroupId, isLoading: markerLoading } =
+    db.agentOnboardingGroupId.useStorageItem();
   const isGroupAdminFromHook = useIsAdmin(channel.groupId ?? '', userId);
   const isGroupAdmin = isAdminOverride ?? isGroupAdminFromHook;
   const isDefaultPersonalChannel = useMemo(() => {
@@ -96,12 +98,22 @@ export function EmptyChannelNotice({
   // Accounts without a Tlonbot can never hit this: both records below are
   // written only by the agent flows, which are gated on the bot existing —
   // for everyone else these are empty and every group behaves as before.
-  const awaitingAgentOpening =
+  //
+  // While those records are still hydrating they read as their defaults,
+  // which would flash the Invite/Edit actions in a guided group restored
+  // cold — so any single-channel chat group holds the notice until they
+  // load. For everyone else that's a beat of blank on a rare cold start
+  // that lands directly in an empty channel.
+  const couldBeAgentOpening =
     channel.type === 'chat' &&
     !!channel.groupId &&
-    (agentGroupAgents[channel.groupId] != null ||
-      onboardingGroupId === channel.groupId) &&
     (group?.channels?.length ?? 0) <= 1;
+  const awaitingAgentOpening =
+    couldBeAgentOpening &&
+    (agentRecordsLoading ||
+      markerLoading ||
+      agentGroupAgents[channel.groupId!] != null ||
+      onboardingGroupId === channel.groupId);
 
   if (isDefaultPersonalChannel) {
     return <WayfindingNotice.EmptyChannel channel={channel} />;

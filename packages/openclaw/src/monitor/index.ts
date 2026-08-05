@@ -930,7 +930,15 @@ export async function monitorTlonProvider(
         if (!descriptionHasConfiguredJob(group.description)) {
           return;
         }
-        const history = await fetchChannelHistory(api, nest, 50, runtime, {
+        // 100 posts bounds the recovery window: a setup conversation runs a
+        // couple dozen posts, so the opening picker is comfortably inside
+        // it, while an unbounded backscan would re-read every legacy
+        // configured channel's full history once per process. A restart
+        // after a setup that somehow ran past this window reads as
+        // pre-existing and settles without the closing — accepted, since it
+        // stacks two rarities (restart mid-setup, and a transcript four
+        // times longer than any observed).
+        const history = await fetchChannelHistory(api, nest, 100, runtime, {
           throwOnError: true,
         });
         const botPosted = (needle: string) =>
@@ -953,14 +961,17 @@ export async function monitorTlonProvider(
         }
         // Matched on the shared leads: each card's *story* is its standalone
         // fallback text, which starts with the same sentence as the blob's
-        // prompt.
+        // prompt. The invite fallback is posted even when the resolved
+        // @tloncorp/api predates the invite-link control and no blob can be
+        // built — the text stands alone, telling the owner to invite from
+        // the group's info screen.
         if (!botPosted(INVITE_CARD_LEAD)) {
           const blob = buildInviteCardBlob(nest, group.flag);
-          if (blob) {
-            await postToChannel(nest, inviteCardFallbackText(), {
-              blob: serializeBlobField(blob),
-            });
-          }
+          await postToChannel(
+            nest,
+            inviteCardFallbackText(),
+            blob ? { blob: serializeBlobField(blob) } : {}
+          );
         }
         // Initial onboarding only: the account's first setup gets the
         // connected-services tour. A user creating their third agent group
@@ -970,10 +981,21 @@ export async function monitorTlonProvider(
         // group is already configured. Posted as plain text when the card
         // can't be built; the fallback names the settings path in words.
         if (!botPosted(SERVICES_CARD_LEAD)) {
-          const isInitialOnboarding =
-            isHomeGroupFlag(group.flag, effectiveOwnerShip) ||
-            (await isFirstConfiguredSetup(api, runtime, group.flag)) === true;
-          if (isInitialOnboarding) {
+          const isHomeGroup = isHomeGroupFlag(group.flag, effectiveOwnerShip);
+          const isFirstSetup = isHomeGroup
+            ? true
+            : await isFirstConfiguredSetup(api, runtime, group.flag);
+          if (isFirstSetup === null) {
+            // Inconclusive scry: guessing "not the first" would settle the
+            // channel below and permanently skip the tour for a genuine
+            // first setup. Leave the closing unfinished — everything already
+            // posted is skipped by the transcript checks on the retry.
+            runtime.log?.(
+              `[tlon] Could not classify the setup in ${nest} — retrying its closing next turn`
+            );
+            return;
+          }
+          if (isFirstSetup) {
             const servicesBlob = buildServicesCardBlob(nest);
             await postToChannel(
               nest,
@@ -4108,16 +4130,17 @@ export async function monitorTlonProvider(
           ownerListenDisabledChannels: effectiveOwnerListenDisabled,
         });
         if (!engageDecision.engage) {
-          // A guided onboarding conversation still counts. The picker was
-          // only ever offered in a group this owner hosts, its copy invites
-          // free text ("or just tell me"), and the setup keeps talking after
-          // the pills (a timezone question, the build announcement) — so an
-          // owner who switched owner-listen off must still be heard for the
-          // whole of a setup that the bot itself started. The gate requires
-          // that this channel is actually mid-onboarding: a message in a
-          // channel where nothing was ever offered is ordinary chat, and
-          // once the config carries the finished job, listening-off means
-          // what it says again.
+          // Replies to the bot's own onboarding UI still count: a purpose
+          // card tap, the topics-pills submission, and the answers a setup
+          // directive's build asks for arrive as unmentioned top-level owner
+          // messages, so an owner who switched listening off would otherwise
+          // see cards whose buttons do nothing. Each admitted shape is a
+          // *provable* reply to something the bot posted — the mute contract
+          // ("a plain post in a muted channel never wakes the bot", pinned
+          // by the shared e2e even when an unanswered picker sits in the
+          // channel) stays intact for everything else. That means the
+          // picker's free-text path needs a mention while listening is off;
+          // mentions always override, so the escape hatch is one word.
           //
           // Only top-level owner text is ever a setup reply — thread replies
           // and attachment-only posts stay dropped.
@@ -4140,22 +4163,16 @@ export async function monitorTlonProvider(
           ) {
             await recoverOnboardingState(nest, senderShip, rawText ?? '');
           }
-          let isOnboardingReply =
+          const isOnboardingReply =
+            // The topics pills await their answer.
             onboardingSetupPending.has(nest) ||
-            onboardingInvitePending.has(nest);
-          if (!isOnboardingReply && onboardingPickerOffered.has(nest)) {
-            // Picker offered but no pending record: the purpose stage (card
-            // tap or freeform answer), or a freeform setup already under
-            // way. Mid-onboarding as long as the group's config lacks the
-            // finished job — checked live so a completed setup restores the
-            // drop.
-            const group = await findGroupForChannel(api, nest, runtime);
-            isOnboardingReply = Boolean(
-              group &&
-                group.host === effectiveOwnerShip &&
-                !descriptionHasConfiguredJob(group.description)
-            );
-          }
+            // A directive was issued and the build is mid-flight — the owner
+            // already engaged the onboarding UI, and the bot may be waiting
+            // on an answer it asked for (a timezone, a first entry).
+            onboardingInvitePending.has(nest) ||
+            // A tap on the purpose picker posts exactly a card title.
+            (onboardingPickerOffered.has(nest) &&
+              isPurposePickerChoice(rawText ?? ''));
           if (!isOnboardingReply) {
             return;
           }
