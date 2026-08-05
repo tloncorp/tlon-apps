@@ -1172,6 +1172,7 @@
           channel/channel-source
           thread/thread-source
           dm-thread/dm-thread-source
+          contact/(se %p)
           notebook/notebook-source
           note/note-source
       ==
