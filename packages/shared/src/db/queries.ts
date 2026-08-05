@@ -5806,7 +5806,10 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
         )
       );
   },
-  ['activityEvents']
+  // the predicate reads all three unread tables, so clearing an unread
+  // (e.g. reading a note) must re-run this even when no activity event
+  // row changed
+  ['activityEvents', 'channelUnreads', 'threadUnreads', 'groupUnreads']
 );
 
 export const checkActivityEmpty = createReadQuery(

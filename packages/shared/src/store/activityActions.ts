@@ -316,6 +316,14 @@ export async function setChannelVolumeLevel(params: {
             },
           };
 
+  // a backend below the notes activity gate can't parse %notebook sources
+  // — and if the capability just hasn't resolved yet, a local-only write
+  // would silently diverge from the ship. Fail before the optimistic
+  // update so the UI keeps showing the real setting.
+  if (isNotesChannel && !api.getActivitySupportsNotes()) {
+    return false;
+  }
+
   // optimistic update
   if (!params.level) {
     await db.removeVolumeLevels({ itemIds: [params.channel.id] });
@@ -325,12 +333,6 @@ export async function setChannelVolumeLevel(params: {
         { itemId: params.channel.id, itemType: 'channel', level: params.level },
       ],
     });
-  }
-
-  // a backend below the notes activity gate can't parse %notebook sources
-  // (and has no note events to volume anyway) — keep the setting local-only
-  if (isNotesChannel && !api.getActivitySupportsNotes()) {
-    return true;
   }
 
   try {

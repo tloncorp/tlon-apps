@@ -307,10 +307,25 @@ export function NotesNativeChannel({
 
   useEffect(() => {
     if (!useDesktopSplit || selectedNoteId !== null) return;
+    // a notification/activity target that hasn't synced yet takes
+    // precedence — auto-selecting the first note here would mark an
+    // unrelated note read before the target appears
+    if (
+      initialNoteId != null &&
+      consumedInitialNoteRef.current !== initialNoteId
+    ) {
+      return;
+    }
     const firstNote = treeRows.find((row) => row.type === 'note')?.note;
     if (!firstNote) return;
     selectNoteInPane(firstNote.noteId);
-  }, [selectNoteInPane, selectedNoteId, treeRows, useDesktopSplit]);
+  }, [
+    selectNoteInPane,
+    selectedNoteId,
+    treeRows,
+    useDesktopSplit,
+    initialNoteId,
+  ]);
 
   useEffect(() => {
     if (
