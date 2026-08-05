@@ -586,10 +586,10 @@ export async function getMainGroupRoute(
   // This route decision already needs the full group. Populate the same query
   // cache used by GroupChannels so its first render does not repeat the DB read
   // during the native push animation.
-  const group = await store.fetchGroup(groupId);
-  const lastVisitedChannelId = await db
-    .lastVisitedChannelId(groupId)
-    .getValue();
+  const [group, lastVisitedChannelId] = await Promise.all([
+    store.fetchGroup(groupId),
+    isWindowNarrow ? null : db.lastVisitedChannelId(groupId).getValue(),
+  ]);
   if (
     group &&
     group.channels &&
