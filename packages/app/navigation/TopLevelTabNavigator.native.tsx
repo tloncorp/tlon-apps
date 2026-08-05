@@ -17,7 +17,6 @@ import ChatListScreen from '../features/top/ChatListScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { useTopLevelTabController } from '../hooks/useTopLevelTabController';
 import ProfileStatusSheet from '../ui/components/ProfileStatusSheet';
-import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
 import { TOP_LEVEL_TABS, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
@@ -160,8 +159,7 @@ export function TopLevelTabNavigator() {
           },
         })}
         screenOptions={{
-          ...nativeHeaderPresentationOptions,
-          headerShown: true,
+          headerShown: false,
           tabBarActiveTintColor: theme.primaryText?.val,
           tabBarInactiveTintColor: theme.secondaryText?.val,
           tabBarActiveIndicatorColor: theme.secondaryBackground?.val,
