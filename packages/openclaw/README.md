@@ -49,7 +49,11 @@ channels:
 
         # Auto-accept settings
         autoAcceptDmInvites: true # Accept DMs from ships in dmAllowlist
-        autoAcceptGroupInvites: false # Require approval for group invites
+        autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization (groupInviteAllowlist does); controls channel persistence
+
+        # Ships allowed to invite the bot to groups (auto-accepted unless blocked)
+        groupInviteAllowlist:
+            - '~trusted-friend'
 
         # Channel discovery
         autoDiscoverChannels: true # Monitor all channels in joined groups
@@ -98,7 +102,7 @@ The approval system lets you control who can interact with your bot. When `owner
 
 -   **DM requests** from ships not on your `dmAllowlist`
 -   **Channel mentions** from ships not authorized for that channel
--   **Group invites** (if `autoAcceptGroupInvites` is false)
+-   **Group invites** from ships not on your `groupInviteAllowlist` (owner invites and allowlisted, non-blocked ships are auto-accepted)
 
 ### Usage
 

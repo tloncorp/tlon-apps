@@ -309,11 +309,15 @@ export function isDmAllowed(
 }
 
 /**
- * Check if a group invite from a ship should be auto-accepted.
+ * Check if a ship is on the group-invite allowlist.
+ *
+ * Used by resolveGroupInviteAction: allowlist membership (plus a positive
+ * "not blocked" confirmation) is sufficient for auto-accept. The
+ * autoAcceptGroupInvites flag no longer governs invite authorization.
  *
  * SECURITY: Fail-safe to deny. If allowlist is empty or undefined,
- * ALL invites are rejected - even if autoAcceptGroupInvites is enabled.
- * This prevents misconfigured bots from accepting malicious invites.
+ * ALL invites are rejected. This prevents misconfigured bots from
+ * accepting malicious invites.
  */
 export function isGroupInviteAllowed(
   inviterShip: string,
@@ -327,6 +331,117 @@ export function isGroupInviteAllowed(
   return allowlist
     .map((ship) => normalizeShip(ship))
     .some((ship) => ship === normalizedInviter);
+}
+
+/**
+ * Parse a `/chat/blocked.json` scry payload into a ship list.
+ *
+ * SECURITY: throws when the payload is not an array. The block list decides
+ * whether an allowlisted ship may auto-join, so "we could not understand the
+ * response" must stay distinguishable from "nobody is blocked" — coercing a
+ * malformed payload to `[]` would read as positive confirmation that the
+ * inviter is not blocked and auto-accept them.
+ *
+ * Individual non-string entries are dropped rather than failing the whole
+ * array. Throwing on a partially-malformed list would be *less* safe than the
+ * lenient behavior it replaced: callers that fail open (`isShipBlocked`,
+ * `getBlockedShips`) would catch the throw and report "not blocked", so one
+ * bad element could unblock every genuinely blocked ship in the list.
+ * Dropping bad elements keeps every ship we can actually read.
+ *
+ * The %ships mark serializes an empty block list as `[]`, so a well-formed
+ * empty response is a valid array and is NOT an error.
+ */
+export function parseBlockedShips(raw: unknown): string[] {
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `blocked list scry returned ${raw === null ? 'null' : typeof raw}, expected an array`
+    );
+  }
+  return raw.filter((ship): ship is string => typeof ship === 'string');
+}
+
+/**
+ * The action to take for a pending group invite.
+ *
+ * - `accept/owner`: inviter is the configured owner — auto-accept.
+ * - `accept/allowlisted`: inviter is on `groupInviteAllowlist` and a
+ *   block-list lookup positively confirmed they are not blocked — auto-accept.
+ * - `queue`: inviter is not authorized (or authorization could not be
+ *   confirmed) and an owner is configured — send an approval card.
+ * - `ignore/blocked`: a block-list lookup positively confirmed the inviter
+ *   is blocked — silently drop, no card.
+ * - `ignore/no-owner`: inviter is not authorized and no owner is
+ *   configured — silently drop.
+ */
+export type GroupInviteAction =
+  | { action: 'accept'; reason: 'owner' | 'allowlisted' }
+  | { action: 'queue' }
+  | { action: 'ignore'; reason: 'blocked' | 'no-owner' };
+
+/**
+ * Resolve what to do with a group invite, fail-closed.
+ *
+ * SECURITY: auto-accept requires a positive "not blocked" confirmation.
+ * `deps.fetchBlockedShips` must reject (not swallow) on failure — a
+ * rejection means "unknown", which falls through to the queue/no-owner
+ * path and must never auto-accept. The gate passes `scryBlockedShips`
+ * (rejects on failure), not `isShipBlocked` (swallows errors to
+ * "not blocked").
+ *
+ * Confirmed-blocked and lookup-unknown are distinct outcomes: a
+ * confirmed-blocked inviter dispatches straight to silent ignore (routing
+ * it through the queue path would re-ask a fail-open blocked lookup and
+ * could card a ship already known to be blocked); only unknown falls
+ * through to the queue path, where that second lookup is a genuine
+ * recovery attempt.
+ */
+export async function resolveGroupInviteAction(
+  params: {
+    inviterShip: string;
+    ownerShip: string | null; // normalized effective owner; null ⇒ no owner
+    allowlist: string[];
+  },
+  deps: {
+    /** Resolves the block list. MUST reject (not swallow) on failure —
+     *  a rejection means "unknown", which must never auto-accept. */
+    fetchBlockedShips: () => Promise<string[]>;
+  }
+): Promise<GroupInviteAction> {
+  const { inviterShip, ownerShip, allowlist } = params;
+  const hasOwner = ownerShip !== null;
+
+  // Owner invites are always accepted, without consulting the block list
+  // (keeps the owner path scry-free and preserves the existing ordering).
+  if (hasOwner && normalizeShip(inviterShip) === ownerShip) {
+    return { action: 'accept', reason: 'owner' };
+  }
+
+  const queueOrIgnore: GroupInviteAction = hasOwner
+    ? { action: 'queue' }
+    : { action: 'ignore', reason: 'no-owner' };
+
+  if (!isGroupInviteAllowed(inviterShip, allowlist)) {
+    return queueOrIgnore;
+  }
+
+  // Allowlisted: auto-accept only on a positive "not blocked" confirmation.
+  let blockedShips: string[];
+  try {
+    blockedShips = await deps.fetchBlockedShips();
+  } catch {
+    // Lookup failed or timed out — unknown. Fall through to queue/no-owner;
+    // never auto-accept on an unconfirmed lookup.
+    return queueOrIgnore;
+  }
+
+  const normalizedInviter = normalizeShip(inviterShip);
+  if (blockedShips.some((s) => normalizeShip(s) === normalizedInviter)) {
+    // Confirmed blocked — silent ignore directly, not the queue path.
+    return { action: 'ignore', reason: 'blocked' };
+  }
+
+  return { action: 'accept', reason: 'allowlisted' };
 }
 
 /**
