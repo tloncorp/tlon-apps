@@ -91,7 +91,11 @@
       |=  [=source:v10:av =volume-map:v10:av]
       ^-  (unit [source:v9:av volume-map:v9:av])
       ?~  src=(v9:^source source)  ~
-      `[u.src (v9:^volume-map volume-map)]
+      =/  vmap  (v9:^volume-map volume-map)
+      ::  a note-keys-only map converts to empty, which legacy clients
+      ::  read as a custom (loud) setting — omit the entry instead
+      ?:  &(=(~ vmap) !=(~ volume-map))  ~
+      `[u.src vmap]
     --
   ++  volume-map
     |%
@@ -161,7 +165,16 @@
       ::
           %adjust
         ?~  src=(v9:source source.update)  ~
-        `[%adjust u.src (bind volume-map.update v9:volume-map)]
+        =/  vmap=(unit volume-map:v9:av)
+          (bind volume-map.update v9:volume-map)
+        ::  a map that held only note keys converts to a non-null empty
+        ::  map, which legacy clients read as a custom (loud) setting —
+        ::  drop the update instead, nothing changed for them
+        ?:  ?&  ?=([~ ~] vmap)
+                ?=([~ ^] volume-map.update)
+            ==
+          ~
+        `[%adjust u.src vmap]
       ::
           %allow-notifications
         `[%allow-notifications allow.update]

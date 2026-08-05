@@ -1,4 +1,5 @@
 /-  a=activity, av=activity-ver, gv=groups-ver, nv=notes, c=chat
+/-  ct=contacts
 /+  gj=groups-json, cj=channel-json, dj=contacts-json-1,
     sj=story-json
 =*  z  ..zuse
@@ -1145,18 +1146,34 @@
       ^-  $-(json action:v10:av)
       %-  of
       :~  add/add
+          bump/source
           clear-group-invites/ul
           del/source
+          del-event/del-event
           read/read
           adjust/adjust
           allow-notifications/(su (perk %all %some %none ~))
       ==
     ++  add  incoming-event
+    ++  del-event
+      ^-  $-(json [source:v10:av incoming-event:v10:av])
+      %-  ot
+      :~  source/source
+          event/incoming-event
+      ==
     ++  read
       ^-  $-(json [source:v10:av read-action:v10:av])
       %-  ot
       :~  source/source
           action/read-action
+      ==
+    ::  rebind so the %event case parses v10 events (notes, contacts)
+    ++  read-action
+      ^-  $-(json read-action:v10:av)
+      %-  of
+      :~  item/id
+          all/all-read
+          event/incoming-event
       ==
     ++  adjust
       %-  ot
@@ -1211,6 +1228,7 @@
           group-kick/group-event
           group-invite/group-event
           group-role/group-role-event
+          contact/contact-event
           note-create/note-event
           note-edit/note-event
       ==
@@ -1222,6 +1240,19 @@
           group/(mu flag:dejs:gj)
           title/so
           author/ship
+      ==
+    ::  the encoder wraps the single updated field in a one-entry
+    ::  contact object (see the %contact case in +event:enjs) — unwrap
+    ++  contact-event
+      %-  ot
+      :~  who/(se %p)
+          :-  %update
+          %+  cu
+            |=  c=(map @tas value:ct)
+            ~|  %empty-contact-update
+            ?>  ?=(^ c)
+            n.c
+          contact:dejs:dj
       ==
     ++  volume-map  (op event-type volume)
     --
