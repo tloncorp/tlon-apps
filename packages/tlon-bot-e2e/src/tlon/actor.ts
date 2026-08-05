@@ -43,6 +43,19 @@ export interface PromptResult {
 
 export type StoryInput = Story | string;
 
+/** Channel kinds a scenario can seed. The value is the Urbit nest prefix. */
+export type ChannelKind = 'chat' | 'diary';
+
+const CHANNEL_KIND_DB_TYPES: Record<ChannelKind, 'chat' | 'notebook'> = {
+  chat: 'chat',
+  diary: 'notebook',
+};
+
+const CHANNEL_KIND_DESCRIPTIONS: Record<ChannelKind, string> = {
+  chat: 'General chat',
+  diary: 'General notebook',
+};
+
 export interface BotProfileInput {
   nickname: string;
   avatar: string;
@@ -333,12 +346,18 @@ export class TlonActorClient {
   async createGroupWithChannel(params: {
     title: string;
     members?: string[];
+    channelKind?: ChannelKind;
+    channelTitle?: string;
   }): Promise<{ groupId: string; chatChannel: string }> {
+    const channelKind = params.channelKind ?? 'chat';
+    const channelTitle = params.channelTitle ?? 'General';
     const slug = slugify(
       `${params.title}-${Date.now().toString(36)}-${randomId()}`
     );
     const groupId = `${this.shipName}/${slug}`;
-    const chatChannel = `chat/${this.shipName}/${slug}-general`;
+    // The nest prefix is the only thing that carries the channel kind on the
+    // wire: createGroup transmits channelId + meta and drops `type`.
+    const chatChannel = `${channelKind}/${this.shipName}/${slug}-general`;
     const memberIds = params.members?.map(normalizeShip);
 
     await this.withClient(async () => {
@@ -354,9 +373,9 @@ export class TlonActorClient {
           channels: [
             {
               id: chatChannel,
-              title: 'General',
-              description: 'General chat',
-              type: 'chat',
+              title: channelTitle,
+              description: CHANNEL_KIND_DESCRIPTIONS[channelKind],
+              type: CHANNEL_KIND_DB_TYPES[channelKind],
               groupId,
             },
           ],

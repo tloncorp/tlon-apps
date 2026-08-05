@@ -1,6 +1,7 @@
 import type { RuntimeContext, ShipEndpoint } from '../../drivers/types.js';
 import {
   type BotProfileInput,
+  type ChannelKind,
   type PostRef,
   type PromptResult,
   type StateReader,
@@ -51,6 +52,8 @@ export interface ScenarioActor {
   createGroupWithChannel(params: {
     title: string;
     members?: string[];
+    channelKind?: ChannelKind;
+    channelTitle?: string;
   }): Promise<{ groupId: string; chatChannel: string }>;
   setSettingsEntry(params: {
     bucket: string;
