@@ -35,12 +35,17 @@ export async function getGroupAndChannelUnreads() {
   return deserialized;
 }
 
-export async function getThreadUnreadsByChannel(channel: db.Channel) {
+export async function getThreadUnreadsByChannel(
+  channel: db.Channel
+): Promise<db.ThreadUnreadState[] | null> {
   if (channel.type === 'notes') {
     // notes channels track per-note unreads instead of thread unreads; the
-    // chat-shaped threads scry below doesn't exist for them
+    // chat-shaped threads scry below doesn't exist for them. Before the
+    // capability resolves (or on a backend without notes activity) we can't
+    // query at all — return null, NOT an empty list, so callers don't treat
+    // it as an authoritative "no unreads" and clear local state.
     if (!getActivitySupportsNotes()) {
-      return [];
+      return null;
     }
     const { host, name } = parseGroupChannelId(channel.id);
     const activity = await scry<ub.Activity>({

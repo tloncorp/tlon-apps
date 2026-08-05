@@ -833,6 +833,12 @@ export const syncChannelThreadUnreads = async (
   const unreads = await syncQueue.add('thread unreads', ctx, () =>
     api.getThreadUnreadsByChannel(channel)
   );
+  if (unreads === null) {
+    // the backend couldn't be queried (e.g. notes capability not yet
+    // resolved at startup) — bail rather than reconciling against an
+    // answer we never got
+    return;
+  }
   const existingUnreads = await db.getThreadUnreadsByChannel({ channelId });
 
   // filter out any unreads that we already have in the db so we can avoid

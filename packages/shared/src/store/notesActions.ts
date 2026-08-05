@@ -913,6 +913,13 @@ export async function markNoteRead({
   notebookFlag: string;
   noteId: number;
 }) {
+  // before the capability resolves (or on a backend without notes
+  // activity) the read poke can't be sent — skip the optimistic clear
+  // too, or local state diverges from the ship with nothing to retry.
+  // the note detail effect re-runs when the capability epoch changes.
+  if (!api.getActivitySupportsNotes()) {
+    return;
+  }
   const channelId = `notes/${notebookFlag}`;
   const threadId = String(noteId);
   const channel = await db.getChannel({ id: channelId });
