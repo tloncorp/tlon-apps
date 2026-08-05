@@ -1,5 +1,14 @@
 /-  av=activity-ver, gv=groups-ver, dv=channels-ver, cv=chat-ver, a=activity
 |%
++$  init-9
+  $:  groups=groups-ui:v9:gv
+      =foreigns:v8:gv
+      channel=channel-10
+      =activity:v10:av
+      pins=(list whom)
+      chat=chat-2
+      profile=?
+  ==
 +$  init-8
   $:  groups=groups-ui:v9:gv
       =foreigns:v8:gv
