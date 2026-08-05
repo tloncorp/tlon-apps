@@ -14,6 +14,7 @@ export interface SlashCommandState {
 export interface SlashCommandSelection {
   text: string;
   delta: number;
+  cursorPosition: number;
 }
 
 // Commands trigger only at message start (index 0). The leading token runs from
@@ -105,9 +106,9 @@ export function rankSlashCommands(
 
 // Replaces the entire leading command token with the option's insert text
 // (default `${command} `), preserving any text after the token and avoiding a
-// double space. Returns the new text and the length delta so callers can shift
-// mentions — all of which start at or after the token, since the token contains
-// no whitespace.
+// double space. Returns the new text, the length delta so callers can shift
+// mentions, and the cursor position immediately after the inserted command
+// (before any preserved trailing message text).
 export function applySlashCommandSelection(
   text: string,
   option: SlashCommandOption
@@ -117,12 +118,18 @@ export function applySlashCommandSelection(
   const after = text.slice(tokenLength);
 
   let insert = option.insertText ?? `${option.command} `;
+  let cursorPosition = insert.length;
   if (/\s$/.test(insert) && /^\s/.test(after)) {
     insert = insert.replace(/\s+$/, '');
+    cursorPosition = insert.length + (after.match(/^\s+/)?.[0].length ?? 0);
   }
 
   const newText = insert + after;
-  return { text: newText, delta: newText.length - text.length };
+  return {
+    text: newText,
+    delta: newText.length - text.length,
+    cursorPosition,
+  };
 }
 
 // For in-input highlighting: the leading token must exactly equal a known

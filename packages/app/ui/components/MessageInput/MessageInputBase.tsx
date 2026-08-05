@@ -111,6 +111,7 @@ export const MessageInputContainer = memo(
     onSelectMention,
     onSelectSlashCommand,
     onDismissMentions,
+    onDismissSlashCommands,
     isEditing = false,
     cancelEditing,
     onPressEdit,
@@ -137,6 +138,7 @@ export const MessageInputContainer = memo(
     onSelectMention: (option: MentionOption) => void;
     onSelectSlashCommand?: (option: SlashCommandOption) => void;
     onDismissMentions?: () => void;
+    onDismissSlashCommands?: () => void;
     isEditing?: boolean;
     cancelEditing?: () => void;
     onPressEdit?: () => void;
@@ -181,9 +183,11 @@ export const MessageInputContainer = memo(
         {onSelectSlashCommand ? (
           <InputSlashCommandPopup
             containerHeight={containerHeight}
+            inputBarHeight={measuredInputHeight}
             isSlashCommandModeActive={isSlashCommandModeActive}
             options={slashCommandOptions}
             onSelectSlashCommand={onSelectSlashCommand}
+            onDismiss={onDismissSlashCommands}
             ref={slashCommandRef}
           />
         ) : null}

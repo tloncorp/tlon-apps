@@ -536,8 +536,22 @@ function BareChatInput(
       bareChatInputLogger.log('setting draft', jsonContent);
       storeDraft(jsonContent);
 
-      // Force focus back to input after slash command selection
+      // Force focus back to input after slash command selection.
       inputRef.current?.focus();
+
+      if (!isWeb) {
+        // As with mention selection, the native input text is driven by its
+        // children. Move only the selection after React has rendered the
+        // replacement text so the next character lands after the command.
+        requestAnimationFrame(() => {
+          inputRef.current?.setNativeProps({
+            selection: {
+              start: selection.cursorPosition,
+              end: selection.cursorPosition,
+            },
+          });
+        });
+      }
     },
     [
       handleSelectSlashCommand,
@@ -1086,6 +1100,7 @@ function BareChatInput(
       onSelectMention={onMentionSelect}
       onSelectSlashCommand={onSlashCommandSelect}
       onDismissMentions={handleMentionSoftDismiss}
+      onDismissSlashCommands={handleSlashCommandEscape}
       showAttachmentButton={showAttachmentButton}
       isEditing={!!editingPost}
       cancelEditing={handleCancelEditing}

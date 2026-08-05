@@ -146,11 +146,13 @@ describe('applySlashCommandSelection', () => {
     const result = applySlashCommandSelection('/st', status);
     expect(result.text).toBe('/status ');
     expect(result.delta).toBe('/status '.length - '/st'.length);
+    expect(result.cursorPosition).toBe('/status '.length);
   });
 
   test('does not insert a double space before existing trailing text', () => {
     const result = applySlashCommandSelection('/st hello', status);
     expect(result.text).toBe('/status hello');
+    expect(result.cursorPosition).toBe('/status '.length);
   });
 
   test('honors an insertText override', () => {
@@ -160,7 +162,10 @@ describe('applySlashCommandSelection', () => {
       priority: 1,
       insertText: '/custom arg',
     };
-    expect(applySlashCommandSelection('/cus', custom).text).toBe('/custom arg');
+    expect(applySlashCommandSelection('/cus', custom)).toMatchObject({
+      text: '/custom arg',
+      cursorPosition: '/custom arg'.length,
+    });
   });
 });
 
