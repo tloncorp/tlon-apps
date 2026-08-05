@@ -499,6 +499,13 @@ export async function updateGroupBlob(
 
   const existingGroup = await db.getGroup({ id: group.id });
 
+  // The host emits no %blob update when the value is unchanged, so the tracked
+  // poke would wait out its timeout and then roll back a write that was
+  // already correct.
+  if (existingGroup && (existingGroup.blob ?? null) === blob) {
+    return;
+  }
+
   // optimistic update
   await db.updateGroup({ id: group.id, blob });
 
