@@ -32,7 +32,7 @@ export function useNativeHeader({
   const navigation = useContext(NavigationContext);
   const theme = useTheme();
   const [titleStore] = useState(() =>
-    createNativeHeaderTitleStore(titleElement, titlePresentationKey)
+    createNativeHeaderTitleStore(titleElement)
   );
   const leftActionsRef = useRef<ScreenHeaderAction[]>([]);
   const rightActionsRef = useRef<ScreenHeaderAction[]>([]);
@@ -40,8 +40,8 @@ export function useNativeHeader({
   useLayoutEffect(() => {
     leftActionsRef.current = left;
     rightActionsRef.current = right;
-    titleStore.set(titleElement, titlePresentationKey);
-  }, [left, right, titleElement, titlePresentationKey, titleStore]);
+    titleStore.set(titleElement);
+  }, [left, right, titleElement, titleStore]);
 
   const shouldUseNativeHeader =
     enabled && Platform.OS !== 'web' && navigation != null;

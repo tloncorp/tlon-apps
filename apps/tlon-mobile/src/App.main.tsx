@@ -180,20 +180,25 @@ export function ConnectedAppContent({
 }: {
   migrationState: MigrationState;
 }) {
+  const splashIsHidden = useSplashHider();
+
   return (
     <FeatureFlagConnectedInstrumentationProvider>
       <BaseProviderStack migrationState={migrationState}>
-        <ConnectedNavigationContent />
+        <ConnectedNavigationContent splashIsHidden={splashIsHidden} />
       </BaseProviderStack>
     </FeatureFlagConnectedInstrumentationProvider>
   );
 }
 
-function ConnectedNavigationContent() {
+function ConnectedNavigationContent({
+  splashIsHidden,
+}: {
+  splashIsHidden: boolean;
+}) {
   const navigationTheme = useAppNavigationTheme();
   const navigationContainerRef = useNavigationContainerRef();
   const routeNameRef = useRef<string>(undefined);
-  const splashIsHidden = useSplashHider();
   const navigationLogging = useNavigationLogging();
 
   const onReady = () => {
