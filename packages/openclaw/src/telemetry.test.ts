@@ -2141,7 +2141,7 @@ describe('migration telemetry', () => {
     });
 
     const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
-    expect(call.event).toBe('TlonBot Migration');
+    expect(call.event).toBe('TlonBot Diary Migration');
     expect(call.distinctId).toBe('~zod');
     expect(call.properties).toMatchObject({
       migrationEvent: 'failed',
