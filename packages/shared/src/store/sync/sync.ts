@@ -865,9 +865,23 @@ export const syncChannelThreadUnreads = async (
     return;
   }
 
+  let staleCount = 0;
   for (const stale of staleUnreads) {
     if (stale.threadId) {
       await db.clearThreadUnread({ channelId, threadId: stale.threadId });
+      staleCount += stale.count ?? 0;
+    }
+  }
+  // the cleared notes were rolled up into the channel/group counts too —
+  // decrement them so the sidebar badge doesn't keep counting notes that
+  // were read elsewhere (same shape as markNoteRead's optimistic update)
+  if (staleCount > 0) {
+    await db.updateChannelUnreadCount({ channelId, decrement: staleCount });
+    if (channel.groupId) {
+      await db.updateGroupUnreadCount({
+        groupId: channel.groupId,
+        decrement: staleCount,
+      });
     }
   }
   if (newUnreads.length > 0) {

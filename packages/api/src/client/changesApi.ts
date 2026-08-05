@@ -27,12 +27,15 @@ export async function fetchChangesSince(timestamp: number): Promise<
     }),
     // groups-ui embeds v4-converted activity, which drops notebook/note
     // sources — fetch the v10-native changes directly when the backend
-    // supports them so incremental sync recovers note unreads too
+    // supports them so incremental sync recovers note unreads too. a
+    // failure here must fail the whole fetch: inserting the partial
+    // groups-ui activity would advance the changes cursor past note
+    // updates that would then never be retried
     getActivitySupportsNotes()
       ? scry<ub.Activity>({
           app: 'activity',
           path: `/v6/activity/changes/${encodedTimestamp}`,
-        }).catch(() => null)
+        })
       : Promise.resolve(null),
   ]);
 
