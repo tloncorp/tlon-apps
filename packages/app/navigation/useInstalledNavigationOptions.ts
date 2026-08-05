@@ -1,16 +1,12 @@
 import type { NavigationProp, ParamListBase } from '@react-navigation/native';
 import { useLayoutEffect } from 'react';
 
-/**
- * Installs screen-owned navigation options and removes them on unmount. The
- * focus guard prevents an exiting screen from resetting the next screen's
- * options during a native transition.
- */
+/** Installs screen-owned options on the route that owns the native header. */
 export function useInstalledNavigationOptions(
   navigation: NavigationProp<ParamListBase> | undefined,
   options: object,
-  resetOptions: object,
-  enabled = true
+  enabled = true,
+  resetOptions?: object
 ) {
   const isTabScreen = navigation?.getState().type === 'tab';
   // Top-level tabs share the root stack's navigation bar with pushed screens.
@@ -35,7 +31,7 @@ export function useInstalledNavigationOptions(
   }, [enabled, isTabScreen, navigation, options, optionsNavigation]);
 
   useLayoutEffect(() => {
-    if (!enabled || !navigation || !optionsNavigation) {
+    if (!enabled || !navigation || !optionsNavigation || !resetOptions) {
       return;
     }
 

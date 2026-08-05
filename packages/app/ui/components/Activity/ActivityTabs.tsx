@@ -3,8 +3,6 @@ import React from 'react';
 
 import { Tabs } from '../Tabs';
 
-export type ActivityTab = 'all' | 'threads' | 'mentions';
-
 function ActivityTabsRaw({
   activeTab,
   onTabPress,
