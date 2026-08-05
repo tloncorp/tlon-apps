@@ -156,9 +156,8 @@ export function useSlashCommands({
   const [isSlashCommandModeActive, setIsSlashCommandModeActive] =
     useState(false);
   const [slashCommandQuery, setSlashCommandQuery] = useState('');
-  // Single escape-suppression flag: commands only trigger at index 0, so
-  // there's just one possible trigger to remember (unlike mentions).
-  const [dismissed, setDismissed] = useState(false);
+  // Keep the popup closed after Escape until the leading slash is removed.
+  const [wasDismissedByEscape, setWasDismissedByEscape] = useState(false);
 
   const rankedSlashCommands = useMemo(
     () =>
@@ -173,20 +172,20 @@ export function useSlashCommands({
   const resetSlashCommandMode = useCallback(() => {
     setIsSlashCommandModeActive(false);
     setSlashCommandQuery('');
-    setDismissed(false);
+    setWasDismissedByEscape(false);
   }, []);
 
   const handleSlashCommandInput = useCallback(
     (text: string, cursorPosition?: number) => {
       // Escape suppression clears the moment the leading slash is gone.
       if (text[0] !== '/') {
-        setDismissed(false);
+        setWasDismissedByEscape(false);
         setIsSlashCommandModeActive(false);
         setSlashCommandQuery('');
         return;
       }
 
-      if (dismissed) {
+      if (wasDismissedByEscape) {
         setIsSlashCommandModeActive(false);
         return;
       }
@@ -195,7 +194,7 @@ export function useSlashCommands({
       setIsSlashCommandModeActive(state.isActive);
       setSlashCommandQuery(state.query);
     },
-    [dismissed]
+    [wasDismissedByEscape]
   );
 
   const handleSelectSlashCommand = useCallback(
@@ -209,7 +208,7 @@ export function useSlashCommands({
 
   const handleSlashCommandEscape = useCallback(() => {
     setIsSlashCommandModeActive(false);
-    setDismissed(true);
+    setWasDismissedByEscape(true);
   }, []);
 
   return {

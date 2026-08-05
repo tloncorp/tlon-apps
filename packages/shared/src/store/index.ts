@@ -4,6 +4,7 @@ export * from './useChannelPosts';
 export * from './useChannelSearch';
 export * from './useUpdateChannel';
 export * from './useChannelHooksPreview';
+export * from './useBotSlashCommandManifest';
 export * from './usePostDraftCallbacks';
 export * from './postActions';
 export * from './channelActions';
