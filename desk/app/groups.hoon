@@ -108,6 +108,11 @@
       [/x/v2/groups/$/$/channels/$/$/$/writers %ships]
       [/x/groups/$/$/seats/$ %noun]
     ::
+      [/x/groups/light %groups]
+      [/x/v0/light/groups %groups]
+      [/x/v1/light/groups %groups-1]
+      [/x/v2/light/groups %groups-2]
+    ::
       [/x/v0/ui/groups/$/$ %group-ui]
       [/x/v1/ui/groups/$/$ %group-ui-1]
       [/x/v2/ui/groups/$/$ %group-ui-2]
@@ -1297,8 +1302,21 @@
         %v3  ``groups-3+groups-11
     ==
   ::
+      [%x ver=?(%v0 %v1 %v2) %light %groups ~]
+    =/  groups-9=groups:v9:gv
+      %-  ~(run by groups)
+      |=  [=net:g =group:g]
+      (v9:group:v11:gc (drop-seats:group:v11:gc group our.bowl))
+    ?-    ver.pole
+        %v0  ``groups+(~(run by groups-9) v2:group:v9:gc)
+        %v1  ``groups-1+(~(run by groups-9) v5:group:v9:gc)
+        %v2  ``groups-2+groups-9
+    ==
+  ::
     ::  deprecated
     [%x %groups ~]  $(pole /x/v0/groups)
+    ::  deprecated
+    [%x %groups %light ~]  $(pole /x/v0/light/groups)
   ::
       [%x %v1 %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
