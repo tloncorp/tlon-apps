@@ -21,7 +21,6 @@ import {
   AGENT_ONBOARDING_FORCE_LOCK,
   AGENT_SHIP_OVERRIDE,
 } from '../../lib/envVars';
-import { useFeatureFlag, useFeatureFlagsLoaded } from '../../lib/featureFlags';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   Action,
@@ -496,23 +495,13 @@ function TypeSelectionContent({
   const isWindowNarrow = useIsWindowNarrow();
   const { value: hostingBotEnabled, isLoading: hostingBotLoading } =
     db.hostingBotEnabled.useStorageItem();
-  // Turning the flag off is the rollback switch for the whole conversational
-  // flow, so it has to restore the ordinary invitee group here too — not just
-  // the old splash.
-  const [conversationalOnboardingEnabled] = useFeatureFlag(
-    'conversationalOnboarding'
-  );
-  // Until the stored overrides load, both flags read as their defaults — and
-  // this action creates a group on first tap, so neither a user who stored
-  // the feature flag off nor a hosted account whose bot flag hasn't hydrated
-  // yet may act on the wrong flavor. The row stays disabled until both have
+  // Until the stored bot flag hydrates, it reads as its default — and this
+  // action creates a group on first tap, so a hosted account must not act on
+  // the wrong flavor during that window. The row stays disabled until it has
   // loaded (see `groupFlavorKnown` below).
-  const featureFlagsLoaded = useFeatureFlagsLoaded();
-  const groupFlavorKnown = featureFlagsLoaded && !hostingBotLoading;
+  const groupFlavorKnown = !hostingBotLoading;
   const hasAgent =
-    groupFlavorKnown &&
-    conversationalOnboardingEnabled &&
-    ((hostingBotEnabled ?? false) || !!AGENT_SHIP_OVERRIDE);
+    groupFlavorKnown && ((hostingBotEnabled ?? false) || !!AGENT_SHIP_OVERRIDE);
   const actions = useMemo(
     () => createTypeActions(onSelectType, hasAgent, groupFlavorKnown),
     [onSelectType, hasAgent, groupFlavorKnown]

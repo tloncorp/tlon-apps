@@ -16,11 +16,6 @@ export const featureMeta = {
     label: 'Enable contacts tab',
     onlyTlon: false,
   },
-  conversationalOnboarding: {
-    default: true,
-    label: 'Conversational onboarding (agent builds your first group)',
-    onlyTlon: false,
-  },
   markdownNotebooks: {
     default: false,
     label: 'Enable Markdown mode for notebook posts',
@@ -39,32 +34,15 @@ export type FeatureState = {
 
 interface FeatureStateStore {
   flags: FeatureState;
-  /** False until stored overrides have been read; see `useFeatureFlagsLoaded`. */
-  loaded: boolean;
   setEnabled: (name: FeatureName, enabled: boolean) => void;
-  setLoaded: () => void;
 }
 
 export const useFeatureFlagStore = create<FeatureStateStore>((set) => ({
   flags: mapValues(featureMeta, (meta) => meta.default),
-  loaded: false,
 
   setEnabled: (name: FeatureName, enabled: boolean) =>
     set((prev) => ({ ...prev, flags: { ...prev.flags, [name]: enabled } })),
-  setLoaded: () => set((prev) => ({ ...prev, loaded: true })),
 }));
-
-/**
- * Whether stored flag overrides have loaded.
- *
- * Until they have, every flag reads as its compiled-in default — so a
- * one-shot, irreversible action gated on a default-true flag would fire once
- * for a user who has it turned off. Reversible UI can ignore this; anything
- * that only happens once should wait.
- */
-export function useFeatureFlagsLoaded(): boolean {
-  return useFeatureFlagStore((s) => s.loaded);
-}
 
 export function setEnabled(name: FeatureName, enabled: boolean) {
   useFeatureFlagStore.getState().setEnabled(name, enabled);
@@ -113,7 +91,6 @@ async function loadInitialState() {
 
 async function setup() {
   await loadInitialState();
-  useFeatureFlagStore.getState().setLoaded();
 
   // Write to local storage on changes, but only after initial load
   useFeatureFlagStore.subscribe(async (state) => {
