@@ -124,12 +124,41 @@ const config: Config = {
   activitySupportsNotes: false,
 };
 
+// The capability flags below start false every boot and flip when app-info
+// sync resolves the backend version. Long-lived consumers that bake a
+// capability into something at call time (e.g. a subscription's stream
+// version) can subscribe here and redo that work when the flags change.
+let activityCapabilitiesEpoch = 0;
+const activityCapabilityListeners = new Set<() => void>();
+
+export const getActivityCapabilitiesEpoch = (): number => {
+  return activityCapabilitiesEpoch;
+};
+
+export const onActivityCapabilitiesChange = (
+  listener: () => void
+): (() => void) => {
+  activityCapabilityListeners.add(listener);
+  return () => {
+    activityCapabilityListeners.delete(listener);
+  };
+};
+
+const bumpActivityCapabilitiesEpoch = () => {
+  activityCapabilitiesEpoch += 1;
+  activityCapabilityListeners.forEach((listener) => listener());
+};
+
 // Whether the connected backend supports reaction activity (v9 %activity
 // endpoints). Set by the app from the backend's groups version; read by the
 // activity client to pick endpoint versions. Defaults false so an old backend
 // gets the pre-reaction (v5 feed / v4 subscription / v8 mark) endpoints.
 export const setActivitySupportsReactions = (value: boolean) => {
+  const changed = config.activitySupportsReactions !== value;
   config.activitySupportsReactions = value;
+  if (changed) {
+    bumpActivityCapabilitiesEpoch();
+  }
 };
 
 export const getActivitySupportsReactions = (): boolean => {
@@ -140,7 +169,11 @@ export const getActivitySupportsReactions = (): boolean => {
 // endpoints: v6 subscription, v7 feed, activity-action-2 mark). Same pattern
 // as reactions above; defaults false so old backends get older endpoints.
 export const setActivitySupportsNotes = (value: boolean) => {
+  const changed = config.activitySupportsNotes !== value;
   config.activitySupportsNotes = value;
+  if (changed) {
+    bumpActivityCapabilitiesEpoch();
+  }
 };
 
 export const getActivitySupportsNotes = (): boolean => {

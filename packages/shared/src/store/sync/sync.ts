@@ -849,11 +849,30 @@ export const syncChannelThreadUnreads = async (
     return !_.isEqual(unread, existing);
   });
 
-  if (newUnreads.length === 0) {
+  // the notes scry returns the notebook's full set of per-note unreads, so
+  // a local row missing from the response is stale (read from another
+  // client) and must be cleared or its note/folder dots stay lit
+  const staleUnreads =
+    channel.type === 'notes'
+      ? existingUnreads.filter(
+          (existing) =>
+            (existing.count ?? 0) > 0 &&
+            !unreads.some((u) => u.threadId === existing.threadId)
+        )
+      : [];
+
+  if (newUnreads.length === 0 && staleUnreads.length === 0) {
     return;
   }
 
-  await db.insertThreadUnreads(newUnreads);
+  for (const stale of staleUnreads) {
+    if (stale.threadId) {
+      await db.clearThreadUnread({ channelId, threadId: stale.threadId });
+    }
+  }
+  if (newUnreads.length > 0) {
+    await db.insertThreadUnreads(newUnreads);
+  }
 };
 
 export async function syncPostReference(options: {

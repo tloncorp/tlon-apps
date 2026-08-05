@@ -65,14 +65,25 @@ export function ActivityListItemContent({
   const newestPost = summary.newest;
   const group = newestPost.group ?? undefined;
   const channel: db.Channel | undefined = newestPost.channel ?? undefined;
-  const modelUnread =
-    summary.type === 'post' ||
-    summary.type === 'note-create' ||
-    summary.type === 'note-edit'
-      ? newestPost.channel?.unread ?? null
-      : summary.type === 'group-ask'
-        ? newestPost.group?.unread ?? null
-        : newestPost.parent?.threadUnread ?? null;
+  const modelUnread = useMemo(() => {
+    if (summary.type === 'note-create' || summary.type === 'note-edit') {
+      // a note's unread rides a thread row keyed by the note id (postId);
+      // the channel rollup would keep this item lit for *other* unread notes
+      return newestPost.channelId && newestPost.postId
+        ? ({
+            channelId: newestPost.channelId,
+            threadId: newestPost.postId,
+          } as db.ThreadUnreadState)
+        : null;
+    }
+    if (summary.type === 'post') {
+      return newestPost.channel?.unread ?? null;
+    }
+    if (summary.type === 'group-ask') {
+      return newestPost.group?.unread ?? null;
+    }
+    return newestPost.parent?.threadUnread ?? null;
+  }, [summary.type, newestPost]);
   const { data: unread } = store.useLiveUnread(modelUnread);
   const unreadCount = useMemo(() => {
     return (isGroupUnread(unread) ? unread.notifyCount : unread?.count) ?? 0;

@@ -2,7 +2,7 @@ import * as api from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { getTextContent } from '@tloncorp/shared/logic';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { useIsElectron } from './useIsElectron';
 
@@ -127,6 +127,15 @@ export default function useDesktopNotifications(isClientReady: boolean) {
     []
   );
 
+  // subscribeToActivity bakes the backend capabilities (resolved during
+  // app-info sync, after this hook first subscribes) into its stream
+  // version — resubscribe when they change so we don't get stuck on an
+  // older stream that drops newer event kinds
+  const activityCapabilitiesEpoch = useSyncExternalStore(
+    api.onActivityCapabilitiesChange,
+    api.getActivityCapabilitiesEpoch
+  );
+
   useEffect(() => {
     if (!isElectron || !window.electronAPI || !isClientReady) return;
 
@@ -171,5 +180,6 @@ export default function useDesktopNotifications(isClientReady: boolean) {
     handleNotificationClick,
     isClientReady,
     isElectron,
+    activityCapabilitiesEpoch,
   ]);
 }
