@@ -324,6 +324,12 @@ export const syncLatestChanges = async ({
     };
   }
 
+  // this runs before syncStart's syncAppInfo on a fresh boot, and the
+  // changes endpoint version is capability-picked — apply the persisted
+  // capabilities first so a notes-capable ship's first window doesn't
+  // fetch v8 (which drops note sources) and advance the cursor past them
+  await syncReactionSupport();
+
   const perfStop = perfMark('syncLatestChanges.total');
   const result = await perfTime(
     'syncLatestChanges.fetch',

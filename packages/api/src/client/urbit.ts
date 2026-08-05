@@ -303,6 +303,11 @@ export function internalRemoveClient() {
   config.client?.delete();
   config.client = null;
   config.subWatchers = {};
+  // backend capabilities belong to the ship we were connected to; reset
+  // so an account switch to an older backend doesn't request newer
+  // endpoints until app-info sync resolves the new ship's version
+  setActivitySupportsReactions(false);
+  setActivitySupportsNotes(false);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
