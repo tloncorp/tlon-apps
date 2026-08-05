@@ -20,30 +20,18 @@ export async function fetchChangesSince(timestamp: number): Promise<
 > {
   const busyResult = await checkIsNodeBusyWithHints();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
-  const [response, notesActivity] = await Promise.all([
-    scry<ub.ChangesV8>({
-      app: 'groups-ui',
-      path: `/v8/changes/${encodedTimestamp}`,
-    }),
-    // groups-ui embeds v4-converted activity, which drops notebook/note
-    // sources — fetch the v10-native changes directly when the backend
-    // supports them so incremental sync recovers note unreads too. a
-    // failure here must fail the whole fetch: inserting the partial
-    // groups-ui activity would advance the changes cursor past note
-    // updates that would then never be retried
-    getActivitySupportsNotes()
-      ? scry<ub.Activity>({
-          app: 'activity',
-          path: `/v6/activity/changes/${encodedTimestamp}`,
-        })
-      : Promise.resolve(null),
-  ]);
+  // /v10/changes embeds v10-native activity (notebook/note sources); /v8
+  // embeds the v4 conversion, which drops them. Only request what the
+  // backend is known to support.
+  const changesVersion = getActivitySupportsNotes() ? 'v10' : 'v8';
+  const response = await scry<ub.ChangesV8>({
+    app: 'groups-ui',
+    path: `/${changesVersion}/changes/${encodedTimestamp}`,
+  });
 
   const nodeBusyStatus = await Promise.race([busyResult, timedOutDefault(500)]);
 
-  const changes = parseChanges(
-    notesActivity ? { ...response, activity: notesActivity } : response
-  );
+  const changes = parseChanges(response);
 
   return { ...changes, ...nodeBusyStatus };
 }
