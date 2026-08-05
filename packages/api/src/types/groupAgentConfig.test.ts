@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'vitest';
 
-import { isMoonOf } from '../lib/urbit';
 import {
   canRenderAgentUiInGroup,
   groupDisplayDescription,
@@ -29,31 +28,26 @@ const configNaming = (agents: string[], purpose = 'Keeps up with things.') =>
     },
   ]);
 
-describe('isMoonOf', () => {
-  test('a moon of its node only — boundary-checked, sig-optional', () => {
-    expect(isMoonOf(MY_AGENT, ME)).toBe(true);
-    expect(isMoonOf('pinser-botter-forhep-tanmel', 'forhep-tanmel')).toBe(true);
-    expect(isMoonOf(MY_AGENT, SOMEONE_ELSE)).toBe(false);
-    expect(isMoonOf(ME, ME)).toBe(false);
-    expect(isMoonOf(ME, MY_AGENT)).toBe(false);
-    // ~notforhep-tanmel must not read as a moon of ~forhep-tanmel.
-    expect(isMoonOf('~notforhep-tanmel', ME)).toBe(false);
-    // A comet ends in a planet's name without being its moon, and would
-    // otherwise render trusted agent UI in that planet's own group.
-    expect(
-      isMoonOf('~racmus-mollen-fallyt-linpex-watres-sibbur-forhep-tanmel', ME)
-    ).toBe(false);
-    expect(isMoonOf('', ME)).toBe(false);
-    expect(isMoonOf(MY_AGENT, '')).toBe(false);
-  });
-});
-
 describe('isOwnAgentShip', () => {
-  test('my moon (even unconfigured) or a configured agent; nothing else', () => {
-    // The setup card is posted before the group is configured.
-    expect(isOwnAgentShip({ authorId: MY_AGENT, currentUserId: ME })).toBe(
-      true
-    );
+  test('a first-hand-known agent or a configured one; nothing else', () => {
+    // The setup card is posted before the group is configured — the client's
+    // own record (from the hosting config, or from having seated the agent)
+    // is what covers that window.
+    expect(
+      isOwnAgentShip({
+        authorId: MY_AGENT,
+        currentUserId: ME,
+        knownAgentShip: MY_AGENT,
+      })
+    ).toBe(true);
+    // Sig-insensitive on the known-agent comparison.
+    expect(
+      isOwnAgentShip({
+        authorId: 'pinser-botter-forhep-tanmel',
+        currentUserId: ME,
+        knownAgentShip: MY_AGENT,
+      })
+    ).toBe(true);
     expect(
       isOwnAgentShip({
         authorId: SOMEONE_ELSE,
@@ -68,13 +62,26 @@ describe('isOwnAgentShip', () => {
         groupDescription: 'a group about bread',
       })
     ).toBe(false);
+    // No ship-name heuristics: an unconfigured, unrecorded ship is not my
+    // agent even when its name looks like a moon of my node — a comet or an
+    // actual stranger moon must not render trusted UI on name shape alone.
+    expect(isOwnAgentShip({ authorId: MY_AGENT, currentUserId: ME })).toBe(
+      false
+    );
     expect(isOwnAgentShip({ authorId: THEIR_AGENT, currentUserId: ME })).toBe(
       false
     );
-    expect(isOwnAgentShip({ authorId: ME, currentUserId: ME })).toBe(false);
+    // A recorded agent for one group must still not make *me* the agent.
+    expect(
+      isOwnAgentShip({ authorId: ME, currentUserId: ME, knownAgentShip: ME })
+    ).toBe(false);
     expect(isOwnAgentShip({ authorId: null, currentUserId: ME })).toBe(false);
     expect(
-      isOwnAgentShip({ authorId: MY_AGENT, currentUserId: undefined })
+      isOwnAgentShip({
+        authorId: MY_AGENT,
+        currentUserId: undefined,
+        knownAgentShip: MY_AGENT,
+      })
     ).toBe(false);
   });
 });
@@ -84,6 +91,7 @@ describe('canRenderAgentUiInGroup', () => {
     authorId: MY_AGENT,
     currentUserId: ME,
     groupId: `${ME}/home-group`,
+    knownAgentShip: MY_AGENT,
   };
 
   test('only my own agent, only in a group I host', () => {

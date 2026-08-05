@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { isMoonOf, preSig } from '../lib/urbit';
+import { preSig } from '../lib/urbit';
 
 /**
  * Group agent configuration.
@@ -113,12 +113,15 @@ export function groupHasConfiguredJob(
 /**
  * Whether a post's author is the current user's own agent.
  *
- * Two accepted signals, because the authoritative one isn't always available
- * yet: a hosted agent is a moon of the account's node (true even before the
+ * Two accepted signals, because the config isn't always written yet: the
+ * client's own first-hand record of the agent's ship (from the hosting
+ * config, or from having seated the agent itself — available before the
  * group is configured, which is what the setup card needs), and a configured
- * group names its agents outright. Deliberately not using `post.isBot` — that
- * comes from the author's contact profile and is false for agents the user
- * hasn't got a bot-flagged contact for.
+ * group naming its agents outright. Deliberately no ship-name heuristics
+ * (a moon-of-my-node check used to live here): identity comes from what the
+ * client knows first-hand, never from the shape of an @p. And deliberately
+ * not `post.isBot` — that comes from the author's contact profile and is
+ * false for agents the user hasn't got a bot-flagged contact for.
  */
 export function isOwnAgentShip({
   authorId,
@@ -130,10 +133,11 @@ export function isOwnAgentShip({
   currentUserId: string | null | undefined;
   groupDescription?: string | null;
   /**
-   * The agent this client itself put in the group, if it created it. A
-   * first-hand record, and the only signal here the agent cannot write: the
-   * config's `agents` list is the agent's own claim about itself, so a config
-   * it writes badly would otherwise stop its cards rendering.
+   * The agent ship this client knows first-hand: recorded when it created
+   * the group with the agent seated, or resolved from the hosting config for
+   * the provisioned home group. The one signal here the agent cannot write:
+   * the config's `agents` list is the agent's own claim about itself, so a
+   * config it writes badly would otherwise stop its cards rendering.
    */
   knownAgentShip?: string | null;
 }): boolean {
@@ -143,9 +147,6 @@ export function isOwnAgentShip({
   const author = preSig(authorId).toLowerCase();
   if (author === preSig(currentUserId).toLowerCase()) {
     return false;
-  }
-  if (isMoonOf(authorId, currentUserId)) {
-    return true;
   }
   if (knownAgentShip && preSig(knownAgentShip).toLowerCase() === author) {
     return true;

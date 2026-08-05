@@ -67,10 +67,11 @@ export async function createAgentGroup(params?: {
       });
     });
 
-  // Declare the agent on the group so its cards render even when it isn't a
-  // moon of the owner's ship (see `isOwnAgentShip`). A bare declaration —
-  // who acts, not what the group does — so the agent still treats the group
-  // as awaiting setup. Best effort: without it the cards degrade to text.
+  // Declare the agent on the group so other clients (and a re-installed one,
+  // whose local record above is gone) recognize its cards too — see
+  // `isOwnAgentShip`. A bare declaration — who acts, not what the group does
+  // — so the agent still treats the group as awaiting setup. Best effort:
+  // without it the cards degrade to text.
   writeAgentMarker(group, botShipId).catch((error) => {
     logger.trackError('Failed to write agent marker', {
       error,
@@ -217,6 +218,34 @@ async function resolveTlawnBot(): Promise<{
   } catch (error) {
     logger.trackError('Failed to resolve Tlonbot for agent group', { error });
     return { botShipId: null, hostedShipId: null, moon: null };
+  }
+}
+
+/**
+ * Record the home group's agent from the hosting config, so the client
+ * recognizes the bot's posts as its own agent's (see `isOwnAgentShip`) from
+ * the very first picker card — before the group carries any config naming
+ * it. The client never seated this agent itself (provisioning did), so this
+ * is where its first-hand record comes from: the hosting API's node + moon,
+ * not the shape of the author's ship name. Best effort — without it the
+ * opening cards degrade to their text fallbacks until the setup writes the
+ * config's `agents` list.
+ */
+export async function recordHomeGroupAgent(groupId: string): Promise<void> {
+  try {
+    const { botShipId } = await resolveTlawnBot();
+    if (!botShipId) {
+      return;
+    }
+    await db.agentGroupAgents.setValue((current) => ({
+      ...current,
+      [groupId]: botShipId,
+    }));
+  } catch (error) {
+    logger.trackError('Failed to record home group agent', {
+      error,
+      groupId,
+    });
   }
 }
 

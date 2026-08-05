@@ -68,6 +68,12 @@ export function AgentOnboardingSequence(props: {
       } catch (error) {
         logger.trackError('Failed to arm in-channel onboarding', { error });
       }
+      // The client didn't seat this agent (provisioning did), so learn its
+      // ship from the hosting config — that record is what lets the bot's
+      // opening cards render as trusted before the group has any config.
+      store.recordHomeGroupAgent(target.groupId).catch(() => {
+        // Already logged inside; cards degrade to text until config lands.
+      });
       props.onCompleted();
       store.completeWayfindingSplash().catch((error) => {
         logger.trackError('Failed to complete wayfinding splash', { error });
