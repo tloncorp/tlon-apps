@@ -1218,5 +1218,158 @@ class MigrationFailureTests(unittest.TestCase):
         self.assertNotIn("Delete the notebook", text)
 
 
+class MigrationTelemetryTests(unittest.TestCase):
+    def _run(self, command, run_command, send_dm=None):
+        events = []
+
+        async def scenario():
+            controller = migration.MigrationCommandController(
+                run_command=run_command,
+                send_dm=send_dm or (lambda _t, _b: asyncio.sleep(0, result=True)),
+                emit_event=lambda **fields: events.append(fields),
+            )
+            await controller.handle(
+                command,
+                bot_ship="~bot",
+                owner_ship="~owner",
+                send_reply=lambda _text: asyncio.sleep(0),
+            )
+            await controller.wait_for_background_tasks()
+
+        asyncio.run(scenario())
+        return events
+
+    def test_apply_emits_started_then_completed_under_one_id(self):
+        async def run_command(_args, _timeout, _on_deadline):
+            return result(stdout="Migration complete.\n")
+
+        events = self._run("/migrate diary/~bot/log", run_command)
+        self.assertEqual(
+            [(item["event"], item["action"]) for item in events],
+            [("started", "apply"), ("completed", "apply")],
+        )
+        # `started` predates the outcome, so it carries no terminal fields.
+        self.assertEqual(set(events[0]), {"event", "action", "migration_id"})
+        self.assertEqual(events[0]["migration_id"], events[1]["migration_id"])
+        self.assertIsInstance(events[1]["duration_ms"], int)
+        self.assertFalse(events[1]["deadline_exceeded"])
+        self.assertNotIn("error_text", events[1])
+
+    def test_widening_refusal_is_consent_required_not_failed(self):
+        refusal = (
+            "Migration would widen write access. Refusing without explicit "
+            "acceptance — pass --allow-write-widening to accept.\n"
+        )
+
+        async def run_command(_args, _timeout, _on_deadline):
+            return result(success=False, stderr=refusal, error=refusal.strip())
+
+        events = self._run("/migrate diary/~bot/log", run_command)
+        self.assertEqual(
+            [item["event"] for item in events], ["started", "consent_required"]
+        )
+        self.assertIsNone(events[1]["error_text"])
+
+    def test_apply_failure_reports_failed_with_cli_error_text(self):
+        async def run_command(_args, _timeout, _on_deadline):
+            return result(
+                success=False, stderr="Import failed for ~bot\n", error="Import failed"
+            )
+
+        events = self._run("/migrate diary/~bot/log", run_command)
+        self.assertEqual([item["event"] for item in events], ["started", "failed"])
+        self.assertEqual(events[1]["error_text"], "Import failed for ~bot\n")
+        self.assertIsInstance(events[1]["duration_ms"], int)
+
+    def test_partial_cleanup_counts_as_completed(self):
+        async def run_command(_args, _timeout, _on_deadline):
+            return result(
+                success=False,
+                stderr=f"{migration.PARTIAL_CLEANUP_MARKER} notes/~bot/log\n",
+            )
+
+        events = self._run("/migrate cleanup notes/~bot/log", run_command)
+        self.assertEqual(
+            [(item["event"], item["action"]) for item in events],
+            [("started", "cleanup"), ("completed", "cleanup")],
+        )
+        self.assertIsNone(events[1]["error_text"])
+
+    def test_deadline_marks_the_terminal_after_the_dm_already_landed(self):
+        dms = []
+
+        async def run_command(_args, _timeout, on_deadline):
+            await on_deadline(
+                tlon_api.TlonDeadlineOutput(stdout="", stderr="still importing\n")
+            )
+            return result(stdout="Migration complete.\n")
+
+        events = self._run(
+            "/migrate diary/~bot/log",
+            run_command,
+            send_dm=lambda text, _blob: MigrationControllerTests._append_async(
+                dms, text
+            ),
+        )
+        # Unlike OpenClaw, the runner awaits the deadline callback inline, so the
+        # DM has landed before the terminal is known — nothing to overtake.
+        self.assertTrue(events[1]["deadline_exceeded"])
+        self.assertIn("No migration result has arrived yet", dms[0])
+
+    def test_refused_commands_emit_nothing(self):
+        async def run_command(_args, _timeout, _on_deadline):
+            raise AssertionError("refused commands must not run the CLI")
+
+        self.assertEqual(self._run("/migrate", run_command), [])
+        self.assertEqual(self._run("/migrate diary/~other/log", run_command), [])
+
+    def test_runner_level_failure_still_carries_error_text(self):
+        # Timeout / missing-CLI / runner-exception failures describe
+        # themselves only in result.error, with both streams empty.
+        async def run_command(_args, _timeout, _on_deadline):
+            return result(
+                success=False, stdout="", stderr="", error="tlon CLI timed out"
+            )
+
+        events = self._run("/migrate diary/~bot/log", run_command)
+        self.assertEqual(events[1]["event"], "failed")
+        self.assertEqual(events[1]["error_text"], "tlon CLI timed out")
+
+    def test_throwing_emitter_does_not_break_the_migration(self):
+        ran = []
+        dms = []
+
+        async def run_command(_args, _timeout, _on_deadline):
+            ran.append(True)
+            return result(stdout="Migration complete.\n")
+
+        def send_dm(text, _blob=None):
+            dms.append(text)
+            return asyncio.sleep(0, result=True)
+
+        def exploding_emit(**_fields):
+            raise RuntimeError("telemetry sink exploded")
+
+        async def scenario():
+            controller = migration.MigrationCommandController(
+                run_command=run_command,
+                send_dm=send_dm,
+                emit_event=exploding_emit,
+            )
+            await controller.handle(
+                "/migrate diary/~bot/log",
+                bot_ship="~bot",
+                owner_ship="~owner",
+                send_reply=lambda _text: asyncio.sleep(0),
+            )
+            await controller.wait_for_background_tasks()
+
+        asyncio.run(scenario())
+        # Both the started and terminal emits raised; the CLI still ran and
+        # the owner still received the success DM.
+        self.assertEqual(ran, [True])
+        self.assertTrue(any("Migration complete." in text for text in dms))
+
+
 if __name__ == "__main__":
     unittest.main()

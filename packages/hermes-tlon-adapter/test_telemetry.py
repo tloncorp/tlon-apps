@@ -813,5 +813,31 @@ class DeliveryTestTests(unittest.TestCase):
         self.assertIn("RuntimeError", result)
 
 
+class MigrationEventTests(unittest.TestCase):
+    def test_omits_absent_fields_and_scrubs_capped_error_text(self):
+        tel, fake = make_telemetry()
+        tel.migration_event(event="started", action="apply", migration_id="mid-1")
+        tel.migration_event(
+            event="failed",
+            action="apply",
+            migration_id="mid-1",
+            duration_ms=1200,
+            deadline_exceeded=True,
+            error_text="Import failed on ~sampel-palnet\n" + "x" * 900,
+        )
+        started, failed = fake.events(telemetry.EVENT_MIGRATION)
+        self.assertEqual(started["migrationEvent"], "started")
+        self.assertEqual(started["migrationId"], "mid-1")
+        for absent in ("durationMs", "deadlineExceeded", "errorText"):
+            self.assertNotIn(absent, started)
+        self.assertEqual(failed["durationMs"], 1200)
+        self.assertTrue(failed["deadlineExceeded"])
+        self.assertNotIn("~sampel-palnet", failed["errorText"])
+        self.assertIn("~…", failed["errorText"])
+        self.assertEqual(
+            len(failed["errorText"]), telemetry.MIGRATION_ERROR_MAX_CHARS
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -870,6 +870,7 @@ class TlonAdapter(BasePlatformAdapter):
         self._migration = MigrationCommandController(
             run_command=self._run_migration_command,
             send_dm=self._send_migration_dm,
+            emit_event=self._telemetry.migration_event,
         )
         self._diary_notification_sender = self._send_migration_dm
         self._connected_at = 0.0

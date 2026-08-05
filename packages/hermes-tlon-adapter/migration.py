@@ -6,6 +6,8 @@ import asyncio
 import logging
 import os
 import re
+import time
+import uuid
 from dataclasses import dataclass
 from typing import Awaitable, Callable, Mapping, Optional, Sequence
 
@@ -74,6 +76,9 @@ RunMigrationCommand = Callable[
 SendReply = Callable[[str], Awaitable[None]]
 SendMigrationDm = Callable[[str, Optional[str]], Awaitable[bool]]
 BuildMigrationCard = Callable[[str], str]
+# Keyword-only telemetry sink (TlonTelemetry.migration_event); optional so the
+# controller stays usable without a telemetry client.
+EmitMigrationEvent = Callable[..., None]
 
 
 def is_migrate_command(text: str) -> bool:
@@ -192,6 +197,15 @@ def _is_partial_cleanup(result: TlonSendResult) -> bool:
     return PARTIAL_CLEANUP_MARKER in _result_corpus(result)
 
 
+def _failure_error_text(result: TlonSendResult) -> str:
+    """Timeout, missing-CLI, and runner-exception failures describe themselves
+    only in ``result.error`` with both streams empty — fall back so those
+    operational failures still carry error text."""
+    return (
+        result.stderr or result.stdout or str(result.error or "") or "Migration failed"
+    )
+
+
 def format_migration_failure(
     result: TlonSendResult, credential_kind: str
 ) -> str:
@@ -237,11 +251,13 @@ class MigrationCommandController:
         send_dm: SendMigrationDm,
         env: Mapping[str, str] | None = None,
         build_card: BuildMigrationCard = build_migrate_card,
+        emit_event: Optional[EmitMigrationEvent] = None,
     ) -> None:
         self._run_command = run_command
         self._send_dm = send_dm
         self._env = env
         self._build_card = build_card
+        self._emit_event = emit_event
         self._tasks: set[asyncio.Task[None]] = set()
         # These guards are instance state, and two things bound how far that
         # is safe.
@@ -274,6 +290,13 @@ class MigrationCommandController:
         # a nest an orphaned task is still migrating.
         self._apply_in_flight: dict[str, object] = {}
         self._cleanup_in_flight: dict[str, object] = {}
+
+    def _emit(self, **fields: object) -> None:
+        try:
+            if self._emit_event is not None:
+                self._emit_event(**fields)
+        except Exception:  # telemetry must never fail a migration
+            logger.debug("[tlon] migration telemetry failed", exc_info=True)
 
     def _spawn(self, coro: Awaitable[None]) -> None:
         task = asyncio.create_task(coro)
@@ -416,8 +439,12 @@ class MigrationCommandController:
                 )
                 return
             token = object()
+            # Minted before the in-flight entry so a throw cannot strand the guard.
+            migration_id = str(uuid.uuid4())
             self._apply_in_flight[key] = token
-            self._spawn(self._run_apply(parsed, selection, key, token))
+            self._spawn(
+                self._run_apply(parsed, selection, key, token, migration_id)
+            )
             await send_reply(
                 f"Migration started for {parsed.nest}. I’ll DM the result.\n\n"
                 f"{MIGRATION_DROP_WARNING}"
@@ -437,8 +464,11 @@ class MigrationCommandController:
             )
             return
         token = object()
+        migration_id = str(uuid.uuid4())
         self._cleanup_in_flight[key] = token
-        self._spawn(self._run_cleanup(parsed, selection, key, token))
+        self._spawn(
+            self._run_cleanup(parsed, selection, key, token, migration_id)
+        )
         await send_reply(
             f"Cleanup started for {parsed.nest}. I’ll DM the result."
         )
@@ -449,6 +479,7 @@ class MigrationCommandController:
         selection: CredentialSelection,
         key: str,
         token: object,
+        migration_id: str,
     ) -> None:
         try:
             args = [
@@ -463,24 +494,44 @@ class MigrationCommandController:
                     else []
                 ),
             ]
+            deadline_fired = False
+
+            async def on_deadline(output: TlonDeadlineOutput) -> None:
+                nonlocal deadline_fired
+                deadline_fired = True
+                await self._report_deadline(parsed.nest, output)
+
+            self._emit(
+                event="started", action="apply", migration_id=migration_id
+            )
+            started = time.monotonic()
             result = await self._run_command(
                 args,
                 MIGRATION_APPLY_TIMEOUT_SECONDS,
-                lambda output: self._report_deadline(parsed.nest, output),
+                on_deadline,
             )
+            duration_ms = int((time.monotonic() - started) * 1000)
             if result.success:
+                self._emit(
+                    event="completed",
+                    action="apply",
+                    migration_id=migration_id,
+                    duration_ms=duration_ms,
+                    deadline_exceeded=deadline_fired,
+                )
                 await self._send_notification_dm(result.stdout, parsed.nest)
                 return
 
             text = format_migration_failure(result, selection.kind)
             target = _target_nest_from_result(result)
             command = f"/migrate cleanup {target}" if target else None
-            if (
+            widening_offer = (
                 command is None
                 and target is None
                 and not parsed.allow_write_widening
                 and _is_write_widening_refusal(result)
-            ):
+            )
+            if widening_offer:
                 command = (
                     f"/migrate {parsed.nest} --allow-write-widening"
                 )
@@ -488,6 +539,19 @@ class MigrationCommandController:
                     f"\n\nReply `{command}` to accept that every reader "
                     "will become an editor and proceed."
                 )
+            # A consent refusal is terminal but not a failure: the owner is
+            # expected to accept and re-run, so counting it as failed would
+            # halve the success rate of a correctly working flow.
+            self._emit(
+                event="consent_required" if widening_offer else "failed",
+                action="apply",
+                migration_id=migration_id,
+                duration_ms=duration_ms,
+                deadline_exceeded=deadline_fired,
+                error_text=(
+                    None if widening_offer else _failure_error_text(result)
+                ),
+            )
             await self._send_action_dm(
                 text, parsed.nest, command, command
             )
@@ -501,8 +565,20 @@ class MigrationCommandController:
         selection: CredentialSelection,
         key: str,
         token: object,
+        migration_id: str,
     ) -> None:
         try:
+            deadline_fired = False
+
+            async def on_deadline(output: TlonDeadlineOutput) -> None:
+                nonlocal deadline_fired
+                deadline_fired = True
+                await self._report_deadline(parsed.nest, output)
+
+            self._emit(
+                event="started", action="cleanup", migration_id=migration_id
+            )
+            started = time.monotonic()
             result = await self._run_command(
                 (
                     *selection.prefix_args,
@@ -512,13 +588,34 @@ class MigrationCommandController:
                     "--yes",
                 ),
                 MIGRATION_CLEANUP_TIMEOUT_SECONDS,
-                lambda output: self._report_deadline(parsed.nest, output),
+                on_deadline,
             )
+            duration_ms = int((time.monotonic() - started) * 1000)
             if result.success:
+                self._emit(
+                    event="completed",
+                    action="cleanup",
+                    migration_id=migration_id,
+                    duration_ms=duration_ms,
+                    deadline_exceeded=deadline_fired,
+                )
                 await self._send_notification_dm(result.stdout, parsed.nest)
                 return
 
-            if _is_partial_cleanup(result):
+            # A partial cleanup deleted the notebook (only the group-listing
+            # check was unconfirmed), so it counts as completed.
+            partial = _is_partial_cleanup(result)
+            self._emit(
+                event="completed" if partial else "failed",
+                action="cleanup",
+                migration_id=migration_id,
+                duration_ms=duration_ms,
+                deadline_exceeded=deadline_fired,
+                error_text=(
+                    None if partial else _failure_error_text(result)
+                ),
+            )
+            if partial:
                 text = (
                     f"The notebook `{parsed.nest}` was deleted successfully. "
                     "The channel may still show in your group for a moment. "
