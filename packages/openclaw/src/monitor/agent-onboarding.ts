@@ -577,6 +577,51 @@ export async function findChatNestForGroup(
  * the owner already replied to it (any owner message after the pills means
  * the directive turn already ran, or is running).
  */
+/**
+ * Whether the transcript shows the topic pills already answered: the bot's
+ * topics picker with a substantive owner message *after* it. Paired with a
+ * config that has no job yet, that means a setup directive turn ran (or is
+ * running) — a build in flight, which a restart must not orphan behind the
+ * owner-listen gate: the bot may be waiting on an answer it asked for.
+ *
+ * `currentMessageText` is excluded for the same reason as in
+ * {@link derivePendingPurposeFromHistory}: the message being handled must
+ * not count as its own evidence.
+ */
+export function topicsPickerAnswered(
+  history: Array<{ author: string; content: string; timestamp?: number }>,
+  botShip: string,
+  ownerShip: string,
+  currentMessageText?: string
+): boolean {
+  const newestFirst = [...history].sort(
+    (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)
+  );
+  const pickerAt = newestFirst.findIndex(
+    (entry) =>
+      entry.author === botShip && entry.content.startsWith(TOPICS_PICKER_PROMPT)
+  );
+  if (pickerAt < 0) {
+    return false;
+  }
+  const current = currentMessageText?.trim();
+  let skippedCurrent = false;
+  for (const entry of newestFirst.slice(0, pickerAt)) {
+    if (entry.author !== ownerShip) {
+      continue;
+    }
+    const content = entry.content.trim();
+    if (!skippedCurrent && current && content === current) {
+      skippedCurrent = true;
+      continue;
+    }
+    if (content) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function derivePendingPurposeFromHistory(
   history: Array<{ author: string; content: string; timestamp?: number }>,
   botShip: string,

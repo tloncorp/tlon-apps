@@ -133,6 +133,7 @@ import {
   shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
+  topicsPickerAnswered,
   topicsPickerFallbackText,
 } from './agent-onboarding.js';
 import {
@@ -1068,6 +1069,14 @@ export async function monitorTlonProvider(
         group.host !== effectiveOwnerShip ||
         descriptionHasAgentSetup(group.description)
       ) {
+        if (descriptionHasConfiguredJob(group.description)) {
+          // A restart after the job was written but before the closing
+          // posted would otherwise strand the owed invite/services cards
+          // behind the owner-listen drop below — the closing normally runs
+          // at the end of an engaged turn, and a muted channel never has
+          // one. The check is idempotent and settles itself.
+          void postInviteCardIfSetupComplete(nest);
+        }
         onboardingRecoveryChecked.add(nest);
         return 'ok';
       }
@@ -1110,6 +1119,27 @@ export async function monitorTlonProvider(
           `[tlon] Recovered pending onboarding purpose '${recoveredPurpose}' for ${nest} from history`
         );
         onboardingSetupPending.set(nest, recoveredPurpose);
+        onboardingPickerOffered.add(nest);
+        onboardingTopicsOffered.add(nest);
+      } else if (
+        topicsPickerAnswered(
+          recentPosts,
+          botShipName,
+          normalizeShip(senderShip),
+          currentMessageText
+        )
+      ) {
+        // Answered pills with no job yet: a setup directive turn already ran
+        // and the build is in flight — the very state `invitePending` marks
+        // live. Restoring it keeps the owner-listen gate hearing the
+        // follow-up answers the build asks for (a timezone, a first entry)
+        // and re-arms the owed closing, both of which a restart would
+        // otherwise orphan. The closing still fires only once the config
+        // carries the job, so a stale restore costs nothing.
+        runtime.log?.(
+          `[tlon] Recovered an in-flight setup for ${nest} from history`
+        );
+        onboardingInvitePending.add(nest);
         onboardingPickerOffered.add(nest);
         onboardingTopicsOffered.add(nest);
       }
@@ -4155,13 +4185,39 @@ export async function monitorTlonProvider(
           // The mid-onboarding records are in-memory, so after a restart
           // they are empty and this gate would drop the very reply the
           // picker is waiting for. Rebuild them from the transcript first —
-          // once per channel.
+          // once per channel. Retried in place on a transient scry failure:
+          // this message is already consumed (no redelivery exists), so an
+          // inconclusive scan here would discard a real picker answer for
+          // good. Two short retries cover the transient case; past them the
+          // drop below is the least-bad option, and the scan stays unburned
+          // for the next message.
           if (
             !onboardingSetupPending.has(nest) &&
             !onboardingInvitePending.has(nest) &&
             !onboardingPickerOffered.has(nest)
           ) {
-            await recoverOnboardingState(nest, senderShip, rawText ?? '');
+            let recovery = await recoverOnboardingState(
+              nest,
+              senderShip,
+              rawText ?? ''
+            );
+            for (
+              let attempt = 0;
+              recovery === 'inconclusive' && attempt < 2;
+              attempt += 1
+            ) {
+              await new Promise((resolve) => setTimeout(resolve, 1_000));
+              recovery = await recoverOnboardingState(
+                nest,
+                senderShip,
+                rawText ?? ''
+              );
+            }
+            if (recovery === 'inconclusive') {
+              runtime.log?.(
+                `[tlon] Dropping a muted-channel message in ${nest} with onboarding state unknown — recovery scries kept failing`
+              );
+            }
           }
           const isOnboardingReply =
             // The topics pills await their answer.

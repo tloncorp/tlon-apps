@@ -29,6 +29,7 @@ import {
   shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
+  topicsPickerAnswered,
   topicsPickerFallbackText,
 } from './agent-onboarding.js';
 
@@ -706,6 +707,63 @@ describe('services card', () => {
       ).toBeNull();
       expect(errors).toHaveLength(1);
     });
+  });
+});
+
+describe('topicsPickerAnswered', () => {
+  const BOT = '~zod';
+  const OWNER = '~ten';
+  const pills = {
+    author: BOT,
+    content: TOPICS_PICKER_PROMPT + ' Weather, News — or just tell me.',
+  };
+  const tap = { author: OWNER, content: 'A daily digest' };
+
+  test('true only for a substantive owner post newer than the pills', () => {
+    const answered = [
+      { ...tap, timestamp: 1 },
+      { ...pills, timestamp: 2 },
+      { author: OWNER, content: 'Sleep, Mood', timestamp: 3 },
+    ];
+    expect(topicsPickerAnswered(answered, BOT, OWNER)).toBe(true);
+    // The reply being handled right now is not its own evidence.
+    expect(topicsPickerAnswered(answered, BOT, OWNER, 'Sleep, Mood')).toBe(
+      false
+    );
+    // Unanswered pills are the derivePendingPurpose case, not this one.
+    expect(
+      topicsPickerAnswered(
+        [
+          { ...tap, timestamp: 1 },
+          { ...pills, timestamp: 2 },
+        ],
+        BOT,
+        OWNER
+      )
+    ).toBe(false);
+    // No pills ever posted (e.g. an ordinary group whose opening picker
+    // went unanswered) must never read as a setup in flight.
+    expect(
+      topicsPickerAnswered(
+        [
+          { ...tap, timestamp: 1 },
+          { author: OWNER, content: 'plain chat', timestamp: 2 },
+        ],
+        BOT,
+        OWNER
+      )
+    ).toBe(false);
+    // Owner chatter older than the pills doesn't answer them.
+    expect(
+      topicsPickerAnswered(
+        [
+          { author: OWNER, content: 'earlier chatter', timestamp: 1 },
+          { ...pills, timestamp: 2 },
+        ],
+        BOT,
+        OWNER
+      )
+    ).toBe(false);
   });
 });
 
