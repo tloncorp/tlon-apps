@@ -11,26 +11,23 @@ import { useSyncExternalStore } from 'react';
  */
 export interface NativeHeaderTitleStore {
   getSnapshot: () => ReactNode;
-  set: (title: ReactNode, presentationKey: string) => void;
+  set: (title: ReactNode) => void;
   subscribe: (listener: () => void) => () => void;
 }
 
 export function createNativeHeaderTitleStore(
-  initialTitle: ReactNode,
-  initialPresentationKey: string
+  initialTitle: ReactNode
 ): NativeHeaderTitleStore {
   let title = initialTitle;
-  let presentationKey = initialPresentationKey;
   const listeners = new Set<() => void>();
 
   return {
     getSnapshot: () => title,
-    set(nextTitle, nextPresentationKey) {
-      if (presentationKey === nextPresentationKey) {
+    set(nextTitle) {
+      if (Object.is(title, nextTitle)) {
         return;
       }
       title = nextTitle;
-      presentationKey = nextPresentationKey;
       listeners.forEach((listener) => listener());
     },
     subscribe(listener) {
