@@ -69,6 +69,15 @@ export function UserProfileScreen({ route, navigation }: Props) {
     navigation.navigate('EditProfile', { userId });
   }, [isWindowNarrow, navigation, userId]);
 
+  const handlePressScheduledTasks = useCallback(() => {
+    if (isWindowNarrow) {
+      navigation.push('ScheduledTasks');
+      return;
+    }
+
+    navigation.navigate('ScheduledTasks');
+  }, [isWindowNarrow, navigation]);
+
   const canUpload = store.useCanUpload();
 
   const handleGroupAction = useCallback(
@@ -140,6 +149,8 @@ export function UserProfileScreen({ route, navigation }: Props) {
               userId={userId}
               connectionStatus={connectionStatus}
               onPressGroup={handlePressGroup}
+              onPressScheduledTasks={handlePressScheduledTasks}
+              showScheduledTasks={api.isBotUserIdForUser(userId, currentUserId)}
             />
           </View>
           <GroupPreviewSheet

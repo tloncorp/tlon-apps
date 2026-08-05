@@ -6,6 +6,7 @@ import * as db from '@tloncorp/shared/db';
 import type { ContentReference } from '@tloncorp/shared/domain';
 import {
   appendFileUploadToPostBlob,
+  appendMusicToPostBlob,
   appendToPostBlob,
 } from '@tloncorp/shared/logic';
 
@@ -599,6 +600,104 @@ export const postWithVoiceMemoWithoutTranscription = makePost(
   }
 );
 
+const sampleMusicTracks = [
+  {
+    id: 'track-signal-bloom',
+    title: 'Signal Bloom',
+    artists: [{ name: 'The Orchard Keys' }],
+    releaseTitle: 'Packet Garden',
+    duration: 142,
+    previewUrl:
+      'https://upload.wikimedia.org/wikipedia/commons/2/2e/Xabier_paya.wav',
+    externalUrl: 'https://example.com/music/signal-bloom',
+    trackNumber: 1,
+  },
+  {
+    id: 'track-soft-carrier',
+    title: 'Soft Carrier',
+    artists: [{ name: 'The Orchard Keys' }],
+    releaseTitle: 'Packet Garden',
+    duration: 188,
+    previewUrl:
+      'https://upload.wikimedia.org/wikipedia/commons/2/2e/Xabier_paya.wav',
+    externalUrl: 'https://example.com/music/soft-carrier',
+    trackNumber: 2,
+  },
+  {
+    id: 'track-low-latency-love',
+    title: 'Low Latency Love',
+    artists: [{ name: 'Direct Message' }],
+    releaseTitle: 'Routing Table for Two',
+    duration: 207,
+    previewUrl:
+      'https://upload.wikimedia.org/wikipedia/commons/2/2e/Xabier_paya.wav',
+    externalUrl: 'https://example.com/music/low-latency-love',
+    trackNumber: 3,
+  },
+];
+
+export const postWithMusicTrack = makePost(
+  exampleContacts.ed,
+  [verse.inline('This one has been stuck in my head all morning')],
+  {
+    isEdited: false,
+    blob: appendMusicToPostBlob('', {
+      kind: 'track',
+      id: 'track-signal-bloom',
+      title: 'Signal Bloom',
+      artists: [{ name: 'The Orchard Keys' }],
+      releaseTitle: 'Packet Garden',
+      coverArtUrl: 'https://picsum.photos/id/1011/512/512',
+      duration: 142,
+      previewUrl:
+        'https://upload.wikimedia.org/wikipedia/commons/2/2e/Xabier_paya.wav',
+      externalUrl: 'https://example.com/music/signal-bloom',
+      provider: 'Tlon Music',
+    }),
+  }
+);
+
+export const postWithMusicRelease = makePost(
+  exampleContacts.mark,
+  [verse.inline('New album just dropped')],
+  {
+    isEdited: false,
+    blob: appendMusicToPostBlob('', {
+      kind: 'release',
+      id: 'release-packet-garden',
+      title: 'Packet Garden',
+      artists: [{ name: 'The Orchard Keys' }],
+      coverArtUrl: 'https://picsum.photos/id/1080/512/512',
+      releasedAt: '2026-05-18',
+      description: 'Bright little electronic songs for tending a group chat.',
+      externalUrl: 'https://example.com/music/packet-garden',
+      provider: 'Tlon Music',
+      trackCount: 2,
+      tracks: sampleMusicTracks.slice(0, 2),
+    }),
+  }
+);
+
+export const postWithMusicPlaylist = makePost(
+  exampleContacts.eleanor,
+  [verse.inline('Made a playlist for the chat')],
+  {
+    isEdited: false,
+    blob: appendMusicToPostBlob('', {
+      kind: 'playlist',
+      id: 'playlist-chat-warmers',
+      title: 'Chat Warmers',
+      creatorName: 'eleanor',
+      coverArtUrl: 'https://picsum.photos/id/1062/512/512',
+      description: 'A few tracks from around the network.',
+      externalUrl: 'https://example.com/music/chat-warmers',
+      provider: 'Tlon Music',
+      trackCount: sampleMusicTracks.length,
+      tracks: sampleMusicTracks,
+    }),
+  }
+);
+
 export const postWithOptimisticIncompleteFileUpload = makePost(
   exampleContacts.ed,
   [verse.inline('Look at this file')],
@@ -703,6 +802,9 @@ export const postsByType = {
   galleryReference: postWithGalleryReference,
   notebookReference: postWithNotebookReference,
   video: postWithVideo,
+  musicTrack: postWithMusicTrack,
+  musicRelease: postWithMusicRelease,
+  musicPlaylist: postWithMusicPlaylist,
   deleted: postWithDeleted,
   hidden: postWithHidden,
   emoji: postWithEmoji,
@@ -729,6 +831,9 @@ const postsMap: Record<string, db.Post> = Object.fromEntries(
     postWithGalleryReference,
     postWithNotebookReference,
     postWithVideo,
+    postWithMusicTrack,
+    postWithMusicRelease,
+    postWithMusicPlaylist,
     postWithDeleted,
     postWithHidden,
     postWithEmoji,

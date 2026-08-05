@@ -33,6 +33,7 @@
 ::
 /-  *presence, cv=channels-ver, gv=groups-ver, av=activity-ver
 /+  dbug, verb, logs
+/+  utils=channel-utils
 ::
 |%
 ::NOTE  .want contains a [ship context] pair, because for ease-of-use we
@@ -67,6 +68,16 @@
     [%dm @ ~]                          our
     [%channel kind=@ ship=@ name=@ ~]  (slav %p i.t.t.context)
     [%group ship=@ term=@ ~]           (slav %p i.t.context)
+  ==
+::
+++  is-valid-delegated-dm-presence
+  |=  [=key =bowl:gall]
+  ^-  ?
+  ::  The local ship here is the ship that owns the moon, not a group
+  ::  or channel administrator.
+  ?&  =(src.bowl our.bowl)
+      =(/dm/(scot %p ship.key) context.key)
+      (is-owned-moon:utils our.bowl now.bowl ship.key)
   ==
 ::
 ++  is-participant
@@ -290,6 +301,20 @@
       %clear  act
     ==
   ::
+      %presence-delegated-action-1
+    =+  !<(act=action-1 vase)
+    ?<  ?=(%nuke -.act)
+    =/  =key  ?-(-.act %set key.act, %clear key.act)
+    ?>  (is-valid-delegated-dm-presence key bowl)
+    =;  =cage
+      [[%pass [%context context.key] %agent [our.bowl dap.bowl] %poke cage]~ this]
+    :-  %presence-command-1
+    !>  ^-  command-1
+    ?-  -.act
+      %set    act(disclose (~(put in disclose.act) our.bowl), timeout [now.bowl timeout.act])
+      %clear  act
+    ==
+  ::
       %presence-command-1
     =+  !<(cmd=command-1 vase)
     =/  =key  ?-(-.cmd %set key.cmd, %clear key.cmd)
@@ -300,7 +325,7 @@
     ::
     ?>  =(our.bowl (context-host context.key our.bowl))
     ?>  |(!?=([%dm *] context.key) =(our src):bowl)
-    ?>  =(src.bowl ship.key)
+    ?>  |(=(src.bowl ship.key) (is-valid-delegated-dm-presence key bowl))
     ::  for non-dm contexts, verify participant membership
     ::
     ?>  ?:  ?=([%dm *] context.key)  &

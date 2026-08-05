@@ -1,6 +1,6 @@
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
-import { A2UI } from '@tloncorp/shared/logic';
+import { A2UI, getMiniAppPostBlob } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -20,7 +20,12 @@ import { useDraftInputContext } from '../draftInputs/shared';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
+import { MiniAppPost } from './MiniAppPost';
 import { ReactionsDisplay } from './ReactionsDisplay';
+import {
+  RecurringTaskNotice,
+  getRecurringTaskNotice,
+} from './RecurringTaskNotice';
 
 /**
  * Renders a chat message with minimal interactivity (no pressable, no overflow
@@ -59,6 +64,7 @@ export function StaticChatMessage({
   showReplies?: boolean;
 }) {
   const isNotice = post.type === 'notice';
+  const recurringTaskNotice = getRecurringTaskNotice(post);
   const draftInputContext = useDraftInputContext();
 
   if (isNotice) {
@@ -126,8 +132,15 @@ export function StaticChatMessage({
     !!draftInputContext &&
     draftInputContext.canStartDraft !== false;
 
-  const postContent = usePostContent(post);
-  const lastEditPostContent = usePostLastEditContent(post);
+  const shouldConvertContent = !recurringTaskNotice;
+  const postContent = usePostContent(post, shouldConvertContent);
+  const lastEditPostContent = usePostLastEditContent(
+    post,
+    shouldConvertContent
+  );
+  const miniApp = useMemo(() => {
+    return isWeb ? getMiniAppPostBlob(post.blob) : null;
+  }, [post.blob]);
   const content = useMemo(
     () =>
       canRenderA2UI
@@ -144,10 +157,26 @@ export function StaticChatMessage({
   );
 
   const shouldRenderReplies =
-    showReplies && post.replyCount && post.replyTime && post.replyContactIds;
+    !miniApp &&
+    showReplies &&
+    post.replyCount &&
+    post.replyTime &&
+    post.replyContactIds;
 
   const shouldRenderReplySummary =
     shouldRenderReplies || (!showAuthor && post.isEdited);
+
+  const renderedPostContent = (
+    <ChatContentRenderer
+      content={post.editStatus === 'failed' ? lastEditContent : content}
+      isNotice={post.type === 'notice'}
+      onPressImage={handleImagePressed}
+      getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
+      onLongPress={handleLongPress}
+      onA2UIAction={canHandleA2UIAction ? handleA2UIAction : undefined}
+      searchQuery={searchQuery}
+    />
+  );
 
   return (
     <YStack key={post.id}>
@@ -208,15 +237,19 @@ export function StaticChatMessage({
             )}
           </Text>
         ) : (
-          <ChatContentRenderer
-            content={post.editStatus === 'failed' ? lastEditContent : content}
-            isNotice={post.type === 'notice'}
-            onPressImage={handleImagePressed}
-            getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
-            onLongPress={handleLongPress}
-            onA2UIAction={canHandleA2UIAction ? handleA2UIAction : undefined}
-            searchQuery={searchQuery}
-          />
+          <>
+            {recurringTaskNotice ? (
+              <RecurringTaskNotice notice={recurringTaskNotice} />
+            ) : miniApp ? (
+              <MiniAppPost
+                miniApp={miniApp}
+                post={post}
+                fallback={renderedPostContent}
+              />
+            ) : (
+              renderedPostContent
+            )}
+          </>
         )}
       </View>
 
@@ -286,6 +319,9 @@ const ChatContentRenderer = createContentRenderer({
       maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
     },
     voicememo: {
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+    },
+    music: {
       maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
     },
   },

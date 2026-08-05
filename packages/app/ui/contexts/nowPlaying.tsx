@@ -188,6 +188,15 @@ export function NowPlayingProvider({
       },
       async seekTo(seconds: number) {
         await audioPlayer.seekTo(seconds);
+        if (mediaItemRef.current) {
+          eventEmitter.emit('progress', {
+            sourceUrl: mediaItemRef.current.url,
+            isPlaying: isPlayingRef.current,
+            loadState: 'loaded',
+            currentTime: seconds,
+            duration: toSeconds(audioPlayer.duration),
+          });
+        }
       },
       get nowPlaying() {
         return mediaItemRef.current;
@@ -411,6 +420,7 @@ export function useNowPlayingController({
 
   return {
     togglePlayback,
+    seekTo: nowPlaying.seekTo,
     progress,
     status,
     isThisSourceLoaded,

@@ -6,7 +6,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import * as Clipboard from 'expo-clipboard';
 import { memo, useMemo } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
@@ -130,6 +130,8 @@ const ConnectedAction = memo(function ConnectedAction({
         return post.authorId === currentUserId || currentUserIsAdmin;
       case 'viewReactions':
         return (post.reactions?.length ?? 0) > 0;
+      case 'viewMiniAppCode':
+        return isWeb && !!logic.getMiniAppPostBlob(post.blob)?.bundleUri;
       case 'visibility':
         // prevent users from hiding their own posts
         return post.authorId !== currentUserId;
@@ -155,6 +157,7 @@ const ConnectedAction = memo(function ConnectedAction({
     post.replyCount,
     post.authorId,
     post.id,
+    post.blob,
     post.reactions?.length,
     currentUserId,
     channel.type,
@@ -313,6 +316,15 @@ export async function handleAction({
     case 'copyText':
       await Clipboard.setStringAsync(post.textContent ?? '');
       break;
+    case 'viewMiniAppCode': {
+      const miniApp = logic.getMiniAppPostBlob(post.blob);
+      if (!miniApp?.bundleUri) {
+        showToast?.({ message: 'No mini app code URL found.' });
+        break;
+      }
+      openMiniAppCodeUrl(miniApp.bundleUri);
+      break;
+    }
     case 'delete':
       store.deletePost({ post });
       break;
@@ -417,6 +429,9 @@ export function useDisplaySpecForChannelActionId(
       case 'copyText':
         return { label: 'Copy message text' };
 
+      case 'viewMiniAppCode':
+        return { label: 'View Miniapp Code' };
+
       case 'delete':
         if (post.authorId !== currentUserId && currentUserIsAdmin) {
           return {
@@ -489,4 +504,13 @@ export function useDisplaySpecForChannelActionId(
   ]);
 
   return { ...spec, postTerm };
+}
+
+function openMiniAppCodeUrl(url: string) {
+  if (isWeb && typeof window !== 'undefined') {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+
+  void Linking.openURL(url);
 }

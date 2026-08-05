@@ -21,6 +21,11 @@
 +$  blocked  (set ship)
 +$  blocked-by  (set ship)
 +$  hidden-messages  (set id)
++$  delegated-dm-initiate
+  $:  moon=ship
+      auto-accept=?
+      initial=(unit essay)
+  ==
 +$  message-toggle
   $%  [%hide =id]
       [%show =id]

@@ -15,6 +15,7 @@
 /%  m-chat-blocked-by      %chat-blocked-by
 /%  m-chat-changed-writs     %chat-changed-writs
 /%  m-chat-changed-writs-1   %chat-changed-writs-1
+/%  m-chat-delegated-dm-initiate  %chat-delegated-dm-initiate
 /%  m-chat-club-action     %chat-club-action
 /%  m-chat-club-action-0   %chat-club-action-0
 /%  m-chat-club-action-1   %chat-club-action-1
@@ -73,6 +74,7 @@
             :+  %chat-changed-writs    &  -:!>(*vale:m-chat-changed-writs)
             ::TODO make strict
             :+  %chat-changed-writs-1  |  -:!>(*vale:m-chat-changed-writs-1)
+            :+  %chat-delegated-dm-initiate  |  -:!>(*vale:m-chat-delegated-dm-initiate)
             ::TODO make strict one day (affected by versioning mistake)
             :+  %chat-club-action     |  -:!>(*vale:m-chat-club-action)
             :+  %chat-club-action-0   &  -:!>(*vale:m-chat-club-action-0)
@@ -934,6 +936,9 @@
       %club  cu-abet:(cu-remark-diff:(cu-abed:cu-core p.p.act) q.act)
     ==
   ::
+      %chat-delegated-dm-initiate
+    (initiate-delegated-dm !<(=delegated-dm-initiate:c vase))
+  ::
       %chat-dm-action-2
     =+  !<(=action:dm:v7:cv vase)
     =.  cor  (emit (tell:log %dbug ~['received dm action' >action<] ~))
@@ -952,14 +957,17 @@
                 (gth (met 3 react.delta.q.q.action) 1)
                 =(':' (end 3^1 react.delta.q.q.action))
         ==  ==
+    ?>  (check-writ-ownership q.action)
     ::  don't proxy to self, creates an infinite loop
-    ?:  =(p.action our.bowl)
-      di-abet:(di-ingest-diff:(di-abed-soft:di-core p.action) q.action)
-    di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
+    =/  target=ship  p.action
+    ?:  ?|(=(target our.bowl) (is-owned-moon:utils our.bowl now.bowl target))
+      di-abet:(di-ingest-diff:(di-abed-soft:di-core target) q.action)
+    di-abet:(di-proxy:(di-abed-soft:di-core target) q.action)
   ::
       %chat-dm-diff-2
     =+  !<(=diff:dm:v7:cv vase)
     =.  cor  (emit (tell:log %dbug ~['received dm diff' >diff<] ~))
+    ?>  (check-writ-ownership diff)
     di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
       %chat-dm-action-1
@@ -1641,27 +1649,38 @@
   ~>  %spin.['check-writ-ownership']
   =*  her    p.p.diff
   =*  delta  q.diff
-  =*  should  =(her src.bowl)
   ?-  -.delta
-      %reply  (check-reply-ownership delta should)
-      %add  ?.  should  |
-            =(src.bowl (get-ship-dw delta))
-      %del  should
-      %add-react  =(src.bowl (get-ship-dw delta))
-      %del-react  =(src.bowl (get-ship-dw delta))
+      %reply  (check-reply-ownership delta)
+      %add
+    =/  author-ship  (get-ship-dw delta)
+    ?&  =(her author-ship)
+        (can-act-as-ship author-ship)
+    ==
+      %del  =(her src.bowl)
+      %add-react  (can-act-as-ship (get-ship-dw delta))
+      %del-react  (can-act-as-ship (get-ship-dw delta))
   ==
 ::
 ++  check-reply-ownership
-  |=  [d=delta:writs:c should=?]
+  |=  d=delta:writs:c
   ~>  %spin.['check-reply-ownership']
   ?>  ?=(%reply -.d)
   =*  delta  delta.d
   ?-  -.delta
-      %add  ?.(should | =(src.bowl (get-ship-dr delta)))
-      %del  should
-      %add-react  =(src.bowl (get-ship-dr delta))
-      %del-react  =(src.bowl (get-ship-dr delta))
+      %add
+    =/  author-ship  (get-ship-dr delta)
+    ?&  =(p.id.d author-ship)
+        (can-act-as-ship author-ship)
+    ==
+      %del  =(p.id.d src.bowl)
+      %add-react  (can-act-as-ship (get-ship-dr delta))
+      %del-react  (can-act-as-ship (get-ship-dr delta))
   ==
+::
+++  can-act-as-ship
+  |=  author-ship=ship
+  ~>  %spin.['can-act-as-ship']
+  (can-act-as-author:utils src.bowl now.bowl `author:c`author-ship)
 ::
 ++  diff-to-response
   |=  [=diff:writs:c =pact:c]
@@ -2552,6 +2571,38 @@
   =/  invites  ~(key by pending-dms)
   =.  cor  (emit (tell:log %dbug ~['current invites:' >invites<] ~))
   (give %fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(invites))
+::
+++  initiate-delegated-dm
+  |=  init=delegated-dm-initiate:c
+  ~>  %spin.['initiate-delegated-dm']
+  ^+  cor
+  ?>  from-self
+  ?>  (is-owned-moon:utils our.bowl now.bowl moon.init)
+  =/  di-core  (di-abed-soft:di-core moon.init)
+  =/  already-done=?  =(%done net.dm.di-core)
+  =.  net.dm.di-core
+    ?:  already-done  %done
+    ?:(auto-accept.init %done %invited)
+  =.  di-core
+    ?:  ?|  auto-accept.init
+            already-done
+        ==
+      di-core
+    (di-activity:di-core [%invite ~] *story:d &)
+  =.  cor  di-abet:di-core
+  ?~  initial.init
+    ?:  ?|  auto-accept.init
+            already-done
+        ==
+      cor
+    give-invites
+  =+  essay=u.initial.init
+  =/  author-ship=@p  (get-author-ship:utils author.essay)
+  ?>  (can-act-as-author:utils our.bowl now.bowl author.essay)
+  =/  diff=diff:dm:c
+    [[author-ship sent.essay] %add essay `sent.essay]
+  ?>  (check-writ-ownership diff)
+  di-abet:(di-ingest-diff:(di-abed:di-core moon.init) diff)
 ::
 ++  verses-to-inlines  ::  for backcompat
   |=  l=(list verse:d)

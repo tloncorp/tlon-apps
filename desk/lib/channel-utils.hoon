@@ -1685,6 +1685,21 @@
   ?@  author  author
   ship.author
 ::
+++  is-owned-moon
+  |=  [controller=ship now=time child=ship]
+  ~>  %spin.['libcu-is-owned-moon']
+  ^-  ?
+  ?&  =(%earl (clan:title child))
+      =(controller (sein:title controller now child))
+  ==
+::
+++  can-act-as-author
+  |=  [controller=ship now=time =author:c]
+  ~>  %spin.['libcu-can-act-as-author']
+  ^-  ?
+  =/  author-ship  (get-author-ship author)
+  |(=(controller author-ship) (is-owned-moon controller now author-ship))
+::
 ++  get-person-ship
   |=  =author:c
   ~>  %spin.['libcu-get-person-ship']

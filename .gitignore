@@ -24,5 +24,8 @@ apps/tlon-web/.playwright-dev.pid
 dump.sqlite3
 .claude
 
+# Local agent planning artifacts
+docs/superpowers/
+
 .gitattributes
 clurd

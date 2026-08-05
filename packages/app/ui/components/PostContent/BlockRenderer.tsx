@@ -46,6 +46,7 @@ import { HighlightedCode } from '../HighlightedCode';
 import { A2UIBlock } from './A2UIBlock';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
+import { MusicBlock } from './MusicBlock';
 import { ContentContext, useContentContext } from './contentUtils';
 
 export const IsInsideReferenceContext = createContext(false);
@@ -811,6 +812,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   blockquote: BlockquoteBlock,
   paragraph: ParagraphBlock,
   a2ui: () => null,
+  music: MusicBlock,
   link: LinkBlock,
   image: ImageBlock,
   video: VideoBlock,
@@ -835,6 +837,7 @@ export type DefaultRendererProps = {
   blockquote: BlockSettings<typeof BlockquoteBlock>;
   paragraph: BlockSettings<typeof ParagraphBlock>;
   a2ui: BlockSettings<typeof A2UIBlock>;
+  music: BlockSettings<typeof MusicBlock>;
   link: BlockSettings<typeof LinkBlock>;
   image: BlockSettings<typeof ImageBlock>;
   video: BlockSettings<typeof VideoBlock>;

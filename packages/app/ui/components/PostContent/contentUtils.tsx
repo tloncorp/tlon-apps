@@ -3,26 +3,37 @@ import { type A2UI, BlockData, convertContent } from '@tloncorp/shared/logic';
 import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
 
-export function usePostContent(post: Post): BlockData[] {
+export function usePostContent(post: Post, enabled = true): BlockData[] {
   return useMemo(() => {
+    if (!enabled) {
+      return [];
+    }
+
     try {
       return convertContent(post.content, post.blob ?? undefined);
     } catch (e) {
       console.error('Failed to convert post content:', e);
       return [];
     }
-  }, [post]);
+  }, [post, enabled]);
 }
 
-export function usePostLastEditContent(post: Post): BlockData[] {
+export function usePostLastEditContent(
+  post: Post,
+  enabled = true
+): BlockData[] {
   return useMemo(() => {
+    if (!enabled) {
+      return [];
+    }
+
     try {
       return convertContent(post.lastEditContent, post.blob ?? undefined);
     } catch (e) {
       console.error('Failed to convert post content:', e);
       return [];
     }
-  }, [post]);
+  }, [post, enabled]);
 }
 
 export interface ContentContextProps {

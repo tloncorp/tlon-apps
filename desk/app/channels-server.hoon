@@ -1038,7 +1038,7 @@
     =*  no-op  `ca-core
     ?-    -.c-post
         %add
-      ?>  |(=(src.bowl our.bowl) =(src.bowl (get-author-ship:utils author.essay.c-post)))
+      ?>  (can-act-as-author:utils src.bowl now.bowl author.essay.c-post)
       ?>  =(kind.nest -.kind.essay.c-post)
       ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  id=id-post:c
@@ -1060,12 +1060,12 @@
       ca-core(posts.channel (put:on-v-posts:c posts.channel id &+new))
     ::
         %edit
-      ?>  |(=(src.bowl (get-author-ship:utils author.essay.c-post)) (is-admin:ca-perms src.bowl))
-      ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
-      ?>  |(=(src.bowl (get-author-ship:utils author.u.post)) (is-admin:ca-perms src.bowl))
+      ?>  (can-act-as-author:utils src.bowl now.bowl author.u.post)
+      ?>  =((get-author-ship:utils author.u.post) (get-author-ship:utils author.essay.c-post))
+      ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %edit +.u.post essay.c-post]
         (run-hooks event nest 'edit blocked')
@@ -1074,6 +1074,7 @@
       =/  =essay:c
         ?>  ?=([%on-post %edit *] p.result)
         essay.p.result
+      ?>  =((get-author-ship:utils author.u.post) (get-author-ship:utils author.essay))
       ::TODO  could optimize and no-op if the edit is identical to current
       =/  new=v-post:c  [+<.u.post(mod-at now.bowl) +(rev.u.post) essay]
       :-  `[%post id.c-post %set &+new]
@@ -1165,7 +1166,7 @@
     =*  replies  replies.parent
     ?-    -.c-reply
         %add
-      ?>  =(src.bowl (get-author-ship:utils author.reply-essay.c-reply))
+      ?>  (can-act-as-author:utils src.bowl now.bowl author.reply-essay.c-reply)
       ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =/  id=id-reply:c
         |-
@@ -1189,7 +1190,8 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply    `replies
       ?:  ?=(%| -.u.reply)  `replies
-      ?>  =(src.bowl (get-author-ship:utils author.u.reply))
+      ?>  (can-act-as-author:utils src.bowl now.bowl author.u.reply)
+      ?>  =((get-author-ship:utils author.u.reply) (get-author-ship:utils author.reply-essay.c-reply))
       ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %edit parent +.u.reply reply-essay.c-reply]
@@ -1199,6 +1201,7 @@
       =/  =reply-essay:c
         ?>  ?=([%on-reply %edit *] p.result)
         reply-essay.p.result
+      ?>  =((get-author-ship:utils author.u.reply) (get-author-ship:utils author.reply-essay))
       ::TODO  could optimize and no-op if the edit is identical to current
       =/  new=v-reply:c  [+<.u.reply +(rev.u.reply) reply-essay]
       :-  `[%reply id.c-reply %set &+new]
@@ -1251,9 +1254,7 @@
       ?:  ?=(%add-react -.c-react)
         p.c-react
       p.c-react
-    ?>  ?|  =(src.bowl our.bowl)
-            =(src.bowl (get-author-ship:utils author))
-        ==
+    ?>  (can-act-as-author:utils src.bowl now.bowl author)
     =/  new-react  ?:(?=(%add-react -.c-react) `q.c-react ~)
     =/  [changed=? new-rev=@ud]
       =/  old-react  (~(get by reacts) author)

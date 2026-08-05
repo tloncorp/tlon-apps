@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
+const ACTION_MINI_APP_ACTION = 'tlon.miniAppAction';
+
+const ACTION_LIMITS = {
+  maxMiniAppActionBytes: 4 * 1024,
+  maxJsonDepth: 16,
+  maxJsonKeys: 100,
+} as const;
 
 type ComponentBase = {
   id: string;
@@ -8,6 +15,14 @@ type ComponentBase = {
 };
 
 export namespace A2UI {
+  export type JSONValue =
+    | null
+    | string
+    | number
+    | boolean
+    | JSONValue[]
+    | { [key: string]: JSONValue };
+
   export type Text = ComponentBase & {
     component: 'Text';
     text: string;
@@ -35,10 +50,20 @@ export namespace A2UI {
     context?: {
       text?: string;
     };
+    data?: undefined;
+  };
+
+  export type MiniAppActionEvent = {
+    name: typeof ACTION_MINI_APP_ACTION;
+    data: {
+      appId: string;
+      action: JSONValue;
+    };
+    context?: undefined;
   };
 
   export type EventAction = {
-    event: SendMessageEvent;
+    event: SendMessageEvent | MiniAppActionEvent;
   };
 
   export type ButtonAction = EventAction;
@@ -126,6 +151,45 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function jsonStringSize(value: unknown): number {
+  try {
+    return JSON.stringify(value)?.length ?? Infinity;
+  } catch {
+    return Infinity;
+  }
+}
+
+function isJSONValue(value: unknown, depth = 0): value is A2UI.JSONValue {
+  if (depth > ACTION_LIMITS.maxJsonDepth) {
+    return false;
+  }
+  if (value === null) {
+    return true;
+  }
+  switch (typeof value) {
+    case 'string':
+    case 'boolean':
+      return true;
+    case 'number':
+      return Number.isFinite(value);
+    case 'object': {
+      if (Array.isArray(value)) {
+        return value.every((item) => isJSONValue(item, depth + 1));
+      }
+      if (!isPlainObject(value)) {
+        return false;
+      }
+      const entries = Object.entries(value);
+      return (
+        entries.length <= ACTION_LIMITS.maxJsonKeys &&
+        entries.every(([, child]) => isJSONValue(child, depth + 1))
+      );
+    }
+    default:
+      return false;
+  }
+}
+
 function isValidWeight(value: unknown): boolean {
   return (
     value === undefined ||
@@ -170,6 +234,40 @@ function isValidButtonVariant(value: unknown): boolean {
   );
 }
 
+function validateButtonEvent(
+  event: unknown
+): event is A2UI.ButtonAction['event'] {
+  if (!isPlainObject(event)) {
+    return false;
+  }
+
+  switch (event.name) {
+    case ACTION_SEND_MESSAGE: {
+      const context = event.context;
+      return (
+        (context === undefined || isPlainObject(context)) &&
+        (context === undefined ||
+          context.text === undefined ||
+          (typeof context.text === 'string' &&
+            context.text.length <= LIMITS.maxButtonMessageLength))
+      );
+    }
+    case ACTION_MINI_APP_ACTION: {
+      const data = event.data;
+      if (
+        !isPlainObject(data) ||
+        !isNonEmptyString(data.appId) ||
+        !isJSONValue(data.action)
+      ) {
+        return false;
+      }
+      return jsonStringSize(data.action) <= ACTION_LIMITS.maxMiniAppActionBytes;
+    }
+    default:
+      return false;
+  }
+}
+
 function validateComponent(component: unknown): component is A2UI.Component {
   if (!isPlainObject(component) || !isNonEmptyString(component.id)) {
     return false;
@@ -202,20 +300,13 @@ function validateComponent(component: unknown): component is A2UI.Component {
     case 'Button': {
       const action = component.action;
       const event = isPlainObject(action) ? action.event : null;
-      const context = isPlainObject(event) ? event.context : undefined;
       return (
         isNonEmptyString(component.child) &&
         (component.disabled === undefined ||
           typeof component.disabled === 'boolean') &&
         isValidButtonVariant(component.variant) &&
         isPlainObject(action) &&
-        isPlainObject(event) &&
-        event.name === ACTION_SEND_MESSAGE &&
-        (context === undefined || isPlainObject(context)) &&
-        (context === undefined ||
-          context.text === undefined ||
-          (typeof context.text === 'string' &&
-            context.text.length <= LIMITS.maxButtonMessageLength))
+        validateButtonEvent(event)
       );
     }
     default:
@@ -384,6 +475,19 @@ export function getRootComponentId(entry: A2UI.BlobEntry): string | null {
   );
 }
 
+export function getButtonActions(entry: A2UI.BlobEntry): A2UI.ButtonAction[] {
+  const update = getUpdateMessage(entry);
+  if (!update) {
+    return [];
+  }
+
+  return update.updateComponents.components
+    .filter((component): component is A2UI.Button => {
+      return component.component === 'Button';
+    })
+    .map((component) => component.action);
+}
+
 export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
   const envelope = validateEnvelope(entry);
   if (!envelope) {
@@ -405,9 +509,11 @@ export const blobEntrySchema = z.custom<A2UI.BlobEntry>(validateBlobEntry);
 export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
+    miniAppAction: ACTION_MINI_APP_ACTION,
   },
   getUpdateMessage,
   getRootComponentId,
+  getButtonActions,
   validateBlobEntry,
   blobEntrySchema,
 } as const;

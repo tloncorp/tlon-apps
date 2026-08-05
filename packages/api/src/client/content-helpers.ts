@@ -613,6 +613,86 @@ function safeParseArrayWithFallback<
   });
 }
 
+export type MiniAppJSONValue =
+  | null
+  | string
+  | number
+  | boolean
+  | MiniAppJSONValue[]
+  | { [key: string]: MiniAppJSONValue };
+
+const miniAppLimits = {
+  maxBundleBytes: 512_000,
+  maxSourceBytes: 256_000,
+  maxActionBytes: 4_000,
+  maxStateBytes: 128_000,
+  maxRenderBytes: 256_000,
+  maxJsonDepth: 16,
+  maxJsonKeys: 100,
+} as const;
+
+function jsonStringSize(value: unknown): number {
+  try {
+    return JSON.stringify(value)?.length ?? Infinity;
+  } catch {
+    return Infinity;
+  }
+}
+
+function isSerializableJsonValue(value: unknown, depth = 0): boolean {
+  if (depth > miniAppLimits.maxJsonDepth) {
+    return false;
+  }
+  if (value === null) {
+    return true;
+  }
+
+  switch (typeof value) {
+    case 'string':
+    case 'boolean':
+      return true;
+    case 'number':
+      return Number.isFinite(value);
+    case 'object': {
+      if (Array.isArray(value)) {
+        return value.every((item) => isSerializableJsonValue(item, depth + 1));
+      }
+      if (
+        Object.getPrototypeOf(value) !== Object.prototype &&
+        Object.getPrototypeOf(value) !== null
+      ) {
+        return false;
+      }
+      const entries = Object.entries(value);
+      return (
+        entries.length <= miniAppLimits.maxJsonKeys &&
+        entries.every(([, child]) => isSerializableJsonValue(child, depth + 1))
+      );
+    }
+    default:
+      return false;
+  }
+}
+
+const miniAppJsonValueSchema: z.ZodType<MiniAppJSONValue> = z.custom((value) =>
+  isSerializableJsonValue(value)
+);
+
+const miniAppRuntimeV1Schema = z.literal('js-worker-miniapp-v1');
+
+export const MiniAppSnapshotPolicySchema = z
+  .discriminatedUnion('kind', [
+    z.object({ kind: z.literal('none') }),
+    z.object({ kind: z.literal('manual') }),
+    z.object({
+      kind: z.literal('every'),
+      actionCount: z.number().int().positive().max(500),
+    }),
+  ])
+  .default({ kind: 'none' });
+
+export type MiniAppSnapshotPolicy = z.infer<typeof MiniAppSnapshotPolicySchema>;
+
 const postBlobSizeSchema = z
   .number()
   .finite()
@@ -678,11 +758,211 @@ export type PostBlobDataEntryVideo = z.infer<
   typeof PostBlobDataEntryVideoSchema
 >;
 
+export const MiniAppPostBlobSchema = definePostBlobDataEntrySchema(
+  'tlon-mini-app',
+  1,
+  {
+    appId: z.string().min(1).max(128),
+    runtime: miniAppRuntimeV1Schema,
+    title: z.string().min(1).max(140),
+    description: z.string().max(500).nullable().optional(),
+    bundleUri: z.string().min(1).max(2048),
+    bundleSha256: z.string().regex(/^[a-f0-9]{64}$/i),
+    bundleBytes: z.number().int().positive().max(miniAppLimits.maxBundleBytes),
+    createdAt: z.number().finite().nonnegative().optional(),
+    requires: z.array(z.string().min(1).max(80)).max(20).optional(),
+    summary: z.string().max(1000).optional(),
+    snapshotPolicy: MiniAppSnapshotPolicySchema.optional().default({
+      kind: 'none',
+    }),
+  }
+);
+
+export type MiniAppPostBlob = z.infer<typeof MiniAppPostBlobSchema>;
+
+export const MiniAppBundleSchema = z.object({
+  type: z.literal('tlon-mini-app-bundle'),
+  version: z.literal(1),
+  appId: z.string().min(1).max(128),
+  runtime: miniAppRuntimeV1Schema,
+  title: z.string().min(1).max(140),
+  source: z
+    .string()
+    .refine((source) => source.length <= miniAppLimits.maxSourceBytes, {
+      message: 'source exceeds mini app V1 limit',
+    }),
+  initialState: miniAppJsonValueSchema.refine(
+    (state) => jsonStringSize(state) <= miniAppLimits.maxStateBytes,
+    {
+      message: 'initialState exceeds mini app V1 limit',
+    }
+  ),
+  initialRender: miniAppJsonValueSchema
+    .refine(
+      (render) => jsonStringSize(render) <= miniAppLimits.maxRenderBytes,
+      {
+        message: 'initialRender exceeds mini app V1 limit',
+      }
+    )
+    .optional(),
+});
+
+export type MiniAppBundle = z.infer<typeof MiniAppBundleSchema>;
+
+export const MiniAppActionBlobSchema = definePostBlobDataEntrySchema(
+  'tlon-mini-app-action',
+  1,
+  {
+    appId: z.string().min(1).max(128),
+    actionId: z.string().min(1).max(128),
+    action: miniAppJsonValueSchema.refine(
+      (action) => jsonStringSize(action) <= miniAppLimits.maxActionBytes,
+      {
+        message: 'action exceeds mini app V1 limit',
+      }
+    ),
+    createdAt: z.number().finite().nonnegative(),
+  }
+);
+
+export type MiniAppActionBlob = z.infer<typeof MiniAppActionBlobSchema>;
+
+export const MiniAppSnapshotBlobSchema = definePostBlobDataEntrySchema(
+  'tlon-mini-app-snapshot',
+  1,
+  {
+    appId: z.string().min(1).max(128),
+    snapshotId: z.string().min(1).max(128),
+    throughPostId: z.string().min(1).max(256),
+    throughSequence: z.number().int().nonnegative(),
+    state: miniAppJsonValueSchema.refine(
+      (state) => jsonStringSize(state) <= miniAppLimits.maxStateBytes,
+      {
+        message: 'snapshot state exceeds mini app V1 limit',
+      }
+    ),
+    stateSha256: z.string().regex(/^[a-f0-9]{64}$/i),
+    actionCount: z.number().int().nonnegative(),
+    createdAt: z.number().finite().nonnegative(),
+  }
+);
+
+export type MiniAppSnapshotBlob = z.infer<typeof MiniAppSnapshotBlobSchema>;
+
+const postBlobMusicExternalIdsSchema = z.record(
+  z.string().min(1),
+  z.string().min(1)
+);
+
+const PostBlobMusicArtistCreditSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1),
+  slug: z.string().optional(),
+  imageUrl: z.string().optional(),
+  externalUrl: z.string().optional(),
+  externalIds: postBlobMusicExternalIdsSchema.optional(),
+});
+
+const PostBlobMusicReleaseSummarySchema = z.object({
+  id: z.string().optional(),
+  sourceId: z.string().optional(),
+  title: z.string().min(1),
+  artist: z.string().optional(),
+  artists: z.array(PostBlobMusicArtistCreditSchema).optional(),
+  slug: z.string().optional(),
+  coverArtUrl: z.string().optional(),
+  trackCount: z.number().int().nonnegative().optional(),
+  externalUrl: z.string().optional(),
+  externalIds: postBlobMusicExternalIdsSchema.optional(),
+});
+
+const PostBlobMusicTrackSchema = z.object({
+  id: z.string().optional(),
+  source: z.string().optional(),
+  sourceId: z.string().optional(),
+  title: z.string().min(1),
+  artists: z.array(PostBlobMusicArtistCreditSchema).optional(),
+  slug: z.string().optional(),
+  releaseId: z.string().optional(),
+  releaseSlug: z.string().optional(),
+  releaseTitle: z.string().optional(),
+  duration: z.number().finite().nonnegative().optional(),
+  previewUrl: z.string().optional(),
+  audioUrl: z.string().optional(),
+  mimeType: z.string().optional(),
+  externalUrl: z.string().optional(),
+  coverArtUrl: z.string().optional(),
+  metadataUri: z.string().optional(),
+  trackNumber: z.number().int().positive().optional(),
+  discNumber: z.number().int().positive().optional(),
+  externalIds: postBlobMusicExternalIdsSchema.optional(),
+});
+
+export const PostBlobDataEntryMusicSchema = definePostBlobDataEntrySchema(
+  'music',
+  1,
+  {
+    kind: z.enum(['artist', 'release', 'album', 'track', 'playlist']),
+    id: z.string().optional(),
+    source: z.string().optional(),
+    sourceId: z.string().optional(),
+    title: z.string().min(1),
+    artists: z.array(PostBlobMusicArtistCreditSchema).optional(),
+    creatorName: z.string().optional(),
+    slug: z.string().optional(),
+    releaseId: z.string().optional(),
+    releaseSlug: z.string().optional(),
+    releaseTitle: z.string().optional(),
+    label: z.string().optional(),
+    releasedAt: z.string().optional(),
+    description: z.string().optional(),
+    duration: z.number().finite().nonnegative().optional(),
+    coverArtUrl: z.string().optional(),
+    previewUrl: z.string().optional(),
+    audioUrl: z.string().optional(),
+    mimeType: z.string().optional(),
+    externalUrl: z.string().optional(),
+    provider: z.string().optional(),
+    providerUrl: z.string().optional(),
+    metadataUri: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    trackCount: z.number().int().nonnegative().optional(),
+    trackNumber: z.number().int().positive().optional(),
+    discNumber: z.number().int().positive().optional(),
+    releaseCount: z.number().int().nonnegative().optional(),
+    sampleReleases: z
+      .array(PostBlobMusicReleaseSummarySchema)
+      .max(25)
+      .optional(),
+    tracks: z.array(PostBlobMusicTrackSchema).max(100).optional(),
+    externalIds: postBlobMusicExternalIdsSchema.optional(),
+  }
+);
+
+export type PostBlobMusicArtistCredit = z.infer<
+  typeof PostBlobMusicArtistCreditSchema
+>;
+
+export type PostBlobMusicTrack = z.infer<typeof PostBlobMusicTrackSchema>;
+
+export type PostBlobDataEntryMusic = z.infer<
+  typeof PostBlobDataEntryMusicSchema
+>;
+
+export type PostBlobMusicEntryInput = Omit<
+  PostBlobDataEntryMusic,
+  'type' | 'version'
+>;
+
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryVideoSchema,
+  PostBlobDataEntryMusicSchema,
   A2UI.blobEntrySchema,
+  MiniAppPostBlobSchema,
+  MiniAppActionBlobSchema,
+  MiniAppSnapshotBlobSchema,
 ] as const;
 
 export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);
@@ -791,6 +1071,272 @@ export function appendVideoToPostBlob(
   });
 }
 
+export function appendMusicToPostBlob(
+  blob: string | undefined,
+  entry: PostBlobMusicEntryInput
+) {
+  return appendToPostBlob(blob, {
+    type: 'music',
+    version: 1,
+    ...entry,
+  });
+}
+
+export type OpenClawMusicArtistCredit = {
+  name: string;
+  slug?: string;
+  image?: string;
+};
+
+export type OpenClawMusicReleaseSummary = {
+  publicKey?: string;
+  slug?: string;
+  title: string;
+  artist?: string;
+  trackCount?: number;
+};
+
+export type OpenClawMusicRelease = {
+  publicKey?: string;
+  mint?: string;
+  slug?: string;
+  title: string;
+  artist?: string;
+  artists?: OpenClawMusicArtistCredit[];
+  tags?: string[];
+  image?: string;
+  audio?: string;
+  metadataUri?: string;
+  price?: string;
+  totalSupply?: string;
+  trackCount?: number;
+  createdAt?: string;
+  createdAtSource?: string;
+  symbol?: string;
+};
+
+export type OpenClawMusicTrack = {
+  type?: 'track';
+  stableKey?: string;
+  position?: number;
+  title: string;
+  artist?: string;
+  durationSeconds?: number;
+  mimeType?: string;
+  audio?: string;
+  image?: string;
+  release?: OpenClawMusicReleaseSummary;
+};
+
+export type OpenClawMusicArtist = {
+  name: string;
+  slug?: string;
+  image?: string;
+  releaseCount?: number;
+  sampleReleases?: OpenClawMusicReleaseSummary[];
+};
+
+export type OpenClawMusicSearchResult = {
+  source?: string;
+  databaseUrl?: string;
+  releases?: OpenClawMusicRelease[];
+  tracks?: OpenClawMusicTrack[];
+  artists?: OpenClawMusicArtist[];
+};
+
+export type OpenClawMusicBlobOptions = {
+  source?: string;
+  provider?: string;
+  providerUrl?: string;
+};
+
+type OpenClawMusicReleaseBlobOptions = OpenClawMusicBlobOptions & {
+  tracks?: OpenClawMusicTrack[];
+};
+
+export function musicBlobEntryFromOpenClawRelease(
+  release: OpenClawMusicRelease,
+  opts: OpenClawMusicReleaseBlobOptions = {}
+): PostBlobMusicEntryInput {
+  return {
+    kind: 'release',
+    id: release.publicKey ?? release.slug,
+    source: opts.source,
+    sourceId: release.publicKey,
+    title: release.title,
+    artists: openClawArtistCredits(release.artists, release.artist),
+    slug: release.slug,
+    releasedAt: release.createdAt,
+    coverArtUrl: release.image,
+    audioUrl: release.audio,
+    metadataUri: release.metadataUri,
+    tags: release.tags,
+    provider: opts.provider,
+    providerUrl: opts.providerUrl,
+    trackCount: release.trackCount,
+    tracks: opts.tracks?.map((track) => openClawTrackData(track, opts)),
+    externalIds: musicExternalIds({
+      publicKey: release.publicKey,
+      mint: release.mint,
+      symbol: release.symbol,
+      metadataUri: release.metadataUri,
+    }),
+  };
+}
+
+export function musicBlobEntryFromOpenClawTrack(
+  track: OpenClawMusicTrack,
+  opts: OpenClawMusicBlobOptions = {}
+): PostBlobMusicEntryInput {
+  const trackData = openClawTrackData(track, opts);
+
+  return {
+    kind: 'track',
+    ...trackData,
+    provider: opts.provider,
+    providerUrl: opts.providerUrl,
+  };
+}
+
+export function musicBlobEntryFromOpenClawArtist(
+  artist: OpenClawMusicArtist,
+  opts: OpenClawMusicBlobOptions = {}
+): PostBlobMusicEntryInput {
+  return {
+    kind: 'artist',
+    id: artist.slug ?? artist.name,
+    source: opts.source,
+    sourceId: artist.slug,
+    title: artist.name,
+    artists: openClawArtistCredits([
+      { name: artist.name, slug: artist.slug, image: artist.image },
+    ]),
+    slug: artist.slug,
+    coverArtUrl: artist.image,
+    provider: opts.provider,
+    providerUrl: opts.providerUrl,
+    releaseCount: artist.releaseCount,
+    sampleReleases: artist.sampleReleases?.map(openClawReleaseSummary),
+    externalIds: musicExternalIds({
+      slug: artist.slug,
+    }),
+  };
+}
+
+export function musicBlobEntriesFromOpenClawSearchResult(
+  result: OpenClawMusicSearchResult,
+  opts: OpenClawMusicBlobOptions = {}
+): PostBlobMusicEntryInput[] {
+  const entryOpts = {
+    ...opts,
+    source: opts.source ?? result.source,
+  };
+
+  return [
+    ...(result.releases ?? []).map((release) => {
+      const matchingTracks = (result.tracks ?? []).filter((track) =>
+        openClawTrackBelongsToRelease(track, release)
+      );
+      return musicBlobEntryFromOpenClawRelease(release, {
+        ...entryOpts,
+        tracks: matchingTracks,
+      });
+    }),
+    ...(result.tracks ?? []).map((track) =>
+      musicBlobEntryFromOpenClawTrack(track, entryOpts)
+    ),
+    ...(result.artists ?? []).map((artist) =>
+      musicBlobEntryFromOpenClawArtist(artist, entryOpts)
+    ),
+  ];
+}
+
+function openClawTrackData(
+  track: OpenClawMusicTrack,
+  opts: OpenClawMusicBlobOptions = {}
+): PostBlobMusicTrack {
+  return {
+    id: track.stableKey,
+    source: opts.source,
+    sourceId: track.stableKey,
+    title: track.title,
+    artists: openClawArtistCredits(undefined, track.artist),
+    releaseId: track.release?.publicKey,
+    releaseSlug: track.release?.slug,
+    releaseTitle: track.release?.title,
+    duration: track.durationSeconds,
+    coverArtUrl: track.image,
+    audioUrl: track.audio,
+    mimeType: track.mimeType,
+    trackNumber: track.position,
+    externalIds: musicExternalIds({
+      stableKey: track.stableKey,
+      releasePublicKey: track.release?.publicKey,
+    }),
+  };
+}
+
+function openClawTrackBelongsToRelease(
+  track: OpenClawMusicTrack,
+  release: OpenClawMusicRelease
+): boolean {
+  if (release.publicKey && track.release?.publicKey === release.publicKey) {
+    return true;
+  }
+  if (
+    release.publicKey &&
+    track.stableKey?.startsWith(`${release.publicKey}:`)
+  ) {
+    return true;
+  }
+  if (release.slug && track.release?.slug === release.slug) {
+    return true;
+  }
+  return !!release.title && track.release?.title === release.title;
+}
+
+function openClawArtistCredits(
+  artists?: OpenClawMusicArtistCredit[],
+  fallbackName?: string
+): PostBlobMusicArtistCredit[] | undefined {
+  const credits =
+    artists && artists.length > 0
+      ? artists.map((artist) => ({
+          name: artist.name,
+          slug: artist.slug,
+          imageUrl: artist.image,
+          externalIds: musicExternalIds({ slug: artist.slug }),
+        }))
+      : fallbackName
+        ? [{ name: fallbackName }]
+        : [];
+
+  return credits.length > 0 ? credits : undefined;
+}
+
+function openClawReleaseSummary(
+  release: OpenClawMusicReleaseSummary
+): NonNullable<PostBlobDataEntryMusic['sampleReleases']>[number] {
+  return {
+    id: release.publicKey ?? release.slug,
+    sourceId: release.publicKey,
+    title: release.title,
+    artist: release.artist,
+    slug: release.slug,
+    trackCount: release.trackCount,
+    externalIds: musicExternalIds({ publicKey: release.publicKey }),
+  };
+}
+
+function musicExternalIds(
+  ids: Record<string, string | undefined>
+): Record<string, string> | undefined {
+  const entries = Object.entries(ids).filter(
+    (entry): entry is [string, string] => !!entry[1]
+  );
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 /** Client-side parsed representation of PostBlob data */
 export type ClientPostBlobData = Array<
   PostBlobDataEntry | UnknownPostBlobDataEntry
@@ -810,6 +1356,71 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
     },
     arr
   );
+}
+
+export function getMiniAppPostBlob(
+  blob: string | null | undefined
+): MiniAppPostBlob | null {
+  if (!blob) {
+    return null;
+  }
+
+  return (
+    parsePostBlob(blob).find(
+      (entry): entry is MiniAppPostBlob => entry.type === 'tlon-mini-app'
+    ) ?? null
+  );
+}
+
+export function getMiniAppActionBlobs(
+  blob: string | null | undefined
+): MiniAppActionBlob[] {
+  if (!blob) {
+    return [];
+  }
+
+  return parsePostBlob(blob).filter(
+    (entry): entry is MiniAppActionBlob => entry.type === 'tlon-mini-app-action'
+  );
+}
+
+export function getMiniAppSnapshotBlobs(
+  blob: string | null | undefined
+): MiniAppSnapshotBlob[] {
+  if (!blob) {
+    return [];
+  }
+
+  return parsePostBlob(blob).filter(
+    (entry): entry is MiniAppSnapshotBlob =>
+      entry.type === 'tlon-mini-app-snapshot'
+  );
+}
+
+export function getOnlyMiniAppActionBlob(
+  blob: string | null | undefined
+): MiniAppActionBlob | null {
+  if (!blob) {
+    return null;
+  }
+
+  const parsed = parsePostBlob(blob);
+  return parsed.length === 1 && parsed[0]?.type === 'tlon-mini-app-action'
+    ? parsed[0]
+    : null;
+}
+
+export function getOnlyMiniAppSnapshotBlob(
+  blob: string | null | undefined
+): MiniAppSnapshotBlob | null {
+  if (!blob) {
+    return null;
+  }
+
+  const parsed = parsePostBlob(blob);
+  return parsed.length === 1 && parsed[0]?.type === 'tlon-mini-app-snapshot'
+    ? parsed[0]
+    : null;
 }
 
 export function toPostData({

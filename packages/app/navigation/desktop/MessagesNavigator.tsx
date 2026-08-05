@@ -19,6 +19,10 @@ import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { MessagesEmptyState } from '../../features/top/DesktopEmptyStates';
 import MediaViewerScreen from '../../features/top/MediaViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
+import {
+  ScheduledTaskScreen,
+  ScheduledTasksScreen,
+} from '../../features/top/ScheduledTasksScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { GroupSettingsStack } from '../GroupSettingsStack';
@@ -149,6 +153,14 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="UserProfile"
           component={UserProfileScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ScheduledTasks"
+          component={ScheduledTasksScreen}
+        />
+        <ChannelStackNavigator.Screen
+          name="ScheduledTask"
+          component={ScheduledTaskScreen}
         />
         <ChannelStackNavigator.Screen
           name="EditProfile"

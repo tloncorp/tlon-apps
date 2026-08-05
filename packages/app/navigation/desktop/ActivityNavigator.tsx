@@ -10,6 +10,10 @@ import { useCallback, useMemo } from 'react';
 
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { ActivityEmptyState } from '../../features/top/DesktopEmptyStates';
+import {
+  ScheduledTaskScreen,
+  ScheduledTasksScreen,
+} from '../../features/top/ScheduledTasksScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
@@ -119,6 +123,14 @@ export const ActivityNavigator = () => {
         component={GroupSettingsStack}
       />
       <ActivityDrawer.Screen name="UserProfile" component={UserProfileScreen} />
+      <ActivityDrawer.Screen
+        name="ScheduledTasks"
+        component={ScheduledTasksScreen}
+      />
+      <ActivityDrawer.Screen
+        name="ScheduledTask"
+        component={ScheduledTaskScreen}
+      />
       <ActivityDrawer.Screen name="EditProfile" component={EditProfileScreen} />
     </ActivityDrawer.Navigator>
   );

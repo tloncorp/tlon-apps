@@ -158,7 +158,9 @@ export async function finalizeAndSendPost(
 }
 
 /** Prefer using finalizeAndSendPost where possible for optimistic updates. */
-async function sendFinalizedPost(postData: domain.PostDataFinalizedParent) {
+export async function sendFinalizedPost(
+  postData: domain.PostDataFinalizedParent
+) {
   return await _sendPost({
     channelId: postData.channelId,
     buildOptimisticPostData: () => postData,

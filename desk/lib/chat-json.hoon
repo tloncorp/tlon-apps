@@ -73,6 +73,14 @@
     :~  ship/s/(scot %p s)
     ==
   ::
+  ++  delegated-dm-initiate
+    |=  init=delegated-dm-initiate:c
+    %-  pairs
+    :~  moon/(ship moon.init)
+        auto-accept/b/auto-accept.init
+        initial+?~(initial.init ~ (essay:v9:enjs:dj u.initial.init))
+    ==
+  ::
   ++  toggle-message
     |=  m=message-toggle:c
     %+  frond  -.m
@@ -1203,6 +1211,13 @@
   ++  unblock-ship
     %-  ot
     :~  ship/(se %p)
+    ==
+  ++  delegated-dm-initiate
+    ^-  $-(json delegated-dm-initiate:c)
+    %-  ot
+    :~  moon/ship
+        auto-accept/bo
+        initial/(mu essay:v7)
     ==
   ++  club-rsvp
     %-  ot

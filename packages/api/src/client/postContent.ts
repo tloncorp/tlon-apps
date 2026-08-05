@@ -2,6 +2,7 @@ import type { A2UI } from '../client/a2ui';
 import { formatUd } from '../client/apiUtils';
 import {
   PostBlobDataEntryFile,
+  PostBlobDataEntryMusic,
   PostBlobDataEntryVideo,
   PostBlobDataEntryVoiceMemo,
   parsePostBlob,
@@ -124,6 +125,11 @@ export type A2UIBlockData = {
   a2ui: A2UI.BlobEntry;
 };
 
+export type MusicBlockData = {
+  type: 'music';
+  music: PostBlobDataEntryMusic;
+};
+
 export type LinkBlockData = {
   type: 'link';
   url: string;
@@ -191,6 +197,7 @@ export type BlockData =
   | FileUploadBlockData
   | VoiceMemoBlockData
   | LinkBlockData
+  | MusicBlockData
   | ReferenceBlockData
   | CodeBlockData
   | HeaderBlockData
@@ -278,6 +285,8 @@ export function plaintextPreviewOf(
           return '(Image)';
         case 'video':
           return '(Video)';
+        case 'music':
+          return `(Music: ${block.music.title})`;
         case 'reference':
           return config.includeRefTag ? '(Ref)' : '';
         case 'code':
@@ -436,6 +445,20 @@ export function convertContent(
             type: 'a2ui',
             a2ui: entry,
           });
+          break;
+        }
+
+        case 'music': {
+          out.push({
+            type: 'music',
+            music: entry,
+          });
+          break;
+        }
+
+        case 'tlon-mini-app':
+        case 'tlon-mini-app-action':
+        case 'tlon-mini-app-snapshot': {
           break;
         }
 

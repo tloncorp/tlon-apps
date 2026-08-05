@@ -1,5 +1,6 @@
 import {
   DraftInputId,
+  getMiniAppPostBlob,
   useChannelContext,
   useThreadPosts,
 } from '@tloncorp/shared';
@@ -13,6 +14,7 @@ import { YStack } from 'tamagui';
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { ChannelHeader } from '../Channel/ChannelHeader';
 import { DraftInputView } from '../Channel/DraftInputView';
+import { isOnlyMiniAppSystemReply } from '../ChatMessage/miniAppRuntime';
 import { DraftInputContext } from '../draftInputs';
 import { ContextGestureListener, usePostContextMenu } from './contextmenu';
 
@@ -143,6 +145,7 @@ function useListData({ root }: { root: db.Post }) {
     authorId: root.authorId,
     channelId: root.channelId,
   });
+  const miniApp = useMemo(() => getMiniAppPostBlob(root.blob), [root.blob]);
 
   return useMemo(() => {
     const out: ListItem[] = [{ type: 'op', post: root }];
@@ -151,9 +154,12 @@ function useListData({ root }: { root: db.Post }) {
       // iterate backwards to avoid a reverse()
       for (let i = threadPostsQuery.data.length - 1; i >= 0; i--) {
         const reply = threadPostsQuery.data[i];
+        if (miniApp && isOnlyMiniAppSystemReply(reply, miniApp.appId)) {
+          continue;
+        }
         out.push({ type: 'reply', post: reply });
       }
     }
     return out;
-  }, [root, threadPostsQuery.data]);
+  }, [root, threadPostsQuery.data, miniApp]);
 }

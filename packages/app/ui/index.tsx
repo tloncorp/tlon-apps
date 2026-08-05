@@ -1,6 +1,7 @@
 export * from './components/ActionSheet';
 export * from './components/Activity/ActivityScreenView';
 export * from './components/AddContactsView';
+export * from './components/AgentCronDetail';
 export * from './components/AppSetting';
 export * from './components/ArvosDiscussing';
 export * from './components/Avatar';

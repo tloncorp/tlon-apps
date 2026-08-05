@@ -31,6 +31,10 @@ import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../features/top/MediaViewerScreen';
 import PostScreen from '../features/top/PostScreen';
 import { PostUsingContentConfigurationScreen } from '../features/top/PostUsingContentConfigurationScreen';
+import {
+  ScheduledTaskScreen,
+  ScheduledTasksScreen,
+} from '../features/top/ScheduledTasksScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
@@ -123,6 +127,8 @@ export function RootStack() {
         component={PushNotificationSettingsScreen}
       />
       <Root.Screen name="UserProfile" component={UserProfileScreen} />
+      <Root.Screen name="ScheduledTasks" component={ScheduledTasksScreen} />
+      <Root.Screen name="ScheduledTask" component={ScheduledTaskScreen} />
       <Root.Screen name="Attestation" component={AttestationScreen} />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
       <Root.Screen name="WompWomp" component={UserBugReportScreen} />

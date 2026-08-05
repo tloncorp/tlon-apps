@@ -4,6 +4,7 @@ import { JSONContent } from '@tloncorp/api/urbit';
 import {
   DraftInputId,
   isChatChannel as getIsChatChannel,
+  getMiniAppPostBlob,
   makePrettyDayAndTime,
   useDebouncedValue,
 } from '@tloncorp/shared';
@@ -43,6 +44,7 @@ import {
 } from './Channel/ChannelHeader';
 import { DraftInputView } from './Channel/DraftInputView';
 import { ScrollAnchor } from './Channel/Scroller';
+import { isOnlyMiniAppSystemReply } from './ChatMessage/miniAppRuntime';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
@@ -615,9 +617,20 @@ function SinglePostView({
     return editingPost && editingPost.id === parentPost?.id;
   }, [editingPost, parentPost]);
   const canWrite = utils.useCanWrite(channel, currentUserId);
+  const parentMiniApp = useMemo(() => {
+    return getMiniAppPostBlob(parentPost.blob);
+  }, [parentPost.blob]);
   const postsWithoutParent = useMemo(
-    () => posts?.filter((p) => p.id !== parentPost?.id) ?? [],
-    [posts, parentPost]
+    () =>
+      posts?.filter((p) => {
+        if (p.id === parentPost?.id) {
+          return false;
+        }
+        return parentMiniApp
+          ? !isOnlyMiniAppSystemReply(p, parentMiniApp.appId)
+          : true;
+      }) ?? [],
+    [posts, parentPost, parentMiniApp]
   );
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
 

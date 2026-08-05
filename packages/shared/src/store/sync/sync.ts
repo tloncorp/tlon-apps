@@ -503,6 +503,76 @@ export const syncAppInfo = async (ctx?: SyncCtx) => {
   return db.appInfo.setValue(appInfo);
 };
 
+export const syncCron = async (ctx?: SyncCtx) => {
+  const cronState = await syncQueue.add('agentCron', ctx, () =>
+    api.loadAgentCronState()
+  );
+  await db.agentCronState.setValue({
+    ...cronState,
+    syncedAt: Date.now(),
+  });
+  return cronState;
+};
+
+export const handleAgentCronUpdate = async (update: api.AgentCronUpdate) => {
+  await db.agentCronState.setValue((current) => {
+    const syncedAt = Date.now();
+
+    if ('init' in update) {
+      return {
+        ...update.init,
+        syncedAt,
+      };
+    }
+
+    if ('cronCreated' in update) {
+      return {
+        ...current,
+        crons: upsertById(current.crons, update.cronCreated),
+        syncedAt,
+      };
+    }
+
+    if ('cronUpdated' in update) {
+      return {
+        ...current,
+        crons: upsertById(current.crons, update.cronUpdated),
+        syncedAt,
+      };
+    }
+
+    if ('cronDeleted' in update) {
+      return {
+        ...current,
+        crons: current.crons.filter(
+          (cron) => cron.id !== update.cronDeleted.id
+        ),
+        syncedAt,
+      };
+    }
+
+    if ('runRequested' in update) {
+      return {
+        ...current,
+        runs: upsertById(current.runs, update.runRequested),
+        syncedAt,
+      };
+    }
+
+    return {
+      ...current,
+      runs: upsertById(current.runs, update.runUpdated),
+      syncedAt,
+    };
+  });
+};
+
+function upsertById<T extends { id: string }>(items: T[], item: T): T[] {
+  const next = items.filter((candidate) => candidate.id !== item.id);
+  next.push(item);
+  return next;
+}
+
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   const clientVolumes = await perfTime(
     'syncVolumeSettings.fetch',
@@ -2190,6 +2260,13 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       syncAppInfo({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing app info`);
       }),
+      syncCron({ priority: syncStartPriority.low + 1 })
+        .then(() => {
+          logger.crumb(`finished syncing agent crons`);
+        })
+        .catch((error) => {
+          logger.log('agent cron sync unavailable', error);
+        }),
       syncSystemContacts({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),
@@ -2238,6 +2315,18 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeToStorageUpdates(createHandler(handleStorageUpdate)),
       api.subscribeToLanyardUpdates(handleLanyardUpdate),
       api.subscribeToSettings(createHandler(handleSettingsUpdate)),
+      api
+        .subscribeToAgentCronUpdates((update) => {
+          handleAgentCronUpdate(update).catch((error) => {
+            logger.trackError('failed to handle agent cron update', {
+              error,
+            });
+          });
+        })
+        .catch((error) => {
+          logger.log('agent cron subscription unavailable', error);
+          return null;
+        }),
     ]);
   });
 };

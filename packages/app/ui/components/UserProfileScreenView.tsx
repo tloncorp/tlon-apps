@@ -36,6 +36,7 @@ import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
+import { ListItem } from './ListItem';
 import {
   PhoneAttestDisplay,
   TwitterAttestDisplay,
@@ -47,6 +48,8 @@ interface Props {
   userId: string;
   connectionStatus: api.ConnectionStatus | null;
   onPressGroup: (group: db.Group) => void;
+  onPressScheduledTasks?: () => void;
+  showScheduledTasks?: boolean;
 }
 
 export function UserProfileScreenView(props: Props) {
@@ -130,6 +133,10 @@ export function UserProfileScreenView(props: Props) {
 
         {currentUserId !== props.userId ? (
           <ProfileButtons userId={props.userId} contact={userContact} />
+        ) : null}
+
+        {props.showScheduledTasks && props.onPressScheduledTasks ? (
+          <ScheduledTasksProfileRow onPress={props.onPressScheduledTasks} />
         ) : null}
 
         {userContact?.status && (
@@ -501,6 +508,30 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
           onPress={handleBlock}
         />
       </ScrollView>
+    </View>
+  );
+}
+
+function ScheduledTasksProfileRow({ onPress }: { onPress: () => void }) {
+  return (
+    <View paddingHorizontal="$xl" width="100%">
+      <Pressable
+        borderRadius="$2xl"
+        onPress={onPress}
+        pressStyle={{ backgroundColor: '$secondaryBackground' }}
+        accessibilityRole="button"
+        accessibilityLabel="View scheduled tasks"
+      >
+        <ListItem backgroundColor="$background" borderRadius="$2xl">
+          <ListItem.SystemIcon icon="Clock" rounded />
+          <ListItem.MainContent>
+            <ListItem.Title>Scheduled Tasks</ListItem.Title>
+          </ListItem.MainContent>
+          <ListItem.EndContent>
+            <Icon type="ChevronRight" color="$tertiaryText" size="$s" />
+          </ListItem.EndContent>
+        </ListItem>
+      </Pressable>
     </View>
   );
 }

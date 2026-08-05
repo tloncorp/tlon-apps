@@ -1,0 +1,8 @@
+:~  title+'Agent Core'
+    info+'Durable local cron scheduling for agent prompts.'
+    color+0xde.dede
+    site+/
+    version+[0 0 1]
+    website+'https://tlon.io'
+    license+'MIT'
+==

@@ -2,9 +2,11 @@ import { describe, expect, test } from 'vitest';
 
 import {
   appendFileUploadToPostBlob,
+  appendMusicToPostBlob,
   appendToPostBlob,
   appendVideoToPostBlob,
   contentToTextAndMentions,
+  musicBlobEntriesFromOpenClawSearchResult,
   parsePostBlob,
   textAndMentionsToContent,
   toPostData,
@@ -78,32 +80,45 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
 
 describe('post blob helpers', () => {
   test('parsePostBlob parses registered blob entry types', () => {
-    const blob = appendVideoToPostBlob(
-      appendToPostBlob(
-        appendFileUploadToPostBlob(undefined, {
-          fileUri: 'https://files.example/report.pdf',
-          mimeType: 'application/pdf',
-          name: 'report.pdf',
-          size: 2048,
-        }),
+    const blob = appendMusicToPostBlob(
+      appendVideoToPostBlob(
+        appendToPostBlob(
+          appendFileUploadToPostBlob(undefined, {
+            fileUri: 'https://files.example/report.pdf',
+            mimeType: 'application/pdf',
+            name: 'report.pdf',
+            size: 2048,
+          }),
+          {
+            type: 'voicememo',
+            version: 1,
+            fileUri: 'https://files.example/memo.m4a',
+            size: 1024,
+            duration: 12,
+            waveformPreview: [0, 0.25, 1],
+          }
+        ),
         {
-          type: 'voicememo',
-          version: 1,
-          fileUri: 'https://files.example/memo.m4a',
-          size: 1024,
-          duration: 12,
-          waveformPreview: [0, 0.25, 1],
+          fileUri: 'https://cdn.example.com/video.mp4',
+          mimeType: 'video/mp4',
+          name: 'clip.mp4',
+          size: 12345,
+          width: 1920,
+          height: 1080,
+          duration: 7.2,
+          posterUri: 'https://cdn.example.com/video-poster.jpg',
         }
       ),
       {
-        fileUri: 'https://cdn.example.com/video.mp4',
-        mimeType: 'video/mp4',
-        name: 'clip.mp4',
-        size: 12345,
-        width: 1920,
-        height: 1080,
-        duration: 7.2,
-        posterUri: 'https://cdn.example.com/video-poster.jpg',
+        kind: 'track',
+        title: 'Signal Bloom',
+        artists: [{ name: 'The Orchard Keys' }],
+        releaseTitle: 'Packet Garden',
+        coverArtUrl: 'https://cdn.example.com/cover.jpg',
+        duration: 142,
+        previewUrl: 'https://cdn.example.com/preview.mp3',
+        externalUrl: 'https://music.example.com/track/signal-bloom',
+        provider: 'Example Music',
       }
     );
 
@@ -135,6 +150,19 @@ describe('post blob helpers', () => {
         height: 1080,
         duration: 7.2,
         posterUri: 'https://cdn.example.com/video-poster.jpg',
+      },
+      {
+        type: 'music',
+        version: 1,
+        kind: 'track',
+        title: 'Signal Bloom',
+        artists: [{ name: 'The Orchard Keys' }],
+        releaseTitle: 'Packet Garden',
+        coverArtUrl: 'https://cdn.example.com/cover.jpg',
+        duration: 142,
+        previewUrl: 'https://cdn.example.com/preview.mp3',
+        externalUrl: 'https://music.example.com/track/signal-bloom',
+        provider: 'Example Music',
       },
     ]);
   });
@@ -248,6 +276,151 @@ describe('post blob helpers', () => {
         size: -2,
       } as any)
     ).toThrow('Invalid PostBlobDataEntry');
+  });
+
+  test('maps OpenClaw music search data into music blob entries', () => {
+    const result = {
+      source: 'local-docker-postgres',
+      databaseUrl:
+        'postgres://postgres:postgres@localhost:54329/nina_v2_indexer',
+      releases: [
+        {
+          publicKey: '12fNZaoUpKLf2EqufujpQkS5R9aHk4SJUCnmgcxuhxZa',
+          mint: 'Ahs3mPCmLTHWMVbFBxBSVabnxrbUBcHPYEaKg5AhS1FC',
+          slug: 'clovers-whatever-your-heart-desires',
+          title: 'Whatever your Heart desires',
+          artist: 'Clovers',
+          artists: [{ name: 'Clovers', slug: 'clovers' }],
+          tags: ['alternative', 'dreampop', 'easylistening', 'folk'],
+          image:
+            'https://www.arweave.net/TD_AMZFVCh927I3ITKKKP_PzIbeSEsNYAyjK0A9FX_Y',
+          audio:
+            'https://www.arweave.net/9j02muSUHgrqYjlE2h-ccZAzF-nnduTvhrzzE9on9Ug',
+          metadataUri:
+            'https://arweave.net/0IFbHsqnVxlhIhRCBNZSoVzdLd4PwnoUMNbksPt19C0',
+          price: '4990000',
+          totalSupply: '18446744073709551615',
+          trackCount: 3,
+          createdAt: '2025-08-24T19:08:37.971Z',
+          createdAtSource: 'metadata',
+          symbol: '003',
+        },
+      ],
+      tracks: [
+        {
+          type: 'track' as const,
+          stableKey: '12fNZaoUpKLf2EqufujpQkS5R9aHk4SJUCnmgcxuhxZa:1',
+          position: 1,
+          title: 'lucky',
+          artist: 'Clovers',
+          durationSeconds: 226,
+          mimeType: 'audio/mpeg',
+          audio:
+            'https://www.arweave.net/9j02muSUHgrqYjlE2h-ccZAzF-nnduTvhrzzE9on9Ug',
+          image:
+            'https://www.arweave.net/TD_AMZFVCh927I3ITKKKP_PzIbeSEsNYAyjK0A9FX_Y',
+          release: {
+            publicKey: '12fNZaoUpKLf2EqufujpQkS5R9aHk4SJUCnmgcxuhxZa',
+            slug: 'clovers-whatever-your-heart-desires',
+            title: 'Whatever your Heart desires',
+            artist: 'Clovers',
+          },
+        },
+      ],
+      artists: [
+        {
+          name: 'Clovers',
+          slug: 'clovers',
+          image:
+            'https://www.arweave.net/TD_AMZFVCh927I3ITKKKP_PzIbeSEsNYAyjK0A9FX_Y',
+          releaseCount: 1,
+          sampleReleases: [
+            {
+              publicKey: '12fNZaoUpKLf2EqufujpQkS5R9aHk4SJUCnmgcxuhxZa',
+              slug: 'clovers-whatever-your-heart-desires',
+              title: 'Whatever your Heart desires',
+              artist: 'Clovers',
+              trackCount: 3,
+            },
+          ],
+        },
+      ],
+    };
+
+    const entries = musicBlobEntriesFromOpenClawSearchResult(result, {
+      provider: 'OpenClaw',
+    });
+
+    expect(JSON.stringify(entries)).not.toContain('postgres://');
+    expect(entries).toHaveLength(3);
+    expect(entries[0]).toMatchObject({
+      kind: 'release',
+      id: '12fNZaoUpKLf2EqufujpQkS5R9aHk4SJUCnmgcxuhxZa',
+      source: 'local-docker-postgres',
+      sourceId: '12fNZaoUpKLf2EqufujpQkS5R9aHk4SJUCnmgcxuhxZa',
+      title: 'Whatever your Heart desires',
+      slug: 'clovers-whatever-your-heart-desires',
+      artists: [{ name: 'Clovers', slug: 'clovers' }],
+      tags: ['alternative', 'dreampop', 'easylistening', 'folk'],
+      coverArtUrl:
+        'https://www.arweave.net/TD_AMZFVCh927I3ITKKKP_PzIbeSEsNYAyjK0A9FX_Y',
+      audioUrl:
+        'https://www.arweave.net/9j02muSUHgrqYjlE2h-ccZAzF-nnduTvhrzzE9on9Ug',
+      metadataUri:
+        'https://arweave.net/0IFbHsqnVxlhIhRCBNZSoVzdLd4PwnoUMNbksPt19C0',
+      releasedAt: '2025-08-24T19:08:37.971Z',
+      provider: 'OpenClaw',
+      trackCount: 3,
+      tracks: [
+        {
+          title: 'lucky',
+          duration: 226,
+          audioUrl:
+            'https://www.arweave.net/9j02muSUHgrqYjlE2h-ccZAzF-nnduTvhrzzE9on9Ug',
+          trackNumber: 1,
+        },
+      ],
+      externalIds: {
+        publicKey: '12fNZaoUpKLf2EqufujpQkS5R9aHk4SJUCnmgcxuhxZa',
+        mint: 'Ahs3mPCmLTHWMVbFBxBSVabnxrbUBcHPYEaKg5AhS1FC',
+        symbol: '003',
+        metadataUri:
+          'https://arweave.net/0IFbHsqnVxlhIhRCBNZSoVzdLd4PwnoUMNbksPt19C0',
+      },
+    });
+    expect(entries[1]).toMatchObject({
+      kind: 'track',
+      id: '12fNZaoUpKLf2EqufujpQkS5R9aHk4SJUCnmgcxuhxZa:1',
+      title: 'lucky',
+      duration: 226,
+      mimeType: 'audio/mpeg',
+      releaseId: '12fNZaoUpKLf2EqufujpQkS5R9aHk4SJUCnmgcxuhxZa',
+      releaseSlug: 'clovers-whatever-your-heart-desires',
+      releaseTitle: 'Whatever your Heart desires',
+      trackNumber: 1,
+    });
+    expect(entries[2]).toMatchObject({
+      kind: 'artist',
+      title: 'Clovers',
+      slug: 'clovers',
+      releaseCount: 1,
+      sampleReleases: [
+        {
+          title: 'Whatever your Heart desires',
+          trackCount: 3,
+        },
+      ],
+    });
+
+    const blob = appendMusicToPostBlob(undefined, entries[0]);
+    expect(parsePostBlob(blob)[0]).toMatchObject({
+      type: 'music',
+      version: 1,
+      kind: 'release',
+      title: 'Whatever your Heart desires',
+      audioUrl:
+        'https://www.arweave.net/9j02muSUHgrqYjlE2h-ccZAzF-nnduTvhrzzE9on9Ug',
+    });
   });
 
   test('toPostData uses attachment mimeType when serializing file blobs', () => {

@@ -67,6 +67,10 @@ export type RootStackParamList = {
     groupId?: string;
     channelId?: string;
   };
+  ScheduledTasks: undefined;
+  ScheduledTask: {
+    cronId: string;
+  };
   EditProfile: {
     userId: string;
   };
@@ -143,7 +147,11 @@ export type HomeDrawerParamList = Pick<
 
 export type ProfileDrawerParamList = Pick<
   RootStackParamList,
-  'Contacts' | 'AddContacts' | 'UserProfile'
+  | 'Contacts'
+  | 'AddContacts'
+  | 'UserProfile'
+  | 'ScheduledTasks'
+  | 'ScheduledTask'
 >;
 
 export type SettingsDrawerParamList = Pick<
@@ -166,6 +174,8 @@ export type ChannelStackParamList = {
   Post: RootStackParamList['Post'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
+  ScheduledTasks: RootStackParamList['ScheduledTasks'];
+  ScheduledTask: RootStackParamList['ScheduledTask'];
   EditProfile: RootStackParamList['EditProfile'];
   ChannelMembers: RootStackParamList['ChannelMembers'];
   ChannelMeta: RootStackParamList['ChannelMeta'];
@@ -178,6 +188,8 @@ export type DesktopChannelStackParamList = Pick<
   | 'Post'
   | 'MediaViewer'
   | 'UserProfile'
+  | 'ScheduledTasks'
+  | 'ScheduledTask'
   | 'EditProfile'
   | 'ChannelMembers'
   | 'ChannelMeta'

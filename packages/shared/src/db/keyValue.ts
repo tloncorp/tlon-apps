@@ -107,6 +107,21 @@ export const appInfo = createStorageItem<AppInfo | null>({
   defaultValue: null,
 });
 
+export type AgentCronState = {
+  crons: ub.AgentCron[];
+  runs: ub.AgentCronRun[];
+  syncedAt: number | null;
+};
+
+export const agentCronState = createStorageItem<AgentCronState>({
+  key: 'agentCronState',
+  defaultValue: {
+    crons: [],
+    runs: [],
+    syncedAt: null,
+  },
+});
+
 export const benefitsSheetDismissed = createStorageItem<boolean>({
   key: 'didShowBenefitsSheet',
   defaultValue: false,
