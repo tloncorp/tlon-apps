@@ -4671,6 +4671,23 @@ export async function monitorTlonProvider(
           messageText: rawText ?? '',
           alreadyOffered: false,
         };
+        if (
+          runOnboardingOffers &&
+          !onboardingGroup &&
+          isPurposePickerChoice(rawText ?? '')
+        ) {
+          // The groups scry failed under a message that is exactly a
+          // purpose-card title. Guessing "ordinary chat" hands the tap to
+          // the model (observed live: the bot chatted about the digest and
+          // the flow died there); guessing "tap" without the group is
+          // unfounded. Drop it — the sweep re-offers the pills from the
+          // transcript, and an owner one-word message this rare is
+          // re-sendable.
+          runtime.log?.(
+            `[tlon] Dropping a purpose-title message in ${nest}: the group could not be resolved`
+          );
+          return;
+        }
         if (onboardingOffer && !onboardingPickerOffered.has(nest)) {
           // Restart recovery (shared with the owner-listen gate above): a
           // process restart between posting a picker and the owner's reply
