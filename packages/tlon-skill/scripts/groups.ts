@@ -73,6 +73,7 @@ import { ensureClient, getCurrentShip, normalizeShip } from './api-client';
 import {
   assertKnownChannelKind,
   getOption,
+  hasFlag,
   hasOptionValue,
   isHelpArg,
   isSubcommandHelpRequest,
@@ -80,6 +81,7 @@ import {
   printErrorAndExit,
   printHelpAndExit,
   printUsageAndExit,
+  readStdinText,
   refuseNotesChannelDescription,
   refuseRemovedChannelKind,
 } from './cli-utils';
@@ -92,6 +94,10 @@ import {
   shipIsBanned,
   shipIsSeated,
 } from './commands/groups-verification';
+import {
+  configDescriptionError,
+  verifiedGroupMetaWrite,
+} from './group-description';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
 
@@ -162,7 +168,7 @@ const GROUPS_COMMAND_HELP: Record<string, string> = {
   'rescind-request': `Usage: tlon groups rescind-request <group-id>\nExample: tlon groups rescind-request ~host/group-slug`,
   'revoke-invite': `Usage: tlon groups revoke-invite <group-id> <ship> [<ship2> ...]\nExample: tlon groups revoke-invite ~host/group-slug ~nec`,
   delete: `Usage: tlon groups delete <group-id>\nExample: tlon groups delete ~host/group-slug`,
-  update: `Usage: tlon groups update <group-id> --title "..." [--description "..."] [--image "..."] [--cover "..."]\nExample: tlon groups update ~host/group-slug --title "New Title"`,
+  update: `Usage: tlon groups update <group-id> [--title "..."] [--description "..." | --description-stdin] [--image "..."] [--cover "..."]\nExample: tlon groups update ~host/group-slug --title "New Title"\nNote: for a JSON (agent-config) description, pipe it via --description-stdin — inline shell arguments lose quote escapes. The command validates config-shaped descriptions and verifies the stored result.`,
   kick: `Usage: tlon groups kick <group-id> <ship> [<ship2> ...]\nExample: tlon groups kick ~host/group-slug ~nec`,
   ban: `Usage: tlon groups ban <group-id> <ship> [<ship2> ...]\nExample: tlon groups ban ~host/group-slug ~nec`,
   unban: `Usage: tlon groups unban <group-id> <ship> [<ship2> ...]\nExample: tlon groups unban ~host/group-slug ~nec`,
@@ -221,14 +227,30 @@ function validateGroupsArgs(args: string[]): void {
     }
     case 'update': {
       if (!args[1]) printUsageAndExit(GROUPS_COMMAND_HELP.update);
+      const stdinDescription = hasFlag(args, 'description-stdin');
+      if (stdinDescription && hasOptionValue(args, 'description')) {
+        printUsageAndExit(
+          `Error: --description and --description-stdin are mutually exclusive.\n${GROUPS_COMMAND_HELP.update}`
+        );
+      }
       if (
+        !stdinDescription &&
         !GROUP_UPDATE_FLAGS.some((flag) =>
           hasOptionValue(args, flag, GROUP_UPDATE_FLAGS)
         )
       ) {
         printUsageAndExit(
-          `Error: At least one of --title, --description, --image, or --cover is required\n${GROUPS_COMMAND_HELP.update}`
+          `Error: At least one of --title, --description, --description-stdin, --image, or --cover is required\n${GROUPS_COMMAND_HELP.update}`
         );
+      }
+      // Fail a malformed config-shaped description locally, before auth —
+      // the same check runs again on the stdin path inside the command.
+      const inlineDescription = getOption(args, 'description');
+      if (inlineDescription !== undefined) {
+        const problem = configDescriptionError(inlineDescription);
+        if (problem) {
+          printUsageAndExit(`Error: ${problem}`);
+        }
       }
       return;
     }
@@ -1105,6 +1127,16 @@ async function updateGroup(
     cover?: string;
   }
 ) {
+  // A config-shaped description that doesn't parse would silently
+  // un-recognize this group's agent everywhere; refuse it here so the
+  // caller fixes the JSON instead of storing garbage that looks written.
+  if (options.description !== undefined) {
+    const problem = configDescriptionError(options.description);
+    if (problem) {
+      printErrorAndExit(problem);
+    }
+  }
+
   const group = await getGroup(groupId);
 
   const meta = {
@@ -1116,12 +1148,21 @@ async function updateGroup(
 
   console.log(`Updating group ${groupId}...`);
 
-  await updateGroupMeta({
+  // Verified write: the meta poke path has thrown timeouts for writes that
+  // landed and reported success for writes that didn't — read the stored
+  // value back before claiming anything.
+  await verifiedGroupMetaWrite(
+    {
+      updateGroupMeta,
+      getGroup,
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      warn: (message) => console.error(`⚠️  ${message}`),
+    },
     groupId,
-    meta,
-  });
+    meta
+  );
 
-  console.log(`✅ Group updated.`);
+  console.log(`✅ Group updated (stored values verified).`);
   console.log(`   Title: ${meta.title}`);
   console.log(`   Description: ${meta.description || '(none)'}`);
 }
@@ -1594,7 +1635,15 @@ async function main() {
         printUsageAndExit(GROUPS_COMMAND_HELP.update);
       }
       const title = getOption(args, 'title');
-      const description = getOption(args, 'description');
+      let description = getOption(args, 'description');
+      // Stdin is the safe channel for a JSON config description: passed as
+      // a shell argument, its inner quotes are one hand-escaping mistake
+      // away from storing unparseable garbage (observed live). Mutual
+      // exclusion with --description is enforced pre-auth in
+      // validateGroupsArgs.
+      if (hasFlag(args, 'description-stdin')) {
+        description = (await readStdinText()).trim();
+      }
       const image = getOption(args, 'image');
       const cover = getOption(args, 'cover');
       await updateGroup(groupId, { title, description, image, cover });

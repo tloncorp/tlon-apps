@@ -459,6 +459,12 @@ export function renderSetupDirective(
       '"outputNest":"","enabled":true}],"updatedAt":<epoch ms>}]',
     `templateId: ${purposeId} — copy it exactly; it records which setup the`,
     'owner picked, so a different id makes the group misreport itself.',
+    'Write the description by piping the JSON to `tlon groups update <flag>',
+    '--description-stdin` — never inline in a shell argument, where quote',
+    'escaping gets mangled (the payload message contains quotes). Serialize',
+    'the object programmatically rather than hand-writing JSON. The command',
+    'validates the config and verifies what was stored; if it errors, fix',
+    'exactly what it names and run it again.',
     `Once the job and config are in place: ${fill(job.confirmation)}`,
     INVITE_CLOSING,
   ].join('\n');
