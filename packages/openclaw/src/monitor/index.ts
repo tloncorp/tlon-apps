@@ -854,6 +854,16 @@ export async function monitorTlonProvider(
      * settling the closing can disarm the status lines.
      */
     const setupProgressSessionForNest = new Map<string, string>();
+    /**
+     * Channels whose setup directive turn is running right now. The config
+     * write lands partway through the build (the confirmation run comes
+     * after it), so the sweep must not settle a closing mid-turn — the
+     * invite card would butt in while the agent is still writing the first
+     * entry. Cleared when the turn returns, however it returns; a restart
+     * clears it implicitly, and a dead turn's closing is then settled by
+     * the next sweep tick.
+     */
+    const onboardingSetupTurnInFlight = new Set<string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -4823,6 +4833,9 @@ export async function monitorTlonProvider(
             }
           }
         }
+        if (setupDirective) {
+          onboardingSetupTurnInFlight.add(nest);
+        }
         try {
           await processMessage({
             messageId: messageId ?? '',
@@ -4852,6 +4865,10 @@ export async function monitorTlonProvider(
             onboardingSetupPending.set(nest, pendingSetupPurpose);
           }
           throw dispatchError;
+        } finally {
+          if (setupDirective) {
+            onboardingSetupTurnInFlight.delete(nest);
+          }
         }
 
         // A dispatch timeout inside processMessage records itself and
@@ -6173,7 +6190,15 @@ export async function monitorTlonProvider(
             if (opts.abortSignal?.aborted) {
               return sawWork;
             }
+            // Work exists, but a running directive turn owns the channel:
+            // the config write lands mid-build, and closing on it here
+            // would post the cards while the agent is still finishing.
+            // Keeping sawWork keeps the cadence fast for the moment the
+            // turn returns.
             sawWork = true;
+            if (onboardingSetupTurnInFlight.has(nest)) {
+              continue;
+            }
             await postInviteCardIfSetupComplete(nest);
           }
           return sawWork;

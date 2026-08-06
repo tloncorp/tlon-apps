@@ -422,7 +422,9 @@ export async function updateGroupMeta(
   // but hasn't synced back — the local row could still hold the bare marker
   // (or, on a fresh group, nothing at all, which is why the client's own
   // agent record counts as agent-group evidence alongside a parseable local
-  // config). The local copy is the fallback when the ship can't be read.
+  // config). An unreadable ship fails the whole update rather than falling
+  // back to the local copy: writing the stale bytes anyway is exactly the
+  // clobber this path exists to prevent, and a meta edit is retryable.
   const agentGroups = await db.agentGroupAgents
     .getValue()
     .catch((): Record<string, string> => ({}));
@@ -432,7 +434,19 @@ export async function updateGroupMeta(
   let description = group.description ?? '';
   if (isAgentGroup) {
     const remote = await api.getGroup(group.id).catch(() => null);
-    description = remote?.description ?? existingGroup?.description ?? '';
+    if (!remote) {
+      logger.error(
+        'Skipping agent group meta update: the ship is unreadable and a stale description could clobber its config',
+        group.id
+      );
+      if (config?.shouldThrow) {
+        throw new Error(
+          'Could not update the group right now — try again in a moment.'
+        );
+      }
+      return;
+    }
+    description = remote.description ?? '';
   }
   const groupWithMergedDescription = { ...group, description };
 
