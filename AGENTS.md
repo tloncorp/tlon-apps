@@ -23,6 +23,10 @@ The documentation on the groups agent would thus be found at
 Always be sure to read documentation before answering any queries
 relevant to the backend or to backend tests.
 
+## Backend developer tools
+Tools useful for development are located under `/backend` directory.
+Documentation can be found in `/docs/tools`.
+
 ## Backend tests
 There are two kinds of backend tests in groups. The first kind uses the
 `/lib/test-agent.hoon` library, which provides a monadic framework for
