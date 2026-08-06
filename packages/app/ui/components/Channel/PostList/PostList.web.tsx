@@ -34,11 +34,9 @@ const WebConversationPostList: PostListComponent = React.forwardRef(
       anchor,
       // channel,
       // collectionLayoutType,
-      columnWrapperStyle,
       contentContainerStyle,
       hasNewerPosts = false,
       anchorToEnd = false,
-      numColumns,
       onEndReached,
       onEndReachedThreshold = 1,
       onInitialScrollCompleted,
@@ -250,16 +248,7 @@ const WebConversationPostList: PostListComponent = React.forwardRef(
               justifyContent: anchorToEnd ? 'flex-end' : 'flex-start',
             }}
           >
-            <View
-              style={[
-                {
-                  flexDirection: numColumns === 1 ? 'column' : 'row',
-                  flexWrap: numColumns === 1 ? undefined : 'wrap',
-                },
-                contentContainerStyle,
-                numColumns > 1 ? columnWrapperStyle : undefined,
-              ]}
-            >
+            <View style={contentContainerStyle}>
               {listHeaderComponent}
               {orderedData.map((item, index) => (
                 <PostListItem key={item.post.id} item={item} index={index}>

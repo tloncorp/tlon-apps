@@ -130,13 +130,13 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       isLoading,
     });
 
-    const previousAnchorKeyRef = React.useRef(anchorKey);
+    const currentAnchorKeyRef = React.useRef(anchorKey);
     React.useLayoutEffect(() => {
-      if (previousAnchorKeyRef.current === anchorKey) {
+      if (currentAnchorKeyRef.current === anchorKey) {
         return;
       }
 
-      previousAnchorKeyRef.current = anchorKey;
+      currentAnchorKeyRef.current = anchorKey;
       didStartInitialScrollRef.current = false;
       if (initialScrollFrameRef.current !== undefined) {
         cancelAnimationFrame(initialScrollFrameRef.current);
@@ -207,6 +207,10 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       onScrolledToBottom,
       onScrolledAwayFromBottom,
     });
+    const finishInitialScroll = React.useCallback(() => {
+      setDidFinishInitialScroll(true);
+      onInitialScrollCompleted?.();
+    }, [onInitialScrollCompleted]);
     const completeInitialScroll = React.useCallback(() => {
       if (!isInitialAnchorReady || didStartInitialScrollRef.current) {
         return;
@@ -215,11 +219,10 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       const loadedAnchorKey = anchorKey;
       void applyAnchorPosition()
         .then(() => {
-          if (previousAnchorKeyRef.current !== loadedAnchorKey) {
+          if (currentAnchorKeyRef.current !== loadedAnchorKey) {
             return;
           }
-          setDidFinishInitialScroll(true);
-          onInitialScrollCompleted?.();
+          finishInitialScroll();
         })
         .catch(() => {
           // Navigation can cancel the scroll while the list is unmounting.
@@ -227,8 +230,8 @@ const ConversationPostList: PostListComponent = React.forwardRef(
     }, [
       anchorKey,
       applyAnchorPosition,
+      finishInitialScroll,
       isInitialAnchorReady,
-      onInitialScrollCompleted,
     ]);
     // onLoad fires before LegendList's post-load buffer expansion has laid out.
     // Wait through that expansion so the exact target uses settled row sizes.
@@ -251,13 +254,26 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       },
       []
     );
-    const handleLoad = React.useCallback(() => {
-      if (anchor?.type === 'unread') {
-        scheduleInitialScroll();
-      } else {
-        completeInitialScroll();
+    React.useEffect(() => {
+      if (
+        !isInitialAnchorReady ||
+        isLoading ||
+        postsWithNeighbors.length !== 0 ||
+        didStartInitialScrollRef.current
+      ) {
+        return;
       }
-    }, [anchor?.type, completeInitialScroll, scheduleInitialScroll]);
+
+      // LegendList defers onLoad when initialScrollAtEnd has no data to target.
+      // A settled empty conversation has no position to reconcile, so reveal it.
+      didStartInitialScrollRef.current = true;
+      finishInitialScroll();
+    }, [
+      finishInitialScroll,
+      isInitialAnchorReady,
+      isLoading,
+      postsWithNeighbors.length,
+    ]);
 
     React.useEffect(() => {
       if (
@@ -347,7 +363,7 @@ const ConversationPostList: PostListComponent = React.forwardRef(
             ? undefined
             : { opacity: 0 },
         ]}
-        onLoad={handleLoad}
+        onLoad={scheduleInitialScroll}
         onScroll={handleScroll}
         onScrollBeginDrag={() => {
           userHasScrolledRef.current = true;

@@ -120,8 +120,8 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channelIsPending, channelId]);
 
-  // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
-  // time
+  // Snapshot unread state once per focused entry so the divider does not move
+  // as the channel is marked read.
   const [initialChannelUnreadSnapshot, setInitialChannelUnreadSnapshot] =
     React.useState<{
       channelId: string;
@@ -132,7 +132,13 @@ export default function ChannelScreen(props: Props) {
     let isCurrent = true;
 
     async function initializeChannelUnread() {
-      const unread = await db.getChannelUnread({ channelId: currentChannelId });
+      let unread: db.ChannelUnread | null | undefined;
+      try {
+        unread = await db.getChannelUnread({ channelId: currentChannelId });
+      } catch (error) {
+        logger.trackError('failed to initialize channel unread', error);
+      }
+
       if (isCurrent) {
         setInitialChannelUnreadSnapshot({
           channelId: currentChannelId,
@@ -212,8 +218,7 @@ export default function ChannelScreen(props: Props) {
   } = store.useChannelPosts({
     // Capture the unread cursor before loading posts or mounting Channel,
     // which can mark the channel read as soon as cached posts are available.
-    enabled:
-      unreadDidInitialize && !!channel && !channel?.isPendingChannel,
+    enabled: unreadDidInitialize && !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
     count: 30,
     filterDeleted: !channelConfiguration?.includeDeletedPosts,
