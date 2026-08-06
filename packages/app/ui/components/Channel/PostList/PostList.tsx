@@ -2,7 +2,7 @@ import { type LegendListRef } from '@legendapp/list/react-native';
 import { AnimatedLegendList } from '@legendapp/list/reanimated';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
-import { Platform, useWindowDimensions } from 'react-native';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useScrollDirectionTracker } from '../../../contexts/scroll';
@@ -109,14 +109,11 @@ const ConversationPostList: PostListComponent = React.forwardRef(
     );
     const [didFinishInitialScroll, setDidFinishInitialScroll] =
       React.useState(false);
-    const [didSettleInitialAnchor, setDidSettleInitialAnchor] =
-      React.useState(false);
     const anchorSettledRef = React.useRef(false);
     const settleTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
       null
     );
     const insets = useSafeAreaInsets();
-    const { height: windowHeight } = useWindowDimensions();
     const collectionLayout = React.useMemo(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
@@ -157,7 +154,6 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       anchorGenerationRef.current += 1;
       didStartInitialScrollRef.current = false;
       setDidFinishInitialScroll(false);
-      setDidSettleInitialAnchor(false);
       userHasScrolledRef.current = false;
       appliedAnchorPositionRef.current = undefined;
       anchorSettledRef.current = false;
@@ -271,7 +267,6 @@ const ConversationPostList: PostListComponent = React.forwardRef(
             settleTimerRef.current = setTimeout(() => {
               if (anchorGeneration === anchorGenerationRef.current) {
                 anchorSettledRef.current = true;
-                setDidSettleInitialAnchor(true);
               }
             }, ANCHOR_SETTLE_WINDOW_MS);
           }
@@ -330,15 +325,6 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       },
       [applyAnchorPosition]
     );
-
-    // Estimates can make the unread tail appear too short and clamp the marker
-    // below the top. Reserve enough temporary scroll range to establish the
-    // target immediately; remove it after measurements settle. If the real tail
-    // is genuinely short, the list then clamps to its correct lower position.
-    const shouldReserveUnreadAnchorEndSpace =
-      anchor?.type === 'unread' &&
-      anchorIndex !== -1 &&
-      !didSettleInitialAnchor;
 
     React.useEffect(() => {
       return () => {
@@ -406,12 +392,7 @@ const ConversationPostList: PostListComponent = React.forwardRef(
         ListEmptyComponent={renderEmptyComponent}
         ListHeaderComponent={listHeaderComponent}
         ListFooterComponent={listBottomComponent}
-        contentContainerStyle={[
-          contentContainerStyle,
-          shouldReserveUnreadAnchorEndSpace
-            ? { paddingBottom: windowHeight }
-            : undefined,
-        ]}
+        contentContainerStyle={contentContainerStyle}
         contentInsetAdjustmentBehavior={
           Platform.OS === 'ios' ? 'never' : undefined
         }
