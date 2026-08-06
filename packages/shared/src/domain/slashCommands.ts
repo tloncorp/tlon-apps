@@ -1,4 +1,4 @@
-import type { BotAgentType } from '@tloncorp/api/types/hosting';
+export type BotAgentType = 'openclaw' | 'hermes';
 
 export interface SlashCommandOption {
   command: `/${string}`;

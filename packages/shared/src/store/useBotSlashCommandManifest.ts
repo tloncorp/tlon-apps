@@ -1,12 +1,10 @@
 import * as api from '@tloncorp/api';
-import { desig } from '@tloncorp/api/lib/urbit';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import * as db from '../db';
 import * as domain from '../domain';
 import * as logic from '../logic';
 import { useChannelHasBotPost } from './dbHooks';
-import { syncHostingBotAgent } from './hostingActions';
 
 // Returns the curated slash-command manifest for a bot conversation, or null
 // when slash commands should not be offered. A channel qualifies when either:
@@ -16,17 +14,12 @@ import { syncHostingBotAgent } from './hostingActions';
 //   - structural: the DM counterpart is a moon of the user's ship (hosted
 //     `~pinser-botter-*` bots and self-provisioned bots alike), or the channel
 //     is the user's home-group chat. Covers bots that haven't posted yet.
-// The manifest is a static list; until bots advertise their own commands, a
-// non-Tlon bot gets the default set and simply won't honor commands it doesn't
-// implement. The agent is read from the ship-scoped cache (mismatch/null →
-// 'openclaw'); a fire-and-forget sync keeps it fresh for hosted users. The
-// manifest is never blocked on a live fetch — a network round-trip must not
-// gate a UI affordance.
+// The manifest is the static OpenClaw list until bots advertise their own
+// command manifests.
 export const useBotSlashCommandManifest = (
   channel?: db.Channel | null
 ): domain.SlashCommandManifest | null => {
   const currentUserId = api.getCurrentUserId();
-  const cachedAgent = db.hostingBotAgent.useValue();
 
   const isStructuralBotChannel = useMemo(() => {
     if (!channel) {
@@ -46,20 +39,9 @@ export const useBotSlashCommandManifest = (
 
   const enabled = isStructuralBotChannel || (isDm && hasBotPosts === true);
 
-  useEffect(() => {
-    if (enabled && api.getCurrentUserIsHosted()) {
-      void syncHostingBotAgent();
-    }
-  }, [enabled]);
+  if (!enabled) {
+    return null;
+  }
 
-  return useMemo(() => {
-    if (!enabled) {
-      return null;
-    }
-    const agent =
-      cachedAgent?.ship === desig(currentUserId)
-        ? cachedAgent.agent
-        : 'openclaw';
-    return domain.getStaticSlashCommandManifest(agent);
-  }, [enabled, cachedAgent, currentUserId]);
+  return domain.getStaticSlashCommandManifest('openclaw');
 };
