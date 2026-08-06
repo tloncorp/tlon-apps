@@ -83,6 +83,22 @@ export function repairTlonCommandArgs(
   args: string[],
   deps: TlonArgRepairDeps
 ): TlonArgRepairResult {
+  // Nothing ever feeds this CLI's stdin: the tool spawns it with an open
+  // pipe that is never written or closed, so a `--stdin` read blocks for
+  // its full 30-second timeout and then fails — the note or description
+  // simply never lands. Refuse in zero milliseconds with the flag that
+  // does work instead.
+  if (args.some((arg) => arg === '--stdin' || arg === '--description-stdin')) {
+    return {
+      ok: false,
+      error:
+        `Error: this tool spawns the CLI with no stdin, so --stdin can ` +
+        `never receive input — it would block for 30s and fail. Write the ` +
+        `content to a file and pass it instead: --markdown <file> for ` +
+        `notes, or --description "$(cat /tmp/<name>.json)" for a group ` +
+        `description.`,
+    };
+  }
   const expandedPaths: string[] = [];
   const merged = mergeSplitSubstitutions(args);
   const out: string[] = [];

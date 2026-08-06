@@ -162,6 +162,23 @@ describe('repairTlonCommandArgs', () => {
     }
   });
 
+  it('refuses --stdin, which can never receive input through this tool', () => {
+    // The tool spawns the CLI with an unwritten stdin pipe, so the CLI's
+    // 30-second stdin read always times out — the note never lands. Fail
+    // in zero milliseconds naming the flag that works.
+    const note = repairTlonCommandArgs(
+      ['notes', 'note-create', 'notes/~zod/d', 'root', 'Today', '--stdin'],
+      files({})
+    );
+    expect(note.ok).toBe(false);
+    expect(!note.ok && note.error).toContain('--markdown <file>');
+    const description = repairTlonCommandArgs(
+      ['groups', 'update', '~zod/g', '--description-stdin'],
+      files({})
+    );
+    expect(description.ok).toBe(false);
+  });
+
   it('leaves ordinary commands and prose descriptions alone', () => {
     const args = [
       'groups',

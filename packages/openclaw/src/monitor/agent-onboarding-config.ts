@@ -241,11 +241,14 @@ const OUTPUT_CHANNEL_RULE =
   "groups` lists the group's channels). When it appears, record its nest " +
   'as this job\'s "outputNest" in the group config, so later runs go ' +
   'straight there and append to that same channel. Write the entry with ' +
-  'the tlon tool — `notes note-create <nest> root "<Title>" --stdin` — ' +
-  'not the message tool, which only posts chat and cannot carry a title, ' +
-  'and read the notebook back afterward (`tlon notes show <nest>`) to ' +
-  'confirm the entry landed — entries written into a channel that is not ' +
-  'accepting them vanish silently. Announce it in chat with a single ' +
+  'the tlon tool, never the message tool (which only posts chat and ' +
+  'cannot carry a title): put the body in a markdown file first and pass ' +
+  'that file — `notes note-create <nest> root "<Title>" --markdown ' +
+  '<file>`. Never `--stdin`: this tool spawns the CLI without a stdin ' +
+  'pipe, so a --stdin write waits thirty seconds and then fails, and the ' +
+  'entry never lands. Read the notebook back afterward (`tlon notes show ' +
+  '<nest>`) to confirm the entry landed — entries written into a channel ' +
+  'that is not accepting them vanish silently. Announce it in chat with a single ' +
   'line — the chat gets the announcement, the notebook gets the writing. ' +
   'If no notebook appears within two minutes (the owner may have closed ' +
   'the app), or the write into it keeps failing, post the update in this ' +
