@@ -122,21 +122,39 @@ export default function ChannelScreen(props: Props) {
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
-  const [initialChannelUnread, setInitialChannelUnread] =
-    React.useState<db.ChannelUnread | null>(null);
-  const [unreadDidInitialize, setUnreadDidInitialize] = React.useState(false);
+  const [initialChannelUnreadSnapshot, setInitialChannelUnreadSnapshot] =
+    React.useState<{
+      channelId: string;
+      unread: db.ChannelUnread | null;
+    } | null>(null);
   const isFocused = useIsFocused();
   useEffect(() => {
+    let isCurrent = true;
+
     async function initializeChannelUnread() {
       const unread = await db.getChannelUnread({ channelId: currentChannelId });
-      setInitialChannelUnread(unread ?? null);
-      setUnreadDidInitialize(true);
+      if (isCurrent) {
+        setInitialChannelUnreadSnapshot({
+          channelId: currentChannelId,
+          unread: unread ?? null,
+        });
+      }
     }
 
     if (isFocused) {
-      initializeChannelUnread();
+      void initializeChannelUnread();
     }
+
+    return () => {
+      isCurrent = false;
+    };
   }, [currentChannelId, isFocused]);
+
+  const unreadDidInitialize =
+    initialChannelUnreadSnapshot?.channelId === currentChannelId;
+  const initialChannelUnread = unreadDidInitialize
+    ? initialChannelUnreadSnapshot.unread
+    : null;
 
   const {
     navigateToImage,
@@ -153,19 +171,12 @@ export default function ChannelScreen(props: Props) {
 
   const { performGroupAction } = useGroupActions();
 
-  const unreadCursor = useMemo(() => {
-    if (!channel) {
-      return undefined;
-    }
-    return (
-      initialChannelUnread &&
-      (initialChannelUnread.countWithoutThreads ?? 0) > 0 &&
-      initialChannelUnread.firstUnreadPostId
-    );
-    // We only want this to rerun when the channel is loaded for the first time OR if
-    // the initial unread state changes
-    // eslint-disable-next-line
-  }, [!!channel, initialChannelUnread]);
+  const unreadCursor =
+    channel &&
+    initialChannelUnread &&
+    (initialChannelUnread.countWithoutThreads ?? 0) > 0
+      ? initialChannelUnread.firstUnreadPostId
+      : undefined;
   const cursor = selectedPostId || unreadCursor;
 
   useEffect(() => {
@@ -199,7 +210,10 @@ export default function ChannelScreen(props: Props) {
     loadOlder,
     isLoading: isLoadingPosts,
   } = store.useChannelPosts({
-    enabled: !!channel && !channel?.isPendingChannel,
+    // Capture the unread cursor before loading posts or mounting Channel,
+    // which can mark the channel read as soon as cached posts are available.
+    enabled:
+      unreadDidInitialize && !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
     count: 30,
     filterDeleted: !channelConfiguration?.includeDeletedPosts,
@@ -414,7 +428,7 @@ export default function ChannelScreen(props: Props) {
     [currentChannelId, routeGroupId, channel?.groupId]
   );
 
-  if (!channel) {
+  if (!channel || !unreadDidInitialize) {
     return null;
   }
 
