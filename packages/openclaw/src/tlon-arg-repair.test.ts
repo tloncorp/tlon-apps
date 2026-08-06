@@ -85,6 +85,43 @@ describe('repairTlonCommandArgs', () => {
     expect(!result.ok && result.error).toContain('unexpanded');
   });
 
+  it('refuses a typed config entry the app would not recognize', () => {
+    const wrongVersion = JSON.stringify([
+      { type: 'tlon-group-agent-config', version: '1', agents: ['~zod'] },
+    ]);
+    const noAgents = JSON.stringify([
+      { type: 'tlon-group-agent-config', version: 1, agents: [] },
+    ]);
+    const first = repairTlonCommandArgs(
+      ['groups', 'update', '~zod/g', '--description', wrongVersion],
+      files({})
+    );
+    expect(!first.ok && first.error).toContain('version');
+    const second = repairTlonCommandArgs(
+      ['groups', 'update', '~zod/g', '--description', noAgents],
+      files({})
+    );
+    expect(!second.ok && second.error).toContain('agents');
+  });
+
+  it('lets untyped arrays and bare markers through the tool', () => {
+    // An array that never claims to be config is not the tool's business;
+    // the monitor's repair nudge owns that judgement, where onboarding
+    // context exists. The client's bare marker (typed, no jobs) is the
+    // normal pre-setup write.
+    const untyped = JSON.stringify([{ id: 'digest', prompt: 'x' }]);
+    const marker = JSON.stringify([
+      { type: 'tlon-group-agent-config', version: 1, agents: ['~zod'] },
+    ]);
+    for (const value of [untyped, marker]) {
+      const result = repairTlonCommandArgs(
+        ['groups', 'update', '~zod/g', '--description', value],
+        files({})
+      );
+      expect(result.ok).toBe(true);
+    }
+  });
+
   it('leaves ordinary commands and prose descriptions alone', () => {
     const args = [
       'groups',

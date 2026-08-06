@@ -420,6 +420,27 @@ describe('brokenConfigDescriptionError', () => {
       )
     ).toBeNull();
   });
+
+  test('flags valid JSON the app would not recognize as config', () => {
+    // A bare job array without the typed wrapper parses cleanly and reads
+    // as "no config" — the same silent stall as a parse failure.
+    expect(
+      brokenConfigDescriptionError(
+        JSON.stringify([{ id: 'digest', prompt: 'x' }])
+      )
+    ).toContain('no recognized config entry');
+    expect(brokenConfigDescriptionError('[]')).toContain(
+      'no recognized config entry'
+    );
+    // Wrong version is unrecognized too.
+    expect(
+      brokenConfigDescriptionError(
+        JSON.stringify([
+          { type: 'tlon-group-agent-config', version: 2, agents: ['~zod'] },
+        ])
+      )
+    ).toContain('no recognized config entry');
+  });
 });
 
 describe('renderSetupDirective', () => {

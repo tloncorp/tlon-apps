@@ -951,8 +951,9 @@ export async function monitorTlonProvider(
       if (nudges >= 3) {
         return;
       }
-      configRepairNudgedFor.set(nest, description);
-      configRepairNudgeCounts.set(nest, nudges + 1);
+      // Recorded only after the enqueue is accepted: a missing route or a
+      // throwing enqueue would otherwise burn the single nudge these bytes
+      // get, leaving the setup locked with no retry.
       try {
         const route = core.channel.routing.resolveAgentRoute({
           cfg,
@@ -988,6 +989,8 @@ export async function monitorTlonProvider(
             ),
           }
         );
+        configRepairNudgedFor.set(nest, description);
+        configRepairNudgeCounts.set(nest, nudges + 1);
         runtime.log?.(
           `[tlon] Nudged a config repair in ${nest}: ${parseError}`
         );

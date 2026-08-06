@@ -513,12 +513,33 @@ export function brokenConfigDescriptionError(
   if (!trimmed.startsWith('[')) {
     return null;
   }
+  let parsed: unknown;
   try {
-    JSON.parse(trimmed);
-    return null;
+    parsed = JSON.parse(trimmed);
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
+  // Parsing isn't enough: a bare job array without the typed wrapper (a
+  // shape models have written before) is valid JSON the app recognizes as
+  // nothing — the same silent stall as a parse failure. The client's own
+  // bare marker (typed entry, no jobs yet) is the normal mid-setup state
+  // and must pass.
+  const entries = Array.isArray(parsed) ? parsed : [];
+  const hasRecognizedEntry = entries.some(
+    (entry) =>
+      typeof entry === 'object' &&
+      entry !== null &&
+      (entry as { type?: unknown }).type === AGENT_CONFIG_ENTRY_TYPE &&
+      (entry as { version?: unknown }).version === 1
+  );
+  if (!hasRecognizedEntry) {
+    return (
+      'the description parses as JSON but contains no recognized config ' +
+      `entry — every entry needs "type":"${AGENT_CONFIG_ENTRY_TYPE}" and ` +
+      '"version":1, or the app reads the group as having no config'
+    );
+  }
+  return null;
 }
 
 type ScryApi = { scry: (path: string) => Promise<unknown> } | null;

@@ -120,8 +120,9 @@ export function repairTlonCommandArgs(
       };
     }
     if (looksLikeConfigDescription(description)) {
+      let parsed: unknown;
       try {
-        JSON.parse(description.trim());
+        parsed = JSON.parse(description.trim());
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return {
@@ -136,8 +137,54 @@ export function repairTlonCommandArgs(
             `this tool expands that itself.`,
         };
       }
+      const malformed = malformedConfigEntryError(parsed);
+      if (malformed) {
+        return { ok: false, error: malformed };
+      }
     }
   }
 
   return { ok: true, args: out, expandedPaths };
+}
+
+/**
+ * Reject entries that *claim* to be agent config but would be
+ * unrecognizable to the app. Scoped to entries carrying the type — an
+ * arbitrary JSON-array description that never claims it is left alone, and
+ * a bare-typed marker with no jobs is the client's own pre-setup write.
+ */
+function malformedConfigEntryError(parsed: unknown): string | null {
+  if (!Array.isArray(parsed)) {
+    return null;
+  }
+  for (const entry of parsed) {
+    if (
+      typeof entry !== 'object' ||
+      entry === null ||
+      (entry as { type?: unknown }).type !== 'tlon-group-agent-config'
+    ) {
+      continue;
+    }
+    const config = entry as { version?: unknown; agents?: unknown };
+    if (config.version !== 1) {
+      return (
+        `Error: a tlon-group-agent-config entry has version ` +
+        `${JSON.stringify(config.version)}; the app only recognizes ` +
+        `version 1 (as a number), and an unrecognized entry makes it stop ` +
+        `treating this group's agent as configured.`
+      );
+    }
+    if (
+      !Array.isArray(config.agents) ||
+      config.agents.length === 0 ||
+      !config.agents.every((agent) => typeof agent === 'string')
+    ) {
+      return (
+        `Error: a tlon-group-agent-config entry needs a non-empty ` +
+        `"agents" array of ship names — that is how the app learns which ` +
+        `ship is this group's agent.`
+      );
+    }
+  }
+  return null;
 }
