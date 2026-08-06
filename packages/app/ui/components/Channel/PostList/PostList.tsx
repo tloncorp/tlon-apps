@@ -19,18 +19,8 @@ import {
   usesConversationPostList,
 } from './shared';
 
-// V1 uses bounded wall-clock fallbacks because LegendList does not expose a
-// single "all requested rows are measured" signal. Replace these with an
-// event-driven quiescence check when the list provides one.
 const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
 const ESTIMATED_ITEM_SIZE = 120;
-/**
- * How long after the initial scroll we keep re-applying the anchor position as
- * items report their real sizes. Item sizes only settle after measurement, and
- * the first scroll is computed from `ESTIMATED_ITEM_SIZE`, so without this the
- * list keeps whatever position the estimate produced.
- */
-const ANCHOR_SETTLE_WINDOW_MS = 1_000;
 
 function getPostId({ post }: PostWithNeighbors) {
   return post.id;
@@ -102,17 +92,12 @@ const ConversationPostList: PostListComponent = React.forwardRef(
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
     const didStartInitialScrollRef = React.useRef(false);
-    const anchorGenerationRef = React.useRef(0);
     const userHasScrolledRef = React.useRef(false);
     const appliedAnchorPositionRef = React.useRef<AnchorPosition | undefined>(
       undefined
     );
     const [didFinishInitialScroll, setDidFinishInitialScroll] =
       React.useState(false);
-    const anchorSettledRef = React.useRef(false);
-    const settleTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-      null
-    );
     const insets = useSafeAreaInsets();
     const collectionLayout = React.useMemo(
       () => layoutForType(collectionLayoutType),
@@ -151,17 +136,11 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       }
 
       previousAnchorKeyRef.current = anchorKey;
-      anchorGenerationRef.current += 1;
       didStartInitialScrollRef.current = false;
       setDidFinishInitialScroll(false);
       userHasScrolledRef.current = false;
       appliedAnchorPositionRef.current = undefined;
-      anchorSettledRef.current = false;
       setTimedOutAnchorId(null);
-      if (settleTimerRef.current) {
-        clearTimeout(settleTimerRef.current);
-        settleTimerRef.current = null;
-      }
     }, [anchorKey]);
 
     React.useEffect(() => {
@@ -197,16 +176,13 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       latestAnchorPositionRef.current = anchorPosition;
     }, [anchorPosition]);
 
-    /**
-     * Applies the resolved anchor position, choosing between the anchor target
-     * and the list end. Every path that positions the list on initial load goes
-     * through here so they cannot disagree.
-     */
-    const applyAnchorPosition = React.useCallback(async () => {
+    // LegendList owns the initial position through initialScrollIndex. This is
+    // only for a target that changes after the list has finished loading.
+    const applyAnchorPosition = React.useCallback(() => {
       const target = latestAnchorPositionRef.current;
       if (target === 'end') {
         appliedAnchorPositionRef.current = target;
-        await listRef.current?.scrollToEnd({ animated: false });
+        listRef.current?.scrollToEnd({ animated: false });
         return true;
       }
 
@@ -215,7 +191,7 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       }
 
       appliedAnchorPositionRef.current = target;
-      await listRef.current?.scrollToIndex({ ...target, animated: false });
+      listRef.current?.scrollToIndex({ ...target, animated: false });
       return true;
     }, []);
     const { onScroll: handleScroll, isAtBottom } = useScrollDirectionTracker({
@@ -231,50 +207,10 @@ const ConversationPostList: PostListComponent = React.forwardRef(
         return;
       }
       didStartInitialScrollRef.current = true;
-      const anchorGeneration = anchorGenerationRef.current;
-
-      const completeInitialScroll = async () => {
-        try {
-          if (anchorGeneration !== anchorGenerationRef.current) {
-            return;
-          }
-
-          // The around-anchor query can prepend cached history while
-          // LegendList is bootstrapping. Re-resolve the current anchor index
-          // before releasing queued edge events.
-          await applyAnchorPosition();
-
-          if (anchorGeneration !== anchorGenerationRef.current) {
-            return;
-          }
-
-          const updatedTarget = latestAnchorPositionRef.current;
-          if (
-            updatedTarget &&
-            !isSameAnchorPosition(
-              updatedTarget,
-              appliedAnchorPositionRef.current
-            )
-          ) {
-            await applyAnchorPosition();
-          }
-        } catch {
-          // Navigation can cancel the imperative scroll while unmounting.
-        } finally {
-          if (anchorGeneration === anchorGenerationRef.current) {
-            setDidFinishInitialScroll(true);
-            onInitialScrollCompleted?.();
-            settleTimerRef.current = setTimeout(() => {
-              if (anchorGeneration === anchorGenerationRef.current) {
-                anchorSettledRef.current = true;
-              }
-            }, ANCHOR_SETTLE_WINDOW_MS);
-          }
-        }
-      };
-
-      void completeInitialScroll();
-    }, [applyAnchorPosition, isInitialAnchorReady, onInitialScrollCompleted]);
+      appliedAnchorPositionRef.current = latestAnchorPositionRef.current;
+      setDidFinishInitialScroll(true);
+      onInitialScrollCompleted?.();
+    }, [isInitialAnchorReady, onInitialScrollCompleted]);
 
     React.useEffect(() => {
       if (
@@ -286,53 +222,8 @@ const ConversationPostList: PostListComponent = React.forwardRef(
         return;
       }
 
-      void applyAnchorPosition().catch(() => {
-        // The list may unmount while the inset correction is in flight.
-      });
+      applyAnchorPosition();
     }, [anchorPosition, applyAnchorPosition, didFinishInitialScroll]);
-
-    // The initial scroll offset is derived from `ESTIMATED_ITEM_SIZE`. Real rows
-    // routinely differ (author row, media, reactions), so re-apply the target
-    // while the rows at or above it settle. Native visible-content preservation
-    // keeps the target locked when rows below it change size.
-    const handleItemSizeChanged = React.useCallback(
-      ({
-        index,
-        size,
-        previous,
-      }: {
-        index: number;
-        size: number;
-        previous: number;
-      }) => {
-        if (
-          anchorSettledRef.current ||
-          userHasScrolledRef.current ||
-          !didStartInitialScrollRef.current ||
-          size === previous
-        ) {
-          return;
-        }
-
-        const target = latestAnchorPositionRef.current;
-        if (!target || target === 'end' || index > target.index) {
-          return;
-        }
-
-        void applyAnchorPosition().catch(() => {
-          // The list can unmount while a correction is in flight.
-        });
-      },
-      [applyAnchorPosition]
-    );
-
-    React.useEffect(() => {
-      return () => {
-        if (settleTimerRef.current) {
-          clearTimeout(settleTimerRef.current);
-        }
-      };
-    }, []);
 
     React.useImperativeHandle(
       forwardedRef,
@@ -406,11 +297,9 @@ const ConversationPostList: PostListComponent = React.forwardRef(
           isInitialAnchorReady ? undefined : { opacity: 0 },
         ]}
         onLoad={handleLoad}
-        onItemSizeChanged={handleItemSizeChanged}
         onScroll={handleScroll}
         onScrollBeginDrag={() => {
           userHasScrolledRef.current = true;
-          anchorSettledRef.current = true;
         }}
         onStartReached={onStartReached}
         onStartReachedThreshold={onStartReachedThreshold}
