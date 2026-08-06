@@ -175,6 +175,9 @@ export function NotesSearchModal({
           gap="$l"
           borderWidth="$2xs"
           borderColor="$activeBorder"
+          // Clips to the capped height so the results list is what scrolls,
+          // rather than the card growing past its own rounded corners.
+          overflow="hidden"
           testID="NotesSearchModal"
         >
           <SearchBar

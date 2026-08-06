@@ -29,6 +29,10 @@ export interface NotesSearchState {
 
 const ELLIPSIS = '…';
 
+// minHeight lets the list shrink below its content inside a flex column; flex
+// gives it the leftover space to scroll within.
+const LIST_STYLE = { flex: 1, minHeight: 0 } as const;
+
 function SegmentedText({
   segments,
   prefix,
@@ -234,6 +238,10 @@ export function NotesSearchResults({
         data={notes}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
+        // Without a bounded height the list grows to its content and its own
+        // scroller never engages — inside the modal's capped card that means
+        // results spill past the edge with no way to reach them.
+        style={LIST_STYLE}
         keyboardShouldPersistTaps="handled"
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
