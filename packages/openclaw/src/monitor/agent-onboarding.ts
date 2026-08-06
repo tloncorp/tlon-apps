@@ -276,6 +276,19 @@ export function inviteCardFallbackText(): string {
 /** Mirrors BotHomeGroupSlugs.slug in @tloncorp/api/types/wayfinding. */
 const HOME_GROUP_SLUG = 'home-group';
 
+/** Mirrors BotHomeGroupSlugs.chatSlug — the home group's chat channel. */
+const HOME_GROUP_CHAT_SLUG = 'home-group-chat';
+
+/** The owner's hosted home group flag — deterministic (see below). */
+export function homeGroupFlagFor(ownerShip: string): string {
+  return `${ownerShip}/${HOME_GROUP_SLUG}`;
+}
+
+/** The home group's chat channel nest, equally deterministic. */
+export function homeGroupChatNestFor(ownerShip: string): string {
+  return `chat/${ownerShip}/${HOME_GROUP_CHAT_SLUG}`;
+}
+
 /**
  * Whether `flag` names the owner's hosted home group — the venue hosting
  * provisioning uses for the account's initial onboarding. Deterministic
@@ -290,7 +303,7 @@ export function isHomeGroupFlag(
   flag: string,
   ownerShip: string | null
 ): boolean {
-  return Boolean(ownerShip) && flag === `${ownerShip}/${HOME_GROUP_SLUG}`;
+  return Boolean(ownerShip) && flag === homeGroupFlagFor(ownerShip!);
 }
 
 /**
@@ -509,6 +522,14 @@ export async function findAgentGroupsAwaitingOpening(
         return false;
       }
       const description = descriptionOf(group);
+      // The hosted home group never carries the marker (provisioning
+      // writes none) but its flag is deterministic, so an existing,
+      // not-yet-set-up home group is always a candidate — its moon is
+      // force-joined, and this sweep plus groups-ui discovery are the only
+      // triggers it has.
+      if (flag === homeGroupFlagFor(ownerShip)) {
+        return !descriptionHasAgentSetup(description);
+      }
       return (
         agentConfigEntries(description).length > 0 &&
         !descriptionHasAgentSetup(description)

@@ -599,6 +599,35 @@ describe('findAgentGroupsAwaitingOpening', () => {
     expect(await findAgentGroupsAwaitingOpening(api, {}, null)).toEqual([]);
   });
 
+  test('the hosted home group is a candidate without a marker', async () => {
+    // Provisioning force-joins the moon (no invite event) and writes no
+    // marker, so an existing unconfigured home group must sweep on its
+    // deterministic flag alone — and drop out once setup writes the config.
+    expect(
+      await findAgentGroupsAwaitingOpening(
+        apiWith({ '~ten/home-group': { description: '' } }),
+        {},
+        '~ten'
+      )
+    ).toEqual(['~ten/home-group']);
+    expect(
+      await findAgentGroupsAwaitingOpening(
+        apiWith({ '~ten/home-group': { description: configured } }),
+        {},
+        '~ten'
+      )
+    ).toEqual([]);
+    // A home group that doesn't exist yet (self-hosted accounts) is not a
+    // candidate — the sweep must not poll for a group that will never come.
+    expect(
+      await findAgentGroupsAwaitingOpening(
+        apiWith({ '~ten/other': { description: '' } }),
+        {},
+        '~ten'
+      )
+    ).toEqual([]);
+  });
+
   test('an unreadable scry yields no candidates', async () => {
     const errors: string[] = [];
     expect(

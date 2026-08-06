@@ -122,6 +122,8 @@ import {
   findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
   findGroupForChannel,
+  homeGroupChatNestFor,
+  homeGroupFlagFor,
   inviteCardFallbackText,
   isFirstConfiguredSetup,
   isHomeGroupFlag,
@@ -1123,7 +1125,9 @@ export async function monitorTlonProvider(
         onboardingSetupPending.set(nest, recoveredPurpose);
         onboardingPickerOffered.add(nest);
         onboardingTopicsOffered.add(nest);
-      } else if (
+        return 'ok';
+      }
+      if (
         topicsPickerAnswered(
           recentPosts,
           botShipName,
@@ -1146,6 +1150,81 @@ export async function monitorTlonProvider(
         onboardingTopicsOffered.add(nest);
       }
       return 'ok';
+    };
+
+    /**
+     * A newly created group the owner hosts: the agent opens the
+     * conversation itself, so the client never has to post an opening line
+     * on the user's behalf. The channel lands moments after the join ack,
+     * so poll for it (bounded); every other case — established group,
+     * unreadable state — stays silent and lets the message-driven offer
+     * handle it.
+     *
+     * Called from three triggers, all funneled through the same guards:
+     * accepting an owner's group invite, the startup sweep over groups
+     * awaiting an opening, and groups-ui discovery of the hosted home group
+     * — whose moon is force-joined by provisioning and so never produces
+     * the invite event the first trigger needs.
+     */
+    const offerOnboardingInNewOwnerGroup = async (groupFlag: string) => {
+      try {
+        const deadline = Date.now() + 45_000;
+        let info: Awaited<ReturnType<typeof findChatNestForGroup>> = null;
+        while (Date.now() < deadline && !opts.abortSignal?.aborted) {
+          info = await findChatNestForGroup(api, groupFlag, runtime);
+          if (info) {
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+        if (!info) {
+          runtime.log?.(
+            `[tlon] Joined ${groupFlag} but never saw its chat channel — skipping onboarding offer`
+          );
+          return;
+        }
+        // The newness probe races %channels: right after the join ack the
+        // posts scry can still fail, and a null answer is fail-closed —
+        // which would silently skip the offer for a group that *is* new.
+        // Poll until the probe answers, on the same deadline.
+        let isNew: boolean | null = null;
+        while (Date.now() < deadline && !opts.abortSignal?.aborted) {
+          isNew = await channelHasNoPosts(api, info.nest, runtime);
+          if (isNew !== null) {
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+        const shouldOffer = shouldOfferPickerOnJoin({
+          groupHostIsOwner: info.host === effectiveOwnerShip,
+          groupDescription: info.description,
+          channelHasNoPosts: isNew,
+          groupHasSingleChannel: info.channelCount <= 1,
+          alreadyOffered: onboardingPickerOffered.has(info.nest),
+        });
+        if (!shouldOffer) {
+          runtime.log?.(
+            `[tlon] No onboarding offer for ${groupFlag}: hostIsOwner=${info.host === effectiveOwnerShip}, channelHasNoPosts=${isNew}, alreadyOffered=${onboardingPickerOffered.has(info.nest)}`
+          );
+          return;
+        }
+        onboardingPickerOffered.add(info.nest);
+        runtime.log?.(
+          `[tlon] Opening new group ${groupFlag} with the purpose picker`
+        );
+        try {
+          await postOnboardingOpening(info.nest);
+        } catch (error) {
+          onboardingPickerOffered.delete(info.nest);
+          runtime.error?.(
+            `[tlon] Failed to open ${groupFlag} with purpose picker: ${String(error)}`
+          );
+        }
+      } catch (error) {
+        runtime.error?.(
+          `[tlon] Onboarding offer for ${groupFlag} failed: ${String(error)}`
+        );
+      }
     };
 
     // Settings store manager for hot-reloading config
@@ -5515,6 +5594,20 @@ export async function monitorTlonProvider(
                         `[tlon] Auto-detected new channel (invite accepted): ${channelNest}`
                       );
 
+                      // The hosted home group's moon is force-joined by
+                      // provisioning — no invite event ever fires — so its
+                      // appearance here is the join signal. The offer's own
+                      // guards (empty, single-channel, unconfigured, once)
+                      // make this a no-op anywhere else.
+                      if (
+                        effectiveOwnerShip &&
+                        channelNest === homeGroupChatNestFor(effectiveOwnerShip)
+                      ) {
+                        void offerOnboardingInNewOwnerGroup(
+                          homeGroupFlagFor(effectiveOwnerShip)
+                        );
+                      }
+
                       // Persist to settings store so it survives restarts
                       if (effectiveAutoAcceptGroupInvites) {
                         try {
@@ -5572,6 +5665,17 @@ export async function monitorTlonProvider(
                         runtime.log?.(
                           `[tlon] Auto-detected joined channel: ${channelNest}`
                         );
+
+                        // Same force-joined home-group signal as above.
+                        if (
+                          effectiveOwnerShip &&
+                          channelNest ===
+                            homeGroupChatNestFor(effectiveOwnerShip)
+                        ) {
+                          void offerOnboardingInNewOwnerGroup(
+                            homeGroupFlagFor(effectiveOwnerShip)
+                          );
+                        }
 
                         // Persist to settings store
                         if (effectiveAutoAcceptGroupInvites) {
@@ -5643,73 +5747,6 @@ export async function monitorTlonProvider(
       // Always subscribe so we can hot-reload the setting via settings store
       {
         const processedGroupInvites = new Set<string>();
-
-        // A newly created group the owner hosts: the agent opens the
-        // conversation itself, so the client never has to post an opening
-        // line on the user's behalf. The channel lands moments after the
-        // join ack, so poll for it (bounded); every other case — established
-        // group, unreadable state — stays silent and lets the message-driven
-        // offer handle it.
-        const offerOnboardingInNewOwnerGroup = async (groupFlag: string) => {
-          try {
-            const deadline = Date.now() + 45_000;
-            let info: Awaited<ReturnType<typeof findChatNestForGroup>> = null;
-            while (Date.now() < deadline && !opts.abortSignal?.aborted) {
-              info = await findChatNestForGroup(api, groupFlag, runtime);
-              if (info) {
-                break;
-              }
-              await new Promise((resolve) => setTimeout(resolve, 2000));
-            }
-            if (!info) {
-              runtime.log?.(
-                `[tlon] Joined ${groupFlag} but never saw its chat channel — skipping onboarding offer`
-              );
-              return;
-            }
-            // The newness probe races %channels: right after the join ack the
-            // posts scry can still fail, and a null answer is fail-closed —
-            // which would silently skip the offer for a group that *is* new.
-            // Poll until the probe answers, on the same deadline.
-            let isNew: boolean | null = null;
-            while (Date.now() < deadline && !opts.abortSignal?.aborted) {
-              isNew = await channelHasNoPosts(api, info.nest, runtime);
-              if (isNew !== null) {
-                break;
-              }
-              await new Promise((resolve) => setTimeout(resolve, 2000));
-            }
-            const shouldOffer = shouldOfferPickerOnJoin({
-              groupHostIsOwner: info.host === effectiveOwnerShip,
-              groupDescription: info.description,
-              channelHasNoPosts: isNew,
-              groupHasSingleChannel: info.channelCount <= 1,
-              alreadyOffered: onboardingPickerOffered.has(info.nest),
-            });
-            if (!shouldOffer) {
-              runtime.log?.(
-                `[tlon] No onboarding offer for ${groupFlag}: hostIsOwner=${info.host === effectiveOwnerShip}, channelHasNoPosts=${isNew}, alreadyOffered=${onboardingPickerOffered.has(info.nest)}`
-              );
-              return;
-            }
-            onboardingPickerOffered.add(info.nest);
-            runtime.log?.(
-              `[tlon] Opening new group ${groupFlag} with the purpose picker`
-            );
-            try {
-              await postOnboardingOpening(info.nest);
-            } catch (error) {
-              onboardingPickerOffered.delete(info.nest);
-              runtime.error?.(
-                `[tlon] Failed to open ${groupFlag} with purpose picker: ${String(error)}`
-              );
-            }
-          } catch (error) {
-            runtime.error?.(
-              `[tlon] Onboarding offer for ${groupFlag} failed: ${String(error)}`
-            );
-          }
-        };
 
         // Helper to process pending invites
         const processPendingInvites = async (foreigns: Foreigns) => {

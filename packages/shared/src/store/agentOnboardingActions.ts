@@ -250,6 +250,33 @@ export async function recordHomeGroupAgent(groupId: string): Promise<void> {
 }
 
 /**
+ * Make sure the home group's agent is recorded on *this* device. The splash
+ * sequence records it during first-run signup, but that runs once per
+ * account, not per device — a re-login or second device would otherwise have
+ * no first-hand agent record, and the bot's onboarding cards would degrade
+ * to text until setup writes the config's `agents` list (which the cards
+ * themselves are the path to). Cheap and idempotent: skipped outright for
+ * accounts without a hosted bot or with the record already present.
+ */
+export async function ensureHomeGroupAgentRecorded(): Promise<void> {
+  try {
+    const botEnabled = await db.hostingBotEnabled.getValue();
+    if (!botEnabled) {
+      return;
+    }
+    const currentUserId = api.getCurrentUserId();
+    const groupId = `${currentUserId}/${BotHomeGroupSlugs.slug}`;
+    const recorded = await db.agentGroupAgents.getValue();
+    if (recorded[groupId]) {
+      return;
+    }
+    await recordHomeGroupAgent(groupId);
+  } catch (error) {
+    logger.trackError('Failed to ensure home group agent record', { error });
+  }
+}
+
+/**
  * The hosted home group's chat channel: the venue for in-channel onboarding
  * (the live bot is already a member there). Prefers the locally-synced rows;
  * on a fresh signup the splash shows before sync runs, so for bot-enabled
