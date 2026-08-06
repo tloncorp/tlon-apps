@@ -21,6 +21,7 @@ import {
   findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
   findGroupForChannel,
+  homeGroupAwaitingOpening,
   isFirstConfiguredSetup,
   isHomeGroupFlag,
   isPurposePickerChoice,
@@ -597,6 +598,33 @@ describe('findAgentGroupsAwaitingOpening', () => {
       '~ten/fresh-agent-group',
     ]);
     expect(await findAgentGroupsAwaitingOpening(api, {}, null)).toEqual([]);
+  });
+
+  test('bot-only posts leave the home group still awaiting its opening', () => {
+    const BOT = '~pinser-botter-forhep-tanmel';
+    const OWNER = '~forhep-tanmel';
+    const legacyWelcome = {
+      author: BOT,
+      content: 'Welcome! This is your private group with me, your Tlonbot.',
+    };
+    // The provisioning-era welcome was posted as the bot and can't be
+    // unsent; it must not block the opening for existing accounts.
+    expect(homeGroupAwaitingOpening([legacyWelcome], BOT)).toBe(true);
+    expect(homeGroupAwaitingOpening([], BOT)).toBe(true);
+    // Anyone else speaking makes it a conversation.
+    expect(
+      homeGroupAwaitingOpening(
+        [legacyWelcome, { author: OWNER, content: 'hello' }],
+        BOT
+      )
+    ).toBe(false);
+    // An opening already posted must not be doubled.
+    expect(
+      homeGroupAwaitingOpening(
+        [legacyWelcome, { author: BOT, content: purposePickerFallbackText() }],
+        BOT
+      )
+    ).toBe(false);
   });
 
   test('the hosted home group is a candidate without a marker', async () => {

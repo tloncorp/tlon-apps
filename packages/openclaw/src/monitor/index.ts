@@ -122,6 +122,7 @@ import {
   findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
   findGroupForChannel,
+  homeGroupAwaitingOpening,
   homeGroupChatNestFor,
   homeGroupFlagFor,
   inviteCardFallbackText,
@@ -1195,10 +1196,39 @@ export async function monitorTlonProvider(
           }
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
+        // The home group gets a softer probe: provisioning historically
+        // posted a legacy welcome into it *as the bot*, and a message can't
+        // be unsent — the strict empty-channel line would permanently block
+        // the opening for every already-provisioned account. Bot-authored
+        // posts alone don't make it a conversation; anyone else speaking
+        // (or an opening already present) still keeps this out. Unreadable
+        // history reads as blocked — another trigger retries.
+        let channelOpenable = isNew;
+        if (
+          channelOpenable === false &&
+          effectiveOwnerShip &&
+          isHomeGroupFlag(groupFlag, effectiveOwnerShip)
+        ) {
+          try {
+            const history = await fetchChannelHistory(
+              api,
+              info.nest,
+              20,
+              runtime,
+              { throwOnError: true }
+            );
+            channelOpenable = homeGroupAwaitingOpening(history, botShipName);
+          } catch (error) {
+            runtime.log?.(
+              `[tlon] Could not read the home group transcript for ${groupFlag}: ${String(error)}`
+            );
+            channelOpenable = false;
+          }
+        }
         const shouldOffer = shouldOfferPickerOnJoin({
           groupHostIsOwner: info.host === effectiveOwnerShip,
           groupDescription: info.description,
-          channelHasNoPosts: isNew,
+          channelHasNoPosts: channelOpenable,
           groupHasSingleChannel: info.channelCount <= 1,
           alreadyOffered: onboardingPickerOffered.has(info.nest),
         });

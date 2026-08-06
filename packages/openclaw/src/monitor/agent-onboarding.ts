@@ -290,6 +290,30 @@ export function homeGroupChatNestFor(ownerShip: string): string {
 }
 
 /**
+ * Whether the home group's chat still counts as unopened despite carrying
+ * posts.
+ *
+ * Everywhere else, "has posts" means "is a conversation" and the opening
+ * stays out. The home group is different: hosting provisioning historically
+ * posted a legacy welcome *as the bot* into it, and a message can't be
+ * unsent — holding the empty-channel line would permanently block the
+ * conversational opening for every already-provisioned account. Posts
+ * authored by the bot alone don't make the group a conversation, so the
+ * opening may still go out over them. The moment anyone else has spoken —
+ * or the opening picker itself is already in the transcript — the channel
+ * is live and this returns false.
+ */
+export function homeGroupAwaitingOpening(
+  history: Array<{ author: string; content: string }>,
+  botShipName: string
+): boolean {
+  return (
+    history.every((entry) => entry.author === botShipName) &&
+    !history.some((entry) => entry.content.startsWith(PURPOSE_PICKER_PROMPT))
+  );
+}
+
+/**
  * Whether `flag` names the owner's hosted home group — the venue hosting
  * provisioning uses for the account's initial onboarding. Deterministic
  * because provisioning creates it with a fixed slug on the owner's own ship;
