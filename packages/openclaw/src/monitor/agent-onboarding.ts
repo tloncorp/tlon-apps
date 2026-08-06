@@ -484,19 +484,32 @@ export function renderSetupDirective(
 }
 
 /**
- * The parse failure of a config-shaped description, or null when the
- * description is prose, empty, or parses cleanly. This is the signature of
- * the worst setup failure observed live: the model writes the config
- * through a shell argument, quoting eats part of the JSON mid-string, and
- * the stored description *looks* like config while parsing as nothing —
- * the app un-recognizes the group's agent, the setup chrome never
- * unlocks, and every "is the setup finished?" check silently answers no,
- * forever. Callers use this to turn that dead end into a repair.
+ * Why a stored description is a broken config write, or null when it is
+ * prose, empty, or parses cleanly. Two signatures, both observed live on
+ * the pool, both from the same root — the model writes the config through
+ * a command string that no shell ever interprets:
+ *
+ * - Config-shaped but unparseable: hand-escaped quoting ate part of the
+ *   JSON mid-string, so the description *looks* like config while parsing
+ *   as nothing.
+ * - A literal, unexpanded command substitution — the description is the
+ *   text `$(cat /tmp/config.json)` itself.
+ *
+ * Either way the app un-recognizes the group's agent, the setup chrome
+ * never unlocks, and every "is the setup finished?" check silently
+ * answers no, forever. Callers use this to turn that dead end into a
+ * repair.
  */
 export function brokenConfigDescriptionError(
   description: string | null | undefined
 ): string | null {
   const trimmed = (description ?? '').trim();
+  if (trimmed.startsWith('$(')) {
+    return (
+      'the stored description is a literal, unexpanded command ' +
+      'substitution — the config JSON never reached the group'
+    );
+  }
   if (!trimmed.startsWith('[')) {
     return null;
   }

@@ -404,6 +404,11 @@ describe('brokenConfigDescriptionError', () => {
     const truncated =
       '[{"type":"tlon-group-agent-config","version":1,"jobs":[{"prompt":"Put together todays';
     expect(brokenConfigDescriptionError(truncated)).toBeTruthy();
+    // Also observed live: the tool ran no shell, so the description became
+    // the literal substitution text instead of the file's JSON.
+    expect(
+      brokenConfigDescriptionError('$(cat /tmp/daily-digest-config.json)')
+    ).toContain('unexpanded');
     expect(brokenConfigDescriptionError('a group about bread')).toBeNull();
     expect(brokenConfigDescriptionError('')).toBeNull();
     expect(brokenConfigDescriptionError(null)).toBeNull();

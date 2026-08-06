@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,6 +56,7 @@ import {
   reportSessionTurnCreated,
   reportTelemetryError,
 } from './src/telemetry.js';
+import { repairTlonCommandArgs } from './src/tlon-arg-repair.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import {
   findTlonSubcommandIndex,
@@ -1094,9 +1096,34 @@ export default defineBundledChannelEntry({
             };
           }
 
-          const output = await runTlonCommand(tlonBinary, args, credentials, {
-            timeoutMs: toolTimeoutMs,
+          // No shell runs between the model's command string and the CLI
+          // spawn, so do what the model meant: expand `$(cat <file>)`
+          // arguments here, and refuse a --description the tokenizer (or a
+          // missed expansion) has mangled — the CLI would otherwise store
+          // it and silently un-recognize the group's agent config.
+          const repaired = repairTlonCommandArgs(args, {
+            readFile: (path) => readFileSync(path, 'utf8'),
           });
+          if (!repaired.ok) {
+            return {
+              content: [{ type: 'text' as const, text: repaired.error }],
+              details: { error: true },
+            };
+          }
+          if (repaired.expandedPaths.length > 0) {
+            api.logger.info(
+              `[tlon] Expanded file substitution(s) in tlon command: ${repaired.expandedPaths.join(', ')}`
+            );
+          }
+
+          const output = await runTlonCommand(
+            tlonBinary,
+            repaired.args,
+            credentials,
+            {
+              timeoutMs: toolTimeoutMs,
+            }
+          );
           return {
             content: [{ type: 'text' as const, text: output }],
             details: undefined,
