@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import * as DocumentPicker from 'expo-document-picker';
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, useWindowDimensions } from 'react-native';
 
@@ -6,6 +7,7 @@ import {
   BucketFileViewer,
   BucketItem,
   BucketSearchResult,
+  BucketUploadCandidate,
   BucketsHeaderActions,
   BucketsNewSheet,
   BucketsPane,
@@ -81,6 +83,7 @@ const initialFiles: Record<string, BucketItem[]> = {
         'application/zip'
       ),
       uploadProgress: 42,
+      uploadState: 'uploading',
     },
   ],
   brand: [
@@ -118,6 +121,45 @@ const initialFiles: Record<string, BucketItem[]> = {
   ],
   archive: [],
 };
+
+const sampleUploadQueue: BucketItem[] = [
+  {
+    ...file(
+      'upload-field-photo',
+      'field-photo.jpg',
+      '~zod',
+      'Uploading',
+      '4.8 MB',
+      'image/jpeg'
+    ),
+    uploadProgress: 62,
+    uploadState: 'uploading',
+  },
+  {
+    ...file(
+      'upload-interviews',
+      'interview-recordings.zip',
+      '~zod',
+      'Waiting',
+      '184 MB',
+      'application/zip'
+    ),
+    uploadProgress: 0,
+    uploadState: 'queued',
+  },
+  {
+    ...file(
+      'upload-research-notes',
+      'research-notes.pdf',
+      '~zod',
+      'Failed',
+      '8.1 MB',
+      'application/pdf'
+    ),
+    uploadError: 'Connection lost',
+    uploadState: 'failed',
+  },
+];
 
 const fakeChannel = {
   id: 'buckets/~zod/project-files',
@@ -174,6 +216,7 @@ function BucketsFixture({
   initialSearchQuery = '',
   newSheetInitiallyOpen = false,
   searchInitiallyOpen = false,
+  showUploadQueueInitially = false,
   state = 'populated',
   viewport,
 }: {
@@ -182,6 +225,7 @@ function BucketsFixture({
   initialSearchQuery?: string;
   newSheetInitiallyOpen?: boolean;
   searchInitiallyOpen?: boolean;
+  showUploadQueueInitially?: boolean;
   state?: FixtureState;
   viewport: 'mobile' | 'desktop' | 'responsive';
 }) {
@@ -211,11 +255,17 @@ function BucketsFixture({
   const [searchOrigin, setSearchOrigin] = useState<SearchOrigin | null>(null);
   const [query, setQuery] = useState(initialSearchQuery);
   const [previewItem, setPreviewItem] = useState<BucketItem | null>(null);
-  const [localFiles, setLocalFiles] = useState(() =>
-    includeSearchRevealFolder
+  const [localFiles, setLocalFiles] = useState(() => {
+    const baseFiles = includeSearchRevealFolder
       ? { ...initialFiles, 'field-notes': searchRevealFiles }
-      : initialFiles
-  );
+      : initialFiles;
+    if (!showUploadQueueInitially) return baseFiles;
+
+    return {
+      ...baseFiles,
+      launch: [...sampleUploadQueue, ...(baseFiles.launch ?? [])],
+    };
+  });
   const canEdit = state !== 'read-only';
   const paneState: BucketsPaneState =
     state === 'read-only' ? 'populated' : state;
@@ -279,29 +329,84 @@ function BucketsFixture({
     }
   };
 
-  const addFolder = () => {
-    const item = folder(`new-folder-${Date.now()}`, 'New folder', 0);
+  const addFolder = (name: string) => {
+    const item = folder(`new-folder-${Date.now()}`, name, 0);
     setLocalFiles((current) => ({
       ...current,
       [currentKey]: [item, ...(current[currentKey] ?? [])],
     }));
   };
 
-  const addUpload = () => {
-    const item = {
-      ...file(
-        `field-photo-${Date.now()}`,
-        'field-photo.jpg',
-        '~zod',
-        'Uploading',
-        '4.8 MB',
-        'image/jpeg'
-      ),
-      uploadProgress: 18,
-    };
+  const addUploads = (candidates: BucketUploadCandidate[]) => {
+    const now = Date.now();
+    const items = candidates.map((candidate, index): BucketItem => {
+      const uploadState =
+        candidates.length > 2 && index === candidates.length - 1
+          ? 'failed'
+          : index % 2 === 1
+            ? 'queued'
+            : 'uploading';
+      return {
+        ...file(
+          `upload-${now}-${index}`,
+          candidate.name,
+          '~zod',
+          uploadState === 'failed' ? 'Failed' : 'Uploading',
+          formatFileSize(candidate.size),
+          candidate.mimeType ?? 'application/octet-stream'
+        ),
+        uploadError: uploadState === 'failed' ? 'Connection lost' : undefined,
+        uploadProgress: uploadState === 'failed' ? undefined : index * 22 + 18,
+        uploadState,
+      };
+    });
+
     setLocalFiles((current) => ({
       ...current,
-      [currentKey]: [item, ...(current[currentKey] ?? [])],
+      [currentKey]: [...items, ...(current[currentKey] ?? [])],
+    }));
+  };
+
+  const chooseUploads = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      multiple: true,
+      type: '*/*',
+    });
+    if (!result.assets?.length) return;
+
+    addUploads(
+      result.assets.map((asset) => ({
+        mimeType: asset.mimeType ?? undefined,
+        name: asset.name,
+        size: asset.size ?? -1,
+      }))
+    );
+  };
+
+  const cancelUpload = (item: BucketItem) => {
+    setLocalFiles((current) => ({
+      ...current,
+      [currentKey]: (current[currentKey] ?? []).filter(
+        (candidate) => candidate.id !== item.id
+      ),
+    }));
+  };
+
+  const retryUpload = (item: BucketItem) => {
+    setLocalFiles((current) => ({
+      ...current,
+      [currentKey]: (current[currentKey] ?? []).map((candidate) =>
+        candidate.id === item.id
+          ? {
+              ...candidate,
+              modifiedLabel: 'Uploading',
+              uploadError: undefined,
+              uploadProgress: 8,
+              uploadState: 'uploading',
+            }
+          : candidate
+      ),
     }));
   };
 
@@ -339,7 +444,10 @@ function BucketsFixture({
     items: paneState === 'empty' ? [] : visibleItems,
     selectedItemId,
     state: paneState,
+    onCancelUpload: cancelUpload,
+    onFilesDropped: addUploads,
     onOpenItem: openItem,
+    onRetryUpload: retryUpload,
     onDeleteItem: (item: BucketItem) =>
       setLocalFiles((current) => ({
         ...current,
@@ -412,7 +520,7 @@ function BucketsFixture({
                 open={newSheetOpen}
                 onNewFolder={addFolder}
                 onOpenChange={setNewSheetOpen}
-                onUploadFiles={addUpload}
+                onUploadFiles={() => void chooseUploads()}
               />
             </YStack>
           ) : (
@@ -460,7 +568,7 @@ function BucketsFixture({
                   open={newSheetOpen}
                   onNewFolder={addFolder}
                   onOpenChange={setNewSheetOpen}
-                  onUploadFiles={addUpload}
+                  onUploadFiles={() => void chooseUploads()}
                 />
               </YStack>
             </XStack>
@@ -469,6 +577,16 @@ function BucketsFixture({
       </YStack>
     </FixtureWrapper>
   );
+}
+
+function formatFileSize(size: number) {
+  if (size < 0) return 'Unknown size';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  if (size < 1024 * 1024 * 1024) {
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 function RegisteredHeaderActions({
@@ -511,6 +629,13 @@ export default {
     />
   ),
   'New action': <BucketsFixture viewport="mobile" newSheetInitiallyOpen />,
+  'Upload queue': (
+    <BucketsFixture
+      viewport="mobile"
+      initialFolderId="launch"
+      showUploadQueueInitially
+    />
+  ),
   Empty: <BucketsFixture viewport="mobile" state="empty" />,
   Loading: <BucketsFixture viewport="mobile" state="loading" />,
   'Read only': <BucketsFixture viewport="responsive" state="read-only" />,
