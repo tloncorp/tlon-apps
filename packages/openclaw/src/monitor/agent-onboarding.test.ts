@@ -26,6 +26,7 @@ import {
   isFirstConfiguredSetup,
   isHomeGroupFlag,
   isPurposePickerChoice,
+  pendingTopicsOfferFromHistory,
   purposePickerFallbackText,
   renderSetupDirective,
   setupOutputNotebookNest,
@@ -395,6 +396,60 @@ describe('group/channel resolution', () => {
     expect(await channelHasNoPosts(failing, nest, {})).toBe(null);
     expect(await channelHasNoPosts(null, nest, {})).toBe(null);
     expect(await channelHasNoPosts(apiWith(null), nest, {})).toBe(null);
+  });
+});
+
+describe('pendingTopicsOfferFromHistory', () => {
+  const BOT = '~pinser-botter-sampel-palnet';
+  const OWNER = '~sampel-palnet';
+  const opening = (t: number) => ({
+    author: BOT,
+    content: purposePickerFallbackText(),
+    timestamp: t,
+  });
+  const tap = (t: number) => ({
+    author: OWNER,
+    content: 'A daily digest',
+    timestamp: t,
+  });
+  const pills = (t: number) => ({
+    author: BOT,
+    content: topicsPickerFallbackText('agent-daily-digest'),
+    timestamp: t,
+  });
+
+  test('finds a tap the gateway never answered', () => {
+    // Observed live: the tap landed during a gateway restart, so no
+    // message event ever produced the pills and the owner sat stuck.
+    expect(
+      pendingTopicsOfferFromHistory([opening(1), tap(2)], BOT, OWNER)
+    ).toBe('agent-daily-digest');
+    // A duplicate tap doesn't change the answer.
+    expect(
+      pendingTopicsOfferFromHistory([opening(1), tap(2), tap(3)], BOT, OWNER)
+    ).toBe('agent-daily-digest');
+  });
+
+  test('stays out once pills exist or the owner moved on', () => {
+    expect(
+      pendingTopicsOfferFromHistory([opening(1), tap(2), pills(3)], BOT, OWNER)
+    ).toBeUndefined();
+    expect(
+      pendingTopicsOfferFromHistory(
+        [
+          opening(1),
+          tap(2),
+          { author: OWNER, content: 'actually, hello?', timestamp: 3 },
+        ],
+        BOT,
+        OWNER
+      )
+    ).toBeUndefined();
+  });
+
+  test('requires the opening picker in the transcript', () => {
+    // A bare card-title message with no picker below it is just text.
+    expect(pendingTopicsOfferFromHistory([tap(2)], BOT, OWNER)).toBeUndefined();
   });
 });
 

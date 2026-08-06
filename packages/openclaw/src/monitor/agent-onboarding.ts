@@ -784,6 +784,55 @@ export function topicsPickerAnswered(
   return false;
 }
 
+/**
+ * The purpose whose card tap is still waiting for the topic pills: the
+ * owner's newest substantive message is a purpose-card title, the opening
+ * picker exists in the transcript, and no topics prompt ever followed.
+ * This is the shape a missed message leaves behind — the tap landed while
+ * the gateway was restarting (or the pills post failed), so no live
+ * handler will ever answer it and the owner is stuck staring at their own
+ * tap. The sweep uses this to post the pills the tap already earned.
+ */
+export function pendingTopicsOfferFromHistory(
+  history: Array<{ author: string; content: string; timestamp?: number }>,
+  botShip: string,
+  ownerShip: string
+): string | undefined {
+  const newestFirst = [...history].sort(
+    (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)
+  );
+  let tappedPurpose: string | undefined;
+  let sawOpening = false;
+  for (const entry of newestFirst) {
+    const content = entry.content.trim();
+    if (entry.author === botShip) {
+      if (content.startsWith(TOPICS_PICKER_PROMPT)) {
+        // Pills were posted — answered or not, the other recovery paths
+        // own that shape.
+        return undefined;
+      }
+      if (content.startsWith(PURPOSE_PICKER_PROMPT)) {
+        sawOpening = true;
+      }
+      continue;
+    }
+    if (entry.author === ownerShip && content) {
+      if (tappedPurpose === undefined) {
+        const purposeId = purposeIdForChoice(content);
+        if (!purposeId) {
+          // The owner's newest message is ordinary text — the model owns
+          // that conversation; re-offering pills over it would be noise.
+          return undefined;
+        }
+        tappedPurpose = purposeId;
+      }
+      // Older owner messages don't change the answer; keep scanning for
+      // the opening below.
+    }
+  }
+  return sawOpening ? tappedPurpose : undefined;
+}
+
 export function derivePendingPurposeFromHistory(
   history: Array<{ author: string; content: string; timestamp?: number }>,
   botShip: string,

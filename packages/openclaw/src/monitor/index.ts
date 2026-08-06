@@ -135,6 +135,7 @@ import {
   isFirstConfiguredSetup,
   isHomeGroupFlag,
   isPurposePickerChoice,
+  pendingTopicsOfferFromHistory,
   purposePickerFallbackText,
   renderSetupDirective,
   servicesCardFallbackText,
@@ -1363,6 +1364,34 @@ export async function monitorTlonProvider(
      * one run — the triggers overlap by design, and racing them past the
      * guards would double-post the opening.
      */
+    /**
+     * Post the topic pills and arm the pending setup, shared by the live
+     * tap handler and the sweep's missed-tap recovery. On a failed post the
+     * state is rolled back entirely: the owner never saw pills, so their
+     * next message must not be consumed as a topics reply.
+     */
+    const postTopicsPickerOffer = async (
+      nest: string,
+      purposeId: string
+    ): Promise<boolean> => {
+      onboardingTopicsOffered.add(nest);
+      onboardingSetupPending.set(nest, purposeId);
+      try {
+        const topicsBlob = buildTopicsPickerBlob(nest, purposeId);
+        await postToChannel(nest, topicsPickerFallbackText(purposeId), {
+          ...(topicsBlob ? { blob: serializeBlobField(topicsBlob) } : {}),
+        });
+        return true;
+      } catch (error) {
+        onboardingTopicsOffered.delete(nest);
+        onboardingSetupPending.delete(nest);
+        runtime.error?.(
+          `[tlon] Failed to post topics picker in ${nest}: ${String(error)}`
+        );
+        return false;
+      }
+    };
+
     const onboardingOffersInFlight = new Map<
       string,
       Promise<'opened' | 'settled' | 'retry'>
@@ -1420,26 +1449,72 @@ export async function monitorTlonProvider(
         // history reads as blocked — another trigger retries.
         let channelOpenable = isNew;
         let probeUnreadable = false;
+        let probeHistory: Awaited<
+          ReturnType<typeof fetchChannelHistory>
+        > | null = null;
         if (
           channelOpenable === false &&
           effectiveOwnerShip &&
           isHomeGroupFlag(groupFlag, effectiveOwnerShip)
         ) {
           try {
-            const history = await fetchChannelHistory(
+            probeHistory = await fetchChannelHistory(
               api,
               info.nest,
               20,
               runtime,
               { throwOnError: true }
             );
-            channelOpenable = homeGroupAwaitingOpening(history, botShipName);
+            channelOpenable = homeGroupAwaitingOpening(
+              probeHistory,
+              botShipName
+            );
           } catch (error) {
             runtime.log?.(
               `[tlon] Could not read the home group transcript for ${groupFlag}: ${String(error)}`
             );
             channelOpenable = false;
             probeUnreadable = true;
+          }
+        }
+        // A tap that landed while the gateway was restarting leaves the
+        // picker answered with no pills after it — no message event will
+        // ever answer it, so the sweep does. Only while this process knows
+        // of no live onboarding in the channel: pills it already offered
+        // (or a setup in flight) mean the message path owns it.
+        if (
+          channelOpenable === false &&
+          !probeUnreadable &&
+          effectiveOwnerShip &&
+          !onboardingTopicsOffered.has(info.nest) &&
+          !onboardingSetupPending.has(info.nest) &&
+          !onboardingInvitePending.has(info.nest)
+        ) {
+          try {
+            const history =
+              probeHistory ??
+              (await fetchChannelHistory(api, info.nest, 20, runtime, {
+                throwOnError: true,
+              }));
+            const pendingPurpose = pendingTopicsOfferFromHistory(
+              history,
+              botShipName,
+              effectiveOwnerShip
+            );
+            if (pendingPurpose) {
+              onboardingPickerOffered.add(info.nest);
+              runtime.log?.(
+                `[tlon] Re-offering the topics picker in ${info.nest}: a purpose tap was never answered`
+              );
+              return (await postTopicsPickerOffer(info.nest, pendingPurpose))
+                ? 'opened'
+                : 'retry';
+            }
+          } catch (error) {
+            runtime.log?.(
+              `[tlon] Could not scan ${info.nest} for a pending topics offer: ${String(error)}`
+            );
+            return 'retry';
           }
         }
         const shouldOffer = shouldOfferPickerOnJoin({
@@ -4667,33 +4742,16 @@ export async function monitorTlonProvider(
         if (onboardingOffer && !onboardingTopicsOffered.has(nest)) {
           const topicsPurposeId = shouldOfferTopicsPicker(onboardingOffer);
           if (topicsPurposeId) {
-            onboardingTopicsOffered.add(nest);
-            onboardingSetupPending.set(nest, topicsPurposeId);
             runtime.log?.(
               `[tlon] Offering agent onboarding topics picker in ${nest}`
             );
-            try {
-              const topicsBlob = buildTopicsPickerBlob(nest, topicsPurposeId);
-              await postToChannel(
-                nest,
-                topicsPickerFallbackText(topicsPurposeId),
-                {
-                  ...(topicsBlob
-                    ? { blob: serializeBlobField(topicsBlob) }
-                    : {}),
-                }
-              );
-              return;
-            } catch (error) {
-              onboardingTopicsOffered.delete(nest);
-              // The pending purpose must not outlive the failed post: the
-              // owner never saw the pills, so their next message is not a
-              // topics reply and must not receive the setup directive.
-              onboardingSetupPending.delete(nest);
-              runtime.error?.(
-                `[tlon] Failed to post topics picker in ${nest}: ${String(error)}`
-              );
-            }
+            await postTopicsPickerOffer(nest, topicsPurposeId);
+            // The tap is spent either way. On success the pills are the
+            // reply; on a failed post the owner saw nothing, and letting a
+            // bare card title fall through would start a stray model turn
+            // over the half-configured group — the sweep re-offers the
+            // pills from the transcript instead.
+            return;
           }
         }
 
