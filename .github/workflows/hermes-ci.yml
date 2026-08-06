@@ -7,6 +7,10 @@ on:
       - "packages/tlon-bot-e2e/**"
       - "packages/tlon-skill/**"
       - "packages/api/**"
+      - "desk/**"
+      - "peru.yaml"
+      - "scripts/assemble-desk.sh"
+      - "scripts/sync-deps.sh"
       - "pnpm-lock.yaml"
       - ".github/workflows/hermes-ci.yml"
 
@@ -18,6 +22,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install peru
+        run: pipx install --force peru
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4

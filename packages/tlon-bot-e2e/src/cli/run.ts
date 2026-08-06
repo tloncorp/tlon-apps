@@ -10,6 +10,7 @@ import type {
   RuntimeContext,
   RuntimeSeed,
 } from '../drivers/types.js';
+import { applyBranchDesk } from '../runtime/branch-desk.js';
 import { runCommand } from '../runtime/compose.js';
 import { createComposeHandle } from '../runtime/compose.js';
 import {
@@ -42,6 +43,7 @@ const packageDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '../..'
 );
+const COMPOSE_UP_TIMEOUT_MS = 300_000;
 
 async function main(): Promise<void> {
   await loadPackageEnv();
@@ -139,8 +141,12 @@ async function runDriverRuntime(args: {
     await args.driver.beforeComposeBuild?.(ctx);
     await compose.build([ctx.services.bot]);
     await args.driver.beforeComposeUp?.(ctx, compose);
-    await compose.up();
+    await compose.up([ctx.services.ships, ctx.services.fakeModel], {
+      timeoutMs: COMPOSE_UP_TIMEOUT_MS,
+    });
     await waitForBaseServices(ctx);
+    await applyBranchDesk(ctx);
+    await compose.up([], { timeoutMs: COMPOSE_UP_TIMEOUT_MS });
     await args.driver.waitReady(ctx, compose);
     await args.driver.assertRuntimeConfig?.(ctx, compose);
     await args.runTests(ctx);

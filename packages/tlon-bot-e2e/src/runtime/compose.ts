@@ -69,8 +69,10 @@ export function createComposeHandle(
       await runCompose(['build', ...services]);
     },
 
-    async up(services = []) {
-      await runCompose(['up', '-d', ...services]);
+    async up(services = [], opts = {}) {
+      await runCompose(['up', '-d', ...services], {
+        timeoutMs: opts.timeoutMs,
+      });
     },
 
     async ps(opts = {}): Promise<ComposeServiceState[]> {

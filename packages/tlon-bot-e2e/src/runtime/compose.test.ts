@@ -81,6 +81,29 @@ describe('runCommand', () => {
   });
 });
 
+describe('createComposeHandle up', () => {
+  test('passes the staged startup timeout to docker compose', async () => {
+    const run = commandRunner([{}]);
+    const compose = createComposeHandle(context(), run);
+
+    await compose.up(['ships', 'fake-model'], { timeoutMs: 300_000 });
+
+    expect(run).toHaveBeenCalledWith(
+      'docker',
+      [
+        'compose',
+        '-f',
+        '/repo/packages/tlon-bot-e2e/docker-compose.yml',
+        'up',
+        '-d',
+        'ships',
+        'fake-model',
+      ],
+      expect.objectContaining({ timeoutMs: 300_000 })
+    );
+  });
+});
+
 describe('createComposeHandle down', () => {
   test('default strict teardown runs `down -v` bounded and rejects on nonzero', async () => {
     const run = commandRunner([{ exitCode: 1, stderr: 'network gone' }]);

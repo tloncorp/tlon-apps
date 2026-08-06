@@ -4,6 +4,7 @@ import type { RuntimeContext } from '../drivers/types.js';
 import {
   type DockerCommandRunner,
   connectComposeNetwork,
+  copyIntoComposeService,
   disconnectComposeNetwork,
   execInComposeService,
   readComposeServiceLogs,
@@ -91,6 +92,23 @@ describe('direct Docker compose-service helpers', () => {
         run
       )
     ).resolves.toMatchObject({ exitCode: 17, stderr: 'cron failed' });
+  });
+
+  test('copies a runner directory into the resolved service container', async () => {
+    const run = commandRunner([{ stdout: 'container-id\n' }, {}]);
+
+    await copyIntoComposeService(
+      context(),
+      'ships',
+      '/tmp/desk/.',
+      '/tmp/staged-desk',
+      run
+    );
+    expect(run).toHaveBeenLastCalledWith(
+      'docker',
+      ['cp', '/tmp/desk/.', 'container-id:/tmp/staged-desk'],
+      expect.objectContaining({ timeoutMs: 60_000 })
+    );
   });
 
   test('disconnects a service from the compose network', async () => {

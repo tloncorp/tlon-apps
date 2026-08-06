@@ -125,6 +125,22 @@ export async function execInComposeService(
   );
 }
 
+export async function copyIntoComposeService(
+  ctx: RuntimeContext,
+  service: string,
+  source: string,
+  destination: string,
+  run: DockerCommandRunner = runCommand
+): Promise<void> {
+  const container = await resolveComposeContainer(ctx, service, run);
+  const result = await runDocker(
+    ctx,
+    ['cp', source, `${container}:${destination}`],
+    run
+  );
+  requireSuccess(result, `copy into service ${service}`);
+}
+
 export async function disconnectComposeNetwork(
   ctx: RuntimeContext,
   service: string,
