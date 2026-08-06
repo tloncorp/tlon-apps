@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 import type { Story } from '../../urbit/channel';
+import { convertContent } from '../postContent';
+import { markdownToStory } from './parse';
 import { storyToMarkdown } from './serialize';
 import { storyToMdast } from './storyToMdast';
 
@@ -569,6 +571,28 @@ describe('backend Story wire regression', () => {
           fixture === 'hand-authored-wire-exact-story-variants.json'
       )
     ).toBe(true);
+  });
+
+  test('serializes every fixture Story idempotently', () => {
+    for (const row of stories) {
+      const once = storyToMarkdown(row.story);
+      const twice = storyToMarkdown(markdownToStory(once));
+      expect(
+        twice,
+        `${row.fixture} ${row.path}\n${JSON.stringify(row.story)}`
+      ).toBe(once);
+    }
+  });
+
+  test('re-parses every fixture Story into renderable content', () => {
+    for (const row of stories) {
+      const markdown = storyToMarkdown(row.story);
+      const reparsed = markdownToStory(markdown);
+      expect(
+        JSON.stringify(convertContent(reparsed, null)),
+        `${row.fixture} ${row.path}\n${JSON.stringify(row.story)}`
+      ).not.toContain('Unknown content type');
+    }
   });
 
   test.each(stories)(

@@ -72,6 +72,16 @@
         ]
       }
     ],
+    "consecutiveBreaksBeforeBlockquote": [
+      {
+        "inline": [
+          "wire-exact-before-breaks",
+          { "break": null },
+          { "break": null },
+          { "blockquote": ["wire-exact-after-breaks"] }
+        ]
+      }
+    ],
     "nestedBlockquote": [
       {
         "inline": [
