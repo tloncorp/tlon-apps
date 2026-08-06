@@ -4,7 +4,7 @@ import {
   buildNoteSnippet,
   buildNoteTitleSegments,
 } from '@tloncorp/shared/logic';
-import { LoadingSpinner } from '@tloncorp/ui';
+import { LoadingSpinner, Pressable } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { FlatList } from 'react-native';
 import { SizableText, View, XStack, YStack } from 'tamagui';
@@ -77,50 +77,50 @@ function NotesSearchResultRowComponent({
   const updatedAt = noteTimestampMs(note.updatedAt ?? note.createdAt);
 
   return (
-    <ListItem
-      alignItems="stretch"
-      backgroundColor={selected ? '$shadow' : 'transparent'}
-      borderRadius="$xl"
-      gap="$l"
-      paddingHorizontal="$l"
-      paddingVertical="$l"
-      pressStyle={{ backgroundColor: '$shadow' }}
-      onPress={onPress}
-      testID={`NotesSearchResultRow-${note.noteId}`}
-    >
-      <ListItem.SystemIcon icon="ChannelNote" />
-      <ListItem.MainContent>
-        <ListItem.Title
-          size="$body"
-          color="$primaryText"
-          fontWeight="400"
-          letterSpacing={0}
-        >
-          <SegmentedText segments={titleSegments} />
-        </ListItem.Title>
-        {snippet.segments.length > 0 ? (
-          <ListItem.Subtitle numberOfLines={2}>
-            <SegmentedText
-              segments={snippet.segments}
-              prefix={snippet.elidedStart ? ELLIPSIS : undefined}
-              suffix={snippet.elidedEnd ? ELLIPSIS : undefined}
-            />
-          </ListItem.Subtitle>
-        ) : null}
-      </ListItem.MainContent>
-      <ListItem.EndContent>
-        <XStack alignItems="center" gap="$xs">
-          {folderLabel ? (
-            <SizableText size="$s" color="$tertiaryText" numberOfLines={1}>
-              {folderLabel}
-            </SizableText>
+    <Pressable onPress={onPress} testID={`NotesSearchResultRow-${note.noteId}`}>
+      <ListItem
+        alignItems="stretch"
+        backgroundColor={selected ? '$shadow' : 'transparent'}
+        borderRadius="$xl"
+        gap="$l"
+        hoverStyle={{ backgroundColor: '$shadow' }}
+        paddingHorizontal="$l"
+        paddingVertical="$l"
+      >
+        <ListItem.SystemIcon icon="ChannelNote" />
+        <ListItem.MainContent>
+          <ListItem.Title
+            size="$body"
+            color="$primaryText"
+            fontWeight="400"
+            letterSpacing={0}
+          >
+            <SegmentedText segments={titleSegments} />
+          </ListItem.Title>
+          {snippet.segments.length > 0 ? (
+            <ListItem.Subtitle numberOfLines={2}>
+              <SegmentedText
+                segments={snippet.segments}
+                prefix={snippet.elidedStart ? ELLIPSIS : undefined}
+                suffix={snippet.elidedEnd ? ELLIPSIS : undefined}
+              />
+            </ListItem.Subtitle>
           ) : null}
-          {updatedAt ? (
-            <ListItem.Time time={updatedAt} letterSpacing={0} />
-          ) : null}
-        </XStack>
-      </ListItem.EndContent>
-    </ListItem>
+        </ListItem.MainContent>
+        <ListItem.EndContent>
+          <XStack alignItems="center" gap="$xs">
+            {folderLabel ? (
+              <SizableText size="$s" color="$tertiaryText" numberOfLines={1}>
+                {folderLabel}
+              </SizableText>
+            ) : null}
+            {updatedAt ? (
+              <ListItem.Time time={updatedAt} letterSpacing={0} />
+            ) : null}
+          </XStack>
+        </ListItem.EndContent>
+      </ListItem>
+    </Pressable>
   );
 }
 
