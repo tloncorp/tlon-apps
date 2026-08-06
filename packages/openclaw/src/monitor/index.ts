@@ -138,6 +138,7 @@ import {
   purposePickerFallbackText,
   renderSetupDirective,
   servicesCardFallbackText,
+  setupOutputNotebookNest,
   shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
@@ -1033,6 +1034,67 @@ export async function monitorTlonProvider(
       }
     };
 
+    /**
+     * Whether the closing should wait for the setup's output notebook to
+     * hold its first entry. The cards say the setup is done; a notebook the
+     * owner opens to find empty says otherwise (observed live — and the
+     * directive's own "verify the entry landed" instruction is a promise,
+     * not a check). Read from the bot's ship, which hosts the notebook, so
+     * a real entry answers immediately. Bounded: an entry that never
+     * materializes stops holding the cards hostage after ~5 minutes, and a
+     * setup with no notebook (chat-fallback, freeform) never waits at all.
+     */
+    const emptyNotebookWaits = new Map<string, number>();
+    const MAX_EMPTY_NOTEBOOK_WAITS = 15;
+    const closingAwaitsNotebookEntry = async (
+      nest: string,
+      group: { flag: string; description: string }
+    ): Promise<boolean> => {
+      const waits = emptyNotebookWaits.get(nest) ?? 0;
+      if (waits >= MAX_EMPTY_NOTEBOOK_WAITS) {
+        return false;
+      }
+      let notesNest: string | null = null;
+      try {
+        notesNest = await setupOutputNotebookNest(
+          api,
+          group.flag,
+          group.description,
+          runtime
+        );
+      } catch {
+        // Unreadable groups state: wait a tick rather than guess.
+        emptyNotebookWaits.set(nest, waits + 1);
+        return true;
+      }
+      if (!notesNest) {
+        return false;
+      }
+      try {
+        // Counted from the raw outline rather than extracted messages: an
+        // entry whose text extraction comes up empty is still an entry.
+        const data: any = await api.scry(
+          `/channels/v4/${notesNest}/posts/newest/1/outline.json`
+        );
+        const posts = Array.isArray(data) ? data : data?.posts ?? data ?? {};
+        const count = Array.isArray(posts)
+          ? posts.length
+          : Object.keys(posts).length;
+        if (count > 0) {
+          emptyNotebookWaits.delete(nest);
+          return false;
+        }
+      } catch {
+        // Fall through to waiting: unreadable and empty must not look alike
+        // to the cards.
+      }
+      emptyNotebookWaits.set(nest, waits + 1);
+      runtime.log?.(
+        `[tlon] Holding the closing in ${nest}: the output notebook has no entry yet (${waits + 1}/${MAX_EMPTY_NOTEBOOK_WAITS})`
+      );
+      return true;
+    };
+
     const postInviteCardIfSetupComplete = async (
       nest: string
     ): Promise<void> => {
@@ -1050,6 +1112,9 @@ export async function monitorTlonProvider(
         }
         if (!descriptionHasConfiguredJob(group.description)) {
           maybeNudgeConfigRepair(nest, group.flag, group.description);
+          return;
+        }
+        if (await closingAwaitsNotebookEntry(nest, group)) {
           return;
         }
         // 100 posts bounds the recovery window: a setup conversation runs a
@@ -4801,6 +4866,21 @@ export async function monitorTlonProvider(
                 post: async (text) => {
                   await postToChannel(nest, text);
                 },
+                // The thinking indicator names the current step: one tool
+                // at a time, so a long icon generation reads as exactly
+                // that instead of an ever-growing tool list.
+                presence: (toolName, label) => {
+                  computingPresence.clearToolCalls({
+                    conversationId: nest,
+                    runId: `setup:${nest}`,
+                  });
+                  computingPresence.addToolCall({
+                    conversationId: nest,
+                    runId: `setup:${nest}`,
+                    toolName,
+                    label,
+                  });
+                },
               });
               setupProgressSessionForNest.set(nest, progressRoute.sessionKey);
             }
@@ -4833,8 +4913,26 @@ export async function monitorTlonProvider(
             }
           }
         }
+        let setupPresenceKeepalive: ReturnType<typeof setInterval> | null =
+          null;
         if (setupDirective) {
           onboardingSetupTurnInFlight.add(nest);
+          // A dedicated presence run for the build: the dispatch's own run
+          // stops at its first delivery, and a minutes-long icon generation
+          // would otherwise sit with no indicator at all. Kept alive for
+          // exactly the turn, so the indicator never lingers while the bot
+          // waits on the owner.
+          const setupPresenceRun = {
+            conversationId: nest,
+            runId: `setup:${nest}`,
+          };
+          computingPresence.refreshRun(setupPresenceRun);
+          setupPresenceKeepalive = setInterval(() => {
+            computingPresence.refreshRun(setupPresenceRun);
+          }, 20_000);
+          (
+            setupPresenceKeepalive as unknown as { unref?: () => void }
+          ).unref?.();
         }
         try {
           await processMessage({
@@ -4868,6 +4966,13 @@ export async function monitorTlonProvider(
         } finally {
           if (setupDirective) {
             onboardingSetupTurnInFlight.delete(nest);
+            if (setupPresenceKeepalive) {
+              clearInterval(setupPresenceKeepalive);
+            }
+            computingPresence.stopRun({
+              conversationId: nest,
+              runId: `setup:${nest}`,
+            });
           }
         }
 

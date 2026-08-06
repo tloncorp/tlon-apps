@@ -17,6 +17,7 @@
 
 type SetupProgressEntry = {
   post: (text: string) => Promise<void>;
+  presence?: (toolName: string, label: string) => void;
   posted: Set<string>;
   expiresAt: number;
 };
@@ -89,7 +90,15 @@ export function setupProgressLabelFor(
 
 export function armSetupProgress(
   sessionKey: string,
-  deps: { post: (text: string) => Promise<void> },
+  deps: {
+    post: (text: string) => Promise<void>;
+    /**
+     * Reflect the current step into the channel's thinking indicator —
+     * called on every recognized tool call (the presence tracker dedupes),
+     * where `post` fires once per label.
+     */
+    presence?: (toolName: string, label: string) => void;
+  },
   now = Date.now()
 ): void {
   if (!sessionKey) {
@@ -97,6 +106,7 @@ export function armSetupProgress(
   }
   armedSessions.set(sessionKey, {
     post: deps.post,
+    presence: deps.presence,
     posted: new Set(),
     expiresAt: now + SETUP_PROGRESS_TTL_MS,
   });
@@ -107,8 +117,9 @@ export function disarmSetupProgress(sessionKey: string): void {
 }
 
 /**
- * Post the status line this tool call earns, once per armed setup. Never
- * throws and never blocks — a failed status post must not touch the build.
+ * Post the status line this tool call earns, once per armed setup, and
+ * keep the thinking indicator naming the current step. Never throws and
+ * never blocks — a failed status post must not touch the build.
  */
 export function noteToolCallForSetupProgress(
   sessionKey: string | undefined,
@@ -128,7 +139,15 @@ export function noteToolCallForSetupProgress(
     return;
   }
   const label = setupProgressLabelFor(toolName, params);
-  if (!label || entry.posted.has(label)) {
+  if (!label) {
+    return;
+  }
+  try {
+    entry.presence?.(toolName, label.replace(/…$/, ''));
+  } catch {
+    // Presence is cosmetic too.
+  }
+  if (entry.posted.has(label)) {
     return;
   }
   entry.posted.add(label);

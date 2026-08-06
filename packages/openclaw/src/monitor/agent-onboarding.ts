@@ -645,6 +645,34 @@ export async function findAgentGroupsAwaitingOpening(
     .map(([flag]) => flag);
 }
 
+/**
+ * The setup's output notebook, or null when the setup has none — the
+ * 404-fallback path records a *chat* nest as outputNest, and a freeform
+ * build may skip the notebook entirely. Prefers the nest the config
+ * records; falls back to the group's notes channel, since the first run
+ * creates the channel before it records it.
+ */
+export async function setupOutputNotebookNest(
+  api: ScryApi,
+  flag: string,
+  description: string | null | undefined,
+  runtime: Runtime
+): Promise<string | null> {
+  for (const entry of agentConfigEntries(description)) {
+    const jobs = Array.isArray(entry.jobs) ? entry.jobs : [];
+    for (const job of jobs) {
+      const out = (job as { outputNest?: unknown })?.outputNest;
+      if (typeof out === 'string' && out.startsWith('notes/')) {
+        return out;
+      }
+    }
+  }
+  const groups = await scryGroups(api, runtime, `notes channel for ${flag}`);
+  const group = groups?.[flag];
+  const nests = group ? nestsOf(group) : [];
+  return nests.find((key) => key.startsWith('notes/')) ?? null;
+}
+
 /** Find the group that owns `nest`, with its host and description. */
 export async function findGroupForChannel(
   api: ScryApi,

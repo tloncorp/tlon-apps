@@ -2,8 +2,10 @@ const COMPUTING_STATUS_PROTOCOL = 'tlon.computing-status.v1' as const;
 
 const TOOL_LABELS: Record<string, string> = {
   exec: 'Running a command',
+  image: 'Generating an image',
   read: 'Reading files',
   web_fetch: 'Checking the web',
+  web_search: 'Searching the web',
 };
 
 export interface ComputingToolCall {

@@ -74,6 +74,26 @@ describe('noteToolCallForSetupProgress', () => {
     expect(posted).toHaveLength(2);
   });
 
+  it('reflects every recognized call into presence, without the ellipsis', () => {
+    const presenceCalls: Array<[string, string]> = [];
+    armSetupProgress('agent:main:presence', {
+      post: async () => {},
+      presence: (toolName, label) => {
+        presenceCalls.push([toolName, label]);
+      },
+    });
+    noteToolCallForSetupProgress('agent:main:presence', 'web_search', {});
+    // Presence repeats per call (the tracker dedupes); the posted line
+    // does not.
+    noteToolCallForSetupProgress('agent:main:presence', 'web_search', {});
+    noteToolCallForSetupProgress('agent:main:presence', 'image', {});
+    expect(presenceCalls).toEqual([
+      ['web_search', 'Searching the web'],
+      ['web_search', 'Searching the web'],
+      ['image', 'Generating the group icon'],
+    ]);
+  });
+
   it('expires an armed session after its TTL', async () => {
     const posted: string[] = [];
     armSetupProgress('agent:main:ttl', {

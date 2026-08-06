@@ -28,6 +28,7 @@ import {
   isPurposePickerChoice,
   purposePickerFallbackText,
   renderSetupDirective,
+  setupOutputNotebookNest,
   shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
@@ -394,6 +395,56 @@ describe('group/channel resolution', () => {
     expect(await channelHasNoPosts(failing, nest, {})).toBe(null);
     expect(await channelHasNoPosts(null, nest, {})).toBe(null);
     expect(await channelHasNoPosts(apiWith(null), nest, {})).toBe(null);
+  });
+});
+
+describe('setupOutputNotebookNest', () => {
+  const groupsWith = (groups: Record<string, unknown>) => ({
+    scry: async () => groups,
+  });
+
+  test('prefers the recorded outputNest, skipping chat fallbacks', async () => {
+    const config = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        agents: ['~zod'],
+        jobs: [{ id: 'digest', outputNest: 'notes/~zod/daily-digest-1' }],
+      },
+    ]);
+    expect(
+      await setupOutputNotebookNest(groupsWith({}), '~nec/g', config, {})
+    ).toBe('notes/~zod/daily-digest-1');
+    // The 404-fallback path records a chat nest — that is not a notebook.
+    const chatFallback = config.replace(
+      'notes/~zod/daily-digest-1',
+      'chat/~nec/home-group-chat'
+    );
+    expect(
+      await setupOutputNotebookNest(groupsWith({}), '~nec/g', chatFallback, {})
+    ).toBeNull();
+  });
+
+  test('falls back to the group notes channel, or null without one', async () => {
+    const groups = groupsWith({
+      '~nec/g': {
+        channels: {
+          'chat/~nec/g-chat': {},
+          'notes/~zod/research-1': {},
+        },
+      },
+    });
+    expect(await setupOutputNotebookNest(groups, '~nec/g', '', {})).toBe(
+      'notes/~zod/research-1'
+    );
+    expect(
+      await setupOutputNotebookNest(
+        groupsWith({ '~nec/g': { channels: { 'chat/~nec/g-chat': {} } } }),
+        '~nec/g',
+        '',
+        {}
+      )
+    ).toBeNull();
   });
 });
 
