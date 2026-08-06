@@ -5,33 +5,40 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { View } from 'react-native';
 
 import { ScrollAnchor } from '../Scroller';
-import { PostList as PostListNative } from './PostListFlatList';
-import { PostListComponent, PostWithNeighbors } from './shared';
+import { PostList as PostListFlatList } from './PostListFlatList';
+import { getPostListAnchorKey } from './postListInitialization';
+import {
+  PostListComponent,
+  PostWithNeighbors,
+  usePostListBottomCallbacks,
+  usesConversationPostList,
+} from './shared';
 
 const FORCE_MANUAL_SCROLL_ANCHORING: boolean = false;
 const IS_FIREFOX = navigator.userAgent.includes('Firefox');
 
-export const PostList: PostListComponent = React.forwardRef((props, ref) => {
-  if (props.numColumns === 1) {
-    return <PostListSingleColumn {...props} ref={ref} />;
-  } else {
-    // Use the native implementation for multi-column lists
-    return <PostListNative {...props} ref={ref} />;
+export const PostList: PostListComponent = React.forwardRef(
+  (props, forwardedRef) => {
+    return usesConversationPostList(props) ? (
+      <WebConversationPostList {...props} ref={forwardedRef} />
+    ) : (
+      <PostListFlatList {...props} ref={forwardedRef} />
+    );
   }
-});
+);
 PostList.displayName = 'PostList';
 
-const PostListSingleColumn: PostListComponent = React.forwardRef(
+const WebConversationPostList: PostListComponent = React.forwardRef(
   (
     {
       anchor,
       // channel,
       // collectionLayoutType,
-      // columnWrapperStyle,
+      columnWrapperStyle,
       contentContainerStyle,
       hasNewerPosts = false,
-      inverted = false,
-      // numColumns,
+      anchorToEnd = false,
+      numColumns,
       onEndReached,
       onEndReachedThreshold = 1,
       onInitialScrollCompleted,
@@ -53,15 +60,12 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
     const scrollerRef = useRef<HTMLDivElement | null>(null);
     const scrollerContentContainerRef = useRef<HTMLDivElement>(null);
 
-    const orderedData = React.useMemo(
-      () => (inverted ? [...postsWithNeighbors].reverse() : postsWithNeighbors),
-      [inverted, postsWithNeighbors]
-    );
+    const orderedData = postsWithNeighbors;
 
     useScrollToAnchorOnMount({
       anchor,
       scrollerRef,
-      inverted,
+      anchorToEnd,
       onScrollCompleted: onInitialScrollCompleted,
       contentKey: `${orderedData.length}:${orderedData[0]?.post.id ?? ''}:${orderedData[orderedData.length - 1]?.post.id ?? ''}`,
     });
@@ -130,7 +134,6 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       useTrackContentRect(scrollerContentContainerRef.current)?.height ?? 0;
     useBoundaryCallbacks({
       element: scrollerRef.current,
-      inverted,
       onEndReached,
       onEndReachedThreshold,
       onStartReached,
@@ -147,17 +150,10 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
         side: 'bottom',
       }
     );
-    useEffect(() => {
-      if (insideScrolledToBottomBoundary) {
-        onScrolledToBottom?.();
-      } else {
-        onScrolledAwayFromBottom?.();
-      }
-    }, [
-      onScrolledAwayFromBottom,
+    usePostListBottomCallbacks(insideScrolledToBottomBoundary, {
       onScrolledToBottom,
-      insideScrolledToBottomBoundary,
-    ]);
+      onScrolledAwayFromBottom,
+    });
 
     const viewportHeight =
       useTrackContentRect(scrollerRef.current)?.height ?? 0;
@@ -168,7 +164,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       // HACK: When the viewport shrinks in height, the browser prioritizes
       // anchoring the content at the top of the viewport - so the content at
       // the bottom of the viewport gets hidden "under the fold." To avoid
-      // this, we want to trigger "stick-to-scroll-start" when the viewport
+      // this, we want to trigger "stick-to-anchor-edge" when the viewport
       // height changes. This works for Chrome and Safari.
       //
       // Firefox triggers a mysterious scroll on the next keypress after
@@ -188,10 +184,10 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
         ),
       [postsWithNeighbors]
     );
-    useStickToScrollStart({
+    useStickToAnchorEdge({
       scrollerContentsKey,
       scrollerRef,
-      inverted,
+      anchorToEnd,
       // - If we don't have all the newest posts, we want to wait to autoscroll
       //   to the newer messages until we've loaded everything - otherwise, we'll
       //   scroll on each page that comes in, which is jarring.
@@ -208,7 +204,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       scrollToStart: ({ animated = true }) => {
         if (scrollerRef.current) {
           scrollerRef.current.scrollTo({
-            top: inverted ? scrollerRef.current.scrollHeight : 0,
+            top: 0,
             behavior: animated ? 'smooth' : 'instant',
           });
         }
@@ -216,24 +212,20 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       scrollToEnd: ({ animated = true }) => {
         if (scrollerRef.current) {
           scrollerRef.current.scrollTo({
-            top: inverted ? 0 : scrollerRef.current.scrollHeight,
+            top: scrollerRef.current.scrollHeight,
             behavior: animated ? 'smooth' : 'instant',
           });
         }
       },
-      scrollToIndex: ({ index, animated = true }) => {
-        const resolvedIndex = inverted ? orderedData.length - 1 - index : index;
-        const item = orderedData[resolvedIndex];
-        if (item) {
-          const element = scrollerContentContainerRef.current?.querySelector(
-            `[data-postid="${item.post.id}"]`
-          ) as HTMLElement | null;
-          if (element) {
-            element.scrollIntoView({
-              block: 'center',
-              behavior: animated ? 'smooth' : 'instant',
-            });
-          }
+      scrollToPost: ({ postId, animated = true }) => {
+        const element = scrollerContentContainerRef.current?.querySelector(
+          `[data-postid="${postId}"]`
+        ) as HTMLElement | null;
+        if (element) {
+          element.scrollIntoView({
+            block: 'center',
+            behavior: animated ? 'smooth' : 'instant',
+          });
         }
       },
     }));
@@ -255,10 +247,19 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
               minHeight: '100%',
               flexDirection: 'column',
               alignItems: 'stretch',
-              justifyContent: inverted ? 'flex-end' : 'flex-start',
+              justifyContent: anchorToEnd ? 'flex-end' : 'flex-start',
             }}
           >
-            <View style={[{ flexDirection: 'column' }, contentContainerStyle]}>
+            <View
+              style={[
+                {
+                  flexDirection: numColumns === 1 ? 'column' : 'row',
+                  flexWrap: numColumns === 1 ? undefined : 'wrap',
+                },
+                contentContainerStyle,
+                numColumns > 1 ? columnWrapperStyle : undefined,
+              ]}
+            >
               {listHeaderComponent}
               {orderedData.map((item, index) => (
                 <PostListItem key={item.post.id} item={item} index={index}>
@@ -277,7 +278,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
     );
   }
 );
-PostListSingleColumn.displayName = 'PostListSingleColumn';
+WebConversationPostList.displayName = 'WebConversationPostList';
 
 function PostListItem({
   item,
@@ -557,29 +558,29 @@ function useManualScrollAnchoring<Data>({
   coordinator.current?.setContentKey(scrollerContentsKey);
 }
 
-function useStickToScrollStart({
-  inverted,
+function useStickToAnchorEdge({
+  anchorToEnd,
   scrollerContentsKey,
   scrollerRef,
   disable,
-  maxDistanceForStickToStart = 100,
+  maxDistanceForAnchor = 100,
 }: {
-  inverted: boolean;
+  anchorToEnd: boolean;
   /** This value must change when the scroll height of the scroller changes */
   scrollerContentsKey: unknown;
   scrollerRef: React.RefObject<HTMLDivElement | null>;
   disable: boolean;
   /** If the distance from viewport boundary to scroll boundary is less than this, perform sticking */
-  maxDistanceForStickToStart?: number;
+  maxDistanceForAnchor?: number;
 }) {
-  const shouldStickToStartRef = useRef(false);
+  const shouldStickToAnchorRef = useRef(false);
 
-  const [isAtStart] = useScrollBoundary(scrollerRef.current, {
+  const [isAtAnchor] = useScrollBoundary(scrollerRef.current, {
     isNearBoundary: React.useCallback(
-      (distance: number) => distance < maxDistanceForStickToStart,
-      [maxDistanceForStickToStart]
+      (distance: number) => distance < maxDistanceForAnchor,
+      [maxDistanceForAnchor]
     ),
-    side: inverted ? 'bottom' : 'top',
+    side: anchorToEnd ? 'bottom' : 'top',
   });
 
   // Use useLayoutEffect (not useEffect) so the sticky flag is updated
@@ -587,33 +588,38 @@ function useStickToScrollStart({
   // With useEffect, the flag could be set to false between renders during
   // a message burst, causing the scroll to stop tracking.
   useLayoutEffect(() => {
-    shouldStickToStartRef.current = !disable && isAtStart;
-  }, [isAtStart, disable]);
+    shouldStickToAnchorRef.current = !disable && isAtAnchor;
+  }, [isAtAnchor, disable]);
 
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
-    if (!shouldStickToStartRef.current || scroller == null) {
+    if (!shouldStickToAnchorRef.current || scroller == null) {
       return;
     }
-    scroller.scrollTo({ top: inverted ? scroller.scrollHeight : 0 });
-  }, [scrollerRef, scrollerContentsKey, inverted]);
+    scroller.scrollTo({ top: anchorToEnd ? scroller.scrollHeight : 0 });
+  }, [anchorToEnd, scrollerRef, scrollerContentsKey]);
 }
 
 function useScrollToAnchorOnMount({
   anchor,
   scrollerRef,
-  inverted,
+  anchorToEnd,
   onScrollCompleted,
   contentKey,
 }: {
   anchor: ScrollAnchor | null | undefined;
   scrollerRef: React.RefObject<HTMLDivElement | null>;
-  inverted: boolean;
+  anchorToEnd: boolean;
   onScrollCompleted?: () => void;
   contentKey: string | number;
 }) {
   const needsInitialScrollRef = useRef(true);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const anchorKey = getPostListAnchorKey(anchor) ?? 'latest';
+
+  useLayoutEffect(() => {
+    needsInitialScrollRef.current = true;
+  }, [anchorKey]);
 
   // Timeout fallback: give up after 5s if anchor element never appears
   useEffect(() => {
@@ -631,7 +637,7 @@ function useScrollToAnchorOnMount({
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [anchor?.postId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [anchor?.postId, anchorKey, onScrollCompleted]);
 
   // Main scroll effect — re-runs when contentKey changes (as new posts render)
   useLayoutEffect(() => {
@@ -640,7 +646,7 @@ function useScrollToAnchorOnMount({
     if (!scroller) return;
 
     if (!anchor) {
-      if (inverted) {
+      if (anchorToEnd) {
         scroller.scrollTo({ top: scroller.scrollHeight });
       }
       needsInitialScrollRef.current = false;
@@ -658,7 +664,7 @@ function useScrollToAnchorOnMount({
       onScrollCompleted?.();
     }
     // else: element not in DOM yet — do nothing, wait for next contentKey change
-  }, [scrollerRef, anchor, inverted, onScrollCompleted, contentKey]);
+  }, [scrollerRef, anchor, anchorToEnd, onScrollCompleted, contentKey]);
 }
 
 // Pass this to useDeduplicateInvocationBy().resetDeduplicateInvocation() to
@@ -675,7 +681,6 @@ const KEY_TO_PASSTHROUGH_NEXT_INVOCATION = Symbol();
  */
 function useBoundaryCallbacks({
   element,
-  inverted,
   onEndReached,
   onEndReachedThreshold,
   onStartReached,
@@ -683,7 +688,6 @@ function useBoundaryCallbacks({
   scrollerContentKey,
 }: {
   element: HTMLElement | null;
-  inverted: boolean;
   onEndReached?: () => void;
   onEndReachedThreshold: number;
   onStartReached?: () => void;
@@ -700,7 +704,7 @@ function useBoundaryCallbacks({
   );
   const [reachedStart, getReachedStart] = useScrollBoundary(element, {
     isNearBoundary: withinViewportRatioOfBoundary(onStartReachedThreshold),
-    side: inverted ? 'bottom' : 'top',
+    side: 'top',
   });
   useEffect(() => {
     if (getReachedStart() ?? false) {
@@ -739,7 +743,7 @@ function useBoundaryCallbacks({
   );
   const [reachedEnd, getReachedEnd] = useScrollBoundary(element, {
     isNearBoundary: withinViewportRatioOfBoundary(onEndReachedThreshold),
-    side: inverted ? 'top' : 'bottom',
+    side: 'bottom',
   });
   useEffect(() => {
     if (getReachedEnd() ?? false) {

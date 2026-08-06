@@ -153,19 +153,20 @@ export default function ChannelScreen(props: Props) {
 
   const { performGroupAction } = useGroupActions();
 
-  const cursor = useMemo(() => {
+  const unreadCursor = useMemo(() => {
     if (!channel) {
       return undefined;
     }
-    const firstUnreadId =
+    return (
       initialChannelUnread &&
       (initialChannelUnread.countWithoutThreads ?? 0) > 0 &&
-      initialChannelUnread?.firstUnreadPostId;
-    return selectedPostId || firstUnreadId;
+      initialChannelUnread.firstUnreadPostId
+    );
     // We only want this to rerun when the channel is loaded for the first time OR if
-    // the selected post route param changes
+    // the initial unread state changes
     // eslint-disable-next-line
-  }, [!!channel, initialChannelUnread, selectedPostId]);
+  }, [!!channel, initialChannelUnread]);
+  const cursor = selectedPostId || unreadCursor;
 
   useEffect(() => {
     if (channel?.id) {
@@ -177,11 +178,10 @@ export default function ChannelScreen(props: Props) {
   // existing cursor
   const [clearedCursor, setClearedCursor] = React.useState(false);
 
-  // But if a new post is selected, we should mark the cursor
-  // as uncleared
+  // A selected post or channel navigation establishes a new cursor scope.
   useEffect(() => {
     setClearedCursor(false);
-  }, [selectedPostId]);
+  }, [currentChannelId, selectedPostId]);
 
   const handleScrollToBottom = useCallback(() => {
     setClearedCursor(true);
@@ -216,8 +216,31 @@ export default function ChannelScreen(props: Props) {
   });
 
   useEffect(() => {
-    // make sure we always load enough posts to fill the screen or
-    // onScrollEndReached might not fire properly
+    if (
+      unreadCursor &&
+      !selectedPostId &&
+      !clearedCursor &&
+      postsQuery.isError &&
+      !isLoadingPosts
+    ) {
+      logger.log('unread cursor failed; falling back to newest posts', {
+        channelId: currentChannelId,
+        unreadCursor,
+      });
+      setClearedCursor(true);
+    }
+  }, [
+    clearedCursor,
+    currentChannelId,
+    isLoadingPosts,
+    postsQuery.isError,
+    selectedPostId,
+    unreadCursor,
+  ]);
+
+  useEffect(() => {
+    // Make sure the initial page can fill the screen; otherwise the visual
+    // start boundary may never move far enough to request another older page.
     const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
     if (
       !postsQuery.isFetching &&
@@ -426,8 +449,8 @@ export default function ChannelScreen(props: Props) {
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
           goToGroupSettings={handleGoToGroupSettings}
-          onScrollEndReached={loadOlder}
-          onScrollStartReached={loadNewer}
+          onLoadNewerPosts={loadNewer}
+          onLoadOlderPosts={loadOlder}
           onPressRef={navigateToRef}
           markRead={handleMarkRead}
           onGroupAction={performGroupAction}

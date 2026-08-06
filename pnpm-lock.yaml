@@ -1028,6 +1028,9 @@ importers:
       '@emoji-mart/data':
         specifier: ^1.1.2
         version: 1.1.2
+      '@legendapp/list':
+        specifier: 3.3.3
+        version: 3.3.3(react-dom@19.2.3(react@19.2.3))(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@mattermost/react-native-paste-input':
         specifier: 2.0.1
         version: 2.0.1(patch_hash=313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d)(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -3390,6 +3393,18 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@legendapp/list@3.3.3':
+    resolution: {integrity: sha512-p3g4xG6f//s4XQKhuus2189GCQgOHEIbJXHePqeDxj+6UQQQyij4YBjyArNSCgqoP0c03sxDPSOuCFB128Ql6g==}
+    peerDependencies:
+      react: 19.2.3
+      react-dom: '*'
+      react-native: '*'
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
+      react-native:
+        optional: true
 
   '@lydell/node-pty-darwin-arm64@1.2.0-beta.12':
     resolution: {integrity: sha512-tqaifcY9Cr41SblO1+FLzh8oxxtkNhuW9Dhl22lKme9BreYvKvxEZcdPIXTuqkJc5tagOEC4QHShKmJjLyLXLQ==}
@@ -16682,6 +16697,14 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@legendapp/list@3.3.3(react-dom@19.2.3(react@19.2.3))(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      react: 19.2.3
+      use-sync-external-store: 1.6.0(react@19.2.3)
+    optionalDependencies:
+      react-dom: 19.2.3(react@19.2.3)
+      react-native: 0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3)
 
   '@lydell/node-pty-darwin-arm64@1.2.0-beta.12':
     optional: true

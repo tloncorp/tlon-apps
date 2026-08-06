@@ -33,6 +33,7 @@ export interface DetailViewProps {
     scrollToStart: (opts: { animated?: boolean }) => void;
     scrollToEnd: (opts: { animated?: boolean }) => void;
   } | null>;
+  isLoading?: boolean;
 }
 
 export const DetailView = ({
@@ -53,12 +54,13 @@ export const DetailView = ({
   anchor,
   highlightPostId,
   scrollerRef,
+  isLoading,
 }: DetailViewProps) => {
   const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
   const resolvedPosts = useMemo(() => {
     if (isChat) {
-      return posts ? [...posts, post] : posts;
+      return posts ? [post, ...[...posts].reverse()] : posts;
     }
     return posts ? [...posts].reverse() : posts;
   }, [posts, post, isChat]);
@@ -118,7 +120,7 @@ export const DetailView = ({
       <Scroller
         ref={scrollerRef}
         anchor={anchor}
-        inverted={isChat}
+        anchorToEnd={isChat}
         renderItem={ChatMessage}
         channel={channel}
         collectionLayoutType="compact-list-bottom-to-top"
@@ -145,6 +147,7 @@ export const DetailView = ({
         setActiveMessage={setActiveMessage}
         listHeaderComponent={listHeaderComponent}
         listBottomComponent={listBottomComponent}
+        isLoading={isLoading}
       />
     </View>
   );

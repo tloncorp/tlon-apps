@@ -29,9 +29,11 @@ export const useScrollContext = () => useContext(ScrollContext);
 export const useScrollDirectionTracker = ({
   setIsAtBottom: setIsAtBottomProp,
   atBottomThreshold = 1, // multiple of screen/viewport height
+  bottomAtEnd = false,
 }: {
   setIsAtBottom?: (isAtBottom: boolean) => void;
   atBottomThreshold?: number;
+  bottomAtEnd?: boolean;
 } = {}) => {
   const [scrollValue] = useScrollContext();
   const previousScrollValue = useSharedValue(0);
@@ -50,20 +52,31 @@ export const useScrollDirectionTracker = ({
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
     const { y } = event.contentOffset;
+    const maxOffset = Math.max(
+      0,
+      event.contentSize.height -
+        event.layoutMeasurement.height +
+        (event.contentInset?.bottom ?? 0)
+    );
+    const distanceFromBottom = bottomAtEnd ? maxOffset - y : y;
 
-    if (y < 0 || y > event.contentSize.height) {
+    if (
+      distanceFromBottom < 0 ||
+      distanceFromBottom > event.contentSize.height
+    ) {
       return;
     }
 
     scrollValue.value = clamp(
-      scrollValue.value + (y - previousScrollValue.value) / 200,
+      scrollValue.value +
+        (distanceFromBottom - previousScrollValue.value) / 200,
       0,
       1
     );
 
-    previousScrollValue.value = y;
+    previousScrollValue.value = distanceFromBottom;
 
-    const atBottom = y <= AT_BOTTOM_THRESHOLD;
+    const atBottom = distanceFromBottom <= AT_BOTTOM_THRESHOLD;
 
     if (previousAtBottom.value !== atBottom) {
       previousAtBottom.value = atBottom;
