@@ -102,6 +102,8 @@ function inlineDataToPhrasing(inline: InlineData): PhrasingContent {
         value: `${inline.checked ? '[x]' : '[ ]'} ${inner}`,
       };
     }
+    case 'blockquote':
+      return { type: 'text', value: inlineDataChildText(inline) };
   }
 }
 
@@ -123,6 +125,8 @@ function inlineDataChildText(inline: InlineData): string {
       return `${inline.checked ? '[x]' : '[ ]'} ${inline.children
         .map(inlineDataChildText)
         .join('')}`;
+    case 'blockquote':
+      return '> ' + inline.children.map(inlineDataChildText).join('');
   }
 }
 
