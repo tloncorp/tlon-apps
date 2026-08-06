@@ -176,13 +176,13 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       latestAnchorPositionRef.current = anchorPosition;
     }, [anchorPosition]);
 
-    // LegendList owns the initial position through initialScrollIndex. This is
-    // only for a target that changes after the list has finished loading.
-    const applyAnchorPosition = React.useCallback(() => {
+    // LegendList uses initialScrollIndex to get near the target from estimates.
+    // Once it has measured the initial rows, this applies the exact position.
+    const applyAnchorPosition = React.useCallback(async () => {
       const target = latestAnchorPositionRef.current;
       if (target === 'end') {
         appliedAnchorPositionRef.current = target;
-        listRef.current?.scrollToEnd({ animated: false });
+        await listRef.current?.scrollToEnd({ animated: false });
         return true;
       }
 
@@ -191,7 +191,7 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       }
 
       appliedAnchorPositionRef.current = target;
-      listRef.current?.scrollToIndex({ ...target, animated: false });
+      await listRef.current?.scrollToIndex({ ...target, animated: false });
       return true;
     }, []);
     const { onScroll: handleScroll, isAtBottom } = useScrollDirectionTracker({
@@ -207,10 +207,24 @@ const ConversationPostList: PostListComponent = React.forwardRef(
         return;
       }
       didStartInitialScrollRef.current = true;
-      appliedAnchorPositionRef.current = latestAnchorPositionRef.current;
-      setDidFinishInitialScroll(true);
-      onInitialScrollCompleted?.();
-    }, [isInitialAnchorReady, onInitialScrollCompleted]);
+      const loadedAnchorKey = anchorKey;
+      void applyAnchorPosition()
+        .then(() => {
+          if (previousAnchorKeyRef.current !== loadedAnchorKey) {
+            return;
+          }
+          setDidFinishInitialScroll(true);
+          onInitialScrollCompleted?.();
+        })
+        .catch(() => {
+          // Navigation can cancel the scroll while the list is unmounting.
+        });
+    }, [
+      anchorKey,
+      applyAnchorPosition,
+      isInitialAnchorReady,
+      onInitialScrollCompleted,
+    ]);
 
     React.useEffect(() => {
       if (
@@ -222,7 +236,9 @@ const ConversationPostList: PostListComponent = React.forwardRef(
         return;
       }
 
-      applyAnchorPosition();
+      void applyAnchorPosition().catch(() => {
+        // The list may unmount while a later anchor correction is in flight.
+      });
     }, [anchorPosition, applyAnchorPosition, didFinishInitialScroll]);
 
     React.useImperativeHandle(
@@ -294,7 +310,9 @@ const ConversationPostList: PostListComponent = React.forwardRef(
         style={[
           { flex: 1 },
           style,
-          isInitialAnchorReady ? undefined : { opacity: 0 },
+          isInitialAnchorReady && didFinishInitialScroll
+            ? undefined
+            : { opacity: 0 },
         ]}
         onLoad={handleLoad}
         onScroll={handleScroll}
