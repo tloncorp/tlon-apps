@@ -37,26 +37,3 @@ export function getPostListInitialization({
     shouldStartAnchorTimeout: resolution === 'waiting' && !isLoading,
   };
 }
-
-export function shouldSnapUnreadAnchorToEnd({
-  anchorType,
-  estimatedAnchorExtent,
-  hasNewerPosts,
-  anchorToEnd,
-  viewportHeight,
-}: {
-  anchorType?: 'unread' | 'selected';
-  estimatedAnchorExtent?: number;
-  hasNewerPosts?: boolean;
-  anchorToEnd: boolean;
-  viewportHeight: number;
-}) {
-  return (
-    anchorType === 'unread' &&
-    estimatedAnchorExtent !== undefined &&
-    viewportHeight > 0 &&
-    estimatedAnchorExtent <= viewportHeight &&
-    !hasNewerPosts &&
-    anchorToEnd
-  );
-}

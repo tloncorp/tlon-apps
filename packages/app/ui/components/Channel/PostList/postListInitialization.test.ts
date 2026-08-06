@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   getPostListAnchorKey,
   getPostListInitialization,
-  shouldSnapUnreadAnchorToEnd,
 } from './postListInitialization';
 
 describe('getPostListAnchorKey', () => {
@@ -90,52 +89,5 @@ describe('getPostListInitialization', () => {
     },
   ])('$name', ({ input, expected }) => {
     expect(getPostListInitialization(input)).toEqual(expected);
-  });
-});
-
-describe('shouldSnapUnreadAnchorToEnd', () => {
-  it('snaps a near-end unread anchor only when the newest page is loaded', () => {
-    expect(
-      shouldSnapUnreadAnchorToEnd({
-        anchorType: 'unread',
-        estimatedAnchorExtent: 720,
-        hasNewerPosts: false,
-        anchorToEnd: true,
-        viewportHeight: 800,
-      })
-    ).toBe(true);
-    expect(
-      shouldSnapUnreadAnchorToEnd({
-        anchorType: 'unread',
-        estimatedAnchorExtent: 720,
-        hasNewerPosts: true,
-        anchorToEnd: true,
-        viewportHeight: 800,
-      })
-    ).toBe(false);
-  });
-
-  it('includes the anchor row and footer before snapping to the end', () => {
-    expect(
-      shouldSnapUnreadAnchorToEnd({
-        anchorType: 'unread',
-        estimatedAnchorExtent: 920,
-        hasNewerPosts: false,
-        anchorToEnd: true,
-        viewportHeight: 800,
-      })
-    ).toBe(false);
-  });
-
-  it('keeps selected anchors centered even when they are near the end', () => {
-    expect(
-      shouldSnapUnreadAnchorToEnd({
-        anchorType: 'selected',
-        estimatedAnchorExtent: 720,
-        hasNewerPosts: false,
-        anchorToEnd: true,
-        viewportHeight: 800,
-      })
-    ).toBe(false);
   });
 });

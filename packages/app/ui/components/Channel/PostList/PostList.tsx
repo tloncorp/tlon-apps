@@ -10,7 +10,6 @@ import { PostList as PostListFlatList } from './PostListFlatList';
 import {
   getPostListAnchorKey,
   getPostListInitialization,
-  shouldSnapUnreadAnchorToEnd,
 } from './postListInitialization';
 import {
   PostListComponent,
@@ -89,7 +88,6 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       onEndReached,
       onEndReachedThreshold,
       anchor,
-      hasNewerPosts,
       channel,
       collectionLayoutType,
       onInitialScrollCompleted,
@@ -115,7 +113,6 @@ const ConversationPostList: PostListComponent = React.forwardRef(
     const settleTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
       null
     );
-    const [viewportHeight, setViewportHeight] = React.useState(0);
     const insets = useSafeAreaInsets();
     const collectionLayout = React.useMemo(
       () => layoutForType(collectionLayoutType),
@@ -189,30 +186,8 @@ const ConversationPostList: PostListComponent = React.forwardRef(
             },
       [anchor?.type, anchorIndex, didTimeoutWaitingForAnchor]
     );
-    // Top-aligning the first unread is right when there is a run of unreads to
-    // read down through. When the messages after the anchor cannot fill a
-    // viewport, there is nothing below it, so
-    // top-aligning strands the view above the natural bottom - the user lands
-    // short with content still to scroll. Land at the end instead.
-    //
-    // Defaults to false until the viewport is measured, so an unmeasured first
-    // pass keeps the ordinary anchor behaviour rather than jumping to the end.
-    // Rich media can exceed the estimate; the settle corrections below repair
-    // the landing as real row sizes arrive.
-    const estimatedAnchorExtent =
-      anchorIndex === -1
-        ? undefined
-        : (postsWithNeighbors.length - anchorIndex) * ESTIMATED_ITEM_SIZE;
-    const shouldSnapAnchorToEnd = shouldSnapUnreadAnchorToEnd({
-      anchorType: anchor?.type,
-      estimatedAnchorExtent,
-      hasNewerPosts,
-      anchorToEnd,
-      viewportHeight,
-    });
     const anchorPosition: AnchorPosition | undefined =
-      shouldSnapAnchorToEnd ||
-      (anchorToEnd && (!anchor?.postId || didTimeoutWaitingForAnchor))
+      anchorToEnd && (!anchor?.postId || didTimeoutWaitingForAnchor)
         ? 'end'
         : initialScrollIndex;
     const latestAnchorPositionRef = React.useRef<AnchorPosition | undefined>(
@@ -317,11 +292,11 @@ const ConversationPostList: PostListComponent = React.forwardRef(
     }, [anchorPosition, applyAnchorPosition, didFinishInitialScroll]);
 
     // The initial scroll offset is derived from `ESTIMATED_ITEM_SIZE`. Real rows
-    // routinely differ (author row, media, reactions), so the first landing can
-    // sit short of the anchor. Re-apply the target while items above it are
-    // still being measured - nothing else re-issues the scroll, because the
-    // correction effect above only reacts to `viewOffset` changing, not to
-    // measurement.
+    // routinely differ (author row, media, reactions), so re-apply the target
+    // while they settle. For unread anchors this includes the rows below the
+    // target: LegendList naturally clamps the divider below the top when that
+    // tail is too short, and its measured height determines whether the clamp
+    // is needed. Selected anchors only depend on sizes at or above the target.
     const handleItemSizeChanged = React.useCallback(
       ({
         index,
@@ -342,8 +317,11 @@ const ConversationPostList: PostListComponent = React.forwardRef(
         }
 
         const target = latestAnchorPositionRef.current;
-        // Only sizes at or above the anchor move its offset.
-        if (!target || target === 'end' || index > target.index) {
+        if (
+          !target ||
+          target === 'end' ||
+          (anchor?.type !== 'unread' && index > target.index)
+        ) {
           return;
         }
 
@@ -351,7 +329,7 @@ const ConversationPostList: PostListComponent = React.forwardRef(
           // The list can unmount while a correction is in flight.
         });
       },
-      [applyAnchorPosition]
+      [anchor?.type, applyAnchorPosition]
     );
 
     React.useEffect(() => {
@@ -433,9 +411,6 @@ const ConversationPostList: PostListComponent = React.forwardRef(
           style,
           isInitialAnchorReady ? undefined : { opacity: 0 },
         ]}
-        onLayout={(event) => {
-          setViewportHeight(event.nativeEvent.layout.height);
-        }}
         onLoad={handleLoad}
         onItemSizeChanged={handleItemSizeChanged}
         onScroll={handleScroll}
