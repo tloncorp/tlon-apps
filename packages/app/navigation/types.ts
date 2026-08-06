@@ -67,6 +67,9 @@ export type RootStackParamList = {
     folderId: number;
     folderTitle?: string;
     groupId?: string;
+    // Note to select once the folder opens, for jumping straight to a note
+    // that lives outside the folder currently on screen.
+    noteId?: number;
   };
   NotesSearch: {
     channelId: string;

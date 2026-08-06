@@ -114,12 +114,16 @@ export function NotesNativeChannel({
   channelTitle,
   folderId,
   groupId,
+  initialNoteId,
   notebookFlag,
 }: {
   channelId: string;
   channelTitle?: string;
   folderId?: number | null;
   groupId?: string | null;
+  // Note to select on mount, so opening a note whose folder isn't the one on
+  // screen lands with the tree showing that folder and the note selected in it.
+  initialNoteId?: number | null;
   notebookFlag: string | null | undefined;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -137,7 +141,9 @@ export function NotesNativeChannel({
   const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
   const notebookSidebarSourceId = `${channelId}/${folderId ?? 'root'}`;
-  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(
+    initialNoteId ?? null
+  );
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderParentId, setNewFolderParentId] = useState<number | null>(
     null
@@ -297,13 +303,17 @@ export function NotesNativeChannel({
   }, [selectNoteInPane, selectedNoteId, treeRows, useDesktopSplit]);
 
   useEffect(() => {
+    // While the notebook is still gated, `notes` isn't authoritative yet —
+    // clearing here would drop a selection seeded from the route before its
+    // note had a chance to load.
+    if (gate) return;
     if (
       selectedNoteId !== null &&
       !notes.some((note) => note.noteId === selectedNoteId)
     ) {
       setSelectedNoteId(null);
     }
-  }, [notes, selectedNoteId]);
+  }, [gate, notes, selectedNoteId]);
 
   const openNoteId = useMutableCallback(
     (
@@ -361,10 +371,40 @@ export function NotesNativeChannel({
 
   // A search hit comes off the wire rather than out of the local tree, so it's
   // opened by id — the note may not be in `notes` yet on a thin client.
+  //
+  // The tree shows one folder's contents, so a hit from a different folder
+  // would otherwise be selected somewhere the sidebar can't show. Open that
+  // folder instead, carrying the note along, so the sidebar matches the note
+  // and its header still walks back the way folder navigation does.
   const handleSelectSearchResult = useMutableCallback(
     (note: NotesSearchResultNote) => {
       trackEvent(AnalyticsEvent.NotesSearchResultSelected);
-      openNoteId(note.noteId);
+
+      const noteFolderId = note.folderId ?? rootFolderId;
+      if (
+        !useDesktopSplit ||
+        noteFolderId == null ||
+        noteFolderId === activeFolderId
+      ) {
+        openNoteId(note.noteId);
+        return;
+      }
+
+      const folder = folders.find(
+        (candidate) => candidate.folderId === noteFolderId
+      );
+      navigation.dispatch(
+        StackActions.push('NotesFolder', {
+          channelId,
+          folderId: noteFolderId,
+          folderTitle:
+            noteFolderId === rootFolderId
+              ? channelTitle ?? 'Notebook'
+              : getFolderLabel(folder),
+          groupId: groupId ?? undefined,
+          noteId: note.noteId,
+        })
+      );
     }
   );
 

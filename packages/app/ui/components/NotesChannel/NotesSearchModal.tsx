@@ -1,8 +1,8 @@
 import { useNotesSearch } from '@tloncorp/shared';
-import { TlonText } from '@tloncorp/ui';
+import { Pressable, TlonText } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
-import { View, XStack, YStack } from 'tamagui';
+import { Portal, View, XStack, YStack } from 'tamagui';
 
 import { SearchBar } from '../SearchBar';
 import {
@@ -14,7 +14,7 @@ const isMacPlatform =
   typeof navigator !== 'undefined' && navigator.platform?.includes('Mac');
 
 /**
- * Desktop notebook search: a quick-jump-style overlay over the split view, so
+ * Desktop notebook search: a quick-jump-style overlay masking the whole app, so
  * the tree and the open note stay put behind it. Web-only by construction —
  * narrow layouts navigate to the search screen instead.
  */
@@ -138,74 +138,80 @@ export function NotesSearchModal({
 
   if (!open) return null;
 
+  // Portalled to the app root: rendered in place it would only cover the
+  // notebook's own pane, leaving the sidebar and drawer unmasked beside it.
   return (
-    <>
+    <Portal>
       <View
-        // eslint-disable-next-line
-        onPress={close}
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 50,
-        }}
-        testID="NotesSearchModalScrim"
-      />
-
-      <YStack
+        alignItems="center"
+        bottom={0}
+        left={0}
         position="absolute"
-        top="12%"
-        left="50%"
-        borderRadius="$l"
-        zIndex={51}
-        backgroundColor="$background"
-        transform="translateX(-50%)"
-        padding="$l"
-        width="90%"
-        maxWidth={640}
-        maxHeight="70%"
-        gap="$l"
-        borderWidth="$2xs"
-        borderColor="$activeBorder"
-        testID="NotesSearchModal"
+        right={0}
+        top={0}
+        zIndex={100}
       >
-        <SearchBar
-          placeholder="Search notes"
-          onChangeQuery={setQuery}
-          onPressCancel={close}
-          inputProps={{
-            autoFocus: true,
-            autoCapitalize: 'none',
-            onKeyPress: handleKeyPress,
-            spellCheck: false,
-            testID: 'NotesSearchInput',
+        <Pressable
+          onPress={close}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
           }}
+          testID="NotesSearchModalScrim"
         />
 
-        <YStack flex={1} minHeight={0}>
-          <NotesSearchResults
-            getFolderLabel={getFolderLabel}
-            notes={notes}
-            query={query}
-            search={search}
-            selectedNoteId={selectedNoteId}
-            onPressNote={selectNote}
+        <YStack
+          marginTop="12%"
+          borderRadius="$l"
+          backgroundColor="$background"
+          padding="$l"
+          width="90%"
+          maxWidth={640}
+          maxHeight="70%"
+          gap="$l"
+          borderWidth="$2xs"
+          borderColor="$activeBorder"
+          testID="NotesSearchModal"
+        >
+          <SearchBar
+            placeholder="Search notes"
+            onChangeQuery={setQuery}
+            onPressCancel={close}
+            inputProps={{
+              autoFocus: true,
+              autoCapitalize: 'none',
+              onKeyPress: handleKeyPress,
+              spellCheck: false,
+              testID: 'NotesSearchInput',
+            }}
           />
-        </YStack>
 
-        <XStack justifyContent="center" gap="$l" paddingTop="$xs">
-          <KeyHint keys={['↑↓']} label="to navigate" />
-          <KeyHint keys={['enter']} label="to open" />
-          <KeyHint
-            keys={[isMacPlatform ? '⌘⇧F' : 'Ctrl+Shift+F']}
-            label="to toggle"
-          />
-        </XStack>
-      </YStack>
-    </>
+          <YStack flex={1} minHeight={0}>
+            <NotesSearchResults
+              getFolderLabel={getFolderLabel}
+              notes={notes}
+              query={query}
+              search={search}
+              selectedNoteId={selectedNoteId}
+              onPressNote={selectNote}
+            />
+          </YStack>
+
+          <XStack justifyContent="center" gap="$l" paddingTop="$xs">
+            <KeyHint keys={['↑↓']} label="to navigate" />
+            <KeyHint keys={['enter']} label="to open" />
+            <KeyHint
+              keys={[isMacPlatform ? '⌘⇧F' : 'Ctrl+Shift+F']}
+              label="to toggle"
+            />
+          </XStack>
+        </YStack>
+      </View>
+    </Portal>
   );
 }
 
