@@ -21,6 +21,7 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 SCRIPT_NAME=$(basename "$0")
 CLICK_CMD="$SCRIPT_DIR/click-format"
+CLICK_OPTS=()
 
 # ==========================================================
 # PLATFORM DETECTION
@@ -90,7 +91,7 @@ EOF
 }
 
 full() {
-  $CLICK_CMD "$HOON" $DEPS |
+  "$CLICK_CMD" "${CLICK_OPTS[@]}" "$HOON" $DEPS |
   $EVAL_CMD eval --jam $JAM_OPTS |
   # 30m total inactivity timeout
   socat -T 1800 -t $TIMEOUT -,ignoreeof UNIX-CONNECT:"$PIER/.urb/conn.sock" |
@@ -102,7 +103,7 @@ jam() {
         JAM_OPTS=""
     fi
 
-    $CLICK_CMD "$HOON" $DEPS | $EVAL_CMD eval --jam $JAM_OPTS
+    "$CLICK_CMD" "${CLICK_OPTS[@]}" "$HOON" $DEPS | $EVAL_CMD eval --jam $JAM_OPTS
 }
 
 execute() {
@@ -232,9 +233,11 @@ if [[ -n $INPUT ]]; then
     shift
 
     if [[ $EXECUTE -eq 0 ]]; then
-        # read from file, escape 's, replace newlines w/ gaps
-        # Use paste for portable line joining (works on both GNU and BSD systems)
-        HOON="$(cat $INPUT | sed "s;';\\\\';g" | paste -sd'  ' -)"
+        # Read from file, escape 's, and replace newlines with Hoon gaps.
+        # BSD paste treats the two spaces in -d as an alternating delimiter
+        # list and emits only one of them. Hoon needs a two-space gap, so join
+        # explicitly instead.
+        HOON="$(cat "$INPUT" | sed "s;';\\\\';g" | awk 'NR == 1 { printf "%s", $0; next } { printf "  %s", $0 } END { print "" }')"
     fi
 else
     PIER=$1
@@ -245,7 +248,7 @@ DEPS=$*
 
 # setup shared variables
 if [[ $KHAN_TED -ne 0 ]]; then
-    CLICK_CMD="$CLICK_CMD -k"
+    CLICK_OPTS=(-k)
 elif [[ $CARD -ne 0 ]]; then
     CLICK_CMD="echo"
     DEPS=""
