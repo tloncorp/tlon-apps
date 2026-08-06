@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1104,6 +1104,7 @@ export default defineBundledChannelEntry({
           // it and silently un-recognize the group's agent config.
           const repaired = repairTlonCommandArgs(args, {
             readFile: (path) => readFileSync(path, 'utf8'),
+            realpath: (path) => realpathSync(path),
           });
           if (!repaired.ok) {
             return {

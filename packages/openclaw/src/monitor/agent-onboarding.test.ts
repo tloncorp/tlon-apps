@@ -460,7 +460,9 @@ describe('renderSetupDirective', () => {
     // reads as "no config". Quoted command substitution from a file works
     // on every CLI version and can't lose quotes.
     const directive = renderSetupDirective('agent-research', 'Mycology')!;
-    expect(directive).toContain('--description "$(cat <file>)"');
+    expect(directive).toContain(
+      '--description "$(cat /tmp/tlon-group-config.json)"'
+    );
     expect(directive).not.toContain('--description-stdin');
     expect(directive).toMatch(/re-run the identical command once/i);
   });

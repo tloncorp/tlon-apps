@@ -55,12 +55,52 @@ describe('repairTlonCommandArgs', () => {
 
   it('tells the model when the substituted file cannot be read', () => {
     const result = repairTlonCommandArgs(
-      ['groups', 'update', '~zod/g', '--description', '$(cat /tmp/nope)'],
+      ['groups', 'update', '~zod/g', '--description', '$(cat /tmp/nope.json)'],
       files({})
     );
     expect(result.ok).toBe(false);
-    expect(!result.ok && result.error).toContain('/tmp/nope');
+    expect(!result.ok && result.error).toContain('/tmp/nope.json');
     expect(!result.ok && result.error).toContain('no shell');
+  });
+
+  it('only substitutes flat JSON files in /tmp', () => {
+    // The expansion is an arbitrary file read otherwise: a prompt-injected
+    // message could steer the bot into writing local secrets into a
+    // group-visible argument.
+    for (const path of [
+      '/etc/passwd',
+      '/home/openclaw/.openclaw/openclaw.json',
+      '/tmp/nested/config.json',
+      '/tmp/../etc/x.json',
+      '/tmp/config.txt',
+    ]) {
+      const result = repairTlonCommandArgs(
+        ['groups', 'update', '~zod/g', '--description', `$(cat ${path})`],
+        files({ [path]: CONFIG })
+      );
+      expect(result.ok).toBe(false);
+      expect(!result.ok && result.error).toContain('/tmp');
+    }
+  });
+
+  it('re-checks the path after symlinks resolve', () => {
+    const result = repairTlonCommandArgs(
+      ['groups', 'update', '~zod/g', '--description', '$(cat /tmp/c.json)'],
+      {
+        ...files({ '/tmp/c.json': CONFIG }),
+        realpath: () => '/home/openclaw/.openclaw/openclaw.json',
+      }
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it('never expands a substitution outside the --description value', () => {
+    const result = repairTlonCommandArgs(
+      ['groups', 'update', '$(cat /tmp/c.json)', '--title', 'x'],
+      files({ '/tmp/c.json': CONFIG })
+    );
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('--description');
   });
 
   it('refuses a config-shaped description that does not parse', () => {

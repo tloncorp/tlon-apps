@@ -58,7 +58,11 @@ import {
   type TlonSettingsStore,
   createSettingsManager,
 } from '../settings.js';
-import { armSetupProgress, disarmSetupProgress } from '../setup-progress.js';
+import {
+  armSetupProgress,
+  disarmSetupProgress,
+  isSetupProgressLine,
+} from '../setup-progress.js';
 import { sharedSlot } from '../shared-state.js';
 import {
   canonicalizeNest,
@@ -978,12 +982,15 @@ export async function monitorTlonProvider(
             'agent config at all: the setup chrome stays locked and the',
             'setup cannot finish, even though every other step landed.',
             'Rebuild the complete config array exactly as the setup',
-            'directive specified, JSON.stringify it into a file, parse the',
-            'file back to prove it is valid, then re-write it with',
-            `\`tlon groups update ${groupFlag} --description "$(cat <file>)"\``,
-            '— never inline hand-escaped JSON in a shell argument; that is',
-            'what truncated it. Repair this silently: post no message about',
-            'it, and do not repeat any earlier announcement.',
+            'directive specified, JSON.stringify it into',
+            '/tmp/tlon-group-config.json (a flat .json file in /tmp is the',
+            'only path the tool will read), parse the file back to prove',
+            'it is valid, then re-write it with',
+            `\`tlon groups update ${groupFlag} --description`,
+            '"$(cat /tmp/tlon-group-config.json)"` — never inline',
+            'hand-escaped JSON in a shell argument; that is what mangled',
+            'it. Repair this silently: post no message about it, and do',
+            'not repeat any earlier announcement.',
           ].join(' '),
           {
             sessionKey: route.sessionKey,
@@ -4519,20 +4526,42 @@ export async function monitorTlonProvider(
           // process restart between posting a picker and the owner's reply
           // loses the in-memory state — and, left alone, this block would
           // re-offer the purpose picker on top of the answered one.
-          const recovery = await recoverOnboardingState(
+          // Retried like the muted gate: this message is already consumed
+          // (no redelivery exists), and if it is the topics reply the
+          // picker is waiting for, processing it with unknown state feeds
+          // it to the model as ordinary chat and the setup directive is
+          // never built.
+          let recovery = await recoverOnboardingState(
             nest,
             senderShip,
             rawText ?? '',
             onboardingGroup
           );
+          for (
+            let attempt = 0;
+            recovery === 'inconclusive' && attempt < 2;
+            attempt += 1
+          ) {
+            await new Promise((resolve) => setTimeout(resolve, 1_000));
+            recovery = await recoverOnboardingState(
+              nest,
+              senderShip,
+              rawText ?? '',
+              onboardingGroup
+            );
+          }
           if (onboardingSetupPending.has(nest)) {
             // Recovered above: fall through so the reply in hand is consumed
             // as the topics answer.
           } else if (recovery === 'inconclusive') {
-            // The transcript couldn't be read, so a picker may already be
-            // waiting in it — offering now could stack a second opening over
-            // an answered one. Skip the offer; the message proceeds normally
-            // and the next one retries the scan.
+            // Still unknown after the retries. Processing could consume a
+            // real topics answer for good; a dropped ordinary message just
+            // gets re-sent. Same least-bad trade the muted gate makes, and
+            // the scan stays unburned for the next message.
+            runtime.log?.(
+              `[tlon] Dropping a message in ${nest} with onboarding state unknown — recovery scries kept failing`
+            );
+            return;
           } else if (
             !onboardingPickerOffered.has(nest) &&
             shouldOfferPurposePicker(onboardingOffer)
@@ -4845,9 +4874,14 @@ export async function monitorTlonProvider(
               throwOnError: true,
             });
             const sentAt = content.sent || 0;
+            // The plugin's own status lines ("Searching the web…") don't
+            // count as the bot speaking: a directive turn that died after a
+            // tool call would otherwise read as alive and never re-arm.
             const botSpoke = after.some(
               (entry) =>
-                entry.author === botShipName && (entry.timestamp ?? 0) >= sentAt
+                entry.author === botShipName &&
+                !isSetupProgressLine(entry.content) &&
+                (entry.timestamp ?? 0) >= sentAt
             );
             if (!botSpoke) {
               const groupNow = await findGroupForChannel(api, nest, runtime);

@@ -32,6 +32,27 @@ const armedSessions = new Map<string, SetupProgressEntry>();
  * the tlon tool takes a free-form command string, and these only gate
  * cosmetic lines — a miss costs a status update, never correctness.
  */
+const LABELS = {
+  cron: 'Scheduling the daily job…',
+  search: 'Searching the web…',
+  icon: 'Generating the group icon…',
+  notebook: 'Creating the notebook channel…',
+  entry: 'Writing the first entry…',
+  config: 'Saving the setup…',
+} as const;
+
+const ALL_LABELS: ReadonlySet<string> = new Set(Object.values(LABELS));
+
+/**
+ * Whether a post is one of the plugin-authored status lines above. The
+ * onboarding state machine needs to tell these apart from the model's own
+ * speech: a setup-survival check that counted a status line as "the bot
+ * replied" would read a dead directive turn as alive and never retry it.
+ */
+export function isSetupProgressLine(text: string): boolean {
+  return ALL_LABELS.has(text.trim());
+}
+
 export function setupProgressLabelFor(
   toolName: string,
   params: unknown
@@ -41,24 +62,24 @@ export function setupProgressLabelFor(
       ? (params as { command: string }).command ?? ''
       : '';
   if (toolName === 'cron') {
-    return 'Scheduling the daily job…';
+    return LABELS.cron;
   }
   if (/search/i.test(toolName)) {
-    return 'Searching the web…';
+    return LABELS.search;
   }
   if (/image|imagine|paint|dall/i.test(toolName)) {
-    return 'Generating the group icon…';
+    return LABELS.icon;
   }
   if (toolName === 'tlon') {
     if (command.includes('channels create')) {
-      return 'Creating the notebook channel…';
+      return LABELS.notebook;
     }
     if (command.includes('note-create')) {
-      return 'Writing the first entry…';
+      return LABELS.entry;
     }
     if (command.includes('groups update')) {
       if (command.includes('--description')) {
-        return 'Saving the setup…';
+        return LABELS.config;
       }
       return null;
     }

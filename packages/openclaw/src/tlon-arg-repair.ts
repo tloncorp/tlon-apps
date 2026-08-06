@@ -13,21 +13,33 @@
  * group as unconfigured, its setup chrome never unlocks, and the setup
  * stalls silently.
  *
- * So the tool does what the model meant: an argument that *is* a command
- * substitution over a file — `$(cat <path>)` or `$(< <path>)` — is
- * replaced with that file's contents, and a `--description` value that
- * still looks mangled (config-shaped but unparseable, or an unexpanded
- * `$(`) is refused with instructions the model can act on, before the CLI
- * writes anything.
+ * So the tool does what the model meant: a `--description` value that *is*
+ * a command substitution over a file — `$(cat <path>)` or `$(< <path>)` —
+ * is replaced with that file's contents, and one that still looks mangled
+ * (config-shaped but unparseable, or an unexpanded `$(`) is refused with
+ * instructions the model can act on, before the CLI writes anything.
+ *
+ * The expansion is deliberately narrow: only the `--description` value,
+ * and only files named like `/tmp/<name>.json` (checked again after
+ * symlinks resolve). A general expansion would be an arbitrary file read
+ * the tool otherwise never performs — a prompt-injected message steering
+ * the bot toward `--description "$(cat <secrets>)"` would exfiltrate
+ * local credentials into a group. The setup directive dictates a path
+ * inside the allowed shape, so the sanctioned use always qualifies.
  */
 
 const SUBSTITUTION_PATTERN = /^\$\(\s*(?:cat\s+|<\s*)([^)]+?)\s*\)$/;
+
+/** The only files the tool will substitute: flat JSON files in /tmp. */
+const ALLOWED_SUBSTITUTION_PATH = /^\/tmp\/[A-Za-z0-9._-]+\.json$/;
 
 /** Bounds a substituted file read; group configs run a few KB. */
 const MAX_SUBSTITUTION_BYTES = 256 * 1024;
 
 export type TlonArgRepairDeps = {
   readFile: (path: string) => string;
+  /** Resolves symlinks so the post-resolution path can be re-checked. */
+  realpath?: (path: string) => string;
 };
 
 export type TlonArgRepairResult =
@@ -72,17 +84,50 @@ export function repairTlonCommandArgs(
   deps: TlonArgRepairDeps
 ): TlonArgRepairResult {
   const expandedPaths: string[] = [];
+  const merged = mergeSplitSubstitutions(args);
   const out: string[] = [];
-  for (const arg of mergeSplitSubstitutions(args)) {
+  for (let i = 0; i < merged.length; i++) {
+    const arg = merged[i]!;
     const substitution = SUBSTITUTION_PATTERN.exec(arg);
     if (!substitution) {
       out.push(arg);
       continue;
     }
+    // Only the --description value is ever expanded — see the module doc.
+    if (merged[i - 1] !== '--description') {
+      return {
+        ok: false,
+        error:
+          `Error: this tool runs no shell and only expands $(cat <file>) ` +
+          `as the value of --description. Pass other arguments literally.`,
+      };
+    }
     const path = substitution[1]!;
+    let resolved = path;
+    if (ALLOWED_SUBSTITUTION_PATH.test(path) && deps.realpath) {
+      try {
+        resolved = deps.realpath(path);
+      } catch {
+        // A path that doesn't resolve fails the read below with a clearer
+        // message; fall through with the literal path.
+      }
+    }
+    if (
+      !ALLOWED_SUBSTITUTION_PATH.test(path) ||
+      !ALLOWED_SUBSTITUTION_PATH.test(resolved)
+    ) {
+      return {
+        ok: false,
+        error:
+          `Error: $(cat ...) substitution only reads flat JSON files in ` +
+          `/tmp (like /tmp/tlon-group-config.json); ${path} is outside ` +
+          `that. Write the config JSON to such a file and re-run the ` +
+          `command.`,
+      };
+    }
     let contents: string;
     try {
-      contents = deps.readFile(path);
+      contents = deps.readFile(resolved);
     } catch (error) {
       return {
         ok: false,
