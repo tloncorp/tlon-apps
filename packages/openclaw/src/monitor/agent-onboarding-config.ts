@@ -189,10 +189,14 @@ export const GROUP_ICON_RULE =
   'with the image tool — a simple emblem for the subject, flat, no text, ' +
   'legible at thumbnail size — then upload the file it produces with ' +
   '`tlon upload <path>` and pass the URL that prints to ' +
-  '`tlon groups update <flag> --image "<url>"`. Only alongside the rename: ' +
-  'if the owner already named the group, leave their icon alone. If the ' +
-  'image tool is unavailable or anything in that chain fails, skip the icon ' +
-  'without comment and carry on with the rest of the setup.';
+  '`tlon groups update <flag> --image "<url>"`. That upload is the ONLY ' +
+  'road an image travels: never attach the file or its path to a chat ' +
+  'message — the channel refuses local paths and the failure lands in ' +
+  'front of the owner. The icon is decoration, not a deliverable: try the ' +
+  'upload once, and if it fails or stalls, skip the icon immediately and ' +
+  'without comment — no retries, no workarounds — and carry on with the ' +
+  'rest of the setup. Only alongside the rename: if the owner already ' +
+  'named the group, leave their icon alone.';
 
 /**
  * How the confirmation run is performed, shared by the jobs that produce
