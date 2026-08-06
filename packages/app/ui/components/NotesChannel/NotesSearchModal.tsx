@@ -145,6 +145,7 @@ export function NotesSearchModal({
       <View
         alignItems="center"
         bottom={0}
+        justifyContent="center"
         left={0}
         position="absolute"
         right={0}
@@ -165,7 +166,6 @@ export function NotesSearchModal({
         />
 
         <YStack
-          marginTop="12%"
           borderRadius="$l"
           backgroundColor="$background"
           padding="$l"
