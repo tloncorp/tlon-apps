@@ -592,18 +592,18 @@ describe('renderSetupDirective', () => {
     expect(renderSetupDirective('agent-nonexistent', 'x')).toBeNull();
   });
 
-  test('tracking seeds the notebook at setup with the sample entry', () => {
-    // The one exception to first-run-creates-the-channel: tracking's first
-    // scheduled run may be a day away, and the back button routes through
-    // the channel list only once the notebook exists.
+  test('tracking seeds the owner-hosted notebook with the sample entry', () => {
+    // Tracking's first scheduled run may be a day away, so its
+    // confirmation seeds the notebook immediately — but the notebook is
+    // the owner's channel, created by their app; the agent only writes
+    // into it.
     const directive = renderSetupDirective('agent-tracking', 'HRV, Dreams')!;
-    expect(directive).toContain('unless the confirmation');
-    expect(directive).toContain('--kind notes');
+    expect(directive).toContain('NEVER create it yourself');
     expect(directive).toContain(
       'Analysis and summaries of your HRV, Dreams entries will land in ' +
         'this notebook.'
     );
-    // Digest and research still wait for the first run.
+    // Digest and research seed nothing.
     expect(renderSetupDirective('agent-daily-digest', 'News')).not.toContain(
       'About this notebook'
     );
@@ -652,24 +652,28 @@ describe('renderSetupDirective', () => {
     expect(directive).toContain('Never create a group');
     // Setup must not create the output channel — the first run does, so the
     // notebook arrives holding a real entry instead of sitting empty.
-    expect(directive).toContain("Don't create the output channel during setup");
-    expect(directive).toContain('"outputNest" empty');
+    expect(directive).toContain('Never create a channel either');
+    expect(directive).toContain('"outputNest" stays');
     // An empty toolsAllow schedules a job that wakes with zero tools.
     expect(directive).toContain('toolsAllow');
     expect(directive).toContain('Omit');
   });
 
-  test('the payload routes output to a notes channel, with the 404 fallback', () => {
+  test('the payload posts into the owner-hosted notebook, chat as fallback', () => {
+    // The agent hosting its own notebook was the original design and it
+    // was wrong: the channel lived on the bot's moon, and "find or
+    // create" gave every run room to create the wrong notebook.
     for (const purposeId of Object.keys(PURPOSE_JOBS)) {
       const directive = renderSetupDirective(purposeId, 'Sleep')!;
       // This rides in the payload — the text the cron runs every time.
       expect(directive).toContain("this group's notes channel");
-      expect(directive).toContain('create one in this group first');
-      expect(directive).toContain('--kind notes');
+      expect(directive).toContain("The notebook is the OWNER's channel");
+      expect(directive).toContain('NEVER create a channel');
+      expect(directive).not.toContain('channels create');
+      expect(directive).not.toContain('--kind notes');
       expect(directive).toContain('append to that same channel');
-      // A ship without the %notes desk 404s; diary is retired, so chat is
-      // the fallback — said once, not on every run.
-      expect(directive).toContain('HTTP 404');
+      // Chat is the fallback when the notebook never appears — said once,
+      // not on every run.
       expect(directive).toContain('say once — not every run');
     }
   });

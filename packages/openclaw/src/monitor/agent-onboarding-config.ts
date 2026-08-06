@@ -212,42 +212,42 @@ const INLINE_FIRST_RUN =
  * Where a scheduled run's output goes, shared by every job that produces
  * something worth keeping.
  *
- * The output channel is created by the **first run**, not during setup: at
- * setup time there is nothing to put in it, and a group that opens with an
- * empty notebook reads as broken. So the first run makes it and records it,
- * and every run after that appends to the same place — the job's output
- * accumulates in one notebook instead of scrolling away in chat.
- *
- * Tracking is the one exception: its first scheduled run may be a day away,
- * so its confirmation creates the notebook immediately and seeds it with a
- * one-entry explanation of what will land there — the group shows where the
- * record lives without waiting a day, and the client's back button can route
- * through the channel list as soon as the notebook exists.
+ * The notebook is the OWNER's channel, created by the owner's app on the
+ * owner's ship the moment the group config lands with a job — the agent
+ * only ever posts *into* it. The agent hosting its own notebook was the
+ * original design and it was wrong twice over: the channel lived on the
+ * bot's moon instead of with the owner's group, and each run's "find or
+ * create" gave the model room to create the wrong notebook. Now the
+ * first run waits briefly for the owner-side channel to appear, writes
+ * into it, and records its nest; every later run appends to the same
+ * place. Chat is the fallback when the notebook never appears, never a
+ * bot-hosted channel.
  *
  * Part of the verbatim payload, so it is one string rather than three
  * paraphrases that can drift apart.
  */
 const OUTPUT_CHANNEL_RULE =
   "Post it to this group's notes channel — the notebook, whose nests look " +
-  'like `notes/<host>/<name>`. If the group has no notes channel yet, ' +
-  'create one in this group first (never a new group), named for the ' +
-  'subject: `tlon channels create <flag> "<Title>" --kind notes`. Record ' +
-  'its nest as this job\'s "outputNest" in the group config, so later runs ' +
-  'go straight there and append to that same channel. Verify the notebook ' +
-  'actually exists after creating it (`tlon notes show <nest>` answers) — ' +
-  'some hosted ships report success without materializing anything, and ' +
-  'entries written to a nest that does not exist vanish silently; treat a ' +
-  'silent no-op exactly like the 404 below. Announce it in chat ' +
-  'with a single line — the chat gets the announcement, the notebook gets ' +
-  'the writing. Write the entry with the tlon tool — `notes note-create ' +
-  '<nest> root "<Title>" --stdin` — not the message tool, which only posts ' +
-  'chat and cannot carry a title. If that create fails with HTTP 404, this ' +
-  'ship has no ' +
-  "%notes desk (`tlon notes status` confirms it) — don't reach for `--kind " +
-  "diary, which is retired, and don't create a group. Post the update in " +
-  'this group\'s chat channel instead, record that nest as "outputNest", ' +
-  'and say once — not every run — that the notebook is unavailable here ' +
-  "and you'll move the updates into one when it is.";
+  "like `notes/<host>/<name>`. The notebook is the OWNER's channel: their " +
+  'app creates it on their ship the moment the group config lands, so it ' +
+  'appears within moments of the config write. NEVER create a channel ' +
+  'yourself — a notebook you host is the wrong one by definition; you post ' +
+  "*into* the owner's. If the group shows no notes channel yet, re-check " +
+  'every fifteen seconds or so for up to two minutes (`tlon channels ' +
+  "groups` lists the group's channels). When it appears, record its nest " +
+  'as this job\'s "outputNest" in the group config, so later runs go ' +
+  'straight there and append to that same channel. Write the entry with ' +
+  'the tlon tool — `notes note-create <nest> root "<Title>" --stdin` — ' +
+  'not the message tool, which only posts chat and cannot carry a title, ' +
+  'and read the notebook back afterward (`tlon notes show <nest>`) to ' +
+  'confirm the entry landed — entries written into a channel that is not ' +
+  'accepting them vanish silently. Announce it in chat with a single ' +
+  'line — the chat gets the announcement, the notebook gets the writing. ' +
+  'If no notebook appears within two minutes (the owner may have closed ' +
+  'the app), or the write into it keeps failing, post the update in this ' +
+  'group\'s chat channel instead, record that nest as "outputNest", and ' +
+  'say once — not every run — that the entries will move into the ' +
+  'notebook when it is available.';
 
 /**
  * The scheduled job each purpose sets up, templated so the operative cron
@@ -294,12 +294,12 @@ export const PURPOSE_JOBS: Record<
       ' No preamble.',
     confirmation:
       'Run the job once right now, exactly as the scheduled run would — ' +
-      'the owner should see a real digest, not a promise of one, and that ' +
-      'run is what creates the notes channel. ' +
+      'the owner should see a real digest, not a promise of one, landing ' +
+      "in the notebook the owner's app created. " +
       INLINE_FIRST_RUN +
       ' Never fabricate: if you ' +
       "can't actually research, say so in chat in one honest line, with " +
-      'what will arrive and when, and leave the notes channel uncreated ' +
+      'what will arrive and when, and leave the notebook untouched ' +
       'until there is something real to put in it. Then list the sources you ' +
       'used, one line each, so they can see where it came from and tell you ' +
       'to add, drop, or swap one whenever they like — the closing ask below ' +
@@ -317,24 +317,22 @@ export const PURPOSE_JOBS: Record<
       ' If nothing was logged, say so in one line in chat and stop, ' +
       'without posting an empty check-in.',
     confirmation:
-      "There's nothing to summarize yet, so don't run the job. Do create " +
-      'the notebook now — the one exception to waiting for the first run, ' +
-      'so the group shows where the record will live: `tlon channels ' +
-      'create <flag> "<Title>" --kind notes`, named for the subject. ' +
-      'Verify it exists (`tlon notes show <nest>` answers — some hosted ' +
-      'ships report success without materializing anything; treat a silent ' +
-      "no-op like the 404 case), then record its nest as this job's " +
-      '"outputNest" in the group config. ' +
-      'Seed it with a single entry titled "About this notebook" whose body ' +
-      'is exactly: "Analysis and summaries of your {{topics}} entries will ' +
-      'land in this notebook." — you may only rephrase the topic list ' +
-      'itself so it reads naturally. If the create fails with HTTP 404 ' +
-      '(no %notes desk here), skip the notebook and the seed entirely and ' +
-      'leave "outputNest" empty — the scheduled run handles where output ' +
-      'goes. Then ask the owner to log their first entry right now, in ' +
-      "chat, in their own words, and confirm you've recorded it — leaving " +
-      'the closing ask below as the only question, rather than also ' +
-      'asking what else they want to track alongside: {{topics}}.',
+      "There's nothing to summarize yet, so don't run the job. The " +
+      "owner's app creates the notebook on their ship as soon as the " +
+      'config lands — NEVER create it yourself; wait for it to appear ' +
+      '(re-check every fifteen seconds, up to two minutes — `tlon ' +
+      "channels groups` lists the group's channels). When it appears, " +
+      'record its nest as this job\'s "outputNest" in the group config ' +
+      'and seed it with a single entry titled "About this notebook" whose ' +
+      'body is exactly: "Analysis and summaries of your {{topics}} ' +
+      'entries will land in this notebook." — you may only rephrase the ' +
+      'topic list itself so it reads naturally. If no notebook appears, ' +
+      'skip the seed and leave "outputNest" empty — the scheduled run ' +
+      'handles where output goes. Then ask the owner to log their first ' +
+      'entry right now, in chat, in their own words, and confirm ' +
+      "you've recorded it — leaving the closing ask below as the only " +
+      'question, rather than also asking what else they want to track ' +
+      'alongside: {{topics}}.',
   },
   'agent-research': {
     title: 'Research update: {{topics}}',
@@ -347,12 +345,12 @@ export const PURPOSE_JOBS: Record<
       ' If nothing new surfaced, say so in one line and stop.',
     confirmation:
       'Run the job once right now, exactly as the scheduled run would — ' +
-      'the owner should see a real first update, and that run is what ' +
-      'creates the notes channel. ' +
+      'the owner should see a real first update, landing in the notebook ' +
+      "the owner's app created. " +
       INLINE_FIRST_RUN +
       " Never fabricate: if you can't actually " +
       'research, say so in chat in one honest line, with what will arrive ' +
-      'and when, and leave the notes channel uncreated until there is ' +
+      'and when, and leave the notebook untouched until there is ' +
       'something real to put in it. Then list the sources you used, one line ' +
       'each, so they can see where it came from and tell you to add, drop, ' +
       'or swap one whenever they like — the closing ask below is the only ' +

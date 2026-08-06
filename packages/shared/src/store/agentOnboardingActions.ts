@@ -9,6 +9,7 @@ import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { createChannel } from './channelActions';
 import { createDefaultGroup } from './groupActions';
 
 const logger = createDevLogger('agentOnboardingActions', false);
@@ -153,6 +154,61 @@ async function writeAgentMarker(group: db.Group, botShipId: string) {
       cover: meta.coverImage ?? meta.coverImageColor ?? '',
     },
   });
+}
+
+const agentNotebookEnsuring = new Set<string>();
+
+/**
+ * Create the setup's output notebook as the owner, the moment the group's
+ * config gains a job. The notebook is the owner's channel, hosted on the
+ * owner's ship — the agent only ever posts *into* it. Reactive to the
+ * config write because that is the first moment the client knows the setup
+ * produced a job (and what to call it), and the owner is being held in the
+ * guided channel right then, so the app is foregrounded and the channel
+ * exists before the agent's first run goes looking for it. Best effort and
+ * idempotent: an existing notes channel means nothing to do, and the agent
+ * falls back to chat output when no notebook ever appears.
+ */
+export async function ensureAgentNotebookForGroup(group: {
+  id: string;
+  description?: string | null;
+  channels?: { type?: string | null }[] | null;
+}): Promise<void> {
+  const currentUserId = api.getCurrentUserId();
+  if (group.id.split('/')[0] !== currentUserId) {
+    return;
+  }
+  const config = parseGroupAgentConfig(group.description);
+  const job = config?.jobs?.[0] as { title?: unknown } | undefined;
+  if (!job) {
+    return;
+  }
+  if (group.channels?.some((channel) => channel.type === 'notes')) {
+    return;
+  }
+  if (agentNotebookEnsuring.has(group.id)) {
+    return;
+  }
+  agentNotebookEnsuring.add(group.id);
+  try {
+    // "Daily digest: Nootropics, Coffee" names the notebook "Daily digest".
+    const jobTitle = typeof job.title === 'string' ? job.title : '';
+    const title = jobTitle.split(':')[0]?.trim() || 'Notebook';
+    await createChannel({
+      groupId: group.id,
+      title,
+      channelType: 'notes',
+    });
+    logger.trackEvent('Agent Notebook Created', { groupId: group.id });
+  } catch (error) {
+    logger.trackError('Failed to create agent notebook', {
+      error,
+      groupId: group.id,
+    });
+    // Cleared so the next config sync retries; on success the notes-channel
+    // check above is the durable guard.
+    agentNotebookEnsuring.delete(group.id);
+  }
 }
 
 /**

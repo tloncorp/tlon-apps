@@ -182,6 +182,20 @@ export default function ChannelScreen(props: Props) {
   // setup; the lock reads live state, so it releases when the config syncs.
   const setupLocked = useAgentOnboardingLock(groupId, group?.description);
 
+  // The setup's output notebook is the owner's channel: create it the
+  // moment the group's config gains a job, so the agent's first run has a
+  // place to post into — the agent itself never hosts channels. The owner
+  // is being held in this very channel while the build runs, which is what
+  // makes this the reliable place to react from.
+  useEffect(() => {
+    if (group) {
+      store.ensureAgentNotebookForGroup(group).catch(() => {
+        // Logged inside; the agent falls back to chat output.
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group?.description, group?.channels?.length]);
+
   // The header button is only one exit; the swipe-back gesture and the
   // Android hardware button are the others. All honor the lock, and all
   // come back when it releases.
