@@ -186,7 +186,13 @@ function blockChildrenToInlines(
       }
 
       case 'code': {
-        const code: BlockCode = { code: (child as MdastCode).value };
+        const codeNode = child as MdastCode;
+        const code: BlockCode =
+          codeNode.lang && codeNode.lang !== 'text'
+            ? ({
+                code: { code: codeNode.value, lang: codeNode.lang },
+              } as unknown as BlockCode)
+            : { code: codeNode.value };
         blockInlines = [code];
         break;
       }

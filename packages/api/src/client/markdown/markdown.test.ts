@@ -823,6 +823,20 @@ describe('Story to Markdown to Story structural round trips', () => {
     ]);
   });
 
+  it('keeps image alt text as the visible content of a link label', () => {
+    expect(
+      markdownToStory('[![diagram](image.png)](https://example.com)')
+    ).toEqual([
+      {
+        inline: [
+          {
+            link: { href: 'https://example.com', content: 'diagram' },
+          },
+        ],
+      },
+    ]);
+  });
+
   // KNOWN LIMITATION, pinned deliberately. `%sect` now survives Story → Markdown
   // as `@all` / `@role` text (previously it was deleted outright), but the
   // Markdown parser does not install the group-mention plugin, so it returns as

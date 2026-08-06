@@ -68,6 +68,24 @@ export function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
         checked: inline.task.checked,
         children: convertInlineContent(inline.task.content),
       });
+    } else if (ub.isBlockquote(inline) && Array.isArray(inline.blockquote)) {
+      nodes.push(...convertInlineContent(inline.blockquote));
+    } else if (ub.isBlockCode(inline)) {
+      nodes.push({
+        type: 'style',
+        style: 'code',
+        children: [{ type: 'text', text: inline.code }],
+      });
+    } else if (
+      ub.isCode(inline) &&
+      inline.code !== null &&
+      typeof inline.code.code === 'string'
+    ) {
+      nodes.push({
+        type: 'style',
+        style: 'code',
+        children: [{ type: 'text', text: inline.code.code }],
+      });
     } else {
       console.warn('Unhandled inline type:', { inline });
       nodes.push({

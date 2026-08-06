@@ -20,6 +20,7 @@ import {
   Task,
 } from '../../urbit/content';
 import { blockToMarkdown, inlinesToMarkdown, storyToMarkdown } from './index';
+import { markdownToStory } from './parse';
 
 describe('inlinesToMarkdown', () => {
   test('converts plain string', () => {
@@ -70,6 +71,11 @@ describe('inlinesToMarkdown', () => {
     expect(inlinesToMarkdown(inlines)).toBe('line 1\\\nline 2');
   });
 
+  test('drops a trailing Break at the paragraph boundary', () => {
+    const story: Story = [{ inline: ['a', { break: null } as Break] }];
+    expect(storyToMarkdown(story)).toBe('a');
+  });
+
   test('handles nested inlines: bold within italic', () => {
     const inlines: Inline[] = [
       {
@@ -112,6 +118,206 @@ describe('inlinesToMarkdown', () => {
       } as Bold,
     ];
     expect(inlinesToMarkdown(inlines)).toBe('***~~nested~~***');
+  });
+
+  test('pins content-neutral comments around strike inside bold phrasing', () => {
+    const inlines: Inline[] = [
+      {
+        bold: ['a', { strike: ['b'] } as Strikethrough, 'c'],
+      } as Bold,
+    ];
+
+    expect(inlinesToMarkdown(inlines)).toBe('**a<!-- -->~~b~~<!-- -->c**');
+  });
+
+  test.each([
+    {
+      name: 'link in italics',
+      story: [
+        {
+          inline: [
+            'before',
+            {
+              italics: [
+                {
+                  link: { href: 'https://x.test', content: 'link' },
+                } as Link,
+                { break: null } as Break,
+                'after',
+              ],
+            } as Italics,
+          ],
+        },
+      ] as Story,
+      markdown: 'before<!-- -->*[link](https://x.test)*\\\n*after*',
+    },
+    {
+      name: 'mention in bold',
+      story: [
+        {
+          inline: [
+            'before',
+            {
+              bold: [
+                { ship: '~zod' } as Ship,
+                { break: null } as Break,
+                'after',
+              ],
+            } as Bold,
+          ],
+        },
+      ] as Story,
+      markdown: 'before<!-- -->**~zod**\\\n**after**',
+    },
+    {
+      name: 'inline code in italics',
+      story: [
+        {
+          inline: [
+            'word',
+            {
+              italics: [
+                { 'inline-code': 'x' } as InlineCode,
+                { break: null } as Break,
+                'after',
+              ],
+            } as Italics,
+          ],
+        },
+      ] as Story,
+      markdown: 'word<!-- -->*`x`*\\\n*after*',
+    },
+  ])(
+    'stabilizes an unmarked-to-marked boundary ending at a break: $name',
+    ({ story, markdown }) => {
+      expect(storyToMarkdown(story)).toBe(markdown);
+      expect(storyToMarkdown(markdownToStory(markdown))).toBe(markdown);
+      expect(markdown).not.toMatch(/&#(?:x[\da-f]+|\d+);/i);
+    }
+  );
+
+  test.each([
+    {
+      name: 'link-leading italics',
+      leading: {
+        link: { href: 'https://x.test', content: 'link' },
+      } as Link,
+      markdown: '**first**<!-- -->*[link](https://x.test)*\\\n*after*',
+    },
+    {
+      name: 'inline-code-leading italics',
+      leading: { 'inline-code': 'x' } as InlineCode,
+      markdown: '**first**<!-- -->*`x`*\\\n*after*',
+    },
+    {
+      name: 'punctuation-leading italics',
+      leading: '!leading' as Inline,
+      markdown: '**first**<!-- -->*!leading*\\\n*after*',
+    },
+  ])(
+    'stabilizes adjacent marks before a lifted break: $name',
+    ({ leading, markdown }) => {
+      const story: Story = [
+        {
+          inline: [
+            { bold: ['first'] } as Bold,
+            {
+              italics: [leading, { break: null } as Break, 'after'],
+            } as Italics,
+          ],
+        },
+      ];
+      const canonicalStory: Story = [
+        {
+          inline: [
+            { bold: ['first'] } as Bold,
+            { italics: [leading] } as Italics,
+            { break: null } as Break,
+            { italics: ['after'] } as Italics,
+          ],
+        },
+      ];
+
+      expect(storyToMarkdown(story)).toBe(markdown);
+      expect(markdownToStory(markdown)).toEqual(canonicalStory);
+      expect(storyToMarkdown(markdownToStory(markdown))).toBe(markdown);
+    }
+  );
+
+  test.each([
+    {
+      name: 'marked before unmarked phrasing',
+      story: [
+        {
+          inline: [
+            {
+              italics: [
+                {
+                  link: { href: 'https://x.test', content: 'link' },
+                } as Link,
+              ],
+            } as Italics,
+            'after',
+            { break: null } as Break,
+            'tail',
+          ],
+        },
+      ] as Story,
+    },
+    {
+      name: 'mark not before a break',
+      story: [
+        {
+          inline: [
+            'before',
+            {
+              italics: [
+                {
+                  link: { href: 'https://x.test', content: 'link' },
+                } as Link,
+              ],
+            } as Italics,
+            'after',
+          ],
+        },
+      ] as Story,
+    },
+    {
+      name: 'marked boundary at paragraph start',
+      story: [
+        {
+          inline: [
+            {
+              italics: [
+                {
+                  link: { href: 'https://x.test', content: 'link' },
+                } as Link,
+                { break: null } as Break,
+                'after',
+              ],
+            } as Italics,
+          ],
+        },
+      ] as Story,
+    },
+    {
+      name: 'adjacent marks with a word-leading second segment',
+      story: [
+        {
+          inline: [
+            { bold: ['first'] } as Bold,
+            {
+              italics: ['second', { break: null } as Break, 'after'],
+            } as Italics,
+          ],
+        },
+      ] as Story,
+    },
+  ])('keeps the near-miss comment-free: $name', ({ story }) => {
+    const markdown = storyToMarkdown(story);
+
+    expect(markdown).not.toContain('<!-- -->');
+    expect(storyToMarkdown(markdownToStory(markdown))).toBe(markdown);
   });
 
   test('handles empty inlines array', () => {
@@ -434,6 +640,20 @@ describe('blockToMarkdown', () => {
     );
   });
 
+  test('pins a multi-paragraph plain list item', () => {
+    const block: ListingBlock = {
+      listing: {
+        list: {
+          type: 'unordered',
+          contents: [],
+          items: [{ item: ['a', { break: null } as Break, 'b'] }],
+        },
+      },
+    };
+
+    expect(blockToMarkdown(block)).toBe('- a\n\n  b');
+  });
+
   test('returns empty string for unhandled block types', () => {
     const block = { cite: { group: 'test-flag' } } as Block;
     expect(blockToMarkdown(block)).toBe('');
@@ -576,6 +796,60 @@ describe('storyToMarkdown', () => {
     expect(storyToMarkdown(story)).toBe('> This is a quoted text');
   });
 
+  test('collapses consecutive breaks before a lifted blockquote', () => {
+    const story: Story = [
+      {
+        inline: [
+          'intro',
+          { break: null } as Break,
+          { break: null } as Break,
+          { blockquote: ['q'] } as Blockquote,
+        ],
+      },
+    ];
+
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toBe('intro\n\n> q');
+    expect(storyToMarkdown(markdownToStory(markdown))).toBe(markdown);
+  });
+
+  test('collapses a marked break before a lifted blockquote', () => {
+    const story: Story = [
+      {
+        inline: [
+          {
+            italics: [
+              'a',
+              { break: null } as Break,
+              { blockquote: ['b'] } as Blockquote,
+            ],
+          } as Italics,
+        ],
+      },
+    ];
+
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toBe('*a*\n\n> *b*');
+    expect(markdown).not.toContain('&#xA;');
+    expect(storyToMarkdown(markdownToStory(markdown))).toBe(markdown);
+  });
+
+  test('preserves lang when lifting a block-shaped code inline', () => {
+    const story = [
+      {
+        inline: [
+          {
+            code: { code: 'const value = 1;', lang: 'js' },
+          } as unknown as Inline,
+        ],
+      },
+    ] as Story;
+
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toBe('```js\nconst value = 1;\n```');
+    expect(storyToMarkdown(markdownToStory(markdown))).toBe(markdown);
+  });
+
   test('converts story with list blocks', () => {
     const story: Story = [
       { inline: ['Shopping list:'] },
@@ -680,4 +954,106 @@ describe('storyToMarkdown', () => {
       '# Welcome\n\nThis is an intro with **emphasis**.\n\n---\n\n1. Step one\n2. Step two\n\n> Important note'
     );
   });
+});
+
+describe('blockquote ownership in list items', () => {
+  function listStory(
+    listType: 'unordered' | 'tasklist',
+    content: Inline[]
+  ): Story {
+    return [
+      {
+        block: {
+          listing: {
+            list: {
+              type: listType,
+              contents: [],
+              items: [
+                {
+                  item:
+                    listType === 'tasklist'
+                      ? [{ task: { checked: true, content } } as Task]
+                      : content,
+                },
+              ],
+            },
+          },
+        },
+      },
+    ];
+  }
+
+  test.each([
+    {
+      name: 'plain list quote then text',
+      listType: 'unordered' as const,
+      tail: 'after' as Inline,
+      markdown: '- > quote\n\n  after',
+    },
+    {
+      name: 'plain list quote then marked text',
+      listType: 'unordered' as const,
+      tail: { bold: ['after'] } as Bold,
+      markdown: '- > quote\n\n  **after**',
+    },
+    {
+      name: 'task list quote then text',
+      listType: 'tasklist' as const,
+      tail: 'after' as Inline,
+      markdown: '- [x] <!-- -->\n\n  > quote\n\n  after',
+    },
+    {
+      name: 'task list quote then marked text',
+      listType: 'tasklist' as const,
+      tail: { bold: ['after'] } as Bold,
+      markdown: '- [x] <!-- -->\n\n  > quote\n\n  **after**',
+    },
+  ])('preserves quote ownership for $name', ({ listType, tail, markdown }) => {
+    const story = listStory(listType, [{ blockquote: ['quote'] }, tail]);
+    const canonicalStory = listStory(listType, [
+      { blockquote: ['quote'] },
+      { break: null },
+      tail,
+    ]);
+
+    expect(storyToMarkdown(story, { strict: true })).toBe(markdown);
+    expect(markdownToStory(markdown)).toEqual(canonicalStory);
+    expect(storyToMarkdown(canonicalStory, { strict: true })).toBe(markdown);
+  });
+
+  test.each([
+    {
+      name: 'plain list',
+      listType: 'unordered' as const,
+      markdown: '- > quote\n  ```js\n  x\n  ```\n  after',
+    },
+    {
+      name: 'task list',
+      listType: 'tasklist' as const,
+      markdown: '- [x] <!-- -->\n  > quote\n  ```js\n  x\n  ```\n  after',
+    },
+  ])(
+    'keeps quote then code then paragraph tight for $name',
+    ({ listType, markdown }) => {
+      const code = {
+        code: { code: 'x', lang: 'js' },
+      } as unknown as Inline;
+      const story = listStory(listType, [
+        { blockquote: ['quote'] },
+        code,
+        'after',
+      ]);
+      const canonicalStory = listStory(listType, [
+        { blockquote: ['quote'] },
+        { break: null },
+        code,
+        { break: null },
+        'after',
+      ]);
+
+      expect(storyToMarkdown(story, { strict: true })).toBe(markdown);
+      expect(markdownToStory(markdown)).toEqual(canonicalStory);
+      expect(storyToMarkdown(canonicalStory, { strict: true })).toBe(markdown);
+    }
+  );
 });

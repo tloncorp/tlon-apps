@@ -82,6 +82,10 @@ function isKnownDeliberatelyUnsupportedBlock(block: Block): boolean {
   );
 }
 
+function codeLanguage(lang: string): string | undefined {
+  return lang || undefined;
+}
+
 /**
  * Check if a block is a Rule (horizontal rule).
  */
@@ -140,6 +144,38 @@ function mergeAdjacentMarks(inlines: Inline[]): Inline[] {
   return result;
 }
 
+type PhrasingMark = 'strong' | 'emphasis' | 'delete';
+
+function wrapWithMark(
+  children: PhrasingContent[],
+  mark: PhrasingMark
+): PhrasingContent[] {
+  const result: PhrasingContent[] = [];
+  let marked: PhrasingContent[] = [];
+  const flushMarked = () => {
+    if (marked.length > 0) {
+      result.push({ type: mark, children: marked } as
+        | Strong
+        | Emphasis
+        | Delete);
+      marked = [];
+    }
+  };
+
+  for (const child of children) {
+    if (child.type === 'break') {
+      flushMarked();
+      result.push(child);
+    } else if (child.type === mark && isPhrasingMark(child)) {
+      marked.push(...child.children);
+    } else {
+      marked.push(child);
+    }
+  }
+  flushMarked();
+  return result;
+}
+
 /**
  * Convert Story Inline array to mdast phrasing content.
  */
@@ -167,39 +203,42 @@ export function inlinesToPhrasing(
 
     if (isBold(inline)) {
       const bold = inline as Bold;
-      const strong: Strong = {
-        type: 'strong',
-        children: inlinesToPhrasing(bold.bold, opts, `${placement} under bold`),
-      };
-      result.push(strong);
+      result.push(
+        ...wrapWithMark(
+          inlinesToPhrasing(bold.bold, opts, `${placement} under bold`),
+          'strong'
+        )
+      );
       continue;
     }
 
     if (isItalics(inline)) {
       const italics = inline as Italics;
-      const emphasis: Emphasis = {
-        type: 'emphasis',
-        children: inlinesToPhrasing(
-          italics.italics,
-          opts,
-          `${placement} under italics`
-        ),
-      };
-      result.push(emphasis);
+      result.push(
+        ...wrapWithMark(
+          inlinesToPhrasing(
+            italics.italics,
+            opts,
+            `${placement} under italics`
+          ),
+          'emphasis'
+        )
+      );
       continue;
     }
 
     if (isStrikethrough(inline)) {
       const strike = inline as Strikethrough;
-      const del: Delete = {
-        type: 'delete',
-        children: inlinesToPhrasing(
-          strike.strike,
-          opts,
-          `${placement} under strikethrough`
-        ),
-      };
-      result.push(del);
+      result.push(
+        ...wrapWithMark(
+          inlinesToPhrasing(
+            strike.strike,
+            opts,
+            `${placement} under strikethrough`
+          ),
+          'delete'
+        )
+      );
       continue;
     }
 
@@ -414,22 +453,65 @@ function phrasingToMarkdown(nodes: PhrasingContent[]): string {
     .join('');
 }
 
-type PhrasingMark = 'strong' | 'emphasis' | 'delete';
-
 function wrapPhrasing(
   children: PhrasingContent[],
   marks: PhrasingMark[]
 ): PhrasingContent[] {
   let wrapped = children;
-  for (let index = marks.length - 1; index >= 0; index -= 1) {
-    wrapped = [
-      {
-        type: marks[index],
-        children: wrapped,
-      } as Strong | Emphasis | Delete,
-    ];
+  const uniqueMarks = marks.filter(
+    (mark, index) => marks.indexOf(mark) === index
+  );
+  for (let index = uniqueMarks.length - 1; index >= 0; index -= 1) {
+    wrapped = wrapWithMark(wrapped, uniqueMarks[index]);
   }
   return wrapped;
+}
+
+function isPhrasingMark(
+  node: PhrasingContent
+): node is Strong | Emphasis | Delete {
+  return (
+    node.type === 'strong' || node.type === 'emphasis' || node.type === 'delete'
+  );
+}
+
+function appendPhrasing(
+  target: PhrasingContent[],
+  nodes: PhrasingContent[]
+): void {
+  for (const node of nodes) {
+    const last = target[target.length - 1];
+    if (last && isPhrasingMark(last) && last.type === node.type) {
+      appendPhrasing(
+        last.children,
+        (node as Strong | Emphasis | Delete).children
+      );
+    } else {
+      target.push(node);
+    }
+  }
+}
+
+function trimTrailingBreaks(nodes: PhrasingContent[]): void {
+  while (nodes.length > 0) {
+    const last = nodes[nodes.length - 1];
+    if (last.type === 'break') {
+      nodes.pop();
+      continue;
+    }
+    if (
+      last.type === 'strong' ||
+      last.type === 'emphasis' ||
+      last.type === 'delete'
+    ) {
+      trimTrailingBreaks(last.children);
+      if (last.children.length === 0) {
+        nodes.pop();
+        continue;
+      }
+    }
+    break;
+  }
 }
 
 function containsBlockInline(inlines: Inline[]): boolean {
@@ -479,6 +561,10 @@ export function inlinesToMdast(
   let phrasing: PhrasingContent[] = [];
 
   const flushPhrasing = () => {
+    trimTrailingBreaks(phrasing);
+    while (phrasing[0]?.type === 'break') {
+      phrasing.shift();
+    }
     if (phrasing.length > 0) {
       result.push({ type: 'paragraph', children: phrasing });
       phrasing = [];
@@ -486,15 +572,16 @@ export function inlinesToMdast(
   };
 
   const flushPhrasingBeforeBlock = () => {
-    if (phrasing[phrasing.length - 1]?.type === 'break') {
-      phrasing.pop();
-    }
+    trimTrailingBreaks(phrasing);
     flushPhrasing();
   };
 
   for (const inline of filtered) {
     if (typeof inline === 'string') {
-      phrasing.push(...wrapPhrasing([{ type: 'text', value: inline }], marks));
+      appendPhrasing(
+        phrasing,
+        wrapPhrasing([{ type: 'text', value: inline }], marks)
+      );
       continue;
     }
 
@@ -512,8 +599,9 @@ export function inlinesToMdast(
           )
         );
       } else {
-        phrasing.push(
-          ...wrapPhrasing(
+        appendPhrasing(
+          phrasing,
+          wrapPhrasing(
             inlinesToPhrasing(bold.bold, opts, `${placement} under bold`),
             nestedMarks
           )
@@ -536,8 +624,9 @@ export function inlinesToMdast(
           )
         );
       } else {
-        phrasing.push(
-          ...wrapPhrasing(
+        appendPhrasing(
+          phrasing,
+          wrapPhrasing(
             inlinesToPhrasing(
               italics.italics,
               opts,
@@ -564,8 +653,9 @@ export function inlinesToMdast(
           )
         );
       } else {
-        phrasing.push(
-          ...wrapPhrasing(
+        appendPhrasing(
+          phrasing,
+          wrapPhrasing(
             inlinesToPhrasing(
               strike.strike,
               opts,
@@ -603,6 +693,12 @@ export function inlinesToMdast(
       }
       result.push({
         type: 'code',
+        lang:
+          !opts?.strict &&
+          (placement.startsWith('inline verse') ||
+            placement.startsWith('root list contents'))
+            ? 'text'
+            : undefined,
         value: (inline as { code: string }).code,
       });
       continue;
@@ -618,7 +714,7 @@ export function inlinesToMdast(
       const code = inline as unknown as Code;
       result.push({
         type: 'code',
-        lang: code.code.lang || undefined,
+        lang: codeLanguage(code.code.lang),
         value: code.code.code,
       });
       continue;
@@ -633,16 +729,60 @@ export function inlinesToMdast(
     }
 
     if (isBreak(inline)) {
-      phrasing.push(...wrapPhrasing([{ type: 'break' }], marks));
+      phrasing.push({ type: 'break' });
       continue;
     }
 
-    phrasing.push(
-      ...wrapPhrasing(inlinesToPhrasing([inline], opts, placement), marks)
+    appendPhrasing(
+      phrasing,
+      wrapPhrasing(inlinesToPhrasing([inline], opts, placement), marks)
     );
   }
 
   flushPhrasing();
+  return result;
+}
+
+function liftBreaksThroughMarks(inlines: Inline[]): Inline[] {
+  const result: Inline[] = [];
+
+  for (const inline of inlines) {
+    let children: Inline[] | undefined;
+    let wrap: ((segment: Inline[]) => Inline) | undefined;
+    if (typeof inline !== 'string' && isBold(inline)) {
+      children = (inline as Bold).bold;
+      wrap = (segment) => ({ bold: segment });
+    } else if (typeof inline !== 'string' && isItalics(inline)) {
+      children = (inline as Italics).italics;
+      wrap = (segment) => ({ italics: segment });
+    } else if (typeof inline !== 'string' && isStrikethrough(inline)) {
+      children = (inline as Strikethrough).strike;
+      wrap = (segment) => ({ strike: segment });
+    }
+
+    if (!children || !wrap) {
+      result.push(inline);
+      continue;
+    }
+
+    let segment: Inline[] = [];
+    const flushSegment = () => {
+      if (segment.length > 0) {
+        result.push(wrap(segment));
+        segment = [];
+      }
+    };
+    for (const child of liftBreaksThroughMarks(children)) {
+      if (isBreak(child)) {
+        flushSegment();
+        result.push(child);
+      } else {
+        segment.push(child);
+      }
+    }
+    flushSegment();
+  }
+
   return result;
 }
 
@@ -654,7 +794,7 @@ function listItemInlinesToMdast(
   const paragraphs: Inline[][] = [];
   let currentParagraph: Inline[] = [];
 
-  for (const inline of inlines) {
+  for (const inline of liftBreaksThroughMarks(inlines)) {
     if (isBreak(inline)) {
       if (currentParagraph.length > 0) {
         paragraphs.push(currentParagraph);
@@ -671,6 +811,24 @@ function listItemInlinesToMdast(
   return paragraphs.flatMap((paragraph) =>
     inlinesToMdast(paragraph, opts, placement)
   );
+}
+
+/**
+ * A paragraph immediately following a blockquote needs a blank line inside a
+ * list item. Without it, CommonMark parses the paragraph as a lazy continuation
+ * of the quote and moves it into the blockquote.
+ */
+function preserveBlockquoteOwnership(item: MdastListItem): MdastListItem {
+  if (
+    item.children.some(
+      (child, index) =>
+        child.type === 'blockquote' &&
+        item.children[index + 1]?.type === 'paragraph'
+    )
+  ) {
+    item.spread = true;
+  }
+  return item;
 }
 
 function rendersVisibleContent(node: unknown): boolean {
@@ -784,25 +942,26 @@ function listingsToListItems(
         isTask(listItem.item[0])
       ) {
         const task = listItem.item[0] as Task;
-        const taskContent = inlinesToMdast(
+        const taskContent = listItemInlinesToMdast(
           [...task.task.content, ...listItem.item.slice(1)],
           opts,
           'task-list item'
         );
-        const mdastItem: MdastListItem = {
+        const mdastItem: MdastListItem = preserveBlockquoteOwnership({
           type: 'listItem',
           checked: task.task.checked,
           children: ensureTaskMarkerParagraph(taskContent),
-        };
+        });
         items.push(mdastItem);
       } else {
-        const mdastItem: MdastListItem = {
+        const content = listItemInlinesToMdast(
+          listItem.item,
+          opts
+        ) as MdastListItem['children'];
+        const mdastItem: MdastListItem = preserveBlockquoteOwnership({
           type: 'listItem',
-          children: listItemInlinesToMdast(
-            listItem.item,
-            opts
-          ) as MdastListItem['children'],
-        };
+          children: content,
+        });
         items.push(mdastItem);
       }
     } else if (isList(listing)) {
@@ -834,32 +993,32 @@ function listingsToListItems(
         isTask(list.list.contents[0])
       ) {
         const task = list.list.contents[0] as Task;
-        const taskContent = inlinesToMdast(
+        const taskContent = listItemInlinesToMdast(
           [...task.task.content, ...list.list.contents.slice(1)],
           opts,
           'nested task-list contents'
         );
-        const mdastItem: MdastListItem = {
+        const mdastItem: MdastListItem = preserveBlockquoteOwnership({
           type: 'listItem',
           checked: task.task.checked,
           children: [...ensureTaskMarkerParagraph(taskContent), nestedList],
-        };
+        });
         items.push(mdastItem);
       } else {
         // Only reached when the contents are not a task, so converting them
         // here cannot trip the strict-mode guard on tasks carrying blocks.
-        const contentChildren = inlinesToMdast(
+        const contentChildren = listItemInlinesToMdast(
           list.list.contents,
           opts,
           'nested list contents'
         );
-        const mdastItem: MdastListItem = {
+        const mdastItem: MdastListItem = preserveBlockquoteOwnership({
           type: 'listItem',
           children:
             contentChildren.length > 0
               ? [...(contentChildren as MdastListItem['children']), nestedList]
               : [nestedList],
-        };
+        });
         items.push(mdastItem);
       }
     }
@@ -890,7 +1049,7 @@ function blockToMdast(block: Block, opts?: StoryToMdastOptions): RootContent[] {
     const code = block as Code;
     const mdastCode: MdastCode = {
       type: 'code',
-      lang: code.code.lang || undefined,
+      lang: codeLanguage(code.code.lang),
       value: code.code.code,
     };
     return [mdastCode];
