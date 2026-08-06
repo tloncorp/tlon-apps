@@ -75,9 +75,11 @@ export function AgentOnboardingSequence(props: {
         // Already logged inside; cards degrade to text until config lands.
       });
       props.onCompleted();
-      store.completeWayfindingSplash().catch((error) => {
-        logger.trackError('Failed to complete wayfinding splash', { error });
-      });
+      store
+        .completeWayfindingSplash({ skipBotMentionHint: true })
+        .catch((error) => {
+          logger.trackError('Failed to complete wayfinding splash', { error });
+        });
     })();
     return () => {
       cancelled = true;

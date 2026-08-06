@@ -54,7 +54,9 @@ export async function updateCalmSetting(
   }
 }
 
-export async function completeWayfindingSplash() {
+export async function completeWayfindingSplash(
+  options: { skipBotMentionHint?: boolean } = {}
+) {
   await db.wayfindingProgress.setValue((prev) => ({
     ...prev,
     viewedPersonalGroup: false,
@@ -65,7 +67,11 @@ export async function completeWayfindingSplash() {
     tappedAddNote: false,
     tappedAddCollection: false,
     tappedChatInput: false,
-    tappedHomeGroupHint: false,
+    // The "your Tlonbot responds here" coach mark belongs to cohorts whose
+    // home group sits silent (classic splash, revival). A user arriving via
+    // agent onboarding gets the bot's own conversational opening in that
+    // channel, and the tooltip both contradicts it and covers it up.
+    tappedHomeGroupHint: options.skipBotMentionHint ? true : false,
   }));
 
   // optimistic update
