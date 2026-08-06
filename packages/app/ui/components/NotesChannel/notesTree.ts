@@ -353,6 +353,26 @@ export function getFolderLabel(folder: db.NotesFolder | null | undefined) {
   return folder.name === '/' ? 'Root' : folder.name;
 }
 
+/**
+ * Label a search hit with the folder that holds it, for the results list. The
+ * root folder is left unlabeled — every note is in it, so it says nothing.
+ */
+export function makeNotesFolderLabeler({
+  folders,
+  rootFolderId,
+}: {
+  folders: db.NotesFolder[];
+  rootFolderId: number | null;
+}) {
+  return (note: { folderId?: number | null }): string | null => {
+    const folder = folders.find(
+      (candidate) => candidate.folderId === note.folderId
+    );
+    if (!folder || folder.folderId === rootFolderId) return null;
+    return getFolderLabel(folder);
+  };
+}
+
 export function normalizeSearchText(value: string | null | undefined) {
   return (value ?? '').trim().toLowerCase();
 }

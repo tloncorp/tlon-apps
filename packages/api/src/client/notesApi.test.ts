@@ -251,6 +251,51 @@ describe('notesV1 reads', () => {
     ]);
   });
 
+  test('searchNotes percent-encodes the needle and omits absent bounds', async () => {
+    requestJsonMock.mockResolvedValue({ last: 0, notes: [] });
+
+    await notesV1.searchNotes({
+      flag: 'notes/~zod/blog',
+      needle: 'hello world & v1.0',
+    });
+    await notesV1.searchNotes({
+      flag: 'notes/~zod/blog',
+      needle: 'needle',
+      from: 12,
+      tries: 50,
+    });
+
+    expect(requestJsonMock.mock.calls.map((c) => [c[0], c[1]])).toEqual([
+      [
+        '/notes/~/v1/notebooks/~zod/blog/search/bounded/text?needle=hello%20world%20%26%20v1.0',
+        'GET',
+      ],
+      [
+        '/notes/~/v1/notebooks/~zod/blog/search/bounded/text?needle=needle&from=12&tries=50',
+        'GET',
+      ],
+    ]);
+  });
+
+  test('searchNotes rejects a body missing the last cursor or notes', async () => {
+    requestJsonMock.mockResolvedValue({ notes: [] });
+    await expect(
+      notesV1.searchNotes({ flag: 'notes/~zod/blog', needle: 'x' })
+    ).rejects.toThrow('search.last');
+
+    requestJsonMock.mockResolvedValue({ last: 0 });
+    await expect(
+      notesV1.searchNotes({ flag: 'notes/~zod/blog', needle: 'x' })
+    ).rejects.toThrow('expected an array');
+  });
+
+  test('searchNotes keeps an empty page with a live cursor distinct from the end', async () => {
+    requestJsonMock.mockResolvedValue({ last: 7, notes: [] });
+    await expect(
+      notesV1.searchNotes({ flag: 'notes/~zod/blog', needle: 'x' })
+    ).resolves.toEqual({ last: 7, notes: [] });
+  });
+
   test('getRequest reads a pending request status by id', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: '0vabc',
@@ -425,6 +470,28 @@ describe('notes app facade', () => {
     expect(note.folderId).toBeUndefined();
     expect(note.bodyMd).toBeUndefined();
     expect(note.revision).toBeUndefined();
+  });
+
+  test('searchNotes returns client notes alongside the resume cursor', async () => {
+    requestJsonMock.mockResolvedValue({
+      last: 8,
+      notes: [{ id: 12, title: 'First', bodyMd: 'a needle here' }],
+    });
+
+    await expect(
+      notes.searchNotes({ flag: 'notes/~zod/blog', needle: 'needle' })
+    ).resolves.toEqual({
+      last: 8,
+      notes: [
+        expect.objectContaining({
+          id: '~zod/blog/note/12',
+          notebookFlag: '~zod/blog',
+          noteId: 12,
+          title: 'First',
+          bodyMd: 'a needle here',
+        }),
+      ],
+    });
   });
 
   test('listMembers flattens roles and preserves role-less members', async () => {
