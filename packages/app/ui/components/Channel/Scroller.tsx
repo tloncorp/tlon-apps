@@ -417,13 +417,15 @@ const Scroller = forwardRef(
       onStartReached: false,
     });
 
-    const [readyToDisplayPosts, setReadyToDisplayPosts] = useState(false);
-    const anchorKey = getPostListAnchorKey(anchor);
+    const anchorKey = `${channel.id}:${getPostListAnchorKey(anchor) ?? 'latest'}`;
+    const [completedAnchorKey, setCompletedAnchorKey] = useState<string | null>(
+      null
+    );
+    const readyToDisplayPosts = completedAnchorKey === anchorKey;
 
     useLayoutEffect(() => {
       pendingEvents.current.onEndReached = false;
       pendingEvents.current.onStartReached = false;
-      setReadyToDisplayPosts(false);
     }, [anchorKey]);
 
     // We don't want to trigger onEndReached or onStartReached until we've found
@@ -503,8 +505,8 @@ const Scroller = forwardRef(
       setIsAtBottom(false);
     }, []);
     const onInitialScrollCompleted = useCallback(() => {
-      setReadyToDisplayPosts(true);
-    }, []);
+      setCompletedAnchorKey(anchorKey);
+    }, [anchorKey]);
     const showScrollButton = Boolean(shouldShowScrollButton());
 
     return (

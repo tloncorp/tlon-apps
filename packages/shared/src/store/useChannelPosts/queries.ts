@@ -1,12 +1,14 @@
+import type { InfiniteData } from '@tanstack/react-query';
+
 import * as db from '../../db';
 
 export const queryKeyPrefix = ['channelPosts'];
 
-export function getLatestChannelPostsQueryData<T>(
+export function getLatestChannelPostsFirstPage<TPage, TPageParam = unknown>(
   queryKey: readonly unknown[]
-): T | undefined {
+): InfiniteData<TPage, TPageParam> | undefined {
   let latestMountTime = -1;
-  let latestData: T | undefined;
+  let latestData: InfiniteData<TPage, TPageParam> | undefined;
 
   for (const query of db.queryClient
     .getQueryCache()
@@ -22,11 +24,17 @@ export function getLatestChannelPostsQueryData<T>(
       query.state.data !== undefined
     ) {
       latestMountTime = mountTime;
-      latestData = query.state.data as T;
+      latestData = query.state.data as InfiniteData<TPage, TPageParam>;
     }
   }
 
-  return latestData;
+  return latestData
+    ? {
+        ...latestData,
+        pages: latestData.pages.slice(0, 1),
+        pageParams: latestData.pageParams.slice(0, 1),
+      }
+    : undefined;
 }
 
 export const clearChannelPostsQueries = () => {

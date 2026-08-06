@@ -16,7 +16,7 @@ import * as sync from '../sync';
 import { SyncPriority } from '../syncQueue';
 import { useDetectSequenceRegression } from '../useDetectSequenceRegression';
 import { mergePendingPosts } from '../useMergePendingPosts';
-import { getLatestChannelPostsQueryData, queryKeyPrefix } from './queries';
+import { getLatestChannelPostsFirstPage, queryKeyPrefix } from './queries';
 import { useDeletedPosts, useNewPostListener } from './subscriptions';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
@@ -66,7 +66,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const placeholderData = useMemo(
     () =>
-      getLatestChannelPostsQueryData<PostQueryData>(queryKeyWithoutMountTime),
+      getLatestChannelPostsFirstPage<PostQueryPage>(queryKeyWithoutMountTime),
     [queryKeyWithoutMountTime]
   );
 
