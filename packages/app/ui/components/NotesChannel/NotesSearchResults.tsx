@@ -6,7 +6,7 @@ import {
 } from '@tloncorp/shared/logic';
 import { LoadingSpinner, Pressable } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { FlatList } from 'react-native';
+import { FlatList, type ViewStyle } from 'react-native';
 import { SizableText, View, XStack, YStack } from 'tamagui';
 
 import { ListItem } from '../ListItem';
@@ -30,8 +30,14 @@ export interface NotesSearchState {
 const ELLIPSIS = '…';
 
 // minHeight lets the list shrink below its content inside a flex column; flex
-// gives it the leftover space to scroll within.
-const LIST_STYLE = { flex: 1, minHeight: 0 } as const;
+// gives it the leftover space to scroll within. overscrollBehavior (web-only,
+// hence the cast) keeps a wheel gesture that reaches the list's end from
+// chaining onward and scrolling the page behind the modal.
+const LIST_STYLE = {
+  flex: 1,
+  minHeight: 0,
+  overscrollBehavior: 'contain',
+} as ViewStyle;
 
 function SegmentedText({
   segments,

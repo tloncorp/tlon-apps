@@ -148,6 +148,11 @@ export function NotesSearchModal({
         justifyContent="center"
         left={0}
         position="absolute"
+        // Tamagui's Portal wraps its children in a `box-none` view, which
+        // compiles to `pointer-events: none` with only direct children handed
+        // `auto` back. Claiming it explicitly keeps wheel and drag gestures on
+        // the overlay instead of letting them fall through to the page behind.
+        pointerEvents="auto"
         right={0}
         top={0}
         zIndex={100}
