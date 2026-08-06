@@ -92,6 +92,7 @@ const ConversationPostList: PostListComponent = React.forwardRef(
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
     const didStartInitialScrollRef = React.useRef(false);
+    const initialScrollFrameRef = React.useRef<number | undefined>(undefined);
     const userHasScrolledRef = React.useRef(false);
     const appliedAnchorPositionRef = React.useRef<AnchorPosition | undefined>(
       undefined
@@ -137,6 +138,10 @@ const ConversationPostList: PostListComponent = React.forwardRef(
 
       previousAnchorKeyRef.current = anchorKey;
       didStartInitialScrollRef.current = false;
+      if (initialScrollFrameRef.current !== undefined) {
+        cancelAnimationFrame(initialScrollFrameRef.current);
+        initialScrollFrameRef.current = undefined;
+      }
       setDidFinishInitialScroll(false);
       userHasScrolledRef.current = false;
       appliedAnchorPositionRef.current = undefined;
@@ -202,7 +207,7 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       onScrolledToBottom,
       onScrolledAwayFromBottom,
     });
-    const handleLoad = React.useCallback(() => {
+    const completeInitialScroll = React.useCallback(() => {
       if (!isInitialAnchorReady || didStartInitialScrollRef.current) {
         return;
       }
@@ -225,6 +230,34 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       isInitialAnchorReady,
       onInitialScrollCompleted,
     ]);
+    // onLoad fires before LegendList's post-load buffer expansion has laid out.
+    // Wait through that expansion so the exact target uses settled row sizes.
+    const scheduleInitialScroll = React.useCallback(() => {
+      if (initialScrollFrameRef.current !== undefined) {
+        cancelAnimationFrame(initialScrollFrameRef.current);
+      }
+      initialScrollFrameRef.current = requestAnimationFrame(() => {
+        initialScrollFrameRef.current = requestAnimationFrame(() => {
+          initialScrollFrameRef.current = undefined;
+          completeInitialScroll();
+        });
+      });
+    }, [completeInitialScroll]);
+    React.useEffect(
+      () => () => {
+        if (initialScrollFrameRef.current !== undefined) {
+          cancelAnimationFrame(initialScrollFrameRef.current);
+        }
+      },
+      []
+    );
+    const handleLoad = React.useCallback(() => {
+      if (anchor?.type === 'unread') {
+        scheduleInitialScroll();
+      } else {
+        completeInitialScroll();
+      }
+    }, [anchor?.type, completeInitialScroll, scheduleInitialScroll]);
 
     React.useEffect(() => {
       if (
