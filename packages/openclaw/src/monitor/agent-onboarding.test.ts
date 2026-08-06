@@ -10,6 +10,7 @@ import {
   TOPICS_PICKER_PROMPT,
 } from './agent-onboarding-config.js';
 import {
+  brokenConfigDescriptionError,
   buildInviteCardBlob,
   buildPurposePickerBlob,
   buildServicesCardBlob,
@@ -396,7 +397,48 @@ describe('group/channel resolution', () => {
   });
 });
 
+describe('brokenConfigDescriptionError', () => {
+  test('flags only config-shaped text that fails to parse', () => {
+    // The observed live failure: a shell-truncated write stored the front
+    // half of the config, cut mid-string inside the job prompt.
+    const truncated =
+      '[{"type":"tlon-group-agent-config","version":1,"jobs":[{"prompt":"Put together todays';
+    expect(brokenConfigDescriptionError(truncated)).toBeTruthy();
+    expect(brokenConfigDescriptionError('a group about bread')).toBeNull();
+    expect(brokenConfigDescriptionError('')).toBeNull();
+    expect(brokenConfigDescriptionError(null)).toBeNull();
+    expect(
+      brokenConfigDescriptionError(
+        JSON.stringify([
+          { type: 'tlon-group-agent-config', version: 1, agents: ['~zod'] },
+        ])
+      )
+    ).toBeNull();
+  });
+});
+
 describe('renderSetupDirective', () => {
+  test('forbids progress narration and doubled announcements', () => {
+    // Observed live: the model posted every setup step into the chat the
+    // owner was watching ("renaming the group", "notebook exists", a
+    // timeout complaint) and announced completion twice after a retry.
+    const directive = renderSetupDirective('agent-daily-digest', 'News')!;
+    expect(directive).toContain('Do not narrate progress');
+    expect(directive).toMatch(/sent once,\s*never repeated/);
+  });
+
+  test('the config write goes through a file, not a shell argument', () => {
+    // Observed live: the deployed CLI predates --description-stdin, the
+    // model fell back to a hand-escaped inline argument, and the shell cut
+    // the JSON at an apostrophe — storing a truncated description the app
+    // reads as "no config". Quoted command substitution from a file works
+    // on every CLI version and can't lose quotes.
+    const directive = renderSetupDirective('agent-research', 'Mycology')!;
+    expect(directive).toContain('--description "$(cat <file>)"');
+    expect(directive).not.toContain('--description-stdin');
+    expect(directive).toMatch(/re-run the identical command once/i);
+  });
+
   test('renders each purpose verbatim from its template', () => {
     for (const option of PURPOSE_OPTIONS) {
       // A card without a template would silently degrade to a

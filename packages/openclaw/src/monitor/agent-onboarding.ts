@@ -418,6 +418,13 @@ export function renderSetupDirective(
   const fill = (template: string) => template.replaceAll('{{topics}}', topics);
   return [
     '[Tlon setup directive — not written by the owner]',
+    'Every message you send during this setup lands in the group chat the',
+    'owner is watching. Do not narrate progress — no "renaming the group",',
+    'no "notebook exists", no retry or verification commentary. Do the work',
+    'through tool calls in silence. You may send exactly two things: a',
+    'question you truly cannot proceed without (like the timezone below),',
+    'and the single confirmation message described at the end — sent once,',
+    'never repeated, even when a step is retried or re-verified after it.',
     'Build everything inside the group this channel belongs to; rename this',
     'group from the topics if it still has a placeholder name.',
     GROUP_ICON_RULE,
@@ -459,15 +466,46 @@ export function renderSetupDirective(
       '"outputNest":"","enabled":true}],"updatedAt":<epoch ms>}]',
     `templateId: ${purposeId} — copy it exactly; it records which setup the`,
     'owner picked, so a different id makes the group misreport itself.',
-    'Write the description by piping the JSON to `tlon groups update <flag>',
-    '--description-stdin` — never inline in a shell argument, where quote',
-    'escaping gets mangled (the payload message contains quotes). Serialize',
-    'the object programmatically rather than hand-writing JSON. The command',
-    'validates the config and verifies what was stored; if it errors, fix',
-    'exactly what it names and run it again.',
+    'To write the description: build the config as an object in code,',
+    'JSON.stringify it into a file, and parse the file back to prove it is',
+    'valid JSON — never hand-write or hand-escape it. Then run',
+    '`tlon groups update <flag> --description "$(cat <file>)"`: the quoted',
+    'substitution passes the file contents through exactly. Inline',
+    'hand-escaped JSON has repeatedly lost its quotes to the shell and',
+    'stored a truncated description, which the app reads as "no config at',
+    'all" — it stops treating you as this group\'s agent and the setup',
+    'never finishes. If the update command reports a timeout, the write',
+    'usually landed anyway: re-run the identical command once (it is',
+    'idempotent) and move on — never rebuild the JSON by hand over a',
+    'timeout, and never mention the retry in chat.',
     `Once the job and config are in place: ${fill(job.confirmation)}`,
     INVITE_CLOSING,
   ].join('\n');
+}
+
+/**
+ * The parse failure of a config-shaped description, or null when the
+ * description is prose, empty, or parses cleanly. This is the signature of
+ * the worst setup failure observed live: the model writes the config
+ * through a shell argument, quoting eats part of the JSON mid-string, and
+ * the stored description *looks* like config while parsing as nothing —
+ * the app un-recognizes the group's agent, the setup chrome never
+ * unlocks, and every "is the setup finished?" check silently answers no,
+ * forever. Callers use this to turn that dead end into a repair.
+ */
+export function brokenConfigDescriptionError(
+  description: string | null | undefined
+): string | null {
+  const trimmed = (description ?? '').trim();
+  if (!trimmed.startsWith('[')) {
+    return null;
+  }
+  try {
+    JSON.parse(trimmed);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
 }
 
 type ScryApi = { scry: (path: string) => Promise<unknown> } | null;

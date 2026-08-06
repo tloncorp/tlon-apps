@@ -112,6 +112,7 @@ import {
 } from './agent-onboarding-config.js';
 import {
   agentHasAdminSeat,
+  brokenConfigDescriptionError,
   buildInviteCardBlob,
   buildPurposePickerBlob,
   buildServicesCardBlob,
@@ -915,6 +916,97 @@ export async function monitorTlonProvider(
      * none is ever doubled. An unreadable transcript settles nothing, since
      * to this decision it would look identical to an empty one.
      */
+    /**
+     * A setup that stored an unparseable config is worse than one that
+     * stored none: the description *looks* written, the model believes it
+     * finished, and every "is the setup done?" check silently answers no —
+     * the owner sits in locked chrome with no cards and no error, forever
+     * (observed live twice, both times a shell-mangled JSON argument).
+     * Turn that dead end into a repair: tell the model's session exactly
+     * what is broken and how to rewrite it. Once per distinct broken write
+     * (a genuine repair produces different bytes), capped per channel so a
+     * model that keeps mangling can't loop, and only while a setup owes
+     * its closing — a random group with a weird description is not ours to
+     * touch. The repair turn posts nothing, so no channel event follows to
+     * re-run the closing check — the bounded poll below stands in for it.
+     */
+    const configRepairNudgedFor = new Map<string, string>();
+    const configRepairNudgeCounts = new Map<string, number>();
+    const maybeNudgeConfigRepair = (
+      nest: string,
+      groupFlag: string,
+      description: string
+    ): void => {
+      if (!onboardingInvitePending.has(nest)) {
+        return;
+      }
+      const parseError = brokenConfigDescriptionError(description);
+      if (!parseError) {
+        return;
+      }
+      if (configRepairNudgedFor.get(nest) === description) {
+        return;
+      }
+      const nudges = configRepairNudgeCounts.get(nest) ?? 0;
+      if (nudges >= 3) {
+        return;
+      }
+      configRepairNudgedFor.set(nest, description);
+      configRepairNudgeCounts.set(nest, nudges + 1);
+      try {
+        const route = core.channel.routing.resolveAgentRoute({
+          cfg,
+          channel: 'tlon',
+          accountId: opts.accountId ?? undefined,
+          peer: { kind: 'group', id: nest },
+        });
+        if (!route?.sessionKey) {
+          return;
+        }
+        core.system.enqueueSystemEvent(
+          [
+            '[Tlon setup repair directive — not written by the owner]',
+            `The description stored on ${groupFlag} is not valid JSON`,
+            `(${parseError}). The app therefore reads the group as having no`,
+            'agent config at all: the setup chrome stays locked and the',
+            'setup cannot finish, even though every other step landed.',
+            'Rebuild the complete config array exactly as the setup',
+            'directive specified, JSON.stringify it into a file, parse the',
+            'file back to prove it is valid, then re-write it with',
+            `\`tlon groups update ${groupFlag} --description "$(cat <file>)"\``,
+            '— never inline hand-escaped JSON in a shell argument; that is',
+            'what truncated it. Repair this silently: post no message about',
+            'it, and do not repeat any earlier announcement.',
+          ].join(' '),
+          {
+            sessionKey: route.sessionKey,
+            contextKey: `tlon:config-repair:${nest}:${nudges + 1}`,
+            // Route any resulting turn back to Tlon.
+            deliveryContext: tlonDeliveryContext(
+              `tlon:${nest}`,
+              route.accountId
+            ),
+          }
+        );
+        runtime.log?.(
+          `[tlon] Nudged a config repair in ${nest}: ${parseError}`
+        );
+        void (async () => {
+          for (let i = 0; i < 9 && !opts.abortSignal?.aborted; i++) {
+            await new Promise((resolve) => setTimeout(resolve, 20_000));
+            await postInviteCardIfSetupComplete(nest);
+            if (inviteSettled.has(nest)) {
+              return;
+            }
+          }
+        })();
+      } catch (error) {
+        runtime.log?.(
+          `[tlon] Could not nudge a config repair in ${nest}: ${String(error)}`
+        );
+      }
+    };
+
     const postInviteCardIfSetupComplete = async (
       nest: string
     ): Promise<void> => {
@@ -931,6 +1023,7 @@ export async function monitorTlonProvider(
           return;
         }
         if (!descriptionHasConfiguredJob(group.description)) {
+          maybeNudgeConfigRepair(nest, group.flag, group.description);
           return;
         }
         // 100 posts bounds the recovery window: a setup conversation runs a
