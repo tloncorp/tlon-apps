@@ -211,6 +211,8 @@ PODS:
     - ExpoModulesCore
   - ExpoFont (57.0.1):
     - ExpoModulesCore
+  - ExpoGlassEffect (57.0.1):
+    - ExpoModulesCore
   - ExpoHaptics (57.0.1):
     - ExpoModulesCore
   - ExpoImage (57.0.1):
@@ -2995,6 +2997,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - TlonScrollEdgeEffect (1.0.0):
+    - ExpoModulesCore
   - UMAppLoader (57.0.1)
   - Yoga (0.0.0)
 
@@ -3022,6 +3026,7 @@ DEPENDENCIES:
   - "ExpoDomWebView (from `../../../node_modules/@expo/dom-webview/ios`)"
   - ExpoFileSystem (from `../../../node_modules/expo-file-system/ios`)
   - ExpoFont (from `../../../node_modules/expo-font/ios`)
+  - ExpoGlassEffect (from `../../../node_modules/expo-glass-effect/ios`)
   - ExpoHaptics (from `../../../node_modules/expo-haptics/ios`)
   - ExpoImage (from `../../../node_modules/expo-image/ios`)
   - ExpoImageManipulator (from `../../../node_modules/expo-image-manipulator/ios`)
@@ -3151,6 +3156,7 @@ DEPENDENCIES:
   - sqlite3 (~> 3.50.3)
   - Teleport (from `../../../node_modules/react-native-teleport`)
   - "tentap (from `../../../node_modules/@10play/tentap-editor`)"
+  - TlonScrollEdgeEffect (from `../modules/tlon-scroll-edge-effect/ios`)
   - UMAppLoader (from `../../../node_modules/unimodules-app-loader/ios`)
   - Yoga (from `../../../node_modules/react-native/ReactCommon/yoga`)
 
@@ -3235,6 +3241,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-file-system/ios"
   ExpoFont:
     :path: "../../../node_modules/expo-font/ios"
+  ExpoGlassEffect:
+    :path: "../../../node_modules/expo-glass-effect/ios"
   ExpoHaptics:
     :path: "../../../node_modules/expo-haptics/ios"
   ExpoImage:
@@ -3488,6 +3496,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native-teleport"
   tentap:
     :path: "../../../node_modules/@10play/tentap-editor"
+  TlonScrollEdgeEffect:
+    :path: "../modules/tlon-scroll-edge-effect/ios"
   UMAppLoader:
     :path: "../../../node_modules/unimodules-app-loader/ios"
   Yoga:
@@ -3518,6 +3528,7 @@ SPEC CHECKSUMS:
   ExpoDomWebView: beaec034e51bd028428b98bb1f2633ab79c6d095
   ExpoFileSystem: e441dae0ae671fc451640517550973d9e024fdf0
   ExpoFont: 59e1faf66ba9bcd232ae1e2ce58d202a48b6f65e
+  ExpoGlassEffect: 4b62afb489e6b84357701737ce002137c9d5fdbc
   ExpoHaptics: 4503d2da51ff7109712ccdfe0e4939f66818183e
   ExpoImage: 4c1e7634db6033185a98959fb028d8d4b1c89695
   ExpoImageManipulator: 9431496d31a770dc1d26755300b6be149ca287bd
@@ -3674,6 +3685,7 @@ SPEC CHECKSUMS:
   sqlite3: 73513155ec6979715d3904ef53a8d68892d4032b
   Teleport: 93c496febe89d55968f170f14f0a87b473a550ed
   tentap: 0487c6ec16b6d50255ccf1e00b17535fc11b890e
+  TlonScrollEdgeEffect: 1204a83a7c6401a98b0d4016b191484d5c6c3858
   UMAppLoader: 173cb90a3039aa9c1b84bace4487e1907a4a5a39
   Yoga: c30c859b7e9b75e547b600b486fe33165f60de00
 

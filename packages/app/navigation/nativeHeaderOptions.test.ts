@@ -26,4 +26,15 @@ describe('native header options', () => {
       },
     });
   });
+
+  it('lets conversations expose their bottom scroll edge', () => {
+    expect(
+      getNativeHeaderScrollOptions({
+        isDarkMode: false,
+        platform: 'ios',
+        platformVersion: 26,
+        bottomEdgeEffect: 'soft',
+      }).scrollEdgeEffects
+    ).toMatchObject({ top: 'soft', bottom: 'soft' });
+  });
 });

@@ -3,6 +3,7 @@ import { Text } from '@tloncorp/ui';
 import { ReactNode, useMemo } from 'react';
 import { View, YStack, getTokenValue } from 'tamagui';
 
+import type { ConversationContentInsets } from './Channel/PostList';
 import Scroller, { ScrollAnchor } from './Channel/Scroller';
 import { ThinkingState } from './Channel/ThinkingState';
 import { useShouldShowThinkingState } from './Channel/useShouldShowThinkingState';
@@ -33,6 +34,7 @@ export interface DetailViewProps {
     scrollToStart: (opts: { animated?: boolean }) => void;
     scrollToEnd: (opts: { animated?: boolean }) => void;
   } | null>;
+  contentInsets?: ConversationContentInsets;
   isLoading?: boolean;
 }
 
@@ -54,6 +56,7 @@ export const DetailView = ({
   anchor,
   highlightPostId,
   scrollerRef,
+  contentInsets,
   isLoading,
 }: DetailViewProps) => {
   const channelType = channel.type;
@@ -147,6 +150,7 @@ export const DetailView = ({
         setActiveMessage={setActiveMessage}
         listHeaderComponent={listHeaderComponent}
         listBottomComponent={listBottomComponent}
+        contentInsets={contentInsets}
         isLoading={isLoading}
       />
     </View>

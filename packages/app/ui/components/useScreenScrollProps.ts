@@ -16,10 +16,12 @@ type ScreenScrollProps = Pick<
 
 interface UseScreenScrollPropsOptions {
   enabled?: boolean;
+  bottomEdgeEffect?: 'hidden' | 'soft';
 }
 
 export function useScreenScrollProps({
   enabled = true,
+  bottomEdgeEffect = 'hidden',
 }: UseScreenScrollPropsOptions = {}): ScreenScrollProps {
   const navigation = useContext(NavigationContext);
   const isDarkMode = useIsDarkMode();
@@ -29,8 +31,9 @@ export function useScreenScrollProps({
         isDarkMode,
         platform: Platform.OS,
         platformVersion: Platform.Version,
+        bottomEdgeEffect,
       }),
-    [isDarkMode]
+    [bottomEdgeEffect, isDarkMode]
   );
 
   useInstalledNavigationOptions(

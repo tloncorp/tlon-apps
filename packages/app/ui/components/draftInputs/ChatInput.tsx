@@ -32,7 +32,10 @@ export function ChatInput({
   const slashCommandManifest = store.useBotSlashCommandManifest(channel);
 
   return (
-    <SafeAreaView edges={['right', 'left', 'bottom']}>
+    // ConversationComposerPlacement owns the native bottom safe-area inset.
+    <SafeAreaView
+      edges={isWeb ? ['right', 'left', 'bottom'] : ['right', 'left']}
+    >
       <ParentAgnosticKeyboardAvoidingView>
         <BareChatInput
           ref={draftInputRef}

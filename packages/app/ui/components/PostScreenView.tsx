@@ -46,11 +46,15 @@ import {
   ContextLensPanel,
   useContextLensController,
 } from './Channel/ContextLens';
-import { DraftInputView } from './Channel/DraftInputView';
+import {
+  ConversationComposerPlacement,
+  DraftInputView,
+} from './Channel/DraftInputView';
 import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
+import { useConversationInsets } from './conversationScrollChrome';
 import { DraftInputContext } from './draftInputs';
 import {
   DraftInputContextProvider,
@@ -371,7 +375,6 @@ export function PostScreenView({
             )}
           >
             <FileDrop
-              paddingBottom={bottom}
               backgroundColor="$background"
               flex={1}
               onAssetsDropped={attachAssets}
@@ -397,7 +400,11 @@ export function PostScreenView({
                     <YStack flex={1} minWidth={0}>
                       {parentPost &&
                         (isEditingParent && channel.type === 'gallery' ? (
-                          <YStack flex={1} backgroundColor="$background">
+                          <YStack
+                            flex={1}
+                            backgroundColor="$background"
+                            paddingBottom={bottom}
+                          >
                             <GalleryDraftInput
                               channel={channel}
                               editingPost={editingPost}
@@ -815,6 +822,13 @@ function SinglePostView({
       isEditingParent &&
       (channel.type === 'notebook' || channel.type === 'gallery')
     );
+  const { bottom } = useSafeAreaInsets();
+  const { contentInsets, onFloatingHeightChange } = useConversationInsets({
+    hasFloatingComposer: canRenderReplyInput,
+    hasTransparentHeader: isChatLike,
+  });
+  // The floating composer already includes the home-indicator inset.
+  const screenBottomInset = canRenderReplyInput ? undefined : bottom;
 
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
@@ -849,8 +863,26 @@ function SinglePostView({
     ]
   );
 
+  const replyInput = canRenderReplyInput ? (
+    <BareChatInput
+      ref={replyDraftInputRef}
+      {...threadComposerContext}
+      placeholder="Reply"
+      channelId={threadComposerContext.channel.id}
+      groupId={threadComposerContext.channel.groupId}
+      groupMembers={groupMembers}
+      groupRoles={groupRoles}
+      channelType="chat"
+      showAttachmentButton={isChatLike}
+      showInlineAttachments
+      shouldAutoFocus={
+        (isChatLike && parentPost?.replyCount === 0) || !!editingPost
+      }
+    />
+  ) : null;
+
   return (
-    <YStack flex={1}>
+    <YStack flex={1} paddingBottom={screenBottomInset}>
       {/* Thread composer context sends new drafts as replies; edits preserve their original target. */}
       <DraftInputContextProvider value={threadComposerContext}>
         {parentPost ? (
@@ -873,28 +905,20 @@ function SinglePostView({
             inspectContextLensPost={inspectContextLensPost}
             onOpenContextLens={openContextLensForPost}
             onGoToBotRun={onGoToBotRun}
+            contentInsets={contentInsets}
             isLoading={isLoadingThreadPosts}
           />
         ) : null}
 
-        {canRenderReplyInput && (
-          <View id="reply-container" {...containingProperties}>
-            <BareChatInput
-              ref={replyDraftInputRef}
-              {...threadComposerContext}
-              placeholder="Reply"
-              channelId={threadComposerContext.channel.id}
-              groupId={threadComposerContext.channel.groupId}
-              groupMembers={groupMembers}
-              groupRoles={groupRoles}
-              channelType="chat"
-              showAttachmentButton={isChatLike}
-              showInlineAttachments
-              shouldAutoFocus={
-                (isChatLike && parentPost?.replyCount === 0) || !!editingPost
-              }
-            />
-          </View>
+        {replyInput && (
+          <ConversationComposerPlacement
+            enabled
+            contentProps={containingProperties}
+            inlineID="reply-container"
+            onFloatingHeightChange={onFloatingHeightChange}
+          >
+            {replyInput}
+          </ConversationComposerPlacement>
         )}
       </DraftInputContextProvider>
       {!negotiationMatch && channel && canWrite && (

@@ -5,7 +5,10 @@ import * as React from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useScrollDirectionTracker } from '../../../contexts/scroll';
+import {
+  useConversationScrollViewNativeID,
+  useScrollDirectionTracker,
+} from '../../../contexts/scroll';
 import { PostList as PostListFlatList } from './PostListFlatList';
 import {
   getPostListAnchorKey,
@@ -217,11 +220,16 @@ function useConversationAnchorTarget({
   anchor,
   anchorIndex,
   anchorToEnd,
+  contentInsets,
   didTimeoutWaitingForAnchor,
   listRef,
 }: Pick<
   ConversationPostListAttemptProps,
-  'anchor' | 'anchorIndex' | 'anchorToEnd' | 'didTimeoutWaitingForAnchor'
+  | 'anchor'
+  | 'anchorIndex'
+  | 'anchorToEnd'
+  | 'contentInsets'
+  | 'didTimeoutWaitingForAnchor'
 > & {
   listRef: React.RefObject<LegendListRef | null>;
 }) {
@@ -232,9 +240,9 @@ function useConversationAnchorTarget({
         : {
             index: anchorIndex,
             viewPosition: anchor?.type === 'unread' ? 0 : 0.5,
-            viewOffset: 0,
+            viewOffset: anchor?.type === 'unread' ? contentInsets?.top ?? 0 : 0,
           },
-    [anchor?.type, anchorIndex, didTimeoutWaitingForAnchor]
+    [anchor?.type, anchorIndex, contentInsets?.top, didTimeoutWaitingForAnchor]
   );
   const anchorPosition: AnchorPosition | undefined =
     anchorToEnd && (!anchor?.postId || didTimeoutWaitingForAnchor)
@@ -423,6 +431,7 @@ const ConversationPostListAttempt = React.forwardRef<
       onScrolledAwayFromBottom,
       listHeaderComponent,
       listBottomComponent,
+      contentInsets = { top: 0, bottom: 0 },
       isLoading = false,
       hasNewerPosts = false,
       anchorIndex,
@@ -433,6 +442,7 @@ const ConversationPostListAttempt = React.forwardRef<
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
     const postsWithNeighborsRef = React.useRef(postsWithNeighbors);
+    const scrollViewNativeID = useConversationScrollViewNativeID();
     const insets = useSafeAreaInsets();
     const collectionLayout = React.useMemo(
       () => layoutForType(collectionLayoutType),
@@ -442,6 +452,7 @@ const ConversationPostListAttempt = React.forwardRef<
       anchor,
       anchorIndex,
       anchorToEnd,
+      contentInsets,
       didTimeoutWaitingForAnchor,
       listRef,
     });
@@ -567,6 +578,10 @@ const ConversationPostListAttempt = React.forwardRef<
             ? undefined
             : { opacity: 0 },
         ]}
+        // The iOS v1 bridge discovers this underlying UIScrollView through the
+        // React Native testID/accessibilityIdentifier mapping, then validates
+        // the attachment at low frequency in case Screens replaces the view.
+        testID={scrollViewNativeID}
         onLoad={scheduleInitialScroll}
         onScroll={handleScroll}
         onScrollBeginDrag={markUserScrolled}

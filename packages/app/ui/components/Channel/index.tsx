@@ -18,6 +18,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -46,6 +47,7 @@ import { FileDrop } from '../FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PostCollectionView } from '../PostCollectionView';
 import SystemNotices from '../SystemNotices';
+import { useConversationInsets } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
 import {
   DraftInputContextProvider,
@@ -352,7 +354,23 @@ export function Channel({
   const isGroupDm = isGroupDmChannelId(channel.id);
   const isNotebookOrGallery =
     channel.type === 'notebook' || channel.type === 'gallery';
-  const pinnedPostId = logic.getPinnedPostId(channel);
+  const canRenderDraftInput =
+    canRead &&
+    canWrite &&
+    negotiationMatch &&
+    !(channel.groupId && !group && !groupIsLoading) &&
+    !channel.isDmInvite;
+  const draftInputType = !canRenderDraftInput
+    ? null
+    : channel.contentConfiguration != null
+      ? ChannelContentConfiguration.draftInput(channel.contentConfiguration).id
+      : isChatChannel
+        ? DraftInputId.chat
+        : channel.type === 'gallery'
+          ? DraftInputId.gallery
+          : channel.type === 'notebook'
+            ? DraftInputId.notebook
+            : null;
   // For DMs, get the other participant's ID
   const dmRecipientId = useMemo(() => {
     if (isDM && channel.members) {
@@ -693,6 +711,11 @@ export function Channel({
     return validGroup && validPlatform;
   }, [group]);
 
+  const pinnedPostId = logic.getPinnedPostId(channel);
+  const dismissedPinnedPostBannerIds =
+    db.dismissedPinnedPostBannerIds.useValue();
+  const isPinnedPostBannerDismissed =
+    !!pinnedPostId && dismissedPinnedPostBannerIds.includes(pinnedPostId);
   const shouldShowPinnedPostBanner = useMemo(() => {
     if (!pinnedPostId) return false;
     if (!isNotebookOrGallery) return true;
@@ -703,6 +726,25 @@ export function Channel({
     editingPost,
     draftInputPresentationMode,
   ]);
+  const pinnedPostQuery = store.usePostReference({
+    channelId: channel.id,
+    postId: pinnedPostId ?? '',
+    enabled:
+      shouldShowPinnedPostBanner &&
+      !!pinnedPostId &&
+      !isPinnedPostBannerDismissed,
+  });
+  const pinnedPost = pinnedPostQuery.data;
+  const shouldRenderPinnedPostBanner =
+    shouldShowPinnedPostBanner && !!pinnedPost && !isPinnedPostBannerDismissed;
+  const shouldReservePinnedPostBannerSpace =
+    isChatChannel && shouldRenderPinnedPostBanner;
+  const { contentInsets, floatingHeaderHeight, onFloatingHeightChange } =
+    useConversationInsets({
+      hasFloatingComposer: draftInputType === DraftInputId.chat,
+      hasTransparentHeader: isChatChannel,
+      hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
+    });
 
   return (
     <ScrollContextProvider>
@@ -758,10 +800,17 @@ export function Channel({
                           channel.type === 'groupDm'
                         }
                       />
-                      {shouldShowPinnedPostBanner && (
+                      {shouldRenderPinnedPostBanner && pinnedPost && (
                         <PinnedPostBanner
-                          channel={channel}
+                          post={pinnedPost}
+                          floating={isChatChannel}
+                          floatingHeaderHeight={floatingHeaderHeight}
                           onPressPost={goToPost}
+                          onDismiss={() => {
+                            if (pinnedPostId) {
+                              store.dismissPinnedPostBanner(pinnedPostId);
+                            }
+                          }}
                         />
                       )}
                       <XStack alignItems="stretch" flex={1} position="relative">
@@ -777,6 +826,7 @@ export function Channel({
                               <View flex={1}>
                                 <PostCollectionContext.Provider
                                   value={{
+                                    contentInsets,
                                     channel,
                                     collectionConfiguration:
                                       channel.contentConfiguration == null
@@ -851,39 +901,13 @@ export function Channel({
                                           : 'channel-mismatch'
                               }
                             />
-                          ) : channel.contentConfiguration == null ? (
-                            <>
-                              {isChatChannel && !channel.isDmInvite && (
-                                <DraftInputView
-                                  draftInputContext={draftInputContext}
-                                  type={DraftInputId.chat}
-                                />
-                              )}
-
-                              {channel.type === 'gallery' && (
-                                <DraftInputView
-                                  draftInputContext={draftInputContext}
-                                  type={DraftInputId.gallery}
-                                />
-                              )}
-
-                              {channel.type === 'notebook' && (
-                                <DraftInputView
-                                  draftInputContext={draftInputContext}
-                                  type={DraftInputId.notebook}
-                                />
-                              )}
-                            </>
-                          ) : (
+                          ) : draftInputType ? (
                             <DraftInputView
                               draftInputContext={draftInputContext}
-                              type={
-                                ChannelContentConfiguration.draftInput(
-                                  channel.contentConfiguration
-                                ).id
-                              }
+                              type={draftInputType}
+                              onFloatingHeightChange={onFloatingHeightChange}
                             />
-                          )}
+                          ) : null}
 
                           {channel.isDmInvite && (
                             <DmInviteOptions

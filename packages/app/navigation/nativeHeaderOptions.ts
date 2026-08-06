@@ -23,10 +23,12 @@ export function getNativeHeaderScrollOptions({
   isDarkMode,
   platform,
   platformVersion,
+  bottomEdgeEffect = 'hidden',
 }: {
   isDarkMode: boolean;
   platform: string;
   platformVersion: string | number;
+  bottomEdgeEffect?: 'hidden' | 'soft';
 }): NativeStackNavigationOptions {
   if (platform !== 'ios') {
     return {};
@@ -43,7 +45,7 @@ export function getNativeHeaderScrollOptions({
         ? 'systemMaterialDark'
         : 'systemMaterialLight',
     scrollEdgeEffects: supportsNativeScrollEdgeEffects
-      ? topScrollEdgeEffects
+      ? { ...topScrollEdgeEffects, bottom: bottomEdgeEffect }
       : undefined,
   };
 }
