@@ -1162,12 +1162,38 @@ export async function monitorTlonProvider(
      * handle it.
      *
      * Called from three triggers, all funneled through the same guards:
-     * accepting an owner's group invite, the startup sweep over groups
+     * accepting an owner's group invite, the periodic sweep over groups
      * awaiting an opening, and groups-ui discovery of the hosted home group
      * — whose moon is force-joined by provisioning and so never produces
      * the invite event the first trigger needs.
+     *
+     * The verdict tells the sweep whether to come back: 'retry' means the
+     * refusal was transient (channel not visible yet, probe unanswered,
+     * post failed), everything else is a fact about the group that
+     * re-checking won't change. Concurrent calls for the same flag share
+     * one run — the triggers overlap by design, and racing them past the
+     * guards would double-post the opening.
      */
-    const offerOnboardingInNewOwnerGroup = async (groupFlag: string) => {
+    const onboardingOffersInFlight = new Map<
+      string,
+      Promise<'opened' | 'settled' | 'retry'>
+    >();
+    const offerOnboardingInNewOwnerGroup = (
+      groupFlag: string
+    ): Promise<'opened' | 'settled' | 'retry'> => {
+      const inFlight = onboardingOffersInFlight.get(groupFlag);
+      if (inFlight) {
+        return inFlight;
+      }
+      const run = runOnboardingOffer(groupFlag).finally(() => {
+        onboardingOffersInFlight.delete(groupFlag);
+      });
+      onboardingOffersInFlight.set(groupFlag, run);
+      return run;
+    };
+    const runOnboardingOffer = async (
+      groupFlag: string
+    ): Promise<'opened' | 'settled' | 'retry'> => {
       try {
         const deadline = Date.now() + 45_000;
         let info: Awaited<ReturnType<typeof findChatNestForGroup>> = null;
@@ -1182,7 +1208,7 @@ export async function monitorTlonProvider(
           runtime.log?.(
             `[tlon] Joined ${groupFlag} but never saw its chat channel — skipping onboarding offer`
           );
-          return;
+          return 'retry';
         }
         // The newness probe races %channels: right after the join ack the
         // posts scry can still fail, and a null answer is fail-closed —
@@ -1204,6 +1230,7 @@ export async function monitorTlonProvider(
         // (or an opening already present) still keeps this out. Unreadable
         // history reads as blocked — another trigger retries.
         let channelOpenable = isNew;
+        let probeUnreadable = false;
         if (
           channelOpenable === false &&
           effectiveOwnerShip &&
@@ -1223,6 +1250,7 @@ export async function monitorTlonProvider(
               `[tlon] Could not read the home group transcript for ${groupFlag}: ${String(error)}`
             );
             channelOpenable = false;
+            probeUnreadable = true;
           }
         }
         const shouldOffer = shouldOfferPickerOnJoin({
@@ -1236,7 +1264,9 @@ export async function monitorTlonProvider(
           runtime.log?.(
             `[tlon] No onboarding offer for ${groupFlag}: hostIsOwner=${info.host === effectiveOwnerShip}, channelHasNoPosts=${isNew}, alreadyOffered=${onboardingPickerOffered.has(info.nest)}`
           );
-          return;
+          return channelOpenable === null || probeUnreadable
+            ? 'retry'
+            : 'settled';
         }
         onboardingPickerOffered.add(info.nest);
         runtime.log?.(
@@ -1249,11 +1279,14 @@ export async function monitorTlonProvider(
           runtime.error?.(
             `[tlon] Failed to open ${groupFlag} with purpose picker: ${String(error)}`
           );
+          return 'retry';
         }
+        return 'opened';
       } catch (error) {
         runtime.error?.(
           `[tlon] Onboarding offer for ${groupFlag} failed: ${String(error)}`
         );
+        return 'retry';
       }
     };
 
@@ -5542,6 +5575,18 @@ export async function monitorTlonProvider(
         );
       }
 
+      // The onboarding sweep below runs on a timer; any groups-ui event
+      // also rings this bell so a group that appears between ticks (the
+      // force-joined home group, a just-created agent group) is checked
+      // immediately instead of waiting out the backoff. Rung mid-sweep, the
+      // flag makes the loop go around again rather than sleep.
+      let wakeOnboardingSweep: (() => void) | null = null;
+      let onboardingSweepNudged = false;
+      const nudgeOnboardingSweep = () => {
+        onboardingSweepNudged = true;
+        wakeOnboardingSweep?.();
+      };
+
       // Subscribe to groups-ui for real-time channel additions (when invites are accepted)
       try {
         await api.subscribe({
@@ -5549,6 +5594,11 @@ export async function monitorTlonProvider(
           path: '/groups/ui',
           event: async (event: any) => {
             try {
+              // Used as a bell, not parsed: relying on this event's shape
+              // to spot the home group has already missed on the hosted
+              // fleet, and the sweep it wakes re-derives everything from
+              // scries anyway.
+              nudgeOnboardingSweep();
               // Handle fleet (member) changes - inject system message for joins
               if (event?.flag && event?.update?.fleet) {
                 const groupFlag = event.flag as string;
@@ -5901,37 +5951,106 @@ export async function monitorTlonProvider(
           await processPendingInvites(initForeigns);
         }
 
-        // Startup sweep for openings lost in flight: the join-accept above
-        // consumes the foreign invite, and the opening it triggers is
-        // fire-and-forget — a crash or failed post between the two leaves a
-        // group the bot has joined but never opened, and no later invite
-        // event will retry it. The owner meanwhile sees a blank channel (the
-        // client suppresses its welcome notice while waiting for the agent).
-        // Candidates are groups whose description carries the client's agent
-        // marker with no setup yet — a precise "created for me, not opened"
-        // signal, never group *shape*: an empty owner-hosted channel just as
-        // well describes a muted or dormant ordinary group, and opening
-        // those at every restart is the bot barging in (and flips them
+        // Sweep for openings that no event will deliver. Two ways a group
+        // ends up joined-but-never-opened: the join-accept above consumes
+        // the foreign invite and the opening it fires is fire-and-forget
+        // (a crash between the two leaves no retry), and the hosted home
+        // group's moon is force-joined by provisioning — on its own clock
+        // relative to this gateway's boot, with no invite event at all and
+        // a groups-ui discovery that has been seen to miss on the fleet.
+        // The owner meanwhile sees a blank channel (the client suppresses
+        // its welcome notice while waiting for the agent). So the sweep is
+        // periodic, not once-per-boot: it re-checks until every candidate
+        // reaches a terminal verdict, which makes the opening an arrival
+        // invariant instead of a race — whenever the owner lands in the
+        // group, the opening is there or seconds away.
+        //
+        // Candidates are groups whose description carries the client's
+        // agent marker with no setup yet (plus the deterministic home-group
+        // flag) — a precise "created for me, not opened" signal, never
+        // group *shape*: an empty owner-hosted channel just as well
+        // describes a muted or dormant ordinary group, and opening those at
+        // every restart is the bot barging in (and flips them
         // mid-onboarding for the owner-listen gate). The offer helper's own
-        // guards (single channel, no posts, not already offered) then make
-        // this a no-op wherever an opening already landed.
-        void (async () => {
-          try {
-            const flags = await findAgentGroupsAwaitingOpening(
-              api,
-              runtime,
-              effectiveOwnerShip
-            );
-            for (const groupFlag of flags) {
-              if (opts.abortSignal?.aborted) {
-                return;
-              }
-              await offerOnboardingInNewOwnerGroup(groupFlag);
+        // guards (single channel, no posts, not already offered) make each
+        // pass a no-op wherever an opening already landed, and terminal
+        // verdicts drop a group out of the sweep entirely, so a quiet tick
+        // costs one groups scry.
+        const onboardingSweepSettled = new Set<string>();
+        const runOnboardingSweep = async (): Promise<boolean> => {
+          const flags = await findAgentGroupsAwaitingOpening(
+            api,
+            runtime,
+            effectiveOwnerShip
+          );
+          let sawWork = false;
+          for (const groupFlag of flags) {
+            if (opts.abortSignal?.aborted) {
+              return sawWork;
             }
-          } catch (error) {
-            runtime.log?.(
-              `[tlon] Startup onboarding sweep failed: ${String(error)}`
-            );
+            if (onboardingSweepSettled.has(groupFlag)) {
+              continue;
+            }
+            sawWork = true;
+            const verdict = await offerOnboardingInNewOwnerGroup(groupFlag);
+            if (verdict !== 'retry') {
+              onboardingSweepSettled.add(groupFlag);
+            }
+          }
+          return sawWork;
+        };
+        // Fast while provisioning is plausibly still running (the home
+        // group is created in the same flow that boots this gateway) or
+        // while a candidate is pending; backed off to a slow safety net
+        // forever after — the nudge above restores immediacy whenever
+        // groups state changes.
+        const ONBOARDING_SWEEP_FLOOR_MS = 20_000;
+        const ONBOARDING_SWEEP_CEILING_MS = 300_000;
+        const onboardingSweepBootWindowUntil = Date.now() + 15 * 60_000;
+        const waitForNextSweep = (ms: number) =>
+          new Promise<void>((resolve) => {
+            // A listener added to an already-aborted signal never fires —
+            // check first, or shutdown mid-sweep would sit out the timer.
+            if (opts.abortSignal?.aborted) {
+              resolve();
+              return;
+            }
+            const finish = () => {
+              clearTimeout(timer);
+              opts.abortSignal?.removeEventListener('abort', finish);
+              wakeOnboardingSweep = null;
+              resolve();
+            };
+            const timer = setTimeout(finish, ms);
+            // The sweep must never be what keeps the process alive.
+            (timer as unknown as { unref?: () => void }).unref?.();
+            wakeOnboardingSweep = finish;
+            opts.abortSignal?.addEventListener('abort', finish, {
+              once: true,
+            });
+          });
+        void (async () => {
+          let delayMs = ONBOARDING_SWEEP_FLOOR_MS;
+          while (!opts.abortSignal?.aborted) {
+            onboardingSweepNudged = false;
+            let sawWork = false;
+            try {
+              sawWork = await runOnboardingSweep();
+            } catch (error) {
+              // Leaves sawWork false: a failing scry backs off with the
+              // timer instead of hammering a struggling ship.
+              runtime.log?.(
+                `[tlon] Onboarding opening sweep failed: ${String(error)}`
+              );
+            }
+            if (onboardingSweepNudged) {
+              continue;
+            }
+            delayMs =
+              sawWork || Date.now() < onboardingSweepBootWindowUntil
+                ? ONBOARDING_SWEEP_FLOOR_MS
+                : Math.min(delayMs * 2, ONBOARDING_SWEEP_CEILING_MS);
+            await waitForNextSweep(delayMs);
           }
         })();
 
