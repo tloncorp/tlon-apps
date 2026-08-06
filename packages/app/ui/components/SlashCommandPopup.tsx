@@ -75,7 +75,11 @@ function SlashCommandPopupInternal(
   }>,
   ref: React.Ref<SlashCommandController>
 ) {
-  const subSet = useMemo(() => options.slice(0, 7), [options]);
+  const maxResults = Platform.OS === 'web' ? 7 : 4;
+  const subSet = useMemo(
+    () => options.slice(0, maxResults),
+    [options, maxResults]
+  );
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Reset selection when the visible options change — keyed on the command
