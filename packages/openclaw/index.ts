@@ -41,6 +41,7 @@ import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
+import { noteToolCallForSetupProgress } from './src/setup-progress.js';
 import { parseTlonTarget } from './src/targets.js';
 import {
   type TlonDiagnosticLogAttributes,
@@ -1146,6 +1147,14 @@ export default defineBundledChannelEntry({
     api.on('before_tool_call', (event, ctx) => {
       const toolCallId = readToolCallId(event);
       const role = getSessionRole(ctx.sessionKey ?? '');
+      // During an agent-onboarding setup, recognizable build steps earn a
+      // short Tlon-authored status line in the group chat. No-op for every
+      // session the monitor hasn't armed.
+      noteToolCallForSetupProgress(
+        ctx.sessionKey,
+        event.toolName,
+        event.params
+      );
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
       const isBlocked = isOwnerOnlyTool && role === 'user';
       const blockReason = isBlocked

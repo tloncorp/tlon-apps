@@ -58,6 +58,7 @@ import {
   type TlonSettingsStore,
   createSettingsManager,
 } from '../settings.js';
+import { armSetupProgress, disarmSetupProgress } from '../setup-progress.js';
 import { sharedSlot } from '../shared-state.js';
 import {
   canonicalizeNest,
@@ -844,6 +845,11 @@ export async function monitorTlonProvider(
     const onboardingInvitePending = new Set<string>();
     /** Channels checked (or paid): don't re-fetch history for them. */
     const inviteSettled = new Set<string>();
+    /**
+     * The agent session whose tool calls narrate each in-flight setup, so
+     * settling the closing can disarm the status lines.
+     */
+    const setupProgressSessionForNest = new Map<string, string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -1112,6 +1118,11 @@ export async function monitorTlonProvider(
         }
         onboardingInvitePending.delete(nest);
         inviteSettled.add(nest);
+        const progressSession = setupProgressSessionForNest.get(nest);
+        if (progressSession) {
+          disarmSetupProgress(progressSession);
+          setupProgressSessionForNest.delete(nest);
+        }
       } catch (error) {
         runtime.error?.(
           `[tlon] Failed to close the setup in ${nest}: ${String(error)}`
@@ -4736,6 +4747,29 @@ export async function monitorTlonProvider(
           onboardingInvitePending.add(nest);
         }
         if (setupDirective) {
+          // Arm the tool-call-driven status lines for the build this
+          // directive starts: the model works in silence, so these are the
+          // owner's only sign of life for the minutes the build takes.
+          try {
+            const progressRoute = core.channel.routing.resolveAgentRoute({
+              cfg,
+              channel: 'tlon',
+              accountId: opts.accountId ?? undefined,
+              peer: { kind: 'group', id: nest },
+            });
+            if (progressRoute?.sessionKey) {
+              armSetupProgress(progressRoute.sessionKey, {
+                post: async (text) => {
+                  await postToChannel(nest, text);
+                },
+              });
+              setupProgressSessionForNest.set(nest, progressRoute.sessionKey);
+            }
+          } catch (error) {
+            runtime.log?.(
+              `[tlon] Could not arm setup progress for ${nest}: ${String(error)}`
+            );
+          }
           // The client grants the agent admin right after creating the
           // group; a fast owner can tap through before it lands, and a
           // setup turn without the role does its renames and
@@ -6092,6 +6126,21 @@ export async function monitorTlonProvider(
             if (verdict !== 'retry') {
               onboardingSweepSettled.add(groupFlag);
             }
+          }
+          // Closings ride the same loop: the "is the setup finished?"
+          // check otherwise runs exactly once, at the end of the directive
+          // turn — a config write whose effect lands a beat later (or a
+          // turn that dies after its writes) left the owner staring at a
+          // finished build with no closing cards, forever. The check is
+          // transcript-idempotent, so re-running it until it settles is
+          // free of double posts, and the groups-ui bell makes the write
+          // itself wake this loop within seconds.
+          for (const nest of [...onboardingInvitePending]) {
+            if (opts.abortSignal?.aborted) {
+              return sawWork;
+            }
+            sawWork = true;
+            await postInviteCardIfSetupComplete(nest);
           }
           return sawWork;
         };
