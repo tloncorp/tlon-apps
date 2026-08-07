@@ -300,6 +300,18 @@ export function inlinesToPhrasing(
     }
 
     if (isTask(inline)) {
+      // Tasklist items unwrap their task before phrasing conversion, so a
+      // task arriving here is misplaced. Two classes, treated differently:
+      // in a plain list item the checkbox text reparses as a task again and
+      // only the list-type discriminator shifts — a documented, accepted
+      // strict-mode degradation (see the discriminator-loss pins). Anywhere
+      // else (verse, header) it reparses as a plain string — structure loss,
+      // which strict rejects like the other task guards.
+      if (opts?.strict && !placement.startsWith('list item')) {
+        throw new Error(
+          `Cannot render task faithfully outside a task-list item in ${placement} in strict mode`
+        );
+      }
       // Task inlines are rendered as checkbox text using html to prevent escaping
       const task = inline as Task;
       const checkbox = task.task.checked ? '[x]' : '[ ]';

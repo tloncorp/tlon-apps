@@ -1057,3 +1057,36 @@ describe('blockquote ownership in list items', () => {
     }
   );
 });
+
+describe('strict mode rejects tasks outside task-list items', () => {
+  const inVerse = [
+    { inline: [{ task: { checked: true, content: ['label'] } }] },
+  ] as Story;
+  const inHeader = [
+    {
+      block: {
+        header: {
+          tag: 'h2',
+          content: [{ task: { checked: false, content: ['x'] } }],
+        },
+      },
+    },
+  ] as Story;
+
+  test('throws for a bare task in an inline verse', () => {
+    expect(() => storyToMarkdown(inVerse, { strict: true })).toThrow(
+      /task faithfully outside a task-list item/
+    );
+  });
+
+  test('throws for a task inside a header', () => {
+    expect(() => storyToMarkdown(inHeader, { strict: true })).toThrow(
+      /task faithfully outside a task-list item/
+    );
+  });
+
+  test('non-strict keeps the checkbox-text degradation', () => {
+    expect(storyToMarkdown(inVerse)).toBe('[x] label');
+    expect(storyToMarkdown(inHeader)).toBe('## [ ] x');
+  });
+});
