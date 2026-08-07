@@ -535,7 +535,10 @@ const Scroller = forwardRef(
     const onInitialScrollPending = useCallback(() => {
       setCompletedAnchorKey(null);
     }, []);
-    const showScrollButton = Boolean(shouldShowScrollButton());
+    // The control is outside the list's initialization opacity boundary. Keep
+    // it hidden until the exact anchor position is ready to display.
+    const showScrollButton =
+      readyToDisplayPosts && Boolean(shouldShowScrollButton());
     const hostsScrollButtonInComposer =
       Platform.OS === 'ios' && composerBottomInset > 0;
 
