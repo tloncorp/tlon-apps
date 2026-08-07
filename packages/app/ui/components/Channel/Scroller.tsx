@@ -215,7 +215,7 @@ const Scroller = forwardRef(
         listRef.current?.scrollToEnd(params),
     }));
 
-    const pressedGoToBottom = () => {
+    const pressedGoToBottom = useCallback(() => {
       setHasPressedGoToBottom(true);
       onPressScrollToBottom?.();
 
@@ -224,7 +224,7 @@ const Scroller = forwardRef(
           listRef.current?.scrollToEnd({ animated: true });
         });
       }
-    };
+    }, [isLoading, onPressScrollToBottom]);
 
     const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>(
       {}
