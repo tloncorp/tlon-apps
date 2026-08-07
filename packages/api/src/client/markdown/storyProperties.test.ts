@@ -32,7 +32,9 @@ function randomInline(depth = 0): Inline {
     { italics: children() },
     { strike: children() },
     { blockquote: children() },
-    { code: { code: `lang_${pick(97)}`, lang: 'js' } } as unknown as Inline,
+    // Inline %code is string-only on the wire (sur/story.hoon); tagged
+    // fences are only legal at block level, generated separately.
+    { code: `lang_${pick(97)}` },
   ];
   return variants[pick(variants.length)];
 }

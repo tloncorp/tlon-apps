@@ -1025,19 +1025,20 @@ describe('blockquote ownership in list items', () => {
     {
       name: 'plain list',
       listType: 'unordered' as const,
-      markdown: '- > quote\n  ```js\n  x\n  ```\n  after',
+      markdown: '- > quote\n  ```\n  x\n  ```\n  after',
     },
     {
       name: 'task list',
       listType: 'tasklist' as const,
-      markdown: '- [x] <!-- -->\n  > quote\n  ```js\n  x\n  ```\n  after',
+      markdown: '- [x] <!-- -->\n  > quote\n  ```\n  x\n  ```\n  after',
     },
   ])(
     'keeps quote then code then paragraph tight for $name',
     ({ listType, markdown }) => {
-      const code = {
-        code: { code: 'x', lang: 'js' },
-      } as unknown as Inline;
+      // Inline %code is string-only on the wire, so a nested fence carries
+      // no language; the tightness of the surrounding list is what these
+      // cases pin.
+      const code: Inline = { code: 'x' };
       const story = listStory(listType, [
         { blockquote: ['quote'] },
         code,
@@ -1088,5 +1089,15 @@ describe('strict mode rejects tasks outside task-list items', () => {
   test('non-strict keeps the checkbox-text degradation', () => {
     expect(storyToMarkdown(inVerse)).toBe('[x] label');
     expect(storyToMarkdown(inHeader)).toBe('## [ ] x');
+  });
+});
+
+describe('nested fenced code stays wire-legal', () => {
+  test('a tagged fence in a blockquote parses to string %code, lang dropped', () => {
+    const story = markdownToStory('> ```js\n> x\n> ```');
+    expect(JSON.stringify(story)).not.toContain('"lang"');
+    expect(JSON.stringify(story)).toContain('"code":"x"');
+    const md = storyToMarkdown(story);
+    expect(storyToMarkdown(markdownToStory(md))).toBe(md);
   });
 });
