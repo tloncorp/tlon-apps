@@ -24,6 +24,23 @@ import {
 const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
 const ESTIMATED_ITEM_SIZE = 120;
 
+function useLegendListIsNearEnd(
+  listRef: React.RefObject<LegendListRef | null>
+) {
+  const subscribe = React.useCallback(
+    (onStoreChange: () => void) =>
+      listRef.current?.getState().listen('isNearEnd', onStoreChange) ??
+      (() => {}),
+    [listRef]
+  );
+  const getSnapshot = React.useCallback(
+    () => listRef.current?.getState().isNearEnd ?? true,
+    [listRef]
+  );
+
+  return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
 function getPostId({ post }: PostWithNeighbors) {
   return post.id;
 }
@@ -406,10 +423,14 @@ const ConversationPostListAttempt = React.forwardRef<
         onInitialScrollCompleted,
       });
     const { initialScrollIndex } = anchorTarget;
-    const { onScroll: handleScroll, isAtBottom } = useScrollDirectionTracker({
+    const { onScroll: handleScroll } = useScrollDirectionTracker({
       atBottomThreshold: onScrolledToBottomThreshold,
       bottomAtEnd: true,
     });
+    // LegendList recalculates this when scrolling, content, or row measurements
+    // change. React Native onScroll can retain an intermediate value while the
+    // initial anchor settles, briefly showing the scroll-to-bottom control.
+    const isAtBottom = useLegendListIsNearEnd(listRef);
     usePostListBottomCallbacks(isAtBottom, {
       onScrolledToBottom,
       onScrolledAwayFromBottom,
