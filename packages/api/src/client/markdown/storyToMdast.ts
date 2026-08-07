@@ -526,6 +526,77 @@ function trimTrailingBreaks(nodes: PhrasingContent[]): void {
   }
 }
 
+/**
+ * Trim boundary whitespace that Markdown cannot represent at a paragraph
+ * edge — it would serialize as a numeric entity against the boundary or a
+ * mark delimiter. Breaks are discarded at these boundaries anyway, so the
+ * loops drop them as they surface (an up-front pass would miss a break that
+ * trimming exposes later), and both helpers keep consuming nodes emptied by
+ * the trim so whitespace split across texts, breaks, and marks cannot
+ * survive at the edge.
+ */
+function trimTrailingSpace(nodes: PhrasingContent[]): void {
+  while (nodes.length > 0) {
+    const last = nodes[nodes.length - 1];
+    if (last.type === 'break') {
+      nodes.pop();
+      continue;
+    }
+    if (last.type === 'text') {
+      last.value = last.value.replace(/[ \t]+$/, '');
+      if (last.value === '') {
+        nodes.pop();
+        continue;
+      }
+      return;
+    }
+    if (
+      last.type === 'strong' ||
+      last.type === 'emphasis' ||
+      last.type === 'delete'
+    ) {
+      trimTrailingSpace(last.children as PhrasingContent[]);
+      if (last.children.length === 0) {
+        nodes.pop();
+        continue;
+      }
+      return;
+    }
+    return;
+  }
+}
+
+function trimLeadingSpace(nodes: PhrasingContent[]): void {
+  while (nodes.length > 0) {
+    const first = nodes[0];
+    if (first.type === 'break') {
+      nodes.shift();
+      continue;
+    }
+    if (first.type === 'text') {
+      first.value = first.value.replace(/^[ \t]+/, '');
+      if (first.value === '') {
+        nodes.shift();
+        continue;
+      }
+      return;
+    }
+    if (
+      first.type === 'strong' ||
+      first.type === 'emphasis' ||
+      first.type === 'delete'
+    ) {
+      trimLeadingSpace(first.children as PhrasingContent[]);
+      if (first.children.length === 0) {
+        nodes.shift();
+        continue;
+      }
+      return;
+    }
+    return;
+  }
+}
+
 function containsBlockInline(inlines: Inline[]): boolean {
   return inlines.some((inline) => {
     if (typeof inline === 'string') return false;
@@ -595,44 +666,6 @@ export function inlinesToMdast(
   // its trailing paragraph reopens phrasing that following siblings continue
   // (`**after** suffix`). The tear also leaked `&#x20;` entities at the
   // boundaries. Only real blocks lift.
-  const trimTrailingSpace = (nodes: PhrasingContent[] = phrasing) => {
-    const last = nodes[nodes.length - 1];
-    if (!last) return;
-    if (last.type === 'text') {
-      last.value = last.value.replace(/[ \t]+$/, '');
-      if (last.value === '') nodes.pop();
-      return;
-    }
-    // A trailing space inside a terminal mark sits at the same paragraph
-    // boundary and would entity-escape against the closing delimiter.
-    if (
-      last.type === 'strong' ||
-      last.type === 'emphasis' ||
-      last.type === 'delete'
-    ) {
-      trimTrailingSpace(last.children as PhrasingContent[]);
-      if (last.children.length === 0) nodes.pop();
-    }
-  };
-  // Mirror of trimTrailingSpace for the fresh-paragraph side: a leading space
-  // inside an initial mark would entity-escape against the opening delimiter.
-  const trimLeadingSpace = (nodes: PhrasingContent[]) => {
-    const first = nodes[0];
-    if (!first) return;
-    if (first.type === 'text') {
-      first.value = first.value.replace(/^[ \t]+/, '');
-      if (first.value === '') nodes.shift();
-      return;
-    }
-    if (
-      first.type === 'strong' ||
-      first.type === 'emphasis' ||
-      first.type === 'delete'
-    ) {
-      trimLeadingSpace(first.children as PhrasingContent[]);
-      if (first.children.length === 0) nodes.shift();
-    }
-  };
   const liftMarkedBlocks = (lifted: RootContent[], trimLeading = false) => {
     let nodes = lifted;
     if (nodes.length > 0 && nodes[0].type === 'paragraph') {
@@ -643,7 +676,7 @@ export function inlinesToMdast(
       // No leading paragraph to join: the open phrasing ends at a paragraph
       // boundary, where trailing spaces are unrepresentable and would
       // serialize as numeric entities.
-      trimTrailingSpace();
+      trimTrailingSpace(phrasing);
     }
     let reopened: PhrasingContent[] | undefined;
     const last = nodes[nodes.length - 1];
@@ -667,8 +700,8 @@ export function inlinesToMdast(
   for (const inline of filtered) {
     if (typeof inline === 'string') {
       const value = pendingLeadingTrim ? inline.replace(/^[ \t]+/, '') : inline;
-      pendingLeadingTrim = false;
       if (value !== '') {
+        pendingLeadingTrim = false;
         appendPhrasing(
           phrasing,
           wrapPhrasing([{ type: 'text', value }], marks)
@@ -676,9 +709,19 @@ export function inlinesToMdast(
       }
       continue;
     }
+
+    if (isBreak(inline)) {
+      // Breaks at this boundary are separators dropped at flush time; they
+      // never become visible phrasing, so they must not consume a pending
+      // boundary trim.
+      phrasing.push({ type: 'break' });
+      continue;
+    }
+
     // A pending trim must survive into the mark branches: the first text of a
     // space-leading marked sibling sits at the same fresh-paragraph boundary
-    // as a plain string would.
+    // as a plain string would. It is consumed only when visible phrasing is
+    // actually produced.
     const trimLeadingMark = pendingLeadingTrim;
     pendingLeadingTrim = false;
 
@@ -700,7 +743,12 @@ export function inlinesToMdast(
           inlinesToPhrasing(bold.bold, opts, `${placement} under bold`),
           nestedMarks
         );
-        if (trimLeadingMark) trimLeadingSpace(wrapped);
+        if (trimLeadingMark) {
+          trimLeadingSpace(wrapped);
+          // A mark the trim emptied produced nothing visible; the boundary
+          // is still open for the next sibling.
+          if (wrapped.length === 0) pendingLeadingTrim = true;
+        }
         appendPhrasing(phrasing, wrapped);
       }
       continue;
@@ -728,7 +776,10 @@ export function inlinesToMdast(
           ),
           nestedMarks
         );
-        if (trimLeadingMark) trimLeadingSpace(wrapped);
+        if (trimLeadingMark) {
+          trimLeadingSpace(wrapped);
+          if (wrapped.length === 0) pendingLeadingTrim = true;
+        }
         appendPhrasing(phrasing, wrapped);
       }
       continue;
@@ -756,13 +807,20 @@ export function inlinesToMdast(
           ),
           nestedMarks
         );
-        if (trimLeadingMark) trimLeadingSpace(wrapped);
+        if (trimLeadingMark) {
+          trimLeadingSpace(wrapped);
+          if (wrapped.length === 0) pendingLeadingTrim = true;
+        }
         appendPhrasing(phrasing, wrapped);
       }
       continue;
     }
 
     if (isBlockquote(inline)) {
+      // Direct block lifts sit at the same paragraph boundaries as marked
+      // ones: spaces on either side are unrepresentable and would
+      // entity-escape, so trim both sides exactly as liftMarkedBlocks does.
+      trimTrailingSpace(phrasing);
       flushPhrasingBeforeBlock();
       const blockquote = inline as Blockquote;
       const children = inlinesToMdast(
@@ -775,10 +833,12 @@ export function inlinesToMdast(
         type: 'blockquote',
         children: children as MdastBlockquote['children'],
       });
+      pendingLeadingTrim = true;
       continue;
     }
 
     if (isBlockCode(inline)) {
+      trimTrailingSpace(phrasing);
       flushPhrasingBeforeBlock();
       if (marks.length > 0 && opts?.strict) {
         throw new Error(
@@ -795,10 +855,12 @@ export function inlinesToMdast(
             : undefined,
         value: (inline as { code: string }).code,
       });
+      pendingLeadingTrim = true;
       continue;
     }
 
     if (isCode(inline as unknown as Block)) {
+      trimTrailingSpace(phrasing);
       flushPhrasingBeforeBlock();
       if (marks.length > 0 && opts?.strict) {
         throw new Error(
@@ -811,6 +873,7 @@ export function inlinesToMdast(
         lang: codeLanguage(code.code.lang),
         value: code.code.code,
       });
+      pendingLeadingTrim = true;
       continue;
     }
 
@@ -822,15 +885,18 @@ export function inlinesToMdast(
       }
     }
 
-    if (isBreak(inline)) {
-      phrasing.push({ type: 'break' });
-      continue;
-    }
-
-    appendPhrasing(
-      phrasing,
-      wrapPhrasing(inlinesToPhrasing([inline], opts, placement), marks)
+    const wrapped = wrapPhrasing(
+      inlinesToPhrasing([inline], opts, placement),
+      marks
     );
+    if (trimLeadingMark) {
+      // Same contract as the mark branches: an inline that converts to
+      // nothing visible (empty tag or block reference) leaves the boundary
+      // open for the next sibling.
+      trimLeadingSpace(wrapped);
+      if (wrapped.length === 0) pendingLeadingTrim = true;
+    }
+    appendPhrasing(phrasing, wrapped);
   }
 
   flushPhrasing();
@@ -934,8 +1000,24 @@ function listItemInlinesToMdast(
     rejectMisplacedTasks(inlines);
   }
 
-  return paragraphs.flatMap((paragraph) =>
+  const converted = paragraphs.flatMap((paragraph) =>
     inlinesToMdast(paragraph, opts, placement)
+  );
+  // The break split above hides paragraph/block adjacencies from
+  // inlinesToMdast, which trims those unrepresentable boundary spaces only
+  // within a single call. Trim across the seams it cannot see.
+  for (let i = 0; i < converted.length - 1; i++) {
+    const current = converted[i];
+    const next = converted[i + 1];
+    if (current.type === 'paragraph' && next.type !== 'paragraph') {
+      trimTrailingSpace(current.children);
+    }
+    if (current.type !== 'paragraph' && next.type === 'paragraph') {
+      trimLeadingSpace(next.children);
+    }
+  }
+  return converted.filter(
+    (node) => node.type !== 'paragraph' || node.children.length > 0
   );
 }
 

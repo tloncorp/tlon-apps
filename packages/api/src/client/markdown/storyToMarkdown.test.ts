@@ -1247,6 +1247,231 @@ describe('block-only marked spans keep boundaries entity-free', () => {
     expect(md).toBe('> **q**\n\n*x*\n\n> *b*');
     expect(storyToMarkdown(markdownToStory(md))).toBe(md);
   });
+
+  test('direct block lifts trim boundary spaces like marked ones', () => {
+    const leading = storyToMarkdown(
+      [{ inline: [{ blockquote: ['q'] }, ' after'] }] as Story,
+      { strict: true }
+    );
+    expect(leading).toBe('> q\n\nafter');
+    expect(storyToMarkdown(markdownToStory(leading))).toBe(leading);
+
+    const trailing = storyToMarkdown(
+      [{ inline: ['pre ', { blockquote: ['q'] }] }] as Story,
+      { strict: true }
+    );
+    expect(trailing).toBe('pre\n\n> q');
+    expect(storyToMarkdown(markdownToStory(trailing))).toBe(trailing);
+
+    const marked = storyToMarkdown(
+      [{ inline: [{ blockquote: ['q'] }, { italics: [' after'] }] }] as Story,
+      { strict: true }
+    );
+    expect(marked).toBe('> q\n\n*after*');
+    expect(storyToMarkdown(markdownToStory(marked))).toBe(marked);
+
+    // The code-lift shape shares the trim; its round trip is excluded here
+    // because the parser defaults a bare fence to lang "text" (pre-existing,
+    // independent of boundary handling).
+    const code = storyToMarkdown(
+      [{ inline: [{ code: 'x = 1' }, ' after'] }] as Story,
+      { strict: true }
+    );
+    expect(code).toBe('```\nx = 1\n```\n\nafter');
+  });
+
+  test('a trailing break cannot shield a boundary space from the trim', () => {
+    const direct = storyToMarkdown(
+      [{ inline: ['pre ', { break: null }, { blockquote: ['q'] }] }] as Story,
+      { strict: true }
+    );
+    expect(direct).toBe('pre\n\n> q');
+    expect(storyToMarkdown(markdownToStory(direct))).toBe(direct);
+
+    const marked = storyToMarkdown(
+      [
+        {
+          inline: ['pre ', { break: null }, { bold: [{ blockquote: ['q'] }] }],
+        },
+      ] as Story,
+      { strict: true }
+    );
+    expect(marked).toBe('pre\n\n> **q**');
+    expect(storyToMarkdown(markdownToStory(marked))).toBe(marked);
+  });
+
+  test('discarded inlines do not consume a pending boundary trim', () => {
+    const viaBreak = storyToMarkdown(
+      [{ inline: [{ blockquote: ['q'] }, { break: null }, ' after'] }] as Story,
+      { strict: true }
+    );
+    expect(viaBreak).toBe('> q\n\nafter');
+    expect(storyToMarkdown(markdownToStory(viaBreak))).toBe(viaBreak);
+
+    const viaEmptyString = storyToMarkdown(
+      [{ inline: [{ blockquote: ['q'] }, '', ' after'] }] as Story,
+      { strict: true }
+    );
+    expect(viaEmptyString).toBe('> q\n\nafter');
+
+    const viaEmptiedMark = storyToMarkdown(
+      [{ inline: [{ blockquote: ['q'] }, { bold: [' '] }, ' after'] }] as Story,
+      { strict: true }
+    );
+    expect(viaEmptiedMark).toBe('> q\n\nafter');
+
+    const viaBreakThenMark = storyToMarkdown(
+      [
+        {
+          inline: [
+            { blockquote: ['q'] },
+            { break: null },
+            { italics: [' after'] },
+          ],
+        },
+      ] as Story,
+      { strict: true }
+    );
+    expect(viaBreakThenMark).toBe('> q\n\n*after*');
+    expect(storyToMarkdown(markdownToStory(viaBreakThenMark))).toBe(
+      viaBreakThenMark
+    );
+  });
+
+  test('the list-item break split trims the seams it hides', () => {
+    const story = [
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [
+                { item: [{ blockquote: ['q'] }, { break: null }, ' after'] },
+              ],
+            },
+          },
+        },
+      },
+    ] as Story;
+    const md = storyToMarkdown(story, { strict: true });
+    expect(md).toBe('- > q\n\n  after');
+    expect(storyToMarkdown(markdownToStory(md))).toBe(md);
+  });
+
+  test('boundary whitespace split across nodes is trimmed exhaustively', () => {
+    const trailing = storyToMarkdown(
+      [
+        {
+          inline: [
+            'lead ',
+            { bold: ['word '] },
+            { italics: [' '] },
+            { blockquote: ['q'] },
+          ],
+        },
+      ] as Story,
+      { strict: true }
+    );
+    expect(trailing).toBe('lead **word**\n\n> q');
+    expect(storyToMarkdown(markdownToStory(trailing))).toBe(trailing);
+
+    const leading = storyToMarkdown(
+      [{ inline: [{ blockquote: ['q'] }, { bold: [' ', ' after'] }] }] as Story,
+      { strict: true }
+    );
+    expect(leading).toBe('> q\n\n**after**');
+    expect(storyToMarkdown(markdownToStory(leading))).toBe(leading);
+
+    const mirrored = storyToMarkdown(
+      [
+        {
+          inline: [
+            { blockquote: ['q'] },
+            { strike: [' ', { bold: [' b'] }, 'c'] },
+          ],
+        },
+      ] as Story,
+      { strict: true }
+    );
+    expect(mirrored).toBe('> q\n\n~~**b**<!-- -->c~~');
+    expect(storyToMarkdown(markdownToStory(mirrored))).toBe(mirrored);
+  });
+
+  test('empty text-like inlines leave the boundary open', () => {
+    const viaTag = storyToMarkdown(
+      [{ inline: [{ blockquote: ['q'] }, { tag: '' }, ' after'] }] as Story,
+      { strict: true }
+    );
+    expect(viaTag).toBe('> q\n\nafter');
+    expect(storyToMarkdown(markdownToStory(viaTag))).toBe(viaTag);
+
+    const viaBlockRef = storyToMarkdown(
+      [
+        {
+          inline: [
+            { blockquote: ['q'] },
+            { block: { index: 0, text: '' } },
+            ' after',
+          ],
+        },
+      ] as Story,
+      { strict: true }
+    );
+    expect(viaBlockRef).toBe('> q\n\nafter');
+
+    // Control: an empty link still emits visible Markdown syntax, so it
+    // correctly consumes the pending trim and the space stays mid-paragraph.
+    const viaLink = storyToMarkdown(
+      [
+        {
+          inline: [
+            { blockquote: ['q'] },
+            { link: { href: 'https://example.com', content: '' } },
+            ' after',
+          ],
+        },
+      ] as Story,
+      { strict: true }
+    );
+    expect(viaLink).toBe('> q\n\n[](https://example.com) after');
+  });
+
+  test('a break exposed by the trailing trim keeps the trim going', () => {
+    const shallow = storyToMarkdown(
+      [
+        {
+          inline: [
+            'lead ',
+            { bold: ['word ', { break: null }, ' '] },
+            { blockquote: ['q'] },
+          ],
+        },
+      ] as Story,
+      { strict: true }
+    );
+    expect(shallow).toBe('lead **word**\n\n> q');
+    expect(storyToMarkdown(markdownToStory(shallow))).toBe(shallow);
+
+    const deep = storyToMarkdown(
+      [
+        {
+          inline: [
+            'lead ',
+            {
+              bold: [
+                { italics: [{ strike: ['word ', { break: null }, ' '] }] },
+              ],
+            },
+            { blockquote: ['q'] },
+          ],
+        },
+      ] as Story,
+      { strict: true }
+    );
+    expect(deep).toBe('lead ***~~word~~***\n\n> q');
+    expect(storyToMarkdown(markdownToStory(deep))).toBe(deep);
+  });
 });
 
 describe('mirror delimiter comments fire only on compact adjacency', () => {
