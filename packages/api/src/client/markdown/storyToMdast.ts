@@ -595,11 +595,23 @@ export function inlinesToMdast(
   // its trailing paragraph reopens phrasing that following siblings continue
   // (`**after** suffix`). The tear also leaked `&#x20;` entities at the
   // boundaries. Only real blocks lift.
-  const trimTrailingSpace = () => {
-    const last = phrasing[phrasing.length - 1];
-    if (last?.type === 'text') {
+  const trimTrailingSpace = (nodes: PhrasingContent[] = phrasing) => {
+    const last = nodes[nodes.length - 1];
+    if (!last) return;
+    if (last.type === 'text') {
       last.value = last.value.replace(/[ \t]+$/, '');
-      if (last.value === '') phrasing.pop();
+      if (last.value === '') nodes.pop();
+      return;
+    }
+    // A trailing space inside a terminal mark sits at the same paragraph
+    // boundary and would entity-escape against the closing delimiter.
+    if (
+      last.type === 'strong' ||
+      last.type === 'emphasis' ||
+      last.type === 'delete'
+    ) {
+      trimTrailingSpace(last.children as PhrasingContent[]);
+      if (last.children.length === 0) nodes.pop();
     }
   };
   const liftMarkedBlocks = (lifted: RootContent[]) => {

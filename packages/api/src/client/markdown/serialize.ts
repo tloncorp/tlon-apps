@@ -166,7 +166,13 @@ function markStartsWithNonWordChild(node: AsteriskMark): boolean {
   const first = node.children[0] as (Node & { value?: unknown }) | undefined;
   if (!first) return false;
 
-  if (first.type === 'link' || first.type === 'inlineCode') {
+  if (
+    first.type === 'link' ||
+    first.type === 'inlineCode' ||
+    // A ship mention serializes starting with `~` — a non-word delimiter
+    // hazard exactly like punctuation, checked before it becomes raw HTML.
+    first.type === 'shipMention'
+  ) {
     return true;
   }
   return (

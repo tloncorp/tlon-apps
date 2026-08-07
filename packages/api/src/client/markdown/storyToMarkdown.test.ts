@@ -1229,3 +1229,30 @@ describe('mirror delimiter comments fire only on compact adjacency', () => {
     ).toBe('~~a **b** c~~');
   });
 });
+
+describe('final delimiter-edge completions', () => {
+  test('adjacent marks: ship-mention-leading second mark gets the separator', () => {
+    const story = [
+      {
+        inline: [
+          { bold: ['first'] },
+          { italics: [{ ship: '~zod' }, { break: null }, 'after'] },
+        ],
+      },
+    ] as Story;
+    const md = storyToMarkdown(story);
+    expect(md).toContain('<!-- -->');
+    expect(storyToMarkdown(markdownToStory(md))).toBe(md);
+  });
+
+  test('trailing space inside a terminal mark trims at a no-join boundary', () => {
+    const story = [
+      {
+        inline: [{ bold: ['prefix '] }, { italics: [{ blockquote: ['q'] }] }],
+      },
+    ] as Story;
+    const md = storyToMarkdown(story);
+    expect(md).not.toMatch(/&#(?:x[\da-f]+|\d+);/i);
+    expect(storyToMarkdown(markdownToStory(md))).toBe(md);
+  });
+});
