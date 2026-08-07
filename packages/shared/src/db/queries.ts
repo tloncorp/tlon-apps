@@ -1931,6 +1931,25 @@ export const insertChannelOrder = createWriteQuery(
   ['channels']
 );
 
+export const getChannelHasBotPost = createReadQuery(
+  'getChannelHasBotPost',
+  async (
+    { channelId, authorId }: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ) => {
+    const post = await ctx.db.query.posts.findFirst({
+      where: and(
+        eq($posts.channelId, channelId),
+        eq($posts.authorId, authorId),
+        eq($posts.isBot, true)
+      ),
+      columns: { id: true },
+    });
+    return !!post;
+  },
+  ['posts']
+);
+
 export const getThreadPosts = createReadQuery(
   'getThreadPosts',
   ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
