@@ -47,15 +47,21 @@ export interface NotesFlag {
 export type NotesTarget = NotesFlag | string;
 
 /**
- * Stream events carry typed update payloads (see the %notes agent docs for
- * the full wire format), but the client treats any event as a signal to
- * resync, so only the envelope is modeled here.
+ * Per-notebook stream event. The agent sends one `snapshot` at subscribe
+ * time, then an `update` for every subsequent change. `update` carries the
+ * parsed `u-notebook` payload, or null when the payload is a variant this
+ * client doesn't model — a null `update` means "something changed, but you
+ * must resync to learn what".
  */
-export type NotesStreamEvent = {
-  type: 'snapshot' | 'update';
-  host: string;
-  flagName: string;
-};
+export type NotesStreamEvent =
+  | { type: 'snapshot'; host: string; flagName: string }
+  | {
+      type: 'update';
+      host: string;
+      flagName: string;
+      time?: number;
+      update: NotesUpdate | null;
+    };
 
 type NotesNoteAction =
   | { type: 'publish'; html: string }
@@ -227,13 +233,42 @@ export async function subscribeToNotesNotebook(
   handler: (event: NotesStreamEvent) => void
 ) {
   const flag = normalizeNotesTarget(target);
-  return subscribe<NotesStreamEvent>(
+  return subscribe<Record<string, unknown>>(
     {
       app: 'notes',
       path: `/v0/notes/${flag.host}/${flag.name}/stream`,
     },
-    handler
+    (raw) => {
+      const event = parseNotesStreamEvent(raw);
+      if (event) {
+        handler(event);
+      }
+    }
   );
+}
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+function parseNotesStreamEvent(raw: any): NotesStreamEvent | null {
+  const host = raw?.host;
+  const flagName = raw?.flagName;
+  if (typeof host !== 'string' || typeof flagName !== 'string') {
+    logger.error('Dropping malformed %notes stream event', raw);
+    return null;
+  }
+  if (raw.type === 'snapshot') {
+    return { type: 'snapshot', host, flagName };
+  }
+  if (raw.type === 'update') {
+    return {
+      type: 'update',
+      host,
+      flagName,
+      time: typeof raw.time === 'number' ? raw.time : undefined,
+      update: parseNotesUpdate(raw.update),
+    };
+  }
+  logger.error('Dropping unknown %notes stream event type', raw?.type);
+  return null;
 }
 
 export async function unsubscribeFromNotesNotebook(subscriptionId: number) {
@@ -936,7 +971,7 @@ async function createNoteV1({
   folder: number;
   title: string;
   body: string;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson(notesV1Path(normalized), 'POST', {
     folder,
@@ -944,28 +979,157 @@ async function createNoteV1({
     body,
   });
   assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
+  return notesUpdateFromWriteEnvelope(res);
 }
 
-// The ok envelope of a note write carries the applied update, nested per
-// the u-notebook encoder: body.response.update is the notebook-scoped
-// wrapper ({type: 'note-update', noteUpdate: {...}}) and the inner
-// noteUpdate ({type: 'note-updated', note: {...}}) holds the note with the
-// host's authoritative revision and server-stamped updatedAt/updatedBy.
-// Extract it when present; null for no-change (no update emitted), bare
-// bodies, or unexpected shapes.
-/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-function noteFromWriteEnvelope(res: any): NotesV1Note | null {
-  const update = res?.body?.response?.update;
-  const noteUpdate = update?.type === 'note-update' ? update.noteUpdate : null;
-  if (!noteUpdate || noteUpdate.type !== 'note-updated' || !noteUpdate.note) {
+// ===========================================================================
+// u-notebook updates
+//
+// The same payload reaches the client two ways: nested in a write's `%ok`
+// envelope (`body.response.update`) as the update that write applied, and
+// broadcast on the per-notebook stream (`RUpdate.update`) for every change,
+// local or remote. Both carry the complete post-write entity — the host's
+// authoritative revision and server-stamped updatedAt/updatedBy included —
+// so a parsed update is enough to advance local state without reading back.
+// See docs/notes/asyncapi.yaml for the wire schema.
+// ===========================================================================
+
+export type NotesUpdate =
+  | { type: 'notebook-created'; notebook: NotesV1NotebookListItem }
+  | { type: 'notebook-updated'; notebook: NotesV1NotebookListItem }
+  | { type: 'notebook-deleted' }
+  | { type: 'notebook-visibility-changed'; visibility: NotesVisibility }
+  | { type: 'member-joined'; who: string; role: NotesRole }
+  | { type: 'member-left'; who: string }
+  | { type: 'folder-created'; folderId: number; folder: NotesV1Folder }
+  | { type: 'folder-updated'; folderId: number; folder: NotesV1Folder }
+  | { type: 'folder-deleted'; folderId: number }
+  | { type: 'note-created'; noteId: number; note: NotesV1Note }
+  | { type: 'note-updated'; noteId: number; note: NotesV1Note }
+  | { type: 'note-deleted'; noteId: number }
+  | { type: 'note-published'; noteId: number }
+  | { type: 'note-unpublished'; noteId: number };
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function normalizeNotebookV1(raw: any): NotesV1NotebookListItem {
+  return {
+    id: req(raw.id, 'notebook.id'),
+    title: reqString(raw.title, 'notebook.title'),
+    rootFolderId: raw.rootFolderId,
+    createdBy: raw.createdBy,
+    createdAt: raw.createdAt,
+    updatedBy: raw.updatedBy,
+    updatedAt: raw.updatedAt,
+  };
+}
+
+function parseFolderUpdate(raw: any): NotesUpdate | null {
+  const folderId = raw?.id;
+  if (typeof folderId !== 'number') {
+    return null;
+  }
+  switch (raw.type) {
+    case 'folder-created':
+    case 'folder-updated':
+      return {
+        type: raw.type,
+        folderId,
+        folder: normalizeFolderV1(requireObject(raw.folder)),
+      };
+    case 'folder-deleted':
+      return { type: 'folder-deleted', folderId };
+    default:
+      return null;
+  }
+}
+
+function parseNoteUpdate(raw: any): NotesUpdate | null {
+  const noteId = raw?.id;
+  if (typeof noteId !== 'number') {
+    return null;
+  }
+  switch (raw.type) {
+    case 'note-created':
+    case 'note-updated':
+      return {
+        type: raw.type,
+        noteId,
+        note: normalizeNoteV1(requireObject(raw.note)),
+      };
+    case 'note-deleted':
+      return { type: 'note-deleted', noteId };
+    case 'note-published':
+      // The update also carries the rendered `html`, which no client-side
+      // consumer stores — published state is tracked as a boolean.
+      return { type: 'note-published', noteId };
+    case 'note-unpublished':
+      return { type: 'note-unpublished', noteId };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Parse a `u-notebook` payload. Returns null for a missing payload or any
+ * variant this client doesn't model — an unknown update is not an error, it
+ * just means the caller must fall back to a full sync rather than assume the
+ * change was applied.
+ */
+export function parseNotesUpdate(raw: any): NotesUpdate | null {
+  if (!raw || typeof raw.type !== 'string') {
     return null;
   }
   try {
-    return normalizeNoteV1(noteUpdate.note);
-  } catch {
+    switch (raw.type) {
+      case 'notebook-created':
+      case 'notebook-updated':
+        return {
+          type: raw.type,
+          notebook: normalizeNotebookV1(requireObject(raw.notebook)),
+        };
+      case 'notebook-deleted':
+        return { type: 'notebook-deleted' };
+      case 'notebook-visibility-changed':
+        return raw.visibility === 'public' || raw.visibility === 'private'
+          ? { type: 'notebook-visibility-changed', visibility: raw.visibility }
+          : null;
+      case 'member-joined':
+        return typeof raw.who === 'string' && typeof raw.role === 'string'
+          ? { type: 'member-joined', who: raw.who, role: raw.role }
+          : null;
+      case 'member-left':
+        return typeof raw.who === 'string'
+          ? { type: 'member-left', who: raw.who }
+          : null;
+      case 'folder-update':
+        return parseFolderUpdate(raw.folderUpdate);
+      case 'note-update':
+        return parseNoteUpdate(raw.noteUpdate);
+      default:
+        return null;
+    }
+  } catch (e) {
+    logger.error('Failed to parse %notes update', raw?.type, e);
     return null;
   }
 }
+
+/**
+ * Extract the update a write applied from its response envelope. Null when
+ * the write emitted none — `%no-change` bodies, and `%notebook` bodies, which
+ * carry the created notebook summary directly instead.
+ */
+export function notesUpdateFromWriteEnvelope(res: any): NotesUpdate | null {
+  return parseNotesUpdate(res?.body?.response?.update);
+}
+
+function noteFromWriteEnvelope(res: any): NotesV1Note | null {
+  const update = notesUpdateFromWriteEnvelope(res);
+  return update?.type === 'note-updated' || update?.type === 'note-created'
+    ? update.note
+    : null;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export interface NotesV1NoteWriteResult {
   // 'no-change' means the body already matched and the note's revision was
@@ -1024,12 +1188,13 @@ async function moveNoteV1({
   flag: NotesTarget;
   noteId: number;
   folder: number;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', {
     folder,
   });
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
+  return notesUpdateFromWriteEnvelope(res);
 }
 
 async function deleteNoteV1({
@@ -1038,10 +1203,11 @@ async function deleteNoteV1({
 }: {
   flag: NotesTarget;
   noteId: number;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson(noteV1Path(normalized, noteId), 'DELETE');
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
+  return notesUpdateFromWriteEnvelope(res);
 }
 
 async function listNoteHistoryV1({
@@ -1087,7 +1253,7 @@ async function createFolderV1({
   flag: NotesTarget;
   name: string;
   parent?: number;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const payload: { folderName: string; parent?: number } = { folderName: name };
   if (parent !== undefined) {
@@ -1095,6 +1261,7 @@ async function createFolderV1({
   }
   const res = await requestJson(foldersV1Path(normalized), 'POST', payload);
   assertWriteOk(res, folderCreateChecks(notesChannelId(normalized)));
+  return notesUpdateFromWriteEnvelope(res);
 }
 
 async function renameFolderV1({
@@ -1105,12 +1272,13 @@ async function renameFolderV1({
   flag: NotesTarget;
   folderId: number;
   name: string;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson(folderV1Path(normalized, folderId), 'PUT', {
     folderName: name,
   });
   assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
+  return notesUpdateFromWriteEnvelope(res);
 }
 
 async function moveFolderV1({
@@ -1121,12 +1289,13 @@ async function moveFolderV1({
   flag: NotesTarget;
   folderId: number;
   parent: number;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson(folderV1Path(normalized, folderId), 'PUT', {
     parent,
   });
   assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
+  return notesUpdateFromWriteEnvelope(res);
 }
 
 async function deleteFolderV1({
@@ -1137,13 +1306,14 @@ async function deleteFolderV1({
   flag: NotesTarget;
   folderId: number;
   recursive: boolean;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson(
     `${folderV1Path(normalized, folderId)}?recursive=${recursive ? 'true' : 'false'}`,
     'DELETE'
   );
   assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
+  return notesUpdateFromWriteEnvelope(res);
 }
 
 // --- member helpers --------------------------------------------------------

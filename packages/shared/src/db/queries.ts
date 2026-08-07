@@ -638,6 +638,112 @@ export const updateNotesNote = createWriteQuery(
   ['notesNotes']
 );
 
+// Apply a single note from an update payload. Shares the revision-monotonic
+// guard with `updateNotesNote` and the snapshot merge: a payload at or below
+// the stored revision (ties broken on the host-stamped `updatedAt`) is a
+// straggler, not news, so the stored row wins wholesale. Expressed as
+// ON CONFLICT DO UPDATE ... WHERE so the compare and the write are one
+// statement and can't race a concurrent snapshot save.
+export const upsertNotesNote = createWriteQuery(
+  'upsertNotesNote',
+  async (note: NotesNote, ctx: QueryCtx) => {
+    return ctx.db
+      .insert($notesNotes)
+      .values(note)
+      .onConflictDoUpdate({
+        target: $notesNotes.id,
+        set: conflictUpdateSetAll($notesNotes),
+        where: or(
+          lt($notesNotes.revision, note.revision),
+          and(
+            eq($notesNotes.revision, note.revision),
+            note.updatedAt != null
+              ? or(
+                  isNull($notesNotes.updatedAt),
+                  lte($notesNotes.updatedAt, note.updatedAt)
+                )
+              : undefined
+          )
+        ),
+      });
+  },
+  ['notesNotes']
+);
+
+export const upsertNotesFolder = createWriteQuery(
+  'upsertNotesFolder',
+  async (folder: NotesFolder, ctx: QueryCtx) => {
+    return ctx.db
+      .insert($notesFolders)
+      .values(folder)
+      .onConflictDoUpdate({
+        target: $notesFolders.id,
+        set: conflictUpdateSetAll($notesFolders),
+      });
+  },
+  ['notesFolders']
+);
+
+// Members are keyed by (notebookFlag, contactId, role), so a role change is a
+// delete of the old rows plus an insert — replace the ship's whole role set.
+export const replaceNotesMemberRoles = createWriteQuery(
+  'replaceNotesMemberRoles',
+  async (
+    {
+      notebookFlag,
+      contactId,
+      members,
+    }: {
+      notebookFlag: string;
+      contactId: string;
+      members: NotesMember[];
+    },
+    ctx: QueryCtx
+  ) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($notesMembers)
+        .where(
+          and(
+            eq($notesMembers.notebookFlag, notebookFlag),
+            eq($notesMembers.contactId, contactId)
+          )
+        );
+      if (members.length > 0) {
+        await txCtx.db.insert($notesMembers).values(members);
+      }
+    });
+  },
+  ['notesMembers']
+);
+
+export const updateNotesNotebook = createWriteQuery(
+  'updateNotesNotebook',
+  async (
+    {
+      notebookFlag,
+      ...update
+    }: { notebookFlag: string } & Partial<
+      Pick<
+        NotesNotebook,
+        | 'title'
+        | 'visibility'
+        | 'rootFolderId'
+        | 'updatedAt'
+        | 'updatedBy'
+        | 'currentUserRole'
+      >
+    >,
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($notesNotebooks)
+      .set(update)
+      .where(eq($notesNotebooks.id, notebookFlag));
+  },
+  ['notesNotebooks']
+);
+
 export const deleteNotesNote = createWriteQuery(
   'deleteNotesNote',
   async (

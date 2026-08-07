@@ -99,3 +99,47 @@ export function makeApiNotesNote(note: db.NotesNote): api.NotesNote {
     revision: note.revision,
   };
 }
+
+// u-notebook update payloads, as a write response or stream fact delivers
+// them. These carry the wire shapes (`id`, not `noteId`/`folderId`).
+
+export function makeNoteUpdate(
+  type: 'note-created' | 'note-updated',
+  note: db.NotesNote
+): api.NotesUpdate {
+  return {
+    type,
+    noteId: note.noteId,
+    note: {
+      id: note.noteId,
+      notebookId: note.notebookId,
+      folderId: note.folderId,
+      title: note.title,
+      slug: note.slug ?? null,
+      bodyMd: note.bodyMd,
+      revision: note.revision,
+      ...auditFields,
+      createdAt: note.createdAt ?? 100,
+      updatedAt: note.updatedAt ?? 100,
+    },
+  };
+}
+
+export function makeFolderUpdate(
+  type: 'folder-created' | 'folder-updated',
+  folder: db.NotesFolder
+): api.NotesUpdate {
+  return {
+    type,
+    folderId: folder.folderId,
+    folder: {
+      id: folder.folderId,
+      notebookId: folder.notebookId,
+      name: folder.name,
+      parentFolderId: folder.parentFolderId ?? null,
+      ...auditFields,
+      createdAt: folder.createdAt ?? 100,
+      updatedAt: folder.updatedAt ?? 100,
+    },
+  };
+}
