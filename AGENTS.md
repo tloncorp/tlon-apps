@@ -13,6 +13,24 @@ with it using tmux input and capture commands.
 A typical command to verify connection is working is `%`, which will
 display current identity, desk and time.
 
+### Required backend validation
+
+Before treating a backend change as compiled or complete:
+
+1. Assemble the repository desk into the running ship's `%groups` Unix mount
+   with `scripts/assemble-desk.sh <pier>/groups`. Do not validate against a
+   hand-copied subset of `desk/`.
+2. Send `|commit %groups` through the ship's tmux pane, wait for any `sync`
+   spinner to finish, and verify that the commit succeeds without build errors.
+3. Run `-build-file` explicitly for every changed or newly added Hoon file that
+   might not yet be reachable from a live app or mark dependency. Use the
+   mounted desk path, for example
+   `=aut -build-file /=groups=/sur/steward/automation/hoon`.
+
+An equivalent expression entered directly in Dojo is not a substitute for
+building the assembled repository file. Report the `|commit` and `-build-file`
+results when claiming validation.
+
 ## Backend documentation
 Comprehensive backend documentation can be found in `/docs/backend`.
 For system components, the directory structure mirrors that of a desk
@@ -25,7 +43,7 @@ relevant to the backend or to backend tests.
 
 ## Backend developer tools
 Tools useful for development are located under `/backend` directory.
-Documentation can be found in `/docs/tools`.
+Documentation can be found in `/docs/backend/tools`.
 
 ## Backend tests
 There are two kinds of backend tests in groups. The first kind uses the
@@ -48,3 +66,17 @@ Aqua tests are located in `/tests/ph` in the desk directory.
 
 For details on how to work with aqua tests see documentation in
 `/docs/backend/aqua`.
+
+## Git workflow
+
+For backend changes, strictly adhere to Linux Kernel commit commenting style of
+`subsystem: imperative summary`.
+
+When implementing an OpenSpec change:
+
+- Ensure all relevant spec files have been committed.
+- Commit each completed task separately after validation.
+- Include the implementation and its task-checkbox update in the same commit.
+- Use Linux kernel-style subjects, usually `subsystem: imperative summary`.
+- Do not include unrelated working-tree changes.
+- Do not mark or commit a task until its required validation passes.
