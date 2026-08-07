@@ -1109,11 +1109,15 @@ describe('batchImportNotesV1', () => {
       { reauthStatuses: [401, 403] }
     );
 
-    // The folders pre-flight runs before the POST.
+    // The folders pre-flight runs before the POST and shares the import's
+    // reauth policy (%notes v1 reads 401 on expired sessions).
     expect(requestJsonMock.mock.calls[0][0]).toBe(
       '/notes/~/v1/notebooks/~zod/blog/folders'
     );
     expect(requestJsonMock.mock.calls[0][1]).toBe('GET');
+    expect(requestJsonMock.mock.calls[0][3]).toEqual({
+      reauthStatuses: [401, 403],
+    });
     const sent = requestJsonMock.mock.calls[1][2];
     expect(sent.action.flag).toBe('~zod/blog');
     expect(typeof sent.action.flag).toBe('string');

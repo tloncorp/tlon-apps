@@ -4,6 +4,7 @@ import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
 import { formatUd } from './apiUtils';
 import {
+  type RequestJsonOptions,
   poke,
   requestJson,
   scry,
@@ -1057,9 +1058,12 @@ async function listNoteHistoryV1({
 
 // --- folder helpers --------------------------------------------------------
 
-async function listFoldersV1(target: NotesTarget): Promise<NotesV1Folder[]> {
+async function listFoldersV1(
+  target: NotesTarget,
+  options?: RequestJsonOptions
+): Promise<NotesV1Folder[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(foldersV1Path(flag), 'GET');
+  const res = await requestJson(foldersV1Path(flag), 'GET', undefined, options);
   return requireArray(res, normalizeFolderV1);
 }
 
@@ -1281,7 +1285,9 @@ export async function batchImportNotesV1({
   // without resolving it (unlike se-create-note), so a stale id would
   // persist a whole batch of notes invisible to folder traversal. Resolve
   // it here before submitting; the backend-side check is TLON-6307.
-  const folders = await listFoldersV1(normalized);
+  const folders = await listFoldersV1(normalized, {
+    reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
+  });
   if (!folders.some((existing) => existing.id === folder)) {
     throw new NotesUnknownFolderError(canonicalFlag, folder);
   }
