@@ -282,12 +282,17 @@ export function ConnectedJoinRequestNotice({
   );
 }
 
-export function NonHostAdminChannelNotice() {
+export function NonHostAdminChannelNotice({
+  bucketHostedByGroup = false,
+}: {
+  bucketHostedByGroup?: boolean;
+}) {
   return (
     <NoticeFrame>
       <NoticeBody>
-        Note: You are not the host of this group. Channels you create will be
-        hosted on your node and will operate independently of the group host.
+        {bucketHostedByGroup
+          ? "This Bucket will be hosted by the group host and will use the group host's storage."
+          : 'Note: You are not the host of this group. Channels you create will be hosted on your node and will operate independently of the group host.'}
       </NoticeBody>
     </NoticeFrame>
   );

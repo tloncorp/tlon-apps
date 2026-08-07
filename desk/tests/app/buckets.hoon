@@ -24,6 +24,16 @@
     (jab-bowl |=(b=bowl b(now ~2026.1.1, eny 0v1234)))
   (pure:m ~)
 ::
+++  setup-as
+  |=  who=ship
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our who, src who)))
+  ;<  *  bind:m  (do-init dap buckets-agent)
+  ;<  ~  bind:m
+    (jab-bowl |=(b=bowl b(now ~2026.1.1, eny 0v1234)))
+  (pure:m ~)
+::
 ++  create
   =/  m  (mare ,~)
   ^-  form:m
@@ -58,6 +68,98 @@
     `!>(|=([who=ship =nest:bu] &))
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %buckets @ @ %can-write @ %noun ~] pax)  ~
   `!>([admin=| roles=(silt ~[%editor])])
+::
+++  allow-admin-create-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %seats @ %is-admin %noun ~] pax)  ~
+  `!>(&)
+::
+++  deny-admin-create-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %seats @ %is-admin %noun ~] pax)  ~
+  `!>(|)
+::
+::  A non-host admin's local agent forwards creation to the group host rather
+::  than allocating storage on the admin's ship.
+::
+++  test-non-host-admin-forwards-create
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  act=action:bu
+    [%create %project-files 'Project Files' group ~ ~]
+  ;<  ~  b  (setup-as ~bus)
+  ;<  ~  b  (set-scry-gate allow-admin-create-scries)
+  ;<  caz=(list card)  b
+    (do-poke %buckets-action-1 !>(act))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /buckets/cmd/create/~zod/project-files
+          [~zod %buckets]
+          %buckets-command-1
+          !>(`command:bu`[act])
+      ==
+  ==
+::
+::  The authoritative group host accepts a live remote admin, owns the Bucket,
+::  and records the initiating admin as its creator.
+::
+++  test-remote-admin-creates-on-group-host
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  (set-scry-gate allow-admin-create-scries)
+  ;<  *  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>([[%create %project-files 'Project Files' group ~ ~]])
+  ;<  sv=vase  b  get-save
+  =/  st=state-2:bu  !<(state-2:bu sv)
+  =/  fl=flag:bu  flag
+  =/  bs=bucket-state:bu  (state-for st fl)
+  %+  ex-equal
+  !>([ship.fl created-by.bucket.bs updated-by.bucket.bs group.bs])
+  !>([~zod ~bus ~bus group])
+::
+::  A stale or forged admin request is rejected by the group host's own
+::  authoritative group state.
+::
+++  test-non-admin-cannot-create
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  (set-scry-gate deny-admin-create-scries)
+  %-  ex-fail
+  %-  (do-as ~bus)
+  %+  do-poke  %buckets-command-1
+  !>([[%create %project-files 'Project Files' group ~ ~]])
+::
+::  Gall retries reuse the caller-selected random name. An identical retry
+::  must not allocate a second Bucket, but it does retry group registration.
+::
+++  test-create-retry-is-idempotent
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  cmd=command:bu
+    [[%create %project-files 'Project Files' group ~ ~]]
+  ;<  ~  b  setup
+  ;<  ~  b  (set-scry-gate allow-admin-create-scries)
+  ;<  *  b  ((do-as ~bus) (do-poke %buckets-command-1 !>(cmd)))
+  ;<  *  b  ((do-as ~bus) (do-poke %buckets-command-1 !>(cmd)))
+  ;<  sv=vase  b  get-save
+  =/  st=state-2:bu  !<(state-2:bu sv)
+  %+  ex-equal
+  !>([next-id.st (lent ~(tap by spaces.st))])
+  !>([1 1])
 ::
 ::  Existing state-1 Buckets keep all metadata and preserve the old
 ::  "readers can write" behavior when the writer role-set is introduced.
