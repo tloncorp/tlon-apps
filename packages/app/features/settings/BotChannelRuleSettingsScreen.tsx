@@ -12,7 +12,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
+import {
+  ScreenHeader,
+  SettingsContentScrollView,
+  TextInput,
+  useShowSettingsBackAction,
+} from '../../ui';
 import {
   BotSettingsDivider,
   BotSettingsErrorText,
@@ -73,6 +78,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     groupJoined: initialGroupJoined,
   } = props.route.params;
   const isWindowNarrow = useIsWindowNarrow();
+  const showBackAction = useShowSettingsBackAction();
   const queries = useBotSettingsQueries();
   // Sync the draft from the server before editing: a restored stack / deep link
   // can mount this per-channel screen without the list having initialized the
@@ -302,7 +308,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={showBackAction ? handleBack : undefined}
         title={channelLabel || 'Channel'}
         placement="navigation"
       />

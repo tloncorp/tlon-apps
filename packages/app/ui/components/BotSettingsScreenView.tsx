@@ -8,10 +8,9 @@ import {
   triggerHaptic,
 } from '@tloncorp/ui';
 import { useState } from 'react';
-import { Platform } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
-import { useIsWindowNarrow } from '../utils';
+import { useShowSettingsBackAction } from '../utils';
 import { ListItem } from './ListItem';
 import { McpProviderLogo } from './McpProviderLogo';
 import { ScreenHeader } from './ScreenHeader';
@@ -53,13 +52,7 @@ export function BotSettingsScreenView({
   refreshing,
   showUnavailableNotice,
 }: BotSettingsScreenViewProps) {
-  const isWindowNarrow = useIsWindowNarrow();
-  // Mirrors `useNestedSettings` in navigation/utils: only web at a wide
-  // window puts this screen inside the settings drawer, which supplies its
-  // own way back. Everywhere else it is a flat RootStack route with
-  // gestures disabled, so this header is the only exit — and gating on
-  // width alone left a native tablet with no back button and no swipe.
-  const showBackAction = isWindowNarrow || Platform.OS !== 'web';
+  const showBackAction = useShowSettingsBackAction();
   const activeProviders = providers.filter(
     (provider) => provider.status === 'connected'
   );

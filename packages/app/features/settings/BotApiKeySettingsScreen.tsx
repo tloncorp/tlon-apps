@@ -15,6 +15,7 @@ import {
   ScreenHeader,
   SettingsContentScrollView,
   TextInput,
+  useShowSettingsBackAction,
 } from '../../ui';
 import { BotSettingsSection } from './bot/BotSettingsUI';
 import { PROVIDER_OPTIONS } from './bot/constants';
@@ -33,6 +34,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BotApiKeySettings'>;
 export function BotApiKeySettingsScreen(props: Props) {
   const { provider: providerId } = props.route.params;
   const isWindowNarrow = useIsWindowNarrow();
+  const showBackAction = useShowSettingsBackAction();
   const queries = useBotSettingsQueries();
   const { saveProviderKey, deleteProviderKey } = useBotSettingsMutations();
   const [key, setKey] = useState('');
@@ -115,7 +117,7 @@ export function BotApiKeySettingsScreen(props: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={showBackAction ? handleBack : undefined}
         title={`${provider.label} API key`}
         placement="navigation"
       />

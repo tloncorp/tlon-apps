@@ -9,6 +9,7 @@ import {
   ScreenHeader,
   SettingsContentScrollView,
   ShipPickerSheet,
+  useShowSettingsBackAction,
 } from '../../ui';
 import { Badge } from '../../ui/components/Badge';
 import {
@@ -57,6 +58,7 @@ export function BotShipListSettingsScreen(props: Props) {
   const { list } = props.route.params;
   const meta = shipListMeta[list];
   const isWindowNarrow = useIsWindowNarrow();
+  const showBackAction = useShowSettingsBackAction();
   // Populate the draft from the server before editing. Reaching this leaf
   // directly (cold launch / deep link) would otherwise start from an empty
   // draft, and applying would persist those empty defaults over the real
@@ -134,7 +136,7 @@ export function BotShipListSettingsScreen(props: Props) {
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={showBackAction ? handleBack : undefined}
         title={meta.title}
         rightActions={[
           {

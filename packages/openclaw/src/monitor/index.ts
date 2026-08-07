@@ -1221,18 +1221,26 @@ export async function monitorTlonProvider(
       // the icon now ride the entry directive, so a notebook that never
       // arrives would otherwise leave the group permanently unnamed. Ask
       // for the look on its own instead — once.
-      if (
-        (emptyNotebookWaits.get(nest) ?? 0) >= MAX_EMPTY_NOTEBOOK_WAITS &&
-        !finishingDirectiveSent.has(nest)
-      ) {
+      //
+      // Deliberately not called before the notebook is resolved. It used to
+      // be, and the last allowed wait is exactly when the owner's channel
+      // is most likely to have just appeared: the closing would read a real
+      // nest, find it empty, tick the counter to its limit, and this driver
+      // would then abandon the entry for a notebook sitting right there.
+      const giveUpOnNotebook = (): void => {
+        if (
+          (emptyNotebookWaits.get(nest) ?? 0) < MAX_EMPTY_NOTEBOOK_WAITS ||
+          finishingDirectiveSent.has(nest)
+        ) {
+          return;
+        }
         finishingDirectiveSent.add(nest);
         if (
           !enqueueSetupDirective(nest, renderFinishingDirective(), 'finish')
         ) {
           finishingDirectiveSent.delete(nest);
         }
-        return;
-      }
+      };
       let notesNest: string | null = null;
       try {
         notesNest = await setupOutputNotebookNest(
@@ -1245,6 +1253,9 @@ export async function monitorTlonProvider(
         return;
       }
       if (!notesNest) {
+        // No channel and no waits left: it isn't coming. Ask for the name
+        // and icon on their own so the group doesn't stay a placeholder.
+        giveUpOnNotebook();
         // The owner's app has not created the channel yet — the sweep comes
         // back around, which is the whole point of doing this here. Say so
         // once: the config write already posted its line, and without this
@@ -1285,6 +1296,12 @@ export async function monitorTlonProvider(
           }
         }
         return;
+      }
+      if (nudges >= MAX_NOTEBOOK_ENTRY_NUDGES - 1) {
+        // The notebook is there but the entry isn't, and this is the last
+        // ask. Whether or not it lands, the name and icon that ride the
+        // entry directive need their own path once the closing gives up.
+        giveUpOnNotebook();
       }
       if (
         enqueueSetupDirective(
@@ -1409,6 +1426,37 @@ export async function monitorTlonProvider(
         if (!descriptionHasConfiguredJob(group.description)) {
           maybeNudgeConfigRepair(nest, group.flag, group.description);
           return;
+        }
+        // Recover the debt before anything keys off it. Everything below
+        // — the notebook wait, the entry driver — reads
+        // `onboardingInvitePending`, and after a restart it is empty, so a
+        // setup interrupted mid-notebook silently drove nothing and then
+        // retired itself as checked. The transcript already knows whether
+        // this channel was onboarded; ask it here rather than after the
+        // wait. Only on the recovery path: when the debt is in memory this
+        // scan is skipped entirely, so the ordinary sweep still costs one
+        // groups scry.
+        if (!onboardingInvitePending.has(nest) && !inviteSettled.has(nest)) {
+          const priorHistory = await fetchChannelHistory(
+            api,
+            nest,
+            100,
+            runtime,
+            { throwOnError: true }
+          );
+          const openedHere = priorHistory.some(
+            (entry) =>
+              entry.author === botShipName &&
+              (entry.content.startsWith(PURPOSE_PICKER_PROMPT) ||
+                entry.content.startsWith(TOPICS_PICKER_PROMPT))
+          );
+          if (!openedHere) {
+            // A configured group this bot never opened — someone else's
+            // setup, or one that predates the flow. Nothing is owed.
+            inviteSettled.add(nest);
+            return;
+          }
+          onboardingInvitePending.add(nest);
         }
         if (await closingAwaitsNotebookEntry(nest, group)) {
           // Waiting is not the same as hoping: while the closing holds, ask
@@ -1807,6 +1855,37 @@ export async function monitorTlonProvider(
               return (await postTopicsPickerOffer(info.nest, pendingPurpose))
                 ? 'opened'
                 : 'retry';
+            }
+            // The opening posts two messages, and only the second is
+            // tappable. When the intro lands and the picker throws, the
+            // channel stops being empty — so the "new group" gate below
+            // never fires again and the owner is left with a greeting and
+            // no way to answer it. Reposting is safe: the opening skips an
+            // intro it can already see.
+            const introPosted = history.some(
+              (entry) =>
+                entry.author === botShipName &&
+                entry.content.startsWith(GROUP_INTRO_MESSAGE)
+            );
+            const pickerPosted = history.some(
+              (entry) =>
+                entry.author === botShipName &&
+                entry.content.startsWith(PURPOSE_PICKER_PROMPT)
+            );
+            if (introPosted && !pickerPosted) {
+              runtime.log?.(
+                `[tlon] Re-posting the purpose picker in ${info.nest}: the opening left an intro with no picker`
+              );
+              try {
+                await postOnboardingOpening(info.nest);
+                onboardingPickerOffered.add(info.nest);
+                return 'opened';
+              } catch (error) {
+                runtime.error?.(
+                  `[tlon] Failed to re-post the purpose picker in ${info.nest}: ${String(error)}`
+                );
+                return 'retry';
+              }
             }
           } catch (error) {
             runtime.log?.(
@@ -5312,8 +5391,20 @@ export async function monitorTlonProvider(
         }
         let setupPresenceKeepalive: ReturnType<typeof setInterval> | null =
           null;
-        if (setupDirective) {
+        // The build doesn't always run on the directive turn. When the
+        // setup has to ask for something first — the owner's timezone is
+        // the standard case — the config write, the research and the
+        // confirmation all happen on the turn that answers it, and that
+        // turn carries no directive. Guarding only the directive turn left
+        // the real build unguarded, so the groups-ui wake from its own
+        // config write could start the closing on top of it. A channel that
+        // still owes its closing is a channel whose setup is running.
+        const ownsSetupTurn =
+          !!setupDirective || onboardingInvitePending.has(nest);
+        if (ownsSetupTurn) {
           onboardingSetupTurnInFlight.add(nest);
+        }
+        if (setupDirective) {
           // A dedicated presence run for the build: the dispatch's own run
           // stops at its first delivery, and a minutes-long icon generation
           // would otherwise sit with no indicator at all. Kept alive for
@@ -5370,8 +5461,10 @@ export async function monitorTlonProvider(
           }
           throw dispatchError;
         } finally {
-          if (setupDirective) {
+          if (ownsSetupTurn) {
             onboardingSetupTurnInFlight.delete(nest);
+          }
+          if (setupDirective) {
             if (setupPresenceKeepalive) {
               clearInterval(setupPresenceKeepalive);
             }
@@ -6776,7 +6869,11 @@ export async function monitorTlonProvider(
             }
             sawWork = true;
             await postInviteCardIfSetupComplete(info.nest);
-            if (!onboardingInvitePending.has(info.nest)) {
+            // Settled is the only finish line. "No longer pending" also
+            // describes a setup still waiting on its notebook, and
+            // retiring on that retired the very groups this pass exists to
+            // rescue.
+            if (inviteSettled.has(info.nest)) {
               closingRecoveryChecked.add(groupFlag);
             }
           }

@@ -17,6 +17,7 @@ import {
   SettingsContentScrollView,
   Tabs,
   TextInput,
+  useShowSettingsBackAction,
 } from '../../ui';
 import {
   BotSettingsDivider,
@@ -61,6 +62,7 @@ const ruleChanged = (
 
 export function BotChannelRulesScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
+  const showBackAction = useShowSettingsBackAction();
   const queries = useBotSettingsQueries();
   // Sync the draft from the server before editing so reaching this screen
   // directly (cold launch / deep link) doesn't start from an empty draft and
@@ -246,7 +248,7 @@ export function BotChannelRulesScreen(props: Props) {
       <ScreenHeader
         borderBottom
         backAction={
-          isWindowNarrow ? () => props.navigation.goBack() : undefined
+          showBackAction ? () => props.navigation.goBack() : undefined
         }
         title="Channel rules"
         placement="navigation"

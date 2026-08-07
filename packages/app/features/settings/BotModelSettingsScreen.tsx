@@ -11,7 +11,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
+import {
+  ScreenHeader,
+  SettingsContentScrollView,
+  TextInput,
+  useShowSettingsBackAction,
+} from '../../ui';
 import {
   BotSettingsDivider,
   BotSettingsErrorText,
@@ -47,6 +52,7 @@ const fallbackKey = (selection: { provider: string; model: string }) =>
 export function BotModelSettingsScreen(props: Props) {
   const { mode } = props.route.params;
   const isWindowNarrow = useIsWindowNarrow();
+  const showBackAction = useShowSettingsBackAction();
   const queries = useBotSettingsQueries();
   // Sync the draft from the server before editing so reaching this leaf
   // directly (cold launch / deep link) doesn't start from an empty draft and
@@ -214,7 +220,7 @@ export function BotModelSettingsScreen(props: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={showBackAction ? handleBack : undefined}
         title={mode === 'default' ? 'Default model' : 'Fallback models'}
         placement="navigation"
       />

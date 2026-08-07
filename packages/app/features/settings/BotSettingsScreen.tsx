@@ -1,16 +1,21 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Text, pluralize, useIsWindowNarrow } from '@tloncorp/ui';
+import { Text, pluralize } from '@tloncorp/ui';
 import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
+import {
+  ScreenHeader,
+  SettingsContentScrollView,
+  TextInput,
+  useShowSettingsBackAction,
+} from '../../ui';
 import {
   ApplyChangesBar,
   BotIdentityHeader,
@@ -38,13 +43,7 @@ const logger = createDevLogger('BotSettingsScreen', false);
 const userCount = (n: number): string => `${n} ${pluralize(n, 'user')}`;
 
 export function BotSettingsScreen(props: Props) {
-  const isWindowNarrow = useIsWindowNarrow();
-  // Mirrors `useNestedSettings` in navigation/utils: only web at a wide
-  // window nests this inside the settings drawer, which has its own way
-  // back. Everywhere else it is a flat RootStack route with gestures
-  // disabled, so this header is the only exit — and a width-only gate left
-  // a native tablet with no back button and no swipe.
-  const showBackAction = isWindowNarrow || Platform.OS !== 'web';
+  const showBackAction = useShowSettingsBackAction();
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const queries = useBotSettingsQueries();
