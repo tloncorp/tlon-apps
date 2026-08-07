@@ -106,3 +106,34 @@ export function buildNoteTitleSegments(
 ): NoteSnippetSegment[] {
   return toSegments(title, findMatches(title, query.trim()));
 }
+
+/**
+ * Which of the result list's states to render. Ordering matters: a failed first
+ * page reports `searchComplete` (nothing loading, no next page), so checking
+ * completion before the error would make a backend failure read as a
+ * successful empty search. Partial results alongside a failed later page still
+ * show the results, with the error surfaced in the status line beneath them.
+ */
+export type NoteSearchListState =
+  | 'idle'
+  | 'results'
+  | 'error'
+  | 'searching'
+  | 'empty';
+
+export function noteSearchListState({
+  errored,
+  query,
+  resultCount,
+  searchComplete,
+}: {
+  errored: boolean;
+  query: string;
+  resultCount: number;
+  searchComplete: boolean;
+}): NoteSearchListState {
+  if (query === '') return 'idle';
+  if (resultCount > 0) return 'results';
+  if (errored) return 'error';
+  return searchComplete ? 'empty' : 'searching';
+}

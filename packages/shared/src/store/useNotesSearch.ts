@@ -77,10 +77,13 @@ export function useNotesSearch(
   const loading = isLoading || isFetchingNextPage;
 
   useEffect(() => {
+    // A failed page leaves hasNextPage set from the last good one, so without
+    // this guard the fill-the-screen fetch would retry the failure forever.
+    if (isError) return;
     if (notes.length < MIN_RESULT_LOAD_THRESHOLD && hasNextPage && !loading) {
       fetchNextPage();
     }
-  }, [notes, hasNextPage, loading, fetchNextPage]);
+  }, [isError, notes, hasNextPage, loading, fetchNextPage]);
 
   return {
     notes,

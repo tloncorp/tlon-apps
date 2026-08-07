@@ -3,6 +3,7 @@ import {
   type NoteSnippetSegment,
   buildNoteSnippet,
   buildNoteTitleSegments,
+  noteSearchListState,
 } from '@tloncorp/shared/logic';
 import { LoadingSpinner, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -223,6 +224,19 @@ export function NotesSearchResults({
     listRef.current?.scrollToIndex({ index: selectedIndex, viewPosition: 0.5 });
   }, [selectedIndex]);
 
+  // Rows vary in height with their snippet, so FlatList has nothing to measure
+  // for a target it hasn't rendered. Approximating from the average gets the
+  // keyboard-selected row on screen instead of dropping the scroll silently.
+  const handleScrollToIndexFailed = useCallback(
+    (info: { index: number; averageItemLength: number }) => {
+      listRef.current?.scrollToOffset({
+        offset: info.averageItemLength * info.index,
+        animated: true,
+      });
+    },
+    []
+  );
+
   const handleEndReached = useCallback(() => {
     if (!search.loading && search.hasMore) {
       search.loadMore();
@@ -248,16 +262,27 @@ export function NotesSearchResults({
     []
   );
 
-  if (query === '') {
+  const listState = noteSearchListState({
+    errored: search.errored,
+    query,
+    resultCount: notes.length,
+    searchComplete: search.searchComplete,
+  });
+
+  if (listState === 'idle') {
     return (
       <NotesSearchMessage text="Search this notebook by note title or content." />
     );
   }
 
-  if (notes.length === 0) {
-    return search.searchComplete ? (
-      <NotesSearchMessage text={`No notes match “${query}”.`} />
-    ) : (
+  if (listState === 'empty') {
+    return <NotesSearchMessage text={`No notes match “${query}”.`} />;
+  }
+
+  // 'error' and 'searching' both belong to the status line: an error reads as a
+  // failure rather than as a search that found nothing.
+  if (listState !== 'results') {
+    return (
       <YStack alignItems="center" paddingVertical="$3xl">
         <NotesSearchStatus numResults={0} search={search} />
       </YStack>
@@ -278,9 +303,7 @@ export function NotesSearchResults({
         keyboardShouldPersistTaps="handled"
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
-        // Rows vary in height with their snippet, so an off-viewport
-        // scrollToIndex has no measurement to work from until it renders.
-        onScrollToIndexFailed={() => {}}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
         testID="NotesSearchResultsList"
       />
       <View paddingVertical="$s">

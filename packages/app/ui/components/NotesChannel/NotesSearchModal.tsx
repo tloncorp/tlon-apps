@@ -44,10 +44,11 @@ export function NotesSearchModal({
     [loading, errored, hasMore, loadMore, searchComplete]
   );
 
-  // Closing unmounts the overlay's subtree, so the input remounts empty; this
-  // keeps the query that drives the search in step with it.
+  // Cleared on close rather than on open: the input remounts empty, and a query
+  // still in state at open time would search the previous term for a render —
+  // flashing stale results and firing a request for them.
   useEffect(() => {
-    if (!open) return;
+    if (open) return;
     setQuery('');
     setSelectedNoteId(null);
   }, [open]);

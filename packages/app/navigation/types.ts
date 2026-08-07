@@ -228,6 +228,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'Post'
   | 'NotesDetail'
   | 'NotesFolder'
+  | 'NotesSearch'
   | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'

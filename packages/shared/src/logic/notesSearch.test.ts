@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
 
-import { buildNoteSnippet, buildNoteTitleSegments } from './notesSearch';
+import {
+  buildNoteSnippet,
+  buildNoteTitleSegments,
+  noteSearchListState,
+} from './notesSearch';
 
 function render(segments: { text: string; match: boolean }[]): string {
   return segments
@@ -108,5 +112,43 @@ describe('buildNoteTitleSegments', () => {
     expect(buildNoteTitleSegments('Untitled', '')).toEqual([
       { text: 'Untitled', match: false },
     ]);
+  });
+});
+
+describe('noteSearchListState', () => {
+  const base = {
+    errored: false,
+    query: 'blob',
+    resultCount: 0,
+    searchComplete: false,
+  };
+
+  test('an untouched search is idle', () => {
+    expect(noteSearchListState({ ...base, query: '' })).toBe('idle');
+  });
+
+  test('a failed first page is an error, not an empty result', () => {
+    // The failure reports searchComplete — nothing loading, no next page — so
+    // ordering completion first would render "no notes match" for a backend
+    // that never answered.
+    expect(
+      noteSearchListState({ ...base, errored: true, searchComplete: true })
+    ).toBe('error');
+  });
+
+  test('an exhausted search with nothing found is empty', () => {
+    expect(noteSearchListState({ ...base, searchComplete: true })).toBe(
+      'empty'
+    );
+  });
+
+  test('no hits yet with more to search is still searching', () => {
+    expect(noteSearchListState(base)).toBe('searching');
+  });
+
+  test('hits win over a later failed page, which the status line reports', () => {
+    expect(
+      noteSearchListState({ ...base, resultCount: 3, errored: true })
+    ).toBe('results');
   });
 });
