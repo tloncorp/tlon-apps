@@ -25,6 +25,7 @@ export type DeterministicOnboardingRecord = {
 
 export type DeterministicSetup = {
   purposeId: string;
+  purpose?: string;
   topics: string;
   timezone: string;
   agentShip: string;
@@ -77,8 +78,8 @@ export function createOnboardingWriteQueue(): OnboardingWriteQueue {
 
 const CONFIG_TYPE = 'tlon-group-agent-config';
 
-const fill = (template: string, topics: string) =>
-  template.replaceAll('{{topics}}', topics);
+const fill = (template: string, topics: string, purpose = '') =>
+  template.replaceAll('{{topics}}', topics).replaceAll('{{purpose}}', purpose);
 
 export function normalizeIanaTimezone(value: string): string | null {
   const candidate = value
@@ -161,13 +162,13 @@ export function buildDeterministicSetupDescription(
         {
           id: setup.purposeId,
           cronJobId: setup.record.cronJobId,
-          title: fill(job.title, setup.topics),
+          title: fill(job.title, setup.topics, setup.purpose),
           schedule: {
             kind: 'cron',
             expr: job.schedule,
             tz: setup.timezone,
           },
-          prompt: fill(job.prompt, setup.topics),
+          prompt: fill(job.prompt, setup.topics, setup.purpose),
           outputNest:
             setup.record.state === 'complete'
               ? setup.record.notebookNest ?? ''
@@ -181,7 +182,10 @@ export function buildDeterministicSetupDescription(
       type: CONFIG_TYPE,
       version: 1,
       templateId: setup.purposeId,
-      purpose: option?.description ?? fill(job.title, setup.topics),
+      purpose:
+        setup.purpose?.trim() ||
+        option?.description ||
+        fill(job.title, setup.topics),
       instructions: '',
       agents: [setup.agentShip],
       jobs,
@@ -193,11 +197,13 @@ export function buildDeterministicSetupDescription(
 
 export function buildAwaitingTimezoneDescription(params: {
   purposeId: string;
+  purpose?: string;
   topics: string;
   agentShip: string;
 }): string {
   return buildDeterministicSetupDescription({
     purposeId: params.purposeId,
+    purpose: params.purpose,
     topics: params.topics,
     timezone: '',
     agentShip: params.agentShip,
@@ -210,10 +216,12 @@ export function buildAwaitingTimezoneDescription(params: {
 
 export function buildAwaitingTopicsDescription(params: {
   purposeId: string;
+  purpose?: string;
   agentShip: string;
 }): string {
   return buildDeterministicSetupDescription({
     purposeId: params.purposeId,
+    purpose: params.purpose,
     topics: '',
     timezone: '',
     agentShip: params.agentShip,
@@ -244,6 +252,7 @@ export function deterministicSetupFromDescription(
     ) as
       | {
           templateId?: unknown;
+          purpose?: unknown;
           agents?: unknown;
           onboarding?: unknown;
         }
@@ -266,6 +275,7 @@ export function deterministicSetupFromDescription(
     }
     return {
       purposeId: entry.templateId,
+      purpose: typeof entry.purpose === 'string' ? entry.purpose : undefined,
       topics: record.topics,
       timezone: record.timezone ?? '',
       agentShip,
@@ -306,6 +316,7 @@ export type DeterministicCronTracer = (
 export async function ensureDeterministicCronJob(params: {
   nest: string;
   purposeId: string;
+  purpose?: string;
   topics: string;
   timezone: string;
   trace?: DeterministicCronTracer;
@@ -386,7 +397,7 @@ export async function ensureDeterministicCronJob(params: {
   const addStartedAt = Date.now();
   emit('add_job', 'started');
   try {
-    const prompt = fill(template.prompt, params.topics);
+    const prompt = fill(template.prompt, params.topics, params.purpose);
     // Older plugin SDKs consume `text`; newer cron persistence requires
     // `message`. Keep both fields for cross-version compatibility.
     const payload = {
@@ -396,7 +407,7 @@ export async function ensureDeterministicCronJob(params: {
     };
 
     await cron.add({
-      name: fill(template.title, params.topics),
+      name: fill(template.title, params.topics, params.purpose),
       description,
       enabled: true,
       schedule: {
@@ -477,6 +488,7 @@ export async function ensureDeterministicCronJob(params: {
 export function renderDeterministicResearchDirective(params: {
   nest: string;
   purposeId: string;
+  purpose?: string;
   topics: string;
 }): string {
   const template = PURPOSE_JOBS[params.purposeId];
@@ -486,7 +498,7 @@ export function renderDeterministicResearchDirective(params: {
   return [
     '[Tlon onboarding research directive — not written by the owner]',
     `Research the first notebook entry for: ${params.topics}.`,
-    `Content requirements: ${fill(template.entry, params.topics)}`,
+    `Content requirements: ${fill(template.entry, params.topics, params.purpose)}`,
     'Use web search whenever the content calls for current information.',
     'Do not create or update a group, channel, cron job, config, notebook,',
     'note, title, or icon. Do not send a chat message. The deterministic Tlon',

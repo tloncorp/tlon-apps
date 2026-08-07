@@ -6,6 +6,7 @@ import {
   makeA2UIBlob,
 } from '../urbit/blob.js';
 import {
+  CUSTOM_PURPOSE_ID,
   INVITE_CARD_BUTTON_LABEL,
   INVITE_CARD_FALLBACK,
   INVITE_CARD_PROMPT,
@@ -227,6 +228,22 @@ function purposeIdForChoice(text: string): string | undefined {
   )?.id;
 }
 
+export type OnboardingPurposeSelection = {
+  purposeId: string;
+  purpose?: string;
+};
+
+function purposeSelectionForReply(
+  text: string
+): OnboardingPurposeSelection | undefined {
+  const purposeId = purposeIdForChoice(text);
+  if (purposeId) {
+    return { purposeId };
+  }
+  const purpose = text.trim().slice(0, 500);
+  return purpose ? { purposeId: CUSTOM_PURPOSE_ID, purpose } : undefined;
+}
+
 /**
  * The post's story text, which doubles as the fallback. Names the suggestions
  * so a client that can't render the pills still gets an answerable question.
@@ -234,7 +251,7 @@ function purposeIdForChoice(text: string): string | undefined {
 export function topicsPickerFallbackText(purposeId: string): string {
   const topics = PURPOSE_TOPICS[purposeId] ?? [];
   if (!topics.length) {
-    return TOPICS_PICKER_PROMPT;
+    return `${TOPICS_PICKER_PROMPT} ${TOPICS_PICKER_FOOTER}`;
   }
   return `${TOPICS_PICKER_PROMPT} ${topics.join(', ')} — ${TOPICS_PICKER_FOOTER}`;
 }
@@ -645,8 +662,8 @@ export async function findChatNestForGroup(
 }
 
 /**
- * The purpose whose card tap is still waiting for the topic pills: the
- * owner's newest substantive message is a purpose-card title, the opening
+ * The purpose reply still waiting for the topic prompt: the owner's newest
+ * substantive message answers the opening picker, and no topics prompt ever
  * picker exists in the transcript, and no topics prompt ever followed.
  * This is the shape a missed message leaves behind — the tap landed while
  * the gateway was restarting (or the pills post failed), so no live
@@ -657,11 +674,11 @@ export function pendingTopicsOfferFromHistory(
   history: Array<{ author: string; content: string; timestamp?: number }>,
   botShip: string,
   ownerShip: string
-): string | undefined {
+): OnboardingPurposeSelection | undefined {
   const newestFirst = [...history].sort(
     (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)
   );
-  let tappedPurpose: string | undefined;
+  let tappedPurpose: OnboardingPurposeSelection | undefined;
   let sawOpening = false;
   for (const entry of newestFirst) {
     const content = entry.content.trim();
@@ -678,13 +695,7 @@ export function pendingTopicsOfferFromHistory(
     }
     if (entry.author === ownerShip && content) {
       if (tappedPurpose === undefined) {
-        const purposeId = purposeIdForChoice(content);
-        if (!purposeId) {
-          // The owner's newest message is ordinary text — the model owns
-          // that conversation; re-offering pills over it would be noise.
-          return undefined;
-        }
-        tappedPurpose = purposeId;
+        tappedPurpose = purposeSelectionForReply(content);
       }
       // Older owner messages don't change the answer; keep scanning for
       // the opening below.
@@ -704,7 +715,7 @@ export function derivePendingPurposeFromHistory(
    * and re-offering the picker over an answered one.
    */
   currentMessageText?: string
-): string | undefined {
+): OnboardingPurposeSelection | undefined {
   // Walk newest-first regardless of fetch order.
   const newestFirst = [...history].sort(
     (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)
@@ -723,11 +734,11 @@ export function derivePendingPurposeFromHistory(
         skippedCurrent = true;
         continue;
       }
-      const purposeId = purposeIdForChoice(entry.content);
-      if (purposeId) {
-        if (sawTopicsPicker) {
-          return purposeId;
-        }
+      const purpose = purposeSelectionForReply(entry.content);
+      if (purpose && sawTopicsPicker) {
+        return purpose;
+      }
+      if (purposeIdForChoice(entry.content)) {
         // A card title newer than any pills seen so far is a duplicate tap
         // (dropped live, but it survives in the transcript). Keep walking —
         // the pills and the tap that earned them are further down.
@@ -942,9 +953,9 @@ export function shouldOfferPurposePicker(opts: {
 }
 
 /**
- * Whether to follow a purpose pick with the topic pills: once per channel,
- * only when the owner's message is exactly one of the purpose titles — i.e.
- * they tapped a card — in a group they host that has no agent config yet.
+ * Whether to follow a purpose reply with the topic prompt. Card titles map to
+ * their template; freeform replies use the generic deterministic template and
+ * preserve the owner's exact purpose text.
  */
 export function shouldOfferTopicsPicker(opts: {
   senderIsOwner: boolean;
@@ -952,7 +963,7 @@ export function shouldOfferTopicsPicker(opts: {
   groupDescription: string | null | undefined;
   messageText: string;
   alreadyOffered: boolean;
-}): string | undefined {
+}): OnboardingPurposeSelection | undefined {
   if (
     opts.alreadyOffered ||
     !opts.senderIsOwner ||
@@ -961,5 +972,5 @@ export function shouldOfferTopicsPicker(opts: {
   ) {
     return undefined;
   }
-  return purposeIdForChoice(opts.messageText);
+  return purposeSelectionForReply(opts.messageText);
 }

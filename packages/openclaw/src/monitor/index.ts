@@ -138,6 +138,7 @@ import {
   renderDeterministicResearchDirective,
 } from './agent-onboarding-coordinator.js';
 import {
+  type OnboardingPurposeSelection,
   agentHasAdminSeat,
   buildInviteCardBlob,
   buildPurposePickerBlob,
@@ -863,11 +864,14 @@ export async function monitorTlonProvider(
      * Channels whose topic pills are awaiting the owner reply, by purpose.
      * The reply is consumed directly and persisted before asking for timezone.
      */
-    const onboardingSetupPending = new Map<string, string>();
+    const onboardingSetupPending = new Map<
+      string,
+      OnboardingPurposeSelection
+    >();
     /** Topic replies waiting for the client's deterministic timezone reply. */
     const onboardingTimezonePending = new Map<
       string,
-      { purposeId: string; topics: string; groupFlag: string }
+      OnboardingPurposeSelection & { topics: string; groupFlag: string }
     >();
     /**
      * Channels whose deterministic setup has started but not yet closed with
@@ -1925,6 +1929,7 @@ export async function monitorTlonProvider(
           renderDeterministicResearchDirective({
             nest,
             purposeId: deterministic.purposeId,
+            purpose: deterministic.purpose,
             topics: deterministic.topics,
           })
         ))
@@ -2242,7 +2247,10 @@ export async function monitorTlonProvider(
         group.description
       );
       if (deterministic?.record.state === 'awaiting-topics') {
-        onboardingSetupPending.set(nest, deterministic.purposeId);
+        onboardingSetupPending.set(nest, {
+          purposeId: deterministic.purposeId,
+          purpose: deterministic.purpose,
+        });
         onboardingPickerOffered.add(nest);
         onboardingTopicsOffered.add(nest);
         onboardingRecoveryChecked.add(nest);
@@ -2257,6 +2265,7 @@ export async function monitorTlonProvider(
       if (deterministic?.record.state === 'awaiting-timezone') {
         onboardingTimezonePending.set(nest, {
           purposeId: deterministic.purposeId,
+          purpose: deterministic.purpose,
           topics: deterministic.topics,
           groupFlag: group.flag,
         });
@@ -2328,14 +2337,14 @@ export async function monitorTlonProvider(
       );
       if (recoveredPurpose) {
         runtime.log?.(
-          `[tlon] Recovered pending onboarding purpose '${recoveredPurpose}' for ${nest} from history`
+          `[tlon] Recovered pending onboarding purpose '${recoveredPurpose.purposeId}' for ${nest} from history`
         );
         onboardingSetupPending.set(nest, recoveredPurpose);
         onboardingPickerOffered.add(nest);
         onboardingTopicsOffered.add(nest);
         traceOnboardingStep(traceBase, 'recover_state', 'recovered', {
           groupFlag: group.flag,
-          purposeId: recoveredPurpose,
+          purposeId: recoveredPurpose.purposeId,
           onboardingState: 'awaiting-topics',
           historyPostCount: recentPosts.length,
           durationMs: Date.now() - recoveryStartedAt,
@@ -2382,8 +2391,9 @@ export async function monitorTlonProvider(
      */
     const postTopicsPickerOffer = async (
       nest: string,
-      purposeId: string
+      selection: OnboardingPurposeSelection
     ): Promise<boolean> => {
+      const { purposeId, purpose } = selection;
       const onboardingAttemptId = randomUUID();
       const startedAt = Date.now();
       const traceBase = {
@@ -2397,7 +2407,7 @@ export async function monitorTlonProvider(
         onboardingState: 'awaiting-topics',
       });
       onboardingTopicsOffered.add(nest);
-      onboardingSetupPending.set(nest, purposeId);
+      onboardingSetupPending.set(nest, selection);
       try {
         const lookupStartedAt = Date.now();
         const group = await findGroupForChannel(api, nest, runtime);
@@ -2447,6 +2457,7 @@ export async function monitorTlonProvider(
             group.flag,
             buildAwaitingTopicsDescription({
               purposeId,
+              purpose,
               agentShip: botShipName,
             }),
             { onboardingAttemptId, onboardingSource: 'purpose_reply' }
@@ -2493,6 +2504,7 @@ export async function monitorTlonProvider(
       params: {
         groupFlag: string;
         purposeId: string;
+        purpose?: string;
         topics: string;
         timezone: string;
       }
@@ -2563,6 +2575,7 @@ export async function monitorTlonProvider(
           cronJobId = await ensureDeterministicCronJob({
             nest,
             purposeId: params.purposeId,
+            purpose: params.purpose,
             topics: params.topics,
             timezone: params.timezone,
             trace: (event) =>
@@ -2598,6 +2611,7 @@ export async function monitorTlonProvider(
         }
         const setup: DeterministicSetup = {
           purposeId: params.purposeId,
+          purpose: params.purpose,
           topics: params.topics,
           timezone: params.timezone,
           agentShip: botShipName,
@@ -6115,12 +6129,12 @@ export async function monitorTlonProvider(
         // labels, which falls through to a normal model turn that does the
         // building.
         if (onboardingOffer && !onboardingTopicsOffered.has(nest)) {
-          const topicsPurposeId = shouldOfferTopicsPicker(onboardingOffer);
-          if (topicsPurposeId) {
+          const purposeSelection = shouldOfferTopicsPicker(onboardingOffer);
+          if (purposeSelection) {
             runtime.log?.(
               `[tlon] Offering agent onboarding topics picker in ${nest}`
             );
-            await postTopicsPickerOffer(nest, topicsPurposeId);
+            await postTopicsPickerOffer(nest, purposeSelection);
             // The tap is spent either way. On success the pills are the
             // reply; on a failed post the owner saw nothing, and letting a
             // bare card title fall through would start a stray model turn
@@ -6325,21 +6339,21 @@ export async function monitorTlonProvider(
           return;
         }
 
-        const pendingSetupPurpose = onboardingSetupPending.get(nest);
+        const pendingSetup = onboardingSetupPending.get(nest);
         // Only a top-level owner message that isn't itself a purpose title
         // answers the pills. A double-tapped card would otherwise be consumed
         // as the topics answer — building the job with "Research" as its
         // subject — and a reply the owner happened to send in another thread
         // would eat the directive the real submission needed.
         const answersTopicsPicker =
-          Boolean(pendingSetupPurpose) &&
+          Boolean(pendingSetup) &&
           isOwner(senderShip) &&
           !isThreadReply &&
           !parentId &&
           Boolean(rawText?.trim()) &&
           !isPurposePickerChoice(rawText ?? '');
         if (
-          pendingSetupPurpose &&
+          pendingSetup &&
           isOwner(senderShip) &&
           isTopLevelTextMessage &&
           isPurposePickerChoice(rawText ?? '')
@@ -6354,13 +6368,13 @@ export async function monitorTlonProvider(
           );
           return;
         }
-        if (pendingSetupPurpose && answersTopicsPicker) {
+        if (pendingSetup && answersTopicsPicker) {
           const topicsAttemptId = randomUUID();
           const topicsStartedAt = Date.now();
           const topics = rawText!.trim();
           const topicsTraceBase = {
             nest,
-            purposeId: pendingSetupPurpose,
+            purposeId: pendingSetup.purposeId,
             topicsCharCount: topics.length,
             onboardingAttemptId: topicsAttemptId,
             onboardingSource: 'topics_reply',
@@ -6373,7 +6387,7 @@ export async function monitorTlonProvider(
           onboardingSetupPending.delete(nest);
           const group = await findGroupForChannel(api, nest, runtime);
           if (!group) {
-            onboardingSetupPending.set(nest, pendingSetupPurpose);
+            onboardingSetupPending.set(nest, pendingSetup);
             traceOnboardingStep(
               topicsTraceBase,
               'resolve_group',
@@ -6401,7 +6415,8 @@ export async function monitorTlonProvider(
               nest,
               group.flag,
               buildAwaitingTimezoneDescription({
-                purposeId: pendingSetupPurpose,
+                purposeId: pendingSetup.purposeId,
+                purpose: pendingSetup.purpose,
                 topics,
                 agentShip: botShipName,
               }),
@@ -6411,7 +6426,7 @@ export async function monitorTlonProvider(
               }
             );
             onboardingTimezonePending.set(nest, {
-              purposeId: pendingSetupPurpose,
+              ...pendingSetup,
               topics,
               groupFlag: group.flag,
             });
@@ -6427,7 +6442,7 @@ export async function monitorTlonProvider(
               durationMs: Date.now() - topicsStartedAt,
             });
           } catch (error) {
-            onboardingSetupPending.set(nest, pendingSetupPurpose);
+            onboardingSetupPending.set(nest, pendingSetup);
             runtime.error?.(
               `[tlon] Could not persist topics for ${nest}: ${String(error)}`
             );

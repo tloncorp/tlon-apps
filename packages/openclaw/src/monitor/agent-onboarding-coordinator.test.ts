@@ -48,6 +48,33 @@ describe('deterministic onboarding config', () => {
     expect(JSON.parse(description)[0].jobs).toEqual([]);
   });
 
+  test('preserves a freeform purpose through deterministic setup', () => {
+    const purpose = 'Watch city council agendas for zoning changes';
+    const description = buildAwaitingTimezoneDescription({
+      purposeId: 'agent-custom',
+      purpose,
+      topics: 'Downtown and waterfront',
+      agentShip: '~bot',
+    });
+    const parsed = deterministicSetupFromDescription(description)!;
+    expect(parsed.purposeId).toBe('agent-custom');
+    expect(parsed.purpose).toBe(purpose);
+    expect(JSON.parse(description)[0].purpose).toBe(purpose);
+    const scheduled = JSON.parse(
+      buildDeterministicSetupDescription({
+        ...parsed,
+        timezone: 'America/New_York',
+        record: {
+          state: 'awaiting-notebook',
+          topics: parsed.topics,
+          timezone: 'America/New_York',
+          cronJobId: 'cron-custom',
+        },
+      })
+    )[0];
+    expect(scheduled.jobs[0].prompt).toContain(purpose);
+  });
+
   test('records verified cron identity separately from the declarative job', () => {
     const description = buildDeterministicSetupDescription({
       purposeId: 'agent-daily-digest',
@@ -335,5 +362,16 @@ describe('research directive', () => {
     expect(directive).toContain('Do not create or update a group');
     expect(directive).not.toContain('groups update');
     expect(directive).not.toContain('note-create');
+  });
+
+  test('includes a custom purpose in the research task', () => {
+    const directive = renderDeterministicResearchDirective({
+      nest: 'chat/~zod/home-group-chat',
+      purposeId: 'agent-custom',
+      purpose: 'Watch city council agendas',
+      topics: 'Downtown zoning',
+    });
+    expect(directive).toContain('Watch city council agendas');
+    expect(directive).toContain('Downtown zoning');
   });
 });

@@ -23,6 +23,8 @@ export const PURPOSE_PICKER_PROMPT =
 export const PURPOSE_PICKER_FOOTER =
   'Or just tell me — the cards are only starts.';
 
+export const CUSTOM_PURPOSE_ID = 'agent-custom';
+
 /** IDs and titles are persisted wire values. */
 export const PURPOSE_OPTIONS = [
   {
@@ -130,6 +132,18 @@ export const PURPOSE_JOBS: Record<
     entry: string;
   }
 > = {
+  [CUSTOM_PURPOSE_ID]: {
+    title: '{{purpose}}: {{topics}}',
+    schedule: '0 9 * * *',
+    prompt:
+      'Carry out this recurring task: {{purpose}}. Focus on: {{topics}}. ' +
+      'Use web search whenever current information would improve the result. ' +
+      OUTPUT_CHANNEL_RULE +
+      ' No preamble.',
+    entry:
+      'The first result for this task: {{purpose}}. Focus on {{topics}} and ' +
+      'complete the task now, with sources where they matter. No preamble.',
+  },
   'agent-daily-digest': {
     title: 'Daily digest: {{topics}}',
     schedule: '0 8 * * *',

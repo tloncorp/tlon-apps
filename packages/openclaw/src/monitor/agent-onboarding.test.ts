@@ -240,10 +240,21 @@ describe('offer gates', () => {
     }
   });
 
-  test('topics picker: follows a card tap, mapping title to purpose id', () => {
-    expect(shouldOfferTopicsPicker(tapped)).toBe('agent-daily-digest');
+  test('topics picker: accepts card and freeform purpose replies', () => {
+    expect(shouldOfferTopicsPicker(tapped)).toEqual({
+      purposeId: 'agent-daily-digest',
+    });
+    expect(
+      shouldOfferTopicsPicker({
+        ...tapped,
+        messageText: 'Watch city council agendas for zoning changes',
+      })
+    ).toEqual({
+      purposeId: 'agent-custom',
+      purpose: 'Watch city council agendas for zoning changes',
+    });
     for (const off of [
-      { messageText: 'hey' },
+      { messageText: '   ' },
       { alreadyOffered: true },
       { senderIsOwner: false },
       { groupHostIsOwner: false },
@@ -445,27 +456,33 @@ describe('pendingTopicsOfferFromHistory', () => {
     // message event ever produced the pills and the owner sat stuck.
     expect(
       pendingTopicsOfferFromHistory([opening(1), tap(2)], BOT, OWNER)
-    ).toBe('agent-daily-digest');
+    ).toEqual({ purposeId: 'agent-daily-digest' });
     // A duplicate tap doesn't change the answer.
     expect(
       pendingTopicsOfferFromHistory([opening(1), tap(2), tap(3)], BOT, OWNER)
-    ).toBe('agent-daily-digest');
+    ).toEqual({ purposeId: 'agent-daily-digest' });
   });
 
-  test('stays out once pills exist or the owner moved on', () => {
-    expect(
-      pendingTopicsOfferFromHistory([opening(1), tap(2), pills(3)], BOT, OWNER)
-    ).toBeUndefined();
+  test('recovers a freeform purpose and stays out once topics were offered', () => {
     expect(
       pendingTopicsOfferFromHistory(
         [
           opening(1),
-          tap(2),
-          { author: OWNER, content: 'actually, hello?', timestamp: 3 },
+          {
+            author: OWNER,
+            content: 'Watch city council agendas',
+            timestamp: 2,
+          },
         ],
         BOT,
         OWNER
       )
+    ).toEqual({
+      purposeId: 'agent-custom',
+      purpose: 'Watch city council agendas',
+    });
+    expect(
+      pendingTopicsOfferFromHistory([opening(1), tap(2), pills(3)], BOT, OWNER)
     ).toBeUndefined();
   });
 
@@ -782,7 +799,7 @@ describe('derivePendingPurposeFromHistory', () => {
         BOT,
         OWNER
       )
-    ).toBe('agent-daily-digest');
+    ).toEqual({ purposeId: 'agent-daily-digest' });
     // A duplicate card tap after the pills doesn't hide the pending pick:
     // the pills are still awaiting their real answer.
     expect(
@@ -795,7 +812,7 @@ describe('derivePendingPurposeFromHistory', () => {
         BOT,
         OWNER
       )
-    ).toBe('agent-daily-digest');
+    ).toEqual({ purposeId: 'agent-daily-digest' });
   });
 
   test('nothing to recover once the owner has said anything newer', () => {
@@ -832,11 +849,31 @@ describe('derivePendingPurposeFromHistory', () => {
     ];
     expect(
       derivePendingPurposeFromHistory(history, BOT, OWNER, 'Weather, News')
-    ).toBe('agent-daily-digest');
+    ).toEqual({ purposeId: 'agent-daily-digest' });
     // Without being told, the same history reads as already answered.
     expect(
       derivePendingPurposeFromHistory(history, BOT, OWNER)
     ).toBeUndefined();
+  });
+
+  test('recovers a freeform purpose after the topics prompt', () => {
+    expect(
+      derivePendingPurposeFromHistory(
+        [
+          {
+            author: OWNER,
+            content: 'Watch city council agendas',
+            timestamp: 1,
+          },
+          { ...pills, timestamp: 2 },
+        ],
+        BOT,
+        OWNER
+      )
+    ).toEqual({
+      purposeId: 'agent-custom',
+      purpose: 'Watch city council agendas',
+    });
   });
 
   test('nothing to recover from a channel with no picker exchange', () => {
