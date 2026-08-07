@@ -355,12 +355,21 @@ export function Channel({
   const isGroupDm = isGroupDmChannelId(channel.id);
   const isNotebookOrGallery =
     channel.type === 'notebook' || channel.type === 'gallery';
-  const canRenderDraftInput =
-    canRead &&
-    canWrite &&
-    negotiationMatch &&
-    !(channel.groupId && !group && !groupIsLoading) &&
-    !channel.isDmInvite;
+  const readOnlyNoticeType =
+    channel.groupId && !group && !groupIsLoading
+      ? 'group-deleted'
+      : !canRead
+        ? 'no-longer-read'
+        : !canWrite
+          ? 'read-only'
+          : !negotiationMatch
+            ? isDM
+              ? 'dm-mismatch'
+              : isGroupDm
+                ? 'group-dm-mismatch'
+                : 'channel-mismatch'
+            : null;
+  const canRenderDraftInput = readOnlyNoticeType == null && !channel.isDmInvite;
   const draftInputType = !canRenderDraftInput
     ? null
     : channel.contentConfiguration != null
@@ -805,11 +814,7 @@ export function Channel({
                         }
                         contextLensActive={contextLensActive}
                         showSpinner={showHeaderLoading}
-                        showSearchButton={
-                          channel.type === 'chat' ||
-                          channel.type === 'dm' ||
-                          channel.type === 'groupDm'
-                        }
+                        showSearchButton={isChatChannel}
                       />
                       {shouldRenderPinnedPostBanner && pinnedPost && (
                         <PinnedPostBanner
@@ -898,25 +903,8 @@ export function Channel({
                             )}
                           </AnimatePresence>
 
-                          {!canRead ||
-                          !canWrite ||
-                          !negotiationMatch ||
-                          (channel.groupId && !group && !groupIsLoading) ? (
-                            <ReadOnlyNotice
-                              type={
-                                channel.groupId && !group && !groupIsLoading
-                                  ? 'group-deleted'
-                                  : !canRead
-                                    ? 'no-longer-read'
-                                    : !canWrite
-                                      ? 'read-only'
-                                      : isDM
-                                        ? 'dm-mismatch'
-                                        : isGroupDm
-                                          ? 'group-dm-mismatch'
-                                          : 'channel-mismatch'
-                              }
-                            />
+                          {readOnlyNoticeType ? (
+                            <ReadOnlyNotice type={readOnlyNoticeType} />
                           ) : draftInputType ? (
                             <DraftInputView
                               draftInputContext={draftInputContext}

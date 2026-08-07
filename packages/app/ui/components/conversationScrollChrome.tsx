@@ -1,6 +1,13 @@
 import { HeaderHeightContext } from '@react-navigation/elements';
 import { FloatingActionButton, Icon, LoadingSpinner } from '@tloncorp/ui';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { Platform, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   Easing,
@@ -95,7 +102,6 @@ export function ConversationScrollToBottomButton({
   onPress: () => void;
   visible: boolean;
 }) {
-  const animatedStyle = useScrollToBottomButtonTransition(visible);
   const content = loading ? (
     <LoadingSpinner size="small" />
   ) : (
@@ -104,14 +110,11 @@ export function ConversationScrollToBottomButton({
 
   if (!supportsLiquidGlass()) {
     return (
-      <Animated.View
-        accessibilityElementsHidden={!visible}
-        importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
-        pointerEvents={visible ? 'auto' : 'none'}
-        style={animatedStyle}
-      >
-        <FloatingActionButton icon={content} onPress={onPress} />
-      </Animated.View>
+      <AnimatedScrollToBottomButton
+        content={content}
+        onPress={onPress}
+        visible={visible}
+      />
     );
   }
 
@@ -126,19 +129,40 @@ export function ConversationScrollToBottomButton({
       style={[styles.control, inComposer ? styles.composerControl : undefined]}
     >
       {/* Liquid Glass does not render reliably beneath an opacity animation. */}
-      <Animated.View style={[styles.content, animatedStyle]}>
-        <Pressable
-          accessibilityLabel="Scroll to bottom"
-          accessibilityRole="button"
-          hitSlop={8}
-          onPress={onPress}
-          style={styles.pressable}
-          testID="ScrollToBottomButton"
-        >
-          {content}
-        </Pressable>
-      </Animated.View>
+      <Pressable
+        accessibilityLabel="Scroll to bottom"
+        accessibilityRole="button"
+        hitSlop={8}
+        onPress={onPress}
+        style={styles.pressable}
+        testID="ScrollToBottomButton"
+      >
+        {content}
+      </Pressable>
     </GlassSurface>
+  );
+}
+
+function AnimatedScrollToBottomButton({
+  content,
+  onPress,
+  visible,
+}: {
+  content: ReactNode;
+  onPress: () => void;
+  visible: boolean;
+}) {
+  const animatedStyle = useScrollToBottomButtonTransition(visible);
+
+  return (
+    <Animated.View
+      accessibilityElementsHidden={!visible}
+      importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
+      pointerEvents={visible ? 'auto' : 'none'}
+      style={animatedStyle}
+    >
+      <FloatingActionButton icon={content} onPress={onPress} />
+    </Animated.View>
   );
 }
 
@@ -173,13 +197,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: floatingChromeMetrics.rowPaddingVertical,
     left: '50%',
+    // The composer row's horizontal padding shifts this absolute coordinate
+    // space left; compensate so the control is centered on the screen.
     marginLeft:
       -floatingChromeMetrics.controlSize / 2 +
       floatingChromeMetrics.rowPaddingHorizontal,
     zIndex: 1,
-  },
-  content: {
-    flex: 1,
   },
   pressable: {
     flex: 1,

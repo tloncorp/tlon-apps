@@ -1,4 +1,8 @@
-import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
+import {
+  isChatChannel,
+  useConnectionStatus,
+  useDebouncedValue,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useContact, useNotesDeskAvailable } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
@@ -422,16 +426,17 @@ export function ChannelHeader({
       visible: !!onToggleContextLens,
     },
   ];
-  const usesNavigationHeader =
-    channel.type === 'chat' ||
-    channel.type === 'dm' ||
-    channel.type === 'groupDm';
+  const usesNavigationHeader = isChatChannel(channel);
+  // The conversation list owns its scroll props, but this call installs the
+  // matching native scroll-edge options on the navigator.
   useScreenScrollProps({
     enabled: usesNavigationHeader,
     bottomEdgeEffect: 'soft',
   });
 
   if (usesNavigationHeader) {
+    // Native navigation headers accept declarative actions only. Element-style
+    // registrations are reserved for inline notebook and gallery headers.
     return (
       <ScreenHeader
         {...headerProps}

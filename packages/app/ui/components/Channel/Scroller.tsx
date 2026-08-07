@@ -33,6 +33,7 @@ import React, {
 import {
   LayoutChangeEvent,
   ListRenderItem,
+  Platform,
   View as RNView,
   StyleProp,
   ViewStyle,
@@ -623,9 +624,9 @@ const Scroller = forwardRef(
           <View
             position="absolute"
             bottom={scrollButtonBottom}
-            left={0}
-            right={0}
-            alignItems="center"
+            left={Platform.OS === 'web' ? undefined : 0}
+            right={Platform.OS === 'web' ? '$l' : 0}
+            alignItems={Platform.OS === 'web' ? undefined : 'center'}
             pointerEvents={showScrollButton ? 'box-none' : 'none'}
             zIndex={1000}
           >

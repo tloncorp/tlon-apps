@@ -803,14 +803,6 @@ function SinglePostView({
     [parentPost, scrollToNewReply, setEditingPost]
   );
 
-  const isChatLike = useMemo(
-    () =>
-      channel.type === 'chat' ||
-      channel.type === 'dm' ||
-      channel.type === 'groupDm',
-    [channel.type]
-  );
-
   const startReplyDraft = useCallback((mode?: 'text' | 'link') => {
     replyDraftInputRef.current?.startDraft?.(mode);
   }, []);
@@ -825,7 +817,7 @@ function SinglePostView({
   const { bottom } = useSafeAreaInsets();
   const { contentInsets, onFloatingHeightChange } = useConversationInsets({
     hasFloatingComposer: canRenderReplyInput,
-    hasTransparentHeader: isChatLike,
+    hasTransparentHeader: isChatChannel,
   });
   // Native floating composers include the home-indicator inset. Web composers
   // stay inline, so the screen still owns its bottom safe-area clearance.
@@ -875,10 +867,10 @@ function SinglePostView({
       groupMembers={groupMembers}
       groupRoles={groupRoles}
       channelType="chat"
-      showAttachmentButton={isChatLike}
+      showAttachmentButton={isChatChannel}
       showInlineAttachments
       shouldAutoFocus={
-        (isChatLike && parentPost?.replyCount === 0) || !!editingPost
+        (isChatChannel && parentPost?.replyCount === 0) || !!editingPost
       }
     />
   ) : null;
