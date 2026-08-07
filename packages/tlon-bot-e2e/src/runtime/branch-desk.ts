@@ -405,6 +405,12 @@ async function login(
   return cookie;
 }
 
+// Vere can die (the u3_readdir_r commit segfault) while the lens request is
+// still in flight; the script signals connection-level failures with this
+// exit code so hoodCommand can route them into the reboot retry instead of
+// failing the run on a plain error.
+const HOOD_CONNECTION_FAILURE_EXIT = 21;
+
 // The {source, sink} dojo payload is the lens protocol, served only by
 // vere's loopback listener inside the container — the host-mapped eyre port
 // 404s it (found on the first live run). Rube posts to the same loopback
@@ -424,7 +430,13 @@ const HOOD_LOOPBACK_SCRIPT = [
   '    console.error(`+hood/${command} on ${ship}: HTTP ${res.status}: ${await res.text()}`);',
   '    process.exit(1);',
   '  }',
-  '}, (err) => { console.error(String(err)); process.exit(1); });',
+  '}, (err) => {',
+  '  const cause = err && err.cause ? err.cause : err;',
+  "  const code = cause && cause.code ? String(cause.code) : '';",
+  "  const connectionLevel = ['ECONNREFUSED', 'ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'UND_ERR_SOCKET'].includes(code);",
+  '  console.error(String(err));',
+  `  process.exit(connectionLevel ? ${HOOD_CONNECTION_FAILURE_EXIT} : 1);`,
+  '});',
 ].join('\n');
 
 async function hoodCommand(
@@ -433,13 +445,19 @@ async function hoodCommand(
   command: string,
   dependencies: BranchDeskDependencies
 ) {
-  await requireShipExec(ctx, dependencies, [
-    'node',
-    '-e',
-    HOOD_LOOPBACK_SCRIPT,
-    ship,
-    command,
-  ]);
+  const result = await dependencies.execInComposeService(
+    ctx,
+    ctx.services.ships,
+    ['node', '-e', HOOD_LOOPBACK_SCRIPT, ship, command]
+  );
+  if (result.exitCode === HOOD_CONNECTION_FAILURE_EXIT) {
+    throw new ShipUnavailableError(
+      `+hood/${command} on ~${ship} failed at the connection level: ${(
+        result.stderr || result.stdout
+      ).trim()}`
+    );
+  }
+  requireSuccess(result, `exec in ${ctx.services.ships}`);
 }
 
 async function groupsHash(

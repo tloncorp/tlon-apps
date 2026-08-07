@@ -18,10 +18,11 @@ jobs:
   shared-e2e:
     name: Shared E2E
     runs-on: blacksmith-8vcpu-ubuntu-2204
-    # Each scenario partition boots a fresh stack and re-applies the branch
-    # %groups desk (~8-9 minutes per partition on native runners); three
-    # partitions no longer fit the old 35-minute budget.
-    timeout-minutes: 55
+    # Three runtimes boot fresh stacks and re-apply the branch %groups desk
+    # (baseline and cron scenario partitions, then the package suite; ~8-9
+    # minutes per apply on native runners when the desk has drifted). The
+    # previous budgets were exceeded at exactly that arithmetic.
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4

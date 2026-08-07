@@ -114,6 +114,20 @@ describe('applyBranchDesk control flow', () => {
     expect(harness.events).not.toContain('commit:zod');
   });
 
+  test('routes a commit-time connection failure into the reboot retry', async () => {
+    const harness = new BranchDeskHarness({
+      mountedManifest: OLD_MANIFEST,
+      commitConnectionFailures: 1,
+    });
+
+    await harness.apply();
+
+    expect(harness.restartComposeService).toHaveBeenCalledTimes(1);
+    expect(
+      harness.events.filter((event) => event === 'commit:zod')
+    ).toHaveLength(2);
+  });
+
   test('retries when the ship becomes unavailable during final readiness', async () => {
     const harness = new BranchDeskHarness({
       mountedManifest: OLD_MANIFEST,
@@ -274,6 +288,7 @@ interface HarnessOptions {
   clobberAfterReplace?: boolean;
   healthUnavailable?: number;
   assemblyResult?: Partial<ExecResult>;
+  commitConnectionFailures?: number;
 }
 
 class BranchDeskHarness {
@@ -301,12 +316,15 @@ class BranchDeskHarness {
     mug: 'old-hash',
   };
   private unavailableHealthChecks = 0;
+  private commitConnectionFailuresRemaining: number;
 
   constructor(options: HarnessOptions = {}) {
     this.options = options;
     this.mountReads = [...(options.mountReads ?? [])];
     const mounted = options.mountedManifest ?? OLD_MANIFEST;
     this.mountedManifests = { zod: mounted, ten: mounted, mug: mounted };
+    this.commitConnectionFailuresRemaining =
+      options.commitConnectionFailures ?? 0;
   }
 
   async apply(): Promise<void> {
@@ -357,6 +375,15 @@ class BranchDeskHarness {
         }
         if (command === 'commit %groups') {
           this.events.push(`commit:${ship}`);
+          if (this.commitConnectionFailuresRemaining > 0) {
+            this.commitConnectionFailuresRemaining -= 1;
+            // The loopback script's connection-level exit: vere died while
+            // the +hood/commit request was in flight.
+            return success({
+              exitCode: 21,
+              stderr: 'TypeError: fetch failed (ECONNREFUSED)',
+            });
+          }
           this.hashes[ship] = 'new-hash';
           return success();
         }
