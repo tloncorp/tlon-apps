@@ -48,6 +48,7 @@ EVENT_CONTROL_COMMAND = "TlonBot Control Command"
 EVENT_TELEMETRY_TEST = "TlonBot Telemetry Test"
 EVENT_HEARTBEAT_NUDGE_SENT = "TlonBot Heartbeat Nudge Sent"
 EVENT_HEARTBEAT_NUDGE_REENGAGED = "TlonBot Heartbeat Nudge Reengaged"
+EVENT_MIGRATION = "TlonBot Diary Migration"
 
 HARNESS = "hermes"
 
@@ -68,6 +69,9 @@ ERROR_DETAIL_MAX_CHARS = 200
 # a real error + stack is never truncated, bounded only against pathological
 # output bloating the PostHog event.
 ERROR_DETAIL_FULL_MAX_CHARS = 8000
+# The per-call CLI event already carries the full stderr; this copy only has to
+# identify the failure, so it takes a tighter cap.
+MIGRATION_ERROR_MAX_CHARS = 500
 
 _SHIP_RE = re.compile(r"~[a-zA-Z0-9.\-]+")
 
@@ -760,6 +764,38 @@ class TlonTelemetry:
                 "nudgeSentAtMs": sent_at_ms,
             },
         )
+
+    def migration_event(
+        self,
+        *,
+        event: str,
+        action: str,
+        migration_id: str,
+        duration_ms: Optional[int] = None,
+        deadline_exceeded: Optional[bool] = None,
+        error_text: Any = None,
+    ) -> None:
+        """Diary migration lifecycle (``/migrate``) — converting a diary channel
+        to a notes channel, not ship or hosting migration. One ``started`` plus one
+        terminal (``completed``/``failed``/``consent_required``) per accepted run,
+        correlated by ``migration_id``; ``action`` separates apply from cleanup.
+        Terminal-only fields are omitted rather than sent as null."""
+        properties: dict[str, Any] = {
+            "migrationEvent": event,
+            "action": action,
+            "migrationId": migration_id,
+        }
+        if duration_ms is not None:
+            properties["durationMs"] = duration_ms
+        if deadline_exceeded is not None:
+            properties["deadlineExceeded"] = deadline_exceeded
+        if error_text:
+            # Scrubbed and capped here, not at the call site, so no caller can
+            # forget.
+            properties["errorText"] = scrub_full(
+                error_text, MIGRATION_ERROR_MAX_CHARS
+            )
+        self.capture(EVENT_MIGRATION, properties)
 
     def nudge_reengaged(
         self,
