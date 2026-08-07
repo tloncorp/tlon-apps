@@ -4,7 +4,7 @@ import { getNativeEmoji } from '@tloncorp/ui';
 import { SizableEmoji } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../contexts/appDataContext';
@@ -13,6 +13,30 @@ import { ReactionDetails, useReactionDetails } from '../../../utils/postUtils';
 import { EmojiPickerSheet } from '../../Emoji/EmojiPickerSheet';
 
 const logger = createDevLogger('EmojiToolbar', false);
+
+/** Number of slots given to the user's most-used emoji. */
+const FREQUENT_SLOT_COUNT = 3;
+
+/** Fills the frequent slots until the user has enough reaction history. */
+const DEFAULT_QUICK_EMOJIS = ['+1', 'heart', 'laughing'];
+
+/**
+ * Keeps testIDs tied to emoji identity rather than slot position, since the
+ * frequent slots reorder as usage changes.
+ */
+const TEST_ID_NAMES: Record<string, string> = {
+  '+1': 'thumb',
+  heart: 'heart',
+  laughing: 'laughing',
+};
+
+function getTestID(emoji: string) {
+  const native = getNativeEmoji(emoji) ?? emoji;
+  const named = Object.keys(TEST_ID_NAMES).find(
+    (code) => getNativeEmoji(code) === native
+  );
+  return `EmojiToolbarButton-${named ? TEST_ID_NAMES[named] : native}`;
+}
 
 export function EmojiToolbar({
   post,
@@ -41,9 +65,33 @@ export function EmojiToolbar({
     [handlePress]
   );
 
+  const usage = db.emojiUsage.useValue();
+
+  const frequentEmojis = useMemo(() => {
+    const seen = new Set<string>();
+    const slots: string[] = [];
+    const take = (emoji: string) => {
+      const native = getNativeEmoji(emoji);
+      if (!native || seen.has(native)) {
+        return;
+      }
+      seen.add(native);
+      slots.push(emoji);
+    };
+
+    db.sortEmojisByUsage(usage).forEach(take);
+    // Backfill any unused slots so the toolbar is never short.
+    DEFAULT_QUICK_EMOJIS.forEach(take);
+
+    return slots.slice(0, FREQUENT_SLOT_COUNT);
+  }, [usage]);
+
   const lastShortCode =
     details.self.didReact &&
-    !['👍', '❤️', '😂', '🌀'].some((code) => details.self.value.includes(code))
+    !['🌀', ...frequentEmojis].some((code) => {
+      const native = getNativeEmoji(code);
+      return !!native && details.self.value.includes(native);
+    })
       ? details.self.value
       : '🌀';
 
@@ -68,24 +116,15 @@ export function EmojiToolbar({
         alignItems="center"
         width={256}
       >
-        <EmojiToolbarButton
-          details={details}
-          shortCode="+1"
-          handlePress={handleToolbarPress}
-          testID="EmojiToolbarButton-thumb"
-        />
-        <EmojiToolbarButton
-          details={details}
-          shortCode="heart"
-          handlePress={handleToolbarPress}
-          testID="EmojiToolbarButton-heart"
-        />
-        <EmojiToolbarButton
-          details={details}
-          shortCode="laughing"
-          handlePress={handleToolbarPress}
-          testID="EmojiToolbarButton-laughing"
-        />
+        {frequentEmojis.map((shortCode) => (
+          <EmojiToolbarButton
+            key={shortCode}
+            details={details}
+            shortCode={shortCode}
+            handlePress={handleToolbarPress}
+            testID={getTestID(shortCode)}
+          />
+        ))}
         <EmojiToolbarButton
           details={details}
           shortCode={lastShortCode}
@@ -116,11 +155,14 @@ function EmojiToolbarButton({
   handlePress: (shortCode: string) => void;
   testID: string;
 }) {
+  // Reactions are stored as native glyphs, so a shortcode slot has to be
+  // resolved before it can be compared against the user's reaction.
+  const native = getNativeEmoji(shortCode) ?? shortCode;
   return (
     <Pressable
       padding="$xs"
       backgroundColor={
-        details.self.didReact && details.self.value.includes(shortCode)
+        details.self.didReact && details.self.value.includes(native)
           ? '$positiveBackground'
           : undefined
       }

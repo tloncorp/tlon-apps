@@ -494,6 +494,52 @@ export const alreadyPromptedLocaleDownloads = createStorageItem<Set<string>>({
   deserialize: (str) => new Set(JSON.parse(str)),
 });
 
+/**
+ * How many times the user has reacted with each native emoji glyph, used to
+ * surface their most-used emoji in the quick reaction toolbar. Local-only —
+ * usage is never synced to the ship.
+ */
+export type EmojiUsage = Record<string, { count: number; lastUsedAt: number }>;
+
+/** Cap on tracked emoji, so a long tail of one-offs can't grow without bound. */
+const MAX_TRACKED_EMOJIS = 100;
+
+export const emojiUsage = createStorageItem<EmojiUsage>({
+  key: 'emojiUsage',
+  defaultValue: {},
+});
+
+export async function recordEmojiUsage(emoji: string, usedAt: number) {
+  return emojiUsage.setValue((current) => {
+    const next = {
+      ...current,
+      [emoji]: {
+        count: (current[emoji]?.count ?? 0) + 1,
+        lastUsedAt: usedAt,
+      },
+    };
+    const keys = Object.keys(next);
+    if (keys.length <= MAX_TRACKED_EMOJIS) {
+      return next;
+    }
+    return Object.fromEntries(
+      sortEmojisByUsage(next)
+        .slice(0, MAX_TRACKED_EMOJIS)
+        .map((key) => [key, next[key]])
+    );
+  });
+}
+
+/** Emoji glyphs ordered by use count, ties broken by most recently used. */
+export function sortEmojisByUsage(usage: EmojiUsage): string[] {
+  return Object.keys(usage).sort((a, b) => {
+    const countDiff = usage[b].count - usage[a].count;
+    return countDiff !== 0
+      ? countDiff
+      : usage[b].lastUsedAt - usage[a].lastUsedAt;
+  });
+}
+
 function stringToArrayBuffer(str: string) {
   const buf = new ArrayBuffer(str.length);
   const bufView = new Uint8Array(buf);

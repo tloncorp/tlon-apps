@@ -971,6 +971,8 @@ export async function addPostReaction(
     return;
   }
 
+  await db.recordEmojiUsage(emoji, Date.now());
+
   const channel = await db.getChannel({ id: post.channelId });
   let group = null;
   if (channel && channel.groupId) {
