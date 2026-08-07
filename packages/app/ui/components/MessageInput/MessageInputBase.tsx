@@ -5,6 +5,7 @@ import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
+import type { ReactNode } from 'react';
 import { ComponentProps, PropsWithChildren, memo, useState } from 'react';
 import { LayoutChangeEvent, Platform, StyleSheet } from 'react-native';
 import { SpaceTokens } from 'tamagui';
@@ -221,6 +222,14 @@ export const MessageInputContainer = memo(
             <MessageInputChromeBody
               isEditing={isEditing}
               editingTintColor={secondaryBackgroundColor}
+              overlay={
+                floatingActionButton ? null : (
+                  <>
+                    {showWayfindingTooltip && <Notices.ChatInputTooltip />}
+                    {showBotMentionTooltip && <Notices.BotMentionTooltip />}
+                  </>
+                )
+              }
             >
               <MessageInputContentFrame
                 backgroundColor={contentBackgroundColor}
@@ -245,8 +254,6 @@ export const MessageInputContainer = memo(
                 </View>
               ) : (
                 <MessageInputChromeSendAction>
-                  {showWayfindingTooltip && <Notices.ChatInputTooltip />}
-                  {showBotMentionTooltip && <Notices.BotMentionTooltip />}
                   <MessageInputChromeButton
                     preset="secondary"
                     disabled={disableSend}
@@ -435,9 +442,11 @@ function MessageInputChromeBody({
   children,
   isEditing,
   editingTintColor,
+  overlay,
 }: PropsWithChildren<{
   isEditing: boolean;
   editingTintColor: string;
+  overlay: ReactNode;
 }>) {
   if (usesIOSGlass) {
     return (
@@ -448,25 +457,29 @@ function MessageInputChromeBody({
         fallbackStyle={inputChromeStyles.clipped}
       >
         {children}
+        {overlay}
       </GlassSurface>
     );
   }
 
   if (usesFloatingChrome) {
     return (
-      <XStack
-        {...materialSurfaceProps}
-        flex={1}
-        minHeight={metrics.controlSize}
-        borderRadius={metrics.controlRadius}
-        alignItems="center"
-        gap={metrics.rowGap}
-        backgroundColor={
-          isEditing ? '$positiveBackground' : '$secondaryBackground'
-        }
-        overflow="hidden"
-      >
-        {children}
+      <XStack flex={1} position="relative">
+        <XStack
+          {...materialSurfaceProps}
+          flex={1}
+          minHeight={metrics.controlSize}
+          borderRadius={metrics.controlRadius}
+          alignItems="center"
+          gap={metrics.rowGap}
+          backgroundColor={
+            isEditing ? '$positiveBackground' : '$secondaryBackground'
+          }
+          overflow="hidden"
+        >
+          {children}
+        </XStack>
+        {overlay}
       </XStack>
     );
   }
@@ -474,6 +487,7 @@ function MessageInputChromeBody({
   return (
     <XStack flex={1} gap="$l" alignItems="flex-end">
       {children}
+      {overlay}
     </XStack>
   );
 }
