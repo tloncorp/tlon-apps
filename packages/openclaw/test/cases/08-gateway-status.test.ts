@@ -31,8 +31,8 @@ const INTERNAL_TEST_TIMEOUT_MS = 165_000;
 const DIAGNOSTIC_RESERVE_MS = 12_000;
 const MIN_POLL_OPERATION_BUDGET_MS = 2_000;
 const STATUS_SCRY = {
-  app: 'gateway-status',
-  path: '/status',
+  app: 'steward',
+  path: '/v1/gateway/status',
   archive: ARCHIVE,
 } as const;
 const GATEWAY_START = '[gateway-status] gateway_start received (generation=1)';

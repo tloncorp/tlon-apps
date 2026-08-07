@@ -1,5 +1,5 @@
 import {
-  configureGatewayStatus,
+  configureStewardGateway,
   gatewayHeartbeat,
   gatewayStart,
   gatewayStop,
@@ -16,7 +16,7 @@ import {
 import { sharedSlot } from './shared-state.js';
 
 vi.mock('@tloncorp/api', () => ({
-  configureGatewayStatus: vi.fn().mockResolvedValue(undefined),
+  configureStewardGateway: vi.fn().mockResolvedValue(undefined),
   gatewayStart: vi.fn().mockResolvedValue(undefined),
   gatewayHeartbeat: vi.fn().mockResolvedValue(undefined),
   gatewayStop: vi.fn().mockResolvedValue(undefined),
@@ -84,7 +84,7 @@ function createFakeHookApi() {
 beforeEach(() => {
   // These resolve with the poke response id (a number); the value itself is
   // never asserted on, only that the call happened.
-  vi.mocked(configureGatewayStatus).mockClear().mockResolvedValue(1);
+  vi.mocked(configureStewardGateway).mockClear().mockResolvedValue(1);
   vi.mocked(gatewayStart).mockClear().mockResolvedValue(1);
   vi.mocked(gatewayHeartbeat).mockClear().mockResolvedValue(1);
   vi.mocked(gatewayStop).mockClear().mockResolvedValue(1);

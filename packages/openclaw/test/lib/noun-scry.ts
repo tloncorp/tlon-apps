@@ -179,7 +179,7 @@ function malformedGatewayStatus(noun: Noun, reason: string): never {
   );
 }
 
-/** Decode the old standalone agent's `[status (unit @da)]` noun. */
+/** Decode %steward's `/x/v1/gateway/status` `[status (unit @da)]` noun. */
 export function decodeGatewayStatus(noun: Noun): GatewayStatusScry {
   const raw = noun.toString();
   if (!(noun instanceof Cell)) {
