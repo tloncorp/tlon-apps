@@ -71,6 +71,29 @@ function randomList(): Listing {
 
 const FORCED_CASES: Array<{ name: string; story: Story }> = [
   {
+    // GFM permits mixing plain and checkbox items in one list; the wire
+    // keeps the author's single list (adjacent lists re-merge on reparse,
+    // so a homogeneous split cannot survive a cycle). The renderer draws a
+    // bullet for a tasklist child with no task inline.
+    name: 'mixed plain and task items in one list',
+    story: [
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'tasklist',
+              contents: [],
+              items: [
+                { item: ['plain'] },
+                { item: [{ task: { checked: true, content: ['done'] } }] },
+              ],
+            },
+          },
+        },
+      },
+    ],
+  },
+  {
     name: 'adjacent bold and link-leading italics before a lifted break',
     story: [
       {
