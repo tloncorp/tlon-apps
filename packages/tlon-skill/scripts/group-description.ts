@@ -109,9 +109,14 @@ export type VerifiedMetaWriteDeps = {
       cover: string;
     };
   }) => Promise<unknown>;
-  getGroup: (
-    groupId: string
-  ) => Promise<{ title?: string | null; description?: string | null }>;
+  getGroup: (groupId: string) => Promise<{
+    title?: string | null;
+    description?: string | null;
+    iconImage?: string | null;
+    iconImageColor?: string | null;
+    coverImage?: string | null;
+    coverImageColor?: string | null;
+  }>;
   sleep: (ms: number) => Promise<void>;
   warn: (message: string) => void;
 };
@@ -125,8 +130,9 @@ export type VerifiedMetaWriteDeps = {
  * failure the writer routes around. And a poke that reports success but
  * never materializes turns into a retried write instead of a silent gap.
  * Throws only when the stored meta still doesn't match after every
- * attempt; title and description are compared (the fields a caller
- * actually authors — image fields can be rewritten server-side).
+ * attempt. Every field is compared, artwork included: an icon-only write
+ * changes neither title nor description, so checking just those two passed
+ * it on the first poll no matter what happened to the image.
  */
 export async function verifiedGroupMetaWrite(
   deps: VerifiedMetaWriteDeps,
@@ -165,9 +171,21 @@ export async function verifiedGroupMetaWrite(
       } catch {
         continue;
       }
+      // Visuals are compared too, not just the text. `meta` already carries
+      // the existing artwork forward when the caller didn't touch it, so an
+      // unchanged icon matches for free — but an icon-only write (the
+      // onboarding artwork step) used to verify against title and
+      // description alone, which of course already matched, and reported
+      // "stored values verified" on the very first poll for an image that
+      // never landed. The one caller who most needs the truth here is the
+      // one changing nothing else.
+      const storedImage = stored.iconImage ?? stored.iconImageColor ?? '';
+      const storedCover = stored.coverImage ?? stored.coverImageColor ?? '';
       if (
         (stored.description ?? '') === meta.description &&
-        (stored.title ?? '') === meta.title
+        (stored.title ?? '') === meta.title &&
+        storedImage === meta.image &&
+        storedCover === meta.cover
       ) {
         if (lastError) {
           deps.warn(
@@ -179,8 +197,9 @@ export async function verifiedGroupMetaWrite(
     }
   }
   throw new Error(
-    `Group meta write could not be verified: the stored title/description ` +
-      `still don't match what was sent after ${writeAttempts} attempts.` +
+    `Group meta write could not be verified: the stored meta (title, ` +
+      `description, icon, cover) still doesn't match what was sent after ` +
+      `${writeAttempts} attempts.` +
       (lastError
         ? ` Last write error: ${
             lastError instanceof Error ? lastError.message : String(lastError)

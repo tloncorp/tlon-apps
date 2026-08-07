@@ -227,25 +227,49 @@ export async function ensureAgentNotebookForGroup(group: {
     return;
   }
   agentNotebookEnsuring.add(group.id);
-  try {
-    // "Daily digest: Nootropics, Coffee" names the notebook "Daily digest".
-    const jobTitle = typeof job.title === 'string' ? job.title : '';
-    const title = jobTitle.split(':')[0]?.trim() || 'Notebook';
-    await createChannel({
-      groupId: group.id,
-      title,
-      channelType: 'notes',
-    });
-    logger.trackEvent('Agent Notebook Created', { groupId: group.id });
-  } catch (error) {
-    logger.trackError('Failed to create agent notebook', {
-      error,
-      groupId: group.id,
-    });
-    // Cleared so the next config sync retries; on success the notes-channel
-    // check above is the durable guard.
-    agentNotebookEnsuring.delete(group.id);
+  // "Daily digest: Nootropics, Coffee" names the notebook "Daily digest".
+  const jobTitle = typeof job.title === 'string' ? job.title : '';
+  const title = jobTitle.split(':')[0]?.trim() || 'Notebook';
+  // Retry here rather than leaving the debt to the caller. Clearing the
+  // in-flight guard was never a retry: the effect that calls this is keyed
+  // on the group's description and channel count, and a failed create
+  // changes neither — so one transient error left the configured job with
+  // no notebook until a remount or some unrelated group change, and the
+  // agent's day-one entry had nowhere to go.
+  const delays = [0, 2_000, 5_000, 15_000];
+  for (const delay of delays) {
+    if (delay) {
+      await sleep(delay);
+      // A create that timed out may still have landed. Re-check before
+      // trying again rather than leaving the owner with two notebooks.
+      const synced = await db
+        .getGroup({ id: group.id })
+        .catch(() => null as Awaited<ReturnType<typeof db.getGroup>> | null);
+      if (synced?.channels?.some((channel) => channel.type === 'notes')) {
+        return;
+      }
+    }
+    try {
+      await createChannel({
+        groupId: group.id,
+        title,
+        channelType: 'notes',
+      });
+      logger.trackEvent('Agent Notebook Created', { groupId: group.id });
+      // Guard stays set: from here the notes-channel check above is the
+      // durable one.
+      return;
+    } catch (error) {
+      logger.trackError('Failed to create agent notebook', {
+        error,
+        groupId: group.id,
+        willRetry: delay !== delays[delays.length - 1],
+      });
+    }
   }
+  // Every attempt failed. Release the guard so a later config sync — or the
+  // owner reopening the group — can start over.
+  agentNotebookEnsuring.delete(group.id);
 }
 
 /**

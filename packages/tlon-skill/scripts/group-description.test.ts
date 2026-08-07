@@ -144,6 +144,55 @@ describe('verifiedGroupMetaWrite', () => {
     expect(wrote).toBe(2);
   });
 
+  const iconMeta = {
+    title: 'T',
+    description: validConfig,
+    image: 'https://example.com/icon.png',
+    cover: '',
+  };
+
+  it('does not pass an icon-only write that never landed', async () => {
+    // The onboarding artwork step sends a new image with the title and
+    // description unchanged — so those two already match before the poke,
+    // and checking only them reported success on the first poll for an
+    // image the store never took.
+    await expect(
+      verifiedGroupMetaWrite(
+        {
+          updateGroupMeta: async () => {},
+          getGroup: async () => ({ title: 'T', description: validConfig }),
+          sleep: noSleep,
+          warn: () => {},
+        },
+        '~zod/g',
+        iconMeta,
+        { pollMs: 0, verifyPolls: 1, writeAttempts: 2 }
+      )
+    ).rejects.toThrow('could not be verified');
+  });
+
+  it('accepts an icon write once the artwork reads back', async () => {
+    let wrote = 0;
+    await verifiedGroupMetaWrite(
+      {
+        updateGroupMeta: async () => {
+          wrote += 1;
+        },
+        getGroup: async () => ({
+          title: 'T',
+          description: validConfig,
+          iconImage: 'https://example.com/icon.png',
+        }),
+        sleep: noSleep,
+        warn: () => {},
+      },
+      '~zod/g',
+      iconMeta,
+      { pollMs: 0 }
+    );
+    expect(wrote).toBe(1);
+  });
+
   it('throws when the stored meta never matches', async () => {
     await expect(
       verifiedGroupMetaWrite(

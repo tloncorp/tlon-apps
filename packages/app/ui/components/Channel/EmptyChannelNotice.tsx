@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import { defaultTemplateChannelTitles } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { YStack, styled } from 'tamagui';
 
 import { useChatOptions } from '../../contexts/chatOptions';
@@ -130,8 +130,25 @@ export function EmptyChannelNotice({
   const openedAt = channel.groupId
     ? agentGroupOpenedAt[channel.groupId]
     : undefined;
+  // Nothing else will re-render this when the grace runs out. An owner
+  // watching an empty channel for a failed opening is exactly the person
+  // who needs the controls back, and they are also the person least likely
+  // to generate the incidental state change that would otherwise recompute
+  // this. So wake up once, when the window actually closes.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (openedAt == null) {
+      return;
+    }
+    const remaining = openedAt + AGENT_OPENING_GRACE_MS - Date.now();
+    if (remaining <= 0) {
+      return;
+    }
+    const timer = setTimeout(() => setNow(Date.now()), remaining);
+    return () => clearTimeout(timer);
+  }, [openedAt]);
   const openingIsRecent =
-    openedAt != null && Date.now() - openedAt < AGENT_OPENING_GRACE_MS;
+    openedAt != null && now - openedAt < AGENT_OPENING_GRACE_MS;
   const awaitingAgentOpening =
     couldBeAgentOpening &&
     (agentRecordsLoading ||

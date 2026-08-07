@@ -202,16 +202,24 @@ export default function ChannelScreen(props: Props) {
   useEffect(() => {
     navigationRef.current.setOptions({ gestureEnabled: !setupLocked });
   }, [setupLocked]);
-  useEffect(() => {
-    if (!setupLocked) {
-      return;
-    }
-    const subscription = BackHandler.addEventListener(
-      'hardwareBackPress',
-      () => true
-    );
-    return () => subscription?.remove?.();
-  }, [setupLocked]);
+  // Focus-scoped, not mount-scoped: BackHandler listeners are global, so a
+  // mount-scoped one kept swallowing Android's hardware back on whatever
+  // screen the owner opened *from* the locked channel — a profile, an A2UI
+  // destination — leaving them with no system back until setup finished.
+  // The lock is about not leaving this channel, which only means anything
+  // while this channel is the one on screen.
+  useFocusEffect(
+    useCallback(() => {
+      if (!setupLocked) {
+        return;
+      }
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => true
+      );
+      return () => subscription?.remove?.();
+    }, [setupLocked])
+  );
 
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
 
