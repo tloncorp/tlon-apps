@@ -432,6 +432,7 @@ export async function updateGroupMeta(
     Boolean(agentGroups[group.id]) ||
     Boolean(parseGroupAgentConfig(existingGroup?.description));
   let description = group.description ?? '';
+  let remoteMeta: Awaited<ReturnType<typeof api.getGroup>> | null = null;
   if (isAgentGroup) {
     const remote = await api.getGroup(group.id).catch(() => null);
     if (!remote) {
@@ -446,8 +447,31 @@ export async function updateGroupMeta(
       }
       return;
     }
+    remoteMeta = remote;
     description = remote.description ?? '';
   }
+  // Icon and cover need the same protection the description just got. The
+  // agent writes its artwork straight to the ship, so a local row that
+  // hasn't synced back yet still holds the old — usually blank — value, and
+  // a full meta poke built from it would wipe the icon the agent just set.
+  // Only send our own value for a field this edit actually changed;
+  // otherwise defer to whatever the ship already has.
+  const visual = (image?: string | null, color?: string | null) =>
+    image ?? color ?? '';
+  const editedImage = visual(group.iconImage, group.iconImageColor);
+  const editedCover = visual(group.coverImage, group.coverImageColor);
+  const image =
+    remoteMeta &&
+    editedImage ===
+      visual(existingGroup?.iconImage, existingGroup?.iconImageColor)
+      ? visual(remoteMeta.iconImage, remoteMeta.iconImageColor)
+      : editedImage;
+  const cover =
+    remoteMeta &&
+    editedCover ===
+      visual(existingGroup?.coverImage, existingGroup?.coverImageColor)
+      ? visual(remoteMeta.coverImage, remoteMeta.coverImageColor)
+      : editedCover;
   const groupWithMergedDescription = { ...group, description };
 
   // optimistic update
@@ -459,8 +483,8 @@ export async function updateGroupMeta(
       meta: {
         title: group.title ?? '',
         description,
-        cover: group.coverImage ?? group.coverImageColor ?? '',
-        image: group.iconImage ?? group.iconImageColor ?? '',
+        cover,
+        image,
       },
     });
   } catch (e) {

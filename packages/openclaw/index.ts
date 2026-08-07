@@ -62,6 +62,7 @@ import { resolveTlonBinary } from './src/tlon-binary.js';
 import {
   findTlonSubcommandIndex,
   shellSplitCommand,
+  stripTlonBinaryPrefix,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
 import {
@@ -1072,7 +1073,12 @@ export default defineBundledChannelEntry({
       },
       async execute(_id: string, params: { command: string }) {
         try {
-          const args = shellSplitCommand(params.command);
+          // Stripped before anything reads it: the CLI takes args[0] as its
+          // command, so a documented `tlon groups update ...` that passes the
+          // guard below would still die inside the CLI as `Unknown command:
+          // tlon`. One strip here keeps the guard, the repair and the spawn
+          // looking at the same argv.
+          const args = stripTlonBinaryPrefix(shellSplitCommand(params.command));
 
           const subIdx = findTlonSubcommandIndex(args);
           const subcommand = subIdx >= 0 ? args[subIdx] : undefined;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   findTlonSubcommandIndex,
+  stripTlonBinaryPrefix,
   summarizeTlonCommand,
 } from './tlon-tool-command.js';
 
@@ -535,5 +536,35 @@ describe('findTlonSubcommandIndex', () => {
     expect(argv[findTlonSubcommandIndex(argv)]).toBe('msg');
     const doubled = ['tlon', 'tlon'];
     expect(doubled[findTlonSubcommandIndex(doubled)]).toBe('tlon');
+  });
+});
+
+describe('stripTlonBinaryPrefix', () => {
+  it('removes the binary the CLI would read as its command', () => {
+    // Recognizing the prefix during validation is only half the job: the
+    // CLI takes args[0] as its command, so spawning the untouched argv
+    // turns a command that just passed the guard into
+    // `Unknown command: tlon`.
+    expect(stripTlonBinaryPrefix(['tlon', 'groups', 'update'])).toEqual([
+      'groups',
+      'update',
+    ]);
+    expect(
+      stripTlonBinaryPrefix(['/usr/local/bin/tlon', 'groups', 'list'])
+    ).toEqual(['groups', 'list']);
+    // Credential flags stay in front of the subcommand where they belong.
+    expect(
+      stripTlonBinaryPrefix(['--url', 'http://x', 'tlon', 'groups', 'list'])
+    ).toEqual(['--url', 'http://x', 'groups', 'list']);
+  });
+
+  it('leaves argv alone when there is no prefix, and keeps later values', () => {
+    const plain = ['groups', 'update', '~zod/g'];
+    expect(stripTlonBinaryPrefix(plain)).toEqual(plain);
+    // `tlon` as an argument value must survive — only the front one goes.
+    expect(
+      stripTlonBinaryPrefix(['msg', 'send', 'chat/~zod/x', 'tlon'])
+    ).toEqual(['msg', 'send', 'chat/~zod/x', 'tlon']);
+    expect(stripTlonBinaryPrefix([])).toEqual([]);
   });
 });
