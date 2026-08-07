@@ -18,7 +18,10 @@ jobs:
   shared-e2e:
     name: Shared E2E
     runs-on: blacksmith-8vcpu-ubuntu-2204
-    timeout-minutes: 35
+    # Each scenario partition boots a fresh stack and re-applies the branch
+    # %groups desk (~8-9 minutes per partition on native runners); three
+    # partitions no longer fit the old 35-minute budget.
+    timeout-minutes: 55
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,7 +45,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/tlon-bot-e2e/fake-ships
-          key: tlon-bot-e2e-fake-ships-v1
+          # Keyed on the compose file so a pier-generation bump rolls the
+          # cache: Actions caches are immutable, and a stale exact-key hit
+          # would leave every job re-downloading ~1GB of archives forever.
+          key: tlon-bot-e2e-fake-ships-${{ hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
 
       - name: Prepare fake ship cache
         run: mkdir -p .cache/tlon-bot-e2e/fake-ships

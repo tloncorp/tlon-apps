@@ -57,7 +57,10 @@ jobs:
   integration-test:
     name: Shared E2E
     runs-on: blacksmith-8vcpu-ubuntu-2204
-    timeout-minutes: 45
+    # Both scenario partitions boot a fresh stack and re-apply the branch
+    # %groups desk (~8-9 minutes per partition on native runners); the old
+    # 45-minute budget leaves too little headroom on top of the image build.
+    timeout-minutes: 55
     defaults:
       run:
         working-directory: .
@@ -72,6 +75,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+
+      # The harness cross-compiles the workspace tlon CLI for the container
+      # (openclaw driver beforeComposeBuild). Pin matches tlon-skill-publish.yml.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
@@ -93,7 +103,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/tlon-bot-e2e/fake-ships
-          key: tlon-bot-e2e-fake-ships-v1
+          # Keyed on the compose file so a pier-generation bump rolls the
+          # cache: Actions caches are immutable, and a stale exact-key hit
+          # would leave every job re-downloading ~1GB of archives forever.
+          key: tlon-bot-e2e-fake-ships-${{ hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
 
       - name: Prepare fake ship cache
         run: mkdir -p .cache/tlon-bot-e2e/fake-ships
