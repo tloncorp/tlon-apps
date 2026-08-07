@@ -92,6 +92,25 @@ export function isBotUserIdForUser(
   );
 }
 
+// A moon's @p is its parent's @p prefixed with exactly two more words
+// (~dirmec-dolbes-finned-palmer is a moon of ~finned-palmer). The word-count
+// guard assumes the owner is a planet; it also rejects comets, whose 8-word
+// names could coincidentally end with a planet's name.
+export function isMoonOfUser(
+  moonId: string | null | undefined,
+  userId: string | null | undefined
+) {
+  const moon = normalizeUserId(moonId);
+  const user = normalizeUserId(userId);
+  if (moon.length === 0 || user.length === 0 || moon === user) {
+    return false;
+  }
+  return (
+    moon.endsWith(`-${user}`) &&
+    moon.split('-').length === user.split('-').length + 2
+  );
+}
+
 function normalizeUserId(userId: string | null | undefined) {
   return desig(userId ?? '').toLowerCase();
 }
