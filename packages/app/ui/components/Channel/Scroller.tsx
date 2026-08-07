@@ -33,7 +33,6 @@ import React, {
 import {
   LayoutChangeEvent,
   ListRenderItem,
-  Platform,
   View as RNView,
   StyleProp,
   ViewStyle,
@@ -49,6 +48,7 @@ import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
+import { supportsLiquidGlass } from '../GlassSurface';
 import { ConversationScrollToBottomButton } from '../conversationScrollChrome';
 import { ChannelDivider } from './ChannelDivider';
 import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
@@ -540,7 +540,7 @@ const Scroller = forwardRef(
     const showScrollButton =
       readyToDisplayPosts && Boolean(shouldShowScrollButton());
     const hostsScrollButtonInComposer =
-      Platform.OS === 'ios' && composerBottomInset > 0;
+      supportsLiquidGlass() && composerBottomInset > 0;
 
     useLayoutEffect(() => {
       setScrollToBottomControl(
