@@ -1055,25 +1055,64 @@ export async function monitorTlonProvider(
      * re-run against a notebook that already holds entries must wait for a
      * *new* one, or the closing rides out on somebody else's writing.
      */
-    const notebookBaselines = new Map<string, number>();
+    const notebookBaselines = new Map<string, string | null>();
     const notebookEntryNudges = new Map<string, number>();
     const MAX_NOTEBOOK_ENTRY_NUDGES = 3;
 
-    /** Posts currently in `notesNest`, or null when it can't be read. */
-    const notebookPostCount = async (
+    /**
+     * The newest post in `notesNest` — its id, or null for an empty
+     * notebook, or unreadable.
+     *
+     * Identity rather than a count, because the scry returns exactly one
+     * post: a count taken from it saturates at 1, so "is there a new entry
+     * since the baseline" was unanswerable for precisely the notebook the
+     * baseline exists to handle — one that already held an entry. Read from
+     * the raw outline, so an entry whose text extraction comes up empty
+     * still counts as an entry.
+     */
+    const notebookNewestEntry = async (
       notesNest: string
-    ): Promise<number | null> => {
+    ): Promise<
+      { readable: false } | { readable: true; newestId: string | null }
+    > => {
       try {
-        // Counted from the raw outline rather than extracted messages: an
-        // entry whose text extraction comes up empty is still an entry.
         const data: any = await api.scry(
           `/channels/v4/${notesNest}/posts/newest/1/outline.json`
         );
         const posts = Array.isArray(data) ? data : data?.posts ?? data ?? {};
-        return Array.isArray(posts) ? posts.length : Object.keys(posts).length;
+        if (Array.isArray(posts)) {
+          const newest = posts[0];
+          if (!newest) {
+            return { readable: true, newestId: null };
+          }
+          const id = newest?.seal?.id ?? newest?.id;
+          return {
+            readable: true,
+            // A post with no recognizable id still has to read as *some*
+            // entry, or an empty notebook and a written one look alike.
+            newestId: String(id ?? JSON.stringify(newest).slice(0, 64)),
+          };
+        }
+        const keys = Object.keys(posts);
+        return {
+          readable: true,
+          newestId: keys.length ? String(keys[keys.length - 1]) : null,
+        };
       } catch {
-        return null;
+        return { readable: false };
       }
+    };
+
+    /** True once `notesNest` holds an entry newer than this setup's baseline. */
+    const notebookHasNewEntry = (
+      nest: string,
+      state: { readable: true; newestId: string | null }
+    ): boolean => {
+      if (!notebookBaselines.has(nest)) {
+        notebookBaselines.set(nest, state.newestId);
+      }
+      const baseline = notebookBaselines.get(nest) ?? null;
+      return state.newestId !== null && state.newestId !== baseline;
     };
 
     /**
@@ -1123,14 +1162,11 @@ export async function monitorTlonProvider(
         // back around, which is the whole point of doing this here.
         return;
       }
-      const count = await notebookPostCount(notesNest);
-      if (count === null) {
+      const state = await notebookNewestEntry(notesNest);
+      if (!state.readable) {
         return;
       }
-      if (!notebookBaselines.has(nest)) {
-        notebookBaselines.set(nest, count);
-      }
-      if (count > (notebookBaselines.get(nest) ?? 0)) {
+      if (notebookHasNewEntry(nest, state)) {
         return;
       }
       // Recorded only after the enqueue is accepted, so a missing route
@@ -1152,7 +1188,7 @@ export async function monitorTlonProvider(
             contextKey: `tlon:notebook-entry:${nest}:${nudges + 1}`,
             deliveryContext: tlonDeliveryContext(
               `tlon:${nest}`,
-              route.sessionKey
+              route.accountId
             ),
           }
         );
@@ -1190,17 +1226,13 @@ export async function monitorTlonProvider(
       if (!notesNest) {
         return false;
       }
-      const count = await notebookPostCount(notesNest);
-      if (count !== null) {
-        if (!notebookBaselines.has(nest)) {
-          notebookBaselines.set(nest, count);
-        }
-        // Measured against the baseline, not zero: entries that predate this
-        // setup are somebody else's writing and must not release the cards.
-        if (count > (notebookBaselines.get(nest) ?? 0)) {
-          emptyNotebookWaits.delete(nest);
-          return false;
-        }
+      const state = await notebookNewestEntry(notesNest);
+      // Measured against the baseline, not against emptiness: entries that
+      // predate this setup are somebody else's writing and must not release
+      // the cards.
+      if (state.readable && notebookHasNewEntry(nest, state)) {
+        emptyNotebookWaits.delete(nest);
+        return false;
       }
       // An unreadable notebook falls through to waiting: unreadable and
       // empty must not look alike to the cards.
