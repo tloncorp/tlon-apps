@@ -745,6 +745,15 @@ export function Channel({
       hasTransparentHeader: isChatChannel,
       hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
     });
+  const postCollectionInsets = useMemo(
+    () => ({
+      ...contentInsets,
+      // The channel container clears the transparent navigation header so
+      // notices and side panels share the list's visible content boundary.
+      top: Math.max(0, contentInsets.top - floatingHeaderHeight),
+    }),
+    [contentInsets, floatingHeaderHeight]
+  );
 
   return (
     <ScrollContextProvider>
@@ -813,7 +822,12 @@ export function Channel({
                           }}
                         />
                       )}
-                      <XStack alignItems="stretch" flex={1} position="relative">
+                      <XStack
+                        alignItems="stretch"
+                        flex={1}
+                        paddingTop={floatingHeaderHeight || undefined}
+                        position="relative"
+                      >
                         <YStack alignItems="stretch" flex={1} minWidth={0}>
                           {includeJoinRequestNotice && (
                             <SystemNotices.ConnectedJoinRequestNotice
@@ -826,7 +840,7 @@ export function Channel({
                               <View flex={1}>
                                 <PostCollectionContext.Provider
                                   value={{
-                                    contentInsets,
+                                    contentInsets: postCollectionInsets,
                                     channel,
                                     collectionConfiguration:
                                       channel.contentConfiguration == null

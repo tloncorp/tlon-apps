@@ -827,8 +827,10 @@ function SinglePostView({
     hasFloatingComposer: canRenderReplyInput,
     hasTransparentHeader: isChatLike,
   });
-  // The floating composer already includes the home-indicator inset.
-  const screenBottomInset = canRenderReplyInput ? undefined : bottom;
+  // Native floating composers include the home-indicator inset. Web composers
+  // stay inline, so the screen still owns its bottom safe-area clearance.
+  const screenBottomInset =
+    canRenderReplyInput && Platform.OS !== 'web' ? undefined : bottom;
 
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
