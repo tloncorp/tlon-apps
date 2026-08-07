@@ -139,6 +139,9 @@ export async function applyBranchDesk(
         cwd: ctx.repoRoot,
         env: processEnvRecord(),
         timeoutMs: ASSEMBLE_DESK_TIMEOUT_MS,
+        // assemble-desk.sh spawns peru/git descendants that inherit the
+        // stdio pipes; without a tree kill a hung fetch outlives the bound.
+        killTree: true,
       }
     );
     requireSuccess(assembled, 'assemble branch desk');

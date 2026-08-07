@@ -337,3 +337,33 @@ function stringEnv(env: NodeJS.ProcessEnv): Record<string, string> {
     })
   );
 }
+
+describe('runCommand killTree', () => {
+  test('kills the whole tree and settles when a grandchild holds the pipes', async () => {
+    const started = Date.now();
+    // bash -> bash -> sleep: killing the parent alone leaves the grandchild
+    // running with the stdout pipe. Settlement alone does not prove the tree
+    // died (the kill path destroys the pipes regardless), so the grandchild
+    // prints its pid and the test asserts it is gone afterwards.
+    const result = await runCommand(
+      'bash',
+      // The trailing `:` stops bash exec-ing the inner command in place —
+      // without it outer/inner/sleep collapse into one process and there is
+      // no tree to kill.
+      ['-c', 'bash -c \'echo "GPID:$$"; sleep 30\'; :'],
+      {
+        env: process.env as Record<string, string>,
+        cwd: process.cwd(),
+        stream: false,
+        timeoutMs: 500,
+        killTree: true,
+      }
+    );
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(result.stderr).toContain('timed out after 500ms');
+    const gpid = Number(/GPID:(\d+)/.exec(result.stdout)?.[1]);
+    expect(Number.isInteger(gpid)).toBe(true);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(() => process.kill(gpid, 0)).toThrow();
+  }, 15_000);
+});
