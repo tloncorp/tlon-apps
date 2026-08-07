@@ -14,7 +14,7 @@ const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
 const FETCH_DEADLINE_MS = 30_000;
 
 const LOCAL_MEDIA_ERROR =
-  "Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>` using your owner ship's credentials), then resend with the returned https URL.";
+  'Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>`) and resend with the returned https URL.';
 const HTTPS_ONLY_ERROR = 'Only https media URLs are supported.';
 const USERINFO_ERROR =
   'Media URLs with embedded credentials are not supported.';
@@ -105,6 +105,11 @@ function strictPostableUrl(u: string): string | null {
   return parsed.href;
 }
 
+function isTlonHostingForced(): boolean {
+  const raw = (process.env.TLON_HOSTING ?? '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
 /**
  * Whether `uploadFile` could actually store bytes for this ship.
  *
@@ -144,8 +149,9 @@ async function shipCanStoreUploads(): Promise<boolean> {
       creds.accessKeyId && creds.endpoint && creds.secretAccessKey
     );
 
-    // A fresh ship bunts `service` to %presigned-url, so this arm turns on
-    // only for clients whose URL is a hosted node.
+    // A fresh ship bunts `service` to `%credentials`; hosted infra (tlonbot's
+    // entrypoint) pokes bot moons to `%presigned-url`; the `|| !hasCustomS3`
+    // disjunct is what actually routes creds-less hosted ships to memex.
     if (
       isHostedClient() &&
       (config.service === 'presigned-url' || !hasCustomS3)
@@ -161,7 +167,7 @@ async function shipCanStoreUploads(): Promise<boolean> {
 
 function isHostedClient(): boolean {
   try {
-    return getCurrentUserIsHosted();
+    return isTlonHostingForced() || getCurrentUserIsHosted();
   } catch {
     return false;
   }
@@ -254,6 +260,9 @@ export async function prepareOutboundMedia(
       blob,
       fileName,
       contentType: effectiveMime,
+      ...(isTlonHostingForced()
+        ? { hostedDetection: 'assume-hosted' as const }
+        : {}),
     });
     const postable = strictPostableUrl(result.url);
     if (postable) {
