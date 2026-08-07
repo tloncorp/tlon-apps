@@ -625,4 +625,9 @@
       (ga-send-dm sender 'Your Tlon bot is offline right now, so replies are paused. I\'ll let you know when I\'m back. 🛰️')
     (ga-give-update [%auto-reply sender now.bowl])
   --
+::  |au-core: automation
+::
+++  au-core
+  |%
+  --
 --

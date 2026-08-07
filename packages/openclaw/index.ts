@@ -1366,6 +1366,11 @@ export default defineBundledChannelEntry({
       }
     });
 
+    api.on('cron_changed', async (event, ctx) => {
+        api.logger.info('[steward auto] testing');
+        api.logger.info(`[steward auto] ${JSON.stringify(event, null, 2)}`);
+    });
+
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
       const unsubscribeDiagnosticEvents =
         installTelemetryDiagnosticObservers(api);
