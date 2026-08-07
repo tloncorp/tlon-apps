@@ -2,8 +2,6 @@ import type { NotesImportNode } from '@tloncorp/api';
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory as ExpoDirectory, File as ExpoFile } from 'expo-file-system';
 
-export type { NotesImportNode };
-
 export type NotesImportSource = {
   relativePath: string;
   contents: string;
