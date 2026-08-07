@@ -37,7 +37,9 @@ and `posts send` to a current chat/DM conversation (reply normally instead).
 Current-gallery `posts send` creates a new item and is allowed. Image sends
 (`--image`) are allowed anywhere,
 including the current conversation: `tlon upload <direct-image-url>`, then
-`posts send <target> [caption] --image <uploaded-url>`.
+`posts send <target> [caption] --image <uploaded-url>`. If you're a hosted
+tlonbot, that upload needs the owner config — see
+[Hosted tlonbots](#hosted-tlonbots).
 
 ## OpenClaw
 
@@ -45,23 +47,43 @@ When running as an OpenClaw skill, use the built-in `message` tool for sending o
 
 **Images are the exception: upload them first.** The `message` tool's `media=`
 parameter takes only an uploaded https URL — never a local file path, unlike
-other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or
-stdin, and prints the uploaded URL:
+other OpenClaw channels. `upload` accepts a URL, a local file path, or stdin,
+and prints the uploaded URL:
 
 ```bash
 tlon upload ./generated-chart.png      # local file — prints the uploaded URL
 tlon upload https://example.com/x.png  # remote URL
 ```
 
-Pass that printed URL as `media=`. On hosted deployments the upload must run
-through the owner ship's config (the bot's own ship has no storage):
-`tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`.
+Pass that printed URL as `media=`. If you're a hosted tlonbot, your own ship
+has no storage — see [Hosted tlonbots](#hosted-tlonbots) for the form to use.
 
 > **Deprecated: diary channels.** `%diary` is not managed by the CLI:
 > `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance
 > toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner
 > can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and
 > migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
+
+## Hosted tlonbots
+
+Applies to bots provisioned by tlonbot's hosting entrypoint, under **either**
+runtime (OpenClaw or Hermes). It does not apply to a self-hosted OpenClaw or
+Hermes deployment running against a ship you control.
+
+A hosted tlonbot runs on a **moon**, and a moon has no storage of its own. Any
+upload authenticated as the bot fails; it has to authenticate as the owner
+ship, whose config path the entrypoint provides as `$TLON_OWNER_CONFIG_PATH`:
+
+```bash
+tlon --config "$TLON_OWNER_CONFIG_PATH" upload ./generated-chart.png
+tlon --config "$TLON_OWNER_CONFIG_PATH" upload https://example.com/x.png
+```
+
+This applies to every upload — `message` `media=` attachments, `posts send
+--image`, and `contacts update-profile --avatar` all take a URL that came back
+from one of these. A bare `tlon upload` is the most common mistake here, and it
+fails at the storage step rather than at auth, so read the whole error rather
+than the first line.
 
 ## Installation
 
@@ -526,6 +548,11 @@ notebook only.
 ### Upload
 
 Upload files to Tlon storage from a URL, local path, or stdin.
+
+Uploads go to the storage configured on the ship you authenticate as. A ship
+with no storage of its own can't upload — authenticate as one that does, with
+`--config`. Hosted tlonbots always fall in this category; see
+[Hosted tlonbots](#hosted-tlonbots).
 
 ```bash
 tlon upload https://example.com/image.png         # Upload from URL
