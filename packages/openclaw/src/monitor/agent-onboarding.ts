@@ -679,14 +679,29 @@ export async function setupOutputNotebookNest(
   description: string | null | undefined,
   runtime: Runtime
 ): Promise<string | null> {
+  // A recorded outputNest is a decision, whether or not it names a
+  // notebook. Only an *unrecorded* one falls through to the group scan
+  // below, which exists for the window before anything has written the
+  // nest down. Reading past a recorded `chat/...` used to hand back some
+  // unrelated notes channel — one the owner's app had just made, or one the
+  // group already had — and the closing would then wait for, and ask for, a
+  // day-one entry in a notebook this job never writes to.
+  let recordedNonNotes = false;
   for (const entry of agentConfigEntries(description)) {
     const jobs = Array.isArray(entry.jobs) ? entry.jobs : [];
     for (const job of jobs) {
       const out = (job as { outputNest?: unknown })?.outputNest;
-      if (typeof out === 'string' && out.startsWith('notes/')) {
+      if (typeof out !== 'string' || out.trim() === '') {
+        continue;
+      }
+      if (out.startsWith('notes/')) {
         return out;
       }
+      recordedNonNotes = true;
     }
+  }
+  if (recordedNonNotes) {
+    return null;
   }
   const groups = await scryGroups(api, runtime, `notes channel for ${flag}`);
   if (!groups) {

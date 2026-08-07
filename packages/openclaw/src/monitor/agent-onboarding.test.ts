@@ -483,6 +483,47 @@ describe('setupOutputNotebookNest', () => {
     ).toBeNull();
   });
 
+  test('a recorded chat nest wins over a notes channel in the group', async () => {
+    // The case above only proved the chat nest returned null when there was
+    // no notebook to find anyway. A job that writes to chat inside a group
+    // that *has* a notebook must still report none: otherwise the closing
+    // waits for a day-one entry in a channel this job never writes to, and
+    // the owner's app creating one mid-setup is enough to trigger it.
+    const chatOutput = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        agents: ['~zod'],
+        jobs: [{ id: 'digest', outputNest: 'chat/~nec/home-group-chat' }],
+      },
+    ]);
+    const groups = groupsWith({
+      '~nec/g': { channels: { 'notes/~zod/research-1': {} } },
+    });
+    expect(
+      await setupOutputNotebookNest(groups, '~nec/g', chatOutput, {})
+    ).toBeNull();
+  });
+
+  test('an unrecorded outputNest still falls through to the group', async () => {
+    // Only a *recorded* nest is a decision. Before the agent writes one
+    // down, the group scan is how the owner's fresh notebook is found.
+    const noOutput = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        agents: ['~zod'],
+        jobs: [{ id: 'digest', outputNest: '' }, { id: 'other' }],
+      },
+    ]);
+    const groups = groupsWith({
+      '~nec/g': { channels: { 'notes/~zod/research-1': {} } },
+    });
+    expect(await setupOutputNotebookNest(groups, '~nec/g', noOutput, {})).toBe(
+      'notes/~zod/research-1'
+    );
+  });
+
   test('falls back to the group notes channel, or null without one', async () => {
     const groups = groupsWith({
       '~nec/g': {
