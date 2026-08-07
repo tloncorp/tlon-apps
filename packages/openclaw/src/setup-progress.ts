@@ -37,12 +37,29 @@ const LABELS = {
   cron: 'Scheduling the daily job…',
   search: 'Searching the web…',
   icon: 'Generating the group icon…',
-  notebook: 'Creating the notebook channel…',
   entry: 'Writing the first entry…',
-  config: 'Saving the setup…',
+  // Not "Saving the setup…". The config write is what *causes* the owner's
+  // app to make the notebook, so it now lands well before the first entry
+  // does — a line that reads as the final step left the owner looking at a
+  // finished-sounding setup and an empty notebook.
+  config: 'Setting up your group…',
 } as const;
 
-const ALL_LABELS: ReadonlySet<string> = new Set(Object.values(LABELS));
+/**
+ * Posted by the sweep, not by a tool call: the gap between the config write
+ * and the first entry is the owner's app creating the notebook, which no
+ * tool call marks. Without it the build goes quiet at exactly the moment the
+ * owner is most likely to conclude it has stalled.
+ *
+ * Counted as a progress line (below) so the setup-survival check doesn't
+ * mistake it for the bot speaking.
+ */
+export const WAITING_FOR_NOTEBOOK_LINE = 'Waiting for your notebook…';
+
+const ALL_LABELS: ReadonlySet<string> = new Set([
+  ...Object.values(LABELS),
+  WAITING_FOR_NOTEBOOK_LINE,
+]);
 
 /**
  * Whether a post is one of the plugin-authored status lines above. The
@@ -72,9 +89,9 @@ export function setupProgressLabelFor(
     return LABELS.icon;
   }
   if (toolName === 'tlon') {
-    if (command.includes('channels create')) {
-      return LABELS.notebook;
-    }
+    // No line for `channels create`: the notebook is the owner's channel
+    // now, and a build that creates one is misbehaving — announcing it
+    // would dress a bug up as progress.
     if (command.includes('note-create')) {
       return LABELS.entry;
     }

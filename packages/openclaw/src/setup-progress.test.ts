@@ -1,29 +1,38 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  WAITING_FOR_NOTEBOOK_LINE,
   armSetupProgress,
   disarmSetupProgress,
+  isSetupProgressLine,
   noteToolCallForSetupProgress,
   setupProgressLabelFor,
 } from './setup-progress.js';
 
 describe('setupProgressLabelFor', () => {
   it('maps the recognizable build steps to status lines', () => {
+    // No line for a channel create: the notebook is the owner's channel, so
+    // a build that makes one is misbehaving, and announcing it would dress
+    // a bug up as progress.
     expect(
       setupProgressLabelFor('tlon', {
         command: 'channels create ~zod/g "Daily Digest" --kind notes',
       })
-    ).toBe('Creating the notebook channel…');
+    ).toBeNull();
     expect(
       setupProgressLabelFor('tlon', {
-        command: 'notes note-create notes/~zod/d root "Today" --stdin',
+        command: 'notes note-create notes/~zod/d root "Today" --markdown x.md',
       })
     ).toBe('Writing the first entry…');
+    // The config write is what causes the owner's app to create the
+    // notebook, so it lands well before the first entry — its line must not
+    // read as the last step, or the owner sees a finished-sounding setup
+    // over an empty notebook.
     expect(
       setupProgressLabelFor('tlon', {
         command: 'groups update ~zod/g --description $(cat /tmp/config.json)',
       })
-    ).toBe('Saving the setup…');
+    ).toBe('Setting up your group…');
     expect(setupProgressLabelFor('cron', {})).toBe('Scheduling the daily job…');
     expect(setupProgressLabelFor('web_search', { query: 'x' })).toBe(
       'Searching the web…'
@@ -120,5 +129,28 @@ describe('noteToolCallForSetupProgress', () => {
     expect(() =>
       noteToolCallForSetupProgress('agent:main:err', 'cron', {})
     ).not.toThrow();
+  });
+});
+
+describe('isSetupProgressLine', () => {
+  it('recognizes every plugin-authored line, including the sweep’s own', () => {
+    // The setup-survival check counts bot posts to decide whether a
+    // directive turn died. A status line it failed to recognize would read
+    // as "the bot replied", so a dead build would never be retried — and
+    // the waiting line is posted by the sweep rather than by a tool call,
+    // which is exactly the kind of line that gets forgotten here.
+    for (const line of [
+      'Setting up your group…',
+      'Writing the first entry…',
+      'Scheduling the daily job…',
+      'Searching the web…',
+      'Generating the group icon…',
+      WAITING_FOR_NOTEBOOK_LINE,
+    ]) {
+      expect(isSetupProgressLine(line)).toBe(true);
+      expect(isSetupProgressLine(`  ${line}  `)).toBe(true);
+    }
+    expect(isSetupProgressLine('Your daily digest is ready.')).toBe(false);
+    expect(isSetupProgressLine('')).toBe(false);
   });
 });

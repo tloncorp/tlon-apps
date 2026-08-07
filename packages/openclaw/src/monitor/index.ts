@@ -59,6 +59,7 @@ import {
   createSettingsManager,
 } from '../settings.js';
 import {
+  WAITING_FOR_NOTEBOOK_LINE,
   armSetupProgress,
   disarmSetupProgress,
   isSetupProgressLine,
@@ -1057,6 +1058,7 @@ export async function monitorTlonProvider(
      */
     const notebookBaselines = new Map<string, string | null>();
     const notebookEntryNudges = new Map<string, number>();
+    const notebookWaitAnnounced = new Set<string>();
     const MAX_NOTEBOOK_ENTRY_NUDGES = 3;
 
     /**
@@ -1159,7 +1161,19 @@ export async function monitorTlonProvider(
       }
       if (!notesNest) {
         // The owner's app has not created the channel yet — the sweep comes
-        // back around, which is the whole point of doing this here.
+        // back around, which is the whole point of doing this here. Say so
+        // once: the config write already posted its line, and without this
+        // the build goes silent for exactly as long as the owner's app
+        // takes, which reads as a setup that finished with nothing to show.
+        if (!notebookWaitAnnounced.has(nest)) {
+          notebookWaitAnnounced.add(nest);
+          try {
+            await postToChannel(nest, WAITING_FOR_NOTEBOOK_LINE);
+          } catch {
+            // A missed status line is cosmetic; never fail the sweep for it.
+            notebookWaitAnnounced.delete(nest);
+          }
+        }
         return;
       }
       const state = await notebookNewestEntry(notesNest);
