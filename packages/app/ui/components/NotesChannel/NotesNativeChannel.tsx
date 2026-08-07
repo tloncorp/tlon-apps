@@ -20,6 +20,7 @@ import {
   trackEvent,
   unpublishNotebookNote,
   useMutableCallback,
+  useNotesSearchSupported,
   usePublishedNotesForNotebook,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -186,6 +187,7 @@ export function NotesNativeChannel({
   const [startEditNoteId, setStartEditNoteId] = useState<number | null>(null);
   const activeNoteDraftRef = useRef<NotesNoteDraftSnapshot | null>(null);
 
+  const searchSupported = useNotesSearchSupported();
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
     notebookFlag,
     { syncEnabled: isFocused }
@@ -414,7 +416,7 @@ export function NotesNativeChannel({
   );
 
   useEffect(() => {
-    if (!useDesktopSplit || !isFocused) return;
+    if (!useDesktopSplit || !isFocused || !searchSupported) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       // ⌘⇧F matches the standalone notes PWA's search shortcut. ⌘K is already
@@ -437,7 +439,7 @@ export function NotesNativeChannel({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isFocused, openSearch, searchOpen, useDesktopSplit]);
+  }, [isFocused, openSearch, searchOpen, searchSupported, useDesktopSplit]);
 
   const openFolder = useMutableCallback((folder: db.NotesFolder) => {
     navigation.dispatch(
@@ -920,11 +922,18 @@ export function NotesNativeChannel({
       <NotesHeaderActions
         canEdit={canEdit}
         onNew={() => setNewActionSheetOpen(true)}
-        onSearch={openSearch}
+        onSearch={searchSupported ? openSearch : undefined}
         primaryActionVariant={useDesktopSplit ? 'icon' : 'text'}
       />
     );
-  }, [canEdit, gate, notebookFlag, openSearch, useDesktopSplit]);
+  }, [
+    canEdit,
+    gate,
+    notebookFlag,
+    openSearch,
+    searchSupported,
+    useDesktopSplit,
+  ]);
 
   useRegisterChannelHeaderItem(useDesktopSplit ? null : headerActions);
 

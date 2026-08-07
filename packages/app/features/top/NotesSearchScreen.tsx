@@ -6,9 +6,10 @@ import {
   useNotesFolders,
   useNotesNotebook,
   useNotesSearch,
+  useNotesSearchSupported,
 } from '@tloncorp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { XStack, YStack } from 'tamagui';
+import { SizableText, XStack, YStack } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader, SearchBar, View, useIsWindowNarrow } from '../../ui';
@@ -23,6 +24,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'NotesSearch'>;
 export function NotesSearchScreen(props: Props) {
   const { channelId, groupId } = props.route.params;
   const notebookFlag = notesNotebookFlagFromChannelId(channelId);
+  // The header hides its search button on an older backend, but a deep link or
+  // a route restored from a previous session can still land here.
+  const searchSupported = useNotesSearchSupported();
   const [query, setQuery] = useState('');
   const { notes, loading, errored, hasMore, loadMore, searchComplete } =
     useNotesSearch(notebookFlag, query);
@@ -70,23 +74,32 @@ export function NotesSearchScreen(props: Props) {
         backAction={props.navigation.goBack}
         borderBottom
       />
-      <View paddingTop="$2xl" flex={1} minHeight={0}>
-        <XStack marginHorizontal="$m">
-          <SearchBar
-            onChangeQuery={setQuery}
-            placeholder="Search notes"
-            inputProps={{ autoFocus: true }}
-            onPressCancel={() => props.navigation.pop()}
+      {searchSupported ? (
+        <View paddingTop="$2xl" flex={1} minHeight={0}>
+          <XStack marginHorizontal="$m">
+            <SearchBar
+              onChangeQuery={setQuery}
+              placeholder="Search notes"
+              inputProps={{ autoFocus: true }}
+              onPressCancel={() => props.navigation.pop()}
+            />
+          </XStack>
+          <NotesSearchResults
+            getFolderLabel={getFolderLabel}
+            notes={notes}
+            query={query}
+            search={search}
+            onPressNote={handlePressNote}
           />
-        </XStack>
-        <NotesSearchResults
-          getFolderLabel={getFolderLabel}
-          notes={notes}
-          query={query}
-          search={search}
-          onPressNote={handlePressNote}
-        />
-      </View>
+        </View>
+      ) : (
+        <View paddingHorizontal="$2xl" paddingTop="$3xl">
+          <SizableText size="$s" color="$secondaryText" textAlign="center">
+            Searching notebooks needs a newer version of the Tlon backend on
+            your ship.
+          </SizableText>
+        </View>
+      )}
     </YStack>
   );
 }

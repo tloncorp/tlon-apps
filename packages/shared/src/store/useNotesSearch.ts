@@ -2,7 +2,9 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { useEffect, useMemo } from 'react';
 
+import * as db from '../db';
 import { createDevLogger } from '../debug';
+import { groupsVersionSupportsNotesSearch } from '../logic/notesSearchSupport';
 
 const logger = createDevLogger('notes search', false);
 
@@ -24,6 +26,15 @@ export function nextNotesSearchCursor(
   page: api.NotesSearchPage
 ): number | undefined {
   return page.last === 0 ? undefined : page.last;
+}
+
+/**
+ * Whether this ship's %notes can serve a notebook search. Gate search entry
+ * points on it so an older backend gets no affordance rather than a 404.
+ */
+export function useNotesSearchSupported(): boolean {
+  const appInfo = db.appInfo.useValue();
+  return groupsVersionSupportsNotesSearch(appInfo?.groupsVersion);
 }
 
 export function useNotesSearch(

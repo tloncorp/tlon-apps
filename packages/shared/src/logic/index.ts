@@ -6,6 +6,7 @@ export * from './reactionSupport';
 export * from './notesPublish';
 export * from './notesPermissionsCompat';
 export * from './notesSearch';
+export * from './notesSearchSupport';
 export * from './notesText';
 export * from '@tloncorp/api/lib/types';
 export * from '@tloncorp/api/lib/utils';
