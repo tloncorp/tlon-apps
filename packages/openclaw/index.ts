@@ -38,6 +38,13 @@ import {
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
+import {
+  clearOnboardingOperations,
+  disarmOnboardingResearchSession,
+  isOnboardingResearchSession,
+  setOnboardingCommandRunner,
+  submitOnboardingDraft,
+} from './src/onboarding-operations.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
@@ -1043,6 +1050,12 @@ export default defineBundledChannelEntry({
     const toolTimeoutMs =
       account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
 
+    setOnboardingCommandRunner((args) =>
+      runTlonCommand(tlonBinary, args, credentials, {
+        timeoutMs: toolTimeoutMs,
+      })
+    );
+
     if (credentials) {
       api.logger.info(`[tlon] Credentials available for ${account.ship}`);
     } else {
@@ -1147,8 +1160,57 @@ export default defineBundledChannelEntry({
       },
     });
 
+    api.registerTool({
+      name: 'tlon_onboarding_draft',
+      label: 'Submit onboarding notebook draft',
+      description:
+        'Submit researched notebook prose only when a Tlon onboarding research directive explicitly asks for it. This tool does not create groups, channels, jobs, or notes; the deterministic coordinator validates and writes the draft.',
+      parameters: {
+        type: 'object',
+        properties: {
+          nest: {
+            type: 'string',
+            description: 'The exact group chat nest from the directive.',
+          },
+          title: {
+            type: 'string',
+            description: 'A concise title for the first notebook entry.',
+          },
+          markdown: {
+            type: 'string',
+            description: 'The complete researched entry in Markdown.',
+          },
+        },
+        required: ['nest', 'title', 'markdown'],
+      },
+      async execute(
+        _id: string,
+        params: { nest: string; title: string; markdown: string }
+      ) {
+        const result = await submitOnboardingDraft({
+          nest: params.nest.trim(),
+          title: params.title.trim(),
+          markdown: params.markdown.trim(),
+        });
+        return {
+          content: [{ type: 'text' as const, text: result.message }],
+          details: result.ok ? undefined : { error: true },
+        };
+      },
+    });
+
     // Tool access control: block sensitive tools for non-owners
-    const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);
+    const ownerOnlyTools = new Set([
+      'tlon',
+      'cron',
+      'read',
+      'tlon_onboarding_draft',
+    ]);
+    const onboardingResearchTools = new Set([
+      'web_search',
+      'web_fetch',
+      'tlon_onboarding_draft',
+    ]);
     const logToolTraceContents = liveToolTraceContentsEnabled();
 
     api.on('before_tool_call', (event, ctx) => {
@@ -1163,10 +1225,16 @@ export default defineBundledChannelEntry({
         event.params
       );
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
-      const isBlocked = isOwnerOnlyTool && role === 'user';
-      const blockReason = isBlocked
-        ? `The ${event.toolName} tool is not available.`
-        : undefined;
+      const researchToolAllowed = onboardingResearchTools.has(event.toolName);
+      const blockedByResearchBoundary =
+        isOnboardingResearchSession(ctx.sessionKey) && !researchToolAllowed;
+      const isBlocked =
+        blockedByResearchBoundary || (isOwnerOnlyTool && role === 'user');
+      const blockReason = blockedByResearchBoundary
+        ? 'This onboarding turn may only search the web and submit a notebook draft. The coordinator owns every side effect.'
+        : isBlocked
+          ? `The ${event.toolName} tool is not available.`
+          : undefined;
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session
@@ -1233,7 +1301,7 @@ export default defineBundledChannelEntry({
         }
       }
 
-      if (!isOwnerOnlyTool) {
+      if (!isOwnerOnlyTool && !blockedByResearchBoundary) {
         return undefined;
       }
 
@@ -1242,7 +1310,7 @@ export default defineBundledChannelEntry({
       // Only block when role is explicitly "user" (non-owner DM).
       if (isBlocked) {
         api.logger.warn(
-          `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
+          `[tlon] Blocked ${event.toolName} tool. Session: ${ctx.sessionKey}, Role: ${role}, onboardingResearch=${blockedByResearchBoundary}`
         );
         if (contextLensEnabled) {
           const blockedLens = recordContextLensToolResultForSession(
@@ -1407,6 +1475,7 @@ export default defineBundledChannelEntry({
     });
     api.on('gateway_stop', () => {
       clearCronServiceAccessor();
+      clearOnboardingOperations();
       resetTlonCronObservability();
     });
 
@@ -1574,6 +1643,7 @@ export default defineBundledChannelEntry({
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (_event, ctx) => {
+      disarmOnboardingResearchSession(ctx.sessionKey);
       if (!contextLensEnabled) {
         return;
       }

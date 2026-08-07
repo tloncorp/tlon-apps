@@ -26,6 +26,7 @@ import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
+import { resolveA2UISendText } from './StaticChatMessage.helpers';
 
 /**
  * Blocks that survive when a post's A2UI surface renders. The surface
@@ -155,7 +156,15 @@ export function StaticChatMessage({
         return;
       }
 
-      const text = action.event.context.text.trim();
+      const actionText = action.event.context.text.trim();
+      // Only group A2UI from the user's own configured agent reaches this
+      // renderer. Never resolve the token in DMs, where arbitrary senders may
+      // post A2UI and should not be able to ask the client for its timezone.
+      const text = resolveA2UISendText(
+        actionText,
+        post.groupId,
+        Intl.DateTimeFormat().resolvedOptions().timeZone
+      );
       if (!text) {
         return;
       }
@@ -169,7 +178,7 @@ export function StaticChatMessage({
         isEdit: false,
       });
     },
-    [draftInputContext, navigateToA2UITarget]
+    [draftInputContext, navigateToA2UITarget, post.groupId]
   );
 
   const isA2UIActionAvailable = useCallback(

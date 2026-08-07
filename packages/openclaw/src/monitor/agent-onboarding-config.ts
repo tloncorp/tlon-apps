@@ -95,6 +95,13 @@ export const TOPICS_PICKER_FOOTER =
  */
 export const TOPICS_FREE_TEXT_PLACEHOLDER = 'Add your own…';
 
+export const TIMEZONE_PICKER_PROMPT =
+  'One last detail: which timezone should I use for the schedule?';
+export const TIMEZONE_PICKER_BUTTON_LABEL = 'Use my current timezone';
+export const TIMEZONE_PICKER_FALLBACK =
+  `${TIMEZONE_PICKER_PROMPT} Reply with an IANA timezone such as ` +
+  '`America/New_York`.';
+
 /**
  * How every setup ends: by getting someone else into the group.
  *

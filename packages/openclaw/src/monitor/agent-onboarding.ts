@@ -21,11 +21,15 @@ import {
   SERVICES_CARD_BUTTON_LABEL,
   SERVICES_CARD_FALLBACK,
   SERVICES_CARD_PROMPT,
+  TIMEZONE_PICKER_BUTTON_LABEL,
+  TIMEZONE_PICKER_FALLBACK,
+  TIMEZONE_PICKER_PROMPT,
   TOPICS_FREE_TEXT_PLACEHOLDER,
   TOPICS_PICKER_FOOTER,
   TOPICS_PICKER_PROMPT,
   TOPICS_PICKER_SUBMIT_LABEL,
 } from './agent-onboarding-config.js';
+import { ONBOARDING_TIMEZONE_PREFIX } from './agent-onboarding-coordinator.js';
 
 /**
  * Agent onboarding, bot side: the pickers the agent posts into a group that
@@ -178,6 +182,46 @@ export function buildPurposePickerBlob(surfaceSuffix: string): TlonA2UIBlob {
     blobOrNull(surfaceId, buildChoiceComponents()) ??
     makeA2UIBlob(surfaceId, 'root', buildButtonComponents())
   );
+}
+
+/** Ask the client to resolve its own IANA timezone instead of asking a model. */
+export function buildTimezonePickerBlob(
+  surfaceSuffix: string
+): TlonA2UIBlob | null {
+  return blobOrNull(`agent-onboarding-timezone-${surfaceSuffix}`, [
+    {
+      id: 'root',
+      component: 'Column',
+      children: ['prompt', 'useTimezone'],
+    },
+    { id: 'prompt', component: 'Text', text: TIMEZONE_PICKER_PROMPT },
+    {
+      id: 'useTimezone',
+      component: 'Button',
+      variant: 'primary',
+      child: 'useTimezoneLabel',
+      action: {
+        event: {
+          name: A2UI.action.sendMessage,
+          // New clients replace the token locally before posting. Older
+          // clients post it literally; the fallback text tells their owner
+          // how to type an IANA timezone instead.
+          context: {
+            text: `${ONBOARDING_TIMEZONE_PREFIX} {{tlon.timezone}}`,
+          },
+        },
+      },
+    },
+    {
+      id: 'useTimezoneLabel',
+      component: 'Text',
+      text: TIMEZONE_PICKER_BUTTON_LABEL,
+    },
+  ] as A2UI.Component[]);
+}
+
+export function timezonePickerFallbackText(): string {
+  return TIMEZONE_PICKER_FALLBACK;
 }
 
 /** The purpose whose card title this message matches, if any. */

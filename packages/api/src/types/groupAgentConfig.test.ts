@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import {
   canRenderAgentUiInGroup,
+  groupAgentOnboardingIsComplete,
   groupHasConfiguredJob,
   isOwnAgentShip,
   parseGroupAgentConfig,
@@ -205,6 +206,34 @@ describe('groupHasConfiguredJob', () => {
     expect(groupHasConfiguredJob('a group about bread')).toBe(false);
     expect(groupHasConfiguredJob(null)).toBe(false);
     expect(groupHasConfiguredJob(undefined)).toBe(false);
+  });
+});
+
+describe('groupAgentOnboardingIsComplete', () => {
+  test('holds deterministic onboarding until the notebook write is verified', () => {
+    const config = JSON.parse(configNaming([MY_AGENT]))[0];
+    config.jobs = [{ id: 'daily' }];
+    config.onboarding = {
+      state: 'awaiting-notebook',
+      topics: 'Coffee',
+      timezone: 'America/New_York',
+      cronJobId: 'cron-1',
+    };
+    expect(groupHasConfiguredJob(JSON.stringify([config]))).toBe(true);
+    expect(groupAgentOnboardingIsComplete(JSON.stringify([config]))).toBe(
+      false
+    );
+
+    config.onboarding.state = 'complete';
+    config.onboarding.notebookNest = 'notes/~zod/daily';
+    config.onboarding.noteId = 'note-1';
+    expect(groupAgentOnboardingIsComplete(JSON.stringify([config]))).toBe(true);
+  });
+
+  test('keeps the jobs-present fallback for legacy configs', () => {
+    const config = JSON.parse(configNaming([MY_AGENT]))[0];
+    config.jobs = [{ id: 'daily' }];
+    expect(groupAgentOnboardingIsComplete(JSON.stringify([config]))).toBe(true);
   });
 });
 

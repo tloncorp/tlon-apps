@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { groupHasConfiguredJob } from '@tloncorp/shared/domain';
+import { groupAgentOnboardingIsComplete } from '@tloncorp/shared/domain';
 import { useEffect } from 'react';
 
 /**
@@ -13,9 +13,9 @@ import { useEffect } from 'react';
  * window the lock exists to cover. An unknown description reads as
  * unconfigured, so the matching group locks immediately.
  *
- * One-way: the moment the config first carries a job, the durable marker is
- * cleared, so a later config edit (stopping the job, a bad rewrite) can never
- * trap the user back in setup chrome.
+ * One-way: the moment the coordinator verifies the first note (or a legacy
+ * config first carries a job), the durable marker is cleared, so a later
+ * config edit can never trap the user back in setup chrome.
  *
  * One signal, many uses: callers decide what the lock hides — the channel
  * header today; anything else tomorrow.
@@ -29,7 +29,7 @@ export function useAgentOnboardingLock(
   const isOnboardingGroup = Boolean(
     groupId && onboardingGroupId && groupId === onboardingGroupId
   );
-  const setupComplete = groupHasConfiguredJob(groupDescription);
+  const setupComplete = groupAgentOnboardingIsComplete(groupDescription);
 
   useEffect(() => {
     if (isOnboardingGroup && setupComplete) {

@@ -1,0 +1,158 @@
+import type {
+  PluginHookGatewayCronCreateInput,
+  PluginHookGatewayCronJob,
+} from 'openclaw/plugin-sdk/types';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+
+import {
+  clearCronServiceAccessor,
+  setCronServiceAccessor,
+} from '../cron-telemetry.js';
+import {
+  buildAwaitingTopicsDescription,
+  buildAwaitingTimezoneDescription,
+  buildDeterministicSetupDescription,
+  deterministicSetupFromDescription,
+  ensureDeterministicCronJob,
+  normalizeIanaTimezone,
+  renderDeterministicResearchDirective,
+} from './agent-onboarding-coordinator.js';
+
+afterEach(() => clearCronServiceAccessor());
+
+describe('deterministic onboarding config', () => {
+  test('persists the selected purpose before the topics reply', () => {
+    const description = buildAwaitingTopicsDescription({
+      purposeId: 'agent-research',
+      agentShip: '~bot',
+    });
+    const parsed = deterministicSetupFromDescription(description)!;
+    expect(parsed.record.state).toBe('awaiting-topics');
+    expect(parsed.purposeId).toBe('agent-research');
+    expect(JSON.parse(description)[0].jobs).toEqual([]);
+  });
+
+  test('persists topics before timezone without claiming a configured job', () => {
+    const description = buildAwaitingTimezoneDescription({
+      purposeId: 'agent-research',
+      topics: 'Mycology',
+      agentShip: '~bot',
+    });
+    const parsed = deterministicSetupFromDescription(description)!;
+    expect(parsed.record.state).toBe('awaiting-timezone');
+    expect(parsed.topics).toBe('Mycology');
+    expect(JSON.parse(description)[0].jobs).toEqual([]);
+  });
+
+  test('records verified cron identity separately from the declarative job', () => {
+    const description = buildDeterministicSetupDescription({
+      purposeId: 'agent-daily-digest',
+      topics: 'Coffee',
+      timezone: 'America/New_York',
+      agentShip: '~bot',
+      record: {
+        state: 'awaiting-notebook',
+        topics: 'Coffee',
+        timezone: 'America/New_York',
+        cronJobId: 'cron-123',
+      },
+    });
+    const entry = JSON.parse(description)[0];
+    expect(entry.jobs[0].cronJobId).toBe('cron-123');
+    expect(entry.jobs[0].schedule.tz).toBe('America/New_York');
+    expect(entry.onboarding.state).toBe('awaiting-notebook');
+    expect(entry.jobs[0].outputNest).toBe('');
+
+    const complete = JSON.parse(
+      buildDeterministicSetupDescription({
+        ...deterministicSetupFromDescription(description)!,
+        record: {
+          ...deterministicSetupFromDescription(description)!.record,
+          state: 'complete',
+          notebookNest: 'notes/~zod/daily',
+        },
+      })
+    )[0];
+    expect(complete.jobs[0].outputNest).toBe('notes/~zod/daily');
+  });
+});
+
+describe('timezone normalization', () => {
+  test('accepts client replies and rejects prose guesses', () => {
+    expect(normalizeIanaTimezone('Timezone: America/New_York')).toBe(
+      'America/New_York'
+    );
+    expect(normalizeIanaTimezone('UTC')).toBe('UTC');
+    expect(normalizeIanaTimezone('eastern time')).toBeNull();
+  });
+});
+
+describe('cron creation', () => {
+  test('adds once and verifies the stored scheduler job id', async () => {
+    const jobs: PluginHookGatewayCronJob[] = [];
+    const service = {
+      list: vi.fn(async () => jobs),
+      add: vi.fn(async (input: PluginHookGatewayCronCreateInput) => {
+        jobs.push({ id: 'cron-1', ...input } as PluginHookGatewayCronJob);
+      }),
+      update: vi.fn(),
+      remove: vi.fn(),
+    };
+    setCronServiceAccessor(() => service as never);
+
+    const params = {
+      nest: 'chat/~zod/home-group-chat',
+      purposeId: 'agent-research',
+      topics: 'Mycology',
+      timezone: 'America/New_York',
+    };
+    await expect(ensureDeterministicCronJob(params)).resolves.toBe('cron-1');
+    await expect(ensureDeterministicCronJob(params)).resolves.toBe('cron-1');
+    expect(service.add).toHaveBeenCalledTimes(1);
+    expect(service.add.mock.calls[0]![0]).toMatchObject({
+      sessionTarget: 'isolated',
+      payload: { kind: 'agentTurn' },
+    });
+  });
+
+  test('accepts a stored job when the add response itself fails', async () => {
+    const jobs: PluginHookGatewayCronJob[] = [];
+    setCronServiceAccessor(
+      () =>
+        ({
+          list: async () => jobs,
+          add: async (input: PluginHookGatewayCronCreateInput) => {
+            jobs.push({
+              id: 'cron-after-timeout',
+              ...input,
+            } as PluginHookGatewayCronJob);
+            throw new Error('response lost');
+          },
+          update: vi.fn(),
+          remove: vi.fn(),
+        }) as never
+    );
+    await expect(
+      ensureDeterministicCronJob({
+        nest: 'chat/~zod/home-group-chat',
+        purposeId: 'agent-research',
+        topics: 'Mycology',
+        timezone: 'America/New_York',
+      })
+    ).resolves.toBe('cron-after-timeout');
+  });
+});
+
+describe('research directive', () => {
+  test('leaves every side effect with the coordinator', () => {
+    const directive = renderDeterministicResearchDirective({
+      nest: 'chat/~zod/home-group-chat',
+      purposeId: 'agent-research',
+      topics: 'Mycology',
+    });
+    expect(directive).toContain('tlon_onboarding_draft');
+    expect(directive).toContain('Do not create or update a group');
+    expect(directive).not.toContain('groups update');
+    expect(directive).not.toContain('note-create');
+  });
+});

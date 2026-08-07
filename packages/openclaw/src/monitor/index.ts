@@ -1,5 +1,8 @@
 import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
@@ -40,6 +43,12 @@ import {
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
+import {
+  armOnboardingResearchSession,
+  disarmOnboardingResearchForNest,
+  registerOnboardingDraftHandler,
+  runOnboardingTlonCommand,
+} from '../onboarding-operations.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
   type PendingNudge,
@@ -58,12 +67,7 @@ import {
   type TlonSettingsStore,
   createSettingsManager,
 } from '../settings.js';
-import {
-  WAITING_FOR_NOTEBOOK_LINE,
-  armSetupProgress,
-  disarmSetupProgress,
-  isSetupProgressLine,
-} from '../setup-progress.js';
+import { WAITING_FOR_NOTEBOOK_LINE } from '../setup-progress.js';
 import { sharedSlot } from '../shared-state.js';
 import {
   canonicalizeNest,
@@ -117,11 +121,22 @@ import {
   TOPICS_PICKER_PROMPT,
 } from './agent-onboarding-config.js';
 import {
+  type DeterministicSetup,
+  buildAwaitingTimezoneDescription,
+  buildAwaitingTopicsDescription,
+  buildDeterministicSetupDescription,
+  deterministicSetupFromDescription,
+  ensureDeterministicCronJob,
+  normalizeIanaTimezone,
+  renderDeterministicResearchDirective,
+} from './agent-onboarding-coordinator.js';
+import {
   agentHasAdminSeat,
   brokenConfigDescriptionError,
   buildInviteCardBlob,
   buildPurposePickerBlob,
   buildServicesCardBlob,
+  buildTimezonePickerBlob,
   buildTopicsPickerBlob,
   channelHasNoPosts,
   derivePendingPurposeFromHistory,
@@ -144,12 +159,12 @@ import {
   renderFinishingDirective,
   renderNotebookEntryDirective,
   renderOutputNestRecordDirective,
-  renderSetupDirective,
   servicesCardFallbackText,
   setupOutputNotebookNest,
   shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
+  timezonePickerFallbackText,
   topicsPickerAnswered,
   topicsPickerFallbackText,
 } from './agent-onboarding.js';
@@ -850,6 +865,11 @@ export async function monitorTlonProvider(
      * so the cron payload comes from config instead of model prose.
      */
     const onboardingSetupPending = new Map<string, string>();
+    /** Topic replies waiting for the client's deterministic timezone reply. */
+    const onboardingTimezonePending = new Map<
+      string,
+      { purposeId: string; topics: string; groupFlag: string }
+    >();
     /**
      * Channels whose setup has been asked for but not yet closed with the
      * invite card. The card goes last, so this outlives the turn that issued
@@ -858,11 +878,6 @@ export async function monitorTlonProvider(
     const onboardingInvitePending = new Set<string>();
     /** Channels checked (or paid): don't re-fetch history for them. */
     const inviteSettled = new Set<string>();
-    /**
-     * The agent session whose tool calls narrate each in-flight setup, so
-     * settling the closing can disarm the status lines.
-     */
-    const setupProgressSessionForNest = new Map<string, string>();
     /**
      * Channels whose setup directive turn is running right now. The config
      * write lands partway through the build (the confirmation run comes
@@ -892,6 +907,55 @@ export async function monitorTlonProvider(
         story: markdownToStory(text),
         ...extra,
       });
+
+    /**
+     * Trusted config writer for the deterministic onboarding state machine.
+     * The JSON is passed as one argv value—never through a model, shell, or
+     * tokenizer—and read back from the ship before the transition commits.
+     */
+    const writeAndVerifyOnboardingDescription = async (
+      nest: string,
+      groupFlag: string,
+      description: string
+    ): Promise<void> => {
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await runOnboardingTlonCommand([
+            'groups',
+            'update',
+            groupFlag,
+            '--description',
+            description,
+          ]);
+          lastError = undefined;
+        } catch (error) {
+          lastError = error;
+        }
+        for (const delay of [250, 750, 1_500]) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          const stored = await findGroupForChannel(api, nest, runtime);
+          if (stored?.description === description) {
+            return;
+          }
+        }
+      }
+      throw new Error(
+        `Group config write could not be verified${lastError ? `: ${String(lastError)}` : ''}`
+      );
+    };
+
+    const waitForOnboardingAdminSeat = async (
+      groupFlag: string
+    ): Promise<void> => {
+      const deadline = Date.now() + 20_000;
+      while (Date.now() < deadline && !opts.abortSignal?.aborted) {
+        if (await agentHasAdminSeat(api, groupFlag, botShipName, runtime)) {
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+      }
+    };
 
     // Helper to get bot profile for outbound messages
     const getBotProfile = (): BotProfile | undefined =>
@@ -1050,7 +1114,8 @@ export async function monitorTlonProvider(
      * not a check). Read from the bot's ship, which hosts the notebook, so
      * a real entry answers immediately. Bounded: an entry that never
      * materializes stops holding the cards hostage after ~5 minutes, and a
-     * setup with no notebook (chat-fallback, freeform) never waits at all.
+     * setup with no notebook (legacy chat-fallback, freeform) never waits at
+     * all. The channel is owner-hosted; the bot only has a remote view.
      */
     const emptyNotebookWaits = new Map<string, number>();
     const MAX_EMPTY_NOTEBOOK_WAITS = 15;
@@ -1073,7 +1138,8 @@ export async function monitorTlonProvider(
     const enqueueSetupDirective = (
       nest: string,
       text: string,
-      contextSuffix: string
+      contextSuffix: string,
+      options?: { deliver?: boolean }
     ): boolean => {
       try {
         const route = core.channel.routing.resolveAgentRoute({
@@ -1085,10 +1151,20 @@ export async function monitorTlonProvider(
         if (!route?.sessionKey) {
           return false;
         }
+        if (contextSuffix === 'deterministic-research') {
+          armOnboardingResearchSession(nest, route.sessionKey);
+        }
         core.system.enqueueSystemEvent(text, {
           sessionKey: route.sessionKey,
           contextKey: `tlon:${contextSuffix}:${nest}`,
-          deliveryContext: tlonDeliveryContext(`tlon:${nest}`, route.accountId),
+          ...(options?.deliver === false
+            ? {}
+            : {
+                deliveryContext: tlonDeliveryContext(
+                  `tlon:${nest}`,
+                  route.accountId
+                ),
+              }),
         });
         return true;
       } catch (error) {
@@ -1195,6 +1271,8 @@ export async function monitorTlonProvider(
       return state.newestId !== null && state.newestId !== baseline;
     };
 
+    const deterministicDraftRegistered = new Set<string>();
+
     /**
      * Drive the day-one notebook entry from here rather than trusting the
      * build turn to do it.
@@ -1222,6 +1300,9 @@ export async function monitorTlonProvider(
         // nothing to write about.
         return;
       }
+      const deterministicSetup = deterministicSetupFromDescription(
+        group.description
+      );
       const nudges = notebookEntryNudges.get(nest) ?? 0;
       if (nudges >= MAX_NOTEBOOK_ENTRY_NUDGES) {
         return;
@@ -1237,6 +1318,9 @@ export async function monitorTlonProvider(
       // nest, find it empty, tick the counter to its limit, and this driver
       // would then abandon the entry for a notebook sitting right there.
       const giveUpOnNotebook = (): void => {
+        if (deterministicSetup) {
+          return;
+        }
         if (
           (emptyNotebookWaits.get(nest) ?? 0) < MAX_EMPTY_NOTEBOOK_WAITS ||
           finishingDirectiveSent.has(nest)
@@ -1283,6 +1367,224 @@ export async function monitorTlonProvider(
       }
       const state = await notebookNewestEntry(notesNest);
       if (!state.readable) {
+        return;
+      }
+      const deterministic = deterministicSetup;
+      if (deterministic && deterministic.record.state !== 'complete') {
+        if (
+          deterministic.record.state === 'writing-note' &&
+          state.newestId !== null &&
+          state.newestId !== deterministic.record.noteBaseline
+        ) {
+          const complete: DeterministicSetup = {
+            ...deterministic,
+            record: {
+              ...deterministic.record,
+              state: 'complete',
+              notebookNest: notesNest,
+              noteId: state.newestId,
+              lastError: undefined,
+            },
+          };
+          await writeAndVerifyOnboardingDescription(
+            nest,
+            group.flag,
+            buildDeterministicSetupDescription(complete)
+          );
+          return;
+        }
+        if (deterministicDraftRegistered.has(nest)) {
+          return;
+        }
+        deterministicDraftRegistered.add(nest);
+        const researching: DeterministicSetup = {
+          ...deterministic,
+          record: {
+            ...deterministic.record,
+            state: 'researching',
+            notebookNest: notesNest,
+            noteBaseline: state.newestId,
+            lastError: undefined,
+          },
+        };
+        try {
+          await writeAndVerifyOnboardingDescription(
+            nest,
+            group.flag,
+            buildDeterministicSetupDescription(researching)
+          );
+        } catch (error) {
+          deterministicDraftRegistered.delete(nest);
+          runtime.error?.(
+            `[tlon] Could not persist research state for ${nest}: ${String(error)}`
+          );
+          return;
+        }
+
+        let unregisterDraft = () => {};
+        let draftTimeout: ReturnType<typeof setTimeout> | null = null;
+        const scheduleResearchDisarmFallback = () => {
+          const timer = setTimeout(
+            () => disarmOnboardingResearchForNest(nest),
+            2 * 60_000
+          );
+          (timer as unknown as { unref?: () => void }).unref?.();
+        };
+        let writtenNoteId: string | null = null;
+        unregisterDraft = registerOnboardingDraftHandler(
+          nest,
+          async ({ title, markdown }) => {
+            if (!title || title.length > 200) {
+              return {
+                ok: false,
+                message:
+                  'The draft title must be between 1 and 200 characters.',
+              };
+            }
+            if (!markdown || markdown.length > 50_000) {
+              return {
+                ok: false,
+                message:
+                  'The Markdown draft must be between 1 and 50,000 characters.',
+              };
+            }
+            const writing: DeterministicSetup = {
+              ...researching,
+              record: { ...researching.record, state: 'writing-note' },
+            };
+            try {
+              await writeAndVerifyOnboardingDescription(
+                nest,
+                group.flag,
+                buildDeterministicSetupDescription(writing)
+              );
+              if (!writtenNoteId) {
+                const directory = await mkdtemp(
+                  join(tmpdir(), 'tlon-onboarding-')
+                );
+                try {
+                  const markdownPath = join(directory, 'entry.md');
+                  await writeFile(markdownPath, markdown, 'utf8');
+                  const noteResult = await runOnboardingTlonCommand([
+                    'notes',
+                    'note-create',
+                    notesNest,
+                    'root',
+                    title,
+                    '--markdown',
+                    markdownPath,
+                  ]);
+                  writtenNoteId = noteResult.trim().slice(0, 500) || 'written';
+                } finally {
+                  await rm(directory, { recursive: true, force: true });
+                }
+              }
+              const complete: DeterministicSetup = {
+                ...writing,
+                record: {
+                  ...writing.record,
+                  state: 'complete',
+                  notebookNest: notesNest,
+                  noteId: writtenNoteId,
+                },
+              };
+              await writeAndVerifyOnboardingDescription(
+                nest,
+                group.flag,
+                buildDeterministicSetupDescription(complete)
+              );
+              if (draftTimeout) {
+                clearTimeout(draftTimeout);
+                draftTimeout = null;
+              }
+              unregisterDraft();
+              scheduleResearchDisarmFallback();
+              deterministicDraftRegistered.delete(nest);
+              return {
+                ok: true,
+                message:
+                  'Draft accepted and written by the deterministic coordinator. Send no chat response.',
+              };
+            } catch (error) {
+              runtime.error?.(
+                `[tlon] Failed to commit onboarding draft for ${nest}: ${String(error)}`
+              );
+              // A timed-out note poke often landed. Read the owner notebook
+              // before asking for a retry, or an ambiguous timeout becomes a
+              // duplicate entry. If a post appeared after our recorded
+              // baseline, commit that durable evidence and finish.
+              const observed = await notebookNewestEntry(notesNest);
+              if (
+                observed.readable &&
+                observed.newestId !== null &&
+                observed.newestId !== writing.record.noteBaseline
+              ) {
+                try {
+                  await writeAndVerifyOnboardingDescription(
+                    nest,
+                    group.flag,
+                    buildDeterministicSetupDescription({
+                      ...writing,
+                      record: {
+                        ...writing.record,
+                        state: 'complete',
+                        notebookNest: notesNest,
+                        noteId: observed.newestId,
+                      },
+                    })
+                  );
+                  if (draftTimeout) {
+                    clearTimeout(draftTimeout);
+                    draftTimeout = null;
+                  }
+                  unregisterDraft();
+                  scheduleResearchDisarmFallback();
+                  deterministicDraftRegistered.delete(nest);
+                  return {
+                    ok: true,
+                    message:
+                      'Draft write was verified from the notebook and committed. Send no chat response.',
+                  };
+                } catch (recoveryError) {
+                  runtime.error?.(
+                    `[tlon] Could not record recovered note for ${nest}: ${String(recoveryError)}`
+                  );
+                }
+              }
+              return {
+                ok: false,
+                message:
+                  'The deterministic coordinator could not commit the draft. Do not perform the write yourself; retry this same draft once.',
+              };
+            }
+          }
+        );
+        if (
+          !enqueueSetupDirective(
+            nest,
+            renderDeterministicResearchDirective({
+              nest,
+              purposeId: deterministic.purposeId,
+              topics: deterministic.topics,
+            }),
+            'deterministic-research',
+            { deliver: false }
+          )
+        ) {
+          unregisterDraft();
+          disarmOnboardingResearchForNest(nest);
+          deterministicDraftRegistered.delete(nest);
+        } else {
+          // A model turn that exits without submitting a draft must not leave
+          // the state machine permanently armed. Reconciliation will enqueue
+          // a fresh bounded research turn after this lease expires.
+          draftTimeout = setTimeout(() => {
+            unregisterDraft();
+            disarmOnboardingResearchForNest(nest);
+            deterministicDraftRegistered.delete(nest);
+          }, 11 * 60_000);
+          (draftTimeout as unknown as { unref?: () => void }).unref?.();
+        }
         return;
       }
       if (notebookHasNewEntry(nest, state, jobRecordsOutputNest(job))) {
@@ -1354,7 +1656,13 @@ export async function monitorTlonProvider(
       group: { flag: string; description: string }
     ): Promise<boolean> => {
       const waits = emptyNotebookWaits.get(nest) ?? 0;
-      if (waits >= MAX_EMPTY_NOTEBOOK_WAITS) {
+      const deterministic = deterministicSetupFromDescription(
+        group.description
+      );
+      if (
+        waits >= MAX_EMPTY_NOTEBOOK_WAITS &&
+        (!deterministic || deterministic.record.state === 'complete')
+      ) {
         return false;
       }
       let notesNest: string | null = null;
@@ -1599,11 +1907,6 @@ export async function monitorTlonProvider(
         }
         onboardingInvitePending.delete(nest);
         inviteSettled.add(nest);
-        const progressSession = setupProgressSessionForNest.get(nest);
-        if (progressSession) {
-          disarmSetupProgress(progressSession);
-          setupProgressSessionForNest.delete(nest);
-        }
       } catch (error) {
         runtime.error?.(
           `[tlon] Failed to close the setup in ${nest}: ${String(error)}`
@@ -1641,11 +1944,16 @@ export async function monitorTlonProvider(
       nest: string,
       senderShip: string,
       currentMessageText: string,
-      knownGroup?: { host: string; description: string | null } | null
+      knownGroup?: {
+        flag: string;
+        host: string;
+        description: string | null;
+      } | null
     ): Promise<'ok' | 'inconclusive'> => {
       if (
         onboardingRecoveryChecked.has(nest) ||
-        onboardingSetupPending.has(nest)
+        onboardingSetupPending.has(nest) ||
+        onboardingTimezonePending.has(nest)
       ) {
         return 'ok';
       }
@@ -1656,6 +1964,27 @@ export async function monitorTlonProvider(
         return 'inconclusive';
       }
       if (group.host !== effectiveOwnerShip) {
+        onboardingRecoveryChecked.add(nest);
+        return 'ok';
+      }
+      const deterministic = deterministicSetupFromDescription(
+        group.description
+      );
+      if (deterministic?.record.state === 'awaiting-topics') {
+        onboardingSetupPending.set(nest, deterministic.purposeId);
+        onboardingPickerOffered.add(nest);
+        onboardingTopicsOffered.add(nest);
+        onboardingRecoveryChecked.add(nest);
+        return 'ok';
+      }
+      if (deterministic?.record.state === 'awaiting-timezone') {
+        onboardingTimezonePending.set(nest, {
+          purposeId: deterministic.purposeId,
+          topics: deterministic.topics,
+          groupFlag: group.flag,
+        });
+        onboardingPickerOffered.add(nest);
+        onboardingTopicsOffered.add(nest);
         onboardingRecoveryChecked.add(nest);
         return 'ok';
       }
@@ -1764,9 +2093,10 @@ export async function monitorTlonProvider(
      */
     /**
      * Post the topic pills and arm the pending setup, shared by the live
-     * tap handler and the sweep's missed-tap recovery. On a failed post the
-     * state is rolled back entirely: the owner never saw pills, so their
-     * next message must not be consumed as a topics reply.
+     * tap handler and the sweep's missed-tap recovery. The visible picker is
+     * posted before its state write: if the post fails there is no pending
+     * reply to consume; if only the state write fails, the transcript still
+     * provides restart recovery for the picker the owner actually saw.
      */
     const postTopicsPickerOffer = async (
       nest: string,
@@ -1775,10 +2105,43 @@ export async function monitorTlonProvider(
       onboardingTopicsOffered.add(nest);
       onboardingSetupPending.set(nest, purposeId);
       try {
+        const group = await findGroupForChannel(api, nest, runtime);
+        if (!group) {
+          throw new Error('The onboarding group is not readable');
+        }
         const topicsBlob = buildTopicsPickerBlob(nest, purposeId);
         await postToChannel(nest, topicsPickerFallbackText(purposeId), {
           ...(topicsBlob ? { blob: serializeBlobField(topicsBlob) } : {}),
         });
+        try {
+          await waitForOnboardingAdminSeat(group.flag);
+          const latest = await findGroupForChannel(api, nest, runtime);
+          if (!latest) {
+            throw new Error('Could not re-read the group before state write');
+          }
+          const latestSetup = deterministicSetupFromDescription(
+            latest.description
+          );
+          if (latestSetup && latestSetup.record.state !== 'awaiting-topics') {
+            // The owner answered while the admin seat was still settling;
+            // never overwrite the newer transition with this late write.
+            return true;
+          }
+          await writeAndVerifyOnboardingDescription(
+            nest,
+            group.flag,
+            buildAwaitingTopicsDescription({
+              purposeId,
+              agentShip: botShipName,
+            })
+          );
+        } catch (error) {
+          // The picker itself is durable and recovery can derive this state
+          // from the transcript, so do not retract the live pending record.
+          runtime.error?.(
+            `[tlon] Topics picker posted but its state write failed in ${nest}: ${String(error)}`
+          );
+        }
         return true;
       } catch (error) {
         onboardingTopicsOffered.delete(nest);
@@ -1788,6 +2151,54 @@ export async function monitorTlonProvider(
         );
         return false;
       }
+    };
+
+    const deterministicSetupInFlight = new Map<string, Promise<void>>();
+    const beginDeterministicSetup = (
+      nest: string,
+      params: {
+        groupFlag: string;
+        purposeId: string;
+        topics: string;
+        timezone: string;
+      }
+    ): Promise<void> => {
+      const existing = deterministicSetupInFlight.get(nest);
+      if (existing) {
+        return existing;
+      }
+      const run = (async () => {
+        await postToChannel(nest, 'Scheduling your daily job…').catch(() => {});
+        const cronJobId = await ensureDeterministicCronJob({
+          nest,
+          purposeId: params.purposeId,
+          topics: params.topics,
+          timezone: params.timezone,
+        });
+        const setup: DeterministicSetup = {
+          purposeId: params.purposeId,
+          topics: params.topics,
+          timezone: params.timezone,
+          agentShip: botShipName,
+          record: {
+            state: 'awaiting-notebook',
+            topics: params.topics,
+            timezone: params.timezone,
+            cronJobId,
+          },
+        };
+        await writeAndVerifyOnboardingDescription(
+          nest,
+          params.groupFlag,
+          buildDeterministicSetupDescription(setup)
+        );
+        onboardingInvitePending.add(nest);
+        await postToChannel(nest, WAITING_FOR_NOTEBOOK_LINE).catch(() => {});
+      })().finally(() => {
+        deterministicSetupInFlight.delete(nest);
+      });
+      deterministicSetupInFlight.set(nest, run);
+      return run;
     };
 
     const onboardingOffersInFlight = new Map<
@@ -3458,7 +3869,6 @@ export async function monitorTlonProvider(
       messageContent?: unknown; // Raw Tlon content for media extraction
       blobField?: string | null; // Raw blob JSON from post/reply
       /** Appended to the agent input after the message; see the topics hook. */
-      setupDirective?: string;
       isGroup: boolean;
       channelNest?: string;
       hostShip?: string;
@@ -3515,9 +3925,6 @@ export async function monitorTlonProvider(
       let messageText = citedContent
         ? `${citedContent}\n\n${currentMessageText}`
         : currentMessageText;
-      if (params.setupDirective) {
-        messageText = `${messageText}\n\n${params.setupDirective}`;
-      }
 
       const route = core.channel.routing.resolveAgentRoute({
         cfg,
@@ -4089,7 +4496,12 @@ export async function monitorTlonProvider(
         const currentLens = contextLenses.get(lens.lensId);
         contextLenses.update(lens.lensId, {
           tools: {
-            ownerOnlyAvailable: ['tlon', 'cron', 'read'],
+            ownerOnlyAvailable: [
+              'tlon',
+              'cron',
+              'read',
+              'tlon_onboarding_draft',
+            ],
             called: currentLens?.tools.called ?? [],
             callCount: currentLens?.tools.callCount ?? 0,
             lastStartedAt: currentLens?.tools.lastStartedAt ?? null,
@@ -5038,6 +5450,7 @@ export async function monitorTlonProvider(
           // for the next message.
           if (
             !onboardingSetupPending.has(nest) &&
+            !onboardingTimezonePending.has(nest) &&
             !onboardingInvitePending.has(nest) &&
             !onboardingPickerOffered.has(nest)
           ) {
@@ -5067,6 +5480,7 @@ export async function monitorTlonProvider(
           const isOnboardingReply =
             // The topics pills await their answer.
             onboardingSetupPending.has(nest) ||
+            onboardingTimezonePending.has(nest) ||
             // A directive was issued and the build is mid-flight — the owner
             // already engaged the onboarding UI, and the bot may be waiting
             // on an answer it asked for (a timezone, a first entry).
@@ -5123,7 +5537,8 @@ export async function monitorTlonProvider(
           runOnboardingOffers &&
           !onboardingGroup &&
           (isPurposePickerChoice(rawText ?? '') ||
-            onboardingSetupPending.has(nest))
+            onboardingSetupPending.has(nest) ||
+            onboardingTimezonePending.has(nest))
         ) {
           // The group read failed twice under a message that is either a
           // purpose-card title or the topics reply this channel is waiting
@@ -5170,7 +5585,10 @@ export async function monitorTlonProvider(
               onboardingGroup
             );
           }
-          if (onboardingSetupPending.has(nest)) {
+          if (
+            onboardingSetupPending.has(nest) ||
+            onboardingTimezonePending.has(nest)
+          ) {
             // Recovered above: fall through so the reply in hand is consumed
             // as the topics answer.
           } else if (recovery === 'inconclusive') {
@@ -5332,10 +5750,47 @@ export async function monitorTlonProvider(
 
         const parsed = parseChannelNest(nest);
         const citedContent = await resolveCitedContent(content.content);
-        // The owner reply after the topic pills carries the rendered setup
-        // directive, so the model receives the cron payload from config
-        // rather than composing one. One-shot per channel.
-        let setupDirective: string | undefined;
+        // Deterministic onboarding consumes topic and timezone replies before
+        // ordinary agent dispatch. The model never sees these as operational
+        // instructions and therefore cannot improvise the side effects.
+        const pendingTimezone = onboardingTimezonePending.get(nest);
+        if (
+          pendingTimezone &&
+          isOwner(senderShip) &&
+          isTopLevelTextMessage &&
+          !isThreadReply &&
+          !parentId
+        ) {
+          const timezone = normalizeIanaTimezone(rawText ?? '');
+          if (!timezone) {
+            const timezoneBlob = buildTimezonePickerBlob(nest);
+            await postToChannel(nest, timezonePickerFallbackText(), {
+              ...(timezoneBlob
+                ? { blob: serializeBlobField(timezoneBlob) }
+                : {}),
+            });
+            return;
+          }
+          onboardingTimezonePending.delete(nest);
+          onboardingSetupPending.delete(nest);
+          try {
+            await beginDeterministicSetup(nest, {
+              ...pendingTimezone,
+              timezone,
+            });
+          } catch (error) {
+            onboardingTimezonePending.set(nest, pendingTimezone);
+            runtime.error?.(
+              `[tlon] Deterministic setup failed in ${nest}: ${String(error)}`
+            );
+            await postToChannel(
+              nest,
+              'I hit a setup problem before anything was published. Tap your timezone again and I’ll retry safely.'
+            ).catch(() => {});
+          }
+          return;
+        }
+
         const pendingSetupPurpose = onboardingSetupPending.get(nest);
         // Only a top-level owner message that isn't itself a purpose title
         // answers the pills. A double-tapped card would otherwise be consumed
@@ -5367,112 +5822,48 @@ export async function monitorTlonProvider(
         }
         if (pendingSetupPurpose && answersTopicsPicker) {
           onboardingSetupPending.delete(nest);
-          setupDirective =
-            renderSetupDirective(pendingSetupPurpose, rawText ?? '') ??
-            undefined;
-        }
-        // A setup that has been asked for owes an invite card once it is
-        // actually finished. Recorded rather than posted here: the directive
-        // turn usually only gets as far as asking a follow-up question, and
-        // the build lands turns later.
-        if (setupDirective) {
-          onboardingInvitePending.add(nest);
-        }
-        if (setupDirective) {
-          // Arm the tool-call-driven status lines for the build this
-          // directive starts: the model works in silence, so these are the
-          // owner's only sign of life for the minutes the build takes.
+          const group = await findGroupForChannel(api, nest, runtime);
+          if (!group) {
+            onboardingSetupPending.set(nest, pendingSetupPurpose);
+            return;
+          }
+          const topics = rawText!.trim();
           try {
-            const progressRoute = core.channel.routing.resolveAgentRoute({
-              cfg,
-              channel: 'tlon',
-              accountId: opts.accountId ?? undefined,
-              peer: { kind: 'group', id: nest },
+            await waitForOnboardingAdminSeat(group.flag);
+            await writeAndVerifyOnboardingDescription(
+              nest,
+              group.flag,
+              buildAwaitingTimezoneDescription({
+                purposeId: pendingSetupPurpose,
+                topics,
+                agentShip: botShipName,
+              })
+            );
+            onboardingTimezonePending.set(nest, {
+              purposeId: pendingSetupPurpose,
+              topics,
+              groupFlag: group.flag,
             });
-            if (progressRoute?.sessionKey) {
-              armSetupProgress(progressRoute.sessionKey, {
-                post: async (text) => {
-                  await postToChannel(nest, text);
-                },
-                // The thinking indicator names the current step: one tool
-                // at a time, so a long icon generation reads as exactly
-                // that instead of an ever-growing tool list.
-                presence: (toolName, label) => {
-                  computingPresence.clearToolCalls({
-                    conversationId: nest,
-                    runId: `setup:${nest}`,
-                  });
-                  computingPresence.addToolCall({
-                    conversationId: nest,
-                    runId: `setup:${nest}`,
-                    toolName,
-                    label,
-                  });
-                },
-              });
-              setupProgressSessionForNest.set(nest, progressRoute.sessionKey);
-            }
+            const timezoneBlob = buildTimezonePickerBlob(nest);
+            await postToChannel(nest, timezonePickerFallbackText(), {
+              ...(timezoneBlob
+                ? { blob: serializeBlobField(timezoneBlob) }
+                : {}),
+            });
           } catch (error) {
-            runtime.log?.(
-              `[tlon] Could not arm setup progress for ${nest}: ${String(error)}`
+            onboardingSetupPending.set(nest, pendingSetupPurpose);
+            runtime.error?.(
+              `[tlon] Could not persist topics for ${nest}: ${String(error)}`
             );
           }
-          // The client grants the agent admin right after creating the
-          // group; a fast owner can tap through before it lands, and a
-          // setup turn without the role does its renames and
-          // channel-creates as a plain member — dropped pokes, visible
-          // timeouts. Wait for the seat, bounded: if it never lands
-          // (self-hosted owner, older client), build anyway and let the
-          // agent report honestly.
-          const directiveGroup = await findGroupForChannel(api, nest, runtime);
-          if (directiveGroup) {
-            const adminDeadline = Date.now() + 20_000;
-            while (Date.now() < adminDeadline && !opts.abortSignal?.aborted) {
-              const hasSeat = await agentHasAdminSeat(
-                api,
-                directiveGroup.flag,
-                botShipName,
-                runtime
-              );
-              if (hasSeat) {
-                break;
-              }
-              await new Promise((resolve) => setTimeout(resolve, 2_000));
-            }
-          }
+          return;
         }
-        let setupPresenceKeepalive: ReturnType<typeof setInterval> | null =
-          null;
-        // The build doesn't always run on the directive turn. When the
-        // setup has to ask for something first — the owner's timezone is
-        // the standard case — the config write, the research and the
-        // confirmation all happen on the turn that answers it, and that
-        // turn carries no directive. Guarding only the directive turn left
-        // the real build unguarded, so the groups-ui wake from its own
-        // config write could start the closing on top of it. A channel that
-        // still owes its closing is a channel whose setup is running.
-        const ownsSetupTurn =
-          !!setupDirective || onboardingInvitePending.has(nest);
+        // An ordinary owner turn may overlap a setup that is waiting for its
+        // notebook. Keep the closing out of that chat turn; the deterministic
+        // coordinator itself is serialized independently.
+        const ownsSetupTurn = onboardingInvitePending.has(nest);
         if (ownsSetupTurn) {
           onboardingSetupTurnInFlight.add(nest);
-        }
-        if (setupDirective) {
-          // A dedicated presence run for the build: the dispatch's own run
-          // stops at its first delivery, and a minutes-long icon generation
-          // would otherwise sit with no indicator at all. Kept alive for
-          // exactly the turn, so the indicator never lingers while the bot
-          // waits on the owner.
-          const setupPresenceRun = {
-            conversationId: nest,
-            runId: `setup:${nest}`,
-          };
-          computingPresence.refreshRun(setupPresenceRun);
-          setupPresenceKeepalive = setInterval(() => {
-            computingPresence.refreshRun(setupPresenceRun);
-          }, 20_000);
-          (
-            setupPresenceKeepalive as unknown as { unref?: () => void }
-          ).unref?.();
         }
         try {
           await processMessage({
@@ -5480,7 +5871,6 @@ export async function monitorTlonProvider(
             senderShip,
             messageText: rawText,
             ...(citedContent ? { citedContent } : {}),
-            ...(setupDirective ? { setupDirective } : {}),
             gateText: engagementText,
             trigger,
             cachesHistory: true,
@@ -5494,102 +5884,9 @@ export async function monitorTlonProvider(
             parentId,
             isThreadReply,
           });
-        } catch (dispatchError) {
-          // A transient provider or tool failure must not consume the setup
-          // intent: the post is already marked processed, so without this the
-          // group would stay unconfigured and the next owner message would be
-          // read as ordinary chat.
-          if (pendingSetupPurpose) {
-            onboardingSetupPending.set(nest, pendingSetupPurpose);
-          }
-          // The build this armed the status lines for is over. Left armed,
-          // the session keeps its progress hook until the TTL expires, and
-          // any unrelated tool call in the same agent session posts "Setting
-          // up your notebook…" into a group that is no longer building.
-          const failedProgressSession = setupProgressSessionForNest.get(nest);
-          if (failedProgressSession) {
-            disarmSetupProgress(failedProgressSession);
-            setupProgressSessionForNest.delete(nest);
-          }
-          throw dispatchError;
         } finally {
           if (ownsSetupTurn) {
             onboardingSetupTurnInFlight.delete(nest);
-          }
-          if (setupDirective) {
-            if (setupPresenceKeepalive) {
-              clearInterval(setupPresenceKeepalive);
-            }
-            computingPresence.stopRun({
-              conversationId: nest,
-              runId: `setup:${nest}`,
-            });
-          }
-        }
-
-        // A dispatch timeout inside processMessage records itself and
-        // returns without throwing, so the catch above never restores the
-        // pending setup. Verify the effect instead: if the directive turn
-        // posted nothing at all and the config still has no job, the setup
-        // died silently — re-arm it so the owner's next message retries.
-        // (If the bot said anything — a follow-up question, the build
-        // announcement — the conversation is alive and re-arming would
-        // wrongly consume that next answer as a topics reply.)
-        if (setupDirective && pendingSetupPurpose) {
-          await new Promise((resolve) => setTimeout(resolve, 2_000));
-          try {
-            // Inconclusive evidence must not re-arm: a failed history read
-            // looks like silence, and re-arming after a turn that actually
-            // asked a follow-up would consume the owner's answer as a fresh
-            // topics reply — rebuilding the directive with, say, a timezone
-            // as its topics.
-            const after = await fetchChannelHistory(api, nest, 5, runtime, {
-              throwOnError: true,
-            });
-            const sentAt = content.sent || 0;
-            // The plugin's own status lines ("Searching the web…") don't
-            // count as the bot speaking: a directive turn that died after a
-            // tool call would otherwise read as alive and never re-arm.
-            const botSpoke = after.some(
-              (entry) =>
-                entry.author === botShipName &&
-                !isSetupProgressLine(entry.content) &&
-                (entry.timestamp ?? 0) >= sentAt
-            );
-            if (!botSpoke) {
-              const groupNow = await findGroupForChannel(api, nest, runtime);
-              if (!groupNow) {
-                // Unreadable is not the same as unconfigured. A transient
-                // scry failure here used to look exactly like "the setup
-                // wrote nothing", re-arming a setup whose job had in fact
-                // landed — so the owner's next ordinary message was eaten
-                // as a fresh topics reply and the whole build ran twice.
-                // The invite-pending sweep retries this reading anyway.
-                runtime.log?.(
-                  `[tlon] Could not read ${nest}'s group after a silent setup turn — leaving its state as is`
-                );
-              } else if (!descriptionHasConfiguredJob(groupNow.description)) {
-                onboardingSetupPending.set(nest, pendingSetupPurpose);
-                runtime.log?.(
-                  `[tlon] Setup turn in ${nest} produced no reply — re-arming the topics setup`
-                );
-                // Same reasoning as the throwing path above, and the same
-                // fix: this build is over, so the status hook has to come
-                // down with it. Left armed through the retry window, any
-                // later tool call on that agent session posts "Setting up
-                // your group…" into a group with no build running.
-                const deadProgressSession =
-                  setupProgressSessionForNest.get(nest);
-                if (deadProgressSession) {
-                  disarmSetupProgress(deadProgressSession);
-                  setupProgressSessionForNest.delete(nest);
-                }
-              }
-            }
-          } catch (error) {
-            runtime.log?.(
-              `[tlon] Could not verify the setup turn in ${nest} — leaving its state as is: ${String(error)}`
-            );
           }
         }
 

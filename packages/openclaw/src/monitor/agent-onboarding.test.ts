@@ -14,6 +14,7 @@ import {
   buildInviteCardBlob,
   buildPurposePickerBlob,
   buildServicesCardBlob,
+  buildTimezonePickerBlob,
   buildTopicsPickerBlob,
   channelHasNoPosts,
   derivePendingPurposeFromHistory,
@@ -38,6 +39,7 @@ import {
   shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
+  timezonePickerFallbackText,
   topicsPickerAnswered,
   topicsPickerFallbackText,
 } from './agent-onboarding.js';
@@ -189,6 +191,17 @@ describe('topics picker', () => {
     expect(topicsPickerFallbackText('agent-nonexistent')).toContain(
       'keep up with'
     );
+  });
+});
+
+describe('timezone picker', () => {
+  test('asks the client to resolve and send an IANA timezone', () => {
+    const blob = buildTimezonePickerBlob('chat/~zod/home-group-chat');
+    expect(blob).not.toBeNull();
+    const serialized = JSON.stringify(blob);
+    expect(serialized).toContain('tlon.sendMessage');
+    expect(serialized).toContain('Timezone: {{tlon.timezone}}');
+    expect(timezonePickerFallbackText()).toContain('America/New_York');
   });
 });
 

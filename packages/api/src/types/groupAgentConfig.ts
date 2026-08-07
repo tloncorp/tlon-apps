@@ -12,24 +12,17 @@ import { preSig } from '../lib/urbit';
  * is stored as a single-element JSON entry array in the group's
  * `meta.description` — see `parseGroupAgentConfig`. The array-of-typed-entries
  * wire shape matches the post blob convention so the move to the real field
- * is a relocation, not a migration. The writer today is the agent itself
- * (via the tlon CLI); the client only reads.
+ * is a relocation, not a migration. The writer is the trusted OpenClaw
+ * onboarding coordinator (via a direct argv-based Tlon invocation); the
+ * client only reads.
  */
 
 export const GROUP_AGENT_CONFIG_ENTRY_TYPE = 'tlon-group-agent-config';
 
 /**
  * Only `type` and `version` are strict — they identify the entry. Every other
- * field degrades to a default rather than failing the parse.
- *
- * The writer is a model following prose instructions, and rejecting the whole
- * entry over one malformed field is catastrophic rather than safe: the agent
- * stops being recognized, its interactive cards vanish, the raw JSON shows up
- * as the group's description, and any client state gated on the config (the
- * first-run chrome lock) stays stuck. It also made the client disagree with
- * the bot, which treats the same description as configured and moves on. A
- * missing `purpose` costs a line of display text; a rejected entry costs the
- * group.
+ * field degrades to a default rather than failing the parse. This tolerance is
+ * retained for configs produced by older model-driven onboarding releases.
  */
 const GroupAgentConfigEntrySchema = z.object({
   type: z.literal(GROUP_AGENT_CONFIG_ENTRY_TYPE),
@@ -52,6 +45,32 @@ const GroupAgentConfigEntrySchema = z.object({
    * outputNest, announceNest?, checkIn?, enabled}`.
    */
   jobs: z.array(z.unknown()).catch([]),
+  /**
+   * Deterministic first-run coordinator state. Older/model-authored configs
+   * omit it; callers retain the legacy jobs-present fallback for them.
+   */
+  onboarding: z
+    .object({
+      state: z.enum([
+        'awaiting-topics',
+        'awaiting-timezone',
+        'creating-cron',
+        'awaiting-notebook',
+        'researching',
+        'writing-note',
+        'complete',
+        'failed',
+      ]),
+      topics: z.string().max(1000),
+      timezone: z.string().max(100).optional(),
+      cronJobId: z.string().max(500).optional(),
+      notebookNest: z.string().max(500).optional(),
+      noteBaseline: z.string().max(500).nullable().optional(),
+      noteId: z.string().max(500).optional(),
+      lastError: z.string().max(1000).optional(),
+    })
+    .optional()
+    .catch(undefined),
   updatedAt: z.number().catch(0),
 });
 
@@ -98,16 +117,32 @@ export function parseGroupAgentConfig(
 }
 
 /**
- * True once the group's agent config records a job — the setup's final
- * artifact, and so the client's definition of "this group's onboarding is
- * finished". Chrome hidden during a guided setup unhides when this flips
- * true; the openclaw plugin gates its closing invite card on the same
- * signal.
+ * True once the group's agent config records a job. In deterministic
+ * onboarding this means the scheduler has been verified and the client may
+ * create the notebook; completion is tracked separately below.
  */
 export function groupHasConfiguredJob(
   description: string | null | undefined
 ): boolean {
   return (parseGroupAgentConfig(description)?.jobs.length ?? 0) > 0;
+}
+
+/**
+ * The guided first-run flow is complete only once its coordinator has
+ * verified the notebook write. Legacy configs predate coordinator state, so
+ * their existing jobs-present signal remains the compatibility fallback.
+ */
+export function groupAgentOnboardingIsComplete(
+  description: string | null | undefined
+): boolean {
+  const config = parseGroupAgentConfig(description);
+  if (!config) {
+    return false;
+  }
+  if (config.onboarding) {
+    return config.onboarding.state === 'complete';
+  }
+  return config.jobs.length > 0;
 }
 
 /**
