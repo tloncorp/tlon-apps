@@ -6,12 +6,12 @@ Provide the bot ship with a durable, locally readable, best-effort mirror of com
 
 ### Requirement: Gateway startup triggers a complete task read
 
-After `gateway_start`, the OpenClaw harness SHALL read and submit the complete current task-definition set, including disabled tasks, to the bot's local `%steward`. The submitted definitions SHALL exclude cron job `state` and execution events.
+After `gateway_start`, the OpenClaw harness SHALL read the complete current task-definition set, including disabled tasks, and submit it to the bot's local `%steward` through `%project`. The submitted definitions SHALL exclude cron job `state` and execution events.
 
 #### Scenario: Task definitions are available at startup
 
 - **WHEN** OpenClaw emits `gateway_start` and the current task-definition set is available
-- **THEN** the harness reads all tasks with disabled tasks included and submits the complete definition set to `%steward`
+- **THEN** the harness reads all tasks with disabled tasks included and submits the complete definition set to `%steward` through `%project`
 
 #### Scenario: Task definitions are not yet available at startup
 
@@ -30,7 +30,7 @@ The OpenClaw harness SHALL treat every `cron_changed` event as a reconciliation 
 #### Scenario: Cron change occurs
 
 - **WHEN** OpenClaw emits `cron_changed`
-- **THEN** the harness reads the complete current task set, including disabled tasks, and replaces the `%steward` projection rather than applying the event payload directly
+- **THEN** the harness reads the complete current task set, including disabled tasks, and submits it through `%project` rather than applying the event payload directly
 
 #### Scenario: Execution-related cron event occurs
 
@@ -58,7 +58,7 @@ The OpenClaw harness SHALL allow at most one complete read-and-submit operation 
 
 ### Requirement: Failed reconciliation is retried
 
-A failed complete read or `%steward` delivery SHALL NOT clear the last successfully stored projection. The OpenClaw harness SHALL retry the complete reconciliation while the gateway remains active without starting a concurrent reconciliation.
+A failed complete read or `%project` delivery SHALL NOT clear the last successfully stored projection. The OpenClaw harness SHALL retry the complete reconciliation while the gateway remains active without starting a concurrent reconciliation.
 
 #### Scenario: Complete read fails
 
@@ -67,7 +67,7 @@ A failed complete read or `%steward` delivery SHALL NOT clear the last successfu
 
 #### Scenario: Steward delivery fails
 
-- **WHEN** `%steward` does not accept a complete snapshot
+- **WHEN** `%steward` does not accept a `%project` submission
 - **THEN** the harness retains the last successful projection and retries without starting a concurrent delivery
 
 #### Scenario: Gateway stops
@@ -89,28 +89,28 @@ The `%steward` automation state SHALL represent the latest complete OpenClaw tas
 - **WHEN** a later complete reconciliation succeeds after the mirror has been stale
 - **THEN** `%steward` atomically replaces the stale task set with the newly read complete set
 
-### Requirement: Steward atomically stores the current task set
+### Requirement: Steward atomically commits the current task projection
 
-The local `%steward` automation action SHALL accept a complete list of task definitions from the local OpenClaw harness only when the poke's Gall source is the local ship. It SHALL atomically replace the previously stored task set, keyed by OpenClaw task ID. Repeating an equivalent snapshot SHALL leave the same stored result.
+The local `%steward` `%project` automation action SHALL accept a complete list of task definitions from the local OpenClaw harness only when the poke's Gall source is the local ship. It SHALL atomically commit the submitted complete projection as the current task set, keyed by OpenClaw task ID. Repeating an equivalent `%project` submission SHALL leave the same stored result.
 
 #### Scenario: Complete snapshot is accepted
 
-- **WHEN** the local OpenClaw harness submits a valid complete task snapshot through the local ship source
+- **WHEN** the local OpenClaw harness submits a valid `%project` action through the local ship source
 - **THEN** `%steward` stores exactly those task definitions and removes every task absent from the snapshot
 
 #### Scenario: Empty snapshot is accepted
 
-- **WHEN** the local OpenClaw harness submits an empty complete snapshot through the local ship source
+- **WHEN** the local OpenClaw harness submits `%project` with an empty task list through the local ship source
 - **THEN** `%steward` stores no automation tasks
 
 #### Scenario: Equivalent snapshot is repeated
 
-- **WHEN** the local OpenClaw harness submits the same logical task snapshot more than once through the local ship source
+- **WHEN** the local OpenClaw harness submits the same logical `%project` action more than once through the local ship source
 - **THEN** `%steward` retains the same task projection without duplicate records
 
 #### Scenario: Foreign ship submits a snapshot
 
-- **WHEN** a source other than the local ship submits an automation snapshot
+- **WHEN** a source other than the local ship submits a `%project` action
 - **THEN** `%steward` rejects it without changing stored tasks
 
 ### Requirement: Task definitions preserve supported OpenClaw fields

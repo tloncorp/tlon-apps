@@ -6,9 +6,9 @@ OpenClaw currently keeps automation definitions inside the external harness, so 
 
 - Add an automation module to the released `%steward` agent that persistently stores the bot's current OpenClaw cron task definitions.
 - Migrate existing deployed `%steward` state to initialize the automation module without losing core, lens, or gateway state.
-- Add a local, independently versioned automation action mark that atomically replaces the complete stored task projection.
-- After OpenClaw `gateway_start`, have the OpenClaw harness read all jobs, including disabled jobs, and replace the `%steward` projection.
-- Treat `cron_changed` events as reconciliation triggers: have the harness reread and submit the complete current job list rather than applying event payloads as deltas.
+- Add a local, independently versioned `%project` automation action that atomically commits a complete task projection as the current stored snapshot.
+- After OpenClaw `gateway_start`, have the OpenClaw harness read all jobs, including disabled jobs, and submit the complete snapshot through `%project`.
+- Treat `cron_changed` events as reconciliation triggers: have the harness reread and submit the complete current job list through `%project` rather than applying event payloads as deltas.
 - Serialize and coalesce reconciliation so snapshots cannot overtake one another, and retry transient failures while the gateway remains active.
 - Keep the current OpenClaw version and document that, without `cron_reconciled`, this is a best-effort mirror repaired on gateway startup and subsequent cron changes rather than an authoritative external projection.
 - Add a local `%steward` scry that returns the complete stored task projection through JSON conversion.

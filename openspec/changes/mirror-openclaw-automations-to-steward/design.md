@@ -24,11 +24,11 @@ The pinned OpenClaw version provides `gateway_start`, `cron_changed`, `gateway_s
 
 ## Decisions
 
-### 1. Use complete replacement snapshots rather than event deltas
+### 1. Use `%project` to atomically commit complete snapshots rather than event deltas
 
-The OpenClaw harness will submit the complete current task-definition set, and `%steward` will replace its automation task map atomically. Task IDs provide stable map keys, and an empty successful snapshot represents no configured tasks.
+The OpenClaw harness will submit the complete current task-definition set through `%project`, and `%steward` will validate and commit the entire automation task map in one state transition. Task IDs provide stable map keys, and a successful `%project` with an empty task list represents no configured tasks.
 
-This makes startup and later cron events use the same repair path. It also makes repeated submissions idempotent and removes tasks that disappeared while the integration was unavailable.
+The `%project` name describes committing the harness's complete external projection rather than mutating individual tasks. This makes startup and later cron events use the same repair path, makes repeated submissions idempotent, and removes tasks that disappeared while the integration was unavailable.
 
 **Alternative considered:** Applying `cron_changed` payloads as additions, updates, or removals would use less data, but those events are not an ordered, durable delta log and cannot repair missed events.
 
@@ -58,7 +58,7 @@ A typed model gives `%steward` a versioned, validated contract and prevents exec
 
 ### 5. Separate write and read contracts
 
-The automation module will use an independently versioned action contract for complete snapshot replacement and a separate update contract for the JSON scry. Separating inbound commands from outbound representations allows either side to evolve without overloading one mark family.
+The automation module will use an independently versioned `%project` action contract for complete projection commits and a separate update contract for the JSON scry. Separating inbound commands from outbound representations allows either side to evolve without overloading one mark family.
 
 The OpenClaw harness is the submitting actor. `%steward` does not authenticate a distinct harness identity in this increment; it authorizes the submission through the existing local Gall source boundary and rejects foreign sources. The scry uses the same local boundary.
 
@@ -85,7 +85,7 @@ This retains the current operational observer while keeping the new durable proj
 - **[Startup can precede cron-service readiness]** → Retry complete reconciliation while preserving the last successful snapshot.
 - **[Missed events or process crashes can leave the mirror stale]** → Reconcile from a complete list on the next gateway startup or observed cron change, and document best-effort freshness.
 - **[Execution-related events can cause unnecessary full reads]** → Coalesce triggers; prefer a simple repair path until operational evidence requires filtering.
-- **[Future OpenClaw task variants may not fit the v1 contract]** → Reject unsupported snapshots without replacing the last known-good projection, then add a later protocol version.
+- **[Future OpenClaw task variants may not fit the v1 contract]** → Reject unsupported `%project` submissions without changing the last known-good projection, then add a later protocol version.
 - **[Large snapshots increase poke and loom usage]** → Test realistic payloads and defer explicit limits until usage data justifies them.
 - **[Migration defects could damage released state]** → Test migration with populated values in every existing state slice and fail rather than reset on decode errors.
 
