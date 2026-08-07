@@ -259,11 +259,28 @@ export function shellSplitCommand(command: string): string[] {
 }
 
 /**
+ * True for a token that is the CLI's own name rather than a subcommand —
+ * `tlon`, or any path ending in it.
+ *
+ * Documentation everywhere (ours and the CLI's own `--help`) writes commands
+ * as `tlon groups update ...`, so a model copying that spelling passes the
+ * binary name through as the first token. `tlon` is not a subcommand, so
+ * without this the whole command is rejected as `Unknown tlon subcommand
+ * 'tlon'` — a failure caused purely by prose being obeyed literally.
+ */
+function isTlonBinaryName(arg: string): boolean {
+  const base = arg.split('/').pop() ?? arg;
+  return base === 'tlon' || base === 'tlon.js';
+}
+
+/**
  * Find the first positional argument (subcommand) by skipping credential flags
- * and their values. Returns the index into `args`, or -1 if none found.
+ * and their values, plus an optional leading binary name. Returns the index
+ * into `args`, or -1 if none found.
  */
 export function findTlonSubcommandIndex(args: string[]): number {
   let i = 0;
+  let skippedBinary = false;
   while (i < args.length) {
     const arg = args[i];
     if (arg.startsWith('--') && arg.includes('=')) {
@@ -275,6 +292,12 @@ export function findTlonSubcommandIndex(args: string[]): number {
     }
     if (CREDENTIAL_FLAGS_WITH_VALUE.has(arg)) {
       i += 2;
+      continue;
+    }
+    // Only once, and only in front: a later `tlon` is an argument value.
+    if (!skippedBinary && isTlonBinaryName(arg)) {
+      skippedBinary = true;
+      i += 1;
       continue;
     }
     return i;

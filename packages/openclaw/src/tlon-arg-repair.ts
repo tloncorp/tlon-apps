@@ -226,7 +226,11 @@ function malformedConfigEntryError(parsed: unknown): string | null {
     ) {
       continue;
     }
-    const config = entry as { version?: unknown; agents?: unknown };
+    const config = entry as {
+      version?: unknown;
+      agents?: unknown;
+      jobs?: unknown;
+    };
     if (config.version !== 1) {
       return (
         `Error: a tlon-group-agent-config entry has version ` +
@@ -244,6 +248,17 @@ function malformedConfigEntryError(parsed: unknown): string | null {
         `Error: a tlon-group-agent-config entry needs a non-empty ` +
         `"agents" array of ship names — that is how the app learns which ` +
         `ship is this group's agent.`
+      );
+    }
+    // A single job object rather than an array reads as zero jobs to the
+    // client, so the group looks configured-but-jobless: the chrome stays
+    // locked and nothing flags it, because the entry itself is well-formed.
+    if (config.jobs !== undefined && !Array.isArray(config.jobs)) {
+      return (
+        `Error: a tlon-group-agent-config entry has "jobs" as ` +
+        `${JSON.stringify(typeof config.jobs)} rather than an array. The ` +
+        `app reads a non-array as no jobs at all, so the setup would look ` +
+        `unfinished forever — wrap the job in an array.`
       );
     }
   }

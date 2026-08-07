@@ -4779,9 +4779,20 @@ export async function monitorTlonProvider(
             onboardingPickerOffered.has(nest) &&
             onboardingTopicsOffered.has(nest)
           );
-        const onboardingGroup = runOnboardingOffers
+        // Retried once, because every onboarding decision below keys off
+        // this read and a transient miss is indistinguishable from "not an
+        // onboarding group": with owner-listen on, a failure here sends the
+        // owner's topics reply to the model as ordinary chat and the setup
+        // is consumed as small talk. One cheap retry converts the common
+        // transient failure into a correct read; the narrow drop below still
+        // covers a read that stays unavailable.
+        let onboardingGroup = runOnboardingOffers
           ? await findGroupForChannel(api, nest, runtime)
           : null;
+        if (runOnboardingOffers && !onboardingGroup) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          onboardingGroup = await findGroupForChannel(api, nest, runtime);
+        }
         const onboardingOffer = onboardingGroup && {
           senderIsOwner: true,
           groupHostIsOwner: onboardingGroup.host === effectiveOwnerShip,
@@ -4792,17 +4803,22 @@ export async function monitorTlonProvider(
         if (
           runOnboardingOffers &&
           !onboardingGroup &&
-          isPurposePickerChoice(rawText ?? '')
+          (isPurposePickerChoice(rawText ?? '') ||
+            onboardingSetupPending.has(nest))
         ) {
-          // The groups scry failed under a message that is exactly a
-          // purpose-card title. Guessing "ordinary chat" hands the tap to
-          // the model (observed live: the bot chatted about the digest and
-          // the flow died there); guessing "tap" without the group is
-          // unfounded. Drop it — the sweep re-offers the pills from the
-          // transcript, and an owner one-word message this rare is
-          // re-sendable.
+          // The group read failed twice under a message that is either a
+          // purpose-card title or the topics reply this channel is waiting
+          // on. Guessing "ordinary chat" hands it to the model (observed
+          // live: the bot chatted about the digest and the flow died
+          // there); guessing "onboarding" without the group is unfounded.
+          // Drop it — the sweep re-offers from the transcript, and one
+          // re-sendable owner message beats a setup consumed as small talk.
+          // Deliberately not widened to *every* message in the window: after
+          // a restart the offered-flags are empty even in long-configured
+          // groups, and dropping real chat there would be worse than the
+          // bug.
           runtime.log?.(
-            `[tlon] Dropping a purpose-title message in ${nest}: the group could not be resolved`
+            `[tlon] Dropping an onboarding reply in ${nest}: the group could not be resolved`
           );
           return;
         }
@@ -5154,6 +5170,15 @@ export async function monitorTlonProvider(
           // read as ordinary chat.
           if (pendingSetupPurpose) {
             onboardingSetupPending.set(nest, pendingSetupPurpose);
+          }
+          // The build this armed the status lines for is over. Left armed,
+          // the session keeps its progress hook until the TTL expires, and
+          // any unrelated tool call in the same agent session posts "Setting
+          // up your notebook…" into a group that is no longer building.
+          const failedProgressSession = setupProgressSessionForNest.get(nest);
+          if (failedProgressSession) {
+            disarmSetupProgress(failedProgressSession);
+            setupProgressSessionForNest.delete(nest);
           }
           throw dispatchError;
         } finally {

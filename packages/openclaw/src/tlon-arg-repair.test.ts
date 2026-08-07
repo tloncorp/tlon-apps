@@ -144,6 +144,27 @@ describe('repairTlonCommandArgs', () => {
     expect(!second.ok && second.error).toContain('agents');
   });
 
+  it('refuses a single job object where an array belongs', () => {
+    // The client reads a non-array "jobs" as no jobs at all, so the group
+    // looks configured-but-jobless forever: the chrome stays locked, and
+    // nothing flags it because the entry is otherwise well-formed.
+    const objectJobs = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        agents: ['~zod'],
+        jobs: { id: 'digest', prompt: 'x' },
+      },
+    ]);
+    const result = repairTlonCommandArgs(
+      ['groups', 'update', '~zod/g', '--description', objectJobs],
+      files({})
+    );
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toContain('jobs');
+    expect(!result.ok && result.error).toContain('array');
+  });
+
   it('lets untyped arrays and bare markers through the tool', () => {
     // An array that never claims to be config is not the tool's business;
     // the monitor's repair nudge owns that judgement, where onboarding

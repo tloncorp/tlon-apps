@@ -1139,11 +1139,16 @@ async function updateGroup(
 
   const group = await getGroup(groupId);
 
+  // A group's icon and cover are each *either* an image URL or a color, in
+  // the same metadata slot. Falling back to the image alone sends an empty
+  // string for a color-styled group, so renaming it — or writing its agent
+  // config — silently strips the color it was displayed with. Mirrors the
+  // app's own fallback order in `groupActions.updateGroupMeta`.
   const meta = {
     title: options.title ?? group.title ?? '',
     description: options.description ?? group.description ?? '',
-    image: options.image ?? group.iconImage ?? '',
-    cover: options.cover ?? group.coverImage ?? '',
+    image: options.image ?? group.iconImage ?? group.iconImageColor ?? '',
+    cover: options.cover ?? group.coverImage ?? group.coverImageColor ?? '',
   };
 
   console.log(`Updating group ${groupId}...`);

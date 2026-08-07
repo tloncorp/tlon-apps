@@ -653,8 +653,14 @@ export async function findAgentGroupsAwaitingOpening(
  * The setup's output notebook, or null when the setup has none — the
  * 404-fallback path records a *chat* nest as outputNest, and a freeform
  * build may skip the notebook entirely. Prefers the nest the config
- * records; falls back to the group's notes channel, since the first run
- * creates the channel before it records it.
+ * records; falls back to the group's notes channel, since the owner's app
+ * creates the channel before anything records it.
+ *
+ * Throws when the groups state can't be read, rather than reporting "no
+ * notebook": callers use null to mean *this setup has none* and stop
+ * waiting on it, so a transient scry failure would otherwise release the
+ * closing cards on a setup whose notebook was merely unreadable for a
+ * moment. Every caller already treats a throw as "come back next sweep".
  */
 export async function setupOutputNotebookNest(
   api: ScryApi,
@@ -672,7 +678,12 @@ export async function setupOutputNotebookNest(
     }
   }
   const groups = await scryGroups(api, runtime, `notes channel for ${flag}`);
-  const group = groups?.[flag];
+  if (!groups) {
+    throw new Error(
+      `Could not read groups while resolving a notebook: ${flag}`
+    );
+  }
+  const group = groups[flag];
   const nests = group ? nestsOf(group) : [];
   return nests.find((key) => key.startsWith('notes/')) ?? null;
 }
