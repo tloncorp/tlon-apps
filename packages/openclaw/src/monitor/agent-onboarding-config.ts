@@ -31,6 +31,13 @@ export const GROUP_INTRO_MESSAGE = [
     'change my profile.',
 ].join('\n\n');
 
+export const ONBOARDING_PLUGIN_DIAGNOSTIC_PREFIX = 'OpenClaw plugin commit:';
+
+/** A visible build marker for diagnosing mixed app/plugin deployments. */
+export function onboardingPluginDiagnostic(commit: string): string {
+  return `${ONBOARDING_PLUGIN_DIAGNOSTIC_PREFIX} ${commit.trim() || 'unknown'}`;
+}
+
 export const PURPOSE_PICKER_PROMPT =
   "Let's make you a group that does something useful. What should it do?";
 

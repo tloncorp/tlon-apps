@@ -109,6 +109,7 @@ import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
   formatTlonVersionIdentity,
+  getTlonVersionIdentity,
   resolveTlonSkillVersion,
 } from '../version.js';
 import {
@@ -119,6 +120,7 @@ import {
   SERVICES_CARD_LEAD,
   TOPICS_PICKER_PROMPT,
   WAITING_FOR_NOTEBOOK_LINE,
+  onboardingPluginDiagnostic,
 } from './agent-onboarding-config.js';
 import {
   type DeterministicSetup,
@@ -959,11 +961,21 @@ export async function monitorTlonProvider(
      */
     const postOnboardingOpening = async (nest: string): Promise<void> => {
       const recentPosts = await fetchChannelHistory(api, nest, 10, runtime);
+      const pluginDiagnostic = onboardingPluginDiagnostic(
+        getTlonVersionIdentity().pluginCommit
+      );
+      const diagnosticAlreadyPosted = recentPosts.some(
+        (entry) =>
+          entry.author === botShipName && entry.content === pluginDiagnostic
+      );
       const introAlreadyPosted = recentPosts.some(
         (entry) =>
           entry.author === botShipName &&
           entry.content.startsWith(GROUP_INTRO_MESSAGE)
       );
+      if (!diagnosticAlreadyPosted) {
+        await postToChannel(nest, pluginDiagnostic);
+      }
       if (!introAlreadyPosted) {
         await postToChannel(nest, GROUP_INTRO_MESSAGE);
       }

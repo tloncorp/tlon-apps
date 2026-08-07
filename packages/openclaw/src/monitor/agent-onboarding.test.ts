@@ -3,10 +3,12 @@ import { describe, expect, test } from 'vitest';
 
 import {
   GROUP_INTRO_MESSAGE,
+  ONBOARDING_PLUGIN_DIAGNOSTIC_PREFIX,
   PURPOSE_OPTIONS,
   PURPOSE_TOPICS,
   TOPICS_PICKER_FOOTER,
   TOPICS_PICKER_PROMPT,
+  onboardingPluginDiagnostic,
 } from './agent-onboarding-config.js';
 import {
   buildInviteCardBlob,
@@ -83,6 +85,17 @@ describe('group intro', () => {
     expect(GROUP_INTRO_MESSAGE).toMatch(/own server/i);
     expect(GROUP_INTRO_MESSAGE).toMatch(/call me something else/i);
     expect(GROUP_INTRO_MESSAGE).not.toContain('?');
+  });
+});
+
+describe('plugin diagnostic', () => {
+  test('prints the running source commit and has an unknown fallback', () => {
+    expect(onboardingPluginDiagnostic('db7081f1b')).toBe(
+      `${ONBOARDING_PLUGIN_DIAGNOSTIC_PREFIX} db7081f1b`
+    );
+    expect(onboardingPluginDiagnostic('   ')).toBe(
+      `${ONBOARDING_PLUGIN_DIAGNOSTIC_PREFIX} unknown`
+    );
   });
 });
 
