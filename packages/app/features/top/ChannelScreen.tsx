@@ -235,6 +235,8 @@ export default function ChannelScreen(props: Props) {
   });
 
   useEffect(() => {
+    // This recovers a failed around-cursor query by issuing a newest query.
+    // Successful queries that temporarily omit the anchor recover in PostList.
     if (
       unreadCursor &&
       !selectedPostId &&

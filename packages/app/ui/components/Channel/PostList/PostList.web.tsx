@@ -11,7 +11,6 @@ import {
   PostListComponent,
   PostWithNeighbors,
   usePostListBottomCallbacks,
-  usesConversationPostList,
 } from './shared';
 
 const FORCE_MANUAL_SCROLL_ANCHORING: boolean = false;
@@ -19,8 +18,8 @@ const IS_FIREFOX = navigator.userAgent.includes('Firefox');
 
 export const PostList: PostListComponent = React.forwardRef(
   (props, forwardedRef) => {
-    return usesConversationPostList(props) ? (
-      <WebConversationPostList {...props} ref={forwardedRef} />
+    return props.numColumns === 1 ? (
+      <PostListSingleColumn {...props} ref={forwardedRef} />
     ) : (
       <PostListFlatList {...props} ref={forwardedRef} />
     );
@@ -28,7 +27,7 @@ export const PostList: PostListComponent = React.forwardRef(
 );
 PostList.displayName = 'PostList';
 
-const WebConversationPostList: PostListComponent = React.forwardRef(
+const PostListSingleColumn: PostListComponent = React.forwardRef(
   (
     {
       anchor,
@@ -267,7 +266,7 @@ const WebConversationPostList: PostListComponent = React.forwardRef(
     );
   }
 );
-WebConversationPostList.displayName = 'WebConversationPostList';
+PostListSingleColumn.displayName = 'PostListSingleColumn';
 
 function PostListItem({
   item,

@@ -61,7 +61,9 @@ PostList.displayName = 'PostList';
 /**
  * LegendList-backed implementation for upright native conversations. Callers
  * provide posts in visual order so every renderer shares one coordinate
- * system.
+ * system. Initial positioning has three phases: use estimates at mount, apply
+ * the exact position after initial layout, then correct for content changes
+ * until the user scrolls.
  */
 const ConversationPostList: PostListComponent = React.forwardRef(
   (
@@ -163,6 +165,9 @@ const ConversationPostList: PostListComponent = React.forwardRef(
         return;
       }
 
+      // Query failures switch ChannelScreen back to newest mode. A cache-backed
+      // query can appear settled while its around-cursor fetch and cache updates
+      // are still arriving, so wait briefly before falling back here.
       const timeout = setTimeout(() => {
         setTimedOutAnchorId(anchorId);
       }, ANCHOR_RESOLUTION_TIMEOUT_MS);
@@ -242,8 +247,9 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       isInitialAnchorReady,
       listMountKey,
     ]);
-    // onLoad fires before LegendList's post-load buffer expansion has laid out.
-    // Wait through that expansion so the exact target uses settled row sizes.
+    // LegendList has no settled-layout callback: onLoad fires before its
+    // next-frame buffer expansion, so wait through two layout opportunities
+    // before applying the exact target from measured row sizes.
     const scheduleInitialScroll = React.useCallback(() => {
       if (initialScrollFrameRef.current !== undefined) {
         cancelAnimationFrame(initialScrollFrameRef.current);

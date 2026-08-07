@@ -206,7 +206,7 @@ const Scroller = forwardRef(
         listRef.current?.scrollToEnd(params),
     }));
 
-    const pressedGoToBottom = useCallback(() => {
+    const pressedGoToBottom = () => {
       setHasPressedGoToBottom(true);
       onPressScrollToBottom?.();
 
@@ -215,7 +215,7 @@ const Scroller = forwardRef(
           listRef.current?.scrollToEnd({ animated: true });
         });
       }
-    }, [isLoading, onPressScrollToBottom]);
+    };
 
     const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>(
       {}
@@ -354,6 +354,7 @@ const Scroller = forwardRef(
 
     const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
+
     const contentContainerStyle = useStyle(
       useMemo(() => {
         if (!posts?.length) {
@@ -507,12 +508,11 @@ const Scroller = forwardRef(
     const onInitialScrollCompleted = useCallback(() => {
       setCompletedAnchorKey(anchorKey);
     }, [anchorKey]);
-    const showScrollButton = Boolean(shouldShowScrollButton());
 
     return (
       <View flex={1}>
-        {showScrollButton && (
-          <View position="absolute" bottom="$m" right="$l" zIndex={1000}>
+        {shouldShowScrollButton() && (
+          <View position="absolute" bottom={'$m'} right={'$l'} zIndex={1000}>
             <FloatingActionButton
               icon={
                 isLoading && hasPressedGoToBottom ? (
