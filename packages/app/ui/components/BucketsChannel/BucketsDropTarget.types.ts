@@ -5,6 +5,8 @@ export type BucketUploadCandidate = {
   name: string;
   size: number;
   mimeType?: string;
+  uri?: string;
+  file?: File;
 };
 
 export type BucketsDropTargetComponent = ComponentType<

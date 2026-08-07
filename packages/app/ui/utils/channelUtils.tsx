@@ -96,15 +96,20 @@ export function useChatDescription(
 }
 
 export function getChannelActionCapabilities(channel?: db.Channel | null): {
+  canDelete: boolean;
   canLeave: boolean;
   deleteDescription: string;
 } {
   return {
-    canLeave: !!channel && channel.type !== 'notes',
+    canDelete: !!channel && channel.type !== 'buckets',
+    canLeave:
+      !!channel && channel.type !== 'notes' && channel.type !== 'buckets',
     deleteDescription:
       channel?.type === 'notes'
         ? 'This action cannot be undone. The notebook and its notes will be permanently deleted.'
-        : 'This action cannot be undone. All messages in this channel will be permanently deleted.',
+        : channel?.type === 'buckets'
+          ? 'Bucket deletion will be available once stored objects can be removed atomically.'
+          : 'This action cannot be undone. All messages in this channel will be permanently deleted.',
   };
 }
 
@@ -251,6 +256,8 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
       return 'ChannelNotebooks';
     case 'gallery':
       return 'ChannelGalleries';
+    case 'buckets':
+      return 'Folder';
     default:
       return 'ChannelTalk';
   }

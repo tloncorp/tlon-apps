@@ -1,8 +1,8 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createChannel, useGroup } from '@tloncorp/shared';
-import { Button } from '@tloncorp/ui';
-import { useCallback, useEffect } from 'react';
+import { Button, useToast } from '@tloncorp/ui';
+import { useCallback, useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
@@ -28,6 +28,8 @@ export function CreateChannelPermissionsScreen() {
       RouteProp<GroupSettingsStackParamList, 'CreateChannelPermissions'>
     >();
   const insets = useSafeAreaInsets();
+  const toast = useToast();
+  const [isCreating, setIsCreating] = useState(false);
 
   const { groupId, channelTitle, channelType, createdRoleId, selectedRoleIds } =
     route.params;
@@ -76,7 +78,7 @@ export function CreateChannelPermissionsScreen() {
     });
   }, [navigation, groupId, form, channelTitle, channelType]);
 
-  const handleCreateChannel = useCallback(() => {
+  const handleCreateChannel = useCallback(async () => {
     const {
       readers: currentReaders,
       writers: currentWriters,
@@ -88,17 +90,28 @@ export function CreateChannelPermissionsScreen() {
       currentIsPrivate
     );
 
-    createChannel({
-      groupId,
-      title: channelTitle,
-      channelType,
-      readers: finalReaders,
-      writers: finalWriters,
-    });
+    try {
+      setIsCreating(true);
+      await createChannel({
+        groupId,
+        title: channelTitle,
+        channelType,
+        readers: finalReaders,
+        writers: finalWriters,
+      });
 
-    // Navigate back to channel list
-    navigation.navigate('ManageChannels', { groupId }, { pop: true });
-  }, [navigation, groupId, form, channelTitle, channelType]);
+      navigation.navigate('ManageChannels', { groupId }, { pop: true });
+    } catch (cause) {
+      toast({
+        message:
+          cause instanceof Error
+            ? cause.message
+            : 'Could not create this channel',
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  }, [navigation, groupId, form, channelTitle, channelType, toast]);
 
   if (!group) {
     return null;
@@ -122,6 +135,8 @@ export function CreateChannelPermissionsScreen() {
               preset="primary"
               onPress={handleCreateChannel}
               label="Create channel"
+              loading={isCreating}
+              disabled={isCreating}
             />
           </YStack>
         </ScrollView>

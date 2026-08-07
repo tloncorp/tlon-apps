@@ -80,10 +80,14 @@
     =/  roles=(list json)
       %+  turn  ~(tap in readers.st)
       |=(role=@tas s+(scot %tas role))
+    =/  writer-roles=(list json)
+      %+  turn  ~(tap in writers.st)
+      |=(role=@tas s+(scot %tas role))
     %-  pairs
     :~  ['bucket' (bucket bucket.st)]
         ['group' (flag group.st)]
         ['readers' [%a roles]]
+        ['writers' [%a writer-roles]]
         ['entries' [%a ents]]
         ['sessions' [%a sess]]
         ['revision' (numb revision.st)]
@@ -98,6 +102,15 @@
     ::
         %bucket-deleted
       (pairs ~[['type' s+'bucket-deleted']])
+    ::
+        %bucket-updated
+      (pairs ~[['type' s+'bucket-updated'] ['bucket' (bucket bucket.upd)]])
+    ::
+        %writers-updated
+      =/  roles=(list json)
+        %+  turn  ~(tap in writers.upd)
+        |=(role=@tas s+(scot %tas role))
+      (pairs ~[['type' s+'writers-updated'] ['writers' [%a roles]]])
     ::
         %folder-created
       (pairs ~[['type' s+'folder-created'] ['entry' (entry entry.upd)]])
@@ -213,10 +226,23 @@
           (so (get 'title' jon))
           (flag (get 'group' jon))
           (readers (get 'readers' jon))
+          (readers (get 'writers' jon))
       ==
     ::
         %'delete-bucket'
       [%delete-bucket (flag (get 'flag' jon))]
+    ::
+        %'set-title'
+      :*  %set-title
+          (flag (get 'flag' jon))
+          (so (get 'title' jon))
+      ==
+    ::
+        %'set-writers'
+      :*  %set-writers
+          (flag (get 'flag' jon))
+          (readers (get 'writers' jon))
+      ==
     ::
         %'create-folder'
       :*  %create-folder
@@ -233,6 +259,7 @@
           (so (get 'mime' jon))
           (ni (get 'size' jon))
           (maybe 'checksum' jon so)
+          (so (get 'capability' jon))
       ==
     ::
         %'finish-upload'
@@ -247,6 +274,20 @@
           (flag (get 'flag' jon))
           ((se %uv) (get 'sessionId' jon))
           (so (get 'reason' jon))
+      ==
+    ::
+        %'issue-read'
+      :*  %issue-read
+          (flag (get 'flag' jon))
+          (ni (get 'id' jon))
+          (so (get 'capability' jon))
+      ==
+    ::
+        %'issue-delete'
+      :*  %issue-delete
+          (flag (get 'flag' jon))
+          (ni (get 'id' jon))
+          (so (get 'capability' jon))
       ==
     ::
         %'rename-entry'

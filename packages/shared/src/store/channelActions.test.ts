@@ -320,6 +320,78 @@ test('createChannel does not roll back when the notes listing cannot be verified
   expect(deleteNotesNotebookStrict).not.toHaveBeenCalled();
 });
 
+test('createChannel creates a Bucket with independent reader and writer roles', async () => {
+  await insertGroup();
+  vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~zod');
+  const sendBucketsAction = vi
+    .spyOn(api, 'sendBucketsAction')
+    .mockResolvedValue(1);
+  vi.spyOn(api, 'getGroup').mockResolvedValue({
+    id: groupId,
+    channels: [
+      {
+        id: 'buckets/~zod/project-files',
+        title: 'Project files',
+        type: 'buckets',
+        groupId,
+        currentUserIsMember: true,
+        currentUserIsHost: true,
+        readerRoles: [
+          {
+            channelId: 'buckets/~zod/project-files',
+            roleId: 'member',
+          },
+        ],
+      },
+    ],
+  } as unknown as db.Group);
+
+  const channel = await createChannel({
+    customSlug: 'project-files',
+    groupId,
+    title: 'Project files',
+    channelType: 'buckets',
+    readers: ['member'],
+    writers: ['editor'],
+  });
+
+  expect(sendBucketsAction).toHaveBeenCalledWith({
+    type: 'create',
+    group: { host: '~zod', name: 'stale-notify' },
+    name: 'project-files',
+    readers: ['member'],
+    title: 'Project files',
+    writers: ['editor'],
+  });
+  expect(channel).toMatchObject({
+    id: 'buckets/~zod/project-files',
+    type: 'buckets',
+  });
+  await expect(
+    db.getChannelWithRelations({ id: channel.id })
+  ).resolves.toMatchObject({
+    readerRoles: [{ channelId: channel.id, roleId: 'member' }],
+    writerRoles: [{ channelId: channel.id, roleId: 'editor' }],
+  });
+});
+
+test('createChannel rejects Bucket creation by a non-host admin', async () => {
+  vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~solfer-magfed');
+  const sendBucketsAction = vi.spyOn(api, 'sendBucketsAction');
+
+  await expect(
+    createChannel({
+      customSlug: 'project-files',
+      groupId,
+      title: 'Project files',
+      channelType: 'buckets',
+    })
+  ).rejects.toThrow(
+    'Buckets can currently be created only by the host of this group'
+  );
+  expect(sendBucketsAction).not.toHaveBeenCalled();
+});
+
 test('joinGroupChannel routes notes channels through the notes API', async () => {
   const notesChannelId = 'notes/~zod/native-notes';
   await insertGroupAndChannel({ id: notesChannelId, type: 'notes' });

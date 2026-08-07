@@ -239,7 +239,7 @@ export type RoleSelectionReturn =
       returnParams: {
         groupId: string;
         channelTitle: string;
-        channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
+        channelType: 'chat' | 'notebook' | 'gallery' | 'notes' | 'buckets';
       };
     }
   | {
@@ -320,7 +320,7 @@ export type GroupSettingsStackParamList = {
   CreateChannelPermissions: {
     groupId: string;
     channelTitle: string;
-    channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
+    channelType: 'chat' | 'notebook' | 'gallery' | 'notes' | 'buckets';
     createdRoleId?: string;
     selectedRoleIds?: string[];
   };

@@ -366,27 +366,29 @@ function BucketRow({
         action: () => onDownloadItem?.(item),
       },
     ],
-    canEdit && [
-      'neutral',
-      {
-        title: `Rename ${item.kind}`,
-        startIcon: 'EditList',
-        action: () => onRenameItem?.(item),
-      },
-      {
-        title: `Move ${item.kind}`,
-        startIcon: 'Folder',
-        action: () => onMoveItem?.(item),
-      },
-    ],
-    canEdit && [
-      'negative',
-      {
-        title: `Delete ${item.kind}`,
-        startIcon: 'Trash',
-        action: () => onDeleteItem?.(item),
-      },
-    ]
+    canEdit &&
+      (onRenameItem || onMoveItem) && [
+        'neutral',
+        onRenameItem && {
+          title: `Rename ${item.kind}`,
+          startIcon: 'EditList',
+          action: () => onRenameItem(item),
+        },
+        onMoveItem && {
+          title: `Move ${item.kind}`,
+          startIcon: 'Folder',
+          action: () => onMoveItem(item),
+        },
+      ],
+    canEdit &&
+      onDeleteItem && [
+        'negative',
+        {
+          title: `Delete ${item.kind}`,
+          startIcon: 'Trash',
+          action: () => onDeleteItem(item),
+        },
+      ]
   );
   const trigger = showOverflow ? (
     <OverflowTriggerButton
@@ -540,11 +542,13 @@ function BucketSearchRow({
 
 export function BucketsNewSheet({
   open,
+  onChoosePhotos,
   onNewFolder,
   onOpenChange,
   onUploadFiles,
 }: {
   open: boolean;
+  onChoosePhotos: () => void;
   onNewFolder: (name: string) => void;
   onOpenChange: (open: boolean) => void;
   onUploadFiles: () => void;
@@ -598,6 +602,17 @@ export function BucketsNewSheet({
                   },
                 }}
                 testID="BucketsUploadFilesAction"
+              />
+              <ActionSheet.Action
+                action={{
+                  title: 'Choose photos',
+                  startIcon: 'Camera',
+                  action: () => {
+                    onOpenChange(false);
+                    onChoosePhotos();
+                  },
+                }}
+                testID="BucketsChoosePhotosAction"
               />
               <ActionSheet.Action
                 action={{

@@ -115,7 +115,7 @@ export default function ChannelScreen(props: Props) {
   );
 
   useEffect(() => {
-    if (!channelIsPending) {
+    if (!channelIsPending && channel?.type !== 'buckets') {
       if (channelThreadAbortController.current) {
         channelThreadAbortController.current.abort();
       }
@@ -125,7 +125,7 @@ export default function ChannelScreen(props: Props) {
         abortSignal: channelThreadAbortController.current?.signal,
       });
     }
-  }, [channelIsPending, channelId]);
+  }, [channel?.type, channelIsPending, channelId]);
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
@@ -206,7 +206,8 @@ export default function ChannelScreen(props: Props) {
     loadOlder,
     isLoading: isLoadingPosts,
   } = store.useChannelPosts({
-    enabled: !!channel && !channel?.isPendingChannel,
+    enabled:
+      !!channel && !channel.isPendingChannel && channel.type !== 'buckets',
     channelId: currentChannelId,
     count: 30,
     filterDeleted: !channelConfiguration?.includeDeletedPosts,
@@ -341,13 +342,13 @@ export default function ChannelScreen(props: Props) {
   );
 
   const handleMarkRead = useCallback(async () => {
-    if (channel && !channel.isPendingChannel) {
+    if (channel && !channel.isPendingChannel && channel.type !== 'buckets') {
       store.markChannelRead({
         id: channel.id,
         groupId: channel.groupId ?? undefined,
       });
     }
-  }, [channel?.type, channel?.id, channel?.groupId]);
+  }, [channel]);
 
   const handlePressInvite = useCallback(
     (groupId: string) => {

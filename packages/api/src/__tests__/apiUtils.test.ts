@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest';
 
-import { getBotUserIdForUser, isBotUserIdForUser } from '../client/apiUtils';
+import {
+  getBotUserIdForUser,
+  getChannelIdType,
+  isBotUserIdForUser,
+  isChannelId,
+  isGroupChannelId,
+} from '../client/apiUtils';
 
 describe('bot user ids', () => {
   test('builds the bot user id for a user', () => {
@@ -13,5 +19,15 @@ describe('bot user ids', () => {
     expect(isBotUserIdForUser('pinser-botter-zod', 'zod')).toBe(true);
     expect(isBotUserIdForUser('~pinser-botter-marzod', '~zod')).toBe(false);
     expect(isBotUserIdForUser('~pinser-botter-zod', '')).toBe(false);
+  });
+});
+
+describe('bucket channel ids', () => {
+  const channelId = 'buckets/~zod/project-files';
+
+  test('treats Buckets as group channels', () => {
+    expect(isGroupChannelId(channelId)).toBe(true);
+    expect(isChannelId(channelId)).toBe(true);
+    expect(getChannelIdType(channelId)).toBe('channel');
   });
 });

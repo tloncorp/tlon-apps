@@ -17,6 +17,8 @@ import { syncNotesNotebook } from './notesActions';
 const logger = createDevLogger('ChannelActions', false);
 const NOTES_CHANNEL_LISTING_ATTEMPTS = 5;
 const NOTES_CHANNEL_LISTING_DELAY_MS = 250;
+const BUCKETS_CHANNEL_LISTING_ATTEMPTS = 20;
+const BUCKETS_CHANNEL_LISTING_DELAY_MS = 250;
 
 class NotesChannelListingUnverifiedError extends Error {}
 
@@ -49,6 +51,16 @@ export async function createChannel({
       groupId,
       title,
       readers,
+    });
+  }
+
+  if (channelType === 'buckets') {
+    return createBucketsChannel({
+      customSlug,
+      groupId,
+      readers,
+      title,
+      writers,
     });
   }
 
@@ -112,6 +124,103 @@ export async function createChannel({
   }
 
   return newChannel;
+}
+
+async function createBucketsChannel({
+  customSlug,
+  groupId,
+  readers = [],
+  title,
+  writers = [],
+}: {
+  customSlug?: string;
+  groupId: string;
+  readers?: string[];
+  title: string;
+  writers?: string[];
+}): Promise<db.Channel> {
+  const currentUserId = api.getCurrentUserId();
+  const [groupHost, groupName, ...rest] = groupId.split('/');
+  if (!groupHost || !groupName || rest.length > 0) {
+    throw new Error(`Invalid group id: ${groupId}`);
+  }
+  if (groupHost !== currentUserId) {
+    throw new Error(
+      'Buckets can currently be created only by the host of this group'
+    );
+  }
+
+  const name = customSlug || getRandomId();
+  const flag: api.BucketsFlag = { host: currentUserId, name };
+  const channelId = api.formatBucketsChannelId(flag);
+  let created = false;
+
+  logger.trackEvent(
+    AnalyticsEvent.ActionCreateChannel,
+    logic.getModelAnalytics({
+      channel: { id: channelId, type: 'buckets' },
+      group: { id: groupId },
+    })
+  );
+
+  try {
+    await api.sendBucketsAction({
+      type: 'create',
+      group: { host: groupHost, name: groupName },
+      name,
+      readers,
+      title,
+      writers,
+    });
+    created = true;
+
+    const listedChannel = await waitForBucketsChannelListing(
+      groupId,
+      channelId
+    );
+    const newChannel: db.Channel = {
+      ...listedChannel,
+      contentConfiguration:
+        channelContentConfigurationForChannelType('buckets'),
+      type: 'buckets',
+      writerRoles: writers.map((roleId) => ({ channelId, roleId })),
+    };
+    await db.insertChannels([newChannel]);
+    await db.insertChannelPerms([{ channelId, readers, writers }]);
+    return newChannel;
+  } catch (e) {
+    await db.deleteChannels([channelId]).catch(() => undefined);
+    if (created) {
+      await api
+        .sendBucketsAction({ type: 'delete-bucket', flag })
+        .catch((rollbackError) =>
+          logger.error('Failed to roll back Bucket creation', rollbackError)
+        );
+    }
+    logger.error('Failed to add Buckets channel', e);
+    throw new Error('Failed to add Buckets channel to group');
+  }
+}
+
+async function waitForBucketsChannelListing(
+  groupId: string,
+  channelId: string
+) {
+  for (
+    let attempt = 1;
+    attempt <= BUCKETS_CHANNEL_LISTING_ATTEMPTS;
+    attempt += 1
+  ) {
+    const group = await api.getGroup(groupId).catch(() => null);
+    const listedChannel = group?.channels?.find(
+      (channel) => channel.id === channelId
+    );
+    if (listedChannel) return listedChannel;
+    if (attempt < BUCKETS_CHANNEL_LISTING_ATTEMPTS) {
+      await wait(BUCKETS_CHANNEL_LISTING_DELAY_MS);
+    }
+  }
+  throw new Error(`Bucket channel listing did not appear: ${channelId}`);
 }
 
 async function createNotesChannel({
@@ -278,6 +387,12 @@ function channelContentConfigurationForChannelType(
         defaultPostContentRenderer: api.PostContentRendererId.notes,
         defaultPostCollectionRenderer: api.CollectionRendererId.notes,
       };
+    case 'buckets':
+      return {
+        draftInput: api.DraftInputId.buckets,
+        defaultPostContentRenderer: api.PostContentRendererId.buckets,
+        defaultPostCollectionRenderer: api.CollectionRendererId.buckets,
+      };
   }
 
   throw new Error('Unknown channel type');
@@ -298,17 +413,23 @@ export async function deleteChannel({
     })
   );
 
+  const deletedChannel = await db.getChannel({ id: channelId });
+
   // optimistic update
   await db.deleteChannels([channelId]);
 
   try {
-    await api.deleteChannel({ channelId, groupId });
+    const bucketFlag = api.parseBucketsChannelId(channelId);
+    if (bucketFlag) {
+      await api.sendBucketsAction({ type: 'delete-bucket', flag: bucketFlag });
+    } else {
+      await api.deleteChannel({ channelId, groupId });
+    }
   } catch (e) {
     console.error('Failed to delete channel', e);
     // rollback optimistic update
-    const channel = await db.getChannel({ id: channelId });
-    if (channel) {
-      await db.insertChannels([channel]);
+    if (deletedChannel) {
+      await db.insertChannels([deletedChannel]);
     }
     return;
   }
@@ -416,6 +537,21 @@ export async function updateChannel({
       channelId: channel.id,
       channel: groupChannel,
     });
+    const bucketFlag = api.parseBucketsChannelId(channel.id);
+    if (bucketFlag) {
+      await api.sendBucketsAction({
+        type: 'set-title',
+        flag: bucketFlag,
+        title: channel.title ?? '',
+      });
+      await api.sendBucketsAction({
+        type: 'set-writers',
+        flag: bucketFlag,
+        writers,
+      });
+      logger.log('updated Bucket channel on server');
+      return;
+    }
     if (writersToAdd.length > 0) {
       logger.log('adding writers', writersToAdd);
       await api.addChannelWriters({

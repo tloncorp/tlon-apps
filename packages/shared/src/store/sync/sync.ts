@@ -57,6 +57,7 @@ export const syncInitData = async (
   const initData = await syncQueue.add('init', syncCtx, () =>
     api.getInitData()
   );
+  const bucketSnapshots = await api.getBuckets().catch(() => []);
   logger.crumb('got init data from api');
   initializeJoinedSet(initData.unreads);
   useLureState.getState().start();
@@ -99,6 +100,17 @@ export const syncInitData = async (
     await db
       .insertChannelPerms(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
+    if (bucketSnapshots.length > 0) {
+      await db.insertChannelPerms(
+        bucketSnapshots.map((snapshot) => ({
+          channelId: api.formatBucketsChannelId(snapshot.flag),
+          readers: snapshot.state.readers,
+          writers: snapshot.state.writers,
+        })),
+        queryCtx
+      );
+      logger.crumb('inserted Bucket channel perms');
+    }
     await db
       .insertChannelOrder(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel order'));
