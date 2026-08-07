@@ -46,6 +46,7 @@ import {
 import {
   armOnboardingResearchSession,
   disarmOnboardingResearchForNest,
+  enqueueAndWakeOnboardingResearch,
   readOnboardingNotebookNewestId,
   registerOnboardingDraftHandler,
   runOnboardingTlonCommand,
@@ -1328,10 +1329,37 @@ export async function monitorTlonProvider(
           return false;
         }
         armOnboardingResearchSession(nest, route.sessionKey);
-        core.system.enqueueSystemEvent(text, {
-          sessionKey: route.sessionKey,
-          contextKey: `tlon:deterministic-research:${nest}`,
-        });
+        const wakeStartedAt = Date.now();
+        const result = enqueueAndWakeOnboardingResearch(
+          () =>
+            core.system.enqueueSystemEvent(text, {
+              sessionKey: route.sessionKey,
+              contextKey: `tlon:deterministic-research:${nest}`,
+              deliveryContext: tlonDeliveryContext(
+                `tlon:${nest}`,
+                route.accountId
+              ),
+            }),
+          () =>
+            core.system.requestHeartbeat({
+              source: 'background-task',
+              intent: 'immediate',
+              reason: 'tlon-onboarding-research',
+              sessionKey: route.sessionKey,
+            })
+        );
+        if (!result.enqueued) {
+          traceOnboarding({
+            nest,
+            onboardingStage: 'research',
+            onboardingOperation: 'enqueue_system_event',
+            onboardingOutcome: 'failed_retryable',
+            onboardingSource: 'reconciliation',
+            durationMs: Date.now() - startedAt,
+            reason: 'system_event_not_enqueued',
+          });
+          return false;
+        }
         traceOnboarding({
           nest,
           onboardingStage: 'research',
@@ -1339,6 +1367,20 @@ export async function monitorTlonProvider(
           onboardingOutcome: 'succeeded',
           onboardingSource: 'reconciliation',
           durationMs: Date.now() - startedAt,
+        });
+        traceOnboarding({
+          nest,
+          onboardingStage: 'research',
+          onboardingOperation: 'request_heartbeat',
+          onboardingOutcome: result.wakeRequested
+            ? 'succeeded'
+            : 'failed_retryable',
+          onboardingSource: 'reconciliation',
+          durationMs: Date.now() - wakeStartedAt,
+          reason: result.wakeRequested ? null : 'heartbeat_request_failed',
+          ...(result.wakeRequested
+            ? {}
+            : onboardingErrorFields(result.wakeError)),
         });
         return true;
       } catch (error) {

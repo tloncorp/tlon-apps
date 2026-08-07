@@ -14,6 +14,11 @@ export type OnboardingDraftResult = {
 type TlonCommandRunner = (args: string[]) => Promise<string>;
 type DraftHandler = (draft: OnboardingDraft) => Promise<OnboardingDraftResult>;
 
+export type OnboardingResearchWakeResult =
+  | { enqueued: false; wakeRequested: false }
+  | { enqueued: true; wakeRequested: true }
+  | { enqueued: true; wakeRequested: false; wakeError: unknown };
+
 const commandRunnerSlot = sharedSlot<TlonCommandRunner>(
   'agentOnboarding.commandRunner'
 );
@@ -75,6 +80,26 @@ export async function readOnboardingNotebookNewestId(
 ): Promise<string | null> {
   const output = await runOnboardingTlonCommand(['notes', 'notes', notesNest]);
   return parseOnboardingNotesListing(output);
+}
+
+/**
+ * Queue the model-owned research turn and wake its session immediately.
+ * A failed wake leaves the durable system event queued, so the caller must
+ * retain its draft handler for the next heartbeat instead of disarming it.
+ */
+export function enqueueAndWakeOnboardingResearch(
+  enqueue: () => boolean,
+  wake: () => void
+): OnboardingResearchWakeResult {
+  if (!enqueue()) {
+    return { enqueued: false, wakeRequested: false };
+  }
+  try {
+    wake();
+    return { enqueued: true, wakeRequested: true };
+  } catch (wakeError) {
+    return { enqueued: true, wakeRequested: false, wakeError };
+  }
 }
 
 /**

@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
   armOnboardingResearchSession,
   clearOnboardingOperations,
   disarmOnboardingResearchForNest,
   disarmOnboardingResearchSession,
+  enqueueAndWakeOnboardingResearch,
   isOnboardingResearchSession,
   parseOnboardingNotesListing,
   readOnboardingNotebookNewestId,
@@ -75,5 +76,46 @@ describe('onboarding notebook reads', () => {
       readOnboardingNotebookNewestId('notes/~zod/daily')
     ).resolves.toBe('42');
     expect(calls).toEqual([['notes', 'notes', 'notes/~zod/daily']]);
+  });
+});
+
+describe('onboarding research wake', () => {
+  test('requests an immediate wake only after the directive is enqueued', () => {
+    const enqueue = vi.fn(() => true);
+    const wake = vi.fn();
+
+    expect(enqueueAndWakeOnboardingResearch(enqueue, wake)).toEqual({
+      enqueued: true,
+      wakeRequested: true,
+    });
+    expect(enqueue).toHaveBeenCalledOnce();
+    expect(wake).toHaveBeenCalledOnce();
+  });
+
+  test('does not wake a session when the directive was not enqueued', () => {
+    const wake = vi.fn();
+
+    expect(enqueueAndWakeOnboardingResearch(() => false, wake)).toEqual({
+      enqueued: false,
+      wakeRequested: false,
+    });
+    expect(wake).not.toHaveBeenCalled();
+  });
+
+  test('keeps an enqueued directive armed when the wake request throws', () => {
+    const wakeError = new Error('heartbeat unavailable');
+
+    expect(
+      enqueueAndWakeOnboardingResearch(
+        () => true,
+        () => {
+          throw wakeError;
+        }
+      )
+    ).toEqual({
+      enqueued: true,
+      wakeRequested: false,
+      wakeError,
+    });
   });
 });
