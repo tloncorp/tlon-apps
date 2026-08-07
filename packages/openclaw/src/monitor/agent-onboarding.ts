@@ -1089,10 +1089,11 @@ export function descriptionHasConfiguredJob(
  */
 export function renderNotebookEntryDirective(
   notesNest: string,
-  job: { title?: unknown; prompt?: unknown } | null
+  job: { title?: unknown; prompt?: unknown } | null,
+  description?: string | null
 ): string {
   const title = typeof job?.title === 'string' ? job.title.trim() : '';
-  const prompt = typeof job?.prompt === 'string' ? job.prompt.trim() : '';
+  const prompt = dayOneEntryDescription(description, job);
   return [
     '[Tlon notebook directive — not written by the owner]',
     `The owner's notebook now exists at \`${notesNest}\` and is empty.`,
@@ -1155,13 +1156,47 @@ export function firstConfiguredJob(
 }
 
 /**
+ * What the day-one notebook entry should say, for a group whose config
+ * records which setup built it.
+ *
+ * The stored job `prompt` describes the *recurring* run and is wrong for
+ * this: a Tracking prompt reviews what was logged "since the last
+ * check-in" and stops in chat when nothing was, which on day one is
+ * always — so it told the model to write nothing while the closing waited
+ * for an entry. `templateId` is written into the config precisely so this
+ * lookup can happen later. Falls back to the prompt when the id is missing
+ * or unknown, which is all a freeform setup ever has.
+ */
+function dayOneEntryDescription(
+  description: string | null | undefined,
+  job: { title?: unknown; prompt?: unknown } | null
+): string {
+  for (const entry of agentConfigEntries(description)) {
+    const templateId =
+      typeof entry.templateId === 'string' ? entry.templateId : '';
+    const purpose = templateId ? PURPOSE_JOBS[templateId] : undefined;
+    if (purpose) {
+      // The stored title is the filled template ("Tracking check-in:
+      // Sleep, Coffee"), so the topics are whatever follows the colon —
+      // the only place the config keeps them once setup is over.
+      const title = typeof job?.title === 'string' ? job.title : '';
+      const topics = title.slice(title.indexOf(':') + 1).trim();
+      return topics
+        ? purpose.entry.replaceAll('{{topics}}', topics)
+        : purpose.entry.replaceAll('{{topics}}', 'your');
+    }
+  }
+  return typeof job?.prompt === 'string' ? job.prompt.trim() : '';
+}
+
+/**
  * The config entries in a group description, or none if it holds prose or
  * malformed JSON — anything unparseable reads as "no config", matching
  * `parseGroupAgentConfig` in @tloncorp/api.
  */
 function agentConfigEntries(
   description: string | null | undefined
-): { purpose?: unknown; jobs?: unknown }[] {
+): { purpose?: unknown; templateId?: unknown; jobs?: unknown }[] {
   const trimmed = description?.trim();
   if (!trimmed?.startsWith('[')) {
     return [];

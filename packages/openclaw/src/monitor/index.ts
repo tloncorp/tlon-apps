@@ -1238,7 +1238,7 @@ export async function monitorTlonProvider(
       if (
         enqueueSetupDirective(
           nest,
-          renderNotebookEntryDirective(notesNest, job),
+          renderNotebookEntryDirective(notesNest, job, group.description),
           `notebook-entry:${nudges + 1}`
         )
       ) {

@@ -636,21 +636,47 @@ describe('renderSetupDirective', () => {
     expect(renderSetupDirective('agent-nonexistent', 'x')).toBeNull();
   });
 
+  const trackingConfig = (topics: string) =>
+    JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        templateId: 'agent-tracking',
+        agents: ['~zod'],
+        jobs: [
+          {
+            id: 'agent-tracking',
+            title: `Tracking check-in: ${topics}`,
+            prompt: 'Review the logs.',
+          },
+        ],
+      },
+    ]);
+
   test('tracking seeds the owner-hosted notebook with the sample entry', () => {
     // Tracking's first scheduled run may be a day away, so its day-one
     // entry is a seed rather than a check-in. The agent supplies the
     // words; the sweep supplies the nest and the moment.
     const directive = renderSetupDirective('agent-tracking', 'HRV, Dreams')!;
     expect(directive).toContain("don't go looking for the notebook");
-    expect(directive).toContain('Tlon hands you its nest');
-    expect(directive).toContain(
+    // The seed text belongs to the entry directive, not this turn: the
+    // setup turn is told to write nothing, so wording the seed here only
+    // invited it to be written early.
+    expect(directive).not.toContain('About this notebook');
+
+    const entry = renderNotebookEntryDirective(
+      'notes/~zod/tracking',
+      { title: 'Tracking check-in: HRV, Dreams', prompt: 'Review the logs.' },
+      trackingConfig('HRV, Dreams')
+    );
+    expect(entry).toContain('About this notebook');
+    expect(entry).toContain(
       'Analysis and summaries of your HRV, Dreams entries will land in ' +
         'this notebook.'
     );
-    // Digest and research seed nothing.
-    expect(renderSetupDirective('agent-daily-digest', 'News')).not.toContain(
-      'About this notebook'
-    );
+    // And it must not describe the entry with the recurring check-in
+    // prompt, which on day one reviews nothing and stops in chat.
+    expect(entry).not.toContain('Review the logs.');
   });
 
   test('the config example is the whole description, not a bare job', () => {
@@ -840,10 +866,18 @@ describe('renderSetupDirective', () => {
     }
   });
 
-  test('confirmation: output jobs run once now, tracking asks for an entry', () => {
+  test('confirmation: research now, write later, and never claim posted', () => {
     for (const id of ['agent-daily-digest', 'agent-research']) {
       const directive = renderSetupDirective(id, 'News')!;
-      expect(directive).toContain('Run the job once right now');
+      // The confirmation used to say "Run the job once right now" and
+      // expect the output to land in the notebook — in the same turn the
+      // directive had just told the model to stop before writing and wait
+      // for Tlon to name the nest. The model could obey either one, and
+      // obeying the confirmation recreated the early, self-chosen write
+      // the whole handoff exists to prevent.
+      expect(directive).not.toContain('Run the job once right now');
+      expect(directive).toContain('Do not write the notebook entry');
+      expect(directive).toContain('so the entry is ready');
       // Sources are listed as a statement — the invite is the only closing
       // question, so the confirmation must not end on one of its own.
       expect(directive).toContain('list the sources you used');

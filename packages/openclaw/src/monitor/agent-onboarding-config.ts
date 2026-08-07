@@ -327,7 +327,24 @@ export const NOTEBOOK_ENTRY_WRITE_RULE =
  */
 export const PURPOSE_JOBS: Record<
   string,
-  { title: string; schedule: string; prompt: string; confirmation: string }
+  {
+    title: string;
+    schedule: string;
+    prompt: string;
+    /**
+     * What the day-one notebook entry should contain.
+     *
+     * Separate from `prompt` because the two describe different things.
+     * `prompt` is the recurring run: for Tracking it reviews what the owner
+     * logged "since the last check-in" and stops in chat when that is
+     * nothing — which on day one is always, so using it as the entry
+     * description told the model to write no entry at all while the closing
+     * sat waiting for one. Separate from `confirmation` because that is
+     * what the agent says in chat, not what it writes down.
+     */
+    entry: string;
+    confirmation: string;
+  }
 > = {
   'agent-daily-digest': {
     title: 'Daily digest: {{topics}}',
@@ -342,19 +359,24 @@ export const PURPOSE_JOBS: Record<
       'from their timezone and name it so they can correct you. ' +
       OUTPUT_CHANNEL_RULE +
       ' No preamble.',
+    entry:
+      "Today's digest on the topics in the title — the research you just " +
+      'did, written up: a line of facts or 3-4 dated headline bullets per ' +
+      'topic, sources where they matter. No preamble.',
     confirmation:
-      'Run the job once right now, exactly as the scheduled run would — ' +
-      'the owner should see a real digest, not a promise of one, landing ' +
-      "in the notebook the owner's app created. " +
+      'Do the digest research now, so the entry is ready the moment Tlon ' +
+      'names the notebook. ' +
       INLINE_FIRST_RUN +
-      ' Never fabricate: if you ' +
-      "can't actually research, say so in chat in one honest line, with " +
-      'what will arrive and when, and leave the notebook untouched ' +
-      'until there is something real to put in it. Then list the sources you ' +
-      'used, one line each, so they can see where it came from and tell you ' +
-      'to add, drop, or swap one whenever they like — the closing ask below ' +
-      'is the only question this message should end on. If the run ' +
-      'degraded, name what was missing and what you would use once it works.',
+      ' Do not write the notebook entry in this turn and do not say the ' +
+      'digest has been posted — Tlon writes it once the notebook exists. ' +
+      'In chat, tell them what you found in a sentence or two and list the ' +
+      'sources you used, one line each, so they can see where it came from ' +
+      'and tell you to add, drop, or swap one whenever they like. Never ' +
+      "fabricate: if you can't actually research, say so in chat in one " +
+      'honest line, with what will arrive and when. If the research ' +
+      'degraded, name what was missing and what you would use once it ' +
+      'works. The closing ask below is the only question this message ' +
+      'should end on.',
   },
   'agent-tracking': {
     title: 'Tracking check-in: {{topics}}',
@@ -366,14 +388,16 @@ export const PURPOSE_JOBS: Record<
       OUTPUT_CHANNEL_RULE +
       ' If nothing was logged, say so in one line in chat and stop, ' +
       'without posting an empty check-in.',
+    entry:
+      'Not a check-in — there is nothing logged yet to check. A single ' +
+      'seed titled "About this notebook" whose body is exactly: "Analysis ' +
+      'and summaries of your {{topics}} entries will land in this ' +
+      'notebook." — you may only rephrase the topic list itself so it ' +
+      'reads naturally.',
     confirmation:
       "There's nothing to summarize yet, so don't run the job, and don't " +
-      'go looking for the notebook — Tlon hands you its nest once the ' +
-      "owner's app has made it. The entry you write when that directive " +
-      'arrives is not a check-in: it is a single seed titled "About this ' +
-      'notebook" whose body is exactly: "Analysis and summaries of your ' +
-      '{{topics}} entries will land in this notebook." — you may only ' +
-      'rephrase the topic list itself so it reads naturally. Now, in ' +
+      "go looking for the notebook — Tlon writes the notebook's opening " +
+      "entry itself once the owner's app has made it. Now, in " +
       'chat, ask the owner to log their first entry right now, in their ' +
       "own words, and confirm you've recorded it — leaving the closing " +
       'ask below as the only question, rather than also asking what else ' +
@@ -388,19 +412,24 @@ export const PURPOSE_JOBS: Record<
       'chatter. Never answer from memory. ' +
       OUTPUT_CHANNEL_RULE +
       ' If nothing new surfaced, say so in one line and stop.',
+    entry:
+      'The first research update on the topics in the title — what you ' +
+      'just found: releases, papers, notable writing, community chatter, ' +
+      'with sources. No preamble.',
     confirmation:
-      'Run the job once right now, exactly as the scheduled run would — ' +
-      'the owner should see a real first update, landing in the notebook ' +
-      "the owner's app created. " +
+      'Do the research now, so the entry is ready the moment Tlon names ' +
+      'the notebook. ' +
       INLINE_FIRST_RUN +
-      " Never fabricate: if you can't actually " +
-      'research, say so in chat in one honest line, with what will arrive ' +
-      'and when, and leave the notebook untouched until there is ' +
-      'something real to put in it. Then list the sources you used, one line ' +
-      'each, so they can see where it came from and tell you to add, drop, ' +
-      'or swap one whenever they like — the closing ask below is the only ' +
-      'question this message should end on. If the run degraded, name what ' +
-      'was missing and what you would use once it works.',
+      ' Do not write the notebook entry in this turn and do not say the ' +
+      'update has been posted — Tlon writes it once the notebook exists. ' +
+      'In chat, tell them what you found in a sentence or two and list ' +
+      'the sources you used, one line each, so they can see where it came ' +
+      'from and tell you to add, drop, or swap one whenever they like. ' +
+      "Never fabricate: if you can't actually research, say so in chat in " +
+      'one honest line, with what will arrive and when. If the research ' +
+      'degraded, name what was missing and what you would use once it ' +
+      'works. The closing ask below is the only question this message ' +
+      'should end on.',
   },
 };
 

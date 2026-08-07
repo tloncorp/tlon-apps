@@ -8,6 +8,7 @@ import {
   triggerHaptic,
 } from '@tloncorp/ui';
 import { useState } from 'react';
+import { Platform } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import { useIsWindowNarrow } from '../utils';
@@ -53,6 +54,12 @@ export function BotSettingsScreenView({
   showUnavailableNotice,
 }: BotSettingsScreenViewProps) {
   const isWindowNarrow = useIsWindowNarrow();
+  // Mirrors `useNestedSettings` in navigation/utils: only web at a wide
+  // window puts this screen inside the settings drawer, which supplies its
+  // own way back. Everywhere else it is a flat RootStack route with
+  // gestures disabled, so this header is the only exit — and gating on
+  // width alone left a native tablet with no back button and no swipe.
+  const showBackAction = isWindowNarrow || Platform.OS !== 'web';
   const activeProviders = providers.filter(
     (provider) => provider.status === 'connected'
   );
@@ -64,7 +71,7 @@ export function BotSettingsScreenView({
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? onBackPressed : undefined}
+        backAction={showBackAction ? onBackPressed : undefined}
         loadingSubtitle={refreshing && !initialLoading ? 'Refreshing' : null}
         rightActions={[
           {
