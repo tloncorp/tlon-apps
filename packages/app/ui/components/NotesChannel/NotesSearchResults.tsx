@@ -4,7 +4,7 @@ import {
   buildNoteSnippet,
   buildNoteTitleSegments,
 } from '@tloncorp/shared/logic';
-import { LoadingSpinner, Pressable } from '@tloncorp/ui';
+import { LoadingSpinner, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { FlatList, type ViewStyle } from 'react-native';
 import { SizableText, View, XStack, YStack } from 'tamagui';
@@ -68,12 +68,14 @@ function NotesSearchResultRowComponent({
   note,
   query,
   selected,
+  snippetLines,
   onPress,
 }: {
   folderPath?: string | null;
   note: NotesSearchResultNote;
   query: string;
   selected: boolean;
+  snippetLines: number;
   onPress: () => void;
 }) {
   const titleSegments = useMemo(
@@ -98,7 +100,11 @@ function NotesSearchResultRowComponent({
         paddingVertical="$l"
       >
         <ListItem.SystemIcon icon="ChannelNote" />
-        <ListItem.MainContent>
+        {/* MainContent is a fixed $4xl (48px) tall, which a title plus two
+            snippet lines overflows — and views clip, so the second line came
+            out sliced through the middle. Narrow rows show one line and fit
+            that box; wider rows size to their content instead. */}
+        <ListItem.MainContent height={snippetLines > 1 ? 'auto' : undefined}>
           <XStack alignItems="baseline" gap="$s" minWidth={0}>
             <ListItem.Title
               size="$body"
@@ -130,7 +136,10 @@ function NotesSearchResultRowComponent({
             // Middle contrast, between the title and the path/timestamp: the
             // snippet is what you read to judge a hit, so it shouldn't sit at
             // the same weight as the metadata locating it.
-            <ListItem.Subtitle color="$secondaryText" numberOfLines={2}>
+            <ListItem.Subtitle
+              color="$secondaryText"
+              numberOfLines={snippetLines}
+            >
               <SegmentedText
                 segments={snippet.segments}
                 prefix={snippet.elidedStart ? ELLIPSIS : undefined}
@@ -198,6 +207,8 @@ export function NotesSearchResults({
   onPressNote: (note: NotesSearchResultNote) => void;
 }) {
   const listRef = useRef<FlatList<NotesSearchResultNote>>(null);
+  const isWindowNarrow = useIsWindowNarrow();
+  const snippetLines = isWindowNarrow ? 1 : 2;
 
   const selectedIndex = useMemo(
     () =>
@@ -225,10 +236,11 @@ export function NotesSearchResults({
         note={item}
         query={query}
         selected={item.noteId === selectedNoteId}
+        snippetLines={snippetLines}
         onPress={() => onPressNote(item)}
       />
     ),
-    [getFolderPath, onPressNote, query, selectedNoteId]
+    [getFolderPath, onPressNote, query, selectedNoteId, snippetLines]
   );
 
   const keyExtractor = useCallback(
