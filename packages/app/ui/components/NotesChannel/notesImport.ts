@@ -235,108 +235,49 @@ export function buildNotesImportItems(
   });
 }
 
-export type NotesImportFolderRef = {
-  folderId: number;
-  name: string;
-  parentFolderId?: number | null;
-};
-
 /**
- * One `batch-import-tree` submission: a tree of new folders and notes to
- * create under an already-existing folder.
- */
-export type NotesImportBatch = {
-  parentFolderId: number;
-  tree: NotesImportNode[];
-};
-
-/**
- * Plan an import as batch-import-tree submissions.
+ * Nest import items into a single `batch-import-tree` payload.
  *
- * The backend creates every folder in a tree unconditionally, so paths that
- * already exist locally can't be part of the tree — importing `docs/a.md`
- * into a notebook that already has `docs/` would otherwise make a second
- * `docs/`. Existing prefixes are therefore walked here and become the anchor
- * a batch hangs off, leaving only genuinely new folders in the tree itself.
+ * Folders that already exist are *not* the client's problem: the agent
+ * merges a tree node into an existing same-named child rather than
+ * duplicating it (`+se-batch-import-tree`). Resolving that here instead
+ * would be guesswork — local state can always be one unsynced fact behind
+ * the folder list the host will actually merge against.
  *
- * That yields one batch per distinct anchor: typically a single submission,
- * and at worst one per existing folder the import touches — still a far cry
- * from a request per note.
+ * `existingRootTitles` are the titles already used in the folder being
+ * imported into, so a file dropped alongside a same-titled note gets a
+ * distinct one. Notes nested inside imported folders are deduped only
+ * against each other: their destination may turn out to be an existing
+ * folder whose contents the client can't know in advance.
  */
-export function planNotesImport({
+export function buildNotesImportTree({
   items,
-  targetRootFolderId,
-  existingFolders,
-  existingNoteTitles,
+  existingRootTitles,
 }: {
   items: NotesImportItem[];
-  targetRootFolderId: number;
-  existingFolders: NotesImportFolderRef[];
-  existingNoteTitles: Map<number, Set<string>>;
-}): NotesImportBatch[] {
-  const foldersByParentAndName = new Map<string, NotesImportFolderRef>();
-  existingFolders.forEach((folder) => {
-    foldersByParentAndName.set(
-      folderCacheKey(folder.name, folder.parentFolderId),
-      folder
-    );
-  });
-
-  // Every folder notes can land in — existing anchor or one this import
-  // creates — gets a destination: the child list to push into, and the
-  // titles already spoken for there. Both are mutated as the plan is built,
-  // so two files headed for the same folder under the same title diverge.
+  existingRootTitles?: Set<string>;
+}): NotesImportNode[] {
   type Destination = { children: NotesImportNode[]; titles: Set<string> };
-  const destinations = new Map<string, Destination>();
-  const anchors = new Map<number, NotesImportNode[]>();
-
-  const destinationFor = (key: string, seedTitles?: Set<string>) => {
-    const existing = destinations.get(key);
-    if (existing) {
-      return existing;
-    }
-    const created: Destination = {
-      children: [],
-      titles: new Set(seedTitles ?? []),
-    };
-    destinations.set(key, created);
-    return created;
+  const root: Destination = {
+    children: [],
+    titles: new Set(existingRootTitles ?? []),
   };
+  const destinations = new Map<string, Destination>([['', root]]);
 
   for (const item of items) {
-    // Descend through folder segments that already exist; the first missing
-    // one starts the new-folder portion of the tree.
-    let anchorFolderId = targetRootFolderId;
-    let segmentIndex = 0;
-    while (segmentIndex < item.folderSegments.length) {
-      const existing = foldersByParentAndName.get(
-        folderCacheKey(item.folderSegments[segmentIndex], anchorFolderId)
-      );
-      if (!existing) {
-        break;
-      }
-      anchorFolderId = existing.folderId;
-      segmentIndex += 1;
-    }
-
-    let path = `anchor:${anchorFolderId}`;
-    let destination = destinationFor(
-      path,
-      existingNoteTitles.get(anchorFolderId)
-    );
-    if (!anchors.has(anchorFolderId)) {
-      anchors.set(anchorFolderId, destination.children);
-    }
-
-    for (; segmentIndex < item.folderSegments.length; segmentIndex += 1) {
-      const segment = item.folderSegments[segmentIndex];
+    let path = '';
+    let destination = root;
+    for (const segment of item.folderSegments) {
       path += `/${normalizeTitleKey(segment)}`;
-      const parent = destination;
-      const known = destinations.has(path);
-      destination = destinationFor(path);
-      if (!known) {
-        parent.children.push({ name: segment, children: destination.children });
+      const known = destinations.get(path);
+      if (known) {
+        destination = known;
+        continue;
       }
+      const created: Destination = { children: [], titles: new Set() };
+      destinations.set(path, created);
+      destination.children.push({ name: segment, children: created.children });
+      destination = created;
     }
 
     destination.children.push({
@@ -345,13 +286,7 @@ export function planNotesImport({
     });
   }
 
-  return Array.from(anchors.entries())
-    .filter(([, tree]) => tree.length > 0)
-    .map(([parentFolderId, tree]) => ({ parentFolderId, tree }));
-}
-
-function folderCacheKey(name: string, parentFolderId?: number | null) {
-  return `${parentFolderId ?? 'root'}:${normalizeTitleKey(name)}`;
+  return root.children;
 }
 
 export function makeUniqueNoteTitle(

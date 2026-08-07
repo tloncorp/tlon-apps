@@ -16,20 +16,19 @@ import {
 } from './NotesFeedback';
 import {
   buildNotesImportItems,
+  buildNotesImportTree,
   getNotesImportTargetFolderId,
   normalizeTitleKey,
-  planNotesImport,
   readNotesImportSourcesFromDataTransfer,
   selectNotesImportSources,
 } from './notesImport';
-import type { NotesImportNode, NotesImportSource } from './notesImport';
+import type { NotesImportSource } from './notesImport';
 import { trackNotesActionError } from './notesTelemetry';
 
 export function useNotesImportController({
   activeFolderId,
   canDropImportNotes,
   canEdit,
-  folders,
   notebookFlag,
   notes,
   rootFolderId,
@@ -39,7 +38,6 @@ export function useNotesImportController({
   activeFolderId: number | null;
   canDropImportNotes: boolean;
   canEdit: boolean;
-  folders: db.NotesFolder[];
   notebookFlag: string | null | undefined;
   notes: db.NotesNote[];
   rootFolderId: number | null;
@@ -66,45 +64,36 @@ export function useNotesImportController({
         return;
       }
 
-      const existingNoteTitles = new Map<number, Set<string>>();
-      notes.forEach((note) => {
-        const titles = existingNoteTitles.get(note.folderId) ?? new Set();
-        titles.add(normalizeTitleKey(note.title));
-        existingNoteTitles.set(note.folderId, titles);
-      });
-
-      const batches = planNotesImport({
+      const tree = buildNotesImportTree({
         items: importItems,
-        targetRootFolderId,
-        existingFolders: folders,
-        existingNoteTitles,
+        existingRootTitles: new Set(
+          notes
+            .filter((note) => note.folderId === targetRootFolderId)
+            .map((note) => normalizeTitleKey(note.title))
+        ),
       });
 
-      // Each batch is one poke that creates its whole subtree host-side; the
-      // created folders and notes arrive as stream updates. Batches are
-      // sequential so a later one can't be planned against folders an
-      // earlier one is still creating.
+      // One poke creates the whole tree host-side, merging into folders that
+      // already exist; the created folders and notes arrive as stream updates.
       let importedCount = 0;
-      for (const batch of batches) {
-        try {
-          const { noteCount } = await importNotebookTree({
-            notebookFlag: importNotebookFlag,
-            parentFolderId: batch.parentFolderId,
-            tree: batch.tree,
-          });
-          importedCount += noteCount;
-        } catch (e) {
-          if (isNotesPendingWriteError(e)) {
-            throw e;
-          }
-          const message = errorMessage(e, 'Failed to import notes');
-          throw new Error(
-            `${NOTES_PENDING_WRITE_MESSAGE}; the outcome of importing ${formatCount(
-              countBatchNotes(batch.tree),
-              'note'
-            )} is unknown and it may still complete. Check what was imported before retrying. ${message}`
-          );
+      try {
+        const { noteCount } = await importNotebookTree({
+          notebookFlag: importNotebookFlag,
+          parentFolderId: targetRootFolderId,
+          tree,
+        });
+        importedCount = noteCount;
+      } catch (e) {
+        if (isNotesPendingWriteError(e)) {
+          throw e;
         }
+        const message = errorMessage(e, 'Failed to import notes');
+        throw new Error(
+          `${NOTES_PENDING_WRITE_MESSAGE}; the outcome of importing ${formatCount(
+            importItems.length,
+            'note'
+          )} is unknown and it may still complete. Check what was imported before retrying. ${message}`
+        );
       }
 
       trackEvent(AnalyticsEvent.NotesImportCompleted, {
@@ -254,14 +243,6 @@ export function useNotesImportController({
     isDragImportActive,
     isImportingNotes,
   };
-}
-
-function countBatchNotes(tree: NotesImportNode[]): number {
-  return tree.reduce(
-    (total, node) =>
-      total + ('children' in node ? countBatchNotes(node.children) : 1),
-    0
-  );
 }
 
 function formatImportNotice(importedCount: number) {

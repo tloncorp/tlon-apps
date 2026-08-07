@@ -1473,10 +1473,11 @@ function assertValidRequestId(requestId: string) {
 
 /**
  * Import a whole folder/note tree in one poke. `se-batch-import-tree` walks
- * the tree creating folders and notes as it goes, emitting a `%created`
- * update per entity on the notebook stream — so the caller learns each new
- * id from the stream, not from this response, whose `%ok` envelope carries
- * only the last update.
+ * the tree creating folders and notes as it goes — merging a node into an
+ * existing same-named child rather than duplicating it — and emits a
+ * `%created` update per entity on the notebook stream. The caller therefore
+ * learns each new id from the stream, not from this response, whose `%ok`
+ * envelope carries only the last update.
  */
 export async function batchImportNotesTreeV1({
   flag,
@@ -1494,9 +1495,12 @@ export async function batchImportNotesTreeV1({
   const normalized = normalizeNotesTarget(flag);
   const canonicalFlag = formatNotesFlag(normalized);
 
-  // Same hazard as the flat batch import below: the parent id is assigned
-  // into top-level notes without being resolved, so a stale one would bury
-  // the whole import outside folder traversal.
+  // The agent asserts this id exists too, so this pre-flight is belt and
+  // braces — deliberately kept: against a host that predates that assertion,
+  // a stale parent silently persists the whole batch under a folder id
+  // nothing traverses, leaving the notes real but invisible. One GET per
+  // import is cheap insurance against that, and it buys a typed error
+  // instead of a bare crash from the poke.
   const folders = await listFoldersV1(normalized, {
     reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
   });

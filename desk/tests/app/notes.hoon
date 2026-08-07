@@ -997,6 +997,132 @@
   ;<  ~  b  (ex-mark nb-c %notes-note)
   ;<  nr=cage    b  (peek-nt f 6)
   (ex-mark nr %notes-note)
+::  +test-batch-import-tree-merges-existing-folder
+::
+::  Sub already exists (id=3). Importing a tree with a Sub folder must add
+::  to it rather than create a second Sub — the client cannot make this
+::  call correctly, since its view of the folder list can be stale.
+::
+++  test-batch-import-tree-merges-existing-folder
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'Sub']])
+  =/  tree=(list import-node:n)
+    ~[[%folder 'Sub' ~[[%note 'Merged' 'body']]]]
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%batch-import-tree 2 tree]])
+  ;<  ~  b  (ex-cards-ne caz)
+  ;<  sv=vase  b  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  |=  s2=state
+  ?~  entry=(~(get by books.s) f)  |+['notebook missing']~
+  =*  nbs  notebook-state.u.entry
+  ::  root + the one Sub: the import must not have added a second.
+  ?.  =(2 ~(wyt by folders.nbs))
+    |+['tree import duplicated an existing folder']~
+  ?~  nt=(~(get by notes.nbs) 4)
+    |+['imported note missing']~
+  ?.  =(3 folder-id.u.nt)
+    |+['imported note did not land in the existing folder']~
+  &+[~ s2]
+::  +test-batch-import-tree-merges-ignoring-case
+::
+++  test-batch-import-tree-merges-ignoring-case
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'docs']])
+  =/  tree=(list import-node:n)
+    ~[[%folder 'Docs' ~[[%note 'Cased' 'body']]]]
+  ;<  *  b  (poke-a [%notebook f [%batch-import-tree 2 tree]])
+  ;<  sv=vase  b  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  |=  s2=state
+  ?~  entry=(~(get by books.s) f)  |+['notebook missing']~
+  =*  nbs  notebook-state.u.entry
+  ?.  =(2 ~(wyt by folders.nbs))
+    |+['case-differing name should have merged']~
+  &+[~ s2]
+::  +test-batch-import-tree-merges-only-siblings
+::
+::  A name that exists elsewhere in the tree must not be merged into: Sub
+::  under root is not the Sub the nested node asks for.
+::
+++  test-batch-import-tree-merges-only-siblings
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  *  b  (poke-a [%notebook f [%create-folder 2 'Sub']])
+  =/  tree=(list import-node:n)
+    ~[[%folder 'Outer' ~[[%folder 'Sub' ~[[%note 'Deep' 'body']]]]]]
+  ;<  *  b  (poke-a [%notebook f [%batch-import-tree 2 tree]])
+  ;<  sv=vase  b  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  |=  s2=state
+  ?~  entry=(~(get by books.s) f)  |+['notebook missing']~
+  =*  nbs  notebook-state.u.entry
+  ::  root, the original Sub, Outer, and Outer/Sub.
+  ?.  =(4 ~(wyt by folders.nbs))
+    |+['nested name merged across different parents']~
+  &+[~ s2]
+::  +test-batch-import-tree-bad-parent-rejected
+::
+++  test-batch-import-tree-bad-parent-rejected
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  tree=(list import-node:n)  ~[[%note 'Orphan' 'body']]
+  ;<  ~  b  (ex-fail (poke-a [%notebook f [%batch-import-tree 999 tree]]))
+  ;<  sv=vase  b  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  |=  s2=state
+  ?~  entry=(~(get by books.s) f)  |+['notebook missing']~
+  ?.  =(~ notes.notebook-state.u.entry)
+    |+['rejected import should not have persisted notes']~
+  &+[~ s2]
+::  +test-batch-import-bad-folder-rejected
+::
+::  TLON-6307: the flat import wrote its folder id into every note without
+::  checking it, persisting a batch invisible to folder traversal.
+::
+++  test-batch-import-bad-folder-rejected
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  items=(list [title=@t body=@t])  ~[['Note1' 'body1']]
+  ;<  ~  b  (ex-fail (poke-a [%notebook f [%batch-import 999 items]]))
+  ;<  sv=vase  b  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  |=  s2=state
+  ?~  entry=(~(get by books.s) f)  |+['notebook missing']~
+  ?.  =(~ notes.notebook-state.u.entry)
+    |+['rejected import should not have persisted notes']~
+  &+[~ s2]
 ::  +test-publish-note
 ::
 ++  test-publish-note

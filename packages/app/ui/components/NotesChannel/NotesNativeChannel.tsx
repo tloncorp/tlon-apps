@@ -435,7 +435,6 @@ export function NotesNativeChannel({
     activeFolderId: folderId ?? null,
     canDropImportNotes,
     canEdit,
-    folders,
     notebookFlag,
     notes,
     rootFolderId,
