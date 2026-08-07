@@ -17,6 +17,7 @@ const logger = createDevLogger('groupActions', false);
 interface CreateGroupParams {
   title?: string;
   image?: string;
+  description?: string;
   memberIds?: string[];
 }
 
@@ -95,6 +96,7 @@ export async function createDefaultGroup(
   const newGroup: db.Group = {
     id: groupId,
     title: params.title ?? '',
+    description: params.description ?? '',
 
     currentUserIsMember: true,
     currentUserIsHost: true,

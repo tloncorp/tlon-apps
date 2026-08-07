@@ -17,8 +17,6 @@ const logger = createDevLogger('agentOnboardingActions', false);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const MARKER_WRITE_DEADLINE_MS = 5_000;
-
 /** Create a default group with the user's agent seated. */
 export async function createAgentGroup(params?: {
   /**
@@ -42,7 +40,19 @@ export async function createAgentGroup(params?: {
     );
   }
 
-  const group = await createDefaultGroup({ memberIds: [botShipId] });
+  const marker = {
+    type: GROUP_AGENT_CONFIG_ENTRY_TYPE,
+    version: 1,
+    purpose: '',
+    instructions: '',
+    agents: [botShipId],
+    jobs: [],
+    updatedAt: Date.now(),
+  } satisfies GroupAgentConfigEntry;
+  const group = await createDefaultGroup({
+    memberIds: [botShipId],
+    description: JSON.stringify([marker]),
+  });
   const channelId = group.channels?.[0]?.id ?? null;
 
   logger.trackEvent('Agent Group Created', {
@@ -69,14 +79,6 @@ export async function createAgentGroup(params?: {
         groupId: group.id,
       });
     });
-
-  // Best-effort durable identity for other devices.
-  writeAgentMarker(group, botShipId).catch((error) => {
-    logger.trackError('Failed to write agent marker', {
-      error,
-      groupId: group.id,
-    });
-  });
 
   grantAgentAdmin(group.id, botShipId).catch((error) => {
     logger.trackError('Failed to grant agent admin', {
@@ -109,43 +111,6 @@ export async function createAgentGroup(params?: {
   }
 
   return { group, channelId };
-}
-
-async function writeAgentMarker(group: db.Group, botShipId: string) {
-  // Re-read from the ship and abandon slow writes rather than overwrite a
-  // newer config; the meta update is not a compare-and-set.
-  const deadline = Date.now() + MARKER_WRITE_DEADLINE_MS;
-  const current = await api.getGroup(group.id).catch(() => null);
-  if (!current || parseGroupAgentConfig(current.description) !== undefined) {
-    return;
-  }
-  if (Date.now() > deadline) {
-    logger.trackEvent('Agent Marker Skipped', {
-      groupId: group.id,
-      reason: 'stale read',
-    });
-    return;
-  }
-  const entry = {
-    type: GROUP_AGENT_CONFIG_ENTRY_TYPE,
-    version: 1,
-    purpose: '',
-    instructions: '',
-    agents: [botShipId],
-    jobs: [],
-    updatedAt: Date.now(),
-  } satisfies GroupAgentConfigEntry;
-  // Carry every current meta field because the poke replaces the whole meta.
-  const meta = current;
-  return api.updateGroupMeta({
-    groupId: group.id,
-    meta: {
-      title: meta.title ?? '',
-      description: JSON.stringify([entry]),
-      image: meta.iconImage ?? meta.iconImageColor ?? '',
-      cover: meta.coverImage ?? meta.coverImageColor ?? '',
-    },
-  });
 }
 
 const agentNotebookEnsuring = new Set<string>();
@@ -184,9 +149,14 @@ export async function ensureAgentNotebookForGroup(group: {
       let remote;
       try {
         remote = await api.getGroup(group.id);
-      } catch {
-        // Never create again while an earlier result is unknowable.
-        break;
+      } catch (error) {
+        // Never create while an earlier result is unknowable, but retain the
+        // retry debt: a later scry may prove whether creation is still needed.
+        logger.trackError('Failed to verify agent notebook retry', {
+          error,
+          groupId: group.id,
+        });
+        continue;
       }
       const remoteNotebook = remote.channels?.find(
         (channel) => channel.type === 'notes'
@@ -338,7 +308,7 @@ export async function ensureHomeGroupAgentRecorded(): Promise<void> {
   }
 }
 
-/** Resolve locally, falling back to deterministic provisioning IDs. */
+/** Resolve only after the provisioned home-group channel is actually visible. */
 export async function getHomeGroupOnboardingTarget(): Promise<{
   groupId: string;
   channelId: string;
@@ -346,24 +316,33 @@ export async function getHomeGroupOnboardingTarget(): Promise<{
   try {
     const currentUserId = api.getCurrentUserId();
     const groupId = `${currentUserId}/${BotHomeGroupSlugs.slug}`;
-    const group = await db.getGroup({ id: groupId });
-    if (group?.currentUserIsMember) {
+    const targetFor = (
+      group: {
+        currentUserIsMember?: boolean | null;
+        channels?: { id: string; type?: string | null }[] | null;
+      } | null
+    ) => {
+      if (!group?.currentUserIsMember) {
+        return null;
+      }
       const chatChannel =
         group.channels?.find((channel) =>
           channel.id.endsWith(`/${BotHomeGroupSlugs.chatSlug}`)
         ) ?? group.channels?.find((channel) => channel.type === 'chat');
-      if (chatChannel) {
-        return { groupId, channelId: chatChannel.id };
-      }
+      return chatChannel ? { groupId, channelId: chatChannel.id } : null;
+    };
+    const localTarget = targetFor(await db.getGroup({ id: groupId }));
+    if (localTarget) {
+      return localTarget;
     }
     const hostingBotEnabled = await db.hostingBotEnabled.getValue();
-    if (hostingBotEnabled) {
-      return {
-        groupId,
-        channelId: `chat/${currentUserId}/${BotHomeGroupSlugs.chatSlug}`,
-      };
+    if (!hostingBotEnabled) {
+      return null;
     }
-    return null;
+    // Sync may trail provisioning, but a ship scry can prove the target exists.
+    // If it cannot, keep the splash fallback instead of arming an endless
+    // landing poll for a synthetic channel that may never be created.
+    return targetFor(await api.getGroup(groupId));
   } catch (error) {
     logger.trackError('Failed to resolve home group onboarding target', {
       error,
