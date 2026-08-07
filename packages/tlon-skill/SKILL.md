@@ -471,6 +471,8 @@ Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL ret
 `--title`/`--image`/`--content` edit flags are removed (they refuse with an
 explanatory error) along with diary/notebook channels.
 
+Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported.
+
 ### Notes
 
 Manage %notes notebooks (Markdown-first). Notebooks are nests of the form

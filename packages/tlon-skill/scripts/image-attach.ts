@@ -7,7 +7,7 @@
  * PNG, JPEG, GIF, and WebP are supported.
  */
 import { printErrorAndExit, printUsageAndExit } from './cli-utils';
-import type { StoryVerse } from './story';
+import type { StoryVerse } from './markdown';
 
 function u16be(b: Uint8Array, o: number): number {
   return (b[o] << 8) | b[o + 1];

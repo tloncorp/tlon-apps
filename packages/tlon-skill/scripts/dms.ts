@@ -39,7 +39,7 @@ import {
   imageFlagIndex,
   validatedImageFlag,
 } from './image-attach';
-import { type Story, type StoryVerse, markdownToStory } from './story';
+import { type Story, type StoryVerse, markdownToStory } from './markdown';
 
 const DMS_HELP = `Usage: tlon dms <command>
 
