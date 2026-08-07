@@ -71,7 +71,9 @@ export function ChannelDetailsScreenView({
         return group
           ? group.channels?.length === 1
             ? `Group with ${group.members?.length ?? 0} members`
-            : `Channel in ${groupTitle}`
+            : channel.type === 'buckets'
+              ? `Bucket in ${groupTitle}`
+              : `Channel in ${groupTitle}`
           : '';
     }
   }, [channel, group, groupTitle]);
@@ -138,7 +140,7 @@ export function ChannelDetailsScreenView({
           paddingHorizontal="$xl"
           marginVertical="$l"
         >
-          {group ? (
+          {group && channel.type !== 'buckets' ? (
             <ListItem.GroupIcon model={group} size="$5xl" />
           ) : (
             <ListItem.ChannelIcon model={channel} size="$5xl" />

@@ -1,8 +1,10 @@
 import * as db from '@tloncorp/shared/db';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, useWindowDimensions } from 'react-native';
 
+import { imagePickerAssetsToBucketUploadCandidates } from '../features/buckets/bucketMediaPicker';
 import {
   BucketFileViewer,
   BucketItem,
@@ -163,7 +165,7 @@ const sampleUploadQueue: BucketItem[] = [
 
 const fakeChannel = {
   id: 'buckets/~zod/project-files',
-  type: 'gallery',
+  type: 'buckets',
   title: 'Project Files',
   description: '',
 } as db.Channel;
@@ -380,8 +382,25 @@ function BucketsFixture({
         mimeType: asset.mimeType ?? undefined,
         name: asset.name,
         size: asset.size ?? -1,
+        uri: asset.uri,
       }))
     );
+  };
+
+  const choosePhotos = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: false,
+      allowsMultipleSelection: true,
+      exif: false,
+      mediaTypes: ['images', 'videos'],
+      orderedSelection: true,
+      quality: 1,
+      selectionLimit: 0,
+      shouldDownloadFromNetwork: true,
+    });
+    if (result.canceled || !result.assets.length) return;
+
+    addUploads(imagePickerAssetsToBucketUploadCandidates(result.assets));
   };
 
   const cancelUpload = (item: BucketItem) => {
@@ -518,6 +537,7 @@ function BucketsFixture({
               <BucketsPane {...paneProps} layout="stack" />
               <BucketsNewSheet
                 open={newSheetOpen}
+                onChoosePhotos={() => void choosePhotos()}
                 onNewFolder={addFolder}
                 onOpenChange={setNewSheetOpen}
                 onUploadFiles={() => void chooseUploads()}
@@ -566,6 +586,7 @@ function BucketsFixture({
                 <BucketsPane {...paneProps} layout="stack" />
                 <BucketsNewSheet
                   open={newSheetOpen}
+                  onChoosePhotos={() => void choosePhotos()}
                   onNewFolder={addFolder}
                   onOpenChange={setNewSheetOpen}
                   onUploadFiles={() => void chooseUploads()}

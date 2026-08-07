@@ -63,6 +63,23 @@ export const useNotesDeskAvailable = () => {
   });
 };
 
+// Probe %buckets once so channel creation only offers the type when the desk
+// is installed on the current ship.
+export const useBucketsDeskAvailable = () => {
+  return useQuery({
+    queryKey: ['bucketsDeskAvailable'],
+    queryFn: async () => {
+      try {
+        await api.getBuckets();
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+    staleTime: 60_000,
+  });
+};
+
 export const useUnjoinedGroupChannels = (groupId: string) => {
   const deps = useKeyFromQueryDeps(db.getUnjoinedGroupChannels);
   return useQuery({

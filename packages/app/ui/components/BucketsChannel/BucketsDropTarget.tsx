@@ -18,6 +18,7 @@ export const BucketsDropTarget: BucketsDropTargetComponent = ({
   const handleDrop = useCallback(
     (files: File[]) => {
       const candidates: BucketUploadCandidate[] = files.map((file) => ({
+        file,
         mimeType: file.type || undefined,
         name: file.name,
         size: file.size,

@@ -3,6 +3,7 @@ import {
   ChannelContentConfiguration,
   isDmChannelId,
   isGroupDmChannelId,
+  isThirdPartyChannel,
 } from '@tloncorp/api';
 import { JSONContent } from '@tloncorp/api/urbit';
 import {
@@ -407,7 +408,7 @@ export function Channel({
     hasChildThreadUnreadActivity,
   });
   const shouldShowPostLoading =
-    channel.type !== 'notes' && Boolean(isLoadingPosts);
+    !isThirdPartyChannel(channel.id) && Boolean(isLoadingPosts);
 
   useEffect(() => {
     const clearShowTimeout = () => {
@@ -657,7 +658,7 @@ export function Channel({
 
   usePrefillDraftFromShareIntent({
     channelId: channel.id,
-    disabled: !canWrite || !inView,
+    disabled: !canWrite || !inView || isThirdPartyChannel(channel.id),
     appendSharedTextToDraft,
     didProcessShareIntent: handleProcessedShareIntent,
   });
@@ -716,6 +717,7 @@ export function Channel({
             >
               <View backgroundColor={backgroundColor} flex={1}>
                 <FileDrop
+                  dropEnabled={channel.type !== 'buckets'}
                   flexDirection="column"
                   justifyContent="space-between"
                   width="100%"

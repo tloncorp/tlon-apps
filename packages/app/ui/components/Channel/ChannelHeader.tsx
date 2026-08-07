@@ -168,6 +168,8 @@ export function ChannelHeader({
           return 'Notebook channel';
         case 'gallery':
           return 'Gallery channel';
+        case 'buckets':
+          return 'Bucket';
         default:
           return 'Channel';
       }
@@ -269,7 +271,8 @@ export function ChannelHeader({
       channel.type === 'chat' ||
       channel.type === 'notebook' ||
       channel.type === 'notes' ||
-      channel.type === 'gallery'
+      channel.type === 'gallery' ||
+      channel.type === 'buckets'
     ) {
       const channelType = getChannelTypeName(channel.type);
       return channelType;
@@ -359,7 +362,8 @@ export function ChannelHeader({
         channel.type === 'chat' ||
         channel.type === 'notebook' ||
         channel.type === 'notes' ||
-        channel.type === 'gallery') &&
+        channel.type === 'gallery' ||
+        channel.type === 'buckets') &&
       goToChatDetails
     ) {
       return goToChatDetails;

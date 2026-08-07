@@ -427,6 +427,7 @@ export function SettingsSection({
   }, [entityType, group, channel, onPressChatVolume]);
 
   const actions = useMemo(() => {
+    const supportsNotifications = channel?.type !== 'buckets';
     const notificationAction: SettingsActionProps = {
       title: 'Notifications',
       description: notificationTitle,
@@ -437,7 +438,7 @@ export function SettingsSection({
     };
 
     if (!currentUserIsAdmin) {
-      return [notificationAction];
+      return supportsNotifications ? [notificationAction] : [];
     }
 
     if (entityType === 'group' && group) {
@@ -472,7 +473,7 @@ export function SettingsSection({
       const isPrivate =
         (channel.readerRoles?.length ?? 0) > 0 ||
         (channel.writerRoles?.length ?? 0) > 0;
-      return [
+      const channelActions: SettingsActionProps[] = [
         {
           title: 'Permissions',
           endValue: isPrivate ? 'Custom' : 'Public',
@@ -480,8 +481,9 @@ export function SettingsSection({
           disabled: !actionsEnabled,
           onPress: handlePressEditChannelPrivacy,
         },
-        notificationAction,
       ];
+      if (supportsNotifications) channelActions.push(notificationAction);
+      return channelActions;
     }
 
     return [notificationAction];
@@ -568,7 +570,9 @@ export function LeaveActionsSection({
   const channelActionCapabilities = getChannelActionCapabilities(channel);
   const canLeave =
     !isHost && (entityType !== 'channel' || channelActionCapabilities.canLeave);
-  const canDelete = isHost || (entityType === 'channel' && currentUserIsAdmin);
+  const canDelete =
+    (entityType !== 'channel' || channelActionCapabilities.canDelete) &&
+    (isHost || (entityType === 'channel' && currentUserIsAdmin));
 
   const chatTitle =
     entityType === 'group'
