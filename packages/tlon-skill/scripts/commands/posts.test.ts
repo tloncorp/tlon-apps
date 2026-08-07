@@ -401,6 +401,32 @@ describe('posts send', () => {
     expect(context.calls.sendPost).toEqual([]);
   });
 
+  it('refuses a standalone image with a relative target', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![plot](./plot.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('http(s)');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a standalone image with a file:// target', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![plot](file:///tmp/x.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('http(s)');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
   it('still sends a standalone image line as an image block', async () => {
     const context = makeDeps();
     const exitCode = await run(

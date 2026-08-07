@@ -157,6 +157,15 @@ function hasImageInInlinePosition(story: Story): boolean {
   });
 }
 
+function hasNonHttpImageBlock(story: Story): boolean {
+  return story.some((verse) => {
+    if ('block' in verse && 'image' in verse.block) {
+      return !/^https?:\/\//i.test(verse.block.image.src);
+    }
+    return false;
+  });
+}
+
 // Fail loud instead of posting nothing: the shared converter drops mdast
 // nodes it can't represent (raw HTML blocks, reference-style links/images),
 // so real input can convert to [] — or to an empty wrapper shell (e.g. a bold
@@ -172,6 +181,11 @@ export function markdownToStory(markdown: string): Story {
   if (hasImageInInlinePosition(story)) {
     throw commandError(
       'images inside a text line are not supported by the backend; put the image on its own line or use --image'
+    );
+  }
+  if (hasNonHttpImageBlock(story)) {
+    throw commandError(
+      'markdown image targets must be http(s) URLs; upload the file first (tlon upload) or use --image'
     );
   }
   if (markdown.trim() !== '' && !hasRenderableStory(story)) {
