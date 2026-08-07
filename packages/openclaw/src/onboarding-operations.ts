@@ -46,6 +46,38 @@ export async function runOnboardingTlonCommand(
 }
 
 /**
+ * Parse the stable, line-oriented output from `tlon notes notes <nest>`.
+ * Note ids are monotonic, so the largest id is the durable newest-entry
+ * baseline used to detect whether the onboarding write landed.
+ */
+export function parseOnboardingNotesListing(output: string): string | null {
+  const trimmed = output.trim();
+  if (trimmed === 'No notes.') {
+    return null;
+  }
+
+  let newestId: bigint | null = null;
+  for (const match of trimmed.matchAll(/^#(\d+)(?:\s|$)/gm)) {
+    const id = BigInt(match[1]!);
+    if (newestId === null || id > newestId) {
+      newestId = id;
+    }
+  }
+  if (newestId === null) {
+    throw new Error('Unexpected output from `tlon notes notes`');
+  }
+  return newestId.toString();
+}
+
+/** Read the newest note id through %notes rather than legacy %channels. */
+export async function readOnboardingNotebookNewestId(
+  notesNest: string
+): Promise<string | null> {
+  const output = await runOnboardingTlonCommand(['notes', 'notes', notesNest]);
+  return parseOnboardingNotesListing(output);
+}
+
+/**
  * The model gets one narrow escape hatch during onboarding: submit prose for
  * a notebook the coordinator is already waiting on. The monitor owns the
  * handler and therefore the group/nest/state checks as well as every side

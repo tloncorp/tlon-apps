@@ -46,6 +46,7 @@ import {
 import {
   armOnboardingResearchSession,
   disarmOnboardingResearchForNest,
+  readOnboardingNotebookNewestId,
   registerOnboardingDraftHandler,
   runOnboardingTlonCommand,
 } from '../onboarding-operations.js';
@@ -1306,12 +1307,9 @@ export async function monitorTlonProvider(
      * The newest post in `notesNest` — its id, or null for an empty
      * notebook, or unreadable.
      *
-     * Identity rather than a count, because the scry returns exactly one
-     * post: a count taken from it saturates at 1, so "is there a new entry
-     * since the baseline" was unanswerable for precisely the notebook the
-     * baseline exists to handle — one that already held an entry. Read from
-     * the raw outline, so an entry whose text extraction comes up empty
-     * still counts as an entry.
+     * Identity rather than a count, because the baseline must distinguish an
+     * existing entry from one written by this setup. These notebooks live in
+     * %notes, not legacy %channels, so read them through the trusted CLI.
      */
     const notebookNewestEntry = async (
       notesNest: string
@@ -1320,31 +1318,32 @@ export async function monitorTlonProvider(
       | { readable: true; newestId: string | null }
     > => {
       try {
-        const data: any = await api.scry(
-          `/channels/v4/${notesNest}/posts/newest/1/outline.json`
-        );
-        const posts = Array.isArray(data) ? data : data?.posts ?? data ?? {};
-        if (Array.isArray(posts)) {
-          const newest = posts[0];
-          if (!newest) {
-            return { readable: true, newestId: null };
-          }
-          const id = newest?.seal?.id ?? newest?.id;
-          return {
-            readable: true,
-            // A post with no recognizable id still has to read as *some*
-            // entry, or an empty notebook and a written one look alike.
-            newestId: String(id ?? JSON.stringify(newest).slice(0, 64)),
-          };
-        }
-        const keys = Object.keys(posts);
         return {
           readable: true,
-          newestId: keys.length ? String(keys[keys.length - 1]) : null,
+          newestId: await readOnboardingNotebookNewestId(notesNest),
         };
       } catch (error) {
         return { readable: false, error };
       }
+    };
+
+    const waitForNotebookEntryAfter = async (
+      notesNest: string,
+      baseline: string | null | undefined
+    ): ReturnType<typeof notebookNewestEntry> => {
+      let observed = await notebookNewestEntry(notesNest);
+      for (const delay of [250, 750, 1_500]) {
+        if (
+          observed.readable &&
+          observed.newestId !== null &&
+          observed.newestId !== baseline
+        ) {
+          return observed;
+        }
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        observed = await notebookNewestEntry(notesNest);
+      }
+      return observed;
     };
 
     const deterministicDraftRegistered = new Set<string>();
@@ -1624,7 +1623,7 @@ export async function monitorTlonProvider(
                   draftMarkdownCharCount: markdown.length,
                 });
                 try {
-                  const noteResult = await runOnboardingTlonCommand([
+                  await runOnboardingTlonCommand([
                     'notes',
                     'note-create',
                     notesNest,
@@ -1633,7 +1632,22 @@ export async function monitorTlonProvider(
                     '--markdown',
                     markdownPath,
                   ]);
-                  writtenNoteId = noteResult.trim().slice(0, 500) || 'written';
+                  const observed = await waitForNotebookEntryAfter(
+                    notesNest,
+                    writing.record.noteBaseline
+                  );
+                  if (!observed.readable) {
+                    throw observed.error;
+                  }
+                  if (
+                    observed.newestId === null ||
+                    observed.newestId === writing.record.noteBaseline
+                  ) {
+                    throw new Error(
+                      'The created onboarding note was not visible in %notes'
+                    );
+                  }
+                  writtenNoteId = observed.newestId;
                   traceOnboarding({
                     ...traceBase,
                     onboardingStage: 'note',
@@ -1719,7 +1733,10 @@ export async function monitorTlonProvider(
             // before asking for a retry, or an ambiguous timeout becomes a
             // duplicate entry. If a post appeared after our recorded
             // baseline, commit that durable evidence and finish.
-            const observed = await notebookNewestEntry(notesNest);
+            const observed = await waitForNotebookEntryAfter(
+              notesNest,
+              writing.record.noteBaseline
+            );
             if (!observed.readable) {
               traceOnboarding({
                 ...traceBase,
