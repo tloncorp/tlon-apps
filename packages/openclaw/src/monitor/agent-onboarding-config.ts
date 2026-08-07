@@ -231,30 +231,35 @@ const INLINE_FIRST_RUN =
  * paraphrases that can drift apart.
  */
 const OUTPUT_CHANNEL_RULE =
-  "Post it to this group's notes channel — the notebook, whose nests look " +
-  "like `notes/<host>/<name>`. The notebook is the OWNER's channel: their " +
-  'app creates it on their ship the moment the group config lands, so it ' +
-  'appears within moments of the config write. NEVER create a channel ' +
-  'yourself — a notebook you host is the wrong one by definition; you post ' +
-  "*into* the owner's. If the group shows no notes channel yet, re-check " +
-  'every fifteen seconds or so for up to two minutes (`tlon channels ' +
-  "groups` lists the group's channels). When it appears, record its nest " +
-  'as this job\'s "outputNest" in the group config, so later runs go ' +
-  'straight there and append to that same channel. Write the entry with ' +
-  'the tlon tool, never the message tool (which only posts chat and ' +
-  'cannot carry a title): put the body in a markdown file first and pass ' +
-  'that file — `notes note-create <nest> root "<Title>" --markdown ' +
-  '<file>`. Never `--stdin`: this tool spawns the CLI without a stdin ' +
-  'pipe, so a --stdin write waits thirty seconds and then fails, and the ' +
-  'entry never lands. Read the notebook back afterward (`tlon notes show ' +
-  '<nest>`) to confirm the entry landed — entries written into a channel ' +
-  'that is not accepting them vanish silently. Announce it in chat with a single ' +
-  'line — the chat gets the announcement, the notebook gets the writing. ' +
-  'If no notebook appears within two minutes (the owner may have closed ' +
-  'the app), or the write into it keeps failing, post the update in this ' +
-  'group\'s chat channel instead, record that nest as "outputNest", and ' +
-  'say once — not every run — that the entries will move into the ' +
-  'notebook when it is available.';
+  "The day-one payload goes in this group's notebook, and Tlon — not you — " +
+  "owns getting it there. The notebook is the OWNER's channel: their app " +
+  'creates it on their ship once the group config lands. So during this ' +
+  'build: NEVER create a channel, never go looking for a notes nest, and ' +
+  'do NOT write the entry yet. Tlon watches for the notebook itself and ' +
+  'sends you a separate directive naming the exact nest the moment it ' +
+  'exists — write the entry then, and only then. A note written before ' +
+  'that, into a nest you picked yourself, is accepted by the poke and then ' +
+  'vanishes: the write reports success and the owner opens an empty ' +
+  'notebook. Leave this job\'s "outputNest" empty in the config; Tlon ' +
+  'records it once a real entry lands. Do the research now if the job ' +
+  'needs it and keep it ready, so the entry directive is a write rather ' +
+  'than a fresh investigation.';
+
+/**
+ * How the plugin-driven entry write is spelled, shared by the directive the
+ * sweep sends and the tests that pin it.
+ *
+ * `--markdown <file>` rather than `--stdin`: the tool spawns the CLI with no
+ * stdin, so a `--stdin` read blocks for its whole timeout and then fails,
+ * leaving the notebook empty. The tool refuses the flag outright now, but the
+ * model should never reach for it in the first place.
+ */
+export const NOTEBOOK_ENTRY_WRITE_RULE =
+  'Write it with the tlon tool, never the message tool (which only posts ' +
+  'chat and cannot carry a title): put the body in a markdown file first ' +
+  'and pass that file — `notes note-create <nest> root "<Title>" ' +
+  '--markdown <file>`. Never `--stdin`; it cannot receive input through ' +
+  'this tool and the entry would never land.';
 
 /**
  * The scheduled job each purpose sets up, templated so the operative cron
@@ -324,22 +329,17 @@ export const PURPOSE_JOBS: Record<
       ' If nothing was logged, say so in one line in chat and stop, ' +
       'without posting an empty check-in.',
     confirmation:
-      "There's nothing to summarize yet, so don't run the job. The " +
-      "owner's app creates the notebook on their ship as soon as the " +
-      'config lands — NEVER create it yourself; wait for it to appear ' +
-      '(re-check every fifteen seconds, up to two minutes — `tlon ' +
-      "channels groups` lists the group's channels). When it appears, " +
-      'record its nest as this job\'s "outputNest" in the group config ' +
-      'and seed it with a single entry titled "About this notebook" whose ' +
-      'body is exactly: "Analysis and summaries of your {{topics}} ' +
-      'entries will land in this notebook." — you may only rephrase the ' +
-      'topic list itself so it reads naturally. If no notebook appears, ' +
-      'skip the seed and leave "outputNest" empty — the scheduled run ' +
-      'handles where output goes. Then ask the owner to log their first ' +
-      'entry right now, in chat, in their own words, and confirm ' +
-      "you've recorded it — leaving the closing ask below as the only " +
-      'question, rather than also asking what else they want to track ' +
-      'alongside: {{topics}}.',
+      "There's nothing to summarize yet, so don't run the job, and don't " +
+      'go looking for the notebook — Tlon hands you its nest once the ' +
+      "owner's app has made it. The entry you write when that directive " +
+      'arrives is not a check-in: it is a single seed titled "About this ' +
+      'notebook" whose body is exactly: "Analysis and summaries of your ' +
+      '{{topics}} entries will land in this notebook." — you may only ' +
+      'rephrase the topic list itself so it reads naturally. Now, in ' +
+      'chat, ask the owner to log their first entry right now, in their ' +
+      "own words, and confirm you've recorded it — leaving the closing " +
+      'ask below as the only question, rather than also asking what else ' +
+      'they want to track alongside: {{topics}}.',
   },
   'agent-research': {
     title: 'Research update: {{topics}}',

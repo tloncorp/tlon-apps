@@ -22,12 +22,14 @@ import {
   findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
   findGroupForChannel,
+  firstConfiguredJob,
   homeGroupAwaitingOpening,
   isFirstConfiguredSetup,
   isHomeGroupFlag,
   isPurposePickerChoice,
   pendingTopicsOfferFromHistory,
   purposePickerFallbackText,
+  renderNotebookEntryDirective,
   renderSetupDirective,
   setupOutputNotebookNest,
   shouldOfferPickerOnJoin,
@@ -593,12 +595,12 @@ describe('renderSetupDirective', () => {
   });
 
   test('tracking seeds the owner-hosted notebook with the sample entry', () => {
-    // Tracking's first scheduled run may be a day away, so its
-    // confirmation seeds the notebook immediately — but the notebook is
-    // the owner's channel, created by their app; the agent only writes
-    // into it.
+    // Tracking's first scheduled run may be a day away, so its day-one
+    // entry is a seed rather than a check-in. The agent supplies the
+    // words; the sweep supplies the nest and the moment.
     const directive = renderSetupDirective('agent-tracking', 'HRV, Dreams')!;
-    expect(directive).toContain('NEVER create it yourself');
+    expect(directive).toContain("don't go looking for the notebook");
+    expect(directive).toContain('Tlon hands you its nest');
     expect(directive).toContain(
       'Analysis and summaries of your HRV, Dreams entries will land in ' +
         'this notebook.'
@@ -659,23 +661,65 @@ describe('renderSetupDirective', () => {
     expect(directive).toContain('Omit');
   });
 
-  test('the payload posts into the owner-hosted notebook, chat as fallback', () => {
-    // The agent hosting its own notebook was the original design and it
-    // was wrong: the channel lived on the bot's moon, and "find or
-    // create" gave every run room to create the wrong notebook.
+  test('the build never creates, finds, or writes the notebook itself', () => {
+    // Both halves are live failures. The agent hosting its own notebook
+    // put the channel on the bot's moon; then "poll for the owner's and
+    // write" had the model write *first*, into a nest it picked, before
+    // the channel existed — the poke was accepted and the entry vanished.
+    // Discovery and timing moved to the sweep, which can see the channel.
     for (const purposeId of Object.keys(PURPOSE_JOBS)) {
       const directive = renderSetupDirective(purposeId, 'Sleep')!;
-      // This rides in the payload — the text the cron runs every time.
-      expect(directive).toContain("this group's notes channel");
       expect(directive).toContain("The notebook is the OWNER's channel");
       expect(directive).toContain('NEVER create a channel');
+      expect(directive).toContain('do NOT write the entry yet');
+      expect(directive).toContain('Tlon watches for the notebook itself');
       expect(directive).not.toContain('channels create');
       expect(directive).not.toContain('--kind notes');
-      expect(directive).toContain('append to that same channel');
-      // Chat is the fallback when the notebook never appears — said once,
-      // not on every run.
-      expect(directive).toContain('say once — not every run');
+      // The old self-service instructions must not linger anywhere in the
+      // payload the cron runs every time.
+      expect(directive).not.toContain('re-check every fifteen seconds');
+      expect(directive).not.toContain('tlon channels groups');
     }
+  });
+
+  test('the entry directive names the nest and forbids the dead flag', () => {
+    const directive = renderNotebookEntryDirective('notes/~zod/daily', {
+      title: 'Daily Digest',
+      prompt: 'Summarize the day.',
+    });
+    expect(directive).toContain('notes/~zod/daily');
+    expect(directive).toContain('Daily Digest');
+    expect(directive).toContain('Summarize the day.');
+    expect(directive).toContain('--markdown <file>');
+    expect(directive).toContain('Never `--stdin`');
+    // Silent, like every other step of the build.
+    expect(directive).toContain('post nothing about it in chat');
+    // A job with neither title nor prompt still yields a usable ask.
+    const bare = renderNotebookEntryDirective('notes/~zod/daily', null);
+    expect(bare).toContain('notes/~zod/daily');
+    expect(bare).toContain('--markdown <file>');
+  });
+
+  test('firstConfiguredJob reads the job the entry directive describes', () => {
+    const withJob = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        agents: ['~zod'],
+        jobs: [{ title: 'Daily Digest', prompt: 'Summarize.' }],
+      },
+    ]);
+    expect(firstConfiguredJob(withJob)).toEqual({
+      title: 'Daily Digest',
+      prompt: 'Summarize.',
+    });
+    // A config that carries no job yet is a build still running.
+    const marker = JSON.stringify([
+      { type: 'tlon-group-agent-config', version: 1, agents: ['~zod'] },
+    ]);
+    expect(firstConfiguredJob(marker)).toBeNull();
+    expect(firstConfiguredJob('a group about bread')).toBeNull();
+    expect(firstConfiguredJob(null)).toBeNull();
   });
 
   test('every setup ends with the invite ask, and never a hand-made link', () => {

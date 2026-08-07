@@ -128,6 +128,7 @@ import {
   findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
   findGroupForChannel,
+  firstConfiguredJob,
   homeGroupAwaitingOpening,
   homeGroupChatNestFor,
   homeGroupFlagFor,
@@ -137,6 +138,7 @@ import {
   isPurposePickerChoice,
   pendingTopicsOfferFromHistory,
   purposePickerFallbackText,
+  renderNotebookEntryDirective,
   renderSetupDirective,
   servicesCardFallbackText,
   setupOutputNotebookNest,
@@ -1047,6 +1049,123 @@ export async function monitorTlonProvider(
      */
     const emptyNotebookWaits = new Map<string, number>();
     const MAX_EMPTY_NOTEBOOK_WAITS = 15;
+    /**
+     * Posts already in the output notebook when this setup first saw it.
+     * Normally zero — the owner's app makes the channel fresh — but a setup
+     * re-run against a notebook that already holds entries must wait for a
+     * *new* one, or the closing rides out on somebody else's writing.
+     */
+    const notebookBaselines = new Map<string, number>();
+    const notebookEntryNudges = new Map<string, number>();
+    const MAX_NOTEBOOK_ENTRY_NUDGES = 3;
+
+    /** Posts currently in `notesNest`, or null when it can't be read. */
+    const notebookPostCount = async (
+      notesNest: string
+    ): Promise<number | null> => {
+      try {
+        // Counted from the raw outline rather than extracted messages: an
+        // entry whose text extraction comes up empty is still an entry.
+        const data: any = await api.scry(
+          `/channels/v4/${notesNest}/posts/newest/1/outline.json`
+        );
+        const posts = Array.isArray(data) ? data : data?.posts ?? data ?? {};
+        return Array.isArray(posts) ? posts.length : Object.keys(posts).length;
+      } catch {
+        return null;
+      }
+    };
+
+    /**
+     * Drive the day-one notebook entry from here rather than trusting the
+     * build turn to do it.
+     *
+     * Observed live: told to poll for the owner's notebook and then write,
+     * the model wrote *first*, into a nest of its own choosing, before the
+     * channel existed. The poke was accepted, the tool reported success in
+     * under a second, and the owner opened an empty notebook. Discovery and
+     * timing are things this process can actually observe, so it does: wait
+     * for the config to carry a job, wait for the owner's channel to appear,
+     * then hand the model the nest and ask for exactly one write. Bounded —
+     * an entry that never lands stops being asked for, and the closing's own
+     * wait eventually releases the cards.
+     */
+    const maybeDriveNotebookEntry = async (
+      nest: string,
+      group: { flag: string; description: string }
+    ): Promise<void> => {
+      if (!onboardingInvitePending.has(nest)) {
+        return;
+      }
+      const job = firstConfiguredJob(group.description);
+      if (!job) {
+        // No job in the config yet: the build is still running and there is
+        // nothing to write about.
+        return;
+      }
+      const nudges = notebookEntryNudges.get(nest) ?? 0;
+      if (nudges >= MAX_NOTEBOOK_ENTRY_NUDGES) {
+        return;
+      }
+      let notesNest: string | null = null;
+      try {
+        notesNest = await setupOutputNotebookNest(
+          api,
+          group.flag,
+          group.description,
+          runtime
+        );
+      } catch {
+        return;
+      }
+      if (!notesNest) {
+        // The owner's app has not created the channel yet — the sweep comes
+        // back around, which is the whole point of doing this here.
+        return;
+      }
+      const count = await notebookPostCount(notesNest);
+      if (count === null) {
+        return;
+      }
+      if (!notebookBaselines.has(nest)) {
+        notebookBaselines.set(nest, count);
+      }
+      if (count > (notebookBaselines.get(nest) ?? 0)) {
+        return;
+      }
+      // Recorded only after the enqueue is accepted, so a missing route
+      // doesn't burn one of the few asks this entry gets.
+      try {
+        const route = core.channel.routing.resolveAgentRoute({
+          cfg,
+          channel: 'tlon',
+          accountId: opts.accountId ?? undefined,
+          peer: { kind: 'group', id: nest },
+        });
+        if (!route?.sessionKey) {
+          return;
+        }
+        core.system.enqueueSystemEvent(
+          renderNotebookEntryDirective(notesNest, job),
+          {
+            sessionKey: route.sessionKey,
+            contextKey: `tlon:notebook-entry:${nest}:${nudges + 1}`,
+            deliveryContext: tlonDeliveryContext(
+              `tlon:${nest}`,
+              route.sessionKey
+            ),
+          }
+        );
+        notebookEntryNudges.set(nest, nudges + 1);
+        runtime.log?.(
+          `[tlon] Asked for the day-one entry in ${notesNest} (${nudges + 1}/${MAX_NOTEBOOK_ENTRY_NUDGES})`
+        );
+      } catch (error) {
+        runtime.log?.(
+          `[tlon] Could not ask for the notebook entry in ${nest}: ${String(error)}`
+        );
+      }
+    };
     const closingAwaitsNotebookEntry = async (
       nest: string,
       group: { flag: string; description: string }
@@ -1071,24 +1190,20 @@ export async function monitorTlonProvider(
       if (!notesNest) {
         return false;
       }
-      try {
-        // Counted from the raw outline rather than extracted messages: an
-        // entry whose text extraction comes up empty is still an entry.
-        const data: any = await api.scry(
-          `/channels/v4/${notesNest}/posts/newest/1/outline.json`
-        );
-        const posts = Array.isArray(data) ? data : data?.posts ?? data ?? {};
-        const count = Array.isArray(posts)
-          ? posts.length
-          : Object.keys(posts).length;
-        if (count > 0) {
+      const count = await notebookPostCount(notesNest);
+      if (count !== null) {
+        if (!notebookBaselines.has(nest)) {
+          notebookBaselines.set(nest, count);
+        }
+        // Measured against the baseline, not zero: entries that predate this
+        // setup are somebody else's writing and must not release the cards.
+        if (count > (notebookBaselines.get(nest) ?? 0)) {
           emptyNotebookWaits.delete(nest);
           return false;
         }
-      } catch {
-        // Fall through to waiting: unreadable and empty must not look alike
-        // to the cards.
       }
+      // An unreadable notebook falls through to waiting: unreadable and
+      // empty must not look alike to the cards.
       emptyNotebookWaits.set(nest, waits + 1);
       runtime.log?.(
         `[tlon] Holding the closing in ${nest}: the output notebook has no entry yet (${waits + 1}/${MAX_EMPTY_NOTEBOOK_WAITS})`
@@ -1116,6 +1231,9 @@ export async function monitorTlonProvider(
           return;
         }
         if (await closingAwaitsNotebookEntry(nest, group)) {
+          // Waiting is not the same as hoping: while the closing holds, ask
+          // for the entry that would release it.
+          await maybeDriveNotebookEntry(nest, group);
           return;
         }
         // 100 posts bounds the recovery window: a setup conversation runs a

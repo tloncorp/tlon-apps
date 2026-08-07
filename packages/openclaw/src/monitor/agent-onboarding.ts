@@ -11,6 +11,7 @@ import {
   INVITE_CARD_FALLBACK,
   INVITE_CARD_PROMPT,
   INVITE_CLOSING,
+  NOTEBOOK_ENTRY_WRITE_RULE,
   PURPOSE_JOBS,
   PURPOSE_OPTIONS,
   PURPOSE_PICKER_FOOTER,
@@ -336,10 +337,13 @@ export function isHomeGroupFlag(
  * happened in.
  *
  * Asks the question directly rather than by venue: does any *other* group
- * already carry a configured job? A self-hosted account has no home group, so
- * keying only on that flag would mean its genuine first run never counted as
- * one. A configured job elsewhere means this owner has been through a setup
- * before, whether or not hosting gave them a home group.
+ * of this owner's already carry a configured job? A self-hosted account has
+ * no home group, so keying only on that flag would mean its genuine first
+ * run never counted as one. A configured job elsewhere means this owner has
+ * been through a setup before, whether or not hosting gave them a home
+ * group. Scoped to groups the same host owns: the bot can sit in *someone
+ * else's* configured agent group, and that group's job says nothing about
+ * whether this owner has seen the tour.
  *
  * Null when the groups scry fails, so the caller can stay quiet rather than
  * guess — repeating the tour for an experienced owner reads as broken.
@@ -1027,6 +1031,59 @@ export function descriptionHasConfiguredJob(
   return agentConfigEntries(description).some(
     (entry) => Array.isArray(entry.jobs) && entry.jobs.length > 0
   );
+}
+
+/**
+ * The directive that actually gets the day-one entry written, sent by the
+ * sweep once it has watched the owner's notebook into existence.
+ *
+ * The build turn is told not to write the entry and not to go looking for a
+ * nest, because both went wrong live: the model wrote into a nest it picked
+ * before the owner's channel existed, the poke was accepted, and the entry
+ * vanished — reported as a success, with an empty notebook to show for it.
+ * Discovery and timing therefore live here, where the plugin can *see* the
+ * channel, and the model is handed one unambiguous instruction with the nest
+ * already filled in.
+ */
+export function renderNotebookEntryDirective(
+  notesNest: string,
+  job: { title?: unknown; prompt?: unknown } | null
+): string {
+  const title = typeof job?.title === 'string' ? job.title.trim() : '';
+  const prompt = typeof job?.prompt === 'string' ? job.prompt.trim() : '';
+  return [
+    '[Tlon notebook directive — not written by the owner]',
+    `The owner's notebook now exists at \`${notesNest}\` and is empty.`,
+    'Write the day-one entry into that exact nest — not a nest you look',
+    'up, not one you create, not the chat channel.',
+    title ? `Title it for: ${title}.` : '',
+    prompt ? `What it should contain: ${prompt}` : '',
+    NOTEBOOK_ENTRY_WRITE_RULE,
+    `Then record "${notesNest}" as this job's "outputNest" in the group`,
+    'config so later runs append to the same channel, writing the config',
+    'through /tmp/tlon-group-config.json exactly as the setup directive',
+    'specified. Do this silently: post nothing about it in chat, and do',
+    'not repeat any announcement you already sent.',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * The first configured job in a group description, for the entry directive's
+ * title and prompt. Null when the config carries no job yet — the build is
+ * still running and there is nothing to write about.
+ */
+export function firstConfiguredJob(
+  description: string | null | undefined
+): { title?: unknown; prompt?: unknown } | null {
+  for (const entry of agentConfigEntries(description)) {
+    const jobs = Array.isArray(entry.jobs) ? entry.jobs : [];
+    if (jobs.length > 0 && jobs[0] && typeof jobs[0] === 'object') {
+      return jobs[0] as { title?: unknown; prompt?: unknown };
+    }
+  }
+  return null;
 }
 
 /**
