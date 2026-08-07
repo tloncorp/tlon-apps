@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getPostListAnchorKey,
   getPostListInitialization,
+  getPostListScopeKey,
 } from './postListInitialization';
 
 describe('getPostListAnchorKey', () => {
@@ -10,6 +11,16 @@ describe('getPostListAnchorKey', () => {
     expect(
       getPostListAnchorKey({ type: 'unread', postId: 'same-post' })
     ).not.toBe(getPostListAnchorKey({ type: 'selected', postId: 'same-post' }));
+  });
+});
+
+describe('getPostListScopeKey', () => {
+  it('distinguishes the same anchor intent across channels', () => {
+    const anchor = { type: 'unread' as const, postId: 'same-post' };
+
+    expect(getPostListScopeKey('channel-a', anchor)).not.toBe(
+      getPostListScopeKey('channel-b', anchor)
+    );
   });
 });
 

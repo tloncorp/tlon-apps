@@ -6,7 +6,7 @@ import { View } from 'react-native';
 
 import { ScrollAnchor } from '../Scroller';
 import { PostList as PostListFlatList } from './PostListFlatList';
-import { getPostListAnchorKey } from './postListInitialization';
+import { getPostListScopeKey } from './postListInitialization';
 import {
   PostListComponent,
   PostWithNeighbors,
@@ -31,13 +31,14 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
   (
     {
       anchor,
-      // channel,
+      channel,
       // collectionLayoutType,
       contentContainerStyle,
       hasNewerPosts = false,
       anchorToEnd = false,
       onEndReached,
       onEndReachedThreshold = 1,
+      onInitialScrollPending,
       onInitialScrollCompleted,
       onScrolledToBottom,
       onScrolledToBottomThreshold = 1,
@@ -64,7 +65,9 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       scrollerRef,
       anchorToEnd,
       onScrollCompleted: onInitialScrollCompleted,
+      onScrollPending: onInitialScrollPending,
       contentKey: `${orderedData.length}:${orderedData[0]?.post.id ?? ''}:${orderedData[orderedData.length - 1]?.post.id ?? ''}`,
+      initializationKey: getPostListScopeKey(channel.id, anchor),
     });
 
     useManualScrollAnchoring({
@@ -593,21 +596,25 @@ function useScrollToAnchorOnMount({
   scrollerRef,
   anchorToEnd,
   onScrollCompleted,
+  onScrollPending,
   contentKey,
+  initializationKey,
 }: {
   anchor: ScrollAnchor | null | undefined;
   scrollerRef: React.RefObject<HTMLDivElement | null>;
   anchorToEnd: boolean;
   onScrollCompleted?: () => void;
+  onScrollPending?: () => void;
   contentKey: string | number;
+  initializationKey: string;
 }) {
   const needsInitialScrollRef = useRef(true);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const anchorKey = getPostListAnchorKey(anchor) ?? 'latest';
 
   useLayoutEffect(() => {
     needsInitialScrollRef.current = true;
-  }, [anchorKey]);
+    onScrollPending?.();
+  }, [initializationKey, onScrollPending]);
 
   // Timeout fallback: give up after 5s if anchor element never appears
   useEffect(() => {
@@ -625,7 +632,7 @@ function useScrollToAnchorOnMount({
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [anchor?.postId, anchorKey, onScrollCompleted]);
+  }, [anchor?.postId, initializationKey, onScrollCompleted]);
 
   // Main scroll effect — re-runs when contentKey changes (as new posts render)
   useLayoutEffect(() => {

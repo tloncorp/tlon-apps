@@ -4,6 +4,13 @@ export function getPostListAnchorKey(anchor?: ScrollAnchor | null) {
   return anchor ? `${anchor.type}:${anchor.postId}` : undefined;
 }
 
+export function getPostListScopeKey(
+  channelId: string,
+  anchor?: ScrollAnchor | null
+) {
+  return `${channelId}:${getPostListAnchorKey(anchor) ?? 'latest'}`;
+}
+
 export function getPostListInitialization({
   anchorKey,
   anchorIndex,

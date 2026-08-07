@@ -35,6 +35,7 @@ export type PostListComponentProps = {
   numColumns: number;
   onEndReached?: () => void;
   onEndReachedThreshold?: number;
+  onInitialScrollPending?: () => void;
   onInitialScrollCompleted?: () => void;
   /**
    * Called once each time the list is scrolled to the visual bottom. This is

@@ -10,6 +10,7 @@ import { PostList as PostListFlatList } from './PostListFlatList';
 import {
   getPostListAnchorKey,
   getPostListInitialization,
+  getPostListScopeKey,
 } from './postListInitialization';
 import {
   PostListComponent,
@@ -69,7 +70,11 @@ PostList.displayName = 'PostList';
 const ConversationPostList: PostListComponent = React.forwardRef(
   (props, forwardedRef) => {
     const initialization = useConversationListInitialization(props);
+    const { onInitialScrollPending } = props;
     const attemptRef = React.useRef<PostListMethods>(null);
+    React.useLayoutEffect(() => {
+      onInitialScrollPending?.();
+    }, [initialization.mountKey, onInitialScrollPending]);
     React.useImperativeHandle(
       forwardedRef,
       () => ({
@@ -120,7 +125,7 @@ function useConversationListInitialization({
     );
   }, [anchor?.postId, postsWithNeighbors]);
   const anchorKey = getPostListAnchorKey(anchor);
-  const anchorScopeKey = `${channel.id}:${anchorKey ?? 'latest'}`;
+  const anchorScopeKey = getPostListScopeKey(channel.id, anchor);
   const [timedOutAnchorScopeKey, setTimedOutAnchorScopeKey] = React.useState<
     string | null
   >(null);
@@ -149,6 +154,10 @@ function useConversationListInitialization({
     }, ANCHOR_RESOLUTION_TIMEOUT_MS);
     return () => clearTimeout(timeout);
   }, [anchorScopeKey, shouldStartAnchorTimeout]);
+
+  React.useLayoutEffect(() => {
+    setTimedOutAnchorScopeKey(null);
+  }, [anchorScopeKey]);
 
   return {
     anchorIndex,
@@ -202,8 +211,8 @@ function useConversationAnchorTarget({
   const applyAnchorPosition = React.useCallback(async () => {
     const target = latestAnchorPositionRef.current;
     if (target === 'end') {
-      appliedAnchorPositionRef.current = target;
       await listRef.current?.scrollToEnd({ animated: false });
+      appliedAnchorPositionRef.current = target;
       return true;
     }
 
@@ -211,8 +220,8 @@ function useConversationAnchorTarget({
       return false;
     }
 
-    appliedAnchorPositionRef.current = target;
     await listRef.current?.scrollToIndex({ ...target, animated: false });
+    appliedAnchorPositionRef.current = target;
     return true;
   }, [listRef]);
 
@@ -262,7 +271,11 @@ function useInitialConversationScroll({
         }
       })
       .catch(() => {
-        // Navigation can cancel the scroll while the list is unmounting.
+        // A same-mount measurement race must not leave the list hidden. Reveal
+        // the estimated position; the correction effect gets one exact retry.
+        if (attemptIsActiveRef.current) {
+          finishInitialScroll();
+        }
       });
   }, [applyAnchorPosition, finishInitialScroll, isInitialAnchorReady]);
 

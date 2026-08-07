@@ -52,7 +52,7 @@ import { EmojiPickerSheet } from '../Emoji';
 import { ChannelDivider } from './ChannelDivider';
 import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
 import { PostList, PostListMethods, PostWithNeighbors } from './PostList';
-import { getPostListAnchorKey } from './PostList/postListInitialization';
+import { getPostListScopeKey } from './PostList/postListInitialization';
 import type { ScrollAnchor } from './scrollerTypes';
 
 const logger = createDevLogger('scroller', false);
@@ -418,7 +418,7 @@ const Scroller = forwardRef(
       onStartReached: false,
     });
 
-    const anchorKey = `${channel.id}:${getPostListAnchorKey(anchor) ?? 'latest'}`;
+    const anchorKey = getPostListScopeKey(channel.id, anchor);
     const [completedAnchorKey, setCompletedAnchorKey] = useState<string | null>(
       null
     );
@@ -508,6 +508,9 @@ const Scroller = forwardRef(
     const onInitialScrollCompleted = useCallback(() => {
       setCompletedAnchorKey(anchorKey);
     }, [anchorKey]);
+    const onInitialScrollPending = useCallback(() => {
+      setCompletedAnchorKey(null);
+    }, []);
 
     return (
       <View flex={1}>
@@ -541,6 +544,7 @@ const Scroller = forwardRef(
             numColumns={columns}
             onEndReached={handleEndReached}
             onEndReachedThreshold={1}
+            onInitialScrollPending={onInitialScrollPending}
             onInitialScrollCompleted={onInitialScrollCompleted}
             onScrolledAwayFromBottom={onScrolledAwayFromBottom}
             onScrolledToBottom={onScrolledToBottom}
