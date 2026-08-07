@@ -1,6 +1,7 @@
 import { describe, expect, it, test } from 'vitest';
 
 import { canonicalizeNest, formatTargetHint } from './targets.js';
+import { repairTlonCommandArgs } from './tlon-arg-repair.js';
 
 describe('canonicalizeNest', () => {
   it('returns canonical form unchanged', () => {
@@ -59,6 +60,25 @@ describe('formatTargetHint', () => {
     expect(hint).toContain('note-create notes/~zod/research-1');
     // A hint that echoes the prefix would produce another invalid command.
     expect(hint).not.toContain('tlon:notes');
+  });
+
+  test('suggests a command the argument repair will actually accept', () => {
+    const hint = formatTargetHint('notes/~zod/research-1');
+    // The hint used to name --stdin, which the repair refuses outright: the
+    // recovery advice sent the model straight into a second rejection.
+    // Asserting against the repair itself keeps the two from drifting.
+    expect(hint).not.toContain('--stdin');
+    const suggested = hint
+      .slice(hint.indexOf('notes note-create'))
+      .replace(/'.*$/s, '')
+      .trim()
+      .split(/\s+/);
+    const repaired = repairTlonCommandArgs(suggested, {
+      readFile: () => {
+        throw new Error('not read in this test');
+      },
+    });
+    expect(repaired.ok).toBe(true);
   });
 
   test('falls back to the plain list for everything else', () => {

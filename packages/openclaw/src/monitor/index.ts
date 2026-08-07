@@ -1272,7 +1272,27 @@ export async function monitorTlonProvider(
         return true;
       }
       if (!notesNest) {
-        return false;
+        if (!firstConfiguredJob(group.description)) {
+          // Nothing scheduled, so no notebook is coming and there is no
+          // day-one entry to wait for. Only a configured job makes the
+          // owner's app create the channel.
+          return false;
+        }
+        // Waiting, not settling. "No notes channel" used to mean "this
+        // setup has none" — true when the agent made its own notebook
+        // during the build. Now the owner's app makes it, moments *after*
+        // the config write the setup just finished, so a missing channel is
+        // the normal state for the first sweeps rather than a verdict.
+        // Settling here closed the setup before the notebook existed, which
+        // meant the entry was never asked for and the channel was marked
+        // done — defeating the whole handoff. The bounded wait below
+        // eventually releases it, and the finishing directive covers a
+        // notebook that truly never arrives.
+        emptyNotebookWaits.set(nest, waits + 1);
+        runtime.log?.(
+          `[tlon] Holding the closing in ${nest}: the owner's notebook has not appeared yet (${waits + 1}/${MAX_EMPTY_NOTEBOOK_WAITS})`
+        );
+        return true;
       }
       const state = await notebookNewestEntry(notesNest);
       // Measured against the baseline, not against emptiness: entries that

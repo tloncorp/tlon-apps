@@ -17,6 +17,12 @@ const logger = createDevLogger('agentOnboardingActions', false);
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * How long the agent-marker write may take to look up the group before it
+ * stops being safe to write. See `writeAgentMarker`.
+ */
+const MARKER_WRITE_DEADLINE_MS = 5_000;
+
+/**
  * Create a group whose resident is the user's agent: a default group with
  * the bot on the guest list. The agent opens the conversation itself once
  * it joins — it posts the purpose picker into the empty channel — so the
@@ -127,8 +133,25 @@ async function writeAgentMarker(group: db.Group, botShipId: string) {
   // be read at all — writing blind risks the same clobber, and the marker
   // is best-effort belt-and-braces (`agentGroupAgents` is the primary
   // signal).
+  // The guard below is a check, not a compare-and-set: `updateGroupMeta`
+  // replaces the whole meta, so a config written between the read and the
+  // poke landing is simply lost — and losing it is worse than losing the
+  // marker, because the group then looks unconfigured while its scheduled
+  // job keeps running unowned. Nothing makes the pair atomic, so bound the
+  // race instead: the group is milliseconds old here and the agent cannot
+  // configure it until the user has tapped through the picker, so we are
+  // comfortably first unless this write is already slow. If it is, give up
+  // — a missing marker only degrades the agent's cards to text.
+  const deadline = Date.now() + MARKER_WRITE_DEADLINE_MS;
   const current = await api.getGroup(group.id).catch(() => null);
   if (!current || parseGroupAgentConfig(current.description) !== undefined) {
+    return;
+  }
+  if (Date.now() > deadline) {
+    logger.trackEvent('Agent Marker Skipped', {
+      groupId: group.id,
+      reason: 'stale read',
+    });
     return;
   }
   const entry = {
