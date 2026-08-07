@@ -1129,6 +1129,23 @@ describe('services card', () => {
       ).toBe(true);
     });
 
+    test("another ship's configured group is not this owner's history", async () => {
+      // The bot can sit in someone else's agent group; its job says
+      // nothing about whether *this* owner has been through a setup. Read
+      // as a prior setup, it skipped the services card and settled the
+      // closing early on the owner's genuine first one.
+      expect(
+        await isFirstConfiguredSetup(
+          groupsWith({
+            '~ten/v2n85usn': configured,
+            '~sampel-palnet/theirs': configured,
+          }),
+          {},
+          '~ten/v2n85usn'
+        )
+      ).toBe(true);
+    });
+
     test('false once another group already carries a job', async () => {
       expect(
         await isFirstConfiguredSetup(

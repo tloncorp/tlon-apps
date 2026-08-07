@@ -128,6 +128,7 @@ import {
   descriptionHasConfiguredJob,
   findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
+  findConfiguredAgentGroups,
   findGroupForChannel,
   firstConfiguredJob,
   homeGroupAwaitingOpening,
@@ -1778,9 +1779,17 @@ export async function monitorTlonProvider(
           runtime.log?.(
             `[tlon] No onboarding offer for ${groupFlag}: hostIsOwner=${info.host === effectiveOwnerShip}, channelHasNoPosts=${isNew}, alreadyOffered=${onboardingPickerOffered.has(info.nest)}`
           );
-          return channelOpenable === null || probeUnreadable
-            ? 'retry'
-            : 'settled';
+          if (channelOpenable === null || probeUnreadable) {
+            return 'retry';
+          }
+          // 'settled' means nothing more is owed here. An opened group
+          // whose setup hasn't written a job yet is still owed the topics
+          // recovery above, so it reports as opened and keeps its place in
+          // the sweep until the config lands (which drops it from the
+          // candidate list on its own).
+          return descriptionHasConfiguredJob(info.description)
+            ? 'settled'
+            : 'opened';
         }
         onboardingPickerOffered.add(info.nest);
         runtime.log?.(
@@ -6624,6 +6633,9 @@ export async function monitorTlonProvider(
         // verdicts drop a group out of the sweep entirely, so a quiet tick
         // costs one groups scry.
         const onboardingSweepSettled = new Set<string>();
+        // Groups whose closing debt has been checked once this process —
+        // the restart recovery below only needs one look each.
+        const closingRecoveryChecked = new Set<string>();
         const runOnboardingSweep = async (): Promise<boolean> => {
           const flags = await findAgentGroupsAwaitingOpening(
             api,
@@ -6640,7 +6652,15 @@ export async function monitorTlonProvider(
             }
             sawWork = true;
             const verdict = await offerOnboardingInNewOwnerGroup(groupFlag);
-            if (verdict !== 'retry') {
+            // Only a genuinely terminal verdict retires a flag. 'opened'
+            // used to retire one too, which quietly disabled the recovery
+            // that lives inside the offer: if the owner taps a purpose card
+            // and the topics post fails, the live handler rolls its pending
+            // state back and leaves the re-offer to this sweep — from a
+            // transcript the sweep had already stopped reading. A group
+            // that stays here costs one scry a tick and drops off the
+            // candidate list by itself the moment its setup writes a job.
+            if (verdict === 'settled') {
               onboardingSweepSettled.add(groupFlag);
             }
           }
@@ -6666,6 +6686,42 @@ export async function monitorTlonProvider(
               continue;
             }
             await postInviteCardIfSetupComplete(nest);
+          }
+          // The set above is memory, and the debt outlives the process: a
+          // restart between the config write and the cards left a finished
+          // setup with no closing until the owner happened to type again.
+          // The check recovers its own state from the transcript, so it
+          // only needs to be *called* — walk the owner's configured groups
+          // and let it settle each one. `inviteSettled` makes every pass
+          // after the first a no-op, so this costs one nest lookup per
+          // group per process.
+          for (const groupFlag of await findConfiguredAgentGroups(
+            api,
+            runtime,
+            effectiveOwnerShip
+          )) {
+            if (opts.abortSignal?.aborted) {
+              return sawWork;
+            }
+            if (closingRecoveryChecked.has(groupFlag)) {
+              continue;
+            }
+            const info = await findChatNestForGroup(api, groupFlag, runtime);
+            if (!info) {
+              continue;
+            }
+            if (
+              onboardingInvitePending.has(info.nest) ||
+              onboardingSetupTurnInFlight.has(info.nest)
+            ) {
+              // Already owned by the loop above, or by a running turn.
+              continue;
+            }
+            sawWork = true;
+            await postInviteCardIfSetupComplete(info.nest);
+            if (!onboardingInvitePending.has(info.nest)) {
+              closingRecoveryChecked.add(groupFlag);
+            }
           }
           return sawWork;
         };

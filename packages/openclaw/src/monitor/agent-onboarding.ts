@@ -358,9 +358,16 @@ export async function isFirstConfiguredSetup(
   if (!groups) {
     return null;
   }
+  // The host filter is the point, and it was missing: without it any
+  // configured agent group the bot happens to sit in — someone else's,
+  // hosted by another ship — counted as this owner's prior setup, so their
+  // real first setup skipped the services card and settled early.
+  const host = hostOf(flag);
   return !Object.entries(groups).some(
     ([otherFlag, group]) =>
-      otherFlag !== flag && descriptionHasConfiguredJob(descriptionOf(group))
+      otherFlag !== flag &&
+      hostOf(otherFlag) === host &&
+      descriptionHasConfiguredJob(descriptionOf(group))
   );
 }
 
@@ -662,6 +669,34 @@ export async function findAgentGroupsAwaitingOpening(
         !descriptionHasAgentSetup(description)
       );
     })
+    .map(([flag]) => flag);
+}
+
+/**
+ * The owner's groups whose setup already wrote a configured job.
+ *
+ * The mirror image of the list above, and the sweep needs both: that one
+ * finds setups that have not started, this one finds setups that may have
+ * finished without their closing. The debt is otherwise recorded only in
+ * memory, so a gateway restart between the config write and the cards lost
+ * it — and the closing check is transcript-idempotent precisely so it can
+ * be re-run from a list like this and settle on its own.
+ */
+export async function findConfiguredAgentGroups(
+  api: ScryApi,
+  runtime: Runtime,
+  ownerShip: string | null
+): Promise<string[]> {
+  if (!ownerShip) {
+    return [];
+  }
+  const groups = await scryGroups(api, runtime, 'configured agent groups');
+  return Object.entries(groups ?? {})
+    .filter(
+      ([flag, group]) =>
+        hostOf(flag) === ownerShip &&
+        descriptionHasConfiguredJob(descriptionOf(group))
+    )
     .map(([flag]) => flag);
 }
 
