@@ -240,12 +240,22 @@ export async function ensureAgentNotebookForGroup(group: {
   for (const delay of delays) {
     if (delay) {
       await sleep(delay);
-      // A create that timed out may still have landed. Re-check before
-      // trying again rather than leaving the owner with two notebooks.
-      const synced = await db
-        .getGroup({ id: group.id })
-        .catch(() => null as Awaited<ReturnType<typeof db.getGroup>> | null);
-      if (synced?.channels?.some((channel) => channel.type === 'notes')) {
+      // Ask the ship, not the local DB. `createChannel` can throw after the
+      // channel is already made — its own verification reads the groups
+      // listing, which may be unreadable for a moment — and the local row
+      // only appears once sync catches up. A local check would therefore
+      // still say "no notebook" for a notebook that exists, and every
+      // retry would mint another one. Duplicates are permanent and the
+      // owner sees them; a missing notebook is recoverable.
+      let remote;
+      try {
+        remote = await api.getGroup(group.id);
+      } catch {
+        // Can't tell whether the create landed, so stop guessing. The
+        // guard is released below and a later pass starts over.
+        break;
+      }
+      if (remote.channels?.some((channel) => channel.type === 'notes')) {
         return;
       }
     }

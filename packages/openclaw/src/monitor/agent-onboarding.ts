@@ -7,6 +7,7 @@ import {
 } from '../urbit/blob.js';
 import {
   GROUP_LOOK_RULE,
+  GROUP_LOOK_RULE_NO_ENTRY,
   INVITE_CARD_BUTTON_LABEL,
   INVITE_CARD_FALLBACK,
   INVITE_CARD_PROMPT,
@@ -1130,7 +1131,7 @@ export function renderFinishingDirective(): string {
     'Your notebook never appeared, so there is no entry to write and',
     'nothing more to wait for — do not create a channel, and do not keep',
     'looking for one.',
-    GROUP_LOOK_RULE,
+    GROUP_LOOK_RULE_NO_ENTRY,
     'Do this silently: post nothing about it in chat, and do not repeat',
     'any announcement you already sent.',
   ].join(' ');

@@ -209,10 +209,26 @@ export const GROUP_ICON_RULE =
  * turn has — before the config, the notebook and the entry exist. Run last,
  * a failure costs a name and a picture on a group that already works.
  */
-export const GROUP_LOOK_RULE =
-  'Last, once the entry is written: give the group its name and face. ' +
+const GROUP_LOOK_BODY =
+  'give the group its name and face. ' +
   'Rename it from the topics if it still has a placeholder name. ' +
   GROUP_ICON_RULE;
+
+export const GROUP_LOOK_RULE =
+  'Last, once the entry is written: ' + GROUP_LOOK_BODY;
+
+/**
+ * The same work, for the path where the notebook never arrived.
+ *
+ * The entry-directive wording leads with "once the entry is written",
+ * which is a condition the give-up directive has just finished saying will
+ * never be met — a model can satisfy that prompt by doing nothing, and the
+ * group keeps its placeholder name and default icon forever. This is the
+ * last directive that path ever sends, so the ask has to be unconditional.
+ */
+export const GROUP_LOOK_RULE_NO_ENTRY =
+  'There is nothing left to wait for, so do this now, in this turn: ' +
+  GROUP_LOOK_BODY;
 
 /**
  * How the confirmation run is performed, shared by the jobs that produce

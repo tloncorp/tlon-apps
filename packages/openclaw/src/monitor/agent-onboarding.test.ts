@@ -738,6 +738,14 @@ describe('renderSetupDirective', () => {
     expect(finishing).toContain('--image');
     expect(finishing).toContain('placeholder name');
     expect(finishing).not.toContain('--markdown');
+    // And it must not hang the rename on the entry it just said will never
+    // exist. Sharing the entry-directive's "once the entry is written"
+    // lead-in gave this turn a condition it had already ruled out, which a
+    // model can satisfy by doing nothing at all — leaving the group with
+    // its placeholder name for good, since this is the last directive this
+    // path ever sends.
+    expect(finishing).not.toContain('once the entry is written');
+    expect(finishing).toContain('nothing left to wait for');
   });
 
   test('pins the values the model must not improvise', () => {
