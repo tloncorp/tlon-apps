@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { YStack } from 'tamagui';
@@ -40,10 +41,16 @@ export function SearchBar({
   // A trailing debounce outlives the component that scheduled it: closing a
   // search overlay or leaving a screen mid-type otherwise lets a queued query
   // land on a consumer that has already reset its state.
-  useEffect(
-    () => () => debouncedOnChangeQuery.cancel(),
-    [debouncedOnChangeQuery]
-  );
+  //
+  // Held in a ref and cancelled with empty deps so this fires on unmount only.
+  // Keying it to the memo's identity would cancel the pending call every time
+  // a caller passed an unstable onChangeQuery — silently defeating the debounce
+  // rather than just cleaning up after it.
+  const pendingQueryRef = useRef(debouncedOnChangeQuery);
+  useEffect(() => {
+    pendingQueryRef.current = debouncedOnChangeQuery;
+  }, [debouncedOnChangeQuery]);
+  useEffect(() => () => pendingQueryRef.current.cancel(), []);
 
   const onTextChange = useCallback(
     (text: string) => {

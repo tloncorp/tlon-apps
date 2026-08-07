@@ -1,10 +1,11 @@
 import { useNotesSearch } from '@tloncorp/shared';
 import { Pressable, TlonText } from '@tloncorp/ui';
+import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
 import { Portal, View, XStack, YStack } from 'tamagui';
 
-import { SearchBar } from '../SearchBar';
+import { TextInput } from '../Form';
 import {
   type NotesSearchResultNote,
   NotesSearchResults,
@@ -12,6 +13,8 @@ import {
 
 const isMacPlatform =
   typeof navigator !== 'undefined' && navigator.platform?.includes('Mac');
+
+const QUERY_DEBOUNCE_MS = 300;
 
 /**
  * Desktop notebook search: a quick-jump-style overlay masking the whole app, so
@@ -31,10 +34,38 @@ export function NotesSearchModal({
   onSelectNote: (note: NotesSearchResultNote) => void;
   open: boolean;
 }) {
-  // `query` is the debounced value SearchBar hands us, so it is also what the
-  // results and the no-match message describe.
+  // The input's live text and the debounced term driving the search are tracked
+  // separately: Enter has to know whether what's on screen has been searched
+  // yet, which it can't ask a search field that owns its own value.
+  const [inputValue, setInputValue] = useState('');
   const [query, setQuery] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+
+  const commitQuery = useMemo(
+    () =>
+      debounce(setQuery, QUERY_DEBOUNCE_MS, { leading: false, trailing: true }),
+    []
+  );
+  useEffect(() => () => commitQuery.cancel(), [commitQuery]);
+
+  const handleChangeText = useCallback(
+    (text: string) => {
+      setInputValue(text);
+      const next = text.trim();
+      if (next === '') {
+        // Clearing should empty the results at once rather than after a beat.
+        commitQuery.cancel();
+        setQuery('');
+        return;
+      }
+      commitQuery(next);
+    },
+    [commitQuery]
+  );
+
+  // What's typed hasn't been searched yet, so `notes` still belongs to the
+  // previous term.
+  const queryIsStale = inputValue.trim() !== query;
 
   const { notes, loading, errored, hasMore, loadMore, searchComplete } =
     useNotesSearch(open ? notebookFlag : null, open ? query : '');
@@ -49,9 +80,11 @@ export function NotesSearchModal({
   // flashing stale results and firing a request for them.
   useEffect(() => {
     if (open) return;
+    commitQuery.cancel();
+    setInputValue('');
     setQuery('');
     setSelectedNoteId(null);
-  }, [open]);
+  }, [commitQuery, open]);
 
   // Keep the highlight on the first result as pages stream in, and drop it if
   // the note it pointed at is no longer in the list.
@@ -110,6 +143,13 @@ export function NotesSearchModal({
           close();
           break;
         case 'Enter': {
+          if (queryIsStale) {
+            // Mid-debounce the visible results belong to the previous term, so
+            // Enter searches what's typed instead of opening a hit from it.
+            commitQuery.cancel();
+            setQuery(inputValue.trim());
+            break;
+          }
           const selected = notes.find((note) => note.noteId === selectedNoteId);
           if (selected) {
             selectNote(selected);
@@ -118,7 +158,16 @@ export function NotesSearchModal({
         }
       }
     },
-    [close, moveSelection, notes, selectNote, selectedNoteId]
+    [
+      close,
+      commitQuery,
+      inputValue,
+      moveSelection,
+      notes,
+      queryIsStale,
+      selectNote,
+      selectedNoteId,
+    ]
   );
 
   const handleKeyPress = useCallback(
@@ -186,17 +235,20 @@ export function NotesSearchModal({
           overflow="hidden"
           testID="NotesSearchModal"
         >
-          <SearchBar
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoFocus
+            icon="Search"
+            onChangeText={handleChangeText}
+            onKeyPress={handleKeyPress}
             placeholder="Search notes"
-            onChangeQuery={setQuery}
-            onPressCancel={close}
-            inputProps={{
-              autoFocus: true,
-              autoCapitalize: 'none',
-              onKeyPress: handleKeyPress,
-              spellCheck: false,
-              testID: 'NotesSearchInput',
-            }}
+            rightControls={
+              <TextInput.InnerButton label="Close" onPress={close} />
+            }
+            spellCheck={false}
+            testID="NotesSearchInput"
+            value={inputValue}
           />
 
           <YStack flex={1} minHeight={0}>

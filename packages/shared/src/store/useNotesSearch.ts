@@ -37,6 +37,24 @@ export function useNotesSearchSupported(): boolean {
   return groupsVersionSupportsNotesSearch(appInfo?.groupsVersion);
 }
 
+/**
+ * Whether there is more notebook left to search. A failed page leaves
+ * react-query's `hasNextPage` set from the last successful one, and reporting
+ * that as "more" is what lets a failure loop: every consumer that asks for the
+ * next page — the fill-the-screen effect, the list's `onEndReached` — retries
+ * the page that just failed. Derived in one place so no caller has to remember
+ * to check `errored` alongside it.
+ */
+export function notesSearchHasMore({
+  errored,
+  hasNextPage,
+}: {
+  errored: boolean;
+  hasNextPage: boolean;
+}): boolean {
+  return hasNextPage && !errored;
+}
+
 export function useNotesSearch(
   notebookFlag: string | null | undefined,
   query: string
@@ -76,21 +94,25 @@ export function useNotesSearch(
 
   const loading = isLoading || isFetchingNextPage;
 
+  // A failed page leaves react-query's hasNextPage set from the last good one.
+  // Reporting that as "more to search" is what lets a failure loop: both the
+  // fill-the-screen effect below and the list's onEndReached would keep asking
+  // for the page that just failed. One derived value so no consumer has to
+  // remember to check `errored` itself.
+  const hasMore = notesSearchHasMore({ errored: isError, hasNextPage });
+
   useEffect(() => {
-    // A failed page leaves hasNextPage set from the last good one, so without
-    // this guard the fill-the-screen fetch would retry the failure forever.
-    if (isError) return;
-    if (notes.length < MIN_RESULT_LOAD_THRESHOLD && hasNextPage && !loading) {
+    if (notes.length < MIN_RESULT_LOAD_THRESHOLD && hasMore && !loading) {
       fetchNextPage();
     }
-  }, [isError, notes, hasNextPage, loading, fetchNextPage]);
+  }, [notes, hasMore, loading, fetchNextPage]);
 
   return {
     notes,
     loading,
     errored: isError,
-    hasMore: hasNextPage,
+    hasMore,
     loadMore: fetchNextPage,
-    searchComplete: !loading && !hasNextPage,
+    searchComplete: !loading && !hasMore,
   };
 }
