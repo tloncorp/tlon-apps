@@ -13,6 +13,7 @@ import {
 } from './postListInitialization';
 import {
   PostListComponent,
+  PostListComponentProps,
   PostListMethods,
   PostWithNeighbors,
   usePostListBottomCallbacks,
@@ -66,6 +67,281 @@ PostList.displayName = 'PostList';
  * until the user scrolls.
  */
 const ConversationPostList: PostListComponent = React.forwardRef(
+  (props, forwardedRef) => {
+    const initialization = useConversationListInitialization(props);
+    const attemptRef = React.useRef<PostListMethods>(null);
+    React.useImperativeHandle(
+      forwardedRef,
+      () => ({
+        scrollToStart: (options) => attemptRef.current?.scrollToStart(options),
+        scrollToEnd: (options) => attemptRef.current?.scrollToEnd(options),
+        scrollToPost: (options) => attemptRef.current?.scrollToPost(options),
+      }),
+      []
+    );
+
+    return (
+      <ConversationPostListAttempt
+        // Each resolution gets a fresh positioning attempt. This keeps its
+        // refs and reveal state scoped to the same key that remounts the list.
+        key={initialization.mountKey}
+        {...props}
+        {...initialization}
+        ref={attemptRef}
+      />
+    );
+  }
+);
+ConversationPostList.displayName = 'ConversationPostList';
+
+type ConversationListInitialization = {
+  anchorIndex: number;
+  didTimeoutWaitingForAnchor: boolean;
+  isInitialAnchorReady: boolean;
+  mountKey: string;
+};
+
+function useConversationListInitialization({
+  anchor,
+  channel,
+  isLoading = false,
+  postsWithNeighbors,
+}: Pick<
+  PostListComponentProps,
+  'anchor' | 'channel' | 'isLoading' | 'postsWithNeighbors'
+>): ConversationListInitialization {
+  const anchorIndex = React.useMemo(() => {
+    if (!anchor?.postId) {
+      return -1;
+    }
+
+    return postsWithNeighbors.findIndex(
+      ({ post }) => post.id === anchor.postId
+    );
+  }, [anchor?.postId, postsWithNeighbors]);
+  const anchorKey = getPostListAnchorKey(anchor);
+  const anchorScopeKey = `${channel.id}:${anchorKey ?? 'latest'}`;
+  const [timedOutAnchorScopeKey, setTimedOutAnchorScopeKey] = React.useState<
+    string | null
+  >(null);
+  const didTimeoutWaitingForAnchor = timedOutAnchorScopeKey === anchorScopeKey;
+  const {
+    mountKey: anchorResolutionMountKey,
+    isAnchorReady: isInitialAnchorReady,
+    shouldStartAnchorTimeout,
+  } = getPostListInitialization({
+    anchorKey,
+    anchorIndex,
+    didTimeoutWaitingForAnchor,
+    isLoading,
+  });
+
+  React.useEffect(() => {
+    if (!shouldStartAnchorTimeout) {
+      return;
+    }
+
+    // Query failures switch ChannelScreen back to newest mode. A cache-backed
+    // query can appear settled while its around-cursor fetch and cache updates
+    // are still arriving, so wait briefly before falling back here.
+    const timeout = setTimeout(() => {
+      setTimedOutAnchorScopeKey(anchorScopeKey);
+    }, ANCHOR_RESOLUTION_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [anchorScopeKey, shouldStartAnchorTimeout]);
+
+  return {
+    anchorIndex,
+    didTimeoutWaitingForAnchor,
+    isInitialAnchorReady,
+    mountKey: `${channel.id}:${anchorResolutionMountKey}`,
+  };
+}
+
+type ConversationPostListAttemptProps = PostListComponentProps &
+  ConversationListInitialization;
+
+function useConversationAnchorTarget({
+  anchor,
+  anchorIndex,
+  anchorToEnd,
+  didTimeoutWaitingForAnchor,
+  listRef,
+}: Pick<
+  ConversationPostListAttemptProps,
+  'anchor' | 'anchorIndex' | 'anchorToEnd' | 'didTimeoutWaitingForAnchor'
+> & {
+  listRef: React.RefObject<LegendListRef | null>;
+}) {
+  const initialScrollIndex = React.useMemo<IndexedAnchorPosition | undefined>(
+    () =>
+      anchorIndex === -1 || didTimeoutWaitingForAnchor
+        ? undefined
+        : {
+            index: anchorIndex,
+            viewPosition: anchor?.type === 'unread' ? 0 : 0.5,
+            viewOffset: 0,
+          },
+    [anchor?.type, anchorIndex, didTimeoutWaitingForAnchor]
+  );
+  const anchorPosition: AnchorPosition | undefined =
+    anchorToEnd && (!anchor?.postId || didTimeoutWaitingForAnchor)
+      ? 'end'
+      : initialScrollIndex;
+  const latestAnchorPositionRef = React.useRef(anchorPosition);
+  const appliedAnchorPositionRef = React.useRef<AnchorPosition | undefined>(
+    undefined
+  );
+
+  React.useLayoutEffect(() => {
+    latestAnchorPositionRef.current = anchorPosition;
+  }, [anchorPosition]);
+
+  // LegendList uses initialScrollIndex to get near the target from estimates.
+  // Once it has measured the initial rows, this applies the exact position.
+  const applyAnchorPosition = React.useCallback(async () => {
+    const target = latestAnchorPositionRef.current;
+    if (target === 'end') {
+      appliedAnchorPositionRef.current = target;
+      await listRef.current?.scrollToEnd({ animated: false });
+      return true;
+    }
+
+    if (!target) {
+      return false;
+    }
+
+    appliedAnchorPositionRef.current = target;
+    await listRef.current?.scrollToIndex({ ...target, animated: false });
+    return true;
+  }, [listRef]);
+
+  return {
+    anchorPosition,
+    appliedAnchorPositionRef,
+    applyAnchorPosition,
+    initialScrollIndex,
+  };
+}
+
+function useInitialConversationScroll({
+  anchorTarget,
+  isInitialAnchorReady,
+  isLoading,
+  itemCount,
+  onInitialScrollCompleted,
+}: {
+  anchorTarget: ReturnType<typeof useConversationAnchorTarget>;
+  isInitialAnchorReady: boolean;
+  isLoading: boolean;
+  itemCount: number;
+  onInitialScrollCompleted?: () => void;
+}) {
+  const attemptIsActiveRef = React.useRef(true);
+  const didStartInitialScrollRef = React.useRef(false);
+  const initialScrollFrameRef = React.useRef<number | undefined>(undefined);
+  const userHasScrolledRef = React.useRef(false);
+  const [didFinishInitialScroll, setDidFinishInitialScroll] =
+    React.useState(false);
+  const { anchorPosition, appliedAnchorPositionRef, applyAnchorPosition } =
+    anchorTarget;
+
+  const finishInitialScroll = React.useCallback(() => {
+    setDidFinishInitialScroll(true);
+    onInitialScrollCompleted?.();
+  }, [onInitialScrollCompleted]);
+  const completeInitialScroll = React.useCallback(() => {
+    if (!isInitialAnchorReady || didStartInitialScrollRef.current) {
+      return;
+    }
+    didStartInitialScrollRef.current = true;
+    void applyAnchorPosition()
+      .then(() => {
+        if (attemptIsActiveRef.current) {
+          finishInitialScroll();
+        }
+      })
+      .catch(() => {
+        // Navigation can cancel the scroll while the list is unmounting.
+      });
+  }, [applyAnchorPosition, finishInitialScroll, isInitialAnchorReady]);
+
+  // LegendList has no settled-layout callback: onLoad fires before its
+  // next-frame buffer expansion, so wait through two layout opportunities
+  // before applying the exact target from measured row sizes.
+  const scheduleInitialScroll = React.useCallback(() => {
+    if (initialScrollFrameRef.current !== undefined) {
+      cancelAnimationFrame(initialScrollFrameRef.current);
+    }
+    initialScrollFrameRef.current = requestAnimationFrame(() => {
+      initialScrollFrameRef.current = requestAnimationFrame(() => {
+        initialScrollFrameRef.current = undefined;
+        completeInitialScroll();
+      });
+    });
+  }, [completeInitialScroll]);
+
+  React.useLayoutEffect(() => {
+    attemptIsActiveRef.current = true;
+    return () => {
+      attemptIsActiveRef.current = false;
+      if (initialScrollFrameRef.current !== undefined) {
+        cancelAnimationFrame(initialScrollFrameRef.current);
+      }
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (
+      !isInitialAnchorReady ||
+      isLoading ||
+      itemCount !== 0 ||
+      didStartInitialScrollRef.current
+    ) {
+      return;
+    }
+
+    // LegendList defers onLoad when initialScrollAtEnd has no data to target.
+    // A settled empty conversation has no position to reconcile, so reveal it.
+    didStartInitialScrollRef.current = true;
+    finishInitialScroll();
+  }, [finishInitialScroll, isInitialAnchorReady, isLoading, itemCount]);
+
+  React.useEffect(() => {
+    if (
+      !didFinishInitialScroll ||
+      userHasScrolledRef.current ||
+      !anchorPosition ||
+      isSameAnchorPosition(anchorPosition, appliedAnchorPositionRef.current)
+    ) {
+      return;
+    }
+
+    void applyAnchorPosition().catch(() => {
+      // The list may unmount while a later anchor correction is in flight.
+    });
+  }, [
+    anchorPosition,
+    appliedAnchorPositionRef,
+    applyAnchorPosition,
+    didFinishInitialScroll,
+  ]);
+
+  const markUserScrolled = React.useCallback(() => {
+    userHasScrolledRef.current = true;
+  }, []);
+
+  return {
+    didFinishInitialScroll,
+    markUserScrolled,
+    scheduleInitialScroll,
+  };
+}
+
+const ConversationPostListAttempt = React.forwardRef<
+  PostListMethods,
+  ConversationPostListAttemptProps
+>(
   (
     {
       postsWithNeighbors,
@@ -89,132 +365,34 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       listHeaderComponent,
       listBottomComponent,
       isLoading = false,
+      anchorIndex,
+      didTimeoutWaitingForAnchor,
+      isInitialAnchorReady,
     },
     forwardedRef
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
-    const didStartInitialScrollRef = React.useRef(false);
-    const initialScrollFrameRef = React.useRef<number | undefined>(undefined);
-    const userHasScrolledRef = React.useRef(false);
-    const appliedAnchorPositionRef = React.useRef<AnchorPosition | undefined>(
-      undefined
-    );
-    const [didFinishInitialScroll, setDidFinishInitialScroll] =
-      React.useState(false);
     const insets = useSafeAreaInsets();
     const collectionLayout = React.useMemo(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
     );
-    const anchorIndex = React.useMemo(() => {
-      if (!anchor?.postId) {
-        return -1;
-      }
-
-      return postsWithNeighbors.findIndex(
-        ({ post }) => post.id === anchor.postId
-      );
-    }, [anchor?.postId, postsWithNeighbors]);
-    const [timedOutAnchorId, setTimedOutAnchorId] = React.useState<
-      string | null
-    >(null);
-    const didTimeoutWaitingForAnchor =
-      !!anchor?.postId && timedOutAnchorId === anchor.postId;
-    const anchorKey = getPostListAnchorKey(anchor);
-    const {
-      mountKey: anchorResolutionMountKey,
-      isAnchorReady: isInitialAnchorReady,
-      shouldStartAnchorTimeout,
-    } = getPostListInitialization({
-      anchorKey,
+    const anchorTarget = useConversationAnchorTarget({
+      anchor,
       anchorIndex,
+      anchorToEnd,
       didTimeoutWaitingForAnchor,
-      isLoading,
+      listRef,
     });
-    const anchorScopeKey = `${channel.id}:${anchorKey ?? 'latest'}`;
-    const listMountKey = `${channel.id}:${anchorResolutionMountKey}`;
-
-    const currentAnchorScopeKeyRef = React.useRef(anchorScopeKey);
-    React.useLayoutEffect(() => {
-      if (currentAnchorScopeKeyRef.current === anchorScopeKey) {
-        return;
-      }
-
-      currentAnchorScopeKeyRef.current = anchorScopeKey;
-      setTimedOutAnchorId(null);
-    }, [anchorScopeKey]);
-
-    const currentListMountKeyRef = React.useRef(listMountKey);
-    React.useLayoutEffect(() => {
-      if (currentListMountKeyRef.current === listMountKey) {
-        return;
-      }
-
-      currentListMountKeyRef.current = listMountKey;
-      didStartInitialScrollRef.current = false;
-      if (initialScrollFrameRef.current !== undefined) {
-        cancelAnimationFrame(initialScrollFrameRef.current);
-        initialScrollFrameRef.current = undefined;
-      }
-      setDidFinishInitialScroll(false);
-      userHasScrolledRef.current = false;
-      appliedAnchorPositionRef.current = undefined;
-    }, [listMountKey]);
-
-    React.useEffect(() => {
-      const anchorId = anchor?.postId;
-      if (!shouldStartAnchorTimeout || !anchorId) {
-        return;
-      }
-
-      // Query failures switch ChannelScreen back to newest mode. A cache-backed
-      // query can appear settled while its around-cursor fetch and cache updates
-      // are still arriving, so wait briefly before falling back here.
-      const timeout = setTimeout(() => {
-        setTimedOutAnchorId(anchorId);
-      }, ANCHOR_RESOLUTION_TIMEOUT_MS);
-      return () => clearTimeout(timeout);
-    }, [anchor?.postId, shouldStartAnchorTimeout]);
-    const initialScrollIndex = React.useMemo<IndexedAnchorPosition | undefined>(
-      () =>
-        anchorIndex === -1 || didTimeoutWaitingForAnchor
-          ? undefined
-          : {
-              index: anchorIndex,
-              viewPosition: anchor?.type === 'unread' ? 0 : 0.5,
-              viewOffset: 0,
-            },
-      [anchor?.type, anchorIndex, didTimeoutWaitingForAnchor]
-    );
-    const anchorPosition: AnchorPosition | undefined =
-      anchorToEnd && (!anchor?.postId || didTimeoutWaitingForAnchor)
-        ? 'end'
-        : initialScrollIndex;
-    const latestAnchorPositionRef = React.useRef<AnchorPosition | undefined>(
-      anchorPosition
-    );
-    React.useLayoutEffect(() => {
-      latestAnchorPositionRef.current = anchorPosition;
-    }, [anchorPosition]);
-
-    // LegendList uses initialScrollIndex to get near the target from estimates.
-    // Once it has measured the initial rows, this applies the exact position.
-    const applyAnchorPosition = React.useCallback(async () => {
-      const target = latestAnchorPositionRef.current;
-      if (target === 'end') {
-        appliedAnchorPositionRef.current = target;
-        await listRef.current?.scrollToEnd({ animated: false });
-        return true;
-      }
-
-      if (!target) {
-        return false;
-      }
-
-      appliedAnchorPositionRef.current = target;
-      await listRef.current?.scrollToIndex({ ...target, animated: false });
-      return true;
-    }, []);
+    const { didFinishInitialScroll, markUserScrolled, scheduleInitialScroll } =
+      useInitialConversationScroll({
+        anchorTarget,
+        isInitialAnchorReady,
+        isLoading,
+        itemCount: postsWithNeighbors.length,
+        onInitialScrollCompleted,
+      });
+    const { initialScrollIndex } = anchorTarget;
     const { onScroll: handleScroll, isAtBottom } = useScrollDirectionTracker({
       atBottomThreshold: onScrolledToBottomThreshold,
       bottomAtEnd: true,
@@ -223,89 +401,6 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       onScrolledToBottom,
       onScrolledAwayFromBottom,
     });
-    const finishInitialScroll = React.useCallback(() => {
-      setDidFinishInitialScroll(true);
-      onInitialScrollCompleted?.();
-    }, [onInitialScrollCompleted]);
-    const completeInitialScroll = React.useCallback(() => {
-      if (!isInitialAnchorReady || didStartInitialScrollRef.current) {
-        return;
-      }
-      didStartInitialScrollRef.current = true;
-      const loadedListMountKey = listMountKey;
-      void applyAnchorPosition()
-        .then(() => {
-          if (currentListMountKeyRef.current !== loadedListMountKey) {
-            return;
-          }
-          finishInitialScroll();
-        })
-        .catch(() => {
-          // Navigation can cancel the scroll while the list is unmounting.
-        });
-    }, [
-      applyAnchorPosition,
-      finishInitialScroll,
-      isInitialAnchorReady,
-      listMountKey,
-    ]);
-    // LegendList has no settled-layout callback: onLoad fires before its
-    // next-frame buffer expansion, so wait through two layout opportunities
-    // before applying the exact target from measured row sizes.
-    const scheduleInitialScroll = React.useCallback(() => {
-      if (initialScrollFrameRef.current !== undefined) {
-        cancelAnimationFrame(initialScrollFrameRef.current);
-      }
-      initialScrollFrameRef.current = requestAnimationFrame(() => {
-        initialScrollFrameRef.current = requestAnimationFrame(() => {
-          initialScrollFrameRef.current = undefined;
-          completeInitialScroll();
-        });
-      });
-    }, [completeInitialScroll]);
-    React.useEffect(
-      () => () => {
-        if (initialScrollFrameRef.current !== undefined) {
-          cancelAnimationFrame(initialScrollFrameRef.current);
-        }
-      },
-      []
-    );
-    React.useEffect(() => {
-      if (
-        !isInitialAnchorReady ||
-        isLoading ||
-        postsWithNeighbors.length !== 0 ||
-        didStartInitialScrollRef.current
-      ) {
-        return;
-      }
-
-      // LegendList defers onLoad when initialScrollAtEnd has no data to target.
-      // A settled empty conversation has no position to reconcile, so reveal it.
-      didStartInitialScrollRef.current = true;
-      finishInitialScroll();
-    }, [
-      finishInitialScroll,
-      isInitialAnchorReady,
-      isLoading,
-      postsWithNeighbors.length,
-    ]);
-
-    React.useEffect(() => {
-      if (
-        !didFinishInitialScroll ||
-        userHasScrolledRef.current ||
-        !anchorPosition ||
-        isSameAnchorPosition(anchorPosition, appliedAnchorPositionRef.current)
-      ) {
-        return;
-      }
-
-      void applyAnchorPosition().catch(() => {
-        // The list may unmount while a later anchor correction is in flight.
-      });
-    }, [anchorPosition, applyAnchorPosition, didFinishInitialScroll]);
 
     React.useImperativeHandle(
       forwardedRef,
@@ -337,9 +432,6 @@ const ConversationPostList: PostListComponent = React.forwardRef(
 
     return (
       <AnimatedLegendList<PostWithNeighbors>
-        // Explicit anchors intentionally remount when they resolve because
-        // LegendList only honors its initial target during mount.
-        key={listMountKey}
         ref={listRef}
         dataKey={channel.id}
         data={postsWithNeighbors}
@@ -382,9 +474,7 @@ const ConversationPostList: PostListComponent = React.forwardRef(
         ]}
         onLoad={scheduleInitialScroll}
         onScroll={handleScroll}
-        onScrollBeginDrag={() => {
-          userHasScrolledRef.current = true;
-        }}
+        onScrollBeginDrag={markUserScrolled}
         onStartReached={onStartReached}
         onStartReachedThreshold={onStartReachedThreshold}
         onEndReached={onEndReached}
@@ -394,4 +484,4 @@ const ConversationPostList: PostListComponent = React.forwardRef(
   }
 );
 
-ConversationPostList.displayName = 'ConversationPostList';
+ConversationPostListAttempt.displayName = 'ConversationPostListAttempt';
