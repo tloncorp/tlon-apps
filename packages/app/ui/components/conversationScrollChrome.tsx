@@ -40,8 +40,11 @@ export function useConversationInsets({
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const { bottom: bottomSafeArea } = useSafeAreaInsets();
   const usesTransparentHeader =
-    supportsNativeScrollEdgeChrome(Platform.OS, Platform.Version) &&
-    hasTransparentHeader;
+    supportsNativeScrollEdgeChrome(
+      Platform.OS,
+      Platform.Version,
+      supportsLiquidGlass()
+    ) && hasTransparentHeader;
   const [measuredComposerHeight, setMeasuredComposerHeight] = useState<
     number | null
   >(null);

@@ -7,6 +7,7 @@ import {
   nativeHeaderScrollResetOptions,
 } from '../../navigation/nativeHeaderOptions';
 import { useInstalledNavigationOptions } from '../../navigation/useInstalledNavigationOptions';
+import { supportsLiquidGlass } from './GlassSurface';
 
 type ScreenScrollProps = Pick<
   ScrollViewProps,
@@ -28,6 +29,7 @@ export function useScreenScrollProps({
       getNativeHeaderScrollOptions({
         platform: Platform.OS,
         platformVersion: Platform.Version,
+        liquidGlassAvailable: supportsLiquidGlass(),
         bottomEdgeEffect,
       }),
     [bottomEdgeEffect]

@@ -14,6 +14,7 @@ describe('native header options', () => {
       getNativeHeaderScrollOptions({
         platform: 'ios',
         platformVersion: 26,
+        liquidGlassAvailable: true,
       })
     ).toMatchObject({
       headerTransparent: true,
@@ -31,6 +32,7 @@ describe('native header options', () => {
       getNativeHeaderScrollOptions({
         platform: 'ios',
         platformVersion: 26,
+        liquidGlassAvailable: true,
         bottomEdgeEffect: 'soft',
       }).scrollEdgeEffects
     ).toMatchObject({ top: 'soft', bottom: 'soft' });
@@ -41,6 +43,17 @@ describe('native header options', () => {
       getNativeHeaderScrollOptions({
         platform: 'ios',
         platformVersion: 18,
+        liquidGlassAvailable: true,
+      })
+    ).toEqual({});
+  });
+
+  it('keeps the standard opaque header when Liquid Glass is unavailable', () => {
+    expect(
+      getNativeHeaderScrollOptions({
+        platform: 'ios',
+        platformVersion: 26,
+        liquidGlassAvailable: false,
       })
     ).toEqual({});
   });
