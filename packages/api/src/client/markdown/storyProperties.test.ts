@@ -73,6 +73,21 @@ function randomList(): Listing {
 
 const FORCED_CASES: Array<{ name: string; story: Story }> = [
   {
+    // Phrasing on both sides of a mark that contains a block must stay
+    // joined to the lifted result's leading/trailing paragraphs — tearing
+    // it apart both exploded paragraphs and leaked boundary entities.
+    name: 'phrasing around a bold-wrapped blockquote',
+    story: [
+      {
+        inline: [
+          'prefix ',
+          { bold: ['before', { blockquote: ['q'] }, 'after'] },
+          ' suffix',
+        ],
+      },
+    ],
+  },
+  {
     // GFM permits mixing plain and checkbox items in one list; the wire
     // keeps the author's single list (adjacent lists re-merge on reparse,
     // so a homogeneous split cannot survive a cycle). The renderer draws a

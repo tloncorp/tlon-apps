@@ -587,23 +587,71 @@ export function inlinesToMdast(
     trimTrailingBreaks(phrasing);
     flushPhrasing();
   };
+  let pendingLeadingTrim = false;
+
+  // Lifting a block out of a marked span must not tear the surrounding
+  // phrasing into separate paragraphs: the recursion's leading paragraph
+  // joins the phrasing already open (`prefix **before**` stays one line) and
+  // its trailing paragraph reopens phrasing that following siblings continue
+  // (`**after** suffix`). The tear also leaked `&#x20;` entities at the
+  // boundaries. Only real blocks lift.
+  const trimTrailingSpace = () => {
+    const last = phrasing[phrasing.length - 1];
+    if (last?.type === 'text') {
+      last.value = last.value.replace(/[ \t]+$/, '');
+      if (last.value === '') phrasing.pop();
+    }
+  };
+  const liftMarkedBlocks = (lifted: RootContent[]) => {
+    let nodes = lifted;
+    if (nodes.length > 0 && nodes[0].type === 'paragraph') {
+      appendPhrasing(phrasing, nodes[0].children);
+      nodes = nodes.slice(1);
+    } else {
+      // No leading paragraph to join: the open phrasing ends at a paragraph
+      // boundary, where trailing spaces are unrepresentable and would
+      // serialize as numeric entities.
+      trimTrailingSpace();
+    }
+    let reopened: PhrasingContent[] | undefined;
+    const last = nodes[nodes.length - 1];
+    if (last !== undefined && last.type === 'paragraph') {
+      reopened = last.children;
+      nodes = nodes.slice(0, -1);
+    }
+    if (nodes.length > 0) {
+      flushPhrasingBeforeBlock();
+      result.push(...nodes);
+    }
+    if (reopened) {
+      appendPhrasing(phrasing, reopened);
+    } else {
+      // Mirror of the leading case: with nothing reopened, whatever follows
+      // starts a fresh paragraph, where leading spaces are unrepresentable.
+      pendingLeadingTrim = true;
+    }
+  };
 
   for (const inline of filtered) {
     if (typeof inline === 'string') {
-      appendPhrasing(
-        phrasing,
-        wrapPhrasing([{ type: 'text', value: inline }], marks)
-      );
+      const value = pendingLeadingTrim ? inline.replace(/^[ \t]+/, '') : inline;
+      pendingLeadingTrim = false;
+      if (value !== '') {
+        appendPhrasing(
+          phrasing,
+          wrapPhrasing([{ type: 'text', value }], marks)
+        );
+      }
       continue;
     }
+    pendingLeadingTrim = false;
 
     if (isBold(inline)) {
       const bold = inline as Bold;
       const nestedMarks: PhrasingMark[] = [...marks, 'strong'];
       if (containsBlockInline(bold.bold)) {
-        flushPhrasingBeforeBlock();
-        result.push(
-          ...inlinesToMdast(
+        liftMarkedBlocks(
+          inlinesToMdast(
             bold.bold,
             opts,
             `${placement} under bold`,
@@ -626,9 +674,8 @@ export function inlinesToMdast(
       const italics = inline as Italics;
       const nestedMarks: PhrasingMark[] = [...marks, 'emphasis'];
       if (containsBlockInline(italics.italics)) {
-        flushPhrasingBeforeBlock();
-        result.push(
-          ...inlinesToMdast(
+        liftMarkedBlocks(
+          inlinesToMdast(
             italics.italics,
             opts,
             `${placement} under italics`,
@@ -655,9 +702,8 @@ export function inlinesToMdast(
       const strike = inline as Strikethrough;
       const nestedMarks: PhrasingMark[] = [...marks, 'delete'];
       if (containsBlockInline(strike.strike)) {
-        flushPhrasingBeforeBlock();
-        result.push(
-          ...inlinesToMdast(
+        liftMarkedBlocks(
+          inlinesToMdast(
             strike.strike,
             opts,
             `${placement} under strikethrough`,
@@ -818,6 +864,38 @@ function listItemInlinesToMdast(
   }
   if (currentParagraph.length > 0) {
     paragraphs.push(currentParagraph);
+  }
+
+  // Only a bare checkbox that is the item's original first inline reparses
+  // as a GFM task (the documented discriminator shift). Any other task —
+  // later position, after a leading break, nested inside the permitted one,
+  // or nested under a mark — serializes as literal text and reparses as a
+  // plain string, so strict mode rejects it here by validation instead of
+  // by splitting the paragraph (a second inlinesToMdast call would tear the
+  // remainder into its own paragraph and leak boundary entities).
+  const exemptLeadingTask = isTask(inlines[0]) ? inlines[0] : undefined;
+  if (opts?.strict) {
+    const rejectMisplacedTasks = (list: Inline[]) => {
+      for (const inline of list) {
+        if (isTask(inline) && inline !== exemptLeadingTask) {
+          throw new Error(
+            `Cannot render task faithfully outside a task-list item in ${placement} in strict mode`
+          );
+        }
+        if (isTask(inline)) {
+          rejectMisplacedTasks((inline as Task).task.content);
+        } else if (isBold(inline)) {
+          rejectMisplacedTasks((inline as Bold).bold);
+        } else if (isItalics(inline)) {
+          rejectMisplacedTasks((inline as Italics).italics);
+        } else if (isStrikethrough(inline)) {
+          rejectMisplacedTasks((inline as Strikethrough).strike);
+        } else if (isBlockquote(inline)) {
+          rejectMisplacedTasks((inline as Blockquote).blockquote);
+        }
+      }
+    };
+    rejectMisplacedTasks(inlines);
   }
 
   return paragraphs.flatMap((paragraph) =>

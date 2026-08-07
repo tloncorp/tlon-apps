@@ -1101,3 +1101,131 @@ describe('nested fenced code stays wire-legal', () => {
     expect(storyToMarkdown(markdownToStory(md))).toBe(md);
   });
 });
+
+describe('phrasing survives around marked block inlines', () => {
+  test('text before and after a bold-wrapped blockquote stays joined', () => {
+    const story = [
+      {
+        inline: [
+          'prefix ',
+          { bold: ['before', { blockquote: ['q'] }, 'after'] },
+          ' suffix',
+        ],
+      },
+    ] as Story;
+    const md = storyToMarkdown(story);
+    expect(md).toBe('prefix **before**\n\n> **q**\n\n**after** suffix');
+    expect(md).not.toMatch(/&#(?:x[\da-f]+|\d+);/i);
+    expect(storyToMarkdown(markdownToStory(md))).toBe(md);
+  });
+});
+
+describe('non-leading tasks in plain list items', () => {
+  const story = [
+    {
+      block: {
+        listing: {
+          list: {
+            type: 'unordered',
+            contents: [],
+            items: [
+              {
+                item: [
+                  'prefix ',
+                  { task: { checked: true, content: ['done'] } },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    },
+  ] as unknown as Story;
+
+  test('strict mode rejects: only a leading checkbox reparses as a task', () => {
+    expect(() => storyToMarkdown(story, { strict: true })).toThrow(
+      /task faithfully outside a task-list item/
+    );
+  });
+
+  test('non-strict keeps the text degradation', () => {
+    expect(storyToMarkdown(story)).toBe('- prefix [x] done');
+  });
+});
+
+describe('task-position validation does not tear paragraphs', () => {
+  const item = (inlines: unknown[]) =>
+    [
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [{ item: inlines }],
+            },
+          },
+        },
+      },
+    ] as unknown as Story;
+
+  test('leading task with a tail stays one line in strict mode', () => {
+    expect(
+      storyToMarkdown(
+        item([{ task: { checked: true, content: ['done'] } }, ' tail']),
+        { strict: true }
+      )
+    ).toBe('- [x] done tail');
+  });
+
+  test('a task nested inside the exempt leading task rejects', () => {
+    expect(() =>
+      storyToMarkdown(
+        item([
+          {
+            task: {
+              checked: true,
+              content: [
+                'outer ',
+                { task: { checked: false, content: ['inner'] } },
+              ],
+            },
+          },
+        ]),
+        { strict: true }
+      )
+    ).toThrow(/task faithfully/);
+  });
+
+  test('a task after a leading break rejects', () => {
+    expect(() =>
+      storyToMarkdown(
+        item([{ break: null }, { task: { checked: true, content: ['done'] } }]),
+        { strict: true }
+      )
+    ).toThrow(/task faithfully/);
+  });
+});
+
+describe('block-only marked spans keep boundaries entity-free', () => {
+  test('mark containing only a block trims unrepresentable boundary spaces', () => {
+    const md = storyToMarkdown(
+      [
+        { inline: ['pre ', { bold: [{ blockquote: ['q'] }] }, ' post'] },
+      ] as Story,
+      { strict: true }
+    );
+    expect(md).toBe('pre\n\n> **q**\n\npost');
+    expect(storyToMarkdown(markdownToStory(md))).toBe(md);
+  });
+});
+
+describe('mirror delimiter comments fire only on compact adjacency', () => {
+  test('whitespace-separated marks under strike stay comment-free', () => {
+    expect(
+      storyToMarkdown([
+        { inline: [{ strike: ['a ', { bold: ['b'] }, ' c'] }] },
+      ] as Story)
+    ).toBe('~~a **b** c~~');
+  });
+});
