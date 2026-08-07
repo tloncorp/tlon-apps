@@ -8,6 +8,8 @@ import type {
   NotesV1RequestStatus,
 } from '@tloncorp/api';
 
+import { pollGroupListings } from '../notes-channel';
+import type { MigrationDeps } from '../notes-migrate';
 import {
   type NotesPendingWriteErrorLike,
   formatPendingWriteError,
@@ -22,6 +24,7 @@ import {
   writeHelp,
   writeLine,
 } from './command';
+import { type MigrateCommandDeps, runMigrate } from './migrate';
 
 export const NOTES_HELP = `Usage: tlon notes <command>
 
@@ -54,9 +57,12 @@ Commands:
   folder-rename <nest> <id> <name>        Rename a folder
   folder-move <nest> <id> <parent-id>     Move a folder under a parent
   folder-delete <nest> <id> [--recursive] Delete a folder (--recursive for non-empty)
+  notebook-delete <nest> --yes [--force]   Delete a notebook for migration recovery
   members <nest>                          List notebook members
   join <nest>                             Join a notes notebook
   leave <nest>                            Leave a notes notebook
+  migrate-plan <diary-nest>               Plan a diary migration (read-only)
+  migrate-apply <diary-nest> --yes         Apply a diary migration
 
 Content sources (Markdown):
   --body <file>       Read the note body from a Markdown file
@@ -105,11 +111,19 @@ export const NOTES_COMMAND_HELP: Record<string, string> = {
     'Usage: tlon notes folder-move <nest> <id> <parent-id>\nExample: tlon notes folder-move notes/~zod/blog 4 3',
   'folder-delete':
     'Usage: tlon notes folder-delete <nest> <id> [--recursive]\nExample: tlon notes folder-delete notes/~zod/blog 4 --recursive',
+  'notebook-delete':
+    'Usage: tlon notes notebook-delete <notes-nest> --yes [--force]\nDelete a notebook after a failed migration. Refuses notebooks containing unmarked notes unless --force is passed; --yes is always required.',
   members:
     'Usage: tlon notes members <nest>\nExample: tlon notes members notes/~zod/blog',
   join: 'Usage: tlon notes join <nest>\nExample: tlon notes join notes/~zod/blog',
   leave:
     'Usage: tlon notes leave <nest>\nExample: tlon notes leave notes/~zod/blog',
+  migrate:
+    'Usage: tlon notes migrate-plan <diary-nest> [--allow-write-widening]\n       tlon notes migrate-apply <diary-nest> --yes [--allow-write-widening]',
+  'migrate-plan':
+    'Usage: tlon notes migrate-plan <diary-nest> [--allow-write-widening]\nComplete read-only migration plan',
+  'migrate-apply':
+    'Usage: tlon notes migrate-apply <diary-nest> --yes [--allow-write-widening]\nExecute migration (requires --yes)',
 };
 
 // The %notes v1 protocol (path construction, request payloads, canonical
@@ -124,8 +138,15 @@ export interface NotesDeps extends CommandDeps {
   isPendingWriteError: (error: unknown) => error is NotesPendingWriteErrorLike;
   joinNotesNotebook: (nest: string) => Promise<void>;
   leaveNotesNotebook: (nest: string) => Promise<void>;
+  deleteNotesNotebookStrict: (nest: string) => Promise<void>;
+  getGroupChannelListings: () => Promise<
+    Array<{ groupId: string; channelIds: string[] }>
+  >;
+  getGroupChannelIds: (groupId: string) => Promise<string[]>;
+  sleep: (ms: number) => Promise<void>;
   readFile: (path: string) => string;
   readStdin: () => Promise<string>;
+  migration?: MigrationDeps;
 }
 
 type ContentSource = { kind: 'file'; path: string } | { kind: 'stdin' };
@@ -165,9 +186,11 @@ type ParsedNotesArgs =
   | { kind: 'folder-rename'; target: Nest; id: string; folderName: string }
   | { kind: 'folder-move'; target: Nest; id: string; parent: number }
   | { kind: 'folder-delete'; target: Nest; id: string; recursive: boolean }
+  | { kind: 'notebook-delete'; target: Nest; force: boolean }
   | { kind: 'members'; target: Nest }
   | { kind: 'join'; target: Nest }
-  | { kind: 'leave'; target: Nest };
+  | { kind: 'leave'; target: Nest }
+  | { kind: 'migrate'; subcommand: string; rest: string[] };
 
 // ---------------------------------------------------------------------------
 // Pure helpers
@@ -546,6 +569,28 @@ function parseArgs(args: string[]): ParsedNotesArgs {
         recursive: args.includes('--recursive'),
       };
     }
+    case 'notebook-delete': {
+      const nest = args[1];
+      const flags = args.slice(2);
+      const yesCount = flags.filter((flag) => flag === '--yes').length;
+      const forceCount = flags.filter((flag) => flag === '--force').length;
+      if (
+        !nest ||
+        yesCount !== 1 ||
+        forceCount > 1 ||
+        flags.some((flag) => flag !== '--yes' && flag !== '--force')
+      ) {
+        throw usageError(
+          'notebook-delete requires a notes nest and --yes, with optional --force',
+          help
+        );
+      }
+      return {
+        kind: 'notebook-delete',
+        target: parseNotesNest(nest, help),
+        force: forceCount === 1,
+      };
+    }
     case 'members': {
       if (!args[1]) {
         throw usageError(help);
@@ -563,6 +608,11 @@ function parseArgs(args: string[]): ParsedNotesArgs {
         throw usageError(help);
       }
       return { kind: 'leave', target: parseNotesNest(args[1], help) };
+    }
+    case 'migrate':
+    case 'migrate-plan':
+    case 'migrate-apply': {
+      return { kind: 'migrate', subcommand: command, rest: args.slice(1) };
     }
   }
 
@@ -649,12 +699,22 @@ function formatRequestStatus(status: NotesV1RequestStatus): string[] {
       lines.push(`Title: ${status.body.notebook.notebook.title}`);
       lines.push(`ID: ${status.body.notebook.notebook.id}`);
       break;
-    case 'error':
+    case 'error': {
+      // The workspace source type requires errorType, while a stale generated
+      // root declaration may still omit it until @tloncorp/api is rebuilt.
+      const errorBody = status.body as typeof status.body & {
+        errorType: string;
+      };
       lines.push('Status: error');
       lines.push(
-        `Message: ${status.body.message?.trim() || 'backend returned an error without details'}`
+        `Message: ${
+          errorBody.message?.trim() ||
+          errorBody.errorType ||
+          'no diagnostic provided'
+        }`
       );
       break;
+    }
     case 'pending':
       lines.push(
         `Status: pending${status.body.status ? ` (${status.body.status})` : ''}`
@@ -970,12 +1030,111 @@ async function runLeave(target: Nest, deps: NotesDeps): Promise<number> {
   return 0;
 }
 
+async function runNotebookDelete(
+  target: Nest,
+  force: boolean,
+  deps: NotesDeps
+): Promise<number> {
+  const notes = await deps.notesV1.listNotes(target.nest);
+  const unmarkedCount = notes.filter(
+    (note) =>
+      typeof note.bodyMd !== 'string' ||
+      !/(?:^|\n)<!-- tlon-migrate: diary\/~?[^/\s]+\/[^\s]+ [^\s]+ -->\s*$/.test(
+        note.bodyMd
+      )
+  ).length;
+  if (unmarkedCount > 0 && !force) {
+    throw commandError(
+      `Refusing to delete ${target.nest}: found ${unmarkedCount} unmarked note(s) without a tlon-migrate provenance footer. ` +
+        `Re-run with --yes --force only if deleting those notes is intentional.`
+    );
+  }
+
+  const recordedGroupIds = new Set<string>();
+  try {
+    const listings: unknown = await deps.getGroupChannelListings();
+    if (!Array.isArray(listings)) {
+      throw new Error('expected an array of group listings');
+    }
+    for (const listing of listings) {
+      if (!listing || typeof listing !== 'object') {
+        throw new Error('encountered a malformed group listing');
+      }
+      const { groupId, channelIds } = listing as {
+        groupId?: unknown;
+        channelIds?: unknown;
+      };
+      if (
+        typeof groupId !== 'string' ||
+        !Array.isArray(channelIds) ||
+        channelIds.some((channelId) => typeof channelId !== 'string')
+      ) {
+        throw new Error('encountered a malformed group listing');
+      }
+      if (channelIds.includes(target.nest)) {
+        recordedGroupIds.add(groupId);
+      }
+    }
+  } catch (error) {
+    throw commandError(
+      `Could not inspect group listings before deleting ${target.nest}: ${errorMessage(
+        error
+      )}`
+    );
+  }
+
+  await deps.deleteNotesNotebookStrict(target.nest);
+  const notebooks = await deps.notesV1.listNotebooks();
+  if (notebooks.some((notebook) => notebookNest(notebook) === target.nest)) {
+    throw commandError(
+      `Notebook deletion was not confirmed: ${target.nest} is still present`
+    );
+  }
+
+  if (recordedGroupIds.size > 0) {
+    const verdict = await pollGroupListings(
+      [...recordedGroupIds],
+      target.nest,
+      'absent-from-all',
+      deps
+    );
+    if (verdict === 'not-confirmed') {
+      throw commandError(
+        `Notebook deleted; group cleanup unconfirmed for ${target.nest}: its old group listing is still present. Wait a few seconds before retrying the migration.`
+      );
+    }
+    if (verdict === 'unverifiable') {
+      throw commandError(
+        `Notebook deleted; group cleanup unconfirmed for ${target.nest}: the group listing could not be checked. Wait a few seconds before retrying the migration.`
+      );
+    }
+  }
+
+  writeLine(deps.stdout, `✓ Notebook deleted: ${target.nest}`);
+  return 0;
+}
+
 export async function run(args: string[], deps: NotesDeps): Promise<number> {
   try {
     const parsed = parseArgs(args);
 
     if (parsed.kind === 'help') {
       return writeHelp(deps, parsed.help);
+    }
+
+    if (parsed.kind === 'migrate') {
+      if (!deps.migration) {
+        throw commandError(
+          'Migration dependencies not available in this runtime'
+        );
+      }
+      const migrateDeps: MigrateCommandDeps = {
+        stdout: deps.stdout,
+        stderr: deps.stderr,
+        authenticate: deps.authenticate,
+        migration: deps.migration,
+      };
+      return await runMigrate([parsed.subcommand, ...parsed.rest], migrateDeps);
     }
 
     await deps.authenticate();
@@ -1039,6 +1198,8 @@ export async function run(args: string[], deps: NotesDeps): Promise<number> {
           parsed.recursive,
           deps
         );
+      case 'notebook-delete':
+        return await runNotebookDelete(parsed.target, parsed.force, deps);
       case 'members':
         return await runMembers(parsed.target, deps);
       case 'join':
