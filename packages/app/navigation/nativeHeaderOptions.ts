@@ -19,34 +19,31 @@ const topScrollEdgeEffects = {
   right: 'hidden',
 } as const;
 
+export function supportsNativeScrollEdgeChrome(
+  platform: string,
+  platformVersion: string | number
+) {
+  return (
+    platform === 'ios' && Number.parseInt(String(platformVersion), 10) >= 26
+  );
+}
+
 export function getNativeHeaderScrollOptions({
-  isDarkMode,
   platform,
   platformVersion,
   bottomEdgeEffect = 'hidden',
 }: {
-  isDarkMode: boolean;
   platform: string;
   platformVersion: string | number;
   bottomEdgeEffect?: 'hidden' | 'soft';
 }): NativeStackNavigationOptions {
-  if (platform !== 'ios') {
+  if (!supportsNativeScrollEdgeChrome(platform, platformVersion)) {
     return {};
   }
 
-  const iosMajorVersion = Number.parseInt(String(platformVersion), 10);
-  const supportsNativeScrollEdgeEffects = iosMajorVersion >= 26;
-
   return {
     headerTransparent: true,
-    headerBlurEffect: supportsNativeScrollEdgeEffects
-      ? undefined
-      : isDarkMode
-        ? 'systemMaterialDark'
-        : 'systemMaterialLight',
-    scrollEdgeEffects: supportsNativeScrollEdgeEffects
-      ? { ...topScrollEdgeEffects, bottom: bottomEdgeEffect }
-      : undefined,
+    scrollEdgeEffects: { ...topScrollEdgeEffects, bottom: bottomEdgeEffect },
   };
 }
 

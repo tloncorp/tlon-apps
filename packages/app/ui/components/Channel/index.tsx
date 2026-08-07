@@ -44,6 +44,7 @@ import { ScrollContextProvider } from '../../contexts/scroll';
 import { useChannelShareIntent } from '../../contexts/shareIntent';
 import * as utils from '../../utils';
 import { FileDrop } from '../FileDrop';
+import { supportsLiquidGlass } from '../GlassSurface';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PostCollectionView } from '../PostCollectionView';
 import SystemNotices from '../SystemNotices';
@@ -737,8 +738,9 @@ export function Channel({
   const pinnedPost = pinnedPostQuery.data;
   const shouldRenderPinnedPostBanner =
     shouldShowPinnedPostBanner && !!pinnedPost && !isPinnedPostBannerDismissed;
+  const usesFloatingPinnedPostBanner = isChatChannel && supportsLiquidGlass();
   const shouldReservePinnedPostBannerSpace =
-    isChatChannel && shouldRenderPinnedPostBanner;
+    usesFloatingPinnedPostBanner && shouldRenderPinnedPostBanner;
   const { contentInsets, floatingHeaderHeight, onFloatingHeightChange } =
     useConversationInsets({
       hasFloatingComposer: draftInputType === DraftInputId.chat,
@@ -812,7 +814,7 @@ export function Channel({
                       {shouldRenderPinnedPostBanner && pinnedPost && (
                         <PinnedPostBanner
                           post={pinnedPost}
-                          floating={isChatChannel}
+                          floating={usesFloatingPinnedPostBanner}
                           floatingHeaderHeight={floatingHeaderHeight}
                           onPressPost={goToPost}
                           onDismiss={() => {

@@ -11,7 +11,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GlassSurface } from './GlassSurface';
+import { supportsNativeScrollEdgeChrome } from '../../navigation/nativeHeaderOptions';
+import { GlassSurface, supportsLiquidGlass } from './GlassSurface';
 import {
   floatingChromeMetrics,
   getConversationContentInsets,
@@ -38,6 +39,9 @@ export function useConversationInsets({
 }) {
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const { bottom: bottomSafeArea } = useSafeAreaInsets();
+  const usesTransparentHeader =
+    supportsNativeScrollEdgeChrome(Platform.OS, Platform.Version) &&
+    hasTransparentHeader;
   const [measuredComposerHeight, setMeasuredComposerHeight] = useState<
     number | null
   >(null);
@@ -52,23 +56,22 @@ export function useConversationInsets({
         bottomSafeArea,
         measuredComposerHeight,
         hasFloatingComposer,
-        hasTransparentHeader,
+        hasTransparentHeader: usesTransparentHeader,
         hasFloatingPinnedPostBanner,
       }),
     [
       bottomSafeArea,
       hasFloatingComposer,
       hasFloatingPinnedPostBanner,
-      hasTransparentHeader,
       headerHeight,
       measuredComposerHeight,
+      usesTransparentHeader,
     ]
   );
 
   return {
     contentInsets,
-    floatingHeaderHeight:
-      Platform.OS === 'ios' && hasTransparentHeader ? headerHeight : 0,
+    floatingHeaderHeight: usesTransparentHeader ? headerHeight : 0,
     onFloatingHeightChange:
       Platform.OS !== 'web' && hasFloatingComposer
         ? onFloatingHeightChange
@@ -96,7 +99,7 @@ export function ConversationScrollToBottomButton({
     <Icon type="ChevronDown" size="$m" />
   );
 
-  if (Platform.OS !== 'ios') {
+  if (!supportsLiquidGlass()) {
     return (
       <Animated.View
         accessibilityElementsHidden={!visible}

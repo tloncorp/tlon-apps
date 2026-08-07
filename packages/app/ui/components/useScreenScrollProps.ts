@@ -2,7 +2,6 @@ import { NavigationContext } from '@react-navigation/native';
 import { useContext, useMemo } from 'react';
 import { Platform, type ScrollViewProps } from 'react-native';
 
-import { useIsDarkMode } from '../../hooks/useDarkMode';
 import {
   getNativeHeaderScrollOptions,
   nativeHeaderScrollResetOptions,
@@ -24,16 +23,14 @@ export function useScreenScrollProps({
   bottomEdgeEffect = 'hidden',
 }: UseScreenScrollPropsOptions = {}): ScreenScrollProps {
   const navigation = useContext(NavigationContext);
-  const isDarkMode = useIsDarkMode();
   const options = useMemo(
     () =>
       getNativeHeaderScrollOptions({
-        isDarkMode,
         platform: Platform.OS,
         platformVersion: Platform.Version,
         bottomEdgeEffect,
       }),
-    [bottomEdgeEffect, isDarkMode]
+    [bottomEdgeEffect]
   );
 
   useInstalledNavigationOptions(

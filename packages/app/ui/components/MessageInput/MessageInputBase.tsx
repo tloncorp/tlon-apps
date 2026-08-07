@@ -25,7 +25,11 @@ import {
   type SlashCommandManifest,
   type SlashCommandOption,
 } from '../BareChatInput/useSlashCommands';
-import { GlassSurface, GlassSurfaceGroup } from '../GlassSurface';
+import {
+  GlassSurface,
+  GlassSurfaceGroup,
+  supportsLiquidGlass,
+} from '../GlassSurface';
 import { MentionPopupRef } from '../MentionPopup';
 import { type SlashCommandPopupRef } from '../SlashCommandPopup';
 import Notices from '../Wayfinding/Notices';
@@ -296,7 +300,7 @@ export const MessageInputContainer = memo(
 MessageInputContainer.displayName = 'MessageInputContainer';
 
 const usesFloatingChrome = Platform.OS !== 'web';
-const usesIOSGlass = Platform.OS === 'ios';
+const usesIOSGlass = supportsLiquidGlass();
 
 const materialSurfaceProps = {
   backgroundColor: '$secondaryBackground',
@@ -454,10 +458,9 @@ function MessageInputChromeBody({
         glassEffectStyle="regular"
         tintColor={isEditing ? editingTintColor : undefined}
         style={inputChromeStyles.body}
-        fallbackStyle={inputChromeStyles.clipped}
-        overlay={overlay}
       >
         {children}
+        {overlay}
       </GlassSurface>
     );
   }
@@ -570,8 +573,5 @@ const inputChromeStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: metrics.rowGap,
-  },
-  clipped: {
-    overflow: 'hidden',
   },
 });

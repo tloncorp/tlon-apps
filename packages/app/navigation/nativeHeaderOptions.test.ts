@@ -12,7 +12,6 @@ describe('native header options', () => {
   it('configures iOS scroll chrome independently of the header model', () => {
     expect(
       getNativeHeaderScrollOptions({
-        isDarkMode: true,
         platform: 'ios',
         platformVersion: 26,
       })
@@ -30,11 +29,19 @@ describe('native header options', () => {
   it('lets conversations expose their bottom scroll edge', () => {
     expect(
       getNativeHeaderScrollOptions({
-        isDarkMode: false,
         platform: 'ios',
         platformVersion: 26,
         bottomEdgeEffect: 'soft',
       }).scrollEdgeEffects
     ).toMatchObject({ top: 'soft', bottom: 'soft' });
+  });
+
+  it('keeps the standard opaque header before iOS 26', () => {
+    expect(
+      getNativeHeaderScrollOptions({
+        platform: 'ios',
+        platformVersion: 18,
+      })
+    ).toEqual({});
   });
 });

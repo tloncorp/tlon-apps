@@ -1,47 +1,31 @@
-import { BlurView } from 'expo-blur';
 import {
   GlassContainer,
   GlassView,
   isGlassEffectAPIAvailable,
   isLiquidGlassAvailable,
 } from 'expo-glass-effect';
-import type { ReactNode } from 'react';
 import { ComponentProps, PropsWithChildren } from 'react';
-import {
-  View as NativeView,
-  StyleProp,
-  StyleSheet,
-  ViewProps,
-  ViewStyle,
-} from 'react-native';
+import { View as NativeView, ViewProps } from 'react-native';
 
 type GlassViewProps = ComponentProps<typeof GlassView>;
 type GlassSurfaceProps = PropsWithChildren<
   ViewProps &
-    Pick<GlassViewProps, 'glassEffectStyle' | 'isInteractive' | 'tintColor'> & {
-      fallbackStyle?: StyleProp<ViewStyle>;
-      fallbackVisible?: boolean;
-      overlay?: ReactNode;
-    }
+    Pick<GlassViewProps, 'glassEffectStyle' | 'isInteractive' | 'tintColor'>
 >;
 
-function canUseLiquidGlass() {
+export function supportsLiquidGlass() {
   return isGlassEffectAPIAvailable() && isLiquidGlassAvailable();
 }
 
-/** Liquid Glass with a single shared blur fallback. */
+/** Liquid Glass when available, otherwise a regular view. */
 export function GlassSurface({
-  fallbackStyle,
-  fallbackVisible = true,
   glassEffectStyle,
   isInteractive,
   tintColor,
-  children,
-  overlay,
   style,
   ...viewProps
 }: GlassSurfaceProps) {
-  if (canUseLiquidGlass()) {
+  if (supportsLiquidGlass()) {
     return (
       <GlassView
         {...viewProps}
@@ -49,49 +33,18 @@ export function GlassSurface({
         isInteractive={isInteractive}
         tintColor={tintColor}
         style={style}
-      >
-        {children}
-        {overlay}
-      </GlassView>
-    );
-  }
-
-  if (!fallbackVisible) {
-    return null;
-  }
-
-  if (!overlay) {
-    return (
-      <BlurView
-        {...viewProps}
-        tint="systemMaterial"
-        intensity={90}
-        style={fallbackStyle ? [style, fallbackStyle] : style}
-      >
-        {children}
-      </BlurView>
-    );
-  }
-
-  return (
-    <NativeView {...viewProps} style={style}>
-      <BlurView
-        pointerEvents="none"
-        tint="systemMaterial"
-        intensity={90}
-        style={[StyleSheet.absoluteFill, style, fallbackStyle]}
       />
-      {children}
-      {overlay}
-    </NativeView>
-  );
+    );
+  }
+
+  return <NativeView {...viewProps} style={style} />;
 }
 
 export function GlassSurfaceGroup({
   spacing,
   ...viewProps
 }: PropsWithChildren<ViewProps & { spacing?: number }>) {
-  return canUseLiquidGlass() ? (
+  return supportsLiquidGlass() ? (
     <GlassContainer {...viewProps} spacing={spacing} />
   ) : (
     <NativeView {...viewProps} />

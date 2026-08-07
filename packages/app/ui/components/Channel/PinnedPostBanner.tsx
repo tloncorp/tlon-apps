@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { Icon, Text } from '@tloncorp/ui';
 import { PropsWithChildren } from 'react';
-import { Platform, Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { XStack } from 'tamagui';
 
 import { useConversationScrollViewNativeID } from '../../contexts/scroll';
@@ -71,7 +71,7 @@ function PinnedPostBannerChrome({
   floatingHeaderHeight,
 }: PropsWithChildren<{ floating: boolean; floatingHeaderHeight: number }>) {
   const scrollViewNativeID = useConversationScrollViewNativeID();
-  const usesFloatingChrome = Platform.OS === 'ios' && floating;
+  const usesFloatingChrome = floating;
   const content = (
     <XStack
       height={floatingPinnedPostBannerHeight}

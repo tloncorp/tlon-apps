@@ -1,61 +1,26 @@
 import type { GlassView } from 'expo-glass-effect';
-import type { ReactNode } from 'react';
 import { ComponentProps, PropsWithChildren } from 'react';
-import {
-  StyleProp,
-  StyleSheet,
-  View,
-  ViewProps,
-  ViewStyle,
-} from 'react-native';
+import { View, ViewProps } from 'react-native';
 
 type GlassViewProps = ComponentProps<typeof GlassView>;
 type GlassSurfaceProps = PropsWithChildren<
   ViewProps &
-    Pick<GlassViewProps, 'glassEffectStyle' | 'isInteractive' | 'tintColor'> & {
-      fallbackStyle?: StyleProp<ViewStyle>;
-      fallbackVisible?: boolean;
-      overlay?: ReactNode;
-    }
+    Pick<GlassViewProps, 'glassEffectStyle' | 'isInteractive' | 'tintColor'>
 >;
+
+export function supportsLiquidGlass() {
+  return false;
+}
 
 /** Platform-neutral surface; iOS supplies the Liquid Glass implementation. */
 export function GlassSurface({
-  fallbackStyle,
-  fallbackVisible = true,
   glassEffectStyle: _glassEffectStyle,
   isInteractive: _isInteractive,
   tintColor: _tintColor,
-  children,
-  overlay,
   style,
   ...viewProps
 }: GlassSurfaceProps) {
-  if (!fallbackVisible) {
-    return null;
-  }
-
-  if (!overlay) {
-    return (
-      <View
-        {...viewProps}
-        style={fallbackStyle ? [style, fallbackStyle] : style}
-      >
-        {children}
-      </View>
-    );
-  }
-
-  return (
-    <View {...viewProps} style={style}>
-      <View
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFill, style, fallbackStyle]}
-      />
-      {children}
-      {overlay}
-    </View>
-  );
+  return <View {...viewProps} style={style} />;
 }
 
 export function GlassSurfaceGroup({
