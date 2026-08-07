@@ -12,6 +12,57 @@
  * left exactly as written.
  */
 
+const HOME_GROUP_SESSION_SUFFIX = '/home-group-chat';
+const ONBOARDING_JOB_NAME_PREFIXES = [
+  'daily digest',
+  'tracking check-in',
+  'research update',
+] as const;
+
+/** The production onboarding conversation has one deterministic session. */
+export function isHomeGroupOnboardingSessionKey(
+  sessionKey: string | null | undefined
+): boolean {
+  return (
+    typeof sessionKey === 'string' &&
+    sessionKey.includes(':tlon:group:chat/') &&
+    sessionKey.endsWith(HOME_GROUP_SESSION_SUFFIX)
+  );
+}
+
+function isTimeSchedule(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const kind = (value as Record<string, unknown>).kind;
+  return kind === 'at' || kind === 'every' || kind === 'cron';
+}
+
+function isOnboardingJobName(value: unknown): boolean {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  return ONBOARDING_JOB_NAME_PREFIXES.some(
+    (prefix) =>
+      normalized === prefix ||
+      normalized.startsWith(`${prefix}:`) ||
+      normalized.startsWith(`${prefix} —`) ||
+      normalized.startsWith(`${prefix} -`)
+  );
+}
+
+function shouldDropUnsupportedOnboardingTrigger(
+  container: Record<string, unknown>,
+  requireKnownName: boolean
+): boolean {
+  return (
+    'trigger' in container &&
+    isTimeSchedule(container.schedule) &&
+    (!requireKnownName || isOnboardingJobName(container.name))
+  );
+}
+
 /** True for values the schema would reject but the model means as "unset". */
 function isBlank(value: unknown): boolean {
   return typeof value === 'string' && value.trim() === '';
@@ -80,20 +131,31 @@ function repairFailureAlert(alert: unknown): unknown {
  * nothing to repair — so callers can skip the rewrite in the common case.
  */
 export function sanitizeCronToolParams(
-  params: unknown
+  params: unknown,
+  options?: { stripUnsupportedOnboardingTrigger?: boolean }
 ): Record<string, unknown> | null {
   if (!params || typeof params !== 'object' || Array.isArray(params)) {
     return null;
   }
   const source = params as Record<string, unknown>;
   const job = source.job;
-  if (!job || typeof job !== 'object' || Array.isArray(job)) {
-    return null;
+  const patch = source.patch;
+  let nextJob: Record<string, unknown> | undefined;
+  if (job && typeof job === 'object' && !Array.isArray(job)) {
+    nextJob = { ...(job as Record<string, unknown>) };
   }
-  const nextJob = { ...(job as Record<string, unknown>) };
   let changed = false;
 
-  const payload = nextJob.payload as Record<string, unknown> | undefined;
+  if (
+    nextJob &&
+    options?.stripUnsupportedOnboardingTrigger &&
+    shouldDropUnsupportedOnboardingTrigger(nextJob, true)
+  ) {
+    delete nextJob.trigger;
+    changed = true;
+  }
+
+  const payload = nextJob?.payload as Record<string, unknown> | undefined;
   if (
     payload &&
     Array.isArray(payload.toolsAllow) &&
@@ -101,11 +163,11 @@ export function sanitizeCronToolParams(
   ) {
     const nextPayload = { ...payload };
     delete nextPayload.toolsAllow;
-    nextJob.payload = nextPayload;
+    nextJob!.payload = nextPayload;
     changed = true;
   }
 
-  if ('delivery' in nextJob) {
+  if (nextJob && 'delivery' in nextJob) {
     const repaired = repairDelivery(nextJob.delivery);
     if (JSON.stringify(repaired) !== JSON.stringify(nextJob.delivery)) {
       if (repaired === undefined) {
@@ -117,7 +179,7 @@ export function sanitizeCronToolParams(
     }
   }
 
-  if ('failureAlert' in nextJob) {
+  if (nextJob && 'failureAlert' in nextJob) {
     const repaired = repairFailureAlert(nextJob.failureAlert);
     if (JSON.stringify(repaired) !== JSON.stringify(nextJob.failureAlert)) {
       if (repaired === undefined) {
@@ -129,5 +191,24 @@ export function sanitizeCronToolParams(
     }
   }
 
-  return changed ? { ...source, job: nextJob } : null;
+  let nextPatch: Record<string, unknown> | undefined;
+  if (patch && typeof patch === 'object' && !Array.isArray(patch)) {
+    nextPatch = { ...(patch as Record<string, unknown>) };
+    if (
+      options?.stripUnsupportedOnboardingTrigger &&
+      shouldDropUnsupportedOnboardingTrigger(nextPatch, true)
+    ) {
+      delete nextPatch.trigger;
+      changed = true;
+    }
+  }
+
+  if (!changed) {
+    return null;
+  }
+  return {
+    ...source,
+    ...(nextJob ? { job: nextJob } : {}),
+    ...(nextPatch ? { patch: nextPatch } : {}),
+  };
 }

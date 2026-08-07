@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest';
 
-import { sanitizeCronToolParams } from './cron-params.js';
+import {
+  isHomeGroupOnboardingSessionKey,
+  sanitizeCronToolParams,
+} from './cron-params.js';
 
 const jobWith = (extra: Record<string, unknown>) => ({
   action: 'add',
@@ -14,6 +17,71 @@ const jobWith = (extra: Record<string, unknown>) => ({
 });
 
 describe('sanitizeCronToolParams', () => {
+  test('recognizes only the hosted home-group onboarding session', () => {
+    expect(
+      isHomeGroupOnboardingSessionKey(
+        'agent:main:tlon:group:chat/~dozfun-sarnus/home-group-chat'
+      )
+    ).toBe(true);
+    expect(
+      isHomeGroupOnboardingSessionKey(
+        'agent:main:tlon:group:chat/~dozfun-sarnus/another-chat'
+      )
+    ).toBe(false);
+    expect(
+      isHomeGroupOnboardingSessionKey(
+        'agent:main:other:chat/~dozfun-sarnus/home-group-chat'
+      )
+    ).toBe(false);
+  });
+
+  test('drops a trigger from an ordinary onboarding job on hosted production', () => {
+    const original = jobWith({
+      name: 'Daily digest: Design and architecture',
+      trigger: { script: 'return { fire: true };' },
+    });
+    const repaired = sanitizeCronToolParams(original, {
+      stripUnsupportedOnboardingTrigger: true,
+    });
+    expect('trigger' in (repaired as any).job).toBe(false);
+    expect((original.job as any).trigger).toEqual({
+      script: 'return { fire: true };',
+    });
+  });
+
+  test('drops patch.trigger when an onboarding retry includes a time schedule', () => {
+    const repaired = sanitizeCronToolParams(
+      {
+        action: 'update',
+        jobId: 'digest-1',
+        patch: {
+          name: 'Daily digest: Design and architecture',
+          schedule: {
+            kind: 'cron',
+            expr: '0 8 * * *',
+            tz: 'America/New_York',
+          },
+          trigger: { script: 'return { fire: true };' },
+        },
+      },
+      { stripUnsupportedOnboardingTrigger: true }
+    );
+    expect('trigger' in (repaired as any).patch).toBe(false);
+  });
+
+  test('never rewrites conditional jobs outside onboarding', () => {
+    const conditional = jobWith({
+      name: 'Watch deploy health',
+      trigger: { script: 'return { fire: await deployIsUnhealthy() };' },
+    });
+    expect(sanitizeCronToolParams(conditional)).toBeNull();
+    expect(
+      sanitizeCronToolParams(conditional, {
+        stripUnsupportedOnboardingTrigger: true,
+      })
+    ).toBeNull();
+  });
+
   test('drops an empty allow-list, which would leave the run with no tools', () => {
     const repaired = sanitizeCronToolParams(
       jobWith({

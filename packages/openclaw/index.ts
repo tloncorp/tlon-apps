@@ -25,7 +25,10 @@ import {
   recordTlonCronAgentContext,
   resetTlonCronObservability,
 } from './src/cron-observability.js';
-import { sanitizeCronToolParams } from './src/cron-params.js';
+import {
+  isHomeGroupOnboardingSessionKey,
+  sanitizeCronToolParams,
+} from './src/cron-params.js';
 import {
   clearCronServiceAccessor,
   handleCronChangedEvent,
@@ -1283,10 +1286,19 @@ export default defineBundledChannelEntry({
       // scheduler rejects the call or stores a job that can't work.
       // See sanitizeCronToolParams.
       if (event.toolName === 'cron' && !isBlocked) {
-        const repaired = sanitizeCronToolParams(event.params);
+        const repaired = sanitizeCronToolParams(event.params, {
+          // Hosted production does not run conditional trigger scripts. The
+          // model nevertheless adds one to ordinary first-run schedules, so
+          // remove it only in the deterministic home-group setup session.
+          // Conditional requests elsewhere still reach the host's explicit
+          // unsupported-feature refusal; they never become unconditional jobs.
+          stripUnsupportedOnboardingTrigger: isHomeGroupOnboardingSessionKey(
+            ctx.sessionKey
+          ),
+        });
         if (repaired) {
           api.logger.info(
-            '[tlon] Repaired a cron call: dropped empty parameters the scheduler rejects.'
+            '[tlon] Repaired a cron call: dropped unsupported or empty parameters the scheduler rejects.'
           );
           return { params: repaired };
         }
