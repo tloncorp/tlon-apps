@@ -4,7 +4,7 @@ import * as db from '@tloncorp/shared/db';
 import { Text, pluralize, useIsWindowNarrow } from '@tloncorp/ui';
 import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import { useHandleLogout } from '../../hooks/useHandleLogout';
@@ -39,6 +39,12 @@ const userCount = (n: number): string => `${n} ${pluralize(n, 'user')}`;
 
 export function BotSettingsScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
+  // Mirrors `useNestedSettings` in navigation/utils: only web at a wide
+  // window nests this inside the settings drawer, which has its own way
+  // back. Everywhere else it is a flat RootStack route with gestures
+  // disabled, so this header is the only exit — and a width-only gate left
+  // a native tablet with no back button and no swipe.
+  const showBackAction = isWindowNarrow || Platform.OS !== 'web';
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const queries = useBotSettingsQueries();
@@ -147,7 +153,7 @@ export function BotSettingsScreen(props: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={showBackAction ? handleBack : undefined}
         title="Bot settings"
         placement="navigation"
       />

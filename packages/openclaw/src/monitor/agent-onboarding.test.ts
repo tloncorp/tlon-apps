@@ -27,10 +27,12 @@ import {
   isFirstConfiguredSetup,
   isHomeGroupFlag,
   isPurposePickerChoice,
+  jobRecordsOutputNest,
   pendingTopicsOfferFromHistory,
   purposePickerFallbackText,
   renderFinishingDirective,
   renderNotebookEntryDirective,
+  renderOutputNestRecordDirective,
   renderSetupDirective,
   setupOutputNotebookNest,
   shouldOfferPickerOnJoin,
@@ -813,6 +815,29 @@ describe('renderSetupDirective', () => {
       expect(directive).not.toContain('re-check every fifteen seconds');
       expect(directive).not.toContain('tlon channels groups');
     }
+  });
+
+  test('the nest-record directive asks for the field, not a second note', () => {
+    // Sent when the entry landed but the config rewrite that records
+    // "outputNest" didn't. Re-sending the entry directive there would ask
+    // for a note that already exists; leaving the field empty sends every
+    // later run to chat, since that is what the payload rule says to do
+    // when nothing is recorded.
+    const directive = renderOutputNestRecordDirective('notes/~zod/daily');
+    expect(directive).toContain('notes/~zod/daily');
+    expect(directive).toContain('outputNest');
+    expect(directive).toContain('Do NOT write another notebook entry');
+    expect(directive).not.toContain('--markdown');
+  });
+
+  test('a job only counts as recorded with a real notes nest', () => {
+    expect(jobRecordsOutputNest({ outputNest: 'notes/~zod/daily' })).toBe(true);
+    // The empty string is what the setup directive writes initially, and
+    // the chat fallback is not a notebook.
+    expect(jobRecordsOutputNest({ outputNest: '' })).toBe(false);
+    expect(jobRecordsOutputNest({ outputNest: 'chat/~zod/home' })).toBe(false);
+    expect(jobRecordsOutputNest({})).toBe(false);
+    expect(jobRecordsOutputNest(null)).toBe(false);
   });
 
   test('the entry directive names the nest and forbids the dead flag', () => {

@@ -1145,14 +1145,54 @@ export function renderFinishingDirective(): string {
  */
 export function firstConfiguredJob(
   description: string | null | undefined
-): { title?: unknown; prompt?: unknown } | null {
+): { title?: unknown; prompt?: unknown; outputNest?: unknown } | null {
   for (const entry of agentConfigEntries(description)) {
     const jobs = Array.isArray(entry.jobs) ? entry.jobs : [];
     if (jobs.length > 0 && jobs[0] && typeof jobs[0] === 'object') {
-      return jobs[0] as { title?: unknown; prompt?: unknown };
+      return jobs[0] as {
+        title?: unknown;
+        prompt?: unknown;
+        outputNest?: unknown;
+      };
     }
   }
   return null;
+}
+
+/**
+ * Whether the config records the notebook this setup writes to.
+ *
+ * The entry landing is only half the job. Every later run resolves its
+ * output through `outputNest`, and the payload rule says to post in chat
+ * when nothing is recorded — so a setup that wrote the day-one entry and
+ * then failed the config rewrite leaves a notebook holding exactly one
+ * note while every scheduled run after it talks to the chat channel.
+ */
+export function jobRecordsOutputNest(
+  job: { outputNest?: unknown } | null
+): boolean {
+  const out = job?.outputNest;
+  return typeof out === 'string' && out.startsWith('notes/');
+}
+
+/**
+ * Ask for the one thing left: the nest written down.
+ *
+ * Sent when the entry is in the notebook but the config still has an empty
+ * `outputNest`. Deliberately not a re-send of the entry directive — that
+ * would invite a second copy of a note that already landed.
+ */
+export function renderOutputNestRecordDirective(notesNest: string): string {
+  return [
+    '[Tlon notebook directive — not written by the owner]',
+    `The day-one entry landed in \`${notesNest}\`. One thing is left:`,
+    `record "${notesNest}" as this job's "outputNest" in the group config,`,
+    'so every later run appends to that same notebook instead of falling',
+    'back to chat. Write the config through /tmp/tlon-group-config.json',
+    'exactly as the setup directive specified, changing only that field.',
+    'Do NOT write another notebook entry — the note is already there.',
+    'Do this silently: post nothing about it in chat.',
+  ].join(' ');
 }
 
 /**

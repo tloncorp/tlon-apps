@@ -94,6 +94,21 @@ describe('repairTlonCommandArgs', () => {
     expect(result.ok).toBe(false);
   });
 
+  it('accepts the macOS canonical form of the same temp file', () => {
+    // /tmp is a symlink to private/tmp on macOS, so the realpath check
+    // turned the exact path the setup directive dictates into an "outside
+    // /tmp" error and every compliant config write failed there.
+    const result = repairTlonCommandArgs(
+      ['groups', 'update', '~zod/g', '--description', '$(cat /tmp/c.json)'],
+      {
+        ...files({ '/private/tmp/c.json': CONFIG }),
+        realpath: () => '/private/tmp/c.json',
+      }
+    );
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.args).toContain(CONFIG);
+  });
+
   it('never expands a substitution outside the --description value', () => {
     const result = repairTlonCommandArgs(
       ['groups', 'update', '$(cat /tmp/c.json)', '--title', 'x'],

@@ -137,10 +137,12 @@ import {
   isFirstConfiguredSetup,
   isHomeGroupFlag,
   isPurposePickerChoice,
+  jobRecordsOutputNest,
   pendingTopicsOfferFromHistory,
   purposePickerFallbackText,
   renderFinishingDirective,
   renderNotebookEntryDirective,
+  renderOutputNestRecordDirective,
   renderSetupDirective,
   servicesCardFallbackText,
   setupOutputNotebookNest,
@@ -1233,6 +1235,23 @@ export async function monitorTlonProvider(
         return;
       }
       if (notebookHasNewEntry(nest, state)) {
+        // The note is there. If the config never recorded the nest, ask for
+        // that alone — the closing is holding on it, and re-sending the
+        // entry directive would invite a duplicate of a note that landed.
+        if (!jobRecordsOutputNest(job)) {
+          if (
+            enqueueSetupDirective(
+              nest,
+              renderOutputNestRecordDirective(notesNest),
+              `notebook-nest:${nudges + 1}`
+            )
+          ) {
+            notebookEntryNudges.set(nest, nudges + 1);
+            runtime.log?.(
+              `[tlon] Asked for "outputNest" to be recorded in ${nest} (${nudges + 1}/${MAX_NOTEBOOK_ENTRY_NUDGES})`
+            );
+          }
+        }
         return;
       }
       if (
@@ -1299,8 +1318,21 @@ export async function monitorTlonProvider(
       // predate this setup are somebody else's writing and must not release
       // the cards.
       if (state.readable && notebookHasNewEntry(nest, state)) {
-        emptyNotebookWaits.delete(nest);
-        return false;
+        // The entry alone isn't the finish line. Later runs resolve their
+        // output through the job's "outputNest", and the payload rule sends
+        // a run with none recorded to chat — so releasing here on a failed
+        // config rewrite gives the owner a notebook with one note in it and
+        // every morning after that in the chat channel. Hold while the
+        // driver asks for the nest; the bounded wait still lets go.
+        if (jobRecordsOutputNest(firstConfiguredJob(group.description))) {
+          emptyNotebookWaits.delete(nest);
+          return false;
+        }
+        emptyNotebookWaits.set(nest, waits + 1);
+        runtime.log?.(
+          `[tlon] Holding the closing in ${nest}: the entry landed but "outputNest" is still empty (${waits + 1}/${MAX_EMPTY_NOTEBOOK_WAITS})`
+        );
+        return true;
       }
       // An unreadable notebook falls through to waiting: unreadable and
       // empty must not look alike to the cards.
@@ -5330,6 +5362,17 @@ export async function monitorTlonProvider(
                 runtime.log?.(
                   `[tlon] Setup turn in ${nest} produced no reply — re-arming the topics setup`
                 );
+                // Same reasoning as the throwing path above, and the same
+                // fix: this build is over, so the status hook has to come
+                // down with it. Left armed through the retry window, any
+                // later tool call on that agent session posts "Setting up
+                // your group…" into a group with no build running.
+                const deadProgressSession =
+                  setupProgressSessionForNest.get(nest);
+                if (deadProgressSession) {
+                  disarmSetupProgress(deadProgressSession);
+                  setupProgressSessionForNest.delete(nest);
+                }
               }
             }
           } catch (error) {

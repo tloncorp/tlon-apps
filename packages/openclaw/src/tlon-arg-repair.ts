@@ -30,8 +30,17 @@
 
 const SUBSTITUTION_PATTERN = /^\$\(\s*(?:cat\s+|<\s*)([^)]+?)\s*\)$/;
 
-/** The only files the tool will substitute: flat JSON files in /tmp. */
-const ALLOWED_SUBSTITUTION_PATH = /^\/tmp\/[A-Za-z0-9._-]+\.json$/;
+/**
+ * The only files the tool will substitute: flat JSON files in /tmp.
+ *
+ * `/private/tmp` is the same directory, spelled the way macOS resolves it —
+ * /tmp is a symlink to private/tmp there, so the post-symlink check turned
+ * the very path the setup directive dictates into an "outside /tmp" error,
+ * and every compliant config write failed on a macOS-hosted bot. Allowing
+ * it widens nothing: it names the same files by their canonical path.
+ */
+const ALLOWED_SUBSTITUTION_PATH =
+  /^(?:\/private)?\/tmp\/[A-Za-z0-9._-]+\.json$/;
 
 /** Bounds a substituted file read; group configs run a few KB. */
 const MAX_SUBSTITUTION_BYTES = 256 * 1024;
