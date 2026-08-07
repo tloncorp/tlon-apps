@@ -33,6 +33,20 @@ const notes = Array.from({ length: 24 }, (_, index) =>
   )
 );
 
+// Mirrors what makeNotesFolderPathLabeler produces: a root-relative path, or
+// null for a note sitting directly in the root. The long one is here to check
+// that a deep path truncates instead of crowding out the title.
+const folderPaths: Record<number, string | null> = {
+  1: null,
+  2: 'Specs',
+  3: 'Specs / Wire formats',
+  4: 'Specs / Wire formats / Post blobs / Entry types / Deprecated',
+};
+
+function getFolderPath(note: { noteId: number }): string | null {
+  return folderPaths[(note.noteId % 4) + 1] ?? null;
+}
+
 const search = {
   loading: false,
   errored: false,
@@ -76,6 +90,7 @@ export default {
     <FixtureWrapper fillWidth fillHeight>
       <CappedCard>
         <NotesSearchResults
+          getFolderPath={getFolderPath}
           notes={notes}
           query="blob"
           search={search}
@@ -121,6 +136,7 @@ function SelectableResults() {
   return (
     <CappedCard>
       <NotesSearchResults
+        getFolderPath={getFolderPath}
         notes={notes}
         query="blob"
         search={search}

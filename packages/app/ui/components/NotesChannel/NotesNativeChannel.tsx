@@ -74,7 +74,7 @@ import {
   getFolderLabel,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
-  makeNotesFolderLabeler,
+  makeNotesFolderPathLabeler,
 } from './notesTree';
 import { useNotesImportController } from './useNotesImportController';
 
@@ -410,8 +410,8 @@ export function NotesNativeChannel({
     }
   );
 
-  const getSearchResultFolderLabel = useMemo(
-    () => makeNotesFolderLabeler({ folders, rootFolderId }),
+  const getSearchResultFolderPath = useMemo(
+    () => makeNotesFolderPathLabeler({ folders, rootFolderId }),
     [folders, rootFolderId]
   );
 
@@ -1097,7 +1097,7 @@ export function NotesNativeChannel({
       />
       {useDesktopSplit ? (
         <NotesSearchModal
-          getFolderLabel={getSearchResultFolderLabel}
+          getFolderPath={getSearchResultFolderPath}
           notebookFlag={notebookFlag}
           onOpenChange={setSearchOpen}
           onSelectNote={handleSelectSearchResult}

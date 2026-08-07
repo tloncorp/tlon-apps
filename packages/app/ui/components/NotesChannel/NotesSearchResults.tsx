@@ -64,13 +64,13 @@ function SegmentedText({
 }
 
 function NotesSearchResultRowComponent({
-  folderLabel,
+  folderPath,
   note,
   query,
   selected,
   onPress,
 }: {
-  folderLabel?: string | null;
+  folderPath?: string | null;
   note: NotesSearchResultNote;
   query: string;
   selected: boolean;
@@ -99,14 +99,33 @@ function NotesSearchResultRowComponent({
       >
         <ListItem.SystemIcon icon="ChannelNote" />
         <ListItem.MainContent>
-          <ListItem.Title
-            size="$body"
-            color="$primaryText"
-            fontWeight="400"
-            letterSpacing={0}
-          >
-            <SegmentedText segments={titleSegments} />
-          </ListItem.Title>
+          <XStack alignItems="baseline" gap="$s" minWidth={0}>
+            <ListItem.Title
+              size="$body"
+              color="$primaryText"
+              flexShrink={1}
+              fontWeight="400"
+              letterSpacing={0}
+              minWidth={0}
+            >
+              <SegmentedText segments={titleSegments} />
+            </ListItem.Title>
+            {folderPath ? (
+              // Trails the title at lower contrast: it locates the note without
+              // competing with it. Capped so a deep path can't crowd out the
+              // title, and both truncate rather than wrap.
+              <SizableText
+                size="$s"
+                color="$tertiaryText"
+                flexShrink={1}
+                maxWidth="50%"
+                minWidth={0}
+                numberOfLines={1}
+              >
+                {folderPath}
+              </SizableText>
+            ) : null}
+          </XStack>
           {snippet.segments.length > 0 ? (
             <ListItem.Subtitle numberOfLines={2}>
               <SegmentedText
@@ -117,18 +136,11 @@ function NotesSearchResultRowComponent({
             </ListItem.Subtitle>
           ) : null}
         </ListItem.MainContent>
-        <ListItem.EndContent>
-          <XStack alignItems="center" gap="$xs">
-            {folderLabel ? (
-              <SizableText size="$s" color="$tertiaryText" numberOfLines={1}>
-                {folderLabel}
-              </SizableText>
-            ) : null}
-            {updatedAt ? (
-              <ListItem.Time time={updatedAt} letterSpacing={0} />
-            ) : null}
-          </XStack>
-        </ListItem.EndContent>
+        {updatedAt ? (
+          <ListItem.EndContent>
+            <ListItem.Time time={updatedAt} letterSpacing={0} />
+          </ListItem.EndContent>
+        ) : null}
       </ListItem>
     </Pressable>
   );
@@ -168,14 +180,14 @@ export function NotesSearchStatus({
  * it from the keyboard; this only renders it and keeps it scrolled into view.
  */
 export function NotesSearchResults({
-  getFolderLabel,
+  getFolderPath,
   notes,
   query,
   search,
   selectedNoteId,
   onPressNote,
 }: {
-  getFolderLabel?: (note: NotesSearchResultNote) => string | null;
+  getFolderPath?: (note: NotesSearchResultNote) => string | null;
   notes: NotesSearchResultNote[];
   query: string;
   search: NotesSearchState;
@@ -206,14 +218,14 @@ export function NotesSearchResults({
   const renderItem = useCallback(
     ({ item }: { item: NotesSearchResultNote }) => (
       <NotesSearchResultRow
-        folderLabel={getFolderLabel?.(item)}
+        folderPath={getFolderPath?.(item)}
         note={item}
         query={query}
         selected={item.noteId === selectedNoteId}
         onPress={() => onPressNote(item)}
       />
     ),
-    [getFolderLabel, onPressNote, query, selectedNoteId]
+    [getFolderPath, onPressNote, query, selectedNoteId]
   );
 
   const keyExtractor = useCallback(

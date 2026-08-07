@@ -19,13 +19,13 @@ const isMacPlatform =
  * narrow layouts navigate to the search screen instead.
  */
 export function NotesSearchModal({
-  getFolderLabel,
+  getFolderPath,
   notebookFlag,
   onOpenChange,
   onSelectNote,
   open,
 }: {
-  getFolderLabel?: (note: NotesSearchResultNote) => string | null;
+  getFolderPath?: (note: NotesSearchResultNote) => string | null;
   notebookFlag: string | null | undefined;
   onOpenChange: (open: boolean) => void;
   onSelectNote: (note: NotesSearchResultNote) => void;
@@ -200,7 +200,7 @@ export function NotesSearchModal({
 
           <YStack flex={1} minHeight={0}>
             <NotesSearchResults
-              getFolderLabel={getFolderLabel}
+              getFolderPath={getFolderPath}
               notes={notes}
               query={query}
               search={search}

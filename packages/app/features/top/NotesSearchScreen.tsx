@@ -17,7 +17,7 @@ import {
   type NotesSearchResultNote,
   NotesSearchResults,
 } from '../../ui/components/NotesChannel/NotesSearchResults';
-import { makeNotesFolderLabeler } from '../../ui/components/NotesChannel/notesTree';
+import { makeNotesFolderPathLabeler } from '../../ui/components/NotesChannel/notesTree';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NotesSearch'>;
 
@@ -41,9 +41,9 @@ export function NotesSearchScreen(props: Props) {
   // itself is entirely the backend's.
   const { data: folders } = useNotesFolders(notebookFlag);
   const { data: notebook } = useNotesNotebook(notebookFlag);
-  const getFolderLabel = useMemo(
+  const getFolderPath = useMemo(
     () =>
-      makeNotesFolderLabeler({
+      makeNotesFolderPathLabeler({
         folders: folders ?? [],
         rootFolderId: notebook?.rootFolderId ?? null,
       }),
@@ -85,7 +85,7 @@ export function NotesSearchScreen(props: Props) {
             />
           </XStack>
           <NotesSearchResults
-            getFolderLabel={getFolderLabel}
+            getFolderPath={getFolderPath}
             notes={notes}
             query={query}
             search={search}
