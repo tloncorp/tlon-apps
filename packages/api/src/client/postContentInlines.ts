@@ -68,6 +68,17 @@ export function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
         checked: inline.task.checked,
         children: convertInlineContent(inline.task.content),
       });
+    } else if (ub.isBlockquote(inline)) {
+      nodes.push({
+        type: 'blockquote',
+        children: convertInlineContent(inline.blockquote),
+      });
+    } else if (ub.isBlockCode(inline)) {
+      nodes.push({
+        type: 'style',
+        style: 'code',
+        children: [{ type: 'text', text: inline.code }],
+      });
     } else {
       console.warn('Unhandled inline type:', { inline });
       nodes.push({
