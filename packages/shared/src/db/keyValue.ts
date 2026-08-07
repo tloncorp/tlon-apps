@@ -470,6 +470,26 @@ export const agentGroupAgents = createStorageItem<Record<string, string>>({
   defaultValue: {},
 });
 
+/**
+ * When each agent group's opening was set in motion, by group id.
+ *
+ * `agentGroupAgents` says an agent *is* the group's agent, which stays true
+ * forever; it cannot say whether that agent is still about to speak. The
+ * empty-channel notice needs the second question: it hides the admin's
+ * Invite and Edit actions so the agent can open the conversation, and the
+ * invite, join and opening are all best effort. Without an expiry, one that
+ * silently failed hid those controls for the life of the group, on the one
+ * screen where the owner would go looking for them.
+ *
+ * A group with no timestamp is treated as past its window, which is right
+ * for the groups that predate this record: their agent either spoke long
+ * ago or never will.
+ */
+export const agentGroupOpenedAt = createStorageItem<Record<string, number>>({
+  key: 'agentGroupOpenedAt',
+  defaultValue: {},
+});
+
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
   defaultValue: {

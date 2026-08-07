@@ -677,6 +677,33 @@ describe('renderSetupDirective', () => {
     }
   });
 
+  test('no job payload carries a setup-only instruction', () => {
+    // The payload is stored verbatim as the cron job's message and replayed
+    // at every firing, so anything setup-shaped in it is spoken to a run
+    // happening months later. A day-one deferral once lived here: every
+    // future digest was told to research, withhold the entry, and wait for
+    // a Tlon directive that only arrives during onboarding — so the run had
+    // nowhere to put its output and quietly produced nothing.
+    for (const [purposeId, job] of Object.entries(PURPOSE_JOBS)) {
+      for (const phrase of [
+        'do NOT write the entry yet',
+        'during this build',
+        'separate directive',
+        'Tlon watches',
+        'outputNest" empty',
+      ]) {
+        expect(
+          job.prompt,
+          `${purposeId} payload should not mention "${phrase}"`
+        ).not.toContain(phrase);
+      }
+      // And it must still say where the output goes, or the run is adrift.
+      expect(job.prompt, `${purposeId} payload names its output`).toContain(
+        'outputNest'
+      );
+    }
+  });
+
   test('the build defers the name and the icon to the finishing turn', () => {
     // Both are cosmetic and the icon half is the least reliable step in the
     // build — image generation is slow and `tlon upload` has been failing
@@ -737,10 +764,14 @@ describe('renderSetupDirective', () => {
     // Discovery and timing moved to the sweep, which can see the channel.
     for (const purposeId of Object.keys(PURPOSE_JOBS)) {
       const directive = renderSetupDirective(purposeId, 'Sleep')!;
-      expect(directive).toContain("The notebook is the OWNER's channel");
-      expect(directive).toContain('NEVER create a channel');
-      expect(directive).toContain('do NOT write the entry yet');
-      expect(directive).toContain('Tlon watches for the notebook itself');
+      // Asserted against the directive's own words. These used to be
+      // satisfied by the job payload quoted inside it, which is why a
+      // deferral aimed at this one turn ended up stored in the cron job.
+      expect(directive).toContain("is the OWNER's channel");
+      expect(directive).toContain('Never create a channel either');
+      expect(directive).toContain('Do NOT write the notebook entry');
+      expect(directive).toContain("Tlon watches for the\nowner's notebook");
+      expect(directive).toContain('write nothing to a notebook yet');
       expect(directive).not.toContain('channels create');
       expect(directive).not.toContain('--kind notes');
       // The old self-service instructions must not linger anywhere in the

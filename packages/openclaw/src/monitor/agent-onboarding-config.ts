@@ -244,22 +244,28 @@ const INLINE_FIRST_RUN =
  * bot-hosted channel.
  *
  * Part of the verbatim payload, so it is one string rather than three
- * paraphrases that can drift apart.
+ * paraphrases that can drift apart — which is exactly why it must stay
+ * true for a run happening months from now. This string is stored in the
+ * cron job and replayed at every firing, so it may not carry a word of
+ * setup: a day-one deferral pinned in here told every future digest to do
+ * the research, withhold the entry, and wait for a Tlon directive that
+ * only ever arrives during onboarding, leaving the scheduled run with
+ * nowhere to put its output. The setup-only half of this — write nothing
+ * yet, leave "outputNest" empty, Tlon names the nest — lives in
+ * `renderSetupDirective`, which governs that turn and is not stored.
  */
 const OUTPUT_CHANNEL_RULE =
-  "The day-one payload goes in this group's notebook, and Tlon — not you — " +
-  "owns getting it there. The notebook is the OWNER's channel: their app " +
-  'creates it on their ship once the group config lands. So during this ' +
-  'build: NEVER create a channel, never go looking for a notes nest, and ' +
-  'do NOT write the entry yet. Tlon watches for the notebook itself and ' +
-  'sends you a separate directive naming the exact nest the moment it ' +
-  'exists — write the entry then, and only then. A note written before ' +
-  'that, into a nest you picked yourself, is accepted by the poke and then ' +
-  'vanishes: the write reports success and the owner opens an empty ' +
-  'notebook. Leave this job\'s "outputNest" empty in the config; Tlon ' +
-  'records it once a real entry lands. Do the research now if the job ' +
-  'needs it and keep it ready, so the entry directive is a write rather ' +
-  'than a fresh investigation.';
+  "This run's output belongs in this group's notebook — the OWNER's notes " +
+  "channel, on their ship. Append to the nest recorded in this job's " +
+  '"outputNest". Write it with the tlon tool, never the message tool ' +
+  '(which only posts chat and cannot carry a title): put the body in a ' +
+  'markdown file and pass that file — `notes note-create <nest> root ' +
+  '"<Title>" --markdown <file>`. Never `--stdin`; it cannot receive input ' +
+  'through this tool and the entry would never land. Never create a ' +
+  'channel or a group to hold this, and never post into a notebook you ' +
+  'picked yourself. If no notebook nest is recorded, post the run in chat ' +
+  'instead and say that is where it went — chat is the fallback, never a ' +
+  'channel of your own making.';
 
 /**
  * How the plugin-driven entry write is spelled, shared by the directive the

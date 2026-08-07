@@ -74,6 +74,20 @@ export async function createAgentGroup(params?: {
       });
     });
 
+  // Stamp when the opening began, so the empty-channel notice can stop
+  // waiting on an agent that never arrives. Only here, not in
+  // `recordHomeGroupAgent`: this is the moment an opening is actually
+  // imminent, and a device adopting an existing group later should not
+  // restart the clock on a conversation that opened long ago.
+  await db.agentGroupOpenedAt
+    .setValue((current) => ({ ...current, [group.id]: Date.now() }))
+    .catch((error) => {
+      logger.trackError('Failed to record agent opening time', {
+        error,
+        groupId: group.id,
+      });
+    });
+
   // Declare the agent on the group so other clients (and a re-installed one,
   // whose local record above is gone) recognize its cards too — see
   // `isOwnAgentShip`. A bare declaration — who acts, not what the group does

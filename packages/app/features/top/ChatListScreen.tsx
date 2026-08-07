@@ -251,8 +251,16 @@ export function ChatListScreenView({
         if (!landing) {
           return;
         }
-        const deadline = Date.now() + 30_000;
-        while (!cancelled && Date.now() < deadline) {
+        // Fast for the first half-minute, then slow — but never stopping
+        // while this screen is mounted. A hard deadline left the handoff
+        // armed with nobody watching it: a channel that synced at 31
+        // seconds stranded the user on the chat list until they happened to
+        // remount the app, even though the landing was still waiting to be
+        // consumed. A row lookup every five seconds costs nothing next to
+        // that.
+        const fastUntil = Date.now() + 30_000;
+        let slowSyncLogged = false;
+        while (!cancelled) {
           const channel = await db.getChannel({ id: landing.channelId });
           if (channel) {
             if (!cancelled && !consumedOnboardingLandingRef.current) {
@@ -273,12 +281,25 @@ export function ChatListScreenView({
             }
             return;
           }
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        }
-        // Timed out or unmounted: leave the landing armed so the next mount
-        // can retry once the channel has synced in.
-        if (!cancelled) {
-          logger.trackError('Onboarding landing channel never synced', landing);
+          const slow = Date.now() > fastUntil;
+          if (slow && !slowSyncLogged) {
+            slowSyncLogged = true;
+            logger.trackError('Onboarding landing channel slow to sync', {
+              ...landing,
+            });
+          }
+          if (slow) {
+            // Re-read before each slow wait: another surface may have
+            // consumed or cleared the handoff, and this loop no longer ends
+            // on its own.
+            const stillArmed = await db.agentOnboardingLanding.getValue();
+            if (!stillArmed || stillArmed.channelId !== landing.channelId) {
+              return;
+            }
+          }
+          await new Promise((resolve) =>
+            setTimeout(resolve, slow ? 5_000 : 500)
+          );
         }
       } catch (error) {
         logger.trackError('Failed to consume onboarding landing', { error });

@@ -10,6 +10,15 @@ import { useGroup } from '../../contexts/groups';
 import { useChatTitle, useIsAdmin } from '../../utils';
 import WayfindingNotice from '../Wayfinding/Notices';
 
+/**
+ * How long a newly created agent group keeps its empty-channel notice
+ * suppressed while waiting for the agent's opening message. Generous — the
+ * bot has to accept the invite, sync the group and take a turn — but not
+ * unbounded, since past it the owner needs the ordinary recovery actions
+ * back rather than a permanently blank channel.
+ */
+const AGENT_OPENING_GRACE_MS = 5 * 60 * 1000;
+
 export function EmptyChannelNotice({
   channel,
   userId,
@@ -36,6 +45,8 @@ export function EmptyChannelNotice({
     db.agentGroupAgents.useStorageItem();
   const { value: onboardingGroupId, isLoading: markerLoading } =
     db.agentOnboardingGroupId.useStorageItem();
+  const { value: agentGroupOpenedAt, isLoading: openedAtLoading } =
+    db.agentGroupOpenedAt.useStorageItem();
   const isGroupAdminFromHook = useIsAdmin(channel.groupId ?? '', userId);
   const isGroupAdmin = isAdminOverride ?? isGroupAdminFromHook;
   const isDefaultPersonalChannel = useMemo(() => {
@@ -108,11 +119,25 @@ export function EmptyChannelNotice({
     channel.type === 'chat' &&
     !!channel.groupId &&
     (group?.channels?.length ?? 0) <= 1;
+  // The recorded agent says who speaks for the group, which never stops
+  // being true — on its own it hid the admin's Invite and Edit actions for
+  // good when the invite, the join or the opening quietly failed, on the
+  // very screen where the owner would go looking for them. So it only
+  // suppresses while the opening is still plausibly in flight: an active
+  // onboarding marker, or an opening stamped within the last few minutes.
+  // Past that the group is treated as one whose agent is not coming, and
+  // the ordinary recovery actions come back.
+  const openedAt = channel.groupId
+    ? agentGroupOpenedAt[channel.groupId]
+    : undefined;
+  const openingIsRecent =
+    openedAt != null && Date.now() - openedAt < AGENT_OPENING_GRACE_MS;
   const awaitingAgentOpening =
     couldBeAgentOpening &&
     (agentRecordsLoading ||
       markerLoading ||
-      agentGroupAgents[channel.groupId!] != null ||
+      openedAtLoading ||
+      (agentGroupAgents[channel.groupId!] != null && openingIsRecent) ||
       onboardingGroupId === channel.groupId);
 
   if (isDefaultPersonalChannel) {
