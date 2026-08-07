@@ -108,5 +108,6 @@ jobs:
             ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
           TLON_BOT_E2E_RUN_ID:
             ${{ github.run_id }}-${{ github.run_attempt }}-openclaw
+          TLON_BOT_E2E_SCENARIO_PARTITIONS: baseline,cron
         run: |
           pnpm --filter '@tloncorp/openclaw' test:integration:shared

@@ -260,7 +260,7 @@ export function BotModelSettingsScreen(props: Props) {
                     color="$secondaryText"
                     paddingHorizontal="$s"
                   >
-                    Basic uses MiniMax M3.
+                    Basic uses GPT-5.6 Luna.
                   </Text>
                 ) : (
                   <BotSettingsSection title="Model">
