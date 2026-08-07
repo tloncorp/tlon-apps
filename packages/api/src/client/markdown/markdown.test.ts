@@ -9,44 +9,12 @@ import {
   inlinesToMarkdown,
   storyToMarkdown,
 } from './serialize';
-import { parseShipMentions } from './shipMentionPlugin';
 
-describe('parseShipMentions', () => {
-  it('parses single ship mention', () => {
-    const result = parseShipMentions('Hello ~zod!');
-    expect(result).toHaveLength(3);
-    expect(result[0]).toEqual({ type: 'text', value: 'Hello ' });
-    expect(result[1]).toEqual({ type: 'shipMention', value: 'zod' });
-    expect(result[2]).toEqual({ type: 'text', value: '!' });
-  });
-
-  it('parses multiple ship mentions', () => {
-    const result = parseShipMentions('~zod and ~bus');
-    expect(result).toHaveLength(3);
-    expect(result[0]).toEqual({ type: 'shipMention', value: 'zod' });
-    expect(result[1]).toEqual({ type: 'text', value: ' and ' });
-    expect(result[2]).toEqual({ type: 'shipMention', value: 'bus' });
-  });
-
-  it('parses planet names', () => {
-    const result = parseShipMentions('~sampel-palnet');
-    expect(result).toHaveLength(1);
-    expect(result[0]).toEqual({ type: 'shipMention', value: 'sampel-palnet' });
-  });
-
-  it('parses moon names', () => {
-    const result = parseShipMentions('~dozzod-dozzod-sampel-palnet');
-    expect(result).toHaveLength(1);
-    expect(result[0]).toEqual({
-      type: 'shipMention',
-      value: 'dozzod-dozzod-sampel-palnet',
-    });
-  });
-
-  it('returns text node for text without ships', () => {
-    const result = parseShipMentions('Hello world');
-    expect(result).toHaveLength(1);
-    expect(result[0]).toEqual({ type: 'text', value: 'Hello world' });
+describe('ship mention parsing', () => {
+  it('keeps text without ships as a single text inline', () => {
+    expect(markdownToStory('Hello world')).toEqual([
+      { inline: ['Hello world'] },
+    ]);
   });
 });
 
@@ -218,6 +186,206 @@ describe('markdownToStory', () => {
           inline: ['Hello ', { bold: [{ ship: '~sampel-palnet' }] }, '!'],
         },
       ]);
+    });
+  });
+
+  describe('escaped and referenced tildes stay literal', () => {
+    it('keeps a backslash-escaped ship literal (the issue example)', () => {
+      expect(markdownToStory('; \\~ripdys is your neighbor')).toEqual([
+        { inline: ['; ~ripdys is your neighbor'] },
+      ]);
+    });
+
+    it('keeps an escaped ship inside bold literal', () => {
+      expect(markdownToStory('**\\~zod**')).toEqual([
+        { inline: [{ bold: ['~zod'] }] },
+      ]);
+    });
+
+    it('keeps an escaped ship in a link label literal', () => {
+      expect(markdownToStory('[\\~zod](https://example.com)')).toEqual([
+        {
+          inline: [{ link: { href: 'https://example.com', content: '~zod' } }],
+        },
+      ]);
+    });
+
+    it('keeps an escaped ship in a header literal', () => {
+      expect(markdownToStory('# \\~zod')).toEqual([
+        { block: { header: { tag: 'h1', content: ['~zod'] } } },
+      ]);
+    });
+
+    it.each(['&#126;zod hello', '&#x7E;zod hello'])(
+      'keeps the character reference %s literal',
+      (markdown) => {
+        expect(markdownToStory(markdown)).toEqual([{ inline: ['~zod hello'] }]);
+      }
+    );
+
+    it('keeps an escaped ship in a table cell literal', () => {
+      const story = markdownToStory('| h |\n| --- |\n| \\~zod |');
+      expect(JSON.stringify(story)).not.toContain('"ship"');
+      expect(story).toEqual([{ inline: ['| h  |\n| ----- |\n| \\~zod |'] }]);
+    });
+
+    it('preserves the sigil in image alt text', () => {
+      expect(markdownToStory('![~zod](https://x.test/i.png)')).toEqual([
+        {
+          block: {
+            image: {
+              src: 'https://x.test/i.png',
+              alt: '~zod',
+              width: 0,
+              height: 0,
+            },
+          },
+        },
+      ]);
+    });
+  });
+
+  describe('trailing boundary enforcement', () => {
+    it.each([
+      '~zod2 hello',
+      'ping ~foo-bar ok',
+      '~zodabcx',
+      '~zod-monster',
+      '~zod-ab',
+      '~zo',
+      '~ZOD',
+      '~zodA',
+      '~zod9',
+    ])('keeps %s fully literal', (markdown) => {
+      expect(markdownToStory(markdown)).toEqual([{ inline: [markdown] }]);
+    });
+
+    it('still permits a mention before punctuation', () => {
+      expect(markdownToStory('~zod.')).toEqual([
+        { inline: [{ ship: '~zod' }, '.'] },
+      ]);
+    });
+
+    it('still permits a mention inside parentheses', () => {
+      expect(markdownToStory('(~zod)')).toEqual([
+        { inline: ['(', { ship: '~zod' }, ')'] },
+      ]);
+    });
+
+    it('still permits two adjacent mentions', () => {
+      expect(markdownToStory('~zod~bus')).toEqual([
+        { inline: [{ ship: '~zod' }, { ship: '~bus' }] },
+      ]);
+    });
+
+    it('still permits a mid-word mention (no left boundary)', () => {
+      expect(markdownToStory('abc~zod')).toEqual([
+        { inline: ['abc', { ship: '~zod' }] },
+      ]);
+    });
+  });
+
+  describe('comet names', () => {
+    const comet = '~lisfed-hobtex-tinres-walmyr--donsut-toprep-fanfep-samzod';
+
+    it('parses a full comet as one mention', () => {
+      expect(markdownToStory(`hi ${comet} bye`)).toEqual([
+        { inline: ['hi ', { ship: comet }, ' bye'] },
+      ]);
+    });
+
+    it('parses a --joined comet-shaped name as one mention', () => {
+      // Documented delta: the old scanner split this into ~zod plus text.
+      expect(markdownToStory('~zod--wordly')).toEqual([
+        { inline: [{ ship: '~zod--wordly' }] },
+      ]);
+    });
+
+    it.each(['~zod--', '~zod--word'])(
+      'keeps the incomplete comet tail %s fully literal',
+      (markdown) => {
+        expect(markdownToStory(markdown)).toEqual([{ inline: [markdown] }]);
+      }
+    );
+
+    it('round-trips a comet mention byte-stably', () => {
+      const story: Story = [{ inline: [{ ship: comet }] }];
+      const once = storyToMarkdown(story);
+      expect(markdownToStory(once)).toEqual(story);
+      expect(storyToMarkdown(markdownToStory(once))).toBe(once);
+    });
+  });
+
+  describe('email-autolink coexistence', () => {
+    it('does not splice a mention into an autolinked URL path', () => {
+      const result = markdownToStory('see https://x.test/~zod/page ok');
+      expect(result).toEqual([
+        {
+          inline: [
+            'see ',
+            {
+              link: {
+                href: 'https://x.test/~zod/page',
+                content: 'https://x.test/~zod/page',
+              },
+            },
+            ' ok',
+          ],
+        },
+      ]);
+    });
+
+    it.each([
+      ['~zod@example.com', '~', 'zod@example.com'],
+      ['foo~zod@example.com', 'foo~', 'zod@example.com'],
+      ['~zod.bar@example.com', '~', 'zod.bar@example.com'],
+      ['~zod+x@example.com', '~', 'zod+x@example.com'],
+      ['~zod-foo@example.com', '~', 'zod-foo@example.com'],
+      ['~zod_x@example.com', '~', 'zod_x@example.com'],
+    ])(
+      'preserves the autolink and creates no mention for %s',
+      (markdown, prefix, email) => {
+        expect(markdownToStory(markdown)).toEqual([
+          {
+            inline: [
+              prefix,
+              { link: { href: `mailto:${email}`, content: email } },
+            ],
+          },
+        ]);
+      }
+    );
+
+    it('keeps a non-autolinking @-tail fully literal (documented divergence)', () => {
+      // The base promoted a mention here; with no dotted domain no GFM
+      // autolink forms, and the guard goes literal instead.
+      expect(markdownToStory('~zod@example')).toEqual([
+        { inline: ['~zod@example'] },
+      ]);
+    });
+
+    it('keeps the mention when no @ follows the local-part run', () => {
+      expect(markdownToStory('~zod.bar hello')).toEqual([
+        { inline: [{ ship: '~zod' }, '.bar hello'] },
+      ]);
+      expect(markdownToStory('~zod_foo hello')).toEqual([
+        { inline: [{ ship: '~zod' }, '_foo hello'] },
+      ]);
+    });
+  });
+
+  describe('strikethrough interplay', () => {
+    it('parses a mention followed by a lone tilde', () => {
+      expect(markdownToStory('~zod~ hi')).toEqual([
+        { inline: [{ ship: '~zod' }, '~ hi'] },
+      ]);
+    });
+
+    it('keeps an unpaired double-tilde run fully literal', () => {
+      // Deliberate delta: the old post-parse scan promoted ~zod out of the
+      // literal ~~zod text; the tokenizer consumes the run as close-only
+      // strikethrough data and never re-attempts the ship construct.
+      expect(markdownToStory('~~zod')).toEqual([{ inline: ['~~zod'] }]);
     });
   });
 
@@ -575,6 +743,22 @@ describe('markdownToStory', () => {
           align: [null],
         },
       ]);
+    });
+  });
+
+  describe('parse-side flattener boundaries', () => {
+    it('separates a mention from text fused by a character reference in a table', () => {
+      // The character reference is a token boundary, so the cell parses as
+      // mention ~zod plus text abc; the flattener must not re-fuse them.
+      const story = markdownToStory('| h |\n| --- |\n| ~zod&#97;bc |');
+      expect(JSON.stringify(story)).toContain('~zod<!-- -->abc');
+      expect(JSON.stringify(story)).not.toContain('~zodabc');
+    });
+
+    it('separates a mention in a quoted list flattened to markdown', () => {
+      const story = markdownToStory('> - ~zod&#97;bc');
+      expect(JSON.stringify(story)).toContain('~zod<!-- -->abc');
+      expect(JSON.stringify(story)).not.toContain('~zodabc');
     });
   });
 

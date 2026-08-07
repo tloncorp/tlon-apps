@@ -1,4 +1,4 @@
-import type { Node, PhrasingContent, Root } from 'mdast';
+import type { Node, PhrasingContent, Root, Text } from 'mdast';
 import remarkGfm from 'remark-gfm';
 import remarkStringify from 'remark-stringify';
 import { unified } from 'unified';
@@ -6,7 +6,10 @@ import { unified } from 'unified';
 import { Story } from '../../urbit/channel';
 import { Block, Inline } from '../../urbit/content';
 import { visit, visitAll } from './astUtils';
-import { type ShipMention, transformShipMentions } from './shipMentionPlugin';
+import {
+  SHIP_MENTION_FUSABLE_START,
+  type ShipMention,
+} from './shipMentionPlugin';
 import {
   type StoryToMdastOptions,
   inlinesToMdast,
@@ -24,7 +27,7 @@ function transformShipMentionsToHtml(tree: Node): void {
     // Replace shipMention with html node to prevent escaping
     const htmlNode = {
       type: 'html',
-      value: `~${node.value}`,
+      value: node.value,
     };
     parent.children[index] = htmlNode as unknown as PhrasingContent;
   });
@@ -59,9 +62,7 @@ function wrapShipMentionsNextToStrike(node: Node): void {
 
     const value = parent.children
       .slice(index, index + count)
-      .map(
-        (child) => `<span>~${(child as unknown as ShipMention).value}</span>`
-      )
+      .map((child) => `<span>${(child as unknown as ShipMention).value}</span>`)
       .join('');
     parent.children.splice(index, count, {
       type: 'html',
@@ -75,6 +76,88 @@ function insertInvisibleComment(children: Node[], index: number): void {
     type: 'html',
     value: '<!-- -->',
   } as unknown as Node);
+}
+
+/**
+ * `storyToMdast` preserves empty-string Story inlines as empty text nodes.
+ * They serialize to nothing, but they break physical-index adjacency checks
+ * in the transforms below (a mention inside a strike would emit a
+ * fenced-code-opening tilde run), so prune them before anything else runs.
+ */
+function pruneEmptyTextNodes(node: Node): void {
+  const parent = node as Node & { children?: Node[] };
+  if (!Array.isArray(parent.children)) return;
+
+  for (const child of parent.children) {
+    pruneEmptyTextNodes(child);
+  }
+
+  for (let index = parent.children.length - 1; index >= 0; index -= 1) {
+    const child = parent.children[index] as Node & { value?: unknown };
+    if (child.type === 'text' && child.value === '') {
+      parent.children.splice(index, 1);
+    }
+  }
+}
+
+function markStartsWithWordText(node: Node): boolean {
+  const first = (node as Node & { children?: Node[] }).children?.[0] as
+    | (Node & { value?: unknown })
+    | undefined;
+  return (
+    !!first &&
+    first.type === 'text' &&
+    typeof first.value === 'string' &&
+    /^[\p{L}\p{N}]/u.test(first.value)
+  );
+}
+
+/**
+ * A ship mention directly followed by fusable text would reparse as one
+ * longer (wrong or nonexistent) ship, and a mention before a
+ * strong/emphasis/delete whose first child is not word-leading text trips
+ * mdast-util-to-markdown's flanking fixup, which rewrites the mention's
+ * final character into a numeric character reference. Insert a
+ * content-neutral comment between the mention and such siblings;
+ * mdastToStory drops the comment on reparse.
+ */
+export function separateShipMentionsFromFusableSiblings(node: Node): void {
+  const parent = node as Node & { children?: Node[] };
+  if (!Array.isArray(parent.children)) return;
+
+  for (const child of parent.children) {
+    separateShipMentionsFromFusableSiblings(child);
+  }
+
+  for (let index = 0; index < parent.children.length; index += 1) {
+    if (parent.children[index].type !== 'shipMention') continue;
+
+    // Zero-width text pieces do not affect adjacency.
+    let nextIndex = index + 1;
+    while (nextIndex < parent.children.length) {
+      const candidate = parent.children[nextIndex] as Text;
+      if (candidate.type === 'text' && candidate.value === '') {
+        nextIndex += 1;
+        continue;
+      }
+      break;
+    }
+    const next = parent.children[nextIndex];
+    if (!next) continue;
+
+    const needsSeparator =
+      (next.type === 'text' &&
+        SHIP_MENTION_FUSABLE_START.test((next as Text).value)) ||
+      ((next.type === 'strong' ||
+        next.type === 'emphasis' ||
+        next.type === 'delete') &&
+        !markStartsWithWordText(next));
+
+    if (needsSeparator) {
+      insertInvisibleComment(parent.children, index + 1);
+      index += 1;
+    }
+  }
 }
 
 /**
@@ -278,11 +361,13 @@ export function storyToMarkdown(
   const children = storyToMdast(story, opts);
   const tree: Root = { type: 'root', children };
 
-  // Canonicalize mention-shaped text the same way the Markdown parser does,
-  // then transform mentions before serialization so their sigils stay bare.
+  // Literal ship-shaped text is escaped by remark-stringify and the parser
+  // respects those escapes; real mention nodes get boundary separators, then
+  // become html so their sigils stay bare.
+  pruneEmptyTextNodes(tree);
   makeTightLists(tree);
-  transformShipMentions(tree);
   wrapShipMentionsNextToStrike(tree);
+  separateShipMentionsFromFusableSiblings(tree);
   separateStrikeFromAdjacentPhrasing(tree);
   separateAmbiguousAdjacentMarksBeforeBreak(tree);
   separateMarkedBreakFromPrecedingPhrasing(tree);
@@ -307,9 +392,10 @@ export function inlinesToMarkdown(
   const children = inlinesToMdast(inlines, opts);
   const tree: Root = { type: 'root', children };
 
-  // Canonicalize and transform ship mentions before serialization
-  transformShipMentions(tree);
+  // Same mention pipeline as storyToMarkdown: prune, bound, then html-ize.
+  pruneEmptyTextNodes(tree);
   wrapShipMentionsNextToStrike(tree);
+  separateShipMentionsFromFusableSiblings(tree);
   separateStrikeFromAdjacentPhrasing(tree);
   separateAmbiguousAdjacentMarksBeforeBreak(tree);
   separateMarkedBreakFromPrecedingPhrasing(tree);

@@ -61,7 +61,10 @@ import {
   isTag,
   isTask,
 } from '../../urbit/content';
-import type { ShipMention } from './shipMentionPlugin';
+import {
+  SHIP_MENTION_FUSABLE_START,
+  type ShipMention,
+} from './shipMentionPlugin';
 
 export interface StoryToMdastOptions {
   strict?: boolean;
@@ -265,10 +268,11 @@ export function inlinesToPhrasing(
 
     if (isShip(inline)) {
       const ship = inline as Ship;
-      // Use our custom ship mention node
+      // Use our custom ship mention node; its value carries exactly one
+      // leading sigil, matching the tokenizer's matched-source contract.
       const shipMention: ShipMention = {
         type: 'shipMention',
-        value: ship.ship.replace(/^~/, ''),
+        value: `~${ship.ship.replace(/^~+/, '')}`,
       };
       result.push(shipMention as unknown as PhrasingContent);
       continue;
@@ -332,9 +336,16 @@ export function inlinesToPhrasing(
       );
       const text = phrasingToMarkdown(content);
       const lines = text.split('\n');
+      let value = lines.map((line) => `> ${line}`).join('\n');
+      // The assembled bridge string becomes one html node whose outer
+      // siblings the serialize-path separators cannot protect; end it with
+      // punctuation so nothing can fuse with or encode its trailing edge.
+      if (/[A-Za-z0-9]$/.test(value)) {
+        value += '<!-- -->';
+      }
       result.push({
         type: 'html',
-        value: lines.map((line) => `> ${line}`).join('\n'),
+        value,
       } as unknown as PhrasingContent);
       continue;
     }
@@ -347,7 +358,13 @@ export function inlinesToPhrasing(
         );
       }
       const codeContent = (inline as { code: string }).code;
-      result.push({ type: 'text', value: `\`\`\`\n${codeContent}\n\`\`\`` });
+      result.push({
+        type: 'text',
+        value: `\`\`\`\n${codeContent}\n\`\`\``,
+        // Marks this piece as bridge-rendered code so the bridge's prose
+        // escaping skips it; final-tree serialization ignores `data`.
+        data: { bridgeCode: true },
+      } as unknown as PhrasingContent);
       continue;
     }
 
@@ -363,7 +380,8 @@ export function inlinesToPhrasing(
       result.push({
         type: 'text',
         value: `\`\`\`${lang}\n${code.code.code}\n\`\`\``,
-      });
+        data: { bridgeCode: true },
+      } as unknown as PhrasingContent);
       continue;
     }
 
@@ -408,49 +426,77 @@ function phrasingToText(nodes: PhrasingContent[]): string {
 }
 
 /**
- * Convert phrasing content to markdown string (preserves formatting).
+ * Convert phrasing content to a markdown string (preserves formatting).
+ * The result is emitted verbatim inside an html node, outside
+ * remark-stringify's escaping and encode machinery, so the bridge escapes
+ * prose text itself (backslash first, then tilde) and inserts a
+ * content-neutral separator where a rendered mention would fuse with the
+ * following piece.
  */
 function phrasingToMarkdown(nodes: PhrasingContent[]): string {
-  return nodes
-    .map((node) => {
-      switch ((node as { type: string }).type) {
-        case 'text':
-          return (node as Text).value;
-        case 'strong': {
-          const inner = phrasingToMarkdown((node as Strong).children);
-          return `**${inner}**`;
-        }
-        case 'emphasis': {
-          const inner = phrasingToMarkdown((node as Emphasis).children);
-          return `*${inner}*`;
-        }
-        case 'delete': {
-          const inner = phrasingToMarkdown((node as Delete).children);
-          return `~~${inner}~~`;
-        }
-        case 'inlineCode':
-          return `\`${(node as MdastInlineCode).value}\``;
-        case 'link': {
-          const link = node as MdastLink;
-          const content = phrasingToMarkdown(link.children);
-          return `[${content}](${link.url})`;
-        }
-        case 'break':
-          return '\n';
-        case 'html':
-          return (node as { value: string }).value;
-        case 'shipMention':
-          return `~${(node as unknown as ShipMention).value}`;
-        default:
-          if ('children' in node) {
-            return phrasingToMarkdown(
-              (node as { children: PhrasingContent[] }).children
-            );
-          }
-          return '';
+  let result = '';
+  let previousIsMention = false;
+
+  for (const node of nodes) {
+    const piece = phrasingPieceToMarkdown(node);
+    // Zero-width pieces do not affect adjacency.
+    if (piece === '') continue;
+    if (previousIsMention && SHIP_MENTION_FUSABLE_START.test(piece)) {
+      result += '<!-- -->';
+    }
+    result += piece;
+    previousIsMention = (node as { type: string }).type === 'shipMention';
+  }
+
+  return result;
+}
+
+function phrasingPieceToMarkdown(node: PhrasingContent): string {
+  switch ((node as { type: string }).type) {
+    case 'text': {
+      const value = (node as Text).value;
+      // Bridge-rendered code fences are tagged at construction; inside a
+      // fence a backslash is data, so those pass through unchanged. All
+      // other text is prose — even if it happens to start with backticks —
+      // and must be escaped so ship-shaped tokens stay literal.
+      if ((node as { data?: { bridgeCode?: boolean } }).data?.bridgeCode) {
+        return value;
       }
-    })
-    .join('');
+      return value.replace(/\\/g, '\\\\').replace(/~/g, '\\~');
+    }
+    case 'strong': {
+      const inner = phrasingToMarkdown((node as Strong).children);
+      return `**${inner}**`;
+    }
+    case 'emphasis': {
+      const inner = phrasingToMarkdown((node as Emphasis).children);
+      return `*${inner}*`;
+    }
+    case 'delete': {
+      const inner = phrasingToMarkdown((node as Delete).children);
+      return `~~${inner}~~`;
+    }
+    case 'inlineCode':
+      return `\`${(node as MdastInlineCode).value}\``;
+    case 'link': {
+      const link = node as MdastLink;
+      const content = phrasingToMarkdown(link.children);
+      return `[${content}](${link.url})`;
+    }
+    case 'break':
+      return '\n';
+    case 'html':
+      return (node as { value: string }).value;
+    case 'shipMention':
+      return (node as unknown as ShipMention).value;
+    default:
+      if ('children' in node) {
+        return phrasingToMarkdown(
+          (node as { children: PhrasingContent[] }).children
+        );
+      }
+      return '';
+  }
 }
 
 function wrapPhrasing(

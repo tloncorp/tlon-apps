@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 
 import { Story } from '../../urbit/channel';
 import {
@@ -953,6 +953,267 @@ describe('storyToMarkdown', () => {
     expect(storyToMarkdown(story)).toBe(
       '# Welcome\n\nThis is an intro with **emphasis**.\n\n---\n\n1. Step one\n2. Step two\n\n> Important note'
     );
+  });
+});
+
+describe('ship mention serialization', () => {
+  function expectIdentity(story: Story, markdown: string): void {
+    expect(storyToMarkdown(story)).toBe(markdown);
+    expect(markdownToStory(markdown)).toEqual(story);
+  }
+
+  it('serializes literal ship-shaped text escaped, without promotion', () => {
+    expect(storyToMarkdown([{ inline: ['~zod'] }])).toBe('\\~zod');
+  });
+
+  it('round-trips the issue example identically', () => {
+    const story: Story = [{ inline: ['; ~ripdys is your neighbor'] }];
+    expect(markdownToStory(storyToMarkdown(story))).toEqual(story);
+  });
+
+  it('round-trips a real mention to itself', () => {
+    expectIdentity([{ inline: [{ ship: '~zod' } as Ship] }], '~zod');
+  });
+
+  describe('adjacency separators', () => {
+    it('separates a mention from fusable lowercase text', () => {
+      expectIdentity(
+        [{ inline: [{ ship: '~zod' } as Ship, 'abc'] }],
+        '~zod<!-- -->abc'
+      );
+    });
+
+    it('separates a mention from digit-leading text', () => {
+      expectIdentity(
+        [{ inline: [{ ship: '~zod' } as Ship, '2fast'] }],
+        '~zod<!-- -->2fast'
+      );
+    });
+
+    it('separates a mention from hyphen-leading text', () => {
+      expectIdentity(
+        [{ inline: [{ ship: '~zod' } as Ship, '-monster'] }],
+        '~zod<!-- -->-monster'
+      );
+    });
+
+    it('separates a mention from uppercase text', () => {
+      expectIdentity(
+        [{ inline: [{ ship: '~zod' } as Ship, 'ABC'] }],
+        '~zod<!-- -->ABC'
+      );
+    });
+
+    it('separates a mention from an email-trigger follower', () => {
+      const story: Story = [
+        { inline: [{ ship: '~zod' } as Ship, '.foo@example.com'] },
+      ];
+      const markdown = storyToMarkdown(story);
+      expect(markdown).toContain('~zod<!-- -->');
+      // The follower may legitimately autolink on reparse/reserialize, so
+      // assert mention survival rather than byte identity.
+      const reparsed = markdownToStory(markdown);
+      expect(JSON.stringify(reparsed)).toContain('"ship":"~zod"');
+      expect(JSON.stringify(reparsed)).not.toContain('~zod.foo');
+    });
+
+    it('does not separate a mention from space-leading text', () => {
+      expectIdentity(
+        [{ inline: [{ ship: '~zod' } as Ship, ' after'] }],
+        '~zod after'
+      );
+    });
+
+    it('does not separate adjacent mentions', () => {
+      expectIdentity(
+        [{ inline: [{ ship: '~zod' } as Ship, { ship: '~bus' } as Ship] }],
+        '~zod~bus'
+      );
+    });
+
+    it('does not separate text before a mention', () => {
+      expectIdentity(
+        [{ inline: ['abc', { ship: '~zod' } as Ship] }],
+        'abc~zod'
+      );
+    });
+
+    it('does not separate text ending in an escaped tilde before a mention', () => {
+      expectIdentity(
+        [{ inline: ['x~', { ship: '~zod' } as Ship] }],
+        'x\\~~zod'
+      );
+    });
+
+    it('separates despite a zero-width text node between', () => {
+      const story: Story = [{ inline: [{ ship: '~zod' } as Ship, '', 'abc'] }];
+      expect(storyToMarkdown(story)).toBe('~zod<!-- -->abc');
+      // The zero-width inline is unrepresentable and dropped on reparse.
+      expect(markdownToStory('~zod<!-- -->abc')).toEqual([
+        { inline: [{ ship: '~zod' }, 'abc'] },
+      ]);
+    });
+  });
+
+  describe('mark-sibling separators', () => {
+    it('separates a mention from punctuation-leading bold', () => {
+      const story: Story = [
+        { inline: [{ ship: '~zod' } as Ship, { bold: ['!lead'] } as Bold] },
+      ];
+      const markdown = storyToMarkdown(story);
+      expect(markdown).toBe('~zod<!-- -->**!lead**');
+      expect(markdown).not.toMatch(/&#/);
+      expect(markdownToStory(markdown)).toEqual(story);
+    });
+
+    it('separates a mention from punctuation-leading italics', () => {
+      const story: Story = [
+        {
+          inline: [{ ship: '~zod' } as Ship, { italics: ['!lead'] } as Italics],
+        },
+      ];
+      const markdown = storyToMarkdown(story);
+      expect(markdown).toBe('~zod<!-- -->*!lead*');
+      expect(markdown).not.toMatch(/&#/);
+      expect(markdownToStory(markdown)).toEqual(story);
+    });
+
+    it('separates a mention from bold containing a mention', () => {
+      const story: Story = [
+        {
+          inline: [
+            { ship: '~zod' } as Ship,
+            { bold: [{ ship: '~bus' } as Ship] } as Bold,
+          ],
+        },
+      ];
+      const markdown = storyToMarkdown(story);
+      expect(markdown).toContain('~zod<!-- -->**');
+      expect(markdown).not.toMatch(/&#/);
+      expect(markdownToStory(markdown)).toEqual(story);
+    });
+
+    it('separates a mention from a nested-mark first child', () => {
+      const story: Story = [
+        {
+          inline: [
+            { ship: '~zod' } as Ship,
+            { bold: [{ italics: ['word'] } as Italics] } as Bold,
+          ],
+        },
+      ];
+      const markdown = storyToMarkdown(story);
+      expect(markdown).toContain('~zod<!-- -->');
+      expect(markdown).not.toMatch(/&#/);
+      // ***-combined runs legitimately reparse with nesting swapped; assert
+      // convergence and mention survival rather than story identity.
+      const reparsed = markdownToStory(markdown);
+      expect(JSON.stringify(reparsed)).toContain('"ship":"~zod"');
+      expect(JSON.stringify(reparsed)).toContain('word');
+      expect(storyToMarkdown(reparsed)).toBe(markdown);
+    });
+
+    it('separates a mention from a strike containing a mention', () => {
+      const story: Story = [
+        {
+          inline: [
+            { ship: '~zod' } as Ship,
+            { strike: [{ ship: '~bus' } as Ship] } as Strikethrough,
+          ],
+        },
+      ];
+      const markdown = storyToMarkdown(story);
+      expect(markdown).toContain('~zod<!-- -->~~');
+      expect(markdownToStory(markdown)).toEqual(story);
+    });
+
+    it('separates a mention from a strike containing bold', () => {
+      const story: Story = [
+        {
+          inline: [
+            { ship: '~zod' } as Ship,
+            { strike: [{ bold: ['word'] } as Bold] } as Strikethrough,
+          ],
+        },
+      ];
+      const markdown = storyToMarkdown(story);
+      expect(markdown).toContain('~zod<!-- -->~~');
+      const reparsed = markdownToStory(markdown);
+      expect(JSON.stringify(reparsed)).toContain('"ship":"~zod"');
+      expect(JSON.stringify(reparsed)).toContain('"strike"');
+      expect(storyToMarkdown(reparsed)).toBe(markdown);
+    });
+
+    it('keeps word-leading bold unchanged', () => {
+      expectIdentity(
+        [{ inline: [{ ship: '~zod' } as Ship, { bold: ['word'] } as Bold] }],
+        '~zod**word**'
+      );
+    });
+
+    it('keeps word-leading strike unchanged', () => {
+      expectIdentity(
+        [
+          {
+            inline: [
+              { ship: '~zod' } as Ship,
+              { strike: ['gone'] } as Strikethrough,
+            ],
+          },
+        ],
+        '~zod~~gone~~'
+      );
+    });
+  });
+
+  describe('empty-text pruning', () => {
+    it('wraps a mention inside a strike despite an empty text inline', () => {
+      const story: Story = [
+        {
+          inline: [{ strike: ['', { ship: '~zod' } as Ship] } as Strikethrough],
+        },
+      ];
+      const markdown = storyToMarkdown(story);
+      expect(markdown).toBe('~~<span>~zod</span>~~');
+      const reparsed = markdownToStory(markdown);
+      expect(JSON.stringify(reparsed)).toContain('"strike"');
+      expect(JSON.stringify(reparsed)).toContain('"ship":"~zod"');
+    });
+
+    it('keeps a strike and a following mention from merging tilde runs', () => {
+      const story: Story = [
+        {
+          inline: [
+            { strike: ['gone'] } as Strikethrough,
+            '',
+            { ship: '~zod' } as Ship,
+          ],
+        },
+      ];
+      const markdown = storyToMarkdown(story);
+      expect(markdown).toBe('~~gone~~<span>~zod</span>');
+      const reparsed = markdownToStory(markdown);
+      expect(JSON.stringify(reparsed)).toContain('"strike"');
+      expect(JSON.stringify(reparsed)).toContain('"ship":"~zod"');
+    });
+
+    it('prunes empty text in the independent inlinesToMarkdown pipeline', () => {
+      expect(
+        inlinesToMarkdown([{ strike: ['', { ship: '~zod' } as Ship] }])
+      ).toBe('~~<span>~zod</span>~~');
+    });
+  });
+
+  describe('inlinesToMarkdown pipeline', () => {
+    it('serializes literal ship-shaped text escaped, without promotion', () => {
+      expect(inlinesToMarkdown(['~zod'])).toBe('\\~zod');
+    });
+
+    it('inserts the adjacency separator', () => {
+      expect(inlinesToMarkdown([{ ship: '~zod' } as Ship, 'abc'])).toBe(
+        '~zod<!-- -->abc'
+      );
+    });
   });
 });
 
