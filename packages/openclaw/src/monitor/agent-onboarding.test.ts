@@ -29,6 +29,7 @@ import {
   isPurposePickerChoice,
   pendingTopicsOfferFromHistory,
   purposePickerFallbackText,
+  renderFinishingDirective,
   renderNotebookEntryDirective,
   renderSetupDirective,
   setupOutputNotebookNest,
@@ -635,14 +636,40 @@ describe('renderSetupDirective', () => {
     }
   });
 
-  test('gives the group an icon alongside the rename, best effort', () => {
+  test('the build defers the name and the icon to the finishing turn', () => {
+    // Both are cosmetic and the icon half is the least reliable step in the
+    // build — image generation is slow and `tlon upload` has been failing
+    // outright. Run first, they spend the turn before the config, the
+    // notebook and the entry exist; run last, a failure costs a name and a
+    // picture on a group that already works.
     const directive = renderSetupDirective('agent-research', 'Mycology')!;
-    expect(directive).toContain('--image');
-    expect(directive).toContain('tlon upload');
-    // Tied to the rename, so an owner-named group keeps its own icon, and
-    // never allowed to stall the rest of the setup.
-    expect(directive).toContain('Only alongside the rename');
-    expect(directive).toContain('skip the icon');
+    expect(directive).not.toContain('--image');
+    expect(directive).not.toContain('tlon upload');
+    expect(directive).toContain('do NOT rename the group');
+    expect(directive).toContain('do NOT generate an icon in this turn');
+    // The config is what makes the owner's app create the notebook, so it
+    // has to be the first thing written, not the last.
+    expect(directive).toContain('FIRST: write the group config');
+  });
+
+  test('the finishing steps ride the entry directive, and stand alone', () => {
+    const withEntry = renderNotebookEntryDirective('notes/~zod/d', {
+      title: 'Daily Digest',
+    });
+    // Order: entry first, then the look.
+    expect(withEntry.indexOf('--markdown')).toBeLessThan(
+      withEntry.indexOf('--image')
+    );
+    expect(withEntry).toContain('Last, once the entry is written');
+    expect(withEntry).toContain('tlon upload');
+    expect(withEntry).toContain('skip the icon');
+
+    // A notebook that never arrives must not cost the rename outright.
+    const finishing = renderFinishingDirective();
+    expect(finishing).toContain('never appeared');
+    expect(finishing).toContain('--image');
+    expect(finishing).toContain('placeholder name');
+    expect(finishing).not.toContain('--markdown');
   });
 
   test('pins the values the model must not improvise', () => {

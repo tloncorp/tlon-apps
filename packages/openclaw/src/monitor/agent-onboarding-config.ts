@@ -199,6 +199,22 @@ export const GROUP_ICON_RULE =
   'named the group, leave their icon alone.';
 
 /**
+ * How the group ends up looking like itself — deliberately the *last* thing
+ * the setup does.
+ *
+ * The order matters more than it looks. Both steps are cosmetic, and the
+ * icon half is the least reliable thing in the whole build: image
+ * generation is slow and `tlon upload` has been failing outright on the
+ * pool. Run first, they spend the owner's patience — and any budget the
+ * turn has — before the config, the notebook and the entry exist. Run last,
+ * a failure costs a name and a picture on a group that already works.
+ */
+export const GROUP_LOOK_RULE =
+  'Last, once the entry is written: give the group its name and face. ' +
+  'Rename it from the topics if it still has a placeholder name. ' +
+  GROUP_ICON_RULE;
+
+/**
  * How the confirmation run is performed, shared by the jobs that produce
  * output on day one.
  *

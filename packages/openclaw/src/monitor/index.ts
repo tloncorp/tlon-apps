@@ -139,6 +139,7 @@ import {
   isPurposePickerChoice,
   pendingTopicsOfferFromHistory,
   purposePickerFallbackText,
+  renderFinishingDirective,
   renderNotebookEntryDirective,
   renderSetupDirective,
   servicesCardFallbackText,
@@ -1059,6 +1060,41 @@ export async function monitorTlonProvider(
     const notebookBaselines = new Map<string, string | null>();
     const notebookEntryNudges = new Map<string, number>();
     const notebookWaitAnnounced = new Set<string>();
+    const finishingDirectiveSent = new Set<string>();
+
+    /**
+     * Queue a plugin-authored directive back into this channel's agent
+     * session. Returns whether it was accepted, so callers only record
+     * having asked once the ask actually went out.
+     */
+    const enqueueSetupDirective = (
+      nest: string,
+      text: string,
+      contextSuffix: string
+    ): boolean => {
+      try {
+        const route = core.channel.routing.resolveAgentRoute({
+          cfg,
+          channel: 'tlon',
+          accountId: opts.accountId ?? undefined,
+          peer: { kind: 'group', id: nest },
+        });
+        if (!route?.sessionKey) {
+          return false;
+        }
+        core.system.enqueueSystemEvent(text, {
+          sessionKey: route.sessionKey,
+          contextKey: `tlon:${contextSuffix}:${nest}`,
+          deliveryContext: tlonDeliveryContext(`tlon:${nest}`, route.accountId),
+        });
+        return true;
+      } catch (error) {
+        runtime.log?.(
+          `[tlon] Could not queue a setup directive for ${nest}: ${String(error)}`
+        );
+        return false;
+      }
+    };
     const MAX_NOTEBOOK_ENTRY_NUDGES = 3;
 
     /**
@@ -1148,6 +1184,22 @@ export async function monitorTlonProvider(
       if (nudges >= MAX_NOTEBOOK_ENTRY_NUDGES) {
         return;
       }
+      // Give up on the notebook only once the closing has: the rename and
+      // the icon now ride the entry directive, so a notebook that never
+      // arrives would otherwise leave the group permanently unnamed. Ask
+      // for the look on its own instead — once.
+      if (
+        (emptyNotebookWaits.get(nest) ?? 0) >= MAX_EMPTY_NOTEBOOK_WAITS &&
+        !finishingDirectiveSent.has(nest)
+      ) {
+        finishingDirectiveSent.add(nest);
+        if (
+          !enqueueSetupDirective(nest, renderFinishingDirective(), 'finish')
+        ) {
+          finishingDirectiveSent.delete(nest);
+        }
+        return;
+      }
       let notesNest: string | null = null;
       try {
         notesNest = await setupOutputNotebookNest(
@@ -1183,36 +1235,18 @@ export async function monitorTlonProvider(
       if (notebookHasNewEntry(nest, state)) {
         return;
       }
-      // Recorded only after the enqueue is accepted, so a missing route
-      // doesn't burn one of the few asks this entry gets.
-      try {
-        const route = core.channel.routing.resolveAgentRoute({
-          cfg,
-          channel: 'tlon',
-          accountId: opts.accountId ?? undefined,
-          peer: { kind: 'group', id: nest },
-        });
-        if (!route?.sessionKey) {
-          return;
-        }
-        core.system.enqueueSystemEvent(
+      if (
+        enqueueSetupDirective(
+          nest,
           renderNotebookEntryDirective(notesNest, job),
-          {
-            sessionKey: route.sessionKey,
-            contextKey: `tlon:notebook-entry:${nest}:${nudges + 1}`,
-            deliveryContext: tlonDeliveryContext(
-              `tlon:${nest}`,
-              route.accountId
-            ),
-          }
-        );
+          `notebook-entry:${nudges + 1}`
+        )
+      ) {
+        // Recorded only after the enqueue is accepted, so a missing route
+        // doesn't burn one of the few asks this entry gets.
         notebookEntryNudges.set(nest, nudges + 1);
         runtime.log?.(
           `[tlon] Asked for the day-one entry in ${notesNest} (${nudges + 1}/${MAX_NOTEBOOK_ENTRY_NUDGES})`
-        );
-      } catch (error) {
-        runtime.log?.(
-          `[tlon] Could not ask for the notebook entry in ${nest}: ${String(error)}`
         );
       }
     };

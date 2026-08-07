@@ -6,7 +6,7 @@ import {
   makeA2UIBlob,
 } from '../urbit/blob.js';
 import {
-  GROUP_ICON_RULE,
+  GROUP_LOOK_RULE,
   INVITE_CARD_BUTTON_LABEL,
   INVITE_CARD_FALLBACK,
   INVITE_CARD_PROMPT,
@@ -432,9 +432,20 @@ export function renderSetupDirective(
     'Tlon itself posts short progress lines as your build reaches each',
     'step, so the owner is never watching a silent channel — you never',
     'need to.',
-    'Build everything inside the group this channel belongs to; rename this',
-    'group from the topics if it still has a placeholder name.',
-    GROUP_ICON_RULE,
+    'Build everything inside the group this channel belongs to.',
+    'Work in this order, and do not run ahead of it.',
+    'FIRST: write the group config described below.',
+    "That write is what makes the owner's app create the notebook, so",
+    'everything downstream waits on it and nothing is gained by doing',
+    'anything else first. Then schedule the job. Then do the research this',
+    'setup needs and keep it ready.',
+    'Stop there. Do NOT write the notebook entry, do NOT rename the group,',
+    'and do NOT generate an icon in this turn. Tlon watches for the',
+    "owner's notebook and sends you a second directive — naming the exact",
+    'nest — that carries the entry and those finishing touches in the right',
+    'order. Renaming and icon-making are the slowest, least reliable steps',
+    'in the build, and doing them now spends this turn before the config,',
+    'the notebook and the entry exist.',
     'Never create a group — not as the output home, not as a workspace,',
     'not as a fallback. Never create a channel either: the output notebook',
     "is the OWNER's channel, created by their app on their ship the moment",
@@ -1073,11 +1084,37 @@ export function renderNotebookEntryDirective(
     `Then record "${notesNest}" as this job's "outputNest" in the group`,
     'config so later runs append to the same channel, writing the config',
     'through /tmp/tlon-group-config.json exactly as the setup directive',
-    'specified. Do this silently: post nothing about it in chat, and do',
-    'not repeat any announcement you already sent.',
+    'specified.',
+    GROUP_LOOK_RULE,
+    'Do all of this silently: post nothing about it in chat, and do not',
+    'repeat any announcement you already sent.',
   ]
     .filter(Boolean)
     .join(' ');
+}
+
+/**
+ * The finishing touches on their own, for a setup whose notebook never
+ * arrived.
+ *
+ * Moving the rename and the icon to the end means a build that stalls
+ * earlier now costs them, where before they were the first thing done. That
+ * is the right trade while the notebook is coming — but a group whose owner
+ * closed the app before their client made the channel would otherwise be
+ * left permanently unnamed, which is worse than the ordering problem this
+ * solves. So when the wait for the notebook is finally given up, the look
+ * is asked for anyway.
+ */
+export function renderFinishingDirective(): string {
+  return [
+    '[Tlon setup directive — not written by the owner]',
+    'Your notebook never appeared, so there is no entry to write and',
+    'nothing more to wait for — do not create a channel, and do not keep',
+    'looking for one.',
+    GROUP_LOOK_RULE,
+    'Do this silently: post nothing about it in chat, and do not repeat',
+    'any announcement you already sent.',
+  ].join(' ');
 }
 
 /**
