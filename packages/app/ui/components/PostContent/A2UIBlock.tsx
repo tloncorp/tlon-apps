@@ -45,7 +45,7 @@ function SmallChoicePills({
   /** false when there is no action handler at all */
   canSend: boolean;
   isActionAvailable?: (action: A2UI.ButtonAction) => boolean;
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string) => void | Promise<void>;
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [freeText, setFreeText] = useState('');
@@ -68,12 +68,20 @@ function SmallChoicePills({
     freeText
   );
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (!messageForSelection || submitted) {
       return;
     }
+    // Disable first so a double tap can't send twice, but put it back if
+    // the send fails: the picker is the only way to answer the setup, and
+    // a card disabled over a message that never posted leaves the owner
+    // looking at their own selection with nothing to do about it.
     setSubmitted(true);
-    onSubmit(messageForSelection);
+    try {
+      await onSubmit(messageForSelection);
+    } catch {
+      setSubmitted(false);
+    }
   }, [messageForSelection, onSubmit, submitted]);
 
   /**
@@ -367,11 +375,10 @@ export function A2UIBlock({
   );
 
   const handleSmallChoiceSubmit = useCallback(
-    (text: string) => {
+    (text: string) =>
       onA2UIAction?.({
         event: { name: A2UI.action.sendMessage, context: { text } },
-      });
-    },
+      }),
     [onA2UIAction]
   );
 

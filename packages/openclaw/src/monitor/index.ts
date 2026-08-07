@@ -1118,6 +1118,15 @@ export async function monitorTlonProvider(
      * note, so the grace has already elapsed by the time the nest appears.
      */
     const FINISHING_TOUCHES_GRACE_MS = 45_000;
+    /**
+     * How long to leave a notebook directive alone before asking again.
+     *
+     * Researching and writing the day-one entry takes minutes; the sweep
+     * returns in twenty seconds. Without this the driver spent its whole
+     * nudge budget in the first minute on a turn that was working fine,
+     * and each queued directive wrote its own copy of the note.
+     */
+    const NOTEBOOK_DIRECTIVE_BACKOFF_MS = 150_000;
 
     /**
      * The newest post in `notesNest` — its id, or null for an empty
@@ -1280,7 +1289,14 @@ export async function monitorTlonProvider(
         // The note is there. If the config never recorded the nest, ask for
         // that alone — the closing is holding on it, and re-sending the
         // entry directive would invite a duplicate of a note that landed.
-        if (!jobRecordsOutputNest(job)) {
+        const recordAskedAt = notebookDirectiveSentAt.get(nest);
+        if (
+          !jobRecordsOutputNest(job) &&
+          // Same throttle as the entry ask below: the turn that is going
+          // to write this field may still be running.
+          (!recordAskedAt ||
+            Date.now() - recordAskedAt >= NOTEBOOK_DIRECTIVE_BACKOFF_MS)
+        ) {
           if (
             enqueueSetupDirective(
               nest,
@@ -1295,6 +1311,20 @@ export async function monitorTlonProvider(
             );
           }
         }
+        return;
+      }
+      // One ask at a time. The sweep comes back every twenty seconds and
+      // an entry directive takes far longer than that to research and
+      // write, so an un-throttled driver queued a fresh one on every tick
+      // while the notebook was still empty — and they don't cancel each
+      // other. The first one writes the note; the ones behind it write it
+      // again. Silence here isn't refusal, it's the previous ask still
+      // working.
+      const lastSentAt = notebookDirectiveSentAt.get(nest);
+      if (
+        lastSentAt &&
+        Date.now() - lastSentAt < NOTEBOOK_DIRECTIVE_BACKOFF_MS
+      ) {
         return;
       }
       if (nudges >= MAX_NOTEBOOK_ENTRY_NUDGES - 1) {
@@ -1408,7 +1438,29 @@ export async function monitorTlonProvider(
       return true;
     };
 
-    const postInviteCardIfSetupComplete = async (
+    /**
+     * One closing per channel at a time.
+     *
+     * The check decides what to post by reading the transcript, so two
+     * overlapping runs both see no invite card and both post one. That was
+     * reachable: the restart path fires its closing without awaiting it,
+     * and the sweep and the end of an ordinary turn can call in on top of
+     * that. Sharing the run makes the later callers wait for the first
+     * rather than race it.
+     */
+    const closingInFlight = new Map<string, Promise<void>>();
+    const postInviteCardIfSetupComplete = (nest: string): Promise<void> => {
+      const inFlight = closingInFlight.get(nest);
+      if (inFlight) {
+        return inFlight;
+      }
+      const run = runInviteCardIfSetupComplete(nest).finally(() => {
+        closingInFlight.delete(nest);
+      });
+      closingInFlight.set(nest, run);
+      return run;
+    };
+    const runInviteCardIfSetupComplete = async (
       nest: string
     ): Promise<void> => {
       // `onboardingInvitePending` is the cheap in-memory record of the debt;
