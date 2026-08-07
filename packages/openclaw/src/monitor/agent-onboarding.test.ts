@@ -789,6 +789,11 @@ describe('renderSetupDirective', () => {
     expect(directive).toContain('"outputNest" stays');
     // An empty toolsAllow schedules a job that wakes with zero tools.
     expect(directive).toContain('toolsAllow');
+    // A job.trigger gets the whole cron call refused on hosted runtimes —
+    // observed live: refused twice, the refusal accepted as final, and the
+    // owner left with no scheduled job at all.
+    expect(directive).toContain('never set "trigger"');
+    expect(directive).toContain('fix the named parameter and try again');
     expect(directive).toContain('Omit');
   });
 
