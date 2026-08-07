@@ -8,9 +8,10 @@ import {
   clearCronServiceAccessor,
   setCronServiceAccessor,
 } from '../cron-telemetry.js';
+import { PURPOSE_JOBS } from './agent-onboarding-config.js';
 import {
-  buildAwaitingTopicsDescription,
   buildAwaitingTimezoneDescription,
+  buildAwaitingTopicsDescription,
   buildDeterministicSetupDescription,
   deterministicSetupFromDescription,
   ensureDeterministicCronJob,
@@ -74,6 +75,27 @@ describe('deterministic onboarding config', () => {
       })
     )[0];
     expect(complete.jobs[0].outputNest).toBe('notes/~zod/daily');
+  });
+});
+
+describe('scheduled job templates', () => {
+  test('run daily and keep setup-only instructions out of recurring prompts', () => {
+    for (const [purposeId, job] of Object.entries(PURPOSE_JOBS)) {
+      const [, , dayOfMonth, month, dayOfWeek] = job.schedule.split(' ');
+      expect(
+        [dayOfMonth, month, dayOfWeek],
+        `${purposeId} should run every day`
+      ).toEqual(['*', '*', '*']);
+      for (const phrase of [
+        'during this build',
+        'separate directive',
+        'Tlon watches',
+        'outputNest" empty',
+      ]) {
+        expect(job.prompt).not.toContain(phrase);
+      }
+      expect(job.prompt).toContain('outputNest');
+    }
   });
 });
 

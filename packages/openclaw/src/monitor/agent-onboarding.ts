@@ -6,14 +6,9 @@ import {
   makeA2UIBlob,
 } from '../urbit/blob.js';
 import {
-  GROUP_LOOK_RULE,
-  GROUP_LOOK_RULE_NO_ENTRY,
   INVITE_CARD_BUTTON_LABEL,
   INVITE_CARD_FALLBACK,
   INVITE_CARD_PROMPT,
-  INVITE_CLOSING,
-  NOTEBOOK_ENTRY_WRITE_RULE,
-  PURPOSE_JOBS,
   PURPOSE_OPTIONS,
   PURPOSE_PICKER_FOOTER,
   PURPOSE_PICKER_PROMPT,
@@ -454,176 +449,6 @@ export function servicesCardFallbackText(): string {
   return SERVICES_CARD_FALLBACK;
 }
 
-/**
- * The build instructions attached to the model turn that follows the owner's
- * topic reply. The cron payload is the config template rendered here —
- * deterministically — and the directive tells the agent to use it verbatim,
- * so what the job does every run is authored in `agent-onboarding-config.ts`,
- * not composed by the model. Null for purposes without a job template (a
- * freeform purpose gets a freeform build).
- */
-export function renderSetupDirective(
-  purposeId: string,
-  topicsReply: string
-): string | null {
-  const job = PURPOSE_JOBS[purposeId];
-  if (!job) {
-    return null;
-  }
-  const topics = topicsReply.trim();
-  const fill = (template: string) => template.replaceAll('{{topics}}', topics);
-  return [
-    '[Tlon setup directive — not written by the owner]',
-    'Every message you send during this setup lands in the group chat the',
-    'owner is watching. Do not narrate progress — no "renaming the group",',
-    'no "notebook exists", no retry or verification commentary. Do the work',
-    'through tool calls in silence. You may send exactly two things: a',
-    'question you truly cannot proceed without (like the timezone below),',
-    'and the single confirmation message described at the end — sent once,',
-    'never repeated, even when a step is retried or re-verified after it.',
-    'Tlon itself posts short progress lines as your build reaches each',
-    'step, so the owner is never watching a silent channel — you never',
-    'need to.',
-    'Build everything inside the group this channel belongs to.',
-    'Work in this order, and do not run ahead of it.',
-    'FIRST: write the group config described below.',
-    "That write is what makes the owner's app create the notebook, so",
-    'everything downstream waits on it and nothing is gained by doing',
-    'anything else first. Then schedule the job. Then do the research this',
-    'setup needs and keep it ready.',
-    'Stop there. Do NOT write the notebook entry, do NOT rename the group,',
-    'and do NOT generate an icon in this turn. Tlon watches for the',
-    "owner's notebook and sends you a second directive — naming the exact",
-    'nest — that carries the entry and those finishing touches in the right',
-    'order. Renaming and icon-making are the slowest, least reliable steps',
-    'in the build, and doing them now spends this turn before the config,',
-    'the notebook and the entry exist.',
-    'Never create a group — not as the output home, not as a workspace,',
-    'not as a fallback. Never create a channel either: the output notebook',
-    "is the OWNER's channel, created by their app on their ship the moment",
-    'the group config lands — you post *into* it, per the payload rules',
-    'below, and "outputNest" stays empty in the config until the first',
-    'entry lands there.',
-    'When you create the scheduled job for this setup, use these values',
-    'exactly as given. Do not rewrite, extend, or paraphrase the payload',
-    'message; it is configuration, not a draft.',
-    'Set only the fields named here. Leave every other cron parameter out',
-    'entirely rather than sending it empty — in particular "toolsAllow": an',
-    'empty allow-list means the run gets NO tools, so the job wakes up unable',
-    'to search, write, or post, and can only report that it is blocked. Omit',
-    'it so the run inherits the full toolset. Same for "lightContext": leave',
-    'it unset. And never set "trigger" on the job: conditional trigger',
-    'scripts are unavailable on this runtime, so the whole cron call is',
-    'refused — observed live, twice in one setup, and the second refusal was',
-    'accepted as final, leaving the owner with no scheduled job at all. The',
-    'cron expression above is the entire schedule; if the cron tool refuses',
-    'a call, fix the named parameter and try again rather than moving on',
-    'without a job.',
-    `job title: ${fill(job.title)}`,
-    `schedule: ${job.schedule} in the owner's timezone — ask for it if you`,
-    "don't know it; never silently use UTC.",
-    `payload message, verbatim: ${fill(job.prompt)}`,
-    'That payload describes what the job does when it fires on its',
-    'schedule, not what you do now. Its output rules govern those runs;',
-    'this turn is still governed by the order above — store it as written',
-    'and write nothing to a notebook yet.',
-    'The group description is the config JSON array and nothing else — the',
-    'payload message goes inside it, as the job entry\'s "prompt" field.',
-    'Never put the payload, or any prose, in the description itself.',
-    'The whole description is exactly this array — one config entry with the',
-    'job nested inside its "jobs". Do not write the job on its own, and do',
-    'not drop "type", "version" or "agents": the app identifies the entry by',
-    'type and learns which ship is its agent from "agents", so an entry',
-    "missing them makes the app stop treating you as this group's agent —",
-    'your cards stop rendering and the group shows this JSON as its',
-    'description. Fill the placeholders; keep every other field as shown:',
-    `[{"type":"tlon-group-agent-config","version":1,"templateId":` +
-      `${JSON.stringify(purposeId)},"purpose":"<one sentence, plain prose>",` +
-      '"instructions":"","agents":["<your own ship, e.g. ~zod>"],"jobs":[' +
-      `{"id":${JSON.stringify(purposeId)},"title":${JSON.stringify(fill(job.title))},` +
-      `"schedule":{"kind":"cron","expr":${JSON.stringify(job.schedule)},` +
-      '"tz":"<owner timezone>"},"prompt":"<payload message, verbatim>",' +
-      '"outputNest":"","enabled":true}],"updatedAt":<epoch ms>}]',
-    `templateId: ${purposeId} — copy it exactly; it records which setup the`,
-    'owner picked, so a different id makes the group misreport itself.',
-    'To write the description: build the config as an object in code,',
-    'JSON.stringify it into /tmp/tlon-group-config.json (that exact kind',
-    'of path — a flat .json file in /tmp — is the only one the tool will',
-    'read), and parse the file back to prove it is valid JSON — never',
-    'hand-write or hand-escape it. Then run `tlon groups update <flag>',
-    '--description "$(cat /tmp/tlon-group-config.json)"`: the quoted',
-    'substitution passes the file contents through exactly. Inline',
-    'hand-escaped JSON has repeatedly lost its quotes to the shell and',
-    'stored a truncated description, which the app reads as "no config at',
-    'all" — it stops treating you as this group\'s agent and the setup',
-    'never finishes. If the update command reports a timeout, the write',
-    'usually landed anyway: re-run the identical command once (it is',
-    'idempotent) and move on — never rebuild the JSON by hand over a',
-    'timeout, and never mention the retry in chat.',
-    `Once the job and config are in place: ${fill(job.confirmation)}`,
-    INVITE_CLOSING,
-  ].join('\n');
-}
-
-/**
- * Why a stored description is a broken config write, or null when it is
- * prose, empty, or parses cleanly. Two signatures, both observed live on
- * the pool, both from the same root — the model writes the config through
- * a command string that no shell ever interprets:
- *
- * - Config-shaped but unparseable: hand-escaped quoting ate part of the
- *   JSON mid-string, so the description *looks* like config while parsing
- *   as nothing.
- * - A literal, unexpanded command substitution — the description is the
- *   text `$(cat /tmp/config.json)` itself.
- *
- * Either way the app un-recognizes the group's agent, the setup chrome
- * never unlocks, and every "is the setup finished?" check silently
- * answers no, forever. Callers use this to turn that dead end into a
- * repair.
- */
-export function brokenConfigDescriptionError(
-  description: string | null | undefined
-): string | null {
-  const trimmed = (description ?? '').trim();
-  if (trimmed.startsWith('$(')) {
-    return (
-      'the stored description is a literal, unexpanded command ' +
-      'substitution — the config JSON never reached the group'
-    );
-  }
-  if (!trimmed.startsWith('[')) {
-    return null;
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-  // Parsing isn't enough: a bare job array without the typed wrapper (a
-  // shape models have written before) is valid JSON the app recognizes as
-  // nothing — the same silent stall as a parse failure. The client's own
-  // bare marker (typed entry, no jobs yet) is the normal mid-setup state
-  // and must pass.
-  const entries = Array.isArray(parsed) ? parsed : [];
-  const hasRecognizedEntry = entries.some(
-    (entry) =>
-      typeof entry === 'object' &&
-      entry !== null &&
-      (entry as { type?: unknown }).type === AGENT_CONFIG_ENTRY_TYPE &&
-      (entry as { version?: unknown }).version === 1
-  );
-  if (!hasRecognizedEntry) {
-    return (
-      'the description parses as JSON but contains no recognized config ' +
-      `entry — every entry needs "type":"${AGENT_CONFIG_ENTRY_TYPE}" and ` +
-      '"version":1, or the app reads the group as having no config'
-    );
-  }
-  return null;
-}
-
 type ScryApi = { scry: (path: string) => Promise<unknown> } | null;
 type Runtime = { error?: (message: string) => void };
 type RawGroup = {
@@ -751,48 +576,17 @@ export async function findConfiguredAgentGroups(
 }
 
 /**
- * The setup's output notebook, or null when the setup has none — the
- * 404-fallback path records a *chat* nest as outputNest, and a freeform
- * build may skip the notebook entirely. Prefers the nest the config
- * records; falls back to the group's notes channel, since the owner's app
- * creates the channel before anything records it.
+ * The owner-hosted notes channel for a group, or null until the client has
+ * created it from the configured job.
  *
- * Throws when the groups state can't be read, rather than reporting "no
- * notebook": callers use null to mean *this setup has none* and stop
- * waiting on it, so a transient scry failure would otherwise release the
- * closing cards on a setup whose notebook was merely unreadable for a
- * moment. Every caller already treats a throw as "come back next sweep".
+ * Throws when groups state can't be read so a transient failure is distinct
+ * from the normal "the client has not created it yet" null result.
  */
 export async function setupOutputNotebookNest(
   api: ScryApi,
   flag: string,
-  description: string | null | undefined,
   runtime: Runtime
 ): Promise<string | null> {
-  // A recorded outputNest is a decision, whether or not it names a
-  // notebook. Only an *unrecorded* one falls through to the group scan
-  // below, which exists for the window before anything has written the
-  // nest down. Reading past a recorded `chat/...` used to hand back some
-  // unrelated notes channel — one the owner's app had just made, or one the
-  // group already had — and the closing would then wait for, and ask for, a
-  // day-one entry in a notebook this job never writes to.
-  let recordedNonNotes = false;
-  for (const entry of agentConfigEntries(description)) {
-    const jobs = Array.isArray(entry.jobs) ? entry.jobs : [];
-    for (const job of jobs) {
-      const out = (job as { outputNest?: unknown })?.outputNest;
-      if (typeof out !== 'string' || out.trim() === '') {
-        continue;
-      }
-      if (out.startsWith('notes/')) {
-        return out;
-      }
-      recordedNonNotes = true;
-    }
-  }
-  if (recordedNonNotes) {
-    return null;
-  }
   const groups = await scryGroups(api, runtime, `notes channel for ${flag}`);
   if (!groups) {
     throw new Error(
@@ -848,71 +642,6 @@ export async function findChatNestForGroup(
     description: descriptionOf(group),
     channelCount: new Set(nests).size,
   };
-}
-
-/**
- * Recover a pending topics-picker purpose from channel history.
- *
- * The in-memory pending map is the primary record that the topic pills are
- * awaiting an owner reply, but it dies with the process — a restart between
- * the pills and the reply would otherwise swallow the setup directive and
- * the templated job silently. The transcript survives restarts: the picker
- * conversation is bot-posts-pills preceded by owner-taps-card, so walk
- * recent history newest-first and rebuild the purpose from it.
- *
- * Undefined when history doesn't show an unanswered picker — including when
- * the owner already replied to it (any owner message after the pills means
- * the directive turn already ran, or is running).
- */
-/**
- * Whether the transcript shows the topic pills already answered: the bot's
- * topics picker with a substantive owner message *after* it. Paired with a
- * config that has no job yet, that means a setup directive turn ran (or is
- * running) — a build in flight, which a restart must not orphan behind the
- * owner-listen gate: the bot may be waiting on an answer it asked for.
- *
- * `currentMessageText` is excluded for the same reason as in
- * {@link derivePendingPurposeFromHistory}: the message being handled must
- * not count as its own evidence.
- */
-export function topicsPickerAnswered(
-  history: Array<{ author: string; content: string; timestamp?: number }>,
-  botShip: string,
-  ownerShip: string,
-  currentMessageText?: string
-): boolean {
-  const newestFirst = [...history].sort(
-    (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)
-  );
-  const pickerAt = newestFirst.findIndex(
-    (entry) =>
-      entry.author === botShip && entry.content.startsWith(TOPICS_PICKER_PROMPT)
-  );
-  if (pickerAt < 0) {
-    return false;
-  }
-  const current = currentMessageText?.trim();
-  let skippedCurrent = false;
-  for (const entry of newestFirst.slice(0, pickerAt)) {
-    if (entry.author !== ownerShip) {
-      continue;
-    }
-    const content = entry.content.trim();
-    if (!skippedCurrent && current && content === current) {
-      skippedCurrent = true;
-      continue;
-    }
-    // A purpose-card title newer than the pills is a duplicate tap (the
-    // live handler drops those, but they stay in the transcript), not a
-    // topics answer.
-    if (purposeIdForChoice(content)) {
-      continue;
-    }
-    if (content) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /**
@@ -1158,160 +887,6 @@ export function descriptionHasConfiguredJob(
   return agentConfigEntries(description).some(
     (entry) => Array.isArray(entry.jobs) && entry.jobs.length > 0
   );
-}
-
-/**
- * The directive that actually gets the day-one entry written, sent by the
- * sweep once it has watched the owner's notebook into existence.
- *
- * The build turn is told not to write the entry and not to go looking for a
- * nest, because both went wrong live: the model wrote into a nest it picked
- * before the owner's channel existed, the poke was accepted, and the entry
- * vanished — reported as a success, with an empty notebook to show for it.
- * Discovery and timing therefore live here, where the plugin can *see* the
- * channel, and the model is handed one unambiguous instruction with the nest
- * already filled in.
- */
-export function renderNotebookEntryDirective(
-  notesNest: string,
-  job: { title?: unknown; prompt?: unknown } | null,
-  description?: string | null
-): string {
-  const title = typeof job?.title === 'string' ? job.title.trim() : '';
-  const prompt = dayOneEntryDescription(description, job);
-  return [
-    '[Tlon notebook directive — not written by the owner]',
-    `The owner's notebook now exists at \`${notesNest}\` and is empty.`,
-    'Write the day-one entry into that exact nest — not a nest you look',
-    'up, not one you create, not the chat channel.',
-    title ? `Title it for: ${title}.` : '',
-    prompt ? `What it should contain: ${prompt}` : '',
-    NOTEBOOK_ENTRY_WRITE_RULE,
-    `Then record "${notesNest}" as this job's "outputNest" in the group`,
-    'config so later runs append to the same channel, writing the config',
-    'through /tmp/tlon-group-config.json exactly as the setup directive',
-    'specified.',
-    GROUP_LOOK_RULE,
-    'Do all of this silently: post nothing about it in chat, and do not',
-    'repeat any announcement you already sent.',
-  ]
-    .filter(Boolean)
-    .join(' ');
-}
-
-/**
- * The finishing touches on their own, for a setup whose notebook never
- * arrived.
- *
- * Moving the rename and the icon to the end means a build that stalls
- * earlier now costs them, where before they were the first thing done. That
- * is the right trade while the notebook is coming — but a group whose owner
- * closed the app before their client made the channel would otherwise be
- * left permanently unnamed, which is worse than the ordering problem this
- * solves. So when the wait for the notebook is finally given up, the look
- * is asked for anyway.
- */
-export function renderFinishingDirective(): string {
-  return [
-    '[Tlon setup directive — not written by the owner]',
-    'Your notebook never appeared, so there is no entry to write and',
-    'nothing more to wait for — do not create a channel, and do not keep',
-    'looking for one.',
-    GROUP_LOOK_RULE_NO_ENTRY,
-    'Do this silently: post nothing about it in chat, and do not repeat',
-    'any announcement you already sent.',
-  ].join(' ');
-}
-
-/**
- * The first configured job in a group description, for the entry directive's
- * title and prompt. Null when the config carries no job yet — the build is
- * still running and there is nothing to write about.
- */
-export function firstConfiguredJob(
-  description: string | null | undefined
-): { title?: unknown; prompt?: unknown; outputNest?: unknown } | null {
-  for (const entry of agentConfigEntries(description)) {
-    const jobs = Array.isArray(entry.jobs) ? entry.jobs : [];
-    if (jobs.length > 0 && jobs[0] && typeof jobs[0] === 'object') {
-      return jobs[0] as {
-        title?: unknown;
-        prompt?: unknown;
-        outputNest?: unknown;
-      };
-    }
-  }
-  return null;
-}
-
-/**
- * Whether the config records the notebook this setup writes to.
- *
- * The entry landing is only half the job. Every later run resolves its
- * output through `outputNest`, and the payload rule says to post in chat
- * when nothing is recorded — so a setup that wrote the day-one entry and
- * then failed the config rewrite leaves a notebook holding exactly one
- * note while every scheduled run after it talks to the chat channel.
- */
-export function jobRecordsOutputNest(
-  job: { outputNest?: unknown } | null
-): boolean {
-  const out = job?.outputNest;
-  return typeof out === 'string' && out.startsWith('notes/');
-}
-
-/**
- * Ask for the one thing left: the nest written down.
- *
- * Sent when the entry is in the notebook but the config still has an empty
- * `outputNest`. Deliberately not a re-send of the entry directive — that
- * would invite a second copy of a note that already landed.
- */
-export function renderOutputNestRecordDirective(notesNest: string): string {
-  return [
-    '[Tlon notebook directive — not written by the owner]',
-    `The day-one entry landed in \`${notesNest}\`. One thing is left:`,
-    `record "${notesNest}" as this job's "outputNest" in the group config,`,
-    'so every later run appends to that same notebook instead of falling',
-    'back to chat. Write the config through /tmp/tlon-group-config.json',
-    'exactly as the setup directive specified, changing only that field.',
-    'Do NOT write another notebook entry — the note is already there.',
-    'Do this silently: post nothing about it in chat.',
-  ].join(' ');
-}
-
-/**
- * What the day-one notebook entry should say, for a group whose config
- * records which setup built it.
- *
- * The stored job `prompt` describes the *recurring* run and is wrong for
- * this: a Tracking prompt reviews what was logged "since the last
- * check-in" and stops in chat when nothing was, which on day one is
- * always — so it told the model to write nothing while the closing waited
- * for an entry. `templateId` is written into the config precisely so this
- * lookup can happen later. Falls back to the prompt when the id is missing
- * or unknown, which is all a freeform setup ever has.
- */
-function dayOneEntryDescription(
-  description: string | null | undefined,
-  job: { title?: unknown; prompt?: unknown } | null
-): string {
-  for (const entry of agentConfigEntries(description)) {
-    const templateId =
-      typeof entry.templateId === 'string' ? entry.templateId : '';
-    const purpose = templateId ? PURPOSE_JOBS[templateId] : undefined;
-    if (purpose) {
-      // The stored title is the filled template ("Tracking check-in:
-      // Sleep, Coffee"), so the topics are whatever follows the colon —
-      // the only place the config keeps them once setup is over.
-      const title = typeof job?.title === 'string' ? job.title : '';
-      const topics = title.slice(title.indexOf(':') + 1).trim();
-      return topics
-        ? purpose.entry.replaceAll('{{topics}}', topics)
-        : purpose.entry.replaceAll('{{topics}}', 'your');
-    }
-  }
-  return typeof job?.prompt === 'string' ? job.prompt.trim() : '';
 }
 
 /**

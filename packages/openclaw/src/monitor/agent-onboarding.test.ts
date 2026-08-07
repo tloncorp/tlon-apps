@@ -3,14 +3,12 @@ import { describe, expect, test } from 'vitest';
 
 import {
   GROUP_INTRO_MESSAGE,
-  PURPOSE_JOBS,
   PURPOSE_OPTIONS,
   PURPOSE_TOPICS,
   TOPICS_PICKER_FOOTER,
   TOPICS_PICKER_PROMPT,
 } from './agent-onboarding-config.js';
 import {
-  brokenConfigDescriptionError,
   buildInviteCardBlob,
   buildPurposePickerBlob,
   buildServicesCardBlob,
@@ -23,24 +21,17 @@ import {
   findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
   findGroupForChannel,
-  firstConfiguredJob,
   homeGroupAwaitingOpening,
   isFirstConfiguredSetup,
   isHomeGroupFlag,
   isPurposePickerChoice,
-  jobRecordsOutputNest,
   pendingTopicsOfferFromHistory,
   purposePickerFallbackText,
-  renderFinishingDirective,
-  renderNotebookEntryDirective,
-  renderOutputNestRecordDirective,
-  renderSetupDirective,
   setupOutputNotebookNest,
   shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
   timezonePickerFallbackText,
-  topicsPickerAnswered,
   topicsPickerFallbackText,
 } from './agent-onboarding.js';
 
@@ -476,466 +467,25 @@ describe('setupOutputNotebookNest', () => {
     scry: async () => groups,
   });
 
-  test('prefers the recorded outputNest, skipping chat fallbacks', async () => {
-    const config = JSON.stringify([
-      {
-        type: 'tlon-group-agent-config',
-        version: 1,
-        agents: ['~zod'],
-        jobs: [{ id: 'digest', outputNest: 'notes/~zod/daily-digest-1' }],
-      },
-    ]);
-    expect(
-      await setupOutputNotebookNest(groupsWith({}), '~nec/g', config, {})
-    ).toBe('notes/~zod/daily-digest-1');
-    // The 404-fallback path records a chat nest — that is not a notebook.
-    const chatFallback = config.replace(
-      'notes/~zod/daily-digest-1',
-      'chat/~nec/home-group-chat'
-    );
-    expect(
-      await setupOutputNotebookNest(groupsWith({}), '~nec/g', chatFallback, {})
-    ).toBeNull();
-  });
-
-  test('a recorded chat nest wins over a notes channel in the group', async () => {
-    // The case above only proved the chat nest returned null when there was
-    // no notebook to find anyway. A job that writes to chat inside a group
-    // that *has* a notebook must still report none: otherwise the closing
-    // waits for a day-one entry in a channel this job never writes to, and
-    // the owner's app creating one mid-setup is enough to trigger it.
-    const chatOutput = JSON.stringify([
-      {
-        type: 'tlon-group-agent-config',
-        version: 1,
-        agents: ['~zod'],
-        jobs: [{ id: 'digest', outputNest: 'chat/~nec/home-group-chat' }],
-      },
-    ]);
-    const groups = groupsWith({
-      '~nec/g': { channels: { 'notes/~zod/research-1': {} } },
-    });
-    expect(
-      await setupOutputNotebookNest(groups, '~nec/g', chatOutput, {})
-    ).toBeNull();
-  });
-
-  test('an unrecorded outputNest still falls through to the group', async () => {
-    // Only a *recorded* nest is a decision. Before the agent writes one
-    // down, the group scan is how the owner's fresh notebook is found.
-    const noOutput = JSON.stringify([
-      {
-        type: 'tlon-group-agent-config',
-        version: 1,
-        agents: ['~zod'],
-        jobs: [{ id: 'digest', outputNest: '' }, { id: 'other' }],
-      },
-    ]);
-    const groups = groupsWith({
-      '~nec/g': { channels: { 'notes/~zod/research-1': {} } },
-    });
-    expect(await setupOutputNotebookNest(groups, '~nec/g', noOutput, {})).toBe(
-      'notes/~zod/research-1'
-    );
-  });
-
-  test('falls back to the group notes channel, or null without one', async () => {
+  test('finds the owner-hosted notes channel, or waits when absent', async () => {
     const groups = groupsWith({
       '~nec/g': {
         channels: {
           'chat/~nec/g-chat': {},
-          'notes/~zod/research-1': {},
+          'notes/~nec/research-1': {},
         },
       },
     });
-    expect(await setupOutputNotebookNest(groups, '~nec/g', '', {})).toBe(
-      'notes/~zod/research-1'
+    expect(await setupOutputNotebookNest(groups, '~nec/g', {})).toBe(
+      'notes/~nec/research-1'
     );
     expect(
       await setupOutputNotebookNest(
         groupsWith({ '~nec/g': { channels: { 'chat/~nec/g-chat': {} } } }),
         '~nec/g',
-        '',
         {}
       )
     ).toBeNull();
-  });
-});
-
-describe('brokenConfigDescriptionError', () => {
-  test('flags only config-shaped text that fails to parse', () => {
-    // The observed live failure: a shell-truncated write stored the front
-    // half of the config, cut mid-string inside the job prompt.
-    const truncated =
-      '[{"type":"tlon-group-agent-config","version":1,"jobs":[{"prompt":"Put together todays';
-    expect(brokenConfigDescriptionError(truncated)).toBeTruthy();
-    // Also observed live: the tool ran no shell, so the description became
-    // the literal substitution text instead of the file's JSON.
-    expect(
-      brokenConfigDescriptionError('$(cat /tmp/daily-digest-config.json)')
-    ).toContain('unexpanded');
-    expect(brokenConfigDescriptionError('a group about bread')).toBeNull();
-    expect(brokenConfigDescriptionError('')).toBeNull();
-    expect(brokenConfigDescriptionError(null)).toBeNull();
-    expect(
-      brokenConfigDescriptionError(
-        JSON.stringify([
-          { type: 'tlon-group-agent-config', version: 1, agents: ['~zod'] },
-        ])
-      )
-    ).toBeNull();
-  });
-
-  test('flags valid JSON the app would not recognize as config', () => {
-    // A bare job array without the typed wrapper parses cleanly and reads
-    // as "no config" — the same silent stall as a parse failure.
-    expect(
-      brokenConfigDescriptionError(
-        JSON.stringify([{ id: 'digest', prompt: 'x' }])
-      )
-    ).toContain('no recognized config entry');
-    expect(brokenConfigDescriptionError('[]')).toContain(
-      'no recognized config entry'
-    );
-    // Wrong version is unrecognized too.
-    expect(
-      brokenConfigDescriptionError(
-        JSON.stringify([
-          { type: 'tlon-group-agent-config', version: 2, agents: ['~zod'] },
-        ])
-      )
-    ).toContain('no recognized config entry');
-  });
-});
-
-describe('renderSetupDirective', () => {
-  test('forbids progress narration and doubled announcements', () => {
-    // Observed live: the model posted every setup step into the chat the
-    // owner was watching ("renaming the group", "notebook exists", a
-    // timeout complaint) and announced completion twice after a retry.
-    const directive = renderSetupDirective('agent-daily-digest', 'News')!;
-    expect(directive).toContain('Do not narrate progress');
-    expect(directive).toMatch(/sent once,\s*never repeated/);
-  });
-
-  test('the config write goes through a file, not a shell argument', () => {
-    // Observed live: the deployed CLI predates --description-stdin, the
-    // model fell back to a hand-escaped inline argument, and the shell cut
-    // the JSON at an apostrophe — storing a truncated description the app
-    // reads as "no config". Quoted command substitution from a file works
-    // on every CLI version and can't lose quotes.
-    const directive = renderSetupDirective('agent-research', 'Mycology')!;
-    expect(directive).toContain(
-      '--description "$(cat /tmp/tlon-group-config.json)"'
-    );
-    expect(directive).not.toContain('--description-stdin');
-    expect(directive).toMatch(/re-run the identical command once/i);
-  });
-
-  test('renders each purpose verbatim from its template', () => {
-    for (const option of PURPOSE_OPTIONS) {
-      // A card without a template would silently degrade to a
-      // model-composed cron prompt, defeating the point of templating.
-      const job = PURPOSE_JOBS[option.id]!;
-      const directive = renderSetupDirective(option.id, 'Peptides, Mycology')!;
-      expect(directive).toContain(
-        job.prompt.replaceAll('{{topics}}', 'Peptides, Mycology')
-      );
-      expect(directive).toContain(job.schedule);
-      expect(directive).toContain(`templateId: ${option.id}`);
-      expect(directive).not.toContain('{{');
-    }
-    expect(renderSetupDirective('agent-research', '  Homelabs  ')).toContain(
-      'Research update: Homelabs'
-    );
-    expect(renderSetupDirective('agent-nonexistent', 'x')).toBeNull();
-  });
-
-  const trackingConfig = (topics: string) =>
-    JSON.stringify([
-      {
-        type: 'tlon-group-agent-config',
-        version: 1,
-        templateId: 'agent-tracking',
-        agents: ['~zod'],
-        jobs: [
-          {
-            id: 'agent-tracking',
-            title: `Tracking check-in: ${topics}`,
-            prompt: 'Review the logs.',
-          },
-        ],
-      },
-    ]);
-
-  test('tracking seeds the owner-hosted notebook with the sample entry', () => {
-    // Tracking's first scheduled run may be a day away, so its day-one
-    // entry is a seed rather than a check-in. The agent supplies the
-    // words; the sweep supplies the nest and the moment.
-    const directive = renderSetupDirective('agent-tracking', 'HRV, Dreams')!;
-    expect(directive).toContain("don't go looking for the notebook");
-    // The seed text belongs to the entry directive, not this turn: the
-    // setup turn is told to write nothing, so wording the seed here only
-    // invited it to be written early.
-    expect(directive).not.toContain('About this notebook');
-
-    const entry = renderNotebookEntryDirective(
-      'notes/~zod/tracking',
-      { title: 'Tracking check-in: HRV, Dreams', prompt: 'Review the logs.' },
-      trackingConfig('HRV, Dreams')
-    );
-    expect(entry).toContain('About this notebook');
-    expect(entry).toContain(
-      'Analysis and summaries of your HRV, Dreams entries will land in ' +
-        'this notebook.'
-    );
-    // And it must not describe the entry with the recurring check-in
-    // prompt, which on day one reviews nothing and stops in chat.
-    expect(entry).not.toContain('Review the logs.');
-  });
-
-  test('the config example is the whole description, not a bare job', () => {
-    // Regression: the example showed only the job object, and the agent wrote
-    // *that* as the description — no type, no agents, no jobs wrapper. The
-    // client then stopped recognizing the agent, so every card in the group
-    // stopped rendering and the raw JSON became the group's description.
-    const directive = renderSetupDirective('agent-research', 'Mycology')!;
-    expect(directive).toContain('"type":"tlon-group-agent-config"');
-    expect(directive).toContain('"jobs":[{');
-    expect(directive).toContain('"agents":');
-    expect(directive).toMatch(/whole description is exactly this array/i);
-  });
-
-  test('every job runs daily', () => {
-    // A job that fires weekly is a job the owner forgets they have, and the
-    // promise the setup makes is that something arrives tomorrow morning.
-    for (const [purposeId, job] of Object.entries(PURPOSE_JOBS)) {
-      const [, , dayOfMonth, month, dayOfWeek] = job.schedule.split(' ');
-      expect(
-        [dayOfMonth, month, dayOfWeek],
-        `${purposeId} should run every day`
-      ).toEqual(['*', '*', '*']);
-    }
-  });
-
-  test('no job payload carries a setup-only instruction', () => {
-    // The payload is stored verbatim as the cron job's message and replayed
-    // at every firing, so anything setup-shaped in it is spoken to a run
-    // happening months later. A day-one deferral once lived here: every
-    // future digest was told to research, withhold the entry, and wait for
-    // a Tlon directive that only arrives during onboarding — so the run had
-    // nowhere to put its output and quietly produced nothing.
-    for (const [purposeId, job] of Object.entries(PURPOSE_JOBS)) {
-      for (const phrase of [
-        'do NOT write the entry yet',
-        'during this build',
-        'separate directive',
-        'Tlon watches',
-        'outputNest" empty',
-      ]) {
-        expect(
-          job.prompt,
-          `${purposeId} payload should not mention "${phrase}"`
-        ).not.toContain(phrase);
-      }
-      // And it must still say where the output goes, or the run is adrift.
-      expect(job.prompt, `${purposeId} payload names its output`).toContain(
-        'outputNest'
-      );
-    }
-  });
-
-  test('the build defers the name and the icon to the finishing turn', () => {
-    // Both are cosmetic and the icon half is the least reliable step in the
-    // build — image generation is slow and `tlon upload` has been failing
-    // outright. Run first, they spend the turn before the config, the
-    // notebook and the entry exist; run last, a failure costs a name and a
-    // picture on a group that already works.
-    const directive = renderSetupDirective('agent-research', 'Mycology')!;
-    expect(directive).not.toContain('--image');
-    expect(directive).not.toContain('tlon upload');
-    expect(directive).toContain('do NOT rename the group');
-    expect(directive).toContain('do NOT generate an icon in this turn');
-    // The config is what makes the owner's app create the notebook, so it
-    // has to be the first thing written, not the last.
-    expect(directive).toContain('FIRST: write the group config');
-  });
-
-  test('the finishing steps ride the entry directive, and stand alone', () => {
-    const withEntry = renderNotebookEntryDirective('notes/~zod/d', {
-      title: 'Daily Digest',
-    });
-    // Order: entry first, then the look.
-    expect(withEntry.indexOf('--markdown')).toBeLessThan(
-      withEntry.indexOf('--image')
-    );
-    expect(withEntry).toContain('Last, once the entry is written');
-    expect(withEntry).toContain('tlon upload');
-    expect(withEntry).toContain('skip the icon');
-
-    // A notebook that never arrives must not cost the rename outright.
-    const finishing = renderFinishingDirective();
-    expect(finishing).toContain('never appeared');
-    expect(finishing).toContain('--image');
-    expect(finishing).toContain('placeholder name');
-    expect(finishing).not.toContain('--markdown');
-    // And it must not hang the rename on the entry it just said will never
-    // exist. Sharing the entry-directive's "once the entry is written"
-    // lead-in gave this turn a condition it had already ruled out, which a
-    // model can satisfy by doing nothing at all — leaving the group with
-    // its placeholder name for good, since this is the last directive this
-    // path ever sends.
-    expect(finishing).not.toContain('once the entry is written');
-    expect(finishing).toContain('nothing left to wait for');
-  });
-
-  test('pins the values the model must not improvise', () => {
-    const directive = renderSetupDirective('agent-tracking', 'Sleep')!;
-    expect(directive).toContain('Do not rewrite');
-    expect(directive).toContain('The group description is the config JSON');
-    expect(directive).toContain('"prompt" field');
-    expect(directive).toContain("owner's timezone");
-    expect(directive).toContain('Never create a group');
-    // Setup must not create the output channel — the first run does, so the
-    // notebook arrives holding a real entry instead of sitting empty.
-    expect(directive).toContain('Never create a channel either');
-    expect(directive).toContain('"outputNest" stays');
-    // An empty toolsAllow schedules a job that wakes with zero tools.
-    expect(directive).toContain('toolsAllow');
-    // A job.trigger gets the whole cron call refused on hosted runtimes —
-    // observed live: refused twice, the refusal accepted as final, and the
-    // owner left with no scheduled job at all.
-    expect(directive).toContain('never set "trigger"');
-    expect(directive).toContain('fix the named parameter and try again');
-    expect(directive).toContain('Omit');
-  });
-
-  test('the build never creates, finds, or writes the notebook itself', () => {
-    // Both halves are live failures. The agent hosting its own notebook
-    // put the channel on the bot's moon; then "poll for the owner's and
-    // write" had the model write *first*, into a nest it picked, before
-    // the channel existed — the poke was accepted and the entry vanished.
-    // Discovery and timing moved to the sweep, which can see the channel.
-    for (const purposeId of Object.keys(PURPOSE_JOBS)) {
-      const directive = renderSetupDirective(purposeId, 'Sleep')!;
-      // Asserted against the directive's own words. These used to be
-      // satisfied by the job payload quoted inside it, which is why a
-      // deferral aimed at this one turn ended up stored in the cron job.
-      expect(directive).toContain("is the OWNER's channel");
-      expect(directive).toContain('Never create a channel either');
-      expect(directive).toContain('Do NOT write the notebook entry');
-      expect(directive).toContain("Tlon watches for the\nowner's notebook");
-      expect(directive).toContain('write nothing to a notebook yet');
-      expect(directive).not.toContain('channels create');
-      expect(directive).not.toContain('--kind notes');
-      // The old self-service instructions must not linger anywhere in the
-      // payload the cron runs every time.
-      expect(directive).not.toContain('re-check every fifteen seconds');
-      expect(directive).not.toContain('tlon channels groups');
-    }
-  });
-
-  test('the nest-record directive asks for the field, not a second note', () => {
-    // Sent when the entry landed but the config rewrite that records
-    // "outputNest" didn't. Re-sending the entry directive there would ask
-    // for a note that already exists; leaving the field empty sends every
-    // later run to chat, since that is what the payload rule says to do
-    // when nothing is recorded.
-    const directive = renderOutputNestRecordDirective('notes/~zod/daily');
-    expect(directive).toContain('notes/~zod/daily');
-    expect(directive).toContain('outputNest');
-    expect(directive).toContain('Do NOT write another notebook entry');
-    expect(directive).not.toContain('--markdown');
-  });
-
-  test('a job only counts as recorded with a real notes nest', () => {
-    expect(jobRecordsOutputNest({ outputNest: 'notes/~zod/daily' })).toBe(true);
-    // The empty string is what the setup directive writes initially, and
-    // the chat fallback is not a notebook.
-    expect(jobRecordsOutputNest({ outputNest: '' })).toBe(false);
-    expect(jobRecordsOutputNest({ outputNest: 'chat/~zod/home' })).toBe(false);
-    expect(jobRecordsOutputNest({})).toBe(false);
-    expect(jobRecordsOutputNest(null)).toBe(false);
-  });
-
-  test('the entry directive names the nest and forbids the dead flag', () => {
-    const directive = renderNotebookEntryDirective('notes/~zod/daily', {
-      title: 'Daily Digest',
-      prompt: 'Summarize the day.',
-    });
-    expect(directive).toContain('notes/~zod/daily');
-    expect(directive).toContain('Daily Digest');
-    expect(directive).toContain('Summarize the day.');
-    expect(directive).toContain('--markdown <file>');
-    expect(directive).toContain('Never `--stdin`');
-    // Silent, like every other step of the build.
-    expect(directive).toContain('post nothing about it in chat');
-    // A job with neither title nor prompt still yields a usable ask.
-    const bare = renderNotebookEntryDirective('notes/~zod/daily', null);
-    expect(bare).toContain('notes/~zod/daily');
-    expect(bare).toContain('--markdown <file>');
-  });
-
-  test('firstConfiguredJob reads the job the entry directive describes', () => {
-    const withJob = JSON.stringify([
-      {
-        type: 'tlon-group-agent-config',
-        version: 1,
-        agents: ['~zod'],
-        jobs: [{ title: 'Daily Digest', prompt: 'Summarize.' }],
-      },
-    ]);
-    expect(firstConfiguredJob(withJob)).toEqual({
-      title: 'Daily Digest',
-      prompt: 'Summarize.',
-    });
-    // A config that carries no job yet is a build still running.
-    const marker = JSON.stringify([
-      { type: 'tlon-group-agent-config', version: 1, agents: ['~zod'] },
-    ]);
-    expect(firstConfiguredJob(marker)).toBeNull();
-    expect(firstConfiguredJob('a group about bread')).toBeNull();
-    expect(firstConfiguredJob(null)).toBeNull();
-  });
-
-  test('every setup ends with the invite ask, and never a hand-made link', () => {
-    // The splash screen that asked for contacts is gone; this is the only
-    // ask left. Tlon posts the link card itself, so the agent must not
-    // paste or promise one.
-    for (const purposeId of Object.keys(PURPOSE_JOBS)) {
-      const directive = renderSetupDirective(purposeId, 'Mycology')!;
-      expect(directive).toContain('bring a friend');
-      expect(directive).toContain('never paste, invent, or promise a link');
-    }
-  });
-
-  test('confirmation: research now, write later, and never claim posted', () => {
-    for (const id of ['agent-daily-digest', 'agent-research']) {
-      const directive = renderSetupDirective(id, 'News')!;
-      // The confirmation used to say "Run the job once right now" and
-      // expect the output to land in the notebook — in the same turn the
-      // directive had just told the model to stop before writing and wait
-      // for Tlon to name the nest. The model could obey either one, and
-      // obeying the confirmation recreated the early, self-chosen write
-      // the whole handoff exists to prevent.
-      expect(directive).not.toContain('Run the job once right now');
-      expect(directive).toContain('Do not write the notebook entry');
-      expect(directive).toContain('so the entry is ready');
-      // Sources are listed as a statement — the invite is the only closing
-      // question, so the confirmation must not end on one of its own.
-      expect(directive).toContain('list the sources you drew on');
-      expect(directive).toContain('the only question');
-      // Sources, not substance. Asking for the findings "in chat" got them
-      // written out there in full while the notebook stayed empty, so the
-      // owner's entry arrived as a chat message and never got filed.
-      expect(directive).toContain('Do not restate the findings');
-      expect(directive).not.toContain('tell them what you found');
-      expect(directive).not.toContain('here in this conversation');
-    }
-    const tracking = renderSetupDirective('agent-tracking', 'Sleep, Mood')!;
-    expect(tracking).toContain("don't run the job");
-    expect(tracking).toContain('first entry');
-    expect(tracking).toContain('alongside: Sleep, Mood');
   });
 });
 
@@ -1195,76 +745,6 @@ describe('services card', () => {
       ).toBeNull();
       expect(errors).toHaveLength(1);
     });
-  });
-});
-
-describe('topicsPickerAnswered', () => {
-  const BOT = '~zod';
-  const OWNER = '~ten';
-  const pills = {
-    author: BOT,
-    content: TOPICS_PICKER_PROMPT + ' Weather, News — or just tell me.',
-  };
-  const tap = { author: OWNER, content: 'A daily digest' };
-
-  test('true only for a substantive owner post newer than the pills', () => {
-    const answered = [
-      { ...tap, timestamp: 1 },
-      { ...pills, timestamp: 2 },
-      { author: OWNER, content: 'Sleep, Mood', timestamp: 3 },
-    ];
-    expect(topicsPickerAnswered(answered, BOT, OWNER)).toBe(true);
-    // The reply being handled right now is not its own evidence.
-    expect(topicsPickerAnswered(answered, BOT, OWNER, 'Sleep, Mood')).toBe(
-      false
-    );
-    // Unanswered pills are the derivePendingPurpose case, not this one.
-    expect(
-      topicsPickerAnswered(
-        [
-          { ...tap, timestamp: 1 },
-          { ...pills, timestamp: 2 },
-        ],
-        BOT,
-        OWNER
-      )
-    ).toBe(false);
-    // No pills ever posted (e.g. an ordinary group whose opening picker
-    // went unanswered) must never read as a setup in flight.
-    expect(
-      topicsPickerAnswered(
-        [
-          { ...tap, timestamp: 1 },
-          { author: OWNER, content: 'plain chat', timestamp: 2 },
-        ],
-        BOT,
-        OWNER
-      )
-    ).toBe(false);
-    // Owner chatter older than the pills doesn't answer them.
-    expect(
-      topicsPickerAnswered(
-        [
-          { author: OWNER, content: 'earlier chatter', timestamp: 1 },
-          { ...pills, timestamp: 2 },
-        ],
-        BOT,
-        OWNER
-      )
-    ).toBe(false);
-    // A duplicate card tap after the pills (dropped live, kept by the
-    // transcript) is not a topics answer.
-    expect(
-      topicsPickerAnswered(
-        [
-          { ...tap, timestamp: 1 },
-          { ...pills, timestamp: 2 },
-          { ...tap, timestamp: 3 },
-        ],
-        BOT,
-        OWNER
-      )
-    ).toBe(false);
   });
 });
 

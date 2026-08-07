@@ -102,6 +102,8 @@ export const TIMEZONE_PICKER_FALLBACK =
   `${TIMEZONE_PICKER_PROMPT} Reply with an IANA timezone such as ` +
   '`America/New_York`.';
 
+export const WAITING_FOR_NOTEBOOK_LINE = 'Waiting for your notebook…';
+
 /**
  * How every setup ends: by getting someone else into the group.
  *
@@ -174,90 +176,6 @@ export const INVITE_FOLLOWUP_MESSAGE =
   'I’m here to talk to or ask questions about what I find. What else would ' +
   'you like me to do?';
 
-export const INVITE_CLOSING =
-  'End by getting someone else in: invite them, warmly and once, to bring a ' +
-  'friend or two into the group. Ask that instead of asking what they would ' +
-  "change — they can change anything later. Tlon posts the group's invite " +
-  'link as a card immediately after your message, so make the ask in words ' +
-  'and stop there: never paste, invent, or promise a link yourself, and ' +
-  'never tell them to go looking for one.';
-
-/**
- * Giving the group an icon, in the same breath as naming it.
- *
- * Gated on the rename for a reason: that step already decides whether the
- * group still looks untouched, so an owner who named their own group keeps
- * their own icon too. Best effort — an image model may not be configured at
- * all, and a group with the default icon is a perfectly good group, while a
- * setup that stalls on a picture is not.
- */
-export const GROUP_ICON_RULE =
-  'When you rename it, give it an icon to match: generate one square image ' +
-  'with the image tool — a simple emblem for the subject, flat, no text, ' +
-  'legible at thumbnail size — then upload the file it produces with ' +
-  '`tlon upload <path>` and pass the URL that prints to ' +
-  '`tlon groups update <flag> --image "<url>"`. That upload is the ONLY ' +
-  'road an image travels: never attach the file or its path to a chat ' +
-  'message — the channel refuses local paths and the failure lands in ' +
-  'front of the owner. The icon is decoration, not a deliverable: try the ' +
-  'upload once, and if it fails or stalls, skip the icon immediately and ' +
-  'without comment — no retries, no workarounds — and carry on with the ' +
-  'rest of the setup. Only alongside the rename: if the owner already ' +
-  'named the group, leave their icon alone.';
-
-/**
- * How the group ends up looking like itself — deliberately the *last* thing
- * the setup does.
- *
- * The order matters more than it looks. Both steps are cosmetic, and the
- * icon half is the least reliable thing in the whole build: image
- * generation is slow and `tlon upload` has been failing outright on the
- * pool. Run first, they spend the owner's patience — and any budget the
- * turn has — before the config, the notebook and the entry exist. Run last,
- * a failure costs a name and a picture on a group that already works.
- */
-const GROUP_LOOK_BODY =
-  'give the group its name and face. ' +
-  'Rename it from the topics if it still has a placeholder name. ' +
-  GROUP_ICON_RULE;
-
-export const GROUP_LOOK_RULE =
-  'Last, once the entry is written: ' + GROUP_LOOK_BODY;
-
-/**
- * The same work, for the path where the notebook never arrived.
- *
- * The entry-directive wording leads with "once the entry is written",
- * which is a condition the give-up directive has just finished saying will
- * never be met — a model can satisfy that prompt by doing nothing, and the
- * group keeps its placeholder name and default icon forever. This is the
- * last directive that path ever sends, so the ask has to be unconditional.
- */
-export const GROUP_LOOK_RULE_NO_ENTRY =
-  'There is nothing left to wait for, so do this now, in this turn: ' +
-  GROUP_LOOK_BODY;
-
-/**
- * How the confirmation run is performed, shared by the jobs that produce
- * output on day one.
- *
- * Do the work in the conversation, with your own tools — don't trigger the
- * scheduled job and wait. A triggered run executes in an isolated session
- * that has neither web search nor the Tlon tools, so it can't research and
- * can't create the notes channel; it just reports being blocked, which is
- * the opposite of the reassurance this step exists to give.
- *
- * This says where the work runs, not where its output goes. "Here in this
- * conversation" read as the latter: the model researched, wrote the digest
- * into chat, and left the notebook empty — the owner saw their entry spilled
- * into the chat log instead of filed.
- */
-const INLINE_FIRST_RUN =
-  'Do this run yourself, in this turn, using your own tools — do not ' +
-  'trigger the scheduled job and wait for it. That is about which session ' +
-  'does the work, not about where the result goes: what you find is the ' +
-  "notebook entry's material, so hold it for the entry.";
-
 /**
  * Where a scheduled run's output goes, shared by every job that produces
  * something worth keeping.
@@ -278,11 +196,8 @@ const INLINE_FIRST_RUN =
  * true for a run happening months from now. This string is stored in the
  * cron job and replayed at every firing, so it may not carry a word of
  * setup: a day-one deferral pinned in here told every future digest to do
- * the research, withhold the entry, and wait for a Tlon directive that
- * only ever arrives during onboarding, leaving the scheduled run with
- * nowhere to put its output. The setup-only half of this — write nothing
- * yet, leave "outputNest" empty, Tlon names the nest — lives in
- * `renderSetupDirective`, which governs that turn and is not stored.
+ * the research, withhold the entry, and wait for a setup-only event, leaving
+ * the scheduled run with nowhere to put its output.
  */
 const OUTPUT_CHANNEL_RULE =
   "This run's output belongs in this group's notebook — the OWNER's notes " +
@@ -298,31 +213,10 @@ const OUTPUT_CHANNEL_RULE =
   'channel of your own making.';
 
 /**
- * How the plugin-driven entry write is spelled, shared by the directive the
- * sweep sends and the tests that pin it.
- *
- * `--markdown <file>` rather than `--stdin`: the tool spawns the CLI with no
- * stdin, so a `--stdin` read blocks for its whole timeout and then fails,
- * leaving the notebook empty. The tool refuses the flag outright now, but the
- * model should never reach for it in the first place.
- */
-export const NOTEBOOK_ENTRY_WRITE_RULE =
-  'Write it with the tlon tool, never the message tool (which only posts ' +
-  'chat and cannot carry a title): put the body in a markdown file first ' +
-  'and pass that file — `notes note-create <nest> root "<Title>" ' +
-  '--markdown <file>`. Never `--stdin`; it cannot receive input through ' +
-  'this tool and the entry would never land.';
-
-/**
  * The scheduled job each purpose sets up, templated so the operative cron
- * prompt is authored here — deterministically — rather than composed by the
- * model during the build turn. `prompt` is used **verbatim** as the cron
- * payload (the agent is directed not to rewrite it), so editing these strings
- * edits what the job actually does on every run.
- *
- * `confirmation` is what the agent does immediately after the build, so the
- * owner sees the value before the first scheduled run — and it always ends
- * by inviting a correction while the setup is still warm.
+ * prompt is authored here deterministically. `prompt` is used verbatim as the
+ * cron payload, so editing these strings edits what the job actually does on
+ * every run.
  *
  * `{{topics}}` is replaced with the owner's topic reply, exactly as sent —
  * a submitted pill selection ("Peptides, Mycology") or whatever they typed.
@@ -353,11 +247,9 @@ export const PURPOSE_JOBS: Record<
      * logged "since the last check-in" and stops in chat when that is
      * nothing — which on day one is always, so using it as the entry
      * description told the model to write no entry at all while the closing
-     * sat waiting for one. Separate from `confirmation` because that is
-     * what the agent says in chat, not what it writes down.
+     * sat waiting for one.
      */
     entry: string;
-    confirmation: string;
   }
 > = {
   'agent-daily-digest': {
@@ -377,22 +269,6 @@ export const PURPOSE_JOBS: Record<
       "Today's digest on the topics in the title — the research you just " +
       'did, written up: a line of facts or 3-4 dated headline bullets per ' +
       'topic, sources where they matter. No preamble.',
-    confirmation:
-      'Do the digest research now, so the entry is ready the moment Tlon ' +
-      'names the notebook. ' +
-      INLINE_FIRST_RUN +
-      ' Do not write the notebook entry in this turn and do not say the ' +
-      'digest has been posted — Tlon writes it once the notebook exists. ' +
-      'In chat, keep it to one line saying the first digest is ready and ' +
-      'files itself into the notebook shortly, then list the sources you ' +
-      'drew on, one line each, so they can tell you to add, drop, or swap ' +
-      'one whenever they like. Do not restate the findings themselves in ' +
-      'chat: that material is the entry, and writing it out here is what ' +
-      "leaves the notebook looking empty. Never fabricate: if you can't " +
-      'actually research, say so in chat in one honest line, with what ' +
-      'will arrive and when. If the research degraded, name what was ' +
-      'missing and what you would use once it works. The closing ask below ' +
-      'is the only question this message should end on.',
   },
   'agent-tracking': {
     title: 'Tracking check-in: {{topics}}',
@@ -410,14 +286,6 @@ export const PURPOSE_JOBS: Record<
       'and summaries of your {{topics}} entries will land in this ' +
       'notebook." — you may only rephrase the topic list itself so it ' +
       'reads naturally.',
-    confirmation:
-      "There's nothing to summarize yet, so don't run the job, and don't " +
-      "go looking for the notebook — Tlon writes the notebook's opening " +
-      "entry itself once the owner's app has made it. Now, in " +
-      'chat, ask the owner to log their first entry right now, in their ' +
-      "own words, and confirm you've recorded it — leaving the closing " +
-      'ask below as the only question, rather than also asking what else ' +
-      'they want to track alongside: {{topics}}.',
   },
   'agent-research': {
     title: 'Research update: {{topics}}',
@@ -432,22 +300,6 @@ export const PURPOSE_JOBS: Record<
       'The first research update on the topics in the title — what you ' +
       'just found: releases, papers, notable writing, community chatter, ' +
       'with sources. No preamble.',
-    confirmation:
-      'Do the research now, so the entry is ready the moment Tlon names ' +
-      'the notebook. ' +
-      INLINE_FIRST_RUN +
-      ' Do not write the notebook entry in this turn and do not say the ' +
-      'update has been posted — Tlon writes it once the notebook exists. ' +
-      'In chat, keep it to one line saying the first update is ready and ' +
-      'files itself into the notebook shortly, then list the sources you ' +
-      'drew on, one line each, so they can tell you to add, drop, or swap ' +
-      'one whenever they like. Do not restate the findings themselves in ' +
-      'chat: that material is the entry, and writing it out here is what ' +
-      "leaves the notebook looking empty. Never fabricate: if you can't " +
-      'actually research, say so in chat in one honest line, with what ' +
-      'will arrive and when. If the research degraded, name what was ' +
-      'missing and what you would use once it works. The closing ask below ' +
-      'is the only question this message should end on.',
   },
 };
 

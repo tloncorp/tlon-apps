@@ -36,13 +36,10 @@ const GroupAgentConfigEntrySchema = z.object({
   /** ships expected to act on this config */
   agents: z.array(z.string()).catch([]),
   /**
-   * Deliberately unvalidated: the writer is a model following instructions,
-   * and the client reads nothing from inside a job except its presence —
-   * so a job with one misshapen field must not fail the whole entry, which
-   * would un-recognize the agent, hide its UI, and leak the raw JSON as the
-   * group's description. The intended shape (authored by the openclaw
-   * templates) is `{id, title, schedule: {kind:'cron', expr, tz}, prompt,
-   * outputNest, announceNest?, checkIn?, enabled}`.
+   * Deliberately unvalidated for compatibility with older model-authored
+   * configs. The client reads nothing inside a job except its presence, so a
+   * misshapen legacy field must not fail the whole entry and un-recognize the
+   * agent. New entries are written by the trusted coordinator.
    */
   jobs: z.array(z.unknown()).catch([]),
   /**
@@ -54,12 +51,10 @@ const GroupAgentConfigEntrySchema = z.object({
       state: z.enum([
         'awaiting-topics',
         'awaiting-timezone',
-        'creating-cron',
         'awaiting-notebook',
         'researching',
         'writing-note',
         'complete',
-        'failed',
       ]),
       topics: z.string().max(1000),
       timezone: z.string().max(100).optional(),
@@ -67,7 +62,6 @@ const GroupAgentConfigEntrySchema = z.object({
       notebookNest: z.string().max(500).optional(),
       noteBaseline: z.string().max(500).nullable().optional(),
       noteId: z.string().max(500).optional(),
-      lastError: z.string().max(1000).optional(),
     })
     .optional()
     .catch(undefined),

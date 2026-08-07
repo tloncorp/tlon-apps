@@ -8,12 +8,10 @@ export const ONBOARDING_TIMEZONE_PREFIX = 'Timezone:';
 export type DeterministicOnboardingState =
   | 'awaiting-topics'
   | 'awaiting-timezone'
-  | 'creating-cron'
   | 'awaiting-notebook'
   | 'researching'
   | 'writing-note'
-  | 'complete'
-  | 'failed';
+  | 'complete';
 
 export type DeterministicOnboardingRecord = {
   state: DeterministicOnboardingState;
@@ -23,7 +21,6 @@ export type DeterministicOnboardingRecord = {
   notebookNest?: string;
   noteBaseline?: string | null;
   noteId?: string;
-  lastError?: string;
 };
 
 export type DeterministicSetup = {
@@ -32,10 +29,6 @@ export type DeterministicSetup = {
   timezone: string;
   agentShip: string;
   record: DeterministicOnboardingRecord;
-};
-
-export type ReadyDeterministicSetup = DeterministicSetup & {
-  record: DeterministicOnboardingRecord & { timezone: string };
 };
 
 const CONFIG_TYPE = 'tlon-group-agent-config';

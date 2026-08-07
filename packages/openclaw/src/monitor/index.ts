@@ -67,7 +67,6 @@ import {
   type TlonSettingsStore,
   createSettingsManager,
 } from '../settings.js';
-import { WAITING_FOR_NOTEBOOK_LINE } from '../setup-progress.js';
 import { sharedSlot } from '../shared-state.js';
 import {
   canonicalizeNest,
@@ -119,6 +118,7 @@ import {
   PURPOSE_PICKER_PROMPT,
   SERVICES_CARD_LEAD,
   TOPICS_PICKER_PROMPT,
+  WAITING_FOR_NOTEBOOK_LINE,
 } from './agent-onboarding-config.js';
 import {
   type DeterministicSetup,
@@ -132,7 +132,6 @@ import {
 } from './agent-onboarding-coordinator.js';
 import {
   agentHasAdminSeat,
-  brokenConfigDescriptionError,
   buildInviteCardBlob,
   buildPurposePickerBlob,
   buildServicesCardBlob,
@@ -145,7 +144,6 @@ import {
   findChatNestForGroup,
   findConfiguredAgentGroups,
   findGroupForChannel,
-  firstConfiguredJob,
   homeGroupAwaitingOpening,
   homeGroupChatNestFor,
   homeGroupFlagFor,
@@ -153,19 +151,14 @@ import {
   isFirstConfiguredSetup,
   isHomeGroupFlag,
   isPurposePickerChoice,
-  jobRecordsOutputNest,
   pendingTopicsOfferFromHistory,
   purposePickerFallbackText,
-  renderFinishingDirective,
-  renderNotebookEntryDirective,
-  renderOutputNestRecordDirective,
   servicesCardFallbackText,
   setupOutputNotebookNest,
   shouldOfferPickerOnJoin,
   shouldOfferPurposePicker,
   shouldOfferTopicsPicker,
   timezonePickerFallbackText,
-  topicsPickerAnswered,
   topicsPickerFallbackText,
 } from './agent-onboarding.js';
 import {
@@ -861,8 +854,7 @@ export async function monitorTlonProvider(
     const onboardingTopicsOffered = new Set<string>();
     /**
      * Channels whose topic pills are awaiting the owner reply, by purpose.
-     * The reply message carries the rendered setup directive to the model,
-     * so the cron payload comes from config instead of model prose.
+     * The reply is consumed directly and persisted before asking for timezone.
      */
     const onboardingSetupPending = new Map<string, string>();
     /** Topic replies waiting for the client's deterministic timezone reply. */
@@ -871,23 +863,12 @@ export async function monitorTlonProvider(
       { purposeId: string; topics: string; groupFlag: string }
     >();
     /**
-     * Channels whose setup has been asked for but not yet closed with the
-     * invite card. The card goes last, so this outlives the turn that issued
-     * the directive.
+     * Channels whose deterministic setup has started but not yet closed with
+     * the invite card.
      */
     const onboardingInvitePending = new Set<string>();
     /** Channels checked (or paid): don't re-fetch history for them. */
     const inviteSettled = new Set<string>();
-    /**
-     * Channels whose setup directive turn is running right now. The config
-     * write lands partway through the build (the confirmation run comes
-     * after it), so the sweep must not settle a closing mid-turn — the
-     * invite card would butt in while the agent is still writing the first
-     * entry. Cleared when the turn returns, however it returns; a restart
-     * clears it implicitly, and a dead turn's closing is then settled by
-     * the next sweep tick.
-     */
-    const onboardingSetupTurnInFlight = new Set<string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
@@ -993,13 +974,11 @@ export async function monitorTlonProvider(
 
     /**
      * Close a finished setup: the invite card, the connected-services card
-     * (initial onboarding only), and the hand-back follow-up — last, after
-     * the group has been named, configured and shown to do its job.
+     * (initial onboarding only), and the hand-back follow-up.
      *
-     * Gated on the written config rather than on the turn returning: a setup
-     * spans however many turns the conversation needs, and a turn that timed
-     * out or stalled returns normally. The job in the group's config is the
-     * build's final artifact, so its presence is what "finished" means.
+     * Gated on the coordinator's persisted `complete` state, which is written
+     * only after the note create has returned or notebook read-back proves an
+     * ambiguous write landed.
      *
      * Idempotent against the transcript: each closing post is sent only if
      * history doesn't already show it, and the channel settles only once
@@ -1009,138 +988,8 @@ export async function monitorTlonProvider(
      * none is ever doubled. An unreadable transcript settles nothing, since
      * to this decision it would look identical to an empty one.
      */
-    /**
-     * A setup that stored an unparseable config is worse than one that
-     * stored none: the description *looks* written, the model believes it
-     * finished, and every "is the setup done?" check silently answers no —
-     * the owner sits in locked chrome with no cards and no error, forever
-     * (observed live twice, both times a shell-mangled JSON argument).
-     * Turn that dead end into a repair: tell the model's session exactly
-     * what is broken and how to rewrite it. Once per distinct broken write
-     * (a genuine repair produces different bytes), capped per channel so a
-     * model that keeps mangling can't loop, and only while a setup owes
-     * its closing — a random group with a weird description is not ours to
-     * touch. The repair turn posts nothing, so no channel event follows to
-     * re-run the closing check — the bounded poll below stands in for it.
-     */
-    const configRepairNudgedFor = new Map<string, string>();
-    const configRepairNudgeCounts = new Map<string, number>();
-    const maybeNudgeConfigRepair = (
-      nest: string,
-      groupFlag: string,
-      description: string
-    ): void => {
-      if (!onboardingInvitePending.has(nest)) {
-        return;
-      }
-      const parseError = brokenConfigDescriptionError(description);
-      if (!parseError) {
-        return;
-      }
-      if (configRepairNudgedFor.get(nest) === description) {
-        return;
-      }
-      const nudges = configRepairNudgeCounts.get(nest) ?? 0;
-      if (nudges >= 3) {
-        return;
-      }
-      // Recorded only after the enqueue is accepted: a missing route or a
-      // throwing enqueue would otherwise burn the single nudge these bytes
-      // get, leaving the setup locked with no retry.
-      try {
-        const route = core.channel.routing.resolveAgentRoute({
-          cfg,
-          channel: 'tlon',
-          accountId: opts.accountId ?? undefined,
-          peer: { kind: 'group', id: nest },
-        });
-        if (!route?.sessionKey) {
-          return;
-        }
-        core.system.enqueueSystemEvent(
-          [
-            '[Tlon setup repair directive — not written by the owner]',
-            `The description stored on ${groupFlag} is not valid JSON`,
-            `(${parseError}). The app therefore reads the group as having no`,
-            'agent config at all: the setup chrome stays locked and the',
-            'setup cannot finish, even though every other step landed.',
-            'Rebuild the complete config array exactly as the setup',
-            'directive specified, JSON.stringify it into',
-            '/tmp/tlon-group-config.json (a flat .json file in /tmp is the',
-            'only path the tool will read), parse the file back to prove',
-            'it is valid, then re-write it with',
-            `\`tlon groups update ${groupFlag} --description`,
-            '"$(cat /tmp/tlon-group-config.json)"` — never inline',
-            'hand-escaped JSON in a shell argument; that is what mangled',
-            'it. Repair this silently: post no message about it, and do',
-            'not repeat any earlier announcement.',
-          ].join(' '),
-          {
-            sessionKey: route.sessionKey,
-            contextKey: `tlon:config-repair:${nest}:${nudges + 1}`,
-            // Route any resulting turn back to Tlon.
-            deliveryContext: tlonDeliveryContext(
-              `tlon:${nest}`,
-              route.accountId
-            ),
-          }
-        );
-        configRepairNudgedFor.set(nest, description);
-        configRepairNudgeCounts.set(nest, nudges + 1);
-        runtime.log?.(
-          `[tlon] Nudged a config repair in ${nest}: ${parseError}`
-        );
-        void (async () => {
-          for (let i = 0; i < 9 && !opts.abortSignal?.aborted; i++) {
-            await new Promise((resolve) => setTimeout(resolve, 20_000));
-            await postInviteCardIfSetupComplete(nest);
-            if (inviteSettled.has(nest)) {
-              return;
-            }
-          }
-        })();
-      } catch (error) {
-        runtime.log?.(
-          `[tlon] Could not nudge a config repair in ${nest}: ${String(error)}`
-        );
-      }
-    };
-
-    /**
-     * Whether the closing should wait for the setup's output notebook to
-     * hold its first entry. The cards say the setup is done; a notebook the
-     * owner opens to find empty says otherwise (observed live — and the
-     * directive's own "verify the entry landed" instruction is a promise,
-     * not a check). Read from the bot's ship, which hosts the notebook, so
-     * a real entry answers immediately. Bounded: an entry that never
-     * materializes stops holding the cards hostage after ~5 minutes, and a
-     * setup with no notebook (legacy chat-fallback, freeform) never waits at
-     * all. The channel is owner-hosted; the bot only has a remote view.
-     */
-    const emptyNotebookWaits = new Map<string, number>();
-    const MAX_EMPTY_NOTEBOOK_WAITS = 15;
-    /**
-     * Posts already in the output notebook when this setup first saw it.
-     * Normally zero — the owner's app makes the channel fresh — but a setup
-     * re-run against a notebook that already holds entries must wait for a
-     * *new* one, or the closing rides out on somebody else's writing.
-     */
-    const notebookBaselines = new Map<string, string | null>();
-    const notebookEntryNudges = new Map<string, number>();
-    const notebookWaitAnnounced = new Set<string>();
-    const finishingDirectiveSent = new Set<string>();
-
-    /**
-     * Queue a plugin-authored directive back into this channel's agent
-     * session. Returns whether it was accepted, so callers only record
-     * having asked once the ask actually went out.
-     */
-    const enqueueSetupDirective = (
-      nest: string,
-      text: string,
-      contextSuffix: string,
-      options?: { deliver?: boolean }
-    ): boolean => {
+    /** Queue the one model-owned step: web research and a structured draft. */
+    const enqueueResearchDirective = (nest: string, text: string): boolean => {
       try {
         const route = core.channel.routing.resolveAgentRoute({
           cfg,
@@ -1151,58 +1000,19 @@ export async function monitorTlonProvider(
         if (!route?.sessionKey) {
           return false;
         }
-        if (contextSuffix === 'deterministic-research') {
-          armOnboardingResearchSession(nest, route.sessionKey);
-        }
+        armOnboardingResearchSession(nest, route.sessionKey);
         core.system.enqueueSystemEvent(text, {
           sessionKey: route.sessionKey,
-          contextKey: `tlon:${contextSuffix}:${nest}`,
-          ...(options?.deliver === false
-            ? {}
-            : {
-                deliveryContext: tlonDeliveryContext(
-                  `tlon:${nest}`,
-                  route.accountId
-                ),
-              }),
+          contextKey: `tlon:deterministic-research:${nest}`,
         });
         return true;
       } catch (error) {
         runtime.log?.(
-          `[tlon] Could not queue a setup directive for ${nest}: ${String(error)}`
+          `[tlon] Could not queue onboarding research for ${nest}: ${String(error)}`
         );
         return false;
       }
     };
-    const MAX_NOTEBOOK_ENTRY_NUDGES = 3;
-    /**
-     * When the last notebook directive was handed to the agent.
-     *
-     * The entry directive does four things in order — write the note,
-     * record the nest, rename the group, make the icon — and the first two
-     * are the ones the closing watches for. System directives aren't
-     * tracked as in-flight turns, so the config rewrite could wake this
-     * sweep and post the invite, services and follow-up cards while the
-     * same turn was still choosing a name. The cards are the last word of
-     * the setup; they shouldn't arrive mid-sentence.
-     */
-    const notebookDirectiveSentAt = new Map<string, number>();
-    /**
-     * How long the closing holds after a directive, so the finishing
-     * touches riding at its end have room to land. A ceiling, not a delay:
-     * in the ordinary case the turn spends longer than this writing the
-     * note, so the grace has already elapsed by the time the nest appears.
-     */
-    const FINISHING_TOUCHES_GRACE_MS = 45_000;
-    /**
-     * How long to leave a notebook directive alone before asking again.
-     *
-     * Researching and writing the day-one entry takes minutes; the sweep
-     * returns in twenty seconds. Without this the driver spent its whole
-     * nudge budget in the first minute on a turn that was working fine,
-     * and each queued directive wrote its own copy of the note.
-     */
-    const NOTEBOOK_DIRECTIVE_BACKOFF_MS = 150_000;
 
     /**
      * The newest post in `notesNest` — its id, or null for an empty
@@ -1248,502 +1058,252 @@ export async function monitorTlonProvider(
       }
     };
 
-    /** True once `notesNest` holds an entry newer than this setup's baseline. */
-    const notebookHasNewEntry = (
-      nest: string,
-      state: { readable: true; newestId: string | null },
-      nestRecorded: boolean
-    ): boolean => {
-      if (nestRecorded && state.newestId !== null) {
-        // Durable evidence beats the in-memory baseline, and after a
-        // restart it is the only evidence there is. "outputNest" is
-        // recorded only once the day-one entry has landed, so a recorded
-        // nest over a non-empty notebook means the write happened — while
-        // a fresh process, seeing that notebook for the first time, would
-        // take the entry itself as its baseline, conclude nothing new had
-        // been written, and ask for the day-one note a second time.
-        return true;
-      }
-      if (!notebookBaselines.has(nest)) {
-        notebookBaselines.set(nest, state.newestId);
-      }
-      const baseline = notebookBaselines.get(nest) ?? null;
-      return state.newestId !== null && state.newestId !== baseline;
-    };
-
     const deterministicDraftRegistered = new Set<string>();
 
-    /**
-     * Drive the day-one notebook entry from here rather than trusting the
-     * build turn to do it.
-     *
-     * Observed live: told to poll for the owner's notebook and then write,
-     * the model wrote *first*, into a nest of its own choosing, before the
-     * channel existed. The poke was accepted, the tool reported success in
-     * under a second, and the owner opened an empty notebook. Discovery and
-     * timing are things this process can actually observe, so it does: wait
-     * for the config to carry a job, wait for the owner's channel to appear,
-     * then hand the model the nest and ask for exactly one write. Bounded —
-     * an entry that never lands stops being asked for, and the closing's own
-     * wait eventually releases the cards.
-     */
-    const maybeDriveNotebookEntry = async (
+    /** Reconcile the deterministic setup once the owner's notebook exists. */
+    const reconcileDeterministicSetup = async (
       nest: string,
       group: { flag: string; description: string }
     ): Promise<void> => {
       if (!onboardingInvitePending.has(nest)) {
         return;
       }
-      const job = firstConfiguredJob(group.description);
-      if (!job) {
-        // No job in the config yet: the build is still running and there is
-        // nothing to write about.
-        return;
-      }
-      const deterministicSetup = deterministicSetupFromDescription(
+      const deterministic = deterministicSetupFromDescription(
         group.description
       );
-      const nudges = notebookEntryNudges.get(nest) ?? 0;
-      if (nudges >= MAX_NOTEBOOK_ENTRY_NUDGES) {
+      if (!deterministic || deterministic.record.state === 'complete') {
         return;
       }
-      // Give up on the notebook only once the closing has: the rename and
-      // the icon now ride the entry directive, so a notebook that never
-      // arrives would otherwise leave the group permanently unnamed. Ask
-      // for the look on its own instead — once.
-      //
-      // Deliberately not called before the notebook is resolved. It used to
-      // be, and the last allowed wait is exactly when the owner's channel
-      // is most likely to have just appeared: the closing would read a real
-      // nest, find it empty, tick the counter to its limit, and this driver
-      // would then abandon the entry for a notebook sitting right there.
-      const giveUpOnNotebook = (): void => {
-        if (deterministicSetup) {
+      let notesNest = deterministic.record.notebookNest ?? null;
+      if (!notesNest) {
+        try {
+          notesNest = await setupOutputNotebookNest(api, group.flag, runtime);
+        } catch {
           return;
         }
-        if (
-          (emptyNotebookWaits.get(nest) ?? 0) < MAX_EMPTY_NOTEBOOK_WAITS ||
-          finishingDirectiveSent.has(nest)
-        ) {
-          return;
-        }
-        finishingDirectiveSent.add(nest);
-        if (
-          !enqueueSetupDirective(nest, renderFinishingDirective(), 'finish')
-        ) {
-          finishingDirectiveSent.delete(nest);
-        }
-      };
-      let notesNest: string | null = null;
-      try {
-        notesNest = await setupOutputNotebookNest(
-          api,
-          group.flag,
-          group.description,
-          runtime
-        );
-      } catch {
-        return;
       }
       if (!notesNest) {
-        // No channel and no waits left: it isn't coming. Ask for the name
-        // and icon on their own so the group doesn't stay a placeholder.
-        giveUpOnNotebook();
-        // The owner's app has not created the channel yet — the sweep comes
-        // back around, which is the whole point of doing this here. Say so
-        // once: the config write already posted its line, and without this
-        // the build goes silent for exactly as long as the owner's app
-        // takes, which reads as a setup that finished with nothing to show.
-        if (!notebookWaitAnnounced.has(nest)) {
-          notebookWaitAnnounced.add(nest);
-          try {
-            await postToChannel(nest, WAITING_FOR_NOTEBOOK_LINE);
-          } catch {
-            // A missed status line is cosmetic; never fail the sweep for it.
-            notebookWaitAnnounced.delete(nest);
-          }
-        }
         return;
       }
       const state = await notebookNewestEntry(notesNest);
       if (!state.readable) {
         return;
       }
-      const deterministic = deterministicSetup;
-      if (deterministic && deterministic.record.state !== 'complete') {
-        if (
-          deterministic.record.state === 'writing-note' &&
-          state.newestId !== null &&
-          state.newestId !== deterministic.record.noteBaseline
-        ) {
-          const complete: DeterministicSetup = {
-            ...deterministic,
-            record: {
-              ...deterministic.record,
-              state: 'complete',
-              notebookNest: notesNest,
-              noteId: state.newestId,
-              lastError: undefined,
-            },
-          };
-          await writeAndVerifyOnboardingDescription(
-            nest,
-            group.flag,
-            buildDeterministicSetupDescription(complete)
-          );
-          return;
-        }
-        if (deterministicDraftRegistered.has(nest)) {
-          return;
-        }
-        deterministicDraftRegistered.add(nest);
-        const researching: DeterministicSetup = {
+      if (
+        deterministic.record.state === 'writing-note' &&
+        state.newestId !== null &&
+        state.newestId !== deterministic.record.noteBaseline
+      ) {
+        const complete: DeterministicSetup = {
           ...deterministic,
           record: {
             ...deterministic.record,
-            state: 'researching',
+            state: 'complete',
             notebookNest: notesNest,
-            noteBaseline: state.newestId,
-            lastError: undefined,
+            noteId: state.newestId,
           },
         };
-        try {
-          await writeAndVerifyOnboardingDescription(
-            nest,
-            group.flag,
-            buildDeterministicSetupDescription(researching)
-          );
-        } catch (error) {
-          deterministicDraftRegistered.delete(nest);
-          runtime.error?.(
-            `[tlon] Could not persist research state for ${nest}: ${String(error)}`
-          );
-          return;
-        }
-
-        let unregisterDraft = () => {};
-        let draftTimeout: ReturnType<typeof setTimeout> | null = null;
-        const scheduleResearchDisarmFallback = () => {
-          const timer = setTimeout(
-            () => disarmOnboardingResearchForNest(nest),
-            2 * 60_000
-          );
-          (timer as unknown as { unref?: () => void }).unref?.();
-        };
-        let writtenNoteId: string | null = null;
-        unregisterDraft = registerOnboardingDraftHandler(
+        await writeAndVerifyOnboardingDescription(
           nest,
-          async ({ title, markdown }) => {
-            if (!title || title.length > 200) {
-              return {
-                ok: false,
-                message:
-                  'The draft title must be between 1 and 200 characters.',
-              };
-            }
-            if (!markdown || markdown.length > 50_000) {
-              return {
-                ok: false,
-                message:
-                  'The Markdown draft must be between 1 and 50,000 characters.',
-              };
-            }
-            const writing: DeterministicSetup = {
-              ...researching,
-              record: { ...researching.record, state: 'writing-note' },
-            };
-            try {
-              await writeAndVerifyOnboardingDescription(
-                nest,
-                group.flag,
-                buildDeterministicSetupDescription(writing)
-              );
-              if (!writtenNoteId) {
-                const directory = await mkdtemp(
-                  join(tmpdir(), 'tlon-onboarding-')
-                );
-                try {
-                  const markdownPath = join(directory, 'entry.md');
-                  await writeFile(markdownPath, markdown, 'utf8');
-                  const noteResult = await runOnboardingTlonCommand([
-                    'notes',
-                    'note-create',
-                    notesNest,
-                    'root',
-                    title,
-                    '--markdown',
-                    markdownPath,
-                  ]);
-                  writtenNoteId = noteResult.trim().slice(0, 500) || 'written';
-                } finally {
-                  await rm(directory, { recursive: true, force: true });
-                }
-              }
-              const complete: DeterministicSetup = {
-                ...writing,
-                record: {
-                  ...writing.record,
-                  state: 'complete',
-                  notebookNest: notesNest,
-                  noteId: writtenNoteId,
-                },
-              };
-              await writeAndVerifyOnboardingDescription(
-                nest,
-                group.flag,
-                buildDeterministicSetupDescription(complete)
-              );
-              if (draftTimeout) {
-                clearTimeout(draftTimeout);
-                draftTimeout = null;
-              }
-              unregisterDraft();
-              scheduleResearchDisarmFallback();
-              deterministicDraftRegistered.delete(nest);
-              return {
-                ok: true,
-                message:
-                  'Draft accepted and written by the deterministic coordinator. Send no chat response.',
-              };
-            } catch (error) {
-              runtime.error?.(
-                `[tlon] Failed to commit onboarding draft for ${nest}: ${String(error)}`
-              );
-              // A timed-out note poke often landed. Read the owner notebook
-              // before asking for a retry, or an ambiguous timeout becomes a
-              // duplicate entry. If a post appeared after our recorded
-              // baseline, commit that durable evidence and finish.
-              const observed = await notebookNewestEntry(notesNest);
-              if (
-                observed.readable &&
-                observed.newestId !== null &&
-                observed.newestId !== writing.record.noteBaseline
-              ) {
-                try {
-                  await writeAndVerifyOnboardingDescription(
-                    nest,
-                    group.flag,
-                    buildDeterministicSetupDescription({
-                      ...writing,
-                      record: {
-                        ...writing.record,
-                        state: 'complete',
-                        notebookNest: notesNest,
-                        noteId: observed.newestId,
-                      },
-                    })
-                  );
-                  if (draftTimeout) {
-                    clearTimeout(draftTimeout);
-                    draftTimeout = null;
-                  }
-                  unregisterDraft();
-                  scheduleResearchDisarmFallback();
-                  deterministicDraftRegistered.delete(nest);
-                  return {
-                    ok: true,
-                    message:
-                      'Draft write was verified from the notebook and committed. Send no chat response.',
-                  };
-                } catch (recoveryError) {
-                  runtime.error?.(
-                    `[tlon] Could not record recovered note for ${nest}: ${String(recoveryError)}`
-                  );
-                }
-              }
-              return {
-                ok: false,
-                message:
-                  'The deterministic coordinator could not commit the draft. Do not perform the write yourself; retry this same draft once.',
-              };
-            }
-          }
+          group.flag,
+          buildDeterministicSetupDescription(complete)
         );
-        if (
-          !enqueueSetupDirective(
-            nest,
-            renderDeterministicResearchDirective({
+        return;
+      }
+      if (deterministicDraftRegistered.has(nest)) {
+        return;
+      }
+      deterministicDraftRegistered.add(nest);
+      const researching: DeterministicSetup = {
+        ...deterministic,
+        record: {
+          ...deterministic.record,
+          state: 'researching',
+          notebookNest: notesNest,
+          noteBaseline: state.newestId,
+        },
+      };
+      try {
+        await writeAndVerifyOnboardingDescription(
+          nest,
+          group.flag,
+          buildDeterministicSetupDescription(researching)
+        );
+      } catch (error) {
+        deterministicDraftRegistered.delete(nest);
+        runtime.error?.(
+          `[tlon] Could not persist research state for ${nest}: ${String(error)}`
+        );
+        return;
+      }
+
+      let unregisterDraft = () => {};
+      let draftTimeout: ReturnType<typeof setTimeout> | null = null;
+      const scheduleResearchDisarmFallback = () => {
+        const timer = setTimeout(
+          () => disarmOnboardingResearchForNest(nest),
+          2 * 60_000
+        );
+        (timer as unknown as { unref?: () => void }).unref?.();
+      };
+      let writtenNoteId: string | null = null;
+      unregisterDraft = registerOnboardingDraftHandler(
+        nest,
+        async ({ title, markdown }) => {
+          if (!title || title.length > 200) {
+            return {
+              ok: false,
+              message: 'The draft title must be between 1 and 200 characters.',
+            };
+          }
+          if (!markdown || markdown.length > 50_000) {
+            return {
+              ok: false,
+              message:
+                'The Markdown draft must be between 1 and 50,000 characters.',
+            };
+          }
+          const writing: DeterministicSetup = {
+            ...researching,
+            record: { ...researching.record, state: 'writing-note' },
+          };
+          try {
+            await writeAndVerifyOnboardingDescription(
               nest,
-              purposeId: deterministic.purposeId,
-              topics: deterministic.topics,
-            }),
-            'deterministic-research',
-            { deliver: false }
-          )
-        ) {
+              group.flag,
+              buildDeterministicSetupDescription(writing)
+            );
+            if (!writtenNoteId) {
+              const directory = await mkdtemp(
+                join(tmpdir(), 'tlon-onboarding-')
+              );
+              try {
+                const markdownPath = join(directory, 'entry.md');
+                await writeFile(markdownPath, markdown, 'utf8');
+                const noteResult = await runOnboardingTlonCommand([
+                  'notes',
+                  'note-create',
+                  notesNest,
+                  'root',
+                  title,
+                  '--markdown',
+                  markdownPath,
+                ]);
+                writtenNoteId = noteResult.trim().slice(0, 500) || 'written';
+              } finally {
+                await rm(directory, { recursive: true, force: true });
+              }
+            }
+            const complete: DeterministicSetup = {
+              ...writing,
+              record: {
+                ...writing.record,
+                state: 'complete',
+                notebookNest: notesNest,
+                noteId: writtenNoteId,
+              },
+            };
+            await writeAndVerifyOnboardingDescription(
+              nest,
+              group.flag,
+              buildDeterministicSetupDescription(complete)
+            );
+            if (draftTimeout) {
+              clearTimeout(draftTimeout);
+              draftTimeout = null;
+            }
+            unregisterDraft();
+            scheduleResearchDisarmFallback();
+            deterministicDraftRegistered.delete(nest);
+            return {
+              ok: true,
+              message:
+                'Draft accepted and written by the deterministic coordinator. Send no chat response.',
+            };
+          } catch (error) {
+            runtime.error?.(
+              `[tlon] Failed to commit onboarding draft for ${nest}: ${String(error)}`
+            );
+            // A timed-out note poke often landed. Read the owner notebook
+            // before asking for a retry, or an ambiguous timeout becomes a
+            // duplicate entry. If a post appeared after our recorded
+            // baseline, commit that durable evidence and finish.
+            const observed = await notebookNewestEntry(notesNest);
+            if (
+              observed.readable &&
+              observed.newestId !== null &&
+              observed.newestId !== writing.record.noteBaseline
+            ) {
+              try {
+                await writeAndVerifyOnboardingDescription(
+                  nest,
+                  group.flag,
+                  buildDeterministicSetupDescription({
+                    ...writing,
+                    record: {
+                      ...writing.record,
+                      state: 'complete',
+                      notebookNest: notesNest,
+                      noteId: observed.newestId,
+                    },
+                  })
+                );
+                if (draftTimeout) {
+                  clearTimeout(draftTimeout);
+                  draftTimeout = null;
+                }
+                unregisterDraft();
+                scheduleResearchDisarmFallback();
+                deterministicDraftRegistered.delete(nest);
+                return {
+                  ok: true,
+                  message:
+                    'Draft write was verified from the notebook and committed. Send no chat response.',
+                };
+              } catch (recoveryError) {
+                runtime.error?.(
+                  `[tlon] Could not record recovered note for ${nest}: ${String(recoveryError)}`
+                );
+              }
+            }
+            return {
+              ok: false,
+              message:
+                'The deterministic coordinator could not commit the draft. Do not perform the write yourself; retry this same draft once.',
+            };
+          }
+        }
+      );
+      if (
+        !enqueueResearchDirective(
+          nest,
+          renderDeterministicResearchDirective({
+            nest,
+            purposeId: deterministic.purposeId,
+            topics: deterministic.topics,
+          })
+        )
+      ) {
+        unregisterDraft();
+        disarmOnboardingResearchForNest(nest);
+        deterministicDraftRegistered.delete(nest);
+      } else {
+        // A model turn that exits without submitting a draft must not leave
+        // the state machine permanently armed. Reconciliation will enqueue
+        // a fresh bounded research turn after this lease expires.
+        draftTimeout = setTimeout(() => {
           unregisterDraft();
           disarmOnboardingResearchForNest(nest);
           deterministicDraftRegistered.delete(nest);
-        } else {
-          // A model turn that exits without submitting a draft must not leave
-          // the state machine permanently armed. Reconciliation will enqueue
-          // a fresh bounded research turn after this lease expires.
-          draftTimeout = setTimeout(() => {
-            unregisterDraft();
-            disarmOnboardingResearchForNest(nest);
-            deterministicDraftRegistered.delete(nest);
-          }, 11 * 60_000);
-          (draftTimeout as unknown as { unref?: () => void }).unref?.();
-        }
-        return;
+        }, 11 * 60_000);
+        (draftTimeout as unknown as { unref?: () => void }).unref?.();
       }
-      if (notebookHasNewEntry(nest, state, jobRecordsOutputNest(job))) {
-        // The note is there. If the config never recorded the nest, ask for
-        // that alone — the closing is holding on it, and re-sending the
-        // entry directive would invite a duplicate of a note that landed.
-        const recordAskedAt = notebookDirectiveSentAt.get(nest);
-        if (
-          !jobRecordsOutputNest(job) &&
-          // Same throttle as the entry ask below: the turn that is going
-          // to write this field may still be running.
-          (!recordAskedAt ||
-            Date.now() - recordAskedAt >= NOTEBOOK_DIRECTIVE_BACKOFF_MS)
-        ) {
-          if (
-            enqueueSetupDirective(
-              nest,
-              renderOutputNestRecordDirective(notesNest),
-              `notebook-nest:${nudges + 1}`
-            )
-          ) {
-            notebookEntryNudges.set(nest, nudges + 1);
-            notebookDirectiveSentAt.set(nest, Date.now());
-            runtime.log?.(
-              `[tlon] Asked for "outputNest" to be recorded in ${nest} (${nudges + 1}/${MAX_NOTEBOOK_ENTRY_NUDGES})`
-            );
-          }
-        }
-        return;
-      }
-      // One ask at a time. The sweep comes back every twenty seconds and
-      // an entry directive takes far longer than that to research and
-      // write, so an un-throttled driver queued a fresh one on every tick
-      // while the notebook was still empty — and they don't cancel each
-      // other. The first one writes the note; the ones behind it write it
-      // again. Silence here isn't refusal, it's the previous ask still
-      // working.
-      const lastSentAt = notebookDirectiveSentAt.get(nest);
-      if (
-        lastSentAt &&
-        Date.now() - lastSentAt < NOTEBOOK_DIRECTIVE_BACKOFF_MS
-      ) {
-        return;
-      }
-      if (nudges >= MAX_NOTEBOOK_ENTRY_NUDGES - 1) {
-        // The notebook is there but the entry isn't, and this is the last
-        // ask. Whether or not it lands, the name and icon that ride the
-        // entry directive need their own path once the closing gives up.
-        giveUpOnNotebook();
-      }
-      if (
-        enqueueSetupDirective(
-          nest,
-          renderNotebookEntryDirective(notesNest, job, group.description),
-          `notebook-entry:${nudges + 1}`
-        )
-      ) {
-        // Recorded only after the enqueue is accepted, so a missing route
-        // doesn't burn one of the few asks this entry gets.
-        notebookEntryNudges.set(nest, nudges + 1);
-        notebookDirectiveSentAt.set(nest, Date.now());
-        runtime.log?.(
-          `[tlon] Asked for the day-one entry in ${notesNest} (${nudges + 1}/${MAX_NOTEBOOK_ENTRY_NUDGES})`
-        );
-      }
+      return;
     };
-    const closingAwaitsNotebookEntry = async (
-      nest: string,
-      group: { flag: string; description: string }
-    ): Promise<boolean> => {
-      const waits = emptyNotebookWaits.get(nest) ?? 0;
-      const deterministic = deterministicSetupFromDescription(
-        group.description
-      );
-      if (
-        waits >= MAX_EMPTY_NOTEBOOK_WAITS &&
-        (!deterministic || deterministic.record.state === 'complete')
-      ) {
-        return false;
-      }
-      let notesNest: string | null = null;
-      try {
-        notesNest = await setupOutputNotebookNest(
-          api,
-          group.flag,
-          group.description,
-          runtime
-        );
-      } catch {
-        // Unreadable groups state: wait a tick rather than guess.
-        emptyNotebookWaits.set(nest, waits + 1);
-        return true;
-      }
-      if (!notesNest) {
-        if (!firstConfiguredJob(group.description)) {
-          // Nothing scheduled, so no notebook is coming and there is no
-          // day-one entry to wait for. Only a configured job makes the
-          // owner's app create the channel.
-          return false;
-        }
-        // Waiting, not settling. "No notes channel" used to mean "this
-        // setup has none" — true when the agent made its own notebook
-        // during the build. Now the owner's app makes it, moments *after*
-        // the config write the setup just finished, so a missing channel is
-        // the normal state for the first sweeps rather than a verdict.
-        // Settling here closed the setup before the notebook existed, which
-        // meant the entry was never asked for and the channel was marked
-        // done — defeating the whole handoff. The bounded wait below
-        // eventually releases it, and the finishing directive covers a
-        // notebook that truly never arrives.
-        emptyNotebookWaits.set(nest, waits + 1);
-        runtime.log?.(
-          `[tlon] Holding the closing in ${nest}: the owner's notebook has not appeared yet (${waits + 1}/${MAX_EMPTY_NOTEBOOK_WAITS})`
-        );
-        return true;
-      }
-      const state = await notebookNewestEntry(notesNest);
-      // Measured against the baseline, not against emptiness: entries that
-      // predate this setup are somebody else's writing and must not release
-      // the cards.
-      const recordedNest = jobRecordsOutputNest(
-        firstConfiguredJob(group.description)
-      );
-      if (state.readable && notebookHasNewEntry(nest, state, recordedNest)) {
-        // The entry alone isn't the finish line. Later runs resolve their
-        // output through the job's "outputNest", and the payload rule sends
-        // a run with none recorded to chat — so releasing here on a failed
-        // config rewrite gives the owner a notebook with one note in it and
-        // every morning after that in the chat channel. Hold while the
-        // driver asks for the nest; the bounded wait still lets go.
-        if (recordedNest) {
-          // The nest is recorded, which means the directive got at least as
-          // far as its third step — but the rename and the icon ride at its
-          // end, and nothing marks that turn as running. Give it the grace
-          // window before the cards close the conversation over it.
-          const sentAt = notebookDirectiveSentAt.get(nest);
-          if (sentAt && Date.now() - sentAt < FINISHING_TOUCHES_GRACE_MS) {
-            emptyNotebookWaits.set(nest, waits + 1);
-            runtime.log?.(
-              `[tlon] Holding the closing in ${nest}: letting the entry turn finish the name and icon (${waits + 1}/${MAX_EMPTY_NOTEBOOK_WAITS})`
-            );
-            return true;
-          }
-          emptyNotebookWaits.delete(nest);
-          return false;
-        }
-        emptyNotebookWaits.set(nest, waits + 1);
-        runtime.log?.(
-          `[tlon] Holding the closing in ${nest}: the entry landed but "outputNest" is still empty (${waits + 1}/${MAX_EMPTY_NOTEBOOK_WAITS})`
-        );
-        return true;
-      }
-      // An unreadable notebook falls through to waiting: unreadable and
-      // empty must not look alike to the cards.
-      emptyNotebookWaits.set(nest, waits + 1);
-      runtime.log?.(
-        `[tlon] Holding the closing in ${nest}: the output notebook has no entry yet (${waits + 1}/${MAX_EMPTY_NOTEBOOK_WAITS})`
-      );
-      return true;
+
+    const deterministicSetupIsIncomplete = (description: string): boolean => {
+      const setup = deterministicSetupFromDescription(description);
+      return setup !== null && setup.record.state !== 'complete';
     };
 
     /**
@@ -1772,8 +1332,7 @@ export async function monitorTlonProvider(
       nest: string
     ): Promise<void> => {
       // `onboardingInvitePending` is the cheap in-memory record of the debt;
-      // the transcript scan below recovers it after a restart (the prompt
-      // tells the model Tlon posts the link, so nobody else ever will).
+      // the transcript scan below recovers it after a restart, and
       // `inviteSettled` keeps the work to once per channel per process.
       if (!onboardingInvitePending.has(nest) && inviteSettled.has(nest)) {
         return;
@@ -1784,18 +1343,11 @@ export async function monitorTlonProvider(
           return;
         }
         if (!descriptionHasConfiguredJob(group.description)) {
-          maybeNudgeConfigRepair(nest, group.flag, group.description);
           return;
         }
-        // Recover the debt before anything keys off it. Everything below
-        // — the notebook wait, the entry driver — reads
-        // `onboardingInvitePending`, and after a restart it is empty, so a
-        // setup interrupted mid-notebook silently drove nothing and then
-        // retired itself as checked. The transcript already knows whether
-        // this channel was onboarded; ask it here rather than after the
-        // wait. Only on the recovery path: when the debt is in memory this
-        // scan is skipped entirely, so the ordinary sweep still costs one
-        // groups scry.
+        // Recover the debt before reconciliation, since the in-memory set is
+        // empty after a restart. The transcript tells us whether this bot
+        // opened the flow. Live setups skip this scan entirely.
         if (!onboardingInvitePending.has(nest) && !inviteSettled.has(nest)) {
           const priorHistory = await fetchChannelHistory(
             api,
@@ -1818,10 +1370,8 @@ export async function monitorTlonProvider(
           }
           onboardingInvitePending.add(nest);
         }
-        if (await closingAwaitsNotebookEntry(nest, group)) {
-          // Waiting is not the same as hoping: while the closing holds, ask
-          // for the entry that would release it.
-          await maybeDriveNotebookEntry(nest, group);
+        if (deterministicSetupIsIncomplete(group.description)) {
+          await reconcileDeterministicSetup(nest, group);
           return;
         }
         // 100 posts bounds the recovery window: a setup conversation runs a
@@ -2044,28 +1594,6 @@ export async function monitorTlonProvider(
         onboardingPickerOffered.add(nest);
         onboardingTopicsOffered.add(nest);
         return 'ok';
-      }
-      if (
-        topicsPickerAnswered(
-          recentPosts,
-          botShipName,
-          normalizeShip(senderShip),
-          currentMessageText
-        )
-      ) {
-        // Answered pills with no job yet: a setup directive turn already ran
-        // and the build is in flight — the very state `invitePending` marks
-        // live. Restoring it keeps the owner-listen gate hearing the
-        // follow-up answers the build asks for (a timezone, a first entry)
-        // and re-arms the owed closing, both of which a restart would
-        // otherwise orphan. The closing still fires only once the config
-        // carries the job, so a stale restore costs nothing.
-        runtime.log?.(
-          `[tlon] Recovered an in-flight setup for ${nest} from history`
-        );
-        onboardingInvitePending.add(nest);
-        onboardingPickerOffered.add(nest);
-        onboardingTopicsOffered.add(nest);
       }
       return 'ok';
     };
@@ -5417,11 +4945,10 @@ export async function monitorTlonProvider(
           ownerListenDisabledChannels: effectiveOwnerListenDisabled,
         });
         if (!engageDecision.engage) {
-          // Replies to the bot's own onboarding UI still count: a purpose
-          // card tap, the topics-pills submission, and the answers a setup
-          // directive's build asks for arrive as unmentioned top-level owner
-          // messages, so an owner who switched listening off would otherwise
-          // see cards whose buttons do nothing. Each admitted shape is a
+          // Replies to the bot's own onboarding UI still count: purpose,
+          // topics, and timezone choices arrive as unmentioned top-level
+          // owner messages, so an owner who switched listening off would
+          // otherwise see cards whose buttons do nothing. Each admitted shape is a
           // *provable* reply to something the bot posted — the mute contract
           // ("a plain post in a muted channel never wakes the bot", pinned
           // by the shared e2e even when an unanswered picker sits in the
@@ -5481,9 +5008,7 @@ export async function monitorTlonProvider(
             // The topics pills await their answer.
             onboardingSetupPending.has(nest) ||
             onboardingTimezonePending.has(nest) ||
-            // A directive was issued and the build is mid-flight — the owner
-            // already engaged the onboarding UI, and the bot may be waiting
-            // on an answer it asked for (a timezone, a first entry).
+            // Keep ordinary owner replies available while setup is active.
             onboardingInvitePending.has(nest) ||
             // A tap on the purpose picker posts exactly a card title.
             (onboardingPickerOffered.has(nest) &&
@@ -5564,8 +5089,8 @@ export async function monitorTlonProvider(
           // Retried like the muted gate: this message is already consumed
           // (no redelivery exists), and if it is the topics reply the
           // picker is waiting for, processing it with unknown state feeds
-          // it to the model as ordinary chat and the setup directive is
-          // never built.
+          // it to the model as ordinary chat and the deterministic transition
+          // never runs.
           let recovery = await recoverOnboardingState(
             nest,
             senderShip,
@@ -5858,37 +5383,24 @@ export async function monitorTlonProvider(
           }
           return;
         }
-        // An ordinary owner turn may overlap a setup that is waiting for its
-        // notebook. Keep the closing out of that chat turn; the deterministic
-        // coordinator itself is serialized independently.
-        const ownsSetupTurn = onboardingInvitePending.has(nest);
-        if (ownsSetupTurn) {
-          onboardingSetupTurnInFlight.add(nest);
-        }
-        try {
-          await processMessage({
-            messageId: messageId ?? '',
-            senderShip,
-            messageText: rawText,
-            ...(citedContent ? { citedContent } : {}),
-            gateText: engagementText,
-            trigger,
-            cachesHistory: true,
-            messageContent: content.content, // Pass raw content for media extraction
-            blobField: content.blob,
-            isGroup: true,
-            channelNest: nest,
-            hostShip: parsed?.hostShip,
-            channelName: parsed?.channelName,
-            timestamp: content.sent || Date.now(),
-            parentId,
-            isThreadReply,
-          });
-        } finally {
-          if (ownsSetupTurn) {
-            onboardingSetupTurnInFlight.delete(nest);
-          }
-        }
+        await processMessage({
+          messageId: messageId ?? '',
+          senderShip,
+          messageText: rawText,
+          ...(citedContent ? { citedContent } : {}),
+          gateText: engagementText,
+          trigger,
+          cachesHistory: true,
+          messageContent: content.content, // Pass raw content for media extraction
+          blobField: content.blob,
+          isGroup: true,
+          channelNest: nest,
+          hostShip: parsed?.hostShip,
+          channelName: parsed?.channelName,
+          timestamp: content.sent || Date.now(),
+          parentId,
+          isThreadReply,
+        });
 
         await postInviteCardIfSetupComplete(nest);
       } catch (error: any) {
@@ -7175,15 +6687,7 @@ export async function monitorTlonProvider(
             if (opts.abortSignal?.aborted) {
               return sawWork;
             }
-            // Work exists, but a running directive turn owns the channel:
-            // the config write lands mid-build, and closing on it here
-            // would post the cards while the agent is still finishing.
-            // Keeping sawWork keeps the cadence fast for the moment the
-            // turn returns.
             sawWork = true;
-            if (onboardingSetupTurnInFlight.has(nest)) {
-              continue;
-            }
             await postInviteCardIfSetupComplete(nest);
           }
           // The set above is memory, and the debt outlives the process: a
@@ -7209,11 +6713,8 @@ export async function monitorTlonProvider(
             if (!info) {
               continue;
             }
-            if (
-              onboardingInvitePending.has(info.nest) ||
-              onboardingSetupTurnInFlight.has(info.nest)
-            ) {
-              // Already owned by the loop above, or by a running turn.
+            if (onboardingInvitePending.has(info.nest)) {
+              // Already owned by the loop above.
               continue;
             }
             sawWork = true;
