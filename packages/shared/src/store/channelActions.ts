@@ -141,19 +141,16 @@ async function createBucketsChannel({
   title: string;
   writers?: string[];
 }): Promise<db.Channel> {
-  const currentUserId = api.getCurrentUserId();
   const [groupHost, groupName, ...rest] = groupId.split('/');
   if (!groupHost || !groupName || rest.length > 0) {
     throw new Error(`Invalid group id: ${groupId}`);
   }
-  if (groupHost !== currentUserId) {
-    throw new Error(
-      'Buckets can currently be created only by the host of this group'
-    );
-  }
 
   const name = customSlug || getRandomId();
-  const flag: api.BucketsFlag = { host: currentUserId, name };
+  // Bucket storage belongs to the group host even when another group admin
+  // initiates creation. The local %buckets agent forwards the request and the
+  // group host re-checks the caller's live admin authority before creating it.
+  const flag: api.BucketsFlag = { host: groupHost, name };
   const channelId = api.formatBucketsChannelId(flag);
   let created = false;
 

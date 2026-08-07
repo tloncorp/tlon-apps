@@ -52,9 +52,9 @@ Local clients poke `%buckets-action-1`. The mark accepts JSON and noun input.
 | `%move-entry`    | Move an entry while preventing folder cycles                                                                        |
 | `%delete-entry`  | Delete a file or recursively delete a folder tree                                                                   |
 
-Subscriber agents forward non-create actions to the host with the noun-only `%buckets-command-1` mark. The host derives the actor from the Gall bowl and re-authorizes the command.
+Subscriber agents forward actions to the host with the noun-only `%buckets-command-1` mark. The host derives the actor from the Gall bowl and re-authorizes the command.
 
-Creation is host-local in this version: the group host creates and hosts the Bucket. The client therefore offers the Buckets channel type only when `%buckets` is installed and the current ship hosts the group. Non-host group admins may edit permissions after creation, but remote creation needs a separate host-request protocol.
+The group host always creates and hosts the Bucket, but any current group admin may initiate creation. A non-host admin's local `%buckets` agent first checks its group replica, then forwards the request to the group host. The host checks the actor against its authoritative `%groups` state before allocating the Bucket or registering its channel. Consequently the channel nest, object storage, quota, and eventual billing all remain attached to the group host rather than the initiating admin. Repeating an identical create request is idempotent and re-attempts channel registration; a conflicting request for an existing Bucket name is rejected.
 
 The Gall delete action removes the manifest and `%groups` registration, but storage-wide object cleanup is not atomic yet. The client intentionally withholds Bucket deletion until Memex exposes a host-authorized bulk cleanup operation.
 
@@ -111,5 +111,7 @@ Authorization failures return `{result: "denied"}` and expired capabilities retu
 -   Rejection of nonexistent folder parents
 -   Rejection of a remote write after the live `%groups` permission gate denies access
 -   Acceptance of a remote write only when the member has a configured writer role
+-   Group-hosted creation initiated by an authorized remote admin
+-   Rejection of creation by a non-admin and idempotent handling of retries
 
 Run the targeted fakezod test with the repository's normal `%test` thread against `/tests/app/buckets/hoon`. Marks must remain top-level files such as `desk/mar/buckets-action-1.hoon`; nesting them under `desk/mar/buckets/` changes the mark name and prevents Gall from resolving the protocol.

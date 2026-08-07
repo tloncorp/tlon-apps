@@ -2,7 +2,8 @@
 ::
 ::  This agent is a third-party %groups channel host. It stores metadata and
 ::  upload lifecycle only; file bytes move directly between clients and object
-::  storage.
+::  storage. Group admins may request creation, but the group host remains the
+::  authoritative Bucket and storage owner.
 ::
 /-  b=buckets
 /+  default-agent, dbug, verb
@@ -111,7 +112,10 @@
       %buckets-command-1
     =+  cmd=!<(command:b vase)
     =/  act=action:b  action.cmd
-    ?>  !=(%create -.act)
+    ?:  ?=(%create -.act)
+      ?>  =(ship.group.act our.bowl)
+      ?>  (group-is-admin-for-create group.act src.bowl)
+      (create-bucket name.act title.act group.act readers.act writers.act src.bowl)
     =/  =flag:b  (action-flag act)
     ?>  =(ship.flag our.bowl)
     =/  st=bucket-state:b  (need-state flag)
@@ -144,7 +148,22 @@
   ^+  cor
   ?+  -.act  (dispatch-existing act)
     %create
-  (create-bucket name.act title.act group.act readers.act writers.act)
+  ?>  (group-is-admin-for-create group.act our.bowl)
+  ?:  =(ship.group.act our.bowl)
+    (create-bucket name.act title.act group.act readers.act writers.act our.bowl)
+  (forward-create act)
+  ==
+::
+++  forward-create
+  |=  act=action:b
+  ^+  cor
+  ?+  -.act  ~|(%forward-create-requires-create !!)
+    %create
+  %-  emit
+  :*  %pass  /buckets/cmd/create/(scot %p ship.group.act)/[name.act]
+      %agent  [ship.group.act %buckets]
+      %poke  buckets-command-1+!>(`command:b`[act])
+  ==
   ==
 ::
 ++  dispatch-existing
@@ -195,27 +214,39 @@
   cor
 ::
 ++  create-bucket
-  |=  [name=@tas title=@t group=flag:b readers=(set @tas) writers=(set @tas)]
+  |=  [name=@tas title=@t group=flag:b readers=(set @tas) writers=(set @tas) actor=ship]
   ^+  cor
   ?>  =(ship.group our.bowl)
   =/  =flag:b  [our.bowl name]
-  ?>  !(~(has by spaces) flag)
+  ?:  (~(has by spaces) flag)
+    =/  st=bucket-state:b  (need-state flag)
+    ?>  =(group group.st)
+    ?>  =(title title.bucket.st)
+    ?>  =(readers readers.st)
+    ?>  =(writers writers.st)
+    ?>  =(actor created-by.bucket.st)
+    =.  cor  (register-bucket flag st)
+    (give [%fact ~[/v1] buckets-response-1+!>(`response:b`[%snapshot flag st])])
   =/  id=@ud  +(next-id)
   =.  next-id  id
-  =/  buc=bucket:b  [id title our.bowl now.bowl our.bowl now.bowl]
+  =/  buc=bucket:b  [id title actor now.bowl actor now.bowl]
   =/  st=bucket-state:b  [buc group readers writers ~ ~ 0]
   =.  spaces  (~(put by spaces) flag [%pub `st `group])
-  =/  channel=group-channel:b
-    [[title '' '' ''] now.bowl %default readers |]
-  =/  add=group-create:b
-    [%group group %channel [%buckets flag] %add channel]
-  =.  cor
-    %-  emit
-    :*  %pass  /buckets/(scot %p ship.flag)/[name.flag]/create
-        %agent  [our.bowl %groups]
-        %poke  group-action-4+!>(add)
-    ==
+  =.  cor  (register-bucket flag st)
   (give [%fact ~[/v1] buckets-response-1+!>(`response:b`[%snapshot flag st])])
+::
+++  register-bucket
+  |=  [=flag:b st=bucket-state:b]
+  ^+  cor
+  =/  channel=group-channel:b
+    [[title.bucket.st '' '' ''] now.bowl %default readers.st |]
+  =/  add=group-create:b
+    [%group group.st %channel [%buckets flag] %add channel]
+  %-  emit
+  :*  %pass  /buckets/(scot %p ship.flag)/[name.flag]/create
+      %agent  [our.bowl %groups]
+      %poke  group-action-4+!>(add)
+  ==
 ::
 ++  apply-action
   |=  act=action:b
@@ -565,6 +596,14 @@
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/channels/can-read/noun
   =/  test=$-([ship nest:b] ?)  .^($-([ship nest:b] ?) %gx pax)
   (test who [%buckets ship.flag name.flag])
+::
+++  group-is-admin-for-create
+  |=  [group=flag:b who=ship]
+  ^-  ?
+  ?:  =(who ship.group)  &
+  =/  pax=path
+    /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/seats/(scot %p who)/is-admin/noun
+  .^(? %gx pax)
 ::
 ++  group-permissions
   |=  [group=flag:b =flag:b who=ship]

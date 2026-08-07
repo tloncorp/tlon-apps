@@ -426,21 +426,46 @@ test('createChannel creates a Bucket with independent reader and writer roles', 
   });
 });
 
-test('createChannel rejects Bucket creation by a non-host admin', async () => {
+test('createChannel lets a non-host admin create a group-hosted Bucket', async () => {
+  await insertGroup();
   vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~solfer-magfed');
-  const sendBucketsAction = vi.spyOn(api, 'sendBucketsAction');
+  const sendBucketsAction = vi
+    .spyOn(api, 'sendBucketsAction')
+    .mockResolvedValue(1);
+  vi.spyOn(api, 'getGroup').mockResolvedValue({
+    id: groupId,
+    channels: [
+      {
+        id: 'buckets/~zod/project-files',
+        title: 'Project files',
+        type: 'buckets',
+        groupId,
+        currentUserIsMember: true,
+        currentUserIsHost: false,
+      },
+    ],
+  } as unknown as db.Group);
 
-  await expect(
-    createChannel({
-      customSlug: 'project-files',
-      groupId,
-      title: 'Project files',
-      channelType: 'buckets',
-    })
-  ).rejects.toThrow(
-    'Buckets can currently be created only by the host of this group'
-  );
-  expect(sendBucketsAction).not.toHaveBeenCalled();
+  const channel = await createChannel({
+    customSlug: 'project-files',
+    groupId,
+    title: 'Project files',
+    channelType: 'buckets',
+  });
+
+  expect(sendBucketsAction).toHaveBeenCalledWith({
+    type: 'create',
+    group: { host: '~zod', name: 'stale-notify' },
+    name: 'project-files',
+    readers: [],
+    title: 'Project files',
+    writers: [],
+  });
+  expect(channel).toMatchObject({
+    id: 'buckets/~zod/project-files',
+    currentUserIsHost: false,
+    type: 'buckets',
+  });
 });
 
 test('joinGroupChannel routes notes channels through the notes API', async () => {

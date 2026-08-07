@@ -108,13 +108,14 @@ export function CreateChannelSheet({
   const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
   const { data: notesAvailable = false } = useNotesDeskAvailable();
   const { data: bucketsDeskAvailable = false } = useBucketsDeskAvailable();
-  const bucketsAvailable = bucketsDeskAvailable && group.currentUserIsHost;
+  const bucketsAvailable = bucketsDeskAvailable && isGroupAdmin;
   const channelTypes = useMemo(
     () => buildChannelTypes(notesAvailable, bucketsAvailable),
     [bucketsAvailable, notesAvailable]
   );
 
   const isPrivate = useWatch({ control, name: 'isPrivate' });
+  const selectedChannelType = useWatch({ control, name: 'channelType' });
 
   // Only toggles isPrivate without setting readers/writers because:
   // - If private: the user proceeds to CreateChannelPermissionsScreen to configure permissions
@@ -205,7 +206,9 @@ export function CreateChannelSheet({
           </ActionSheet.FormBlock>
           {isNonHostAdmin && (
             <ActionSheet.FormBlock>
-              <SystemNotices.NonHostAdminChannelNotice />
+              <SystemNotices.NonHostAdminChannelNotice
+                bucketHostedByGroup={selectedChannelType === 'buckets'}
+              />
             </ActionSheet.FormBlock>
           )}
           <ActionSheet.FormBlock>
