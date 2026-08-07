@@ -5,10 +5,12 @@ import {
   isGlassEffectAPIAvailable,
   isLiquidGlassAvailable,
 } from 'expo-glass-effect';
+import type { ReactNode } from 'react';
 import { ComponentProps, PropsWithChildren } from 'react';
 import {
   View as NativeView,
   StyleProp,
+  StyleSheet,
   ViewProps,
   ViewStyle,
 } from 'react-native';
@@ -19,6 +21,7 @@ type GlassSurfaceProps = PropsWithChildren<
     Pick<GlassViewProps, 'glassEffectStyle' | 'isInteractive' | 'tintColor'> & {
       fallbackStyle?: StyleProp<ViewStyle>;
       fallbackVisible?: boolean;
+      overlay?: ReactNode;
     }
 >;
 
@@ -33,6 +36,8 @@ export function GlassSurface({
   glassEffectStyle,
   isInteractive,
   tintColor,
+  children,
+  overlay,
   style,
   ...viewProps
 }: GlassSurfaceProps) {
@@ -44,18 +49,42 @@ export function GlassSurface({
         isInteractive={isInteractive}
         tintColor={tintColor}
         style={style}
-      />
+      >
+        {children}
+        {overlay}
+      </GlassView>
     );
   }
 
-  return fallbackVisible ? (
-    <BlurView
-      {...viewProps}
-      tint="systemMaterial"
-      intensity={90}
-      style={fallbackStyle ? [style, fallbackStyle] : style}
-    />
-  ) : null;
+  if (!fallbackVisible) {
+    return null;
+  }
+
+  if (!overlay) {
+    return (
+      <BlurView
+        {...viewProps}
+        tint="systemMaterial"
+        intensity={90}
+        style={fallbackStyle ? [style, fallbackStyle] : style}
+      >
+        {children}
+      </BlurView>
+    );
+  }
+
+  return (
+    <NativeView {...viewProps} style={style}>
+      <BlurView
+        pointerEvents="none"
+        tint="systemMaterial"
+        intensity={90}
+        style={[StyleSheet.absoluteFill, style, fallbackStyle]}
+      />
+      {children}
+      {overlay}
+    </NativeView>
+  );
 }
 
 export function GlassSurfaceGroup({

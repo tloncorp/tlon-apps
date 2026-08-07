@@ -455,9 +455,9 @@ function MessageInputChromeBody({
         tintColor={isEditing ? editingTintColor : undefined}
         style={inputChromeStyles.body}
         fallbackStyle={inputChromeStyles.clipped}
+        overlay={overlay}
       >
         {children}
-        {overlay}
       </GlassSurface>
     );
   }

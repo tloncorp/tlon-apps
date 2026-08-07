@@ -1,6 +1,13 @@
 import type { GlassView } from 'expo-glass-effect';
+import type { ReactNode } from 'react';
 import { ComponentProps, PropsWithChildren } from 'react';
-import { StyleProp, View, ViewProps, ViewStyle } from 'react-native';
+import {
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewProps,
+  ViewStyle,
+} from 'react-native';
 
 type GlassViewProps = ComponentProps<typeof GlassView>;
 type GlassSurfaceProps = PropsWithChildren<
@@ -8,6 +15,7 @@ type GlassSurfaceProps = PropsWithChildren<
     Pick<GlassViewProps, 'glassEffectStyle' | 'isInteractive' | 'tintColor'> & {
       fallbackStyle?: StyleProp<ViewStyle>;
       fallbackVisible?: boolean;
+      overlay?: ReactNode;
     }
 >;
 
@@ -18,15 +26,36 @@ export function GlassSurface({
   glassEffectStyle: _glassEffectStyle,
   isInteractive: _isInteractive,
   tintColor: _tintColor,
+  children,
+  overlay,
   style,
   ...viewProps
 }: GlassSurfaceProps) {
-  return fallbackVisible ? (
-    <View
-      {...viewProps}
-      style={fallbackStyle ? [style, fallbackStyle] : style}
-    />
-  ) : null;
+  if (!fallbackVisible) {
+    return null;
+  }
+
+  if (!overlay) {
+    return (
+      <View
+        {...viewProps}
+        style={fallbackStyle ? [style, fallbackStyle] : style}
+      >
+        {children}
+      </View>
+    );
+  }
+
+  return (
+    <View {...viewProps} style={style}>
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, style, fallbackStyle]}
+      />
+      {children}
+      {overlay}
+    </View>
+  );
 }
 
 export function GlassSurfaceGroup({
