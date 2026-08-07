@@ -72,7 +72,13 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       mode: options.mode ?? 'newest',
       filterDeleted: options.filterDeleted ?? false,
     } as UseChannelPostsPageParams;
-  }, [options]);
+  }, [
+    options.channelId,
+    options.cursorPostId,
+    options.filterDeleted,
+    options.firstPageCount,
+    options.mode,
+  ]);
 
   const placeholderData = useMemo(
     () =>

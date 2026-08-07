@@ -122,7 +122,7 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       !!anchor?.postId && timedOutAnchorId === anchor.postId;
     const anchorKey = getPostListAnchorKey(anchor);
     const {
-      mountKey: listMountKey,
+      mountKey: anchorResolutionMountKey,
       isAnchorReady: isInitialAnchorReady,
       shouldStartAnchorTimeout,
     } = getPostListInitialization({
@@ -131,16 +131,18 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       didTimeoutWaitingForAnchor,
       isLoading,
     });
+    const anchorScopeKey = `${channel.id}:${anchorKey ?? 'latest'}`;
+    const listMountKey = `${channel.id}:${anchorResolutionMountKey}`;
 
-    const currentAnchorKeyRef = React.useRef(anchorKey);
+    const currentAnchorScopeKeyRef = React.useRef(anchorScopeKey);
     React.useLayoutEffect(() => {
-      if (currentAnchorKeyRef.current === anchorKey) {
+      if (currentAnchorScopeKeyRef.current === anchorScopeKey) {
         return;
       }
 
-      currentAnchorKeyRef.current = anchorKey;
+      currentAnchorScopeKeyRef.current = anchorScopeKey;
       setTimedOutAnchorId(null);
-    }, [anchorKey]);
+    }, [anchorScopeKey]);
 
     const currentListMountKeyRef = React.useRef(listMountKey);
     React.useLayoutEffect(() => {
