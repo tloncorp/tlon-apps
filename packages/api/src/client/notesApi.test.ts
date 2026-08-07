@@ -1,3 +1,4 @@
+import { tryParse, valid } from '@urbit/aura';
 import {
   type Mock,
   afterEach,
@@ -13,10 +14,12 @@ import {
   NotesUnknownFolderError,
   NotesV1PendingWriteError,
   NotesV1WriteError,
+  batchImportNotesTreeV1,
   batchImportNotesV1,
   deleteNotesNotebookBestEffort,
   deleteNotesNotebookStrict,
   formatNotesFlag,
+  generateNotesRequestId,
   joinNotesChannel,
   joinNotesNotebook,
   leaveNotesChannel,
@@ -1506,5 +1509,152 @@ describe('batchImportNotesV1', () => {
     expect(err).toBeInstanceOf(NotesInvalidRequestIdError);
     expect(err.message).toMatch(/non-zero/);
     expect(requestJsonMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('batchImportNotesTreeV1', () => {
+  const mockFoldersThenImport = (
+    importResponse: unknown,
+    folderIds: number[] = [3, 7]
+  ) => {
+    requestJsonMock.mockImplementation((_path: string, method: string) =>
+      method === 'GET'
+        ? Promise.resolve(
+            folderIds.map((id) => ({
+              id,
+              name: `folder-${id}`,
+              parentFolderId: null,
+            }))
+          )
+        : Promise.resolve(importResponse)
+    );
+  };
+
+  test('sends the whole tree as one batch-import-tree action', async () => {
+    mockFoldersThenImport({ requestId: '0v1', body: { type: 'ok' } });
+
+    const tree = [
+      {
+        name: 'guide',
+        children: [
+          { title: 'intro', body: 'a' },
+          { name: 'deep', children: [{ title: 'nested', body: 'b' }] },
+        ],
+      },
+      { title: 'top', body: 'c' },
+    ];
+
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 7,
+        tree,
+        requestId: '0v1',
+      })
+    ).resolves.toBe('0v1');
+
+    expect(requestJsonMock).toHaveBeenLastCalledWith(
+      '/notes/~/v1',
+      'POST',
+      {
+        requestId: '0v1',
+        action: {
+          type: 'notebook',
+          flag: '~zod/blog',
+          action: { type: 'batch-import-tree', parent: 7, tree },
+        },
+      },
+      expect.anything()
+    );
+  });
+
+  test('rejects a parent folder the notebook does not have', async () => {
+    mockFoldersThenImport({ requestId: '0v1', body: { type: 'ok' } }, [3]);
+
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 99,
+        tree: [{ title: 'x', body: 'y' }],
+        requestId: '0v1',
+      })
+    ).rejects.toBeInstanceOf(NotesUnknownFolderError);
+  });
+
+  test('rejects invalid and zero request ids before any request', async () => {
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 7,
+        tree: [],
+        requestId: 'nope',
+      })
+    ).rejects.toBeInstanceOf(NotesInvalidRequestIdError);
+
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 7,
+        tree: [],
+        requestId: '0v0',
+      })
+    ).rejects.toBeInstanceOf(NotesInvalidRequestIdError);
+
+    expect(requestJsonMock).not.toHaveBeenCalled();
+  });
+
+  test('surfaces an error envelope rather than reporting success', async () => {
+    mockFoldersThenImport({
+      requestId: '0v1',
+      body: { type: 'error', errorType: 'not-authorized', message: 'nope' },
+    });
+
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 7,
+        tree: [{ title: 'x', body: 'y' }],
+        requestId: '0v1',
+      })
+    ).rejects.toThrow('%notes error');
+  });
+});
+
+describe('generateNotesRequestId', () => {
+  test('mints distinct, non-zero, parseable @uv ids', () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 50; i += 1) {
+      const requestId = generateNotesRequestId();
+      expect(valid('uv', requestId)).toBe(true);
+      expect(tryParse('uv', requestId)).not.toBe(0n);
+      seen.add(requestId);
+    }
+    expect(seen.size).toBe(50);
+  });
+
+  test('an id it mints is accepted by the write path that consumes it', async () => {
+    requestJsonMock.mockImplementation((_path: string, method: string) =>
+      method === 'GET'
+        ? Promise.resolve([{ id: 7, name: 'f', parentFolderId: null }])
+        : Promise.resolve({ requestId: '0vserver', body: { type: 'ok' } })
+    );
+
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 7,
+        tree: [{ title: 'x', body: 'y' }],
+        requestId: generateNotesRequestId(),
+      })
+    ).resolves.toBe('0vserver');
+  });
+
+  test('redraws when entropy would render the forbidden zero atom', () => {
+    const getRandomValues = vi
+      .spyOn(globalThis.crypto, 'getRandomValues')
+      .mockImplementationOnce(((array: Uint8Array) => array.fill(0)) as never);
+
+    expect(generateNotesRequestId()).not.toBe('0v0');
+    expect(getRandomValues.mock.calls.length).toBeGreaterThan(1);
   });
 });

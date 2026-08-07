@@ -630,6 +630,51 @@ export async function createNotebookFolder({
   });
 }
 
+/**
+ * Import a folder/note tree into a notebook in a single poke.
+ *
+ * The host walks the tree creating every folder and note, so the client
+ * neither loops nor waits: each created entity arrives as its own stream
+ * update and is applied by `applyNotesUpdate`. One sync afterwards closes
+ * the gap for anything that landed while unsubscribed, and gives the caller
+ * the created rows to report on.
+ */
+export async function importNotebookTree({
+  notebookFlag,
+  parentFolderId,
+  tree,
+}: {
+  notebookFlag: string;
+  parentFolderId: number;
+  tree: api.NotesImportNode[];
+}) {
+  if (tree.length === 0) {
+    return { noteCount: 0 };
+  }
+
+  await api.batchImportNotesTreeV1({
+    flag: notebookFlag,
+    parent: parentFolderId,
+    tree,
+    requestId: api.generateNotesRequestId(),
+  });
+
+  // The %ok envelope only carries the last of the many updates this poke
+  // emits, so converge on the stream's copies with one sync rather than
+  // trying to reconstruct the batch from the response.
+  await syncNotesNotebook(notebookFlag);
+
+  return { noteCount: countImportedNotes(tree) };
+}
+
+function countImportedNotes(tree: api.NotesImportNode[]): number {
+  return tree.reduce(
+    (total, node) =>
+      total + ('children' in node ? countImportedNotes(node.children) : 1),
+    0
+  );
+}
+
 export async function saveNotebookNote({
   notebookFlag,
   note,

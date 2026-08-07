@@ -1,4 +1,4 @@
-import { tryParse, valid } from '@urbit/aura';
+import { render, tryParse, valid } from '@urbit/aura';
 
 import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
@@ -1429,6 +1429,105 @@ export class NotesUnknownFolderError extends Error {
 // Batch-import submit over the v1 envelope
 // ===========================================================================
 
+/**
+ * A node in a `batch-import-tree` payload. The backend discriminates on the
+ * *presence of* `children` (lib/notes/json.hoon +import-node), so a folder
+ * must always carry the key — even empty — and a note must never carry it.
+ */
+export type NotesImportNode =
+  | { name: string; children: NotesImportNode[] }
+  | { title: string; body: string };
+
+/**
+ * Mint a request id for a batch import. `%notes` rejects the zero atom, and
+ * `renderUv` of all-zero entropy is exactly that, so redraw until non-zero.
+ */
+export function generateNotesRequestId(): string {
+  const source = globalThis.crypto;
+  if (!source?.getRandomValues) {
+    throw new Error(
+      'Cannot generate a %notes request id: no crypto.getRandomValues available'
+    );
+  }
+  let requestId: string;
+  do {
+    const bytes = source.getRandomValues(new Uint8Array(16));
+    let atom = 0n;
+    for (const byte of bytes) {
+      atom = (atom << 8n) | BigInt(byte);
+    }
+    requestId = render('uv', atom);
+  } while (requestId === '0v0');
+  return requestId;
+}
+
+function assertValidRequestId(requestId: string) {
+  const parsed = tryParse('uv', requestId);
+  if (!valid('uv', requestId) || parsed === null) {
+    throw new NotesInvalidRequestIdError(requestId);
+  }
+  if (parsed === 0n) {
+    throw new NotesInvalidRequestIdError(requestId, 'zero');
+  }
+}
+
+/**
+ * Import a whole folder/note tree in one poke. `se-batch-import-tree` walks
+ * the tree creating folders and notes as it goes, emitting a `%created`
+ * update per entity on the notebook stream — so the caller learns each new
+ * id from the stream, not from this response, whose `%ok` envelope carries
+ * only the last update.
+ */
+export async function batchImportNotesTreeV1({
+  flag,
+  parent,
+  tree,
+  requestId,
+}: {
+  flag: string;
+  parent: number;
+  tree: NotesImportNode[];
+  requestId: string;
+}): Promise<string> {
+  assertValidRequestId(requestId);
+
+  const normalized = normalizeNotesTarget(flag);
+  const canonicalFlag = formatNotesFlag(normalized);
+
+  // Same hazard as the flat batch import below: the parent id is assigned
+  // into top-level notes without being resolved, so a stale one would bury
+  // the whole import outside folder traversal.
+  const folders = await listFoldersV1(normalized, {
+    reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
+  });
+  if (!folders.some((existing) => existing.id === parent)) {
+    throw new NotesUnknownFolderError(canonicalFlag, parent);
+  }
+
+  const res = await requestJson(
+    NOTES_V1_PATH,
+    'POST',
+    {
+      requestId,
+      action: {
+        type: 'notebook' as const,
+        flag: canonicalFlag,
+        action: { type: 'batch-import-tree' as const, parent, tree },
+      },
+    },
+    { reauthStatuses: NOTES_AUTH_FAILURE_STATUSES }
+  );
+
+  const serverRequestId = envelopeRequestId(res);
+  if (!serverRequestId) {
+    throw new Error('%notes batch-import-tree response missing requestId');
+  }
+
+  assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
+
+  return serverRequestId;
+}
+
 export async function batchImportNotesV1({
   flag,
   folder,
@@ -1440,13 +1539,7 @@ export async function batchImportNotesV1({
   notes: { title: string; body: string }[];
   requestId: string;
 }): Promise<string> {
-  const parsedRequestId = tryParse('uv', requestId);
-  if (!valid('uv', requestId) || parsedRequestId === null) {
-    throw new NotesInvalidRequestIdError(requestId);
-  }
-  if (parsedRequestId === 0n) {
-    throw new NotesInvalidRequestIdError(requestId, 'zero');
-  }
+  assertValidRequestId(requestId);
 
   const normalized = normalizeNotesTarget(flag);
   const canonicalFlag = formatNotesFlag(normalized);

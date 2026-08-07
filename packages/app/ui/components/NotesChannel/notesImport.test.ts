@@ -7,6 +7,7 @@ import {
   getNotesImportTargetFolderId,
   makeUniqueNoteTitle,
   normalizeTitleKey,
+  planNotesImport,
   readNotesImportSourcesFromDataTransfer,
   selectNotesImportSources,
 } from './notesImport';
@@ -409,5 +410,170 @@ describe('notes import helpers', () => {
     );
 
     await expect(selectNotesImportSources('folder')).resolves.toBeNull();
+  });
+});
+
+describe('planNotesImport', () => {
+  const item = (relativePath: string, body = 'body') => {
+    const segments = relativePath.split('/');
+    const fileName = segments[segments.length - 1];
+    return {
+      body,
+      folderSegments: segments.slice(0, -1),
+      relativePath,
+      title: fileName.replace(/\.(md|markdown|txt)$/i, ''),
+    };
+  };
+
+  const plan = (
+    relativePaths: string[],
+    {
+      existingFolders = [],
+      existingNoteTitles = new Map<number, Set<string>>(),
+      targetRootFolderId = 1,
+    }: {
+      existingFolders?: {
+        folderId: number;
+        name: string;
+        parentFolderId: number | null;
+      }[];
+      existingNoteTitles?: Map<number, Set<string>>;
+      targetRootFolderId?: number;
+    } = {}
+  ) =>
+    planNotesImport({
+      items: relativePaths.map((path) => item(path)),
+      targetRootFolderId,
+      existingFolders,
+      existingNoteTitles,
+    });
+
+  test('flat files become one batch of notes under the target folder', () => {
+    expect(plan(['a.md', 'b.md'])).toEqual([
+      {
+        parentFolderId: 1,
+        tree: [
+          { title: 'a', body: 'body' },
+          { title: 'b', body: 'body' },
+        ],
+      },
+    ]);
+  });
+
+  test('a nested folder tree is a single batch, however deep', () => {
+    expect(
+      plan(['docs/guide/intro.md', 'docs/guide/setup.md', 'docs/top.md'])
+    ).toEqual([
+      {
+        parentFolderId: 1,
+        tree: [
+          {
+            name: 'docs',
+            children: [
+              {
+                name: 'guide',
+                children: [
+                  { title: 'intro', body: 'body' },
+                  { title: 'setup', body: 'body' },
+                ],
+              },
+              { title: 'top', body: 'body' },
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  test('an existing folder is reused as the anchor, not recreated', () => {
+    // The backend creates every folder in a tree unconditionally, so a path
+    // that already exists must be walked here or the import duplicates it.
+    const batches = plan(['docs/new.md'], {
+      existingFolders: [{ folderId: 5, name: 'docs', parentFolderId: 1 }],
+    });
+
+    expect(batches).toEqual([
+      { parentFolderId: 5, tree: [{ title: 'new', body: 'body' }] },
+    ]);
+  });
+
+  test('existing prefixes are walked to the deepest match', () => {
+    const batches = plan(['docs/guide/deep/note.md'], {
+      existingFolders: [
+        { folderId: 5, name: 'docs', parentFolderId: 1 },
+        { folderId: 6, name: 'guide', parentFolderId: 5 },
+      ],
+    });
+
+    expect(batches).toEqual([
+      {
+        parentFolderId: 6,
+        tree: [{ name: 'deep', children: [{ title: 'note', body: 'body' }] }],
+      },
+    ]);
+  });
+
+  test('items anchored to different existing folders split into one batch each', () => {
+    const batches = plan(['docs/a.md', 'notes/b.md', 'fresh/c.md'], {
+      existingFolders: [
+        { folderId: 5, name: 'docs', parentFolderId: 1 },
+        { folderId: 6, name: 'notes', parentFolderId: 1 },
+      ],
+    });
+
+    expect(batches).toEqual([
+      { parentFolderId: 5, tree: [{ title: 'a', body: 'body' }] },
+      { parentFolderId: 6, tree: [{ title: 'b', body: 'body' }] },
+      {
+        parentFolderId: 1,
+        tree: [{ name: 'fresh', children: [{ title: 'c', body: 'body' }] }],
+      },
+    ]);
+  });
+
+  test('titles colliding with existing notes in the anchor are made unique', () => {
+    const batches = plan(['note.md'], {
+      existingNoteTitles: new Map([[1, new Set(['note'])]]),
+    });
+
+    expect(batches[0].tree).toEqual([{ title: 'note (2)', body: 'body' }]);
+  });
+
+  test('titles colliding within a newly created folder are made unique', () => {
+    // Two source files can share a title inside one new folder; the folder
+    // being new means the existing-title map has nothing to say about it.
+    const batches = planNotesImport({
+      items: [
+        { ...item('new/dup.md'), title: 'dup' },
+        { ...item('new/dup.md'), title: 'dup' },
+      ],
+      targetRootFolderId: 1,
+      existingFolders: [],
+      existingNoteTitles: new Map(),
+    });
+
+    expect(batches[0].tree).toEqual([
+      {
+        name: 'new',
+        children: [
+          { title: 'dup', body: 'body' },
+          { title: 'dup (2)', body: 'body' },
+        ],
+      },
+    ]);
+  });
+
+  test('folder matching ignores case, mirroring the folder cache key', () => {
+    const batches = plan(['Docs/new.md'], {
+      existingFolders: [{ folderId: 5, name: 'docs', parentFolderId: 1 }],
+    });
+
+    expect(batches).toEqual([
+      { parentFolderId: 5, tree: [{ title: 'new', body: 'body' }] },
+    ]);
+  });
+
+  test('no items yields no batches', () => {
+    expect(plan([])).toEqual([]);
   });
 });

@@ -24,6 +24,7 @@ import {
   createNotebookNote,
   deleteNotebookFolder,
   deleteNotebookNote,
+  importNotebookTree,
   moveNotebookNote,
   noteIsPublished,
   publishNotebookNote,
@@ -1615,4 +1616,105 @@ test('createNotebookFolder returns the created folder from the response alone', 
 
   expect(folder).toMatchObject({ folderId: 8, name: 'Drafts' });
   expect(listFolders).not.toHaveBeenCalled();
+});
+
+test('importNotebookTree submits one poke for the whole tree', async () => {
+  await seedNotebook();
+  const child = makeNotesFolder(8, 'Imported', rootFolder.folderId);
+  const imported = makeNotesNote(20, child.folderId, 'Nested note');
+
+  const batchImport = vi
+    .spyOn(api, 'batchImportNotesTreeV1')
+    .mockResolvedValue('0vserver');
+  const createNote = vi.spyOn(api.notes, 'createNote');
+  const createFolder = vi.spyOn(api.notes, 'createFolder');
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+    makeApiNotesFolder(child),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
+    makeApiNotesNote(imported),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  const tree: api.NotesImportNode[] = [
+    {
+      name: 'Imported',
+      children: [
+        { title: 'Nested note', body: 'nested body' },
+        { title: 'Second note', body: 'second body' },
+      ],
+    },
+    { title: 'Top note', body: 'top body' },
+  ];
+
+  const result = await importNotebookTree({
+    notebookFlag,
+    parentFolderId: rootFolder.folderId,
+    tree,
+  });
+
+  expect(result).toEqual({ noteCount: 3 });
+  expect(batchImport).toHaveBeenCalledTimes(1);
+  expect(batchImport).toHaveBeenCalledWith(
+    expect.objectContaining({
+      flag: notebookFlag,
+      parent: rootFolder.folderId,
+      tree,
+    })
+  );
+  // Not one request per note or per folder.
+  expect(createNote).not.toHaveBeenCalled();
+  expect(createFolder).not.toHaveBeenCalled();
+
+  // The single trailing sync is what lands the created rows locally.
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: imported.noteId })
+  ).resolves.toMatchObject({ title: 'Nested note' });
+});
+
+test('importNotebookTree counts notes at every depth', async () => {
+  await seedNotebook();
+  vi.spyOn(api, 'batchImportNotesTreeV1').mockResolvedValue('0vserver');
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  const result = await importNotebookTree({
+    notebookFlag,
+    parentFolderId: rootFolder.folderId,
+    tree: [
+      {
+        name: 'a',
+        children: [
+          { title: 'one', body: '' },
+          { name: 'b', children: [{ title: 'two', body: '' }] },
+          { name: 'empty', children: [] },
+        ],
+      },
+      { title: 'three', body: '' },
+    ],
+  });
+
+  expect(result).toEqual({ noteCount: 3 });
+});
+
+test('importNotebookTree does nothing for an empty tree', async () => {
+  const batchImport = vi.spyOn(api, 'batchImportNotesTreeV1');
+  const getNotebook = vi.spyOn(api.notes, 'getNotebook');
+
+  await expect(
+    importNotebookTree({
+      notebookFlag,
+      parentFolderId: rootFolder.folderId,
+      tree: [],
+    })
+  ).resolves.toEqual({ noteCount: 0 });
+
+  expect(batchImport).not.toHaveBeenCalled();
+  expect(getNotebook).not.toHaveBeenCalled();
 });
