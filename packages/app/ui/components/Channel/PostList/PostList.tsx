@@ -137,6 +137,16 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       }
 
       currentAnchorKeyRef.current = anchorKey;
+      setTimedOutAnchorId(null);
+    }, [anchorKey]);
+
+    const currentListMountKeyRef = React.useRef(listMountKey);
+    React.useLayoutEffect(() => {
+      if (currentListMountKeyRef.current === listMountKey) {
+        return;
+      }
+
+      currentListMountKeyRef.current = listMountKey;
       didStartInitialScrollRef.current = false;
       if (initialScrollFrameRef.current !== undefined) {
         cancelAnimationFrame(initialScrollFrameRef.current);
@@ -145,8 +155,7 @@ const ConversationPostList: PostListComponent = React.forwardRef(
       setDidFinishInitialScroll(false);
       userHasScrolledRef.current = false;
       appliedAnchorPositionRef.current = undefined;
-      setTimedOutAnchorId(null);
-    }, [anchorKey]);
+    }, [listMountKey]);
 
     React.useEffect(() => {
       const anchorId = anchor?.postId;
@@ -216,10 +225,10 @@ const ConversationPostList: PostListComponent = React.forwardRef(
         return;
       }
       didStartInitialScrollRef.current = true;
-      const loadedAnchorKey = anchorKey;
+      const loadedListMountKey = listMountKey;
       void applyAnchorPosition()
         .then(() => {
-          if (currentAnchorKeyRef.current !== loadedAnchorKey) {
+          if (currentListMountKeyRef.current !== loadedListMountKey) {
             return;
           }
           finishInitialScroll();
@@ -228,10 +237,10 @@ const ConversationPostList: PostListComponent = React.forwardRef(
           // Navigation can cancel the scroll while the list is unmounting.
         });
     }, [
-      anchorKey,
       applyAnchorPosition,
       finishInitialScroll,
       isInitialAnchorReady,
+      listMountKey,
     ]);
     // onLoad fires before LegendList's post-load buffer expansion has laid out.
     // Wait through that expansion so the exact target uses settled row sizes.

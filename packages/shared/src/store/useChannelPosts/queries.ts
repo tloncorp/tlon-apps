@@ -4,8 +4,12 @@ import * as db from '../../db';
 
 export const queryKeyPrefix = ['channelPosts'];
 
-export function getLatestChannelPostsFirstPage<TPage, TPageParam = unknown>(
-  queryKey: readonly unknown[]
+export function getLatestChannelPostsInitialPage<
+  TPage,
+  TPageParam extends { mode?: unknown; cursorPostId?: unknown },
+>(
+  queryKey: readonly unknown[],
+  initialPageParam: TPageParam
 ): InfiniteData<TPage, TPageParam> | undefined {
   let latestMountTime = -1;
   let latestData: InfiniteData<TPage, TPageParam> | undefined;
@@ -28,13 +32,27 @@ export function getLatestChannelPostsFirstPage<TPage, TPageParam = unknown>(
     }
   }
 
-  return latestData
-    ? {
-        ...latestData,
-        pages: latestData.pages.slice(0, 1),
-        pageParams: latestData.pageParams.slice(0, 1),
-      }
-    : undefined;
+  if (!latestData) {
+    return undefined;
+  }
+
+  const initialPageIndex = latestData.pageParams.findIndex(
+    (pageParam) =>
+      pageParam.mode === initialPageParam.mode &&
+      pageParam.cursorPostId === initialPageParam.cursorPostId
+  );
+  if (initialPageIndex === -1) {
+    return undefined;
+  }
+
+  return {
+    ...latestData,
+    pages: latestData.pages.slice(initialPageIndex, initialPageIndex + 1),
+    pageParams: latestData.pageParams.slice(
+      initialPageIndex,
+      initialPageIndex + 1
+    ),
+  };
 }
 
 export const clearChannelPostsQueries = () => {

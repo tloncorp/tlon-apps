@@ -16,7 +16,7 @@ import * as sync from '../sync';
 import { SyncPriority } from '../syncQueue';
 import { useDetectSequenceRegression } from '../useDetectSequenceRegression';
 import { mergePendingPosts } from '../useMergePendingPosts';
-import { getLatestChannelPostsFirstPage, queryKeyPrefix } from './queries';
+import { getLatestChannelPostsInitialPage, queryKeyPrefix } from './queries';
 import { useDeletedPosts, useNewPostListener } from './subscriptions';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
@@ -64,12 +64,6 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     [queryKeyWithoutMountTime, mountTime]
   );
 
-  const placeholderData = useMemo(
-    () =>
-      getLatestChannelPostsFirstPage<PostQueryPage>(queryKeyWithoutMountTime),
-    [queryKeyWithoutMountTime]
-  );
-
   const initialPageParam = useMemo(() => {
     return {
       count: options.firstPageCount,
@@ -79,6 +73,15 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       filterDeleted: options.filterDeleted ?? false,
     } as UseChannelPostsPageParams;
   }, [options]);
+
+  const placeholderData = useMemo(
+    () =>
+      getLatestChannelPostsInitialPage<PostQueryPage, PageParam>(
+        queryKeyWithoutMountTime,
+        initialPageParam
+      ),
+    [initialPageParam, queryKeyWithoutMountTime]
+  );
 
   const abortControllerRef = useRef<AbortController | null>(
     new AbortController()
