@@ -474,6 +474,8 @@ explanatory error). Deprecated diary channels are unmanaged by the CLI except
 through the owner-run `tlon notes migrate-plan <diary-nest>` and
 `tlon notes migrate-apply <diary-nest> --yes` paths.
 
+Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported.
+
 ### Notes
 
 Manage %notes notebooks (Markdown-first). Notebooks are nests of the form
