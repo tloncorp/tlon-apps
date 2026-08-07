@@ -135,8 +135,17 @@ describe('cron creation', () => {
     expect(service.add).toHaveBeenCalledTimes(1);
     expect(service.add.mock.calls[0]![0]).toMatchObject({
       sessionTarget: 'isolated',
-      payload: { kind: 'agentTurn' },
+      payload: {
+        kind: 'agentTurn',
+        text: expect.stringContaining('Mycology'),
+        message: expect.stringContaining('Mycology'),
+      },
     });
+    const addedPayload = service.add.mock.calls[0]![0].payload as {
+      text?: string;
+      message?: string;
+    };
+    expect(addedPayload.message).toBe(addedPayload.text);
     expect(trace).toHaveBeenCalledWith(
       expect.objectContaining({
         operation: 'add_job',

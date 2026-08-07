@@ -296,6 +296,15 @@ export async function ensureDeterministicCronJob(params: {
   const addStartedAt = Date.now();
   trace?.({ operation: 'add_job', outcome: 'started' });
   try {
+    const prompt = fill(template.prompt, params.topics);
+    // Older plugin SDKs consume `text`; newer cron persistence requires
+    // `message`. Keep both fields for cross-version compatibility.
+    const payload = {
+      kind: 'agentTurn',
+      text: prompt,
+      message: prompt,
+    };
+
     await cron.add({
       name: fill(template.title, params.topics),
       description,
@@ -307,10 +316,7 @@ export async function ensureDeterministicCronJob(params: {
       },
       sessionTarget: 'isolated',
       wakeMode: 'now',
-      payload: {
-        kind: 'agentTurn',
-        text: fill(template.prompt, params.topics),
-      },
+      payload,
     });
     trace?.({
       operation: 'add_job',
