@@ -1,7 +1,10 @@
+import { tryParse, valid } from '@urbit/aura';
+
 import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
 import { formatUd } from './apiUtils';
 import {
+  type RequestJsonOptions,
   poke,
   requestJson,
   scry,
@@ -399,8 +402,10 @@ export class NotesV1PendingWriteError extends Error {
   }
 }
 
+const NOTES_V1_PATH = '/notes/~/v1';
 const NOTEBOOKS_V1_PATH = '/notes/~/v1/notebooks';
 const REQUESTS_V1_PATH = '/notes/~/v1/request';
+const NOTES_AUTH_FAILURE_STATUSES = [401, 403] as const;
 
 function notebookV1Path(flag: NotesFlag): string {
   return `${NOTEBOOKS_V1_PATH}/${flag.host}/${flag.name}`;
@@ -719,7 +724,10 @@ function errorMessageText(raw: any): string {
 }
 
 function notesEnvelopeErrorMessage(body: any): string {
-  const detail = errorMessageText(body?.message);
+  const message = errorMessageText(body?.message);
+  const errorType =
+    typeof body?.errorType === 'string' ? body.errorType.trim() : '';
+  const detail = message || errorType;
   return `%notes error: ${detail || 'backend returned an error without details'}`;
 }
 
@@ -805,16 +813,36 @@ function unwrapNotebookEnvelope(
   }
 }
 
-// Void writes: a *present* envelope body must be ok/no-change/notebook (else
-// error/pending/unexpected throw). A bare/empty non-envelope JSON body (e.g. a
-// folder object from a convenience route) is accepted and ignored —
-// `requestJson` already throws on HTTP failure.
-function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
-  const body = res?.body;
-  if (!body || typeof body.type !== 'string') {
-    return;
+function describeNotesResponseValue(value: unknown): string {
+  if (value === undefined) {
+    return 'undefined';
   }
-  switch (body.type) {
+  return JSON.stringify(value) ?? String(value);
+}
+
+// Void writes: in the current backend every v1 write response is an envelope
+// whose `body` carries a string `type`. `response:v1:enjs`
+// (desk/lib/notes/json.hoon) emits one for all six variants, and every write —
+// the envelope POST (`handle-v1-post`) and the REST convenience routes
+// (`handle-v1-write`) — funnels through `dispatch-v1-action` →
+// `finalize-request`/`finalize-pending` → `give-http-response`
+// (desk/app/notes.hoon). A missing or typeless body is therefore a protocol
+// violation, not a shape to tolerate. ok/no-change/notebook succeed;
+// everything else throws. `requestJson` has already rejected any non-200.
+function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
+  const body: unknown = res?.body;
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new Error(
+      `Unexpected %notes write response body: ${describeNotesResponseValue(body)}`
+    );
+  }
+  const type = (body as Record<string, unknown>).type;
+  if (typeof type !== 'string') {
+    throw new Error(
+      `Unexpected %notes write response body.type: ${describeNotesResponseValue(type)} (body: ${describeNotesResponseValue(body)})`
+    );
+  }
+  switch (type) {
     case 'ok':
     case 'no-change':
     case 'notebook':
@@ -824,7 +852,9 @@ function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
     case 'pending':
       throw pendingWriteError(res, checks);
     default:
-      throw new Error(`Unexpected %notes response type: ${body.type}`);
+      throw new Error(
+        `Unexpected %notes response type: ${describeNotesResponseValue(type)}`
+      );
   }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -1028,9 +1058,12 @@ async function listNoteHistoryV1({
 
 // --- folder helpers --------------------------------------------------------
 
-async function listFoldersV1(target: NotesTarget): Promise<NotesV1Folder[]> {
+async function listFoldersV1(
+  target: NotesTarget,
+  options?: RequestJsonOptions
+): Promise<NotesV1Folder[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(foldersV1Path(flag), 'GET');
+  const res = await requestJson(foldersV1Path(flag), 'GET', undefined, options);
   return requireArray(res, normalizeFolderV1);
 }
 
@@ -1194,6 +1227,98 @@ async function listMembers(target: NotesTarget): Promise<NotesMember[]> {
   return rawMembers.flatMap((member) => toClientNotesMembers(target, member));
 }
 
+export class NotesInvalidRequestIdError extends Error {
+  readonly requestId: string;
+
+  constructor(requestId: string, reason: 'invalid' | 'zero' = 'invalid') {
+    super(
+      reason === 'zero'
+        ? `Invalid @uv request id: ${requestId}; request id must be non-zero`
+        : `Invalid @uv request id: ${requestId}`
+    );
+    this.name = 'NotesInvalidRequestIdError';
+    this.requestId = requestId;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export class NotesUnknownFolderError extends Error {
+  readonly flag: string;
+  readonly folderId: number;
+
+  constructor(flag: string, folderId: number) {
+    super(`%notes folder ${folderId} does not exist in ${flag}`);
+    this.name = 'NotesUnknownFolderError';
+    this.flag = flag;
+    this.folderId = folderId;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+// ===========================================================================
+// Batch-import submit over the v1 envelope
+// ===========================================================================
+
+export async function batchImportNotesV1({
+  flag,
+  folder,
+  notes,
+  requestId,
+}: {
+  flag: string;
+  folder: number;
+  notes: { title: string; body: string }[];
+  requestId: string;
+}): Promise<string> {
+  const parsedRequestId = tryParse('uv', requestId);
+  if (!valid('uv', requestId) || parsedRequestId === null) {
+    throw new NotesInvalidRequestIdError(requestId);
+  }
+  if (parsedRequestId === 0n) {
+    throw new NotesInvalidRequestIdError(requestId, 'zero');
+  }
+
+  const normalized = normalizeNotesTarget(flag);
+  const canonicalFlag = formatNotesFlag(normalized);
+
+  // %notes se-batch-import assigns the folder id into every imported note
+  // without resolving it (unlike se-create-note), so a stale id would
+  // persist a whole batch of notes invisible to folder traversal. Resolve
+  // it here before submitting; the backend-side check is TLON-6307.
+  const folders = await listFoldersV1(normalized, {
+    reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
+  });
+  if (!folders.some((existing) => existing.id === folder)) {
+    throw new NotesUnknownFolderError(canonicalFlag, folder);
+  }
+
+  const body = {
+    requestId,
+    action: {
+      type: 'notebook' as const,
+      flag: canonicalFlag,
+      action: {
+        type: 'batch-import' as const,
+        folder,
+        notes,
+      },
+    },
+  };
+
+  const res = await requestJson(NOTES_V1_PATH, 'POST', body, {
+    reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
+  });
+
+  const serverRequestId = envelopeRequestId(res);
+  if (!serverRequestId) {
+    throw new Error('%notes batch-import response missing requestId');
+  }
+
+  assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
+
+  return serverRequestId;
+}
+
 async function listPublished(): Promise<NotesPublishedRecord[]> {
   const rawPublished = await scry({
     app: 'notes',
@@ -1241,6 +1366,7 @@ export type NotesV1Api = {
   listNotes: typeof listNotesV1;
   getNote: typeof getNoteV1;
   createNote: typeof createNoteV1;
+  batchImport: typeof batchImportNotesV1;
   updateNoteBody: typeof updateNoteBodyV1;
   renameNote: typeof renameNoteV1;
   moveNote: typeof moveNoteV1;
@@ -1264,6 +1390,7 @@ export type NotesApi = {
   listNotes: typeof listNotes;
   getNote: typeof getNote;
   createNote: typeof createNoteV1;
+  batchImport: typeof batchImportNotesV1;
   updateNoteBody: typeof updateNoteBodyV1;
   renameNote: typeof renameNoteV1;
   moveNote: typeof moveNoteV1;
@@ -1290,6 +1417,7 @@ export const notesV1: NotesV1Api = {
   listNotes: listNotesV1,
   getNote: getNoteV1,
   createNote: createNoteV1,
+  batchImport: batchImportNotesV1,
   updateNoteBody: updateNoteBodyV1,
   renameNote: renameNoteV1,
   moveNote: moveNoteV1,
@@ -1313,6 +1441,7 @@ export const notes: NotesApi = {
   listNotes,
   getNote,
   createNote: createNoteV1,
+  batchImport: batchImportNotesV1,
   updateNoteBody: updateNoteBodyV1,
   renameNote: renameNoteV1,
   moveNote: moveNoteV1,

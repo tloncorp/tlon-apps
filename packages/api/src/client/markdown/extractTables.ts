@@ -163,7 +163,7 @@ function inlineDataToMarkdown(inline: InlineData): string {
 
 const tableProcessor = unified()
   .use(remarkParse)
-  .use(remarkGfm)
+  .use(remarkGfm, { singleTilde: false })
   .use(remarkShipMentions)
   .use(remarkGroupMentions);
 
