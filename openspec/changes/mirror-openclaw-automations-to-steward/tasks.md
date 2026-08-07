@@ -1,7 +1,7 @@
 ## 1. Automation Contract and Conversions
 
 - [x] 1.1 Finalize the v1 automation types for supported task definitions, automation state, complete `%project` actions, and task-list updates, excluding cron job state and execution events.
-- [ ] 1.2 Complete the Hoon millisecond, date, and duration conversions required by supported schedule and timestamp fields.
+- [x] 1.2 Complete the Hoon millisecond, date, and duration conversions required by supported schedule and timestamp fields.
 - [ ] 1.3 Extend conversion tests with boundary, round-trip, optional-field, and supported-schedule cases.
 
 ## 2. Steward State, Storage, and JSON API
