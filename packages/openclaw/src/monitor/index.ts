@@ -1099,6 +1099,25 @@ export async function monitorTlonProvider(
       }
     };
     const MAX_NOTEBOOK_ENTRY_NUDGES = 3;
+    /**
+     * When the last notebook directive was handed to the agent.
+     *
+     * The entry directive does four things in order — write the note,
+     * record the nest, rename the group, make the icon — and the first two
+     * are the ones the closing watches for. System directives aren't
+     * tracked as in-flight turns, so the config rewrite could wake this
+     * sweep and post the invite, services and follow-up cards while the
+     * same turn was still choosing a name. The cards are the last word of
+     * the setup; they shouldn't arrive mid-sentence.
+     */
+    const notebookDirectiveSentAt = new Map<string, number>();
+    /**
+     * How long the closing holds after a directive, so the finishing
+     * touches riding at its end have room to land. A ceiling, not a delay:
+     * in the ordinary case the turn spends longer than this writing the
+     * note, so the grace has already elapsed by the time the nest appears.
+     */
+    const FINISHING_TOUCHES_GRACE_MS = 45_000;
 
     /**
      * The newest post in `notesNest` — its id, or null for an empty
@@ -1147,8 +1166,19 @@ export async function monitorTlonProvider(
     /** True once `notesNest` holds an entry newer than this setup's baseline. */
     const notebookHasNewEntry = (
       nest: string,
-      state: { readable: true; newestId: string | null }
+      state: { readable: true; newestId: string | null },
+      nestRecorded: boolean
     ): boolean => {
+      if (nestRecorded && state.newestId !== null) {
+        // Durable evidence beats the in-memory baseline, and after a
+        // restart it is the only evidence there is. "outputNest" is
+        // recorded only once the day-one entry has landed, so a recorded
+        // nest over a non-empty notebook means the write happened — while
+        // a fresh process, seeing that notebook for the first time, would
+        // take the entry itself as its baseline, conclude nothing new had
+        // been written, and ask for the day-one note a second time.
+        return true;
+      }
       if (!notebookBaselines.has(nest)) {
         notebookBaselines.set(nest, state.newestId);
       }
@@ -1235,7 +1265,7 @@ export async function monitorTlonProvider(
       if (!state.readable) {
         return;
       }
-      if (notebookHasNewEntry(nest, state)) {
+      if (notebookHasNewEntry(nest, state, jobRecordsOutputNest(job))) {
         // The note is there. If the config never recorded the nest, ask for
         // that alone — the closing is holding on it, and re-sending the
         // entry directive would invite a duplicate of a note that landed.
@@ -1248,6 +1278,7 @@ export async function monitorTlonProvider(
             )
           ) {
             notebookEntryNudges.set(nest, nudges + 1);
+            notebookDirectiveSentAt.set(nest, Date.now());
             runtime.log?.(
               `[tlon] Asked for "outputNest" to be recorded in ${nest} (${nudges + 1}/${MAX_NOTEBOOK_ENTRY_NUDGES})`
             );
@@ -1265,6 +1296,7 @@ export async function monitorTlonProvider(
         // Recorded only after the enqueue is accepted, so a missing route
         // doesn't burn one of the few asks this entry gets.
         notebookEntryNudges.set(nest, nudges + 1);
+        notebookDirectiveSentAt.set(nest, Date.now());
         runtime.log?.(
           `[tlon] Asked for the day-one entry in ${notesNest} (${nudges + 1}/${MAX_NOTEBOOK_ENTRY_NUDGES})`
         );
@@ -1318,14 +1350,29 @@ export async function monitorTlonProvider(
       // Measured against the baseline, not against emptiness: entries that
       // predate this setup are somebody else's writing and must not release
       // the cards.
-      if (state.readable && notebookHasNewEntry(nest, state)) {
+      const recordedNest = jobRecordsOutputNest(
+        firstConfiguredJob(group.description)
+      );
+      if (state.readable && notebookHasNewEntry(nest, state, recordedNest)) {
         // The entry alone isn't the finish line. Later runs resolve their
         // output through the job's "outputNest", and the payload rule sends
         // a run with none recorded to chat — so releasing here on a failed
         // config rewrite gives the owner a notebook with one note in it and
         // every morning after that in the chat channel. Hold while the
         // driver asks for the nest; the bounded wait still lets go.
-        if (jobRecordsOutputNest(firstConfiguredJob(group.description))) {
+        if (recordedNest) {
+          // The nest is recorded, which means the directive got at least as
+          // far as its third step — but the rename and the icon ride at its
+          // end, and nothing marks that turn as running. Give it the grace
+          // window before the cards close the conversation over it.
+          const sentAt = notebookDirectiveSentAt.get(nest);
+          if (sentAt && Date.now() - sentAt < FINISHING_TOUCHES_GRACE_MS) {
+            emptyNotebookWaits.set(nest, waits + 1);
+            runtime.log?.(
+              `[tlon] Holding the closing in ${nest}: letting the entry turn finish the name and icon (${waits + 1}/${MAX_EMPTY_NOTEBOOK_WAITS})`
+            );
+            return true;
+          }
           emptyNotebookWaits.delete(nest);
           return false;
         }
@@ -5366,7 +5413,17 @@ export async function monitorTlonProvider(
             );
             if (!botSpoke) {
               const groupNow = await findGroupForChannel(api, nest, runtime);
-              if (!descriptionHasConfiguredJob(groupNow?.description)) {
+              if (!groupNow) {
+                // Unreadable is not the same as unconfigured. A transient
+                // scry failure here used to look exactly like "the setup
+                // wrote nothing", re-arming a setup whose job had in fact
+                // landed — so the owner's next ordinary message was eaten
+                // as a fresh topics reply and the whole build ran twice.
+                // The invite-pending sweep retries this reading anyway.
+                runtime.log?.(
+                  `[tlon] Could not read ${nest}'s group after a silent setup turn — leaving its state as is`
+                );
+              } else if (!descriptionHasConfiguredJob(groupNow.description)) {
                 onboardingSetupPending.set(nest, pendingSetupPurpose);
                 runtime.log?.(
                   `[tlon] Setup turn in ${nest} produced no reply — re-arming the topics setup`
