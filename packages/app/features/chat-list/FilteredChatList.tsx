@@ -14,7 +14,6 @@ import { getTokenValue } from 'tamagui';
 
 import { TabName, useFilteredChats } from '../../hooks/useFilteredChats';
 import { useResolvedChats } from '../../hooks/useResolvedChats';
-import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
 import { ChatListItem, SectionListHeader, Text, View } from '../../ui';
 import {
   ChatListItemData,
@@ -43,7 +42,6 @@ export const FilteredChatList = React.memo(
     { searchQuery, listType, listProps, onPressItem },
     ref
   ) {
-    const bottomContentInset = useTopLevelTabBarContentInset();
     const listRef = useRef<FlashListRef<ChatListItemData>>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -173,9 +171,9 @@ export const FilteredChatList = React.memo(
     const contentContainerStyle = useMemo(
       () => ({
         padding: getTokenValue('$l', 'size'),
-        paddingBottom: bottomContentInset,
+        paddingBottom: 100, // bottom nav height + some cushion
       }),
-      [bottomContentInset]
+      []
     );
 
     return (

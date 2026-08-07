@@ -111,17 +111,6 @@ export function parseGroupAgentConfig(
 }
 
 /**
- * True once the group's agent config records a job. In deterministic
- * onboarding this means the scheduler has been verified and the client may
- * create the notebook; completion is tracked separately below.
- */
-export function groupHasConfiguredJob(
-  description: string | null | undefined
-): boolean {
-  return (parseGroupAgentConfig(description)?.jobs.length ?? 0) > 0;
-}
-
-/**
  * The guided first-run flow is complete only once its coordinator has
  * verified the notebook write. Legacy configs predate coordinator state, so
  * their existing jobs-present signal remains the compatibility fallback.

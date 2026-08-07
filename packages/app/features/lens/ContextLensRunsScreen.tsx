@@ -7,7 +7,7 @@ import { useCallback, useMemo } from 'react';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   ScreenHeader,
-  ScreenScrollView,
+  ScrollView,
   SizableText,
   View,
   XStack,
@@ -71,9 +71,8 @@ export function ContextLensRunsScreen(props: Props) {
         title={channelId ? 'Bot runs in this channel' : 'Bot runs'}
         backAction={props.navigation.goBack}
         borderBottom
-        placement="navigation"
       />
-      <ScreenScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         <YStack gap="$xs" padding="$l" paddingBottom="$2xl">
           {rows.map((row) => {
             const tone = TONE_COLORS[statusTone(row.lens.status)];
@@ -152,7 +151,7 @@ export function ContextLensRunsScreen(props: Props) {
             </YStack>
           ) : null}
         </YStack>
-      </ScreenScrollView>
+      </ScrollView>
     </YStack>
   );
 }

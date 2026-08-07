@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process';
-import { readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,10 +25,6 @@ import {
   resetTlonCronObservability,
 } from './src/cron-observability.js';
 import {
-  isHomeGroupOnboardingSessionKey,
-  sanitizeCronToolParams,
-} from './src/cron-params.js';
-import {
   clearCronServiceAccessor,
   handleCronChangedEvent,
   setCronServiceAccessor,
@@ -42,7 +37,6 @@ import { registerGatewayStatusHooks } from './src/gateway-status-registration.js
 import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import {
-  clearOnboardingOperations,
   disarmOnboardingResearchSession,
   isOnboardingResearchSession,
   setOnboardingCommandRunner,
@@ -66,12 +60,10 @@ import {
   reportSessionTurnCreated,
   reportTelemetryError,
 } from './src/telemetry.js';
-import { repairTlonCommandArgs } from './src/tlon-arg-repair.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import {
   findTlonSubcommandIndex,
   shellSplitCommand,
-  stripTlonBinaryPrefix,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
 import {
@@ -1088,12 +1080,7 @@ export default defineBundledChannelEntry({
       },
       async execute(_id: string, params: { command: string }) {
         try {
-          // Stripped before anything reads it: the CLI takes args[0] as its
-          // command, so a documented `tlon groups update ...` that passes the
-          // guard below would still die inside the CLI as `Unknown command:
-          // tlon`. One strip here keeps the guard, the repair and the spawn
-          // looking at the same argv.
-          const args = stripTlonBinaryPrefix(shellSplitCommand(params.command));
+          const args = shellSplitCommand(params.command);
 
           const subIdx = findTlonSubcommandIndex(args);
           const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
@@ -1118,35 +1105,9 @@ export default defineBundledChannelEntry({
             };
           }
 
-          // No shell runs between the model's command string and the CLI
-          // spawn, so do what the model meant: expand `$(cat <file>)`
-          // arguments here, and refuse a --description the tokenizer (or a
-          // missed expansion) has mangled — the CLI would otherwise store
-          // it and silently un-recognize the group's agent config.
-          const repaired = repairTlonCommandArgs(args, {
-            readFile: (path) => readFileSync(path, 'utf8'),
-            realpath: (path) => realpathSync(path),
+          const output = await runTlonCommand(tlonBinary, args, credentials, {
+            timeoutMs: toolTimeoutMs,
           });
-          if (!repaired.ok) {
-            return {
-              content: [{ type: 'text' as const, text: repaired.error }],
-              details: { error: true },
-            };
-          }
-          if (repaired.expandedPaths.length > 0) {
-            api.logger.info(
-              `[tlon] Expanded file substitution(s) in tlon command: ${repaired.expandedPaths.join(', ')}`
-            );
-          }
-
-          const output = await runTlonCommand(
-            tlonBinary,
-            repaired.args,
-            credentials,
-            {
-              timeoutMs: toolTimeoutMs,
-            }
-          );
           return {
             content: [{ type: 'text' as const, text: output }],
             details: undefined,
@@ -1280,28 +1241,6 @@ export default defineBundledChannelEntry({
             },
           })
         );
-      }
-
-      // Strip the empty filler models put in cron calls, before the
-      // scheduler rejects the call or stores a job that can't work.
-      // See sanitizeCronToolParams.
-      if (event.toolName === 'cron' && !isBlocked) {
-        const repaired = sanitizeCronToolParams(event.params, {
-          // Hosted production does not run conditional trigger scripts. The
-          // model nevertheless adds one to ordinary first-run schedules, so
-          // remove it only in the deterministic home-group setup session.
-          // Conditional requests elsewhere still reach the host's explicit
-          // unsupported-feature refusal; they never become unconditional jobs.
-          stripUnsupportedOnboardingTrigger: isHomeGroupOnboardingSessionKey(
-            ctx.sessionKey
-          ),
-        });
-        if (repaired) {
-          api.logger.info(
-            '[tlon] Repaired a cron call: dropped unsupported or empty parameters the scheduler rejects.'
-          );
-          return { params: repaired };
-        }
       }
 
       if (!isOwnerOnlyTool && !blockedByResearchBoundary) {
@@ -1478,7 +1417,8 @@ export default defineBundledChannelEntry({
     });
     api.on('gateway_stop', () => {
       clearCronServiceAccessor();
-      clearOnboardingOperations();
+      // Do not clear shared onboarding callbacks here. OpenClaw can deliver a
+      // stale registry's stop after a newer registry is already active.
       resetTlonCronObservability();
     });
 

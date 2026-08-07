@@ -2,6 +2,8 @@ import { useAsyncStorageDevTools } from '@dev-plugins/async-storage';
 import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
 import {
+  DarkTheme,
+  DefaultTheme,
   NavigationContainer,
   NavigationContainerRefWithCurrent,
   NavigationState,
@@ -11,14 +13,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRequiredUpdate } from '@tloncorp/app/hooks/useRequiredUpdate';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
-import { useAppNavigationTheme } from '@tloncorp/app/navigation/useAppNavigationTheme';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
@@ -151,13 +152,13 @@ const MainApp = () => {
           </View>
         ) : showSplashSequence ? (
           <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-            {activeSplashSequenceMode !== 'tlonbotRevival' ? (
+            {activeSplashSequenceMode === 'tlonbotRevival' ? (
+              splash
+            ) : (
               <AgentOnboardingSequence
                 onCompleted={handleClearSplash}
                 fallback={splash}
               />
-            ) : (
-              splash
             )}
           </AppDataProvider>
         ) : showAuthenticatedApp ? (
@@ -192,25 +193,10 @@ export function ConnectedAppContent({
 }: {
   migrationState: MigrationState;
 }) {
-  const splashIsHidden = useSplashHider();
-
-  return (
-    <FeatureFlagConnectedInstrumentationProvider>
-      <BaseProviderStack migrationState={migrationState}>
-        <ConnectedNavigationContent splashIsHidden={splashIsHidden} />
-      </BaseProviderStack>
-    </FeatureFlagConnectedInstrumentationProvider>
-  );
-}
-
-function ConnectedNavigationContent({
-  splashIsHidden,
-}: {
-  splashIsHidden: boolean;
-}) {
-  const navigationTheme = useAppNavigationTheme();
+  const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
   const routeNameRef = useRef<string>(undefined);
+  const splashIsHidden = useSplashHider();
   const navigationLogging = useNavigationLogging();
 
   const onReady = () => {
@@ -236,27 +222,31 @@ function ConnectedNavigationContent({
   };
 
   return (
-    <NavigationContainer
-      theme={navigationTheme}
-      ref={navigationContainerRef}
-      onReady={onReady}
-      onStateChange={onStateChange}
-      navigationInChildEnabled
-    >
-      <ErrorBoundary>
-        <BranchProvider>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <SignupProvider>
-              {splashIsHidden ? <App /> : null}
+    <FeatureFlagConnectedInstrumentationProvider>
+      <NavigationContainer
+        theme={isDarkMode ? DarkTheme : DefaultTheme}
+        ref={navigationContainerRef}
+        onReady={onReady}
+        onStateChange={onStateChange}
+        navigationInChildEnabled
+      >
+        <BaseProviderStack migrationState={migrationState}>
+          <ErrorBoundary>
+            <BranchProvider>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <SignupProvider>
+                  {splashIsHidden ? <App /> : null}
 
-              {__DEV__ && (
-                <DevTools navigationContainerRef={navigationContainerRef} />
-              )}
-            </SignupProvider>
-          </GestureHandlerRootView>
-        </BranchProvider>
-      </ErrorBoundary>
-    </NavigationContainer>
+                  {__DEV__ && (
+                    <DevTools navigationContainerRef={navigationContainerRef} />
+                  )}
+                </SignupProvider>
+              </GestureHandlerRootView>
+            </BranchProvider>
+          </ErrorBoundary>
+        </BaseProviderStack>
+      </NavigationContainer>
+    </FeatureFlagConnectedInstrumentationProvider>
   );
 }
 

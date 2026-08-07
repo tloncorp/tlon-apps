@@ -3,7 +3,6 @@ import { describe, expect, test } from 'vitest';
 import {
   canRenderAgentUiInGroup,
   groupAgentOnboardingIsComplete,
-  groupHasConfiguredJob,
   isOwnAgentShip,
   parseGroupAgentConfig,
 } from './groupAgentConfig';
@@ -177,38 +176,6 @@ describe('job config parsing', () => {
   });
 });
 
-describe('groupHasConfiguredJob', () => {
-  test('true only for a config carrying a job', () => {
-    // What releases the first-run chrome lock (useAgentOnboardingLock) —
-    // a purpose alone is a setup that has started, not finished.
-    const withJob = JSON.stringify([
-      {
-        type: 'tlon-group-agent-config',
-        version: 1,
-        purpose: 'Keeps up.',
-        instructions: '',
-        agents: [MY_AGENT],
-        jobs: [
-          {
-            id: 'daily',
-            title: 'Daily',
-            schedule: { kind: 'cron', expr: '0 8 * * *', tz: 'UTC' },
-            prompt: 'Search the web.',
-            outputNest: '',
-            enabled: true,
-          },
-        ],
-        updatedAt: 1,
-      },
-    ]);
-    expect(groupHasConfiguredJob(withJob)).toBe(true);
-    expect(groupHasConfiguredJob(configNaming([MY_AGENT]))).toBe(false);
-    expect(groupHasConfiguredJob('a group about bread')).toBe(false);
-    expect(groupHasConfiguredJob(null)).toBe(false);
-    expect(groupHasConfiguredJob(undefined)).toBe(false);
-  });
-});
-
 describe('groupAgentOnboardingIsComplete', () => {
   test('holds deterministic onboarding until the notebook write is verified', () => {
     const config = JSON.parse(configNaming([MY_AGENT]))[0];
@@ -219,7 +186,6 @@ describe('groupAgentOnboardingIsComplete', () => {
       timezone: 'America/New_York',
       cronJobId: 'cron-1',
     };
-    expect(groupHasConfiguredJob(JSON.stringify([config]))).toBe(true);
     expect(groupAgentOnboardingIsComplete(JSON.stringify([config]))).toBe(
       false
     );
@@ -285,18 +251,18 @@ describe('config tolerance', () => {
         // no instructions, no updatedAt
       },
     ]);
-    expect(groupHasConfiguredJob(sloppy)).toBe(true);
+    expect(parseGroupAgentConfig(sloppy)?.jobs).toHaveLength(1);
     // The over-limit purpose degrades to its default rather than sinking
     // the whole entry.
     expect(parseGroupAgentConfig(sloppy)?.purpose).toBe('');
     // But the entry must still be identifiable as one.
-    expect(groupHasConfiguredJob(JSON.stringify([{ type: 'other' }]))).toBe(
-      false
+    expect(parseGroupAgentConfig(JSON.stringify([{ type: 'other' }]))).toBe(
+      undefined
     );
     expect(
-      groupHasConfiguredJob(
+      parseGroupAgentConfig(
         JSON.stringify([{ type: 'tlon-group-agent-config', version: 2 }])
       )
-    ).toBe(false);
+    ).toBeUndefined();
   });
 });

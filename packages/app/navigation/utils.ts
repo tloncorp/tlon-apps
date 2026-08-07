@@ -484,13 +484,7 @@ export function useRootNavigation() {
     navigationRef.current.goBack();
   }, [navigationRef]);
 
-  // The nested Settings navigator exists only in the desktop drawer
-  // (web/desktop, wide). Native always renders RootStack, which registers
-  // these settings screens flat — so a wide *native* window (a tablet) must
-  // take the direct route, or the nested params are silently ignored and
-  // the user lands on the Settings root instead.
   const useNestedSettings = Platform.OS === 'web' && !isWindowNarrow;
-
   const navigateToBotSettings = useCallback(() => {
     if (!useNestedSettings) {
       navigationRef.current.navigate('BotSettings');
@@ -511,14 +505,11 @@ export function useRootNavigation() {
       navigationRef.current.navigate('BotMcpSettings');
       return;
     }
-
     const navigateToNestedSettings = navigationRef.current.navigate as (
       screen: 'Settings',
       params: { screen: 'BotMcpSettings' }
     ) => void;
-    navigateToNestedSettings('Settings', {
-      screen: 'BotMcpSettings',
-    });
+    navigateToNestedSettings('Settings', { screen: 'BotMcpSettings' });
   }, [useNestedSettings, navigationRef]);
 
   const resetToChannel = useResetToChannel();
@@ -608,13 +599,10 @@ export async function getMainGroupRoute(
   groupId: string,
   isWindowNarrow: boolean
 ) {
-  // This route decision already needs the full group. Populate the same query
-  // cache used by GroupChannels so its first render does not repeat the DB read
-  // during the native push animation.
-  const [group, lastVisitedChannelId] = await Promise.all([
-    store.fetchGroup(groupId),
-    isWindowNarrow ? null : db.lastVisitedChannelId(groupId).getValue(),
-  ]);
+  const group = await db.getGroup({ id: groupId });
+  const lastVisitedChannelId = await db
+    .lastVisitedChannelId(groupId)
+    .getValue();
   if (
     group &&
     group.channels &&

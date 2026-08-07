@@ -1,25 +1,4 @@
-/**
- * Conversation content for agent onboarding — everything the bot says or
- * offers while setting up a group, kept apart from the mechanics in
- * `agent-onboarding.ts` so copy and option changes never touch operational
- * code.
- *
- * This plugin owns the content: the bot composes and posts the pickers, so
- * nothing on the app side needs its own copy — the client renders whatever
- * arrives as generic A2UI components.
- */
-
-/**
- * What the agent says first, before the purpose picker — a plain-text post,
- * sent as its own message so the introduction and the question don't arrive
- * as one wall of text.
- *
- * Claims the agent as the owner's own, then says the part that is true here
- * and nowhere else: the conversation is stored in Tlon rather than in a
- * vendor's account, so it survives both swapping the model underneath and
- * moving the whole thing to their own server. Closes by offering the rename,
- * since the agent can set its own nickname and nothing else says so.
- */
+/** User-facing onboarding copy and deterministic job templates. */
 export const GROUP_INTRO_MESSAGE = [
   "I'm your Tlonbot. I can go off and do things — look things up, keep " +
     'track of what changes, write it down for you — not just answer ' +
@@ -44,11 +23,7 @@ export const PURPOSE_PICKER_PROMPT =
 export const PURPOSE_PICKER_FOOTER =
   'Or just tell me — the cards are only starts.';
 
-/**
- * The purpose picker's cards. Option ids double as `templateId` provenance in
- * written group configs, and titles are exactly what a tap posts back as the
- * owner's reply — changing either is a wire change.
- */
+/** IDs and titles are persisted wire values. */
 export const PURPOSE_OPTIONS = [
   {
     id: 'agent-daily-digest',
@@ -88,18 +63,9 @@ export const TOPICS_PICKER_PROMPT =
 
 export const TOPICS_PICKER_SUBMIT_LABEL = 'That’s it';
 
-/**
- * The topic pills are suggestions, and the picker has to say so — otherwise a
- * wrapped row of chips reads as the whole menu.
- */
 export const TOPICS_PICKER_FOOTER =
   'You can also just tell me here in the chat.';
 
-/**
- * Placeholder for the picker's free-text field, which submits typed topics
- * together with the selected pills as one message — without it, "some of
- * these plus one of my own" took a pill submit chased by a chat message.
- */
 export const TOPICS_FREE_TEXT_PLACEHOLDER = 'Add your own…';
 
 export const TIMEZONE_PICKER_PROMPT =
@@ -111,59 +77,23 @@ export const TIMEZONE_PICKER_FALLBACK =
 
 export const WAITING_FOR_NOTEBOOK_LINE = 'Waiting for your notebook…';
 
-/**
- * How every setup ends: by getting someone else into the group.
- *
- * A group with one member is the worst possible demonstration of Tlon, and
- * the splash screen that used to ask for contacts is gone — the
- * conversational flow replaced it — so this is the only place left that
- * asks. It closes with the invite rather than the old what-would-you-change
- * question: tuning can wait, and they will care more about tuning once
- * somebody else is reading.
- *
- * Tlon posts the invite card itself, immediately after this turn, so the
- * agent must not try to produce a link of its own.
- */
-/**
- * Shared first sentence of the card and its fallback — also what the
- * transcript recovery matches to know a card was already posted, so keep all
- * three in step.
- */
+/** Transcript recovery also matches this shared lead sentence. */
 export const INVITE_CARD_LEAD = 'Tlon is better with someone else in it.';
 
 export const INVITE_CARD_PROMPT = `${INVITE_CARD_LEAD} Send them this link:`;
 
-/**
- * The story text, which is all a client that predates `tlon.inviteLink`
- * renders. It must stand alone: "Send them this link:" with the link living
- * in a dropped blob is an instruction pointing at nothing.
- */
 export const INVITE_CARD_FALLBACK =
   `${INVITE_CARD_LEAD} Invite someone from this group's info screen — or ` +
   'update your app to send an invite link right from here.';
 
 export const INVITE_CARD_BUTTON_LABEL = 'Invite';
 
-/**
- * The connected-services card, posted between the invite card and the
- * follow-up — but only in the home group's *initial* onboarding, where the
- * account is new and nothing is connected yet. A user creating their third
- * agent group doesn't need the tour again.
- *
- * Shared first sentence of the card and its fallback, mirroring the invite
- * card's structure.
- */
 export const SERVICES_CARD_LEAD = 'I can draw on more than the web.';
 
 export const SERVICES_CARD_PROMPT =
   `${SERVICES_CARD_LEAD} Connect your other services — calendars, docs, ` +
   'notes — and what they know flows into these digests too:';
 
-/**
- * The story text, which is all a client that predates screen navigation
- * renders. It must stand alone: it names the path to the same screen the
- * card's button opens.
- */
 export const SERVICES_CARD_FALLBACK =
   `${SERVICES_CARD_LEAD} Connect your other services — calendars, docs, ` +
   'notes — under Settings → Tlonbot → Connected services, and what they ' +
@@ -171,41 +101,11 @@ export const SERVICES_CARD_FALLBACK =
 
 export const SERVICES_CARD_BUTTON_LABEL = 'Connect services';
 
-/**
- * The last word of the setup, posted by Tlon after the invite card so it can't
- * land before it.
- *
- * The setup has been the agent doing things *to* the group; this hands the
- * conversation back, and says the part a scheduled job never shows: that the
- * thing it just built is also someone to talk to.
- */
 export const INVITE_FOLLOWUP_MESSAGE =
   'I’m here to talk to or ask questions about what I find. What else would ' +
   'you like me to do?';
 
-/**
- * Where a scheduled run's output goes, shared by every job that produces
- * something worth keeping.
- *
- * The notebook is the OWNER's channel, created by the owner's app on the
- * owner's ship the moment the group config lands with a job — the agent
- * only ever posts *into* it. The agent hosting its own notebook was the
- * original design and it was wrong twice over: the channel lived on the
- * bot's moon instead of with the owner's group, and each run's "find or
- * create" gave the model room to create the wrong notebook. Now the
- * first run waits briefly for the owner-side channel to appear, writes
- * into it, and records its nest; every later run appends to the same
- * place. Chat is the fallback when the notebook never appears, never a
- * bot-hosted channel.
- *
- * Part of the verbatim payload, so it is one string rather than three
- * paraphrases that can drift apart — which is exactly why it must stay
- * true for a run happening months from now. This string is stored in the
- * cron job and replayed at every firing, so it may not carry a word of
- * setup: a day-one deferral pinned in here told every future digest to do
- * the research, withhold the entry, and wait for a setup-only event, leaving
- * the scheduled run with nowhere to put its output.
- */
+/** Recurring runs append only to the owner's persisted notebook nest. */
 const OUTPUT_CHANNEL_RULE =
   "This run's output belongs in this group's notebook — the OWNER's notes " +
   "channel, on their ship. Append to the nest recorded in this job's " +
@@ -219,43 +119,14 @@ const OUTPUT_CHANNEL_RULE =
   'instead and say that is where it went — chat is the fallback, never a ' +
   'channel of your own making.';
 
-/**
- * The scheduled job each purpose sets up, templated so the operative cron
- * prompt is authored here deterministically. `prompt` is used verbatim as the
- * cron payload, so editing these strings edits what the job actually does on
- * every run.
- *
- * `{{topics}}` is replaced with the owner's topic reply, exactly as sent —
- * a submitted pill selection ("Peptides, Mycology") or whatever they typed.
- *
- * Every job runs **daily**, deliberately: a job the owner sees fire once a
- * week is a job they forget they have, and the whole point of the setup is
- * that something arrives tomorrow morning. Only the hour differs.
- *
- * `schedule` is the job's default cadence as a standard 5-field cron
- * expression (minute hour day-of-month month day-of-week), deliberately
- * without a timezone: the expression says when in the owner's day, and the
- * timezone is per-owner, learned in conversation — the agent passes it to
- * the cron tool as `schedule.tz` (an IANA name) and is forbidden from
- * silently defaulting to UTC. A default, not a mandate: only the payload
- * message is pinned verbatim, so the owner can move the schedule by asking.
- */
+/** Daily templates; `{{topics}}` is replaced with the owner's exact reply. */
 export const PURPOSE_JOBS: Record<
   string,
   {
     title: string;
     schedule: string;
     prompt: string;
-    /**
-     * What the day-one notebook entry should contain.
-     *
-     * Separate from `prompt` because the two describe different things.
-     * `prompt` is the recurring run: for Tracking it reviews what the owner
-     * logged "since the last check-in" and stops in chat when that is
-     * nothing — which on day one is always, so using it as the entry
-     * description told the model to write no entry at all while the closing
-     * sat waiting for one.
-     */
+    /** Day-one content differs from the recurring prompt. */
     entry: string;
   }
 > = {
@@ -310,13 +181,7 @@ export const PURPOSE_JOBS: Record<
   },
 };
 
-/**
- * Starting points for the topic step, per purpose.
- *
- * Suggestions, never a menu: the picker always carries "or just tell me", and
- * the agent reads a typed answer the same way it reads a submitted selection.
- * Kept to a word or two so they fit a pill.
- */
+/** Short suggestions, never an exhaustive menu. */
 export const PURPOSE_TOPICS: Record<string, readonly string[]> = {
   'agent-daily-digest': [
     'Nootropics',

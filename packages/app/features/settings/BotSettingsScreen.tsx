@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Text, pluralize } from '@tloncorp/ui';
+import { Text, pluralize, useIsWindowNarrow } from '@tloncorp/ui';
 import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
@@ -10,12 +10,7 @@ import { View, YStack } from 'tamagui';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
-import {
-  ScreenHeader,
-  SettingsContentScrollView,
-  TextInput,
-  useShowSettingsBackAction,
-} from '../../ui';
+import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
 import {
   ApplyChangesBar,
   BotIdentityHeader,
@@ -43,7 +38,7 @@ const logger = createDevLogger('BotSettingsScreen', false);
 const userCount = (n: number): string => `${n} ${pluralize(n, 'user')}`;
 
 export function BotSettingsScreen(props: Props) {
-  const showBackAction = useShowSettingsBackAction();
+  const isWindowNarrow = useIsWindowNarrow();
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const queries = useBotSettingsQueries();
@@ -152,9 +147,8 @@ export function BotSettingsScreen(props: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
-        backAction={showBackAction ? handleBack : undefined}
+        backAction={isWindowNarrow ? handleBack : undefined}
         title="Bot settings"
-        placement="navigation"
       />
       <SettingsContentScrollView
         paddingHorizontal="$l"

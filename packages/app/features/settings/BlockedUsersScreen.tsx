@@ -9,7 +9,6 @@ import { RootStackParamList } from '../../navigation/types';
 import {
   BlockedContactsWidget,
   ScreenHeader,
-  SettingsContentScrollView,
   View,
   useIsWindowNarrow,
 } from '../../ui';
@@ -54,14 +53,19 @@ export function BlockedUsersScreen(props: Props) {
         backAction={isNarrow ? () => props.navigation.goBack() : undefined}
         title="Blocked users"
         borderBottom
-        placement="navigation"
       />
-      <SettingsContentScrollView>
+      <View
+        flex={1}
+        width="100%"
+        maxWidth={600}
+        marginHorizontal="auto"
+        paddingHorizontal="$xl"
+      >
         <BlockedContactsWidget
           blockedContacts={blockedContacts ?? []}
           onBlockedContactPress={onBlockedContactPress}
         />
-      </SettingsContentScrollView>
+      </View>
     </View>
   );
 }

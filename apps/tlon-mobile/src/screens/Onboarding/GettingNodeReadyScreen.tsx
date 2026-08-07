@@ -2,8 +2,8 @@
 import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import {
   NodeResumeState,

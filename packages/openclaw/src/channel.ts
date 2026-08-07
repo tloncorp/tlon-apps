@@ -265,9 +265,7 @@ export const tlonPlugin = createChatChannelPlugin({
       if (!parsed) {
         return {
           ok: false,
-          error: new Error(
-            `Invalid Tlon target. Use ${formatTargetHint(to ?? '')}`
-          ),
+          error: new Error(`Invalid Tlon target. Use ${formatTargetHint()}`),
         };
       }
       if (parsed.kind === 'dm') {

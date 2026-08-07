@@ -7,7 +7,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard } from 'react-native';
-import { Text, YStack, isWeb } from 'tamagui';
+import { Text, YStack } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
 import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
@@ -230,85 +230,55 @@ export function ChatListScreenView({
     };
   }, [chats]);
 
-  // Agent onboarding handoff: the splash arms a destination but renders
-  // outside the navigator, so the first chat list mount consumes it. The
-  // channel may still be syncing in on a fresh install — wait (bounded)
-  // for its row before navigating.
-  //
-  // Mount-only, with the navigation function behind a ref: resetToChannel is
-  // recreated on every render, and an effect keyed on it gets cancelled by
-  // any ordinary chat-list update — which used to kill the only landing poll
-  // mid-wait. The consumed flag is set at navigation, not at mount, so a
-  // cancelled poll leaves the handoff armed for the next mount.
-  const consumedOnboardingLandingRef = useRef(false);
+  const consumedOnboardingLanding = useRef(false);
   const resetToChannelRef = useRef(resetToChannel);
   resetToChannelRef.current = resetToChannel;
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const landing = await db.agentOnboardingLanding.getValue();
-        if (!landing) {
+    let active = true;
+    const land = async () => {
+      const landing = await db.agentOnboardingLanding.getValue();
+      if (!landing) return;
+
+      const fastUntil = Date.now() + 30_000;
+      let slowSyncLogged = false;
+      while (active) {
+        if (await db.getChannel({ id: landing.channelId })) {
+          if (!consumedOnboardingLanding.current) {
+            consumedOnboardingLanding.current = true;
+            resetToChannelRef.current(landing.channelId, {
+              groupId: landing.groupId,
+            });
+            void db.agentOnboardingLanding.resetValue().catch((error) =>
+              logger.trackError('Failed to clear onboarding landing', {
+                error,
+              })
+            );
+          }
           return;
         }
-        // Fast for the first half-minute, then slow — but never stopping
-        // while this screen is mounted. A hard deadline left the handoff
-        // armed with nobody watching it: a channel that synced at 31
-        // seconds stranded the user on the chat list until they happened to
-        // remount the app, even though the landing was still waiting to be
-        // consumed. A row lookup every five seconds costs nothing next to
-        // that.
-        const fastUntil = Date.now() + 30_000;
-        let slowSyncLogged = false;
-        while (!cancelled) {
-          const channel = await db.getChannel({ id: landing.channelId });
-          if (channel) {
-            if (!cancelled && !consumedOnboardingLandingRef.current) {
-              // The agent opens the conversation itself when it joins a newly
-              // created group, so landing here is all the client does. Only
-              // consume the handoff once it has actually happened — clearing
-              // earlier would make a slow first sync eat it, and the user
-              // would never land in the onboarding conversation.
-              consumedOnboardingLandingRef.current = true;
-              resetToChannelRef.current(landing.channelId, {
-                groupId: landing.groupId,
-              });
-              db.agentOnboardingLanding.resetValue().catch((error) => {
-                logger.trackError('Failed to clear onboarding landing', {
-                  error,
-                });
-              });
-            }
-            return;
-          }
-          const slow = Date.now() > fastUntil;
-          if (slow && !slowSyncLogged) {
+
+        const slow = Date.now() > fastUntil;
+        if (slow) {
+          if (!slowSyncLogged) {
             slowSyncLogged = true;
             logger.trackError('Onboarding landing channel slow to sync', {
               ...landing,
             });
           }
-          if (slow) {
-            // Re-read before each slow wait: another surface may have
-            // consumed or cleared the handoff, and this loop no longer ends
-            // on its own.
-            const stillArmed = await db.agentOnboardingLanding.getValue();
-            if (!stillArmed || stillArmed.channelId !== landing.channelId) {
-              return;
-            }
-          }
-          await new Promise((resolve) =>
-            setTimeout(resolve, slow ? 5_000 : 500)
-          );
+          const armed = await db.agentOnboardingLanding.getValue();
+          if (!armed || armed.channelId !== landing.channelId) return;
         }
-      } catch (error) {
-        logger.trackError('Failed to consume onboarding landing', { error });
+        await new Promise((resolve) =>
+          setTimeout(resolve, slow ? 5_000 : 500)
+        );
       }
-    })();
-    return () => {
-      cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void land().catch((error) =>
+      logger.trackError('Failed to consume onboarding landing', { error })
+    );
+    return () => {
+      active = false;
+    };
   }, []);
 
   const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
@@ -469,43 +439,54 @@ export function ChatListScreenView({
       >
         <NavigationProvider focusedChannelId={focusedChannelId}>
           <View userSelect="none" flex={1}>
-            {showHomeAddTooltip && (
-              <WayfindingNotice.HomeAddTooltip top={isWeb ? 36 : 8} />
-            )}
             <ScreenHeader
               title="Home"
               subtitle={syncSubtitle}
               loadingSubtitle={loadingSubtitle}
               showSubtitle={true}
-              leftActions={[
-                {
-                  id: 'invite-people',
-                  icon: 'AddPerson',
-                  label: 'Invite people',
-                  onPress: handlePersonalInvitePress,
-                  visible: !!personalInvite,
-                },
-              ]}
-              rightActions={[
-                {
-                  id: 'search',
-                  icon: 'Search',
-                  label: 'Search',
-                  onPress: handleSearchInputToggled,
-                },
-                {
-                  id: 'add-chat',
-                  icon: 'Add',
-                  label: 'Add a chat',
-                  onPress: handlePressAddChat,
-                  testID: 'CreateChatSheetTrigger',
-                  tint: showHomeAddTooltip ? '$positiveActionText' : undefined,
-                  backgroundTint: showHomeAddTooltip
-                    ? '$positiveBackground'
-                    : undefined,
-                },
-              ]}
-              placement="navigation"
+              leftControls={
+                personalInvite ? (
+                  <ScreenHeader.IconButton
+                    type="AddPerson"
+                    onPress={handlePersonalInvitePress}
+                  />
+                ) : undefined
+              }
+              rightControls={
+                <>
+                  <ScreenHeader.IconButton
+                    type="Search"
+                    onPress={handleSearchInputToggled}
+                  />
+                  {isWindowNarrow ? (
+                    <View position="relative" alignItems="flex-end">
+                      <ScreenHeader.IconButton
+                        type="Add"
+                        onPress={handlePressAddChat}
+                        testID="CreateChatSheetTrigger"
+                        color={
+                          isWindowNarrow && showHomeAddTooltip
+                            ? '$positiveActionText'
+                            : '$primaryText'
+                        }
+                        backgroundColor={
+                          isWindowNarrow && showHomeAddTooltip
+                            ? '$positiveBackground'
+                            : 'transparent'
+                        }
+                      />
+                      {isWindowNarrow && showHomeAddTooltip && (
+                        <WayfindingNotice.HomeAddTooltip />
+                      )}
+                    </View>
+                  ) : (
+                    <CreateChatSheet
+                      ref={createChatSheetRef}
+                      trigger={<ScreenHeader.IconButton type="Add" />}
+                    />
+                  )}
+                </>
+              }
             />
             {chats &&
             (chats.unpinned.length ||
@@ -551,7 +532,7 @@ export function ChatListScreenView({
         {displayData && <SystemNotices.NotificationsPrompt />}
       </ChatOptionsProvider>
 
-      <CreateChatSheet ref={createChatSheetRef} />
+      {isWindowNarrow && <CreateChatSheet ref={createChatSheetRef} />}
       <PersonalInviteSheet
         open={personalInviteOpen}
         onOpenChange={() => setPersonalInviteOpen(false)}

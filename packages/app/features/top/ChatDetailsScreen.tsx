@@ -17,7 +17,6 @@ import {
   ListItem,
   ProfileButton,
   ScreenHeader,
-  ScreenScrollView,
   ScrollView,
   TlonText,
   View,
@@ -214,21 +213,21 @@ function ChatDetailsScreenView() {
         backAction={handleGoBack}
         useHorizontalTitleLayout={!isWindowNarrow}
         title={getTitle()}
-        rightActions={[
-          {
-            id: 'DetailsEditButton',
-            text: 'Rename',
-            onPress: handlePressEdit,
-            disabled: !actionsEnabled,
-            tint: '$primaryText',
-            testID: 'DetailsEditButton',
-            visible: currentUserIsAdmin,
-          },
-        ]}
-        placement="navigation"
+        rightControls={
+          currentUserIsAdmin ? (
+            <ScreenHeader.TextButton
+              onPress={!actionsEnabled ? undefined : handlePressEdit}
+              disabled={!actionsEnabled}
+              color="$primaryText"
+              testID="DetailsEditButton"
+            >
+              Rename
+            </ScreenHeader.TextButton>
+          ) : null
+        }
       />
       {hasContent && (
-        <ScreenScrollView
+        <ScrollView
           flex={1}
           contentContainerStyle={{
             width: '100%',
@@ -308,7 +307,7 @@ function ChatDetailsScreenView() {
           {chatType === 'channel' && channel && channel.groupId && (
             <LeaveActionsSection entityType="channel" channel={channel} />
           )}
-        </ScreenScrollView>
+        </ScrollView>
       )}
     </View>
   );
@@ -412,11 +411,7 @@ function GroupQuickActions({
 }
 
 const GroupDescription = ({ group: _group }: { group: db.Group }) => {
-  // FIXME(group-description-hijack): group.description currently stores the
-  // machine-readable agent config (see parseGroupAgentConfig in
-  // @tloncorp/api) — the field is NOT reliable user prose, so description
-  // display is hidden everywhere in the UI. This block used to render a
-  // "Description" section; restore it once the config moves to a first-class
-  // field on the group record.
+  // group.description temporarily stores machine-readable agent config.
+  // Restore this section once that config has a first-class group field.
   return null;
 };

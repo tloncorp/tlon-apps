@@ -31,6 +31,15 @@ export type DeterministicSetup = {
   record: DeterministicOnboardingRecord;
 };
 
+export type OnboardingSequenceBlocker =
+  | 'purpose_missing'
+  | 'topics_missing'
+  | 'timezone_missing_or_invalid'
+  | 'cron_job_missing'
+  | 'notebook_missing'
+  | 'note_missing'
+  | `state_${DeterministicOnboardingState}_not_ready`;
+
 export type OnboardingWriteQueue = {
   has: (key: string) => boolean;
   run: <T>(key: string, operation: () => Promise<T>) => Promise<T>;
@@ -84,6 +93,59 @@ export function normalizeIanaTimezone(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Persisted prerequisites for provisioning the notebook and starting research.
+ * In-memory pending flags are deliberately not enough: restart reconciliation
+ * must never skip over a partially written purpose/topics/timezone transition.
+ */
+export function onboardingResearchSequenceBlocker(
+  setup: DeterministicSetup
+): OnboardingSequenceBlocker | null {
+  if (
+    setup.record.state !== 'awaiting-notebook' &&
+    setup.record.state !== 'researching' &&
+    setup.record.state !== 'writing-note'
+  ) {
+    return `state_${setup.record.state}_not_ready`;
+  }
+  if (!setup.purposeId.trim()) {
+    return 'purpose_missing';
+  }
+  if (!setup.topics.trim()) {
+    return 'topics_missing';
+  }
+  if (!setup.timezone || !normalizeIanaTimezone(setup.timezone)) {
+    return 'timezone_missing_or_invalid';
+  }
+  if (!setup.record.cronJobId?.trim()) {
+    return 'cron_job_missing';
+  }
+  return null;
+}
+
+/** Closing cards are allowed only after the note's durable identity is saved. */
+export function onboardingCompletionSequenceBlocker(
+  setup: DeterministicSetup
+): OnboardingSequenceBlocker | null {
+  const researchBlocker = onboardingResearchSequenceBlocker({
+    ...setup,
+    record: { ...setup.record, state: 'writing-note' },
+  });
+  if (researchBlocker) {
+    return researchBlocker;
+  }
+  if (setup.record.state !== 'complete') {
+    return `state_${setup.record.state}_not_ready`;
+  }
+  if (!setup.record.notebookNest?.trim()) {
+    return 'notebook_missing';
+  }
+  if (!setup.record.noteId?.trim()) {
+    return 'note_missing';
+  }
+  return null;
 }
 
 export function buildDeterministicSetupDescription(
@@ -249,13 +311,18 @@ export async function ensureDeterministicCronJob(params: {
   trace?: DeterministicCronTracer;
 }): Promise<string> {
   const trace = params.trace;
+  const emit = (
+    operation: string,
+    outcome: string,
+    details: Partial<
+      Omit<DeterministicCronTraceEvent, 'operation' | 'outcome'>
+    > = {}
+  ) => trace?.({ operation, outcome, ...details });
   const startedAt = Date.now();
-  trace?.({ operation: 'resolve_service', outcome: 'started' });
+  emit('resolve_service', 'started');
   const template = PURPOSE_JOBS[params.purposeId];
   if (!template) {
-    trace?.({
-      operation: 'resolve_template',
-      outcome: 'failed',
+    emit('resolve_template', 'failed', {
       durationMs: Date.now() - startedAt,
       error: new Error(`Unknown onboarding purpose: ${params.purposeId}`),
     });
@@ -268,9 +335,7 @@ export async function ensureDeterministicCronJob(params: {
       break;
     }
     serviceAttempt += 1;
-    trace?.({
-      operation: 'resolve_service',
-      outcome: 'retrying',
+    emit('resolve_service', 'retrying', {
       attempt: serviceAttempt,
       retryDelayMs: delay,
       durationMs: Date.now() - startedAt,
@@ -279,37 +344,29 @@ export async function ensureDeterministicCronJob(params: {
     cron = getCronService();
   }
   if (!cron) {
-    trace?.({
-      operation: 'resolve_service',
-      outcome: 'failed',
+    emit('resolve_service', 'failed', {
       attempt: serviceAttempt,
       durationMs: Date.now() - startedAt,
       error: new Error('OpenClaw cron service is unavailable'),
     });
     throw new Error('OpenClaw cron service is unavailable');
   }
-  trace?.({
-    operation: 'resolve_service',
-    outcome: 'succeeded',
+  emit('resolve_service', 'succeeded', {
     attempt: serviceAttempt,
     durationMs: Date.now() - startedAt,
   });
   const description = cronDescription(params.nest, params.purposeId);
   const initialListStartedAt = Date.now();
-  trace?.({ operation: 'list_existing', outcome: 'started' });
+  emit('list_existing', 'started');
   let initialJobs: PluginHookGatewayCronJob[];
   try {
     initialJobs = await cron.list({ includeDisabled: true });
-    trace?.({
-      operation: 'list_existing',
-      outcome: 'succeeded',
+    emit('list_existing', 'succeeded', {
       durationMs: Date.now() - initialListStartedAt,
       totalCronJobCount: initialJobs.length,
     });
   } catch (error) {
-    trace?.({
-      operation: 'list_existing',
-      outcome: 'failed',
+    emit('list_existing', 'failed', {
       durationMs: Date.now() - initialListStartedAt,
       error,
     });
@@ -317,9 +374,7 @@ export async function ensureDeterministicCronJob(params: {
   }
   const existing = initialJobs.find((job) => cronJobMatches(job, description));
   if (existing?.id) {
-    trace?.({
-      operation: 'reuse_existing',
-      outcome: 'succeeded',
+    emit('reuse_existing', 'succeeded', {
       durationMs: Date.now() - startedAt,
       cronJobId: existing.id,
       totalCronJobCount: initialJobs.length,
@@ -329,7 +384,7 @@ export async function ensureDeterministicCronJob(params: {
 
   let addError: unknown;
   const addStartedAt = Date.now();
-  trace?.({ operation: 'add_job', outcome: 'started' });
+  emit('add_job', 'started');
   try {
     const prompt = fill(template.prompt, params.topics);
     // Older plugin SDKs consume `text`; newer cron persistence requires
@@ -353,18 +408,14 @@ export async function ensureDeterministicCronJob(params: {
       wakeMode: 'now',
       payload,
     });
-    trace?.({
-      operation: 'add_job',
-      outcome: 'succeeded',
+    emit('add_job', 'succeeded', {
       durationMs: Date.now() - addStartedAt,
     });
   } catch (error) {
     // Treat the add result as ambiguous until list proves otherwise. The
     // scheduler may have persisted the job before its response was lost.
     addError = error;
-    trace?.({
-      operation: 'add_job',
-      outcome: 'failed_ambiguous',
+    emit('add_job', 'failed_ambiguous', {
       durationMs: Date.now() - addStartedAt,
       error,
     });
@@ -374,9 +425,7 @@ export async function ensureDeterministicCronJob(params: {
   for (const delay of [0, 250, 1_000, 2_000]) {
     verifyAttempt += 1;
     if (delay) {
-      trace?.({
-        operation: 'verify_job',
-        outcome: 'retrying',
+      emit('verify_job', 'retrying', {
         attempt: verifyAttempt,
         retryDelayMs: delay,
         durationMs: Date.now() - startedAt,
@@ -384,18 +433,14 @@ export async function ensureDeterministicCronJob(params: {
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
     const verifyStartedAt = Date.now();
-    trace?.({
-      operation: 'verify_job',
-      outcome: 'started',
+    emit('verify_job', 'started', {
       attempt: verifyAttempt,
     });
     let jobs: PluginHookGatewayCronJob[];
     try {
       jobs = await cron.list({ includeDisabled: true });
     } catch (error) {
-      trace?.({
-        operation: 'verify_job',
-        outcome: 'failed',
+      emit('verify_job', 'failed', {
         attempt: verifyAttempt,
         durationMs: Date.now() - verifyStartedAt,
         error,
@@ -404,9 +449,7 @@ export async function ensureDeterministicCronJob(params: {
     }
     const stored = jobs.find((job) => cronJobMatches(job, description));
     if (stored?.id) {
-      trace?.({
-        operation: 'verify_job',
-        outcome: 'succeeded',
+      emit('verify_job', 'succeeded', {
         attempt: verifyAttempt,
         durationMs: Date.now() - verifyStartedAt,
         cronJobId: stored.id,
@@ -414,9 +457,7 @@ export async function ensureDeterministicCronJob(params: {
       });
       return stored.id;
     }
-    trace?.({
-      operation: 'verify_job',
-      outcome: 'missing',
+    emit('verify_job', 'missing', {
       attempt: verifyAttempt,
       durationMs: Date.now() - verifyStartedAt,
       totalCronJobCount: jobs.length,
@@ -425,9 +466,7 @@ export async function ensureDeterministicCronJob(params: {
   const finalError = new Error(
     `The scheduled job could not be verified${addError ? `: ${String(addError)}` : ''}`
   );
-  trace?.({
-    operation: 'ensure_job',
-    outcome: 'failed',
+  emit('ensure_job', 'failed', {
     attempt: verifyAttempt,
     durationMs: Date.now() - startedAt,
     error: finalError,

@@ -122,7 +122,6 @@ export function AppInfoScreen(props: Props) {
         backAction={
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
-        placement="navigation"
       />
       <SettingsContentScrollView>
         <YStack

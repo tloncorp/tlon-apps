@@ -10,7 +10,7 @@ import {
 import { useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
-import { useShowSettingsBackAction } from '../utils';
+import { useIsWindowNarrow } from '../utils';
 import { ListItem } from './ListItem';
 import { McpProviderLogo } from './McpProviderLogo';
 import { ScreenHeader } from './ScreenHeader';
@@ -52,7 +52,7 @@ export function BotSettingsScreenView({
   refreshing,
   showUnavailableNotice,
 }: BotSettingsScreenViewProps) {
-  const showBackAction = useShowSettingsBackAction();
+  const isWindowNarrow = useIsWindowNarrow();
   const activeProviders = providers.filter(
     (provider) => provider.status === 'connected'
   );
@@ -64,18 +64,12 @@ export function BotSettingsScreenView({
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
         borderBottom
-        backAction={showBackAction ? onBackPressed : undefined}
+        backAction={isWindowNarrow ? onBackPressed : undefined}
         loadingSubtitle={refreshing && !initialLoading ? 'Refreshing' : null}
-        rightActions={[
-          {
-            id: 'refresh-providers',
-            icon: 'Refresh',
-            label: 'Refresh providers',
-            onPress: onRefresh,
-          },
-        ]}
+        rightControls={
+          <ScreenHeader.IconButton type="Refresh" onPress={onRefresh} />
+        }
         title="Connect MCP"
-        placement="navigation"
       />
       {initialLoading ? (
         <YStack flex={1} alignItems="center" justifyContent="center">

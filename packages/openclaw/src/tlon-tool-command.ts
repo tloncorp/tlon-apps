@@ -259,31 +259,11 @@ export function shellSplitCommand(command: string): string[] {
 }
 
 /**
- * True for a token that is the CLI's own name rather than a subcommand —
- * `tlon`, or any path ending in it.
- *
- * Documentation everywhere (ours and the CLI's own `--help`) writes commands
- * as `tlon groups update ...`, so a model copying that spelling passes the
- * binary name through as the first token. `tlon` is not a subcommand, so
- * without this the whole command is rejected as `Unknown tlon subcommand
- * 'tlon'` — a failure caused purely by prose being obeyed literally.
+ * Find the first positional argument (subcommand) by skipping credential flags
+ * and their values. Returns the index into `args`, or -1 if none found.
  */
-function isTlonBinaryName(arg: string): boolean {
-  const base = arg.split('/').pop() ?? arg;
-  return base === 'tlon' || base === 'tlon.js';
-}
-
-/**
- * Walk past credential flags and an optional leading binary name, reporting
- * where each landed. One scan so the subcommand finder and the prefix
- * stripper can never disagree about what counts as the binary.
- */
-function scanTlonArgs(args: string[]): {
-  binaryIndex: number;
-  subIndex: number;
-} {
+export function findTlonSubcommandIndex(args: string[]): number {
   let i = 0;
-  let binaryIndex = -1;
   while (i < args.length) {
     const arg = args[i];
     if (arg.startsWith('--') && arg.includes('=')) {
@@ -297,40 +277,9 @@ function scanTlonArgs(args: string[]): {
       i += 2;
       continue;
     }
-    // Only once, and only in front: a later `tlon` is an argument value.
-    if (binaryIndex === -1 && isTlonBinaryName(arg)) {
-      binaryIndex = i;
-      i += 1;
-      continue;
-    }
-    return { binaryIndex, subIndex: i };
+    return i;
   }
-  return { binaryIndex, subIndex: -1 };
-}
-
-/**
- * Find the first positional argument (subcommand) by skipping credential flags
- * and their values, plus an optional leading binary name. Returns the index
- * into `args`, or -1 if none found.
- */
-export function findTlonSubcommandIndex(args: string[]): number {
-  return scanTlonArgs(args).subIndex;
-}
-
-/**
- * Drop the leading binary name, if the model wrote one.
- *
- * Recognizing it during validation is only half the job: the CLI reads
- * `args[0]` as its command, so spawning the untouched argv turns a command
- * that just passed the guard into `Unknown command: tlon`. Everything
- * downstream — the blocked-send check, the argument repair, the spawn —
- * works from the stripped form.
- */
-export function stripTlonBinaryPrefix(args: string[]): string[] {
-  const { binaryIndex } = scanTlonArgs(args);
-  return binaryIndex === -1
-    ? args
-    : [...args.slice(0, binaryIndex), ...args.slice(binaryIndex + 1)];
+  return -1;
 }
 
 export function summarizeTlonCommand(command: string): TlonToolCallContext {

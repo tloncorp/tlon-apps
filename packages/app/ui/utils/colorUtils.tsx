@@ -1,5 +1,6 @@
 import { darken, hsla, lighten, parseToHsla, parseToRgba } from 'color2k';
 import { useMemo } from 'react';
+import { useTheme } from 'tamagui';
 import { ThemeName, useThemeName } from 'tamagui';
 
 export const useSigilColors = (accentColor: string | null = '#000000') => {
@@ -58,3 +59,16 @@ function parseInputAsRgba(color: string): [number, number, number, number] {
     return [0, 0, 0, 1];
   }
 }
+
+export const isDarkBg = (hexValue: string): boolean => {
+  const r = parseInt(hexValue.slice(1, 3), 16);
+  const g = parseInt(hexValue.slice(3, 5), 16);
+  const b = parseInt(hexValue.slice(5, 7), 16);
+
+  return r * 0.299 + g * 0.587 + b * 0.114 < 186;
+};
+
+export const useIsDarkTheme = (): boolean => {
+  const theme = useTheme();
+  return isDarkBg(theme.background?.val);
+};

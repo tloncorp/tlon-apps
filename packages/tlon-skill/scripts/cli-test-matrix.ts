@@ -363,34 +363,7 @@ export const SPECIAL_INPUT_CASES: CliCase[] = [
   usageErrorCase(
     'groups update missing update option',
     ['groups', 'update', '~host/group-slug'],
-    'At least one of --title, --description, --description-stdin, --image, or --cover is required'
-  ),
-  usageErrorCase(
-    'groups update description and description-stdin are exclusive',
-    [
-      'groups',
-      'update',
-      '~host/group-slug',
-      '--description',
-      'prose',
-      '--description-stdin',
-    ],
-    '--description and --description-stdin are mutually exclusive'
-  ),
-  // A config-shaped description (starts with "[") that doesn't parse must
-  // fail locally: stored unparseable, it un-recognizes the group's agent
-  // while looking successfully written (observed live — the model lost the
-  // prompt's inner quote escapes passing JSON through a shell argument).
-  usageErrorCase(
-    'groups update rejects a malformed config description',
-    [
-      'groups',
-      'update',
-      '~host/group-slug',
-      '--description',
-      '[{"type":"tlon-group-agent-config","version":1,"prompt":"lost "quotes""}]',
-    ],
-    'not valid JSON'
+    'At least one of --title, --description, --image, or --cover is required'
   ),
   usageErrorCase(
     'hooks init invalid type',

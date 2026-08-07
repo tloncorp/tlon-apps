@@ -145,13 +145,6 @@ export function ChannelHeader({
   showSpinner?: boolean;
   loadingSubtitle?: string | null;
   hideIdentity?: boolean;
-  /**
-   * Collapse the header to nothing but its safe-area inset — no controls, no
-   * title, no border, no height. For a channel the user is being held in (a
-   * guided setup in progress): every control here is an exit, and an exit
-   * that reappears one at a time is worse than none. The inset stays so
-   * content clears the notch while the bar is gone.
-   */
   hideContents?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
@@ -244,14 +237,13 @@ export function ChannelHeader({
     if (channel.type === 'chat' && group) {
       const hasMultipleChannels = (group.channels?.length ?? 0) > 1;
 
-      // If it's a single-channel group, show member count.
-      // FIXME(group-description-hijack): group.description currently stores
-      // the machine-readable agent config (see parseGroupAgentConfig in
-      // @tloncorp/api) — the field is NOT reliable user prose, so description
-      // display is hidden everywhere in the UI. This branch used to prefer
-      // the group description as the subtitle; restore it once the config
-      // moves to a first-class field on the group record.
+      // If it's a single-channel group
       if (!hasMultipleChannels) {
+        // If group has title and description, use description
+        if (group.title && group.title.trim() !== '' && group.description) {
+          return group.description;
+        }
+        // If it's a single-channel group without explicit title/description, show member count
         const memberCount = group.members?.length ?? 0;
         const result = `Chat with ${memberCount} members`;
         return result;

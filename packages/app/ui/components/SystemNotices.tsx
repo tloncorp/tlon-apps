@@ -3,13 +3,12 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import { XStack, YStack, isWeb, styled } from 'tamagui';
 
 import { useContactPermissions } from '../../hooks/useContactPermissions';
 import { useNag } from '../../hooks/useNag';
 import { useNotificationPermissions } from '../../lib/notifications';
-import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
 
 const logger = createDevLogger('SystemNotices', false);
 
@@ -48,7 +47,6 @@ const SystemNotices = {
 export default SystemNotices;
 
 export function NotificationsPrompt() {
-  const tabBarContentInset = useTopLevelTabBarContentInset();
   const notifNag = useNag({
     key: 'notificationsPrompt',
     refreshInterval: 30 * 60 * 1000, // Nag every 30 minutes
@@ -99,10 +97,7 @@ export function NotificationsPrompt() {
   }
 
   return (
-    <NoticeFrame
-      // The iOS liquid-glass tab bar overlays content; Android's bar does not.
-      marginBottom={Platform.OS === 'ios' ? tabBarContentInset : undefined}
-    >
+    <NoticeFrame>
       <YStack gap="$5xl">
         <YStack gap="$xl">
           <NoticeTitle>Enable notifications</NoticeTitle>

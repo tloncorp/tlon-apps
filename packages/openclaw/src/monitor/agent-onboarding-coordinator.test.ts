@@ -17,6 +17,8 @@ import {
   deterministicSetupFromDescription,
   ensureDeterministicCronJob,
   normalizeIanaTimezone,
+  onboardingCompletionSequenceBlocker,
+  onboardingResearchSequenceBlocker,
   renderDeterministicResearchDirective,
 } from './agent-onboarding-coordinator.js';
 
@@ -76,6 +78,67 @@ describe('deterministic onboarding config', () => {
       })
     )[0];
     expect(complete.jobs[0].outputNest).toBe('notes/~zod/daily');
+  });
+});
+
+describe('onboarding sequence guards', () => {
+  const readyForNotebook = () =>
+    deterministicSetupFromDescription(
+      buildDeterministicSetupDescription({
+        purposeId: 'agent-research',
+        topics: 'Mycology',
+        timezone: 'America/New_York',
+        agentShip: '~bot',
+        record: {
+          state: 'awaiting-notebook',
+          topics: 'Mycology',
+          timezone: 'America/New_York',
+          cronJobId: 'cron-123',
+        },
+      })
+    )!;
+
+  test('does not research while purpose, topics, or timezone are still pending', () => {
+    const awaitingTopics = deterministicSetupFromDescription(
+      buildAwaitingTopicsDescription({
+        purposeId: 'agent-research',
+        agentShip: '~bot',
+      })
+    )!;
+    const awaitingTimezone = deterministicSetupFromDescription(
+      buildAwaitingTimezoneDescription({
+        purposeId: 'agent-research',
+        topics: 'Mycology',
+        agentShip: '~bot',
+      })
+    )!;
+
+    expect(onboardingResearchSequenceBlocker(awaitingTopics)).toBe(
+      'state_awaiting-topics_not_ready'
+    );
+    expect(onboardingResearchSequenceBlocker(awaitingTimezone)).toBe(
+      'state_awaiting-timezone_not_ready'
+    );
+  });
+
+  test('requires the verified cron identity before notebook provisioning', () => {
+    const setup = readyForNotebook();
+    setup.record.cronJobId = undefined;
+    expect(onboardingResearchSequenceBlocker(setup)).toBe('cron_job_missing');
+  });
+
+  test('allows research only after the cron-backed config is complete', () => {
+    expect(onboardingResearchSequenceBlocker(readyForNotebook())).toBeNull();
+  });
+
+  test('allows closing only after notebook and note identities are persisted', () => {
+    const setup = readyForNotebook();
+    setup.record.state = 'complete';
+    expect(onboardingCompletionSequenceBlocker(setup)).toBe('notebook_missing');
+    setup.record.notebookNest = 'notes/~zod/research';
+    expect(onboardingCompletionSequenceBlocker(setup)).toBe('note_missing');
+    setup.record.noteId = '42';
+    expect(onboardingCompletionSequenceBlocker(setup)).toBeNull();
   });
 });
 

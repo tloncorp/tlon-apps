@@ -46,37 +46,6 @@ export function hasFlag(args: string[], name: string): boolean {
 }
 
 /**
- * Read all of stdin as UTF-8 text, with a timeout so a forgotten pipe fails
- * loudly instead of hanging. The safe channel for values that shell quoting
- * would mangle — JSON descriptions in particular.
- */
-export async function readStdinText(timeoutMs = 30_000): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    const timer = setTimeout(() => {
-      process.stdin.destroy();
-      reject(
-        new Error(
-          `stdin read timed out after ${Math.round(timeoutMs / 1000)}s - did you forget to pipe input?`
-        )
-      );
-    }, timeoutMs);
-
-    process.stdin.on('data', (chunk) => {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    });
-    process.stdin.on('end', () => {
-      clearTimeout(timer);
-      resolve(Buffer.concat(chunks).toString('utf-8'));
-    });
-    process.stdin.on('error', (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-  });
-}
-
-/**
  * Read the value after an option that requires one.
  */
 export function getRequiredOptionValue(

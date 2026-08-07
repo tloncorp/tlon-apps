@@ -1,5 +1,7 @@
 // Copyright 2025, Tlon Corporation
 import {
+  DarkTheme,
+  DefaultTheme,
   NavigationContainer,
   NavigationContainerRefWithCurrent,
   NavigationState,
@@ -13,6 +15,7 @@ import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitCl
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
@@ -34,7 +37,6 @@ import {
   getMobileLinkingConfig,
 } from '@tloncorp/app/navigation/linking';
 import { CombinedParamList } from '@tloncorp/app/navigation/types';
-import { useAppNavigationTheme } from '@tloncorp/app/navigation/useAppNavigationTheme';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
@@ -184,7 +186,13 @@ function AppRoutes() {
   });
 
   const isMobile = useIsMobile();
-  const theme = useAppNavigationTheme();
+  const isDarkMode = useIsDarkMode();
+  const theme = useMemo(() => {
+    if (isDarkMode) {
+      return DarkTheme;
+    }
+    return DefaultTheme;
+  }, [isDarkMode]);
 
   useRenderCount('AppRoutes');
 

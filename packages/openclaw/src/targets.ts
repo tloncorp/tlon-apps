@@ -122,19 +122,6 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
   return null;
 }
 
-export function formatTargetHint(target?: string): string {
-  const base =
-    'dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel';
-  // A notes nest is a real channel, just not one this tool can write: %notes
-  // entries carry a title and a Markdown body, which a chat message has no
-  // room for. Say where to write it instead, or the agent retries the same
-  // call until it gives up and reports itself blocked.
-  const nest = target?.trim().replace(/^tlon:/i, '');
-  if (nest && /^notes\//i.test(nest)) {
-    // --markdown, never --stdin: the tool spawns the CLI without a writable
-    // stdin, so the repair refuses that flag. Handing it out here would send
-    // the agent straight into a rejection.
-    return `notes channels are written with the tlon tool, not this one — write the body to a file, then 'notes note-create ${nest} root "<Title>" --markdown <file>'. This tool posts to: ${base}`;
-  }
-  return base;
+export function formatTargetHint(): string {
+  return 'dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel';
 }

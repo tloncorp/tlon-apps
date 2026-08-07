@@ -1,13 +1,16 @@
 import * as store from '@tloncorp/shared';
-import React, { useEffect } from 'react';
-import { Appearance, Platform } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
-import { useIsDarkMode, useIsSystemDarkMode } from '../hooks/useDarkMode';
+import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { SplashScreenTask, splashScreenProgress } from '../lib/splashscreen';
 import { AppTheme } from '../types/theme';
 import { config } from '../ui/tamagui.config';
 import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
+
+const ThemeContext = React.createContext<{
+  activeTheme: AppTheme;
+}>({ activeTheme: 'light' });
 
 export function Provider({
   children,
@@ -25,58 +28,66 @@ function ThemeProviderContent({
   children: React.ReactNode;
   tamaguiProps: Omit<TamaguiProviderProps, 'config'>;
 }) {
-  const { activeTheme, appTheme } = useResolvedAppTheme();
+  const [activeTheme] = useSyncedAppTheme();
 
   return (
-    <TamaguiProvider
-      {...tamaguiProps}
-      config={config}
-      defaultTheme={activeTheme}
+    <ThemeContext.Provider
+      value={useMemo(() => ({ activeTheme }), [activeTheme])}
     >
-      <NativeAppearanceSync appTheme={appTheme} />
-      {children}
-    </TamaguiProvider>
+      <TamaguiProvider
+        {...tamaguiProps}
+        config={config}
+        defaultTheme={activeTheme}
+      >
+        {children}
+      </TamaguiProvider>
+    </ThemeContext.Provider>
   );
 }
 
-function NativeAppearanceSync({ appTheme }: { appTheme: AppTheme | null }) {
-  const isDarkTheme = useIsDarkMode();
+export const useActiveTheme = () => {
+  const { activeTheme } = React.useContext(ThemeContext);
+  return activeTheme;
+};
 
-  useEffect(() => {
-    if (Platform.OS !== 'ios' || appTheme == null) {
-      return;
-    }
+function useSyncedAppTheme() {
+  const isDarkMode = useIsDarkMode();
+  const [activeTheme, setActiveTheme] = useState<AppTheme>(
+    isDarkMode ? 'dark' : 'light'
+  );
 
-    Appearance.setColorScheme(
-      appTheme === 'auto' ? 'unspecified' : isDarkTheme ? 'dark' : 'light'
-    );
-  }, [appTheme, isDarkTheme]);
-
-  return null;
-}
-
-function useResolvedAppTheme() {
-  const isSystemDarkMode = useIsSystemDarkMode();
+  // Query database for which theme the user has previously set
   const { data: storedThemeRaw, isLoading } = store.useThemeSettings();
-  const appTheme: AppTheme | null = isLoading
-    ? null
-    : storedThemeRaw == null
-      ? 'auto'
-      : normalizeTheme(storedThemeRaw);
-  const activeTheme =
-    appTheme == null
-      ? isSystemDarkMode
-        ? 'dark'
-        : 'light'
-      : getDisplayTheme(appTheme, isSystemDarkMode);
 
+  const storedTheme = useMemo(() => {
+    if (isLoading) {
+      return { loaded: false } as const;
+    }
+    const appTheme =
+      storedThemeRaw == null ? 'auto' : normalizeTheme(storedThemeRaw);
+    const tamaguiTheme = getDisplayTheme(appTheme, isDarkMode);
+    return {
+      loaded: true,
+
+      /** `AppTheme` specified in settings - includes `auto`, which resolves to
+       * another theme at runtime. */
+      appTheme,
+
+      /** Resolved Tamagui `ThemeName` derived from `appTheme` - maps
+       * one-to-one with color set */
+      tamaguiTheme,
+    } as const;
+  }, [isLoading, storedThemeRaw, isDarkMode]);
+
+  // Apply stored theme
   useEffect(() => {
-    if (appTheme == null) {
+    if (!storedTheme.loaded) {
       return;
     }
 
+    setActiveTheme(storedTheme.tamaguiTheme);
     splashScreenProgress.complete(SplashScreenTask.loadTheme);
-  }, [appTheme]);
+  }, [storedTheme]);
 
-  return { activeTheme, appTheme };
+  return [activeTheme, setActiveTheme] as const;
 }

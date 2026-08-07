@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import {
   requestNotificationToken,
   useNotificationPermissions,

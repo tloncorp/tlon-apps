@@ -6,7 +6,6 @@ import { View, getTokenValue } from 'tamagui';
 import ContactName from './ContactName';
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
-import { useScreenScrollProps } from './useScreenScrollProps';
 
 export function ChannelMembersScreenView({
   channel,
@@ -15,7 +14,6 @@ export function ChannelMembersScreenView({
   channel?: db.Channel;
   goBack: () => void;
 }) {
-  const screenScrollProps = useScreenScrollProps();
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<db.ChatMember>) => {
       return (
@@ -39,11 +37,9 @@ export function ChannelMembersScreenView({
         title="Members"
         loadingSubtitle={channel ? null : 'Loading…'}
         backAction={goBack}
-        placement="navigation"
       />
       <FlatList
         data={channel?.members}
-        {...screenScrollProps}
         contentContainerStyle={{
           paddingHorizontal: getTokenValue('$l', 'size'),
         }}

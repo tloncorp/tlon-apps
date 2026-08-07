@@ -11,7 +11,7 @@ import {
   FormFrame,
   FormText,
   ScreenHeader,
-  ScreenScrollView,
+  ScrollView,
   View,
   useIsWindowNarrow,
 } from '../../ui';
@@ -61,7 +61,6 @@ export function UserBugReportScreen({ navigation }: Props) {
         title="Report a bug"
         borderBottom
         backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
-        placement="navigation"
       />
       <KeyboardAvoidingView
         style={{
@@ -71,7 +70,7 @@ export function UserBugReportScreen({ navigation }: Props) {
           marginHorizontal: 'auto',
         }}
       >
-        <ScreenScrollView flex={1} keyboardDismissMode="on-drag">
+        <ScrollView flex={1} keyboardDismissMode="on-drag">
           <FormFrame>
             <FormText>
               If you experienced an issue, let us know! Sending reports helps us
@@ -104,7 +103,7 @@ export function UserBugReportScreen({ navigation }: Props) {
               centered
             />
           </FormFrame>
-        </ScreenScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );

@@ -9,28 +9,17 @@ import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { createChannel } from './channelActions';
+import { createChannel, hydrateExistingNotesChannel } from './channelActions';
 import { createDefaultGroup } from './groupActions';
+import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('agentOnboardingActions', false);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * How long the agent-marker write may take to look up the group before it
- * stops being safe to write. See `writeAgentMarker`.
- */
 const MARKER_WRITE_DEADLINE_MS = 5_000;
 
-/**
- * Create a group whose resident is the user's agent: a default group with
- * the bot on the guest list. The agent opens the conversation itself once
- * it joins — it posts the purpose picker into the empty channel — so the
- * caller just navigates there. The invite is what the agent's auto-accept
- * reacts to; the hosting join below is belt-and-braces for hosted moons.
- * Either failing only means the group starts without the bot, which the
- * user can see and fix by inviting it.
- */
+/** Create a default group with the user's agent seated. */
 export async function createAgentGroup(params?: {
   /**
    * Agent ship named directly instead of resolved through hosting — for
@@ -61,9 +50,7 @@ export async function createAgentGroup(params?: {
     botShipId,
   });
 
-  // Remember who the agent is from the client's own side. The config in the
-  // description says so too, but the agent writes that itself — when it writes
-  // it wrong, this is what keeps its cards rendering.
+  // First-hand identity keeps cards trusted before config exists.
   await db.agentGroupAgents
     .setValue((current) => ({ ...current, [group.id]: botShipId }))
     .catch((error) => {
@@ -73,11 +60,7 @@ export async function createAgentGroup(params?: {
       });
     });
 
-  // Stamp when the opening began, so the empty-channel notice can stop
-  // waiting on an agent that never arrives. Only here, not in
-  // `recordHomeGroupAgent`: this is the moment an opening is actually
-  // imminent, and a device adopting an existing group later should not
-  // restart the clock on a conversation that opened long ago.
+  // Bounds how long the empty-channel UI waits for the agent to open.
   await db.agentGroupOpenedAt
     .setValue((current) => ({ ...current, [group.id]: Date.now() }))
     .catch((error) => {
@@ -87,11 +70,7 @@ export async function createAgentGroup(params?: {
       });
     });
 
-  // Declare the agent on the group so other clients (and a re-installed one,
-  // whose local record above is gone) recognize its cards too — see
-  // `isOwnAgentShip`. A bare declaration — who acts, not what the group does
-  // — so the agent still treats the group as awaiting setup. Best effort:
-  // without it the cards degrade to text.
+  // Best-effort durable identity for other devices.
   writeAgentMarker(group, botShipId).catch((error) => {
     logger.trackError('Failed to write agent marker', {
       error,
@@ -132,31 +111,9 @@ export async function createAgentGroup(params?: {
   return { group, channelId };
 }
 
-/**
- * The group-agent-config stopgap entry naming the group's agent, written into
- * `meta.description` (matching `parseGroupAgentConfig` in @tloncorp/api). The
- * agent itself fills in purpose and jobs during onboarding.
- */
 async function writeAgentMarker(group: db.Group, botShipId: string) {
-  // Fire-and-forget, so it can land after the agent has already written the
-  // real config. Re-read from the *ship*, not the local DB: the agent's
-  // write reaches the local row only via sync, so a stale local read could
-  // pass the guard while the ship already carries a finished setup — and
-  // this bare marker would replace its purpose and jobs, leaving the group
-  // looking unconfigured with its scheduled job orphaned. Skip on any
-  // existing config entry (whoever wrote it), and skip when the ship can't
-  // be read at all — writing blind risks the same clobber, and the marker
-  // is best-effort belt-and-braces (`agentGroupAgents` is the primary
-  // signal).
-  // The guard below is a check, not a compare-and-set: `updateGroupMeta`
-  // replaces the whole meta, so a config written between the read and the
-  // poke landing is simply lost — and losing it is worse than losing the
-  // marker, because the group then looks unconfigured while its scheduled
-  // job keeps running unowned. Nothing makes the pair atomic, so bound the
-  // race instead: the group is milliseconds old here and the agent cannot
-  // configure it until the user has tapped through the picker, so we are
-  // comfortably first unless this write is already slow. If it is, give up
-  // — a missing marker only degrades the agent's cards to text.
+  // Re-read from the ship and abandon slow writes rather than overwrite a
+  // newer config; the meta update is not a compare-and-set.
   const deadline = Date.now() + MARKER_WRITE_DEADLINE_MS;
   const current = await api.getGroup(group.id).catch(() => null);
   if (!current || parseGroupAgentConfig(current.description) !== undefined) {
@@ -178,10 +135,7 @@ async function writeAgentMarker(group: db.Group, botShipId: string) {
     jobs: [],
     updatedAt: Date.now(),
   } satisfies GroupAgentConfigEntry;
-  // Meta comes from the ship's current group, not the creation-time
-  // snapshot: this poke replaces the whole meta object, and by the time a
-  // slow marker lands the agent may already have renamed and iconed the
-  // group mid-setup.
+  // Carry every current meta field because the poke replaces the whole meta.
   const meta = current;
   return api.updateGroupMeta({
     groupId: group.id,
@@ -196,17 +150,7 @@ async function writeAgentMarker(group: db.Group, botShipId: string) {
 
 const agentNotebookEnsuring = new Set<string>();
 
-/**
- * Create the setup's output notebook as the owner, the moment the group's
- * config gains a job. The notebook is the owner's channel, hosted on the
- * owner's ship — the agent only ever posts *into* it. Reactive to the
- * config write because that is the first moment the client knows the setup
- * produced a job (and what to call it), and the owner is being held in the
- * guided channel right then, so the app is foregrounded and the channel
- * exists before the agent's first run goes looking for it. Best effort and
- * idempotent: an existing notes channel means nothing to do, and the agent
- * falls back to chat output when no notebook ever appears.
- */
+/** Ensure the configured job has one owner-hosted notes channel. */
 export async function ensureAgentNotebookForGroup(group: {
   id: string;
   description?: string | null;
@@ -231,33 +175,50 @@ export async function ensureAgentNotebookForGroup(group: {
   // "Daily digest: Nootropics, Coffee" names the notebook "Daily digest".
   const jobTitle = typeof job.title === 'string' ? job.title : '';
   const title = jobTitle.split(':')[0]?.trim() || 'Notebook';
-  // Retry here rather than leaving the debt to the caller. Clearing the
-  // in-flight guard was never a retry: the effect that calls this is keyed
-  // on the group's description and channel count, and a failed create
-  // changes neither — so one transient error left the configured job with
-  // no notebook until a remount or some unrelated group change, and the
-  // agent's day-one entry had nowhere to go.
+  // The calling effect will not rerun after a failure, so retry here.
   const delays = [0, 2_000, 5_000, 15_000];
   for (const delay of delays) {
     if (delay) {
       await sleep(delay);
-      // Ask the ship, not the local DB. `createChannel` can throw after the
-      // channel is already made — its own verification reads the groups
-      // listing, which may be unreadable for a moment — and the local row
-      // only appears once sync catches up. A local check would therefore
-      // still say "no notebook" for a notebook that exists, and every
-      // retry would mint another one. Duplicates are permanent and the
-      // owner sees them; a missing notebook is recoverable.
+      // Remote read-back prevents duplicates after an ambiguous create.
       let remote;
       try {
         remote = await api.getGroup(group.id);
       } catch {
-        // Can't tell whether the create landed, so stop guessing. The
-        // guard is released below and a later pass starts over.
+        // Never create again while an earlier result is unknowable.
         break;
       }
-      if (remote.channels?.some((channel) => channel.type === 'notes')) {
-        return;
+      const remoteNotebook = remote.channels?.find(
+        (channel) => channel.type === 'notes'
+      );
+      if (remoteNotebook) {
+        try {
+          const adopted = await hydrateExistingNotesChannel(remote);
+          const flag = api.parseNotesChannelId(adopted?.id);
+          if (flag) {
+            syncNotesNotebook(flag).catch((error) => {
+              logger.trackError('Failed to sync adopted agent notebook', {
+                error,
+                groupId: group.id,
+                channelId: adopted?.id,
+              });
+            });
+          }
+          logger.trackEvent('Agent Notebook Adopted', {
+            groupId: group.id,
+            channelId: adopted?.id,
+          });
+          return;
+        } catch (error) {
+          // The remote notebook is real, so never call create again here.
+          // Retry only the local adoption on the next delay.
+          logger.trackError('Failed to adopt existing agent notebook', {
+            error,
+            groupId: group.id,
+            channelId: remoteNotebook.id,
+          });
+          continue;
+        }
       }
     }
     try {
@@ -283,13 +244,7 @@ export async function ensureAgentNotebookForGroup(group: {
   agentNotebookEnsuring.delete(group.id);
 }
 
-/**
- * Give the agent the admin role, so it can build the group it was invited
- * into — renaming it and adding the output channel are admin writes, and a
- * plain member's pokes are silently dropped by the host. The role lands on
- * the agent's seat, which only exists once it accepts the invite, so retry
- * across that window; the poke is idempotent.
- */
+/** Retry the admin grant across the agent's invite-accept window. */
 async function grantAgentAdmin(groupId: string, botShipId: string) {
   const delays = [0, 3_000, 5_000, 10_000, 20_000, 30_000];
   for (const delay of delays) {
@@ -318,18 +273,7 @@ async function grantAgentAdmin(groupId: string, botShipId: string) {
   }
 }
 
-/**
- * The agent's ship, resolved once.
- *
- * Deliberately returns no second, unresolved copy of the moon name. The
- * hosting API answers with either the bare moon prefix ("molten") or the
- * full moon name, sigged or not, and a bare two-syllable prefix like
- * "pinser-botter" is itself a valid @p — a planet, owned by a stranger.
- * When the raw answer was carried alongside the resolved one, the cordon
- * and join calls took the raw field and invited that planet into the
- * owner's brand-new group, while the moon that was supposed to join it
- * never did. One field means there is no wrong one to reach for.
- */
+/** Resolve the hosting API's moon prefix to one unambiguous full ship. */
 async function resolveTlawnBot(): Promise<{
   botShipId: string | null;
   hostedShipId: string | null;
@@ -356,16 +300,7 @@ async function resolveTlawnBot(): Promise<{
   }
 }
 
-/**
- * Record the home group's agent from the hosting config, so the client
- * recognizes the bot's posts as its own agent's (see `isOwnAgentShip`) from
- * the very first picker card — before the group carries any config naming
- * it. The client never seated this agent itself (provisioning did), so this
- * is where its first-hand record comes from: the hosting API's node + moon,
- * not the shape of the author's ship name. Best effort — without it the
- * opening cards degrade to their text fallbacks until the setup writes the
- * config's `agents` list.
- */
+/** Record first-hand home-group agent identity before config exists. */
 export async function recordHomeGroupAgent(groupId: string): Promise<void> {
   try {
     const { botShipId } = await resolveTlawnBot();
@@ -384,15 +319,7 @@ export async function recordHomeGroupAgent(groupId: string): Promise<void> {
   }
 }
 
-/**
- * Make sure the home group's agent is recorded on *this* device. The splash
- * sequence records it during first-run signup, but that runs once per
- * account, not per device — a re-login or second device would otherwise have
- * no first-hand agent record, and the bot's onboarding cards would degrade
- * to text until setup writes the config's `agents` list (which the cards
- * themselves are the path to). Cheap and idempotent: skipped outright for
- * accounts without a hosted bot or with the record already present.
- */
+/** Restore the same identity record after a login on another device. */
 export async function ensureHomeGroupAgentRecorded(): Promise<void> {
   try {
     const botEnabled = await db.hostingBotEnabled.getValue();
@@ -411,13 +338,7 @@ export async function ensureHomeGroupAgentRecorded(): Promise<void> {
   }
 }
 
-/**
- * The hosted home group's chat channel: the venue for in-channel onboarding
- * (the live bot is already a member there). Prefers the locally-synced rows;
- * on a fresh signup the splash shows before sync runs, so for bot-enabled
- * accounts this falls back to the deterministic provisioning ids and lets
- * the landing consumer wait for the channel to sync in.
- */
+/** Resolve locally, falling back to deterministic provisioning IDs. */
 export async function getHomeGroupOnboardingTarget(): Promise<{
   groupId: string;
   channelId: string;
