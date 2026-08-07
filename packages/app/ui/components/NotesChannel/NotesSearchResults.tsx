@@ -127,7 +127,10 @@ function NotesSearchResultRowComponent({
             ) : null}
           </XStack>
           {snippet.segments.length > 0 ? (
-            <ListItem.Subtitle numberOfLines={2}>
+            // Middle contrast, between the title and the path/timestamp: the
+            // snippet is what you read to judge a hit, so it shouldn't sit at
+            // the same weight as the metadata locating it.
+            <ListItem.Subtitle color="$secondaryText" numberOfLines={2}>
               <SegmentedText
                 segments={snippet.segments}
                 prefix={snippet.elidedStart ? ELLIPSIS : undefined}
