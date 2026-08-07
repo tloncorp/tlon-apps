@@ -4,6 +4,7 @@ import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
 import { formatUd } from './apiUtils';
 import {
+  type RequestJsonOptions,
   poke,
   requestJson,
   scry,
@@ -1057,9 +1058,12 @@ async function listNoteHistoryV1({
 
 // --- folder helpers --------------------------------------------------------
 
-async function listFoldersV1(target: NotesTarget): Promise<NotesV1Folder[]> {
+async function listFoldersV1(
+  target: NotesTarget,
+  options?: RequestJsonOptions
+): Promise<NotesV1Folder[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(foldersV1Path(flag), 'GET');
+  const res = await requestJson(foldersV1Path(flag), 'GET', undefined, options);
   return requireArray(res, normalizeFolderV1);
 }
 
@@ -1238,6 +1242,19 @@ export class NotesInvalidRequestIdError extends Error {
   }
 }
 
+export class NotesUnknownFolderError extends Error {
+  readonly flag: string;
+  readonly folderId: number;
+
+  constructor(flag: string, folderId: number) {
+    super(`%notes folder ${folderId} does not exist in ${flag}`);
+    this.name = 'NotesUnknownFolderError';
+    this.flag = flag;
+    this.folderId = folderId;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 // ===========================================================================
 // Batch-import submit over the v1 envelope
 // ===========================================================================
@@ -1263,6 +1280,17 @@ export async function batchImportNotesV1({
 
   const normalized = normalizeNotesTarget(flag);
   const canonicalFlag = formatNotesFlag(normalized);
+
+  // %notes se-batch-import assigns the folder id into every imported note
+  // without resolving it (unlike se-create-note), so a stale id would
+  // persist a whole batch of notes invisible to folder traversal. Resolve
+  // it here before submitting; the backend-side check is TLON-6307.
+  const folders = await listFoldersV1(normalized, {
+    reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
+  });
+  if (!folders.some((existing) => existing.id === folder)) {
+    throw new NotesUnknownFolderError(canonicalFlag, folder);
+  }
 
   const body = {
     requestId,

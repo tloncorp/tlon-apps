@@ -191,14 +191,15 @@ function blockChildrenToInlines(
       }
 
       case 'code': {
+        // Wire limitation: inline %code is [%code p=cord] — a bare string
+        // (sur/story.hoon, decoded by code/so in story-json.hoon). A fence
+        // nested in a quote or list item therefore cannot carry a language;
+        // emitting the block-shaped {code:{code,lang}} here produced a Story
+        // the ship cannot decode. The language is dropped, documented, and
+        // the serialize direction stays tolerant of the object shape for
+        // anything already in client memory.
         const codeNode = child as MdastCode;
-        const code: BlockCode =
-          codeNode.lang && codeNode.lang !== 'text'
-            ? ({
-                code: { code: codeNode.value, lang: codeNode.lang },
-              } as unknown as BlockCode)
-            : { code: codeNode.value };
-        blockInlines = [code];
+        blockInlines = [{ code: codeNode.value }];
         break;
       }
 

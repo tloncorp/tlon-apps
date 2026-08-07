@@ -351,6 +351,27 @@ export const useLiveThreadUnreadsByChannel = (channelId: string | null) => {
   });
 };
 
+export const useChannelHasBotPost = ({
+  channelId,
+  authorId,
+}: {
+  channelId?: string | null;
+  authorId?: string | null;
+}) => {
+  const depsKey = useKeyFromQueryDeps(db.getChannelHasBotPost);
+
+  return useQuery({
+    enabled: !!channelId && !!authorId,
+    queryKey: ['channelHasBotPost', depsKey, channelId, authorId],
+    queryFn: async () => {
+      if (!channelId || !authorId) {
+        return false;
+      }
+      return db.getChannelHasBotPost({ channelId, authorId });
+    },
+  });
+};
+
 export const useLiveChannelUnread = (unread: db.ChannelUnread | null) => {
   const depsKey = useMemo(
     () => (unread ? keyFromQueryDeps(db.getChannelUnread) : null),

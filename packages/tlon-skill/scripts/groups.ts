@@ -1355,7 +1355,7 @@ async function addChannel(
 // appeared (see notes-channel.ts).
 async function addNotesChannel(groupId: string, title: string) {
   const nest = await createNotesChannelInGroup(
-    { groupId, title },
+    { groupId, title, readers: [] },
     createNotesChannelDeps()
   );
 

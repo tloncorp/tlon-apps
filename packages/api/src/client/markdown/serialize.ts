@@ -185,7 +185,24 @@ function separateStrikeFromAdjacentPhrasing(node: Node): void {
   }
   for (let index = 0; index < parent.children.length; index += 1) {
     const child = parent.children[index];
-    if (child.type !== 'delete') continue;
+    // Same delimiter-flanking hazard in both nesting directions: a `delete`
+    // under an asterisk mark (original case), and — since block lifts began
+    // rejoining phrasing — an asterisk mark under `delete` (mirror case).
+    // Mirror case fires only on the compact adjacency that actually
+    // mis-flanks (`word**bold**` inside ~~…~~, generator case 6); shapes
+    // separated by whitespace serialize and reparse cleanly and must not
+    // churn with comments.
+    const compactText = (sibling: Node | undefined, edge: 'end' | 'start') => {
+      if (!sibling || sibling.type !== 'text') return false;
+      const value = (sibling as Node & { value: string }).value;
+      return edge === 'end' ? /\S$/.test(value) : /^\S/.test(value);
+    };
+    const mirror =
+      parent.type === 'delete' &&
+      (child.type === 'strong' || child.type === 'emphasis') &&
+      (compactText(parent.children[index - 1], 'end') ||
+        compactText(parent.children[index + 1], 'start'));
+    if (child.type !== 'delete' && !mirror) continue;
 
     const previous = parent.children[index - 1];
     if (previous && previous.type !== 'break' && previous.type !== 'html') {
@@ -232,7 +249,13 @@ function markStartsWithNonWordChild(node: AsteriskMark): boolean {
   const first = node.children[0] as (Node & { value?: unknown }) | undefined;
   if (!first) return false;
 
-  if (first.type === 'link' || first.type === 'inlineCode') {
+  if (
+    first.type === 'link' ||
+    first.type === 'inlineCode' ||
+    // A ship mention serializes starting with `~` — a non-word delimiter
+    // hazard exactly like punctuation, checked before it becomes raw HTML.
+    first.type === 'shipMention'
+  ) {
     return true;
   }
   return (

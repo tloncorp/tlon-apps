@@ -69,7 +69,10 @@ export function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
         children: convertInlineContent(inline.task.content),
       });
     } else if (ub.isBlockquote(inline) && Array.isArray(inline.blockquote)) {
-      nodes.push(...convertInlineContent(inline.blockquote));
+      nodes.push({
+        type: 'blockquote',
+        children: convertInlineContent(inline.blockquote),
+      });
     } else if (ub.isBlockCode(inline)) {
       nodes.push({
         type: 'style',

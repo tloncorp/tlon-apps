@@ -359,7 +359,7 @@ async function createChannelInGroup(
 // listing appeared (see notes-channel.ts).
 async function createNotesChannel(groupId: string, title: string) {
   const nest = await createNotesChannelInGroup(
-    { groupId, title },
+    { groupId, title, readers: [] },
     createNotesChannelDeps()
   );
 

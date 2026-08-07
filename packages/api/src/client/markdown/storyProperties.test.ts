@@ -51,7 +51,9 @@ function randomInline(depth = 0): Inline {
     { italics: children() },
     { strike: children() },
     { blockquote: children() },
-    { code: { code: `lang_${pick(97)}`, lang: 'js' } } as unknown as Inline,
+    // Inline %code is string-only on the wire (sur/story.hoon); tagged
+    // fences are only legal at block level, generated separately.
+    { code: `lang_${pick(97)}` },
   ];
   return variants[pick(variants.length)];
 }
@@ -456,6 +458,44 @@ function hasNestedAsteriskMarkAmbiguity(story: Story): boolean {
 }
 
 const FORCED_CASES: Array<{ name: string; story: Story }> = [
+  {
+    // Phrasing on both sides of a mark that contains a block must stay
+    // joined to the lifted result's leading/trailing paragraphs — tearing
+    // it apart both exploded paragraphs and leaked boundary entities.
+    name: 'phrasing around a bold-wrapped blockquote',
+    story: [
+      {
+        inline: [
+          'prefix ',
+          { bold: ['before', { blockquote: ['q'] }, 'after'] },
+          ' suffix',
+        ],
+      },
+    ],
+  },
+  {
+    // GFM permits mixing plain and checkbox items in one list; the wire
+    // keeps the author's single list (adjacent lists re-merge on reparse,
+    // so a homogeneous split cannot survive a cycle). The renderer draws a
+    // bullet for a tasklist child with no task inline.
+    name: 'mixed plain and task items in one list',
+    story: [
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'tasklist',
+              contents: [],
+              items: [
+                { item: ['plain'] },
+                { item: [{ task: { checked: true, content: ['done'] } }] },
+              ],
+            },
+          },
+        },
+      },
+    ],
+  },
   {
     name: 'adjacent bold and link-leading italics before a lifted break',
     story: [

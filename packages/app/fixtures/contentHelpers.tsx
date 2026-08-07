@@ -241,6 +241,36 @@ export const postWithBlockquote = makePost(
   }
 );
 
+// TLON-6284: a quote nested inside another quote, plus a code block nested in a
+// quote. Both are legal wire inlines that used to render "Unknown content
+// type". The `break` between siblings matches what markdown conversion emits.
+export const postWithNestedBlockquote = makePost(
+  exampleContacts.met,
+  [
+    verse.inline(
+      inline.blockquote(
+        'Outer quote, which contains another quote:',
+        inline.break(),
+        inline.blockquote('Inner quote, nested one level deeper.'),
+        inline.break(),
+        'Back to the outer quote.'
+      )
+    ),
+    verse.inline(
+      inline.blockquote(
+        'A quote containing a code block:',
+        inline.break(),
+        inline.code('nested_code_block()')
+      )
+    ),
+    verse.inline('Trailing paragraph, for spacing reference.'),
+  ],
+  {
+    replyCount: 0,
+    isEdited: false,
+  }
+);
+
 export const postWithCode = makePost(
   exampleContacts.hooncell,
   [
@@ -691,6 +721,7 @@ export const postsByType = {
   text: postWithText,
   mention: postWithMention,
   blockquote: postWithBlockquote,
+  nestedBlockquote: postWithNestedBlockquote,
   code: postWithCode,
   list: postWithList,
   link: postWithLink,
