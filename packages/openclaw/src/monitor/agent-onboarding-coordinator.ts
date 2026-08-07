@@ -31,6 +31,41 @@ export type DeterministicSetup = {
   record: DeterministicOnboardingRecord;
 };
 
+export type OnboardingWriteQueue = {
+  has: (key: string) => boolean;
+  run: <T>(key: string, operation: () => Promise<T>) => Promise<T>;
+};
+
+/**
+ * Serialize whole-description writes for a group. The Tlon CLI can time out
+ * after the poke has landed, so allowing a newer state transition to write in
+ * parallel lets an older retry overwrite it later.
+ */
+export function createOnboardingWriteQueue(): OnboardingWriteQueue {
+  const tails = new Map<string, Promise<void>>();
+
+  return {
+    has: (key) => tails.has(key),
+    run: async <T>(key: string, operation: () => Promise<T>): Promise<T> => {
+      const previous = tails.get(key) ?? Promise.resolve();
+      const result = previous.then(operation);
+      const tail = result.then(
+        () => undefined,
+        () => undefined
+      );
+      tails.set(key, tail);
+
+      try {
+        return await result;
+      } finally {
+        if (tails.get(key) === tail) {
+          tails.delete(key);
+        }
+      }
+    },
+  };
+}
+
 const CONFIG_TYPE = 'tlon-group-agent-config';
 
 const fill = (template: string, topics: string) =>

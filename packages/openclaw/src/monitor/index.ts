@@ -129,6 +129,7 @@ import {
   buildAwaitingTimezoneDescription,
   buildAwaitingTopicsDescription,
   buildDeterministicSetupDescription,
+  createOnboardingWriteQueue,
   deterministicSetupFromDescription,
   ensureDeterministicCronJob,
   normalizeIanaTimezone,
@@ -982,12 +983,14 @@ export async function monitorTlonProvider(
         ...extra,
       });
 
+    const onboardingDescriptionWrites = createOnboardingWriteQueue();
+
     /**
      * Trusted config writer for the deterministic onboarding state machine.
      * The JSON is passed as one argv value—never through a model, shell, or
      * tokenizer—and read back from the ship before the transition commits.
      */
-    const writeAndVerifyOnboardingDescription = async (
+    const performOnboardingDescriptionWrite = async (
       nest: string,
       groupFlag: string,
       description: string,
@@ -1109,6 +1112,58 @@ export async function monitorTlonProvider(
         ...onboardingErrorFields(finalError, [description]),
       });
       throw finalError;
+    };
+
+    const writeAndVerifyOnboardingDescription = async (
+      nest: string,
+      groupFlag: string,
+      description: string,
+      traceContext?: {
+        onboardingAttemptId?: string | null;
+        onboardingSource?: string | null;
+      }
+    ): Promise<void> => {
+      const queued = onboardingDescriptionWrites.has(groupFlag);
+      const queuedAt = Date.now();
+      const setup = deterministicSetupFromDescription(description);
+      const traceBase = {
+        nest,
+        groupFlag,
+        purposeId: setup?.purposeId ?? null,
+        onboardingAttemptId: traceContext?.onboardingAttemptId ?? null,
+        onboardingSource: traceContext?.onboardingSource ?? null,
+        onboardingStage: 'group_config',
+        onboardingState: setup?.record.state ?? null,
+        topicsCharCount: setup?.topics.length ?? null,
+        timezone: setup?.timezone || null,
+        cronJobId: setup?.record.cronJobId ?? null,
+        notebookNest: setup?.record.notebookNest ?? null,
+      };
+      if (queued) {
+        traceOnboarding({
+          ...traceBase,
+          onboardingOperation: 'wait_for_description_write',
+          onboardingOutcome: 'waiting',
+          reason: 'group_write_in_flight',
+        });
+      }
+
+      return onboardingDescriptionWrites.run(groupFlag, async () => {
+        if (queued) {
+          traceOnboarding({
+            ...traceBase,
+            onboardingOperation: 'wait_for_description_write',
+            onboardingOutcome: 'succeeded',
+            durationMs: Date.now() - queuedAt,
+          });
+        }
+        return performOnboardingDescriptionWrite(
+          nest,
+          groupFlag,
+          description,
+          traceContext
+        );
+      });
     };
 
     const waitForOnboardingAdminSeat = async (
@@ -1347,6 +1402,7 @@ export async function monitorTlonProvider(
     };
 
     const deterministicDraftRegistered = new Set<string>();
+    const deterministicSetupInFlight = new Map<string, Promise<void>>();
 
     /** Reconcile the deterministic setup once the owner's notebook exists. */
     const reconcileDeterministicSetup = async (
@@ -1378,6 +1434,22 @@ export async function monitorTlonProvider(
         onboardingOutcome: 'started',
         onboardingState: deterministic?.record.state ?? null,
       });
+      const writeBlocker = deterministicSetupInFlight.has(nest)
+        ? 'setup_in_flight'
+        : onboardingDescriptionWrites.has(group.flag)
+          ? 'group_write_in_flight'
+          : null;
+      if (writeBlocker) {
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'notebook',
+          onboardingOperation: 'reconcile_setup',
+          onboardingOutcome: 'waiting',
+          onboardingState: deterministic?.record.state ?? null,
+          reason: writeBlocker,
+        });
+        return;
+      }
       if (!deterministic) {
         traceOnboarding({
           ...traceBase,
@@ -2447,7 +2519,6 @@ export async function monitorTlonProvider(
       }
     };
 
-    const deterministicSetupInFlight = new Map<string, Promise<void>>();
     const beginDeterministicSetup = (
       nest: string,
       params: {

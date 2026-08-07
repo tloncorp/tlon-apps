@@ -13,6 +13,7 @@ import {
   buildAwaitingTimezoneDescription,
   buildAwaitingTopicsDescription,
   buildDeterministicSetupDescription,
+  createOnboardingWriteQueue,
   deterministicSetupFromDescription,
   ensureDeterministicCronJob,
   normalizeIanaTimezone,
@@ -75,6 +76,69 @@ describe('deterministic onboarding config', () => {
       })
     )[0];
     expect(complete.jobs[0].outputNest).toBe('notes/~zod/daily');
+  });
+});
+
+describe('onboarding description write serialization', () => {
+  test('does not let a delayed older transition overwrite a newer one', async () => {
+    const queue = createOnboardingWriteQueue();
+    let releaseOlder!: () => void;
+    const olderCanFinish = new Promise<void>((resolve) => {
+      releaseOlder = resolve;
+    });
+    let storedState = 'initial';
+    const executionOrder: string[] = [];
+
+    const older = queue.run('~zod/home', async () => {
+      executionOrder.push('older-started');
+      await olderCanFinish;
+      storedState = 'awaiting-notebook';
+      executionOrder.push('older-finished');
+    });
+    await Promise.resolve();
+    const newer = queue.run('~zod/home', async () => {
+      executionOrder.push('newer-started');
+      storedState = 'researching';
+      executionOrder.push('newer-finished');
+    });
+
+    expect(queue.has('~zod/home')).toBe(true);
+    expect(executionOrder).toEqual(['older-started']);
+    releaseOlder();
+    await Promise.all([older, newer]);
+
+    expect(storedState).toBe('researching');
+    expect(executionOrder).toEqual([
+      'older-started',
+      'older-finished',
+      'newer-started',
+      'newer-finished',
+    ]);
+    expect(queue.has('~zod/home')).toBe(false);
+  });
+
+  test('continues after a failed write and does not block other groups', async () => {
+    const queue = createOnboardingWriteQueue();
+    let releaseFailure!: () => void;
+    const failureCanFinish = new Promise<void>((resolve) => {
+      releaseFailure = resolve;
+    });
+    const otherGroup = vi.fn(async () => 'other-group');
+
+    const failed = queue.run('~zod/home', async () => {
+      await failureCanFinish;
+      throw new Error('timed out after the poke landed');
+    });
+    const recovered = queue.run('~zod/home', async () => 'recovered');
+    await expect(queue.run('~nec/home', otherGroup)).resolves.toBe(
+      'other-group'
+    );
+    expect(otherGroup).toHaveBeenCalledOnce();
+
+    releaseFailure();
+    await expect(failed).rejects.toThrow('timed out');
+    await expect(recovered).resolves.toBe('recovered');
+    expect(queue.has('~zod/home')).toBe(false);
   });
 });
 
