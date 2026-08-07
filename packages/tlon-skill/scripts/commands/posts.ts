@@ -4,8 +4,8 @@ import {
   isDiaryNest,
   isNotesNest,
 } from '../cli-utils';
+import { type Story, type StoryVerse, markdownToStory } from '../markdown';
 import { defaultReplyParentAuthor } from '../post-targets';
-import { type Story, type StoryVerse, markdownToStory } from '../story';
 import {
   type CommandDeps,
   commandError,

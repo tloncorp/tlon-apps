@@ -379,6 +379,71 @@ describe('extractTablesFromContent', () => {
     ]);
   });
 
+  it('uses double-tilde strike semantics inside table cells', () => {
+    const result = extractTablesFromContent([
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: '| Literal | Strike |' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '|---|---|' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '| ~no strike~ | ~~struck~~ |' },
+        ],
+      },
+    ]);
+
+    const table = result[0];
+    if (table.type !== 'table') throw new Error('unreachable');
+    expect(table.rows[0].cells).toEqual([
+      { content: [{ type: 'text', text: '~no strike~' }] },
+      {
+        content: [
+          {
+            type: 'style',
+            style: 'strikethrough',
+            children: [{ type: 'text', text: 'struck' }],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('degrades a nested blockquote in a cell to "> "-prefixed text', () => {
+    // mdast has no phrasing-level blockquote, so a nested quote inside a
+    // candidate table cell must degrade to text (like `task`), not fall
+    // through to `Unknown content type`.
+    const result = extractTablesFromContent([
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: '| Quote | Author |' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '|---|---|' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '| ' },
+          {
+            type: 'blockquote',
+            children: [{ type: 'text', text: 'quoted' }],
+          },
+          { type: 'text', text: ' | someone |' },
+        ],
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    const table = result[0];
+    if (table.type !== 'table') throw new Error('unreachable');
+    expect(table.rows).toHaveLength(1);
+    expect(table.rows[0].cells[0].content).toEqual([
+      { type: 'text', text: '> quoted' },
+    ]);
+    expect(table.rows[0].cells[1].content).toEqual([
+      { type: 'text', text: 'someone' },
+    ]);
+    expect(JSON.stringify(result)).not.toContain('Unknown content type');
+  });
+
   it('splits paragraph around a table', () => {
     const result = extractTablesFromContent([
       {

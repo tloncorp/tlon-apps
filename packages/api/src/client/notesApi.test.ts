@@ -10,6 +10,7 @@ import {
 
 import {
   NotesInvalidRequestIdError,
+  NotesUnknownFolderError,
   NotesV1PendingWriteError,
   NotesV1WriteError,
   batchImportNotesV1,
@@ -1041,13 +1042,33 @@ describe('join/leave channel membership go through %notes', () => {
 // ---------------------------------------------------------------------------
 
 describe('batchImportNotesV1', () => {
+  // The import pre-flights a GET of the notebook's folders (the backend's
+  // se-batch-import does not resolve the folder id itself; TLON-6307), so
+  // every test that reaches the POST must serve the folders listing too.
+  const mockFoldersThenImport = (
+    importResponse: unknown,
+    folderIds: number[] = [3, 7]
+  ) => {
+    requestJsonMock.mockImplementation((_path: string, method: string) =>
+      method === 'GET'
+        ? Promise.resolve(
+            folderIds.map((id) => ({
+              id,
+              name: `folder-${id}`,
+              parentFolderId: null,
+            }))
+          )
+        : Promise.resolve(importResponse)
+    );
+  };
+
   test('is registered on the notesV1 and notes API objects', () => {
     expect(notesV1.batchImport).toBe(batchImportNotesV1);
     expect(notes.batchImport).toBe(notesV1.batchImport);
   });
 
   test('sends exact envelope shape with string flag, caller requestId, and non-zero folder', async () => {
-    requestJsonMock.mockResolvedValue({
+    mockFoldersThenImport({
       requestId: '0v1',
       body: { type: 'ok' },
     });
@@ -1088,14 +1109,23 @@ describe('batchImportNotesV1', () => {
       { reauthStatuses: [401, 403] }
     );
 
-    const sent = requestJsonMock.mock.calls[0][2];
+    // The folders pre-flight runs before the POST and shares the import's
+    // reauth policy (%notes v1 reads 401 on expired sessions).
+    expect(requestJsonMock.mock.calls[0][0]).toBe(
+      '/notes/~/v1/notebooks/~zod/blog/folders'
+    );
+    expect(requestJsonMock.mock.calls[0][1]).toBe('GET');
+    expect(requestJsonMock.mock.calls[0][3]).toEqual({
+      reauthStatuses: [401, 403],
+    });
+    const sent = requestJsonMock.mock.calls[1][2];
     expect(sent.action.flag).toBe('~zod/blog');
     expect(typeof sent.action.flag).toBe('string');
     expect(sent.action.action.folder).toBe(7);
   });
 
   test('returns server-reported requestId so caller can assert match', async () => {
-    requestJsonMock.mockResolvedValue({
+    mockFoldersThenImport({
       requestId: '0v3',
       body: { type: 'ok' },
     });
@@ -1111,7 +1141,7 @@ describe('batchImportNotesV1', () => {
   });
 
   test('throws when server omits requestId', async () => {
-    requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
+    mockFoldersThenImport({ body: { type: 'ok' } });
 
     await expect(
       batchImportNotesV1({
@@ -1127,7 +1157,7 @@ describe('batchImportNotesV1', () => {
   // lives in 'void writes require an envelope body ...' above. This only pins
   // that batch import delegates to it.
   test('delegates envelope validation to assertWriteOk', async () => {
-    requestJsonMock.mockResolvedValue({ requestId: '0v1', body: 'ok' });
+    mockFoldersThenImport({ requestId: '0v1', body: 'ok' });
 
     await expect(
       batchImportNotesV1({
@@ -1140,7 +1170,7 @@ describe('batchImportNotesV1', () => {
   });
 
   test('throws on error envelope', async () => {
-    requestJsonMock.mockResolvedValue({
+    mockFoldersThenImport({
       requestId: '0v1',
       body: { type: 'error', errorType: 'not-found', message: [] },
     });
@@ -1154,6 +1184,24 @@ describe('batchImportNotesV1', () => {
 
     expect(err).toBeInstanceOf(NotesV1WriteError);
     expect(err.message).toMatch(/not-found/);
+  });
+
+  test('rejects an unknown destination folder before submitting', async () => {
+    mockFoldersThenImport({ requestId: '0v1', body: { type: 'ok' } }, [1, 2]);
+
+    const err = await batchImportNotesV1({
+      flag: '~zod/blog',
+      folder: 7,
+      notes: [{ title: 'Note A', body: 'body-a' }],
+      requestId: '0v1',
+    }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(NotesUnknownFolderError);
+    expect(err.message).toBe('%notes folder 7 does not exist in ~zod/blog');
+    expect(err.folderId).toBe(7);
+    expect(err.flag).toBe('~zod/blog');
+    // The pre-flight GET is the only request; nothing was submitted.
+    expect(requestJsonMock.mock.calls.map((c: any[]) => c[1])).toEqual(['GET']);
   });
 
   test('rejects non-@uv requestId before fetching', async () => {

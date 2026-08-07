@@ -15,6 +15,7 @@ import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
   createTypedReset,
   getMainGroupRoute,
+  getTopLevelTabRoute,
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
 import { useIsWindowNarrow } from '@tloncorp/app/ui';
@@ -65,13 +66,10 @@ type RouteStack = {
 // state (see ChatListScreen / groupInvitePreview).
 export function groupInvitePreviewRouteStack(groupId: string): RouteStack {
   return [
-    {
-      name: 'ChatList',
-      params: {
-        previewGroupId: groupId,
-        previewGroupFromInviteNotification: true,
-      },
-    },
+    getTopLevelTabRoute('ChatList', {
+      previewGroupId: groupId,
+      previewGroupFromInviteNotification: true,
+    }),
   ];
 }
 
@@ -268,7 +266,8 @@ export default function useNotificationListener() {
     }
 
     async function goToContacts() {
-      navigation.navigate('Contacts', undefined, { pop: true });
+      const route = getTopLevelTabRoute('Contacts');
+      navigation.navigate(route.name, route.params, { pop: true });
       setNotifToProcess(null);
       return true;
     }
@@ -297,7 +296,7 @@ export default function useNotificationListener() {
         initialLastPostId: channel.lastPostId ?? null,
       });
 
-      const routeStack: RouteStack = [{ name: 'ChatList' }];
+      const routeStack: RouteStack = [getTopLevelTabRoute('ChatList')];
       if (channel.groupId) {
         const mainGroupRoute = await getMainGroupRoute(
           channel.groupId,

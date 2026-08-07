@@ -3992,6 +3992,14 @@ class TlonAdapter(BasePlatformAdapter):
         )
 
     async def on_processing_complete(self, event: MessageEvent, outcome: Any) -> None:
+        # Release the presence lease first.  The gateway runs this hook through
+        # a wrapper that swallows every exception, so anything that raises
+        # above this call would leave the run registered and the keepalive
+        # would refresh its lease for the life of the process.
+        await self._computing_presence.stop_run(
+            conversation_id=event.source.chat_id,
+            run_id=self._presence_run_id(event),
+        )
         source = getattr(event, "source", None)
         chat_id = str(getattr(source, "chat_id", "") or "")
         message_id = str(
@@ -4001,10 +4009,6 @@ class TlonAdapter(BasePlatformAdapter):
         )
         if chat_id and message_id:
             self._remove_dispatch_state((chat_id, message_id))
-        await self._computing_presence.stop_run(
-            conversation_id=event.source.chat_id,
-            run_id=self._presence_run_id(event),
-        )
         processing_outcome = _processing_outcome_value(outcome)
         self._telemetry.finish_reply(
             event.source.chat_id,
