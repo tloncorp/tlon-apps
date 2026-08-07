@@ -73,6 +73,7 @@ import {
   setCronTelemetryReporter,
   setDebugTelemetryReporter,
   setErrorTelemetryReporter,
+  setMigrationTelemetryReporter,
   setOutboundRouteReporter,
   setSessionTelemetryReporter,
 } from '../telemetry.js';
@@ -893,6 +894,16 @@ export async function monitorTlonProvider(
           telemetry?.captureCronSnapshot({ ...report.event, ...identity });
           break;
       }
+    });
+    // Bridge diary migration lifecycle events from the `/migrate` command
+    // handler (a separate plugin module context) to this account's client.
+    setMigrationTelemetryReporter((event) => {
+      telemetry?.captureMigration({
+        ...event,
+        accountId: account.accountId,
+        ownerShip: currentTelemetryOwnerShip(),
+        botShip: botShipName,
+      });
     });
     setErrorTelemetryReporter((report) => {
       switch (report.kind) {
@@ -2052,6 +2063,21 @@ export async function monitorTlonProvider(
       get ownerShip() {
         return effectiveOwnerShip;
       },
+      get botShip() {
+        return botShipName;
+      },
+      get botCredentials() {
+        return {
+          url: accountUrl,
+          ship: botShipName,
+          code: accountCode,
+        };
+      },
+      getChannelTitle(nest) {
+        const canonical = canonicalizeNest(nest);
+        return canonical ? channelNameCache.get(canonical) : undefined;
+      },
+      sendOwnerNotification,
       async handleAction(action, id) {
         // Prune expired approvals
         pendingApprovals = pruneExpired(pendingApprovals);
@@ -5349,6 +5375,7 @@ export async function monitorTlonProvider(
       setDebugTelemetryReporter(null);
       setErrorTelemetryReporter(null);
       setCronTelemetryReporter(null);
+      setMigrationTelemetryReporter(null);
       await telemetry?.close();
       try {
         await api?.close();
