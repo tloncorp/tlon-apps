@@ -614,9 +614,29 @@ export function inlinesToMdast(
       if (last.children.length === 0) nodes.pop();
     }
   };
-  const liftMarkedBlocks = (lifted: RootContent[]) => {
+  // Mirror of trimTrailingSpace for the fresh-paragraph side: a leading space
+  // inside an initial mark would entity-escape against the opening delimiter.
+  const trimLeadingSpace = (nodes: PhrasingContent[]) => {
+    const first = nodes[0];
+    if (!first) return;
+    if (first.type === 'text') {
+      first.value = first.value.replace(/^[ \t]+/, '');
+      if (first.value === '') nodes.shift();
+      return;
+    }
+    if (
+      first.type === 'strong' ||
+      first.type === 'emphasis' ||
+      first.type === 'delete'
+    ) {
+      trimLeadingSpace(first.children as PhrasingContent[]);
+      if (first.children.length === 0) nodes.shift();
+    }
+  };
+  const liftMarkedBlocks = (lifted: RootContent[], trimLeading = false) => {
     let nodes = lifted;
     if (nodes.length > 0 && nodes[0].type === 'paragraph') {
+      if (trimLeading) trimLeadingSpace(nodes[0].children);
       appendPhrasing(phrasing, nodes[0].children);
       nodes = nodes.slice(1);
     } else {
@@ -656,6 +676,10 @@ export function inlinesToMdast(
       }
       continue;
     }
+    // A pending trim must survive into the mark branches: the first text of a
+    // space-leading marked sibling sits at the same fresh-paragraph boundary
+    // as a plain string would.
+    const trimLeadingMark = pendingLeadingTrim;
     pendingLeadingTrim = false;
 
     if (isBold(inline)) {
@@ -668,16 +692,16 @@ export function inlinesToMdast(
             opts,
             `${placement} under bold`,
             nestedMarks
-          )
+          ),
+          trimLeadingMark
         );
       } else {
-        appendPhrasing(
-          phrasing,
-          wrapPhrasing(
-            inlinesToPhrasing(bold.bold, opts, `${placement} under bold`),
-            nestedMarks
-          )
+        const wrapped = wrapPhrasing(
+          inlinesToPhrasing(bold.bold, opts, `${placement} under bold`),
+          nestedMarks
         );
+        if (trimLeadingMark) trimLeadingSpace(wrapped);
+        appendPhrasing(phrasing, wrapped);
       }
       continue;
     }
@@ -692,20 +716,20 @@ export function inlinesToMdast(
             opts,
             `${placement} under italics`,
             nestedMarks
-          )
+          ),
+          trimLeadingMark
         );
       } else {
-        appendPhrasing(
-          phrasing,
-          wrapPhrasing(
-            inlinesToPhrasing(
-              italics.italics,
-              opts,
-              `${placement} under italics`
-            ),
-            nestedMarks
-          )
+        const wrapped = wrapPhrasing(
+          inlinesToPhrasing(
+            italics.italics,
+            opts,
+            `${placement} under italics`
+          ),
+          nestedMarks
         );
+        if (trimLeadingMark) trimLeadingSpace(wrapped);
+        appendPhrasing(phrasing, wrapped);
       }
       continue;
     }
@@ -720,20 +744,20 @@ export function inlinesToMdast(
             opts,
             `${placement} under strikethrough`,
             nestedMarks
-          )
+          ),
+          trimLeadingMark
         );
       } else {
-        appendPhrasing(
-          phrasing,
-          wrapPhrasing(
-            inlinesToPhrasing(
-              strike.strike,
-              opts,
-              `${placement} under strikethrough`
-            ),
-            nestedMarks
-          )
+        const wrapped = wrapPhrasing(
+          inlinesToPhrasing(
+            strike.strike,
+            opts,
+            `${placement} under strikethrough`
+          ),
+          nestedMarks
         );
+        if (trimLeadingMark) trimLeadingSpace(wrapped);
+        appendPhrasing(phrasing, wrapped);
       }
       continue;
     }

@@ -1218,6 +1218,35 @@ describe('block-only marked spans keep boundaries entity-free', () => {
     expect(md).toBe('pre\n\n> **q**\n\npost');
     expect(storyToMarkdown(markdownToStory(md))).toBe(md);
   });
+
+  test('space-leading marked sibling after a block-only lift trims cleanly', () => {
+    const md = storyToMarkdown(
+      [
+        {
+          inline: [{ bold: [{ blockquote: ['q'] }] }, { italics: [' after'] }],
+        },
+      ] as Story,
+      { strict: true }
+    );
+    expect(md).toBe('> **q**\n\n*after*');
+    expect(storyToMarkdown(markdownToStory(md))).toBe(md);
+  });
+
+  test('the lift path leading join honors a pending leading trim', () => {
+    const md = storyToMarkdown(
+      [
+        {
+          inline: [
+            { bold: [{ blockquote: ['q'] }] },
+            { italics: [' x', { blockquote: ['b'] }] },
+          ],
+        },
+      ] as Story,
+      { strict: true }
+    );
+    expect(md).toBe('> **q**\n\n*x*\n\n> *b*');
+    expect(storyToMarkdown(markdownToStory(md))).toBe(md);
+  });
 });
 
 describe('mirror delimiter comments fire only on compact adjacency', () => {
