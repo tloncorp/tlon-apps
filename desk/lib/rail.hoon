@@ -344,7 +344,7 @@
 /%  ui-init-6                   %ui-init-6
 /%  ui-init-7                   %ui-init-7
 /%  ui-init-8                   %ui-init-8
-/%  ui-init-9                   %ui-init-9
+/%  ui-init-10                  %ui-init-10
 /%  ui-pins                     %ui-pins
 /%  ui-show-contact             %ui-show-contact
 /%  ui-vita                     %ui-vita
@@ -704,7 +704,7 @@
       $:  %ui-init-6                   $+  ui-init-6                   p=_*vale:ui-init-6                   ==
       $:  %ui-init-7                   $+  ui-init-7                   p=_*vale:ui-init-7                   ==
       $:  %ui-init-8                   $+  ui-init-8                   p=_*vale:ui-init-8                   ==
-      $:  %ui-init-9                   $+  ui-init-9                   p=_*vale:ui-init-9                   ==
+      $:  %ui-init-10                  $+  ui-init-10                  p=_*vale:ui-init-10                  ==
       $:  %ui-pins                     $+  ui-pins                     p=_*vale:ui-pins                     ==
       $:  %ui-show-contact             $+  ui-show-contact             p=_*vale:ui-show-contact             ==
       $:  %ui-vita                     $+  ui-vita                     p=_*vale:ui-vita                     ==
@@ -1066,7 +1066,7 @@
     %ui-init-6                   [-.rail !>(+.rail)]
     %ui-init-7                   [-.rail !>(+.rail)]
     %ui-init-8                   [-.rail !>(+.rail)]
-    %ui-init-9                   [-.rail !>(+.rail)]
+    %ui-init-10                  [-.rail !>(+.rail)]
     %ui-pins                     [-.rail !>(+.rail)]
     %ui-show-contact             [-.rail !>(+.rail)]
     %ui-vita                     [-.rail !>(+.rail)]
@@ -1426,7 +1426,7 @@
     %ui-init-6                   [p !<(_*vale:ui-init-6 q)]
     %ui-init-7                   [p !<(_*vale:ui-init-7 q)]
     %ui-init-8                   [p !<(_*vale:ui-init-8 q)]
-    %ui-init-9                   [p !<(_*vale:ui-init-9 q)]
+    %ui-init-10                  [p !<(_*vale:ui-init-10 q)]
     %ui-pins                     [p !<(_*vale:ui-pins q)]
     %ui-show-contact             [p !<(_*vale:ui-show-contact q)]
     %ui-vita                     [p !<(_*vale:ui-vita q)]
@@ -1786,7 +1786,7 @@
       :-  %ui-init-6                   -:!>(*vale:ui-init-6)
       :-  %ui-init-7                   -:!>(*vale:ui-init-7)
       :-  %ui-init-8                   -:!>(*vale:ui-init-8)
-      :-  %ui-init-9                   -:!>(*vale:ui-init-9)
+      :-  %ui-init-10                  -:!>(*vale:ui-init-10)
       :-  %ui-pins                     -:!>(*vale:ui-pins)
       :-  %ui-show-contact             -:!>(*vale:ui-show-contact)
       :-  %ui-vita                     -:!>(*vale:ui-vita)

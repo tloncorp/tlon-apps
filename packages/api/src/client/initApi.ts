@@ -32,9 +32,9 @@ type InitDataOptions = {
 };
 
 export const getInitData = async () => {
-  const response = await scry<ub.GroupsInit9>({
+  const response = await scry<ub.GroupsInit10>({
     app: 'groups-ui',
-    path: '/v9/init',
+    path: '/v10/init',
   });
 
   logger.crumb('got init data from api');
@@ -71,7 +71,7 @@ function extractJoinedGroupChannelsFromV7Groups(
 }
 
 export const toInitData = (
-  response: ub.GroupsInit9,
+  response: ub.GroupsInit10,
   options: InitDataOptions
 ): InitData => {
   logger.crumb('converting init data to client data');

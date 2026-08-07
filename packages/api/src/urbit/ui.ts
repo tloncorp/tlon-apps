@@ -4,7 +4,7 @@ import { ContactBookEntry } from './contact';
 import { ChatHeadsResponse, DMInit2, Writs } from './dms';
 import { Foreigns, GroupV11, Groups, GroupsV11 } from './groups';
 
-export interface GroupsInit9 {
+export interface GroupsInit10 {
   groups: Record<string, GroupV11>;
   foreigns: Foreigns;
   channel: {
@@ -29,7 +29,7 @@ export interface Changes {
   activity: Activity;
 }
 
-export interface ChangesV10 {
+export interface ChangesV11 {
   groups: GroupsV11;
   channels: Record<string, Posts | null>;
   chat: Record<string, Writs | null>;

@@ -1,6 +1,6 @@
 /-  av=activity-ver, gv=groups-ver, dv=channels-ver, cv=chat-ver, a=activity
 |%
-+$  init-9
++$  init-10
   $:  groups=groups-ui:v11:gv
       =foreigns:v8:gv
       channel=channel-10
