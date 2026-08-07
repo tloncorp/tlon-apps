@@ -375,6 +375,49 @@ describe('posts send', () => {
     expect(context.calls.sendPost).toEqual([]);
   });
 
+  it('refuses an image mixed into a text line', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'caption ![alt](https://x/y.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('own line');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses an image inside header content', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '# head ![a](https://u/i.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('own line');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('still sends a standalone image line as an image block', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![alt](https://x/y.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      {
+        block: {
+          image: { src: 'https://x/y.png', alt: 'alt', width: 0, height: 0 },
+        },
+      },
+    ]);
+  });
+
   it('sends a link with a real label', async () => {
     const context = makeDeps();
     const exitCode = await run(
