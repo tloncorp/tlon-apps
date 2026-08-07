@@ -431,7 +431,9 @@ const ConversationPostListAttempt = React.forwardRef<
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
     const isAtBottom = useLegendListIsNearEnd(listRef);
-    usePostListBottomCallbacks(isAtBottom, {
+    // The list is hidden while its initial anchor settles, so do not publish
+    // transient geometry that could show external scroll chrome first.
+    usePostListBottomCallbacks(!didFinishInitialScroll || isAtBottom, {
       onScrolledToBottom,
       onScrolledAwayFromBottom,
     });
