@@ -75,6 +75,7 @@ import {
 } from '../targets.js';
 import {
   type TlonDeliverySkipReason,
+  type TlonOnboardingTraceEvent,
   type TlonPluginErrorEvent,
   type TlonPluginErrorSource,
   createTlonTelemetry,
@@ -874,6 +875,95 @@ export async function monitorTlonProvider(
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
 
+    type OnboardingTraceInput = Pick<
+      TlonOnboardingTraceEvent,
+      'nest' | 'onboardingStage' | 'onboardingOperation' | 'onboardingOutcome'
+    > &
+      Partial<
+        Omit<
+          TlonOnboardingTraceEvent,
+          | 'accountId'
+          | 'ownerShip'
+          | 'botShip'
+          | 'nest'
+          | 'onboardingStage'
+          | 'onboardingOperation'
+          | 'onboardingOutcome'
+        >
+      >;
+
+    const onboardingErrorFields = (
+      error: unknown,
+      sensitiveValues: Array<string | null | undefined> = []
+    ): Pick<TlonOnboardingTraceEvent, 'errorKind' | 'errorText'> => {
+      let errorText = formatTlonTelemetryErrorText(error);
+      for (const sensitive of sensitiveValues) {
+        if (sensitive && sensitive.length >= 2) {
+          errorText = errorText.split(sensitive).join('[redacted]');
+        }
+      }
+      return {
+        errorKind:
+          error instanceof Error
+            ? error.name || 'Error'
+            : typeof error === 'object' && error !== null
+              ? 'object'
+              : typeof error,
+        errorText: errorText.slice(0, 4_000),
+      };
+    };
+
+    const traceOnboarding = (input: OnboardingTraceInput): void => {
+      const event: TlonOnboardingTraceEvent = {
+        accountId: account.accountId,
+        ownerShip: currentTelemetryOwnerShip(),
+        botShip: botShipName,
+        onboardingAttemptId: input.onboardingAttemptId ?? null,
+        onboardingStage: input.onboardingStage,
+        onboardingOperation: input.onboardingOperation,
+        onboardingOutcome: input.onboardingOutcome,
+        onboardingSource: input.onboardingSource ?? null,
+        onboardingState: input.onboardingState ?? null,
+        onboardingNextState: input.onboardingNextState ?? null,
+        nest: input.nest,
+        groupFlag: input.groupFlag ?? null,
+        purposeId: input.purposeId ?? null,
+        timezone: input.timezone ?? null,
+        cronJobId: input.cronJobId ?? null,
+        notebookNest: input.notebookNest ?? null,
+        retryAttempt: input.retryAttempt ?? null,
+        retryDelayMs: input.retryDelayMs ?? null,
+        durationMs: input.durationMs ?? null,
+        totalCronJobCount: input.totalCronJobCount ?? null,
+        topicsCharCount: input.topicsCharCount ?? null,
+        draftTitleCharCount: input.draftTitleCharCount ?? null,
+        draftMarkdownCharCount: input.draftMarkdownCharCount ?? null,
+        historyPostCount: input.historyPostCount ?? null,
+        reason: input.reason ?? null,
+        errorKind: input.errorKind ?? null,
+        errorText: input.errorText ?? null,
+      };
+      telemetry?.captureOnboardingTrace(event);
+      runtime.log?.(
+        `[tlon] Onboarding trace ${JSON.stringify({
+          attemptId: event.onboardingAttemptId,
+          stage: event.onboardingStage,
+          operation: event.onboardingOperation,
+          outcome: event.onboardingOutcome,
+          nest: event.nest,
+          groupFlag: event.groupFlag,
+          purposeId: event.purposeId,
+          state: event.onboardingState,
+          nextState: event.onboardingNextState,
+          retryAttempt: event.retryAttempt,
+          durationMs: event.durationMs,
+          reason: event.reason,
+          errorKind: event.errorKind,
+          errorText: event.errorText,
+        })}`
+      );
+    };
+
     /**
      * Post markdown to a channel as the bot. Every outbound channel post
      * shares this envelope; only the text and the extras differ.
@@ -899,10 +989,36 @@ export async function monitorTlonProvider(
     const writeAndVerifyOnboardingDescription = async (
       nest: string,
       groupFlag: string,
-      description: string
+      description: string,
+      traceContext?: {
+        onboardingAttemptId?: string | null;
+        onboardingSource?: string | null;
+      }
     ): Promise<void> => {
+      const setup = deterministicSetupFromDescription(description);
+      const traceBase = {
+        nest,
+        groupFlag,
+        purposeId: setup?.purposeId ?? null,
+        onboardingAttemptId: traceContext?.onboardingAttemptId ?? null,
+        onboardingSource: traceContext?.onboardingSource ?? null,
+        onboardingStage: 'group_config',
+        onboardingState: setup?.record.state ?? null,
+        topicsCharCount: setup?.topics.length ?? null,
+        timezone: setup?.timezone || null,
+        cronJobId: setup?.record.cronJobId ?? null,
+        notebookNest: setup?.record.notebookNest ?? null,
+      };
       let lastError: unknown;
       for (let attempt = 0; attempt < 3; attempt++) {
+        const retryAttempt = attempt + 1;
+        const commandStartedAt = Date.now();
+        traceOnboarding({
+          ...traceBase,
+          onboardingOperation: 'write_description',
+          onboardingOutcome: 'started',
+          retryAttempt,
+        });
         try {
           await runOnboardingTlonCommand([
             'groups',
@@ -912,32 +1028,99 @@ export async function monitorTlonProvider(
             description,
           ]);
           lastError = undefined;
+          traceOnboarding({
+            ...traceBase,
+            onboardingOperation: 'write_description',
+            onboardingOutcome: 'succeeded',
+            retryAttempt,
+            durationMs: Date.now() - commandStartedAt,
+          });
         } catch (error) {
           lastError = error;
+          traceOnboarding({
+            ...traceBase,
+            onboardingOperation: 'write_description',
+            onboardingOutcome: 'failed',
+            retryAttempt,
+            durationMs: Date.now() - commandStartedAt,
+            ...onboardingErrorFields(error, [description]),
+          });
         }
+        let verifyAttempt = 0;
         for (const delay of [250, 750, 1_500]) {
+          verifyAttempt += 1;
+          traceOnboarding({
+            ...traceBase,
+            onboardingOperation: 'verify_description',
+            onboardingOutcome: 'waiting',
+            retryAttempt,
+            retryDelayMs: delay,
+            reason: `verification_attempt_${verifyAttempt}`,
+          });
           await new Promise((resolve) => setTimeout(resolve, delay));
-          const stored = await findGroupForChannel(api, nest, runtime);
+          const verifyStartedAt = Date.now();
+          let stored: Awaited<ReturnType<typeof findGroupForChannel>>;
+          try {
+            stored = await findGroupForChannel(api, nest, runtime);
+          } catch (error) {
+            traceOnboarding({
+              ...traceBase,
+              onboardingOperation: 'verify_description',
+              onboardingOutcome: 'failed',
+              retryAttempt,
+              durationMs: Date.now() - verifyStartedAt,
+              reason: `verification_attempt_${verifyAttempt}`,
+              ...onboardingErrorFields(error, [description]),
+            });
+            continue;
+          }
           if (stored?.description === description) {
+            traceOnboarding({
+              ...traceBase,
+              onboardingOperation: 'verify_description',
+              onboardingOutcome: 'succeeded',
+              retryAttempt,
+              durationMs: Date.now() - verifyStartedAt,
+              reason: `verification_attempt_${verifyAttempt}`,
+            });
             return;
           }
+          traceOnboarding({
+            ...traceBase,
+            onboardingOperation: 'verify_description',
+            onboardingOutcome: 'mismatch',
+            retryAttempt,
+            durationMs: Date.now() - verifyStartedAt,
+            reason: stored
+              ? `verification_attempt_${verifyAttempt}`
+              : `verification_attempt_${verifyAttempt}:group_unreadable`,
+          });
         }
       }
-      throw new Error(
+      const finalError = new Error(
         `Group config write could not be verified${lastError ? `: ${String(lastError)}` : ''}`
       );
+      traceOnboarding({
+        ...traceBase,
+        onboardingOperation: 'write_and_verify_description',
+        onboardingOutcome: 'failed',
+        retryAttempt: 3,
+        ...onboardingErrorFields(finalError, [description]),
+      });
+      throw finalError;
     };
 
     const waitForOnboardingAdminSeat = async (
       groupFlag: string
-    ): Promise<void> => {
+    ): Promise<boolean> => {
       const deadline = Date.now() + 20_000;
       while (Date.now() < deadline && !opts.abortSignal?.aborted) {
         if (await agentHasAdminSeat(api, groupFlag, botShipName, runtime)) {
-          return;
+          return true;
         }
         await new Promise((resolve) => setTimeout(resolve, 2_000));
       }
+      return false;
     };
 
     // Helper to get bot profile for outbound messages
@@ -960,7 +1143,37 @@ export async function monitorTlonProvider(
      * read costs nothing in steady state.
      */
     const postOnboardingOpening = async (nest: string): Promise<void> => {
-      const recentPosts = await fetchChannelHistory(api, nest, 10, runtime);
+      const onboardingAttemptId = randomUUID();
+      const startedAt = Date.now();
+      const traceBase = {
+        nest,
+        onboardingAttemptId,
+        onboardingSource: 'opening_offer',
+        onboardingStage: 'opening',
+      };
+      traceOnboarding({
+        ...traceBase,
+        onboardingOperation: 'post_opening',
+        onboardingOutcome: 'started',
+      });
+      let recentPosts: Awaited<ReturnType<typeof fetchChannelHistory>>;
+      try {
+        recentPosts = await fetchChannelHistory(api, nest, 10, runtime);
+        traceOnboarding({
+          ...traceBase,
+          onboardingOperation: 'read_recent_history',
+          onboardingOutcome: 'succeeded',
+          historyPostCount: recentPosts.length,
+        });
+      } catch (error) {
+        traceOnboarding({
+          ...traceBase,
+          onboardingOperation: 'read_recent_history',
+          onboardingOutcome: 'failed',
+          ...onboardingErrorFields(error),
+        });
+        throw error;
+      }
       const pluginDiagnostic = onboardingPluginDiagnostic(
         getTlonVersionIdentity().pluginCommit
       );
@@ -975,12 +1188,48 @@ export async function monitorTlonProvider(
       );
       if (!diagnosticAlreadyPosted) {
         await postToChannel(nest, pluginDiagnostic);
+        traceOnboarding({
+          ...traceBase,
+          onboardingOperation: 'post_plugin_diagnostic',
+          onboardingOutcome: 'succeeded',
+        });
+      } else {
+        traceOnboarding({
+          ...traceBase,
+          onboardingOperation: 'post_plugin_diagnostic',
+          onboardingOutcome: 'skipped',
+          reason: 'already_posted',
+        });
       }
       if (!introAlreadyPosted) {
         await postToChannel(nest, GROUP_INTRO_MESSAGE);
+        traceOnboarding({
+          ...traceBase,
+          onboardingOperation: 'post_intro',
+          onboardingOutcome: 'succeeded',
+        });
+      } else {
+        traceOnboarding({
+          ...traceBase,
+          onboardingOperation: 'post_intro',
+          onboardingOutcome: 'skipped',
+          reason: 'already_posted',
+        });
       }
       await postToChannel(nest, purposePickerFallbackText(), {
         blob: serializeBlobField(buildPurposePickerBlob(nest)),
+      });
+      traceOnboarding({
+        ...traceBase,
+        onboardingOperation: 'post_purpose_picker',
+        onboardingOutcome: 'succeeded',
+      });
+      traceOnboarding({
+        ...traceBase,
+        onboardingOperation: 'post_opening',
+        onboardingOutcome: 'succeeded',
+        durationMs: Date.now() - startedAt,
+        onboardingNextState: 'awaiting-purpose',
       });
     };
 
@@ -1002,6 +1251,7 @@ export async function monitorTlonProvider(
      */
     /** Queue the one model-owned step: web research and a structured draft. */
     const enqueueResearchDirective = (nest: string, text: string): boolean => {
+      const startedAt = Date.now();
       try {
         const route = core.channel.routing.resolveAgentRoute({
           cfg,
@@ -1010,6 +1260,15 @@ export async function monitorTlonProvider(
           peer: { kind: 'group', id: nest },
         });
         if (!route?.sessionKey) {
+          traceOnboarding({
+            nest,
+            onboardingStage: 'research',
+            onboardingOperation: 'resolve_agent_route',
+            onboardingOutcome: 'failed_retryable',
+            onboardingSource: 'reconciliation',
+            durationMs: Date.now() - startedAt,
+            reason: 'session_key_missing',
+          });
           return false;
         }
         armOnboardingResearchSession(nest, route.sessionKey);
@@ -1017,11 +1276,28 @@ export async function monitorTlonProvider(
           sessionKey: route.sessionKey,
           contextKey: `tlon:deterministic-research:${nest}`,
         });
+        traceOnboarding({
+          nest,
+          onboardingStage: 'research',
+          onboardingOperation: 'enqueue_system_event',
+          onboardingOutcome: 'succeeded',
+          onboardingSource: 'reconciliation',
+          durationMs: Date.now() - startedAt,
+        });
         return true;
       } catch (error) {
         runtime.log?.(
           `[tlon] Could not queue onboarding research for ${nest}: ${String(error)}`
         );
+        traceOnboarding({
+          nest,
+          onboardingStage: 'research',
+          onboardingOperation: 'enqueue_system_event',
+          onboardingOutcome: 'failed_retryable',
+          onboardingSource: 'reconciliation',
+          durationMs: Date.now() - startedAt,
+          ...onboardingErrorFields(error),
+        });
         return false;
       }
     };
@@ -1040,7 +1316,8 @@ export async function monitorTlonProvider(
     const notebookNewestEntry = async (
       notesNest: string
     ): Promise<
-      { readable: false } | { readable: true; newestId: string | null }
+      | { readable: false; error: unknown }
+      | { readable: true; newestId: string | null }
     > => {
       try {
         const data: any = await api.scry(
@@ -1065,8 +1342,8 @@ export async function monitorTlonProvider(
           readable: true,
           newestId: keys.length ? String(keys[keys.length - 1]) : null,
         };
-      } catch {
-        return { readable: false };
+      } catch (error) {
+        return { readable: false, error };
       }
     };
 
@@ -1080,27 +1357,102 @@ export async function monitorTlonProvider(
       if (!onboardingInvitePending.has(nest)) {
         return;
       }
+      const onboardingAttemptId = randomUUID();
+      const reconcileStartedAt = Date.now();
       const deterministic = deterministicSetupFromDescription(
         group.description
       );
-      if (!deterministic || deterministic.record.state === 'complete') {
+      const traceBase = {
+        nest,
+        groupFlag: group.flag,
+        purposeId: deterministic?.purposeId ?? null,
+        topicsCharCount: deterministic?.topics.length ?? null,
+        timezone: deterministic?.timezone || null,
+        cronJobId: deterministic?.record.cronJobId ?? null,
+        onboardingAttemptId,
+        onboardingSource: 'reconciliation',
+      };
+      traceOnboarding({
+        ...traceBase,
+        onboardingStage: 'notebook',
+        onboardingOperation: 'reconcile_setup',
+        onboardingOutcome: 'started',
+        onboardingState: deterministic?.record.state ?? null,
+      });
+      if (!deterministic) {
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'notebook',
+          onboardingOperation: 'parse_group_config',
+          onboardingOutcome: 'failed',
+          reason: 'deterministic_config_missing_or_invalid',
+        });
+        return;
+      }
+      if (deterministic.record.state === 'complete') {
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'closing',
+          onboardingOperation: 'reconcile_setup',
+          onboardingOutcome: 'skipped',
+          onboardingState: 'complete',
+          reason: 'already_complete',
+        });
         return;
       }
       let notesNest = deterministic.record.notebookNest ?? null;
       if (!notesNest) {
+        const discoverStartedAt = Date.now();
         try {
           notesNest = await setupOutputNotebookNest(api, group.flag, runtime);
-        } catch {
+        } catch (error) {
+          traceOnboarding({
+            ...traceBase,
+            onboardingStage: 'notebook',
+            onboardingOperation: 'discover_owner_notebook',
+            onboardingOutcome: 'failed_retryable',
+            durationMs: Date.now() - discoverStartedAt,
+            ...onboardingErrorFields(error),
+          });
           return;
         }
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'notebook',
+          onboardingOperation: 'discover_owner_notebook',
+          onboardingOutcome: notesNest ? 'succeeded' : 'waiting',
+          notebookNest: notesNest,
+          durationMs: Date.now() - discoverStartedAt,
+          reason: notesNest ? null : 'owner_notebook_not_visible',
+        });
       }
       if (!notesNest) {
         return;
       }
+      const newestStartedAt = Date.now();
       const state = await notebookNewestEntry(notesNest);
       if (!state.readable) {
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'notebook',
+          onboardingOperation: 'read_newest_entry',
+          onboardingOutcome: 'failed_retryable',
+          notebookNest: notesNest,
+          durationMs: Date.now() - newestStartedAt,
+          reason: 'notebook_unreadable',
+          ...onboardingErrorFields(state.error),
+        });
         return;
       }
+      traceOnboarding({
+        ...traceBase,
+        onboardingStage: 'notebook',
+        onboardingOperation: 'read_newest_entry',
+        onboardingOutcome: 'succeeded',
+        notebookNest: notesNest,
+        durationMs: Date.now() - newestStartedAt,
+        reason: state.newestId ? 'entry_present' : 'notebook_empty',
+      });
       if (
         deterministic.record.state === 'writing-note' &&
         state.newestId !== null &&
@@ -1118,11 +1470,29 @@ export async function monitorTlonProvider(
         await writeAndVerifyOnboardingDescription(
           nest,
           group.flag,
-          buildDeterministicSetupDescription(complete)
+          buildDeterministicSetupDescription(complete),
+          { onboardingAttemptId, onboardingSource: 'note_write_recovery' }
         );
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'note',
+          onboardingOperation: 'recover_ambiguous_write',
+          onboardingOutcome: 'succeeded',
+          onboardingState: 'writing-note',
+          onboardingNextState: 'complete',
+          notebookNest: notesNest,
+        });
         return;
       }
       if (deterministicDraftRegistered.has(nest)) {
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'research',
+          onboardingOperation: 'register_draft_handler',
+          onboardingOutcome: 'deduplicated',
+          notebookNest: notesNest,
+          reason: 'handler_already_registered',
+        });
         return;
       }
       deterministicDraftRegistered.add(nest);
@@ -1139,13 +1509,31 @@ export async function monitorTlonProvider(
         await writeAndVerifyOnboardingDescription(
           nest,
           group.flag,
-          buildDeterministicSetupDescription(researching)
+          buildDeterministicSetupDescription(researching),
+          { onboardingAttemptId, onboardingSource: 'reconciliation' }
         );
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'research',
+          onboardingOperation: 'persist_researching_state',
+          onboardingOutcome: 'succeeded',
+          onboardingState: deterministic.record.state,
+          onboardingNextState: 'researching',
+          notebookNest: notesNest,
+        });
       } catch (error) {
         deterministicDraftRegistered.delete(nest);
         runtime.error?.(
           `[tlon] Could not persist research state for ${nest}: ${String(error)}`
         );
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'research',
+          onboardingOperation: 'persist_researching_state',
+          onboardingOutcome: 'failed_retryable',
+          notebookNest: notesNest,
+          ...onboardingErrorFields(error),
+        });
         return;
       }
 
@@ -1162,13 +1550,44 @@ export async function monitorTlonProvider(
       unregisterDraft = registerOnboardingDraftHandler(
         nest,
         async ({ title, markdown }) => {
+          const draftStartedAt = Date.now();
+          traceOnboarding({
+            ...traceBase,
+            onboardingStage: 'note',
+            onboardingOperation: 'receive_research_draft',
+            onboardingOutcome: 'started',
+            onboardingState: 'researching',
+            notebookNest: notesNest,
+            draftTitleCharCount: title.length,
+            draftMarkdownCharCount: markdown.length,
+          });
           if (!title || title.length > 200) {
+            traceOnboarding({
+              ...traceBase,
+              onboardingStage: 'note',
+              onboardingOperation: 'validate_research_draft',
+              onboardingOutcome: 'invalid',
+              notebookNest: notesNest,
+              draftTitleCharCount: title.length,
+              draftMarkdownCharCount: markdown.length,
+              reason: 'title_length',
+            });
             return {
               ok: false,
               message: 'The draft title must be between 1 and 200 characters.',
             };
           }
           if (!markdown || markdown.length > 50_000) {
+            traceOnboarding({
+              ...traceBase,
+              onboardingStage: 'note',
+              onboardingOperation: 'validate_research_draft',
+              onboardingOutcome: 'invalid',
+              notebookNest: notesNest,
+              draftTitleCharCount: title.length,
+              draftMarkdownCharCount: markdown.length,
+              reason: 'markdown_length',
+            });
             return {
               ok: false,
               message:
@@ -1183,7 +1602,8 @@ export async function monitorTlonProvider(
             await writeAndVerifyOnboardingDescription(
               nest,
               group.flag,
-              buildDeterministicSetupDescription(writing)
+              buildDeterministicSetupDescription(writing),
+              { onboardingAttemptId, onboardingSource: 'draft_handler' }
             );
             if (!writtenNoteId) {
               const directory = await mkdtemp(
@@ -1192,16 +1612,50 @@ export async function monitorTlonProvider(
               try {
                 const markdownPath = join(directory, 'entry.md');
                 await writeFile(markdownPath, markdown, 'utf8');
-                const noteResult = await runOnboardingTlonCommand([
-                  'notes',
-                  'note-create',
-                  notesNest,
-                  'root',
-                  title,
-                  '--markdown',
-                  markdownPath,
-                ]);
-                writtenNoteId = noteResult.trim().slice(0, 500) || 'written';
+                const noteWriteStartedAt = Date.now();
+                traceOnboarding({
+                  ...traceBase,
+                  onboardingStage: 'note',
+                  onboardingOperation: 'create_note',
+                  onboardingOutcome: 'started',
+                  onboardingState: 'writing-note',
+                  notebookNest: notesNest,
+                  draftTitleCharCount: title.length,
+                  draftMarkdownCharCount: markdown.length,
+                });
+                try {
+                  const noteResult = await runOnboardingTlonCommand([
+                    'notes',
+                    'note-create',
+                    notesNest,
+                    'root',
+                    title,
+                    '--markdown',
+                    markdownPath,
+                  ]);
+                  writtenNoteId = noteResult.trim().slice(0, 500) || 'written';
+                  traceOnboarding({
+                    ...traceBase,
+                    onboardingStage: 'note',
+                    onboardingOperation: 'create_note',
+                    onboardingOutcome: 'succeeded',
+                    onboardingState: 'writing-note',
+                    notebookNest: notesNest,
+                    durationMs: Date.now() - noteWriteStartedAt,
+                  });
+                } catch (error) {
+                  traceOnboarding({
+                    ...traceBase,
+                    onboardingStage: 'note',
+                    onboardingOperation: 'create_note',
+                    onboardingOutcome: 'failed_ambiguous',
+                    onboardingState: 'writing-note',
+                    notebookNest: notesNest,
+                    durationMs: Date.now() - noteWriteStartedAt,
+                    ...onboardingErrorFields(error, [title, markdown]),
+                  });
+                  throw error;
+                }
               } finally {
                 await rm(directory, { recursive: true, force: true });
               }
@@ -1218,7 +1672,8 @@ export async function monitorTlonProvider(
             await writeAndVerifyOnboardingDescription(
               nest,
               group.flag,
-              buildDeterministicSetupDescription(complete)
+              buildDeterministicSetupDescription(complete),
+              { onboardingAttemptId, onboardingSource: 'draft_handler' }
             );
             if (draftTimeout) {
               clearTimeout(draftTimeout);
@@ -1227,6 +1682,18 @@ export async function monitorTlonProvider(
             unregisterDraft();
             scheduleResearchDisarmFallback();
             deterministicDraftRegistered.delete(nest);
+            traceOnboarding({
+              ...traceBase,
+              onboardingStage: 'note',
+              onboardingOperation: 'commit_research_draft',
+              onboardingOutcome: 'succeeded',
+              onboardingState: 'researching',
+              onboardingNextState: 'complete',
+              notebookNest: notesNest,
+              durationMs: Date.now() - draftStartedAt,
+              draftTitleCharCount: title.length,
+              draftMarkdownCharCount: markdown.length,
+            });
             return {
               ok: true,
               message:
@@ -1236,11 +1703,34 @@ export async function monitorTlonProvider(
             runtime.error?.(
               `[tlon] Failed to commit onboarding draft for ${nest}: ${String(error)}`
             );
+            traceOnboarding({
+              ...traceBase,
+              onboardingStage: 'note',
+              onboardingOperation: 'commit_research_draft',
+              onboardingOutcome: 'failed_ambiguous',
+              onboardingState: 'writing-note',
+              notebookNest: notesNest,
+              durationMs: Date.now() - draftStartedAt,
+              draftTitleCharCount: title.length,
+              draftMarkdownCharCount: markdown.length,
+              ...onboardingErrorFields(error, [title, markdown]),
+            });
             // A timed-out note poke often landed. Read the owner notebook
             // before asking for a retry, or an ambiguous timeout becomes a
             // duplicate entry. If a post appeared after our recorded
             // baseline, commit that durable evidence and finish.
             const observed = await notebookNewestEntry(notesNest);
+            if (!observed.readable) {
+              traceOnboarding({
+                ...traceBase,
+                onboardingStage: 'note',
+                onboardingOperation: 'verify_ambiguous_write',
+                onboardingOutcome: 'failed_retryable',
+                onboardingState: 'writing-note',
+                notebookNest: notesNest,
+                ...onboardingErrorFields(observed.error, [title, markdown]),
+              });
+            }
             if (
               observed.readable &&
               observed.newestId !== null &&
@@ -1258,7 +1748,11 @@ export async function monitorTlonProvider(
                       notebookNest: notesNest,
                       noteId: observed.newestId,
                     },
-                  })
+                  }),
+                  {
+                    onboardingAttemptId,
+                    onboardingSource: 'note_write_recovery',
+                  }
                 );
                 if (draftTimeout) {
                   clearTimeout(draftTimeout);
@@ -1267,6 +1761,16 @@ export async function monitorTlonProvider(
                 unregisterDraft();
                 scheduleResearchDisarmFallback();
                 deterministicDraftRegistered.delete(nest);
+                traceOnboarding({
+                  ...traceBase,
+                  onboardingStage: 'note',
+                  onboardingOperation: 'recover_ambiguous_write',
+                  onboardingOutcome: 'succeeded',
+                  onboardingState: 'writing-note',
+                  onboardingNextState: 'complete',
+                  notebookNest: notesNest,
+                  durationMs: Date.now() - draftStartedAt,
+                });
                 return {
                   ok: true,
                   message:
@@ -1276,6 +1780,15 @@ export async function monitorTlonProvider(
                 runtime.error?.(
                   `[tlon] Could not record recovered note for ${nest}: ${String(recoveryError)}`
                 );
+                traceOnboarding({
+                  ...traceBase,
+                  onboardingStage: 'note',
+                  onboardingOperation: 'recover_ambiguous_write',
+                  onboardingOutcome: 'failed',
+                  onboardingState: 'writing-note',
+                  notebookNest: notesNest,
+                  ...onboardingErrorFields(recoveryError, [title, markdown]),
+                });
               }
             }
             return {
@@ -1296,14 +1809,41 @@ export async function monitorTlonProvider(
           })
         )
       ) {
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'research',
+          onboardingOperation: 'enqueue_directive',
+          onboardingOutcome: 'failed_retryable',
+          onboardingState: 'researching',
+          notebookNest: notesNest,
+          reason: 'route_or_enqueue_failed',
+        });
         unregisterDraft();
         disarmOnboardingResearchForNest(nest);
         deterministicDraftRegistered.delete(nest);
       } else {
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'research',
+          onboardingOperation: 'enqueue_directive',
+          onboardingOutcome: 'succeeded',
+          onboardingState: 'researching',
+          notebookNest: notesNest,
+          durationMs: Date.now() - reconcileStartedAt,
+        });
         // A model turn that exits without submitting a draft must not leave
         // the state machine permanently armed. Reconciliation will enqueue
         // a fresh bounded research turn after this lease expires.
         draftTimeout = setTimeout(() => {
+          traceOnboarding({
+            ...traceBase,
+            onboardingStage: 'research',
+            onboardingOperation: 'draft_lease',
+            onboardingOutcome: 'expired_retryable',
+            onboardingState: 'researching',
+            notebookNest: notesNest,
+            reason: 'draft_not_submitted_within_lease',
+          });
           unregisterDraft();
           disarmOnboardingResearchForNest(nest);
           deterministicDraftRegistered.delete(nest);
@@ -1349,12 +1889,38 @@ export async function monitorTlonProvider(
       if (!onboardingInvitePending.has(nest) && inviteSettled.has(nest)) {
         return;
       }
+      const onboardingAttemptId = randomUUID();
+      const closingStartedAt = Date.now();
+      const traceBase = {
+        nest,
+        onboardingAttemptId,
+        onboardingSource: 'closing_reconciliation',
+        onboardingStage: 'closing',
+      };
+      traceOnboarding({
+        ...traceBase,
+        onboardingOperation: 'close_setup',
+        onboardingOutcome: 'started',
+      });
       try {
         const group = await findGroupForChannel(api, nest, runtime);
         if (!group) {
+          traceOnboarding({
+            ...traceBase,
+            onboardingOperation: 'resolve_group',
+            onboardingOutcome: 'failed_retryable',
+            reason: 'group_unreadable',
+          });
           return;
         }
         if (!descriptionHasConfiguredJob(group.description)) {
+          traceOnboarding({
+            ...traceBase,
+            groupFlag: group.flag,
+            onboardingOperation: 'read_group_config',
+            onboardingOutcome: 'waiting',
+            reason: 'configured_job_not_present',
+          });
           return;
         }
         // Recover the debt before reconciliation, since the in-memory set is
@@ -1383,6 +1949,13 @@ export async function monitorTlonProvider(
           onboardingInvitePending.add(nest);
         }
         if (deterministicSetupIsIncomplete(group.description)) {
+          traceOnboarding({
+            ...traceBase,
+            groupFlag: group.flag,
+            onboardingOperation: 'close_setup',
+            onboardingOutcome: 'waiting',
+            reason: 'deterministic_setup_incomplete',
+          });
           await reconcileDeterministicSetup(nest, group);
           return;
         }
@@ -1428,6 +2001,12 @@ export async function monitorTlonProvider(
             inviteCardFallbackText(),
             blob ? { blob: serializeBlobField(blob) } : {}
           );
+          traceOnboarding({
+            ...traceBase,
+            groupFlag: group.flag,
+            onboardingOperation: 'post_invite_card',
+            onboardingOutcome: 'succeeded',
+          });
         }
         // Initial onboarding only: the account's first setup gets the
         // connected-services tour. A user creating their third agent group
@@ -1458,6 +2037,12 @@ export async function monitorTlonProvider(
               servicesCardFallbackText(),
               servicesBlob ? { blob: serializeBlobField(servicesBlob) } : {}
             );
+            traceOnboarding({
+              ...traceBase,
+              groupFlag: group.flag,
+              onboardingOperation: 'post_services_card',
+              onboardingOutcome: 'succeeded',
+            });
           }
         }
         // Hands the conversation back, after the cards so it can't land
@@ -1466,13 +2051,34 @@ export async function monitorTlonProvider(
         // ending.
         if (!botPosted(INVITE_FOLLOWUP_MESSAGE)) {
           await postToChannel(nest, INVITE_FOLLOWUP_MESSAGE);
+          traceOnboarding({
+            ...traceBase,
+            groupFlag: group.flag,
+            onboardingOperation: 'post_followup',
+            onboardingOutcome: 'succeeded',
+          });
         }
         onboardingInvitePending.delete(nest);
         inviteSettled.add(nest);
+        traceOnboarding({
+          ...traceBase,
+          groupFlag: group.flag,
+          onboardingOperation: 'close_setup',
+          onboardingOutcome: 'succeeded',
+          onboardingState: 'complete',
+          durationMs: Date.now() - closingStartedAt,
+        });
       } catch (error) {
         runtime.error?.(
           `[tlon] Failed to close the setup in ${nest}: ${String(error)}`
         );
+        traceOnboarding({
+          ...traceBase,
+          onboardingOperation: 'close_setup',
+          onboardingOutcome: 'failed_retryable',
+          durationMs: Date.now() - closingStartedAt,
+          ...onboardingErrorFields(error),
+        });
       }
     };
 
@@ -1519,10 +2125,29 @@ export async function monitorTlonProvider(
       ) {
         return 'ok';
       }
+      const onboardingAttemptId = randomUUID();
+      const recoveryStartedAt = Date.now();
+      const traceBase = {
+        nest,
+        onboardingAttemptId,
+        onboardingSource: 'restart_recovery',
+        onboardingStage: 'recovery',
+      };
+      traceOnboarding({
+        ...traceBase,
+        onboardingOperation: 'recover_state',
+        onboardingOutcome: 'started',
+      });
       const group =
         knownGroup ?? (await findGroupForChannel(api, nest, runtime));
       if (!group) {
         // Null is also what a transient groups-scry failure looks like.
+        traceOnboarding({
+          ...traceBase,
+          onboardingOperation: 'resolve_group',
+          onboardingOutcome: 'inconclusive',
+          reason: 'group_unreadable',
+        });
         return 'inconclusive';
       }
       if (group.host !== effectiveOwnerShip) {
@@ -1537,6 +2162,15 @@ export async function monitorTlonProvider(
         onboardingPickerOffered.add(nest);
         onboardingTopicsOffered.add(nest);
         onboardingRecoveryChecked.add(nest);
+        traceOnboarding({
+          ...traceBase,
+          groupFlag: group.flag,
+          purposeId: deterministic.purposeId,
+          onboardingOperation: 'recover_state',
+          onboardingOutcome: 'recovered',
+          onboardingState: 'awaiting-topics',
+          durationMs: Date.now() - recoveryStartedAt,
+        });
         return 'ok';
       }
       if (deterministic?.record.state === 'awaiting-timezone') {
@@ -1548,6 +2182,17 @@ export async function monitorTlonProvider(
         onboardingPickerOffered.add(nest);
         onboardingTopicsOffered.add(nest);
         onboardingRecoveryChecked.add(nest);
+        traceOnboarding({
+          ...traceBase,
+          groupFlag: group.flag,
+          purposeId: deterministic.purposeId,
+          timezone: deterministic.timezone || null,
+          topicsCharCount: deterministic.topics.length,
+          onboardingOperation: 'recover_state',
+          onboardingOutcome: 'recovered',
+          onboardingState: 'awaiting-timezone',
+          durationMs: Date.now() - recoveryStartedAt,
+        });
         return 'ok';
       }
       if (descriptionHasConfiguredJob(group.description)) {
@@ -1576,6 +2221,14 @@ export async function monitorTlonProvider(
         runtime.log?.(
           `[tlon] Onboarding recovery scan for ${nest} failed: ${String(error)}`
         );
+        traceOnboarding({
+          ...traceBase,
+          groupFlag: group.flag,
+          onboardingOperation: 'read_history',
+          onboardingOutcome: 'inconclusive',
+          durationMs: Date.now() - recoveryStartedAt,
+          ...onboardingErrorFields(error),
+        });
         return 'inconclusive';
       }
       onboardingRecoveryChecked.add(nest);
@@ -1605,8 +2258,28 @@ export async function monitorTlonProvider(
         onboardingSetupPending.set(nest, recoveredPurpose);
         onboardingPickerOffered.add(nest);
         onboardingTopicsOffered.add(nest);
+        traceOnboarding({
+          ...traceBase,
+          groupFlag: group.flag,
+          purposeId: recoveredPurpose,
+          onboardingOperation: 'recover_state',
+          onboardingOutcome: 'recovered',
+          onboardingState: 'awaiting-topics',
+          historyPostCount: recentPosts.length,
+          durationMs: Date.now() - recoveryStartedAt,
+          reason: 'derived_from_transcript',
+        });
         return 'ok';
       }
+      traceOnboarding({
+        ...traceBase,
+        groupFlag: group.flag,
+        onboardingOperation: 'recover_state',
+        onboardingOutcome: 'succeeded',
+        historyPostCount: recentPosts.length,
+        durationMs: Date.now() - recoveryStartedAt,
+        reason: 'no_pending_state_found',
+      });
       return 'ok';
     };
 
@@ -1642,19 +2315,59 @@ export async function monitorTlonProvider(
       nest: string,
       purposeId: string
     ): Promise<boolean> => {
+      const onboardingAttemptId = randomUUID();
+      const startedAt = Date.now();
+      const traceBase = {
+        nest,
+        purposeId,
+        onboardingAttemptId,
+        onboardingSource: 'purpose_reply',
+        onboardingStage: 'topics',
+      };
+      traceOnboarding({
+        ...traceBase,
+        onboardingOperation: 'offer_topics',
+        onboardingOutcome: 'started',
+        onboardingState: 'awaiting-topics',
+      });
       onboardingTopicsOffered.add(nest);
       onboardingSetupPending.set(nest, purposeId);
       try {
+        const lookupStartedAt = Date.now();
         const group = await findGroupForChannel(api, nest, runtime);
         if (!group) {
           throw new Error('The onboarding group is not readable');
         }
+        traceOnboarding({
+          ...traceBase,
+          groupFlag: group.flag,
+          onboardingOperation: 'resolve_group',
+          onboardingOutcome: 'succeeded',
+          durationMs: Date.now() - lookupStartedAt,
+        });
         const topicsBlob = buildTopicsPickerBlob(nest, purposeId);
+        const postStartedAt = Date.now();
         await postToChannel(nest, topicsPickerFallbackText(purposeId), {
           ...(topicsBlob ? { blob: serializeBlobField(topicsBlob) } : {}),
         });
+        traceOnboarding({
+          ...traceBase,
+          groupFlag: group.flag,
+          onboardingOperation: 'post_picker',
+          onboardingOutcome: 'succeeded',
+          durationMs: Date.now() - postStartedAt,
+        });
         try {
-          await waitForOnboardingAdminSeat(group.flag);
+          const adminStartedAt = Date.now();
+          const adminSeatReady = await waitForOnboardingAdminSeat(group.flag);
+          traceOnboarding({
+            ...traceBase,
+            groupFlag: group.flag,
+            onboardingOperation: 'wait_for_admin_seat',
+            onboardingOutcome: adminSeatReady ? 'succeeded' : 'timed_out',
+            durationMs: Date.now() - adminStartedAt,
+            reason: adminSeatReady ? null : 'admin_seat_not_observed',
+          });
           const latest = await findGroupForChannel(api, nest, runtime);
           if (!latest) {
             throw new Error('Could not re-read the group before state write');
@@ -1673,7 +2386,8 @@ export async function monitorTlonProvider(
             buildAwaitingTopicsDescription({
               purposeId,
               agentShip: botShipName,
-            })
+            }),
+            { onboardingAttemptId, onboardingSource: 'purpose_reply' }
           );
         } catch (error) {
           // The picker itself is durable and recovery can derive this state
@@ -1681,7 +2395,23 @@ export async function monitorTlonProvider(
           runtime.error?.(
             `[tlon] Topics picker posted but its state write failed in ${nest}: ${String(error)}`
           );
+          traceOnboarding({
+            ...traceBase,
+            groupFlag: group.flag,
+            onboardingOperation: 'persist_awaiting_topics',
+            onboardingOutcome: 'failed_recoverable',
+            onboardingState: 'awaiting-topics',
+            ...onboardingErrorFields(error),
+          });
         }
+        traceOnboarding({
+          ...traceBase,
+          groupFlag: group.flag,
+          onboardingOperation: 'offer_topics',
+          onboardingOutcome: 'succeeded',
+          onboardingState: 'awaiting-topics',
+          durationMs: Date.now() - startedAt,
+        });
         return true;
       } catch (error) {
         onboardingTopicsOffered.delete(nest);
@@ -1689,6 +2419,13 @@ export async function monitorTlonProvider(
         runtime.error?.(
           `[tlon] Failed to post topics picker in ${nest}: ${String(error)}`
         );
+        traceOnboarding({
+          ...traceBase,
+          onboardingOperation: 'offer_topics',
+          onboardingOutcome: 'failed',
+          durationMs: Date.now() - startedAt,
+          ...onboardingErrorFields(error),
+        });
         return false;
       }
     };
@@ -1705,16 +2442,109 @@ export async function monitorTlonProvider(
     ): Promise<void> => {
       const existing = deterministicSetupInFlight.get(nest);
       if (existing) {
+        traceOnboarding({
+          nest,
+          groupFlag: params.groupFlag,
+          purposeId: params.purposeId,
+          timezone: params.timezone,
+          topicsCharCount: params.topics.length,
+          onboardingStage: 'schedule',
+          onboardingOperation: 'begin_setup',
+          onboardingOutcome: 'deduplicated',
+          onboardingSource: 'timezone_reply',
+          reason: 'setup_already_in_flight',
+        });
         return existing;
       }
+      const onboardingAttemptId = randomUUID();
+      const setupStartedAt = Date.now();
       const run = (async () => {
-        await postToChannel(nest, 'Scheduling your daily job…').catch(() => {});
-        const cronJobId = await ensureDeterministicCronJob({
+        const traceBase = {
           nest,
+          groupFlag: params.groupFlag,
           purposeId: params.purposeId,
-          topics: params.topics,
           timezone: params.timezone,
+          topicsCharCount: params.topics.length,
+          onboardingAttemptId,
+          onboardingSource: 'timezone_reply',
+        };
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'schedule',
+          onboardingOperation: 'begin_setup',
+          onboardingOutcome: 'started',
+          onboardingState: 'awaiting-timezone',
+          onboardingNextState: 'awaiting-notebook',
         });
+        const statusPostStartedAt = Date.now();
+        try {
+          await postToChannel(nest, 'Scheduling your daily job…');
+          traceOnboarding({
+            ...traceBase,
+            onboardingStage: 'schedule',
+            onboardingOperation: 'post_scheduling_status',
+            onboardingOutcome: 'succeeded',
+            durationMs: Date.now() - statusPostStartedAt,
+          });
+        } catch (error) {
+          traceOnboarding({
+            ...traceBase,
+            onboardingStage: 'schedule',
+            onboardingOperation: 'post_scheduling_status',
+            onboardingOutcome: 'failed_nonblocking',
+            durationMs: Date.now() - statusPostStartedAt,
+            ...onboardingErrorFields(error),
+          });
+        }
+        const cronStartedAt = Date.now();
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'schedule',
+          onboardingOperation: 'ensure_cron_job',
+          onboardingOutcome: 'started',
+        });
+        let cronJobId: string;
+        try {
+          cronJobId = await ensureDeterministicCronJob({
+            nest,
+            purposeId: params.purposeId,
+            topics: params.topics,
+            timezone: params.timezone,
+            trace: (event) =>
+              traceOnboarding({
+                ...traceBase,
+                onboardingStage: 'schedule',
+                onboardingOperation: `cron_${event.operation}`,
+                onboardingOutcome: event.outcome,
+                retryAttempt: event.attempt ?? null,
+                retryDelayMs: event.retryDelayMs ?? null,
+                durationMs: event.durationMs ?? null,
+                cronJobId: event.cronJobId ?? null,
+                totalCronJobCount: event.totalCronJobCount ?? null,
+                ...(event.error
+                  ? onboardingErrorFields(event.error, [params.topics])
+                  : {}),
+              }),
+          });
+          traceOnboarding({
+            ...traceBase,
+            onboardingStage: 'schedule',
+            onboardingOperation: 'ensure_cron_job',
+            onboardingOutcome: 'succeeded',
+            cronJobId,
+            durationMs: Date.now() - cronStartedAt,
+          });
+        } catch (error) {
+          traceOnboarding({
+            ...traceBase,
+            onboardingStage: 'schedule',
+            onboardingOperation: 'ensure_cron_job',
+            onboardingOutcome: 'failed',
+            durationMs: Date.now() - cronStartedAt,
+            ...onboardingErrorFields(error, [params.topics]),
+          });
+          throw error;
+        }
         const setup: DeterministicSetup = {
           purposeId: params.purposeId,
           topics: params.topics,
@@ -1730,10 +2560,44 @@ export async function monitorTlonProvider(
         await writeAndVerifyOnboardingDescription(
           nest,
           params.groupFlag,
-          buildDeterministicSetupDescription(setup)
+          buildDeterministicSetupDescription(setup),
+          { onboardingAttemptId, onboardingSource: 'timezone_reply' }
         );
         onboardingInvitePending.add(nest);
-        await postToChannel(nest, WAITING_FOR_NOTEBOOK_LINE).catch(() => {});
+        const waitingPostStartedAt = Date.now();
+        try {
+          await postToChannel(nest, WAITING_FOR_NOTEBOOK_LINE);
+          traceOnboarding({
+            ...traceBase,
+            onboardingStage: 'notebook',
+            onboardingOperation: 'post_waiting_status',
+            onboardingOutcome: 'succeeded',
+            onboardingState: 'awaiting-notebook',
+            cronJobId,
+            durationMs: Date.now() - waitingPostStartedAt,
+          });
+        } catch (error) {
+          traceOnboarding({
+            ...traceBase,
+            onboardingStage: 'notebook',
+            onboardingOperation: 'post_waiting_status',
+            onboardingOutcome: 'failed_nonblocking',
+            onboardingState: 'awaiting-notebook',
+            cronJobId,
+            durationMs: Date.now() - waitingPostStartedAt,
+            ...onboardingErrorFields(error),
+          });
+        }
+        traceOnboarding({
+          ...traceBase,
+          onboardingStage: 'schedule',
+          onboardingOperation: 'begin_setup',
+          onboardingOutcome: 'succeeded',
+          onboardingState: 'awaiting-timezone',
+          onboardingNextState: 'awaiting-notebook',
+          cronJobId,
+          durationMs: Date.now() - setupStartedAt,
+        });
       })().finally(() => {
         deterministicSetupInFlight.delete(nest);
       });
@@ -1909,6 +2773,17 @@ export async function monitorTlonProvider(
             `[tlon] No onboarding offer for ${groupFlag}: hostIsOwner=${info.host === effectiveOwnerShip}, channelHasNoPosts=${isNew}, alreadyOffered=${onboardingPickerOffered.has(info.nest)}`
           );
           if (channelOpenable === null || probeUnreadable) {
+            traceOnboarding({
+              nest: info.nest,
+              groupFlag,
+              onboardingStage: 'opening',
+              onboardingOperation: 'evaluate_offer',
+              onboardingOutcome: 'inconclusive',
+              onboardingSource: 'opening_sweep',
+              reason: probeUnreadable
+                ? 'home_group_history_unreadable'
+                : 'newness_probe_unanswered',
+            });
             return 'retry';
           }
           // 'settled' means nothing more is owed here. An opened group
@@ -1916,9 +2791,19 @@ export async function monitorTlonProvider(
           // recovery above, so it reports as opened and keeps its place in
           // the sweep until the config lands (which drops it from the
           // candidate list on its own).
-          return descriptionHasConfiguredJob(info.description)
+          const verdict = descriptionHasConfiguredJob(info.description)
             ? 'settled'
             : 'opened';
+          traceOnboarding({
+            nest: info.nest,
+            groupFlag,
+            onboardingStage: 'opening',
+            onboardingOperation: 'evaluate_offer',
+            onboardingOutcome: 'skipped',
+            onboardingSource: 'opening_sweep',
+            reason: verdict,
+          });
+          return verdict;
         }
         onboardingPickerOffered.add(info.nest);
         runtime.log?.(
@@ -1931,6 +2816,15 @@ export async function monitorTlonProvider(
           runtime.error?.(
             `[tlon] Failed to open ${groupFlag} with purpose picker: ${String(error)}`
           );
+          traceOnboarding({
+            nest: info.nest,
+            groupFlag,
+            onboardingStage: 'opening',
+            onboardingOperation: 'post_opening',
+            onboardingOutcome: 'failed_retryable',
+            onboardingSource: 'opening_sweep',
+            ...onboardingErrorFields(error),
+          });
           return 'retry';
         }
         return 'opened';
@@ -1938,6 +2832,15 @@ export async function monitorTlonProvider(
         runtime.error?.(
           `[tlon] Onboarding offer for ${groupFlag} failed: ${String(error)}`
         );
+        traceOnboarding({
+          nest: `unknown:${groupFlag}`,
+          groupFlag,
+          onboardingStage: 'opening',
+          onboardingOperation: 'evaluate_offer',
+          onboardingOutcome: 'failed_retryable',
+          onboardingSource: 'opening_sweep',
+          ...onboardingErrorFields(error),
+        });
         return 'retry';
       }
     };
@@ -5298,8 +6201,30 @@ export async function monitorTlonProvider(
           !isThreadReply &&
           !parentId
         ) {
+          const timezoneAttemptId = randomUUID();
+          const timezoneTraceBase = {
+            nest,
+            groupFlag: pendingTimezone.groupFlag,
+            purposeId: pendingTimezone.purposeId,
+            topicsCharCount: pendingTimezone.topics.length,
+            onboardingAttemptId: timezoneAttemptId,
+            onboardingSource: 'timezone_reply',
+            onboardingStage: 'timezone',
+            onboardingState: 'awaiting-timezone',
+          };
+          traceOnboarding({
+            ...timezoneTraceBase,
+            onboardingOperation: 'consume_reply',
+            onboardingOutcome: 'started',
+          });
           const timezone = normalizeIanaTimezone(rawText ?? '');
           if (!timezone) {
+            traceOnboarding({
+              ...timezoneTraceBase,
+              onboardingOperation: 'normalize_timezone',
+              onboardingOutcome: 'invalid',
+              reason: 'not_an_iana_timezone',
+            });
             const timezoneBlob = buildTimezonePickerBlob(nest);
             await postToChannel(nest, timezonePickerFallbackText(), {
               ...(timezoneBlob
@@ -5310,16 +6235,37 @@ export async function monitorTlonProvider(
           }
           onboardingTimezonePending.delete(nest);
           onboardingSetupPending.delete(nest);
+          traceOnboarding({
+            ...timezoneTraceBase,
+            timezone,
+            onboardingOperation: 'normalize_timezone',
+            onboardingOutcome: 'succeeded',
+          });
           try {
             await beginDeterministicSetup(nest, {
               ...pendingTimezone,
               timezone,
+            });
+            traceOnboarding({
+              ...timezoneTraceBase,
+              timezone,
+              onboardingOperation: 'consume_reply',
+              onboardingOutcome: 'succeeded',
+              onboardingNextState: 'awaiting-notebook',
             });
           } catch (error) {
             onboardingTimezonePending.set(nest, pendingTimezone);
             runtime.error?.(
               `[tlon] Deterministic setup failed in ${nest}: ${String(error)}`
             );
+            traceOnboarding({
+              ...timezoneTraceBase,
+              timezone,
+              onboardingOperation: 'consume_reply',
+              onboardingOutcome: 'failed_retryable',
+              reason: 'pending_timezone_restored',
+              ...onboardingErrorFields(error, [pendingTimezone.topics]),
+            });
             await postToChannel(
               nest,
               'I hit a setup problem before anything was published. Tap your timezone again and I’ll retry safely.'
@@ -5358,15 +6304,47 @@ export async function monitorTlonProvider(
           return;
         }
         if (pendingSetupPurpose && answersTopicsPicker) {
+          const topicsAttemptId = randomUUID();
+          const topicsStartedAt = Date.now();
+          const topics = rawText!.trim();
+          const topicsTraceBase = {
+            nest,
+            purposeId: pendingSetupPurpose,
+            topicsCharCount: topics.length,
+            onboardingAttemptId: topicsAttemptId,
+            onboardingSource: 'topics_reply',
+            onboardingStage: 'topics',
+            onboardingState: 'awaiting-topics',
+          };
+          traceOnboarding({
+            ...topicsTraceBase,
+            onboardingOperation: 'consume_reply',
+            onboardingOutcome: 'started',
+            onboardingNextState: 'awaiting-timezone',
+          });
           onboardingSetupPending.delete(nest);
           const group = await findGroupForChannel(api, nest, runtime);
           if (!group) {
             onboardingSetupPending.set(nest, pendingSetupPurpose);
+            traceOnboarding({
+              ...topicsTraceBase,
+              onboardingOperation: 'resolve_group',
+              onboardingOutcome: 'failed_retryable',
+              reason: 'group_unreadable_pending_topics_restored',
+            });
             return;
           }
-          const topics = rawText!.trim();
           try {
-            await waitForOnboardingAdminSeat(group.flag);
+            const adminStartedAt = Date.now();
+            const adminSeatReady = await waitForOnboardingAdminSeat(group.flag);
+            traceOnboarding({
+              ...topicsTraceBase,
+              groupFlag: group.flag,
+              onboardingOperation: 'wait_for_admin_seat',
+              onboardingOutcome: adminSeatReady ? 'succeeded' : 'timed_out',
+              durationMs: Date.now() - adminStartedAt,
+              reason: adminSeatReady ? null : 'admin_seat_not_observed',
+            });
             await writeAndVerifyOnboardingDescription(
               nest,
               group.flag,
@@ -5374,7 +6352,11 @@ export async function monitorTlonProvider(
                 purposeId: pendingSetupPurpose,
                 topics,
                 agentShip: botShipName,
-              })
+              }),
+              {
+                onboardingAttemptId: topicsAttemptId,
+                onboardingSource: 'topics_reply',
+              }
             );
             onboardingTimezonePending.set(nest, {
               purposeId: pendingSetupPurpose,
@@ -5387,11 +6369,28 @@ export async function monitorTlonProvider(
                 ? { blob: serializeBlobField(timezoneBlob) }
                 : {}),
             });
+            traceOnboarding({
+              ...topicsTraceBase,
+              groupFlag: group.flag,
+              onboardingOperation: 'consume_reply',
+              onboardingOutcome: 'succeeded',
+              onboardingNextState: 'awaiting-timezone',
+              durationMs: Date.now() - topicsStartedAt,
+            });
           } catch (error) {
             onboardingSetupPending.set(nest, pendingSetupPurpose);
             runtime.error?.(
               `[tlon] Could not persist topics for ${nest}: ${String(error)}`
             );
+            traceOnboarding({
+              ...topicsTraceBase,
+              groupFlag: group.flag,
+              onboardingOperation: 'consume_reply',
+              onboardingOutcome: 'failed_retryable',
+              durationMs: Date.now() - topicsStartedAt,
+              reason: 'pending_topics_restored',
+              ...onboardingErrorFields(error, [topics]),
+            });
           }
           return;
         }
@@ -6784,6 +7783,14 @@ export async function monitorTlonProvider(
               runtime.log?.(
                 `[tlon] Onboarding opening sweep failed: ${String(error)}`
               );
+              traceOnboarding({
+                nest: 'unknown:onboarding-sweep',
+                onboardingStage: 'recovery',
+                onboardingOperation: 'periodic_sweep',
+                onboardingOutcome: 'failed_retryable',
+                onboardingSource: 'opening_sweep',
+                ...onboardingErrorFields(error),
+              });
             }
             if (onboardingSweepNudged) {
               continue;

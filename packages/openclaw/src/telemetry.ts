@@ -428,6 +428,36 @@ export type TlonCronSnapshotEvent = TlonCronCountFields & {
   scheduleKindOnExitCount: number | null;
 };
 
+export type TlonOnboardingTraceEvent = {
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  onboardingAttemptId: string | null;
+  onboardingStage: string;
+  onboardingOperation: string;
+  onboardingOutcome: string;
+  onboardingSource: string | null;
+  onboardingState: string | null;
+  onboardingNextState: string | null;
+  nest: string;
+  groupFlag: string | null;
+  purposeId: string | null;
+  timezone: string | null;
+  cronJobId: string | null;
+  notebookNest: string | null;
+  retryAttempt: number | null;
+  retryDelayMs: number | null;
+  durationMs: number | null;
+  totalCronJobCount: number | null;
+  topicsCharCount: number | null;
+  draftTitleCharCount: number | null;
+  draftMarkdownCharCount: number | null;
+  historyPostCount: number | null;
+  reason: string | null;
+  errorKind: string | null;
+  errorText: string | null;
+};
+
 export type TlonHarnessErrorScope =
   | 'harness'
   | 'model'
@@ -598,6 +628,7 @@ export interface TlonTelemetryClient {
   captureCronJobChanged(event: TlonCronJobChangedEvent): void;
   captureCronRun(event: TlonCronRunEvent): void;
   captureCronSnapshot(event: TlonCronSnapshotEvent): void;
+  captureOnboardingTrace(event: TlonOnboardingTraceEvent): void;
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
       ownerShip?: string | null;
@@ -623,6 +654,7 @@ const TLON_HEARTBEAT_REENGAGED_EVENT = 'TlonBot Heartbeat Nudge Reengaged';
 const TLON_CRON_JOB_CHANGED_EVENT = 'TlonBot Cron Job Changed';
 const TLON_CRON_RUN_EVENT = 'TlonBot Cron Run';
 const TLON_CRON_SNAPSHOT_EVENT = 'TlonBot Cron Snapshot';
+const TLON_ONBOARDING_TRACE_EVENT = 'TlonBot Onboarding Trace';
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
 const TOOL_TRACE_TTL_MS = 60 * 60 * 1000;
 const MAX_TOOL_CALLS_PER_SESSION = 200;
@@ -1826,6 +1858,50 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           scheduleKindAtCount: event.scheduleKindAtCount,
           scheduleKindOnExitCount: event.scheduleKindOnExitCount,
           ...this.cronCountPersonProps(event),
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureOnboardingTrace(event: TlonOnboardingTraceEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_ONBOARDING_TRACE_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          onboardingAttemptId: event.onboardingAttemptId,
+          onboardingStage: event.onboardingStage,
+          onboardingOperation: event.onboardingOperation,
+          onboardingOutcome: event.onboardingOutcome,
+          onboardingSource: event.onboardingSource,
+          onboardingState: event.onboardingState,
+          onboardingNextState: event.onboardingNextState,
+          nest: event.nest,
+          groupFlag: event.groupFlag,
+          purposeId: event.purposeId,
+          timezone: event.timezone,
+          cronJobId: event.cronJobId,
+          notebookNest: event.notebookNest,
+          retryAttempt: event.retryAttempt,
+          retryDelayMs: event.retryDelayMs,
+          durationMs: event.durationMs,
+          totalCronJobCount: event.totalCronJobCount,
+          topicsCharCount: event.topicsCharCount,
+          draftTitleCharCount: event.draftTitleCharCount,
+          draftMarkdownCharCount: event.draftMarkdownCharCount,
+          historyPostCount: event.historyPostCount,
+          reason: event.reason,
+          errorKind: event.errorKind,
+          errorText: event.errorText,
         },
         { omitNullish: true }
       ),

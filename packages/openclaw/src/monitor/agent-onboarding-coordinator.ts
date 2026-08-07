@@ -190,37 +190,111 @@ function cronJobMatches(
   return job.description === description && typeof job.id === 'string';
 }
 
+export type DeterministicCronTraceEvent = {
+  operation: string;
+  outcome: string;
+  attempt?: number;
+  retryDelayMs?: number;
+  durationMs?: number;
+  cronJobId?: string;
+  totalCronJobCount?: number;
+  error?: unknown;
+};
+
+export type DeterministicCronTracer = (
+  event: DeterministicCronTraceEvent
+) => void;
+
 /** Create once, then prove the scheduler can list the stored job. */
 export async function ensureDeterministicCronJob(params: {
   nest: string;
   purposeId: string;
   topics: string;
   timezone: string;
+  trace?: DeterministicCronTracer;
 }): Promise<string> {
+  const trace = params.trace;
+  const startedAt = Date.now();
+  trace?.({ operation: 'resolve_service', outcome: 'started' });
   const template = PURPOSE_JOBS[params.purposeId];
   if (!template) {
+    trace?.({
+      operation: 'resolve_template',
+      outcome: 'failed',
+      durationMs: Date.now() - startedAt,
+      error: new Error(`Unknown onboarding purpose: ${params.purposeId}`),
+    });
     throw new Error(`Unknown onboarding purpose: ${params.purposeId}`);
   }
   let cron = getCronService();
+  let serviceAttempt = 0;
   for (const delay of [250, 750, 1_500]) {
     if (cron) {
       break;
     }
+    serviceAttempt += 1;
+    trace?.({
+      operation: 'resolve_service',
+      outcome: 'retrying',
+      attempt: serviceAttempt,
+      retryDelayMs: delay,
+      durationMs: Date.now() - startedAt,
+    });
     await new Promise((resolve) => setTimeout(resolve, delay));
     cron = getCronService();
   }
   if (!cron) {
+    trace?.({
+      operation: 'resolve_service',
+      outcome: 'failed',
+      attempt: serviceAttempt,
+      durationMs: Date.now() - startedAt,
+      error: new Error('OpenClaw cron service is unavailable'),
+    });
     throw new Error('OpenClaw cron service is unavailable');
   }
+  trace?.({
+    operation: 'resolve_service',
+    outcome: 'succeeded',
+    attempt: serviceAttempt,
+    durationMs: Date.now() - startedAt,
+  });
   const description = cronDescription(params.nest, params.purposeId);
-  const existing = (await cron.list({ includeDisabled: true })).find((job) =>
-    cronJobMatches(job, description)
-  );
+  const initialListStartedAt = Date.now();
+  trace?.({ operation: 'list_existing', outcome: 'started' });
+  let initialJobs: PluginHookGatewayCronJob[];
+  try {
+    initialJobs = await cron.list({ includeDisabled: true });
+    trace?.({
+      operation: 'list_existing',
+      outcome: 'succeeded',
+      durationMs: Date.now() - initialListStartedAt,
+      totalCronJobCount: initialJobs.length,
+    });
+  } catch (error) {
+    trace?.({
+      operation: 'list_existing',
+      outcome: 'failed',
+      durationMs: Date.now() - initialListStartedAt,
+      error,
+    });
+    throw error;
+  }
+  const existing = initialJobs.find((job) => cronJobMatches(job, description));
   if (existing?.id) {
+    trace?.({
+      operation: 'reuse_existing',
+      outcome: 'succeeded',
+      durationMs: Date.now() - startedAt,
+      cronJobId: existing.id,
+      totalCronJobCount: initialJobs.length,
+    });
     return existing.id;
   }
 
   let addError: unknown;
+  const addStartedAt = Date.now();
+  trace?.({ operation: 'add_job', outcome: 'started' });
   try {
     await cron.add({
       name: fill(template.title, params.topics),
@@ -238,26 +312,86 @@ export async function ensureDeterministicCronJob(params: {
         text: fill(template.prompt, params.topics),
       },
     });
+    trace?.({
+      operation: 'add_job',
+      outcome: 'succeeded',
+      durationMs: Date.now() - addStartedAt,
+    });
   } catch (error) {
     // Treat the add result as ambiguous until list proves otherwise. The
     // scheduler may have persisted the job before its response was lost.
     addError = error;
+    trace?.({
+      operation: 'add_job',
+      outcome: 'failed_ambiguous',
+      durationMs: Date.now() - addStartedAt,
+      error,
+    });
   }
 
+  let verifyAttempt = 0;
   for (const delay of [0, 250, 1_000, 2_000]) {
+    verifyAttempt += 1;
     if (delay) {
+      trace?.({
+        operation: 'verify_job',
+        outcome: 'retrying',
+        attempt: verifyAttempt,
+        retryDelayMs: delay,
+        durationMs: Date.now() - startedAt,
+      });
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
-    const stored = (await cron.list({ includeDisabled: true })).find((job) =>
-      cronJobMatches(job, description)
-    );
+    const verifyStartedAt = Date.now();
+    trace?.({
+      operation: 'verify_job',
+      outcome: 'started',
+      attempt: verifyAttempt,
+    });
+    let jobs: PluginHookGatewayCronJob[];
+    try {
+      jobs = await cron.list({ includeDisabled: true });
+    } catch (error) {
+      trace?.({
+        operation: 'verify_job',
+        outcome: 'failed',
+        attempt: verifyAttempt,
+        durationMs: Date.now() - verifyStartedAt,
+        error,
+      });
+      throw error;
+    }
+    const stored = jobs.find((job) => cronJobMatches(job, description));
     if (stored?.id) {
+      trace?.({
+        operation: 'verify_job',
+        outcome: 'succeeded',
+        attempt: verifyAttempt,
+        durationMs: Date.now() - verifyStartedAt,
+        cronJobId: stored.id,
+        totalCronJobCount: jobs.length,
+      });
       return stored.id;
     }
+    trace?.({
+      operation: 'verify_job',
+      outcome: 'missing',
+      attempt: verifyAttempt,
+      durationMs: Date.now() - verifyStartedAt,
+      totalCronJobCount: jobs.length,
+    });
   }
-  throw new Error(
+  const finalError = new Error(
     `The scheduled job could not be verified${addError ? `: ${String(addError)}` : ''}`
   );
+  trace?.({
+    operation: 'ensure_job',
+    outcome: 'failed',
+    attempt: verifyAttempt,
+    durationMs: Date.now() - startedAt,
+    error: finalError,
+  });
+  throw finalError;
 }
 
 export function renderDeterministicResearchDirective(params: {

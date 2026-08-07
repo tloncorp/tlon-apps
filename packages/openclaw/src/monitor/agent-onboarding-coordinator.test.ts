@@ -122,11 +122,13 @@ describe('cron creation', () => {
     };
     setCronServiceAccessor(() => service as never);
 
+    const trace = vi.fn();
     const params = {
       nest: 'chat/~zod/home-group-chat',
       purposeId: 'agent-research',
       topics: 'Mycology',
       timezone: 'America/New_York',
+      trace,
     };
     await expect(ensureDeterministicCronJob(params)).resolves.toBe('cron-1');
     await expect(ensureDeterministicCronJob(params)).resolves.toBe('cron-1');
@@ -135,6 +137,27 @@ describe('cron creation', () => {
       sessionTarget: 'isolated',
       payload: { kind: 'agentTurn' },
     });
+    expect(trace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'add_job',
+        outcome: 'succeeded',
+      })
+    );
+    expect(trace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'verify_job',
+        outcome: 'succeeded',
+        cronJobId: 'cron-1',
+        totalCronJobCount: 1,
+      })
+    );
+    expect(trace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'reuse_existing',
+        outcome: 'succeeded',
+        cronJobId: 'cron-1',
+      })
+    );
   });
 
   test('accepts a stored job when the add response itself fails', async () => {
