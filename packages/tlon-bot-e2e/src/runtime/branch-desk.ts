@@ -23,7 +23,24 @@ const REQUEST_TIMEOUT_MS = 10_000;
 // A desk compile can occupy vere for minutes; poll patiently rather than
 // mistaking a busy ship for a dead one.
 const COMMIT_REQUEST_TIMEOUT_MS = 120_000;
-const DESK_READY_TIMEOUT_MS = 600_000;
+
+// Native CI runners commit the desk in ~4 minutes; amd64 vere emulated under
+// qemu (arm64 Docker hosts) takes several times that, so local runs can
+// raise the ceiling via env instead of editing the default. Read lazily —
+// the harness loads its .env file after this module is imported.
+function deskReadyTimeoutMs(): number {
+  const raw = process.env.TLON_BOT_E2E_DESK_READY_TIMEOUT_MS;
+  if (raw === undefined || raw === '') {
+    return 600_000;
+  }
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(
+      `TLON_BOT_E2E_DESK_READY_TIMEOUT_MS must be a positive integer of milliseconds, got: ${raw}`
+    );
+  }
+  return parsed;
+}
 
 class ShipUnavailableError extends Error {}
 // Distinct from unavailable: the ship holds the connection but has not
@@ -145,6 +162,16 @@ export async function applyBranchDesk(
       }
     );
     requireSuccess(assembled, 'assemble branch desk');
+    // Any commit this apply issues must move the kiln hash: when Clay already
+    // holds the assembled content (piers freshly archived from this branch) a
+    // plain re-commit is a no-op, and waitForDeskReady would wait forever for
+    // a hash change. A unique commit.txt makes every issued commit a real,
+    // one-file change. It cannot force needless commits: manifests exclude
+    // commit.txt, so the unchanged-desk skip path still fires first.
+    await writeFile(
+      path.join(deskDir, 'commit.txt'),
+      `${ctx.runId} ${new Date().toISOString()}\n`
+    );
     const manifest = await createDeskManifest(deskDir);
     await writeFile(manifestPath, manifest);
 
@@ -172,6 +199,11 @@ export async function applyBranchDesk(
         console.log(`    ~${ship}: assembled desk unchanged; skipping commit`);
         continue;
       }
+      logManifestDrift(
+        ship,
+        await readMountedDeskManifest(ctx, ship, dependencies),
+        manifest
+      );
 
       console.log(`    ~${ship}: copying and committing assembled desk`);
       await withShipRebootRetry(
@@ -293,6 +325,33 @@ async function deskMatches(
     (await readMountedDeskManifest(ctx, ship, dependencies)) ===
     expectedManifest
   );
+}
+
+// Two silent-timeout debugging rounds were spent guessing what differed; on a
+// mismatch, name the drifting paths so the next one is a one-look diagnosis.
+function logManifestDrift(
+  ship: ShipLabel,
+  mounted: string,
+  expected: string
+): void {
+  const mountedLines = new Set(mounted.split('\n'));
+  const expectedLines = new Set(expected.split('\n'));
+  const drift = [
+    ...[...expectedLines]
+      .filter((line) => line && !mountedLines.has(line))
+      .map((line) => `+ ${line}`),
+    ...[...mountedLines]
+      .filter((line) => line && !expectedLines.has(line))
+      .map((line) => `- ${line}`),
+  ];
+  const shown = drift.slice(0, 8);
+  console.log(`    ~${ship}: desk drift (${drift.length} manifest lines):`);
+  for (const line of shown) {
+    console.log(`      ${line}`);
+  }
+  if (drift.length > shown.length) {
+    console.log(`      … ${drift.length - shown.length} more`);
+  }
 }
 
 async function assertDeskMatches(
@@ -458,7 +517,7 @@ async function waitForDeskReady(
       }
     },
     {
-      timeoutMs: DESK_READY_TIMEOUT_MS,
+      timeoutMs: deskReadyTimeoutMs(),
       intervalMs: 2_000,
       description: `${endpoint.ship} %groups desk ready after commit`,
       rethrowError: (error) => error instanceof ShipUnavailableError,

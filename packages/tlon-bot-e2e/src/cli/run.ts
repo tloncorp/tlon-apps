@@ -326,6 +326,14 @@ async function runCommonScenarioPartition(
   );
   console.log('');
 
+  // Scoped local debugging: run only scenarios whose names match, e.g.
+  // TLON_BOT_E2E_TEST_NAME='migrate-happy-path' (vitest -t semantics).
+  // Scenario IDs are dashed but register as space-separated test titles
+  // (see testScenario), so normalize the same way and accept either form.
+  const testNameFilter = process.env.TLON_BOT_E2E_TEST_NAME?.replace(
+    /[-_.:]+/g,
+    ' '
+  );
   const result = await withRuntimeContextFile(ctx, async (contextFile) => {
     const env = buildCommonScenarioEnv(ctx, contextFile, partition);
     return runCommand(
@@ -337,6 +345,7 @@ async function runCommonScenarioPartition(
         '--config',
         'vitest.e2e.config.ts',
         'src/scenarios/common.test.ts',
+        ...(testNameFilter ? ['-t', testNameFilter] : []),
       ],
       { cwd: path.join(ctx.repoRoot, 'packages/tlon-bot-e2e'), env }
     );
