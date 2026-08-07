@@ -1,6 +1,12 @@
 import { Input } from '@tloncorp/ui';
 import { debounce } from 'lodash';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { YStack } from 'tamagui';
 
 import { TextInput } from './Form';
@@ -29,6 +35,14 @@ export function SearchBar({
         trailing: true,
       }),
     [debounceTime, onChangeQuery]
+  );
+
+  // A trailing debounce outlives the component that scheduled it: closing a
+  // search overlay or leaving a screen mid-type otherwise lets a queued query
+  // land on a consumer that has already reset its state.
+  useEffect(
+    () => () => debouncedOnChangeQuery.cancel(),
+    [debouncedOnChangeQuery]
   );
 
   const onTextChange = useCallback(
