@@ -41,11 +41,10 @@ export async function createAgentGroup(params?: {
   group: db.Group;
   channelId: string | null;
 }> {
-  const { botShipId, hostedShipId, moon } = params?.agentShipId
+  const { botShipId, hostedShipId } = params?.agentShipId
     ? {
         botShipId: api.preSig(params.agentShipId),
         hostedShipId: null,
-        moon: null,
       }
     : await resolveTlawnBot();
   if (!botShipId) {
@@ -107,7 +106,9 @@ export async function createAgentGroup(params?: {
     });
   });
 
-  if (hostedShipId && moon) {
+  if (hostedShipId) {
+    // The same resolved moon the invite went to — see `resolveTlawnBot`.
+    const moon = desig(botShipId);
     // Fire-and-forget: the group already exists and the invite is out.
     (async () => {
       try {
@@ -317,10 +318,21 @@ async function grantAgentAdmin(groupId: string, botShipId: string) {
   }
 }
 
+/**
+ * The agent's ship, resolved once.
+ *
+ * Deliberately returns no second, unresolved copy of the moon name. The
+ * hosting API answers with either the bare moon prefix ("molten") or the
+ * full moon name, sigged or not, and a bare two-syllable prefix like
+ * "pinser-botter" is itself a valid @p — a planet, owned by a stranger.
+ * When the raw answer was carried alongside the resolved one, the cordon
+ * and join calls took the raw field and invited that planet into the
+ * owner's brand-new group, while the moon that was supposed to join it
+ * never did. One field means there is no wrong one to reach for.
+ */
 async function resolveTlawnBot(): Promise<{
   botShipId: string | null;
   hostedShipId: string | null;
-  moon: string | null;
 }> {
   try {
     const [hostingBotEnabled, hostedShipId] = await Promise.all([
@@ -328,23 +340,19 @@ async function resolveTlawnBot(): Promise<{
       db.hostedUserNodeId.getValue(),
     ]);
     if (!hostingBotEnabled || !hostedShipId) {
-      return { botShipId: null, hostedShipId: null, moon: null };
+      return { botShipId: null, hostedShipId: null };
     }
     const moon = await api.getTlawnMoon(hostedShipId);
     if (!moon) {
-      return { botShipId: null, hostedShipId, moon: null };
+      return { botShipId: null, hostedShipId };
     }
-    // The hosting API returns either the bare moon prefix ("molten") or the
-    // full moon name, sigged or not — the bot-settings helper tolerates both
-    // shapes, so this must too, or the guest list invites a ship that
-    // doesn't exist.
     const host = desig(hostedShipId.trim());
     const prefix = desig(moon.trim());
     const full = prefix.endsWith(`-${host}`) ? prefix : `${prefix}-${host}`;
-    return { botShipId: api.preSig(full), hostedShipId, moon };
+    return { botShipId: api.preSig(full), hostedShipId };
   } catch (error) {
     logger.trackError('Failed to resolve Tlonbot for agent group', { error });
-    return { botShipId: null, hostedShipId: null, moon: null };
+    return { botShipId: null, hostedShipId: null };
   }
 }
 

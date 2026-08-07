@@ -239,10 +239,17 @@ export const GROUP_LOOK_RULE_NO_ENTRY =
  * that has neither web search nor the Tlon tools, so it can't research and
  * can't create the notes channel; it just reports being blocked, which is
  * the opposite of the reassurance this step exists to give.
+ *
+ * This says where the work runs, not where its output goes. "Here in this
+ * conversation" read as the latter: the model researched, wrote the digest
+ * into chat, and left the notebook empty — the owner saw their entry spilled
+ * into the chat log instead of filed.
  */
 const INLINE_FIRST_RUN =
-  'Do this run yourself, here in this conversation, using your own tools — ' +
-  'do not trigger the scheduled job and wait for it.';
+  'Do this run yourself, in this turn, using your own tools — do not ' +
+  'trigger the scheduled job and wait for it. That is about which session ' +
+  'does the work, not about where the result goes: what you find is the ' +
+  "notebook entry's material, so hold it for the entry.";
 
 /**
  * Where a scheduled run's output goes, shared by every job that produces
@@ -369,14 +376,16 @@ export const PURPOSE_JOBS: Record<
       INLINE_FIRST_RUN +
       ' Do not write the notebook entry in this turn and do not say the ' +
       'digest has been posted — Tlon writes it once the notebook exists. ' +
-      'In chat, tell them what you found in a sentence or two and list the ' +
-      'sources you used, one line each, so they can see where it came from ' +
-      'and tell you to add, drop, or swap one whenever they like. Never ' +
-      "fabricate: if you can't actually research, say so in chat in one " +
-      'honest line, with what will arrive and when. If the research ' +
-      'degraded, name what was missing and what you would use once it ' +
-      'works. The closing ask below is the only question this message ' +
-      'should end on.',
+      'In chat, keep it to one line saying the first digest is ready and ' +
+      'files itself into the notebook shortly, then list the sources you ' +
+      'drew on, one line each, so they can tell you to add, drop, or swap ' +
+      'one whenever they like. Do not restate the findings themselves in ' +
+      'chat: that material is the entry, and writing it out here is what ' +
+      "leaves the notebook looking empty. Never fabricate: if you can't " +
+      'actually research, say so in chat in one honest line, with what ' +
+      'will arrive and when. If the research degraded, name what was ' +
+      'missing and what you would use once it works. The closing ask below ' +
+      'is the only question this message should end on.',
   },
   'agent-tracking': {
     title: 'Tracking check-in: {{topics}}',
@@ -422,14 +431,16 @@ export const PURPOSE_JOBS: Record<
       INLINE_FIRST_RUN +
       ' Do not write the notebook entry in this turn and do not say the ' +
       'update has been posted — Tlon writes it once the notebook exists. ' +
-      'In chat, tell them what you found in a sentence or two and list ' +
-      'the sources you used, one line each, so they can see where it came ' +
-      'from and tell you to add, drop, or swap one whenever they like. ' +
-      "Never fabricate: if you can't actually research, say so in chat in " +
-      'one honest line, with what will arrive and when. If the research ' +
-      'degraded, name what was missing and what you would use once it ' +
-      'works. The closing ask below is the only question this message ' +
-      'should end on.',
+      'In chat, keep it to one line saying the first update is ready and ' +
+      'files itself into the notebook shortly, then list the sources you ' +
+      'drew on, one line each, so they can tell you to add, drop, or swap ' +
+      'one whenever they like. Do not restate the findings themselves in ' +
+      'chat: that material is the entry, and writing it out here is what ' +
+      "leaves the notebook looking empty. Never fabricate: if you can't " +
+      'actually research, say so in chat in one honest line, with what ' +
+      'will arrive and when. If the research degraded, name what was ' +
+      'missing and what you would use once it works. The closing ask below ' +
+      'is the only question this message should end on.',
   },
 };
 

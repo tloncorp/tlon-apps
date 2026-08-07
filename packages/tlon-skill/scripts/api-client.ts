@@ -331,9 +331,17 @@ export async function ensureClient(
       const freshCookie = deps.getAuthenticatedCookie();
       if (freshCookie) {
         deps.cacheCookie(cfg.url, cfg.ship, freshCookie);
-        console.error(
-          `Note: Credentials cached for ${preSig(cfg.ship)}. Next time run: tlon --ship ${preSig(cfg.ship)} <command>`
-        );
+        // "Next time run:" is advice for a human at a prompt, so only write
+        // it when one is there. Agent runs have no TTY, and their harness
+        // reports captured stderr as the tool's error text — so this note
+        // on an otherwise successful write came back to the model as a
+        // failed `groups update`, which it then retried until the writes
+        // timed out.
+        if (process.stderr.isTTY) {
+          console.error(
+            `Note: Credentials cached for ${preSig(cfg.ship)}. Next time run: tlon --ship ${preSig(cfg.ship)} <command>`
+          );
+        }
       }
     }
 

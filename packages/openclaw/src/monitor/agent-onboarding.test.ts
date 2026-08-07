@@ -910,8 +910,14 @@ describe('renderSetupDirective', () => {
       expect(directive).toContain('so the entry is ready');
       // Sources are listed as a statement — the invite is the only closing
       // question, so the confirmation must not end on one of its own.
-      expect(directive).toContain('list the sources you used');
+      expect(directive).toContain('list the sources you drew on');
       expect(directive).toContain('the only question');
+      // Sources, not substance. Asking for the findings "in chat" got them
+      // written out there in full while the notebook stayed empty, so the
+      // owner's entry arrived as a chat message and never got filed.
+      expect(directive).toContain('Do not restate the findings');
+      expect(directive).not.toContain('tell them what you found');
+      expect(directive).not.toContain('here in this conversation');
     }
     const tracking = renderSetupDirective('agent-tracking', 'Sleep, Mood')!;
     expect(tracking).toContain("don't run the job");
