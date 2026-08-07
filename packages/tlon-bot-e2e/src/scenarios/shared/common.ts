@@ -419,8 +419,6 @@ export const commonScenarios: readonly SharedScenario[] = [
     'migrate-happy-path',
     {
       timeoutMs: 300_000,
-      // W5 will build the branch CLI in OpenClaw; remove this gate then.
-      drivers: ['hermes'],
     },
     async ({ ctx, driver, actors }) => {
       const uniqueTitle = scenarioKey('migrate-src');
