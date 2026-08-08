@@ -1,11 +1,12 @@
 # Kit formats (v1)
 
-Two JSON shapes, one source of truth each:
+Three JSON shapes:
 
-1. **The kit package** (`kit.json` + files) — authored content, stored in %kits, travels ship-to-ship.
-2. **The group install config** — written into the group's `blob` field at install time; what a harness needs to *run* the kit in that group.
+1. **The authoring format** (`kit.json` + files, §1) — what kit authors write on disk.
+2. **The wire format** — what the %kits agent actually stores and speaks (`kits-action-1` / `kits-update-1` marks; see `desk/sur/kits.hoon` + `desk/lib/kits-json.hoon`, mirrored by the zod schemas in `packages/tlon-kits`). The tlon-kits loader converts authoring → wire: `places` map becomes a list of `{name, kind, title, description}`, `kitVersion` becomes `version` (semver string), the `policy` object is JSON-stringified (or null), and optional fields are sent as explicit `null`s (the Hoon decoder requires every key present).
+3. **The group install config** (§2) — written into the group's `blob` field at install time; what a harness needs to *run* the kit in that group.
 
-Version fields are integers and mandatory in both. Unknown keys must be ignored by readers (forward compat).
+`version` fields at the top of §1 and §2 are format-version integers and mandatory. Unknown keys must be ignored by readers (forward compat).
 
 ## 1. Kit package
 
@@ -74,7 +75,7 @@ Written by the installer into the group's `blob` (opaque `@t`, JSON). The group 
       ],
       "agents": ["~sampel-palnet"],
       "setup": "pending",
-      "installedAt": "2026-07-29T00:00:00Z"
+      "installedAt": 1786149333904
     }
   ]
 }
