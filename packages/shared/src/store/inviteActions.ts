@@ -206,7 +206,7 @@ export async function enableGroupLinks(groupId: string) {
   return enableGroup(name);
 }
 
-export async function createGroupInviteLink(groupId: string) {
+export async function createGroupInviteLink(groupId: string, kit?: string) {
   const currentUserId = getCurrentUserId();
   const group = await db.getGroup({ id: groupId });
   const user = await db.getContact({ id: currentUserId });
@@ -231,6 +231,7 @@ export async function createGroupInviteLink(groupId: string) {
         invitedGroupTitle: group?.title ?? '',
         invitedGroupDescription: group?.description ?? '',
         invitedGroupIconImageUrl: group?.iconImage ?? '',
+        ...(kit ? { kit } : {}),
       })
     );
   } catch (e) {

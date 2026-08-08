@@ -72,6 +72,7 @@ interface ProviderMetadataResponse {
     invitedGroupDescription?: string;
     invitedGroupIconImageUrl?: string;
     invitedGroupDeleted?: boolean;
+    kit?: string;
   };
 }
 
@@ -174,6 +175,7 @@ export async function getMetadataFromInviteToken(token: string) {
       ? (normalizeUrbitColor(responseMeta.fields.inviterColor) ?? undefined)
       : undefined,
     inviteType: responseMeta.fields.inviteType,
+    kit: responseMeta.fields.kit,
   };
 
   // some links might not have everything, try to extend with branch (fine if fails)

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+import { extractLureMetadata } from './branch';
 import {
   CANONICAL_INVITE_HOST,
   extractNormalizedInviteLink,
@@ -203,6 +204,37 @@ describe('getMetadataFromInviteToken', () => {
     // raw query tokens bypass the parser — the derivation validates itself
     expect(await getMetadataFromInviteToken('~zod/foo/bar')).toBeNull();
     expect(await getMetadataFromInviteToken('not-a-ship/team')).toBeNull();
+  });
+
+  test('carries the kit field through provider metadata', async () => {
+    stubProvider({
+      inviteType: 'group',
+      invitedGroupId: '~zod/book-club',
+      inviterUserId: '~zod',
+      kit: '~zod/book-club',
+    });
+
+    const invite = await getMetadataFromInviteToken('0vkitted');
+    expect(invite?.kit).toBe('~zod/book-club');
+
+    // and stays absent when the provider omits it
+    stubProvider({
+      inviteType: 'group',
+      invitedGroupId: '~zod/gardening',
+      inviterUserId: '~zod',
+    });
+    expect(
+      (await getMetadataFromInviteToken('0vplainer'))?.kit
+    ).toBeUndefined();
+  });
+
+  test('kit survives branch param extraction', () => {
+    const extracted = extractLureMetadata({
+      inviterUserId: '~zod',
+      invitedGroupId: '~zod/book-club',
+      kit: '~zod/book-club',
+    });
+    expect(extracted).toMatchObject({ kit: '~zod/book-club' });
   });
 
   test('still rejects group invites without a group id', async () => {

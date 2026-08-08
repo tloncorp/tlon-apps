@@ -81,6 +81,7 @@ export interface DeepLinkMetadata {
   invitedGroupIconImageUrl?: string;
   invitedGroupiconImageColor?: string;
   inviteType?: 'user' | 'group';
+  kit?: string; // kit reference: "<publisher-ship>/<kit-id>"
   group?: string; // legacy identifier for invitedGroupId
   inviter?: string; // legacy identifier for inviterUserId
   image?: string; // legacy identifier for invitedGroupIconImageUrl
@@ -123,6 +124,7 @@ export function extractLureMetadata(branchParams: any) {
       branchParams.invitedGroupIconImageUrl || branchParams.image,
     invitedGroupiconImageColor: branchParams.invitedGroupiconImageColor,
     inviteType: branchParams.inviteType,
+    kit: branchParams.kit,
   };
 
   if (
