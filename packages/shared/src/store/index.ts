@@ -8,6 +8,7 @@ export * from './useBotSlashCommandManifest';
 export * from './usePostDraftCallbacks';
 export * from './postActions';
 export * from './channelActions';
+export * from './agentOnboardingActions';
 export * from './groupActions';
 export * from './useThreadPosts';
 export * from './storage';

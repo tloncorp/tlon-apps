@@ -9,6 +9,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -16,6 +17,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
 import useGroupSearch from '../../hooks/useGroupSearch';
+import {
+  AGENT_ONBOARDING_FORCE_LOCK,
+  AGENT_SHIP_OVERRIDE,
+} from '../../lib/envVars';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   Action,
@@ -31,28 +36,14 @@ import {
   capitalize,
   useIsWindowNarrow,
 } from '../../ui';
-import { GroupTitleInputSheet } from '../groups/GroupTitleInputSheet';
-import {
-  GroupType,
-  GroupTypeSelectionSheet,
-} from '../groups/GroupTypeSelectionSheet';
 
-type ChatType = 'dm' | 'group' | 'joinGroup';
-type Step =
-  | 'initial'
-  | 'selectType'
-  | 'selectGroupType'
-  | 'setGroupTitle'
-  | `create${Capitalize<ChatType>}`;
+type ChatType = 'dm' | 'group' | 'agent' | 'joinGroup';
+type Step = 'initial' | 'selectType' | `create${Capitalize<ChatType>}`;
 
 export type CreateChatParams =
   | { type: 'dm'; contactId: string }
-  | {
-      type: 'group';
-      contactIds: string[];
-      templateId?: store.GroupTemplateId;
-      title?: string;
-    };
+  | { type: 'group'; contactIds: string[] }
+  | { type: 'agent' };
 
 export type CreateChatSheetMethods = {
   open: () => void;
@@ -61,7 +52,18 @@ export type CreateChatSheetMethods = {
 
 const logger = createDevLogger('CreateChatSheet', true);
 
-function createTypeActions(onSelectType: (type: ChatType) => void): Action[] {
+/**
+ * Two ways to start a conversation: a DM, or a group. What "group" means
+ * depends on whether the account has a resident agent — with one, the group
+ * is created with the agent in it and the agent opens the conversation
+ * (it posts its setup picker into the empty channel); without one, it's a
+ * plain group chat with invitees.
+ */
+function createTypeActions(
+  onSelectType: (type: ChatType) => void,
+  hasAgent: boolean,
+  groupFlavorKnown: boolean
+): Action[] {
   return [
     {
       title: CHAT_TYPE_CONFIG.dm.actionTitle,
@@ -69,12 +71,23 @@ function createTypeActions(onSelectType: (type: ChatType) => void): Action[] {
       action: () => onSelectType('dm'),
       startIcon: <ListItem.SystemIcon icon="Send" />,
     },
-    {
-      title: CHAT_TYPE_CONFIG.group.actionTitle,
-      description: CHAT_TYPE_CONFIG.group.actionDescription,
-      action: () => onSelectType('group'),
-      startIcon: <ListItem.SystemIcon icon="Channel" />,
-    },
+    hasAgent
+      ? {
+          title: CHAT_TYPE_CONFIG.agent.actionTitle,
+          description: CHAT_TYPE_CONFIG.agent.actionDescription,
+          action: () => onSelectType('agent'),
+          startIcon: <ListItem.SystemIcon icon="SmushStar" />,
+        }
+      : {
+          title: CHAT_TYPE_CONFIG.group.actionTitle,
+          description: CHAT_TYPE_CONFIG.group.actionDescription,
+          action: () => onSelectType('group'),
+          startIcon: <ListItem.SystemIcon icon="Channel" />,
+          // Until the stored flags hydrate, which flavor this row should be
+          // is unknown — and the agent flavor creates a group on first tap.
+          // A tap in that window must not silently pick the wrong one.
+          disabled: !groupFlavorKnown,
+        },
   ];
 }
 
@@ -89,7 +102,14 @@ const CHAT_TYPE_CONFIG = {
     title: 'New group',
     subtitle: 'Select contacts to invite',
     actionTitle: 'New group',
-    actionDescription: 'Create a customizable group chat',
+    actionDescription: 'Start a group chat with invitees',
+  },
+  // The agent flow has no form of its own — the group is created on the
+  // spot — so it only needs the action row.
+  agent: {
+    actionTitle: 'New group',
+    actionDescription:
+      'Start a group with your agent — it sets itself up around what you want',
   },
   joinGroup: {
     title: 'Join a group',
@@ -100,7 +120,7 @@ const CHAT_TYPE_CONFIG = {
 } as const;
 
 interface CreateChatFormContentProps {
-  chatType: ChatType;
+  chatType: 'dm' | 'group';
   isCreating: boolean;
   onSelectDmContact: (contactId: string) => void;
   onSelectedChange: (contactIds: string[]) => void;
@@ -205,15 +225,13 @@ const JoinGroupByIdPane = ({ open, close }: JoinGroupByIdPaneProps) => {
 };
 
 const JoinGroupFormContent = ({
-  chatType,
   open,
   close,
 }: {
-  chatType: ChatType;
   open: boolean;
   close: () => void;
 }) => {
-  const { title, subtitle } = CHAT_TYPE_CONFIG[chatType];
+  const { title, subtitle } = CHAT_TYPE_CONFIG.joinGroup;
   const { bottom } = useSafeAreaInsets();
 
   return (
@@ -295,10 +313,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   const [step, setStep] = useState<Step>(
     defaultOpen ? 'selectType' : 'initial'
   );
-  const [selectedTemplateId, setSelectedTemplateId] = useState<
-    store.GroupTemplateId | undefined
-  >(undefined);
-  const [groupTitle, setGroupTitle] = useState<string | undefined>(undefined);
   const isWindowNarrow = useIsWindowNarrow();
 
   const open = useCallback(() => {
@@ -312,8 +326,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     (open: boolean) => {
       if (!open) {
         setStep('initial');
-        setSelectedTemplateId(undefined);
-        setGroupTitle(undefined);
         setSelectedContactIds([]);
       } else if (step === 'initial') {
         setStep('selectType');
@@ -322,59 +334,44 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     [step]
   );
 
-  const handleTypeSelected = useCallback((type: ChatType) => {
-    trackEvent(AnalyticsEvent.CreateOptionSelected, {
-      option: type,
-    });
-    if (type === 'group') {
-      // Navigate to group type selection instead of directly to member selection
-      setStep('selectGroupType');
-    } else {
-      setStep(`create${capitalize(type)}` as Step);
-    }
-  }, []);
-
-  const handleGroupTypeSelected = useCallback(
-    (groupType: GroupType, templateId?: store.GroupTemplateId) => {
-      trackEvent(AnalyticsEvent.CreateOptionSelected, {
-        option: groupType,
-      });
-      if (groupType === 'quick') {
-        // Quick group goes to member selection without template
-        setSelectedTemplateId(undefined);
-        setStep('createGroup');
-      } else if (groupType === 'template' && templateId) {
-        setSelectedTemplateId(templateId);
-        // Only basic-group template goes to title input, others skip to member selection
-        if (templateId === 'basic-group') {
-          setStep('setGroupTitle');
-        } else {
-          setStep('createGroup');
-        }
-      }
-    },
-    []
-  );
-
-  const handleTitleSubmitted = useCallback((title: string) => {
-    setGroupTitle(title);
-    setStep('createGroup');
-  }, []);
-
+  // A ref, not the `isCreatingChat` state: state updates land on the next
+  // render, so two taps inside one frame both pass a state check. The agent
+  // row creates its group on the first tap with nothing to confirm, so a
+  // double tap made two groups and navigated between them.
+  const creatingRef = useRef(false);
   const handleSubmit = useCallback(
     async (params: CreateChatParams) => {
-      if (isCreatingChat) {
+      if (creatingRef.current || isCreatingChat) {
         return;
       }
-      const didCreate = await createChat(params);
-      if (didCreate) {
-        setStep('initial');
-        setSelectedTemplateId(undefined);
-        setGroupTitle(undefined);
-        setSelectedContactIds([]);
+      creatingRef.current = true;
+      try {
+        const didCreate = await createChat(params);
+        if (didCreate) {
+          setStep('initial');
+          setSelectedContactIds([]);
+        }
+      } finally {
+        creatingRef.current = false;
       }
     },
     [createChat, isCreatingChat]
+  );
+
+  const handleTypeSelected = useCallback(
+    (type: ChatType) => {
+      trackEvent(AnalyticsEvent.CreateOptionSelected, {
+        option: type,
+      });
+      if (type === 'agent') {
+        // Nothing to configure: the group is created on the spot and the
+        // agent takes it from there, in the channel.
+        handleSubmit({ type: 'agent' });
+      } else {
+        setStep(`create${capitalize(type)}` as Step);
+      }
+    },
+    [handleSubmit]
   );
 
   useImperativeHandle(
@@ -383,8 +380,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       open,
       close: () => {
         setStep('initial');
-        setSelectedTemplateId(undefined);
-        setGroupTitle(undefined);
         setSelectedContactIds([]);
       },
     }),
@@ -404,13 +399,10 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     handleSubmit({
       type: 'group',
       contactIds: selectedContactIds,
-      templateId: selectedTemplateId,
-      title: groupTitle,
     });
-  }, [handleSubmit, selectedContactIds, selectedTemplateId, groupTitle]);
+  }, [handleSubmit, selectedContactIds]);
 
-  const chatType =
-    step === 'createDm' ? 'dm' : step === 'createGroup' ? 'group' : 'joinGroup';
+  const chatType = step === 'createDm' ? ('dm' as const) : ('group' as const);
 
   const triggerWithOnPress = useMemo(() => {
     if (!trigger || !isValidElement(trigger)) return null;
@@ -432,19 +424,12 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       >
         <ActionSheet.SimpleHeader title="Start a conversation" />
         <ActionSheet.Content>
-          <TypeSelectionContent onSelectType={handleTypeSelected} />
+          <TypeSelectionContent
+            onSelectType={handleTypeSelected}
+            isCreating={isCreatingChat}
+          />
         </ActionSheet.Content>
       </ActionSheet>
-      <GroupTypeSelectionSheet
-        open={step === 'selectGroupType'}
-        onOpenChange={handleOpenChange}
-        onSelectGroupType={handleGroupTypeSelected}
-      />
-      <GroupTitleInputSheet
-        open={step === 'setGroupTitle'}
-        onOpenChange={handleOpenChange}
-        onSubmitTitle={handleTitleSubmitted}
-      />
       <ActionSheet
         open={step === 'createJoinGroup'}
         onOpenChange={handleOpenChange}
@@ -454,7 +439,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       >
         <View flex={1}>
           <JoinGroupFormContent
-            chatType={chatType}
             open={step === 'createJoinGroup'}
             close={() => setStep('initial')}
           />
@@ -484,16 +468,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         open={step === 'selectType'}
         onOpenChange={handleOpenChange}
         onSelectType={handleTypeSelected}
-      />
-      <GroupTypeSelectionSheet
-        open={step === 'selectGroupType'}
-        onOpenChange={handleOpenChange}
-        onSelectGroupType={handleGroupTypeSelected}
-      />
-      <GroupTitleInputSheet
-        open={step === 'setGroupTitle'}
-        onOpenChange={handleOpenChange}
-        onSubmitTitle={handleTitleSubmitted}
+        isCreating={isCreatingChat}
       />
       <CreateChatInviteSheet
         open={step === 'createDm' || step === 'createGroup'}
@@ -501,8 +476,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         onSubmit={handleSubmit}
         chatType={step === 'createDm' ? 'dm' : 'group'}
         isCreating={isCreatingChat}
-        templateId={selectedTemplateId}
-        title={groupTitle}
       />
       <JoinGroupSheet
         open={step === 'createJoinGroup'}
@@ -514,13 +487,24 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
 
 function TypeSelectionContent({
   onSelectType,
+  isCreating,
 }: {
   onSelectType: (type: ChatType) => void;
+  isCreating?: boolean;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
+  const { value: hostingBotEnabled, isLoading: hostingBotLoading } =
+    db.hostingBotEnabled.useStorageItem();
+  // Until the stored bot flag hydrates, it reads as its default — and this
+  // action creates a group on first tap, so a hosted account must not act on
+  // the wrong flavor during that window. The row stays disabled until it has
+  // loaded (see `groupFlavorKnown` below).
+  const groupFlavorKnown = !hostingBotLoading;
+  const hasAgent =
+    groupFlavorKnown && ((hostingBotEnabled ?? false) || !!AGENT_SHIP_OVERRIDE);
   const actions = useMemo(
-    () => createTypeActions(onSelectType),
-    [onSelectType]
+    () => createTypeActions(onSelectType, hasAgent, groupFlavorKnown),
+    [onSelectType, hasAgent, groupFlavorKnown]
   );
   return (
     <>
@@ -534,6 +518,11 @@ function TypeSelectionContent({
           />
         ))}
       </ActionSheet.ActionGroup>
+      {isCreating ? (
+        <View paddingHorizontal="$2xl" paddingTop="$l" alignItems="center">
+          <LoadingSpinner />
+        </View>
+      ) : null}
       <View
         paddingHorizontal="$2xl"
         paddingTop="$l"
@@ -556,16 +545,21 @@ export function CreateChatTypeSheet({
   open,
   onOpenChange,
   onSelectType,
+  isCreating,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectType: (type: ChatType) => void;
+  isCreating?: boolean;
 }) {
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.SimpleHeader title="Start a conversation" />
       <ActionSheet.Content>
-        <TypeSelectionContent onSelectType={onSelectType} />
+        <TypeSelectionContent
+          onSelectType={onSelectType}
+          isCreating={isCreating}
+        />
       </ActionSheet.Content>
     </ActionSheet>
   );
@@ -577,16 +571,12 @@ export function CreateChatInviteSheet({
   onSubmit,
   chatType,
   isCreating,
-  templateId,
-  title,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (params: CreateChatParams) => void;
   chatType: 'dm' | 'group';
   isCreating: boolean;
-  templateId?: store.GroupTemplateId;
-  title?: string;
 }) {
   const [screenScrolling, setScreenScrolling] = useState(false);
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
@@ -613,10 +603,8 @@ export function CreateChatInviteSheet({
     onSubmit({
       type: 'group',
       contactIds: selectedContactIds,
-      templateId,
-      title,
     });
-  }, [onSubmit, selectedContactIds, templateId, title]);
+  }, [onSubmit, selectedContactIds]);
 
   // hack: ensure the nested ContactBook will scroll properly within the sheet
   // by disabling drag within the main content (drag handle only)
@@ -660,11 +648,7 @@ export function JoinGroupSheet({
   return (
     <ActionSheet moveOnKeyboardChange open={open} onOpenChange={onOpenChange}>
       <YStack flex={1} paddingBottom={bottom}>
-        <JoinGroupFormContent
-          chatType="joinGroup"
-          open={open}
-          close={() => onOpenChange(false)}
-        />
+        <JoinGroupFormContent open={open} close={() => onOpenChange(false)} />
       </YStack>
     </ActionSheet>
   );
@@ -683,22 +667,29 @@ function useCreateChat() {
             participants: [params.contactId],
           });
           navigateToChannel(channel);
-        } else {
-          // Check if a template was selected
-          let group: db.Group;
-          if (params.templateId) {
-            group = await store.createGroupFromTemplate({
-              memberIds: params.contactIds,
-              templateId: params.templateId,
-              title: params.title,
-            });
-          } else {
-            // No template, use default group
-            group = await store.createDefaultGroup({
-              memberIds: params.contactIds,
-              title: params.title,
-            });
+        } else if (params.type === 'agent') {
+          // The agent opens the conversation once it joins, so land the user
+          // straight in the channel where that's about to happen.
+          const { group, channelId } = await store.createAgentGroup({
+            agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+          });
+          if (AGENT_ONBOARDING_FORCE_LOCK) {
+            // Dev only: stand in for the first-run flow, which is what
+            // normally marks the guided group and needs a hosted home group.
+            await db.agentOnboardingGroupId.setValue(group.id);
           }
+          const channel = channelId
+            ? await db.getChannel({ id: channelId })
+            : null;
+          if (channel) {
+            navigateToChannel(channel);
+          } else {
+            navigateToGroup(group.id);
+          }
+        } else {
+          const group = await store.createDefaultGroup({
+            memberIds: params.contactIds,
+          });
           navigateToGroup(group.id);
         }
         return true;

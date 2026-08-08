@@ -99,9 +99,7 @@ export const GroupChannelsScreenView = React.memo(
     const title = useGroupTitle(group);
 
     const subtitle = useMemo(() => {
-      if (group?.description) {
-        return group.description;
-      }
+      // description temporarily stores machine-readable agent config.
       const memberCount = group?.members?.length ?? 0;
       const privacy = group?.privacy
         ? `${capitalize(group.privacy)} group`
@@ -111,7 +109,7 @@ export const GroupChannelsScreenView = React.memo(
         return `${privacy} with ${memberCount} ${pluralize(memberCount, 'member')}`;
       }
       return privacy;
-    }, [group?.description, group?.members?.length, group?.privacy]);
+    }, [group?.members?.length, group?.privacy]);
 
     const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
     const isWindowNarrow = useIsWindowNarrow();

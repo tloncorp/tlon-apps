@@ -87,7 +87,13 @@ export function useChatDescription(
   group?: db.Group | null
 ) {
   if (group && (!channel || group?.channels?.length === 1)) {
-    return group.description;
+    // FIXME(group-description-hijack): group.description currently stores
+    // the machine-readable agent config (see parseGroupAgentConfig in
+    // @tloncorp/api) — the field is NOT reliable user prose, so description
+    // display is hidden everywhere in the UI. This branch used to return the
+    // group description; restore it once the config moves to a first-class
+    // field on the group record.
+    return '';
   } else if (channel) {
     return channel.description;
   }

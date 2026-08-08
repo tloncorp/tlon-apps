@@ -74,7 +74,27 @@ export class WebDb extends BaseDb {
       this.sqlocal = sqlocal;
 
       const { driver } = sqlocal;
-      this.client = drizzle(driver, { schema });
+      // SQLocal answers a `get` with no result as `{ rows: [] }`, but
+      // drizzle's sqlite-proxy contract wants a falsy `rows` for "no row"
+      // (`mapGetResult` only short-circuits on `!row`). An empty array is
+      // truthy, so without this shim every single-row lookup that misses
+      // maps `[]` as if it were a row: plain queries fabricate a phantom
+      // object with every field undefined, and relational queries crash in
+      // `mapRelationalRow` ("Cannot read properties of undefined (reading
+      // 'map')"). Native drivers return undefined here — this makes web
+      // match them.
+      const proxyDriver: typeof driver = async (sql, params, method) => {
+        const result = await driver(sql, params, method);
+        if (
+          method === 'get' &&
+          Array.isArray(result.rows) &&
+          result.rows.length === 0
+        ) {
+          result.rows = undefined as unknown as typeof result.rows;
+        }
+        return result;
+      };
+      this.client = drizzle(proxyDriver, { schema });
 
       // Immediately try to load DB from persisted file.
       // If successful, this will `overwriteDatabaseFile` which will reset the

@@ -15,7 +15,6 @@ import {
   ForwardGroupSheetProvider,
   InviteUsersSheet,
   ListItem,
-  PaddedBlock,
   ProfileButton,
   ScreenHeader,
   ScrollView,
@@ -411,21 +410,8 @@ function GroupQuickActions({
   );
 }
 
-const GroupDescription = ({ group }: { group: db.Group }) => {
-  if (!group.description) {
-    return null;
-  }
-
-  return (
-    <View paddingHorizontal={'$l'}>
-      <PaddedBlock width="100%" gap="$xl">
-        <TlonText.Text size="$label/m" color="$tertiaryText">
-          Description
-        </TlonText.Text>
-        <TlonText.Text size="$body" color="$primaryText">
-          {group.description}
-        </TlonText.Text>
-      </PaddedBlock>
-    </View>
-  );
+const GroupDescription = ({ group: _group }: { group: db.Group }) => {
+  // group.description temporarily stores machine-readable agent config.
+  // Restore this section once that config has a first-class group field.
+  return null;
 };

@@ -1114,7 +1114,7 @@ importers:
         specifier: ^1.9.0
         version: 1.9.1
       '@tloncorp/api':
-        specifier: workspace:^
+        specifier: workspace:0.0.11
         version: link:../api
       '@tloncorp/tlon-skill':
         specifier: workspace:^

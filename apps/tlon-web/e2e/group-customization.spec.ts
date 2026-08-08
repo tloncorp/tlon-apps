@@ -90,7 +90,7 @@ test('should customize group name, icon, and description', async ({
     console.log('Skipping image upload test - S3 storage not configured');
   }
 
-  // Open group settings to edit the description
+  // Open the group meta editor
   await helpers.openGroupSettings(page);
 
   await page
@@ -99,22 +99,12 @@ test('should customize group name, icon, and description', async ({
     )
     .click();
 
-  // Change the group description
-  await helpers.changeGroupDescription(page, 'This is a test group');
-
-  // Navigate back to verify the changes
-  await helpers.navigateBack(page);
-
-  // Optionally verify the description was saved by opening customization again
-  await helpers.openGroupSettings(page);
-  await page
-    .locator(
-      '[data-testid="ChatDetailsHeader"] [data-testid="DetailsEditButton"]'
-    )
-    .click();
-  const descriptionField = page.getByTestId('GroupDescriptionInput');
-  if (await descriptionField.isVisible()) {
-    await expect(descriptionField).toHaveValue('This is a test group');
-  }
+  // FIXME(group-description-hijack): group.description currently stores the
+  // machine-readable agent config, so the description field is hidden for
+  // groups (display and edit). This used to edit and verify the description;
+  // for now assert the field stays hidden. Restore the edit flow once the
+  // config moves to a first-class field on the group record.
+  await expect(page.getByTestId('GroupTitleInput')).toBeVisible();
+  await expect(page.getByTestId('GroupDescriptionInput')).not.toBeVisible();
   await page.getByText('Save').click();
 });

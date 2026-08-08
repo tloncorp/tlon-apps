@@ -429,6 +429,67 @@ export const splashNickname = createStorageItem<string>({
   defaultValue: '',
 });
 
+/**
+ * Set when the agent onboarding flow finishes building a group, consumed
+ * (and cleared) on the next chat list mount to land the user inside the
+ * group's chat channel. The splash renders outside the root navigator, so
+ * landing needs this handoff.
+ */
+export const agentOnboardingLanding = createStorageItem<{
+  groupId: string;
+  channelId: string;
+} | null>({
+  key: 'agentOnboardingLanding',
+  defaultValue: null,
+});
+
+/**
+ * The group the first-run conversational onboarding landed the user in —
+ * durable, unlike the landing handoff above, because it marks *which* group
+ * is the guided one, not that a landing is pending. A group the user created
+ * themselves never sets this: only the first-run flow locks chrome (back
+ * button, etc.) until the agent finishes the setup, and
+ * `useAgentOnboardingLock` derives that from this id plus the group's
+ * config.
+ */
+export const agentOnboardingGroupId = createStorageItem<string | null>({
+  key: 'agentOnboardingGroupId',
+  defaultValue: null,
+});
+
+/**
+ * Which ship acts as the agent in a group the client set up, by group id.
+ *
+ * First-hand knowledge: the client put this ship on the guest list, so it is a
+ * stronger claim than the group's config — which the agent writes about itself,
+ * and can write wrong. The render gate accepts either, so a malformed config
+ * costs the group's description, not its interactive UI.
+ */
+export const agentGroupAgents = createStorageItem<Record<string, string>>({
+  key: 'agentGroupAgents',
+  defaultValue: {},
+});
+
+/**
+ * When each agent group's opening was set in motion, by group id.
+ *
+ * `agentGroupAgents` says an agent *is* the group's agent, which stays true
+ * forever; it cannot say whether that agent is still about to speak. The
+ * empty-channel notice needs the second question: it hides the admin's
+ * Invite and Edit actions so the agent can open the conversation, and the
+ * invite, join and opening are all best effort. Without an expiry, one that
+ * silently failed hid those controls for the life of the group, on the one
+ * screen where the owner would go looking for them.
+ *
+ * A group with no timestamp is treated as past its window, which is right
+ * for the groups that predate this record: their agent either spoke long
+ * ago or never will.
+ */
+export const agentGroupOpenedAt = createStorageItem<Record<string, number>>({
+  key: 'agentGroupOpenedAt',
+  defaultValue: {},
+});
+
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
   defaultValue: {

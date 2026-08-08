@@ -7,6 +7,7 @@ export default defineConfig({
       'src/test/**/*.test.ts',
       'src/__tests__/**/*.test.ts',
       'src/client/**/*.test.ts',
+      'src/types/**/*.test.ts',
     ],
     setupFiles: ['./src/test/setup.ts'],
     passWithNoTests: true,

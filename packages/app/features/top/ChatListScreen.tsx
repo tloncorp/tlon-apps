@@ -69,7 +69,7 @@ export function ChatListScreenView({
   previewGroupFromInviteNotification?: boolean;
   focusedChannelId?: string;
 }) {
-  const { navigation, navigateToGroup, navigateToChannel } =
+  const { navigation, navigateToGroup, navigateToChannel, resetToChannel } =
     useRootNavigation();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const personalInvite = db.personalInviteLink.useValue();
@@ -229,6 +229,57 @@ export function ChatListScreenView({
       pending: chats?.pending ?? [],
     };
   }, [chats]);
+
+  const consumedOnboardingLanding = useRef(false);
+  const resetToChannelRef = useRef(resetToChannel);
+  resetToChannelRef.current = resetToChannel;
+  useEffect(() => {
+    let active = true;
+    const land = async () => {
+      const landing = await db.agentOnboardingLanding.getValue();
+      if (!landing) return;
+
+      const fastUntil = Date.now() + 30_000;
+      let slowSyncLogged = false;
+      while (active) {
+        if (await db.getChannel({ id: landing.channelId })) {
+          if (!consumedOnboardingLanding.current) {
+            consumedOnboardingLanding.current = true;
+            resetToChannelRef.current(landing.channelId, {
+              groupId: landing.groupId,
+            });
+            void db.agentOnboardingLanding.resetValue().catch((error) =>
+              logger.trackError('Failed to clear onboarding landing', {
+                error,
+              })
+            );
+          }
+          return;
+        }
+
+        const slow = Date.now() > fastUntil;
+        if (slow) {
+          if (!slowSyncLogged) {
+            slowSyncLogged = true;
+            logger.trackError('Onboarding landing channel slow to sync', {
+              ...landing,
+            });
+          }
+          const armed = await db.agentOnboardingLanding.getValue();
+          if (!armed || armed.channelId !== landing.channelId) return;
+        }
+        await new Promise((resolve) =>
+          setTimeout(resolve, slow ? 5_000 : 500)
+        );
+      }
+    };
+    void land().catch((error) =>
+      logger.trackError('Failed to consume onboarding landing', { error })
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
   const onPressChat = useCallback(

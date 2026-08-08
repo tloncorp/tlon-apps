@@ -2045,6 +2045,56 @@ describe('cron telemetry capture', () => {
     });
   });
 
+  it('captures deterministic onboarding traces without content payloads', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureOnboardingTrace({
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      onboardingAttemptId: 'attempt-1',
+      onboardingStage: 'schedule',
+      onboardingOperation: 'cron_add_job',
+      onboardingOutcome: 'failed_ambiguous',
+      onboardingSource: 'timezone_reply',
+      onboardingState: 'awaiting-timezone',
+      onboardingNextState: 'awaiting-notebook',
+      nest: 'chat/~zod/home-group-chat',
+      groupFlag: '~zod/home-group',
+      purposeId: 'agent-daily-digest',
+      timezone: 'America/New_York',
+      cronJobId: null,
+      notebookNest: null,
+      retryAttempt: 1,
+      retryDelayMs: 250,
+      durationMs: 42,
+      totalCronJobCount: 0,
+      topicsCharCount: 24,
+      draftTitleCharCount: null,
+      draftMarkdownCharCount: null,
+      historyPostCount: null,
+      reason: null,
+      errorKind: 'Error',
+      errorText: 'scheduler rejected request',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Onboarding Trace');
+    expect(call.distinctId).toBe('~zod');
+    expect(call.properties).toMatchObject({
+      onboardingAttemptId: 'attempt-1',
+      onboardingStage: 'schedule',
+      onboardingOperation: 'cron_add_job',
+      onboardingOutcome: 'failed_ambiguous',
+      nest: 'chat/~zod/home-group-chat',
+      retryAttempt: 1,
+      retryDelayMs: 250,
+      totalCronJobCount: 0,
+      errorText: 'scheduler rejected request',
+      ...VERSION_IDENTITY_MATCH,
+    });
+    expect(call.properties).not.toHaveProperty('notebookNest');
+  });
+
   it('skips cron captures when ownerShip is not configured', () => {
     const telemetry = createEnabledTelemetry();
     telemetry?.captureCronJobChanged({

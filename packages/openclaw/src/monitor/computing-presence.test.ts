@@ -247,6 +247,44 @@ describe('createComputingPresenceTracker', () => {
     }
   });
 
+  test('carries tool labels through to the published status', async () => {
+    const reporter = {
+      publish: vi.fn(async () => {}),
+    };
+    const tracker = createComputingPresenceTracker({
+      reporter,
+      minUpdateIntervalMs: 0,
+    });
+
+    tracker.addToolCall({
+      conversationId: '~nec',
+      runId: 'setup:chat/~nec/home-group-chat',
+      toolName: 'image',
+      label: 'Generating the group icon',
+    });
+    await flushPresenceQueue();
+
+    expect(reporter.publish).toHaveBeenLastCalledWith({
+      conversationId: '~nec',
+      thinking: true,
+      toolNames: ['image'],
+      toolLabels: { image: 'Generating the group icon' },
+    });
+
+    // The default reporter turns those labels into the presence display.
+    const defaultReporter = createComputingPresenceReporter();
+    await defaultReporter.publish({
+      conversationId: '~nec',
+      thinking: true,
+      toolNames: ['image'],
+      toolLabels: { image: 'Generating the group icon' },
+    });
+    expect(createComputingStatus).toHaveBeenLastCalledWith({
+      thinking: true,
+      toolCalls: [{ toolName: 'image', label: 'Generating the group icon' }],
+    });
+  });
+
   test('unions active runs in the same conversation', async () => {
     const reporter = {
       publish: vi.fn(async () => {}),

@@ -83,6 +83,11 @@ export function clearCronServiceAccessor(): void {
   cronServiceAccessorSlot.set(null);
 }
 
+/** Trusted access for deterministic plugin workflows such as onboarding. */
+export function getCronService(): PluginHookGatewayCronService | undefined {
+  return cronServiceAccessorSlot.get()?.();
+}
+
 function optionalString(value: string | null | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;

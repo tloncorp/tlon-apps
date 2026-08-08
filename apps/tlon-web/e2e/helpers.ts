@@ -20,11 +20,9 @@ export async function createGroup(page: Page) {
   await waitForSessionStability(page);
 
   await page.getByTestId('CreateChatSheetTrigger').click();
+  // Without a resident agent (e2e ships are self-hosted), "New group" goes
+  // straight to invitee selection.
   await page.getByText('New group', { exact: true }).click();
-
-  // Select "Quick group" from the GroupTypeSelectionSheet
-  await expect(page.getByText('Quick group')).toBeVisible({ timeout: 5000 });
-  await page.getByText('Quick group').click();
 
   await expect(page.getByText('Select contacts to invite')).toBeVisible({
     timeout: 5000,
@@ -57,77 +55,6 @@ export async function createGroup(page: Page) {
     await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
       timeout: 5000,
     });
-  }
-}
-
-/**
- * Creates a group using a specific template or group type
- */
-export async function createGroupWithTemplate(
-  page: Page,
-  groupType: 'quick' | 'basic' | string
-) {
-  // Ensure session is stable before creating group
-  await waitForSessionStability(page);
-
-  await page.getByTestId('CreateChatSheetTrigger').click();
-  await page.getByText('New group', { exact: true }).click();
-
-  // Wait for group type selection sheet
-  await expect(page.getByText('Create a group')).toBeVisible({ timeout: 5000 });
-
-  // Determine expected group title based on type
-  let expectedGroupTitle: string;
-
-  // Select the appropriate group type
-  if (groupType === 'quick') {
-    await expect(page.getByText('Quick group')).toBeVisible({ timeout: 5000 });
-    await page.getByText('Quick group').click();
-    expectedGroupTitle = 'Untitled group'; // Quick groups have empty title
-  } else if (groupType === 'basic') {
-    await expect(page.getByText('Basic group')).toBeVisible({ timeout: 5000 });
-    await page.getByText('Basic group').click();
-
-    // Basic group requires title input
-    await expect(page.getByText('Name your group')).toBeVisible({
-      timeout: 5000,
-    });
-    await page.getByPlaceholder('Group name').fill('Basic Group');
-    await page.getByText('Next', { exact: true }).click();
-
-    expectedGroupTitle = 'Basic Group';
-  } else {
-    // For template groups, find and click by title
-    await expect(page.getByText(groupType)).toBeVisible({ timeout: 5000 });
-    await page.getByText(groupType).click();
-    expectedGroupTitle = groupType; // Template uses its title as group title
-  }
-
-  // Wait for contact selection
-  await expect(page.getByText('Select contacts to invite')).toBeVisible({
-    timeout: 5000,
-  });
-  await page.getByText('Create group').click();
-
-  // Wait for group creation to complete and navigate to group
-  const channelHeader = page.getByTestId('ChannelHeaderTitle');
-
-  try {
-    // Wait briefly to see if we're automatically navigated to the group
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
-    // Template groups don't show "Welcome to your group!" message
-    await page.waitForTimeout(1000);
-  } catch {
-    // If not automatically navigated, go to the group manually
-    await page.getByTestId('HomeNavIcon').click();
-    await expect(
-      page.getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`)
-    ).toBeVisible({ timeout: 10000 });
-    await page
-      .getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`)
-      .click();
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
-    await page.waitForTimeout(1000);
   }
 }
 
@@ -1235,18 +1162,6 @@ export async function changeGroupName(page: Page, newName: string) {
 
   await page.getByTestId('GroupTitleInput').click();
   await fillFormField(page, 'GroupTitleInput', newName, true);
-  await page.getByText('Save').click();
-}
-
-/**
- * Changes the group description
- */
-export async function changeGroupDescription(page: Page, description: string) {
-  // Ensure session is stable before changing group description
-  await waitForSessionStability(page);
-
-  await page.getByTestId('GroupDescriptionInput').click();
-  await fillFormField(page, 'GroupDescriptionInput', description, true);
   await page.getByText('Save').click();
 }
 

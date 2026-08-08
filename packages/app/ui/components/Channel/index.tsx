@@ -258,6 +258,12 @@ interface ChannelProps {
   group: db.Group | null;
   groupIsLoading?: boolean;
   goBack: () => void;
+  /**
+   * Blank the channel header — every control in it is a way out, and a
+   * guided setup holds the user in the conversation until it finishes. The
+   * internal goBack for draft dismissal keeps working.
+   */
+  hideHeaderContents?: boolean;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
@@ -300,6 +306,7 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
+  hideHeaderContents,
   goToChatDetails,
   goToSearch,
   goToContextLensRuns,
@@ -729,6 +736,7 @@ export function Channel({
                         group={group}
                         title={title ?? ''}
                         description={''}
+                        hideContents={hideHeaderContents}
                         goBack={
                           isNarrow ||
                           draftInputPresentationMode === 'fullscreen'

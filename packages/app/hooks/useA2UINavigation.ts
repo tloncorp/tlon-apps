@@ -157,6 +157,15 @@ export function useA2UINavigation() {
             groupId: target.groupId,
           });
           return;
+        case 'screen':
+          // Validation already restricted `screen` to the A2UI allowlist;
+          // this switch maps each allowed name to its navigator route.
+          switch (target.screen) {
+            case 'botMcpSettings':
+              rootNavigation.navigateToBotMcpSettings();
+              return;
+          }
+          return;
       }
     },
     [navigateToMessage, rootNavigation]

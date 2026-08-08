@@ -22,6 +22,22 @@ const NOTES_CHANNEL_LISTING_DELAY_MS = 250;
 
 class NotesChannelListingUnverifiedError extends Error {}
 
+/**
+ * Adopt a notes channel that already exists on the ship into the local store.
+ * This is the recovery half of an ambiguous create: the HTTP create may land
+ * even when its immediate groups-listing verification times out.
+ */
+export async function hydrateExistingNotesChannel(
+  group: db.Group
+): Promise<db.Channel | null> {
+  const notebook = group.channels?.find((channel) => channel.type === 'notes');
+  if (!notebook) {
+    return null;
+  }
+  await db.insertGroups({ groups: [group] });
+  return notebook;
+}
+
 export async function createChannel({
   groupId,
   title,

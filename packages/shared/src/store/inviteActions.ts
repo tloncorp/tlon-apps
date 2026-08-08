@@ -229,7 +229,11 @@ export async function createGroupInviteLink(groupId: string) {
         inviterAvatarImage: user?.avatarImage ?? '',
         invitedGroupId: groupId,
         invitedGroupTitle: group?.title ?? '',
-        invitedGroupDescription: group?.description ?? '',
+        // FIXME(group-description-hijack): group.description currently stores
+        // the machine-readable agent config, so invite/deep-link previews
+        // omit the description entirely — same as every in-app display site
+        // (grep the tag). Title, inviter, and icon carry the preview.
+        invitedGroupDescription: '',
         invitedGroupIconImageUrl: group?.iconImage ?? '',
       })
     );

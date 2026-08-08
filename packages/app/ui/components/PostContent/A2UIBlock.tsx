@@ -1,14 +1,183 @@
 import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
-import { Button, Text } from '@tloncorp/ui';
-import React, { ComponentProps, useCallback, useMemo } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { useGroup } from '@tloncorp/shared/store';
+import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
+import React, { ComponentProps, useCallback, useMemo, useState } from 'react';
+import { Input, View, XStack, YStack } from 'tamagui';
 
+import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 import { useContentContext } from './contentUtils';
 
 type RenderOptions = {
   cardDepth?: number;
   parentAlign?: A2UI.Container['align'];
 };
+
+/**
+ * Accent pairs for Choice option icons: a soft tile behind the icon in its
+ * saturated colour, matching the design's choice cards.
+ */
+const CHOICE_ACCENT_COLORS: Record<
+  NonNullable<A2UI.ChoiceOption['accent']>,
+  {
+    soft: ComponentProps<typeof View>['backgroundColor'];
+    strong: ComponentProps<typeof Icon>['color'];
+  }
+> = {
+  blue: { soft: '$blueSoft', strong: '$blue' },
+  green: { soft: '$greenSoft', strong: '$green' },
+  indigo: { soft: '$indigoSoft', strong: '$indigo' },
+  neutral: { soft: '$secondaryBackground', strong: '$secondaryText' },
+};
+
+/**
+ * A wrapping list of pills the user can multi-select, plus the submit that
+ * posts the selection as one message. Selection is local until submit — no
+ * per-tap posting — so it lives in a child component with its own state
+ * rather than in the render callback.
+ */
+function SmallChoicePills({
+  component,
+  canSend,
+  isActionAvailable,
+  onSubmit,
+}: {
+  component: A2UI.SmallChoice;
+  /** false when there is no action handler at all */
+  canSend: boolean;
+  isActionAvailable?: (action: A2UI.ButtonAction) => boolean;
+  onSubmit: (text: string) => void | Promise<void>;
+}) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [freeText, setFreeText] = useState('');
+  // One-shot: a double tap on submit would post the reply twice, and the
+  // second copy lands as ordinary chat racing the setup turn the first one
+  // started.
+  const [submitted, setSubmitted] = useState(false);
+
+  const toggle = useCallback((id: string) => {
+    setSelectedIds((previous) =>
+      previous.includes(id)
+        ? previous.filter((selected) => selected !== id)
+        : [...previous, id]
+    );
+  }, []);
+
+  const messageForSelection = A2UI.buildSmallChoiceMessage(
+    component,
+    selectedIds,
+    freeText
+  );
+
+  const handleSubmit = useCallback(async () => {
+    if (!messageForSelection || submitted) {
+      return;
+    }
+    // Disable first so a double tap can't send twice, but put it back if
+    // the send fails: the picker is the only way to answer the setup, and
+    // a card disabled over a message that never posted leaves the owner
+    // looking at their own selection with nothing to do about it.
+    setSubmitted(true);
+    try {
+      await onSubmit(messageForSelection);
+    } catch {
+      setSubmitted(false);
+    }
+  }, [messageForSelection, onSubmit, submitted]);
+
+  /**
+   * Availability has to be judged against the message that would actually be
+   * sent, not against `component.action`: for a SmallChoice that action's text
+   * is only a prefix and is usually empty, which an availability check written
+   * for Button (where the text *is* the whole message) reads as "nothing to
+   * send" and disables the whole picker.
+   *
+   * So probe with every option selected — always non-empty — to decide whether
+   * the surface can send at all, and check the real selection for the submit.
+   */
+  const probe = (text: string): boolean =>
+    canSend &&
+    isActionAvailable?.({
+      event: { name: A2UI.action.sendMessage, context: { text } },
+    }) !== false;
+
+  const disabled = submitted || !probe(A2UI.smallChoiceProbeMessage(component));
+  const submitDisabled =
+    disabled || !messageForSelection || !probe(messageForSelection);
+
+  return (
+    <YStack gap="$m" width="100%" marginTop={CONTROL_GROUP_TOP_MARGIN}>
+      <XStack flexWrap="wrap" gap="$s" width="100%">
+        {component.options.map((option) => {
+          const isSelected = selectedIds.includes(option.id);
+          // Selected inverts the pill instead of tinting it, so a chosen
+          // topic reads at a glance across a wrapped row. Hoisted out of the
+          // JSX: an inline ternary on these props gets dropped by Tamagui's
+          // compiler, leaving the pill unstyled.
+          const pillEdge = isSelected ? '$primaryText' : '$border';
+          const pillFill = isSelected ? '$primaryText' : '$background';
+          const pillLabel = isSelected ? '$background' : '$primaryText';
+          return (
+            <Pressable
+              key={option.id}
+              testID={`A2UISmallChoice-${option.id}`}
+              accessibilityLabel={option.label}
+              accessibilityState={{ selected: isSelected }}
+              disabled={disabled}
+              onPress={disabled ? undefined : () => toggle(option.id)}
+            >
+              <XStack
+                borderWidth={1}
+                borderColor={pillEdge}
+                backgroundColor={pillFill}
+                borderRadius="$2xl"
+                paddingVertical="$s"
+                paddingHorizontal="$l"
+                opacity={disabled ? 0.5 : 1}
+              >
+                <Text size="$label/m" color={pillLabel} trimmed={false}>
+                  {option.label}
+                </Text>
+              </XStack>
+            </Pressable>
+          );
+        })}
+      </XStack>
+      {component.freeTextPlaceholder ? (
+        // Typed additions ride along with the pills: "some of these plus one
+        // of my own" is one submit, not a pill message chased by a text one.
+        <Input
+          testID="A2UISmallChoiceFreeText"
+          value={freeText}
+          onChangeText={setFreeText}
+          placeholder={component.freeTextPlaceholder}
+          placeholderTextColor="$tertiaryText"
+          disabled={disabled}
+          borderColor="$border"
+          borderWidth={1}
+          borderRadius="$l"
+          paddingHorizontal="$l"
+          height={44}
+          width="100%"
+          onSubmitEditing={submitDisabled ? undefined : handleSubmit}
+        />
+      ) : null}
+      <Button.Frame
+        size="medium"
+        fill="solid"
+        intent="positive"
+        alignSelf="flex-start"
+        height={44}
+        paddingHorizontal="$xl"
+        testID="A2UISmallChoiceSubmit"
+        disabled={submitDisabled}
+        dimmed={submitDisabled}
+        onPress={submitDisabled ? undefined : handleSubmit}
+      >
+        <Button.Text size="medium">{component.submitLabel}</Button.Text>
+      </Button.Frame>
+    </YStack>
+  );
+}
 
 function getTextSize(component: A2UI.Text) {
   switch (component.variant) {
@@ -124,9 +293,41 @@ function getComponentText(
         .map((child) => getComponentText(components.get(child), components))
         .filter(Boolean)
         .join(' ');
+    case 'Choice':
+    case 'SmallChoice':
+      // Text extraction feeds previews and labels: the option titles are the
+      // meaningful summary of a choice group.
+      return component.options.map((option) => option.label).join(', ');
     case 'Divider':
       return '';
   }
+}
+
+/**
+ * Space above a group of controls — the purpose rows, the topic pills, the
+ * invite field. Each of these follows the line of prose that introduces it,
+ * and the surface's own gap is sized for text, which leaves a control looking
+ * like part of the sentence above it.
+ */
+const CONTROL_GROUP_TOP_MARGIN = '$m';
+
+/**
+ * An A2UI button carrying `tlon.inviteLink` is a slot, not a control: the
+ * card asks for the group's invite link, and the client fills it with the
+ * same invite affordance the rest of the app uses. Nothing about the link
+ * travels through the card, so it can't go stale and the sender never has to
+ * mint one.
+ */
+function A2UIInviteLink({ groupId }: { groupId: string }) {
+  const { data: group } = useGroup({ id: groupId });
+  if (!group) {
+    return null;
+  }
+  return (
+    <YStack marginTop={CONTROL_GROUP_TOP_MARGIN}>
+      <InviteFriendsToTlonButton group={group} />
+    </YStack>
+  );
 }
 
 export function A2UIBlock({
@@ -156,6 +357,28 @@ export function A2UIBlock({
 
       onA2UIAction?.(component.action);
     },
+    [onA2UIAction]
+  );
+
+  const handleChoicePress = useCallback(
+    (action: A2UI.ChoiceOption['action']) => {
+      if (
+        action.event.name === A2UI.action.sendMessage &&
+        !action.event.context.text.trim()
+      ) {
+        return;
+      }
+
+      onA2UIAction?.(action);
+    },
+    [onA2UIAction]
+  );
+
+  const handleSmallChoiceSubmit = useCallback(
+    (text: string) =>
+      onA2UIAction?.({
+        event: { name: A2UI.action.sendMessage, context: { text } },
+      }),
     [onA2UIAction]
   );
 
@@ -256,6 +479,20 @@ export function A2UIBlock({
             />
           );
         case 'Button': {
+          if (component.action.event.name === A2UI.action.inviteLink) {
+            // Mounting this control turns the group's invite links on, so an
+            // untrusted or mismatched card renders as nothing rather than as
+            // a dead button — the surrounding text still explains the ask.
+            if (isA2UIActionAvailable?.(component.action) === false) {
+              return null;
+            }
+            return (
+              <A2UIInviteLink
+                key={component.id}
+                groupId={component.action.event.context.groupId}
+              />
+            );
+          }
           const disabled =
             component.disabled ||
             !onA2UIAction ||
@@ -287,9 +524,101 @@ export function A2UIBlock({
             </Button.Frame>
           );
         }
+        case 'Choice': {
+          return (
+            <YStack
+              key={component.id}
+              gap="$m"
+              width="100%"
+              marginTop={CONTROL_GROUP_TOP_MARGIN}
+            >
+              {component.options.map((option) => {
+                const accent = CHOICE_ACCENT_COLORS[option.accent ?? 'neutral'];
+                const disabled =
+                  !onA2UIAction ||
+                  isA2UIActionAvailable?.(option.action) === false;
+                return (
+                  <Pressable
+                    key={option.id}
+                    testID={`A2UIChoice-${option.id}`}
+                    accessibilityLabel={option.label}
+                    disabled={disabled}
+                    onPress={
+                      disabled
+                        ? undefined
+                        : () => handleChoicePress(option.action)
+                    }
+                  >
+                    <XStack
+                      borderWidth={1}
+                      borderColor="$border"
+                      borderRadius="$xl"
+                      backgroundColor="$background"
+                      paddingVertical="$l"
+                      paddingHorizontal="$l"
+                      gap="$l"
+                      alignItems="flex-start"
+                      opacity={disabled ? 0.5 : 1}
+                    >
+                      {option.icon ? (
+                        <View
+                          width={32}
+                          height={32}
+                          borderRadius="$m"
+                          backgroundColor={accent.soft}
+                          alignItems="center"
+                          justifyContent="center"
+                          flexShrink={0}
+                        >
+                          <Icon
+                            type={option.icon}
+                            color={accent.strong}
+                            customSize={[18, 18]}
+                          />
+                        </View>
+                      ) : null}
+                      <YStack flex={1} minWidth={0} gap="$2xs">
+                        <Text size="$label/l" fontWeight="500" trimmed={false}>
+                          {option.label}
+                        </Text>
+                        {option.description ? (
+                          <Text
+                            size="$label/m"
+                            color="$secondaryText"
+                            trimmed={false}
+                          >
+                            {option.description}
+                          </Text>
+                        ) : null}
+                      </YStack>
+                    </XStack>
+                  </Pressable>
+                );
+              })}
+            </YStack>
+          );
+        }
+        case 'SmallChoice': {
+          return (
+            <SmallChoicePills
+              key={component.id}
+              component={component}
+              canSend={Boolean(onA2UIAction)}
+              isActionAvailable={isA2UIActionAvailable}
+              onSubmit={handleSmallChoiceSubmit}
+            />
+          );
+        }
       }
     },
-    [components, handleButtonPress, isA2UIActionAvailable, onA2UIAction]
+    [
+      components,
+      handleButtonPress,
+      handleChoicePress,
+      handleSmallChoiceSubmit,
+      isA2UIActionAvailable,
+      onA2UIAction,
+    ]
   );
 
   if (!root) {

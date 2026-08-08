@@ -12,6 +12,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useGlobalSearch, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
 
 import type {
   DesktopBasePathStackParamList,
@@ -483,8 +484,9 @@ export function useRootNavigation() {
     navigationRef.current.goBack();
   }, [navigationRef]);
 
+  const useNestedSettings = Platform.OS === 'web' && !isWindowNarrow;
   const navigateToBotSettings = useCallback(() => {
-    if (isWindowNarrow) {
+    if (!useNestedSettings) {
       navigationRef.current.navigate('BotSettings');
       return;
     }
@@ -496,7 +498,19 @@ export function useRootNavigation() {
     navigateToNestedSettings('Settings', {
       screen: 'BotSettings',
     });
-  }, [isWindowNarrow, navigationRef]);
+  }, [useNestedSettings, navigationRef]);
+
+  const navigateToBotMcpSettings = useCallback(() => {
+    if (!useNestedSettings) {
+      navigationRef.current.navigate('BotMcpSettings');
+      return;
+    }
+    const navigateToNestedSettings = navigationRef.current.navigate as (
+      screen: 'Settings',
+      params: { screen: 'BotMcpSettings' }
+    ) => void;
+    navigateToNestedSettings('Settings', { screen: 'BotMcpSettings' });
+  }, [useNestedSettings, navigationRef]);
 
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
@@ -525,6 +539,7 @@ export function useRootNavigation() {
       resetToPost,
       navigateBack,
       navigateToBotSettings,
+      navigateToBotMcpSettings,
     }),
     [
       navigation,
@@ -533,6 +548,7 @@ export function useRootNavigation() {
       navigateToChatDetails,
       navigateToChatVolume,
       navigateToBotSettings,
+      navigateToBotMcpSettings,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,

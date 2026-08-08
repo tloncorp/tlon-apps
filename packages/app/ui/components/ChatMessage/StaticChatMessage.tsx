@@ -1,6 +1,8 @@
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
+import { canRenderAgentUiInGroup } from '@tloncorp/shared/domain';
 import { A2UI } from '@tloncorp/shared/logic';
+import { useGroup } from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -8,6 +10,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import AuthorRow from '../AuthorRow';
 import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
 import { A2UIBlock } from '../PostContent/A2UIBlock';
@@ -23,6 +26,45 @@ import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
+import { resolveA2UISendText } from './StaticChatMessage.helpers';
+
+/**
+ * Blocks that survive when a post's A2UI surface renders. The surface
+ * duplicates the story's *text* (the plain fallback for clients that can't
+ * render it), so text blocks are dropped — but attachments are not
+ * duplicates: file/video/voicememo arrive via the blob, and images via
+ * story image blocks, and all of them belong on screen alongside the
+ * surface.
+ */
+const BLOB_BLOCK_TYPES = new Set([
+  'a2ui',
+  'file',
+  'image',
+  'video',
+  'voicememo',
+]);
+
+/**
+ * Pick between a post's A2UI surface and its story.
+ *
+ * A post carrying A2UI writes the same message twice: the interactive surface
+ * in the blob, and a plain-text rendering of it in the story, so clients that
+ * can't render the surface still show something. Exactly one of them belongs
+ * on screen — showing both prints the message twice, which is what the sender
+ * was trying to avoid.
+ */
+function resolveA2UIContent(
+  content: ReturnType<typeof usePostContent>,
+  canRenderA2UI: boolean
+) {
+  if (!canRenderA2UI) {
+    return content.filter((block) => block.type !== 'a2ui');
+  }
+  if (!content.some((block) => block.type === 'a2ui')) {
+    return content;
+  }
+  return content.filter((block) => BLOB_BLOCK_TYPES.has(block.type));
+}
 
 /**
  * Renders a chat message with minimal interactivity (no pressable, no overflow
@@ -105,11 +147,24 @@ export function StaticChatMessage({
         return;
       }
 
+      // The invite slot renders its own control and never dispatches here.
+      if (action.event.name === A2UI.action.inviteLink) {
+        return;
+      }
+
       if (!draftInputContext || draftInputContext.canStartDraft === false) {
         return;
       }
 
-      const text = action.event.context.text.trim();
+      const actionText = action.event.context.text.trim();
+      // Only group A2UI from the user's own configured agent reaches this
+      // renderer. Never resolve the token in DMs, where arbitrary senders may
+      // post A2UI and should not be able to ask the client for its timezone.
+      const text = resolveA2UISendText(
+        actionText,
+        post.groupId,
+        Intl.DateTimeFormat().resolvedOptions().timeZone
+      );
       if (!text) {
         return;
       }
@@ -123,13 +178,23 @@ export function StaticChatMessage({
         isEdit: false,
       });
     },
-    [draftInputContext, navigateToA2UITarget]
+    [draftInputContext, navigateToA2UITarget, post.groupId]
   );
 
   const isA2UIActionAvailable = useCallback(
     (action: A2UI.Button['action']) => {
       if (action.event.name === A2UI.action.navigate) {
         return true;
+      }
+
+      // The invite slot enables and exposes a group's invite link, so it is
+      // only ever legitimate for the group the post itself lives in. A2UI
+      // renders for any sender inside a DM, so without this a received blob
+      // naming someone else's group id would turn a private group's links on.
+      if (action.event.name === A2UI.action.inviteLink) {
+        return Boolean(
+          post.groupId && action.event.context.groupId === post.groupId
+        );
       }
 
       if (action.event.name === A2UI.action.sendMessage) {
@@ -142,25 +207,34 @@ export function StaticChatMessage({
 
       return false;
     },
-    [draftInputContext]
+    [draftInputContext, post.groupId]
   );
 
-  const canRenderA2UI = isDmChannelId(post.channelId);
+  // A2UI is interactive, so it stays off in shared spaces: DMs always, plus
+  // groups the current user hosts where the author is their own agent. That
+  // covers agent setup and job cards without letting another member's bot
+  // render buttons for everyone.
+  const currentUserId = useCurrentUserId();
+  const { data: group } = useGroup({ id: post.groupId ?? '' });
+  const groupAgents = db.agentGroupAgents.useValue();
+  const canRenderA2UI =
+    isDmChannelId(post.channelId) ||
+    canRenderAgentUiInGroup({
+      authorId: post.authorId,
+      currentUserId,
+      groupId: post.groupId,
+      groupDescription: group?.description,
+      knownAgentShip: post.groupId ? groupAgents[post.groupId] : undefined,
+    });
 
   const postContent = usePostContent(post);
   const lastEditPostContent = usePostLastEditContent(post);
   const content = useMemo(
-    () =>
-      canRenderA2UI
-        ? postContent
-        : postContent.filter((block) => block.type !== 'a2ui'),
+    () => resolveA2UIContent(postContent, canRenderA2UI),
     [canRenderA2UI, postContent]
   );
   const lastEditContent = useMemo(
-    () =>
-      canRenderA2UI
-        ? lastEditPostContent
-        : lastEditPostContent.filter((block) => block.type !== 'a2ui'),
+    () => resolveA2UIContent(lastEditPostContent, canRenderA2UI),
     [canRenderA2UI, lastEditPostContent]
   );
 

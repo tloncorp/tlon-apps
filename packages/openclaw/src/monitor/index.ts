@@ -1,5 +1,8 @@
 import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
@@ -40,6 +43,10 @@ import {
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
+import {
+  readOnboardingNotebookNewestId,
+  runOnboardingTlonCommand,
+} from '../onboarding-operations.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
   type PendingNudge,
@@ -66,6 +73,7 @@ import {
 } from '../targets.js';
 import {
   type TlonDeliverySkipReason,
+  type TlonOnboardingTraceEvent,
   type TlonPluginErrorEvent,
   type TlonPluginErrorSource,
   createTlonTelemetry,
@@ -101,8 +109,69 @@ import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
   formatTlonVersionIdentity,
+  getTlonVersionIdentity,
   resolveTlonSkillVersion,
 } from '../version.js';
+import {
+  GROUP_INTRO_MESSAGE,
+  INVITE_CARD_LEAD,
+  INVITE_CARD_LEADS,
+  INVITE_FOLLOWUP_MESSAGE,
+  ONBOARDING_COMPLETE_LINE,
+  PURPOSE_PICKER_PROMPT,
+  RESEARCHING_NOTEBOOK_LINE,
+  SERVICES_CARD_LEAD,
+  TOPICS_PICKER_PROMPT,
+  WAITING_FOR_NOTEBOOK_LINE,
+  onboardingPluginDiagnostic,
+} from './agent-onboarding-config.js';
+import {
+  type DeterministicResearchDraft,
+  type DeterministicSetup,
+  buildAwaitingTimezoneDescription,
+  buildAwaitingTopicsDescription,
+  buildDeterministicSetupDescription,
+  createOnboardingWriteQueue,
+  deterministicSetupFromDescription,
+  ensureDeterministicCronJob,
+  normalizeIanaTimezone,
+  onboardingCompletionSequenceBlocker,
+  onboardingResearchSequenceBlocker,
+  parseDeterministicResearchDraft,
+  renderDeterministicResearchDirective,
+} from './agent-onboarding-coordinator.js';
+import {
+  type OnboardingPurposeSelection,
+  agentHasAdminSeat,
+  buildInviteCardBlob,
+  buildPurposePickerBlob,
+  buildServicesCardBlob,
+  buildTimezonePickerBlob,
+  buildTopicsPickerBlob,
+  channelHasNoPosts,
+  derivePendingPurposeFromHistory,
+  descriptionHasConfiguredJob,
+  findAgentGroupsAwaitingOpening,
+  findChatNestForGroup,
+  findConfiguredAgentGroups,
+  findGroupForChannel,
+  homeGroupAwaitingOpening,
+  homeGroupChatNestFor,
+  homeGroupFlagFor,
+  inviteCardFallbackText,
+  isFirstConfiguredSetup,
+  isHomeGroupFlag,
+  isPurposePickerChoice,
+  pendingTopicsOfferFromHistory,
+  purposePickerFallbackText,
+  servicesCardFallbackText,
+  setupOutputNotebookNest,
+  shouldOfferPickerOnJoin,
+  shouldOfferPurposePicker,
+  shouldOfferTopicsPicker,
+  timezonePickerFallbackText,
+  topicsPickerFallbackText,
+} from './agent-onboarding.js';
 import {
   type DisplayContext,
   type PendingApproval,
@@ -246,12 +315,24 @@ type WritResponseDelta =
       'add-react'?: never;
     };
 type WritResponse = { whom: string; id: string; response: WritResponseDelta };
-const DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS = 120_000;
+/**
+ * How long a reply may take before the run is abandoned.
+ *
+ * This is a backstop against a wedged turn, not a pace the agent should have
+ * to keep. A turn that actually does something — searching the web, creating
+ * a channel, writing a note, scheduling a job — spends minutes in tool calls,
+ * and the old two-minute cap killed those turns mid-way: the owner saw "Give
+ * me a few seconds" and then silence, with the work half-applied and no
+ * closing message. Ten minutes leaves room for real work while still
+ * bounding a run that has stopped making progress. Override per account with
+ * `channels.tlon.runTimeoutMs`.
+ */
+const DEFAULT_RUN_TIMEOUT_MS = 600_000;
 
 function normalizeRunTimeoutMs(value: number | null | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 1_000
     ? Math.floor(value)
-    : DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS;
+    : DEFAULT_RUN_TIMEOUT_MS;
 }
 
 // Holds the data needed for any module-loader context to (re)configure its
@@ -781,14 +862,2047 @@ export async function monitorTlonProvider(
     const processedTracker = createProcessedMessageTracker(2000);
     let groupChannels: string[] = [];
     const channelToGroup = new Map<string, string>();
+    /** Channels already offered the agent-onboarding purpose picker. */
+    const onboardingPickerOffered = new Set<string>();
+    const onboardingTopicsOffered = new Set<string>();
+    /**
+     * Channels whose topic pills are awaiting the owner reply, by purpose.
+     * The reply is consumed directly; the timezone prompt is posted before
+     * its restart-recovery state is persisted in the serialized write queue.
+     */
+    const onboardingSetupPending = new Map<
+      string,
+      OnboardingPurposeSelection
+    >();
+    /** Topic replies waiting for the client's deterministic timezone reply. */
+    const onboardingTimezonePending = new Map<
+      string,
+      OnboardingPurposeSelection & { topics: string; groupFlag: string }
+    >();
+    /**
+     * Channels whose deterministic setup has started but not yet closed with
+     * the invite card.
+     */
+    const onboardingInvitePending = new Set<string>();
+    /** Channels checked (or paid): don't re-fetch history for them. */
+    const inviteSettled = new Set<string>();
     let botNickname: string | null = null;
     let botAvatar: string | null = null;
+
+    type OnboardingTraceInput = Pick<
+      TlonOnboardingTraceEvent,
+      'nest' | 'onboardingStage' | 'onboardingOperation' | 'onboardingOutcome'
+    > &
+      Partial<
+        Omit<
+          TlonOnboardingTraceEvent,
+          | 'accountId'
+          | 'ownerShip'
+          | 'botShip'
+          | 'nest'
+          | 'onboardingStage'
+          | 'onboardingOperation'
+          | 'onboardingOutcome'
+        >
+      >;
+
+    const onboardingErrorFields = (
+      error: unknown,
+      sensitiveValues: Array<string | null | undefined> = []
+    ): Pick<TlonOnboardingTraceEvent, 'errorKind' | 'errorText'> => {
+      let errorText = formatTlonTelemetryErrorText(error);
+      for (const sensitive of sensitiveValues) {
+        if (sensitive && sensitive.length >= 2) {
+          errorText = errorText.split(sensitive).join('[redacted]');
+        }
+      }
+      return {
+        errorKind:
+          error instanceof Error
+            ? error.name || 'Error'
+            : typeof error === 'object' && error !== null
+              ? 'object'
+              : typeof error,
+        errorText: errorText.slice(0, 4_000),
+      };
+    };
+
+    const traceOnboarding = (input: OnboardingTraceInput): void => {
+      const event: TlonOnboardingTraceEvent = {
+        accountId: account.accountId,
+        ownerShip: currentTelemetryOwnerShip(),
+        botShip: botShipName,
+        onboardingAttemptId: input.onboardingAttemptId ?? null,
+        onboardingStage: input.onboardingStage,
+        onboardingOperation: input.onboardingOperation,
+        onboardingOutcome: input.onboardingOutcome,
+        onboardingSource: input.onboardingSource ?? null,
+        onboardingState: input.onboardingState ?? null,
+        onboardingNextState: input.onboardingNextState ?? null,
+        nest: input.nest,
+        groupFlag: input.groupFlag ?? null,
+        purposeId: input.purposeId ?? null,
+        timezone: input.timezone ?? null,
+        cronJobId: input.cronJobId ?? null,
+        notebookNest: input.notebookNest ?? null,
+        retryAttempt: input.retryAttempt ?? null,
+        retryDelayMs: input.retryDelayMs ?? null,
+        durationMs: input.durationMs ?? null,
+        totalCronJobCount: input.totalCronJobCount ?? null,
+        topicsCharCount: input.topicsCharCount ?? null,
+        draftTitleCharCount: input.draftTitleCharCount ?? null,
+        draftMarkdownCharCount: input.draftMarkdownCharCount ?? null,
+        historyPostCount: input.historyPostCount ?? null,
+        reason: input.reason ?? null,
+        errorKind: input.errorKind ?? null,
+        errorText: input.errorText ?? null,
+      };
+      telemetry?.captureOnboardingTrace(event);
+      runtime.log?.(
+        `[tlon] Onboarding trace ${JSON.stringify({
+          attemptId: event.onboardingAttemptId,
+          stage: event.onboardingStage,
+          operation: event.onboardingOperation,
+          outcome: event.onboardingOutcome,
+          nest: event.nest,
+          groupFlag: event.groupFlag,
+          purposeId: event.purposeId,
+          state: event.onboardingState,
+          nextState: event.onboardingNextState,
+          retryAttempt: event.retryAttempt,
+          durationMs: event.durationMs,
+          reason: event.reason,
+          errorKind: event.errorKind,
+          errorText: event.errorText,
+        })}`
+      );
+    };
+
+    type OnboardingTraceStep = Omit<
+      OnboardingTraceInput,
+      'onboardingOperation' | 'onboardingOutcome' | 'onboardingStage'
+    > & { onboardingStage?: string };
+    const traceOnboardingStep = (
+      base: OnboardingTraceStep,
+      onboardingOperation: string,
+      onboardingOutcome: string,
+      details: Partial<OnboardingTraceStep> = {}
+    ) =>
+      traceOnboarding({
+        ...base,
+        ...details,
+        onboardingStage: details.onboardingStage ?? base.onboardingStage!,
+        onboardingOperation,
+        onboardingOutcome,
+      });
+
+    /**
+     * Post markdown to a channel as the bot. Every outbound channel post
+     * shares this envelope; only the text and the extras differ.
+     */
+    const postToChannel = (
+      nest: string,
+      text: string,
+      extra?: { blob?: string; replyToId?: string }
+    ) =>
+      sendChannelPost({
+        botProfile: getBotProfile(),
+        fromShip: botShipName,
+        nest,
+        story: markdownToStory(text),
+        ...extra,
+      });
+
+    const onboardingDescriptionWrites = createOnboardingWriteQueue();
+
+    /**
+     * Trusted config writer for the deterministic onboarding state machine.
+     * The JSON is passed as one argv value—never through a model, shell, or
+     * tokenizer—and read back from the ship before the transition commits.
+     */
+    const performOnboardingDescriptionWrite = async (
+      nest: string,
+      groupFlag: string,
+      description: string,
+      traceContext?: {
+        onboardingAttemptId?: string | null;
+        onboardingSource?: string | null;
+      }
+    ): Promise<void> => {
+      const setup = deterministicSetupFromDescription(description);
+      const traceBase = {
+        nest,
+        groupFlag,
+        purposeId: setup?.purposeId ?? null,
+        onboardingAttemptId: traceContext?.onboardingAttemptId ?? null,
+        onboardingSource: traceContext?.onboardingSource ?? null,
+        onboardingStage: 'group_config',
+        onboardingState: setup?.record.state ?? null,
+        topicsCharCount: setup?.topics.length ?? null,
+        timezone: setup?.timezone || null,
+        cronJobId: setup?.record.cronJobId ?? null,
+        notebookNest: setup?.record.notebookNest ?? null,
+      };
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const retryAttempt = attempt + 1;
+        const commandStartedAt = Date.now();
+        traceOnboardingStep(traceBase, 'write_description', 'started', {
+          retryAttempt,
+        });
+        try {
+          await runOnboardingTlonCommand([
+            'groups',
+            'update',
+            groupFlag,
+            '--description',
+            description,
+          ]);
+          lastError = undefined;
+          traceOnboardingStep(traceBase, 'write_description', 'succeeded', {
+            retryAttempt,
+            durationMs: Date.now() - commandStartedAt,
+          });
+        } catch (error) {
+          lastError = error;
+          traceOnboardingStep(traceBase, 'write_description', 'failed', {
+            retryAttempt,
+            durationMs: Date.now() - commandStartedAt,
+            ...onboardingErrorFields(error, [description]),
+          });
+        }
+        let verifyAttempt = 0;
+        for (const delay of [250, 750, 1_500]) {
+          verifyAttempt += 1;
+          traceOnboardingStep(traceBase, 'verify_description', 'waiting', {
+            retryAttempt,
+            retryDelayMs: delay,
+            reason: `verification_attempt_${verifyAttempt}`,
+          });
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          const verifyStartedAt = Date.now();
+          let stored: Awaited<ReturnType<typeof findGroupForChannel>>;
+          try {
+            stored = await findGroupForChannel(api, nest, runtime);
+          } catch (error) {
+            traceOnboardingStep(traceBase, 'verify_description', 'failed', {
+              retryAttempt,
+              durationMs: Date.now() - verifyStartedAt,
+              reason: `verification_attempt_${verifyAttempt}`,
+              ...onboardingErrorFields(error, [description]),
+            });
+            continue;
+          }
+          if (stored?.description === description) {
+            traceOnboardingStep(traceBase, 'verify_description', 'succeeded', {
+              retryAttempt,
+              durationMs: Date.now() - verifyStartedAt,
+              reason: `verification_attempt_${verifyAttempt}`,
+            });
+            return;
+          }
+          traceOnboardingStep(traceBase, 'verify_description', 'mismatch', {
+            retryAttempt,
+            durationMs: Date.now() - verifyStartedAt,
+            reason: stored
+              ? `verification_attempt_${verifyAttempt}`
+              : `verification_attempt_${verifyAttempt}:group_unreadable`,
+          });
+        }
+      }
+      const finalError = new Error(
+        `Group config write could not be verified${lastError ? `: ${String(lastError)}` : ''}`
+      );
+      traceOnboardingStep(traceBase, 'write_and_verify_description', 'failed', {
+        retryAttempt: 3,
+        ...onboardingErrorFields(finalError, [description]),
+      });
+      throw finalError;
+    };
+
+    const writeAndVerifyOnboardingDescription = async (
+      nest: string,
+      groupFlag: string,
+      description: string,
+      traceContext?: {
+        onboardingAttemptId?: string | null;
+        onboardingSource?: string | null;
+      }
+    ): Promise<void> => {
+      const queued = onboardingDescriptionWrites.has(groupFlag);
+      const queuedAt = Date.now();
+      const setup = deterministicSetupFromDescription(description);
+      const traceBase = {
+        nest,
+        groupFlag,
+        purposeId: setup?.purposeId ?? null,
+        onboardingAttemptId: traceContext?.onboardingAttemptId ?? null,
+        onboardingSource: traceContext?.onboardingSource ?? null,
+        onboardingStage: 'group_config',
+        onboardingState: setup?.record.state ?? null,
+        topicsCharCount: setup?.topics.length ?? null,
+        timezone: setup?.timezone || null,
+        cronJobId: setup?.record.cronJobId ?? null,
+        notebookNest: setup?.record.notebookNest ?? null,
+      };
+      if (queued) {
+        traceOnboardingStep(
+          traceBase,
+          'wait_for_description_write',
+          'waiting',
+          {
+            reason: 'group_write_in_flight',
+          }
+        );
+      }
+
+      return onboardingDescriptionWrites.run(groupFlag, async () => {
+        if (queued) {
+          traceOnboardingStep(
+            traceBase,
+            'wait_for_description_write',
+            'succeeded',
+            {
+              durationMs: Date.now() - queuedAt,
+            }
+          );
+        }
+        return performOnboardingDescriptionWrite(
+          nest,
+          groupFlag,
+          description,
+          traceContext
+        );
+      });
+    };
+
+    const waitForOnboardingAdminSeat = async (
+      groupFlag: string
+    ): Promise<boolean> => {
+      const deadline = Date.now() + 20_000;
+      while (Date.now() < deadline && !opts.abortSignal?.aborted) {
+        if (await agentHasAdminSeat(api, groupFlag, botShipName, runtime)) {
+          return true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+      }
+      return false;
+    };
 
     // Helper to get bot profile for outbound messages
     const getBotProfile = (): BotProfile | undefined =>
       botNickname || botAvatar
         ? { nickname: botNickname || '', avatar: botAvatar || '' }
         : undefined;
+
+    /**
+     * Open a group with the agent's introduction and then the purpose
+     * picker, as two posts: the introduction is about the agent, the picker
+     * is a question, and one post carrying both reads as a wall of text.
+     * Sequential so they land in that order.
+     *
+     * Idempotent on the intro: a previous opening can half-land (intro
+     * posted, picker send failed), and the retry path re-enters here on the
+     * owner's next message. Without the check the owner would get a second
+     * introduction stacked on the first; with it, the retry sends only the
+     * missing picker. Openings happen once per group, so the extra history
+     * read costs nothing in steady state.
+     */
+    const postOnboardingOpening = async (nest: string): Promise<void> => {
+      const onboardingAttemptId = randomUUID();
+      const startedAt = Date.now();
+      const traceBase = {
+        nest,
+        onboardingAttemptId,
+        onboardingSource: 'opening_offer',
+        onboardingStage: 'opening',
+      };
+      traceOnboardingStep(traceBase, 'post_opening', 'started');
+      let recentPosts: Awaited<ReturnType<typeof fetchChannelHistory>>;
+      try {
+        recentPosts = await fetchChannelHistory(api, nest, 10, runtime);
+        traceOnboardingStep(traceBase, 'read_recent_history', 'succeeded', {
+          historyPostCount: recentPosts.length,
+        });
+      } catch (error) {
+        traceOnboardingStep(traceBase, 'read_recent_history', 'failed', {
+          ...onboardingErrorFields(error),
+        });
+        throw error;
+      }
+      const pluginDiagnostic = onboardingPluginDiagnostic(
+        getTlonVersionIdentity().pluginCommit
+      );
+      const diagnosticAlreadyPosted = recentPosts.some(
+        (entry) =>
+          entry.author === botShipName && entry.content === pluginDiagnostic
+      );
+      const introAlreadyPosted = recentPosts.some(
+        (entry) =>
+          entry.author === botShipName &&
+          entry.content.startsWith(GROUP_INTRO_MESSAGE)
+      );
+      if (!diagnosticAlreadyPosted) {
+        await postToChannel(nest, pluginDiagnostic);
+        traceOnboardingStep(traceBase, 'post_plugin_diagnostic', 'succeeded');
+      } else {
+        traceOnboardingStep(traceBase, 'post_plugin_diagnostic', 'skipped', {
+          reason: 'already_posted',
+        });
+      }
+      if (!introAlreadyPosted) {
+        await postToChannel(nest, GROUP_INTRO_MESSAGE);
+        traceOnboardingStep(traceBase, 'post_intro', 'succeeded');
+      } else {
+        traceOnboardingStep(traceBase, 'post_intro', 'skipped', {
+          reason: 'already_posted',
+        });
+      }
+      await postToChannel(nest, purposePickerFallbackText(), {
+        blob: serializeBlobField(buildPurposePickerBlob(nest)),
+      });
+      traceOnboardingStep(traceBase, 'post_purpose_picker', 'succeeded');
+      traceOnboardingStep(traceBase, 'post_opening', 'succeeded', {
+        durationMs: Date.now() - startedAt,
+        onboardingNextState: 'awaiting-purpose',
+      });
+    };
+
+    /**
+     * Close a finished setup: the invite card, the connected-services card
+     * (initial onboarding only), and the hand-back follow-up.
+     *
+     * Gated on the coordinator's persisted `complete` state, which is written
+     * only after the note create has returned or notebook read-back proves an
+     * ambiguous write landed.
+     *
+     * Idempotent against the transcript: each closing post is sent only if
+     * history doesn't already show it, and the channel settles only once
+     * every piece has landed. A transient send failure (or a restart at any
+     * point) leaves the channel unsettled, and the next turn re-reads the
+     * transcript and posts only what's missing — no piece is ever lost, and
+     * none is ever doubled. An unreadable transcript settles nothing, since
+     * to this decision it would look identical to an empty one.
+     */
+    /** Ask the agent directly for the one model-owned research draft. */
+    const runResearchDirective = async (
+      nest: string,
+      text: string
+    ): Promise<DeterministicResearchDraft | null> => {
+      const startedAt = Date.now();
+      try {
+        const route = core.channel.routing.resolveAgentRoute({
+          cfg,
+          channel: 'tlon',
+          accountId: opts.accountId ?? undefined,
+          peer: { kind: 'group', id: nest },
+        });
+        if (!route?.sessionKey) {
+          traceOnboarding({
+            nest,
+            onboardingStage: 'research',
+            onboardingOperation: 'resolve_agent_route',
+            onboardingOutcome: 'failed_retryable',
+            onboardingSource: 'reconciliation',
+            durationMs: Date.now() - startedAt,
+            reason: 'session_key_missing',
+          });
+          return null;
+        }
+        const sessionEntry = core.agent.session.getSessionEntry({
+          agentId: route.agentId,
+          sessionKey: route.sessionKey,
+        });
+        const sessionId = sessionEntry?.sessionId ?? randomUUID();
+        const result = await core.agent.runEmbeddedAgent({
+          sessionId,
+          sessionKey: route.sessionKey,
+          sandboxSessionKey: route.sessionKey,
+          agentId: route.agentId,
+          agentAccountId: route.accountId,
+          messageChannel: 'tlon',
+          messageProvider: 'tlon',
+          messageTo: nest,
+          groupId: nest,
+          groupChannel: nest,
+          senderId: currentTelemetryOwnerShip(),
+          senderIsOwner: true,
+          trigger: 'manual',
+          sessionFile: core.agent.session.resolveSessionFilePath(
+            sessionId,
+            sessionEntry,
+            { agentId: route.agentId }
+          ),
+          workspaceDir: core.agent.resolveAgentWorkspaceDir(cfg, route.agentId),
+          agentDir: core.agent.resolveAgentDir(cfg, route.agentId),
+          config: cfg,
+          prompt: text,
+          timeoutMs: normalizeRunTimeoutMs(account.lifecycle.runTimeoutMs),
+          runId: randomUUID(),
+          disableMessageTool: true,
+          toolsAllow: ['web_search', 'web_fetch'],
+        });
+        if (result.meta.error) {
+          throw new Error(
+            `Onboarding research agent failed (${result.meta.error.kind}): ${result.meta.error.message}`
+          );
+        }
+        if (result.meta.failureSignal) {
+          throw new Error(
+            `Onboarding research agent failed (${result.meta.failureSignal.code}): ${result.meta.failureSignal.message}`
+          );
+        }
+        if (result.meta.aborted) {
+          throw new Error('Onboarding research agent was aborted');
+        }
+        traceOnboarding({
+          nest,
+          onboardingStage: 'research',
+          onboardingOperation: 'run_research_agent',
+          onboardingOutcome: 'succeeded',
+          onboardingSource: 'reconciliation',
+          durationMs: Date.now() - startedAt,
+          reason: result.meta.stopReason ?? null,
+        });
+        const output = (result.payloads ?? [])
+          .filter(
+            (payload) =>
+              !payload.isError &&
+              !payload.isReasoning &&
+              typeof payload.text === 'string'
+          )
+          .map((payload) => payload.text!.trim())
+          .filter(Boolean)
+          .join('\n')
+          .trim();
+        try {
+          const draft = parseDeterministicResearchDraft(output);
+          traceOnboarding({
+            nest,
+            onboardingStage: 'research',
+            onboardingOperation: 'parse_research_draft',
+            onboardingOutcome: 'succeeded',
+            onboardingSource: 'reconciliation',
+            durationMs: Date.now() - startedAt,
+            draftTitleCharCount: draft.title.length,
+            draftMarkdownCharCount: draft.markdown.length,
+          });
+          return draft;
+        } catch (error) {
+          runtime.log?.(
+            `[tlon] Onboarding research returned invalid structured output for ${nest}: ${String(error)}`
+          );
+          traceOnboarding({
+            nest,
+            onboardingStage: 'research',
+            onboardingOperation: 'parse_research_draft',
+            onboardingOutcome: 'failed_retryable',
+            onboardingSource: 'reconciliation',
+            durationMs: Date.now() - startedAt,
+            reason: output ? 'invalid_structured_output' : 'empty_output',
+            ...onboardingErrorFields(error, [output]),
+          });
+          return null;
+        }
+      } catch (error) {
+        runtime.log?.(
+          `[tlon] Could not run onboarding research for ${nest}: ${String(error)}`
+        );
+        traceOnboarding({
+          nest,
+          onboardingStage: 'research',
+          onboardingOperation: 'run_research_agent',
+          onboardingOutcome: 'failed_retryable',
+          onboardingSource: 'reconciliation',
+          durationMs: Date.now() - startedAt,
+          ...onboardingErrorFields(error),
+        });
+        return null;
+      }
+    };
+
+    /**
+     * The newest post in `notesNest` — its id, or null for an empty
+     * notebook, or unreadable.
+     *
+     * Identity rather than a count, because the baseline must distinguish an
+     * existing entry from one written by this setup. These notebooks live in
+     * %notes, not legacy %channels, so read them through the trusted CLI.
+     */
+    const notebookNewestEntry = async (
+      notesNest: string
+    ): Promise<
+      | { readable: false; error: unknown }
+      | { readable: true; newestId: string | null }
+    > => {
+      try {
+        return {
+          readable: true,
+          newestId: await readOnboardingNotebookNewestId(notesNest),
+        };
+      } catch (error) {
+        return { readable: false, error };
+      }
+    };
+
+    const waitForNotebookEntryAfter = async (
+      notesNest: string,
+      baseline: string | null | undefined
+    ): ReturnType<typeof notebookNewestEntry> => {
+      let observed = await notebookNewestEntry(notesNest);
+      for (const delay of [250, 750, 1_500]) {
+        if (
+          observed.readable &&
+          observed.newestId !== null &&
+          observed.newestId !== baseline
+        ) {
+          return observed;
+        }
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        observed = await notebookNewestEntry(notesNest);
+      }
+      return observed;
+    };
+
+    const deterministicResearchInFlight = new Set<string>();
+    const deterministicSetupInFlight = new Map<string, Promise<void>>();
+
+    /** Reconcile the deterministic setup once the owner's notebook exists. */
+    const reconcileDeterministicSetup = async (
+      nest: string,
+      group: { flag: string; description: string }
+    ): Promise<void> => {
+      if (!onboardingInvitePending.has(nest)) {
+        return;
+      }
+      const onboardingAttemptId = randomUUID();
+      const reconcileStartedAt = Date.now();
+      const deterministic = deterministicSetupFromDescription(
+        group.description
+      );
+      const traceBase = {
+        nest,
+        groupFlag: group.flag,
+        purposeId: deterministic?.purposeId ?? null,
+        topicsCharCount: deterministic?.topics.length ?? null,
+        timezone: deterministic?.timezone || null,
+        cronJobId: deterministic?.record.cronJobId ?? null,
+        onboardingAttemptId,
+        onboardingSource: 'reconciliation',
+      };
+      traceOnboardingStep(traceBase, 'reconcile_setup', 'started', {
+        onboardingStage: 'notebook',
+        onboardingState: deterministic?.record.state ?? null,
+      });
+      const writeBlocker = deterministicSetupInFlight.has(nest)
+        ? 'setup_in_flight'
+        : onboardingDescriptionWrites.has(group.flag)
+          ? 'group_write_in_flight'
+          : null;
+      if (writeBlocker) {
+        traceOnboardingStep(traceBase, 'reconcile_setup', 'waiting', {
+          onboardingStage: 'notebook',
+          onboardingState: deterministic?.record.state ?? null,
+          reason: writeBlocker,
+        });
+        return;
+      }
+      if (!deterministic) {
+        traceOnboardingStep(traceBase, 'parse_group_config', 'failed', {
+          onboardingStage: 'notebook',
+          reason: 'deterministic_config_missing_or_invalid',
+        });
+        return;
+      }
+      if (deterministic.record.state === 'complete') {
+        const completionBlocker =
+          onboardingCompletionSequenceBlocker(deterministic);
+        traceOnboardingStep(
+          traceBase,
+          'reconcile_setup',
+          completionBlocker ? 'failed' : 'skipped',
+          {
+            onboardingStage: 'closing',
+            onboardingState: 'complete',
+            reason: completionBlocker ?? 'already_complete',
+          }
+        );
+        return;
+      }
+      const researchBlocker = onboardingResearchSequenceBlocker(deterministic);
+      if (researchBlocker) {
+        traceOnboardingStep(
+          traceBase,
+          'verify_sequence_prerequisites',
+          'waiting',
+          {
+            onboardingStage: 'research',
+            onboardingState: deterministic.record.state,
+            reason: researchBlocker,
+          }
+        );
+        return;
+      }
+      let notesNest = deterministic.record.notebookNest ?? null;
+      if (!notesNest) {
+        const discoverStartedAt = Date.now();
+        try {
+          notesNest = await setupOutputNotebookNest(api, group.flag, runtime);
+        } catch (error) {
+          traceOnboardingStep(
+            traceBase,
+            'discover_owner_notebook',
+            'failed_retryable',
+            {
+              onboardingStage: 'notebook',
+              durationMs: Date.now() - discoverStartedAt,
+              ...onboardingErrorFields(error),
+            }
+          );
+          return;
+        }
+        traceOnboardingStep(
+          traceBase,
+          'discover_owner_notebook',
+          notesNest ? 'succeeded' : 'waiting',
+          {
+            onboardingStage: 'notebook',
+            notebookNest: notesNest,
+            durationMs: Date.now() - discoverStartedAt,
+            reason: notesNest ? null : 'owner_notebook_not_visible',
+          }
+        );
+      }
+      if (!notesNest) {
+        return;
+      }
+      const newestStartedAt = Date.now();
+      const state = await notebookNewestEntry(notesNest);
+      if (!state.readable) {
+        traceOnboardingStep(
+          traceBase,
+          'read_newest_entry',
+          'failed_retryable',
+          {
+            onboardingStage: 'notebook',
+            notebookNest: notesNest,
+            durationMs: Date.now() - newestStartedAt,
+            reason: 'notebook_unreadable',
+            ...onboardingErrorFields(state.error),
+          }
+        );
+        return;
+      }
+      traceOnboardingStep(traceBase, 'read_newest_entry', 'succeeded', {
+        onboardingStage: 'notebook',
+        notebookNest: notesNest,
+        durationMs: Date.now() - newestStartedAt,
+        reason: state.newestId ? 'entry_present' : 'notebook_empty',
+      });
+      if (
+        deterministic.record.state === 'writing-note' &&
+        state.newestId !== null &&
+        state.newestId !== deterministic.record.noteBaseline
+      ) {
+        const complete: DeterministicSetup = {
+          ...deterministic,
+          record: {
+            ...deterministic.record,
+            state: 'complete',
+            notebookNest: notesNest,
+            noteId: state.newestId,
+          },
+        };
+        await writeAndVerifyOnboardingDescription(
+          nest,
+          group.flag,
+          buildDeterministicSetupDescription(complete),
+          { onboardingAttemptId, onboardingSource: 'note_write_recovery' }
+        );
+        traceOnboardingStep(traceBase, 'recover_ambiguous_write', 'succeeded', {
+          onboardingStage: 'note',
+          onboardingState: 'writing-note',
+          onboardingNextState: 'complete',
+          notebookNest: notesNest,
+        });
+        return;
+      }
+      if (deterministicResearchInFlight.has(nest)) {
+        traceOnboardingStep(traceBase, 'run_research_agent', 'deduplicated', {
+          onboardingStage: 'research',
+          notebookNest: notesNest,
+          reason: 'research_already_in_flight',
+        });
+        return;
+      }
+      deterministicResearchInFlight.add(nest);
+      const researchStatusStartedAt = Date.now();
+      try {
+        const recentPosts = await fetchChannelHistory(api, nest, 20, runtime, {
+          throwOnError: true,
+        });
+        const alreadyPosted = recentPosts.some(
+          (entry) =>
+            entry.author === botShipName &&
+            entry.content === RESEARCHING_NOTEBOOK_LINE
+        );
+        if (!alreadyPosted) {
+          await postToChannel(nest, RESEARCHING_NOTEBOOK_LINE);
+        }
+        traceOnboardingStep(
+          traceBase,
+          'post_researching_status',
+          alreadyPosted ? 'skipped' : 'succeeded',
+          {
+            onboardingStage: 'research',
+            onboardingState: deterministic.record.state,
+            notebookNest: notesNest,
+            durationMs: Date.now() - researchStatusStartedAt,
+            reason: alreadyPosted ? 'already_posted' : null,
+          }
+        );
+      } catch (error) {
+        traceOnboardingStep(
+          traceBase,
+          'post_researching_status',
+          'failed_nonblocking',
+          {
+            onboardingStage: 'research',
+            onboardingState: deterministic.record.state,
+            notebookNest: notesNest,
+            durationMs: Date.now() - researchStatusStartedAt,
+            ...onboardingErrorFields(error),
+          }
+        );
+      }
+      const researching: DeterministicSetup = {
+        ...deterministic,
+        record: {
+          ...deterministic.record,
+          state: 'researching',
+          notebookNest: notesNest,
+          noteBaseline: state.newestId,
+        },
+      };
+      try {
+        await writeAndVerifyOnboardingDescription(
+          nest,
+          group.flag,
+          buildDeterministicSetupDescription(researching),
+          { onboardingAttemptId, onboardingSource: 'reconciliation' }
+        );
+        traceOnboardingStep(
+          traceBase,
+          'persist_researching_state',
+          'succeeded',
+          {
+            onboardingStage: 'research',
+            onboardingState: deterministic.record.state,
+            onboardingNextState: 'researching',
+            notebookNest: notesNest,
+          }
+        );
+      } catch (error) {
+        deterministicResearchInFlight.delete(nest);
+        runtime.error?.(
+          `[tlon] Could not persist research state for ${nest}: ${String(error)}`
+        );
+        traceOnboardingStep(
+          traceBase,
+          'persist_researching_state',
+          'failed_retryable',
+          {
+            onboardingStage: 'research',
+            notebookNest: notesNest,
+            ...onboardingErrorFields(error),
+          }
+        );
+        return;
+      }
+
+      let writtenNoteId: string | null = null;
+      const commitResearchDraft = async ({
+        title,
+        markdown,
+      }: DeterministicResearchDraft): Promise<boolean> => {
+        const draftStartedAt = Date.now();
+        traceOnboardingStep(traceBase, 'receive_research_draft', 'started', {
+          onboardingStage: 'note',
+          onboardingState: 'researching',
+          notebookNest: notesNest,
+          draftTitleCharCount: title.length,
+          draftMarkdownCharCount: markdown.length,
+        });
+        const writing: DeterministicSetup = {
+          ...researching,
+          record: { ...researching.record, state: 'writing-note' },
+        };
+        try {
+          await writeAndVerifyOnboardingDescription(
+            nest,
+            group.flag,
+            buildDeterministicSetupDescription(writing),
+            { onboardingAttemptId, onboardingSource: 'research_output' }
+          );
+          if (!writtenNoteId) {
+            const directory = await mkdtemp(join(tmpdir(), 'tlon-onboarding-'));
+            try {
+              const markdownPath = join(directory, 'entry.md');
+              await writeFile(markdownPath, markdown, 'utf8');
+              const noteWriteStartedAt = Date.now();
+              traceOnboardingStep(traceBase, 'create_note', 'started', {
+                onboardingStage: 'note',
+                onboardingState: 'writing-note',
+                notebookNest: notesNest,
+                draftTitleCharCount: title.length,
+                draftMarkdownCharCount: markdown.length,
+              });
+              try {
+                await runOnboardingTlonCommand([
+                  'notes',
+                  'note-create',
+                  notesNest,
+                  'root',
+                  title,
+                  '--markdown',
+                  markdownPath,
+                ]);
+                const observed = await waitForNotebookEntryAfter(
+                  notesNest,
+                  writing.record.noteBaseline
+                );
+                if (!observed.readable) {
+                  throw observed.error;
+                }
+                if (
+                  observed.newestId === null ||
+                  observed.newestId === writing.record.noteBaseline
+                ) {
+                  throw new Error(
+                    'The created onboarding note was not visible in %notes'
+                  );
+                }
+                writtenNoteId = observed.newestId;
+                traceOnboardingStep(traceBase, 'create_note', 'succeeded', {
+                  onboardingStage: 'note',
+                  onboardingState: 'writing-note',
+                  notebookNest: notesNest,
+                  durationMs: Date.now() - noteWriteStartedAt,
+                });
+              } catch (error) {
+                traceOnboardingStep(
+                  traceBase,
+                  'create_note',
+                  'failed_ambiguous',
+                  {
+                    onboardingStage: 'note',
+                    onboardingState: 'writing-note',
+                    notebookNest: notesNest,
+                    durationMs: Date.now() - noteWriteStartedAt,
+                    ...onboardingErrorFields(error, [title, markdown]),
+                  }
+                );
+                throw error;
+              }
+            } finally {
+              await rm(directory, { recursive: true, force: true });
+            }
+          }
+          const complete: DeterministicSetup = {
+            ...writing,
+            record: {
+              ...writing.record,
+              state: 'complete',
+              notebookNest: notesNest,
+              noteId: writtenNoteId,
+            },
+          };
+          await writeAndVerifyOnboardingDescription(
+            nest,
+            group.flag,
+            buildDeterministicSetupDescription(complete),
+            { onboardingAttemptId, onboardingSource: 'research_output' }
+          );
+          traceOnboardingStep(traceBase, 'commit_research_draft', 'succeeded', {
+            onboardingStage: 'note',
+            onboardingState: 'researching',
+            onboardingNextState: 'complete',
+            notebookNest: notesNest,
+            durationMs: Date.now() - draftStartedAt,
+            draftTitleCharCount: title.length,
+            draftMarkdownCharCount: markdown.length,
+          });
+          return true;
+        } catch (error) {
+          runtime.error?.(
+            `[tlon] Failed to commit onboarding draft for ${nest}: ${String(error)}`
+          );
+          traceOnboardingStep(
+            traceBase,
+            'commit_research_draft',
+            'failed_ambiguous',
+            {
+              onboardingStage: 'note',
+              onboardingState: 'writing-note',
+              notebookNest: notesNest,
+              durationMs: Date.now() - draftStartedAt,
+              draftTitleCharCount: title.length,
+              draftMarkdownCharCount: markdown.length,
+              ...onboardingErrorFields(error, [title, markdown]),
+            }
+          );
+          // A timed-out note poke often landed. Read the owner notebook
+          // before asking for a retry, or an ambiguous timeout becomes a
+          // duplicate entry. If a post appeared after our recorded
+          // baseline, commit that durable evidence and finish.
+          const observed = await waitForNotebookEntryAfter(
+            notesNest,
+            writing.record.noteBaseline
+          );
+          if (!observed.readable) {
+            traceOnboardingStep(
+              traceBase,
+              'verify_ambiguous_write',
+              'failed_retryable',
+              {
+                onboardingStage: 'note',
+                onboardingState: 'writing-note',
+                notebookNest: notesNest,
+                ...onboardingErrorFields(observed.error, [title, markdown]),
+              }
+            );
+          }
+          if (
+            observed.readable &&
+            observed.newestId !== null &&
+            observed.newestId !== writing.record.noteBaseline
+          ) {
+            try {
+              await writeAndVerifyOnboardingDescription(
+                nest,
+                group.flag,
+                buildDeterministicSetupDescription({
+                  ...writing,
+                  record: {
+                    ...writing.record,
+                    state: 'complete',
+                    notebookNest: notesNest,
+                    noteId: observed.newestId,
+                  },
+                }),
+                {
+                  onboardingAttemptId,
+                  onboardingSource: 'note_write_recovery',
+                }
+              );
+              traceOnboardingStep(
+                traceBase,
+                'recover_ambiguous_write',
+                'succeeded',
+                {
+                  onboardingStage: 'note',
+                  onboardingState: 'writing-note',
+                  onboardingNextState: 'complete',
+                  notebookNest: notesNest,
+                  durationMs: Date.now() - draftStartedAt,
+                }
+              );
+              return true;
+            } catch (recoveryError) {
+              runtime.error?.(
+                `[tlon] Could not record recovered note for ${nest}: ${String(recoveryError)}`
+              );
+              traceOnboardingStep(
+                traceBase,
+                'recover_ambiguous_write',
+                'failed',
+                {
+                  onboardingStage: 'note',
+                  onboardingState: 'writing-note',
+                  notebookNest: notesNest,
+                  ...onboardingErrorFields(recoveryError, [title, markdown]),
+                }
+              );
+            }
+          }
+          return false;
+        }
+      };
+      try {
+        const draft = await runResearchDirective(
+          nest,
+          renderDeterministicResearchDirective({
+            nest,
+            purposeId: deterministic.purposeId,
+            purpose: deterministic.purpose,
+            topics: deterministic.topics,
+          })
+        );
+        if (!draft) {
+          traceOnboardingStep(traceBase, 'run_directive', 'failed_retryable', {
+            onboardingStage: 'research',
+            onboardingState: 'researching',
+            notebookNest: notesNest,
+            reason: 'agent_run_or_output_failed',
+          });
+          return;
+        }
+        traceOnboardingStep(traceBase, 'run_directive', 'succeeded', {
+          onboardingStage: 'research',
+          onboardingState: 'researching',
+          notebookNest: notesNest,
+          durationMs: Date.now() - reconcileStartedAt,
+        });
+        await commitResearchDraft(draft);
+      } finally {
+        deterministicResearchInFlight.delete(nest);
+      }
+      return;
+    };
+
+    /**
+     * One closing per channel at a time.
+     *
+     * The check decides what to post by reading the transcript, so two
+     * overlapping runs both see no invite card and both post one. That was
+     * reachable: the restart path fires its closing without awaiting it,
+     * and the sweep and the end of an ordinary turn can call in on top of
+     * that. Sharing the run makes the later callers wait for the first
+     * rather than race it.
+     */
+    const closingInFlight = new Map<string, Promise<void>>();
+    const postInviteCardIfSetupComplete = (nest: string): Promise<void> => {
+      const inFlight = closingInFlight.get(nest);
+      if (inFlight) {
+        return inFlight;
+      }
+      const run = runInviteCardIfSetupComplete(nest).finally(() => {
+        closingInFlight.delete(nest);
+      });
+      closingInFlight.set(nest, run);
+      return run;
+    };
+    const runInviteCardIfSetupComplete = async (
+      nest: string
+    ): Promise<void> => {
+      // `onboardingInvitePending` is the cheap in-memory record of the debt;
+      // the transcript scan below recovers it after a restart, and
+      // `inviteSettled` keeps the work to once per channel per process.
+      if (!onboardingInvitePending.has(nest) && inviteSettled.has(nest)) {
+        return;
+      }
+      const onboardingAttemptId = randomUUID();
+      const closingStartedAt = Date.now();
+      const traceBase = {
+        nest,
+        onboardingAttemptId,
+        onboardingSource: 'closing_reconciliation',
+        onboardingStage: 'closing',
+      };
+      traceOnboardingStep(traceBase, 'close_setup', 'started');
+      try {
+        const group = await findGroupForChannel(api, nest, runtime);
+        if (!group) {
+          traceOnboardingStep(traceBase, 'resolve_group', 'failed_retryable', {
+            reason: 'group_unreadable',
+          });
+          return;
+        }
+        if (!descriptionHasConfiguredJob(group.description)) {
+          traceOnboardingStep(traceBase, 'read_group_config', 'waiting', {
+            groupFlag: group.flag,
+            reason: 'configured_job_not_present',
+          });
+          return;
+        }
+        // Recover the debt before reconciliation, since the in-memory set is
+        // empty after a restart. The transcript tells us whether this bot
+        // opened the flow. Live setups skip this scan entirely.
+        if (!onboardingInvitePending.has(nest) && !inviteSettled.has(nest)) {
+          const priorHistory = await fetchChannelHistory(
+            api,
+            nest,
+            100,
+            runtime,
+            { throwOnError: true }
+          );
+          const openedHere = priorHistory.some(
+            (entry) =>
+              entry.author === botShipName &&
+              (entry.content.startsWith(PURPOSE_PICKER_PROMPT) ||
+                entry.content.startsWith(TOPICS_PICKER_PROMPT))
+          );
+          if (!openedHere) {
+            // A configured group this bot never opened — someone else's
+            // setup, or one that predates the flow. Nothing is owed.
+            inviteSettled.add(nest);
+            return;
+          }
+          onboardingInvitePending.add(nest);
+        }
+        const deterministic = deterministicSetupFromDescription(
+          group.description
+        );
+        const completionBlocker = deterministic
+          ? onboardingCompletionSequenceBlocker(deterministic)
+          : null;
+        if (completionBlocker) {
+          traceOnboardingStep(traceBase, 'close_setup', 'waiting', {
+            groupFlag: group.flag,
+            onboardingState: deterministic?.record.state ?? null,
+            reason: completionBlocker,
+          });
+          if (deterministic?.record.state !== 'complete') {
+            await reconcileDeterministicSetup(nest, group);
+          }
+          return;
+        }
+        // 100 posts bounds the recovery window: a setup conversation runs a
+        // couple dozen posts, so the opening picker is comfortably inside
+        // it, while an unbounded backscan would re-read every legacy
+        // configured channel's full history once per process. A restart
+        // after a setup that somehow ran past this window reads as
+        // pre-existing and settles without the closing — accepted, since it
+        // stacks two rarities (restart mid-setup, and a transcript four
+        // times longer than any observed).
+        const history = await fetchChannelHistory(api, nest, 100, runtime, {
+          throwOnError: true,
+        });
+        const botPosted = (needle: string) =>
+          history.some(
+            (entry) =>
+              entry.author === botShipName && entry.content.startsWith(needle)
+          );
+        if (!onboardingInvitePending.has(nest)) {
+          // The opening picker marks every onboarding, including the
+          // freeform path that never sees the topic pills — a freeform
+          // setup owes its closing too. Pre-existing configured groups
+          // never had a picker posted, so they can't match.
+          if (
+            !botPosted(PURPOSE_PICKER_PROMPT) &&
+            !botPosted(TOPICS_PICKER_PROMPT)
+          ) {
+            inviteSettled.add(nest);
+            return;
+          }
+        }
+        if (!botPosted(ONBOARDING_COMPLETE_LINE)) {
+          await postToChannel(nest, ONBOARDING_COMPLETE_LINE);
+          traceOnboardingStep(
+            traceBase,
+            'post_completion_status',
+            'succeeded',
+            {
+              groupFlag: group.flag,
+            }
+          );
+        }
+        // Matched on the shared leads: each card's *story* is its standalone
+        // fallback text, which starts with the same sentence as the blob's
+        // prompt. The invite fallback is posted even when the resolved
+        // @tloncorp/api predates the invite-link control and no blob can be
+        // built — the text stands alone, telling the owner to invite from
+        // the group's info screen.
+        if (!INVITE_CARD_LEADS.some(botPosted)) {
+          const blob = buildInviteCardBlob(nest, group.flag);
+          await postToChannel(
+            nest,
+            inviteCardFallbackText(),
+            blob ? { blob: serializeBlobField(blob) } : {}
+          );
+          traceOnboardingStep(traceBase, 'post_invite_card', 'succeeded', {
+            groupFlag: group.flag,
+          });
+        }
+        // Initial onboarding only: the account's first setup gets the
+        // connected-services tour. A user creating their third agent group
+        // already knows — and may already have services connected. The home
+        // group is that first setup on hosted accounts (free to check, so it
+        // goes first); everywhere else the question is whether any other
+        // group is already configured. Posted as plain text when the card
+        // can't be built; the fallback names the settings path in words.
+        if (!botPosted(SERVICES_CARD_LEAD)) {
+          const isHomeGroup = isHomeGroupFlag(group.flag, effectiveOwnerShip);
+          const isFirstSetup = isHomeGroup
+            ? true
+            : await isFirstConfiguredSetup(api, runtime, group.flag);
+          if (isFirstSetup === null) {
+            // Inconclusive scry: guessing "not the first" would settle the
+            // channel below and permanently skip the tour for a genuine
+            // first setup. Leave the closing unfinished — everything already
+            // posted is skipped by the transcript checks on the retry.
+            runtime.log?.(
+              `[tlon] Could not classify the setup in ${nest} — retrying its closing next turn`
+            );
+            return;
+          }
+          if (isFirstSetup) {
+            const servicesBlob = buildServicesCardBlob(nest);
+            await postToChannel(
+              nest,
+              servicesCardFallbackText(),
+              servicesBlob ? { blob: serializeBlobField(servicesBlob) } : {}
+            );
+            traceOnboardingStep(traceBase, 'post_services_card', 'succeeded', {
+              groupFlag: group.flag,
+            });
+          }
+        }
+        // Hands the conversation back, after the cards so it can't land
+        // before them. Posted even when the invite card couldn't be built:
+        // on a client that can't render the invite slot, this is the whole
+        // ending.
+        if (!botPosted(INVITE_FOLLOWUP_MESSAGE)) {
+          await postToChannel(nest, INVITE_FOLLOWUP_MESSAGE);
+          traceOnboardingStep(traceBase, 'post_followup', 'succeeded', {
+            groupFlag: group.flag,
+          });
+        }
+        onboardingInvitePending.delete(nest);
+        inviteSettled.add(nest);
+        traceOnboardingStep(traceBase, 'close_setup', 'succeeded', {
+          groupFlag: group.flag,
+          onboardingState: 'complete',
+          durationMs: Date.now() - closingStartedAt,
+        });
+      } catch (error) {
+        runtime.error?.(
+          `[tlon] Failed to close the setup in ${nest}: ${String(error)}`
+        );
+        traceOnboardingStep(traceBase, 'close_setup', 'failed_retryable', {
+          durationMs: Date.now() - closingStartedAt,
+          ...onboardingErrorFields(error),
+        });
+      }
+    };
+
+    /**
+     * Channels whose transcript has been scanned to rebuild the in-memory
+     * onboarding state. Once per process: the scan only exists to survive
+     * restarts — live state is kept by the handlers as it changes.
+     */
+    const onboardingRecoveryChecked = new Set<string>();
+
+    /**
+     * Restart recovery: the offered/pending records above are in-memory, so
+     * a process restart between posting a picker and the owner's reply loses
+     * them — and, left alone, the offer block would re-post the opening on
+     * top of the answered picker, while the owner-listen gate would drop the
+     * very reply the pills are waiting for. The transcript survives
+     * restarts; rebuild the state from it.
+     *
+     * `currentMessageText` is the owner message being handled right now,
+     * passed so the scan can exclude it — the reply in hand must not count
+     * as its own evidence. `knownGroup` skips the group lookup when the
+     * caller already has one.
+     *
+     * Returns `'inconclusive'` when a transient scry failure prevented the
+     * scan from deciding anything. Callers must not act as if nothing was
+     * offered — offering again over an unread transcript would stack a
+     * second picker on the answered one and swallow the reply in hand.
+     * Retried on the next message; the checked-set isn't burned.
+     */
+    const recoverOnboardingState = async (
+      nest: string,
+      senderShip: string,
+      currentMessageText: string,
+      knownGroup?: {
+        flag: string;
+        host: string;
+        description: string | null;
+      } | null
+    ): Promise<'ok' | 'inconclusive'> => {
+      if (
+        onboardingRecoveryChecked.has(nest) ||
+        onboardingSetupPending.has(nest) ||
+        onboardingTimezonePending.has(nest)
+      ) {
+        return 'ok';
+      }
+      const onboardingAttemptId = randomUUID();
+      const recoveryStartedAt = Date.now();
+      const traceBase = {
+        nest,
+        onboardingAttemptId,
+        onboardingSource: 'restart_recovery',
+        onboardingStage: 'recovery',
+      };
+      traceOnboardingStep(traceBase, 'recover_state', 'started');
+      const group =
+        knownGroup ?? (await findGroupForChannel(api, nest, runtime));
+      if (!group) {
+        // Null is also what a transient groups-scry failure looks like.
+        traceOnboardingStep(traceBase, 'resolve_group', 'inconclusive', {
+          reason: 'group_unreadable',
+        });
+        return 'inconclusive';
+      }
+      if (group.host !== effectiveOwnerShip) {
+        onboardingRecoveryChecked.add(nest);
+        return 'ok';
+      }
+      const deterministic = deterministicSetupFromDescription(
+        group.description
+      );
+      if (deterministic?.record.state === 'awaiting-topics') {
+        onboardingSetupPending.set(nest, {
+          purposeId: deterministic.purposeId,
+          purpose: deterministic.purpose,
+        });
+        onboardingPickerOffered.add(nest);
+        onboardingTopicsOffered.add(nest);
+        onboardingRecoveryChecked.add(nest);
+        traceOnboardingStep(traceBase, 'recover_state', 'recovered', {
+          groupFlag: group.flag,
+          purposeId: deterministic.purposeId,
+          onboardingState: 'awaiting-topics',
+          durationMs: Date.now() - recoveryStartedAt,
+        });
+        return 'ok';
+      }
+      if (deterministic?.record.state === 'awaiting-timezone') {
+        onboardingTimezonePending.set(nest, {
+          purposeId: deterministic.purposeId,
+          purpose: deterministic.purpose,
+          topics: deterministic.topics,
+          groupFlag: group.flag,
+        });
+        onboardingPickerOffered.add(nest);
+        onboardingTopicsOffered.add(nest);
+        onboardingRecoveryChecked.add(nest);
+        traceOnboardingStep(traceBase, 'recover_state', 'recovered', {
+          groupFlag: group.flag,
+          purposeId: deterministic.purposeId,
+          timezone: deterministic.timezone || null,
+          topicsCharCount: deterministic.topics.length,
+          onboardingState: 'awaiting-timezone',
+          durationMs: Date.now() - recoveryStartedAt,
+        });
+        return 'ok';
+      }
+      if (descriptionHasConfiguredJob(group.description)) {
+        // A restart after the job was written but before the closing
+        // posted would otherwise strand the owed invite/services cards
+        // behind the owner-listen drop below — the closing normally runs
+        // at the end of an engaged turn, and a muted channel never has
+        // one. The check is idempotent and settles itself.
+        void postInviteCardIfSetupComplete(nest);
+        onboardingRecoveryChecked.add(nest);
+        return 'ok';
+      }
+      // Deliberately NOT the has-any-setup predicate: a purpose-only config
+      // is a setup that wrote its intent and then stopped — likely mid-build
+      // with a follow-up question pending — and its transcript still needs
+      // the scan below so the owner's answer is heard.
+      let recentPosts;
+      try {
+        // An unreadable transcript is not an empty one: deciding "nothing
+        // was offered" from a failed scry would burn the once-per-process
+        // scan on bad data.
+        recentPosts = await fetchChannelHistory(api, nest, 20, runtime, {
+          throwOnError: true,
+        });
+      } catch (error) {
+        runtime.log?.(
+          `[tlon] Onboarding recovery scan for ${nest} failed: ${String(error)}`
+        );
+        traceOnboardingStep(traceBase, 'read_history', 'inconclusive', {
+          groupFlag: group.flag,
+          durationMs: Date.now() - recoveryStartedAt,
+          ...onboardingErrorFields(error),
+        });
+        return 'inconclusive';
+      }
+      onboardingRecoveryChecked.add(nest);
+      // A picker that survives in the transcript was already offered:
+      // without remembering that, a restart followed by a freeform reply
+      // (not a card title) would re-post the opening over the answered
+      // picker and swallow the actual request.
+      if (
+        recentPosts.some(
+          (entry) =>
+            entry.author === botShipName &&
+            entry.content.startsWith(PURPOSE_PICKER_PROMPT)
+        )
+      ) {
+        onboardingPickerOffered.add(nest);
+      }
+      const recoveredPurpose = derivePendingPurposeFromHistory(
+        recentPosts,
+        botShipName,
+        normalizeShip(senderShip),
+        currentMessageText
+      );
+      if (recoveredPurpose) {
+        runtime.log?.(
+          `[tlon] Recovered pending onboarding purpose '${recoveredPurpose.purposeId}' for ${nest} from history`
+        );
+        onboardingSetupPending.set(nest, recoveredPurpose);
+        onboardingPickerOffered.add(nest);
+        onboardingTopicsOffered.add(nest);
+        traceOnboardingStep(traceBase, 'recover_state', 'recovered', {
+          groupFlag: group.flag,
+          purposeId: recoveredPurpose.purposeId,
+          onboardingState: 'awaiting-topics',
+          historyPostCount: recentPosts.length,
+          durationMs: Date.now() - recoveryStartedAt,
+          reason: 'derived_from_transcript',
+        });
+        return 'ok';
+      }
+      traceOnboardingStep(traceBase, 'recover_state', 'succeeded', {
+        groupFlag: group.flag,
+        historyPostCount: recentPosts.length,
+        durationMs: Date.now() - recoveryStartedAt,
+        reason: 'no_pending_state_found',
+      });
+      return 'ok';
+    };
+
+    /**
+     * A newly created group the owner hosts: the agent opens the
+     * conversation itself, so the client never has to post an opening line
+     * on the user's behalf. The channel lands moments after the join ack,
+     * so poll for it (bounded); every other case — established group,
+     * unreadable state — stays silent and lets the message-driven offer
+     * handle it.
+     *
+     * Called from three triggers, all funneled through the same guards:
+     * accepting an owner's group invite, the periodic sweep over groups
+     * awaiting an opening, and groups-ui discovery of the hosted home group
+     * — whose moon is force-joined by provisioning and so never produces
+     * the invite event the first trigger needs.
+     *
+     * The verdict tells the sweep whether to come back: 'retry' means the
+     * refusal was transient (channel not visible yet, probe unanswered,
+     * post failed), everything else is a fact about the group that
+     * re-checking won't change. Concurrent calls for the same flag share
+     * one run — the triggers overlap by design, and racing them past the
+     * guards would double-post the opening.
+     */
+    /**
+     * Post the topic pills and arm the pending setup, shared by the live
+     * tap handler and the sweep's missed-tap recovery. The visible picker is
+     * posted before its state write: if the post fails there is no pending
+     * reply to consume; if only the state write fails, the transcript still
+     * provides restart recovery for the picker the owner actually saw.
+     */
+    const postTopicsPickerOffer = async (
+      nest: string,
+      selection: OnboardingPurposeSelection
+    ): Promise<boolean> => {
+      const { purposeId, purpose } = selection;
+      const onboardingAttemptId = randomUUID();
+      const startedAt = Date.now();
+      const traceBase = {
+        nest,
+        purposeId,
+        onboardingAttemptId,
+        onboardingSource: 'purpose_reply',
+        onboardingStage: 'topics',
+      };
+      traceOnboardingStep(traceBase, 'offer_topics', 'started', {
+        onboardingState: 'awaiting-topics',
+      });
+      onboardingTopicsOffered.add(nest);
+      onboardingSetupPending.set(nest, selection);
+      try {
+        const lookupStartedAt = Date.now();
+        const group = await findGroupForChannel(api, nest, runtime);
+        if (!group) {
+          throw new Error('The onboarding group is not readable');
+        }
+        traceOnboardingStep(traceBase, 'resolve_group', 'succeeded', {
+          groupFlag: group.flag,
+          durationMs: Date.now() - lookupStartedAt,
+        });
+        const topicsBlob = buildTopicsPickerBlob(nest, purposeId);
+        const postStartedAt = Date.now();
+        await postToChannel(nest, topicsPickerFallbackText(purposeId), {
+          ...(topicsBlob ? { blob: serializeBlobField(topicsBlob) } : {}),
+        });
+        traceOnboardingStep(traceBase, 'post_picker', 'succeeded', {
+          groupFlag: group.flag,
+          durationMs: Date.now() - postStartedAt,
+        });
+        try {
+          const adminStartedAt = Date.now();
+          const adminSeatReady = await waitForOnboardingAdminSeat(group.flag);
+          traceOnboardingStep(
+            traceBase,
+            'wait_for_admin_seat',
+            adminSeatReady ? 'succeeded' : 'timed_out',
+            {
+              groupFlag: group.flag,
+              durationMs: Date.now() - adminStartedAt,
+              reason: adminSeatReady ? null : 'admin_seat_not_observed',
+            }
+          );
+          const latest = await findGroupForChannel(api, nest, runtime);
+          if (!latest) {
+            throw new Error('Could not re-read the group before state write');
+          }
+          const latestSetup = deterministicSetupFromDescription(
+            latest.description
+          );
+          if (latestSetup && latestSetup.record.state !== 'awaiting-topics') {
+            // The owner answered while the admin seat was still settling;
+            // never overwrite the newer transition with this late write.
+            return true;
+          }
+          await writeAndVerifyOnboardingDescription(
+            nest,
+            group.flag,
+            buildAwaitingTopicsDescription({
+              purposeId,
+              purpose,
+              agentShip: botShipName,
+            }),
+            { onboardingAttemptId, onboardingSource: 'purpose_reply' }
+          );
+        } catch (error) {
+          // The picker itself is durable and recovery can derive this state
+          // from the transcript, so do not retract the live pending record.
+          runtime.error?.(
+            `[tlon] Topics picker posted but its state write failed in ${nest}: ${String(error)}`
+          );
+          traceOnboardingStep(
+            traceBase,
+            'persist_awaiting_topics',
+            'failed_recoverable',
+            {
+              groupFlag: group.flag,
+              onboardingState: 'awaiting-topics',
+              ...onboardingErrorFields(error),
+            }
+          );
+        }
+        traceOnboardingStep(traceBase, 'offer_topics', 'succeeded', {
+          groupFlag: group.flag,
+          onboardingState: 'awaiting-topics',
+          durationMs: Date.now() - startedAt,
+        });
+        return true;
+      } catch (error) {
+        onboardingTopicsOffered.delete(nest);
+        onboardingSetupPending.delete(nest);
+        runtime.error?.(
+          `[tlon] Failed to post topics picker in ${nest}: ${String(error)}`
+        );
+        traceOnboardingStep(traceBase, 'offer_topics', 'failed', {
+          durationMs: Date.now() - startedAt,
+          ...onboardingErrorFields(error),
+        });
+        return false;
+      }
+    };
+
+    const beginDeterministicSetup = (
+      nest: string,
+      params: {
+        groupFlag: string;
+        purposeId: string;
+        purpose?: string;
+        topics: string;
+        timezone: string;
+      }
+    ): Promise<void> => {
+      const existing = deterministicSetupInFlight.get(nest);
+      if (existing) {
+        traceOnboarding({
+          nest,
+          groupFlag: params.groupFlag,
+          purposeId: params.purposeId,
+          timezone: params.timezone,
+          topicsCharCount: params.topics.length,
+          onboardingStage: 'schedule',
+          onboardingOperation: 'begin_setup',
+          onboardingOutcome: 'deduplicated',
+          onboardingSource: 'timezone_reply',
+          reason: 'setup_already_in_flight',
+        });
+        return existing;
+      }
+      const onboardingAttemptId = randomUUID();
+      const setupStartedAt = Date.now();
+      const run = (async () => {
+        const traceBase = {
+          nest,
+          groupFlag: params.groupFlag,
+          purposeId: params.purposeId,
+          timezone: params.timezone,
+          topicsCharCount: params.topics.length,
+          onboardingAttemptId,
+          onboardingSource: 'timezone_reply',
+        };
+        traceOnboardingStep(traceBase, 'begin_setup', 'started', {
+          onboardingStage: 'schedule',
+          onboardingState: 'awaiting-timezone',
+          onboardingNextState: 'awaiting-notebook',
+        });
+        const statusPostStartedAt = Date.now();
+        try {
+          await postToChannel(nest, 'Scheduling your daily job…');
+          traceOnboardingStep(
+            traceBase,
+            'post_scheduling_status',
+            'succeeded',
+            {
+              onboardingStage: 'schedule',
+              durationMs: Date.now() - statusPostStartedAt,
+            }
+          );
+        } catch (error) {
+          traceOnboardingStep(
+            traceBase,
+            'post_scheduling_status',
+            'failed_nonblocking',
+            {
+              onboardingStage: 'schedule',
+              durationMs: Date.now() - statusPostStartedAt,
+              ...onboardingErrorFields(error),
+            }
+          );
+        }
+        const cronStartedAt = Date.now();
+        traceOnboardingStep(traceBase, 'ensure_cron_job', 'started', {
+          onboardingStage: 'schedule',
+        });
+        let cronJobId: string;
+        try {
+          cronJobId = await ensureDeterministicCronJob({
+            nest,
+            purposeId: params.purposeId,
+            purpose: params.purpose,
+            topics: params.topics,
+            timezone: params.timezone,
+            trace: (event) =>
+              traceOnboardingStep(
+                traceBase,
+                `cron_${event.operation}`,
+                event.outcome,
+                {
+                  onboardingStage: 'schedule',
+                  retryAttempt: event.attempt ?? null,
+                  retryDelayMs: event.retryDelayMs ?? null,
+                  durationMs: event.durationMs ?? null,
+                  cronJobId: event.cronJobId ?? null,
+                  totalCronJobCount: event.totalCronJobCount ?? null,
+                  ...(event.error
+                    ? onboardingErrorFields(event.error, [params.topics])
+                    : {}),
+                }
+              ),
+          });
+          traceOnboardingStep(traceBase, 'ensure_cron_job', 'succeeded', {
+            onboardingStage: 'schedule',
+            cronJobId,
+            durationMs: Date.now() - cronStartedAt,
+          });
+        } catch (error) {
+          traceOnboardingStep(traceBase, 'ensure_cron_job', 'failed', {
+            onboardingStage: 'schedule',
+            durationMs: Date.now() - cronStartedAt,
+            ...onboardingErrorFields(error, [params.topics]),
+          });
+          throw error;
+        }
+        const setup: DeterministicSetup = {
+          purposeId: params.purposeId,
+          purpose: params.purpose,
+          topics: params.topics,
+          timezone: params.timezone,
+          agentShip: botShipName,
+          record: {
+            state: 'awaiting-notebook',
+            topics: params.topics,
+            timezone: params.timezone,
+            cronJobId,
+          },
+        };
+        await writeAndVerifyOnboardingDescription(
+          nest,
+          params.groupFlag,
+          buildDeterministicSetupDescription(setup),
+          { onboardingAttemptId, onboardingSource: 'timezone_reply' }
+        );
+        onboardingInvitePending.add(nest);
+        const waitingPostStartedAt = Date.now();
+        try {
+          await postToChannel(nest, WAITING_FOR_NOTEBOOK_LINE);
+          traceOnboardingStep(traceBase, 'post_waiting_status', 'succeeded', {
+            onboardingStage: 'notebook',
+            onboardingState: 'awaiting-notebook',
+            cronJobId,
+            durationMs: Date.now() - waitingPostStartedAt,
+          });
+        } catch (error) {
+          traceOnboardingStep(
+            traceBase,
+            'post_waiting_status',
+            'failed_nonblocking',
+            {
+              onboardingStage: 'notebook',
+              onboardingState: 'awaiting-notebook',
+              cronJobId,
+              durationMs: Date.now() - waitingPostStartedAt,
+              ...onboardingErrorFields(error),
+            }
+          );
+        }
+        traceOnboardingStep(traceBase, 'begin_setup', 'succeeded', {
+          onboardingStage: 'schedule',
+          onboardingState: 'awaiting-timezone',
+          onboardingNextState: 'awaiting-notebook',
+          cronJobId,
+          durationMs: Date.now() - setupStartedAt,
+        });
+      })().finally(() => {
+        deterministicSetupInFlight.delete(nest);
+      });
+      deterministicSetupInFlight.set(nest, run);
+      return run;
+    };
+
+    const onboardingOffersInFlight = new Map<
+      string,
+      Promise<'opened' | 'settled' | 'retry'>
+    >();
+    const offerOnboardingInNewOwnerGroup = (
+      groupFlag: string
+    ): Promise<'opened' | 'settled' | 'retry'> => {
+      const inFlight = onboardingOffersInFlight.get(groupFlag);
+      if (inFlight) {
+        return inFlight;
+      }
+      const run = runOnboardingOffer(groupFlag).finally(() => {
+        onboardingOffersInFlight.delete(groupFlag);
+      });
+      onboardingOffersInFlight.set(groupFlag, run);
+      return run;
+    };
+    const runOnboardingOffer = async (
+      groupFlag: string
+    ): Promise<'opened' | 'settled' | 'retry'> => {
+      try {
+        const deadline = Date.now() + 45_000;
+        let info: Awaited<ReturnType<typeof findChatNestForGroup>> = null;
+        while (Date.now() < deadline && !opts.abortSignal?.aborted) {
+          info = await findChatNestForGroup(api, groupFlag, runtime);
+          if (info) {
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+        if (!info) {
+          runtime.log?.(
+            `[tlon] Joined ${groupFlag} but never saw its chat channel — skipping onboarding offer`
+          );
+          return 'retry';
+        }
+        // The newness probe races %channels: right after the join ack the
+        // posts scry can still fail, and a null answer is fail-closed —
+        // which would silently skip the offer for a group that *is* new.
+        // Poll until the probe answers, on the same deadline.
+        let isNew: boolean | null = null;
+        while (Date.now() < deadline && !opts.abortSignal?.aborted) {
+          isNew = await channelHasNoPosts(api, info.nest, runtime);
+          if (isNew !== null) {
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+        // The home group gets a softer probe: provisioning historically
+        // posted a legacy welcome into it *as the bot*, and a message can't
+        // be unsent — the strict empty-channel line would permanently block
+        // the opening for every already-provisioned account. Bot-authored
+        // posts alone don't make it a conversation; anyone else speaking
+        // (or an opening already present) still keeps this out. Unreadable
+        // history reads as blocked — another trigger retries.
+        let channelOpenable = isNew;
+        let probeUnreadable = false;
+        let probeHistory: Awaited<
+          ReturnType<typeof fetchChannelHistory>
+        > | null = null;
+        if (
+          channelOpenable === false &&
+          effectiveOwnerShip &&
+          isHomeGroupFlag(groupFlag, effectiveOwnerShip)
+        ) {
+          try {
+            probeHistory = await fetchChannelHistory(
+              api,
+              info.nest,
+              20,
+              runtime,
+              { throwOnError: true }
+            );
+            channelOpenable = homeGroupAwaitingOpening(
+              probeHistory,
+              botShipName
+            );
+          } catch (error) {
+            runtime.log?.(
+              `[tlon] Could not read the home group transcript for ${groupFlag}: ${String(error)}`
+            );
+            channelOpenable = false;
+            probeUnreadable = true;
+          }
+        }
+        // A tap that landed while the gateway was restarting leaves the
+        // picker answered with no pills after it — no message event will
+        // ever answer it, so the sweep does. Only while this process knows
+        // of no live onboarding in the channel: pills it already offered
+        // (or a setup in flight) mean the message path owns it.
+        if (
+          channelOpenable === false &&
+          !probeUnreadable &&
+          effectiveOwnerShip &&
+          !onboardingTopicsOffered.has(info.nest) &&
+          !onboardingSetupPending.has(info.nest) &&
+          !onboardingInvitePending.has(info.nest)
+        ) {
+          try {
+            const history =
+              probeHistory ??
+              (await fetchChannelHistory(api, info.nest, 20, runtime, {
+                throwOnError: true,
+              }));
+            const pendingPurpose = pendingTopicsOfferFromHistory(
+              history,
+              botShipName,
+              effectiveOwnerShip
+            );
+            if (pendingPurpose) {
+              onboardingPickerOffered.add(info.nest);
+              runtime.log?.(
+                `[tlon] Re-offering the topics picker in ${info.nest}: a purpose tap was never answered`
+              );
+              return (await postTopicsPickerOffer(info.nest, pendingPurpose))
+                ? 'opened'
+                : 'retry';
+            }
+            // The opening posts two messages, and only the second is
+            // tappable. When the intro lands and the picker throws, the
+            // channel stops being empty — so the "new group" gate below
+            // never fires again and the owner is left with a greeting and
+            // no way to answer it. Reposting is safe: the opening skips an
+            // intro it can already see.
+            const introPosted = history.some(
+              (entry) =>
+                entry.author === botShipName &&
+                entry.content.startsWith(GROUP_INTRO_MESSAGE)
+            );
+            const pickerPosted = history.some(
+              (entry) =>
+                entry.author === botShipName &&
+                entry.content.startsWith(PURPOSE_PICKER_PROMPT)
+            );
+            if (introPosted && !pickerPosted) {
+              runtime.log?.(
+                `[tlon] Re-posting the purpose picker in ${info.nest}: the opening left an intro with no picker`
+              );
+              try {
+                await postOnboardingOpening(info.nest);
+                onboardingPickerOffered.add(info.nest);
+                return 'opened';
+              } catch (error) {
+                runtime.error?.(
+                  `[tlon] Failed to re-post the purpose picker in ${info.nest}: ${String(error)}`
+                );
+                return 'retry';
+              }
+            }
+          } catch (error) {
+            runtime.log?.(
+              `[tlon] Could not scan ${info.nest} for a pending topics offer: ${String(error)}`
+            );
+            return 'retry';
+          }
+        }
+        const shouldOffer = shouldOfferPickerOnJoin({
+          groupHostIsOwner: info.host === effectiveOwnerShip,
+          groupDescription: info.description,
+          channelHasNoPosts: channelOpenable,
+          groupHasSingleChannel: info.channelCount <= 1,
+          alreadyOffered: onboardingPickerOffered.has(info.nest),
+        });
+        if (!shouldOffer) {
+          runtime.log?.(
+            `[tlon] No onboarding offer for ${groupFlag}: hostIsOwner=${info.host === effectiveOwnerShip}, channelHasNoPosts=${isNew}, alreadyOffered=${onboardingPickerOffered.has(info.nest)}`
+          );
+          if (channelOpenable === null || probeUnreadable) {
+            traceOnboarding({
+              nest: info.nest,
+              groupFlag,
+              onboardingStage: 'opening',
+              onboardingOperation: 'evaluate_offer',
+              onboardingOutcome: 'inconclusive',
+              onboardingSource: 'opening_sweep',
+              reason: probeUnreadable
+                ? 'home_group_history_unreadable'
+                : 'newness_probe_unanswered',
+            });
+            return 'retry';
+          }
+          // 'settled' means nothing more is owed here. An opened group
+          // whose setup hasn't written a job yet is still owed the topics
+          // recovery above, so it reports as opened and keeps its place in
+          // the sweep until the config lands (which drops it from the
+          // candidate list on its own).
+          const verdict = descriptionHasConfiguredJob(info.description)
+            ? 'settled'
+            : 'opened';
+          traceOnboarding({
+            nest: info.nest,
+            groupFlag,
+            onboardingStage: 'opening',
+            onboardingOperation: 'evaluate_offer',
+            onboardingOutcome: 'skipped',
+            onboardingSource: 'opening_sweep',
+            reason: verdict,
+          });
+          return verdict;
+        }
+        onboardingPickerOffered.add(info.nest);
+        runtime.log?.(
+          `[tlon] Opening new group ${groupFlag} with the purpose picker`
+        );
+        try {
+          await postOnboardingOpening(info.nest);
+        } catch (error) {
+          onboardingPickerOffered.delete(info.nest);
+          runtime.error?.(
+            `[tlon] Failed to open ${groupFlag} with purpose picker: ${String(error)}`
+          );
+          traceOnboarding({
+            nest: info.nest,
+            groupFlag,
+            onboardingStage: 'opening',
+            onboardingOperation: 'post_opening',
+            onboardingOutcome: 'failed_retryable',
+            onboardingSource: 'opening_sweep',
+            ...onboardingErrorFields(error),
+          });
+          return 'retry';
+        }
+        return 'opened';
+      } catch (error) {
+        runtime.error?.(
+          `[tlon] Onboarding offer for ${groupFlag} failed: ${String(error)}`
+        );
+        traceOnboarding({
+          nest: `unknown:${groupFlag}`,
+          groupFlag,
+          onboardingStage: 'opening',
+          onboardingOperation: 'evaluate_offer',
+          onboardingOutcome: 'failed_retryable',
+          onboardingSource: 'opening_sweep',
+          ...onboardingErrorFields(error),
+        });
+        return 'retry';
+      }
+    };
 
     // Settings store manager for hot-reloading config
     const settingsManager = createSettingsManager(api, {
@@ -2278,6 +4392,7 @@ export async function monitorTlonProvider(
       cachesHistory?: boolean;
       messageContent?: unknown; // Raw Tlon content for media extraction
       blobField?: string | null; // Raw blob JSON from post/reply
+      /** Appended to the agent input after the message; see the topics hook. */
       isGroup: boolean;
       channelNest?: string;
       hostShip?: string;
@@ -2752,11 +4867,7 @@ export async function monitorTlonProvider(
             );
             let outputMessageId: string | null = null;
             if (isGroup && groupChannel) {
-              const result = await sendChannelPost({
-                botProfile: getBotProfile(),
-                fromShip: botShipName,
-                nest: groupChannel,
-                story: markdownToStory(noHistoryMsg),
+              const result = await postToChannel(groupChannel, noHistoryMsg, {
                 blob: contextLensBlob,
               });
               outputMessageId = result.messageId;
@@ -2820,11 +4931,7 @@ export async function monitorTlonProvider(
           );
           let outputMessageId: string | null = null;
           if (isGroup && groupChannel) {
-            const result = await sendChannelPost({
-              botProfile: getBotProfile(),
-              fromShip: botShipName,
-              nest: groupChannel,
-              story: markdownToStory(errorMsg),
+            const result = await postToChannel(groupChannel, errorMsg, {
               blob: contextLensBlob,
             });
             outputMessageId = result.messageId;
@@ -3385,11 +5492,7 @@ export async function monitorTlonProvider(
                             // Send to any channel type (chat, heap, diary) using the nest directly
                             const result = await observeActiveTlonTurnDelivery(
                               () =>
-                                sendChannelPost({
-                                  botProfile: getBotProfile(),
-                                  fromShip: botShipName,
-                                  nest: groupChannel,
-                                  story: markdownToStory(replyText),
+                                postToChannel(groupChannel, replyText, {
                                   replyToId: deliverParentId ?? undefined,
                                   blob: replyBlob,
                                 })
@@ -3804,11 +5907,7 @@ export async function monitorTlonProvider(
             args,
             `tlon:group:${nest}`
           );
-          await sendChannelPost({
-            botProfile: getBotProfile(),
-            fromShip: botShipName,
-            nest,
-            story: markdownToStory(replyText),
+          await postToChannel(nest, replyText, {
             replyToId: parentId ?? undefined,
           });
           return;
@@ -3837,7 +5936,227 @@ export async function monitorTlonProvider(
           ownerListenDisabledChannels: effectiveOwnerListenDisabled,
         });
         if (!engageDecision.engage) {
+          // Replies to the bot's own onboarding UI still count: purpose,
+          // topics, and timezone choices arrive as unmentioned top-level
+          // owner messages, so an owner who switched listening off would
+          // otherwise see cards whose buttons do nothing. Each admitted shape is a
+          // *provable* reply to something the bot posted — the mute contract
+          // ("a plain post in a muted channel never wakes the bot", pinned
+          // by the shared e2e even when an unanswered picker sits in the
+          // channel) stays intact for everything else. That means the
+          // picker's free-text path needs a mention while listening is off;
+          // mentions always override, so the escape hatch is one word.
+          //
+          // Only top-level owner text is ever a setup reply — thread replies
+          // and attachment-only posts stay dropped.
+          if (
+            !isOwner(senderShip) ||
+            isThreadReply ||
+            parentId ||
+            !rawText?.trim()
+          ) {
+            return;
+          }
+          // The mid-onboarding records are in-memory, so after a restart
+          // they are empty and this gate would drop the very reply the
+          // picker is waiting for. Rebuild them from the transcript first —
+          // once per channel. Retried in place on a transient scry failure:
+          // this message is already consumed (no redelivery exists), so an
+          // inconclusive scan here would discard a real picker answer for
+          // good. Two short retries cover the transient case; past them the
+          // drop below is the least-bad option, and the scan stays unburned
+          // for the next message.
+          if (
+            !onboardingSetupPending.has(nest) &&
+            !onboardingTimezonePending.has(nest) &&
+            !onboardingInvitePending.has(nest) &&
+            !onboardingPickerOffered.has(nest)
+          ) {
+            let recovery = await recoverOnboardingState(
+              nest,
+              senderShip,
+              rawText ?? ''
+            );
+            for (
+              let attempt = 0;
+              recovery === 'inconclusive' && attempt < 2;
+              attempt += 1
+            ) {
+              await new Promise((resolve) => setTimeout(resolve, 1_000));
+              recovery = await recoverOnboardingState(
+                nest,
+                senderShip,
+                rawText ?? ''
+              );
+            }
+            if (recovery === 'inconclusive') {
+              runtime.log?.(
+                `[tlon] Dropping a muted-channel message in ${nest} with onboarding state unknown — recovery scries kept failing`
+              );
+            }
+          }
+          const isOnboardingReply =
+            // The topics pills await their answer.
+            onboardingSetupPending.has(nest) ||
+            onboardingTimezonePending.has(nest) ||
+            // Keep ordinary owner replies available while setup is active.
+            onboardingInvitePending.has(nest) ||
+            // A tap on the purpose picker posts exactly a card title.
+            (onboardingPickerOffered.has(nest) &&
+              isPurposePickerChoice(rawText ?? ''));
+          if (!isOnboardingReply) {
+            return;
+          }
+        }
+
+        // Agent onboarding: in an unconfigured group the owner hosts, the
+        // owner's messages drive two one-shot offers — the tappable purpose
+        // picker for the first message, then the topic pills after a card
+        // tap. Tapping posts the choice as the owner's own reply, which
+        // falls through to the agent normally. One group lookup serves both;
+        // when it fails (new group, or scry failed) say nothing rather than
+        // risk offering setup for a configured group — retried next message.
+        // A thread reply or an attachment-only post is never an answer to a
+        // picker and must never be answered *by* one: offering the opening in
+        // response to a blob post would swallow that post entirely.
+        const isTopLevelTextMessage =
+          !isThreadReply && !parentId && Boolean(rawText?.trim());
+        const runOnboardingOffers =
+          isOwner(senderShip) &&
+          isTopLevelTextMessage &&
+          !(
+            onboardingPickerOffered.has(nest) &&
+            onboardingTopicsOffered.has(nest)
+          );
+        // Retried once, because every onboarding decision below keys off
+        // this read and a transient miss is indistinguishable from "not an
+        // onboarding group": with owner-listen on, a failure here sends the
+        // owner's topics reply to the model as ordinary chat and the setup
+        // is consumed as small talk. One cheap retry converts the common
+        // transient failure into a correct read; the narrow drop below still
+        // covers a read that stays unavailable.
+        let onboardingGroup = runOnboardingOffers
+          ? await findGroupForChannel(api, nest, runtime)
+          : null;
+        if (runOnboardingOffers && !onboardingGroup) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          onboardingGroup = await findGroupForChannel(api, nest, runtime);
+        }
+        const onboardingOffer = onboardingGroup && {
+          senderIsOwner: true,
+          groupHostIsOwner: onboardingGroup.host === effectiveOwnerShip,
+          groupDescription: onboardingGroup.description,
+          messageText: rawText ?? '',
+          alreadyOffered: false,
+        };
+        if (
+          runOnboardingOffers &&
+          !onboardingGroup &&
+          (isPurposePickerChoice(rawText ?? '') ||
+            onboardingSetupPending.has(nest) ||
+            onboardingTimezonePending.has(nest))
+        ) {
+          // The group read failed twice under a message that is either a
+          // purpose-card title or the topics reply this channel is waiting
+          // on. Guessing "ordinary chat" hands it to the model (observed
+          // live: the bot chatted about the digest and the flow died
+          // there); guessing "onboarding" without the group is unfounded.
+          // Drop it — the sweep re-offers from the transcript, and one
+          // re-sendable owner message beats a setup consumed as small talk.
+          // Deliberately not widened to *every* message in the window: after
+          // a restart the offered-flags are empty even in long-configured
+          // groups, and dropping real chat there would be worse than the
+          // bug.
+          runtime.log?.(
+            `[tlon] Dropping an onboarding reply in ${nest}: the group could not be resolved`
+          );
           return;
+        }
+        if (onboardingOffer && !onboardingPickerOffered.has(nest)) {
+          // Restart recovery (shared with the owner-listen gate above): a
+          // process restart between posting a picker and the owner's reply
+          // loses the in-memory state — and, left alone, this block would
+          // re-offer the purpose picker on top of the answered one.
+          // Retried like the muted gate: this message is already consumed
+          // (no redelivery exists), and if it is the topics reply the
+          // picker is waiting for, processing it with unknown state feeds
+          // it to the model as ordinary chat and the deterministic transition
+          // never runs.
+          let recovery = await recoverOnboardingState(
+            nest,
+            senderShip,
+            rawText ?? '',
+            onboardingGroup
+          );
+          for (
+            let attempt = 0;
+            recovery === 'inconclusive' && attempt < 2;
+            attempt += 1
+          ) {
+            await new Promise((resolve) => setTimeout(resolve, 1_000));
+            recovery = await recoverOnboardingState(
+              nest,
+              senderShip,
+              rawText ?? '',
+              onboardingGroup
+            );
+          }
+          if (
+            onboardingSetupPending.has(nest) ||
+            onboardingTimezonePending.has(nest)
+          ) {
+            // Recovered above: fall through so the reply in hand is consumed
+            // as the topics answer.
+          } else if (recovery === 'inconclusive') {
+            // Still unknown after the retries. Processing could consume a
+            // real topics answer for good; a dropped ordinary message just
+            // gets re-sent. Same least-bad trade the muted gate makes, and
+            // the scan stays unburned for the next message.
+            runtime.log?.(
+              `[tlon] Dropping a message in ${nest} with onboarding state unknown — recovery scries kept failing`
+            );
+            return;
+          } else if (
+            !onboardingPickerOffered.has(nest) &&
+            shouldOfferPurposePicker(onboardingOffer)
+          ) {
+            onboardingPickerOffered.add(nest);
+            runtime.log?.(
+              `[tlon] Offering agent onboarding purpose picker in ${nest}`
+            );
+            try {
+              await postOnboardingOpening(nest);
+              return;
+            } catch (error) {
+              onboardingPickerOffered.delete(nest);
+              runtime.error?.(
+                `[tlon] Failed to post purpose picker in ${nest}: ${String(error)}`
+              );
+            }
+          } else {
+            // Configured, or the message is a card tap — don't re-offer.
+            onboardingPickerOffered.add(nest);
+          }
+        }
+
+        // Follow a purpose pick with the topic pills, so the subject question
+        // is tappable too. Submitting them posts one message with the chosen
+        // labels, which falls through to a normal model turn that does the
+        // building.
+        if (onboardingOffer && !onboardingTopicsOffered.has(nest)) {
+          const purposeSelection = shouldOfferTopicsPicker(onboardingOffer);
+          if (purposeSelection) {
+            runtime.log?.(
+              `[tlon] Offering agent onboarding topics picker in ${nest}`
+            );
+            await postTopicsPickerOffer(nest, purposeSelection);
+            // The tap is spent either way. On success the pills are the
+            // reply; on a failed post the owner saw nothing, and letting a
+            // bare card title fall through would start a stray model turn
+            // over the half-configured group — the sweep re-offers the
+            // pills from the transcript instead.
+            return;
+          }
         }
 
         const trigger: ContextLensTrigger = mentioned
@@ -3947,6 +6266,264 @@ export async function monitorTlonProvider(
 
         const parsed = parseChannelNest(nest);
         const citedContent = await resolveCitedContent(content.content);
+        // Deterministic onboarding consumes topic and timezone replies before
+        // ordinary agent dispatch. The model never sees these as operational
+        // instructions and therefore cannot improvise the side effects.
+        const pendingTimezone = onboardingTimezonePending.get(nest);
+        if (
+          pendingTimezone &&
+          isOwner(senderShip) &&
+          isTopLevelTextMessage &&
+          !isThreadReply &&
+          !parentId
+        ) {
+          const timezoneAttemptId = randomUUID();
+          const timezoneTraceBase = {
+            nest,
+            groupFlag: pendingTimezone.groupFlag,
+            purposeId: pendingTimezone.purposeId,
+            topicsCharCount: pendingTimezone.topics.length,
+            onboardingAttemptId: timezoneAttemptId,
+            onboardingSource: 'timezone_reply',
+            onboardingStage: 'timezone',
+            onboardingState: 'awaiting-timezone',
+          };
+          traceOnboardingStep(timezoneTraceBase, 'consume_reply', 'started');
+          const timezone = normalizeIanaTimezone(rawText ?? '');
+          if (!timezone) {
+            traceOnboardingStep(
+              timezoneTraceBase,
+              'normalize_timezone',
+              'invalid',
+              {
+                reason: 'not_an_iana_timezone',
+              }
+            );
+            const timezoneBlob = buildTimezonePickerBlob(nest);
+            await postToChannel(nest, timezonePickerFallbackText(), {
+              ...(timezoneBlob
+                ? { blob: serializeBlobField(timezoneBlob) }
+                : {}),
+            });
+            return;
+          }
+          onboardingTimezonePending.delete(nest);
+          onboardingSetupPending.delete(nest);
+          traceOnboardingStep(
+            timezoneTraceBase,
+            'normalize_timezone',
+            'succeeded',
+            {
+              timezone,
+            }
+          );
+          try {
+            await beginDeterministicSetup(nest, {
+              ...pendingTimezone,
+              timezone,
+            });
+            traceOnboardingStep(
+              timezoneTraceBase,
+              'consume_reply',
+              'succeeded',
+              {
+                timezone,
+                onboardingNextState: 'awaiting-notebook',
+              }
+            );
+          } catch (error) {
+            onboardingTimezonePending.set(nest, pendingTimezone);
+            runtime.error?.(
+              `[tlon] Deterministic setup failed in ${nest}: ${String(error)}`
+            );
+            traceOnboardingStep(
+              timezoneTraceBase,
+              'consume_reply',
+              'failed_retryable',
+              {
+                timezone,
+                reason: 'pending_timezone_restored',
+                ...onboardingErrorFields(error, [pendingTimezone.topics]),
+              }
+            );
+            await postToChannel(
+              nest,
+              'I hit a setup problem before anything was published. Tap your timezone again and I’ll retry safely.'
+            ).catch(() => {});
+          }
+          return;
+        }
+
+        const pendingSetup = onboardingSetupPending.get(nest);
+        // Only a top-level owner message that isn't itself a purpose title
+        // answers the pills. A double-tapped card would otherwise be consumed
+        // as the topics answer — building the job with "Research" as its
+        // subject — and a reply the owner happened to send in another thread
+        // would eat the directive the real submission needed.
+        const answersTopicsPicker =
+          Boolean(pendingSetup) &&
+          isOwner(senderShip) &&
+          !isThreadReply &&
+          !parentId &&
+          Boolean(rawText?.trim()) &&
+          !isPurposePickerChoice(rawText ?? '');
+        if (
+          pendingSetup &&
+          isOwner(senderShip) &&
+          isTopLevelTextMessage &&
+          isPurposePickerChoice(rawText ?? '')
+        ) {
+          // A repeated purpose-card tap while the topic pills wait. The tap
+          // that counted already posted the pills; this duplicate is neither
+          // a topics answer (excluded above) nor ordinary chat, and passing
+          // it to the model would start a stray turn in the half-configured
+          // group. Drop it.
+          runtime.log?.(
+            `[tlon] Dropping duplicate purpose-card tap in ${nest} while topics are pending`
+          );
+          return;
+        }
+        if (pendingSetup && answersTopicsPicker) {
+          const topicsAttemptId = randomUUID();
+          const topicsStartedAt = Date.now();
+          const topics = rawText!.trim();
+          const topicsTraceBase = {
+            nest,
+            purposeId: pendingSetup.purposeId,
+            topicsCharCount: topics.length,
+            onboardingAttemptId: topicsAttemptId,
+            onboardingSource: 'topics_reply',
+            onboardingStage: 'topics',
+            onboardingState: 'awaiting-topics',
+          };
+          traceOnboardingStep(topicsTraceBase, 'consume_reply', 'started', {
+            onboardingNextState: 'awaiting-timezone',
+          });
+          onboardingSetupPending.delete(nest);
+          const group = await findGroupForChannel(api, nest, runtime);
+          if (!group) {
+            onboardingSetupPending.set(nest, pendingSetup);
+            traceOnboardingStep(
+              topicsTraceBase,
+              'resolve_group',
+              'failed_retryable',
+              {
+                reason: 'group_unreadable_pending_topics_restored',
+              }
+            );
+            return;
+          }
+          try {
+            onboardingTimezonePending.set(nest, {
+              ...pendingSetup,
+              topics,
+              groupFlag: group.flag,
+            });
+            const timezoneBlob = buildTimezonePickerBlob(nest);
+            await postToChannel(nest, timezonePickerFallbackText(), {
+              ...(timezoneBlob
+                ? { blob: serializeBlobField(timezoneBlob) }
+                : {}),
+            });
+            traceOnboardingStep(topicsTraceBase, 'consume_reply', 'succeeded', {
+              groupFlag: group.flag,
+              onboardingNextState: 'awaiting-timezone',
+              durationMs: Date.now() - topicsStartedAt,
+            });
+            void (async () => {
+              const adminStartedAt = Date.now();
+              const adminSeatReady = await waitForOnboardingAdminSeat(
+                group.flag
+              );
+              traceOnboardingStep(
+                topicsTraceBase,
+                'wait_for_admin_seat',
+                adminSeatReady ? 'succeeded' : 'timed_out',
+                {
+                  groupFlag: group.flag,
+                  durationMs: Date.now() - adminStartedAt,
+                  reason: adminSeatReady ? null : 'admin_seat_not_observed',
+                }
+              );
+              const latest = await findGroupForChannel(api, nest, runtime);
+              const latestSetup = deterministicSetupFromDescription(
+                latest?.description
+              );
+              if (
+                latestSetup &&
+                latestSetup.record.state !== 'awaiting-topics' &&
+                latestSetup.record.state !== 'awaiting-timezone'
+              ) {
+                traceOnboardingStep(
+                  topicsTraceBase,
+                  'persist_awaiting_timezone',
+                  'skipped',
+                  {
+                    groupFlag: group.flag,
+                    onboardingState: latestSetup.record.state,
+                    reason: 'setup_already_advanced',
+                  }
+                );
+                return;
+              }
+              await writeAndVerifyOnboardingDescription(
+                nest,
+                group.flag,
+                buildAwaitingTimezoneDescription({
+                  purposeId: pendingSetup.purposeId,
+                  purpose: pendingSetup.purpose,
+                  topics,
+                  agentShip: botShipName,
+                }),
+                {
+                  onboardingAttemptId: topicsAttemptId,
+                  onboardingSource: 'topics_reply_background',
+                }
+              );
+              traceOnboardingStep(
+                topicsTraceBase,
+                'persist_awaiting_timezone',
+                'succeeded',
+                {
+                  groupFlag: group.flag,
+                  onboardingState: 'awaiting-timezone',
+                }
+              );
+            })().catch((error) => {
+              runtime.error?.(
+                `[tlon] Could not persist background timezone state for ${nest}: ${String(error)}`
+              );
+              traceOnboardingStep(
+                topicsTraceBase,
+                'persist_awaiting_timezone',
+                'failed_recoverable',
+                {
+                  groupFlag: group.flag,
+                  onboardingState: 'awaiting-timezone',
+                  ...onboardingErrorFields(error, [topics]),
+                }
+              );
+            });
+          } catch (error) {
+            onboardingTimezonePending.delete(nest);
+            onboardingSetupPending.set(nest, pendingSetup);
+            runtime.error?.(
+              `[tlon] Could not post the timezone picker for ${nest}: ${String(error)}`
+            );
+            traceOnboardingStep(
+              topicsTraceBase,
+              'consume_reply',
+              'failed_retryable',
+              {
+                groupFlag: group.flag,
+                durationMs: Date.now() - topicsStartedAt,
+                reason: 'pending_topics_restored',
+                ...onboardingErrorFields(error, [topics]),
+              }
+            );
+          }
+          return;
+        }
         await processMessage({
           messageId: messageId ?? '',
           senderShip,
@@ -3965,6 +6542,8 @@ export async function monitorTlonProvider(
           parentId,
           isThreadReply,
         });
+
+        await postInviteCardIfSetupComplete(nest);
       } catch (error: any) {
         runtime.error?.(
           `[tlon] Error handling channel firehose event: ${error?.message ?? String(error)}`
@@ -4808,6 +7387,18 @@ export async function monitorTlonProvider(
         );
       }
 
+      // The onboarding sweep below runs on a timer; any groups-ui event
+      // also rings this bell so a group that appears between ticks (the
+      // force-joined home group, a just-created agent group) is checked
+      // immediately instead of waiting out the backoff. Rung mid-sweep, the
+      // flag makes the loop go around again rather than sleep.
+      let wakeOnboardingSweep: (() => void) | null = null;
+      let onboardingSweepNudged = false;
+      const nudgeOnboardingSweep = () => {
+        onboardingSweepNudged = true;
+        wakeOnboardingSweep?.();
+      };
+
       // Subscribe to groups-ui for real-time channel additions (when invites are accepted)
       try {
         await api.subscribe({
@@ -4815,6 +7406,11 @@ export async function monitorTlonProvider(
           path: '/groups/ui',
           event: async (event: any) => {
             try {
+              // Used as a bell, not parsed: relying on this event's shape
+              // to spot the home group has already missed on the hosted
+              // fleet, and the sweep it wakes re-derives everything from
+              // scries anyway.
+              nudgeOnboardingSweep();
               // Handle fleet (member) changes - inject system message for joins
               if (event?.flag && event?.update?.fleet) {
                 const groupFlag = event.flag as string;
@@ -4890,6 +7486,20 @@ export async function monitorTlonProvider(
                         `[tlon] Auto-detected new channel (invite accepted): ${channelNest}`
                       );
 
+                      // The hosted home group's moon is force-joined by
+                      // provisioning — no invite event ever fires — so its
+                      // appearance here is the join signal. The offer's own
+                      // guards (empty, single-channel, unconfigured, once)
+                      // make this a no-op anywhere else.
+                      if (
+                        effectiveOwnerShip &&
+                        channelNest === homeGroupChatNestFor(effectiveOwnerShip)
+                      ) {
+                        void offerOnboardingInNewOwnerGroup(
+                          homeGroupFlagFor(effectiveOwnerShip)
+                        );
+                      }
+
                       // Persist to settings store so it survives restarts
                       if (effectiveAutoAcceptGroupInvites) {
                         try {
@@ -4947,6 +7557,17 @@ export async function monitorTlonProvider(
                         runtime.log?.(
                           `[tlon] Auto-detected joined channel: ${channelNest}`
                         );
+
+                        // Same force-joined home-group signal as above.
+                        if (
+                          effectiveOwnerShip &&
+                          channelNest ===
+                            homeGroupChatNestFor(effectiveOwnerShip)
+                        ) {
+                          void offerOnboardingInNewOwnerGroup(
+                            homeGroupFlagFor(effectiveOwnerShip)
+                          );
+                        }
 
                         // Persist to settings store
                         if (effectiveAutoAcceptGroupInvites) {
@@ -5081,6 +7702,7 @@ export async function monitorTlonProvider(
                 runtime.log?.(
                   `[tlon] Auto-accepted group invite (${decision.reason}): ${groupFlag} (from ${inviterShip})`
                 );
+                void offerOnboardingInNewOwnerGroup(groupFlag);
               } catch (err) {
                 runtime.error?.(
                   `[tlon] Failed to accept group invite (${decision.reason}) ${groupFlag}: ${String(err)}`
@@ -5127,6 +7749,180 @@ export async function monitorTlonProvider(
         if (initForeigns) {
           await processPendingInvites(initForeigns);
         }
+
+        // Sweep for openings that no event will deliver. Two ways a group
+        // ends up joined-but-never-opened: the join-accept above consumes
+        // the foreign invite and the opening it fires is fire-and-forget
+        // (a crash between the two leaves no retry), and the hosted home
+        // group's moon is force-joined by provisioning — on its own clock
+        // relative to this gateway's boot, with no invite event at all and
+        // a groups-ui discovery that has been seen to miss on the fleet.
+        // The owner meanwhile sees a blank channel (the client suppresses
+        // its welcome notice while waiting for the agent). So the sweep is
+        // periodic, not once-per-boot: it re-checks until every candidate
+        // reaches a terminal verdict, which makes the opening an arrival
+        // invariant instead of a race — whenever the owner lands in the
+        // group, the opening is there or seconds away.
+        //
+        // Candidates are groups whose description carries the client's
+        // agent marker with no setup yet (plus the deterministic home-group
+        // flag) — a precise "created for me, not opened" signal, never
+        // group *shape*: an empty owner-hosted channel just as well
+        // describes a muted or dormant ordinary group, and opening those at
+        // every restart is the bot barging in (and flips them
+        // mid-onboarding for the owner-listen gate). The offer helper's own
+        // guards (single channel, no posts, not already offered) make each
+        // pass a no-op wherever an opening already landed, and terminal
+        // verdicts drop a group out of the sweep entirely, so a quiet tick
+        // costs one groups scry.
+        const onboardingSweepSettled = new Set<string>();
+        // Groups whose closing debt has been checked once this process —
+        // the restart recovery below only needs one look each.
+        const closingRecoveryChecked = new Set<string>();
+        const runOnboardingSweep = async (): Promise<boolean> => {
+          const flags = await findAgentGroupsAwaitingOpening(
+            api,
+            runtime,
+            effectiveOwnerShip
+          );
+          let sawWork = false;
+          for (const groupFlag of flags) {
+            if (opts.abortSignal?.aborted) {
+              return sawWork;
+            }
+            if (onboardingSweepSettled.has(groupFlag)) {
+              continue;
+            }
+            sawWork = true;
+            const verdict = await offerOnboardingInNewOwnerGroup(groupFlag);
+            // Only a genuinely terminal verdict retires a flag. 'opened'
+            // used to retire one too, which quietly disabled the recovery
+            // that lives inside the offer: if the owner taps a purpose card
+            // and the topics post fails, the live handler rolls its pending
+            // state back and leaves the re-offer to this sweep — from a
+            // transcript the sweep had already stopped reading. A group
+            // that stays here costs one scry a tick and drops off the
+            // candidate list by itself the moment its setup writes a job.
+            if (verdict === 'settled') {
+              onboardingSweepSettled.add(groupFlag);
+            }
+          }
+          // Closings ride the same loop: the "is the setup finished?"
+          // check otherwise runs exactly once, at the end of the directive
+          // turn — a config write whose effect lands a beat later (or a
+          // turn that dies after its writes) left the owner staring at a
+          // finished build with no closing cards, forever. The check is
+          // transcript-idempotent, so re-running it until it settles is
+          // free of double posts, and the groups-ui bell makes the write
+          // itself wake this loop within seconds.
+          for (const nest of [...onboardingInvitePending]) {
+            if (opts.abortSignal?.aborted) {
+              return sawWork;
+            }
+            sawWork = true;
+            await postInviteCardIfSetupComplete(nest);
+          }
+          // The set above is memory, and the debt outlives the process: a
+          // restart between the config write and the cards left a finished
+          // setup with no closing until the owner happened to type again.
+          // The check recovers its own state from the transcript, so it
+          // only needs to be *called* — walk the owner's configured groups
+          // and let it settle each one. `inviteSettled` makes every pass
+          // after the first a no-op, so this costs one nest lookup per
+          // group per process.
+          for (const groupFlag of await findConfiguredAgentGroups(
+            api,
+            runtime,
+            effectiveOwnerShip
+          )) {
+            if (opts.abortSignal?.aborted) {
+              return sawWork;
+            }
+            if (closingRecoveryChecked.has(groupFlag)) {
+              continue;
+            }
+            const info = await findChatNestForGroup(api, groupFlag, runtime);
+            if (!info) {
+              continue;
+            }
+            if (onboardingInvitePending.has(info.nest)) {
+              // Already owned by the loop above.
+              continue;
+            }
+            sawWork = true;
+            await postInviteCardIfSetupComplete(info.nest);
+            // Settled is the only finish line. "No longer pending" also
+            // describes a setup still waiting on its notebook, and
+            // retiring on that retired the very groups this pass exists to
+            // rescue.
+            if (inviteSettled.has(info.nest)) {
+              closingRecoveryChecked.add(groupFlag);
+            }
+          }
+          return sawWork;
+        };
+        // Fast while provisioning is plausibly still running (the home
+        // group is created in the same flow that boots this gateway) or
+        // while a candidate is pending; backed off to a slow safety net
+        // forever after — the nudge above restores immediacy whenever
+        // groups state changes.
+        const ONBOARDING_SWEEP_FLOOR_MS = 20_000;
+        const ONBOARDING_SWEEP_CEILING_MS = 300_000;
+        const onboardingSweepBootWindowUntil = Date.now() + 15 * 60_000;
+        const waitForNextSweep = (ms: number) =>
+          new Promise<void>((resolve) => {
+            // A listener added to an already-aborted signal never fires —
+            // check first, or shutdown mid-sweep would sit out the timer.
+            if (opts.abortSignal?.aborted) {
+              resolve();
+              return;
+            }
+            const finish = () => {
+              clearTimeout(timer);
+              opts.abortSignal?.removeEventListener('abort', finish);
+              wakeOnboardingSweep = null;
+              resolve();
+            };
+            const timer = setTimeout(finish, ms);
+            // The sweep must never be what keeps the process alive.
+            (timer as unknown as { unref?: () => void }).unref?.();
+            wakeOnboardingSweep = finish;
+            opts.abortSignal?.addEventListener('abort', finish, {
+              once: true,
+            });
+          });
+        void (async () => {
+          let delayMs = ONBOARDING_SWEEP_FLOOR_MS;
+          while (!opts.abortSignal?.aborted) {
+            onboardingSweepNudged = false;
+            let sawWork = false;
+            try {
+              sawWork = await runOnboardingSweep();
+            } catch (error) {
+              // Leaves sawWork false: a failing scry backs off with the
+              // timer instead of hammering a struggling ship.
+              runtime.log?.(
+                `[tlon] Onboarding opening sweep failed: ${String(error)}`
+              );
+              traceOnboarding({
+                nest: 'unknown:onboarding-sweep',
+                onboardingStage: 'recovery',
+                onboardingOperation: 'periodic_sweep',
+                onboardingOutcome: 'failed_retryable',
+                onboardingSource: 'opening_sweep',
+                ...onboardingErrorFields(error),
+              });
+            }
+            if (onboardingSweepNudged) {
+              continue;
+            }
+            delayMs =
+              sawWork || Date.now() < onboardingSweepBootWindowUntil
+                ? ONBOARDING_SWEEP_FLOOR_MS
+                : Math.min(delayMs * 2, ONBOARDING_SWEEP_CEILING_MS);
+            await waitForNextSweep(delayMs);
+          }
+        })();
 
         try {
           await api.subscribe({

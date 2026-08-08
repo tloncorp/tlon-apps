@@ -263,7 +263,15 @@ export async function fetchChannelHistory(
   api: { scry: (path: string) => Promise<unknown> },
   channelNest: string,
   count = 50,
-  runtime?: RuntimeEnv
+  runtime?: RuntimeEnv,
+  opts?: {
+    /**
+     * Rethrow scry failures instead of returning `[]`. For callers that make
+     * a decision from an *empty* transcript (the onboarding recovery paths):
+     * to them an unreadable channel and an empty one must not look alike.
+     */
+    throwOnError?: boolean;
+  }
 ): Promise<TlonHistoryEntry[]> {
   try {
     const scryPath = `/channels/v4/${channelNest}/posts/newest/${count}/outline.json`;
@@ -288,8 +296,16 @@ export async function fetchChannelHistory(
         const essay = item.essay || item['r-post']?.set?.essay;
         const seal = item.seal || item['r-post']?.set?.seal;
 
+        // A bot posting with a profile carries an author *object*; every
+        // consumer compares ships, so unwrap here or the bot never
+        // recognizes its own posts in history (which silently breaks the
+        // onboarding recovery paths).
+        const rawAuthor = essay?.author;
         return {
-          author: essay?.author || 'unknown',
+          author:
+            typeof rawAuthor === 'string'
+              ? rawAuthor
+              : rawAuthor?.ship || 'unknown',
           content: extractMessageText(essay?.content || []),
           timestamp: essay?.sent || Date.now(),
           id: seal?.id,
@@ -304,6 +320,9 @@ export async function fetchChannelHistory(
     runtime?.log?.(
       `[tlon] Error fetching channel history: ${error?.message ?? String(error)}`
     );
+    if (opts?.throwOnError) {
+      throw error;
+    }
     return [];
   }
 }

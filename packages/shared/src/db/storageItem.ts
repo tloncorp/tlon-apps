@@ -26,6 +26,8 @@ export type StorageItem<T> = {
   useValue: () => T;
   useStorageItem: () => {
     value: T;
+    /** True until the stored value has hydrated; `value` is the default. */
+    isLoading: boolean;
     setValue: (value: T | ((curr: T) => T)) => Promise<void>;
     resetValue: () => Promise<T>;
   };
@@ -144,12 +146,19 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   }
 
   function useStorageItem() {
-    const { data: value, isLoading: queryIsLoading } = useQuery({
+    const {
+      data: value,
+      isLoading: queryIsLoading,
+      isError,
+    } = useQuery({
       queryKey: [key],
       queryFn: () => getValue(),
     });
-    // Treat undefined data as still loading to prevent brief flashes of default value
-    const isLoading = queryIsLoading || value === undefined;
+    // Treat undefined data as still loading to prevent brief flashes of the
+    // default value — but never past a failed read: `data` stays undefined
+    // on error, and callers that hold UI (or a lock) while loading must not
+    // hold it forever because storage misbehaved once.
+    const isLoading = !isError && (queryIsLoading || value === undefined);
     return {
       value: value === undefined ? defaultValue : value,
       isLoading,

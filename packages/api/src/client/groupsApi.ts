@@ -415,7 +415,7 @@ export const createGroup = async ({
       title: group.title
         ? group.title
         : placeHolderTitle + GENERATED_GROUP_TITLE_END_CHAR,
-      description: '',
+      description: group.description ?? '',
       image: group.iconImage ?? '',
       cover: '',
     },

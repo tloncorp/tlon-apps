@@ -12,12 +12,15 @@ import { describeError } from '../urbit/errors.js';
 
 type RunState = {
   toolNames: string[];
+  toolLabels: Record<string, string>;
 };
 
 type PublishParams = {
   conversationId: string;
   thinking: boolean;
   toolNames: string[];
+  /** Display copy per tool name; names without one use the API fallback. */
+  toolLabels?: Record<string, string>;
 };
 
 type PublishedState = Omit<PublishParams, 'conversationId'>;
@@ -48,7 +51,8 @@ function normalizeToolName(toolName?: string | null) {
 
 export function createComputingPresenceReporter(): ComputingPresenceReporter {
   return {
-    publish: async ({ conversationId, thinking, toolNames }) => {
+    publish: async (params) => {
+      const { conversationId, thinking, toolNames } = params;
       if (!thinking) {
         await clearConversationPresence({
           conversationId,
@@ -57,7 +61,10 @@ export function createComputingPresenceReporter(): ComputingPresenceReporter {
         return;
       }
 
-      const toolCalls = toolNames.map((toolName) => ({ toolName }));
+      const toolCalls = toolNames.map((toolName) => {
+        const label = params.toolLabels?.[toolName];
+        return label ? { toolName, label } : { toolName };
+      });
       const status = createComputingStatus({ thinking, toolCalls });
 
       await setConversationPresence({
@@ -136,6 +143,7 @@ export function createComputingPresenceTracker(trackerOpts?: {
   const clonePublishedState = (state: PublishedState): PublishedState => ({
     thinking: state.thinking,
     toolNames: [...state.toolNames],
+    ...(state.toolLabels ? { toolLabels: { ...state.toolLabels } } : {}),
   });
 
   const statesEqual = (left?: PublishedState, right?: PublishedState) => {
@@ -152,7 +160,11 @@ export function createComputingPresenceTracker(trackerOpts?: {
     }
 
     for (let index = 0; index < left.toolNames.length; index += 1) {
-      if (left.toolNames[index] !== right.toolNames[index]) {
+      const toolName = left.toolNames[index]!;
+      if (toolName !== right.toolNames[index]) {
+        return false;
+      }
+      if (left.toolLabels?.[toolName] !== right.toolLabels?.[toolName]) {
         return false;
       }
     }
@@ -290,6 +302,7 @@ export function createComputingPresenceTracker(trackerOpts?: {
 
     const seenToolNames = new Set<string>();
     const toolNames: string[] = [];
+    const toolLabels: Record<string, string> = {};
 
     for (const run of runs.values()) {
       for (const toolName of run.toolNames) {
@@ -299,12 +312,17 @@ export function createComputingPresenceTracker(trackerOpts?: {
 
         seenToolNames.add(toolName);
         toolNames.push(toolName);
+        const label = run.toolLabels[toolName];
+        if (label) {
+          toolLabels[toolName] = label;
+        }
       }
     }
 
     const currentState: PublishedState = {
       thinking: true,
       toolNames,
+      ...(Object.keys(toolLabels).length > 0 ? { toolLabels } : {}),
     };
 
     enqueueState(conversationId, currentState);
@@ -324,6 +342,7 @@ export function createComputingPresenceTracker(trackerOpts?: {
     if (!run) {
       run = {
         toolNames: [],
+        toolLabels: {},
       };
       runs.set(runId, run);
     }
@@ -345,6 +364,8 @@ export function createComputingPresenceTracker(trackerOpts?: {
       conversationId: string;
       runId: string;
       toolName?: string | null;
+      /** Display copy for this call; omitted names use the API fallback. */
+      label?: string | null;
     }) => {
       const toolName = normalizeToolName(params.toolName);
       if (!toolName) {
@@ -356,6 +377,10 @@ export function createComputingPresenceTracker(trackerOpts?: {
       const run = ensureRun(params.conversationId, params.runId);
       if (!run.toolNames.includes(toolName)) {
         run.toolNames.push(toolName);
+      }
+      const label = params.label?.trim();
+      if (label) {
+        run.toolLabels[toolName] = label;
       }
       syncConversation(params.conversationId);
     },

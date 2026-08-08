@@ -1,4 +1,8 @@
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import {
+  StackActions,
+  useFocusEffect,
+  useIsFocused,
+} from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Story } from '@tloncorp/api/urbit';
 import {
@@ -16,7 +20,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { BackHandler } from 'react-native';
 
+import { useAgentOnboardingLock } from '../../hooks/useAgentOnboardingLock';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -68,7 +74,9 @@ export default function ChannelScreen(props: Props) {
     draftKey: currentChannelId,
   });
 
-  const groupId = channel?.groupId ?? group?.id;
+  // Includes the route param so the id exists before the first sync lands —
+  // the setup lock must engage on the loading window too.
+  const groupId = channel?.groupId ?? group?.id ?? routeGroupId;
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -149,6 +157,70 @@ export default function ChannelScreen(props: Props) {
   const { navigation } = useRootNavigation();
   const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
+
+  /**
+   * Where "back" goes, decided at press time rather than by what the stack
+   * happened to hold on the way in. A group can grow around the user while
+   * they sit in a channel — agent onboarding lands them in a single-channel
+   * group and the bot adds a notebook during setup — so a plain pop would
+   * skip a channel list that now exists. If the group has more than one
+   * channel, back means "up to the channel list": popTo pops to the list
+   * when it's already behind this screen and replaces this screen with it
+   * when it isn't (same idiom as useNavigateBackFromPost).
+   */
+  const handleGoBack = useCallback(() => {
+    if (isWindowNarrow && groupId && (group?.channels?.length ?? 0) > 1) {
+      navigationRef.current.dispatch(
+        StackActions.popTo('GroupChannels', { groupId })
+      );
+      return;
+    }
+    navigationRef.current.goBack();
+  }, [group?.channels?.length, groupId, isWindowNarrow]);
+
+  // The first-run group holds its chrome until the agent finishes the
+  // setup; the lock reads live state, so it releases when the config syncs.
+  const setupLocked = useAgentOnboardingLock(groupId, group?.description);
+
+  // The setup's output notebook is the owner's channel: create it the
+  // moment the group's config gains a job, so the agent's first run has a
+  // place to post into — the agent itself never hosts channels. The owner
+  // is being held in this very channel while the build runs, which is what
+  // makes this the reliable place to react from.
+  useEffect(() => {
+    if (group) {
+      store.ensureAgentNotebookForGroup(group).catch(() => {
+        // Logged inside; the agent falls back to chat output.
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group?.description, group?.channels?.length]);
+
+  // The header button is only one exit; the swipe-back gesture and the
+  // Android hardware button are the others. All honor the lock, and all
+  // come back when it releases.
+  useEffect(() => {
+    navigationRef.current.setOptions({ gestureEnabled: !setupLocked });
+  }, [setupLocked]);
+  // Focus-scoped, not mount-scoped: BackHandler listeners are global, so a
+  // mount-scoped one kept swallowing Android's hardware back on whatever
+  // screen the owner opened *from* the locked channel — a profile, an A2UI
+  // destination — leaving them with no system back until setup finished.
+  // The lock is about not leaving this channel, which only means anything
+  // while this channel is the one on screen.
+  useFocusEffect(
+    useCallback(() => {
+      if (!setupLocked) {
+        return;
+      }
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => true
+      );
+      return () => subscription?.remove?.();
+    }, [setupLocked])
+  );
+
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
 
   const { performGroupAction } = useGroupActions();
@@ -416,7 +488,8 @@ export default function ChannelScreen(props: Props) {
           groupIsLoading={groupIsLoading}
           posts={filteredPosts ?? null}
           selectedPostId={selectedPostId}
-          goBack={navigationRef.current.goBack}
+          goBack={handleGoBack}
+          hideHeaderContents={setupLocked}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}

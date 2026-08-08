@@ -1,9 +1,6 @@
 import * as api from '@tloncorp/api';
-import {
-  GroupTemplateId,
-  groupTemplatesById,
-} from '@tloncorp/api/types/groupTemplates';
-import { createSectionId, getChannelKindFromType } from '@tloncorp/api/urbit';
+import { parseGroupAgentConfig } from '@tloncorp/api/types/groupAgentConfig';
+import { createSectionId } from '@tloncorp/api/urbit';
 import isEqual from 'lodash/isEqual';
 
 import * as db from '../db';
@@ -20,6 +17,7 @@ const logger = createDevLogger('groupActions', false);
 interface CreateGroupParams {
   title?: string;
   image?: string;
+  description?: string;
   memberIds?: string[];
 }
 
@@ -98,6 +96,7 @@ export async function createDefaultGroup(
   const newGroup: db.Group = {
     id: groupId,
     title: params.title ?? '',
+    description: params.description ?? '',
 
     currentUserIsMember: true,
     currentUserIsHost: true,
@@ -121,60 +120,9 @@ export async function createDefaultGroup(
   return createGroup({ group: newGroup, memberIds: params.memberIds ?? [] });
 }
 
-interface CreateGroupFromTemplateParams {
-  templateId: GroupTemplateId;
-  memberIds?: string[];
-  title?: string;
-}
-
-export async function createGroupFromTemplate(
-  params: CreateGroupFromTemplateParams
-): Promise<db.Group> {
-  const template = groupTemplatesById[params.templateId];
-  const currentUserId = api.getCurrentUserId();
-  const groupSlug = getRandomId();
-  const groupId = `${currentUserId}/${groupSlug}`;
-  const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
-
-  const newGroup: db.Group = {
-    id: groupId,
-    title: params.title ?? template.title,
-    iconImage: groupIconUrl,
-    currentUserIsMember: true,
-    isPersonalGroup: false,
-    hostUserId: currentUserId,
-    currentUserIsHost: true,
-    privacy: 'secret',
-  };
-
-  const channels: db.Channel[] = template.channels.map((channelTemplate) => {
-    const channelSlug = getRandomId();
-    const channelKind = getChannelKindFromType(channelTemplate.type);
-    const channelId = `${channelKind}/${currentUserId}/${channelSlug}`;
-    return {
-      id: channelId,
-      groupId,
-      type: channelTemplate.type,
-      title: channelTemplate.title,
-      description: channelTemplate.description,
-      lastPostSequenceNum: 0,
-      currentUserIsMember: true,
-    };
-  });
-
-  newGroup.channels = channels;
-
-  return createGroup({
-    group: newGroup,
-    memberIds: params.memberIds ?? [],
-    templateId: params.templateId,
-  });
-}
-
 export async function createGroup(params: {
   group: db.Group;
   memberIds?: string[];
-  templateId?: GroupTemplateId;
 }): Promise<db.Group> {
   const placeHolderTitle = await getPlaceholderTitle(params);
 
@@ -196,7 +144,6 @@ export async function createGroup(params: {
     logger.trackEvent(AnalyticsEvent.ActionCreateGroup, {
       ...logic.getModelAnalytics({ group: params.group }),
       initialMemberCount: params.memberIds?.length ?? 0,
-      templateId: params.templateId,
     });
 
     return resultGroup;
@@ -465,17 +412,81 @@ export async function updateGroupMeta(
 
   const existingGroup = await db.getGroup({ id: group.id });
 
+  // FIXME(group-description-hijack): an agent group's description is its
+  // machine-readable config, and no UI edits descriptions anymore (the
+  // editor hides the field for groups) — every caller here passes a stored
+  // row's description through untouched. So for an agent group, preserve
+  // the config verbatim: a caller holding a stale or blanked copy must
+  // never clobber the agents/jobs entry with it.
+  //
+  // Preserved from the *ship*, not the local row: the meta poke replaces the
+  // whole meta object, and a rename can race a setup that reached the ship
+  // but hasn't synced back — the local row could still hold the bare marker
+  // (or, on a fresh group, nothing at all, which is why the client's own
+  // agent record counts as agent-group evidence alongside a parseable local
+  // config). An unreadable ship fails the whole update rather than falling
+  // back to the local copy: writing the stale bytes anyway is exactly the
+  // clobber this path exists to prevent, and a meta edit is retryable.
+  const agentGroups = await db.agentGroupAgents
+    .getValue()
+    .catch((): Record<string, string> => ({}));
+  const isAgentGroup =
+    Boolean(agentGroups[group.id]) ||
+    Boolean(parseGroupAgentConfig(existingGroup?.description));
+  let description = group.description ?? '';
+  let remoteMeta: Awaited<ReturnType<typeof api.getGroup>> | null = null;
+  if (isAgentGroup) {
+    const remote = await api.getGroup(group.id).catch(() => null);
+    if (!remote) {
+      logger.error(
+        'Skipping agent group meta update: the ship is unreadable and a stale description could clobber its config',
+        group.id
+      );
+      if (config?.shouldThrow) {
+        throw new Error(
+          'Could not update the group right now — try again in a moment.'
+        );
+      }
+      return;
+    }
+    remoteMeta = remote;
+    description = remote.description ?? '';
+  }
+  // Icon and cover need the same protection the description just got. The
+  // agent writes its artwork straight to the ship, so a local row that
+  // hasn't synced back yet still holds the old — usually blank — value, and
+  // a full meta poke built from it would wipe the icon the agent just set.
+  // Only send our own value for a field this edit actually changed;
+  // otherwise defer to whatever the ship already has.
+  const visual = (image?: string | null, color?: string | null) =>
+    image ?? color ?? '';
+  const editedImage = visual(group.iconImage, group.iconImageColor);
+  const editedCover = visual(group.coverImage, group.coverImageColor);
+  const image =
+    remoteMeta &&
+    editedImage ===
+      visual(existingGroup?.iconImage, existingGroup?.iconImageColor)
+      ? visual(remoteMeta.iconImage, remoteMeta.iconImageColor)
+      : editedImage;
+  const cover =
+    remoteMeta &&
+    editedCover ===
+      visual(existingGroup?.coverImage, existingGroup?.coverImageColor)
+      ? visual(remoteMeta.coverImage, remoteMeta.coverImageColor)
+      : editedCover;
+  const groupWithMergedDescription = { ...group, description };
+
   // optimistic update
-  await db.updateGroup(group);
+  await db.updateGroup(groupWithMergedDescription);
 
   try {
     await api.updateGroupMeta({
       groupId: group.id,
       meta: {
         title: group.title ?? '',
-        description: group.description ?? '',
-        cover: group.coverImage ?? group.coverImageColor ?? '',
-        image: group.iconImage ?? group.iconImageColor ?? '',
+        description,
+        cover,
+        image,
       },
     });
   } catch (e) {

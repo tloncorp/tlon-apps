@@ -8,6 +8,10 @@
 #
 # Seam: expects a `tlonbot` checkout (private repo) at $TLONBOT_DIR (default: a
 # sibling of this repo), matching the openclaw/dev convention.
+#
+# No welcome DM: the agent opens the conversation in the group it was invited
+# to, so a DM from the bot is a second, older entry point — and it leaves a
+# stray conversation on a ship that first-run tests want empty.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,17 +19,15 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 TLONBOT_DIR="${TLONBOT_DIR:-$REPO_ROOT/../tlonbot}"
 CONTROL="$TLONBOT_DIR/tests/dev/onboarding.sh"
 SANDBOX_DIR="$HERE/.sandbox-prompts"           # editable prompt copies (→ workspace)
-SANDBOX_INTRO="$HERE/.sandbox-intro.md"         # editable welcome-DM copy (→ send-intro)
-SRC_INTRO="$TLONBOT_DIR/tests/dev/onboarding-intro.md"
 
 [ -d "$TLONBOT_DIR" ] || { echo "ERROR: tlonbot checkout not found at $TLONBOT_DIR — set TLONBOT_DIR." >&2; exit 1; }
 [ -x "$CONTROL" ]     || { echo "ERROR: control plane not found/executable: $CONTROL" >&2; exit 1; }
 
-# Editable sandbox copies of the private tlonbot prompts + intro. These hold
-# private content in a public repo, so the paths MUST be gitignored — the
-# initializer refuses otherwise.
+# Editable sandbox copies of the private tlonbot prompts. These hold private
+# content in a public repo, so the paths MUST be gitignored — the initializer
+# refuses otherwise.
 ensure_sandbox() {
-  for p in "$SANDBOX_DIR" "$SANDBOX_INTRO"; do
+  for p in "$SANDBOX_DIR"; do
     if ! git -C "$REPO_ROOT" check-ignore -q "$p"; then
       echo "ERROR: $p is not gitignored — refusing to copy private content into a tracked path." >&2
       exit 1
@@ -70,31 +72,20 @@ ensure_sandbox() {
   [ "$added" -gt 0 ]     && echo "sandbox prompts: added $added new file(s) from $src_dir"
   [ "$refreshed" -gt 0 ] && echo "sandbox prompts: refreshed $refreshed unedited file(s) from upstream"
   [ "$orphaned" -gt 0 ]  && echo "sandbox prompts: moved $orphaned removed-upstream file(s) to $orphan_dir (preserved, not deleted)"
-  # intro: same base-tracking as the prompts (single file)
-  local intro_base="$base_dir/.intro"
-  if [ ! -f "$SANDBOX_INTRO" ] && [ -f "$SRC_INTRO" ]; then
-    echo "Initializing sandbox intro copy from $SRC_INTRO ..."
-    cp "$SRC_INTRO" "$SANDBOX_INTRO"; cp "$SRC_INTRO" "$intro_base"
-  elif [ -f "$SANDBOX_INTRO" ] && [ -f "$SRC_INTRO" ]; then
-    if cmp -s "$SANDBOX_INTRO" "$SRC_INTRO"; then
-      cmp -s "$intro_base" "$SRC_INTRO" || cp "$SRC_INTRO" "$intro_base"   # sandbox matches source: rebaseline
-    elif [ ! -f "$intro_base" ]; then
-      cp "$SRC_INTRO" "$intro_base"
-    elif cmp -s "$SANDBOX_INTRO" "$intro_base" && ! cmp -s "$SRC_INTRO" "$intro_base"; then
-      cp "$SRC_INTRO" "$SANDBOX_INTRO"; cp "$SRC_INTRO" "$intro_base"
-      echo "sandbox intro: refreshed from upstream (unedited)"
-    fi
-  fi
+  # These three are reports, not results: with nothing to report the last one
+  # is a false test, which under `set -e` would fail the function and abort the
+  # caller before it ever reaches the reset.
+  return 0
 }
 
 case "${1:-}" in
   start|"")
     ensure_sandbox
-    TLONBOT_INTRO_FILE="$SANDBOX_INTRO" "$CONTROL" start "$SANDBOX_DIR"
+    TLONBOT_SKIP_INTRO=1 "$CONTROL" start "$SANDBOX_DIR"
     ;;
   reset)
     ensure_sandbox
-    TLONBOT_INTRO_FILE="$SANDBOX_INTRO" "$CONTROL" reset "$SANDBOX_DIR"
+    TLONBOT_SKIP_INTRO=1 "$CONTROL" reset "$SANDBOX_DIR"
     ;;
   init)      ensure_sandbox ;;
   logs)      "$CONTROL" logs ;;

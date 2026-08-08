@@ -40,6 +40,7 @@ import {
 } from './src/migrate-command.js';
 import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
+import { setOnboardingCommandRunner } from './src/onboarding-operations.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
@@ -966,6 +967,12 @@ export default defineBundledChannelEntry({
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
 
+    setOnboardingCommandRunner((args) =>
+      runTlonCommand(tlonBinary, args, credentials, {
+        timeoutMs: toolTimeoutMs,
+      })
+    );
+
     if (credentials) {
       api.logger.info(`[tlon] Credentials available for ${account.ship}`);
     } else {
@@ -1085,7 +1092,7 @@ export default defineBundledChannelEntry({
       // Only block when role is explicitly "user" (non-owner DM).
       if (isBlocked) {
         api.logger.warn(
-          `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
+          `[tlon] Blocked ${event.toolName} tool. Session: ${ctx.sessionKey}, Role: ${role}`
         );
         if (contextLensEnabled) {
           const blockedLens = recordContextLensToolResultForSession(
@@ -1250,6 +1257,8 @@ export default defineBundledChannelEntry({
     });
     api.on('gateway_stop', () => {
       clearCronServiceAccessor();
+      // Do not clear shared onboarding callbacks here. OpenClaw can deliver a
+      // stale registry's stop after a newer registry is already active.
       resetTlonCronObservability();
     });
 
