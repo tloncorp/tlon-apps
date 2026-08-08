@@ -29,6 +29,7 @@ export enum NodeBootPhase {
   SCAFFOLDING_WAYFINDING = 50,
   CHECKING_FOR_INVITE = 60,
   ACCEPTING_INVITES = 70,
+  INSTALLING_KIT = 80,
   READY = 200,
   ERROR = 400,
 }
@@ -43,6 +44,7 @@ export const BootPhaseExplanations: Record<NodeBootPhase, string> = {
   [NodeBootPhase.CHECKING_FOR_INVITE]: 'Confirming your invites were received',
   [NodeBootPhase.ACCEPTING_INVITES]:
     'Initializing the conversations you were invited to',
+  [NodeBootPhase.INSTALLING_KIT]: 'Installing the kit you were invited with',
   [NodeBootPhase.READY]: 'Your node is ready',
   [NodeBootPhase.ERROR]: 'Your node errored while initializing',
 };
@@ -56,6 +58,7 @@ export const BootPhaseNames: Record<NodeBootPhase, string> = {
   [NodeBootPhase.SCAFFOLDING_WAYFINDING]: 'Scaffolding Wayfinding',
   [NodeBootPhase.CHECKING_FOR_INVITE]: 'Checking for Invites',
   [NodeBootPhase.ACCEPTING_INVITES]: 'Accepting Invites',
+  [NodeBootPhase.INSTALLING_KIT]: 'Installing Kit',
   [NodeBootPhase.READY]: 'Ready',
   [NodeBootPhase.ERROR]: 'Error',
 };

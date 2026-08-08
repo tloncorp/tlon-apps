@@ -40,7 +40,8 @@ interface LureState {
   fetchLure: (
     flag: string,
     inviteServiceEndpoint: string,
-    inviteServiceIsDev: boolean
+    inviteServiceIsDev: boolean,
+    kit?: string
   ) => Promise<void>;
   start: () => Promise<void>;
 }
@@ -69,7 +70,7 @@ export const useLureState = create<LureState>((set, get) => ({
       });
     }
   },
-  fetchLure: async (flag) => {
+  fetchLure: async (flag, _inviteServiceEndpoint, _inviteServiceIsDev, kit) => {
     const { lures } = get();
     const prevLure = lures[flag];
     lureLogger.crumb('fetching', flag, 'prevLure', prevLure);
@@ -94,7 +95,7 @@ export const useLureState = create<LureState>((set, get) => ({
     let url = localUrl;
     if (!url || checkOldLureToken(url)) {
       // start the process of creating the lure
-      await createGroupInviteLink(flag);
+      await createGroupInviteLink(flag, kit);
       // listen for the result
       url = await asyncWithDefault<string | undefined>(async () => {
         lureLogger.crumb(performance.now(), 'fetching url with sub', flag);
@@ -135,6 +136,7 @@ export const useLureState = create<LureState>((set, get) => ({
         invitedGroupDescription: group?.description ?? undefined,
         invitedGroupIconImageUrl: group?.iconImage ?? undefined,
         invitedGroupiconImageColor: group?.iconImageColor ?? undefined,
+        ...(kit ? { kit } : {}),
       };
 
       const mintedUrl = await createDeepLink({

@@ -16,4 +16,6 @@ export interface InviteLinkMetadata {
   invitedGroupIconImageUrl?: string;
   invitedGroupiconImageColor?: string;
   inviteType?: 'user' | 'group';
+  // kit reference carried on the invite link: "<publisher-ship>/<kit-id>"
+  kit?: string;
 }

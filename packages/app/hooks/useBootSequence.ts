@@ -20,6 +20,7 @@ import { usePosthog } from './usePosthog';
 
 const HANDLE_INVITES_TIMEOUT = 1000 * 20;
 const HANDLE_SCAFFOLD_TIMEOUT = 1000 * 30;
+const INSTALL_KIT_TIMEOUT = 1000 * 15;
 
 const GETTING_STARTED_GROUP_ID = '~wittyr-witbes/v3s2kbd7';
 const TLON_STUDIO = '~tommur-dostyn/tlon-studio';
@@ -335,6 +336,64 @@ export function useBootSequence() {
           store.syncDms();
         }
       }, 5000);
+
+      return lureMeta?.kit ? NodeBootPhase.INSTALLING_KIT : NodeBootPhase.READY;
+    }
+
+    //
+    // INSTALLING_KIT [optional]: fetch and install the kit referenced on the
+    // invite link. Non-fatal: any failure or timeout continues to READY.
+    //
+    if (bootPhase === NodeBootPhase.INSTALLING_KIT) {
+      if (!lureMeta?.kit) {
+        return NodeBootPhase.READY;
+      }
+
+      try {
+        const [publisher, kitId] = lureMeta.kit.split('/');
+        if (!publisher || !kitId) {
+          throw new Error(`invalid kit reference: ${lureMeta.kit}`);
+        }
+
+        await api.fetchKit(publisher, kitId);
+
+        // wait for the package to arrive from the publisher
+        let kit: api.Kit | null = null;
+        const deadline = Date.now() + INSTALL_KIT_TIMEOUT;
+        while (!kit && Date.now() < deadline) {
+          kit = await api.getKit(kitId);
+          if (!kit) {
+            await wait(1000);
+          }
+        }
+        if (!kit) {
+          throw new Error(`timed out waiting for kit ${lureMeta.kit}`);
+        }
+
+        const suffix = Array.from(
+          { length: 4 },
+          () =>
+            'abcdefghijklmnopqrstuvwxyz0123456789'[
+              Math.floor(Math.random() * 36)
+            ]
+        ).join('');
+        await api.installKit({
+          id: kitId,
+          name: `${kitId}-${suffix}`,
+          meta: {
+            title: kit.manifest.name,
+            description: '',
+            image: '',
+            cover: '',
+          },
+        });
+        logger.crumb('installed kit', lureMeta.kit);
+      } catch (e) {
+        logger.trackError('failed to install kit during signup', {
+          kit: lureMeta.kit,
+          errorMessage: e?.message,
+        });
+      }
 
       return NodeBootPhase.READY;
     }
