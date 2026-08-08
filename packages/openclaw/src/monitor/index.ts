@@ -35,7 +35,7 @@ import {
   createContextLensRegistry,
   unbindContextLensFromSession,
 } from '../context-lens.js';
-import { scheduleCronSnapshot } from '../cron-telemetry.js';
+import { getCronService, scheduleCronSnapshot } from '../cron-telemetry.js';
 import {
   getEffectiveOwnerShip,
   setEffectiveOwnerShip,
@@ -46,6 +46,14 @@ import {
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
+import {
+  type KitsRuntime,
+  bindKitSessionGroup,
+  createKitsRuntime,
+  isKitsEnabled,
+  publishKitsRuntime,
+  unpublishKitsRuntime,
+} from '../kits/runtime.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
   type PendingNudge,
@@ -868,6 +876,43 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       log: (msg) => runtime.log?.(msg),
       error: (msg) => runtime.error?.(msg),
     });
+
+    // Kits runtime: group-installed behavior packages (ambient instructions,
+    // schedules, setup conversation, scaffolds). Published through a shared
+    // slot so the before_prompt_build hook in the plugin-entry module context
+    // can reach it. Config-gated by `kits.enabled` (default on).
+    let kitsRuntime: KitsRuntime | null = null;
+    if (isKitsEnabled(cfg, opts.accountId)) {
+      kitsRuntime = createKitsRuntime({
+        botShip: botShipName,
+        scry: (path) => api.scry(path),
+        poke: (params) => api.poke(params),
+        resolveGroupSessionRoute: (nest) => {
+          const kitRoute = core.channel.routing.resolveAgentRoute({
+            cfg,
+            channel: 'tlon',
+            accountId: opts.accountId ?? undefined,
+            peer: { kind: 'group', id: nest },
+          });
+          return kitRoute?.sessionKey
+            ? {
+                sessionKey: kitRoute.sessionKey,
+                ...(kitRoute.accountId
+                  ? { accountId: kitRoute.accountId }
+                  : {}),
+              }
+            : null;
+        },
+        enqueueSystemEvent: (text, eventOpts) =>
+          core.system.enqueueSystemEvent(text, eventOpts),
+        getCronService,
+        log: (msg) => runtime.log?.(msg),
+        error: (msg) => runtime.error?.(msg),
+      });
+      publishKitsRuntime(kitsRuntime);
+    } else {
+      runtime.log?.('[tlon] kits: runtime disabled via kits.enabled=false');
+    }
 
     // Reactive state that can be updated via settings store
     let effectiveDmAllowlist: string[] = account.dmAllowlist;
@@ -3091,6 +3136,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       if (isGroup && channelNest) {
         const groupFlag = channelToGroup.get(channelNest);
         if (groupFlag) {
+          // Bind session → group so the kits before_prompt_build hook can
+          // resolve this turn's group and inject ambient kit instructions.
+          if (kitsRuntime) {
+            bindKitSessionGroup(route.sessionKey, groupFlag);
+          }
           bodyWithAttachments += `\n[Group members available via: tlon groups info ${groupFlag}]`;
           contextLenses.recordContextSource(lens.lensId, {
             kind: 'system',
@@ -5241,6 +5291,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           path: '/groups/ui',
           event: async (event: any) => {
             try {
+              // Kit installs/uninstalls edit the group's blob; invalidate the
+              // kits config cache and re-reconcile when a blob update lands.
+              kitsRuntime?.handleGroupsUiEvent(event);
               // Handle fleet (member) changes - inject system message for joins
               if (event?.flag && event?.update?.fleet) {
                 const groupFlag = event.flag as string;
@@ -5440,6 +5493,43 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         runtime.log?.(
           `[tlon] Groups-ui subscription failed (will rely on polling): ${String(err)}`
         );
+      }
+
+      // Subscribe to %kits updates so fresh installs fire their setup
+      // conversation and schedules without waiting for the config-cache TTL.
+      if (kitsRuntime) {
+        try {
+          await api.subscribe({
+            app: 'kits',
+            path: '/v1/updates',
+            event: (event: unknown) => {
+              try {
+                kitsRuntime?.handleKitsUpdate(event);
+              } catch (error: any) {
+                runtime.error?.(
+                  `[tlon] Error handling kits update: ${error?.message ?? String(error)}`
+                );
+              }
+            },
+            err: (error) => {
+              runtime.error?.(
+                `[tlon] Kits subscription error: ${String(error)}`
+              );
+            },
+            quit: () => {
+              runtime.log?.(
+                '[tlon] Kits subscription quit received, SSE client will resubscribe'
+              );
+            },
+          });
+          runtime.log?.('[tlon] Subscribed to kits /v1/updates');
+        } catch (err) {
+          // Optional: install/blob changes still land via the groups-ui
+          // subscription and the config-cache TTL.
+          runtime.log?.(
+            `[tlon] Kits subscription failed (will rely on blob polling): ${String(err)}`
+          );
+        }
       }
 
       // Subscribe to foreigns for auto-accepting group invites
@@ -5670,6 +5760,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           runtime.error?.(`[tlon] Cron snapshot failed: ${String(error)}`),
       });
 
+      // Initial kits reconcile over every group the bot participates in:
+      // load blob configs, fire pending setup conversations, and reconcile
+      // `tlon:kit:*` cron jobs (retries internally if the cron service
+      // accessor hasn't been published by gateway_start yet).
+      if (kitsRuntime) {
+        const kitGroupFlags = [...new Set(channelToGroup.values())];
+        void kitsRuntime.start(kitGroupFlags).catch((error) => {
+          runtime.error?.(`[tlon] Kits reconcile failed: ${String(error)}`);
+        });
+      }
+
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
         async () => {
@@ -5800,6 +5901,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       drainingAgentOnboarding = true;
       clearAgentOnboardingRetries?.();
       clearAgentOnboardingRetries = null;
+      if (kitsRuntime) {
+        kitsRuntime.stop();
+        unpublishKitsRuntime(kitsRuntime);
+      }
       removeBridge(accountKey, commandBridge);
       await Promise.allSettled([...onboardingRetryFlights]);
       drainingOnboardingDiscovery = true;

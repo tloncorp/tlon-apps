@@ -58,6 +58,7 @@ import {
   handleAgentOnboardingMessageSent,
   isAgentOnboardingCronJob,
 } from './src/monitor/agent-onboarding.js';
+import { handleKitsBeforePromptBuild } from './src/kits/runtime.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
@@ -1003,6 +1004,23 @@ export default defineBundledChannelEntry({
         required: ['command'],
       },
       execute: executeTlonTool,
+    });
+
+    // ── Kits: ambient instruction injection ────────────────────────────
+    // Group turns whose group has kit config get the kit's ambient
+    // instructions prepended to the (cacheable) system prompt. The monitor
+    // publishes the kits runtime through a shared slot when `kits.enabled`
+    // is on; until then this hook is a no-op.
+    api.on('before_prompt_build', async (_event, ctx) => {
+      try {
+        return await handleKitsBeforePromptBuild(ctx);
+      } catch (error) {
+        // Prompt injection is best-effort; never block the turn on it.
+        api.logger.warn(
+          `[tlon] kits before_prompt_build failed: ${String(error)}`
+        );
+        return undefined;
+      }
     });
 
     // Tool access control: block sensitive tools for non-owners
