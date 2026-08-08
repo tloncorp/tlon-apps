@@ -27,6 +27,7 @@
       [%'invitedGroupDescription' '']
       [%'invitedGroupId' '~sampel-palnet/sunrise']
       [%'invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
+      [%kit '~sampel-palnet/book-club']
       [%'bite-type' '2']
   ==
 ++  personal-invite-meta
@@ -164,6 +165,11 @@
   ;<  =metadata:reel  bind:m  (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
     (ex-equal !>(metadata) !>(group-invite-meta))
+  ::  the kit field round-trips through describe untouched
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal  !>((~(get by fields.metadata) %kit))
+    !>(`'~sampel-palnet/book-club')
   ::  a personal group invite can be requested from reel
   ::
   =+  nonce=(scot %da ~2025.9.3)

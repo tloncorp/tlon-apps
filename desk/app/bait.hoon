@@ -36,9 +36,33 @@
   =/  description
     ?.  =(tag.metadata 'groups-0')  ""
     (trip (~(got by fields.metadata) %'invitedGroupDescription'))
+  =/  look
+    |=  =field:reel
+    ^-  tape
+    (trip (~(gut by fields.metadata) field ''))
+  =/  inviter=tape
+    =/  nickname  (look %'inviterNickname')
+    ?.  =("" nickname)  nickname
+    (look %'inviterUserId')
+  =/  group-title=tape  (look %'invitedGroupTitle')
+  =/  title=tape
+    ?.  =("" (look %kit))
+      "{inviter} sent you {group-title} — a ready-to-run kit"
+    =/  og-title  (look %'$og_title')
+    ?.  =("" og-title)  og-title
+    ?:  =("" group-title)  "Lure"
+    "You've been invited to {group-title}"
+  =/  og-description=tape  (look %'invitedGroupDescription')
+  =/  image=tape  (look %'invitedGroupIconImageUrl')
   ;html
     ;head
       ;title:"Lure"
+      ;meta(property "og:title", content title);
+      ;meta(property "og:description", content og-description);
+      ;*  ?:  =("" image)  ~
+          :_  ~
+          ;meta(property "og:image", content image);
+      ;meta(name "twitter:card", content "summary");
     ==
     ;body
       ;p: {description}

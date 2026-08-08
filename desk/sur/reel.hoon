@@ -28,6 +28,8 @@
       %'invitedGroupIconImageUrl'
       %'invitedGroupDeleted'
     ::
+      %kit
+    ::
       %'$og_title'
       %'$twitter_title'
   ==
