@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "id": "book-club",
+  "name": "Book Club",
+  "kitVersion": "0.1.0",
+  "publisher": "~lagrev-ridsyp-nocsyx-lassul",
+  "description": "A reading club that runs itself: picks get proposed and voted on, the current book is tracked, discussion gets a gentle monthly rhythm.",
+  "image": "https://bootstrap.urbit.org/kits/book-club.png",
+  "scope": "group",
+  "places": {
+    "discussion": {
+      "type": "chat",
+      "title": "Discussion",
+      "description": "Talk about the current book"
+    },
+    "picks": {
+      "type": "chat",
+      "title": "Picks",
+      "description": "Propose and vote on what to read next"
+    },
+    "log": {
+      "type": "notebook",
+      "title": "Reading Log",
+      "description": "The club's record: current book, past reads, notes"
+    }
+  },
+  "bindings": [
+    {
+      "file": "instructions/runner.md",
+      "scope": "group",
+      "load": "ambient"
+    },
+    {
+      "file": "instructions/setup.md",
+      "scope": "group",
+      "trigger": "install.setup",
+      "load": "on-trigger"
+    },
+    {
+      "file": "instructions/monthly-pick.md",
+      "scope": "group",
+      "trigger": "schedule.monthly-pick",
+      "load": "on-trigger"
+    },
+    {
+      "file": "instructions/weekly-nudge.md",
+      "scope": "group",
+      "trigger": "schedule.weekly-nudge",
+      "load": "on-trigger"
+    }
+  ],
+  "schedules": [
+    {
+      "id": "monthly-pick",
+      "cron": "0 17 1 * *",
+      "description": "First of the month: run the next-pick process"
+    },
+    {
+      "id": "weekly-nudge",
+      "cron": "0 17 * * 5",
+      "description": "Friday afternoons: a light discussion prompt if the room has gone quiet"
+    }
+  ],
+  "scaffolds": [
+    {
+      "file": "scaffolds/Profile.md",
+      "workspace": "Book Club/Profile.md"
+    },
+    {
+      "file": "scaffolds/Reading Log.md",
+      "workspace": "Book Club/Reading Log.md"
+    }
+  ],
+  "policy": {
+    "required": [
+      {
+        "reason": "Answer questions and run the club when mentioned in the club's channels.",
+        "cell": {
+          "sender": "allowed",
+          "surface": "owned-channel",
+          "trigger": "mention"
+        },
+        "level": "auto"
+      },
+      {
+        "reason": "Run the monthly pick and weekly nudge on schedule.",
+        "event": "schedule",
+        "level": "auto"
+      }
+    ],
+    "recommended": [
+      {
+        "reason": "Notice book talk in the club without needing a mention, and join in when it adds something.",
+        "cell": {
+          "sender": "allowed",
+          "surface": "owned-channel",
+          "trigger": "plain"
+        },
+        "level": "consider"
+      }
+    ]
+  }
+}

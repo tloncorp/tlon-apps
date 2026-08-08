@@ -166,6 +166,18 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
     ]),
   ],
   [
+    'kits',
+    new Set([
+      'list',
+      'show',
+      'add',
+      'fetch',
+      'install',
+      'installs',
+      'uninstall',
+    ]),
+  ],
+  [
     'messages',
     new Set(['dm', 'channel', 'history', 'search', 'context', 'post']),
   ],
@@ -450,6 +462,8 @@ function summarizeKnownTlonCommand(
       return summarizeGroupsOperation(operation, remainder, build);
     case 'hooks':
       return summarizeHooksOperation(operation, remainder, build);
+    case 'kits':
+      return summarizeKitsOperation(operation, build);
     case 'messages':
       return summarizeMessagesOperation(operation, remainder, build);
     case 'notes':
@@ -726,6 +740,38 @@ function summarizeHooksOperation(
       });
     default:
       return build('admin');
+  }
+}
+
+function summarizeKitsOperation(
+  operation: string,
+  build: (
+    intent: TlonToolIntent,
+    extra?: Omit<
+      Partial<TlonToolCallContext>,
+      | 'kind'
+      | 'summaryKey'
+      | 'subcommand'
+      | 'operation'
+      | 'intent'
+      | 'isKnownSubcommand'
+      | 'blockedSendOperation'
+    >
+  ) => TlonToolCallContext
+): TlonToolCallContext {
+  switch (operation) {
+    case 'list':
+    case 'show':
+    case 'installs':
+      return build('read');
+    case 'add':
+    case 'fetch':
+      return build('write');
+    case 'install':
+    case 'uninstall':
+      return build('admin');
+    default:
+      return build('utility');
   }
 }
 

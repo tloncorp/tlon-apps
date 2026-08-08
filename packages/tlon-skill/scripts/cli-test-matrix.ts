@@ -8,6 +8,7 @@ export const COMMAND_FAMILIES = [
   'expose',
   'groups',
   'hooks',
+  'kits',
   'messages',
   'notes',
   'posts',

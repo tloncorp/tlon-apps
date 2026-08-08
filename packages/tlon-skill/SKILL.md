@@ -120,8 +120,8 @@ export URBIT_CODE="sampel-ticlyt-migfun-falmel"
 
 **Cookie vs Code:**
 
-- **Cookie-based:** Uses pre-authenticated session cookie. Ship is parsed from the cookie name (`urbauth-~ship=...`). Fastest option.
-- **Code-based:** Performs login to get a fresh session cookie. Requires URL + ship + code.
+-   **Cookie-based:** Uses pre-authenticated session cookie. Ship is parsed from the cookie name (`urbauth-~ship=...`). Fastest option.
+-   **Code-based:** Performs login to get a fresh session cookie. Requires URL + ship + code.
 
 You can provide both cookie and code — cookie is used first, code serves as fallback if cookie expires.
 
@@ -148,10 +148,10 @@ $ tlon --ship ~bus contacts self
 
 **Cache behavior:**
 
-- Cached cookies are URL-specific (won't use a cookie for the wrong host)
-- If only one ship is cached, it's auto-selected (no flags needed)
-- If multiple ships are cached, you'll be prompted to specify with `--ship`
-- Code login and code fallback cache fresh cookies; provided-cookie flows do not copy cookies into cache
+-   Cached cookies are URL-specific (won't use a cookie for the wrong host)
+-   If only one ship is cached, it's auto-selected (no flags needed)
+-   If multiple ships are cached, you'll be prompted to specify with `--ship`
+-   Code login and code fallback cache fresh cookies; provided-cookie flows do not copy cookies into cache
 
 **Clear cache:** `rm ~/.tlon/cache/*.json`
 
@@ -159,9 +159,9 @@ $ tlon --ship ~bus contacts self
 
 If you have credentials for multiple ships, you can use this skill to operate on behalf of any of them. This is useful for:
 
-- **Managing multiple identities** — switch between ships without changing environment variables
-- **Bot operations** — act as a bot ship while authenticated as yourself
-- **Moon management** — operate moons from their parent planet
+-   **Managing multiple identities** — switch between ships without changing environment variables
+-   **Bot operations** — act as a bot ship while authenticated as yourself
+-   **Moon management** — operate moons from their parent planet
 
 Simply pass the target ship's credentials via CLI flags:
 
@@ -224,9 +224,9 @@ tlon channels rename --help
 
 Notes on permissions:
 
-- Empty writers list = anyone in the group can post (default for chat)
-- Empty readers list = anyone in the group can view (default)
-- Roles must exist in the group (use `tlon groups add-role` first)
+-   Empty writers list = anyone in the group can post (default for chat)
+-   Empty readers list = anyone in the group can view (default)
+-   Roles must exist in the group (use `tlon groups add-role` first)
 
 ### Contacts
 
@@ -348,23 +348,43 @@ tlon hooks rest 0v1a                                     # Stop cron job
 
 Notes:
 
-- Hook IDs are @uv format (e.g., `0v1a.2b3c4...`)
-- Schedules use @dr format: `~h1` (1 hour), `~m30` (30 minutes), `~d1` (1 day)
-- Hooks run in order when triggered; use `order` to set priority
-- Use `config` to pass channel-specific settings to a hook instance
+-   Hook IDs are @uv format (e.g., `0v1a.2b3c4...`)
+-   Schedules use @dr format: `~h1` (1 hour), `~m30` (30 minutes), `~d1` (1 day)
+-   Hooks run in order when triggered; use `order` to set priority
+-   Use `config` to pass channel-specific settings to a hook instance
 
 **Writing Hooks:** See `references/hooks.md` for full documentation on writing hooks, including:
 
-- Event types (`on-post`, `on-reply`, `cron`, `wake`)
-- Bowl context (channel, group, config access)
-- Effects (channel actions, group actions, scheduled wakes)
-- Config handling with clam (`;;`)
+-   Event types (`on-post`, `on-reply`, `cron`, `wake`)
+-   Bowl context (channel, group, config access)
+-   Effects (channel actions, group actions, scheduled wakes)
+-   Config handling with clam (`;;`)
 
 **Examples:** See `references/hooks-examples/` for starter templates:
 
-- `auto-react.hoon` — React to new posts with emoji
-- `delete-old-posts.hoon` — Cron job to clean up old messages
-- `word-filter.hoon` — Block posts containing banned words
+-   `auto-react.hoon` — React to new posts with emoji
+-   `delete-old-posts.hoon` — Cron job to clean up old messages
+-   `word-filter.hoon` — Block posts containing banned words
+
+### Kits
+
+Manage %kits packages — shareable bot behavior bundles (markdown instructions, scaffolds, schedules, place templates) — and their installs. Use these when publishing a kit you authored, pulling a kit from another ship, or instantiating a kit into a fresh group.
+
+```bash
+tlon kits list                                           # List kits in the local library
+tlon kits show book-club                                 # Manifest summary + file list
+tlon kits add ./kits/book-club                           # Validate a kit directory and add it to the library
+tlon kits fetch ~sampel-palnet book-club                 # Pull a kit from a publisher ship (async)
+tlon kits install book-club --name book-club-1 --title "Book Club"   # Create a group + places from a kit
+tlon kits installs                                       # List installed kits (group flag, setup status, place mapping)
+tlon kits uninstall ~sampel-palnet/book-club-1           # Clear the group's kit config and ledger entry
+```
+
+Notes:
+
+-   `add` takes a kit directory (kit.json + instructions/ + scaffolds/ + card/) and validates it locally before poking %kits.
+-   `install` defaults `--name` to `<id>-<4 random chars>` and `--title` to the kit's display name; the name must be a kebab-case term.
+-   `fetch` is asynchronous — the kit appears in `tlon kits list` once the publisher responds.
 
 ### Messages
 
@@ -423,8 +443,8 @@ tlon expose url heap/~host/gallery/170.141...            # Get the public URL
 
 Cite path formats:
 
-- Simplified: `chat/~host/channel/170.141...` (auto-expands)
-- Full: `/1/chan/chat/~host/channel/msg/170.141...`
+-   Simplified: `chat/~host/channel/170.141...` (auto-expands)
+-   Full: `/1/chan/chat/~host/channel/msg/170.141...`
 
 Channel kinds map to content types: chat→msg, heap→curio
 
@@ -565,12 +585,12 @@ tlon settings deauthorize-ship ~ship                     # Remove from auth
 
 ## Notes
 
-- Ship names should include `~` prefix
-- Post IDs are @ud format with dots (e.g. `170.141.184.507...`)
-- DM post IDs include author prefix (`~ship/170.141...`)
-- Channel nests: `<kind>/~<host>/<name>` (chat, heap, or notes)
+-   Ship names should include `~` prefix
+-   Post IDs are @ud format with dots (e.g. `170.141.184.507...`)
+-   DM post IDs include author prefix (`~ship/170.141...`)
+-   Channel nests: `<kind>/~<host>/<name>` (chat, heap, or notes)
 
 ## Limits
 
-- Activity: max 25 items
-- Messages: max 50 items
+-   Activity: max 25 items
+-   Messages: max 50 items

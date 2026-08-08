@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@tloncorp/api": "workspace:*",
+    "@tloncorp/tlon-kits": "workspace:*",
     "@types/bun": "^1.3.14",
     "@types/node": "^22.10.0",
     "@urbit/aura": "^3.0.0",
