@@ -12,6 +12,7 @@
  *   contacts     Contact/profile management
  *   dms          Direct message operations
  *   groups       Group management
+ *   kits         %kits packages and installs
  *   messages     Message history and search (dm, channel, history, search, context, post)
  *   notes        %notes notebook operations
  *   posts        Post reactions, edits, deletes
@@ -49,6 +50,7 @@ Commands:
   expose       Manage public content exposure (list, show, hide, check, url)
   groups       Group management (list, create, info, join, request/accept invites, leave, delete, ...)
   hooks        Channel hooks management (list, add, edit, delete, order, config, cron, rest)
+  kits         %kits packages and installs (list, show, add, fetch, install, installs, uninstall)
   messages     Message history and search (dm, channel, history, search, context, post)
   notes        %notes notebooks (list, show, request, note-create, note-update, join, leave)
   posts        Post reactions, edits, deletes (react, unreact, edit, delete)
@@ -196,6 +198,11 @@ async function main() {
       case 'hooks': {
         process.argv = ['tlon', command, ...scriptArgs];
         const mod = await import('./hooks');
+        break;
+      }
+      case 'kits': {
+        process.argv = ['tlon', command, ...scriptArgs];
+        const mod = await import('./kits');
         break;
       }
       case 'messages': {

@@ -14,6 +14,7 @@ export const ALLOWED_TLON_COMMANDS = [
   'expose',
   'groups',
   'hooks',
+  'kits',
   'messages',
   'notes',
   'notebook',

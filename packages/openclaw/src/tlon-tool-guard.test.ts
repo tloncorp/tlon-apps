@@ -16,6 +16,11 @@ describe('tlon tool guard', () => {
     it('keeps notebook allowed for skill-level removal guidance', () => {
       expect(isAllowedTlonSubcommand('notebook')).toBe(true);
     });
+
+    it('allows kits commands through the tlon tool gate', () => {
+      expect(isAllowedTlonSubcommand('kits')).toBe(true);
+      expect(formatAllowedTlonSubcommands()).toContain('kits');
+    });
   });
 
   describe('blocks non-club dms send/reply', () => {
