@@ -26,12 +26,16 @@
           service+so
           address+so
       ==
+    ::  caps is optional: app builds older than push capability gating
+    ::  register without it, and declare nothing by omitting it
+    ::
     ++  connect-provider-with-binding
-      %-  ot
-      :~  who+(su fed:ag)
-          service+so
-          address+so
-          binding+so
+      %-  ou
+      :~  who+(un (su fed:ag))
+          service+(un so)
+          address+(un so)
+          binding+(un so)
+          caps+(uf ~ (as so))
       ==
     ++  remove-provider
       %-  ot
