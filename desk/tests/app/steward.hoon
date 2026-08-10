@@ -2,7 +2,7 @@
 ::
 /-  s=steward, a=activity, av=activity-ver
 /-  l=steward-lens, g=steward-gateway, au=steward-automation
-/+  *test-agent
+/+  *test-agent, aj=steward-automation-json
 /=  agent  /app/steward
 |%
 ++  dap  %steward
@@ -42,6 +42,21 @@
   ;<  *  bind:m
     (do-poke %steward-automation-action-1 !>(`action:v1:au`[%project tasks]))
   (pure:m ~)
+++  parse-json
+  |=  body=@t
+  ^-  json
+  (need (de:json:html body))
+++  project-automation-json
+  |=  body=@t
+  =/  action=action:v1:au
+    (action-from-json:aj (parse-json body))
+  (project-automation tasks.action)
+++  trace-project-json
+  ^-  @t
+  '{"project":{"tasks":[{"id":"trace-at-1","agentId":"dev","name":"Captured one-shot reminder","enabled":true,"schedule":{"kind":"at","at":1785734301000},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a short reminder."},"createdAtMs":1785734006665,"updatedAtMs":1785734006665},{"id":"trace-every-1","agentId":"dev","name":"Captured interval reminder","enabled":true,"schedule":{"kind":"every","everyMs":120000,"anchorMs":1785735243782},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a playful reminder."},"createdAtMs":1785735243782,"updatedAtMs":1785740230441}]}}'
+++  trace-task-map-json
+  ^-  @t
+  '{"tasks":{"trace-at-1":{"agentId":"dev","name":"Captured one-shot reminder","enabled":true,"schedule":{"kind":"at","at":1785734301000},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a short reminder."},"createdAtMs":1785734006665,"updatedAtMs":1785734006665},"trace-every-1":{"agentId":"dev","name":"Captured interval reminder","enabled":true,"schedule":{"kind":"every","everyMs":120000,"anchorMs":1785735243782},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a playful reminder."},"createdAtMs":1785735243782,"updatedAtMs":1785740230441}}}'
 ::
 ::  our ship in tests is ~dev (set via +setup below). +moon stands in for a
 ::  remote bot ship; the %entry gate is now an explicit trusted-bots set
@@ -178,15 +193,13 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  task-a=task:v1:au  (automation-task 'Task A')
-  =/  task-b=task:v1:au  (automation-task 'Task B')
   =/  initial=(list identified-task:v1:au)  ~[['task-a' task-a]]
-  =/  foreign=(list identified-task:v1:au)  ~[['task-b' task-b]]
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (project-automation initial)
   ;<  ~  bind:m
     %-  ex-fail
     %-  (do-as ~zod)
-    (project-automation foreign)
+    (project-automation-json trace-project-json)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-1 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
@@ -204,22 +217,41 @@
   =/  actual=task-map:v1:au  !<(task-map:v1:au q.res)
   (ex-equal !>(actual) !>(*(map @t task:v1:au)))
 ::
-++  test-automation-tasks-scry-populated
+++  test-automation-tasks-scry-populated-json
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  task-a=task:v1:au  (automation-task 'Task A')
-  =/  task-b=task:v1:au  (automation-task 'Task B')
-  =/  projected=(list identified-task:v1:au)
-    ~[['task-a' task-a] ['task-b' task-b]]
+  =/  action=action:v1:au
+    (action-from-json:aj (parse-json trace-project-json))
+  =/  projected=(list identified-task:v1:au)  tasks.action
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (project-automation projected)
+  ;<  ~  bind:m  (project-automation-json trace-project-json)
   ;<  res=cage  bind:m  (got-peek /x/v1/automation/tasks)
   ;<  ~  bind:m
     (ex-equal !>(p.res) !>(%steward-automation-task-map-1))
   =/  actual=task-map:v1:au  !<(task-map:v1:au q.res)
   =/  expected=(map @t task:v1:au)
     (~(gas by *(map @t task:v1:au)) projected)
+  ;<  ~  bind:m  (ex-equal !>(actual) !>(expected))
+  %+  ex-equal
+    !>((task-map-to-json:aj actual))
+  !>((parse-json trace-task-map-json))
+::
+++  test-automation-project-persists-through-save-load
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  action=action:v1:au
+    (action-from-json:aj (parse-json trace-project-json))
+  =/  expected=(map @t task:v1:au)
+    (~(gas by *(map @t task:v1:au)) tasks.action)
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation-json trace-project-json)
+  ;<  *  bind:m  (do-load agent ~)
+  ;<  res=cage  bind:m  (got-peek /x/v1/automation/tasks)
+  ;<  ~  bind:m
+    (ex-equal !>(p.res) !>(%steward-automation-task-map-1))
+  =/  actual=task-map:v1:au  !<(task-map:v1:au q.res)
   (ex-equal !>(actual) !>(expected))
 ::
 ++  test-automation-tasks-scry-rejects-foreign

@@ -1,0 +1,67 @@
+[
+  {
+    "id": "trace-at-1",
+    "agentId": "dev",
+    "name": "Captured one-shot reminder",
+    "enabled": true,
+    "deleteAfterRun": true,
+    "createdAtMs": 1785734006665,
+    "updatedAtMs": 1785734006665,
+    "schedule": {
+      "kind": "at",
+      "at": "2026-08-03T05:18:21.000Z"
+    },
+    "sessionTarget": "isolated",
+    "wakeMode": "now",
+    "payload": {
+      "kind": "agentTurn",
+      "message": "Send a short reminder."
+    },
+    "delivery": {
+      "mode": "announce",
+      "channel": "tlon",
+      "to": "~sample"
+    },
+    "state": {
+      "nextRunAtMs": 1785734301000
+    }
+  },
+  {
+    "id": "trace-every-1",
+    "agentId": "dev",
+    "name": "Captured interval reminder",
+    "enabled": true,
+    "deleteAfterRun": true,
+    "createdAtMs": 1785735243782,
+    "updatedAtMs": 1785740230441,
+    "schedule": {
+      "kind": "every",
+      "everyMs": 120000,
+      "anchorMs": 1785735243782
+    },
+    "sessionTarget": "isolated",
+    "wakeMode": "now",
+    "payload": {
+      "kind": "agentTurn",
+      "message": "Send a playful reminder."
+    },
+    "delivery": {
+      "mode": "announce",
+      "channel": "tlon",
+      "to": "~sample"
+    },
+    "state": {
+      "nextRunAtMs": 1785740343800,
+      "lastRunAtMs": 1785740223800,
+      "lastRunStatus": "ok",
+      "lastStatus": "ok",
+      "lastDurationMs": 6641,
+      "lastDelivered": true,
+      "lastDeliveryStatus": "delivered",
+      "lastFailureNotificationDeliveryStatus": "not-requested",
+      "consecutiveErrors": 0,
+      "consecutiveSkipped": 0,
+      "runningAtMs": 1785743133278
+    }
+  }
+]
