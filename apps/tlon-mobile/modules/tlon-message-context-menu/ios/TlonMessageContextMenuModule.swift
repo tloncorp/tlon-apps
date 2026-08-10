@@ -11,6 +11,10 @@ public class TlonMessageContextMenuModule: Module {
                 "onMoreReactions"
             )
 
+            Prop("postId") { (view, postId: String) in
+                view.postId = postId
+            }
+
             Prop("actions") { (view, actions: [TlonMessageMenuAction]) in
                 view.actions = actions
             }

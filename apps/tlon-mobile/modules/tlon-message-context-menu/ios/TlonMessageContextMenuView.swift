@@ -16,6 +16,14 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
     let onReaction = EventDispatcher()
     let onMoreReactions = EventDispatcher()
 
+    var postId = "" {
+        didSet {
+            if postId != oldValue {
+                presentationView?.dismiss()
+            }
+        }
+    }
+
     var actions: [TlonMessageMenuAction] = [] {
         didSet {
             guard !actions.elementsEqual(oldValue, by: Self.actionsMatch) else {
@@ -244,6 +252,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         let location = recognizer.location(in: window)
         initialGestureLocation = location
         gestureExitedDeadZone = false
+        let presentedPostId = postId
         let presentedContentKey = contentKey
         let presentedReactionKey = reactionKey
         let presentedActions = actions
@@ -264,6 +273,12 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
 
             presentationView = nil
             resetGestureState()
+
+            // React Native may recycle and rebind this host while its overlay
+            // is still dismissing. Never route that selection to another post.
+            guard postId == presentedPostId else {
+                return
+            }
 
             switch selection {
             case let .action(id):

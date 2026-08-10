@@ -14,6 +14,7 @@ import {
 import { MessageContextMenuProps } from './MessageContextMenu.types';
 
 interface NativeMessageContextMenuProps extends ViewProps {
+  postId: string;
   actions: MessageMenuActionDescriptor[];
   reactions: string[];
   selectedReaction?: string;
@@ -97,6 +98,7 @@ function EnabledMessageContextMenu({
 
   return (
     <NativeMessageContextMenu
+      postId={post.id}
       actions={actions}
       reactions={reactions}
       selectedReaction={

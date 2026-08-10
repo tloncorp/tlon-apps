@@ -16,6 +16,7 @@ import { AccessibilityInfo } from 'react-native';
 
 let isEnabled = false;
 let subscription: { remove: () => void } | null = null;
+let subscriptionGeneration = 0;
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -36,19 +37,37 @@ function subscribe(listener: () => void) {
   listeners.add(listener);
 
   if (listeners.size === 1) {
+    const generation = ++subscriptionGeneration;
+    let eventVersion = 0;
+    subscription =
+      AccessibilityInfo.addEventListener?.(
+        'screenReaderChanged',
+        (nextEnabled) => {
+          eventVersion += 1;
+          if (generation === subscriptionGeneration) {
+            setEnabled(nextEnabled);
+          }
+        }
+      ) ?? null;
+    const queryEventVersion = eventVersion;
     void AccessibilityInfo.isScreenReaderEnabled?.()
-      .then(setEnabled)
+      .then((nextEnabled) => {
+        if (
+          generation === subscriptionGeneration &&
+          eventVersion === queryEventVersion
+        ) {
+          setEnabled(nextEnabled);
+        }
+      })
       .catch(() => {
         // Not all platforms implement the query; assume no screen reader.
       });
-    subscription =
-      AccessibilityInfo.addEventListener?.('screenReaderChanged', setEnabled) ??
-      null;
   }
 
   return () => {
     listeners.delete(listener);
     if (listeners.size === 0) {
+      subscriptionGeneration += 1;
       subscription?.remove();
       subscription = null;
     }
