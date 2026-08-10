@@ -118,8 +118,9 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     }
 
     func present(in window: UIWindow) {
-        // The window-level overlay cannot track React Native's keyboard inset.
-        // Dismiss the keyboard before resolving the menu's available space.
+        // The window-level overlay cannot use React Native's keyboard inset.
+        // Dismiss the keyboard now and refresh the live source destination on
+        // dismissal after KeyboardAvoidingView has finished its relayout.
         window.endEditing(true)
         frame = window.bounds
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -149,6 +150,11 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         // Commit the source-frame snapshot before assigning animated target
         // values. Otherwise a newly-added view can draw first at its target
         // frame, making the entrance appear to snap while dismissal animates.
+        guard !UIAccessibility.isReduceMotionEnabled else {
+            finishPresentationWithoutMotion()
+            return
+        }
+
         DispatchQueue.main.async { [weak self] in
             guard let self, superview != nil, !self.isDismissing else {
                 return
@@ -165,24 +171,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
             initialSpringVelocity: Animation.presentationVelocity,
             options: [.beginFromCurrentState, .allowUserInteraction]
         ) {
-            self.previewContainer.frame = self.targetPreviewFrame
-            let previewScale = self.sourceFrame.width > 0
-                ? self.targetPreviewFrame.width / self.sourceFrame.width
-                : 1
-            self.sourceSnapshot.frame = CGRect(
-                origin: .zero,
-                size: CGSize(
-                    width: self.targetPreviewFrame.width,
-                    height: self.sourceFrame.height * previewScale
-                )
-            )
-            self.previewContainer.backgroundColor = self.previewBackgroundColor
-            self.actionMotionView.frame = self.targetActionFrame
-            self.actionRevealView.frame = CGRect(
-                origin: .zero,
-                size: self.targetActionFrame.size
-            )
-            self.reactionBar?.frame = self.targetReactionFrame
+            self.applyPresentedAppearance()
         } completion: { _ in
             self.isPresenting = false
             guard !self.isDismissing else {
@@ -208,14 +197,51 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         ) {
             self.reactionBar?.alpha = 1
         } completion: { _ in
-            UIAccessibility.post(
-                notification: .screenChanged,
-                argument: self.reactionBar ?? self.actionList
-            )
+            self.announcePresentation()
         }
     }
 
+    private func finishPresentationWithoutMotion() {
+        isPresenting = false
+        applyPresentedAppearance()
+        applyTargetLayout()
+        dimView.backgroundColor = Self.backdropColor
+        reactionBar?.alpha = 1
+        announcePresentation()
+    }
+
+    private func applyPresentedAppearance() {
+        previewContainer.frame = targetPreviewFrame
+        let previewScale = sourceFrame.width > 0
+            ? targetPreviewFrame.width / sourceFrame.width
+            : 1
+        sourceSnapshot.frame = CGRect(
+            origin: .zero,
+            size: CGSize(
+                width: targetPreviewFrame.width,
+                height: sourceFrame.height * previewScale
+            )
+        )
+        previewContainer.backgroundColor = previewBackgroundColor
+        actionMotionView.frame = targetActionFrame
+        actionRevealView.frame = CGRect(
+            origin: .zero,
+            size: targetActionFrame.size
+        )
+        reactionBar?.frame = targetReactionFrame
+    }
+
+    private func announcePresentation() {
+        UIAccessibility.post(
+            notification: .screenChanged,
+            argument: reactionBar ?? actionList
+        )
+    }
+
     private func animateScaleBounce() {
+        guard !UIAccessibility.isReduceMotionEnabled else {
+            return
+        }
         let animation = CAKeyframeAnimation(keyPath: "transform.scale")
         animation.values = Self.scaleBounceValues
         animation.calculationMode = .linear
@@ -512,6 +538,12 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         guard !isDismissing else {
             return
         }
+
+        if UIAccessibility.isReduceMotionEnabled {
+            dismissImmediately(with: selection)
+            return
+        }
+
         isDismissing = true
         actionList.updateHighlight(at: nil)
         reactionBar?.updateHighlight(at: nil)
@@ -519,10 +551,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         actionMotionView.layer.removeAnimation(forKey: "tlonScaleBounce")
         reactionBar?.layer.removeAnimation(forKey: "tlonScaleBounce")
 
-        // Return to the resting frame captured before the pressed-scale
-        // transform. Re-resolving the React Native view after a layout pass can
-        // produce a slightly different frame and cause a dismissal stutter.
-        let destinationFrame = restingSourceFrame ?? sourceFrame
+        let destinationFrame = dismissalDestinationFrame()
 
         UIView.animate(
             withDuration: 0.18,
@@ -564,15 +593,33 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         }
     }
 
-    private func dismissImmediately() {
+    private func dismissalDestinationFrame() -> CGRect {
+        let capturedFrame = restingSourceFrame ?? sourceFrame
+        guard let sourceView, let window else {
+            return capturedFrame
+        }
+
+        let liveFrame = sourceView.convert(sourceView.bounds, to: window)
+        let sourceMoved = abs(liveFrame.minX - capturedFrame.minX) > 1
+            || abs(liveFrame.minY - capturedFrame.minY) > 1
+            || abs(liveFrame.width - capturedFrame.width) > 1
+            || abs(liveFrame.height - capturedFrame.height) > 1
+        return sourceMoved ? liveFrame : capturedFrame
+    }
+
+    private func dismissImmediately(
+        with selection: TlonMessageMenuSelection? = nil
+    ) {
         guard !isDismissing else {
             return
         }
         isDismissing = true
         layer.removeAllAnimations()
+        actionList.updateHighlight(at: nil)
+        reactionBar?.updateHighlight(at: nil)
         sourceView?.isHidden = false
         removeFromSuperview()
-        completion(nil)
+        completion(selection)
     }
 
     @objc

@@ -16,7 +16,15 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
     let onReaction = EventDispatcher()
     let onMoreReactions = EventDispatcher()
 
-    var actions: [TlonMessageMenuAction] = []
+    var actions: [TlonMessageMenuAction] = [] {
+        didSet {
+            guard !actions.elementsEqual(oldValue, by: Self.actionsMatch) else {
+                return
+            }
+            presentationView?.dismiss()
+        }
+    }
+
     var reactions: [String] = []
     var selectedReaction: String?
     var alignment: TlonMessageMenuAlignment = .leading
@@ -104,7 +112,8 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
 
     private func beginPressIndication() {
         guard !actions.isEmpty, presentationView == nil,
-              indicationBaseTransform == nil
+              indicationBaseTransform == nil,
+              !UIAccessibility.isReduceMotionEnabled
         else {
             return
         }
@@ -212,7 +221,11 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
 
             switch selection {
             case let .action(id):
-                onAction(["id": id])
+                // Props can change while dismissal is finishing. Never dispatch
+                // an action that is no longer present in the latest model.
+                if actions.contains(where: { $0.id == id }) {
+                    onAction(["id": id])
+                }
             case let .reaction(value):
                 onReaction(["value": value])
             case .moreReactions:
@@ -230,6 +243,16 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         feedback.impactOccurred(intensity: 0.8)
 
         presentation.present(in: window)
+    }
+
+    private static func actionsMatch(
+        _ lhs: TlonMessageMenuAction,
+        _ rhs: TlonMessageMenuAction
+    ) -> Bool {
+        lhs.id == rhs.id
+            && lhs.title == rhs.title
+            && lhs.systemImage == rhs.systemImage
+            && lhs.destructive == rhs.destructive
     }
 
     private func updateGesture(for recognizer: UILongPressGestureRecognizer) {
