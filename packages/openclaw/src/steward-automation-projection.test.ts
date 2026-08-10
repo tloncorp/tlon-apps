@@ -12,7 +12,7 @@ function runtimeJob(value: unknown): HookCronJob {
 }
 
 describe('Steward automation projection normalization', () => {
-  it('normalizes captured jobs and omits execution-only fields', () => {
+  it('normalizes captured at/every jobs with their optional fields', () => {
     const result = normalizeStewardAutomationProject(
       capturedCronJobs.map(runtimeJob)
     );
@@ -57,12 +57,17 @@ describe('Steward automation projection normalization', () => {
         ],
       },
     });
-    expect(JSON.stringify(result)).not.toMatch(
-      /state|delivery|deleteAfterRun|message/
-    );
+    for (const task of result.project.tasks) {
+      expect(task).not.toHaveProperty('description');
+      expect(task).not.toHaveProperty('state');
+      expect(task).not.toHaveProperty('delivery');
+      expect(task).not.toHaveProperty('deleteAfterRun');
+      expect(task).not.toHaveProperty('sessionKey');
+      expect(task.payload).not.toHaveProperty('message');
+    }
   });
 
-  it('preserves false and zero and prefers declared payload text', () => {
+  it('includes a synthetic disabled cron job and preserves false and zero', () => {
     const result = normalizeStewardAutomationProject([
       runtimeJob({
         id: 'disabled-zero',
@@ -81,6 +86,8 @@ describe('Steward automation projection normalization', () => {
         },
         createdAtMs: 0,
         updatedAtMs: 0,
+        deleteAfterRun: false,
+        delivery: { mode: 'announce', to: '~sample' },
         sessionKey: 'drop me',
         state: { nextRunAtMs: 1 },
       }),
@@ -100,6 +107,12 @@ describe('Steward automation projection normalization', () => {
         ],
       },
     });
+    const [task] = result.project.tasks;
+    expect(task).not.toHaveProperty('state');
+    expect(task).not.toHaveProperty('delivery');
+    expect(task).not.toHaveProperty('deleteAfterRun');
+    expect(task).not.toHaveProperty('sessionKey');
+    expect(task.payload).not.toHaveProperty('message');
   });
 
   it('preserves input order and returns a complete empty project', () => {

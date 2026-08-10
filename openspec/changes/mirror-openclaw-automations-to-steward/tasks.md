@@ -70,7 +70,7 @@
 
 ## 4. Projection Verification
 
-- [ ] 4.1 Using captured OpenClaw `getCron().list()` trace fixtures,
+- [x] 4.1 Using captured OpenClaw `getCron().list()` trace fixtures,
         test normalization of optional fields and all supported
         schedules, inclusion of disabled tasks, and omission of cron
         job state.
