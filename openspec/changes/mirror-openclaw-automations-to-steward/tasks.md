@@ -23,7 +23,7 @@
         input.
 - [x] 2.3 Enforce the local Gall source boundary for `%project` and
         reject foreign sources without changing state.
-- [ ] 2.4 Add the versioned automation action mark and dedicated
+- [x] 2.4 Add the versioned automation action mark and dedicated
         task-map scry mark with validated `%project` JSON/noun
         conversion, `{ "tasks": { "<id>": <task>, ... } }` JSON
         serialization, no duplicated IDs in task values, and no cron
