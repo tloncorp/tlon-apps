@@ -79,7 +79,7 @@
         period.
 - [x] 4.3 Test complete rereads after definition-related and
         execution-related `cron_changed` events.
-- [ ] 4.4 Test serialized delivery, coalesced triggers, trigger
+- [x] 4.4 Test serialized delivery, coalesced triggers, trigger
         arrival during submission, and the worker-exit race.
 - [ ] 4.5 Test read failures, submission failures, retry behavior,
         acknowledgement failures, and gateway shutdown.
